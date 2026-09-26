@@ -1,53 +1,40 @@
 {
     "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
     "language": "typescript",
-    "targets": [
-        "browser",
-        "server"
-    ],
+    "targets": ["browser", "server"],
     "exports": {
-        "./migration/generate": {
+        "./postgres": {
+            "targets": ["server"],
+            "runtimes": ["bun", "workerd"]
+        },
+        "./migration": {
             "targets": ["server"],
             "runtimes": ["bun"]
         },
-        "./postgres": {
-            "targets": [
-                "server"
-            ],
-            "runtimes": [
-                "bun",
-                "workerd"
-            ]
-        },
-        "./migration": {
-            "targets": [
-                "server"
-            ],
-            "runtimes": [
-                "bun"
-            ]
-        },
         "./turso": {
-            "targets": [
-                "server"
-            ],
-            "runtimes": [
-                "bun"
-            ]
+            "targets": ["server"],
+            "runtimes": ["bun"]
         },
         "./turso/serverless": {
-            "targets": [
-                "server"
-            ],
-            "runtimes": [
-                "bun",
-                "workerd"
-            ]
+            "targets": ["server"],
+            "runtimes": ["bun", "workerd"]
+        },
+        "./test": {
+            "targets": ["server"],
+            "runtimes": ["bun"]
         }
     },
-    "runtimes": [
-        "browser",
-        "bun",
-        "workerd"
-    ]
+    "runtimes": ["browser", "bun", "workerd"],
+    "declarations": {
+        "defineDatabase": {
+            "module": 1,
+            "inspect": {
+                "kind": "resource",
+                "describe": "./inspect#describeDatabase"
+            }
+        },
+        "defineTable": {
+            "module": 3
+        }
+    }
 }

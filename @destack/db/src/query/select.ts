@@ -8,6 +8,7 @@ import { type Select, TABLE, type Table } from "../table/table.ts";
 import { Column } from "../table/column.ts";
 import { type DatabaseDriver } from "../database/driver.ts";
 import type { SchemaCompiler } from "../dialect/compiler.ts";
+import type { DrizzleSelect } from "../dialect/drizzle.ts";
 import { selectFields, type Selection, type SelectionResult } from "./selection.ts";
 import type { SOURCE } from "./selection.ts";
 
@@ -22,20 +23,20 @@ export class SelectQuery<
 {
     /** Drizzle's inferred selection and result types. */
     declare readonly _: { selectedFields: Selection; result: Result[] };
-    /** The physical connection. */
-    readonly connection: DatabaseDriver;
-    /** The materialized schema. */
-    readonly schema: SchemaCompiler;
+    /** The native database, its connection state and its transaction. */
+    readonly driver: DatabaseDriver;
+    /** The compiler binding logical tables to the native dialect. */
+    readonly compiler: SchemaCompiler;
     /** The query's source table. */
     readonly table: QuerySource;
     /** The selected fields. */
     readonly fields: Fields;
     /** Whether duplicate rows are removed. */
-    readonly distinct: boolean;
+    readonly isDistinct: boolean;
     /** Common table expressions included in this query. */
     readonly withList: readonly WithSubquery[];
     /** Whether joins include every column of each joined table. */
-    readonly automatic: Automatic;
+    readonly isAutomatic: Automatic;
     /** The joins in evaluation order. */
     readonly joins: {
         readonly kind: "inner" | "left" | "right" | "full" | "cross";
@@ -57,22 +58,24 @@ export class SelectQuery<
 
     /** Retain the selected fields and connection. */
     constructor(
-        connection: DatabaseDriver,
-        schema: SchemaCompiler,
+        driver: DatabaseDriver,
+        compiler: SchemaCompiler,
         table: QuerySource,
         fields: Fields,
-        distinct = false,
-        automatic: Automatic = false as Automatic,
-        withList: readonly WithSubquery[] = [],
+        options: {
+            readonly isDistinct: boolean;
+            readonly isAutomatic: Automatic;
+            readonly withList: readonly WithSubquery[];
+        },
     ) {
         // retain the query definition
-        this.withList = withList;
-        this.automatic = automatic;
-        this.connection = connection;
-        this.schema = schema;
+        this.withList = options.withList;
+        this.isAutomatic = options.isAutomatic;
+        this.driver = driver;
+        this.compiler = compiler;
         this.table = table;
         this.fields = fields;
-        this.distinct = distinct;
+        this.isDistinct = options.isDistinct;
     }
 
     /** Filter rows before grouping. */
@@ -92,7 +95,7 @@ export class SelectQuery<
         NullableTables,
         Automatic
     > {
-        this.join("inner", table, on);
+        this.#join("inner", table, on);
 
         return this as unknown as SelectQuery<
             SelectionResult<JoinFields<Fields, Joined, Automatic>, NullableTables>,
@@ -112,7 +115,7 @@ export class SelectQuery<
         NullableTables | SourceName<Joined>,
         Automatic
     > {
-        this.join("left", table, on);
+        this.#join("left", table, on);
 
         return this as unknown as SelectQuery<
             SelectionResult<
@@ -138,7 +141,7 @@ export class SelectQuery<
         Exclude<FieldTables<Fields>, SourceName<Joined>>,
         Automatic
     > {
-        this.join("right", table, on);
+        this.#join("right", table, on);
 
         return this as unknown as SelectQuery<
             SelectionResult<
@@ -164,7 +167,7 @@ export class SelectQuery<
         FieldTables<Fields> | SourceName<Joined>,
         Automatic
     > {
-        this.join("full", table, on);
+        this.#join("full", table, on);
 
         return this as unknown as SelectQuery<
             SelectionResult<
@@ -186,7 +189,7 @@ export class SelectQuery<
         NullableTables,
         Automatic
     > {
-        this.join("cross", table);
+        this.#join("cross", table);
 
         return this as unknown as SelectQuery<
             SelectionResult<JoinFields<Fields, Joined, Automatic>, NullableTables>,
@@ -197,13 +200,9 @@ export class SelectQuery<
     }
 
     /** Register a joined table and extend an automatic selection. */
-    private join(
-        kind: "inner" | "left" | "right" | "full" | "cross",
-        table: QuerySource,
-        on?: SQL,
-    ): void {
+    #join(kind: "inner" | "left" | "right" | "full" | "cross", table: QuerySource, on?: SQL): void {
         this.joins.push({ kind, table, on });
-        if (this.automatic) {
+        if (this.isAutomatic) {
             Object.assign(this.fields, { [sourceName(table)]: sourceFields(table) });
         }
     }
@@ -245,94 +244,94 @@ export class SelectQuery<
 
     /** Execute and return the first row, if any. */
     async get(): Promise<Result | undefined> {
-        const rows = await this.connection.run(() => this.compile(1));
+        const rows = await this.driver.run(() => this.#compile(1));
 
         return rows[0] as Result | undefined;
     }
 
     /** Execute through the selected dialect's query builder. */
     async execute(): Promise<Result[]> {
-        return (await this.connection.run(() => this.compile())) as Result[];
+        return (await this.driver.run(() => this.#compile())) as Result[];
     }
 
     /** Compile SQL and positional parameters without executing the query. */
     toSQL(): Query {
-        return this.compile().toSQL();
+        return this.#compile().toSQL();
     }
 
     /** Embed this selection as a scalar or predicate subquery. */
     getSQL(): SQL {
-        return this.compile().getSQL();
+        return this.#compile().getSQL();
     }
 
     /** Compile a reusable query with named placeholder values. */
     prepare(): PreparedQuery<Result[]> {
-        const query = this.compile().prepare();
+        const query = this.#compile().prepare();
 
         return {
             execute: async (parameters) => {
-                this.connection.transaction?.assertActive();
+                this.driver.transaction?.assertActive();
 
-                return (await this.connection.run(() => query.execute(parameters))) as Result[];
+                return (await this.driver.run(() => query.execute(parameters))) as Result[];
             },
         };
     }
 
     /** Name a selection for use in FROM or JOIN. */
     as<const Alias extends string>(alias: Alias): SelectedSubquery<Result, Alias> {
-        return this.compile().as(alias) as SelectedSubquery<Result, Alias>;
+        return this.#compile().as(alias) as SelectedSubquery<Result, Alias>;
     }
 
     /** Expose native selected fields for Drizzle common table expressions. */
     getSelectedFields(): Selection {
-        return this.compile().getSelectedFields();
+        return this.#compile().getSelectedFields();
     }
 
     /** Build a native query while retaining its result decoder. */
-    private compile(maximum?: number): NativeSelect {
+    #compile(maximum?: number): DrizzleSelect {
         // reject use after the enclosing transaction finishes
-        this.connection.transaction?.assertActive();
+        this.driver.transaction?.assertActive();
 
         // materialize table aliases before translating selected columns
-        const table = this.table instanceof Subquery ? this.table : this.schema.table(this.table);
+        const table = this.table instanceof Subquery ? this.table : this.compiler.table(this.table);
         for (const join of this.joins) {
             if (!(join.table instanceof Subquery)) {
-                this.schema.table(join.table);
+                this.compiler.table(join.table);
             }
         }
         const selected =
-            this.automatic && this.joins.length === 0 ? sourceFields(this.table) : this.fields;
-        const fields = selectFields(selected, this.schema);
+            this.isAutomatic && this.joins.length === 0 ? sourceFields(this.table) : this.fields;
+        const fields = selectFields(selected, this.compiler);
 
         // select the native compiler once, then apply the common Drizzle operations
-        let query: NativeSelect;
-        if (this.connection.native.dialect === "sqlite") {
-            const database = this.connection.native.database.with(...this.withList);
+        let query: DrizzleSelect;
+        if (this.driver.native.dialect === "sqlite") {
+            const database = this.driver.native.database.with(...this.withList);
             const selection = fields as sqlite.SelectedFields;
-            query = (this.distinct
+            query = (this.isDistinct
                 ? database.selectDistinct(selection)
                 : database.select(selection)
             )
                 .from(table as SQLiteTable)
-                .$dynamic() as unknown as NativeSelect;
-        } else if (this.connection.native.dialect === "postgresql") {
-            const database = this.connection.native.database.with(...this.withList);
+                .$dynamic() as unknown as DrizzleSelect;
+        } else if (this.driver.native.dialect === "postgresql") {
+            const database = this.driver.native.database.with(...this.withList);
             const selection = fields as postgres.SelectedFields;
-            query = (this.distinct
+            query = (this.isDistinct
                 ? database.selectDistinct(selection)
                 : database.select(selection)
             )
                 .from(table as PgTable)
-                .$dynamic() as unknown as NativeSelect;
+                .$dynamic() as unknown as DrizzleSelect;
         } else {
-            return assertNever(this.connection.native);
+            return assertNever(this.driver.native);
         }
 
         // retain join order and native nullability decoding
         for (const join of this.joins) {
             const table =
-                join.table instanceof Subquery ? join.table : this.schema.table(join.table);
-            const on = join.on && this.schema.expression(join.on);
+                join.table instanceof Subquery ? join.table : this.compiler.table(join.table);
+            const on = join.on && this.compiler.expression(join.on);
             switch (join.kind) {
                 case "inner":
                     query = query.innerJoin(table, on);
@@ -357,18 +356,18 @@ export class SelectQuery<
         // apply filters and grouping before ordering and pagination
         const expression = (value: SQLWrapper): SQLWrapper =>
             value instanceof Column
-                ? this.schema.column(value)
+                ? this.compiler.column(value)
                 : value instanceof SQL
-                  ? this.schema.expression(value)
+                  ? this.compiler.expression(value)
                   : value;
         if (this.predicate) {
-            query = query.where(this.schema.expression(this.predicate));
+            query = query.where(this.compiler.expression(this.predicate));
         }
         if (this.groups.length) {
             query = query.groupBy(...this.groups.map(expression));
         }
         if (this.groupPredicate) {
-            query = query.having(this.schema.expression(this.groupPredicate));
+            query = query.having(this.compiler.expression(this.groupPredicate));
         }
         if (this.order.length) {
             query = query.orderBy(...this.order.map(expression));
@@ -395,31 +394,33 @@ export class SelectQuery<
 
 /** A selection awaiting its source table. */
 export class SelectBuilder<Fields extends Selection | undefined = undefined> {
-    /** The physical connection. */
-    readonly connection: DatabaseDriver;
-    /** The materialized schema. */
-    readonly schema: SchemaCompiler;
+    /** The native database, its connection state and its transaction. */
+    readonly driver: DatabaseDriver;
+    /** The compiler binding logical tables to the native dialect. */
+    readonly compiler: SchemaCompiler;
     /** The explicitly selected fields. */
     readonly fields: Fields;
     /** Whether duplicate rows are removed. */
-    readonly distinct: boolean;
+    readonly isDistinct: boolean;
     /** Common table expressions included in this query. */
     readonly withList: readonly WithSubquery[];
 
     /** Retain a partial query. */
     constructor(
-        connection: DatabaseDriver,
-        schema: SchemaCompiler,
+        driver: DatabaseDriver,
+        compiler: SchemaCompiler,
         fields: Fields,
-        distinct = false,
-        withList: readonly WithSubquery[] = [],
+        options: {
+            readonly isDistinct?: boolean;
+            readonly withList?: readonly WithSubquery[];
+        } = {},
     ) {
         // retain the query definition
-        this.withList = withList;
-        this.connection = connection;
-        this.schema = schema;
+        this.withList = options.withList ?? [];
+        this.driver = driver;
+        this.compiler = compiler;
         this.fields = fields;
-        this.distinct = distinct;
+        this.isDistinct = options.isDistinct ?? false;
     }
 
     /** Select rows from a declared table. */
@@ -436,15 +437,17 @@ export class SelectBuilder<Fields extends Selection | undefined = undefined> {
         const fields = this.fields ?? { [sourceName(table)]: sourceFields(table) };
 
         return new SelectQuery(
-            this.connection,
-            this.schema,
+            this.driver,
+            this.compiler,
             table,
             fields as Fields extends Selection
                 ? Fields
                 : Record<SourceName<Definition>, SourceFields<Definition>>,
-            this.distinct,
-            (this.fields === undefined) as Fields extends Selection ? false : true,
-            this.withList,
+            {
+                isDistinct: this.isDistinct,
+                isAutomatic: (this.fields === undefined) as Fields extends Selection ? false : true,
+                withList: this.withList,
+            },
         );
     }
 }
@@ -515,41 +518,7 @@ type SubqueryFields<Result, Alias extends string> = {
             : unknown);
 };
 
-/** Native Drizzle operations shared by SQLite and PostgreSQL selections. */
-interface NativeSelect extends PromiseLike<unknown[]>, SQLWrapper {
-    /** Describe SQL and positional parameters. */
-    toSQL(): Query;
-    /** Prepare a reusable selection. */
-    prepare(): PreparedQuery<unknown[]>;
-    /** Name this selection. */
-    as(alias: string): Subquery;
-    /** Read selected fields and their native decoders. */
-    getSelectedFields(): Selection;
-    /** Join matching rows. */
-    innerJoin(table: SQLiteTable | PgTable | Subquery, on?: SQL): NativeSelect;
-    /** Join matching or null rows. */
-    leftJoin(table: SQLiteTable | PgTable | Subquery, on?: SQL): NativeSelect;
-    /** Join all right rows. */
-    rightJoin(table: SQLiteTable | PgTable | Subquery, on?: SQL): NativeSelect;
-    /** Join all rows on both sides. */
-    fullJoin(table: SQLiteTable | PgTable | Subquery, on?: SQL): NativeSelect;
-    /** Join every combination of rows. */
-    crossJoin(table: SQLiteTable | PgTable | Subquery): NativeSelect;
-    /** Filter selected rows. */
-    where(predicate: SQL): NativeSelect;
-    /** Group selected rows. */
-    groupBy(...expressions: SQLWrapper[]): NativeSelect;
-    /** Filter grouped rows. */
-    having(predicate: SQL): NativeSelect;
-    /** Order selected rows. */
-    orderBy(...expressions: SQLWrapper[]): NativeSelect;
-    /** Limit selected rows. */
-    limit(count: number): NativeSelect;
-    /** Skip selected rows. */
-    offset(count: number): NativeSelect;
-}
-
-/** Read a source's SQL qualifier. */
+/** Read the key a source's fields take in selected rows. */
 function sourceName(source: QuerySource): string {
     return source instanceof Subquery ? source._.alias : source[TABLE].name;
 }

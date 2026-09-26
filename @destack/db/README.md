@@ -1,208 +1,129 @@
-Interact with SQL databases in Destack.
+Declare SQL tables and databases, query them on SQLite and PostgreSQL, and migrate them by plan.
 
-## Usage
+## Tables
+
+A table declares its columns, constraints, log, tree, aggregates, version, previous names and conversions.
 
 ```ts
-import { record, text } from "@destack/db";
+export const note = defineTable(
+    "note",
+    {
+        id: identifier("id", "note").primaryKey(),
+        spaceId: identifier("space_id", "space").notNull(),
+        title: text("title").notNull(),
+    },
+    {
+        constraints: (note) => [index("note_space").on(note.spaceId)],
+        log: { tier: "history", route: "spaceId" },
+        moved: { columns: { title: "name" } },
+        version: 2,
+        convert: { 2: (note) => ({ title: sql`trim(${note.title})` }) },
+    },
+);
+```
 
-const note = record("note", "note", {
-    title: text("title").notNull(),
-});
+## Databases
+
+A database names its tables, supports every dialect, and a resource context connects it.
+
+```ts
+export const main = defineDatabase({ name: "main", tables: [note] });
+
+const database = main.get(context);
+await database.transaction(async (transaction) => transaction.update(note).set({ title: "Changed" }));
+const unapplied = await main.check(database);
 ```
 
 ## Connections
 
-Connections use logical tables and Drizzle query builders for the selected SQL dialect.
+Each entry point opens one kind of database.
+
+| Entry point | Opens |
+|---|---|
+| `@destack/db/turso` | A SQLite file or memory database, as a `SqliteDatabase` |
+| `@destack/db/turso/serverless` | A hosted Turso database |
+| `@destack/db/postgres` | A PostgreSQL server, as a `PostgresDatabase` |
+| `@destack/db/wasm` | A browser SQLite database through a `WasmClient` |
+| `@destack/db/shared` | A database another party owns, over a `Channel` |
+| `@destack/db/channel` | `Channel` and `broadcastChannel`, the message transport of shared databases and `channelNotifier` |
+| `@destack/db/sqlite` | `sqliteProvider(root)`: SQLite files as provisioned resources |
+
+## Plans
+
+A plan takes the states recorded in `__destack_state` to the declared states.
 
 ```ts
-import { connect } from "@destack/db/turso";
+const plan = await planMigration(database, declareState([note], "sqlite"));
+await applyPlan(database, plan);
 
-const database = await connect("space.db", [note]);
-await database.select().from(note);
-await database.close();
+await migrate(database, [note]);
+await migrate(replica, [note], { isReplica: true });
 ```
 
-## Columns
+| Step risk | Example |
+|---|---|
+| `safe` | Add a nullable column |
+| `data-dependent` | Add a unique index |
+| `backward-incompatible` | Rename a table or column |
+| `destructive` | Drop a table |
+
+## Log
+
+Triggers record every committed change of a logged table, and readers follow it by `LogPosition`.
 
 ```ts
-import { bigint, binary, integer, json, numeric, text, timestamp } from "@destack/db";
-
-integer("count"); // safe JavaScript number
-bigint("sequence"); // signed 64-bit bigint
-numeric("amount"); // exact decimal string
-binary("content"); // Uint8Array
-timestamp("time"); // Date, UTC milliseconds
-text("state", { enum: ["open", "closed"] });
-json("value", valueSchema);
-```
-
-SQLite stores exact decimals as text; SQL arithmetic and ordering need explicit dialect expressions.
-Bigints, bytes, and dates use runtime validators; JSON APIs need explicit serializable projections.
-
-## Queries
-
-```ts
-const selected = database.select({ title: note.title }).from(note).as("selected");
-await database.select().from(selected);
-
-const recent = database.$with("recent").as(database.select().from(note));
-await database.with(recent).select().from(recent);
-await database.execute(sql`SELECT 1 AS value`);
-```
-
-## Native queries
-
-```ts
-import * as turso from "@destack/db/turso/schema";
-import * as postgres from "@destack/db/postgres/schema";
-
-const nativeNote = database.schema.table(note);
-await database.native.select().from(nativeNote);
-```
-
-Native queries use Drizzle's dialect-specific API and lifecycle.
-
-## Relations
-
-Declare relationships once; each adapter uses Drizzle's relational query builder.
-
-```ts
-import { defineDatabaseSchema, defineRelations } from "@destack/db";
-
-const relations = defineRelations({ note, comment }, (relation) => ({
-    note: {
-        comments: relation.many.comment({
-            from: relation.note.id,
-            to: relation.comment.noteId,
-        }),
-    },
-}));
-const notes = defineDatabaseSchema({
-    name: "notes",
-    tables: { note, comment },
-    relations,
-    migrations: new URL("./migration/", import.meta.url),
-});
-const database = await connect("space.db", notes);
-const records = await database.query.note.findMany({ with: { comments: true } });
-```
-
-## Resources
-
-```ts
-import { defineDatabase } from "@destack/db/declare";
-
-export const main = defineDatabase({
-    name: "main",
-    spec: { dialect: "sqlite" },
-});
-
-const database = main.get(context, notes);
-await database.select().from(note);
-await database.transaction(async (transaction) => {
-    await transaction.update(note).set({ title: "New title" });
-});
-```
-
-The host supplies the bound connection through the invocation context.
-
-## Transactions
-
-```ts
-await database.transaction(async (transaction) => {
-    await transaction.update(note).set({ title: "Changed" });
-}, { isolationLevel: "serializable", signal: AbortSignal.timeout(5_000) });
-
-await database.close();
-```
-
-Cancellation prevents commit and waits for submitted queries before rollback.
-Closing waits for
-submitted portable queries and transactions, then closes the client once.
-
-## Schemas
-
-Define tables and migrations independently of the database resource.
-
-```ts
-import { defineDatabaseSchema } from "@destack/db";
-import * as tables from "./table/index.ts";
-
-export const notes = defineDatabaseSchema({
-    name: "notes",
-    tables,
-    dependencies: [sharedSchema],
-    migrations: new URL("./migration/", import.meta.url),
-});
-```
-
-## Migrations
-
-Apply committed Drizzle SQL before starting consumers.
-Histories run atomically; statements that cannot run in a transaction are rejected by the engine.
-
-```ts
-import { migrate, prepare } from "@destack/db/migration";
-
-await migrate(database, notes);
-const ready = await prepare(database, [notes]);
-```
-
-```ts
-// migration/20260922000000_backfill/migration.ts
-import { sql, type DatabaseConnection } from "@destack/db";
-
-export async function migrate(database: DatabaseConnection): Promise<void> {
-    await database.execute(sql`UPDATE note SET title = 'Untitled' WHERE title IS NULL`);
+const position = await database.log.position();
+for await (const page of database.log.follow({ tables: [note], after: position.sequence }, signal)) {
+    apply(page.changes);
 }
+await database.log.wait(sequence, signal);
+await database.log.renew();
+await database.transaction(async (transaction) => transaction.log.copying(() => copy(transaction)));
 ```
 
-## Generation
+Readers wake through the connection's `CommitWatch`, fed by its `CommitNotifier`.
 
-Use `@destack/db/migration/generate` with the matching Drizzle Kit version installed.
+| Notifier | Listens | Notifies |
+|---|---|---|
+| PostgreSQL | `LISTEN` on the change channel | `pg_notify` in the change trigger |
+| `channelNotifier(channel)` | Commit messages | Posts a commit message |
+| `pollNotifier(interval)` | The latest sequence | The next poll |
+
+## Aggregates
+
+A child table declares the aggregates its parents hold, and triggers keep them current.
 
 ```ts
-import { generateMigrations } from "@destack/db/migration/generate";
-
-const result = await generateMigrations({
-    module: new URL("./schema.ts", import.meta.url),
-    export: "notes",
-    dialect: "postgresql",
-    name: "add_title",
-});
+aggregates: [
+    { into: () => folder, column: "noteCount", key: "folderId", function: "count", where: { archived: false } },
+    { into: () => folder, column: "lastEditedAt", key: "folderId", function: "max", value: "editedAt" },
+],
 ```
 
-## Trees
+## Shared databases
+
+Parties reach a database through the one owner that serves a `Channel`.
 
 ```ts
-import { defineTree } from "@destack/db/tree";
-import { defineDatabaseSchema } from "@destack/db";
-
-const parent = defineTree({
-    name: "parent", table: node, id: "id", scope: "spaceId", parent: "parentId",
-});
-
-export const schema = defineDatabaseSchema({
-    name: "notes",
-    tables: { node, ancestors: parent.ancestors, revision: parent.revision },
-    trees: [parent],
-    migrations: new URL("./migration/", import.meta.url),
-});
-
-await database.select().from(node).where(parent.descendantsOf(spaceId, noteId));
-await parent.move(spaceId, noteId, folderId, database);
-await parent.remove(spaceId, noteId, "reparent", database);
+const stop = await serveBrowserDatabase("notes", channel);
+const database = connectShared(channel, origin, tables);
 ```
 
-## Inspection
+| Message | From | Meaning |
+|---|---|---|
+| `join` | Party | Ask which owner serves |
+| `serving` | Owner | Name the owner answering from now on |
+| `request` | Party | Run a step on the named owner |
+| `answer` | Owner | Settle one request |
+| `commit` | Any | Wake readers |
+
+## Tests
+
+`TestDatabase` opens an isolated database per dialect in `TEST_DIALECTS`, with PostgreSQL when `DESTACK_TEST_POSTGRES` names a server.
 
 ```ts
-import { describeSchema } from "@destack/db/inspect";
-import { inspectDatabase, inspectMigrations } from "@destack/db/turso/inspect";
-import { describeMigration, readMigrations } from "@destack/db/migration";
-
-const declaration = describeSchema(notes, "sqlite");
-const migrations = (await readMigrations(notes, "sqlite")).map(describeMigration);
-const catalog = await inspectDatabase(database.native);
-const history = await inspectMigrations(database.native, notes);
+test.for(TEST_DIALECTS)("keep notes on %s", async (dialect) => {
+    const test = await TestDatabase.create(dialect, [note]);
+    onTestFinished(() => test.close());
+});
 ```

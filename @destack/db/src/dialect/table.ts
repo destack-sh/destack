@@ -1,5 +1,3 @@
-import type { Many, One } from "drizzle-orm/relations";
-import type { Relation, TableRelations } from "../schema/relation.ts";
 import type { ColumnBaseConfig } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTableWithColumns } from "drizzle-orm/sqlite-core";
 import type { PgColumn, PgTableWithColumns } from "drizzle-orm/pg-core";
@@ -22,30 +20,6 @@ export type NativeTable<Driver extends Dialect, Definition extends Table> = {
         columns: NativeColumns<"postgresql", Definition>;
     }>;
 }[Driver];
-
-/** Native relational queries retaining declared table and relationship types. */
-export type NativeRelations<
-    Driver extends Dialect,
-    Definitions extends Record<string, TableRelations>,
-> = {
-    [Name in keyof Definitions]: {
-        table: NativeTable<Driver, Definitions[Name]["table"]>;
-        name: Name & string;
-        relations: {
-            [
-                Property in keyof Definitions[Name]["relations"]
-            ]: Definitions[Name]["relations"][Property] extends Relation<
-                infer Target,
-                infer Cardinality,
-                infer Optional
-            >
-                ? Cardinality extends "one"
-                    ? One<Target, Optional>
-                    : Many<Target>
-                : never;
-        };
-    };
-};
 
 /** Concrete columns indexed by application property name. */
 type NativeColumns<Driver extends Dialect, Definition extends Table> = {

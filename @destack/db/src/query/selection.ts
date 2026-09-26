@@ -3,6 +3,7 @@ import * as drizzle from "drizzle-orm";
 import { Column } from "../table/column.ts";
 import { type Select, TABLE, Table } from "../table/table.ts";
 import type { SchemaCompiler } from "../dialect/compiler.ts";
+import type { DrizzleSelection } from "../dialect/drizzle.ts";
 
 /** The source qualifier retained by inferred subquery fields. */
 export declare const SOURCE: unique symbol;
@@ -67,33 +68,38 @@ type NullableSelection<
     Name = Names,
 > = Name extends NullableTables ? ([Names] extends [Name] ? null : never) : never;
 
-/** A selection translated to Drizzle fields. */
-export interface NativeSelection {
-    /** A physical column, SQL expression, or nested group. */
-    [property: string]: drizzle.Column | SQL | SQL.Aliased | NativeSelection;
-}
-
 /** Translate selected declarations while retaining property names and nesting. */
-export function selectFields(fields: Selection, schema: SchemaCompiler): NativeSelection {
-    const selection: NativeSelection = {};
+export function selectFields(fields: Selection, compiler: SchemaCompiler): DrizzleSelection {
+    const selection: DrizzleSelection = {};
 
     // preserve SQL objects so their result decoders and aliases remain intact
     for (const [property, field] of Object.entries(fields)) {
+        // translate a logical column
         if (field instanceof Column) {
-            selection[property] = schema.column(field);
-        } else if (field instanceof drizzle.Column) {
+            selection[property] = compiler.column(field);
+        }
+        // keep a native column
+        else if (field instanceof drizzle.Column) {
             selection[property] = field;
-        } else if (field instanceof SQL) {
-            selection[property] = schema.expression(field);
-        } else if (field instanceof SQL.Aliased) {
-            const expression = schema.expression(field.sql);
+        }
+        // translate an expression
+        else if (field instanceof SQL) {
+            selection[property] = compiler.expression(field);
+        }
+        // translate an aliased expression, keeping its alias
+        else if (field instanceof SQL.Aliased) {
+            const expression = compiler.expression(field.sql);
             selection[property] = Object.assign(expression.as(field.fieldAlias), field, {
                 sql: expression,
             });
-        } else if (field instanceof Table) {
-            selection[property] = selectFields(field[TABLE].columns, schema);
-        } else {
-            selection[property] = selectFields(field, schema);
+        }
+        // select every column of a table
+        else if (field instanceof Table) {
+            selection[property] = selectFields(field[TABLE].columns, compiler);
+        }
+        // translate a nested group
+        else {
+            selection[property] = selectFields(field, compiler);
         }
     }
 

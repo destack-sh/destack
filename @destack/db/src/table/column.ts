@@ -1,14 +1,8 @@
 import { assertNever } from "../error/error.ts";
 import { type SQL, sql, type SQLWrapper } from "drizzle-orm";
-import * as schema from "@destack/schema/validate";
-import { defineSchema } from "@destack/schema";
-import * as schemas from "@destack/schema";
+import { defineSchema, schema } from "@destack/schema";
+import * as identifiers from "@destack/schema/identifier";
 import type { Dialect } from "../dialect/dialect.ts";
-
-/** A prefixed UUIDv7 application identifier. */
-export type Identifier<Prefix extends string> = schema.Output<
-    ReturnType<typeof schemas.identifier<Prefix>>
->;
 
 /** A logical SQL column and its application value. */
 export class Column<
@@ -106,6 +100,16 @@ export class ColumnBuilder<
         return new ColumnBuilder({ ...this.definition, nullable: false, primaryKey: true });
     }
 
+    /** Keep the value out of logs, audit details, sync and request fingerprints. */
+    sensitive(): ColumnBuilder<Value, Required, Default, Generated> {
+        return new ColumnBuilder({ ...this.definition, classification: "sensitive" });
+    }
+
+    /** Mark the value as personal data, exported and erased with its subject. */
+    personal(): ColumnBuilder<Value, Required, Default, Generated> {
+        return new ColumnBuilder({ ...this.definition, classification: "personal" });
+    }
+
     /** Require distinct non-null values. */
     unique(name?: string): ColumnBuilder<Value, Required, Default, Generated> {
         return new ColumnBuilder({ ...this.definition, unique: { name } });
@@ -114,9 +118,21 @@ export class ColumnBuilder<
     /** Reference a column in another table. */
     references(
         column: () => Column<Value>,
-        actions: ReferenceActions = {},
+        actions: ReferenceAction = {},
     ): ColumnBuilder<Value, Required, Default, Generated> {
         return new ColumnBuilder({ ...this.definition, reference: { column, ...actions } });
+    }
+
+    /** Validate application values with a narrower schema of the same type. */
+    validate(validator: schema.Schema<Value>): ColumnBuilder<Value, Required, Default, Generated> {
+        const { encode, decode } = this.definition;
+
+        return new ColumnBuilder({
+            ...this.definition,
+            schema: validator,
+            encode: (value, dialect) => encode(validator.parse(value), dialect),
+            decode: (value, dialect) => validator.parse(decode(value, dialect)),
+        });
     }
 
     /** Refine the application's static value type. */
@@ -149,7 +165,7 @@ export interface ColumnDefinition<Value = unknown> {
         | "json"
         | "binary"
         | "bigint"
-        | "decimal"
+        | "numeric"
         | "timestamp";
     /** The physical SQL type for each supported dialect. */
     readonly types: Readonly<Record<Dialect, string>>;
@@ -177,7 +193,9 @@ export interface ColumnDefinition<Value = unknown> {
         readonly mode: "stored" | "virtual";
     };
     /** The referenced column and referential actions. */
-    readonly reference?: ReferenceActions & { readonly column: () => Column<Value> };
+    readonly reference?: ReferenceAction & { readonly column: () => Column<Value> };
+    /** How the value is protected: sensitive values never leave the row, personal ones are exportable and erasable. */
+    readonly classification?: "sensitive" | "personal";
     /** Encode an application value as a driver parameter. */
     encode(value: Value, dialect: Dialect): unknown;
     /** Decode a driver value as an application value. */
@@ -185,7 +203,7 @@ export interface ColumnDefinition<Value = unknown> {
 }
 
 /** Referential actions shared by SQLite and PostgreSQL. */
-export interface ReferenceActions {
+export interface ReferenceAction {
     /** The action when the referenced row is deleted. */
     readonly onDelete?: "cascade" | "restrict" | "no action" | "set null" | "set default";
     /** The action when the referenced key changes. */
@@ -262,22 +280,32 @@ export function boolean(name: string): ColumnBuilder<boolean> {
         encode(value, dialect) {
             const checked = validator.parse(value);
 
+            // store SQLite booleans as zero or one
             if (dialect === "sqlite") {
                 return Number(checked);
-            } else if (dialect === "postgresql") {
+            }
+            // store native PostgreSQL booleans
+            else if (dialect === "postgresql") {
                 return checked;
-            } else {
+            }
+            // reject other dialects
+            else {
                 return assertNever(dialect);
             }
         },
         decode(value, dialect) {
+            // read zero or one from SQLite
             if (dialect === "sqlite") {
                 const checked = integer.parse(typeof value === "bigint" ? Number(value) : value);
 
                 return checked === 1;
-            } else if (dialect === "postgresql") {
+            }
+            // read native PostgreSQL booleans
+            else if (dialect === "postgresql") {
                 return validator.parse(value);
-            } else {
+            }
+            // reject other dialects
+            else {
                 return assertNever(dialect);
             }
         },
@@ -300,21 +328,33 @@ export function json<Validator extends schema.Schema>(
         nullable: true,
         encode(value, dialect) {
             const validated = validator.parse(value);
+
+            // store SQLite JSON as text
             if (dialect === "sqlite") {
                 return JSON.stringify(validated);
-            } else if (dialect === "postgresql") {
+            }
+            // pass PostgreSQL JSON to the driver
+            else if (dialect === "postgresql") {
                 return validated;
-            } else {
+            }
+            // reject other dialects
+            else {
                 return assertNever(dialect);
             }
         },
         decode(value, dialect) {
             let decoded;
+
+            // parse SQLite JSON text
             if (dialect === "sqlite") {
                 decoded = JSON.parse(schema.string().parse(value));
-            } else if (dialect === "postgresql") {
+            }
+            // take parsed PostgreSQL JSON
+            else if (dialect === "postgresql") {
                 decoded = value;
-            } else {
+            }
+            // reject other dialects
+            else {
                 return assertNever(dialect);
             }
 
@@ -325,7 +365,7 @@ export function json<Validator extends schema.Schema>(
 
 /** Define a prefixed UUIDv7 identifier. */
 export function identifier<const Prefix extends string>(name: string, prefix: Prefix) {
-    const validator = schemas.identifier(prefix);
+    const validator = identifiers.identifier(prefix);
 
     return new ColumnBuilder({
         name,
@@ -390,7 +430,7 @@ export function numeric(name: string): ColumnBuilder<string> {
 
     return new ColumnBuilder({
         name,
-        kind: "decimal",
+        kind: "numeric",
         types: { sqlite: "text", postgresql: "numeric" },
         schema: validator,
         nullable: true,
@@ -411,15 +451,22 @@ export function timestamp(name: string): ColumnBuilder<Date> {
         nullable: true,
         encode(value, dialect) {
             const checked = validator.parse(value);
+
+            // store SQLite instants as epoch milliseconds
             if (dialect === "sqlite") {
                 return checked.getTime();
-            } else if (dialect === "postgresql") {
+            }
+            // store PostgreSQL instants as ISO strings
+            else if (dialect === "postgresql") {
                 return checked.toISOString();
-            } else {
+            }
+            // reject other dialects
+            else {
                 return assertNever(dialect);
             }
         },
         decode(value, dialect) {
+            // read SQLite epoch milliseconds
             if (dialect === "sqlite") {
                 return validator.parse(
                     new Date(
@@ -429,11 +476,15 @@ export function timestamp(name: string): ColumnBuilder<Date> {
                             .parse(typeof value === "bigint" ? Number(value) : value),
                     ),
                 );
-            } else if (dialect === "postgresql") {
+            }
+            // read PostgreSQL dates or ISO strings
+            else if (dialect === "postgresql") {
                 return validator.parse(
                     value instanceof Date ? value : new Date(schema.string().parse(value)),
                 );
-            } else {
+            }
+            // reject other dialects
+            else {
                 return assertNever(dialect);
             }
         },

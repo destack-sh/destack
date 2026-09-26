@@ -1,5 +1,5 @@
 import type { SQL } from "drizzle-orm";
-import type { Column, ReferenceActions } from "./column.ts";
+import type { Column, ReferenceAction } from "./column.ts";
 
 /** A table constraint or index. */
 export type TableConstraint = Check | Index | PrimaryKey | Unique | ForeignKey;
@@ -21,7 +21,7 @@ export class Index {
     /** The SQL index name. */
     readonly name: string;
     /** Whether duplicate keys are rejected. */
-    readonly unique: boolean;
+    readonly isUnique: boolean;
     /** The indexed columns or expressions. */
     readonly columns: readonly (Column | SQL)[];
     /** The predicate selecting indexed rows. */
@@ -30,25 +30,25 @@ export class Index {
     /** Declare an index. */
     constructor(
         name: string,
-        unique: boolean,
+        isUnique: boolean,
         columns: readonly (Column | SQL)[] = [],
         predicate?: SQL,
     ) {
         // retain the index definition
         this.name = name;
-        this.unique = unique;
+        this.isUnique = isUnique;
         this.columns = columns;
         this.predicate = predicate;
     }
 
     /** Select indexed columns in order. */
     on(...columns: [Column | SQL, ...(Column | SQL)[]]): Index {
-        return new Index(this.name, this.unique, columns, this.predicate);
+        return new Index(this.name, this.isUnique, columns, this.predicate);
     }
 
     /** Restrict the index to rows matching a predicate. */
     where(predicate: SQL): Index {
-        return new Index(this.name, this.unique, this.columns, predicate);
+        return new Index(this.name, this.isUnique, this.columns, predicate);
     }
 }
 
@@ -94,7 +94,7 @@ export class ForeignKey {
     /** The referenced columns in matching order. */
     readonly foreignColumns: readonly Column[];
     /** The referential actions. */
-    readonly actions: ReferenceActions;
+    readonly actions: ReferenceAction;
 
     /** Declare a foreign key. */
     constructor(
@@ -103,7 +103,7 @@ export class ForeignKey {
             readonly columns: readonly Column[];
             readonly foreignColumns: readonly Column[];
         },
-        actions: ReferenceActions = {},
+        actions: ReferenceAction = {},
     ) {
         // retain the reference columns and actions
         this.name = definition.name;
@@ -113,12 +113,12 @@ export class ForeignKey {
     }
 
     /** Select the action for referenced row deletion. */
-    onDelete(action: NonNullable<ReferenceActions["onDelete"]>): ForeignKey {
+    onDelete(action: NonNullable<ReferenceAction["onDelete"]>): ForeignKey {
         return new ForeignKey(this, { ...this.actions, onDelete: action });
     }
 
     /** Select the action for referenced key updates. */
-    onUpdate(action: NonNullable<ReferenceActions["onUpdate"]>): ForeignKey {
+    onUpdate(action: NonNullable<ReferenceAction["onUpdate"]>): ForeignKey {
         return new ForeignKey(this, { ...this.actions, onUpdate: action });
     }
 }

@@ -1,5 +1,5 @@
 import * as schema from "@destack/schema/validate";
-import { type Insert, type Select, TABLE, type Table } from "../table/table.ts";
+import { type Insert, type Select, TABLE, type Table } from "./table.ts";
 
 /** Validation fields matching an application record. */
 type Shape<Value> = { [Property in keyof Value]-?: schema.Schema<Value[Property]> };

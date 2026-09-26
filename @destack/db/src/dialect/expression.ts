@@ -42,13 +42,20 @@ function compileChunk(
     dialect: Dialect,
     transform?: (chunk: SQLChunk) => SQLChunk,
 ): SQLChunk {
+    // select the dialect's expression
     if (chunk instanceof DialectExpression) {
         return compileExpression(chunk.expressions[dialect], dialect, transform);
-    } else if (chunk instanceof SQL) {
+    }
+    // compile nested fragments
+    else if (chunk instanceof SQL) {
         return compileExpression(chunk, dialect, transform);
-    } else if (Array.isArray(chunk)) {
+    }
+    // compile each listed chunk
+    else if (Array.isArray(chunk)) {
         return chunk.map((value) => compileChunk(value, dialect, transform));
     }
-
-    return transform ? transform(chunk) : chunk;
+    // transform plain chunks
+    else {
+        return transform ? transform(chunk) : chunk;
+    }
 }
