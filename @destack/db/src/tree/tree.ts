@@ -1,4 +1,4 @@
-import { table, TABLE, type Table } from "../table/table.ts";
+import { defineTable, TABLE, type Table } from "../table/table.ts";
 import { text, integer } from "../table/column.ts";
 import { index, unique } from "../table/constraint.ts";
 import { assertNever, DatabaseError } from "../error/index.ts";
@@ -8,11 +8,11 @@ import { sql, type SQL } from "drizzle-orm";
 
 /** A scoped parent relationship with a transactionally maintained ancestor index. */
 export class Tree {
-    /** Immutable application column selection used by migrations and inspection. */
+    /** The immutable column selection that migrations and inspection use. */
     readonly definition: TreeDefinition;
-    /** Indexed ancestry, including each node at depth zero. */
+    /** The ancestor index table, including each node at depth zero. */
     readonly ancestors;
-    /** Serialize concurrent hierarchy writes within one scope. */
+    /** The revision table serializing concurrent hierarchy writes within one scope. */
     readonly revision;
 
     /** Describe an existing application table's tree columns. */
@@ -39,7 +39,8 @@ export class Tree {
 
         // index both ancestor membership and descendant lookup within each scope
         const name = `${definition.table[TABLE].name}_${definition.name}_ancestor`;
-        this.ancestors = table(
+        const owner = { package: definition.table[TABLE].package };
+        this.ancestors = defineTable(
             name,
             {
                 scope: text("scope").notNull(),
@@ -47,17 +48,23 @@ export class Tree {
                 descendant: text("descendant").notNull(),
                 depth: integer("depth").notNull(),
             },
-            (path) => [
-                unique(`${name}_path`).on(path.scope, path.ancestor, path.descendant),
-                index(`${name}_descendant`).on(path.scope, path.descendant, path.ancestor),
-            ],
+            {
+                constraints: (path) => [
+                    unique(`${name}_path`).on(path.scope, path.ancestor, path.descendant),
+                    index(`${name}_descendant`).on(path.scope, path.descendant, path.ancestor),
+                ],
+                log: { tier: "none" },
+            },
+            owner,
         );
 
         // retain the lock row in the ordinary schema and migration snapshots
-        this.revision = table(`${name}_revision`, {
-            scope: text("scope").primaryKey(),
-            revision: integer("revision").notNull(),
-        });
+        this.revision = defineTable(
+            `${name}_revision`,
+            { scope: text("scope").primaryKey(), revision: integer("revision").notNull() },
+            { log: { tier: "none" } },
+            owner,
+        );
     }
 
     /** Describe the physical columns used by generated maintenance SQL. */
@@ -67,12 +74,12 @@ export class Tree {
 
         return {
             name,
-            table: table[TABLE].name,
+            table: table[TABLE].sqlName,
             id: columns[id].definition.name,
             scope: columns[scope].definition.name,
             parent: columns[parent].definition.name,
-            ancestors: this.ancestors[TABLE].name,
-            revision: this.revision[TABLE].name,
+            ancestors: this.ancestors[TABLE].sqlName,
+            revision: this.revision[TABLE].sqlName,
         };
     }
 
@@ -121,6 +128,7 @@ export class Tree {
         parent: string | null,
         database: DatabaseConnection,
     ): Promise<void> {
+        // update the parent and require the node to exist
         const tree = this.describe();
         const rows = await database.execute(sql`UPDATE ${sql.identifier(tree.table)}
             SET ${sql.identifier(tree.parent)} = ${parent}
@@ -155,15 +163,13 @@ export class Tree {
                     SET ${sql.identifier(tree.parent)} = ${rows[0].parent}
                     WHERE ${sql.identifier(tree.scope)} = ${scope} AND ${sql.identifier(tree.parent)} = ${id}`);
                 }
-                // delete deepest descendants first so every deletion preserves the parent invariant
+                // delete the strict descendants in one statement, which checks the parent invariant at its end
                 else if (children === "subtree") {
-                    const descendants = await transaction.execute<{ id: string }>(sql`
-                    SELECT descendant AS id FROM ${sql.identifier(tree.ancestors)}
-                    WHERE scope = ${scope} AND ancestor = ${id} AND depth > 0 ORDER BY depth DESC`);
-                    for (const descendant of descendants) {
-                        await transaction.execute(sql`DELETE FROM ${sql.identifier(tree.table)}
-                        WHERE ${sql.identifier(tree.scope)} = ${scope} AND ${sql.identifier(tree.id)} = ${descendant.id}`);
-                    }
+                    await transaction.execute(sql`DELETE FROM ${sql.identifier(tree.table)}
+                    WHERE ${sql.identifier(tree.scope)} = ${scope} AND ${sql.identifier(tree.id)} IN (
+                        SELECT descendant FROM ${sql.identifier(tree.ancestors)}
+                        WHERE scope = ${scope} AND ancestor = ${id} AND depth > 0
+                    )`);
                 }
                 // leave child rejection to the same constraint that protects ordinary SQL writes
                 else if (children !== "restrict") {
@@ -184,9 +190,9 @@ export type TreeDeletion = "restrict" | "subtree" | "reparent";
 
 /** Columns defining one single-parent tree within each scope. */
 export interface TreeDefinition {
-    /** Stable declaration name used in generated SQL identifiers. */
+    /** The stable declaration name used in generated SQL identifiers. */
     readonly name: string;
-    /** Existing application table. */
+    /** The existing application table. */
     readonly table: Table;
     /** The application property containing the node identity. */
     readonly id: string;
@@ -196,7 +202,15 @@ export interface TreeDefinition {
     readonly parent: string;
 }
 
-/** Declare a tree and its ancestor table without opening a database. */
-export function defineTree(definition: TreeDefinition): Tree {
-    return new Tree(definition);
+/** Include each tree's ancestor and revision tables beside its source table, once. */
+export function expandTrees(tables: readonly Table[]): Table[] {
+    return [
+        ...new Set(
+            tables.flatMap((table) => {
+                const tree = table[TABLE].tree;
+
+                return tree ? [table, tree.ancestors, tree.revision] : [table];
+            }),
+        ),
+    ];
 }

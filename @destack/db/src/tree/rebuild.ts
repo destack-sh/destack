@@ -1,10 +1,16 @@
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { DatabaseError } from "../error/error.ts";
 import type { TreeDescription } from "../inspect/tree.ts";
 
-/** The maximum number of ancestor records written in one statement. */
-const BATCH_SIZE = 128;
+/** The most bound parameters one statement takes, SQLITE_MAX_VARIABLE_NUMBER and below PostgreSQL's 65535. */
+const PARAMETER_LIMIT = 32_766;
+
+/** The bound parameters of one ancestor record: scope, ancestor, descendant and depth. */
+const RECORD_PARAMETERS = 4;
+
+/** The most ancestor records one statement writes. */
+const BATCH_SIZE = Math.floor(PARAMETER_LIMIT / RECORD_PARAMETERS);
 
 /** Rebuild a historical tree index inside the caller's write transaction. */
 export async function rebuildTree(
@@ -12,16 +18,18 @@ export async function rebuildTree(
     tree: TreeDescription,
 ): Promise<void> {
     // require atomic replacement of the derived index
-    if (!database.connection.transaction) {
+    if (!database.driver.transaction) {
         throw new DatabaseError("TRANSACTION_REQUIRED", "tree rebuild requires a transaction");
     }
 
     // protect the source against concurrent parent changes during reconstruction
-    if (database.connection.native.dialect === "postgresql") {
+    if (database.dialect === "postgresql") {
         await database.execute(
             sql`LOCK TABLE ${sql.identifier(tree.table)} IN SHARE ROW EXCLUSIVE MODE`,
         );
     }
+
+    // read every parent link
     const rows = await database.execute<{ id: string; scope: string; parent: string | null }>(
         sql`SELECT ${sql.identifier(tree.id)} AS id, ${sql.identifier(tree.scope)} AS scope,
             ${sql.identifier(tree.parent)} AS parent FROM ${sql.identifier(tree.table)}`,
@@ -65,9 +73,13 @@ export async function rebuildTree(
 
     // write bounded batches without retaining the quadratic ancestor output in memory
     await database.execute(sql`DELETE FROM ${sql.identifier(tree.ancestors)}`);
-    let batch: ReturnType<typeof sql>[] = [];
+    const flush = async (batch: readonly SQL[]) =>
+        database.execute(sql`INSERT INTO ${sql.identifier(tree.ancestors)}
+            (scope, ancestor, descendant, depth) VALUES ${sql.join([...batch], sql`, `)}`);
+    let batch: SQL[] = [];
     for (const [scope, parents] of scopes) {
         for (const descendant of parents.keys()) {
+            // walk each node's chain up to its root
             let ancestor: string | null = descendant;
             let depth = 0;
             while (ancestor !== null) {
@@ -75,15 +87,15 @@ export async function rebuildTree(
                 ancestor = parents.get(ancestor)!;
                 depth++;
                 if (batch.length === BATCH_SIZE) {
-                    await database.execute(sql`INSERT INTO ${sql.identifier(tree.ancestors)}
-                        (scope, ancestor, descendant, depth) VALUES ${sql.join(batch, sql`, `)}`);
+                    await flush(batch);
                     batch = [];
                 }
             }
         }
     }
+
+    // write the last partial batch
     if (batch.length > 0) {
-        await database.execute(sql`INSERT INTO ${sql.identifier(tree.ancestors)}
-            (scope, ancestor, descendant, depth) VALUES ${sql.join(batch, sql`, `)}`);
+        await flush(batch);
     }
 }
