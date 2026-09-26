@@ -80,6 +80,10 @@ const vendorFlotsam: readonly Piece[] = [
             "Renewed for 3 years",
             "Talk to sales to cancel",
             "AI add-on, now included*",
+            "Now priced in credits",
+            "Out of credits",
+            "Credits reset in 12 days",
+            "Unused credits expire",
         ],
     },
     {

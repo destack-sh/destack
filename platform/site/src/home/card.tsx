@@ -1,6 +1,6 @@
 import { fontFamily } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
-import { For } from "@destack/view";
+import { createMemo, For } from "@destack/view";
 
 import { tokens } from "../style/tokens.stylex";
 
@@ -244,6 +244,15 @@ export function DuctTape(properties: {
     const outline =
         "M4 3 L2 6 L5 9 L1 12 L4 15 L1 18 L4 21 L3 23 L68 23 L70 20 L67 17 L71 14 L68 11 L71 8 L68 5 L70 3 Z";
 
+    // keep the last strip on while it peels off, alongside the fresh one going on
+    const strips = createMemo<readonly string[]>((previous) => {
+        const last = previous?.at(-1);
+
+        return last === undefined || last === properties.label
+            ? (previous ?? [properties.label])
+            : [last, properties.label];
+    });
+
     return (
         <svg
             aria-hidden="true"
@@ -252,17 +261,28 @@ export function DuctTape(properties: {
             style={{ left: properties.left }}
             {...stylex.attrs(styles.tape, properties.style)}
         >
-            <path d={outline} {...stylex.attrs(styles.tapeStrip)} />
-            <path d="M7 7 H65" {...stylex.attrs(styles.tapeShine)} />
-            <text
-                x="36"
-                y="15.5"
-                text-anchor="middle"
-                dominant-baseline="central"
-                {...stylex.attrs(styles.tapeText)}
-            >
-                {properties.label}
-            </text>
+            {/* peel the old strip off and slap a fresh one on whenever the label changes */}
+            <For each={strips()}>
+                {(label, index) => (
+                    <g
+                        {...stylex.attrs(
+                            index() < strips().length - 1 ? styles.tapeWorn : styles.tapeFresh,
+                        )}
+                    >
+                        <path d={outline} {...stylex.attrs(styles.tapeStrip)} />
+                        <path d="M7 7 H65" {...stylex.attrs(styles.tapeShine)} />
+                        <text
+                            x="36"
+                            y="15.5"
+                            text-anchor="middle"
+                            dominant-baseline="central"
+                            {...stylex.attrs(styles.tapeText)}
+                        >
+                            {label}
+                        </text>
+                    </g>
+                )}
+            </For>
         </svg>
     );
 }
@@ -284,6 +304,20 @@ const fieldTones: { [field: string]: stylex.Styles | undefined } = {
     BLOCKED: stylex.create({ tone: { color: "#ff6b5b" } }).tone,
     ASKS: tones.keyword,
 };
+
+/** A fresh strip of duct tape slapped across a gap: dropped on large and twisted, then pressed flat. */
+const slap = stylex.keyframes({
+    from: { opacity: 0, transform: "scale(1.4) rotate(-10deg)" },
+    "60%": { opacity: 1, transform: "scale(0.95) rotate(2deg)" },
+    to: { opacity: 1, transform: "none" },
+});
+
+/** A worn strip of duct tape peeling away from its left end as its silo sinks: lifting, curling, and falling off. */
+const peel = stylex.keyframes({
+    from: { opacity: 1, transform: "none" },
+    "40%": { opacity: 1, transform: "rotate(-14deg) scale(0.97)" },
+    to: { opacity: 0, transform: "translate(6px, 18px) rotate(-32deg) scale(0.85)" },
+});
 
 /** The card styles. */
 const styles = stylex.create({
@@ -538,6 +572,25 @@ const styles = stylex.create({
         stroke: "#f1f3f4",
         strokeWidth: 1.25,
         vectorEffect: "non-scaling-stroke",
+    },
+    tapeFresh: {
+        animationDelay: "1100ms",
+        animationDuration: "450ms",
+        animationFillMode: "backwards",
+        animationName: slap,
+        animationTimingFunction: "cubic-bezier(0.3, 1.4, 0.5, 1)",
+        transformBox: "fill-box",
+        transformOrigin: "center",
+        "@media (prefers-reduced-motion: reduce)": { animationName: "none" },
+    },
+    tapeWorn: {
+        animationDuration: "500ms",
+        animationFillMode: "forwards",
+        animationName: peel,
+        animationTimingFunction: "cubic-bezier(0.5, 0, 0.9, 0.6)",
+        transformBox: "fill-box",
+        transformOrigin: "0% 50%",
+        "@media (prefers-reduced-motion: reduce)": { animationName: "none", opacity: 0 },
     },
     tapeText: {
         fill: "#0b1a20",

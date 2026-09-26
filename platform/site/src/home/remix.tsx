@@ -29,147 +29,182 @@ const flipTime = 1200;
 /** The milliseconds cards take to travel between places. */
 const moveTime = 1400;
 
-/** The humans, agents, and apps the scenes arrange. */
+/** The humans, agents, silos, and apps the scenes arrange. */
 const entities: Record<string, Entity> = {
+    // people
     you: { label: "You", icon: "user", role: "Human", tint: "#2f7d8c" },
-    colleague: { label: "Colleague", icon: "user", role: "Human", tint: "#a0485f" },
-    friend: { label: "Friend", icon: "user", role: "Human", tint: "#5b7f2e" },
-    agent: { label: "Agent", icon: "agent", role: "Agent", tint: "#6b5ca5" },
+    cofounder: { label: "Cofounder", icon: "user", role: "Human", tint: "#a0485f" },
+    designer: { label: "Designer", icon: "user", role: "Human", tint: "#5b7f2e" },
     client: { label: "Client", icon: "user", role: "Guest", tint: "#8a6d3b" },
+    candidate: { label: "Candidate", icon: "user", role: "Guest", tint: "#7a6aa8" },
+    investor: { label: "Investor", icon: "user", role: "Guest", tint: "#3f6f73" },
     partner: { label: "Partner", icon: "user", role: "Family", tint: "#b0567f" },
+    roommate: { label: "Roommate", icon: "user", role: "Friend", tint: "#6d7f3a" },
+
+    // agents
+    agent: { label: "Agent", icon: "agent", role: "Agent", tint: "#6b5ca5" },
     chatgpt: { label: "ChatGPT", icon: "openai", role: "Agent", tint: "#10a37f" },
     claude: { label: "Claude", icon: "claude", role: "Agent", tint: "#d97757" },
+
+    // silos, at the list price of their recommended plan, billed yearly
     notion: {
         label: "Notion",
         icon: "notion",
-        role: "$10/seat/mo",
+        role: "$20/seat/mo + credits",
         tint: "#ffffff",
         glyph: "#191919",
     },
-    slack: { label: "Slack", icon: "slack", role: "$8.75/seat/mo", tint: "#4a154b" },
-    github: { label: "GitHub", icon: "github", role: "$4/seat/mo", tint: "#24292f" },
-    linear: { label: "Linear", icon: "linear", role: "$8/seat/mo", tint: "#5e6ad2" },
-    figma: { label: "Figma", icon: "figma", role: "$16/seat/mo", tint: "#f24e1e" },
-    vibe: { label: "Your planner", icon: "tasks", role: "Homemade", tint: "#b8862b" },
+    airtable: {
+        label: "Airtable",
+        icon: "airtable",
+        role: "$45/seat/mo + credits",
+        tint: "#18bfff",
+    },
+    typeform: { label: "Typeform", icon: "typeform", role: "$91/mo + credits", tint: "#262627" },
+    dropbox: { label: "Dropbox", icon: "dropbox", role: "$18/seat/mo", tint: "#0061ff" },
+    figma: { label: "Figma", icon: "figma", role: "$55/seat/mo + credits", tint: "#f24e1e" },
+    slack: { label: "Slack", icon: "slack", role: "$15/seat/mo", tint: "#4a154b" },
+    loom: { label: "Loom", icon: "loom", role: "$15/seat/mo", tint: "#625df5" },
+    gdocs: { label: "Google Docs", icon: "googledocs", role: "$14/seat/mo", tint: "#4285f4" },
+    calendly: { label: "Calendly", icon: "calendly", role: "$16/seat/mo", tint: "#006bff" },
+    linear: { label: "Linear", icon: "linear", role: "$16/seat/mo + credits", tint: "#5e6ad2" },
+    github: { label: "GitHub", icon: "github", role: "$21/seat/mo + credits", tint: "#24292f" },
+    homemade: { label: "Your app", icon: "tasks", role: "Homemade", tint: "#b8862b" },
+
+    // apps
     pages: { label: "Pages", icon: "pages", role: "App", tint: "#3d6fb0" },
+    notes: { label: "Notes", icon: "file", role: "App", tint: "#b8862b" },
     chat: { label: "Chat", icon: "chat", role: "App", tint: "#4f8a5b" },
-    tasks: { label: "Tasks", icon: "tasks", role: "App", tint: "#b8862b" },
-    planner: { label: "Planner", icon: "tasks", role: "Fork of Tasks", tint: "#b8862b" },
+    tasks: { label: "Tasks", icon: "tasks", role: "App", tint: "#c64a17" },
+    source: { label: "Source", icon: "source", role: "App", tint: "#24292f" },
+    crm: { label: "CRM", icon: "user", role: "App", tint: "#a0485f" },
+    forms: { label: "Forms", icon: "template", role: "App", tint: "#6b5ca5" },
+    calendar: { label: "Calendar", icon: "calendar", role: "App", tint: "#c64a17" },
+    sheets: { label: "Sheets", icon: "table", role: "App", tint: "#4f8a5b" },
+    mail: { label: "Mail", icon: "mail", role: "App", tint: "#3d6fb0" },
+    expenses: { label: "Expenses", icon: "vault", role: "App", tint: "#8a6d3b" },
+    files: { label: "Files", icon: "bucket", role: "App", tint: "#2f7d8c" },
+
+    // remixes, each named after the apps it joins
     standup: { label: "Standup", icon: "chat", role: "Chat + Tasks", tint: "#4f8a5b" },
-    wiki: { label: "Wiki", icon: "pages", role: "Pages + Chat", tint: "#3d6fb0" },
-    calendar: { label: "Calendar", icon: "calendar", role: "From a template", tint: "#c64a17" },
-    journal: { label: "Journal", icon: "pages", role: "Fork of Pages", tint: "#3d6fb0" },
-    inbox: { label: "Inbox", icon: "mail", role: "App", tint: "#4f8a5b" },
+    incidents: {
+        label: "Incidents",
+        icon: "notify",
+        role: "Chat + Tasks + Source",
+        tint: "#c64a17",
+    },
+    feedback: {
+        label: "Feedback loop",
+        icon: "sync",
+        role: "Forms + Tasks + CRM",
+        tint: "#6b5ca5",
+    },
+    hiring: { label: "Hiring", icon: "user", role: "Forms + CRM + Calendar", tint: "#a0485f" },
+    update: {
+        label: "Investor update",
+        icon: "vector",
+        role: "Sheets + Pages + Mail",
+        tint: "#3f6f73",
+    },
+    invoices: { label: "Invoices", icon: "table", role: "Sheets + CRM + Mail", tint: "#8a6d3b" },
+    household: {
+        label: "Household",
+        icon: "storage",
+        role: "Sheets + Expenses + Files",
+        tint: "#2f7d8c",
+    },
+    contacts: {
+        label: "Personal CRM",
+        icon: "user",
+        role: "Notes + Calendar + Mail",
+        tint: "#b0567f",
+    },
 };
 
-/** What each card shows under the searchlight today: every separate access a person needs, or ciphertext. */
-const todayReveals: { [id: string]: Reveal | undefined } = {
-    you: {
-        kind: "fields",
-        rows: [
-            ["Notion", "2FA code"],
-            ["Slack", "magic link"],
-            ["GitHub", "SSO"],
-        ],
-    },
-    colleague: {
-        kind: "fields",
-        rows: [
-            ["Notion", "seat pending"],
-            ["Slack", "guest"],
-            ["GitHub", "no seat"],
-        ],
-    },
-    friend: {
-        kind: "fields",
-        rows: [
-            ["Notion", "public link"],
-            ["Slack", "no access"],
-            ["GitHub", "no access"],
-        ],
-    },
-    client: {
-        kind: "fields",
-        rows: [
-            ["Notion", "guest invite"],
-            ["Slack", "shared channel"],
-            ["GitHub", "no access"],
-        ],
-    },
-    partner: {
-        kind: "fields",
-        rows: [
-            ["Notion", "no seat"],
-            ["Slack", "no access"],
-            ["GitHub", "no access"],
-        ],
-    },
-    agent: {
-        kind: "fields",
-        rows: [
-            ["Notion API", "403"],
-            ["Slack history", "paid tier"],
-            ["GitHub MCP", "allowed"],
-        ],
-    },
-    chatgpt: {
-        kind: "fields",
-        rows: [
-            ["Notion", "connector"],
-            ["Slack", "read only"],
-            ["GitHub", "no access"],
-        ],
-    },
-    claude: {
-        kind: "fields",
-        rows: [
-            ["Notion", "MCP token"],
-            ["Slack", "no access"],
-            ["GitHub", "MCP token"],
-        ],
-    },
-    notion: { kind: "cipher" },
-    slack: { kind: "cipher" },
-    github: { kind: "cipher" },
-    linear: { kind: "cipher" },
-    figma: { kind: "cipher" },
-    vibe: {
-        kind: "fields",
-        rows: [
-            ["Supabase", "$25/mo"],
-            ["Vercel", "$20/mo"],
-            ["Clerk", "$25/mo"],
-        ],
-    },
+/** The apps each remix joins, in the order its role names them. */
+const remixes: Readonly<Record<string, readonly string[]>> = {
+    standup: ["chat", "tasks"],
+    incidents: ["chat", "tasks", "source"],
+    feedback: ["forms", "tasks", "crm"],
+    hiring: ["forms", "crm", "calendar"],
+    update: ["sheets", "pages", "mail"],
+    invoices: ["sheets", "crm", "mail"],
+    household: ["sheets", "expenses", "files"],
+    contacts: ["notes", "calendar", "mail"],
+};
+
+/** How each person or agent gets into the silos of a locked scene today, one line per silo from left to right. */
+const todayAccess: Readonly<Record<string, readonly [string, string, string]>> = {
+    you: ["2FA code", "magic link", "SSO"],
+    cofounder: ["admin", "seat pending", "billing owner"],
+    designer: ["guest", "no seat", "viewer"],
+    client: ["guest invite", "shared channel", "no access"],
+    candidate: ["public form", "no access", "email only"],
+    investor: ["PDF export", "no access", "forwarded"],
+    partner: ["no seat", "no access", "your password"],
+    roommate: ["public link", "no access", "no access"],
+    agent: ["API 403", "paid tier", "MCP token"],
+    chatgpt: ["connector", "read only", "no access"],
+    claude: ["MCP token", "no access", "connector"],
+};
+
+/** The agent's balance in each silo that meters its AI in credits. */
+const creditBalances: Readonly<Record<string, string>> = {
+    notion: "12 credits left",
+    figma: "out of credits",
+    airtable: "resets in 9 days",
+    linear: "top up $10",
+    github: "out of AI credits",
+    typeform: "enrichment credits",
+    homemade: "out of credits",
+};
+
+/** What the homemade app rents under the searchlight today. */
+const homemadeReveal: Reveal = {
+    kind: "fields",
+    rows: [
+        ["Lovable", "credits"],
+        ["Supabase", "$25/mo"],
+        ["Vercel", "$20/seat/mo"],
+    ],
 };
 
 /** What each card shows under the searchlight with Destack: one identity and its grants, or the app's source. */
 const openReveals: { [id: string]: Reveal | undefined } = {
+    // one account each, with just the grants it needs
     you: {
         kind: "fields",
         rows: [
             ["account", "one"],
             ["apps", "owner"],
-            ["agents", "2 granted"],
+            ["agents", "3 granted"],
         ],
     },
-    colleague: {
+    cofounder: {
+        kind: "fields",
+        rows: [
+            ["account", "one"],
+            ["tasks", "admin"],
+            ["crm", "edit"],
+        ],
+    },
+    designer: {
         kind: "fields",
         rows: [
             ["account", "one"],
             ["tasks", "edit"],
-            ["pages", "comment"],
-        ],
-    },
-    friend: {
-        kind: "fields",
-        rows: [
-            ["account", "one"],
-            ["pages", "view"],
-            ["chat", "post"],
+            ["source", "review"],
         ],
     },
     client: {
+        kind: "fields",
+        rows: [
+            ["account", "guest"],
+            ["forms", "submit"],
+            ["the rest", "hidden"],
+        ],
+    },
+    candidate: {
         kind: "fields",
         rows: [
             ["account", "guest"],
@@ -177,88 +212,132 @@ const openReveals: { [id: string]: Reveal | undefined } = {
             ["the rest", "hidden"],
         ],
     },
+    investor: {
+        kind: "fields",
+        rows: [
+            ["account", "guest"],
+            ["update", "read"],
+            ["the rest", "hidden"],
+        ],
+    },
     partner: {
         kind: "fields",
         rows: [
             ["account", "one"],
-            ["calendar", "edit"],
-            ["journal", "read"],
+            ["household", "edit"],
+            ["contacts", "read"],
+        ],
+    },
+    roommate: {
+        kind: "fields",
+        rows: [
+            ["account", "one"],
+            ["household", "edit"],
+            ["the rest", "hidden"],
         ],
     },
     agent: {
         kind: "fields",
         rows: [
             ["tasks", "triage"],
-            ["pages", "read"],
+            ["source", "read"],
+            ["deploy", "asks first"],
+        ],
+    },
+    chatgpt: {
+        kind: "fields",
+        rows: [
+            ["sheets", "analyse"],
+            ["mail", "draft"],
             ["send", "asks first"],
         ],
     },
     claude: {
         kind: "fields",
         rows: [
-            ["inbox", "triage"],
-            ["wiki", "read"],
+            ["incidents", "triage"],
+            ["crm", "read"],
             ["send", "asks first"],
         ],
     },
-    chatgpt: {
-        kind: "fields",
-        rows: [
-            ["tasks", "plan"],
-            ["inbox", "read"],
-            ["delete", "asks first"],
-        ],
-    },
-    pages: {
-        kind: "code",
-        name: "pages.tsx",
-        lines: ["export function Pages() {", "  return <List of={pages} />;", "}"],
-    },
-    chat: {
-        kind: "code",
-        name: "chat.tsx",
-        lines: ["export function Chat() {", "  return <Thread of={messages} />;", "}"],
-    },
-    tasks: {
-        kind: "code",
-        name: "tasks.tsx",
-        lines: ["export function Tasks() {", "  return <List of={tasks} />;", "}"],
-    },
-    standup: {
-        kind: "code",
-        name: "standup.tsx",
-        lines: ["<Split>", "  <Chat /> <Tasks due={today} />", "</Split>"],
-    },
-    planner: {
-        kind: "code",
-        name: "planner.diff",
-        lines: ["fork of @you/tasks", "- <List of={tasks} />", "+ <Week of={tasks} />"],
-    },
-    wiki: { kind: "code", name: "wiki.tsx", lines: ["<Pages>", "  <Chat thread />", "</Pages>"] },
-    calendar: {
-        kind: "code",
-        name: "destack new",
-        lines: ["$ destack new calendar", "from @destack/calendar", "ready in 2s"],
-    },
-    journal: {
-        kind: "code",
-        name: "journal.diff",
-        lines: ["fork of @you/pages", "- <List of={pages} />", "+ <Days of={pages} />"],
-    },
-    inbox: {
-        kind: "code",
-        name: "inbox.tsx",
-        lines: ["export function Inbox() {", "  return <Thread of={mail} />;", "}"],
-    },
+
+    // the apps' own source
+    pages: code("pages.tsx", "export function Pages() {", "  return <List of={pages} />;", "}"),
+    notes: code("notes.tsx", "export function Notes() {", "  return <List of={notes} />;", "}"),
+    chat: code("chat.tsx", "export function Chat() {", "  return <Thread of={messages} />;", "}"),
+    tasks: code("tasks.tsx", "export function Tasks() {", "  return <Board of={tasks} />;", "}"),
+    source: code("source.tsx", "export function Source() {", "  return <Log of={commits} />;", "}"),
+    crm: code("crm.tsx", "export function Crm() {", "  return <List of={people} />;", "}"),
+    forms: code("forms.tsx", "export function Forms() {", "  return <Form of={fields} />;", "}"),
+    calendar: code(
+        "calendar.tsx",
+        "export function Calendar() {",
+        "  return <Month of={events} />;",
+        "}",
+    ),
+    sheets: code("sheets.tsx", "export function Sheets() {", "  return <Grid of={cells} />;", "}"),
+    mail: code("mail.tsx", "export function Mail() {", "  return <Thread of={mail} />;", "}"),
+    expenses: code(
+        "expenses.tsx",
+        "export function Expenses() {",
+        "  return <Ledger of={costs} />;",
+        "}",
+    ),
+    files: code("files.tsx", "export function Files() {", "  return <List of={files} />;", "}"),
+
+    // each remix, joining its apps' data
+    standup: code("standup.tsx", "<Split>", "  <Chat /> <Tasks due={today} />", "</Split>"),
+    incidents: code(
+        "incidents.tsx",
+        "<Room of={alert}>",
+        "  <Chat /> <Tasks /> <Commits />",
+        "</Room>",
+    ),
+    feedback: code(
+        "feedback.ts",
+        'forms.on("submit", (reply) =>',
+        "  tasks.create({ for: reply.customer })",
+        ");",
+    ),
+    hiring: code(
+        "hiring.tsx",
+        "<Pipeline of={candidates}>",
+        "  <Form /> <Calendar book />",
+        "</Pipeline>",
+    ),
+    update: code(
+        "update.tsx",
+        "<Update month={last}>",
+        "  <Chart of={sheets.metrics} />",
+        "</Update>",
+    ),
+    invoices: code(
+        "invoices.ts",
+        "crm.clients.map((client) =>",
+        "  mail.send(invoice(client.hours))",
+        ");",
+    ),
+    household: code(
+        "household.tsx",
+        "<Split between={flatmates}>",
+        "  <Expenses /> <Files of={receipts} />",
+        "</Split>",
+    ),
+    contacts: code(
+        "contacts.tsx",
+        "<People sort={lastSpoke}>",
+        "  <Notes /> <Calendar /> <Mail />",
+        "</People>",
+    ),
 };
 
 /** Every card the scenes can show. */
 const ids = Object.keys(entities);
 /** The silos each iceberg carries in turn, from the left berg to the right. */
 export const slotApps: readonly (readonly string[])[] = [
-    ["notion", "linear"],
-    ["slack", "figma"],
-    ["github", "vibe"],
+    ["notion", "figma", "typeform", "airtable", "dropbox"],
+    ["slack", "loom", "calendly", "gdocs"],
+    ["linear", "github", "homemade"],
 ];
 /** The iceberg each silo rides. */
 const slots = new Map(slotApps.flatMap((apps, slot) => apps.map((id) => [id, slot] as const)));
@@ -268,18 +347,8 @@ const vendors = [...slots.keys()];
 const swapDelay = 1000;
 /** The milliseconds a silo waits to land on the reformed ice after the water returns. */
 const landingDelay = 2700;
-/** The open apps, which anyone can fork. */
-const apps = [
-    "pages",
-    "chat",
-    "tasks",
-    "planner",
-    "standup",
-    "wiki",
-    "calendar",
-    "journal",
-    "inbox",
-];
+/** The open apps and remixes, which anyone can fork. */
+const apps = ids.filter((id) => entities[id].role === "App" || id in remixes);
 
 /** One arrangement of the top two layers. */
 type Scene = {
@@ -293,359 +362,219 @@ type Scene = {
 
 /** The locked stack today, one change per step: a silo swaps on its iceberg or someone new signs in, and the logins reshuffle. */
 export const todayScenes: readonly Scene[] = [
-    {
-        upper: ["you", "colleague", "friend", "agent"],
-        lower: [
-            { id: "notion", span: 1 },
-            { id: "slack", span: 1 },
-            { id: "github", span: 1 },
-        ],
-        links: [
-            ["you", "notion"],
-            ["colleague", "slack"],
-            ["friend", "notion"],
-            ["agent", "github"],
-        ],
-    },
-    {
-        upper: ["you", "colleague", "friend", "agent"],
-        lower: [
-            { id: "notion", span: 1 },
-            { id: "slack", span: 1 },
-            { id: "vibe", span: 1 },
-        ],
-        links: [
-            ["you", "vibe"],
-            ["colleague", "slack"],
-            ["friend", "notion"],
-            ["agent", "slack"],
-        ],
-    },
-    {
-        upper: ["you", "colleague", "friend", "chatgpt"],
-        lower: [
-            { id: "notion", span: 1 },
-            { id: "slack", span: 1 },
-            { id: "vibe", span: 1 },
-        ],
-        links: [
-            ["you", "notion"],
-            ["colleague", "slack"],
-            ["friend", "slack"],
-            ["chatgpt", "vibe"],
-        ],
-    },
-    {
-        upper: ["you", "colleague", "friend", "chatgpt"],
-        lower: [
-            { id: "linear", span: 1 },
-            { id: "slack", span: 1 },
-            { id: "vibe", span: 1 },
-        ],
-        links: [
-            ["you", "linear"],
-            ["colleague", "linear"],
-            ["friend", "slack"],
-            ["chatgpt", "slack"],
-        ],
-    },
-    {
-        upper: ["you", "colleague", "client", "chatgpt"],
-        lower: [
-            { id: "linear", span: 1 },
-            { id: "slack", span: 1 },
-            { id: "vibe", span: 1 },
-        ],
-        links: [
-            ["you", "vibe"],
-            ["colleague", "linear"],
-            ["client", "slack"],
-            ["chatgpt", "linear"],
-        ],
-    },
-    {
-        upper: ["you", "colleague", "client", "chatgpt"],
-        lower: [
-            { id: "linear", span: 1 },
-            { id: "figma", span: 1 },
-            { id: "vibe", span: 1 },
-        ],
-        links: [
-            ["you", "figma"],
-            ["colleague", "linear"],
-            ["client", "figma"],
-            ["chatgpt", "vibe"],
-        ],
-    },
-    {
-        upper: ["you", "colleague", "client", "claude"],
-        lower: [
-            { id: "linear", span: 1 },
-            { id: "figma", span: 1 },
-            { id: "vibe", span: 1 },
-        ],
-        links: [
-            ["you", "linear"],
-            ["colleague", "figma"],
-            ["client", "figma"],
-            ["claude", "vibe"],
-        ],
-    },
-    {
-        upper: ["you", "colleague", "client", "claude"],
-        lower: [
-            { id: "linear", span: 1 },
-            { id: "figma", span: 1 },
-            { id: "github", span: 1 },
-        ],
-        links: [
-            ["you", "github"],
-            ["colleague", "figma"],
-            ["client", "linear"],
-            ["claude", "github"],
-        ],
-    },
-    {
-        upper: ["you", "colleague", "friend", "claude"],
-        lower: [
-            { id: "linear", span: 1 },
-            { id: "figma", span: 1 },
-            { id: "github", span: 1 },
-        ],
-        links: [
-            ["you", "figma"],
-            ["colleague", "github"],
-            ["friend", "linear"],
-            ["claude", "figma"],
-        ],
-    },
-    {
-        upper: ["you", "colleague", "friend", "claude"],
-        lower: [
-            { id: "notion", span: 1 },
-            { id: "figma", span: 1 },
-            { id: "github", span: 1 },
-        ],
-        links: [
-            ["you", "notion"],
-            ["colleague", "figma"],
-            ["friend", "notion"],
-            ["claude", "github"],
-        ],
-    },
-    {
-        upper: ["you", "colleague", "friend", "agent"],
-        lower: [
-            { id: "notion", span: 1 },
-            { id: "figma", span: 1 },
-            { id: "github", span: 1 },
-        ],
-        links: [
-            ["you", "github"],
-            ["colleague", "notion"],
-            ["friend", "figma"],
-            ["agent", "notion"],
-        ],
-    },
-    {
-        upper: ["you", "colleague", "friend", "agent"],
-        lower: [
-            { id: "notion", span: 1 },
-            { id: "slack", span: 1 },
-            { id: "github", span: 1 },
-        ],
-        links: [
-            ["you", "slack"],
-            ["colleague", "github"],
-            ["friend", "notion"],
-            ["agent", "slack"],
-        ],
-    },
+    locked(
+        ["you", "cofounder", "designer", "agent"],
+        ["notion", "slack", "linear"],
+        ["notion", "slack", "linear", "linear"],
+    ),
+    locked(
+        ["you", "cofounder", "designer", "agent"],
+        ["notion", "slack", "github"],
+        ["notion", "slack", "slack", "github"],
+    ),
+    locked(
+        ["you", "cofounder", "designer", "agent"],
+        ["figma", "slack", "github"],
+        ["github", "slack", "figma", "github"],
+    ),
+    locked(
+        ["you", "cofounder", "designer", "claude"],
+        ["figma", "loom", "github"],
+        ["figma", "loom", "figma", "github"],
+    ),
+    locked(
+        ["you", "cofounder", "client", "claude"],
+        ["figma", "loom", "github"],
+        ["loom", "github", "figma", "github"],
+    ),
+    locked(
+        ["you", "cofounder", "client", "claude"],
+        ["typeform", "loom", "linear"],
+        ["linear", "loom", "typeform", "linear"],
+    ),
+    locked(
+        ["you", "cofounder", "candidate", "claude"],
+        ["typeform", "calendly", "linear"],
+        ["calendly", "linear", "typeform", "calendly"],
+    ),
+    locked(
+        ["you", "cofounder", "investor", "chatgpt"],
+        ["airtable", "calendly", "homemade"],
+        ["airtable", "homemade", "calendly", "airtable"],
+    ),
+    locked(
+        ["you", "cofounder", "investor", "chatgpt"],
+        ["airtable", "gdocs", "homemade"],
+        ["homemade", "gdocs", "gdocs", "airtable"],
+    ),
+    locked(
+        ["you", "partner", "roommate", "chatgpt"],
+        ["airtable", "gdocs", "homemade"],
+        ["airtable", "gdocs", "airtable", "homemade"],
+    ),
+    locked(
+        ["you", "partner", "roommate", "chatgpt"],
+        ["dropbox", "gdocs", "homemade"],
+        ["dropbox", "gdocs", "dropbox", "homemade"],
+    ),
+    locked(
+        ["you", "partner", "roommate", "agent"],
+        ["dropbox", "slack", "linear"],
+        ["slack", "dropbox", "slack", "linear"],
+    ),
 ];
 
-/** The open loop: everyone shares the apps, and one change at a time merges, splits, forks, or adds an app, or someone joins. */
+/** The open loop: everyone shares the apps, and each step joins apps into a remix or brings the next set of apps in. */
 export const scenes: readonly Scene[] = [
-    {
-        upper: ["you", "colleague", "friend", "agent"],
-        lower: [
-            { id: "pages", span: 1 },
-            { id: "chat", span: 1 },
-            { id: "tasks", span: 1 },
-        ],
-        links: [
-            ["you", "pages"],
-            ["you", "tasks"],
-            ["colleague", "chat"],
-            ["colleague", "tasks"],
-            ["friend", "pages"],
-            ["agent", "tasks"],
-        ],
-    },
-    {
-        upper: ["you", "colleague", "friend", "agent"],
-        lower: [
-            { id: "pages", span: 1 },
-            { id: "standup", span: 2 },
-        ],
-        links: [
-            ["you", "standup"],
-            ["colleague", "standup"],
-            ["friend", "pages"],
-            ["agent", "standup"],
-        ],
-    },
-    {
-        upper: ["you", "colleague", "friend", "claude"],
-        lower: [
-            { id: "pages", span: 1 },
-            { id: "chat", span: 1 },
-            { id: "planner", span: 1 },
-        ],
-        links: [
-            ["you", "planner"],
-            ["colleague", "chat"],
-            ["friend", "pages"],
-            ["claude", "planner"],
-        ],
-    },
-    {
-        upper: ["you", "colleague", "friend", "claude"],
-        lower: [
-            { id: "wiki", span: 2 },
-            { id: "planner", span: 1 },
-        ],
-        links: [
-            ["you", "wiki"],
-            ["colleague", "wiki"],
-            ["friend", "wiki"],
-            ["claude", "planner"],
-        ],
-    },
-    {
-        upper: ["you", "colleague", "client", "claude"],
-        lower: [
-            { id: "wiki", span: 2 },
-            { id: "calendar", span: 1 },
-        ],
-        links: [
-            ["you", "calendar"],
-            ["colleague", "wiki"],
-            ["client", "calendar"],
-            ["claude", "wiki"],
-        ],
-    },
-    {
-        upper: ["you", "partner", "client", "claude"],
-        lower: [
-            { id: "journal", span: 1 },
-            { id: "inbox", span: 1 },
-            { id: "calendar", span: 1 },
-        ],
-        links: [
-            ["you", "journal"],
-            ["you", "inbox"],
-            ["partner", "calendar"],
-            ["client", "inbox"],
-            ["claude", "inbox"],
-        ],
-    },
-    {
-        upper: ["you", "partner", "client", "chatgpt"],
-        lower: [
-            { id: "journal", span: 1 },
-            { id: "inbox", span: 1 },
-            { id: "tasks", span: 1 },
-        ],
-        links: [
-            ["you", "tasks"],
-            ["partner", "tasks"],
-            ["client", "inbox"],
-            ["chatgpt", "tasks"],
-        ],
-    },
-    {
-        upper: ["you", "colleague", "client", "chatgpt"],
-        lower: [
-            { id: "pages", span: 1 },
-            { id: "inbox", span: 1 },
-            { id: "tasks", span: 1 },
-        ],
-        links: [
-            ["you", "inbox"],
-            ["colleague", "pages"],
-            ["client", "pages"],
-            ["chatgpt", "inbox"],
-        ],
-    },
-    {
-        upper: ["you", "colleague", "friend", "chatgpt"],
-        lower: [
-            { id: "pages", span: 1 },
-            { id: "chat", span: 1 },
-            { id: "tasks", span: 1 },
-        ],
-        links: [
-            ["you", "pages"],
-            ["colleague", "chat"],
-            ["friend", "chat"],
-            ["chatgpt", "tasks"],
-        ],
-    },
+    // team: a standup, then an incident room
+    open(
+        ["you", "cofounder", "designer", "agent"],
+        ["chat", "tasks", "source"],
+        ["tasks", "chat", "tasks", "source"],
+    ),
+    open(
+        ["you", "cofounder", "designer", "agent"],
+        ["standup", "source"],
+        ["standup", "standup", "standup", "source"],
+    ),
+    open(
+        ["you", "cofounder", "designer", "claude"],
+        ["chat", "tasks", "source"],
+        ["source", "chat", "tasks", "tasks"],
+    ),
+    open(
+        ["you", "cofounder", "designer", "claude"],
+        ["incidents"],
+        ["incidents", "incidents", "incidents", "incidents"],
+    ),
+
+    // startup: close the loop with customers, then hire
+    open(
+        ["you", "cofounder", "client", "claude"],
+        ["forms", "tasks", "crm"],
+        ["tasks", "crm", "forms", "tasks"],
+    ),
+    open(
+        ["you", "cofounder", "client", "claude"],
+        ["feedback"],
+        ["feedback", "feedback", "feedback", "feedback"],
+    ),
+    open(
+        ["you", "cofounder", "candidate", "claude"],
+        ["forms", "crm", "calendar"],
+        ["calendar", "crm", "forms", "crm"],
+    ),
+    open(
+        ["you", "cofounder", "candidate", "claude"],
+        ["hiring"],
+        ["hiring", "hiring", "hiring", "hiring"],
+    ),
+
+    // founder and freelancer: report to investors, then bill clients
+    open(
+        ["you", "cofounder", "investor", "chatgpt"],
+        ["sheets", "pages", "mail"],
+        ["sheets", "pages", "mail", "sheets"],
+    ),
+    open(
+        ["you", "cofounder", "investor", "chatgpt"],
+        ["update"],
+        ["update", "update", "update", "update"],
+    ),
+    open(
+        ["you", "designer", "client", "chatgpt"],
+        ["sheets", "crm", "mail"],
+        ["sheets", "crm", "mail", "sheets"],
+    ),
+    open(
+        ["you", "designer", "client", "chatgpt"],
+        ["invoices"],
+        ["invoices", "invoices", "invoices", "invoices"],
+    ),
+
+    // life: run a household, then keep up with people
+    open(
+        ["you", "partner", "roommate", "chatgpt"],
+        ["sheets", "expenses", "files"],
+        ["sheets", "expenses", "files", "expenses"],
+    ),
+    open(
+        ["you", "partner", "roommate", "chatgpt"],
+        ["household"],
+        ["household", "household", "household", "household"],
+    ),
+    open(
+        ["you", "partner", "roommate", "agent"],
+        ["notes", "calendar", "mail"],
+        ["notes", "calendar", "mail", "mail"],
+    ),
+    open(
+        ["you", "partner", "roommate", "agent"],
+        ["contacts"],
+        ["contacts", "contacts", "contacts", "contacts"],
+    ),
 ];
 
-/** The services each open app calls, each with the store that service keeps the app's state in, by label. */
-export const appUses: Readonly<Record<string, readonly (readonly [string, string])[]>> = {
-    pages: [
-        ["Access", "DB"],
-        ["Search", "Bucket"],
-    ],
-    journal: [
-        ["Access", "DB"],
-        ["Search", "Bucket"],
-    ],
-    wiki: [
-        ["Access", "DB"],
-        ["Search", "Bucket"],
-    ],
-    chat: [
-        ["Access", "DB"],
-        ["AI", "Vault"],
-    ],
-    standup: [
-        ["Access", "DB"],
-        ["AI", "Vault"],
-    ],
-    tasks: [
-        ["Access", "DB"],
-        ["Settings", "DB"],
-    ],
-    calendar: [
-        ["Access", "DB"],
-        ["Settings", "DB"],
-    ],
-    planner: [
-        ["Access", "DB"],
-        ["AI", "Vault"],
-    ],
-    inbox: [
-        ["Access", "DB"],
-        ["Search", "DB"],
-        ["AI", "Vault"],
-    ],
-};
+/** The services each open app calls, each with the store that service keeps the app's state in, by label; remixes use their apps' own. */
+export const appUses: Readonly<Record<string, readonly (readonly [string, string])[]>> =
+    withRemixes({
+        pages: [
+            ["Access", "DB"],
+            ["Search", "Bucket"],
+        ],
+        notes: [
+            ["Access", "DB"],
+            ["Search", "DB"],
+        ],
+        chat: [
+            ["Access", "DB"],
+            ["AI", "Vault"],
+        ],
+        tasks: [
+            ["Access", "DB"],
+            ["Settings", "DB"],
+        ],
+        source: [
+            ["Access", "Audit"],
+            ["Search", "Bucket"],
+        ],
+        crm: [
+            ["Access", "DB"],
+            ["Search", "DB"],
+        ],
+        forms: [
+            ["Access", "DB"],
+            ["Settings", "DB"],
+        ],
+        calendar: [
+            ["Access", "DB"],
+            ["Settings", "DB"],
+        ],
+        sheets: [
+            ["Access", "DB"],
+            ["AI", "Vault"],
+        ],
+        mail: [
+            ["Access", "DB"],
+            ["Search", "DB"],
+            ["AI", "Vault"],
+        ],
+        expenses: [
+            ["Access", "Audit"],
+            ["Settings", "DB"],
+        ],
+        files: [
+            ["Access", "Bucket"],
+            ["Search", "Bucket"],
+        ],
+    });
 
-/** The source step each open scene shows at work, by its label. */
-export const sceneSources = [
-    "Registry",
-    "Build",
-    "Repository",
-    "Build",
-    "Templates",
-    "Repository",
-    "Registry",
-    "Build",
-    "Registry",
-];
+/** The source step each open scene shows at work, by its label: installing a set of apps, then building its remix. */
+export const sceneSources = scenes.map((scene, index) =>
+    scene.lower.some((card) => card.id in remixes)
+        ? "Build"
+        : ["Registry", "Repository", "Templates"][Math.floor(index / 2) % 3],
+);
 
 /** How far the user row sits below the middle of its figure row, in CSS pixels, to leave room for the switch on the seam above it. */
 const userDrop = 8;
@@ -1385,7 +1314,10 @@ export function Remix(properties: {
                         >
                             <div
                                 style={{
-                                    "--toward": id === "you" || id === "friend" ? "1" : "-1",
+                                    "--toward":
+                                        id === "you" || id === "designer" || id === "roommate"
+                                            ? "1"
+                                            : "-1",
                                     "animation-delay": `${-ids.indexOf(id) * 0.9}s`,
                                     transform: isVendor
                                         ? "translate(var(--sway, 0px), var(--lift, 0px)) rotate(var(--tilt, 0deg))"
@@ -1403,7 +1335,11 @@ export function Remix(properties: {
                                 <Card
                                     entity={entities[id]}
                                     kind={isVendor ? "vendor" : "plain"}
-                                    reveal={properties.isOpen ? openReveals[id] : todayReveals[id]}
+                                    reveal={
+                                        properties.isOpen
+                                            ? openReveals[id]
+                                            : todayReveal(id, todayScenes[properties.today])
+                                    }
                                     style={styles.fill}
                                 />
                             </div>
@@ -1732,6 +1668,75 @@ function upcoming(id: string, from: number): Placement {
 
     // fail when no scene shows the card
     throw new Error(`card ${id} never appears`);
+}
+
+/** Build a locked scene: the people above, one silo per iceberg below, and the silo each person signs in to. */
+function locked(
+    upper: readonly string[],
+    lower: readonly [string, string, string],
+    targets: readonly string[],
+): Scene {
+    return {
+        upper,
+        lower: lower.map((id) => ({ id, span: 1 })),
+        links: upper.map((id, index) => [id, targets[index]] as [string, string]),
+    };
+}
+
+/** Build an open scene: the people above, the apps below each as wide as the apps it joins, and the app each person works in. */
+function open(
+    upper: readonly string[],
+    lower: readonly string[],
+    targets: readonly string[],
+): Scene {
+    return {
+        upper,
+        lower: lower.map((id) => ({ id, span: remixes[id]?.length ?? 1 })),
+        links: upper.map((id, index) => [id, targets[index]] as [string, string]),
+    };
+}
+
+/** Return a code reveal: a file name and its lines. */
+function code(name: string, ...lines: string[]): Reveal {
+    return { kind: "code", name, lines };
+}
+
+/** Add each remix's services and stores, the union of the apps it joins. */
+function withRemixes(
+    uses: Record<string, readonly (readonly [string, string])[]>,
+): Record<string, readonly (readonly [string, string])[]> {
+    // join the pairs of each remix's apps, once each
+    const joined = Object.entries(remixes).map(([remix, parts]) => {
+        const pairs = parts.flatMap((part) => uses[part]);
+        const unique = [...new Map(pairs.map((pair) => [pair.join(":"), pair])).values()];
+
+        return [remix, unique] as const;
+    });
+
+    return { ...uses, ...Object.fromEntries(joined) };
+}
+
+/** Return what a card shows under the searchlight today: a person's way into each silo on show, the agent's credits where a silo meters them, the silos' ciphertext, or the homemade app's rent. */
+function todayReveal(id: string, scene: Scene): Reveal | undefined {
+    // show how the person gets into each silo of the scene
+    const access = todayAccess[id];
+    if (access) {
+        return {
+            kind: "fields",
+            rows: scene.lower.map((card, index) => [
+                entities[card.id].label,
+                (id === "agent" && creditBalances[card.id]) || access[index],
+            ]),
+        };
+    }
+    // rent for the homemade app, ciphertext for the silos
+    else if (id === "homemade") {
+        return homemadeReveal;
+    } else if (vendors.includes(id)) {
+        return { kind: "cipher" };
+    }
+
+    return undefined;
 }
 
 /** The sway of the people cards dancing while locked. */

@@ -117,12 +117,23 @@ const sunkIcons = ["services", "storage", "source", "cloud"];
 
 /** The layers each vendor keeps under water, one per submerged row. */
 const locked: Readonly<Record<string, readonly Entity[]>> = {
-    notion: sunk("Theirs", ["Rate-limited API", "CSV export", "Not available", "us-east-1 only"]),
-    linear: sunk("Theirs", ["API quotas", "CSV export", "Closed source", "Their cloud"]),
-    slack: sunk("Theirs", ["Paid API tier", "Limited history", "Closed source", "Their cloud"]),
-    figma: sunk("Theirs", ["Plugin sandbox", "Proprietary files", "Closed source", "Their cloud"]),
-    github: sunk("Theirs", ["API quotas", "Repos only", "Closed platform", "Their cloud"]),
-    vibe: sunk("Rented", ["Supabase edge", "Supabase DB", "Private repo", "Vercel only"]),
+    notion: sunk("Theirs", ["API: 10 req/s", "Export: zip", "Closed source", "Their cloud"]),
+    figma: sunk("Theirs", ["Plugin sandbox", "Files: .fig only", "Closed source", "Their cloud"]),
+    typeform: sunk("Theirs", [
+        "Paid webhooks",
+        "Responses: theirs",
+        "Closed source",
+        "Their cloud",
+    ]),
+    airtable: sunk("Theirs", ["API: 5 req/s", "Export: CSV", "Closed source", "Their cloud"]),
+    dropbox: sunk("Theirs", ["App review", "Links: theirs", "Closed source", "Their cloud"]),
+    slack: sunk("Theirs", ["API throttled", "Export: owners", "Closed source", "Their cloud"]),
+    loom: sunk("Theirs", ["No open API", "Video: theirs", "Closed source", "Their cloud"]),
+    calendly: sunk("Theirs", ["Paid webhooks", "Invitees: theirs", "Closed source", "Their cloud"]),
+    gdocs: sunk("Theirs", ["API quotas", "No Vault", "Closed source", "Google cloud"]),
+    linear: sunk("Theirs", ["API: 2.5k/h", "Export: CSV", "Closed source", "Their cloud"]),
+    github: sunk("Theirs", ["API: 5k/h", "Repos only", "Closed platform", "Their cloud"]),
+    homemade: sunk("Rented", ["Supabase edge", "Supabase DB", "Private repo", "Vercel only"]),
 };
 
 /** The milliseconds each silo rides its iceberg before the next swap. */
@@ -144,9 +155,9 @@ const shared: readonly {
                 reveal: {
                     kind: "fields",
                     rows: [
-                        ["client", "calendar"],
-                        ["claude", "inbox"],
-                        ["friend", "pages"],
+                        ["client", "forms"],
+                        ["claude", "incidents"],
+                        ["investor", "update"],
                     ],
                 },
             },
@@ -182,13 +193,13 @@ const shared: readonly {
                 label: "AI",
                 tint: "#6b5ca5",
                 icon: "ai",
-                role: "Models",
+                role: "Your own",
                 reveal: {
                     kind: "fields",
                     rows: [
-                        ["model", "claude"],
-                        ["tools", "tasks"],
-                        ["send", "asks first"],
+                        ["model", "yours"],
+                        ["key", "yours"],
+                        ["credits", "none"],
                     ],
                 },
             },
@@ -206,8 +217,8 @@ const shared: readonly {
                     kind: "fields",
                     rows: [
                         ["tasks", "1,204 rows"],
-                        ["pages", "318 rows"],
-                        ["events", "96 rows"],
+                        ["candidates", "86 rows"],
+                        ["invoices", "42 rows"],
                     ],
                 },
             },
@@ -266,9 +277,9 @@ const shared: readonly {
                 reveal: {
                     kind: "fields",
                     rows: [
-                        ["3f9a2c", "week view"],
-                        ["e02d4f", "fork tasks"],
-                        ["9d44b1", "due dates"],
+                        ["3f9a2c", "pipeline view"],
+                        ["e02d4f", "remix crm"],
+                        ["9d44b1", "book interviews"],
                     ],
                 },
             },
@@ -280,9 +291,9 @@ const shared: readonly {
                 reveal: {
                     kind: "fields",
                     rows: [
-                        ["@you/planner", "1.2"],
-                        ["@you/journal", "0.4"],
-                        ["@friend/recipes", "2.0"],
+                        ["@you/hiring", "1.2"],
+                        ["@you/invoices", "0.4"],
+                        ["@roommate/household", "2.0"],
                     ],
                 },
             },
@@ -308,9 +319,9 @@ const shared: readonly {
                 reveal: {
                     kind: "fields",
                     rows: [
-                        ["calendar", "crm"],
-                        ["journal", "recipes"],
-                        ["inbox", "wiki"],
+                        ["standup", "incidents"],
+                        ["hiring", "feedback"],
+                        ["invoices", "household"],
                     ],
                 },
             },
@@ -384,8 +395,22 @@ const tapeDrops = [
     [4, -4],
 ];
 
-/** The connectors taped between the vendor apps. */
-const tapes = ["APIs", "MCPs"];
+/** The connectors taped between the vendor apps; eleven, a prime, so every swap beside a strip gives it a new one. */
+const tapeLabels = [
+    "APIs",
+    "MCPs",
+    "Zapier",
+    "Webhooks",
+    "CSV",
+    "Make",
+    "Embeds",
+    "n8n",
+    "iCal",
+    "Scripts",
+    "Exports",
+];
+/** The gaps between the three icebergs that duct tape spans. */
+const tapeGaps = [0, 1];
 
 /** How many shards break off each berg and rise into the planet's ring. */
 const shardsPerBerg = 16;
@@ -1053,9 +1078,9 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                         </div>
                     )),
                 )}
-                {tapes.map((tape, index) => (
+                {tapeGaps.map((index) => (
                     <DuctTape
-                        label={tape}
+                        label={tapeLabel(index, todayScenes[today()])}
                         gap={index}
                         left={`calc(${tokens.cell} * ${(columnCentres[index] + columnCentres[index + 1]) / 2})`}
                         style={[styles.tape, isOpen() ? styles.tapeGone : styles.tapeBack]}
@@ -1067,6 +1092,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                             "--row": String(dryRows + index + 1),
                             "--cascade": `${820 + index * 220}ms`,
                             "--band-reveal": `var(--reveal-${dryRows + index})`,
+                            "pointer-events": isOpen() ? "auto" : "none",
                             ...growOutOfPlates(`var(--reveal-${dryRows + index})`),
                         }}
                         {...stylex.attrs(styles.band)}
@@ -1094,6 +1120,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                             top: `calc(${tokens.cellRow} * 49.5)`,
                             width: `calc(${tokens.cell} * ${quarterWidth})`,
                             opacity: "var(--reveal-5)",
+                            "pointer-events": isOpen() ? "auto" : "none",
                             translate: "0 calc((1 - var(--reveal-5)) * 40%)",
                         }}
                         {...stylex.attrs(styles.column)}
@@ -1289,6 +1316,15 @@ function Swap(properties: {
             </span>
         </span>
     );
+}
+
+/** Return the label taped across a gap between two icebergs, picked by the pair of silos it joins, so any swap on either side retapes it. */
+function tapeLabel(gap: number, scene: (typeof todayScenes)[number]) {
+    // place each silo in its iceberg's turn, and step through the labels by coprime strides
+    const left = slotApps[gap].indexOf(scene.lower[gap].id);
+    const right = slotApps[gap + 1].indexOf(scene.lower[gap + 1].id);
+
+    return tapeLabels[(left + right * 3 + gap * 5) % tapeLabels.length];
 }
 
 /** Return a layer number colour that lights up orange as the water leaves its row. */
