@@ -2,14 +2,15 @@ import type { SQLiteAsyncDatabase } from "drizzle-orm/sqlite-core";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type { TransactionState } from "./transaction.ts";
 import type { ConnectionState } from "./connection.ts";
+import { classifyError } from "../error/error.ts";
 
 /** A native Drizzle database and its query lifetime. */
 export class DatabaseDriver {
-    /** Native database connection. */
+    /** The native database connection. */
     readonly native: NativeDatabase;
-    /** Shared connection lifecycle. */
+    /** The shared connection lifecycle. */
     readonly state: ConnectionState;
-    /** Active transaction state, when present. */
+    /** The active transaction state, when present. */
     readonly transaction?: TransactionState;
 
     /** Retain the native database, connection state, and optional transaction state. */
@@ -21,7 +22,26 @@ export class DatabaseDriver {
 
     /** Submit work through the active transaction or connection. */
     run<Value>(operation: () => PromiseLike<Value>): Promise<Value> {
-        return this.transaction ? this.transaction.run(operation) : this.state.run(operation);
+        // report concurrent updates before the transaction records the failure
+        const reported = async () => {
+            try {
+                return await operation();
+            } catch (error) {
+                throw classifyError(error);
+            }
+        };
+
+        return this.transaction ? this.transaction.run(reported) : this.state.run(reported);
+    }
+
+    /** Submit a write, notifying readers and other writers once it commits outside a transaction. */
+    async write<Value>(operation: () => PromiseLike<Value>): Promise<Value> {
+        const result = await this.run(operation);
+        if (!this.transaction) {
+            this.state.commits.notify();
+        }
+
+        return result;
     }
 }
 

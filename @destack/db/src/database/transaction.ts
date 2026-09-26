@@ -1,4 +1,4 @@
-import { DatabaseError } from "../error/index.ts";
+import { DatabaseError, wraps } from "../error/index.ts";
 
 /** The lifetime of a transaction callback and its retained queries. */
 export class TransactionState {
@@ -26,15 +26,15 @@ export class TransactionState {
         try {
             result = await operation();
         } catch (error) {
-            try {
-                await this.finish();
-            } catch (cleanup) {
-                if (cleanup !== error) {
-                    throw new AggregateError(
-                        [error, cleanup],
-                        "transaction callback and queries failed",
-                    );
-                }
+            // settle the queries, keeping failures the callback's error does not already report
+            this.close();
+            await Promise.all(this.#pending);
+            const unreported = this.#failures.filter((failure) => !wraps(error, failure));
+            if (unreported.length > 0) {
+                throw new AggregateError(
+                    [error, ...unreported],
+                    "transaction callback and queries failed",
+                );
             }
             throw error;
         }
@@ -49,12 +49,15 @@ export class TransactionState {
     assertActive(): void {
         this.signal?.throwIfAborted();
         if (!this.#isActive) {
-            throw new DatabaseError("TRANSACTION_CLOSED", "The transaction has finished.");
+            throw new DatabaseError("TRANSACTION_CLOSED", "the transaction has finished");
         }
     }
 
-    /** Track submitted work until it settles, including work the callback did not await. */
-    run<Value>(operation: () => PromiseLike<Value>, rollback = true): Promise<Value> {
+    /** Track submitted work until it settles, including work the callback did not await; a failure rolls the transaction back unless a nested transaction reports it itself. */
+    run<Value>(
+        operation: () => PromiseLike<Value>,
+        failure: "rollback" | "report" = "rollback",
+    ): Promise<Value> {
         // reject work after the callback finishes
         this.assertActive();
 
@@ -71,7 +74,7 @@ export class TransactionState {
             },
             (error) => {
                 this.#pending.delete(settled);
-                if (rollback) {
+                if (failure === "rollback") {
                     this.#failures.push(error);
                 }
             },
@@ -109,4 +112,8 @@ export interface TransactionOptions {
     readonly isolationLevel?: "read committed" | "repeatable read" | "serializable";
     /** Cancel submissions and roll back after already submitted work settles. */
     readonly signal?: AbortSignal;
+    /** Whether the transaction only reads, which lets SQLite read without taking the write lock. */
+    readonly isReadOnly?: boolean;
+    /** Check foreign keys per statement, or at commit as copies applying rows in commit order need. */
+    readonly constraints?: "immediate" | "deferred";
 }
