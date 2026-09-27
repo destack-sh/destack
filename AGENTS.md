@@ -375,12 +375,11 @@ Write code and prose that read plainly.
 - **WT01** Class fields MUST be declared explicitly, with documentation above each field. (`destack/require-jsdoc`)
 - **WT02** Class fields MUST be assigned in constructor bodies, not through constructor parameter properties. (`typescript/parameter-properties`)
 
-- **WT03** Domain operations MUST live in noun modules; `*Store` names MUST be reserved for persistence.
-- **WT04** Shared code MUST use web-standard APIs, such as `Uint8Array.toHex` or `crypto.subtle`, so it runs on every target; Node or Bun APIs belong only in target-specific modules.
+- **WT03** Shared code SHOULD use web-standard APIs, such as `Uint8Array.toHex` or `crypto.subtle`, so it runs on every target; Node or Bun APIs belong only in target-specific modules.
 
 ### Rust (WR)
 
-- **WR01** These rules MUST also apply to other Rust-like languages, including the Rust side of Destack and TS++.
+- **WR01** The Rust rules MUST also apply to other Rust-like languages, including the Rust side of our own TS++ (where applicable).
 - **WR02** `mod.rs` and `main.rs` MUST contain only re-exports and submodule declarations.
 - **WR03** Modules MUST be either `module.rs` or `module/mod.rs` with real `module/whatever.rs` files, never both.
 - **WR04** Code MUST NOT use `include!` or convoluted `#[path]` to bypass module structure.
@@ -416,7 +415,7 @@ Write code and prose that read plainly.
 - **WR19** Code outside tests MUST fail explicitly through `Result` handling instead of `unwrap`, `expect` or `panic`.
 - **WR20** Tests MUST live in a trailing `mod tests` or in standalone test modules or crates, depending on context.
 
-- **WR21** Clones SHOULD use `expr.clone()` over `Arc.clone(expr)`.
+- **WR21** Clones SHOULD use `expr.clone()` instead of `Arc.clone(expr)`.
 - **WR22** Heavy clones SHOULD be avoided, since memory and fragmentation are expensive.
 - **WR23** Format macros SHOULD inline variables: `format!("name is {name}")`.
 - **WR24** Longer strings SHOULD use multiline raw strings.
@@ -441,7 +440,7 @@ Rewrite as understanding grows, toward the final shape.
 
 ### Replacing (RR)
 
-- **RR01** Code SHOULD be refactored as understanding deepens and the right shape reveals itself; programming is refactoring as writing is editing.
+- **RR01** Code SHOULD be refactored as understanding deepens and the right shape reveals itself; programming is refactoring just as writing is editing.
 - **RR02** Refactors SHOULD be painless and touch only the parts of the model that need to change.
 - **RR03** Refactors that touch more than they should MUST be investigated.
 - **RR04** Investigated refactors MAY widen, or trigger a follow-up, to crispen the model's boundaries.
