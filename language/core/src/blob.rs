@@ -1,6 +1,6 @@
 use std::collections::hash_map;
 use std::io::{self, Read, Write};
-use std::mem::size_of;
+use std::mem::{offset_of, size_of};
 use std::sync::Arc;
 use std::{error, fmt, ptr, slice, str};
 
@@ -9,7 +9,7 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tspp_serde::Reflect;
 
-use crate::{SectionEntry, SectionImageError, SectionLoader};
+use crate::{SectionEntry, SectionImageError, SectionLoader, write_field};
 
 /// Bytes in one complete BlobId.
 const BLOB_ID_BYTE_LEN: usize = 32;
@@ -122,6 +122,10 @@ unsafe impl SectionEntry for BlobId {
     fn validate(_bytes: &[u8], _loader: SectionLoader<'_>) -> Result<(), SectionImageError> {
         Ok(())
     }
+
+    fn write(&self, record: &mut [u8]) {
+        record.copy_from_slice(&self.0);
+    }
 }
 
 // safety: Blob contains only SectionEntry fields under a stable C representation
@@ -130,6 +134,11 @@ unsafe impl SectionEntry for Blob {
 
     fn validate(_bytes: &[u8], _loader: SectionLoader<'_>) -> Result<(), SectionImageError> {
         Ok(())
+    }
+
+    fn write(&self, record: &mut [u8]) {
+        write_field(&self.id, record, offset_of!(Self, id));
+        write_field(&self.byte_len, record, offset_of!(Self, byte_len));
     }
 }
 

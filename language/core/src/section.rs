@@ -286,6 +286,9 @@ pub unsafe trait SectionEntry: Copy + 'static {
 
     /// Validate one entry and every absolute section it references.
     fn validate(bytes: &[u8], loader: SectionLoader<'_>) -> Result<(), SectionImageError>;
+
+    /// Write the defined bytes of this entry into one zeroed record.
+    fn write(&self, record: &mut [u8]);
 }
 
 macro_rules! scalar_entries {
@@ -301,6 +304,10 @@ macro_rules! scalar_entries {
                 ) -> Result<(), SectionImageError> {
                     Ok(())
                 }
+
+                fn write(&self, record: &mut [u8]) {
+                    record.copy_from_slice(&self.to_ne_bytes());
+                }
             }
         )*
     };
@@ -314,6 +321,10 @@ unsafe impl SectionEntry for StringId {
 
     fn validate(_bytes: &[u8], _loader: SectionLoader<'_>) -> Result<(), SectionImageError> {
         Ok(())
+    }
+
+    fn write(&self, record: &mut [u8]) {
+        self.0.write(record);
     }
 }
 
@@ -335,6 +346,10 @@ unsafe impl SectionEntry for NonZeroU32 {
             Ok(())
         }
     }
+
+    fn write(&self, record: &mut [u8]) {
+        self.get().write(record);
+    }
 }
 
 // SAFETY: fixed arrays preserve their entry layout and validate every element.
@@ -344,6 +359,10 @@ unsafe impl<T: SectionEntry, const N: usize> SectionEntry for [T; N] {
     fn validate(bytes: &[u8], loader: SectionLoader<'_>) -> Result<(), SectionImageError> {
         validate_entries::<T>(bytes, N, loader)
     }
+
+    fn write(&self, record: &mut [u8]) {
+        write_entries(self, record);
+    }
 }
 
 // SAFETY: EntryRange<T> stores only integer offsets and lengths.
@@ -352,6 +371,11 @@ unsafe impl<T: SectionEntry> SectionEntry for EntryRange<T> {
 
     fn validate(_bytes: &[u8], _loader: SectionLoader<'_>) -> Result<(), SectionImageError> {
         Ok(())
+    }
+
+    fn write(&self, record: &mut [u8]) {
+        write_field(&self.start, record, mem::offset_of!(Self, start));
+        write_field(&self.len, record, mem::offset_of!(Self, len));
     }
 }
 
@@ -369,6 +393,16 @@ unsafe impl<T: SectionEntry> SectionEntry for SectionSlice<T> {
         loader.entries(section)?;
 
         Ok(())
+    }
+
+    fn write(&self, record: &mut [u8]) {
+        write_field(
+            &self.byte_offset,
+            record,
+            mem::offset_of!(Self, byte_offset),
+        );
+        write_field(&self.len, record, mem::offset_of!(Self, len));
+        write_field(&self.reserved, record, mem::offset_of!(Self, reserved));
     }
 }
 
@@ -546,6 +580,26 @@ unsafe impl<T: SectionEntry> SectionEntry for Optional<T> {
         }
 
         Ok(())
+    }
+
+    fn write(&self, record: &mut [u8]) {
+        write_field(&self.is_some, record, mem::offset_of!(Self, is_some));
+        if let Some(value) = self.as_ref() {
+            write_field(value, record, mem::offset_of!(Self, value));
+        }
+    }
+}
+
+/// Write one entry field at its byte offset inside one record.
+pub fn write_field<T: SectionEntry>(field: &T, record: &mut [u8], offset: usize) {
+    field.write(&mut record[offset..offset + mem::size_of::<T>()]);
+}
+
+/// Write consecutive entries into one zeroed byte range.
+fn write_entries<T: SectionEntry>(entries: &[T], bytes: &mut [u8]) {
+    let size = mem::size_of::<T>();
+    for (entry, record) in entries.iter().zip(bytes.chunks_exact_mut(size)) {
+        entry.write(record);
     }
 }
 
@@ -871,20 +925,13 @@ impl SectionBuilder {
         let alignment = mem::align_of::<T>().max(1);
         let byte_offset = align_usize(self.storage.len(), alignment);
 
-        // copy typed entries into the aligned section image
+        // write typed entries into the zeroed aligned section image
         let section_end = byte_offset + byte_len;
         self.storage.grow(section_end, alignment);
-
-        let source = entries.as_ptr().cast::<u8>();
-
-        // SAFETY: storage was resized to contain section_end bytes above.
-        let destination = unsafe { self.storage.allocation_mut().as_mut_ptr().add(byte_offset) };
-
-        // SAFETY: source points to byte_len initialized entry bytes and destination
-        // points to distinct table storage with enough initialized capacity.
-        unsafe {
-            std::ptr::copy_nonoverlapping(source, destination, byte_len);
-        }
+        write_entries(
+            entries,
+            &mut self.storage.allocation_mut()[byte_offset..section_end],
+        );
 
         SectionSlice::new(byte_offset as u64, entries.len() as u32)
     }
@@ -924,13 +971,9 @@ impl SectionBuilder {
         );
 
         // overwrite the complete existing section
-        let source = entries.as_ptr().cast::<u8>();
-        let destination = unsafe { self.storage.allocation_mut().as_mut_ptr().add(byte_offset) };
-
-        // SAFETY: source and destination name distinct initialized ranges of equal length.
-        unsafe {
-            std::ptr::copy_nonoverlapping(source, destination, byte_len);
-        }
+        let bytes = &mut self.storage.allocation_mut()[byte_offset..byte_end];
+        bytes.fill(0);
+        write_entries(entries, bytes);
     }
 }
 

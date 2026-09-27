@@ -94,18 +94,19 @@ impl Entry {
 
     /// Expand the section entry implementation.
     fn expand(self) -> proc_macro2::TokenStream {
-        let (identifier, field_types, validation, needs_validation) = match self {
+        let (identifier, field_types, validation, write, needs_validation) = match self {
             Self::Struct {
                 identifier,
                 field_types,
                 fields,
             } => {
                 let validation = Self::expand_struct_validation(&identifier, &fields);
+                let write = Self::expand_struct_write(&identifier, &fields);
                 let needs_validation = quote!(
                     false #(|| <#field_types as tspp_core::SectionEntry>::NEEDS_VALIDATION)*
                 );
 
-                (identifier, field_types, validation, needs_validation)
+                (identifier, field_types, validation, write, needs_validation)
             }
             Self::Enum {
                 identifier,
@@ -114,9 +115,10 @@ impl Entry {
                 tag,
                 is_c,
             } => {
-                let validation = Self::expand_enum_validation(tag, &variants, is_c);
+                let validation = Self::expand_enum_validation(&tag, &variants, is_c);
+                let write = Self::expand_enum_write(&tag, &variants, is_c);
 
-                (identifier, field_types, validation, quote!(true))
+                (identifier, field_types, validation, write, quote!(true))
             }
         };
 
@@ -148,6 +150,10 @@ impl Entry {
 
                     #validation
                 }
+
+                fn write(&self, record: &mut [u8]) {
+                    #write
+                }
             }
         }
     }
@@ -168,11 +174,7 @@ impl Entry {
     /// Expand byte validation for one structure.
     fn expand_struct_validation(identifier: &Ident, fields: &Fields) -> proc_macro2::TokenStream {
         let checks = fields.iter().enumerate().map(|(index, field)| {
-            let member = field
-                .ident
-                .clone()
-                .map(syn::Member::Named)
-                .unwrap_or_else(|| syn::Member::Unnamed(Index::from(index)));
+            let member = Self::member(field, index);
             let ty = &field.ty;
 
             quote! {
@@ -196,44 +198,123 @@ impl Entry {
         }
     }
 
-    /// Expand byte validation for one tagged enum.
-    fn expand_enum_validation(
-        tag: Ident,
+    /// Expand field writes for one structure.
+    fn expand_struct_write(identifier: &Ident, fields: &Fields) -> proc_macro2::TokenStream {
+        let writes = fields.iter().enumerate().map(|(index, field)| {
+            let member = Self::member(field, index);
+
+            quote! {
+                tspp_core::write_field(
+                    &self.#member,
+                    record,
+                    ::core::mem::offset_of!(#identifier, #member),
+                );
+            }
+        });
+
+        quote!(#(#writes)*)
+    }
+
+    /// Expand the tag write and payload field writes for one tagged enum.
+    fn expand_enum_write(
+        tag: &Ident,
         variants: &syn::punctuated::Punctuated<syn::Variant, syn::token::Comma>,
         is_c: bool,
     ) -> proc_macro2::TokenStream {
-        let tags = Self::expand_tags(&tag, variants);
-        let tag_read = quote! {
-            let mut tag_bytes = [0; ::core::mem::size_of::<#tag>()];
-            tag_bytes.copy_from_slice(&bytes[..::core::mem::size_of::<#tag>()]);
-            let tag = #tag::from_ne_bytes(tag_bytes);
-        };
-        let has_payload = variants.iter().any(|variant| !variant.fields.is_empty());
+        let items = Self::expand_enum_items(tag, variants, is_c);
+        let arms = variants.iter().enumerate().map(|(index, variant)| {
+            let name = &variant.ident;
+            let tag_name = format_ident!("TAG_{index}");
+            let payload = format_ident!("Payload{index}");
+            let payload_offset = Self::payload_offset(index, is_c);
+            let bindings = variant
+                .fields
+                .iter()
+                .enumerate()
+                .map(|(field_index, _)| format_ident!("field_{field_index}"))
+                .collect::<Vec<_>>();
+            let pattern = match &variant.fields {
+                Fields::Named(fields) => {
+                    let names = fields.named.iter().map(|field| &field.ident);
 
-        // unit enums only require one known discriminant
-        if !has_payload {
-            let arms = variants.iter().enumerate().map(|(index, _)| {
-                let tag_name = format_ident!("TAG_{index}");
-
-                quote!(#tag_name => Ok(()))
-            });
-
-            return quote! {
-                #tags
-                #tag_read
-
-                match tag {
-                    #(#arms,)*
-                    _ => Err(tspp_core::SectionImageError::InvalidEntry),
+                    quote!(Self::#name { #(#names: #bindings),* })
                 }
+                Fields::Unnamed(_) => quote!(Self::#name(#(#bindings),*)),
+                Fields::Unit => quote!(Self::#name),
             };
-        }
+            let writes = variant
+                .fields
+                .iter()
+                .enumerate()
+                .map(|(field_index, field)| {
+                    let member = Self::member(field, field_index);
+                    let binding = &bindings[field_index];
 
+                    quote! {
+                        tspp_core::write_field(
+                            #binding,
+                            record,
+                            #payload_offset + ::core::mem::offset_of!(#payload, #member),
+                        );
+                    }
+                });
+
+            quote! {
+                #pattern => {
+                    tspp_core::write_field(&#tag_name, record, 0);
+                    #(#writes)*
+                }
+            }
+        });
+
+        quote! {
+            #items
+
+            match self {
+                #(#arms)*
+            }
+        }
+    }
+
+    /// Return the member expression of one field.
+    fn member(field: &syn::Field, index: usize) -> syn::Member {
+        field
+            .ident
+            .clone()
+            .map(syn::Member::Named)
+            .unwrap_or_else(|| syn::Member::Unnamed(Index::from(index)))
+    }
+
+    /// Return the payload offset expression of one enum variant.
+    fn payload_offset(index: usize, is_c: bool) -> proc_macro2::TokenStream {
+        if is_c {
+            quote!(::core::mem::offset_of!(Representation, payload))
+        } else {
+            let representation = format_ident!("Representation{index}");
+
+            quote!(::core::mem::offset_of!(#representation, payload))
+        }
+    }
+
+    /// Expand the tag constants and payload representations of one tagged enum.
+    fn expand_enum_items(
+        tag: &Ident,
+        variants: &syn::punctuated::Punctuated<syn::Variant, syn::token::Comma>,
+        is_c: bool,
+    ) -> proc_macro2::TokenStream {
+        let tags = Self::expand_tags(tag, variants);
         let payloads = variants
             .iter()
             .enumerate()
             .filter(|(_, variant)| !variant.fields.is_empty())
             .map(|(index, variant)| Self::expand_payload(index, &variant.fields));
+        let has_payload = variants.iter().any(|variant| !variant.fields.is_empty());
+
+        // unit enums only need their tags
+        if !has_payload {
+            return tags;
+        }
+
         let representation = if is_c {
             let union_fields = variants
                 .iter()
@@ -277,22 +358,27 @@ impl Entry {
 
             quote!(#(#variants)*)
         };
+
+        quote! {
+            #tags
+            #(#payloads)*
+            #representation
+        }
+    }
+
+    /// Expand byte validation for one tagged enum.
+    fn expand_enum_validation(
+        tag: &Ident,
+        variants: &syn::punctuated::Punctuated<syn::Variant, syn::token::Comma>,
+        is_c: bool,
+    ) -> proc_macro2::TokenStream {
+        let items = Self::expand_enum_items(tag, variants, is_c);
         let arms = variants.iter().enumerate().map(|(index, variant)| {
             let tag_name = format_ident!("TAG_{index}");
-            let payload_offset = if is_c {
-                quote!(::core::mem::offset_of!(Representation, payload))
-            } else {
-                let representation = format_ident!("Representation{index}");
-
-                quote!(::core::mem::offset_of!(#representation, payload))
-            };
+            let payload = format_ident!("Payload{index}");
+            let payload_offset = Self::payload_offset(index, is_c);
             let checks = variant.fields.iter().enumerate().map(|(field_index, field)| {
-                let payload = format_ident!("Payload{index}");
-                let member = field
-                    .ident
-                    .clone()
-                    .map(syn::Member::Named)
-                    .unwrap_or_else(|| syn::Member::Unnamed(Index::from(field_index)));
+                let member = Self::member(field, field_index);
                 let ty = &field.ty;
 
                 quote! {
@@ -319,11 +405,11 @@ impl Entry {
         });
 
         quote! {
-            #tags
-            #(#payloads)*
-            #representation
+            #items
 
-            #tag_read
+            let mut tag_bytes = [0; ::core::mem::size_of::<#tag>()];
+            tag_bytes.copy_from_slice(&bytes[..::core::mem::size_of::<#tag>()]);
+            let tag = #tag::from_ne_bytes(tag_bytes);
             match tag {
                 #(#arms,)*
                 _ => Err(tspp_core::SectionImageError::InvalidEntry),
