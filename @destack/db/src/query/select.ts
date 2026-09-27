@@ -305,6 +305,8 @@ export class SelectQuery<
 
         // select the native compiler once, then apply the common Drizzle operations
         let query: DrizzleSelect;
+
+        // select from the SQLite table
         if (this.driver.native.dialect === "sqlite") {
             const database = this.driver.native.database.with(...this.withList);
             const selection = fields as sqlite.SelectedFields;
@@ -314,7 +316,9 @@ export class SelectQuery<
             )
                 .from(table as SQLiteTable)
                 .$dynamic() as unknown as DrizzleSelect;
-        } else if (this.driver.native.dialect === "postgresql") {
+        }
+        // select from the PostgreSQL table
+        else if (this.driver.native.dialect === "postgresql") {
             const database = this.driver.native.database.with(...this.withList);
             const selection = fields as postgres.SelectedFields;
             query = (this.isDistinct
@@ -323,7 +327,9 @@ export class SelectQuery<
             )
                 .from(table as PgTable)
                 .$dynamic() as unknown as DrizzleSelect;
-        } else {
+        }
+        // reject other dialects
+        else {
             return assertNever(this.driver.native);
         }
 

@@ -32,6 +32,19 @@ export class Statement<Row extends Record<string, unknown> = Record<string, unkn
         });
     }
 
+    /** Read every row of the statement with its values as arrays of values in selected order, which skip naming each row's columns. */
+    values(
+        database: DatabaseConnection,
+        values: Readonly<Record<string, unknown>> = {},
+    ): Promise<unknown[][]> {
+        const query = this.#render(database);
+
+        return database.driver.values({
+            sql: query.sql,
+            params: fillPlaceholders(query.params, values),
+        });
+    }
+
     /** Render the statement once for a database's compiler. */
     #render(database: DatabaseConnection): Query {
         // reuse the text rendered for the same compiler

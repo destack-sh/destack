@@ -1,5 +1,5 @@
 import { type Placeholder, type Query, SQL } from "drizzle-orm";
-import { type DatabaseDriver } from "../database/driver.ts";
+import type { DatabaseDriver, NativeDatabase } from "../database/driver.ts";
 import type { SchemaCompiler } from "../dialect/compiler.ts";
 import type { DrizzleDatabase, DrizzleMutation } from "../dialect/drizzle.ts";
 import type { Column } from "../table/column.ts";
@@ -146,25 +146,33 @@ export class MutationQuery<
 
     /** Execute the mutation. */
     async execute(): Promise<Result> {
-        const result = await this.driver.write(() => this.#compile());
+        const result = await this.driver.write((native) => this.#compile(native));
 
         return (this.fields ? result : undefined) as Result;
     }
 
     /** Compile SQL and positional parameters without executing the mutation. */
     toSQL(): Query {
-        return this.#compile().toSQL();
+        return this.#compile(this.driver.native).toSQL();
     }
 
     /** Compile a reusable mutation with named placeholder values. */
     prepare(): PreparedQuery<Result> {
-        const query = this.#compile().prepare();
+        const query = this.#compile(this.driver.native).prepare();
         const hasReturning = this.fields !== undefined;
 
         return {
             execute: async (parameters) => {
+                // reject use after the enclosing transaction finishes
                 this.driver.transaction?.assertActive();
-                const result = await this.driver.write(() => query.execute(parameters));
+
+                // compile again for a write that runs on another native database, such as an identified SQLite write
+                const result = await this.driver.write((native) =>
+                    (native === this.driver.native
+                        ? query
+                        : this.#compile(native).prepare()
+                    ).execute(parameters),
+                );
 
                 return (hasReturning ? result : undefined) as Result;
             },
@@ -172,7 +180,7 @@ export class MutationQuery<
     }
 
     /** Build the native mutation with its parameter encoders and result decoder. */
-    #compile(): DrizzleMutation {
+    #compile(native: NativeDatabase): DrizzleMutation {
         // reject use after the enclosing transaction finishes
         this.driver.transaction?.assertActive();
 
@@ -189,7 +197,7 @@ export class MutationQuery<
         const conflict = this.conflict;
 
         // select the native builders once, then apply the common Drizzle operations
-        const database = this.driver.native.database as unknown as DrizzleDatabase;
+        const database = native.database as unknown as DrizzleDatabase;
         const table = this.compiler.table(this.table);
         let query: DrizzleMutation;
 

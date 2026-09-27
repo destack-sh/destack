@@ -47,7 +47,11 @@ export class SqliteDatabase<
 
     /** Execute an explicit SQL statement. */
     async run(statement: SQL): Promise<RunResult<Client>> {
-        return await this.driver.write(() => this.native.run(this.compiler.expression(statement)));
+        return (await this.driver.write((native) =>
+            (native.database as SQLiteAsyncDatabase<"async", unknown>).run(
+                this.compiler.expression(statement),
+            ),
+        )) as RunResult<Client>;
     }
 
     /** Close the physical database. */
