@@ -310,6 +310,9 @@ export class Compiler {
                 scope: column(source, field.subject.scope),
                 id: column(source, field.column),
             };
+            if (field.subject.relation === undefined) {
+                return sql`coalesce(${authority.match(subject)}, false)`;
+            }
             const relationColumn = column(source, field.subject.relation);
 
             return sql`coalesce((
@@ -410,6 +413,25 @@ export class Compiler {
                     AND ${GrantCondition.where(relationship, GrantCondition.values(compilation.access.context))}
                     AND (${sql.join(arrows, sql` OR `)})
             )`;
+        }
+
+        // correlate the parent of whichever type the row's columns name, for a field holding several types
+        if (field.subject !== undefined && !expression.transitive) {
+            const typed = field.subject;
+            const arrows = related.map(
+                ({ subject, target, parent, predicate }) => sql`(
+                    ${column(source, typed.packageId)} = ${subject.packageId}
+                    AND ${column(source, typed.type)} = ${subject.type}
+                    AND EXISTS (
+                        SELECT 1 FROM ${from(parent)}
+                        WHERE ${TableMapping.scopeColumn(parent, target)} = ${scope}
+                            AND ${column(parent, target.id)} = ${column(source, field.column)}
+                            AND ${predicate}
+                    )
+                )`,
+            );
+
+            return arrows.length === 0 ? sql`false` : sql`(${sql.join(arrows, sql` OR `)})`;
         }
 
         // correlate the direct parent a field holds within the source object's scope

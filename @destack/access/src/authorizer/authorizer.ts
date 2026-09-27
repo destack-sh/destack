@@ -92,6 +92,8 @@ export class Authorizer {
     readonly held: readonly TypeReference[];
     /** The policies indexed by package and type. */
     readonly #policies = new Map<string, Policy>();
+    /** The subject types other types contribute to each open relation, by type and relation. */
+    readonly #contributions = new Map<string, SubjectType[]>();
     /** The table mappings indexed by package and type. */
     readonly #mappings = new Map<string, TableMapping>();
     /** Read the rows of each mapped type by a JSON list of identifiers in a scope, by mapping. */
@@ -142,6 +144,26 @@ export class Authorizer {
         // register each policy under its type
         for (const type of types) {
             this.#policies.set(identity(type), type);
+        }
+
+        // add each contributing type to the open relation it names
+        for (const type of types) {
+            for (const entry of type.definition.contributes ?? []) {
+                const target = this.#policies.get(JSON.stringify([entry.packageId, entry.type]));
+                if (target?.definition.relations[entry.relation]?.open !== true) {
+                    throw new AccessError(
+                        "INVALID_DECLARATION",
+                        `${type.name} contributes to ${entry.type}.${entry.relation}, which is not an open relation`,
+                    );
+                }
+                const key = JSON.stringify([entry.packageId, entry.type, entry.relation]);
+                const contributed = this.#contributions.get(key) ?? [];
+                contributed.push({
+                    packageId: type.definition.packageId,
+                    type: type.definition.name,
+                });
+                this.#contributions.set(key, contributed);
+            }
         }
 
         // validate every named permission, including unused reserved, elevated and administration permissions
@@ -353,7 +375,17 @@ export class Authorizer {
             throw new AccessError("INVALID_DECLARATION", `unknown relation: ${name}`);
         }
 
-        return type.definition.relations[name]!;
+        // add the types contributing to an open relation
+        const relation = type.definition.relations[name]!;
+        if (!relation.open) {
+            return relation;
+        }
+        const key = JSON.stringify([type.definition.packageId, type.definition.name, name]);
+
+        return {
+            ...relation,
+            subjects: [...relation.subjects, ...(this.#contributions.get(key) ?? [])],
+        };
     }
 
     /** Return the table mapping of an object type, failing for a type this database maps no table of. */
@@ -590,12 +622,6 @@ export class Authorizer {
         else if (expiresAt !== null && (!Number.isFinite(expiresAt) || expiresAt <= now)) {
             throw new AccessError("FORBIDDEN", "a relationship expires in the future");
         }
-    }
-
-    /** Delete the relationships of an object this database held and no longer does. */
-    async forget(database: DatabaseConnection, object: ObjectReference): Promise<void> {
-        await this.requireHeld(database, object);
-        await database.delete(accessRelationship).where(Relationship.on(object));
     }
 
     /** Remove the relationships bound to one request once it commits, so they apply exactly once, leaving copies to their home. */

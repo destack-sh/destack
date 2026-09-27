@@ -48,6 +48,12 @@ export interface PolicyDefinition {
     readonly administration?: readonly string[];
     /** Whether the type's objects are scopes, holding other objects while living in their own container like any object. */
     readonly scope?: true;
+    /** The open relations of other types this type's objects may be subjects of. */
+    readonly contributes?: readonly {
+        readonly packageId: PackageId;
+        readonly type: string;
+        readonly relation: string;
+    }[];
 }
 
 /** The policy of one type of object, with typed references to its permissions and relations. */
@@ -76,15 +82,26 @@ export class Policy<Name extends string = string> {
                             subjectType(owner.id, subject),
                         ),
                         ...(grantedBy === undefined || grantedBy === null ? {} : { grantedBy }),
+                        ...(relation.open ? { open: true } : {}),
                     },
                 ];
             }),
         );
 
-        // remember the policies named as subjects
+        // require every relation to accept a subject type unless other types contribute them
+        for (const [name, relation] of Object.entries(relations)) {
+            if (relation.subjects.length === 0 && !relation.open) {
+                throw new AccessError(
+                    "INVALID_DECLARATION",
+                    `relation ${name} accepts no subject type and is not open`,
+                );
+            }
+        }
+
+        // remember the policies named as subjects and the policies contributed to
         this.references = [
-            ...new Set(
-                Object.values(input.relations ?? {})
+            ...new Set([
+                ...Object.values(input.relations ?? {})
                     .flatMap((relation) => relation.subjects)
                     .flatMap((subject) =>
                         subject instanceof Policy
@@ -93,7 +110,8 @@ export class Policy<Name extends string = string> {
                               ? [subject.policy]
                               : [],
                     ),
-            ),
+                ...(input.contributes ?? []).map((entry) => entry.policy),
+            ]),
         ];
 
         // retain the declaring package and a frozen copy of the rules
@@ -113,6 +131,15 @@ export class Policy<Name extends string = string> {
                     ? {}
                     : { administration: [...input.administration] }),
                 ...(input.scope ? { scope: true } : {}),
+                ...(input.contributes === undefined || input.contributes.length === 0
+                    ? {}
+                    : {
+                          contributes: input.contributes.map((entry) => ({
+                              packageId: entry.policy.definition.packageId,
+                              type: entry.policy.definition.name,
+                              relation: entry.relation,
+                          })),
+                      }),
             }) as PolicyDefinition,
         );
     }
@@ -222,6 +249,8 @@ export interface RelationInput {
     readonly subjects: readonly SubjectTypeInput[];
     /** The permission whose holders grant and revoke the relation, the policy's when absent, none when null. */
     readonly grantedBy?: string | null;
+    /** Whether other types contribute themselves as subject types, as the hosts of an attachment do. */
+    readonly open?: true;
 }
 
 /** A policy as declared. */
@@ -244,6 +273,8 @@ export interface PolicyInput<Name extends string> {
     readonly administration?: readonly NoInfer<Name>[];
     /** Whether the type's objects are scopes, holding other objects while living in their own container like any object. */
     readonly scope?: boolean;
+    /** The open relations of other types this type's objects may be subjects of, such as an attachment's parent. */
+    readonly contributes?: readonly { readonly policy: Policy; readonly relation: string }[];
 }
 
 /** Qualify a declared subject type with the package declaring it. */

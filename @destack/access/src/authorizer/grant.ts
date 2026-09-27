@@ -258,7 +258,8 @@ export class GrantReader {
             }
             const [type] = relation.subjects;
             const columns = field.subject;
-            const heldRelation = columns === undefined ? undefined : row[columns.relation];
+            const heldRelation =
+                columns?.relation === undefined ? undefined : row[columns.relation];
             const subject: Subject = field.isKey
                 ? keySubject(schema.string().parse(held))
                 : columns === undefined
@@ -355,9 +356,19 @@ export class GrantReader {
             return grants;
         }
 
-        // follow the parent a field holds, or every ancestor of a tree
-        const [subject] = relation.subjects;
-        const target = this.#authorizer.mapping(subject!);
+        // follow the parent a field holds, of whichever type the row's columns name when it holds several
+        const typed = field.subject;
+        const subject =
+            typed === undefined
+                ? relation.subjects[0]
+                : relation.subjects.find(
+                      (type) =>
+                          type.packageId === row[typed.packageId] && type.type === row[typed.type],
+                  );
+        if (subject === undefined) {
+            return [];
+        }
+        const target = this.#authorizer.mapping(subject);
         const ids = expression.transitive
             ? await this.#ancestors(mapping, expression.relation, row)
             : row[field.column] === null || row[field.column] === undefined

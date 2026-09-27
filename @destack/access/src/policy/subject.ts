@@ -24,6 +24,8 @@ export interface RelationDefinition {
     readonly subjects: readonly SubjectType[];
     /** The permission whose holders grant and revoke the relation, absent when only the system relates it. */
     readonly grantedBy?: string;
+    /** Whether other types contribute themselves as subject types, as the hosts of an attachment do. */
+    readonly open?: true;
 }
 
 /** A subject: a principal or other object, a subject set of its relation's members, or every object of a type. */

@@ -36,6 +36,13 @@ const note = new Policy(import.meta.destack.package, {
 | `administration` | Permissions that stay available in a suspended scope |
 | `scope` | The type's objects are scopes, containing other objects |
 
+An open relation takes the subject types other policies contribute, as an attachment's parent takes each host listing it.
+
+```ts
+const comment = new Policy(pkg, { name: "comment", relations: { parent: { subjects: [], open: true, grantedBy: null } }, permissions: { read: through("parent", "read") } });
+const note = new Policy(pkg, { name: "note", ..., contributes: [{ policy: comment, relation: "parent" }] });
+```
+
 ## Authorizer
 
 An authorizer decides policies over the tables of one database their objects live in.

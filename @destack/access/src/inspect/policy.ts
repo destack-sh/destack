@@ -46,12 +46,27 @@ export const PolicyDescription = defineSchema(
         relations: schema.record(
             AccessName,
             schema.object({
-                /** The subject types the relation accepts. */
-                subjects: schema.array(SubjectType).min(1),
+                /** The subject types the relation accepts itself, beside those other types contribute to an open relation. */
+                subjects: schema.array(SubjectType),
                 /** The permission whose holders grant and revoke the relation. */
                 grantedBy: AccessName.optional(),
+                /** Whether other types contribute themselves as subject types. */
+                open: schema.literal(true).optional(),
             }),
         ),
+        /** The open relations of other types this type's objects may be subjects of. */
+        contributes: schema
+            .array(
+                schema.object({
+                    /** The package declaring the type with the open relation. */
+                    packageId: PackageId,
+                    /** The type with the open relation. */
+                    type: AccessName,
+                    /** The open relation. */
+                    relation: AccessName,
+                }),
+            )
+            .optional(),
         /** The named permission expressions. */
         permissions: schema.record(AccessName, AccessExpressionDescription),
         /** The permission required to bind roles on an object. */

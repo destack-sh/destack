@@ -38,8 +38,8 @@ export interface TableMapping {
                 readonly column: string;
                 /** The scope of every subject the column holds; the object's own scope when absent. */
                 readonly scope?: string;
-                /** The columns naming the subject's type, scope and relation, for relations accepting several subject types. */
-                readonly subject?: Omit<ReferenceColumns, "id"> & { readonly relation: string };
+                /** The columns naming the subject's type, scope and relation, for relations accepting several subject types; objects need no relation column. */
+                readonly subject?: Omit<ReferenceColumns, "id"> & { readonly relation?: string };
                 /** Whether the column holds whole subject keys of any type, as `subjectKey` writes them. */
                 readonly isKey?: true;
             }
@@ -129,8 +129,8 @@ function validate(authorizer: Authorizer, mapping: TableMapping): void {
         if (
             (field.subject === undefined &&
                 field.isKey === undefined &&
-                relation.subjects.length !== 1) ||
-            relation.subjects[0].wildcard ||
+                (relation.subjects.length !== 1 || relation.open)) ||
+            relation.subjects.some((subject) => subject.wildcard) ||
             column(mapping.table, field.column).definition.kind !== "text" ||
             field.scope === ""
         ) {
