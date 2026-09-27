@@ -43,6 +43,7 @@ function createPostgresLog(): readonly string[] {
         )`,
         `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_compaction`)} ON ${log}(tier, changed_at)`,
         `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_scope`)} ON ${log}(scope, sequence)`,
+        `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_transaction_sequence`)} ON ${log}("transaction", sequence)`,
         `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_unstamped`)} ON ${log}("transaction", id) WHERE sequence IS NULL`,
         `CREATE SEQUENCE IF NOT EXISTS ${quote(`${LOG}_sequence`)}`,
         `CREATE TABLE IF NOT EXISTS ${quote(LOG_HORIZON)} (

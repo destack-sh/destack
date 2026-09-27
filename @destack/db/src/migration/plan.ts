@@ -4,6 +4,7 @@ import type { TreeDescription } from "../inspect/tree.ts";
 import { createLog, logTriggers } from "../log/trigger.ts";
 import { treeTriggers } from "../tree/trigger.ts";
 import { aggregateTriggers, recomputeAggregate } from "../aggregate/trigger.ts";
+import { dependentTriggers } from "../dependent/trigger.ts";
 import { createState, deleteState, type TableState } from "./state.ts";
 import * as statement from "./statement.ts";
 import { quote } from "../dialect/quote.ts";
@@ -19,6 +20,7 @@ const TRIGGERS: readonly Triggers[] = [
     logTriggers,
     treeTriggers,
     aggregateTriggers,
+    dependentTriggers,
     bridgeTriggers,
 ];
 
@@ -40,7 +42,9 @@ export type TableStepKind =
     | "rebuildTree"
     | "updateLog"
     | "recomputeAggregate"
-    | "dropAggregate";
+    | "dropAggregate"
+    | "addDependent"
+    | "dropDependent";
 
 /** One change of a database plan to one table. */
 export interface TableStep extends Step {
@@ -228,6 +232,46 @@ export function planTables(input: PlanInput): TablePlan {
                         "safe",
                         aggregate.table,
                         `stop keeping ${aggregate.column} from ${aggregate.source}`,
+                        [],
+                    ),
+                );
+            }
+        }
+    }
+
+    // start and stop keeping dependents, whose triggers the plan installs and removes
+    for (const state of declared) {
+        const previous = applied.find((entry) => entry.table.name === state.table.name);
+        for (const dependent of state.dependents ?? []) {
+            const isKnown = (previous?.dependents ?? []).some(
+                (entry) => canonicalize(entry) === canonicalize(dependent),
+            );
+            if (!isKnown) {
+                steps.push(
+                    step(
+                        "addDependent",
+                        "safe",
+                        dependent.table,
+                        `${dependent.onDelete} deletes into ${dependent.source}`,
+                        [],
+                    ),
+                );
+            }
+        }
+    }
+    for (const previous of applied) {
+        const state = declared.find((entry) => entry.table.name === previous.table.name);
+        for (const dependent of previous.dependents ?? []) {
+            const isKept = (state?.dependents ?? []).some(
+                (entry) => canonicalize(entry) === canonicalize(dependent),
+            );
+            if (!isKept) {
+                steps.push(
+                    step(
+                        "dropDependent",
+                        "safe",
+                        dependent.table,
+                        `stop ${dependent.onDelete} deletes into ${dependent.source}`,
                         [],
                     ),
                 );

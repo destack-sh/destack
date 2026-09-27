@@ -381,9 +381,15 @@ export function json<Validator extends schema.Schema>(
     });
 }
 
-/** Define a prefixed UUIDv7 identifier. */
-export function identifier<const Prefix extends string>(name: string, prefix: Prefix) {
-    const validator = identifiers.identifier(prefix);
+/** Define a prefixed UUIDv7 identifier, its prefix read when first validated for targets declared later. */
+export function identifier<const Prefix extends string>(
+    name: string,
+    prefix: Prefix | (() => Prefix),
+) {
+    const validator =
+        typeof prefix === "function"
+            ? schema.lazy(() => identifiers.identifier(prefix()))
+            : identifiers.identifier(prefix);
 
     return new ColumnBuilder({
         name,

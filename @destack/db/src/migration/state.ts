@@ -8,6 +8,7 @@ import { TableDescription } from "../inspect/table.ts";
 import { ChangeDescription } from "../inspect/log.ts";
 import { TreeDescription } from "../inspect/tree.ts";
 import { AggregateDescription } from "../inspect/aggregate.ts";
+import { DependentDescription } from "../inspect/dependent.ts";
 import { describeTable, inlineExpression } from "../inspect/describe.ts";
 import { qualify } from "../table/namespace.ts";
 import { describeLog, primaryKey } from "../log/schema.ts";
@@ -33,6 +34,8 @@ export const TableState = defineSchema(
         tree: TreeDescription.optional(),
         /** The aggregates of this table's rows other tables hold, kept current by triggers on this table. */
         aggregates: schema.array(AggregateDescription).optional(),
+        /** The rows of other tables referencing this table's rows under a condition, kept by triggers on this table. */
+        dependents: schema.array(DependentDescription).optional(),
         /** The table's and its columns' previous SQL names, declared rather than applied. */
         moved: schema
             .object({
@@ -115,7 +118,8 @@ export function holdsState(applied: TableState, declared: TableState): boolean {
         applied.version < declared.version ||
         logOf(applied) !== logOf(declared) ||
         canonicalize(applied.tree ?? null) !== canonicalize(declared.tree ?? null) ||
-        canonicalize(applied.aggregates ?? []) !== canonicalize(declared.aggregates ?? [])
+        canonicalize(applied.aggregates ?? []) !== canonicalize(declared.aggregates ?? []) ||
+        canonicalize(applied.dependents ?? []) !== canonicalize(declared.dependents ?? [])
     ) {
         return false;
     }
@@ -166,6 +170,7 @@ export function declareState(
         const tree = options.isReplica ? undefined : definition.tree?.describe();
         const moved = describeMoves(table);
         const conversions = describeConversions(table, dialect);
+        const dependents = options.isReplica ? [] : describeDependents(table, tables);
 
         return {
             packageId: definition.package.id,
@@ -178,6 +183,7 @@ export function declareState(
             ...(aggregates.has(definition.sqlName)
                 ? { aggregates: aggregates.get(definition.sqlName)! }
                 : {}),
+            ...(dependents.length === 0 ? {} : { dependents }),
             ...(moved === undefined ? {} : { moved }),
             ...(conversions === undefined ? {} : { conversions }),
         };
@@ -288,25 +294,29 @@ function describeConversions(table: Table, dialect: Dialect): TableState["conver
     );
 }
 
-/** Describe the aggregates tables hold, by the table each aggregates; a replica skips holders it lacks, whose values arrive copied. */
+/** Describe the aggregates tables hold, by the table each aggregates; a replica skips aggregates between tables it lacks, whose values arrive copied. */
 function describeAggregates(
     tables: readonly Table[],
     isReplica: boolean,
 ): Map<string, AggregateDescription[]> {
     const described = new Map<string, AggregateDescription[]>();
-    for (const source of tables) {
-        const definition = source[TABLE];
-        for (const aggregate of definition.aggregates) {
-            // require the holding table among the declared ones, and a single-column key
-            const holder = aggregate.into();
-            if (!tables.includes(holder)) {
+    for (const table of tables) {
+        for (const aggregate of table[TABLE].aggregates) {
+            // require both tables among the declared ones, where a replica lacking one receives the values copied
+            const source = "from" in aggregate ? aggregate.from() : table;
+            const holder = "into" in aggregate ? aggregate.into() : table;
+            const definition = source[TABLE];
+            const missing = [source, holder].find((entry) => !tables.includes(entry));
+            if (missing !== undefined) {
                 if (isReplica) {
                     continue;
                 }
                 throw new TypeError(
-                    `aggregate of ${definition.name} fills undeclared table ${holder[TABLE].name}`,
+                    `aggregate of ${definition.name} into ${holder[TABLE].name} names undeclared table ${missing[TABLE].name}`,
                 );
             }
+
+            // require a single-column key on the holding table
             const [id, ...rest] = primaryKey(holder);
             if (id === undefined || rest.length > 0) {
                 throw new TypeError(
@@ -336,6 +346,37 @@ function describeAggregates(
     }
 
     return described;
+}
+
+/** Describe the rows of other tables referencing a table's rows under a condition, requiring those tables among the declared ones. */
+function describeDependents(table: Table, tables: readonly Table[]): DependentDescription[] {
+    const definition = table[TABLE];
+
+    return definition.dependents.map((dependent) => {
+        // require the dependent table and a single-column key on the referenced one
+        const source = dependent.from();
+        if (!tables.includes(source)) {
+            throw new TypeError(
+                `dependents of ${definition.name} name undeclared table ${source[TABLE].name}`,
+            );
+        }
+        const [id, ...rest] = primaryKey(table);
+        if (id === undefined || rest.length > 0) {
+            throw new TypeError(`dependents of ${definition.name} need a single-column key`);
+        }
+
+        return {
+            table: definition.sqlName,
+            id: id.definition.name,
+            source: source[TABLE].sqlName,
+            key: sqlColumn(source, dependent.key, source),
+            where: Object.entries(dependent.where ?? {}).map(([name, value]) => ({
+                column: sqlColumn(source, name, source),
+                value,
+            })),
+            onDelete: dependent.onDelete,
+        };
+    });
 }
 
 /** Leave out a table's foreign keys, which a partial copy cannot keep. */

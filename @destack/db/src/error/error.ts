@@ -13,6 +13,9 @@ export type DatabaseErrorCode =
     | "STALE_EPOCH"
     | "CONCURRENT_UPDATE"
     | "DUPLICATE"
+    | "BROKEN_REFERENCE"
+    | "INVALID_RECORD"
+    | "READ_ONLY"
     | "INVALID_QUERY";
 
 /** A database failure with a stable code. */
@@ -33,12 +36,12 @@ export function assertNever(value: never): never {
     throw new TypeError(`unhandled database variant: ${String(value)}`);
 }
 
-/** Classify a failed statement: a transaction that lost to a concurrent one, or a row duplicating a unique key. */
+/** Classify a failed statement: a transaction that lost to a concurrent one, a row duplicating a unique key, a change breaking a reference, or a row failing a check. */
 export function classifyError(error: unknown): unknown {
-    // find the failure's PostgreSQL state or SQLite message among its causes
+    // keep a classified cause, else classify by the PostgreSQL state or SQLite message among the causes
     for (let cause = error; cause instanceof Error; cause = cause.cause) {
         if (cause instanceof DatabaseError) {
-            return error;
+            return cause;
         }
         const code = "code" in cause ? cause.code : undefined;
         if (code === "40001" || code === "40P01") {
@@ -49,6 +52,16 @@ export function classifyError(error: unknown): unknown {
             );
         } else if (code === "23505" || cause.message.includes("UNIQUE constraint failed")) {
             return new DatabaseError("DUPLICATE", "a record with the same unique key exists", {
+                cause: error,
+            });
+        } else if (code === "23503" || cause.message.includes("FOREIGN KEY constraint failed")) {
+            return new DatabaseError(
+                "BROKEN_REFERENCE",
+                "the change would leave a reference to a missing record",
+                { cause: error },
+            );
+        } else if (code === "23514" || cause.message.includes("CHECK constraint failed")) {
+            return new DatabaseError("INVALID_RECORD", "a record fails a declared check", {
                 cause: error,
             });
         }

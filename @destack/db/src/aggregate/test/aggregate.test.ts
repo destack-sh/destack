@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "../../test/database.ts";
 import { asc, eq } from "../../index.ts";
-import { item, list, lists, plainItem } from "./fixture.ts";
+import { archive, item, list, lists, plainItem } from "./fixture.ts";
 
 /** Open a migrated database holding lists and their items. */
 async function open(dialect: (typeof TEST_DIALECTS)[number]) {
@@ -99,3 +99,38 @@ test.for(TEST_DIALECTS)(
         expect(await read()).toEqual([[1, 1, 3, 3]]);
     },
 );
+
+test.for(TEST_DIALECTS)(
+    "keep an aggregate the holding table declares over another table's rows on %s",
+    async (dialect) => {
+        const test = await TestDatabase.create(dialect, [plainItem, archive], { isMigrated: true });
+        onTestFinished(() => test.close());
+        const { database } = test;
+        const read = async () =>
+            (await database.select().from(archive).orderBy(asc(archive.id))).map((row) => [
+                row.id,
+                row.done,
+            ]);
+
+        // count the done items of each archive's list as they change
+        await database.insert(archive).values([{ id: "a" }, { id: "b" }]);
+        await database.insert(plainItem).values([
+            { id: "1", listId: "a", points: 3, isDone: true },
+            { id: "2", listId: "a", points: 5, isDone: false },
+            { id: "3", listId: "b", points: 2, isDone: true },
+        ]);
+        await database.update(plainItem).set({ isDone: true }).where(eq(plainItem.id, "2"));
+        await database.delete(plainItem).where(eq(plainItem.id, "3"));
+        expect(await read()).toEqual([
+            ["a", 2],
+            ["b", 0],
+        ]);
+    },
+);
+
+test("refuse an aggregate naming a table the database does not declare", async () => {
+    // declare the archive without the items it counts
+    await expect(TestDatabase.create("sqlite", [archive], { isMigrated: true })).rejects.toThrow(
+        "aggregate of aggregate_item into aggregate_archive names undeclared table aggregate_item",
+    );
+});

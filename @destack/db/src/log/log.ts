@@ -4,7 +4,7 @@ import type { DatabaseConnection } from "../database/connection.ts";
 import { TABLE, type Select, type Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever, DatabaseError } from "../error/error.ts";
-import { LOG_EPOCH, LOG_HORIZON, LOG_COPYING, LOG, LOG_TRANSACTION } from "./schema.ts";
+import { LOG_EPOCH, LOG_HOLD, LOG_HORIZON, LOG_COPYING, LOG, LOG_TRANSACTION } from "./schema.ts";
 import { latestOf, selectHead, type LogPosition } from "./position.ts";
 import { Snapshot, type Undo } from "./snapshot.ts";
 import type { Row } from "../table/row.ts";
@@ -50,6 +50,18 @@ export interface Change<Definition extends Table = Table> {
     readonly scope: string;
     /** The change time in UTC epoch milliseconds. */
     readonly changedAt: number;
+}
+
+/** The transaction that wrote changes: the positions around its changes, and when it started and committed. */
+export interface TransactionBounds {
+    /** The position before its first change. */
+    readonly before: number;
+    /** The position after its last change. */
+    readonly after: number;
+    /** The time of its first change, in UTC epoch milliseconds. */
+    readonly startedAt: number;
+    /** The time of its last change, in UTC epoch milliseconds. */
+    readonly committedAt: number;
 }
 
 /** Changes read after a sequence, and the sequence the next read continues after. */
@@ -303,8 +315,25 @@ export class Log {
         }
     }
 
-    /** Delete windowed changes older than a time and advance the horizon past them. */
-    async compact(before: number): Promise<void> {
+    /** Keep the changes after a position for a consumer until a time, replacing the consumer's earlier hold. */
+    async hold(name: string, sequence: number, expiresAt: number): Promise<void> {
+        const hold = sql.identifier(LOG_HOLD);
+        await this.database.execute(sql`
+            INSERT INTO ${hold} (name, sequence, expires_at)
+            VALUES (${name}, ${sequence}, ${expiresAt})
+            ON CONFLICT (name) DO UPDATE SET sequence = excluded.sequence, expires_at = excluded.expires_at
+        `);
+    }
+
+    /** Stop keeping changes for a consumer. */
+    async release(name: string): Promise<void> {
+        await this.database.execute(
+            sql`DELETE FROM ${sql.identifier(LOG_HOLD)} WHERE name = ${name}`,
+        );
+    }
+
+    /** Delete the windowed changes older than a time that no consumer's hold keeps, and advance the horizon past them. */
+    async compact(before: number, now = Date.now()): Promise<void> {
         await this.database.transaction(async (transaction) => {
             // find the newest windowed change to remove
             const log = sql.identifier(LOG);
@@ -319,18 +348,33 @@ export class Log {
                 return;
             }
 
-            // stop before the transaction of that change when it wrote later changes too
+            // keep the changes after the earliest position a consumer holds until its hold expires, and those compaction kept already
+            const [held] = await transaction.execute<{
+                sequence: number | string | null;
+                horizon: number | string | null;
+            }>(sql`
+                SELECT
+                    (SELECT min(sequence) FROM ${sql.identifier(LOG_HOLD)} WHERE expires_at > ${now}) AS sequence,
+                    (SELECT sequence FROM ${sql.identifier(LOG_HORIZON)} WHERE slot = 1) AS horizon
+            `);
+            const cap =
+                held?.sequence === null || held?.sequence === undefined
+                    ? Number(newest.sequence)
+                    : Math.min(Number(newest.sequence), Number(held.sequence));
+            if (cap <= Number(held?.horizon ?? 0)) {
+                return;
+            }
+
+            // stop before the transaction of the change at that position when it wrote later changes too
             const [split] = await transaction.execute<{ first: number | string | null }>(sql`
-                SELECT min(later.sequence) AS first
-                FROM ${log} newest
-                JOIN ${log} later ON later."transaction" = newest."transaction"
-                WHERE newest.sequence = ${Number(newest.sequence)}
-                    AND later.sequence > newest.sequence
+                SELECT min(earlier.sequence) AS first
+                FROM ${log} change
+                JOIN ${log} later ON later."transaction" = change."transaction" AND later.sequence > change.sequence
+                JOIN ${log} earlier ON earlier."transaction" = change."transaction"
+                WHERE change.sequence = ${cap}
             `);
             const sequence =
-                split?.first === null || split?.first === undefined
-                    ? Number(newest.sequence)
-                    : await this.#before(transaction, Number(newest.sequence));
+                split?.first === null || split?.first === undefined ? cap : Number(split.first) - 1;
 
             // remove the windowed changes of whole transactions and require readers behind them to list again
             await transaction.execute(sql`
@@ -354,16 +398,32 @@ export class Log {
         });
     }
 
-    /** Read the sequence before the first change of the transaction that wrote a change. */
-    async #before(database: DatabaseConnection, sequence: number): Promise<number> {
-        const [first] = await database.execute<{ sequence: number | string }>(sql`
-            SELECT min(earlier.sequence) AS sequence
-            FROM ${sql.identifier(LOG)} change
-            JOIN ${sql.identifier(LOG)} earlier ON earlier."transaction" = change."transaction"
-            WHERE change.sequence = ${sequence}
+    /** Read the transaction that wrote a change: the positions before its first change and after its last, and when they happened. */
+    async bounds(sequence: number): Promise<TransactionBounds> {
+        // read the first and last change of the change's transaction, the change alone without one
+        const log = sql.identifier(LOG);
+        const [bounds] = await this.database.execute<{
+            first: number | string | null;
+            last: number | string;
+            startedAt: number | string;
+            committedAt: number | string;
+        }>(sql`
+            SELECT min(sequence) AS first, max(sequence) AS last,
+                min(changed_at) AS "startedAt", max(changed_at) AS "committedAt"
+            FROM ${log}
+            WHERE sequence = ${sequence}
+                OR "transaction" = (SELECT "transaction" FROM ${log} WHERE sequence = ${sequence})
         `);
+        if (bounds === undefined || bounds.first === null) {
+            throw new DatabaseError("CHANGES_COMPACTED", `change ${sequence} is not in the log`);
+        }
 
-        return Number(first!.sequence) - 1;
+        return {
+            before: Number(bounds.first) - 1,
+            after: Number(bounds.last),
+            startedAt: Number(bounds.startedAt),
+            committedAt: Number(bounds.committedAt),
+        };
     }
 
     /** Read log entries of the selected tables and scopes with the latest sequence and horizon. */

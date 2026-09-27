@@ -35,6 +35,7 @@ function createSQLiteLog(): readonly string[] {
         )`,
         `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_compaction`)} ON ${quote(LOG)}(tier, changed_at)`,
         `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_scope`)} ON ${quote(LOG)}(scope, sequence)`,
+        `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_transaction_sequence`)} ON ${quote(LOG)}("transaction", sequence)`,
         `CREATE TABLE IF NOT EXISTS ${quote(LOG_HORIZON)} (
             slot INTEGER PRIMARY KEY CHECK (slot = 1),
             sequence INTEGER NOT NULL

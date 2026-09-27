@@ -11,6 +11,9 @@ export const LOG = "__destack_log";
 /** The SQL name of the highest compacted change sequence. */
 export const LOG_HORIZON = "__destack_log_horizon";
 
+/** The SQL name of the positions consumers hold, which compaction keeps the changes after until they expire. */
+export const LOG_HOLD = "__destack_log_hold";
+
 /** The SQL name of the log's epoch, which a restore renews since sequences restart with it. */
 export const LOG_EPOCH = "__destack_log_epoch";
 
@@ -79,9 +82,14 @@ export function primaryKey(table: Table): readonly Column[] {
     return columns;
 }
 
-/** Create the log's epoch once, keeping the epoch an earlier creation minted, and the copying marker. */
+/** Create the log's epoch once, keeping the epoch an earlier creation minted, the copying marker and the consumers' holds. */
 export function createEpoch(): readonly string[] {
     return [
+        `CREATE TABLE IF NOT EXISTS ${quote(LOG_HOLD)} (
+            name TEXT PRIMARY KEY,
+            sequence BIGINT NOT NULL,
+            expires_at BIGINT NOT NULL
+        )`,
         `CREATE TABLE IF NOT EXISTS ${quote(LOG_COPYING)} (slot INTEGER PRIMARY KEY CHECK (slot = 1))`,
         `CREATE TABLE IF NOT EXISTS ${quote(LOG_EPOCH)} (
             slot INTEGER PRIMARY KEY CHECK (slot = 1),

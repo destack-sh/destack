@@ -305,3 +305,33 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
         await expect(late).rejects.toMatchObject({ code: "CONCURRENT_UPDATE" });
     },
 );
+
+test.for(TEST_DIALECTS)(
+    "keep the changes after a consumer's hold until it expires or is released on %s",
+    async (dialect) => {
+        const { database } = await open(dialect);
+        await database.insert(note).values(first);
+        const held = await database.log.latest();
+        await database.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
+
+        // keep the changes after the hold while it lasts
+        const now = Date.now();
+        await database.log.hold("subscription", held, now + 60_000);
+        await database.log.compact(now + 1, now);
+        expect(
+            (await database.log.read({ tables: [note], after: held })).changes.map(
+                (change) => change.operation,
+            ),
+        ).toEqual(["update"]);
+
+        // compact past an expired hold, failing its consumer loudly, and past a released one
+        await database.log.compact(now + 1, now + 120_000);
+        await expect(database.log.read({ tables: [note], after: held })).rejects.toMatchObject({
+            code: "CHANGES_COMPACTED",
+        });
+        await database.log.release("subscription");
+        expect(
+            await database.execute(sql`SELECT name FROM ${sql.identifier("__destack_log_hold")}`),
+        ).toEqual([]);
+    },
+);

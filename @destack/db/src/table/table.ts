@@ -57,7 +57,7 @@ export class Table<
         options: { readonly tree?: TreeColumns; readonly source?: Table } = {},
     ) {
         // declare the table, reading its key once its constraints can be evaluated, or an alias's from its source
-        const { constraints, tier, version, moved, convert, aggregates } = declaration;
+        const { constraints, tier, version, moved, convert, aggregates, dependents } = declaration;
         const declared = {
             ...identity,
             columns,
@@ -67,6 +67,7 @@ export class Table<
             moved,
             convert,
             aggregates,
+            dependents,
             ...(options.source === undefined ? {} : { source: options.source }),
         };
         Object.defineProperties(declared, {
@@ -204,17 +205,30 @@ interface TableDeclaration {
     readonly moved: TableMove;
     /** Row conversions indexed by the version each converts to. */
     readonly convert: Readonly<Record<number, RowConversion>>;
-    /** The aggregates of this table's rows that other tables hold. */
+    /** The aggregates this table's rows feed or hold. */
     readonly aggregates: readonly Aggregate[];
+    /** The rows of other tables referencing this table's rows under a condition, which delete with them or keep them. */
+    readonly dependents: readonly Dependent[];
 }
 
-/** An aggregate of a table's rows another table's rows hold, each over the rows referencing it: a count, sum, minimum or maximum. */
-export interface Aggregate {
-    /** The table holding the aggregate. */
-    readonly into: () => Table;
+/** An aggregate of one table's rows another table's rows hold, over the rows referencing each: a count, sum, minimum or maximum. */
+export type Aggregate = AggregateOptions &
+    (
+        | {
+              /** The table holding the aggregate of this table's rows. */
+              readonly into: () => Table;
+          }
+        | {
+              /** The table whose rows this table holds the aggregate of. */
+              readonly from: () => Table;
+          }
+    );
+
+/** What an aggregate holds, whichever of its two tables declares it. */
+interface AggregateOptions {
     /** The holding table's property keeping the aggregate. */
     readonly column: string;
-    /** This table's property referencing the holding rows. */
+    /** The aggregated table's property referencing the holding rows. */
     readonly key: string;
     /** The aggregate function. */
     readonly function: "count" | "sum" | "min" | "max";
@@ -222,6 +236,18 @@ export interface Aggregate {
     readonly value?: string;
     /** The values the aggregated rows' properties hold. */
     readonly where?: Readonly<Record<string, string | number | boolean | null>>;
+}
+
+/** Rows of another table referencing this table's rows by a key, among rows holding fixed values, as a polymorphic reference does. */
+export interface Dependent {
+    /** The table holding the dependent rows. */
+    readonly from: () => Table;
+    /** The dependent table's property referencing this table's rows. */
+    readonly key: string;
+    /** The values the dependent rows' other properties hold, such as the type they reference. */
+    readonly where?: Readonly<Record<string, string | number | boolean | null>>;
+    /** Delete the dependent rows with the row they reference, or refuse deleting a referenced row. */
+    readonly onDelete: "cascade" | "restrict";
 }
 
 /** How a table is declared beyond its name and columns. */
@@ -248,8 +274,10 @@ export interface TableOptions<Columns> {
     };
     /** Row conversions indexed by the version each converts to. */
     readonly convert?: Readonly<Record<number, RowConversion<Columns>>>;
-    /** The aggregates of this table's rows that other tables hold, kept current as the rows change. */
+    /** The aggregates this table's rows feed or hold, kept current as the aggregated rows change. */
     readonly aggregates?: readonly Aggregate[];
+    /** The rows of other tables referencing this table's rows under a condition, which delete with them or keep them. */
+    readonly dependents?: readonly Dependent[];
 }
 
 /** Columns indexed by application property name. */
@@ -357,6 +385,7 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
             moved: (options.moved ?? {}) as TableMove,
             convert: (options.convert ?? {}) as Readonly<Record<number, RowConversion>>,
             aggregates: options.aggregates ?? [],
+            dependents: options.dependents ?? [],
         },
         options.tree === undefined ? {} : { tree: options.tree },
     );

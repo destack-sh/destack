@@ -50,3 +50,25 @@ export const plainItem = defineTable("aggregate_item", itemColumns);
 
 /** The tables of the aggregate example. */
 export const lists = [item, list];
+
+/** Archives counting the done items of the list sharing their identifier, declared from the holding side. */
+export const archive = defineTable(
+    "aggregate_archive",
+    {
+        /** The identifier of the list whose done items the archive counts. */
+        id: text("id").primaryKey(),
+        /** How many of the list's items are done. */
+        done: integer("done").notNull().default(0),
+    },
+    {
+        aggregates: [
+            {
+                from: () => plainItem,
+                column: "done",
+                key: "listId",
+                function: "count",
+                where: { isDone: true },
+            },
+        ],
+    },
+);

@@ -112,6 +112,15 @@ export function describeTable(table: Table, dialect: Dialect): TableDescription 
                     name: check.name,
                     expression: inlineExpression(check.expression, dialect),
                 })),
+            ...columns
+                .filter((column) => column.definition.enumValues !== undefined)
+                .map((column) => ({
+                    kind: "check" as const,
+                    name: derivedName(definition.sqlName, [column], "enum"),
+                    expression: `${quote(column.definition.name)} IN (${column.definition
+                        .enumValues!.map(literal)
+                        .join(", ")})`,
+                })),
         ],
         indexes: constraints
             .filter((value) => value.kind === "index")

@@ -1,7 +1,7 @@
 import type { Triggers } from "../migration/trigger.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever } from "../error/error.ts";
-import { literal, quote } from "../dialect/quote.ts";
+import { condition, quote } from "../dialect/quote.ts";
 import type { AggregateDescription } from "../inspect/aggregate.ts";
 import { LOG_COPYING } from "../log/schema.ts";
 
@@ -113,26 +113,6 @@ function computed(aggregate: AggregateDescription, dialect: Dialect): string {
     );
 
     return `SELECT ${expression} FROM ${source} WHERE ${source}.${quote(aggregate.key)} = ${quote(aggregate.table)}.${quote(aggregate.id)}${matching.join("")}`;
-}
-
-/** Compare a column with a value in a dialect, null matching null. */
-function condition(value: string | number | boolean | null, dialect: Dialect): string {
-    // match null by identity
-    if (value === null) {
-        return "IS NULL";
-    }
-    // quote text
-    else if (typeof value === "string") {
-        return `= ${literal(value)}`;
-    }
-    // write booleans as each dialect stores them
-    else if (typeof value === "boolean") {
-        return dialect === "sqlite" ? `= ${value ? 1 : 0}` : `= ${value}`;
-    }
-    // write numbers as they are
-    else {
-        return `= ${value}`;
-    }
 }
 
 /** Name an aggregate's triggers after its source and holding column. */

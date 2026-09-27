@@ -117,6 +117,30 @@ await snapshot.rows(note, Condition.eq("scope", spaceId));
 await snapshot.ordered(note, { where, order: [{ column: "title", direction: "asc" }], count: 20 });
 ```
 
+A database as of a position runs any read over its logged tables as they were then, and refuses writes.
+
+```ts
+const past = await database.at(position);
+await past.select({ id: note.id, title: note.title }).from(note).where(eq(note.scope, spaceId));
+await new Authorization(authorizer, past, bind).checkRows(permission, scope, rows);   // decide access as it was then
+```
+
+A past database reads only what the log can restore.
+
+| Rule | Reason |
+|---|---|
+| each logged table reads its untouched rows and the images the log holds of the others | one statement, consistent without a transaction |
+| only logged columns exist; binary and sensitive ones fail | the log holds no images of them |
+| a position before the horizon of a windowed table fails with `CHANGES_COMPACTED` | its changes are gone |
+
+A transaction's bounds name the positions and times around it, and a consumer's hold keeps the changes after its position until the hold expires.
+
+```ts
+const { before, after, startedAt, committedAt } = await database.log.bounds(sequence);
+await database.log.hold("notes/published", consumed, Date.now() + maxLag);
+await database.log.release("notes/published");
+```
+
 Readers wake on commits through a `CommitNotifier`.
 
 | Notifier | Listens | Notifies |
@@ -127,13 +151,24 @@ Readers wake on commits through a `CommitNotifier`.
 
 ## Aggregates
 
-A child table declares the aggregates its parents hold.
+A child table declares the aggregates its parents hold with `into`, or a parent declares them with `from` when the children do not know it.
 
 ```ts
 aggregates: [
     { into: () => folder, column: "noteCount", key: "folderId", function: "count", where: { archived: false } },
     { into: () => folder, column: "lastEditedAt", key: "folderId", function: "max", value: "editedAt" },
 ],
+
+// on the parent, counting only the rows naming its type
+aggregates: [{ from: () => comment, column: "commentCount", key: "parentId", function: "count", where: { parentType: "note" } }],
+```
+
+## Dependents
+
+A table declares the rows of another table referencing it under a condition, which delete with it or keep it from deletion with `BROKEN_REFERENCE`, as a polymorphic reference needs.
+
+```ts
+dependents: [{ from: () => comment, key: "parentId", where: { parentType: "note" }, onDelete: "cascade" }],
 ```
 
 ## Shared databases
