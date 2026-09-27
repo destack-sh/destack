@@ -12,6 +12,8 @@ const spill = 8;
 const fadeTime = 500;
 /** How far the site frame's rim lies outside the frame, in CSS pixels. */
 const rimOffset = 3;
+/** The milliseconds a section's text takes to ease into its new scheme as the universe passes it. */
+const turnTime = 600;
 /** The most goo islands the universe grows out of. */
 const islandCapacity = 4;
 /** The milliseconds the universe takes to spread across the site or shrink back into its islands. */
@@ -680,6 +682,14 @@ export function Universe(properties: { isOpen: boolean; flow: number }) {
                 if (schemes.get(section) !== isCovered) {
                     schemes.set(section, isCovered);
                     section.style.colorScheme = isCovered ? "dark" : "";
+
+                    // ease the text into its new scheme, then let hovers answer at once again
+                    section.style.transition = `color ${turnTime}ms ease`;
+                    setTimeout(() => {
+                        if (schemes.get(section) === isCovered) {
+                            section.style.transition = "";
+                        }
+                    }, turnTime);
                 }
             });
 

@@ -912,12 +912,11 @@
     }
 }
 
-/* redraw text in its own section's scheme, easing it as the universe turns each section dark */
+/* redraw text in its own section's scheme, which the universe eases as it turns each section */
 @layer reset {
     [data-universe]:not([data-universe="parts"]),
     [data-universe="parts"] > :not([data-universe="parts"]) {
         color: var(--destack-color-foreground);
-        transition: color 600ms ease;
     }
 }
 
