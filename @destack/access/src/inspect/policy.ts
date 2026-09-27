@@ -1,18 +1,75 @@
+import type { Policy } from "../policy/policy.ts";
 import { defineSchema, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
-import { AccessName } from "../access/expression.ts";
-import { AccessExpressionDescription } from "./object.ts";
-import type { AccessPolicy } from "../access/policy.ts";
+import { Condition } from "@destack/db/query";
+import { AccessName, type AccessExpression } from "../policy/expression.ts";
+import { SubjectType } from "../policy/subject.ts";
 
-/** A mandatory condition applied to a package's named permissions. */
-export const AccessPolicyDescription: schema.Schema<AccessPolicy> = defineSchema(
+/** Serialized permission expressions with no executable callbacks. */
+export const AccessExpressionDescription: schema.Schema<AccessExpression> = schema.lazy(() =>
+    schema.union([
+        schema.object({ kind: schema.literal("none") }),
+        schema.object({
+            kind: schema.enum(["relation", "permission"]),
+            name: AccessName,
+        }),
+        schema.object({
+            kind: schema.enum(["union", "intersection"]),
+            expressions: schema.array(AccessExpressionDescription).min(1),
+        }),
+        schema.object({
+            kind: schema.literal("exclusion"),
+            include: AccessExpressionDescription,
+            exclude: AccessExpressionDescription,
+        }),
+        schema.object({ kind: schema.literal("condition"), condition: Condition.schema }),
+        schema.object({
+            kind: schema.literal("through"),
+            relation: AccessName,
+            permission: AccessName,
+            transitive: schema.boolean(),
+        }),
+        schema.object({ kind: schema.literal("grants"), reference: AccessName }),
+    ]),
+);
+
+/** A type's relations and permissions as data. */
+export const PolicyDescription = defineSchema(
     schema.object({
-        name: AccessName,
+        /** The stable declaring package identity. */
         packageId: PackageId,
-        type: AccessName,
-        permissions: schema.array(AccessName).min(1),
-        scope: schema.string().min(1).optional(),
-        effect: schema.enum(["restrict", "forbid"]),
-        condition: AccessExpressionDescription,
+        /** The declaration-local object type name. */
+        name: AccessName,
+        /** The scalar type of each object attribute that permission expressions read. */
+        attributes: schema.record(AccessName, schema.enum(["string", "number", "boolean"])),
+        /** The relations to subjects and to other objects. */
+        relations: schema.record(
+            AccessName,
+            schema.object({
+                /** The subject types the relation accepts. */
+                subjects: schema.array(SubjectType).min(1),
+                /** The permission whose holders grant and revoke the relation. */
+                grantedBy: AccessName.optional(),
+            }),
+        ),
+        /** The named permission expressions. */
+        permissions: schema.record(AccessName, AccessExpressionDescription),
+        /** The permission required to bind roles on an object. */
+        grantedBy: AccessName.optional(),
+        /** The permissions only their expressions grant. */
+        reserved: schema.array(AccessName).optional(),
+        /** The permissions that apply only after recent strong authentication. */
+        elevated: schema.array(AccessName).optional(),
+        /** Permissions that stay available while the scope is suspended. */
+        administration: schema.array(AccessName).optional(),
+        /** Whether the objects are scopes. */
+        scope: schema.literal(true).optional(),
     }),
 );
+/** A type's relations and permissions as data. */
+export type PolicyDescription = schema.Infer<typeof PolicyDescription>;
+
+/** Describe a policy for inspection. */
+export function describePolicy(policy: Policy): PolicyDescription {
+    return PolicyDescription.parse(policy.definition);
+}

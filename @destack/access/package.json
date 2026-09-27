@@ -7,17 +7,17 @@
     "sideEffects": false,
     "exports": {
         ".": "./src/index.ts",
-        "./declare": "./src/access/object.ts",
-        "./stack": "./src/stack/index.ts",
-        "./database": "./src/database/index.ts",
+        "./declare": "./src/policy/index.ts",
         "./inspect": "./src/inspect/index.ts",
-        "./error": "./src/error/index.ts"
+        "./error": "./src/error/index.ts",
+        "./test": "./src/test/copy.ts"
     },
     "dependencies": {
         "@destack/schema": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/db": "workspace:*",
-        "uuid": "14.0.2"
+        "uuid": "14.0.2",
+        "@destack/sync": "workspace:*"
     },
     "devDependencies": {
         "@destack/test": "workspace:*"

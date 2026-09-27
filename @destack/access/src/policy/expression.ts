@@ -1,20 +1,33 @@
+import { check, dialectSQL, sql, type Column } from "@destack/db";
+import type { Condition } from "@destack/db/query";
 import { schema } from "@destack/schema";
-import { Attribute } from "./subject.ts";
+
+/** A scalar request attribute that permission conditions compare. */
+export const Attribute = schema.union([
+    schema.string(),
+    schema.number().finite(),
+    schema.boolean(),
+]);
+/** A scalar request attribute that permission conditions compare. */
+export type Attribute = schema.Infer<typeof Attribute>;
 
 /** A stable declaration-local name used by access rules. */
 export const AccessName = schema.string().regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/);
 
-/** A scalar literal or a typed attribute read. */
-export type AccessOperand =
-    | { readonly kind: "literal"; readonly value: Attribute }
-    | {
-          readonly kind: "object" | "context";
-          readonly name: string;
-          readonly type: "string" | "number" | "boolean";
-      };
+/** Constrain a column holding access names to their lowercase kebab case. */
+export function nameCheck(name: string, column: Column) {
+    return check(
+        name,
+        dialectSQL({
+            sqlite: sql`${column} IS NULL OR (length(${column}) > 0 AND substr(${column}, 1, 1) GLOB '[a-z]' AND ${column} NOT GLOB '*[^a-z0-9-]*' AND ${column} NOT LIKE '%--%' AND ${column} NOT LIKE '%-')`,
+            postgresql: sql`${column} IS NULL OR (${column} COLLATE "C") ~ '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'`,
+        }),
+    );
+}
 
-/** A serializable rule evaluated identically in memory and SQL. */
+/** A serializable permission rule. */
 export type AccessExpression =
+    | { readonly kind: "none" }
     | { readonly kind: "relation"; readonly name: string }
     | { readonly kind: "permission"; readonly name: string }
     | {
@@ -26,18 +39,19 @@ export type AccessExpression =
           readonly include: AccessExpression;
           readonly exclude: AccessExpression;
       }
-    | {
-          readonly kind: "compare";
-          readonly operator: "eq" | "ne" | "lt" | "lte" | "gt" | "gte";
-          readonly left: AccessOperand;
-          readonly right: AccessOperand;
-      }
+    | { readonly kind: "condition"; readonly condition: Condition }
     | {
           readonly kind: "through";
           readonly relation: string;
           readonly permission: string;
           readonly transitive: boolean;
-      };
+      }
+    | { readonly kind: "grants"; readonly reference: string };
+
+/** Match no relation, leaving roles as the only way to hold the permission. */
+export function none(): AccessExpression {
+    return { kind: "none" };
+}
 
 /** Construct a relation membership expression. */
 export function relation(name: string): AccessExpression {
@@ -78,25 +92,12 @@ export function through(
     };
 }
 
-/** Read a typed object or request attribute. */
-export function attribute(
-    kind: "object" | "context",
-    name: string,
-    type: "string" | "number" | "boolean",
-): AccessOperand {
-    return { kind, name: AccessName.parse(name), type };
+/** Permit whoever may grant on the object a row references, through the grant permission of that object's own type. */
+export function grants(reference: string): AccessExpression {
+    return { kind: "grants", reference: AccessName.parse(reference) };
 }
 
-/** Embed a scalar value in a permission expression. */
-export function literal(value: Attribute): AccessOperand {
-    return { kind: "literal", value: Attribute.parse(value) };
-}
-
-/** Compare attributes or literals without executing application callbacks. */
-export function compare(
-    operator: Extract<AccessExpression, { kind: "compare" }>["operator"],
-    left: AccessOperand,
-    right: AccessOperand,
-): AccessExpression {
-    return { kind: "compare", operator, left, right };
+/** Permit rows whose attributes meet a condition, whose parameters name request attributes. */
+export function condition(condition: Condition): AccessExpression {
+    return { kind: "condition", condition };
 }

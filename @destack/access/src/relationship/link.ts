@@ -1,37 +1,46 @@
 import { AccessError } from "../error/index.ts";
 
-/** A bearer credential whose current state is checked during authorization. */
-export interface ShareToken {
-    /** The stable credential identifier used by grants. */
+/** The form of a capability secret: 32 bytes as lowercase hexadecimal. */
+const SECRET = /^[0-9a-f]{64}$(?![\s\S])/;
+
+/** A link: a relationship to anyone who presents its secret, revoked by deleting the relationship. */
+export interface Link {
+    /** The relationship the link is. */
     readonly id: string;
-    /** The scope in which the credential can receive grants. */
-    readonly scope: string;
-    /** The SHA-256 digest of the bearer secret. */
+    /** The secret, shown once to the link's creator. */
+    readonly secret: string;
+}
+
+/** An unguessable secret whose holder a relationship admits, kept only as its digest. */
+export class Capability {
+    /** The secret a request presents. */
+    readonly secret: string;
+    /** The digest relationships keep. */
     readonly digest: string;
-    /** The creation time in Unix milliseconds. */
-    readonly createdAt: number;
-    /** The exclusive expiry time in Unix milliseconds, or null for no expiry. */
-    readonly expiresAt: number | null;
-    /** The revocation time in Unix milliseconds, or null while unrevoked. */
-    readonly revokedAt: number | null;
-}
 
-/** Create an unguessable credential; expose the secret only to the creating caller. */
-export async function createTokenCredential(): Promise<{ secret: string; digest: string }> {
-    const bytes = crypto.getRandomValues(new Uint8Array(32));
-    const secret = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-
-    return { secret, digest: await digestTokenCredential(secret) };
-}
-
-/** Hash a validated bearer secret without retaining plaintext. */
-export async function digestTokenCredential(secret: string): Promise<string> {
-    if (!/^[0-9a-f]{64}$(?![\s\S])/.test(secret)) {
-        throw new AccessError("FORBIDDEN", "invalid share credential");
+    /** Pair a secret with its digest. */
+    constructor(secret: string, digest: string) {
+        this.secret = secret;
+        this.digest = digest;
     }
-    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(secret));
 
-    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(
-        "",
-    );
+    /** Create a new secret with its digest. */
+    static async create(): Promise<Capability> {
+        const secret = crypto.getRandomValues(new Uint8Array(32)).toHex();
+
+        return new Capability(secret, await Capability.digest(secret));
+    }
+
+    /** Hash a presented secret into the digest requests carry, refusing secrets access never created. */
+    static async digest(secret: string): Promise<string> {
+        // reject secrets access never created
+        if (!SECRET.test(secret)) {
+            throw new AccessError("FORBIDDEN", "invalid capability");
+        }
+
+        // hash the secret
+        const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(secret));
+
+        return new Uint8Array(digest).toHex();
+    }
 }
