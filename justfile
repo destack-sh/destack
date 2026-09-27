@@ -50,6 +50,17 @@ test:
     just @destack/test
     just platform/test
 
+# start, stop or report the test PostgreSQL on port 55432 (DESTACK_TEST_POSTGRES=postgres://postgres@127.0.0.1:55432/postgres)
+postgres action:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    bin="$(brew --prefix postgresql@18)/bin"
+    data=target/postgres
+    if [ "{{action}}" = start ] && [ ! -d "$data" ]; then
+        "$bin/initdb" --pgdata "$data" --username postgres --auth trust --encoding UTF8 >/dev/null
+    fi
+    "$bin/pg_ctl" --pgdata "$data" --log "$data/server.log" --options "-p 55432 -k /tmp" --wait "{{action}}"
+
 # check
 check:
     just check-hygiene
