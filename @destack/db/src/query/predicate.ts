@@ -1,6 +1,13 @@
 import * as drizzle from "drizzle-orm";
-import type { SQL, SQLWrapper } from "drizzle-orm";
+import { sql, type SQL, type SQLWrapper } from "drizzle-orm";
 import type { Column } from "../table/column.ts";
+
+/**
+ * The most predicates one flat chain joins.
+ *
+ * Turso refuses expressions nested deeper than 100, and a chain nests one level per predicate.
+ */
+export const CHAIN_TERMS = 90;
 
 /** A comparison between a typed field and a value or SQL expression. */
 export interface Comparison {
@@ -30,7 +37,9 @@ export function and(first: SQLWrapper, ...rest: (SQLWrapper | undefined)[]): SQL
 export function and(...conditions: (SQLWrapper | undefined)[]): SQL | undefined;
 /** Combine the present predicates with AND. */
 export function and(...conditions: (SQLWrapper | undefined)[]): SQL | undefined {
-    return drizzle.and(...conditions);
+    const present = conditions.filter((condition) => condition !== undefined);
+
+    return present.length === 0 ? undefined : combine(present, "AND");
 }
 
 /** Require at least one supplied predicate. */
@@ -39,5 +48,26 @@ export function or(first: SQLWrapper, ...rest: (SQLWrapper | undefined)[]): SQL;
 export function or(...conditions: (SQLWrapper | undefined)[]): SQL | undefined;
 /** Combine the present predicates with OR. */
 export function or(...conditions: (SQLWrapper | undefined)[]): SQL | undefined {
-    return drizzle.or(...conditions);
+    const present = conditions.filter((condition) => condition !== undefined);
+
+    return present.length === 0 ? undefined : combine(present, "OR");
+}
+
+/**
+ * Join predicates with one operator: a flat chain, which SQLite plans as index lookups, up to the chain's limit, and chains of chains beyond.
+ *
+ * Turso refuses a chain nested deeper than 100, and plans nested chains as scans, so callers read more than a chain holds in several statements.
+ */
+export function combine(predicates: readonly SQLWrapper[], operator: "AND" | "OR"): SQL {
+    // join a chain flat, and longer lists as a chain of flat chains
+    const joiner = sql.raw(` ${operator} `);
+    if (predicates.length <= CHAIN_TERMS) {
+        return sql`(${sql.join([...predicates], joiner)})`;
+    }
+    const chains: SQL[] = [];
+    for (let start = 0; start < predicates.length; start += CHAIN_TERMS) {
+        chains.push(combine(predicates.slice(start, start + CHAIN_TERMS), operator));
+    }
+
+    return combine(chains, operator);
 }

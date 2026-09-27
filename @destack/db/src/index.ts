@@ -1,4 +1,4 @@
-export * from "./query/index.ts";
+export * from "./query/builder.ts";
 export * from "./declare/index.ts";
 export * from "./table/index.ts";
 export * from "./inspect/describe.ts";

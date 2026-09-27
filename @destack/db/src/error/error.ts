@@ -12,7 +12,8 @@ export type DatabaseErrorCode =
     | "CHANGES_COMPACTED"
     | "STALE_EPOCH"
     | "CONCURRENT_UPDATE"
-    | "DUPLICATE";
+    | "DUPLICATE"
+    | "INVALID_QUERY";
 
 /** A database failure with a stable code. */
 export class DatabaseError extends Error {
