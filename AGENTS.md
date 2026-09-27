@@ -467,7 +467,7 @@ Check every change with tests, formatting and lints.
 
 ### Testing (CT)
 
-- **CT01** Tests MUST live in the package that implements the behavior they check; packages MUST NOT test upstream mechanics they only use, such as access decisions in an app.
+- **CT01** Tests MUST live in the package / crate / scope that implements the behavior they check; they MUST NOT test "upstream" mechanics that they only use. (e.g., no point testing the underlying database when the scope is about schema generation; test the *actual* thing)
 - **CT02** Tests MUST NOT rely on factory or dependency injection layers.
 - **CT03** Code that is awkward to test SHOULD be refactored, since it is almost always poorly factored.
 - **CT04** Hard-to-test code SHOULD get crisper models and more realistic tests instead.
