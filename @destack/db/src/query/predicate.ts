@@ -54,13 +54,17 @@ export function or(...conditions: (SQLWrapper | undefined)[]): SQL | undefined {
 }
 
 /**
- * Match a value equal to one of several: a flat chain of equalities, which SQLite plans as index lookups, up to the chain's limit, and an IN list beyond.
+ * Match a value equal to one of several, or to a row a subquery selects: a flat chain of equalities, which SQLite plans as index lookups, up to the chain's limit, and an IN list beyond.
  *
  * Turso plans nested chains as scans, so a list longer than a chain holds becomes one IN list instead.
  */
-export function inArray(value: SQLWrapper, candidates: readonly unknown[]): SQL {
+export function inArray(value: SQLWrapper, candidates: readonly unknown[] | SQLWrapper): SQL {
+    // match the rows a subquery selects
+    if (!Array.isArray(candidates)) {
+        return drizzle.inArray(value as drizzle.Column, candidates as SQLWrapper);
+    }
     // match nothing for no candidates
-    if (candidates.length === 0) {
+    else if (candidates.length === 0) {
         return sql`false`;
     }
 
