@@ -508,7 +508,7 @@ A match-arm binding includes only references inside its arm.
 declare const pair: (int32, int32);
 
 const total = match (pair) {
-    (left, right) => left + right
+    (left, right) => left + right,
      ^^^^ declaration
                      ^^^^ reference
 };
@@ -658,8 +658,8 @@ declare const input: int32;
 const result = match (input) {
     @tracked
      ^^^^^^^ arm_reference
-    0 => 0
-    _ => 1
+    0 => 0,
+    _ => 1,
 };
 
 switch (input) {

@@ -775,7 +775,7 @@ A match-arm reference resolves to the binding introduced by its pattern.
 declare const pair: (int32, int32);
 
 const total = match (pair) {
-    (left, right) => left + right
+    (left, right) => left + right,
      ^^^^ definition:match_left
                      ^^^^ reference:match_left
 };

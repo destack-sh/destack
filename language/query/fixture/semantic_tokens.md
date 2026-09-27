@@ -1374,7 +1374,7 @@ const pair = (1, 2);
 const result = match (pair) {
       ^^^^^^ result_declaration
                       ^^^^ pair_reference
-    (left, right) if (left > 0) => left + right
+    (left, right) if (left > 0) => left + right,
      ^^^^ left_declaration
            ^^^^^ right_declaration
                       ^^^^ left_guard_reference
@@ -1411,7 +1411,7 @@ declare const boxed: Box;
 const result = match (boxed) {
       ^^^^^^ result_declaration
                       ^^^^^ boxed_reference
-    Box { value } => value
+    Box { value } => value,
     ^^^ pattern_type
           ^^^^^ value_declaration
                      ^^^^^ value_reference

@@ -383,7 +383,7 @@ export * as publicApi from "./library.tspp";
 ```
 
 ```query search_symbols query=publicApi max_results=10
-@search_symbols.symbol name=publicApi kind=namespace location=barrel.tspp:1:8-1:42 selection=barrel.tspp#name symbol=barrel.tspp#publicApi@1
+@search_symbols.symbol name=publicApi kind=namespace location=barrel.tspp:1:8-1:44 selection=barrel.tspp#name symbol=barrel.tspp#publicApi@1
 ```
 
 ### Return no unresolved re-export alias

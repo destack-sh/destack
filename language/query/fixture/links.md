@@ -7,9 +7,9 @@ Each resolved import specifier becomes a link in source order.
 
 ```tspp main.tspp
 import { foo } from "./foo.tspp";
-                    ^^^^^^^^^^ foo_specifier
+                    ^^^^^^^^^^^^ foo_specifier
 import { bar } from "./bar.tspp";
-                    ^^^^^^^^^^ bar_specifier
+                    ^^^^^^^^^^^^ bar_specifier
 ```
 
 ```tspp foo.tspp
@@ -31,7 +31,7 @@ Links follow the resolved module path after each edit.
 
 ```tspp main.tspp
 import { value } from "./library.tspp";
-                      ^^^^^^^^^^^^^^ specifier
+                      ^^^^^^^^^^^^^^^^ specifier
 ```
 
 ```query links main.tspp
@@ -55,7 +55,7 @@ export const value = 1;
 
 ```tspp main.tspp change
 import { value } from "./moved.tspp";
-                      ^^^^^^^^^^^^ specifier
+                      ^^^^^^^^^^^^^^ specifier
 ```
 
 ```query links main.tspp
@@ -70,7 +70,7 @@ A resolved re-export specifier becomes a link.
 
 ```tspp main.tspp
 export { foo } from "./foo.tspp";
-                    ^^^^^^^^^^ foo_specifier
+                    ^^^^^^^^^^^^ foo_specifier
 ```
 
 ```tspp foo.tspp
@@ -89,7 +89,7 @@ A resolved side-effect import becomes a link.
 
 ```tspp main.tspp
 import "./setup.tspp";
-       ^^^^^^^^^^^^ setup_specifier
+       ^^^^^^^^^^^^^^ setup_specifier
 ```
 
 ```tspp setup.tspp
@@ -122,7 +122,7 @@ An unresolved module has no target location to link.
 
 ```tspp main.tspp
 import { missing } from "./missing.tspp";
-                        ^^^^^^^^^^^^^^ specifier
+                        ^^^^^^^^^^^^^^^^ specifier
 ```
 
 ```query links main.tspp
@@ -137,7 +137,7 @@ A resolved export-star specifier becomes a link.
 
 ```tspp main.tspp
 export * from "./library.tspp";
-              ^^^^^^^^^^^^^^ library_specifier
+              ^^^^^^^^^^^^^^^^ library_specifier
 ```
 
 ```tspp library.tspp

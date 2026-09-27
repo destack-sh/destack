@@ -264,7 +264,7 @@ A match-arm name identifies its arm-local binding.
 declare const pair: (int32, int32);
 
 const total = match (pair) {
-    (left, right) => left + right
+    (left, right) => left + right,
      ^^^^ definition
                      ^^^^ reference
 };

@@ -622,7 +622,7 @@ function read(): int32 {
 ```
 
 ```query hover main.tspp#reference
-@hover.item index=0 declaration="const count: int32" location=main.tspp#definition range=main.tspp#reference
+@hover.item index=0 declaration="const count: 1" location=main.tspp#definition range=main.tspp#reference
 ```
 
 ### Preserve borrowed handle storage in inferred types

@@ -242,7 +242,7 @@ const total = match (pair) {
               ^ match:start
       ^ declarator:start
 ^ declaration:start
-    (left, right) => left + right
+    (left, right) => left + right,
      ^^^^ binding
     ^^^^^^^^^^^^^ pattern
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ arm

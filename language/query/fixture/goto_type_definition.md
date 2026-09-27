@@ -141,11 +141,11 @@ type Integer = bigint;
 ```
 
 ```query goto_type_definition main.tspp#reference:string
-@goto_type_definition.target origin=main.tspp#reference:string location=tspp://string/string:16:1-19:2 selection=tspp://string/string:16:14-16:20 symbol=tspp://string/string#String@28
+@goto_type_definition.target origin=main.tspp#reference:string location=tspp://string/string:26:1-29:2 selection=tspp://string/string:26:14-26:20 symbol=tspp://string/string#String@30
 ```
 
 ```query goto_type_definition main.tspp#reference:bigint
-@goto_type_definition.target origin=main.tspp#reference:bigint location=tspp://math/bigint:27:1-36:2 selection=tspp://math/bigint:27:14-27:20 symbol=tspp://math/bigint#BigInt@26
+@goto_type_definition.target origin=main.tspp#reference:bigint location=tspp://math/bigint:29:1-38:2 selection=tspp://math/bigint:29:14-29:20 symbol=tspp://math/bigint#BigInt@28
 ```
 
 ### Resolve a direct type reference

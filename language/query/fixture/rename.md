@@ -1081,7 +1081,7 @@ A match binding changes only its arm-local declaration and references.
 declare const pair: (int32, int32);
 
 const total = match (pair) {
-    (left, right) => left + right
+    (left, right) => left + right,
      ^^^^ target
 };
 ```
@@ -1093,7 +1093,7 @@ const total = match (pair) {
 declare const pair: (int32, int32);
 
 const total = match (pair) {
-    (first, right) => first + right
+    (first, right) => first + right,
 };
 ```
 

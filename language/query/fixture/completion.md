@@ -409,6 +409,7 @@ function read(point: Point): void {
 @completion.item label=x kind=field replace=main.tspp#cursor suffix=": int32"
 @completion.item label=y kind=field replace=main.tspp#cursor suffix=": int32"
 @completion.item label=borrow kind=method replace=main.tspp#cursor suffix="(): Borrowed<Point, R, A>" description="as Borrow<Point, A>" insert="borrow()"
+@completion.item label=toString kind=method replace=main.tspp#cursor suffix="(): ^string" insert="toString()"
 @completion.item label=into kind=method replace=main.tspp#cursor suffix="(): U" description="as Into<U>" insert="into()"
 @completion.item label=tryInto kind=method replace=main.tspp#cursor suffix="(): Result<U, U.Error>" description="as TryInto<U>" insert="tryInto()"
 ```
@@ -447,6 +448,7 @@ class User {
 @completion.item label=name kind=field replace=main.tspp#cursor suffix=": string"
 @completion.item label=age kind=field replace=main.tspp#cursor suffix=": uint64"
 @completion.item label=borrow kind=method replace=main.tspp#cursor suffix="(): Borrowed<User, R, A>" description="as Borrow<User, A>" insert="borrow()"
+@completion.item label=toString kind=method replace=main.tspp#cursor suffix="(): ^string" insert="toString()"
 @completion.item label=into kind=method replace=main.tspp#cursor suffix="(): U" description="as Into<U>" insert="into()"
 @completion.item label=tryInto kind=method replace=main.tspp#cursor suffix="(): Result<U, U.Error>" description="as TryInto<U>" insert="tryInto()"
 ```
@@ -2557,8 +2559,8 @@ declare const variable: ContextV;
 ```
 
 ```query completion main.tspp#prefix@end include_auto_imports=true
-@completion.item label=ContextVar kind=class replace=main.tspp#prefix suffix="<T: Copy>" description="from destack:" auto_import=true matches=0,1,2,3,4,5,6,7
-@completion.additional_edit item=0 range=main.tspp#insertion text="import { ContextVar } from \"destack:\";\n"
+@completion.item label=ContextVar kind=class replace=main.tspp#prefix suffix="<T: Copy>" description="from tspp:" auto_import=true matches=0,1,2,3,4,5,6,7
+@completion.additional_edit item=0 range=main.tspp#insertion text="import { ContextVar } from \"tspp:\";\n"
 @completion.item label=ContextVar kind=class replace=main.tspp#prefix suffix="<T: Copy>" description="from tspp:context" auto_import=true matches=0,1,2,3,4,5,6,7
 @completion.additional_edit item=1 range=main.tspp#insertion text="import { ContextVar } from \"tspp:context\";\n"
 ```
@@ -3237,7 +3239,7 @@ Builtin path completion follows the builtin package's public exports.
 
 ```tspp main.tspp
 import {} from "tspp:conte";
-                        ^^^^^ prefix
+                     ^^^^^ prefix
 ```
 
 ```query completion main.tspp#prefix@end
