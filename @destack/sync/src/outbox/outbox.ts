@@ -190,6 +190,13 @@ export class Outbox {
               : { kind: "rejected", error: row.error };
     }
 
+    /** Read the origins holding mutations. */
+    async origins(database: DatabaseConnection): Promise<Set<string>> {
+        const rows = await database.selectDistinct({ origin: mutation.origin }).from(mutation);
+
+        return new Set(rows.map((row) => row.origin));
+    }
+
     /** Remove the rejected mutations of an origin, once it read them or went away. */
     async forget(database: DatabaseConnection, origin: string, id?: string): Promise<void> {
         await database

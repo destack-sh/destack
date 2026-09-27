@@ -1,6 +1,6 @@
 import { and, Key, TABLE, type DatabaseConnection, type Row, type Table } from "@destack/db";
 import { CHAIN_TERMS, Condition, type Scalar } from "@destack/db/query";
-import type { LogPosition, RelationView, Snapshot } from "@destack/db/log";
+import type { LogPosition, RelationView, Rewind, Snapshot } from "@destack/db/log";
 import type { Node } from "../query/node.ts";
 import type { Audience } from "../feed/audience.ts";
 import type { Run } from "./run.ts";
@@ -249,8 +249,6 @@ export class View {
     /** Read a table's rows whose columns hold one of some tuples of values: through a prepared statement for text columns, else through a condition. */
     #read(table: Table, columns: readonly string[], tuples: readonly Tuple[]): Promise<Row[]> {
         // match the rows holding a listed tuple in a condition over non-text columns
-        const wanted = new Set(tuples.map((tuple) => JSON.stringify(tuple)));
-        const match = (row: Row) => wanted.has(JSON.stringify(tupleOf(table, columns, row)));
         const definitions = table[TABLE].columns;
         if (columns.some((column) => definitions[column]!.definition.kind !== "text")) {
             return this.#snapshot.rows(
@@ -273,7 +271,7 @@ export class View {
         }
 
         // read them through the columns' prepared statement
-        return this.#snapshot.select(table, columns, tuples, match);
+        return this.#snapshot.select(table, columns, tuples);
     }
 
     /** Read the rows of a table changed after one sequence, up to another, as they were then and are now. */
@@ -335,14 +333,14 @@ export interface Segment {
 
 /** A view's own reads: shared within the view, with images from the log. */
 class Memory implements Cache {
-    /** The database whose log holds the images. */
-    readonly #database: DatabaseConnection;
+    /** The images of the log's changes, read once. */
+    readonly #rewind: Rewind;
     /** The reads made, by key. */
     readonly #reads = new Map<string, unknown>();
 
     /** Share reads of one database's views. */
     constructor(database: DatabaseConnection) {
-        this.#database = database;
+        this.#rewind = database.log.rewind();
     }
 
     /** Compute what a key names once. */
@@ -359,9 +357,9 @@ class Memory implements Cache {
         return this.#reads.has(key);
     }
 
-    /** Read the images from the log. */
+    /** Read the images from the log through the views' shared memory of its changes. */
     images(table: Table, after: number, upto: number): Promise<ReadonlyMap<string, Row | null>> {
-        return this.#database.log.images(table, after, upto);
+        return this.#rewind(table, after, upto);
     }
 }
 
