@@ -19,7 +19,7 @@
         "./turso": "./src/sqlite/turso/index.ts",
         "./turso/serverless": "./src/sqlite/turso/serverless.ts",
         "./test": "./src/test/index.ts",
-        "./channel": "./src/channel/index.ts",
+        "./relay": "./src/relay/index.ts",
         "./shared": "./src/sqlite/shared/index.ts",
         "./sqlite": "./src/sqlite/index.ts",
         "./wasm": "./src/sqlite/wasm/index.ts"

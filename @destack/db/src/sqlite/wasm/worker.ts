@@ -1,12 +1,12 @@
 import init from "@sqlite.org/sqlite-wasm";
-import type { Channel } from "../../channel/channel.ts";
+import type { Relay } from "../../relay/relay.ts";
 import { serveDatabase, type Message } from "../shared/shared.ts";
 import { WasmClient } from "./client.ts";
 
-/** Open a database file in the origin's private file system, and serve it to every party of a channel until the returned stop runs. */
+/** Open a database file in the origin's private file system, and serve it to every party of a relay until the returned stop runs. */
 export async function serveBrowserDatabase(
     name: string,
-    channel: Channel<Message>,
+    relay: Relay<Message>,
 ): Promise<() => Promise<void>> {
     // open the file through the origin private file system's synchronous access handles
     const sqlite = await init();
@@ -16,7 +16,7 @@ export async function serveBrowserDatabase(
 
     // serve every party
     const client = new WasmClient(database);
-    const stop = serveDatabase(client, channel);
+    const stop = serveDatabase(client, relay);
 
     return async () => {
         stop();

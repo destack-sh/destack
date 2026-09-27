@@ -4,13 +4,13 @@ import { asc, eq } from "../../index.ts";
 import { connectShared, serveDatabase, type Message } from "../shared/shared.ts";
 import { WasmClient } from "./client.ts";
 import { changeTables, note } from "../../log/test/fixture.ts";
-import { channelHub } from "../../test/channel.ts";
+import { relayHub } from "../../test/relay.ts";
 
-test("declare, log and query tables on SQLite WebAssembly through a channel, as a browser tab does", async () => {
+test("declare, log and query tables on SQLite WebAssembly through a relay, as a browser tab does", async () => {
     // serve an in-memory WebAssembly database to a party
     const sqlite = await init();
     const client = new WasmClient(new sqlite.oo1.DB(":memory:"));
-    const join = channelHub<Message>();
+    const join = relayHub<Message>();
     const stop = serveDatabase(client, join());
     onTestFinished(async () => {
         stop();

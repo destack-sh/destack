@@ -1,8 +1,8 @@
 import type { EmptyRelations } from "drizzle-orm/relations";
 import type { DrizzleSQLiteConfig } from "drizzle-orm/sqlite-core/utils";
 import type * as declaration from "../../declare/database.ts";
-import { channelNotifier } from "../../log/notifier.ts";
-import type { Channel } from "../../channel/channel.ts";
+import { relayNotifier } from "../../log/notifier.ts";
+import type { Relay } from "../../relay/relay.ts";
 import type { Table } from "../../table/table.ts";
 import { SqliteDatabase } from "../database.ts";
 import { DatabaseError } from "../../error/error.ts";
@@ -91,10 +91,10 @@ export type Step =
           readonly transaction: number;
       };
 
-/** Serve a connection to the other parties of a channel until the returned stop runs, each party announcing its own commits. */
+/** Serve a connection to the other parties of a relay until the returned stop runs, each party announcing its own commits. */
 export function serveDatabase<Result>(
     client: ConnectionClient<Result>,
-    channel: Channel<Message>,
+    relay: Relay<Message>,
 ): () => void {
     // name this owner, and hold each party transaction open until its party ends it or falls silent
     const owner = crypto.randomUUID();
@@ -144,17 +144,16 @@ export function serveDatabase<Result>(
     };
 
     // name this owner to a joining party
-    const stop = channel.listen((message) => {
+    const stop = relay.listen((message) => {
         if (message.kind === "join") {
-            channel.post({ kind: "serving", owner });
+            relay.post({ kind: "serving", owner });
         }
         // answer each request addressed to this owner
         else if (message.kind === "request" && message.to === owner) {
             run(message.step).then(
-                (value) =>
-                    channel.post({ kind: "answer", to: message.from, id: message.id, value }),
+                (value) => relay.post({ kind: "answer", to: message.from, id: message.id, value }),
                 (error: unknown) =>
-                    channel.post({
+                    relay.post({
                         kind: "answer",
                         to: message.from,
                         id: message.id,
@@ -165,7 +164,7 @@ export function serveDatabase<Result>(
     });
 
     // tell the parties this owner serves, so they send what they held
-    channel.post({ kind: "serving", owner });
+    relay.post({ kind: "serving", owner });
 
     // roll back every open transaction once serving stops
     return () => {
@@ -260,19 +259,19 @@ class HeldTransaction {
     }
 }
 
-/** Open a database whose statements the channel's owner runs, notified of the owner's commits. */
+/** Open a database whose statements the relay's owner runs, notified of the owner's commits. */
 export function connectShared(
-    channel: Channel<Message>,
+    relay: Relay<Message>,
     party: string,
     tables: declaration.Database | readonly Table[] = [],
     options: Omit<DrizzleSQLiteConfig<EmptyRelations>, "relations"> = {},
 ): SqliteDatabase<SharedClient> {
-    const client = new SharedClient(channel, party);
+    const client = new SharedClient(relay, party);
 
-    return new SqliteDatabase(client, tables, "embedded", channelNotifier(channel), options);
+    return new SqliteDatabase(client, tables, "embedded", relayNotifier(relay), options);
 }
 
-/** Statements a channel's owner runs, on its connection or within one of its transactions. */
+/** Statements a relay's owner runs, on its connection or within one of its transactions. */
 export class SharedQuery implements QueryClient<unknown> {
     /** The party asking the owner. */
     readonly party: Party;
@@ -354,11 +353,11 @@ export class SharedQuery implements QueryClient<unknown> {
     }
 }
 
-/** A connection client whose statements and transactions a channel's owner runs. */
+/** A connection client whose statements and transactions a relay's owner runs. */
 export class SharedClient extends SharedQuery implements ConnectionClient<unknown> {
-    /** Reach a channel's owner as one party. */
-    constructor(channel: Channel<Message>, name: string) {
-        super(new Party(channel, name));
+    /** Reach a relay's owner as one party. */
+    constructor(relay: Relay<Message>, name: string) {
+        super(new Party(relay, name));
     }
 
     /** Stop reaching the owner. */
@@ -396,28 +395,28 @@ export class SharedClient extends SharedQuery implements ConnectionClient<unknow
     }
 }
 
-/** One party of a channel, asking its owner to run steps and settling each on the owner's answer. */
+/** One party of a relay, asking its owner to run steps and settling each on the owner's answer. */
 export class Party {
-    /** The channel reaching the owner. */
-    readonly #channel: Channel<Message>;
-    /** This party's name on the channel. */
+    /** The relay reaching the owner. */
+    readonly #relay: Relay<Message>;
+    /** This party's name on the relay. */
     readonly #name: string;
     /** The unanswered requests by number, with the owner each went to, absent while held. */
     readonly #pending = new Map<number, Request>();
     /** The next request number. */
     #next = 0;
-    /** The owner serving the channel, absent until one announces itself. */
+    /** The owner serving the relay, absent until one announces itself. */
     #owner: string | undefined;
     /** Stop receiving answers. */
     readonly #stop: () => void;
 
-    /** Join a channel under a name, and ask which owner serves it. */
-    constructor(channel: Channel<Message>, name: string) {
+    /** Join a relay under a name, and ask which owner serves it. */
+    constructor(relay: Relay<Message>, name: string) {
         // listen for the owner's answers, then ask which owner serves
-        this.#channel = channel;
+        this.#relay = relay;
         this.#name = name;
-        this.#stop = channel.listen((message) => this.#receive(message));
-        channel.post({ kind: "join" });
+        this.#stop = relay.listen((message) => this.#receive(message));
+        relay.post({ kind: "join" });
     }
 
     /**
@@ -436,7 +435,7 @@ export class Party {
         return { owner, id: value as number };
     }
 
-    /** Leave the channel, failing every unanswered request. */
+    /** Leave the relay, failing every unanswered request. */
     close(): void {
         this.#stop();
         for (const pending of this.#pending.values()) {
@@ -500,7 +499,7 @@ export class Party {
     /** Address a request to an owner. */
     #send(id: number, request: Request, owner: string): void {
         request.owner = owner;
-        this.#channel.post({
+        this.#relay.post({
             kind: "request",
             from: this.#name,
             to: owner,
@@ -530,7 +529,7 @@ interface Request {
     readonly reject: (error: unknown) => void;
 }
 
-/** Describe a failure so it crosses the channel. */
+/** Describe a failure so it crosses the relay. */
 function describeError(error: unknown): { name: string; message: string; code?: string } {
     const failure = error instanceof Error ? error : new Error(String(error));
     const code = (failure as { code?: unknown }).code;

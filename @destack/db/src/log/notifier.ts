@@ -1,6 +1,6 @@
 import type { CommitWatch } from "./watch.ts";
 import type { Log } from "./log.ts";
-import type { Channel } from "../channel/channel.ts";
+import type { Relay } from "../relay/relay.ts";
 
 /** Carries commit notifications between the writers of one database, such as processes, tabs or servers. */
 export interface CommitNotifier {
@@ -45,12 +45,12 @@ export function pollNotifier(interval: number): CommitNotifier {
     };
 }
 
-/** Notify the other parties of a channel of this party's commits, and listen for theirs. */
-export function channelNotifier(channel: Channel<{ readonly kind: string }>): CommitNotifier {
+/** Notify the other parties of a relay of this party's commits, and listen for theirs. */
+export function relayNotifier(relay: Relay<{ readonly kind: string }>): CommitNotifier {
     return {
         listen(commits) {
             // wake readers on each commit, and whenever delivery resumes, since commits before it went unannounced
-            const stop = channel.listen(
+            const stop = relay.listen(
                 (message) => {
                     if (message.kind === "commit") {
                         commits.wake();
@@ -62,7 +62,7 @@ export function channelNotifier(channel: Channel<{ readonly kind: string }>): Co
             return async () => stop();
         },
         notify() {
-            channel.post({ kind: "commit" });
+            relay.post({ kind: "commit" });
         },
     };
 }

@@ -1,13 +1,13 @@
-/** A channel every party of one topic reaches, such as the tabs of one origin or the instances sharing a database. */
-export interface Channel<Payload> {
+/** A relay every party of one topic reaches, such as the tabs of one origin or the instances sharing a database. */
+export interface Relay<Payload> {
     /** Send a message to every other party. */
     post(message: Payload): void;
     /** Receive the other parties' messages until the returned stop runs, resuming whenever delivery starts or restarts. */
     listen(receive: (message: Payload) => void, resume?: () => void): () => void;
 }
 
-/** Reach every party of a broadcast channel, such as the tabs and workers of one origin. */
-export function broadcastChannel<Payload>(name: string): Channel<Payload> {
+/** Reach every party of a broadcast relay, such as the tabs and workers of one origin. */
+export function broadcastRelay<Payload>(name: string): Relay<Payload> {
     const broadcast = new BroadcastChannel(name);
 
     return {

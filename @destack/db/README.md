@@ -45,7 +45,7 @@ Each entry point opens one kind of database.
 | `@destack/db/postgres` | A PostgreSQL server |
 | `@destack/db/wasm` | A browser SQLite database |
 | `@destack/db/shared` | A database another party owns |
-| `@destack/db/channel` | The transport of shared databases and commit notifications |
+| `@destack/db/relay` | The transport of shared databases and commit notifications |
 | `@destack/db/sqlite` | SQLite files as provisioned resources |
 
 ## Statements
@@ -138,7 +138,7 @@ Readers wake on commits through a `CommitNotifier`.
 | Notifier | Listens | Notifies |
 |---|---|---|
 | PostgreSQL | `LISTEN` on the change channel | `pg_notify` in the change trigger |
-| `channelNotifier(channel)` | Commit messages | Posts a commit message |
+| `relayNotifier(relay)` | Commit messages | Posts a commit message |
 | `pollNotifier(interval)` | The latest sequence | The next poll |
 
 ## Aggregates
