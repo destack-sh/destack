@@ -6,7 +6,6 @@ export {
     countDistinct,
     desc,
     exists,
-    inArray,
     isNotNull,
     isNull,
     like,
@@ -20,7 +19,7 @@ export {
 } from "drizzle-orm";
 export type { SQL, SQLWrapper } from "drizzle-orm";
 export { dialectSQL } from "../dialect/expression.ts";
-export { and, combine, eq, gt, gte, lt, lte, ne, or, type Comparison } from "./predicate.ts";
+export { and, combine, eq, gt, gte, inArray, lt, lte, ne, or, type Comparison } from "./predicate.ts";
 export * from "./aggregate.ts";
 export * from "./statement.ts";
 export * from "./key.ts";

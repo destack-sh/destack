@@ -54,6 +54,26 @@ export function or(...conditions: (SQLWrapper | undefined)[]): SQL | undefined {
 }
 
 /**
+ * Match a value equal to one of several: a flat chain of equalities, which SQLite plans as index lookups, up to the chain's limit, and an IN list beyond.
+ *
+ * Turso plans nested chains as scans, so a list longer than a chain holds becomes one IN list instead.
+ */
+export function inArray(value: SQLWrapper, candidates: readonly unknown[]): SQL {
+    // match nothing for no candidates
+    if (candidates.length === 0) {
+        return sql`false`;
+    }
+
+    // chain the equalities flat within the chain's limit, and list the candidates beyond it
+    return candidates.length <= CHAIN_TERMS
+        ? combine(
+              candidates.map((candidate) => drizzle.eq(value, candidate)),
+              "OR",
+          )
+        : drizzle.inArray(value as drizzle.Column, candidates as unknown[]);
+}
+
+/**
  * Join predicates with one operator: a flat chain, which SQLite plans as index lookups, up to the chain's limit, and chains of chains beyond.
  *
  * Turso refuses a chain nested deeper than 100, and plans nested chains as scans, so callers read more than a chain holds in several statements.

@@ -5,7 +5,7 @@ import { TABLE, type Table } from "../table/table.ts";
 import { Order } from "./order.ts";
 import type { Namespace } from "./namespace.ts";
 import { DatabaseError } from "../error/error.ts";
-import { CHAIN_TERMS, combine } from "./predicate.ts";
+import { combine, inArray } from "./predicate.ts";
 
 /**
  * The most terms one condition holds, counting groups and each listed value.
@@ -369,20 +369,12 @@ function renderCondition(condition: Condition, binding: Binding<SQLWrapper>): SQ
         }
         case "in": {
             // match a flat OR chain, which SQLite plans faster than an IN list, and an IN list beyond a chain's limit
-            if (condition.values.length === 0) {
-                return sql`false`;
-            }
             const operand = render(condition.operand, undefined, binding, false);
             const values = condition.values.map((value) =>
                 render(literal(value), condition.operand, binding, false),
             );
 
-            return values.length <= CHAIN_TERMS
-                ? combine(
-                      values.map((value) => sql`${operand} = ${value}`),
-                      "OR",
-                  )
-                : sql`(${operand} IN (${sql.join(values, sql`, `)}))`;
+            return inArray(operand, values);
         }
         case "null":
             return sql`(${render(condition.operand, undefined, binding, false)} IS NULL)`;
