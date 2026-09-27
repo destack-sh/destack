@@ -9,6 +9,7 @@
             "destack.json",
             "justfile",
             "tsconfig.json",
+            "bunfig.toml",
             ".oxlintrc.json",
             ".oxfmtrc.json"
         ],
