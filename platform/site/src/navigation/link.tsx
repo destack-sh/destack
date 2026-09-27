@@ -23,7 +23,7 @@ type SiteLinkProperties = {
     title?: string;
 };
 
-/** Render internal navigation or a safely isolated external link. */
+/** Render internal navigation, a mail link, or a safely isolated external link. */
 export function SiteLink(properties: SiteLinkProperties) {
     // evaluate attributes in the rendered spread so route-driven styles stay reactive
     const attributes = () => ({
@@ -45,7 +45,7 @@ export function SiteLink(properties: SiteLinkProperties) {
     return <a {...attributes()}>{properties.children}</a>;
 }
 
-/** Return whether a destination leaves the current site. */
+/** Return whether a destination is another website, which opens in a new tab. */
 export function isExternalLink(href: string) {
-    return /^[a-z][a-z0-9+.-]*:/i.test(href);
+    return /^https?:/i.test(href);
 }

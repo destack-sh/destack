@@ -13,6 +13,8 @@ import { socialLinks } from "./navigation";
 /** The radius of the black hole in the footer, in CSS pixels. */
 const holeRadius = 7;
 
+/** The media query for screens where the top bar's tools take four columns. */
+const narrow = "@media (max-width: 1099px)";
 /** The media query for phone-width screens. */
 const mobile = "@media (max-width: 767px)";
 
@@ -256,12 +258,12 @@ const styles = stylex.create({
     navigation: {
         alignItems: "center",
         display: "flex",
-        gap: "0.5rem",
-        gridColumn: "9 / span 4",
+        gridColumn: "11 / span 2",
         gridRow: 1,
         justifyContent: "flex-end",
         paddingInline: "0.75rem",
-        [mobile]: { gridColumn: "1 / -1" },
+        [narrow]: { gridColumn: "9 / span 4" },
+        [mobile]: { gridColumn: "1 / -1", paddingInline: "0.25rem" },
     },
     link: {
         alignItems: "center",

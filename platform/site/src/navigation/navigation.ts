@@ -3,6 +3,7 @@ import appsIcon from "./icons/apps.svg?raw";
 import blogIcon from "./icons/blog.svg?raw";
 import discordIcon from "./icons/discord.svg?raw";
 import documentationIcon from "./icons/documentation.svg?raw";
+import emailIcon from "./icons/email.svg?raw";
 import githubIcon from "./icons/github.svg?raw";
 import xIcon from "./icons/x.svg?raw";
 
@@ -46,6 +47,12 @@ export const socialLinks: readonly NavigationLink[] = [
         label: "GitHub",
         shortcut: "g",
         icon: githubIcon,
+    },
+    {
+        href: "mailto:florian@symbol.industries",
+        label: "Email",
+        shortcut: "e",
+        icon: emailIcon,
     },
 ];
 
