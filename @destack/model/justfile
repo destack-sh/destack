@@ -1,9 +1,0 @@
-set shell := ["bash", "-cu"]
-
-# check
-check:
-    bun run check
-
-# format
-format:
-    bun run destack-check format src package.json destack.json
