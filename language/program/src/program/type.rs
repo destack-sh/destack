@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tspp_core::{
     EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
+    StringId,
 };
 use tspp_heap::DropId;
 use tspp_serde::Reflect;
@@ -91,6 +92,7 @@ impl TypeTable {
                 layout: descriptor.layout,
                 supertypes: supertype_range,
                 drop: descriptor.drop.into(),
+                language_item: descriptor.language_item.into(),
             });
         }
 
@@ -116,6 +118,15 @@ impl TypeTable {
         ty: TypeId,
     ) -> Option<&'a TypeDescriptor> {
         sections.entries(self.descriptors).get(ty.index())
+    }
+
+    /// Return the type one language item names.
+    pub fn language_type(&self, sections: SectionImage<'_>, item: StringId) -> Option<TypeId> {
+        sections
+            .entries(self.descriptors)
+            .iter()
+            .position(|descriptor| descriptor.language_item.get() == Some(item))
+            .map(|index| TypeId(index as u32))
     }
 
     /// Return the runtime layout id for one type.
@@ -199,6 +210,8 @@ pub struct TypeDescriptor {
     pub supertypes: EntryRange<TypeId>,
     /// Destructor when this type requires cleanup.
     pub drop: Optional<DropId>,
+    /// The language item key this type binds.
+    pub language_item: Optional<StringId>,
 }
 
 impl TypeDescriptor {
@@ -217,6 +230,8 @@ pub struct TypeDescriptorBuilder {
     supertypes: Vec<TypeId>,
     /// Complete drop identity when this type requires cleanup.
     drop: Option<DropId>,
+    /// The language item key this type binds.
+    language_item: Option<StringId>,
 }
 
 impl TypeDescriptorBuilder {
@@ -226,6 +241,7 @@ impl TypeDescriptorBuilder {
             layout,
             supertypes: Vec::new(),
             drop: None,
+            language_item: None,
         }
     }
 
@@ -239,6 +255,13 @@ impl TypeDescriptorBuilder {
     /// Set the destructor required by this type.
     pub fn drop(mut self, drop: DropId) -> Self {
         self.drop = Some(drop);
+
+        self
+    }
+
+    /// Set the language item key this type binds.
+    pub fn language_item(mut self, language_item: Option<StringId>) -> Self {
+        self.language_item = language_item;
 
         self
     }

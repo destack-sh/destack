@@ -843,8 +843,8 @@ mod tests {
     use tspp_mir::{DiscriminantField, TraceId, VariantEncoding};
 
     use crate::{
-        LayoutBuilder, LayoutId, LayoutShape, LayoutShapeBuilder, LayoutTable, TypeId,
-        VariantCaseLayout, VariantLayoutBuilder,
+        ElementLayout, LayoutBuilder, LayoutId, LayoutShape, LayoutShapeBuilder, LayoutTable,
+        TypeId, VariantCaseLayout, VariantLayoutBuilder,
     };
 
     /// Preserve niche variant layouts in directly mapped program sections.
@@ -890,5 +890,24 @@ mod tests {
 
         assert_eq!(variant.encoding, encoding);
         assert_eq!(table.cases(sections, variant).len(), 2);
+    }
+
+    /// Write the unused payload bytes of a smaller layout shape as zeros.
+    #[test]
+    fn test_write_unused_layout_shape_bytes_as_zero() {
+        let mut shapes = vec![LayoutShape::Array(ElementLayout {
+            element: TypeId(u32::MAX),
+            stride: u32::MAX,
+            count: u32::MAX,
+        })];
+        shapes[0] = LayoutShape::None;
+        let mut sections = SectionBuilder::new();
+        let slice = sections.insert(&shapes);
+        let storage = sections.build();
+        let start = slice.byte_offset as usize;
+        let end = start + size_of::<LayoutShape>();
+
+        // check the stale array payload is zeroed
+        assert_eq!(storage.bytes()[start..end], [0; size_of::<LayoutShape>()]);
     }
 }

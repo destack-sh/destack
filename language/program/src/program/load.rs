@@ -16,7 +16,7 @@ use super::Program;
 use crate::{
     BindingBuilder, BindingTable, DispatchTable, DispatchTableBuilder, DropEntry, DropTable,
     EntryPoint, FrameTable, FrameTableBuilder, FunctionTable, FunctionTableBuilder, GlobalTable,
-    GlobalTableBuilder, InitializerTable, LayoutBuilder, LayoutTable, ProgramInfo,
+    GlobalTableBuilder, InitializerTable, KnownTypeTable, LayoutBuilder, LayoutTable, ProgramInfo,
     ProgramInfoBuilder, SiteTable, SiteTableBuilder, StaticBytes, StaticImage, StringEntry,
     StringTable, TypeTable, TypeTableBuilder,
 };
@@ -42,6 +42,8 @@ pub enum ProgramLoadError {
     InvalidAlignment,
     /// The program carries no linked bytecode.
     MissingBytecode,
+    /// One well-known language type lacks the representation the runtime reads.
+    InvalidKnownType(&'static str),
 }
 
 impl fmt::Display for ProgramLoadError {
@@ -61,6 +63,12 @@ impl fmt::Display for ProgramLoadError {
             Self::InvalidRange => formatter.write_str("invalid program image range"),
             Self::InvalidString => formatter.write_str("invalid program image string"),
             Self::InvalidAlignment => formatter.write_str("invalid program image alignment"),
+            Self::InvalidKnownType(item) => {
+                write!(
+                    formatter,
+                    "well-known type '{item}' lacks its representation"
+                )
+            }
         }
     }
 }
@@ -188,7 +196,7 @@ impl ProgramHeader {
     /// Stable Program image marker.
     const MAGIC: u32 = u32::from_le_bytes(*b"DSPG");
     /// Stable Program image format version.
-    const VERSION: u16 = 16;
+    const VERSION: u16 = 17;
 
     /// Create one empty Program header for a target layout.
     fn new(target_layout: TargetLayout) -> Self {
@@ -537,7 +545,7 @@ impl ProgramBuilder {
         sections.replace(header_section, [header]);
         let storage = sections.build();
 
-        Ok(Program::from_header(header, storage))
+        Program::from_header(header, storage)
     }
 }
 
@@ -565,7 +573,7 @@ impl Program {
         let sections = unsafe { SectionImage::new(&storage) };
         header.validate(sections)?;
 
-        Ok(Self::from_header(header, storage))
+        Self::from_header(header, storage)
     }
 
     /// Return the complete mapped Program image bytes.
@@ -574,10 +582,14 @@ impl Program {
     }
 
     /// Create one Program from its fixed header and retained section storage.
-    fn from_header(header: ProgramHeader, storage: SectionStorage) -> Self {
+    fn from_header(
+        header: ProgramHeader,
+        storage: SectionStorage,
+    ) -> Result<Self, ProgramLoadError> {
         let blob = storage.blob();
 
-        Self {
+        // assemble the program, then resolve its well-known types
+        let mut program = Self {
             target_layout: header.target_layout,
             strings: header.strings,
             types: header.types,
@@ -600,7 +612,11 @@ impl Program {
             wasm: header.wasm.get(),
             blob,
             storage,
-        }
+            known: KnownTypeTable::default(),
+        };
+        program.known = KnownTypeTable::resolve(&program)?;
+
+        Ok(program)
     }
 }
 

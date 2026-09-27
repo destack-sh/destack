@@ -19,11 +19,11 @@ use crate::{
     DropEntry, DropTable, DynamicEntry, DynamicTable, DynamicTableId, EntryPoint, Error,
     FrameLayout, FrameLayoutId, FramePoint, FrameSlot, FrameState, FrameStateId, FrameTable,
     Function, FunctionId, FunctionTable, Global, GlobalId, GlobalLocation, GlobalTable,
-    InitializerTable, Layout, LayoutField, LayoutId, LayoutTable, ProgramInfo, ProgramPoint,
-    Result, SampleKey, SampleSite, SampleValue, ScalarFormat, Signature, SignatureEntry,
-    SignatureId, SiteTable, StaticImage, StaticSpace, StringTable, Symbol, TypeFingerprint, TypeId,
-    TypeTable, Value, VariantCaseLayout, VariantLayout, VirtualTable, VirtualTableId, Word,
-    WordLayout,
+    InitializerTable, KnownTypeTable, Layout, LayoutField, LayoutId, LayoutTable, ProgramInfo,
+    ProgramPoint, Result, SampleKey, SampleSite, SampleValue, ScalarFormat, Signature,
+    SignatureEntry, SignatureId, SiteTable, StaticImage, StaticSpace, StringTable, Symbol,
+    TypeFingerprint, TypeId, TypeTable, Value, VariantCaseLayout, VariantLayout, VirtualTable,
+    VirtualTableId, Word, WordLayout,
 };
 
 /// Linked program.
@@ -58,6 +58,8 @@ pub struct Program {
     pub(crate) globals: GlobalTable,
     /// Optional source reflection table.
     pub(crate) info: Option<ProgramInfo>,
+    /// The well-known language types resolved at load.
+    pub(crate) known: KnownTypeTable,
 
     /// Immutable constant storage owned by this program.
     pub(crate) constants: StaticImage,
@@ -412,6 +414,11 @@ impl Program {
         self.info.as_ref()
     }
 
+    /// Return the well-known language types resolved at load.
+    pub fn known(&self) -> &KnownTypeTable {
+        &self.known
+    }
+
     /// Return one program string by stable id when present.
     pub fn string(&self, id: StringId) -> Option<&str> {
         self.strings.string(self.sections(), id)
@@ -469,10 +476,12 @@ impl Program {
             return Err(Error::undefined_layout(layout_id));
         };
 
+        // reserve one byte for a zero-size object
         let trace_map = self.trace_map(layout.trace)?;
         let trace_id = trace_map.has_heap_reference().then_some(layout.trace);
+        let size = layout.size.max(1);
         let shape = AllocationShape::new(
-            layout.size as usize,
+            size as usize,
             layout.alignment as usize,
             trace_id,
             trace_map,
