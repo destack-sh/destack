@@ -424,6 +424,9 @@
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
       },
+      "devDependencies": {
+        "@destack/test": "workspace:*",
+      },
     },
     "@destack/sandbox": {
       "name": "@destack/sandbox",

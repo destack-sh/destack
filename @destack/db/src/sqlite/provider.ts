@@ -1,6 +1,6 @@
 import { mkdir, rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { digestPlan, type Provider, type ResourceRecord } from "@destack/resource";
+import { Plan, type Provider, type ResourceRecord } from "@destack/resource";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { Database } from "../declare/database.ts";
 import { connect } from "./turso/connection.ts";
@@ -42,7 +42,7 @@ export function sqliteProvider(root: URL): Provider<DatabaseConnection> {
             const connection = await open(record, []);
             try {
                 const plan = await connection.plan(desired);
-                if ((await digestPlan(plan)) !== digest) {
+                if ((await Plan.digest(plan)) !== digest) {
                     throw new DatabaseError(
                         "PLAN_CHANGED",
                         `plan of ${record.id} changed since review`,

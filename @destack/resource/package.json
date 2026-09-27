@@ -11,10 +11,14 @@
         "./error": "./src/error/index.ts"
     },
     "scripts": {
-        "check": "tsc --project tsconfig.json"
+        "check": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
         "@destack/schema": "workspace:*",
         "@destack/package": "workspace:*"
+    },
+    "devDependencies": {
+        "@destack/test": "workspace:*"
     }
 }

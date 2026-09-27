@@ -7,8 +7,8 @@ import type { Resource } from "./resource.ts";
 export interface ResourceRecord {
     /** The persistent resource identifier. */
     readonly id: Identifier<"resource">;
-    /** The space containing the resource. */
-    readonly spaceId: Identifier<"space">;
+    /** The space the resource lives in. */
+    readonly scope: Identifier<"space">;
     /** The resource kind, such as database. */
     readonly kind: string;
     /** The declared specification. */

@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, identifier, schema } from "@destack/schema";
 import { DeclarationName, type Package } from "@destack/package";
 import { ResourceHandle } from "./handle.ts";
 import type { ResourceState } from "@destack/package/declare";
@@ -18,6 +18,18 @@ export const ResourceDescription = defineSchema(
 );
 /** A named infrastructure dependency declared by a package. */
 export type ResourceDescription = schema.Infer<typeof ResourceDescription>;
+
+/** A provisioned resource in a space. */
+export const ResourceReference = defineSchema(
+    schema.object({
+        /** The space the resource lives in. */
+        scope: identifier("space"),
+        /** The persistent resource identifier. */
+        id: identifier("resource"),
+    }),
+);
+/** A provisioned resource in a space. */
+export type ResourceReference = schema.Infer<typeof ResourceReference>;
 
 /** An inert declaration with access to a host-bound client. */
 export class Resource<

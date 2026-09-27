@@ -26,8 +26,11 @@ export interface Plan<Change extends Step = Step> {
     readonly steps: readonly Change[];
 }
 
+/** The changes taking a resource from its applied state to its desired state. */
+export const Plan = { classify, digest: digestSteps };
+
 /** Classify a plan by its most consequential step, safe when empty. */
-export function classify(plan: Plan): Risk {
+function classify(plan: Plan): Risk {
     return plan.steps.reduce<Risk>(
         (highest, next) =>
             Risk.options.indexOf(next.risk) > Risk.options.indexOf(highest) ? next.risk : highest,
@@ -36,7 +39,7 @@ export function classify(plan: Plan): Risk {
 }
 
 /** Digest a plan's reviewed steps, so an apply can require the plan a review saw. */
-export function digestPlan(plan: Plan): Promise<string> {
+function digestSteps(plan: Plan): Promise<string> {
     return digest(
         plan.steps.map((step) => ({
             kind: step.kind,

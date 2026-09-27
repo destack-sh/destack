@@ -1,17 +1,19 @@
-Declare the resources a package needs and (subsequently) bind them to resources in a space.
+Declare the resources a package needs, bind their clients, and plan their changes.
 
 ## Declarations
+
+A resource kind validates its declarations with a schema of its kind, version and spec.
 
 ```ts
 import { defineResourceSchema } from "@destack/resource";
 
-const Bucket = defineResourceSchema("bucket", 1, schema.object({ versioning: schema.boolean() }));
-const files = Bucket.parse({ name: "files", kind: "bucket", version: 1, spec: { versioning: true } });
+const BucketDescription = defineResourceSchema("bucket", 1, schema.object({}));
+const files = BucketDescription.parse({ name: "files", kind: "bucket", version: 1, spec: {} });
 ```
 
 ## Clients
 
-The host binds a client for each declaration an invocation uses.
+The host binds one client for each declaration an invocation uses.
 
 ```ts
 import { ResourceContext } from "@destack/resource/context";
@@ -22,14 +24,12 @@ await database.get(context).select().from(note);
 
 ## Plans
 
-A provider creates the resources of one kind and moves each one to the desired states of the declarations bound to it.
+A provider plans the steps taking a resource to the desired states of its declarations, and applies the plan a review saw.
 
 ```ts
-import { classify, digestPlan } from "@destack/resource";
+import { Plan } from "@destack/resource";
 
 const plan = await provider.plan(record, [notes.state(), tasks.state()]);
-classify(plan); // "safe", "data-dependent", "backward-incompatible" or "destructive"
-await provider.apply(record, desired, await digestPlan(plan));
+Plan.classify(plan); // "safe", "data-dependent", "backward-incompatible" or "destructive"
+await provider.apply(record, desired, await Plan.digest(plan));
 ```
-
-A desired state no plan can reach throws a `PlanError` naming what the declarations must add, such as a conversion.
