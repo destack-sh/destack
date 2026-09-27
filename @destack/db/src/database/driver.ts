@@ -119,14 +119,17 @@ export class DatabaseDriver {
     /** Read every row of rendered text with its parameters on the native connection or transaction, as arrays of values in selected order. */
     values(query: Query): Promise<unknown[][]> {
         return this.run(async () => {
-            // read positional rows through the SQLite session's client, which reuses its prepared statement for the text and mode
+            // read positional rows with exact integers through the SQLite session's client, which reuses its prepared statement for the text and mode
             if (this.native.dialect === "sqlite") {
                 const { client } = (
                     this.native.database as unknown as NativeInternals<SqliteClient>
                 ).session;
                 const statement = await client.prepare(query.sql);
 
-                return (await statement.raw(true).all(...query.params)) as unknown[][];
+                return (await statement
+                    .safeIntegers(true)
+                    .raw(true)
+                    .all(...query.params)) as unknown[][];
             }
             // read positional rows through the PostgreSQL session's client, prepared once per connection
             else if (this.native.dialect === "postgresql") {
@@ -160,7 +163,9 @@ interface SqliteClient {
     all(sql: string, ...parameters: unknown[]): Promise<unknown[]>;
     /** Prepare a statement text, whose row mode selects named or positional rows. */
     prepare(sql: string): Promise<{
-        raw(enabled: boolean): { all(...parameters: unknown[]): Promise<unknown[]> };
+        safeIntegers(enabled: boolean): {
+            raw(enabled: boolean): { all(...parameters: unknown[]): Promise<unknown[]> };
+        };
     }>;
 }
 
