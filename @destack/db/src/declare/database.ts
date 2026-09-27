@@ -13,9 +13,14 @@ import {
 } from "../migration/state.ts";
 export type { DatabaseConnection } from "../database/connection.ts";
 
-/** A database's resource settings, none since every database supports every dialect. */
-export const DatabaseSpec = defineSchema(schema.object({}));
-/** A database's resource settings, none since every database supports every dialect. */
+/** Where a database lives: once for the universe, once per region, or with each space. */
+export const DatabaseTier = defineSchema(schema.enum(["global", "regional", "space"]));
+/** Where a database lives. */
+export type DatabaseTier = schema.Infer<typeof DatabaseTier>;
+
+/** A database's resource settings: the tier it lives in. */
+export const DatabaseSpec = defineSchema(schema.object({ tier: DatabaseTier }));
+/** A database's resource settings. */
 export type DatabaseSpec = schema.Infer<typeof DatabaseSpec>;
 
 /** A named database dependency. */
@@ -62,6 +67,8 @@ export class Database extends Resource<DatabaseConnection, DatabaseDescription> 
 export interface DatabaseDefinition {
     /** The package-local database name. */
     readonly name: string;
+    /** Where the database lives, with each space when absent, as an installation's databases do. */
+    readonly tier?: DatabaseTier;
     /** The tables the database holds, including every table they reference. */
     readonly tables: readonly Table[];
 }
@@ -84,7 +91,7 @@ export function defineDatabase(definition: DatabaseDefinition, module?: ModuleMe
         name: definition.name,
         kind: "database",
         version: 1,
-        spec: {},
+        spec: { tier: definition.tier ?? "space" },
     });
 
     return new Database(owner, description, [...names.values()]);
