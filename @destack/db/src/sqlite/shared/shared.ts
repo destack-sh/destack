@@ -277,10 +277,10 @@ export class SharedQuery implements QueryClient<unknown> {
     /** The party asking the owner. */
     readonly party: Party;
     /** The owner's transaction, absent outside one. */
-    readonly transaction: number | undefined;
+    readonly transaction: SharedTransaction | undefined;
 
     /** Ask the owner through a party, within a transaction when named. */
-    constructor(party: Party, transaction?: number) {
+    constructor(party: Party, transaction?: SharedTransaction) {
         this.party = party;
         this.transaction = transaction;
     }
@@ -291,15 +291,7 @@ export class SharedQuery implements QueryClient<unknown> {
         let isRaw = false;
         let isSafe = false;
         const run = (method: "run" | "all" | "get", parameters: readonly unknown[]) =>
-            this.party.request({
-                type: "statement",
-                method,
-                sql,
-                parameters,
-                isRaw,
-                isSafe,
-                ...(this.transaction === undefined ? {} : { transaction: this.transaction }),
-            });
+            this.#statement({ method, sql, parameters, isRaw, isSafe });
 
         // change modes in place, as local statements do
         const statement: Statement<unknown> = {
@@ -338,15 +330,27 @@ export class SharedQuery implements QueryClient<unknown> {
 
     /** Run a script. */
     exec(script: string): Promise<unknown> {
-        return this.party.request({
-            type: "statement",
+        return this.#statement({
             method: "exec",
             sql: script,
             parameters: [],
             isRaw: false,
             isSafe: false,
-            ...(this.transaction === undefined ? {} : { transaction: this.transaction }),
         });
+    }
+
+    /** Ask the owner to run a statement, at the owner holding the transaction when within one. */
+    #statement(
+        statement: Omit<Extract<Step, { readonly type: "statement" }>, "type" | "transaction">,
+    ): Promise<unknown> {
+        const transaction = this.transaction;
+
+        return transaction === undefined
+            ? this.party.request({ type: "statement", ...statement })
+            : this.party.request(
+                  { type: "statement", ...statement, transaction: transaction.id },
+                  transaction.owner,
+              );
     }
 }
 
@@ -366,17 +370,20 @@ export class SharedClient extends SharedQuery implements ConnectionClient<unknow
     transactionAsync<Value>(operation: (client: QueryClient<unknown>) => Promise<Value>) {
         const begin = async (mode: "deferred" | "immediate" | "exclusive") => {
             // begin at the owner and run the callback within it
-            const transaction = (await this.party.request({ type: "begin", mode })) as number;
+            const transaction = await this.party.begin(mode);
             const scoped = new SharedQuery(this.party, transaction);
 
-            // end the transaction by the callback's outcome
+            // end the transaction by the callback's outcome, at the owner holding it
+            const { owner, id } = transaction;
             try {
                 const value = await operation(scoped);
-                await this.party.request({ type: "commit", transaction });
+                await this.party.request({ type: "commit", transaction: id }, owner);
 
                 return value;
             } catch (error) {
-                await this.party.request({ type: "rollback", transaction }).catch(() => undefined);
+                await this.party
+                    .request({ type: "rollback", transaction: id }, owner)
+                    .catch(() => undefined);
                 throw error;
             }
         };
@@ -413,17 +420,20 @@ export class Party {
         channel.post({ kind: "join" });
     }
 
-    /** Send one step to the owner, held until an owner serves, and wait for its answer. */
-    request(step: Step): Promise<unknown> {
-        const id = this.#next++;
+    /**
+     * Send one step to the owner and wait for its answer, held until an owner serves.
+     *
+     * A step of a transaction goes only to the owner holding it, and fails once another owner serves.
+     */
+    async request(step: Step, owner?: string): Promise<unknown> {
+        return (await this.#ask(step, owner)).value;
+    }
 
-        return new Promise((resolve, reject) => {
-            const request: Request = { step, owner: undefined, resolve, reject };
-            this.#pending.set(id, request);
-            if (this.#owner !== undefined) {
-                this.#send(id, request, this.#owner);
-            }
-        });
+    /** Begin a transaction at the serving owner, which holds it. */
+    async begin(mode: "deferred" | "immediate" | "exclusive"): Promise<SharedTransaction> {
+        const { value, owner } = await this.#ask({ type: "begin", mode }, undefined);
+
+        return { owner, id: value as number };
     }
 
     /** Leave the channel, failing every unanswered request. */
@@ -456,11 +466,35 @@ export class Party {
             const pending = this.#pending.get(message.id);
             this.#pending.delete(message.id);
             if (message.error === undefined) {
-                pending?.resolve(message.value);
+                pending?.resolve({ value: message.value, owner: pending.owner! });
             } else {
                 pending?.reject(Object.assign(new Error(message.error.message), message.error));
             }
         }
+    }
+
+    /** Send one step, held until an owner serves, pinned to an owner when given, and settle with the answering owner. */
+    #ask(
+        step: Step,
+        pinned: string | undefined,
+    ): Promise<{ readonly value: unknown; readonly owner: string }> {
+        // refuse a step whose owner no longer serves
+        if (pinned !== undefined && pinned !== this.#owner) {
+            return Promise.reject(
+                new DatabaseError("OWNER_CHANGED", "the owner holding the transaction changed"),
+            );
+        }
+
+        // send to the serving owner, or hold until one serves
+        const id = this.#next++;
+
+        return new Promise((resolve, reject) => {
+            const request: Request = { step, owner: undefined, resolve, reject };
+            this.#pending.set(id, request);
+            if (this.#owner !== undefined) {
+                this.#send(id, request, this.#owner);
+            }
+        });
     }
 
     /** Address a request to an owner. */
@@ -476,14 +510,22 @@ export class Party {
     }
 }
 
+/** A transaction one owner holds for a party, by the owner's number for it. */
+export interface SharedTransaction {
+    /** The owner holding the transaction. */
+    readonly owner: string;
+    /** The owner's number for the transaction. */
+    readonly id: number;
+}
+
 /** A request a party awaits an answer to. */
 interface Request {
     /** What to run. */
     readonly step: Step;
     /** The owner the request went to, absent while held. */
     owner: string | undefined;
-    /** Settle with the owner's result. */
-    readonly resolve: (value: unknown) => void;
+    /** Settle with the owner's result and the owner that answered. */
+    readonly resolve: (answer: { readonly value: unknown; readonly owner: string }) => void;
     /** Settle with the owner's failure. */
     readonly reject: (error: unknown) => void;
 }

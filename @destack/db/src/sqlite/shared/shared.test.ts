@@ -68,9 +68,10 @@ test("hold requests until an owner serves, and fail requests a replaced owner le
     await first.migrate([note]);
     const party = new Party(join(), "tab-2");
     onTestFinished(() => party.close());
-    const held = party.request({ type: "begin", mode: "deferred" });
+    const held = party.begin("deferred");
     const stopFirst = serveDatabase(first.$client, join());
-    expect(await held).toBe(0);
+    const transaction = await held;
+    expect(transaction.id).toBe(0);
 
     // fail a request the first owner received but never answered, once a second owner serves
     stopFirst();
@@ -86,4 +87,21 @@ test("hold requests until an owner serves, and fail requests a replaced owner le
     onTestFinished(() => second.close());
     onTestFinished(serveDatabase(second.$client, join()));
     await expect(unanswered).rejects.toMatchObject({ code: "OWNER_CHANGED" });
+
+    // fail a step of the first owner's transaction, which the second owner's own transaction 0 never receives
+    const replaced = party.begin("deferred");
+    const stale = party.request(
+        {
+            type: "statement",
+            method: "all",
+            sql: "SELECT 1",
+            parameters: [],
+            isRaw: false,
+            isSafe: false,
+            transaction: transaction.id,
+        },
+        transaction.owner,
+    );
+    await expect(stale).rejects.toMatchObject({ code: "OWNER_CHANGED" });
+    expect((await replaced).id).toBe(0);
 });
