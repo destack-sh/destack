@@ -311,7 +311,7 @@ impl CallableSelection<'_> {
         match &resolution.target {
             dir::ConstructTarget::Class {
                 key, constructor, ..
-            } => match constructor.call_symbol() {
+            } => match constructor.written() {
                 Some(symbol) => Ok(CallableSelection::Symbol(symbol)),
                 None => Ok(CallableSelection::Symbol(key.symbol)),
             },

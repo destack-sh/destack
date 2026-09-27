@@ -508,6 +508,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
                 | dir::Projection::ObjectRest { .. }
                 | dir::Projection::SliceLength { .. }
                 | dir::Projection::DynamicPayload { .. }
+                | dir::Projection::Arm { .. }
                 | dir::Projection::DynamicType { .. }
                 | dir::Projection::NewtypePayload { .. }
                 | dir::Projection::Borrow { .. }

@@ -1513,6 +1513,9 @@ define_language_items! {
         bigint {
             /// BigInt class.
             BigInt => (Class, "math/bigint", "BigInt"),
+
+            /// BigInt value equality.
+            BigIntEqual => (Function, "math/bigint", "bigintEqual", "bigint.equal"),
         }
 
         /// `tspp:math/complex`.
@@ -1847,6 +1850,9 @@ define_language_items! {
 
             /// Suppress automatic drop for one value.
             Forget => (Function, "memory/drop", "forget"),
+
+            /// End ownership of one value.
+            MemoryDrop => (Function, "memory/drop", "drop"),
 
             /// Owned storage without automatic drop.
             ManuallyDrop => (Newtype, "memory/drop", "ManuallyDrop"),
@@ -2935,6 +2941,9 @@ define_language_items! {
                 "stringFromTemplate",
                 "string.fromTemplate"
             ),
+
+            /// String content equality.
+            StringEqual => (Function, "string/string", "stringEqual", "string.equal"),
         }
 
         /// `tspp:string/cstring`.
@@ -3595,8 +3604,6 @@ define_language_items! {
 
             /// Thin callable value type.
             FunctionPointer => (Type, "types/function", "FunctionPointer"),
-
-            /// Tuple value type.
 
             /// Constructor instance alias.
             InstanceType => (Type, "types/function", "InstanceType"),

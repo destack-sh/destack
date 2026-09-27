@@ -1021,6 +1021,27 @@ impl Expression {
         )
     }
 
+    /// Return whether this expression ends in its own braced body, needing no arm separator.
+    #[inline]
+    pub fn is_block_like(&self) -> bool {
+        matches!(
+            self,
+            Expression::Block(_)
+                | Expression::If { .. }
+                | Expression::While { .. }
+                | Expression::ForEach { .. }
+                | Expression::For { .. }
+                | Expression::Loop { .. }
+                | Expression::Match { .. }
+                | Expression::Switch { .. }
+                | Expression::Try { catch: Some(_), .. }
+                | Expression::Try {
+                    finally: Some(_),
+                    ..
+                }
+        )
+    }
+
     /// Determine if this expression should terminate at a newline in statement position.
     #[inline]
     pub fn ends_statement_on_newline(&self) -> bool {

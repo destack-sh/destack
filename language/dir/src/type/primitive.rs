@@ -146,6 +146,14 @@ impl EnumBackingType {
         is_signed: true,
     });
 
+    /// Return the primitive type the declared values take.
+    pub fn primitive(self) -> PrimitiveType {
+        match self {
+            Self::Integer(integer) => PrimitiveType::Integer(integer),
+            Self::String => PrimitiveType::String,
+        }
+    }
+
     /// Return whether this backing type contains one resolved enum value.
     pub fn contains(self, value: EnumVariantValue) -> bool {
         match (self, value) {

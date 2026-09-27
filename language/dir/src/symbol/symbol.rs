@@ -287,6 +287,13 @@ impl SymbolKind {
         )
     }
 
+    /// Check whether this kind denotes a type, which may qualify static members.
+    #[inline]
+    pub fn is_type(self) -> bool {
+        self.is_type_definition()
+            || matches!(self, Self::GenericTypeParameter | Self::AssociatedType)
+    }
+
     /// Return whether this kind declares a value.
     pub fn is_value(self) -> bool {
         matches!(

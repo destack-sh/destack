@@ -251,6 +251,20 @@ impl ScalarDomain {
         }
     }
 
+    /// Return the language function comparing this domain's carried values.
+    pub fn equality_item(self) -> Option<LanguageItem> {
+        match self {
+            Self::Bigint => Some(LanguageItem::BigIntEqual),
+            Self::String => Some(LanguageItem::StringEqual),
+            Self::Integer
+            | Self::Float
+            | Self::Character
+            | Self::Boolean
+            | Self::Null
+            | Self::Undefined => None,
+        }
+    }
+
     /// Return whether this domain holds builtin numerics.
     pub fn is_numeric(self) -> bool {
         matches!(self, Self::Integer | Self::Float | Self::Bigint)

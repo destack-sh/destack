@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 use tspp_serde::Reflect;
 
 use crate::{
-    ExportKind, Expression, FunctionSignature, GenericParameter, LocalNodeId, Member, Mutability,
-    Name, Node, NodeFold, NodeType, ScopeKind, SymbolKind, SymbolRole, TypeExpression, TypeMember,
-    Visibility, WhereClause,
+    ExportKind, Expression, FunctionForm, FunctionSignature, GenericParameter, LocalNodeId, Member,
+    Mutability, Name, Node, NodeFold, NodeType, ScopeKind, SymbolKind, SymbolRole, TypeExpression,
+    TypeMember, Visibility, WhereClause,
 };
 
 /// A global declaration block.
@@ -178,6 +178,13 @@ pub struct FunctionDeclaration {
     pub is_ambient: bool,
 }
 
+impl FunctionDeclaration {
+    /// Return whether this function is a value: a lambda or an unnamed function.
+    pub fn is_value(&self) -> bool {
+        self.signature.form == FunctionForm::Lambda || self.name.is_none()
+    }
+}
+
 /// Declaration introduces a type or such into a scope.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
 pub enum Declaration {
@@ -206,6 +213,11 @@ impl Node for Declaration {
 }
 
 impl Declaration {
+    /// Return whether this declaration is a function value rather than a statement.
+    pub fn is_function_value(&self) -> bool {
+        matches!(self, Declaration::Function(function) if function.is_value())
+    }
+
     /// Return the export kind on this declaration.
     pub fn export(&self) -> Option<ExportKind> {
         match self {

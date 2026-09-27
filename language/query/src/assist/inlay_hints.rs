@@ -304,7 +304,7 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<Vec<Option<String>>> {
         match &resolution.target {
             dir::ConstructTarget::Class { constructor, .. } => {
-                let Some(symbol_id) = constructor.call_symbol() else {
+                let Some(symbol_id) = constructor.written() else {
                     return Ok(Vec::new());
                 };
 

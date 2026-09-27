@@ -287,6 +287,11 @@ impl MemberAccess {
             ty,
         }
     }
+
+    /// Return whether evaluating this access calls an accessor.
+    pub fn calls(&self) -> bool {
+        self.target.calls()
+    }
 }
 
 impl OperationResolution<MemberAccess> {
@@ -400,6 +405,17 @@ pub enum MemberTarget {
 }
 
 impl MemberTarget {
+    /// Return whether evaluating this target calls an accessor.
+    pub fn calls(&self) -> bool {
+        match self {
+            Self::Call(_) => true,
+            Self::OverloadSet(targets) | Self::Intersection(targets) => {
+                targets.iter().any(Self::calls)
+            }
+            Self::Projection { .. } | Self::Field(_) | Self::Index(_) | Self::Symbol(_) => false,
+        }
+    }
+
     /// Return the construct name for diagnostics.
     pub fn name(&self) -> &'static str {
         match self {
@@ -791,6 +807,14 @@ pub struct Subscript {
 pub type SubscriptDecision = OperationResolution<Subscript>;
 
 impl Subscript {
+    /// Return whether evaluating this subscript calls a protocol member.
+    pub fn calls(&self) -> bool {
+        match &self.target {
+            SubscriptTarget::Member(member) => member.calls(),
+            SubscriptTarget::Call(_) | SubscriptTarget::Index(_) => true,
+        }
+    }
+
     /// Return whether this subscript reads or writes stored aggregate state.
     pub fn is_stored(&self) -> bool {
         match &self.target {
@@ -1204,15 +1228,17 @@ pub struct PlaceResolution {
     pub access: GlobalTypeId,
 }
 
-/// The union members one flow narrowing leaves live at a read.
+/// The members or subclass one flow narrowing leaves live at a read.
 #[derive(
     Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit,
 )]
 pub struct Narrowing {
-    /// The declared union the read narrows.
-    pub union: GlobalTypeId,
-    /// The canonical members the flow keeps, in the union's order.
+    /// The declared type the read narrows.
+    pub declared: GlobalTypeId,
+    /// The canonical union members the flow keeps in declared order, or the one subclass.
     pub arms: Vec<GlobalTypeId>,
+    /// The tests establishing the narrowing, which verification holds unchanged until the read.
+    pub tests: Vec<GlobalNodeIdAny>,
 }
 
 /// Read and write operations selected for one assignment target.
@@ -1254,6 +1280,19 @@ pub enum ReadResolution {
 }
 
 impl ReadResolution {
+    /// Return whether performing this read calls a getter or protocol member.
+    pub fn calls(&self) -> bool {
+        match self {
+            Self::Binding { .. } => false,
+            Self::Member(member) => member.arms().iter().any(MemberAccess::calls),
+            Self::Subscript(subscript) => subscript.arms().iter().any(Subscript::calls),
+            Self::Dereference(dereference) => dereference
+                .arms()
+                .iter()
+                .any(|dereference| dereference.protocol.is_some()),
+        }
+    }
+
     /// Return the value type produced by this read.
     pub fn ty(&self) -> GlobalTypeId {
         match self {
@@ -1296,6 +1335,19 @@ pub enum WriteResolution {
 }
 
 impl WriteResolution {
+    /// Return whether performing this write calls a setter or protocol member.
+    pub fn calls(&self) -> bool {
+        match self {
+            Self::Binding { .. } => false,
+            Self::Member(member) => member.arms().iter().any(MemberAccess::calls),
+            Self::Subscript(subscript) => subscript.arms().iter().any(Subscript::calls),
+            Self::Dereference(dereference) => dereference
+                .arms()
+                .iter()
+                .any(|dereference| dereference.protocol.is_some()),
+        }
+    }
+
     /// Return the construct name for diagnostics.
     pub fn name(&self) -> &'static str {
         match self {
@@ -1537,17 +1589,14 @@ impl ConstructTarget {
         }
     }
 
-    /// Return the callable symbol selected by construction, when this target has one.
+    /// Return the callable symbol selected by construction: the written constructor, else the class.
     pub fn call_symbol(&self) -> Option<GlobalSymbolId> {
         match self {
             Self::Class {
                 key, constructor, ..
             } => match constructor {
-                ClassConstructor::Declared { symbol }
-                | ClassConstructor::ForwardedDeclared { symbol, .. } => Some(*symbol),
-                ClassConstructor::Default | ClassConstructor::ForwardedDefault { .. } => {
-                    Some(key.symbol)
-                }
+                ClassConstructor::Declared { symbol } => Some(*symbol),
+                ClassConstructor::Implicit { .. } => Some(key.symbol),
             },
             Self::Newtype { key, .. } => Some(key.symbol),
         }
@@ -1557,7 +1606,7 @@ impl ConstructTarget {
 impl InstanceKeyVisit for ConstructTarget {
     fn visit_instance_keys(&self, visit: &mut dyn FnMut(&InstanceKey)) {
         match self {
-            // visit the class, then its declared constructor under the constructor's bindings
+            // visit the class, then its written constructor under the constructor's bindings
             Self::Class {
                 key,
                 constructor,
@@ -1565,9 +1614,7 @@ impl InstanceKeyVisit for ConstructTarget {
             } => {
                 visit(key);
 
-                if let ClassConstructor::Declared { symbol }
-                | ClassConstructor::ForwardedDeclared { symbol, .. } = constructor
-                {
+                if let ClassConstructor::Declared { symbol } = constructor {
                     visit(&InstanceKey::new(*symbol, arguments.clone()));
                 }
             }

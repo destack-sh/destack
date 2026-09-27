@@ -18,12 +18,12 @@ impl CompletionCollector<'_, '_, '_> {
         })?;
         expanded.reserve(constructors.len());
 
-        // retain constructor identity for each declared, forwarded, or default overload
+        // retain constructor identity for each written or implicit overload
         for constructor in constructors {
             let completion = completion.clone().with_class_constructor(
                 symbol,
                 constructor.ty,
-                constructor.constructor.call_symbol(),
+                constructor.constructor.written(),
             );
             expanded.push(completion);
         }

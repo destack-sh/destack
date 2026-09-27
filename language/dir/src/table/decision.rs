@@ -11,8 +11,8 @@ use crate::{
     CallDecision, ConstructDecision, Expression, FunctionDecision, GlobalNodeId, GlobalNodeIdAny,
     GlobalSymbolId, GlobalTypeId, GuardDecision, InstanceKey, InstanceKeyVisit, MemberAccess,
     MemberDecision, Narrowing, NodeType, OperationResolution, OperatorDecision, Pattern,
-    PatternDecision, PlaceResolution, ReceiverDecision, SegmentView, SubscriptDecision,
-    SubscriptTarget, TreeDecision, TypeFold,
+    PatternDecision, PlaceResolution, ReadResolution, ReceiverDecision, SegmentView, Subscript,
+    SubscriptDecision, SubscriptTarget, TreeDecision, TypeFold,
 };
 
 /// The one decision inference made for a DIR node.
@@ -189,6 +189,44 @@ impl InstanceKeyVisit for CoverageDecision {
 }
 
 impl Decision {
+    /// Return whether evaluating the decided node calls a selected function.
+    pub fn calls(&self) -> bool {
+        match self {
+            // calls, constructions, and protocol calls
+            Self::Call(_)
+            | Self::Construct(_)
+            | Self::Iteration(_)
+            | Self::Disposal(_)
+            | Self::Template(_)
+            | Self::Tree(_)
+            | Self::Attempted(_) => true,
+
+            // selections calling a protocol member or accessor
+            Self::Operator(operator) => operator
+                .arms()
+                .iter()
+                .any(|application| application.call().is_some()),
+            Self::Member(member) => member.arms().iter().any(MemberAccess::calls),
+            Self::Subscript(subscript) => subscript.arms().iter().any(Subscript::calls),
+            Self::Assignment(assignment) => {
+                assignment.write.calls()
+                    || assignment.read.as_ref().is_some_and(ReadResolution::calls)
+            }
+
+            // resolutions without a call of their own
+            Self::Receiver(_)
+            | Self::Function(_)
+            | Self::Transfer(_)
+            | Self::Residual(_)
+            | Self::Coverage(_)
+            | Self::Guard(_)
+            | Self::Pattern(_)
+            | Self::AssignPattern(_)
+            | Self::Rejected
+            | Self::Poisoned => false,
+        }
+    }
+
     /// Return the binding uses represented at this decision's node.
     pub fn binding_uses(&self) -> Vec<(GlobalSymbolId, BindingUse)> {
         let mut uses = Vec::new();

@@ -6,7 +6,8 @@ use tspp_core::FxIndexMap as IndexMap;
 use tspp_source::ModuleId;
 
 use crate::{
-    Arena, GlobalScopeId, GlobalSymbolId, GlobalTypeId, Ownership, SegmentView, StringId, TypeFold,
+    Access, Arena, GlobalScopeId, GlobalSymbolId, GlobalTypeId, Ownership, SegmentView, StringId,
+    TypeFold,
 };
 
 /// Cumulative captures for one DIR module.
@@ -338,6 +339,15 @@ pub struct CaptureDirective {
 }
 
 impl CaptureDirective {
+    /// Return whether the directive borrows any binding, by default or by name.
+    pub fn borrows(&self) -> bool {
+        self.default == CaptureMode::Borrow
+            || self
+                .rules
+                .iter()
+                .any(|rule| rule.mode == CaptureMode::Borrow)
+    }
+
     /// Return the capture mode for the given binding name.
     pub fn mode_for_name(&self, name: StringId) -> CaptureMode {
         self.rules
@@ -366,6 +376,8 @@ pub enum CapturedBinding {
         symbol: GlobalSymbolId,
         /// The checked binding type.
         ty: GlobalTypeId,
+        /// The strongest access the body takes on the binding.
+        access: Access,
     },
     /// Copy the binding value into the closure environment.
     Copy {
@@ -414,6 +426,14 @@ impl CapturedBinding {
         }
     }
 
+    /// Return the access a borrowing capture takes.
+    pub fn access(self) -> Option<Access> {
+        match self {
+            Self::Borrow { access, .. } => Some(access),
+            Self::Manage { .. } | Self::Copy { .. } | Self::Move { .. } => None,
+        }
+    }
+
     /// Return the capture frame when this is a managed capture.
     pub fn frame(self) -> Option<LocalCaptureFrameId> {
         match self {
@@ -423,17 +443,6 @@ impl CapturedBinding {
     }
 }
 
-/// A captured lexical receiver.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
-pub struct CapturedReceiver {
-    /// The receiver symbol.
-    pub symbol: GlobalSymbolId,
-    /// The capture mode for the receiver.
-    pub mode: CaptureMode,
-    /// The receiver type.
-    pub ty: GlobalTypeId,
-}
-
 /// Captures for a function declaration.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct Capture {
@@ -441,8 +450,8 @@ pub struct Capture {
     pub frames: Vec<LocalCaptureFrameId>,
     /// The resolved captures in discovery order.
     pub captures: Vec<CapturedBinding>,
-    /// The captured `this` binding.
-    pub this: Option<CapturedReceiver>,
+    /// The captured `this` binding, held by value or by borrow.
+    pub this: Option<CapturedBinding>,
     /// The ownership the closure's callable form gives its environment.
     pub ownership: Ownership,
 }

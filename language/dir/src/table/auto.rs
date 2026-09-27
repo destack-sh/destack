@@ -211,7 +211,6 @@ impl AutoInterface {
         matches!(self, Self::SharedSafe | Self::Unpin | Self::Zeroable)
     }
 
-    /// Return whether the compiler derives this interface field-wise without annotation.
     /// Return the member name a derivation of this interface implements.
     pub fn derived_member(self) -> Option<&'static str> {
         match self {
@@ -225,6 +224,7 @@ impl AutoInterface {
         }
     }
 
+    /// Return whether the compiler derives this interface field-wise without annotation.
     pub fn is_auto_derivable(self) -> bool {
         matches!(
             self,

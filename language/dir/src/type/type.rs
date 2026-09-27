@@ -304,6 +304,7 @@ impl Type {
         let primitive = match self {
             Self::Primitive(_) => return Some(*self),
             Self::Literal(literal) => return Some(literal.widen()),
+            Self::Range(range) => return range.start.or(range.end).map(|bound| bound.widen()),
             Self::Key(StaticKey::Name(_)) => PrimitiveType::String,
             Self::Key(StaticKey::Index(_)) => {
                 PrimitiveType::Integer(IntegerType::Pointer { is_signed: false })

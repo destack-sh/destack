@@ -143,6 +143,11 @@ pub enum CoercionAdjustment {
         /// The scalar type after this adjustment.
         target: GlobalTypeId,
     },
+    /// Project an enum case to its declared value, like `mode as int64` or `level as string`.
+    EnumValue {
+        /// The value type after this adjustment.
+        target: GlobalTypeId,
+    },
     /// Wrap one backing value in its newtype, or unwrap it, like `number as UserId`.
     Newtype {
         /// The newtype or its backing after this adjustment.
@@ -245,6 +250,7 @@ impl CoercionAdjustment {
             | Self::Union { target, .. }
             | Self::Erase { target }
             | Self::Scalar { target }
+            | Self::EnumValue { target }
             | Self::Newtype { target }
             | Self::Materialize { target }
             | Self::Tuple { target }
@@ -263,6 +269,7 @@ impl CoercionAdjustment {
             Self::Union { .. } => "union",
             Self::Erase { .. } => "erase",
             Self::Scalar { .. } => "scalar",
+            Self::EnumValue { .. } => "enum",
             Self::Newtype { .. } => "newtype",
             Self::Materialize { .. } => "materialize",
             Self::Tuple { .. } => "tuple",

@@ -115,6 +115,18 @@ pub enum Projection {
         /// The projected type descriptor type.
         ty: GlobalTypeId,
     },
+    /// Read the payload of one union arm after its case test.
+    ///
+    /// Examples:
+    /// ```tspp
+    /// animal is Bird // Arm of Animal in Animal | undefined
+    /// ```
+    Arm {
+        /// The union holding the arm.
+        union: GlobalTypeId,
+        /// The arm type.
+        ty: GlobalTypeId,
+    },
     /// Read a singleton property that distinguishes every arm of a union.
     ///
     /// Examples:
@@ -221,6 +233,7 @@ impl Projection {
             Self::SliceLength { .. } => "slice length",
             Self::DynamicPayload { .. } => "dynamic payload",
             Self::DynamicType { .. } => "dynamic type",
+            Self::Arm { .. } => "union arm",
             Self::Discriminant { .. } => "discriminant",
             Self::NewtypePayload { .. } => "newtype payload",
             Self::Borrow { .. } => "borrow",
@@ -239,6 +252,7 @@ impl Projection {
             | Self::SliceLength { ty }
             | Self::DynamicPayload { ty }
             | Self::DynamicType { ty }
+            | Self::Arm { ty, .. }
             | Self::Discriminant { ty, .. }
             | Self::NewtypePayload { ty, .. }
             | Self::Borrow { ty, .. }

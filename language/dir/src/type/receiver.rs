@@ -171,6 +171,7 @@ pub struct DynamicDispatch {
 /// userId.length        // NewtypePayload, when the backing string exposes `length`
 /// shape.radius         // UnionPayload, after narrowing selects one union arm
 /// circle.area()        // Upcast, when `Circle` inherits `area` from `Shape`
+/// word.length          // Materialize, when a literal-typed receiver borrows its carrier
 /// ```
 #[derive(
     Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit,
@@ -204,6 +205,13 @@ pub enum ReceiverAdjustment {
         /// The adjusted receiver type.
         ty: GlobalTypeId,
     },
+    /// Materialize one singleton receiver as a value of its carrier.
+    Materialize {
+        /// The singleton type the receiver holds.
+        singleton: GlobalTypeId,
+        /// The carrier type after this adjustment.
+        ty: GlobalTypeId,
+    },
 }
 
 impl ReceiverAdjustment {
@@ -213,7 +221,8 @@ impl ReceiverAdjustment {
             Self::Borrow { ty }
             | Self::NewtypePayload { ty, .. }
             | Self::UnionPayload { ty, .. }
-            | Self::Upcast { ty } => *ty,
+            | Self::Upcast { ty }
+            | Self::Materialize { ty, .. } => *ty,
             Self::Dereference(dereference) => dereference.ty,
         }
     }

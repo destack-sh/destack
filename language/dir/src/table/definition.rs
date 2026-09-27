@@ -7,10 +7,10 @@ use tspp_serde::Reflect;
 use tspp_source::ModuleId;
 
 use crate::{
-    AutoInterface, EnumBackingType, EnumVariantValue, FunctionRole, GlobalNodeIdAny,
-    GlobalSymbolId, GlobalTypeId, IntegerType, LocalGenericTemplateId, MemberKind, MemberSlot,
-    MemberSpace, MethodAbstraction, PrimitiveType, SegmentView, Space, StaticKey, TypeFold,
-    Visibility,
+    AutoInterface, ConstructTarget, EnumBackingType, EnumVariantValue, FunctionRole,
+    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, IntegerType, LocalGenericTemplateId, MemberKind,
+    MemberSlot, MemberSpace, MethodAbstraction, PrimitiveType, SegmentView, Space, StaticKey,
+    TypeFold, Visibility,
 };
 
 /// Cumulative declaration definitions for one DIR module.
@@ -472,31 +472,24 @@ impl ClassDefinition {
 pub struct ClassConstructorDefinition {
     /// The selected constructor.
     pub constructor: ClassConstructor,
-    /// The constructor signature.
+    /// The constructor signature at the class's own parameters.
     pub ty: GlobalTypeId,
+    /// The base construction an implicit derived constructor runs, at the class's own parameters.
+    pub base: Option<ConstructTarget>,
 }
 
-/// Class construct candidate origin.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
+/// One class constructor, written or supplied by the language.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum ClassConstructor {
-    /// Constructor explicitly declared by this class.
+    /// A constructor the class writes.
     Declared {
-        /// The declared constructor symbol.
+        /// The written constructor symbol.
         symbol: GlobalSymbolId,
     },
-    /// Default `new T()` candidate for a class with no declared constructor.
-    Default,
-    /// Constructor forwarded to an explicit base class constructor.
-    ForwardedDeclared {
-        /// The base class symbol.
-        base: GlobalSymbolId,
-        /// The selected base constructor symbol.
-        symbol: GlobalSymbolId,
-    },
-    /// Constructor forwarded to a base class default constructor.
-    ForwardedDefault {
-        /// The base class symbol.
-        base: GlobalSymbolId,
+    /// The constructor the language supplies, forwarding its arguments to the base's constructor.
+    Implicit {
+        /// The written constructor up the base chain it ends in, none for a chain without one.
+        forwards: Option<GlobalSymbolId>,
     },
 }
 
@@ -505,27 +498,25 @@ impl ClassConstructor {
     pub fn name(&self) -> &'static str {
         match self {
             Self::Declared { .. } => "declared",
-            Self::Default => "default",
-            Self::ForwardedDeclared { .. } => "forwarded declared",
-            Self::ForwardedDefault { .. } => "forwarded default",
+            Self::Implicit { .. } => "implicit",
         }
     }
 
-    /// Return this constructor forwarded through one direct base class.
-    pub fn forwarded(self, base: GlobalSymbolId) -> Self {
+    /// Return the implicit constructor a derived class supplies over this base constructor.
+    pub fn forwarded(self) -> Self {
         match self {
-            Self::Declared { symbol } | Self::ForwardedDeclared { symbol, .. } => {
-                Self::ForwardedDeclared { base, symbol }
-            }
-            Self::Default | Self::ForwardedDefault { .. } => Self::ForwardedDefault { base },
+            Self::Declared { symbol } => Self::Implicit {
+                forwards: Some(symbol),
+            },
+            Self::Implicit { forwards } => Self::Implicit { forwards },
         }
     }
 
-    /// Return the function symbol called by this constructor, when one exists.
-    pub fn call_symbol(&self) -> Option<GlobalSymbolId> {
+    /// Return the written constructor this constructor runs, its own or the one it forwards.
+    pub fn written(&self) -> Option<GlobalSymbolId> {
         match self {
-            Self::Declared { symbol } | Self::ForwardedDeclared { symbol, .. } => Some(*symbol),
-            Self::Default | Self::ForwardedDefault { .. } => None,
+            Self::Declared { symbol } => Some(*symbol),
+            Self::Implicit { forwards } => *forwards,
         }
     }
 }

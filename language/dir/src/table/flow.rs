@@ -6,7 +6,7 @@ use tspp_core::{FxIndexMap, FxIndexSet};
 use tspp_serde::Reflect;
 use tspp_source::ModuleId;
 
-use crate::{AccessPath, GlobalSymbolId, LocalNodeIdAny, LocalSymbolId, SegmentView};
+use crate::{Access, AccessPath, GlobalSymbolId, LocalNodeIdAny, LocalSymbolId, SegmentView};
 
 /// One binding's recorded uses inside a DIR module.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -46,6 +46,17 @@ impl BindingUse {
     /// Return whether the recorded use may mutate binding storage or its value.
     pub fn may_mutate(self) -> bool {
         self.contains(Self::WRITE) || self.contains(Self::MUTATE)
+    }
+
+    /// Return the access a borrow making these uses needs: exclusive once it mutates.
+    pub fn borrowed_access(self) -> Access {
+        let is_mutable =
+            self.may_mutate() || self.contains(Self::MUTABLE) || self.contains(Self::EXCLUSIVE);
+
+        match is_mutable {
+            true => Access::Exclusive,
+            false => Access::Immutable,
+        }
     }
 }
 

@@ -386,7 +386,7 @@ impl ModuleQueryContext<'_> {
                 key.symbol
             )));
         };
-        let Some(constructor_symbol) = constructor.call_symbol() else {
+        let Some(constructor_symbol) = constructor.written() else {
             return self.signature_item(
                 program,
                 program.symbol_callable_documentation(key.symbol)?,

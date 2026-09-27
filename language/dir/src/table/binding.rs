@@ -143,6 +143,20 @@ impl<'a> BindingTable<'a> {
             .unwrap_or_else(|| panic!("DIR scope {scope_id:?} is not visible"))
     }
 
+    /// Return the nearest function scope enclosing one symbol, none for module and namespace symbols.
+    pub fn function_scope(&self, symbol: LocalSymbolId) -> Option<&Scope> {
+        let mut scope = Some(self.get_symbol(symbol).scope.id);
+        while let Some(id) = scope {
+            let current = self.get_scope_by_id(id);
+            if current.kind == ScopeKind::Function {
+                return Some(current);
+            }
+            scope = current.parent.map(|parent| parent.id);
+        }
+
+        None
+    }
+
     /// Return one visible scope by cursor.
     pub fn get_scope(&self, scope: LocalScope) -> &Scope {
         self.get_scope_by_id(scope.id)

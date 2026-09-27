@@ -133,6 +133,13 @@ pub enum PredicateTest {
     /// value is "yes" | "no"
     /// ```
     Any(Vec<Predicate>),
+    /// Predicate that accepts when every part accepts, tested in order.
+    ///
+    /// Examples:
+    /// ```tspp
+    /// animal is Bird // Animal case, then Bird subtype of its payload
+    /// ```
+    All(Vec<Predicate>),
 }
 
 /// Unary predicate over one input value.
