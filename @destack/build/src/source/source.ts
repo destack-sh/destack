@@ -125,7 +125,7 @@ export async function readPackageDeclaration(
     if ((target === "browser") !== (runtime === "browser")) {
         throw new PackageError(
             "UNSUPPORTED_TARGET",
-            `Runtime ${runtime} cannot compile target ${target}.`,
+            `runtime ${runtime} cannot compile target ${target}`,
         );
     }
     directory = await realpath(directory);
@@ -149,14 +149,14 @@ export async function readPackageDeclaration(
     if (definition.language !== "typescript") {
         throw new PackageError(
             "UNSUPPORTED_LANGUAGE",
-            "TypeScript++ builds require the language toolchain.",
+            "building TypeScript++ packages requires the language toolchain",
         );
     }
 
     // associate peer metadata with authored dependency requirements
     for (const name of Object.keys(declaration.peerDependenciesMeta)) {
         if (!Object.hasOwn(declaration.peerDependencies, name)) {
-            throw new PackageError("INVALID_DEPENDENCY", `Undeclared peer dependency: ${name}`);
+            throw new PackageError("INVALID_DEPENDENCY", `undeclared peer dependency: ${name}`);
         }
     }
 
@@ -194,7 +194,7 @@ export async function readPackageDeclaration(
     if (authored === undefined) {
         throw new PackageError(
             "INVALID_DEFINITION",
-            "A package build requires package.json exports.",
+            "a package build requires package.json exports",
         );
     }
     const authoredEntries =
@@ -208,12 +208,12 @@ export async function readPackageDeclaration(
     const types: Record<string, string> = {};
     for (const [name, entry] of Object.entries(authoredEntries)) {
         if (!entries && name !== "." && !name.startsWith("./")) {
-            throw new PackageError("INVALID_DEFINITION", `Invalid export: ${name}`);
+            throw new PackageError("INVALID_DEFINITION", `invalid export: ${name}`);
         }
         if (name.includes("*")) {
             throw new PackageError(
                 "INVALID_DEFINITION",
-                `Build exports must name concrete modules: ${name}`,
+                `build exports must name concrete modules: ${name}`,
             );
         }
         const targets = definition.exports?.[name]?.targets ?? definition.targets;
@@ -222,19 +222,19 @@ export async function readPackageDeclaration(
             if (entries) {
                 throw new PackageError(
                     "UNSUPPORTED_TARGET",
-                    `Unsupported entry runtime: ${name} -> ${runtime}`,
+                    `unsupported entry runtime: ${name} -> ${runtime}`,
                 );
             }
             continue;
         }
         if (!targets) {
-            throw new PackageError("INVALID_DEFINITION", `No targets declared for export: ${name}`);
+            throw new PackageError("INVALID_DEFINITION", `no targets declared for export: ${name}`);
         }
         if (!targets.includes(target)) {
             if (entries) {
                 throw new PackageError(
                     "UNSUPPORTED_TARGET",
-                    `Unsupported entry target: ${name} -> ${target}`,
+                    `unsupported entry target: ${name} -> ${target}`,
                 );
             }
             continue;
@@ -242,7 +242,7 @@ export async function readPackageDeclaration(
         const type = selectExport(entry, typeConditions);
         if (type !== undefined && type !== null && /\.[cm]?[jt]sx?$/.test(type)) {
             if (!type.startsWith("./")) {
-                throw new PackageError("INVALID_DEFINITION", `Invalid type export path: ${type}`);
+                throw new PackageError("INVALID_DEFINITION", `invalid type export path: ${type}`);
             }
             types[name] = resolve(directory, PackagePath.parse(type.slice(2)));
         }
@@ -251,7 +251,7 @@ export async function readPackageDeclaration(
             continue;
         }
         if (!path.startsWith("./") || isAbsolute(path)) {
-            throw new PackageError("INVALID_DEFINITION", `Invalid export path: ${path}`);
+            throw new PackageError("INVALID_DEFINITION", `invalid export path: ${path}`);
         }
         if (!/\.d\.[cm]?ts$/.test(path)) {
             exports[name] = resolve(directory, PackagePath.parse(path.slice(2)));
@@ -260,7 +260,7 @@ export async function readPackageDeclaration(
 
     // require at least one runtime or type export
     if (!Object.keys(exports).length && !Object.keys(types).length) {
-        throw new PackageError("UNSUPPORTED_TARGET", `No runtime exports for target: ${target}`);
+        throw new PackageError("UNSUPPORTED_TARGET", `no runtime exports for target: ${target}`);
     }
 
     return {
@@ -273,7 +273,7 @@ export async function readPackageDeclaration(
 }
 
 /** Select a package export using declaration-order conditional resolution. */
-function selectExport(value: unknown, conditions: Set<string>): string | null | undefined {
+export function selectExport(value: unknown, conditions: Set<string>): string | null | undefined {
     if (typeof value === "string" || value === null) {
         return value;
     }
@@ -294,7 +294,7 @@ function selectExport(value: unknown, conditions: Set<string>): string | null | 
             }
         }
     } else {
-        throw new PackageError("INVALID_DEFINITION", "Invalid package export definition.");
+        throw new PackageError("INVALID_DEFINITION", "invalid package export definition");
     }
 
     return undefined;

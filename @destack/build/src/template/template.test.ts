@@ -1,4 +1,4 @@
-import type { TemplateParameters } from "@destack/package/template";
+import type { TemplateInput } from "@destack/package/template";
 import { test } from "@destack/test";
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -13,7 +13,7 @@ test.each(["stack", "blank"])("instantiate the %s package template", async (name
     const template = await Template.read(
         fileURLToPath(new URL(`../../../template-${name}/`, import.meta.url)),
     );
-    const parameters: TemplateParameters = {
+    const parameters: TemplateInput = {
         id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000005"),
         name: `@example/${name}`,
         dependencies:

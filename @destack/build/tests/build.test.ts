@@ -53,7 +53,7 @@ test.concurrent.for(fixtures)("build $name $expected", async (fixture, { expect 
         });
         await expect(corrupt.files()).rejects.toMatchObject({
             code: "INVALID_FILE",
-            message: `File digest mismatch: ${build.manifest.files.path}`,
+            message: `file digest mismatch: ${build.manifest.files.path}`,
         });
 
         const module = await import(
@@ -88,22 +88,22 @@ test.concurrent.for(fixtures)("build $name $expected", async (fixture, { expect 
         const module = await import(
             pathToFileURL(join(destination, build.manifest.outputs.library.exports["."])).href
         );
-        expect(module.database.spec).toEqual({ dialect: "sqlite" });
-        for (const dialect of ["sqlite", "postgresql"]) {
-            const migration = new URL(
-                `${dialect}/20260920000000_note/migration.sql`,
-                module.notes.migrations,
-            );
-            expect(await readFile(migration, "utf8")).toBe(
-                "CREATE TABLE note (id INTEGER PRIMARY KEY, title TEXT NOT NULL);\n",
-            );
-        }
+
+        // distribute the declared tables with the database, so the bundle plans its own migration
+        expect(module.database.tables).toEqual([module.note]);
     } else if (fixture.name === "stack") {
         const module = await import(
             pathToFileURL(join(destination, build.manifest.outputs.stack.exports["."])).href
         );
+
+        // retain the shared database's description in the space definition
+        const { package: owner, name, kind, version, spec } = module.database;
         expect(module.personal.resources).toEqual({
-            main: { declaration: module.database, retention: "retain", tags: {} },
+            main: {
+                declaration: { package: owner, name, kind, version, spec },
+                retention: "retain",
+                tags: {},
+            },
         });
         expect(module.personal.installations).toEqual({
             notes: {
@@ -114,7 +114,14 @@ test.concurrent.for(fixtures)("build $name $expected", async (fixture, { expect 
                 },
                 status: "enabled",
                 alias: "stack",
-                resources: { [module.database.package.id]: { main: { resource: "main" } } },
+                resources: {
+                    [module.database.package.id]: {
+                        main: {
+                            resource: "main",
+                            state: { tables: { sqlite: [], postgresql: [] } },
+                        },
+                    },
+                },
                 secrets: {},
                 compute: {},
                 tags: {},
@@ -173,7 +180,7 @@ const invalid = [
         file: "server.ts",
         source: "/** Render the page title. */\nexport function render(): string {\n    return document.title;\n}\n",
         code: "BUILD_FAILED",
-        message: "Unsupported bun API: document.title at server.ts:76",
+        message: "unsupported bun API: document.title at server.ts:76",
         application: { ...requests.static, entryServer: "server.ts", entryClient: "client.ts" },
     },
 ];

@@ -68,7 +68,7 @@ export async function modulePackage(
         }
         const parent = dirname(directory);
         if (parent === directory) {
-            throw new BuildError("BUILD_FAILED", `No package declaration for module: ${directory}`);
+            throw new BuildError("BUILD_FAILED", `no package declaration for module: ${directory}`);
         }
         directory = parent;
     }
@@ -78,8 +78,21 @@ export async function modulePackage(
 export async function readDependencies(
     directory: string,
 ): Promise<Record<string, DependencyResolution>> {
-    // locate the lockfile without changing the selected releases
+    // read the authored dependency names, and resolve none for a package that declares none
     directory = resolve(directory);
+    const declaration = JSON.parse(await readFile(join(directory, "package.json"), "utf8"));
+    const names = new Set(
+        Object.keys({
+            ...declaration.dependencies,
+            ...declaration.peerDependencies,
+            ...declaration.optionalDependencies,
+        }),
+    );
+    if (names.size === 0) {
+        return {};
+    }
+
+    // locate the lockfile without changing the selected releases
     const lock = await readLockfile(directory);
     const dependencies: Record<string, DependencyResolution> = {};
 
@@ -121,14 +134,6 @@ export async function readDependencies(
     }
 
     // associate authored import names, including npm aliases, with their installed releases
-    const declaration = JSON.parse(await readFile(join(directory, "package.json"), "utf8"));
-    const names = new Set(
-        Object.keys({
-            ...declaration.dependencies,
-            ...declaration.peerDependencies,
-            ...declaration.optionalDependencies,
-        }),
-    );
     for (const name of names) {
         DependencyName.parse(name);
         const installed = await readInstalledPackage(name, directory);

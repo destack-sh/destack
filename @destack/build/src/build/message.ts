@@ -59,7 +59,7 @@ export async function* readMessages(stream: AsyncIterable<Uint8Array>): AsyncGen
             if (isHeader) {
                 const size = buffer.readUInt32LE();
                 if (!size) {
-                    throw new BuildError("BUILD_FAILED", "Empty compiler message.");
+                    throw new BuildError("BUILD_FAILED", "empty compiler message");
                 }
                 buffer = Buffer.allocUnsafe(size);
                 isHeader = false;
@@ -75,7 +75,7 @@ export async function* readMessages(stream: AsyncIterable<Uint8Array>): AsyncGen
 
     // reject a truncated stream
     if (offset || !isHeader) {
-        throw new BuildError("BUILD_FAILED", "Incomplete compiler message.");
+        throw new BuildError("BUILD_FAILED", "incomplete compiler message");
     }
 }
 

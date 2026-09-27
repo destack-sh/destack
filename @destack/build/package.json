@@ -14,6 +14,7 @@
         "./template": "./src/template/index.ts",
         ".": "./src/index.ts",
         "./inspect": "./src/inspect/index.ts",
+        "./access": "./src/access/index.ts",
         "./error": "./src/error/index.ts"
     },
     "scripts": {
@@ -21,19 +22,12 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
-        "@destack/setting": "workspace:*",
-        "@destack/model": "workspace:*",
         "@destack/access": "workspace:*",
-        "@destack/audit": "workspace:*",
         "@destack/check": "workspace:*",
         "magic-string": "1.4.1",
         "@jridgewell/remapping": "2.3.5",
         "@cloudflare/workers-types": "5.20260917.1",
-        "@destack/db": "workspace:*",
         "@destack/service": "workspace:*",
-        "@destack/vault": "workspace:*",
-        "@destack/bucket": "workspace:*",
-        "@destack/space": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/test": "workspace:*",
@@ -46,6 +40,9 @@
         "rolldown": "1.2.9"
     },
     "devDependencies": {
-        "@stylexjs/stylex": "0.19.1"
+        "@destack/resource": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@stylexjs/stylex": "0.19.1",
+        "uuid": "14.0.2"
     }
 }

@@ -852,7 +852,7 @@ var _safeParseAsync = (_Err) => async (schema, value, _ctx) => {
 };
 var COMPILE_INVALID = /* @__PURE__ */ Symbol.for("zod.compile.invalid");
 var COMPILE_FALLBACK = /* @__PURE__ */ Symbol.for("zod.compile.fallback");
-var validate$1 = ((schema, value, _ctx) => {
+var validate = ((schema, value, _ctx) => {
 	const validator = schema._zod.bag.validator;
 	if (validator !== void 0) {
 		if (validator(value) !== COMPILE_INVALID) return true;
@@ -2936,7 +2936,7 @@ var $ZodCyclicError = class extends Error {
 	}
 };
 /** Keyed off the context object every schema in one parse call already shares. */
-var STATE = "~memo";
+var STATE$1 = "~memo";
 var NO_ISSUES = [];
 function isRef(value) {
 	return value !== null && typeof value === "object";
@@ -3127,13 +3127,13 @@ var memo = {
 				}
 				const input = payload.value;
 				if (!isRef(input)) return base(payload, ctx);
-				let state = ctx[STATE];
+				let state = ctx[STATE$1];
 				if (!state) {
 					state = {
 						buckets: /* @__PURE__ */ new WeakMap(),
 						backEdges: void 0
 					};
-					ctx[STATE] = state;
+					ctx[STATE$1] = state;
 				}
 				let bucket;
 				if (lastCtx === ctx) bucket = lastBucket;
@@ -3177,7 +3177,7 @@ function memoizer() {
 }
 /** Whether this value is a node a back-edge resolved to before it finished. */
 function isBackEdge(ctx, value) {
-	const backEdges = ctx[STATE]?.backEdges;
+	const backEdges = ctx[STATE$1]?.backEdges;
 	return backEdges !== void 0 && isRef(value) && backEdges.has(value);
 }
 var error = () => {
@@ -4994,7 +4994,7 @@ var ZodType = /*@__PURE__*/ $constructor("ZodType", (inst, def) => {
 		own(this, "spa", value);
 	},
 	validate(data, params) {
-		return validate$1(this, data, params);
+		return validate(this, data, params);
 	},
 	validateAsync(data, params) {
 		return validateAsync$1(this, data, params);
@@ -5613,7 +5613,7 @@ var ZodLiteral = /*@__PURE__*/ $constructor("ZodLiteral", (inst, def) => {
 		return def.values[0];
 	} });
 });
-function literal(value, params) {
+function literal$1(value, params) {
 	return new ZodLiteral({
 		type: "literal",
 		values: Array.isArray(value) ? value : [value],
@@ -5811,6 +5811,40 @@ function json(params) {
 }
 /** Zod's built-in guard for string and array length checks. */
 var LENGTH_CHECK = (/* @__PURE__ */ _minLength(0))._zod.def.when;
+/** The string formats declared schemas may check. */
+var STRING_FORMATS = /* @__PURE__ */ new Set([
+	"regex",
+	"uuid",
+	"guid",
+	"nanoid",
+	"cuid2",
+	"ulid",
+	"xid",
+	"ksuid",
+	"email",
+	"url",
+	"emoji",
+	"hostname",
+	"hex",
+	"currency_code",
+	"jwt",
+	"credit_card",
+	"iban",
+	"ipv4",
+	"ipv6",
+	"mac",
+	"base64",
+	"base64url",
+	"e164",
+	"cidrv4",
+	"cidrv6",
+	"datetime",
+	"date",
+	"time",
+	"duration"
+]);
+/** The hash formats declared schemas may check, by algorithm and encoding. */
+var HASH_FORMAT = /^(?:md5|sha1|sha256|sha384|sha512)_(?:hex|base64|base64url)$/;
 /** Descriptive metadata that cannot replace exported validation rules. */
 var METADATA_KEYS = /* @__PURE__ */ new Set([
 	"id",
@@ -5819,8 +5853,12 @@ var METADATA_KEYS = /* @__PURE__ */ new Set([
 	"deprecated",
 	"examples"
 ]);
-/** Require declarative schemas for JSON-compatible values. */
-function validate(schema, visited, isOptionalAllowed) {
+/** Require a schema to declare JSON-compatible values with inspectable, non-executable rules. */
+function requireDeclarable(schema) {
+	requireNode(schema, /* @__PURE__ */ new Map(), false);
+}
+/** Require one schema node to be declarable within the visited nodes and optional context. */
+function requireNode(schema, visited, isOptionalAllowed) {
 	const definition = schema._zod.def;
 	if (definition.type === "optional" && !isOptionalAllowed) throw new TypeError("optional schemas are only supported as object properties");
 	const contexts = visited.get(schema);
@@ -5850,37 +5888,7 @@ function validate(schema, visited, isOptionalAllowed) {
 		if ("pattern" in rule && rule.pattern instanceof RegExp && (rule.pattern.global || rule.pattern.sticky)) throw new TypeError("declared regular expressions cannot use global or sticky flags");
 		if (rule.check === "string_format") {
 			const format = rule.format;
-			if (![
-				"regex",
-				"uuid",
-				"guid",
-				"nanoid",
-				"cuid2",
-				"ulid",
-				"xid",
-				"ksuid",
-				"email",
-				"url",
-				"emoji",
-				"hostname",
-				"hex",
-				"currency_code",
-				"jwt",
-				"credit_card",
-				"iban",
-				"ipv4",
-				"ipv6",
-				"mac",
-				"base64",
-				"base64url",
-				"e164",
-				"cidrv4",
-				"cidrv6",
-				"datetime",
-				"date",
-				"time",
-				"duration"
-			].includes(format) && !/^(?:md5|sha1|sha256|sha384|sha512)_(?:hex|base64|base64url)$/.test(format)) throw new TypeError(`unsupported string format: ${format}`);
+			if (!STRING_FORMATS.has(format) && !HASH_FORMAT.test(format)) throw new TypeError(`unsupported string format: ${format}`);
 		}
 		if ("normalize" in rule && rule.normalize) throw new TypeError("declared schemas cannot request URL normalization");
 		if ("fn" in rule && !(rule.check === "string_format" && "pattern" in rule)) throw new TypeError("declared schemas cannot use custom validation functions");
@@ -5896,55 +5904,55 @@ function validate(schema, visited, isOptionalAllowed) {
 			for (const value of definition.values) json().parse(value);
 			break;
 		case "template_literal":
-			for (const part of definition.parts) if (typeof part === "object" && part !== null) validate(part, visited, false);
+			for (const part of definition.parts) if (typeof part === "object" && part !== null) requireNode(part, visited, false);
 			break;
 		case "object":
 			if (definition.catchall?._zod.def.type !== "never") throw new TypeError("declared object schemas must reject unknown properties");
-			for (const property of Object.values(definition.shape)) validate(property, visited, true);
+			for (const property of Object.values(definition.shape)) requireNode(property, visited, true);
 			break;
 		case "array":
-			validate(definition.element, visited, false);
+			requireNode(definition.element, visited, false);
 			break;
 		case "tuple":
-			for (const item of definition.items) validate(item, visited, false);
-			if (definition.rest) validate(definition.rest, visited, false);
+			for (const item of definition.items) requireNode(item, visited, false);
+			if (definition.rest) requireNode(definition.rest, visited, false);
 			break;
 		case "record":
-			validate(definition.keyType, visited, false);
-			validate(definition.valueType, visited, false);
+			requireNode(definition.keyType, visited, false);
+			requireNode(definition.valueType, visited, false);
 			break;
 		case "intersection":
-			validate(definition.left, visited, isOptionalAllowed);
-			validate(definition.right, visited, isOptionalAllowed);
+			requireNode(definition.left, visited, isOptionalAllowed);
+			requireNode(definition.right, visited, isOptionalAllowed);
 			break;
 		case "union":
-			for (const option of definition.options) validate(option, visited, isOptionalAllowed);
+			for (const option of definition.options) requireNode(option, visited, isOptionalAllowed);
 			break;
 		case "nullable":
-			validate(definition.innerType, visited, isOptionalAllowed);
+			requireNode(definition.innerType, visited, isOptionalAllowed);
 			break;
 		case "optional":
-			validate(definition.innerType, visited, isOptionalAllowed);
+			requireNode(definition.innerType, visited, isOptionalAllowed);
 			break;
 		case "nonoptional":
-			validate(definition.innerType, visited, true);
+			requireNode(definition.innerType, visited, true);
 			break;
 		case "lazy":
-			validate(definition.getter(), visited, isOptionalAllowed);
+			requireNode(definition.getter(), visited, isOptionalAllowed);
 			break;
 		default: throw new TypeError(`unsupported schema type: ${definition.type}`);
 	}
 }
 /** Check the supported declaration and retain native validation and inference. */
 function defineSchema(schema) {
-	validate(schema, /* @__PURE__ */ new Map(), false);
+	requireDeclarable(schema);
 	return schema;
 }
 /** The canonical lowercase UUIDv7 representation from RFC 9562. */
 var UUID_V7 = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 /** Define a typed entity identifier with a lowercase prefix and a UUIDv7 suffix. */
 function identifier(prefix) {
-	if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/.test(prefix)) throw new TypeError(`Invalid identifier prefix: ${prefix}`);
+	if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/.test(prefix)) throw new TypeError(`invalid identifier prefix: ${prefix}`);
 	const pattern = new RegExp(`^${prefix}-${UUID_V7}$(?![\\s\\S])`);
 	const validator = string().regex(pattern).brand();
 	defineSchema(validator);
@@ -5984,8 +5992,7 @@ defineSchema(strictObject({
 	/** The file's media type. */
 	mediaType: string().min(1)
 }));
-/** A concrete package export containing runnable code. */
-var Entrypoint = defineSchema(string().regex(/^\.(?:\/[^\s*]+)?$(?![\s\S])/));
+defineSchema(string().regex(/^\.(?:\/[^\s*]+)?$(?![\s\S])/));
 /** The immutable identity retained across package renames and releases. */
 var PackageId = identifier("package");
 /** A declaration name within a package. */
@@ -6014,7 +6021,7 @@ defineSchema(strictObject({
 	manifest: Digest
 }));
 /** CPU and memory capacity assigned to one running instance. */
-var ComputeResources = defineSchema(strictObject({
+var ComputeCapacity = defineSchema(strictObject({
 	/** CPU capacity in cores. */
 	cpu: number().positive().optional(),
 	/** Memory capacity in MiB. */
@@ -6023,9 +6030,9 @@ var ComputeResources = defineSchema(strictObject({
 /** Capacity and lifecycle policy for a workload. */
 var ComputeDefinition = defineSchema(strictObject({
 	/** Minimum capacity requested when scheduling an instance. */
-	requests: ComputeResources.optional(),
+	requests: ComputeCapacity.optional(),
 	/** Maximum capacity allowed for an instance. */
-	limits: ComputeResources.optional(),
+	limits: ComputeCapacity.optional(),
 	/** Scaling bounds, including whether idle execution may stop. */
 	scaling: strictObject({
 		/** Minimum warm instances; zero permits stopping all idle instances. */
@@ -6062,22 +6069,20 @@ function reference(declaration) {
 		name: declaration.name
 	};
 }
-/** An invalid space configuration. */
-var SpaceError = class extends Error {
-	/** Stable failure code. */
-	code;
-	/** Create a configuration failure. */
-	constructor(code, message, options) {
-		super(message, options);
-		this.name = "SpaceError";
-		this.code = code;
-	}
-};
+/** A stack's declarations as JSON, keyed by collection and validated by each object when applied. */
+var SpaceDefinition = defineSchema(record(string().min(1), json()));
+/** Define a stack's declarations, serialising each declared value to its JSON form. */
+function defineSpace(collections, module) {
+	return {
+		...SpaceDefinition.parse(JSON.parse(JSON.stringify(collections))),
+		package: declaringModule(module, "defineSpace").package
+	};
+}
 /** A named declaration whose client is selected by the invocation's host. */
 var ResourceHandle = class {
 	/** The package declaring the handle, supplied by the module transform. */
 	package;
-	/** Package-local resource name. */
+	/** The package-local resource name. */
 	name;
 	/** Retain the declaring package and its package-local binding name. */
 	constructor(owner, name) {
@@ -6100,6 +6105,13 @@ var ResourceDescription = defineSchema(strictObject({
 	/** The specification validated by the domain library. */
 	spec: record(string(), json())
 }));
+/** A provisioned resource in a space. */
+var ResourceReference = defineSchema(strictObject({
+	/** The space the resource lives in. */
+	scope: identifier("space"),
+	/** The persistent resource identifier. */
+	id: identifier("resource")
+}));
 /** An inert declaration with access to a host-bound client. */
 var Resource = class extends ResourceHandle {
 	/** The resource kind. */
@@ -6115,6 +6127,20 @@ var Resource = class extends ResourceHandle {
 		this.version = declaration.version;
 		this.spec = declaration.spec;
 	}
+	/** Describe the state the resource must hold, empty for resources that hold none. */
+	state() {
+		return {};
+	}
+	/** Serialise the declaration as its declaring package, name, kind, version and spec. */
+	toJSON() {
+		return {
+			package: this.package,
+			name: this.name,
+			kind: this.kind,
+			version: this.version,
+			spec: this.spec
+		};
+	}
 };
 /** Define a resource declaration with a concrete specification. */
 function defineResourceSchema(kind, version, spec) {
@@ -6126,37 +6152,30 @@ function defineResourceSchema(kind, version, spec) {
 		version
 	});
 	return defineSchema(ResourceDescription.extend({
-		kind: literal(kind),
-		version: literal(version),
+		kind: literal$1(kind),
+		version: literal$1(version),
 		spec
 	}));
 }
-/** A provisioned resource in a space. */
-var ResourceReference = defineSchema(strictObject({
-	/** The space containing the resource. */
-	space: identifier("space"),
-	/** The persistent resource identifier. */
-	resource: identifier("resource")
-}));
+/** Serialize a JSON value with object keys sorted by UTF-16 code units, omitting undefined fields. */
+function canonicalize(value) {
+	if (value === null || typeof value === "string" || typeof value === "boolean" || typeof value === "number" && Number.isFinite(value)) return JSON.stringify(value);
+	else if (Array.isArray(value)) return `[${value.map(canonicalize).join(",")}]`;
+	else if (typeof value !== "object" || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) throw new TypeError(`value is not JSON: ${describe(value)}`);
+	return `{${Object.entries(value).filter(([, field]) => field !== void 0).sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0).map(([key, field]) => `${JSON.stringify(key)}:${canonicalize(field)}`).join(",")}}`;
+}
+/** Name a value that is not JSON for an error message. */
+function describe(value) {
+	return typeof value === "object" ? value?.constructor?.name ?? "object" : typeof value;
+}
 defineSchema(strictObject({
-	/** The installation containing the declaration. */
-	installation: identifier("installation"),
-	/** The package declaring the resource, including imported stack packages. */
-	package: identifier("package"),
-	/** The declaration name in its package. */
-	name: DeclarationName,
-	/** The resource selected by the host. */
-	target: ResourceReference
-}));
-/** A resource created by the configuration or explicitly adopted into its administration. */
-var SpaceResource = defineSchema(strictObject({
 	/** The resource declaration imported from its declaring package. */
 	declaration: ResourceDescription.extend({ 
 	/** The package declaring the resource. */
 package: Package }),
 	/** An existing resource to adopt, subject to ownership and residency checks. */
 	adopt: ResourceReference.optional(),
-	/** Whether authorised removal retains or destroys the resource contents. */
+	/** Whether authorised removal retains or destroys the resource desired. */
 	retention: _enum(["retain", "delete"]),
 	/** Provider placement, absent when selected by the host. */
 	placement: strictObject({
@@ -6170,19 +6189,18 @@ package: Package }),
 	/** User-defined labels. */
 	tags: record(string().min(1), string())
 }));
-/** Secret metadata declared in source, with values supplied through the vault API. */
-var SpaceSecret = defineSchema(strictObject({
-	/** The configuration resource containing the secret. */
-	vault: DeclarationName,
-	/** The name within the vault. */
-	name: DeclarationName
-}));
 /** Select a declared or existing resource in the destination space. */
-var SpaceResourceBinding = defineSchema(union([strictObject({ 
-/** The resource key in this configuration. */
-resource: DeclarationName }), strictObject({ 
-/** The existing resource; application verifies its destination space. */
-external: ResourceReference })]));
+var SpaceResourceBinding = defineSchema(union([strictObject({
+	/** The resource key in this configuration. */
+	resource: DeclarationName,
+	/** The state the installation's declaration requires of the resource. */
+	state: record(string(), json())
+}), strictObject({
+	/** The existing resource; application verifies its destination space. */
+	external: ResourceReference,
+	/** The state the installation's declaration requires of the resource. */
+	state: record(string(), json())
+})]));
 /** Select a configuration secret or an explicitly authorised existing secret. */
 var SpaceSecretBinding = defineSchema(strictObject({
 	/** The selected secret. */
@@ -6230,10 +6248,10 @@ var NetworkRule = defineSchema(strictObject({
 	destination: defineSchema(union([
 		strictObject({ 
 		/** Globally routable destinations, excluding host and provider control endpoints. */
-kind: literal("public") }),
+kind: literal$1("public") }),
 		strictObject({
 			/** Match a canonical DNS hostname. */
-			kind: literal("hostname"),
+			kind: literal$1("hostname"),
 			/** Lowercase ASCII hostname, without a trailing dot or wildcard. */
 			hostname: string().max(253).regex(/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/),
 			/** Include descendants of this hostname. */
@@ -6241,7 +6259,7 @@ kind: literal("public") }),
 		}),
 		strictObject({
 			/** Match the actual destination address against an IP network. */
-			kind: literal("network"),
+			kind: literal$1("network"),
 			/** An IPv4 or IPv6 address range; use /32 or /128 for a single address. */
 			cidr: union([cidrv4(), cidrv6()])
 		})
@@ -6269,15 +6287,14 @@ var NetworkPolicyDefinition = defineSchema(strictObject({
 	/** Named rules; nonpublic destinations require an explicit IP network allow rule. */
 	rules: record(DeclarationName, NetworkRule)
 }));
-/** Source-managed policies applied throughout a space. */
-var SpacePolicies = defineSchema(strictObject({
+defineSchema(strictObject({
 	/** Package admission rules. */
 	packages: PackagePolicyDefinition.optional(),
 	/** Outbound access intersected with account and host restrictions. */
 	network: NetworkPolicyDefinition.optional()
 }));
 /** Network restrictions applied to an installation and its named workloads. */
-var InstallationPolicies = defineSchema(strictObject({
+var InstallationPolicy = defineSchema(strictObject({
 	/** Restrictions shared by every workload in the installation. */
 	network: NetworkPolicyDefinition.optional(),
 	/** Additional restrictions for individual package workloads. */
@@ -6285,14 +6302,24 @@ var InstallationPolicies = defineSchema(strictObject({
 	/** Outbound access intersected with installation, space, account, and host restrictions. */
 network: NetworkPolicyDefinition })).optional()
 }));
-/** Select an installation by configuration key or persistent identifier in the destination space. */
-var SpaceInstallationReference = defineSchema(union([DeclarationName, strictObject({ 
+/** An invalid or unsupported space configuration. */
+var SpaceError = class extends Error {
+	/** Stable failure code. */
+	code;
+	/** Create a configuration failure. */
+	constructor(code, message, options) {
+		super(message, options);
+		this.name = "SpaceError";
+		this.code = code;
+	}
+};
+defineSchema(union([DeclarationName, strictObject({ 
 /** The existing installation checked when applying the configuration. */
 id: identifier("installation") })]));
 /** A package installation declared in a configuration. */
 var SpaceInstallation = defineSchema(strictObject({
 	/** Additional restrictions for this installation and its workloads. */
-	policies: InstallationPolicies.optional(),
+	policies: InstallationPolicy.optional(),
 	/** The package release selected by this configuration. */
 	package: Package,
 	/** Whether this installation should serve requests. */
@@ -6317,7 +6344,10 @@ function install(handle, bindings, options = {}) {
 		const secret = handle.secrets[name];
 		if (resource && typeof selection === "string") {
 			resources[resource.package.id] ??= {};
-			resources[resource.package.id][resource.name] = { resource: selection };
+			resources[resource.package.id][resource.name] = {
+				resource: selection,
+				state: resource.state()
+			};
 		} else if (secret) {
 			const target = typeof selection === "string" ? { secret: selection } : selection;
 			secrets[secret.package.id] ??= {};
@@ -6342,176 +6372,1241 @@ function install(handle, bindings, options = {}) {
 		...options.policies ? { policies: options.policies } : {}
 	});
 }
-/** An authenticated identity or a verified group or bearer-token identity. */
-var Subject = defineSchema(strictObject({
-	/** The authenticated identity category. */
-	kind: _enum([
-		"user",
-		"service-account",
-		"group",
-		"share-token",
-		"host"
-	]),
-	/** The authority responsible for the identity. */
-	authority: string().min(1),
-	/** The immutable identifier assigned by that authority. */
-	id: string().min(1)
+var entityKind = Symbol.for("drizzle:entityKind");
+function is(value, type) {
+	if (!value || typeof value !== "object") return false;
+	if (value instanceof type) return true;
+	if (!Object.prototype.hasOwnProperty.call(type, entityKind)) throw new Error(`Class "${type.name ?? "<unknown>"}" doesn't look like a Drizzle entity. If this is incorrect and the class is provided by Drizzle, please report this as a bug.`);
+	let cls = Object.getPrototypeOf(value)?.constructor;
+	if (cls) while (cls) {
+		if (entityKind in cls && cls[entityKind] === type[entityKind]) return true;
+		cls = Object.getPrototypeOf(cls);
+	}
+	return false;
+}
+var OriginalColumn = Symbol.for("drizzle:OriginalColumn");
+var noop = (v) => v;
+noop.isNoop = true;
+var Column$1 = class {
+	static [entityKind] = "Column";
+	/** @internal */
+	codec;
+	name;
+	keyAsName;
+	primary;
+	notNull;
+	default;
+	defaultFn;
+	onUpdateFn;
+	hasDefault;
+	isUnique;
+	uniqueName;
+	uniqueType;
+	dataType;
+	columnType;
+	enumValues = void 0;
+	generated = void 0;
+	generatedIdentity = void 0;
+	length;
+	isLengthExact;
+	isAlias;
+	/** @internal */
+	config;
+	/** @internal */
+	table;
+	/** @internal */
+	onInit() {}
+	constructor(table, config) {
+		this.config = config;
+		this.onInit();
+		this.table = table;
+		this.name = config.name;
+		this.isAlias = false;
+		this.keyAsName = config.keyAsName;
+		this.notNull = config.notNull;
+		this.default = config.default;
+		this.defaultFn = config.defaultFn;
+		this.onUpdateFn = config.onUpdateFn;
+		this.hasDefault = config.hasDefault;
+		this.primary = config.primaryKey;
+		this.isUnique = config.isUnique;
+		this.uniqueName = config.uniqueName;
+		this.uniqueType = config.uniqueType;
+		this.dataType = config.dataType;
+		this.columnType = config.columnType;
+		this.generated = config.generated;
+		this.generatedIdentity = config.generatedIdentity;
+		this.length = config["length"];
+		this.isLengthExact = config["isLengthExact"];
+	}
+	mapFromDriverValue = noop;
+	mapToDriverValue = noop;
+	/** @internal */
+	postBuild() {
+		return this;
+	}
+	/** @internal */
+	shouldDisableInsert() {
+		return this.config.generated !== void 0 && this.config.generated.type !== "byDefault";
+	}
+	/** @internal */
+	[OriginalColumn]() {
+		return this;
+	}
+};
+/** @internal */
+var TableName = Symbol.for("drizzle:Name");
+/** @internal */
+var TableSchema = Symbol.for("drizzle:Schema");
+/** @internal */
+var TableColumns = Symbol.for("drizzle:Columns");
+/** @internal */
+var ExtraConfigColumns = Symbol.for("drizzle:ExtraConfigColumns");
+/** @internal */
+var OriginalName = Symbol.for("drizzle:OriginalName");
+/** @internal */
+var BaseName = Symbol.for("drizzle:BaseName");
+/** @internal */
+var IsAlias = Symbol.for("drizzle:IsAlias");
+/** @internal */
+var ExtraConfigBuilder = Symbol.for("drizzle:ExtraConfigBuilder");
+var IsDrizzleTable = Symbol.for("drizzle:IsDrizzleTable");
+var Table = class {
+	static [entityKind] = "Table";
+	/** @internal */
+	static Symbol = {
+		Name: TableName,
+		Schema: TableSchema,
+		OriginalName,
+		Columns: TableColumns,
+		ExtraConfigColumns,
+		BaseName,
+		IsAlias,
+		ExtraConfigBuilder
+	};
+	/**
+	* @internal
+	* Can be changed if the table is aliased.
+	*/
+	[TableName];
+	/**
+	* @internal
+	* Used to store the original name of the table, before any aliasing.
+	*/
+	[OriginalName];
+	/** @internal */
+	[TableSchema];
+	/** @internal */
+	[TableColumns];
+	/** @internal */
+	[ExtraConfigColumns];
+	/**
+	*  @internal
+	* Used to store the table name before the transformation via the `tableCreator` functions.
+	*/
+	[BaseName];
+	/** @internal */
+	[IsAlias] = false;
+	/** @internal */
+	[IsDrizzleTable] = true;
+	/** @internal */
+	[ExtraConfigBuilder] = void 0;
+	constructor(name, schema, baseName) {
+		this[TableName] = this[OriginalName] = name;
+		this[TableSchema] = schema;
+		this[BaseName] = baseName;
+	}
+};
+var Subquery = class {
+	static [entityKind] = "Subquery";
+	constructor(sql, fields, alias, isWith = false, usedTables = []) {
+		this._ = {
+			brand: "Subquery",
+			sql,
+			selectedFields: fields,
+			alias,
+			isWith,
+			usedTables
+		};
+	}
+};
+/** @internal */
+var tracer = { startActiveSpan(name, fn) {
+	return fn();
+} };
+var ViewBaseConfig = Symbol.for("drizzle:ViewBaseConfig");
+function isSQLWrapper(value) {
+	return value !== null && value !== void 0 && typeof value.getSQL === "function";
+}
+function mergeQueries(queries) {
+	const result = {
+		sql: "",
+		params: []
+	};
+	for (const query of queries) {
+		result.sql += query.sql;
+		result.params.push(...query.params);
+	}
+	return result;
+}
+function _mergeQueries(queries) {
+	const result = {
+		sql: "",
+		params: []
+	};
+	const sqls = [];
+	for (const query of queries) {
+		sqls.push(query.sql);
+		result.params.push(...query.params);
+	}
+	result._sql = Object.assign(sqls, { raw: sqls });
+	return result;
+}
+var StringChunk = class {
+	static [entityKind] = "StringChunk";
+	value;
+	constructor(value) {
+		this.value = Array.isArray(value) ? value : [value];
+	}
+	getSQL() {
+		return new SQL([this]);
+	}
+};
+var SQL = class SQL {
+	static [entityKind] = "SQL";
+	/** @internal */
+	decoder = noopDecoder;
+	/** @internal */
+	shouldInlineParams = false;
+	/** @internal */
+	usedTables = [];
+	constructor(queryChunks) {
+		this.queryChunks = queryChunks;
+		for (const chunk of queryChunks) if (is(chunk, Table)) {
+			const schemaName = chunk[Table.Symbol.Schema];
+			this.usedTables.push(schemaName === void 0 ? chunk[Table.Symbol.Name] : schemaName + "." + chunk[Table.Symbol.Name]);
+		}
+	}
+	append(query) {
+		this.queryChunks.push(...query.queryChunks);
+		return this;
+	}
+	toQuery(config) {
+		return tracer.startActiveSpan("drizzle.buildSQL", (span) => {
+			const query = this.buildQueryFromSourceParams(this.queryChunks, config);
+			span?.setAttributes({
+				"drizzle.query.text": query.sql,
+				"drizzle.query.params": JSON.stringify(query.params)
+			});
+			return query;
+		});
+	}
+	buildQueryFromSourceParams(chunks, _config) {
+		const config = Object.assign({}, _config, {
+			inlineParams: _config.inlineParams || this.shouldInlineParams,
+			paramStartIndex: _config.paramStartIndex || { value: 0 }
+		});
+		const { escapeName, escapeParam, codecs, inlineParams, paramStartIndex, invokeSource } = config;
+		const mappedChunks = chunks.map((chunk) => {
+			if (is(chunk, StringChunk)) return {
+				sql: chunk.value.join(""),
+				params: []
+			};
+			if (is(chunk, Name)) return {
+				sql: escapeName(chunk.value),
+				params: []
+			};
+			if (chunk === void 0) return {
+				sql: "",
+				params: []
+			};
+			if (Array.isArray(chunk)) {
+				const result = [new StringChunk("(")];
+				for (const [i, p] of chunk.entries()) {
+					result.push(p);
+					if (i < chunk.length - 1) result.push(new StringChunk(", "));
+				}
+				result.push(new StringChunk(")"));
+				return this.buildQueryFromSourceParams(result, config);
+			}
+			if (is(chunk, SQL)) return this.buildQueryFromSourceParams(chunk.queryChunks, {
+				...config,
+				inlineParams: inlineParams || chunk.shouldInlineParams
+			});
+			if (is(chunk, Table)) {
+				const schemaName = chunk[Table.Symbol.Schema];
+				const tableName = chunk[Table.Symbol.Name];
+				if (invokeSource === "mssql-view-with-schemabinding") return {
+					sql: (schemaName === void 0 ? escapeName("dbo") : escapeName(schemaName)) + "." + escapeName(tableName),
+					params: []
+				};
+				return {
+					sql: schemaName === void 0 || chunk[IsAlias] ? escapeName(tableName) : escapeName(schemaName) + "." + escapeName(tableName),
+					params: []
+				};
+			}
+			if (is(chunk, Column$1)) {
+				const columnName = chunk.name;
+				if (_config.invokeSource === "indexes") return {
+					sql: escapeName(columnName),
+					params: []
+				};
+				const schemaName = invokeSource === "mssql-check" ? void 0 : chunk.table[Table.Symbol.Schema];
+				return {
+					sql: chunk.isAlias ? escapeName(chunk.name) : chunk.table[IsAlias] || schemaName === void 0 ? escapeName(chunk.table[Table.Symbol.Name]) + "." + escapeName(columnName) : escapeName(schemaName) + "." + escapeName(chunk.table[Table.Symbol.Name]) + "." + escapeName(columnName),
+					params: []
+				};
+			}
+			if (is(chunk, View)) {
+				const schemaName = chunk[ViewBaseConfig].schema;
+				const viewName = chunk[ViewBaseConfig].name;
+				return {
+					sql: schemaName === void 0 || chunk[ViewBaseConfig].isAlias ? escapeName(viewName) : escapeName(schemaName) + "." + escapeName(viewName),
+					params: []
+				};
+			}
+			if (is(chunk, Param)) {
+				if (is(chunk.value, SQL)) return this.buildQueryFromSourceParams([chunk.value], config);
+				const useCodecs = codecs && is(chunk.encoder, Column$1);
+				if (is(chunk.value, Placeholder)) {
+					const escaped = escapeParam(paramStartIndex.value++, chunk);
+					chunk.codec = useCodecs ? (value) => codecs.apply(chunk.encoder, "normalizeParam", value) : void 0;
+					return {
+						sql: useCodecs ? codecs.apply(chunk.encoder, "castParam", escaped) : escaped,
+						params: [chunk]
+					};
+				}
+				let mappedValue;
+				if (chunk.value === null) mappedValue = chunk.value;
+				else {
+					mappedValue = chunk.encoder.mapToDriverValue.isNoop ? chunk.value : chunk.encoder.mapToDriverValue(chunk.value);
+					if (is(mappedValue, SQL)) return this.buildQueryFromSourceParams([mappedValue], config);
+					if (useCodecs) mappedValue = codecs.apply(chunk.encoder, "normalizeParam", mappedValue);
+				}
+				if (inlineParams) return {
+					sql: this.mapInlineParam(mappedValue, config),
+					params: []
+				};
+				const escaped = escapeParam(paramStartIndex.value++, mappedValue);
+				return {
+					sql: useCodecs ? codecs.apply(chunk.encoder, "castParam", escaped) : escaped,
+					params: [mappedValue]
+				};
+			}
+			if (is(chunk, Placeholder)) return {
+				sql: escapeParam(paramStartIndex.value++, chunk),
+				params: [chunk]
+			};
+			if (is(chunk, SQL.Aliased) && chunk.fieldAlias !== void 0) return {
+				sql: (chunk.origin !== void 0 ? escapeName(chunk.origin) + "." : "") + escapeName(chunk.fieldAlias),
+				params: []
+			};
+			if (is(chunk, Subquery)) {
+				if (chunk._.isWith) return {
+					sql: escapeName(chunk._.alias),
+					params: []
+				};
+				return this.buildQueryFromSourceParams([
+					new StringChunk("("),
+					chunk._.sql,
+					new StringChunk(") "),
+					new Name(chunk._.alias)
+				], config);
+			}
+			if (typeof chunk === "function" && "enumName" in chunk) {
+				if ("schema" in chunk && chunk.schema) return {
+					sql: escapeName(chunk.schema) + "." + escapeName(chunk.enumName),
+					params: []
+				};
+				return {
+					sql: escapeName(chunk.enumName),
+					params: []
+				};
+			}
+			if (isSQLWrapper(chunk)) {
+				if (chunk.shouldOmitSQLParens?.()) return this.buildQueryFromSourceParams([chunk.getSQL()], config);
+				return this.buildQueryFromSourceParams([
+					new StringChunk("("),
+					chunk.getSQL(),
+					new StringChunk(")")
+				], config);
+			}
+			if (inlineParams) return {
+				sql: this.mapInlineParam(chunk, config),
+				params: []
+			};
+			return {
+				sql: escapeParam(paramStartIndex.value++, chunk),
+				params: [chunk]
+			};
+		});
+		if (_config.tagged) return _mergeQueries(mappedChunks);
+		return mergeQueries(mappedChunks);
+	}
+	mapInlineParam(chunk, { escapeString }) {
+		if (chunk === null) return "null";
+		if (typeof chunk === "number" || typeof chunk === "boolean" || typeof chunk === "bigint") return chunk.toString();
+		if (typeof chunk === "string") return escapeString(chunk);
+		if (typeof chunk === "object") {
+			const mappedValueAsString = chunk.toString();
+			if (mappedValueAsString === "[object Object]") return escapeString(JSON.stringify(chunk));
+			return escapeString(mappedValueAsString);
+		}
+		throw new Error("Unexpected param value: " + chunk);
+	}
+	getSQL() {
+		return this;
+	}
+	as(alias) {
+		if (alias === void 0) return this;
+		return new SQL.Aliased(this, alias);
+	}
+	mapWith(decoder) {
+		this.decoder = typeof decoder === "function" ? { mapFromDriverValue: decoder } : decoder;
+		return this;
+	}
+	nullable() {
+		return this;
+	}
+	inlineParams() {
+		this.shouldInlineParams = true;
+		return this;
+	}
+	/**
+	* This method is used to conditionally include a part of the query.
+	*
+	* @param condition - Condition to check
+	* @returns itself if the condition is `true`, otherwise `undefined`
+	*/
+	if(condition) {
+		return condition ? this : void 0;
+	}
+};
+/**
+* Any DB name (table, column, index etc.)
+*/
+var Name = class {
+	static [entityKind] = "Name";
+	brand;
+	constructor(value) {
+		this.value = value;
+	}
+	getSQL() {
+		return new SQL([this]);
+	}
+};
+var noopDecoder = { mapFromDriverValue: (value) => value };
+noopDecoder.mapFromDriverValue.isNoop = true;
+var noopEncoder = { mapToDriverValue: (value) => value };
+noopEncoder.mapToDriverValue.isNoop = true;
+({
+	...noopDecoder,
+	...noopEncoder
+});
+/** Parameter value that is optionally bound to an encoder (for example, a column). */
+var Param = class {
+	static [entityKind] = "Param";
+	brand;
+	/**
+	* @param value - Parameter value
+	* @param encoder - Encoder to convert the value to a driver parameter
+	*/
+	constructor(value, encoder = noopEncoder, codec) {
+		this.value = value;
+		this.encoder = encoder;
+		this.codec = codec;
+	}
+	getSQL() {
+		return new SQL([this]);
+	}
+};
+function sql(strings, ...params) {
+	const queryChunks = [];
+	if (params.length > 0 || strings.length > 0 && strings[0] !== "") queryChunks.push(new StringChunk(strings[0]));
+	for (const [paramIndex, param] of params.entries()) queryChunks.push(param, new StringChunk(strings[paramIndex + 1]));
+	return new SQL(queryChunks);
+}
+(function(_sql) {
+	function empty() {
+		return new SQL([]);
+	}
+	_sql.empty = empty;
+	function fromList(list) {
+		return new SQL(list);
+	}
+	_sql.fromList = fromList;
+	function raw(str) {
+		return new SQL([new StringChunk(str)]);
+	}
+	_sql.raw = raw;
+	function join(chunks, separator) {
+		const result = [];
+		for (const [i, chunk] of chunks.entries()) {
+			if (i > 0 && separator !== void 0) result.push(separator);
+			result.push(chunk);
+		}
+		return new SQL(result);
+	}
+	_sql.join = join;
+	function identifier(value) {
+		return new Name(value);
+	}
+	_sql.identifier = identifier;
+	function placeholder(name) {
+		return new Placeholder(name);
+	}
+	_sql.placeholder = placeholder;
+	function param(value, encoder) {
+		return new Param(value, encoder);
+	}
+	_sql.param = param;
+	function comment(input) {
+		const encoded = sqlCommenter(input);
+		if (!encoded.length) return void 0;
+		return sql.raw(encoded);
+	}
+	_sql.comment = comment;
+})(sql || (sql = {}));
+function sqlCommenter(input) {
+	const encoded = sqlCommenter.encodeInput(input);
+	if (!encoded.length) return "";
+	return `/*${encoded}*/`;
+}
+(function(_sqlCommenter) {
+	function merge(input1, input2) {
+		let encoded;
+		if (typeof input1 === "object" && typeof input2 === "object") encoded = encodeInput({
+			...input1,
+			...input2
+		});
+		else if (input1 && input2) encoded = [encodeInput(input1), encodeInput(input2)].filter((i) => i.length).join(",");
+		else if (input2) encoded = encodeInput(input2);
+		else if (input1) encoded = encodeInput(input1);
+		else return "";
+		if (!encoded.length) return "";
+		return `/*${encoded}*/`;
+	}
+	_sqlCommenter.merge = merge;
+	function encodeInput(input) {
+		if (typeof input === "string") {
+			if (!input.length) return input;
+			return sanitizeStringInput(input);
+		}
+		const parts = [];
+		for (const [key, value] of Object.entries(input)) {
+			if (value === null || value === void 0 || value === "") continue;
+			const encodedKey = sanitizeObjectElement(key);
+			const encodedValue = sanitizeObjectElement(String(value));
+			parts.push(`${encodedKey}='${encodedValue}'`);
+		}
+		if (!parts.length) return "";
+		return parts.sort().join(",");
+	}
+	_sqlCommenter.encodeInput = encodeInput;
+	function sanitizeObjectElement(key) {
+		return encodeURIComponent(key).replace(/'/g, `\\'`);
+	}
+	_sqlCommenter.sanitizeObjectElement = sanitizeObjectElement;
+	function sanitizeStringInput(input) {
+		return input.replace(/\/\*/g, "/ *").replace(/\*\//g, "* /");
+	}
+	_sqlCommenter.sanitizeStringInput = sanitizeStringInput;
+})(sqlCommenter || (sqlCommenter = {}));
+(function(_SQL) {
+	class Aliased {
+		static [entityKind] = "SQL.Aliased";
+		/** @internal */
+		isSelectionField = false;
+		/** @internal */
+		origin;
+		constructor(sql, fieldAlias) {
+			this.sql = sql;
+			this.fieldAlias = fieldAlias;
+		}
+		getSQL() {
+			return this.sql;
+		}
+		/** @internal */
+		clone() {
+			return new Aliased(this.sql, this.fieldAlias);
+		}
+	}
+	_SQL.Aliased = Aliased;
+})(SQL || (SQL = {}));
+var Placeholder = class {
+	static [entityKind] = "Placeholder";
+	constructor(name) {
+		this.name = name;
+	}
+	getSQL() {
+		return new SQL([this]);
+	}
+};
+var IsDrizzleView = Symbol.for("drizzle:IsDrizzleView");
+var View = class {
+	static [entityKind] = "View";
+	/** @internal */
+	[ViewBaseConfig];
+	/** @internal */
+	[IsDrizzleView] = true;
+	/** @internal */
+	get [TableName]() {
+		return this[ViewBaseConfig].name;
+	}
+	/** @internal */
+	get [TableSchema]() {
+		return this[ViewBaseConfig].schema;
+	}
+	/** @internal */
+	get [IsAlias]() {
+		return this[ViewBaseConfig].isAlias;
+	}
+	/** @internal */
+	get [OriginalName]() {
+		return this[ViewBaseConfig].originalName;
+	}
+	/** @internal */
+	get [TableColumns]() {
+		return this[ViewBaseConfig].selectedFields;
+	}
+	constructor({ name, schema, selectedFields, query }) {
+		this[ViewBaseConfig] = {
+			name,
+			originalName: name,
+			schema,
+			selectedFields,
+			query,
+			isExisting: !query,
+			isAlias: false
+		};
+	}
+};
+Column$1.prototype.getSQL = function() {
+	return new SQL([this]);
+};
+Subquery.prototype.getSQL = function() {
+	return new SQL([this]);
+};
+/** SQL expressions implementing the same operation in each dialect. */
+var DialectExpression = class {
+	/** The SQL expression for each supported dialect. */
+	expressions;
+	/** Retain both dialect implementations. */
+	constructor(expressions) {
+		this.expressions = expressions;
+	}
+	/** Reject compilation without a selected database dialect. */
+	getSQL() {
+		throw new TypeError("select a database dialect before compiling this expression");
+	}
+};
+/** Select dialect expressions while retaining SQL decoders and aliases. */
+function compileExpression(expression, dialect, transform) {
+	const chunks = expression.queryChunks.map((chunk) => compileChunk(chunk, dialect, transform));
+	const compiled = Object.assign(new SQL(chunks), expression, { queryChunks: chunks });
+	return transform ? transform(compiled) : compiled;
+}
+/** Select dialect expressions in one SQL fragment. */
+function compileChunk(chunk, dialect, transform) {
+	if (chunk instanceof DialectExpression) return compileExpression(chunk.expressions[dialect], dialect, transform);
+	else if (chunk instanceof SQL) return compileExpression(chunk, dialect, transform);
+	else if (Array.isArray(chunk)) return chunk.map((value) => compileChunk(value, dialect, transform));
+	else return transform ? transform(chunk) : chunk;
+}
+/** A database failure with a stable code. */
+var DatabaseError = class extends Error {
+	/** The failure code. */
+	code;
+	/** Create a database failure. */
+	constructor(code, message, options) {
+		super(message, options);
+		this.name = "DatabaseError";
+		this.code = code;
+	}
+};
+/** Reject an unhandled variant and require exhaustive branching at compile time. */
+function assertNever(value) {
+	throw new TypeError(`unhandled database variant: ${String(value)}`);
+}
+/** A logical SQL column and its application value. */
+var Column = class {
+	/** The column declaration. */
+	definition;
+	/** The SQL table name. */
+	table;
+	/** Attach a column declaration to its table. */
+	constructor(table, definition) {
+		this.table = table;
+		this.definition = definition;
+	}
+	/** Return the qualified column expression. */
+	getSQL() {
+		return sql`${sql.identifier(this.table)}.${sql.identifier(this.definition.name)}`;
+	}
+	/** Emit column references without parentheses. */
+	shouldOmitSQLParens() {
+		return true;
+	}
+	/** Retain query parameters until a physical dialect supplies their encoding. */
+	mapToDriverValue(value) {
+		return value;
+	}
+	/** Require a concrete database dialect before decoding a driver value. */
+	mapFromDriverValue(_value) {
+		throw new TypeError("bind the logical column to a database before decoding values");
+	}
+};
+/** The longest identifier PostgreSQL stores without truncation, NAMEDATALEN minus one. */
+var MAX_IDENTIFIER_LENGTH = 63;
+/** The hexadecimal digits of a 32-bit hash that keeps shortened names distinct. */
+var HASH_LENGTH = 8;
+/** Derive a package's SQL namespace from its account and package name. */
+function namespaceOf(owner) {
+	const [account, name] = owner.name.slice(1).split("/");
+	return `${account}__${name}`.replace(/[^a-z0-9_]/g, "_");
+}
+/** Qualify a SQL identifier with its package namespace. */
+function qualify(owner, name) {
+	const qualified = `${namespaceOf(owner)}__${name}`;
+	if (qualified.length > MAX_IDENTIFIER_LENGTH) throw new TypeError(`SQL identifier exceeds ${MAX_IDENTIFIER_LENGTH} characters: ${qualified}`);
+	return qualified;
+}
+/** Qualify an optional index or key name, which must be unique across the database. */
+function constraintName(owner, name) {
+	return name === void 0 ? name : qualify(owner, name);
+}
+/** Fit a derived SQL name within the identifier limit, replacing its tail with a hash of the whole name. */
+function boundedName(name) {
+	if (name.length <= MAX_IDENTIFIER_LENGTH) return name;
+	return `${name.slice(0, 54)}_${hashName(name)}`;
+}
+/** Hash text into a short name suffix with 32-bit FNV-1a, the same on every runtime. */
+function hashName(text) {
+	let hash = 2166136261;
+	for (const byte of new TextEncoder().encode(text)) hash = Math.imul(hash ^ byte, 16777619) >>> 0;
+	return hash.toString(16).padStart(HASH_LENGTH, "0");
+}
+/** Include each tree's ancestor and revision tables beside its source table, once. */
+function expandTrees(tables) {
+	return [...new Set(tables.flatMap((table) => {
+		const tree = table[TABLE].tree;
+		return tree ? [
+			table,
+			tree.ancestors,
+			tree.revision
+		] : [table];
+	}))];
+}
+/** The table declaration, separate from user-defined column properties. */
+var TABLE = Symbol("destack.table");
+/** The SQL dialect a database runs: SQLite or PostgreSQL. */
+var Dialect = defineSchema(_enum(["sqlite", "postgresql"]));
+/** A column as the database holds it. */
+var ColumnDescription = defineSchema(strictObject({
+	/** The SQL column name. */
+	name: string(),
+	/** The dialect-specific SQL type. */
+	type: string(),
+	/** Whether the declaration allows NULL. */
+	nullable: boolean(),
+	/** The SQL default expression. */
+	default: string().optional(),
+	/** The generated column expression and storage mode. */
+	generated: strictObject({
+		/** The declared storage mode; omission uses the dialect default. */
+		mode: _enum(["virtual", "stored"]).optional(),
+		/** The SQL generation expression. */
+		expression: string()
+	}).optional()
 }));
-/** A scalar attribute accepted by both memory and SQL evaluation. */
-var Attribute = union([
+/** A named table constraint as the database holds it. */
+var ConstraintDescription = defineSchema(discriminatedUnion("kind", [
+	strictObject({
+		/** A primary key or unique constraint. */
+		kind: _enum(["primaryKey", "unique"]),
+		/** The SQL constraint name. */
+		name: string(),
+		/** The constrained columns in declaration order. */
+		columns: array(string())
+	}),
+	strictObject({
+		/** A foreign key. */
+		kind: literal$1("foreignKey"),
+		/** The SQL constraint name. */
+		name: string(),
+		/** The local column names. */
+		columns: array(string()),
+		/** The referenced table name. */
+		table: string(),
+		/** The referenced column names in matching order. */
+		references: array(string()),
+		/** The SQL action when a referenced key changes. */
+		onUpdate: string().optional(),
+		/** The SQL action when a referenced row is deleted. */
+		onDelete: string().optional()
+	}),
+	strictObject({
+		/** A check. */
+		kind: literal$1("check"),
+		/** The SQL constraint name. */
+		name: string(),
+		/** The SQL check expression. */
+		expression: string()
+	})
+]));
+/** An index as the database holds it. */
+var IndexDescription = defineSchema(strictObject({
+	/** The SQL index name. */
+	name: string(),
+	/** Whether the index enforces uniqueness. */
+	unique: boolean(),
+	/** Indexed columns and expressions in index order. */
+	columns: array(union([strictObject({ column: string() }), strictObject({ expression: string() })])),
+	/** The SQL predicate of a partial index. */
+	where: string().optional()
+}));
+/** A table's columns, constraints and indexes. */
+var TableDescription = defineSchema(strictObject({
+	/** The physical SQL dialect described by this table. */
+	dialect: Dialect,
+	/** The SQL table name. */
+	name: string(),
+	/** Columns in declaration order. */
+	columns: array(ColumnDescription),
+	/** Primary keys, unique constraints, foreign keys and checks. */
+	constraints: array(ConstraintDescription),
+	/** Explicit indexes, including expression and partial indexes. */
+	indexes: array(IndexDescription)
+}));
+defineSchema(_enum([
+	"none",
+	"window",
+	"history"
+]));
+/** The physical columns a table's generated change triggers record. */
+var ChangeDescription = defineSchema(strictObject({
+	/** The table's SQL name. */
+	table: string().min(1),
+	/** Whether changes outlive the compaction window. */
+	tier: _enum(["window", "history"]),
+	/** The primary key's SQL column names in key order. */
+	key: array(string().min(1)).min(1),
+	/** The recorded SQL column names, binary and sensitive columns left out. */
+	columns: array(string().min(1)),
+	/** The recorded columns converted to text to keep integer and numeric precision. */
+	exact: array(string().min(1)),
+	/** Every SQL column name, compared to skip updates that change nothing. */
+	compared: array(string().min(1)),
+	/** The SQL column holding the scope each row lives in, which each change is read by. */
+	scope: string().min(1)
+}));
+/** A scoped parent relationship and its engine-maintained ancestor index. */
+var TreeDescription = defineSchema(strictObject({
+	/** The tree's declaration name. */
+	name: string().min(1),
+	/** The SQL name of the table holding the nodes. */
+	table: string().min(1),
+	/** The SQL column holding the node identity. */
+	id: string().min(1),
+	/** The SQL column holding the tree scope. */
+	scope: string().min(1),
+	/** The SQL column holding the nullable parent identity. */
+	parent: string().min(1),
+	/** The SQL name of the ancestor index table. */
+	ancestors: string().min(1),
+	/** The SQL name of the table serializing hierarchy writes per scope. */
+	revision: string().min(1)
+}));
+/** A column holding an aggregate of another table's rows that reference each row, as data. */
+var AggregateDescription = defineSchema(strictObject({
+	/** The SQL name of the table holding the aggregate. */
+	table: string().min(1),
+	/** The SQL column holding the aggregate. */
+	column: string().min(1),
+	/** The SQL column identifying the holding table's rows. */
+	id: string().min(1),
+	/** The SQL name of the aggregated table. */
+	source: string().min(1),
+	/** The aggregated table's SQL column referencing the holding rows. */
+	key: string().min(1),
+	/** The aggregate function. */
+	function: _enum([
+		"count",
+		"sum",
+		"min",
+		"max"
+	]),
+	/** The aggregated SQL column, for sums, minimums and maximums. */
+	value: string().min(1).optional(),
+	/** The values the aggregated rows' SQL columns hold. */
+	where: array(strictObject({
+		/** The SQL column. */
+		column: string().min(1),
+		/** The value, null for none. */
+		value: union([
+			string(),
+			number(),
+			boolean(),
+			_null()
+		])
+	}))
+}));
+/** Quote a declared SQL identifier without accepting executable SQL. */
+function quote(name) {
+	return `"${name.replaceAll("\"", "\"\"")}"`;
+}
+/** Quote a string as an SQL literal. */
+function literal(value) {
+	return `'${value.replaceAll("'", "''")}'`;
+}
+/** Describe logical fields and constraints without opening a database. */
+function describeTable(table, dialect) {
+	const definition = table[TABLE];
+	const constraints = table.constraints(dialect);
+	const columns = Object.values(definition.columns);
+	const keys = [
+		...columns.filter((column) => column.definition.primaryKey).map((column) => ({
+			kind: "primaryKey",
+			columns: [column]
+		})),
+		...constraints.flatMap((constraint) => constraint.kind === "primaryKey" ? [{
+			...constraint,
+			kind: "primaryKey"
+		}] : []),
+		...columns.filter((column) => column.definition.unique !== void 0).map((column) => ({
+			kind: "unique",
+			...column.definition.unique.name === void 0 ? {} : { name: column.definition.unique.name },
+			columns: [column]
+		})),
+		...constraints.flatMap((constraint) => constraint.kind === "unique" ? [{
+			...constraint,
+			kind: "unique"
+		}] : [])
+	];
+	return {
+		dialect,
+		name: definition.sqlName,
+		columns: columns.map((column) => ({
+			name: column.definition.name,
+			type: column.definition.types[dialect],
+			nullable: column.definition.nullable,
+			...column.definition.default === void 0 ? {} : { default: inlineExpression(column.definition.default instanceof SQL ? column.definition.default : column.definition.encode(column.definition.default, dialect), dialect) },
+			...column.definition.generated === void 0 ? {} : { generated: {
+				mode: column.definition.generated.mode,
+				expression: inlineExpression(typeof column.definition.generated.expression === "function" ? column.definition.generated.expression() : column.definition.generated.expression, dialect)
+			} }
+		})),
+		constraints: [
+			...keys.map((key) => ({
+				kind: key.kind,
+				name: constraintName(definition.package, key.name) ?? derivedName(definition.sqlName, key.columns, key.kind === "primaryKey" ? "pk" : "unique"),
+				columns: key.columns.map((column) => column.definition.name)
+			})),
+			...constraints.filter((value) => value.kind === "foreignKey").map((key) => ({
+				kind: "foreignKey",
+				name: key.name ?? derivedName(definition.sqlName, key.columns, `${key.foreignColumns[0].table}_${key.foreignColumns.map((column) => column.definition.name).join("_")}_fk`),
+				columns: key.columns.map((column) => column.definition.name),
+				table: key.foreignColumns[0].table,
+				references: key.foreignColumns.map((column) => column.definition.name),
+				...key.actions.onDelete === void 0 ? {} : { onDelete: key.actions.onDelete },
+				...key.actions.onUpdate === void 0 ? {} : { onUpdate: key.actions.onUpdate }
+			})),
+			...constraints.filter((value) => value.kind === "check").map((check) => ({
+				kind: "check",
+				name: check.name,
+				expression: inlineExpression(check.expression, dialect)
+			}))
+		],
+		indexes: constraints.filter((value) => value.kind === "index").map((index) => ({
+			name: constraintName(definition.package, index.name),
+			unique: index.isUnique,
+			columns: index.columns.map((column) => column instanceof Column ? { column: column.definition.name } : { expression: inlineExpression(column, dialect) }),
+			...index.predicate === void 0 ? {} : { where: inlineExpression(index.predicate, dialect) }
+		}))
+	};
+}
+/** Derive a constraint name from a table, its columns and a suffix, bounded to the identifier limit. */
+function derivedName(table, columns, suffix) {
+	return boundedName([
+		table,
+		...columns.map((column) => column.definition.name),
+		suffix
+	].join("_"));
+}
+/** Render a declaration expression with quoted SQL identifiers and literals. */
+function inlineExpression(value, dialect) {
+	if (typeof value === "bigint") return value.toString();
+	if (value instanceof Uint8Array) {
+		const hexadecimal = value.toHex();
+		if (dialect === "sqlite") return `X'${hexadecimal}'`;
+		else if (dialect === "postgresql") return `decode('${hexadecimal}', 'hex')`;
+		else return assertNever(dialect);
+	}
+	const expression = value instanceof SQL ? value : sql`${value}`;
+	const unqualified = (chunk) => chunk instanceof Column ? sql.identifier(chunk.definition.name) : chunk;
+	return compileExpression(expression, dialect, unqualified).toQuery({
+		escapeName: quote,
+		escapeString: literal,
+		escapeParam: (index) => `$${index + 1}`,
+		inlineParams: true
+	}).sql;
+}
+/** Describe the columns a table's change triggers record, absent for unlogged tables. */
+function describeLog(table) {
+	const definition = table[TABLE];
+	if (definition.tier === "none") return;
+	const scope = definition.columns.scope;
+	if (scope === void 0 || scope.definition.nullable) throw new DatabaseError("INVALID_MIGRATION", `logged table has no required scope column: ${definition.name}`);
+	const columns = Object.values(definition.columns).map((column) => column.definition);
+	const logged = table[TABLE].logged;
+	const recorded = Object.values(logged).map((column) => column.definition);
+	const unlogged = definition.key.find((property) => !Object.hasOwn(logged, property));
+	if (unlogged !== void 0) throw new DatabaseError("INVALID_MIGRATION", `logged key column is binary or sensitive: ${definition.name}.${unlogged}`);
+	return {
+		table: definition.sqlName,
+		tier: definition.tier,
+		key: primaryKey(table).map((column) => column.definition.name),
+		columns: recorded.map((column) => column.name),
+		exact: recorded.filter((column) => column.kind === "bigint" || column.kind === "numeric").map((column) => column.name),
+		compared: columns.map((column) => column.name),
+		scope: scope.definition.name
+	};
+}
+/** Read a logged table's primary key columns in key order. */
+function primaryKey(table) {
+	const columns = table[TABLE].key.map((property) => table[TABLE].columns[property]);
+	if (columns.length === 0) throw new DatabaseError("INVALID_MIGRATION", `logged table has no primary key: ${table[TABLE].sqlName}; declare its changes as "none"`);
+	return columns;
+}
+/** The SQL name of the table recording each managed table's applied state. */
+var STATE = "__destack_state";
+/** A managed table as a release declares it or a database applied it. */
+var TableState = defineSchema(strictObject({
+	/** The package owning the table. */
+	packageId: string().min(1),
+	/** The version of the row shape, raised by each declared conversion. */
+	version: number().int().positive(),
+	/** The table's columns, keys, indexes and checks. */
+	table: TableDescription,
+	/** The columns the change triggers record, absent for unlogged tables. */
+	log: ChangeDescription.optional(),
+	/** The ancestor index maintained over the table, absent without a tree. */
+	tree: TreeDescription.optional(),
+	/** The aggregates of this table's rows other tables hold, kept current by triggers on this table. */
+	aggregates: array(AggregateDescription).optional(),
+	/** The table's and its columns' previous SQL names, declared rather than applied. */
+	moved: strictObject({
+		/** The table's previous SQL name. */
+		table: string().min(1).optional(),
+		/** Previous SQL column names indexed by current SQL column name. */
+		columns: record(string(), string())
+	}).optional(),
+	/** Columns kept equal to the columns they were renamed from, while an older release still uses those. */
+	bridges: array(strictObject({
+		/** The previous column an older release writes. */
+		from: string().min(1),
+		/** The renamed column the newest release writes. */
+		to: string().min(1)
+	})).optional(),
+	/** Column assignments converting rows to each version above the first, declared rather than applied. */
+	conversions: record(string(), record(string(), string())).optional()
+}));
+defineSchema(strictObject({ 
+/** The declared table states per dialect. */
+tables: strictObject({
+	/** The SQLite table states. */
+	sqlite: array(TableState),
+	/** The PostgreSQL table states. */
+	postgresql: array(TableState)
+}) }));
+/** Name the declared tables whose applied state does not hold their declaration. */
+function unappliedTables(applied, declared) {
+	const recorded = new Map(applied.map((state) => [state.table.name, state]));
+	return declared.filter((state) => {
+		const current = recorded.get(state.table.name);
+		return current === void 0 || !holdsState(current, state);
+	}).map((state) => state.table.name);
+}
+/** Name how a state logs its changes, its tier and scope column, which releases of a table agree on. */
+function logOf(state) {
+	return canonicalize({
+		tier: state.log?.tier,
+		scope: state.log?.scope
+	});
+}
+/** Report whether an applied state holds a declaration, as it does for every release it was merged from. */
+function holdsState(applied, declared) {
+	if (applied.version < declared.version || logOf(applied) !== logOf(declared) || canonicalize(applied.tree ?? null) !== canonicalize(declared.tree ?? null) || canonicalize(applied.aggregates ?? []) !== canonicalize(declared.aggregates ?? [])) return false;
+	const columns = new Map(applied.table.columns.map((column) => [column.name, column]));
+	const hasColumns = declared.table.columns.every((column) => {
+		const current = columns.get(column.name);
+		return current !== void 0 && (current.nullable || !column.nullable) && canonicalize({
+			...current,
+			nullable: column.nullable
+		}) === canonicalize(column);
+	});
+	const entries = new Map([...applied.table.constraints, ...applied.table.indexes].map((entry) => [entry.name, canonicalize(entry)]));
+	const hasParts = [...declared.table.constraints, ...declared.table.indexes].every((entry) => entries.get(entry.name) === canonicalize(entry));
+	const logged = new Set(applied.log?.columns ?? []);
+	const hasLog = (declared.log?.columns ?? []).every((column) => logged.has(column));
+	return hasColumns && hasParts && hasLog;
+}
+/** Describe declared tables, their trees' index tables included, as data in one dialect. */
+function declareState(tables, dialect, options = {}) {
+	const aggregates = describeAggregates(tables, options.isReplica ?? false);
+	return (options.isReplica ? tables : expandTrees(tables)).map((table) => {
+		const definition = table[TABLE];
+		const log = describeLog(table);
+		const tree = options.isReplica ? void 0 : definition.tree?.describe();
+		const moved = describeMoves(table);
+		const conversions = describeConversions(table, dialect);
+		return {
+			packageId: definition.package.id,
+			version: definition.version,
+			table: options.isReplica ? withoutReferences(describeTable(table, dialect)) : describeTable(table, dialect),
+			...log === void 0 ? {} : { log },
+			...tree === void 0 ? {} : { tree },
+			...aggregates.has(definition.sqlName) ? { aggregates: aggregates.get(definition.sqlName) } : {},
+			...moved === void 0 ? {} : { moved },
+			...conversions === void 0 ? {} : { conversions }
+		};
+	});
+}
+/** Read the names of the tables in a connected database's current schema. */
+async function readTables(database) {
+	const native = database.driver.native;
+	return (native.dialect === "sqlite" ? await database.execute(sql`SELECT name FROM sqlite_schema WHERE type = 'table'`) : native.dialect === "postgresql" ? await database.execute(sql`SELECT tablename AS name FROM pg_tables WHERE schemaname = current_schema()`) : assertNever(native)).map((row) => row.name);
+}
+/** Read the applied state of every managed table, empty before the first plan applied. */
+async function readState(database) {
+	if (!(await readTables(database)).includes("__destack_state")) return [];
+	return (await database.execute(sql`SELECT state FROM ${sql.identifier(STATE)} ORDER BY "table"`)).map((row) => TableState.parse(JSON.parse(row.state)));
+}
+/** Describe a table's declared previous names in SQL terms. */
+function describeMoves(table) {
+	const definition = table[TABLE];
+	const columns = Object.fromEntries(Object.entries(definition.moved.columns ?? {}).map(([property, previous]) => [definition.columns[property].definition.name, previous]));
+	if (definition.moved.table === void 0 && Object.keys(columns).length === 0) return;
+	return {
+		...definition.moved.table === void 0 ? {} : { table: qualify(definition.package, definition.moved.table) },
+		columns
+	};
+}
+/** Render each version's row conversion as SQL column assignments in one dialect. */
+function describeConversions(table, dialect) {
+	const definition = table[TABLE];
+	const versions = Object.entries(definition.convert);
+	if (versions.length === 0) return;
+	return Object.fromEntries(versions.map(([version, convert]) => [version, Object.fromEntries(Object.entries(convert(definition.columns)).map(([property, value]) => [definition.columns[property].definition.name, inlineExpression(value, dialect)]))]));
+}
+/** Describe the aggregates tables hold, by the table each aggregates; a replica skips holders it lacks, whose values arrive copied. */
+function describeAggregates(tables, isReplica) {
+	const described = /* @__PURE__ */ new Map();
+	for (const source of tables) {
+		const definition = source[TABLE];
+		for (const aggregate of definition.aggregates) {
+			const holder = aggregate.into();
+			if (!tables.includes(holder)) {
+				if (isReplica) continue;
+				throw new TypeError(`aggregate of ${definition.name} fills undeclared table ${holder[TABLE].name}`);
+			}
+			const [id, ...rest] = primaryKey(holder);
+			if (id === void 0 || rest.length > 0) throw new TypeError(`aggregate into ${holder[TABLE].name} needs a single-column key`);
+			const entries = described.get(definition.sqlName) ?? [];
+			entries.push({
+				table: holder[TABLE].sqlName,
+				column: sqlColumn(holder, aggregate.column, source),
+				id: id.definition.name,
+				source: definition.sqlName,
+				key: sqlColumn(source, aggregate.key, source),
+				function: aggregate.function,
+				...aggregate.value === void 0 ? {} : { value: sqlColumn(source, aggregate.value, source) },
+				where: Object.entries(aggregate.where ?? {}).map(([name, value]) => ({
+					column: sqlColumn(source, name, source),
+					value
+				}))
+			});
+			described.set(definition.sqlName, entries);
+		}
+	}
+	return described;
+}
+/** Leave out a table's foreign keys, which a partial copy cannot keep. */
+function withoutReferences(table) {
+	return {
+		...table,
+		constraints: table.constraints.filter((constraint) => constraint.kind !== "foreignKey")
+	};
+}
+/** Name a column an aggregate of a source table reads or fills by its SQL name. */
+function sqlColumn(table, name, source) {
+	const column = table[TABLE].columns[name];
+	if (!column) throw new TypeError(`aggregate of ${source[TABLE].name} names no column ${name}`);
+	return column.definition.name;
+}
+/** A named database dependency. */
+var DatabaseDescription = defineResourceSchema("database", 1, defineSchema(strictObject({})));
+/** An inert database declaration with invocation-scoped connection access. */
+var Database = class extends Resource {
+	/** The tables the database holds, with every table they reference. */
+	tables;
+	/** Retain the declaration and its tables. */
+	constructor(owner, description, tables) {
+		super(owner, description);
+		this.tables = tables;
+	}
+	/** Describe the tables the database requires in every dialect. */
+	state() {
+		return { tables: {
+			sqlite: declareState(this.tables, "sqlite"),
+			postgresql: declareState(this.tables, "postgresql")
+		} };
+	}
+	/** Retrieve the authorized connection. */
+	get(context) {
+		return context.get(this);
+	}
+	/** Name the tables this declaration requires that a connected database has not applied. */
+	async check(connection) {
+		return unappliedTables(await readState(connection), declareState(this.tables, connection.dialect));
+	}
+};
+/** Declare a database dependency and the tables it holds. */
+function defineDatabase(definition, module) {
+	const owner = declaringModule(module, "defineDatabase").package;
+	const names = /* @__PURE__ */ new Map();
+	for (const table of expandTrees(definition.tables)) {
+		const existing = names.get(table[TABLE].sqlName);
+		if (existing && existing !== table) throw new TypeError(`duplicate SQL table: ${table[TABLE].sqlName}`);
+		names.set(table[TABLE].sqlName, table);
+	}
+	return new Database(owner, DatabaseDescription.parse({
+		name: definition.name,
+		kind: "database",
+		version: 1,
+		spec: {}
+	}), [...names.values()]);
+}
+union([
 	string(),
 	number().finite(),
 	boolean()
 ]);
 /** A stable declaration-local name used by access rules. */
 var AccessName = string().regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/);
-/** Construct a relation membership expression. */
-function relation(name) {
-	return {
-		kind: "relation",
-		name: AccessName.parse(name)
-	};
-}
-/** Reject an invalid declaration, unavailable record, or unauthorized operation. */
-var AccessError = class extends Error {
-	/** Stable failure classification. */
-	code;
-	/** Retain the error classification and cause. */
-	constructor(code, message, options) {
-		super(message, options);
-		this.name = "AccessError";
-		this.code = code;
-	}
-};
-/** Serialized scalar references used by access inspection. */
-var AccessOperandDescription = union([strictObject({
-	kind: literal("literal"),
-	value: Attribute
-}), strictObject({
-	kind: _enum(["object", "context"]),
-	name: AccessName,
-	type: _enum([
-		"string",
-		"number",
-		"boolean"
-	])
-})]);
-/** Serialized permission expressions with no executable callbacks. */
-var AccessExpressionDescription = lazy(() => union([
-	strictObject({
-		kind: _enum(["relation", "permission"]),
-		name: AccessName
-	}),
-	strictObject({
-		kind: _enum(["union", "intersection"]),
-		expressions: array(AccessExpressionDescription).min(1)
-	}),
-	strictObject({
-		kind: literal("exclusion"),
-		include: AccessExpressionDescription,
-		exclude: AccessExpressionDescription
-	}),
-	strictObject({
-		kind: literal("compare"),
-		operator: _enum([
-			"eq",
-			"ne",
-			"lt",
-			"lte",
-			"gt",
-			"gte"
-		]),
-		left: AccessOperandDescription,
-		right: AccessOperandDescription
-	}),
-	strictObject({
-		kind: literal("through"),
-		relation: AccessName,
-		permission: AccessName,
-		transitive: boolean()
-	})
-]));
-/** A package's inspectable object types, relationships, and permissions. */
-var ObjectDescription = defineSchema(strictObject({
-	packageId: PackageId,
-	name: AccessName,
-	attributes: record(AccessName, _enum([
-		"string",
-		"number",
-		"boolean"
-	])),
-	relations: record(AccessName, discriminatedUnion("kind", [
-		strictObject({
-			kind: literal("grant"),
-			subjects: array(_enum([
-				"user",
-				"group",
-				"service-account",
-				"share-token",
-				"everyone"
-			])).min(1),
-			permission: AccessName
-		}),
-		strictObject({
-			kind: literal("subject"),
-			subjects: array(_enum([
-				"user",
-				"group",
-				"service-account",
-				"share-token"
-			])).min(1)
-		}),
-		strictObject({
-			kind: literal("object"),
-			type: AccessName
-		})
-	])),
-	permissions: record(AccessName, AccessExpressionDescription)
-}));
-/** A protected object within an explicit authority and installation scope. */
-var ObjectReference = defineSchema(strictObject({
+defineSchema(defineSchema(strictObject({
 	/** The package that declares the object type. */
 	packageId: PackageId,
 	/** The declaration-local object type name. */
 	type: AccessName,
-	/** The authority scope containing the object. */
+	/** The scope containing the object, the container for a scope object. */
 	scope: string().min(1),
 	/** The stable application record identity. */
 	id: string().min(1)
+})).pick({
+	packageId: true,
+	type: true
 }));
-/** A declaration with typed references to its permissions and relations. */
-var ObjectType = class {
-	/** The declaring package, supplied by the module transform. */
-	package;
-	/** The package-local object type name. */
-	name;
-	/** The immutable serializable declaration. */
-	definition;
-	/** Copy a declaration so later caller mutations cannot change access rules. */
-	constructor(owner, definition) {
-		this.package = owner;
-		this.name = definition.name;
-		this.definition = freeze(ObjectDescription.parse(definition));
-	}
-	/** Identify an object without inferring its installation or authority. */
-	reference(scope, id) {
-		return ObjectReference.parse({
-			packageId: this.definition.packageId,
-			type: this.definition.name,
-			scope,
-			id
-		});
-	}
-	/** Reference one of this type's declared permissions. */
-	permission(name) {
-		if (!Object.hasOwn(this.definition.permissions, name)) throw new AccessError("INVALID_DECLARATION", `unknown permission: ${name}`);
-		return {
-			packageId: this.definition.packageId,
-			type: this.definition.name,
-			name
-		};
-	}
-};
 /** A stable reference to a declared permission, independent of a package version. */
 var PermissionReference = defineSchema(strictObject({
 	/** The package that declares the permission. */
@@ -6521,172 +7616,6 @@ var PermissionReference = defineSchema(strictObject({
 	/** The permission name within that object type. */
 	name: AccessName
 }));
-/** Declare a protected type while retaining literal permission names. */
-function defineObject(definition, module) {
-	const owner = declaringModule(module, "defineObject").package;
-	return new ObjectType(owner, {
-		...definition,
-		packageId: owner.id
-	});
-}
-/** Freeze every declaration node after copying it. */
-function freeze(value) {
-	if (value !== null && typeof value === "object") {
-		for (const child of Object.values(value)) freeze(child);
-		Object.freeze(value);
-	}
-	return value;
-}
-/** An object selected from the resulting configuration or by its persistent identifier. */
-var SpacePermissionTarget = defineSchema(union([strictObject({
-	/** The configuration collection containing the object. */
-	kind: _enum([
-		"resource",
-		"secret",
-		"installation"
-	]),
-	/** The stable key within that collection. */
-	name: DeclarationName
-}), strictObject({ 
-/** The persistent identifier checked against the role's space scope. */
-id: union([
-	identifier("resource"),
-	identifier("secret"),
-	identifier("installation")
-]) })]));
-/** An exact API action granted within the space. */
-var SpacePermission = defineSchema(PermissionReference.extend({ 
-/** A selected object; absence grants all objects of the type within the space. */
-target: SpacePermissionTarget.optional() }));
-/** A role whose generated grants are restricted to the configured space. */
-var SpaceRole = defineSchema(strictObject({
-	/** The role's purpose. */
-	description: string().min(1),
-	/** Additive permissions evaluated within the space. */
-	permissions: array(SpacePermission)
-}));
-/** A subject receiving a space-scoped role. */
-var SpaceSubject = defineSchema(union([
-	strictObject({ 
-	/** The existing account membership. */
-membership: identifier("account-membership") }),
-	strictObject({ 
-	/** The existing account group. */
-group: identifier("group") }),
-	strictObject({ 
-	/** The existing workload service account in this space. */
-service: identifier("service-account") }),
-	strictObject({ 
-	/** The external service account administered by the global account service. */
-accountService: identifier("service-account") }),
-	strictObject({
-		/** The configured or existing installation in the destination space. */
-		installation: SpaceInstallationReference,
-		/** The installed package's workload name. */
-		workload: DeclarationName
-	})
-]));
-/** Grant one configuration role to an existing member, group, or installed workload. */
-var SpaceRoleBinding = defineSchema(strictObject({
-	/** The configured or existing role, checked against the destination space. */
-	role: union([DeclarationName, strictObject({ 
-	/** The existing role. */
-id: identifier("role") })]),
-	/** The subject receiving the role. */
-	subject: SpaceSubject,
-	/** Optional expiry in UTC epoch milliseconds. */
-	expiresAt: number().int().nonnegative().optional()
-}));
-/** A route on a domain the account is authorised to administer. */
-var SpaceRoute = defineSchema(strictObject({
-	/** The registered domain; domain ownership is checked when applying the configuration. */
-	domain: identifier("domain"),
-	/** The absolute URL path without a query or fragment. */
-	path: string().regex(/^\/[^\s?#]*$/),
-	/** The path matching rule. */
-	match: _enum(["exact", "prefix"]),
-	/** The application entrypoint or HTTP redirect. */
-	destination: union([strictObject({
-		/** The configured or existing installation in the destination space. */
-		installation: SpaceInstallationReference,
-		/** The public package export serving this route. */
-		entrypoint: Entrypoint
-	}), strictObject({
-		/** The absolute HTTP destination. */
-		redirect: string().regex(/^https?:\/\/[^\s]+$/),
-		/** The HTTP redirect response status. */
-		status: union([
-			literal(301),
-			literal(302),
-			literal(303),
-			literal(307),
-			literal(308)
-		])
-	})])
-}));
-/** Source-managed space objects, keyed independently of display names and provider identifiers. */
-var SpaceDefinition = defineSchema(strictObject({
-	/** Source-managed package and network policies. */
-	policies: SpacePolicies.optional(),
-	/** Resources created or adopted by the configuration. */
-	resources: record(DeclarationName, SpaceResource).optional(),
-	/** Secret metadata; secret values never occur in this definition. */
-	secrets: record(DeclarationName, SpaceSecret).optional(),
-	/** Independently configured package installations. */
-	installations: record(DeclarationName, SpaceInstallation).optional(),
-	/** Space-scoped role definitions. */
-	roles: record(DeclarationName, SpaceRole).optional(),
-	/** Grants evaluated using existing authority before application. */
-	bindings: record(DeclarationName, SpaceRoleBinding).optional(),
-	/** Routes under domains administered by the account. */
-	routes: record(DeclarationName, SpaceRoute).optional()
-}));
-/** Define a configuration and check references without contacting hosts or provisioning resources. */
-function defineSpace(value) {
-	const configuration = SpaceDefinition.parse(value);
-	const { resources = {}, secrets: secretDefinitions = {}, installations = {}, roles = {}, bindings = {}, routes: routeDefinitions = {} } = configuration;
-	const adopted = /* @__PURE__ */ new Set();
-	for (const resource of Object.values(resources)) if (resource.adopt) {
-		const key = `${resource.adopt.space}/${resource.adopt.resource}`;
-		if (adopted.has(key)) throw new SpaceError("INVALID_DEFINITION", `Duplicate resource adoption: ${key}`);
-		adopted.add(key);
-	}
-	const secrets = /* @__PURE__ */ new Set();
-	for (const secret of Object.values(secretDefinitions)) {
-		if (resources[secret.vault]?.declaration.kind !== "vault") throw new SpaceError("INVALID_DEFINITION", `Unknown vault: ${secret.vault}`);
-		const key = `${secret.vault}/${secret.name}`;
-		if (secrets.has(key)) throw new SpaceError("INVALID_DEFINITION", `Duplicate secret: ${key}`);
-		secrets.add(key);
-	}
-	const aliases = /* @__PURE__ */ new Set();
-	for (const installation of Object.values(installations)) {
-		if (aliases.has(installation.alias)) throw new SpaceError("INVALID_DEFINITION", `Duplicate alias: ${installation.alias}`);
-		aliases.add(installation.alias);
-		for (const binding of Object.values(installation.resources).flatMap(Object.values)) if ("resource" in binding && !Object.hasOwn(resources, binding.resource)) throw new SpaceError("INVALID_DEFINITION", `Unknown resource: ${binding.resource}`);
-		for (const binding of Object.values(installation.secrets).flatMap(Object.values)) if (!("space" in binding.target) && !Object.hasOwn(secretDefinitions, binding.target.secret)) throw new SpaceError("INVALID_DEFINITION", `Unknown secret: ${binding.target.secret}`);
-	}
-	const collections = {
-		resource: resources,
-		secret: secretDefinitions,
-		installation: installations
-	};
-	for (const role of Object.values(roles)) for (const permission of role.permissions) {
-		const target = permission.target;
-		if (target && "kind" in target && !Object.hasOwn(collections[target.kind], target.name)) throw new SpaceError("INVALID_DEFINITION", `Unknown ${target.kind}: ${target.name}`);
-	}
-	for (const binding of Object.values(bindings)) {
-		if (typeof binding.role === "string" && !Object.hasOwn(roles, binding.role)) throw new SpaceError("INVALID_DEFINITION", `Unknown role: ${binding.role}`);
-		if ("installation" in binding.subject && typeof binding.subject.installation === "string" && !Object.hasOwn(installations, binding.subject.installation)) throw new SpaceError("INVALID_DEFINITION", `Unknown installation: ${binding.subject.installation}`);
-	}
-	const routes = /* @__PURE__ */ new Set();
-	for (const route of Object.values(routeDefinitions)) {
-		const key = `${route.domain}:${route.match}:${route.path}`;
-		if (routes.has(key)) throw new SpaceError("INVALID_DEFINITION", `Duplicate route: ${key}`);
-		routes.add(key);
-		if ("installation" in route.destination && typeof route.destination.installation === "string" && !Object.hasOwn(installations, route.destination.installation)) throw new SpaceError("INVALID_DEFINITION", `Unknown route installation: ${route.destination.installation}`);
-	}
-	return configuration;
-}
 /** Declare the package handle stacks import to install this package. */
 function definePackage(declarations, module) {
 	const owner = Package.parse(declaringModule(module, "definePackage").package);
@@ -6704,71 +7633,38 @@ function definePackage(declarations, module) {
 		secrets
 	});
 }
-/** A named database dependency. */
-var DatabaseDescription = defineResourceSchema("database", 1, defineSchema(strictObject({ 
-/** The dialect used by queries and migrations. */
-dialect: defineSchema(_enum(["sqlite", "postgresql"])) })));
-/** An inert database declaration with invocation-scoped connection access. */
-var Database = class extends Resource {
-	/** Retrieve the authorized connection with source-inferred schema queries. */
-	get(context, schema) {
-		const connection = context.get(this);
-		if (connection.connection.native.dialect !== this.spec.dialect) throw new TypeError(`Database ${this.name} requires ${this.spec.dialect}, received ${connection.connection.native.dialect}.`);
-		return schema ? connection.bind(schema) : connection;
-	}
-};
-/** Declare a database dependency. */
-function defineDatabase(declaration, module) {
-	const owner = declaringModule(module, "defineDatabase").package;
-	return new Database(owner, DatabaseDescription.parse({
-		...declaration,
-		kind: "database",
-		version: 1
-	}));
-}
 /** The space's shared application database. */
 var database = defineDatabase({
 	name: "main",
-	spec: { dialect: "sqlite" }
+	tables: []
 }, Object.freeze({ "package": {
 	"id": "package-01a0c80b-6148-71fe-af7d-35098929d5dd",
 	"name": "@destack/template-stack",
 	"version": "2026.9.0"
 } }));
-var __destackModule$1 = Object.freeze({ "package": {
-	"id": "package-01a0c80b-614f-73f2-a9cd-9cb63f4d528d",
-	"name": "@example/stack",
-	"version": "1.0.0"
-} });
-/** The handle stacks import to install this package. */
-var package_default = definePackage({ resources: { main: database } }, __destackModule$1);
 /** User-defined labels indexed by name. */
-var Tags = record(string().min(1).max(128), string().max(256));
-/** An invalid standard model declaration. */
-var ModelError = class extends Error {
+var TagMap = record(string().min(1).max(128), string().max(256));
+/** An invalid account declaration. */
+var AccountError = class extends Error {
 	/** The stable failure code. */
 	code;
-	/** Create a model declaration failure. */
+	/** Create an account declaration failure. */
 	constructor(code, message, options) {
 		super(message, options);
-		this.name = "ModelError";
+		this.name = "AccountError";
 		this.code = code;
 	}
 };
 /** An account-defined environment; its declaration key is its stable name. */
 var EnvironmentDefinition = defineSchema(strictObject({ 
 /** Additional account-defined metadata. */
-tags: Tags.optional() }));
-/** A permission restricted to the account or one object within it. */
-var AccountPermission = defineSchema(PermissionReference.extend({ 
-/** The selected object; absence selects all objects in the binding's scope. */
-objectId: string().min(1).optional() }));
+tags: TagMap.optional() }));
 /** An account role declared in source. */
 var AccountRole = defineSchema(strictObject({
 	/** The role's purpose. */
 	description: string().min(1),
-	/** Permissions evaluated within the role binding's scope. */
-	permissions: array(AccountPermission)
+	/** Permissions granted wherever the role is bound. */
+	permissions: array(PermissionReference)
 }));
 /** A grant to an existing account member, group, or service account. */
 var AccountRoleBinding = defineSchema(strictObject({
@@ -6780,7 +7676,7 @@ var AccountRoleBinding = defineSchema(strictObject({
 		strictObject({ group: identifier("group") }),
 		strictObject({ service: identifier("service-account") })
 	]),
-	/** An optional space restriction within the account. */
+	/** The space the role is bound on; the account when absent. */
 	spaceId: identifier("space").optional(),
 	/** Optional expiry in UTC epoch milliseconds. */
 	expiresAt: number().int().nonnegative().optional()
@@ -6795,12 +7691,23 @@ var AccountDefinition = defineSchema(strictObject({
 	bindings: record(DeclarationName, AccountRoleBinding).optional()
 }));
 /** Declare account records without creating or changing an account. */
-function defineAccount(definition) {
+function defineAccount(definition, module) {
+	const owner = declaringModule(module, "defineAccount").package;
 	const account = AccountDefinition.parse(definition);
-	for (const binding of Object.values(account.bindings ?? {})) if (typeof binding.role === "string" && !Object.hasOwn(account.roles ?? {}, binding.role)) throw new ModelError("INVALID_DEFINITION", `unknown role: ${binding.role}`);
-	return account;
+	for (const binding of Object.values(account.bindings ?? {})) if (typeof binding.role === "string" && !Object.hasOwn(account.roles ?? {}, binding.role)) throw new AccountError("INVALID_DEFINITION", `unknown role: ${binding.role}`);
+	return {
+		...account,
+		package: owner
+	};
 }
-/** An explicit setting resolution failure without private assignment contents. */
+var __destackModule$1 = Object.freeze({ "package": {
+	"id": "package-01a0c80b-614f-73f2-a9cd-9cb63f4d528d",
+	"name": "@example/stack",
+	"version": "1.0.0"
+} });
+/** The handle stacks import to install this package. */
+var package_default = definePackage({ resources: { main: database } }, __destackModule$1);
+/** An explicit setting resolution failure without private value contents. */
 var SettingError = class extends Error {
 	/** Machine-readable failure category. */
 	code;
@@ -6813,8 +7720,7 @@ var SettingError = class extends Error {
 };
 /** A package-local setting name, retained across releases. */
 var SettingName = defineSchema(string().regex(/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$(?![\s\S])/));
-/** The stable identity of a setting across package renames and releases. */
-var SettingReference = defineSchema(strictObject({
+defineSchema(strictObject({
 	/** The package defining the setting. */
 	packageId: PackageId,
 	/** The stable declaration name. */
@@ -6828,14 +7734,18 @@ var Setting = class {
 	name;
 	/** The schema, default and supported application scopes. */
 	definition;
-	/** The stable identity used by assignments and policies. */
+	/** The stable identity values name. */
 	reference;
-	/** Retain a checked declaration without loading assignments. */
+	/** Retain a checked declaration without loading values. */
 	constructor(owner, definition) {
 		this.package = owner;
 		this.name = definition.name;
 		this.definition = definition;
 		this.reference = reference(this);
+	}
+	/** Serialise the setting as its stable reference. */
+	toJSON() {
+		return this.reference;
 	}
 	/** Read the effective value for the host-selected context. */
 	async get(context) {
@@ -6845,25 +7755,26 @@ var Setting = class {
 	async resolve(context) {
 		return (await context.resolve({ setting: this })).setting;
 	}
-	/** Require an assignment to use the declared scope and supported refinements. */
-	assertTarget(target) {
-		if (target.kind !== this.definition.scope) throw new SettingError("INVALID_TARGET", "assignment scope does not match the setting declaration");
-		const refinements = [];
-		if (target.kind === "user" && target.packageId) refinements.push("package");
-		if ("location" in target && target.location) {
-			if (target.location.installationId) refinements.push("installation");
-			else if (target.kind === "user") refinements.push("space");
-		}
-		if (target.kind === "user" && target.deviceId) refinements.push("device");
-		const overrides = this.definition.overrides;
-		if (refinements.some((refinement) => !overrides.includes(refinement))) throw new SettingError("INVALID_TARGET", "assignment uses an unsupported setting override");
+	/** Require a value to carry the mode and refinements its placement in its own or an enclosing scope permits. */
+	assertPlacement(value, placement) {
+		if (placement === "own" && value.mode !== "set") throw new SettingError("INVALID_PLACEMENT", "setting value in its declared scope must be set");
+		else if (placement === "enclosing" && value.mode === "set") throw new SettingError("INVALID_PLACEMENT", "setting value outside its declared scope must recommend or require");
+		if (value.installation && value.space) throw new SettingError("INVALID_PLACEMENT", "setting value names both an installation and its space");
+		const refinements = [
+			"package",
+			"space",
+			"installation",
+			"device"
+		].filter((refinement) => value[refinement] !== void 0);
+		const permitted = placement === "own" ? this.definition.overrides : ["installation"];
+		if (refinements.some((refinement) => !permitted.includes(refinement))) throw new SettingError("INVALID_PLACEMENT", "setting value uses an unsupported setting override");
 	}
 };
 /** Supported base scopes and their permitted refinements. */
 var SettingScope = defineSchema(discriminatedUnion("scope", [
 	strictObject({
 		/** Personal values resolved for the represented user. */
-		scope: literal("user"),
+		scope: literal$1("user"),
 		/** Refinements enabled for this declaration. */
 		overrides: array(_enum([
 			"package",
@@ -6874,13 +7785,13 @@ var SettingScope = defineSchema(discriminatedUnion("scope", [
 	}),
 	strictObject({
 		/** Shared values resolved for the receiving space. */
-		scope: literal("space"),
+		scope: literal$1("space"),
 		/** Installation-specific configuration, when supported. */
-		overrides: array(literal("installation"))
+		overrides: array(literal$1("installation"))
 	}),
 	strictObject({
 		/** Values retained on one execution host. */
-		scope: literal("host"),
+		scope: literal$1("host"),
 		/** Host settings have no implicit child scope. */
 		overrides: tuple([])
 	})
@@ -6900,7 +7811,7 @@ var SettingMetadata = defineSchema(strictObject({
 	/** Migration guidance for a declaration retained for compatibility. */
 	deprecated: string().min(1).optional()
 }));
-/** Declare a typed setting without reading or writing assignments. */
+/** Declare a typed setting without reading or writing values. */
 function defineSetting(definition, module) {
 	const owner = declaringModule(module, "defineSetting").package;
 	const { schema: valueSchema, default: defaultValue, scope, overrides, ...metadata } = definition;
@@ -6913,112 +7824,6 @@ function defineSetting(definition, module) {
 	valueSchema.parse(defaultValue);
 	json().parse(defaultValue);
 	return new Setting(owner, definition);
-}
-/** The complete identity of a person whose settings are selected. */
-var SettingUser = defineSchema(Subject.extend({ kind: literal("user") }));
-/** A space or an installation within that space. */
-var SettingLocation = defineSchema(strictObject({
-	/** The containing space. */
-	spaceId: identifier("space"),
-	/** The receiving installation, when the selection is installation-specific. */
-	installationId: identifier("installation").optional()
-}));
-/** A typed selection of the person or shared runtime being configured. */
-var SettingTarget = defineSchema(discriminatedUnion("kind", [
-	strictObject({
-		/** Personal configuration for an authority-qualified user. */
-		kind: literal("user"),
-		/** The person represented by the authenticated caller. */
-		user: SettingUser,
-		/** The consuming package, independently of the package declaring the setting. */
-		packageId: PackageId.optional(),
-		/** An optional space or installation refinement. */
-		location: SettingLocation.optional(),
-		/** An optional authenticated device refinement. */
-		deviceId: identifier("device").optional()
-	}),
-	strictObject({
-		/** Shared configuration independent of the interactive caller. */
-		kind: literal("space"),
-		/** The configured space or installation. */
-		location: SettingLocation
-	}),
-	strictObject({
-		/** Configuration local to one execution host. */
-		kind: literal("host"),
-		/** The configured host. */
-		hostId: identifier("host")
-	})
-]));
-defineSchema(union([SettingTarget, strictObject({
-	/** Personal presentation defaults for an anonymous visitor. */
-	kind: literal("user"),
-	/** Anonymous callers have no persistent personal assignment identity. */
-	user: _null(),
-	/** The consuming package selected by the host. */
-	packageId: PackageId.optional(),
-	/** The receiving space or installation. */
-	location: SettingLocation.optional()
-})]));
-/** The administrative scope whose rules apply to a setting. */
-var SettingAuthority = defineSchema(discriminatedUnion("kind", [
-	strictObject({
-		/** Account administration, limited to its verified scope. */
-		kind: literal("account"),
-		/** The administering account. */
-		accountId: identifier("account")
-	}),
-	strictObject({
-		/** Space administration. */
-		kind: literal("space"),
-		/** The administering space. */
-		spaceId: identifier("space")
-	}),
-	strictObject({
-		/** Local host administration. */
-		kind: literal("host"),
-		/** The administering host. */
-		hostId: identifier("host")
-	})
-]));
-/** Desired assignment contents; reconciliation supplies identity and provenance. */
-var SettingAssignmentDefinition = defineSchema(strictObject({
-	/** The declaration configured by the source. */
-	setting: SettingReference,
-	/** The person or runtime selected by the source. */
-	target: SettingTarget,
-	/** The value checked against the selected package declaration. */
-	value: json()
-}));
-/** Describe an assignment using the imported setting's inferred value type. */
-function defineSettingAssignment(setting, target, value) {
-	setting.assertTarget(target);
-	return SettingAssignmentDefinition.parse({
-		setting: setting.reference,
-		target,
-		value: setting.definition.schema.parse(value)
-	});
-}
-/** Desired policy contents; applying them requires existing administrative permission. */
-var SettingPolicyDefinition = defineSchema(strictObject({
-	/** The declaration governed by the policy. */
-	setting: SettingReference,
-	/** The administering account, space or host. */
-	authority: SettingAuthority,
-	/** An optional receiving installation within the administered scope. */
-	installationId: identifier("installation").optional(),
-	/** Recommended values remain overridable; required values must agree. */
-	mode: _enum(["recommended", "required"]),
-	/** The complete value checked against the consuming declaration. */
-	value: json()
-}));
-/** Describe a typed recommendation or required value under an administrative authority. */
-function defineSettingPolicy(setting, policy, value) {
-	return SettingPolicyDefinition.parse({
-		...policy,
-		setting: setting.reference,
-		value: setting.definition.schema.parse(value)
-	});
 }
 var __destackModule = Object.freeze({ "package": {
 	"id": "package-01a0c80b-614f-73f2-a9cd-9cb63f4d528d",
@@ -7036,34 +7841,11 @@ var language = defineSetting({
 	overrides: ["installation"],
 	apply: "immediate"
 }, __destackModule);
-/** Configure the same declared value through typed source authoring. */
-var languageAssignment = defineSettingAssignment(language, {
-	kind: "space",
-	location: { spaceId: identifier("space").parse("space-019f5530-8000-7000-8000-000000000003") }
-}, "de");
-/** Describe a recommendation independently of the persisted assignment. */
-var languagePolicy = defineSettingPolicy(language, {
-	authority: {
-		kind: "space",
-		spaceId: identifier("space").parse("space-019f5530-8000-7000-8000-000000000003")
-	},
-	mode: "recommended"
-}, "en");
 /** Declare environments independently of the destination space. */
 var account = defineAccount({ environments: {
 	development: {},
 	production: {}
-} });
-/** Declare inspectable application permissions. */
-var note = defineObject({
-	name: "note",
-	attributes: {},
-	relations: { owner: {
-		kind: "subject",
-		subjects: ["user"]
-	} },
-	permissions: { read: relation("owner") }
-}, __destackModule);
+} }, __destackModule);
 /** Configure a space without provisioning resources during compilation. */
 var personal = defineSpace({
 	resources: { main: {
@@ -7071,8 +7853,20 @@ var personal = defineSpace({
 		retention: "retain",
 		tags: {}
 	} },
-	installations: { notes: install(package_default, { main: "main" }) }
-});
-export { account, database, language, languageAssignment, languagePolicy, note, personal, package_default as stack };
+	installations: { notes: install(package_default, { main: "main" }) },
+	settings: {
+		language: {
+			setting: language,
+			value: "de",
+			mode: "set"
+		},
+		"language-policy": {
+			setting: language,
+			value: "en",
+			mode: "recommend"
+		}
+	}
+}, __destackModule);
+export { account, database, language, personal, package_default as stack };
 
-//# sourceMappingURL=index-D6Ta5ZhB.js.map
+//# sourceMappingURL=index-BDHUuIZY.js.map

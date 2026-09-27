@@ -28,6 +28,6 @@
         "@destack/db": "2026.9.0",
         "@destack/bucket": "2026.9.0",
         "@destack/vault": "2026.9.0",
-        "@destack/model": "2026.9.0"
+        "@destack/account": "workspace:*"
     }
 }

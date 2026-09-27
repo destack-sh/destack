@@ -49,14 +49,14 @@ export function frameworkPlugin(): Plugin {
                 // reject server-function directives before framework compilation
                 const parsed = parseSync(id.split("?")[0], code);
                 if (parsed.errors.length) {
-                    throw new BuildError("BUILD_FAILED", `Invalid framework source: ${id}`);
+                    throw new BuildError("BUILD_FAILED", `invalid framework source: ${id}`);
                 }
                 new Visitor({
                     ExpressionStatement(node) {
                         if (node.directive === "use server") {
                             throw new BuildError(
                                 "BUILD_FAILED",
-                                `Solid server functions are unsupported: ${id}:${node.start}`,
+                                `solid server functions are unsupported: ${id}:${node.start}`,
                             );
                         }
                     },
@@ -103,7 +103,7 @@ export function virtualPlugin(directory: string): Plugin {
                 let isChanged = false;
                 const parsed = parseSync(id, code);
                 if (parsed.errors.length) {
-                    throw new BuildError("BUILD_FAILED", `Invalid generated module: ${id}`);
+                    throw new BuildError("BUILD_FAILED", `invalid generated module: ${id}`);
                 }
 
                 // replace only parsed module specifiers within the application directory
@@ -179,7 +179,7 @@ export function virtualPlugin(directory: string): Plugin {
                 if (result.errors.length) {
                     throw new BuildError(
                         "BUILD_FAILED",
-                        `Cannot transform generated module: ${id}`,
+                        `cannot transform generated module: ${id}`,
                     );
                 }
 

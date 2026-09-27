@@ -15,62 +15,92 @@
             },
             {
                 "path": "package.json",
-                "digest": "dea93da1a961ca0a3368383ff7c133844c71e0230e2c6c4492b9ab2ac11746f3",
-                "size": 817,
+                "digest": "861f0c3e3f9a75ff31073bddd2d3b53965c6a573d425639c9fdf2eab97c23a04",
+                "size": 804,
                 "mediaType": "application/json"
             },
             {
-                "path": "src/access/access.ts",
-                "digest": "e6f7b523c5c555aebc7664098a9757f3852187554cefdbf59b4587ff5cdd6de0",
-                "size": 14324,
+                "path": "src/authorizer/access.ts",
+                "digest": "ef1c635b50eae5b89158ba27179607c47a9521605c910926e44bd80f6b3e7f36",
+                "size": 22511,
                 "mediaType": "application/octet-stream"
             },
             {
-                "path": "src/access/expression.ts",
-                "digest": "e995d714c0d902104df43e5080484d1dd1ea33291436efa97319ddc76da2721e",
-                "size": 3434,
+                "path": "src/authorizer/authority.ts",
+                "digest": "1df9e5d551c444b33b4802d1936a07be04c0d6fb100fe819fa6635fab6c9b5a3",
+                "size": 6115,
                 "mediaType": "application/octet-stream"
             },
             {
-                "path": "src/access/index.ts",
-                "digest": "3eae4d7ecdd7f6aa81668f3e1d39c013c9addebb5aa2769d76c7a6fc0af9fd4d",
-                "size": 205,
+                "path": "src/authorizer/authorization.ts",
+                "digest": "c1ba3651a4541691b751449641a94cf2ab9752121beb2b311d80ced5fb287ed8",
+                "size": 35821,
                 "mediaType": "application/octet-stream"
             },
             {
-                "path": "src/access/model.ts",
-                "digest": "f16a64d62004e5624698e679a57930a25d647ec5a38507a8b7e513f6ddbad7fd",
-                "size": 8965,
+                "path": "src/authorizer/authorizer.ts",
+                "digest": "a58bc5a786510282f35b56d49e3dbf92408c690bc8e64bd7b280233a3015ca0a",
+                "size": 51461,
                 "mediaType": "application/octet-stream"
             },
             {
-                "path": "src/access/object.ts",
-                "digest": "2b437d799651739f9ef1c448d00a77fce15b4fee824c3dbc02b55880b9e5edee",
-                "size": 6388,
+                "path": "src/authorizer/compiler.ts",
+                "digest": "ea304d37c0cdfce56c91881f07e45034448cf098904d83f7b18214b61dce8ab6",
+                "size": 23583,
                 "mediaType": "application/octet-stream"
             },
             {
-                "path": "src/access/policy.ts",
-                "digest": "4f836f15ebc3157edbd34338086d9a281958a180f2ba0907a15d143cf0d2c455",
-                "size": 5924,
+                "path": "src/authorizer/condition.ts",
+                "digest": "f22970e4348a73050d72605e291f42ac43adc7fcad0e07fd77438b2e488df7e4",
+                "size": 10344,
                 "mediaType": "application/octet-stream"
             },
             {
-                "path": "src/access/subject.ts",
-                "digest": "2bc5ccfbf9ad53738049387ab8be84321452a72eb870e0e6d259ae99db2f2a0d",
-                "size": 2265,
+                "path": "src/authorizer/decision.ts",
+                "digest": "b0e17cd235bd85771a468c82252577e9f8d0a83df969bbd46ea2888f910528df",
+                "size": 3846,
                 "mediaType": "application/octet-stream"
             },
             {
-                "path": "src/access/view.ts",
-                "digest": "c9b3816b7a61f5e983e918da84bce2eb2c88466abb50d5503d69e306d5c972c0",
-                "size": 4094,
+                "path": "src/authorizer/grant.ts",
+                "digest": "43837a74ee4506058b4e7533c1f726cbe802251153eb511a336d90d49a94679d",
+                "size": 25016,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/authorizer/index.ts",
+                "digest": "499a3590396a7de2f6976cd4393ee724611888a710ec3ed5d218f09e0b59c3a1",
+                "size": 251,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/authorizer/mapping.ts",
+                "digest": "5add5d1a6c4d7ebab04487adf8e4eab25c6032cc733a1984921152bf5f388349",
+                "size": 10272,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/context/context.ts",
+                "digest": "2fe208081702234de329f3e003901c92c34607640833da32510f9d1c4831cab4",
+                "size": 5744,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/context/index.ts",
+                "digest": "4967007ba00497aa9efe2dc26055728d4b29d4e260037466826823e25ed291af",
+                "size": 64,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/context/restriction.ts",
+                "digest": "5e0dac31862de60a15aad372ce14a148f83996f5677ea3c895eecdcce1f2e316",
+                "size": 2789,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/error/error.ts",
-                "digest": "5cb816012fb3922a5779a55179d1e6aa3fd32e0ccc93e6164e653eb7b9d2e8f2",
-                "size": 556,
+                "digest": "a06c3e244a6341e00dec238c6bdd1370556e1b30e204ff3db13f7facf5b2d8d4",
+                "size": 578,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -80,39 +110,329 @@
                 "mediaType": "application/octet-stream"
             },
             {
-                "path": "src/grant/grant.ts",
-                "digest": "2234c3dfabeb6b59fa4ac61c508e76a8a59daeeb2f31bf1e08754af8bd663636",
-                "size": 1290,
-                "mediaType": "application/octet-stream"
-            },
-            {
-                "path": "src/grant/index.ts",
-                "digest": "3c75a7609043744309a0f0cddceffb9f3f3abc2c581805973b4d25add5206f8a",
-                "size": 56,
-                "mediaType": "application/octet-stream"
-            },
-            {
-                "path": "src/grant/token.ts",
-                "digest": "6df0d933624919121d3d002831f04658b4b967cc47e9e5749bb8dfb047e81fd7",
-                "size": 1639,
-                "mediaType": "application/octet-stream"
-            },
-            {
                 "path": "src/index.ts",
-                "digest": "733b3e35b46cca123ce73ec6b3b811c8f9a78d4832eb7d9f10a5195263a5aefa",
-                "size": 69,
-                "mediaType": "application/octet-stream"
-            },
-            {
-                "path": "src/inspect/object.ts",
-                "digest": "274cae118121eb93d08109de656cf922c0f96855337d905b61b23e6364cb22eb",
-                "size": 3598,
+                "digest": "ed90ada5c4abc0d3f1e3709ec3c5007090d4552ac5d3a7eb62d29731eeec0836",
+                "size": 325,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/inspect/policy.ts",
-                "digest": "797a3271bd265a84d10401276149cefdb9e8c135d2faff0fd6512192d133eb08",
-                "size": 744,
+                "digest": "c1a8ebfe797e053a159f9729e706c64ec975ee90d796bf477b8f6095a8edffcf",
+                "size": 3347,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/policy/expression.ts",
+                "digest": "ebb70b1655bf8bb4ac4c1d1ddf1859f35a6e6221d805a24c4f97ef8853cd356f",
+                "size": 3869,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/policy/index.ts",
+                "digest": "33bcbecd050f5a9ab3c5a16fbc31a5ea2137ca6841ba16def3382bd575dc2a3e",
+                "size": 124,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/policy/policy.ts",
+                "digest": "802c035e8fe249c57cb3b9aa74b338106aaeb1c37514b3b2f9a023d0c92e0bbe",
+                "size": 13508,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/policy/principal.ts",
+                "digest": "9e6aec2b997fe6db8b0708f245d8b2d3457d2b95b8f97fdb7b829344c23bc998",
+                "size": 4094,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/policy/subject.ts",
+                "digest": "e5dd51c7406bc04ce528d20d10510638d3030d07ae026202e39f3ca202ea8e93",
+                "size": 3454,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/proposal/index.ts",
+                "digest": "7f1860685327756b7ea61b98acbf3222773f716cf58f842ba1e6a398465a6271",
+                "size": 111,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/proposal/proposal.ts",
+                "digest": "b0b54c5f753fd551ee6102a988a6ce0fc617ab5760dd8bbee5237fc367ef9afe",
+                "size": 6947,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/proposal/table.ts",
+                "digest": "d7f363f1a4294d7e8fad9334977dccdc9dd327885515cb179d64f653d5789b9b",
+                "size": 3700,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/relationship/index.ts",
+                "digest": "4c10408851db9327cdd21334b2b48becb4fccf9c883880bfd85b46f98acfdcee",
+                "size": 178,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/relationship/link.ts",
+                "digest": "a833acf77828d85c313ee53da6f6d486e6405ed74d5c42f31fdc3c89e54a11eb",
+                "size": 1629,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/relationship/relationship.ts",
+                "digest": "c5b0a2b1ed0adde2f63bb99bbcc3d986b2ab0d057457b4690deb24a9c82a2f6a",
+                "size": 7007,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/relationship/table.ts",
+                "digest": "ceabcd72f54b3a1798eb607be887de5d7cdf9599ad08f155ba0284c87e81c0d2",
+                "size": 7422,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/replica/index.ts",
+                "digest": "adc937fbdae8dfaff8461487ac99387b36063f2e220a57fe39555558420a8f70",
+                "size": 30,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/replica/replica.ts",
+                "digest": "d82f939a6ff340c41e905fa2b898ffeb193d531409b09120a2cb28bda89b824f",
+                "size": 2476,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/role/closure.ts",
+                "digest": "82d5d02a88549a99522a28698c4b7209395b2a5ab4e4db8262b5e6b0350f4d5a",
+                "size": 2492,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/role/index.ts",
+                "digest": "d07e8a3bcbac05ab113c40348f5362b8eee10eb7206de9a376a5d35e7dc5fb6f",
+                "size": 190,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/role/role.ts",
+                "digest": "d26068a6a4d38cf86ef3b594979eda5701c45c52095785c274eff64f6914c939",
+                "size": 5710,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/role/table.ts",
+                "digest": "abe9dfbd289135e7234bb524ed35d711cdaa2b67f8ce7ccf1f1ff3d1d9493249",
+                "size": 4836,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/scope/index.ts",
+                "digest": "e98c6f790c8f3fa1ddb9c4b10a88e8fe55f3db9f60787a23042c9836ec8db8b0",
+                "size": 28,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/scope/table.ts",
+                "digest": "cf2e1415a6e938fe10f863cec77d7fc4609d5a0b945b3219482fb9771656d40e",
+                "size": 1247,
+                "mediaType": "application/octet-stream"
+            }
+        ]
+    },
+    "@destack/account@2026.9.0": {
+        "kind": "source",
+        "package": {
+            "id": "package-01a0c80b-614c-76c1-90c6-f83bdcd72b32",
+            "name": "@destack/account",
+            "version": "2026.9.0"
+        },
+        "files": [
+            {
+                "path": "destack.json",
+                "digest": "178853253b1491ef1f585dfedab2a1d4fa664b3b4af1312a61797f1da5f4a9e0",
+                "size": 678,
+                "mediaType": "application/json"
+            },
+            {
+                "path": "package.json",
+                "digest": "99df2001e685bf1160dbd57023b1e2d2d4c0d9e506164d090fd37c6b430a50d4",
+                "size": 1494,
+                "mediaType": "application/json"
+            },
+            {
+                "path": "src/declare/account.ts",
+                "digest": "7da903efa80a9a4fb43ae2db01a34087152147eb037e30fdc85e329d129df440",
+                "size": 3835,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/declare/index.ts",
+                "digest": "cc3c6f7ac58acde5d77dd10becb9fb8a293a88cc7f2e42482e731d9cbc5ee771",
+                "size": 30,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/error/error.ts",
+                "digest": "e79461ab12f486a0b3b858d07286a8f51cc2635ba02ef0e7dab53c71164d74c8",
+                "size": 399,
+                "mediaType": "application/octet-stream"
+            }
+        ]
+    },
+    "@destack/audit@2026.9.0": {
+        "kind": "source",
+        "package": {
+            "id": "package-01a0c80b-614e-739d-8c3c-55f69a40525a",
+            "name": "@destack/audit",
+            "version": "2026.9.0"
+        },
+        "files": [
+            {
+                "path": "destack.json",
+                "digest": "eb42cb1ee666d3f9979d9ba306f9e43a22ce9b7c6ad707b2306c10985786f0dd",
+                "size": 1047,
+                "mediaType": "application/json"
+            },
+            {
+                "path": "package.json",
+                "digest": "77dec0e6ebdfd7be1c69c1bdbe5e5bac04dda475ce4c9da7205933984e50aa99",
+                "size": 1126,
+                "mediaType": "application/json"
+            },
+            {
+                "path": "src/action/action.ts",
+                "digest": "b362db0efd928b8917f4ebffe2b1cf51a03847411b52bc892873442bdd7345d9",
+                "size": 2344,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/action/index.ts",
+                "digest": "35f35cfb1039864406417259cc27d41d78efa1c36c9bbfd9cd5a82435fc6fb24",
+                "size": 29,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/error/error.ts",
+                "digest": "f8fd678a7e54699a28a39f8695604ce69529be52bad28690ef185b9045607d5d",
+                "size": 496,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/error/index.ts",
+                "digest": "5204d010b810dc6f9157b5fab6bd757fc5a6f64ff938adfabe11152bd1c6ac48",
+                "size": 28,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/event/actor.ts",
+                "digest": "ee2f5c71521906a39b83090de906f6e777e9268ac371ed7d2575c20787e8fe7c",
+                "size": 1027,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/event/context.ts",
+                "digest": "4e4fd278572ea4b09810abba7b2b694a0f1a8fbe93a8c11cd703dfd31ace03df",
+                "size": 2519,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/event/encode.ts",
+                "digest": "4f478d787898ad820424f8549c2eb61ee3b95ca0425f31e4581707ef73ca6203",
+                "size": 1052,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/event/event.ts",
+                "digest": "918e64ab286fe9094c17865dee6be0748da319548a694176618f4a56ec3fdccc",
+                "size": 2607,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/event/index.ts",
+                "digest": "82277c6ceae6dce54507b07edb8ddae15dcf821b9c1874f9d36f7b52fcb74eee",
+                "size": 115,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/event/target.ts",
+                "digest": "19fdcd94e45e32c5777646d44fc322a64cd7e63a99067199fb6e4b01a3c1f04d",
+                "size": 688,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/history/access.ts",
+                "digest": "1676dbe2cbf8b32b6bf5b2dae0e8185ad6fc0667f759a01122bf233f66358c77",
+                "size": 676,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/history/action.ts",
+                "digest": "0dfe82e9eac5ad999799779ad80f19dd74b68e0e4caa253bfad4dee3b78c4cee",
+                "size": 794,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/history/history.ts",
+                "digest": "e9e73a876616152f158dceb0be5ee2c0117e1cff5f09eba6d1b614c03f0fef4c",
+                "size": 14027,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/history/index.ts",
+                "digest": "3ea02540de2b4124e615704fdd48dc97c37b0c9a944f873493d64dd4fe92bb1e",
+                "size": 150,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/history/query.ts",
+                "digest": "40a9bf80179e11137bd1818b421a0eab03be6f124833facb88218e85765666ec",
+                "size": 3951,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/history/stack/db.ts",
+                "digest": "818de199e8ce966325ab0435963ef2b4c9198c1ba3b8f5be84d168a7b5ce1479",
+                "size": 4033,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/history/stack/index.ts",
+                "digest": "f3792cf9e224191570cc1ccddb62ebf7a46fcf7dbb0cd4a3ba3c4996ae8e2372",
+                "size": 25,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/index.ts",
+                "digest": "2bc8ca65a26e4df93075edb795e20ad3437490d4bf42f7b293c9f877746aec38",
+                "size": 104,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/outbox/delivery.ts",
+                "digest": "f882b989b408e69734f6701034bc1494d8706747353e92942c9fde7443521b9d",
+                "size": 2038,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/record/action.ts",
+                "digest": "0e15a0ffecde504f93669b466f53316714fd7ae891bdac52f41e051033841e32",
+                "size": 513,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/record/index.ts",
+                "digest": "0cbe2ce579eba714badcce622ce312a3fe6a161daa7cd9bf3db7e4ea2e418af4",
+                "size": 60,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/record/recorder.ts",
+                "digest": "0f13338ed91e92a1806bc137757ff63b855abada7ca394e4b418391d0108ae58",
+                "size": 12307,
                 "mediaType": "application/octet-stream"
             }
         ]
@@ -127,20 +447,20 @@
         "files": [
             {
                 "path": "destack.json",
-                "digest": "40b29cdc97a6dd56037ac96052073164c3d0a604b7223068308ab090615958f7",
-                "size": 570,
+                "digest": "b596a831033919f2fc511a0465541a7c554de80e3a2bd0912c0f6514645ca56a",
+                "size": 1159,
                 "mediaType": "application/json"
             },
             {
                 "path": "package.json",
-                "digest": "a864a939e3b62c02602e6c0bc2d9915843b6161dc31a97a5f443160e7e7a55d4",
-                "size": 1070,
+                "digest": "a44a87d955392754a154f87c27828d6f63457957e2364bcdfe69d9ff6b15e236",
+                "size": 1373,
                 "mediaType": "application/json"
             },
             {
                 "path": "src/declare/bucket.ts",
-                "digest": "24a3acb9c7f65286422620d22368a30ba0c86602651641a3b27a4ef0693e4859",
-                "size": 1043,
+                "digest": "01beb0af2b3e2df49a9cff49fcaeac74770944fa2764ef9a24e394feb843457f",
+                "size": 1033,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -161,14 +481,14 @@
         "files": [
             {
                 "path": "destack.json",
-                "digest": "181eef89a2e20cbd9478be4edd02515975b6776b53f73c6016d6109c68737deb",
-                "size": 1071,
+                "digest": "ded552823d649ec55883441b8146fa105d7e2d4f6c4f4607695a23f775d9d6cd",
+                "size": 1017,
                 "mediaType": "application/json"
             },
             {
                 "path": "package.json",
-                "digest": "bd10602d993e515e4b47b0516e6cddb3fca61a4a4ab90cfe2e1b710b5e5a6972",
-                "size": 1677,
+                "digest": "1cec99b44992dc3ae9c550ef5934a9a3bded39c976dec1d50e1a8764390c9f06",
+                "size": 1576,
                 "mediaType": "application/json"
             },
             {
@@ -179,8 +499,8 @@
             },
             {
                 "path": "src/declare/database.ts",
-                "digest": "351f1f6f8b617dd007afdb9115b1e9ce7d49653e6975b60dffeec87c28f642e5",
-                "size": 2533,
+                "digest": "126b8d50764c4af5023163c3525c92830a604ea81df1949cb82cf774aeaf9514",
+                "size": 3646,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -191,38 +511,116 @@
             },
             {
                 "path": "src/dialect/dialect.ts",
-                "digest": "77dd1e06eabffc5404e8395a907d0a947efa97993a33c6b8f0515f136f8a9f11",
-                "size": 332,
+                "digest": "92c9e9656980cd7ef9c5281fa34d149123afa467682af5ffe7297bab5b5bdb0c",
+                "size": 491,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/dialect/expression.ts",
-                "digest": "1543b764611e4c30f9e50e3b30674c2a5e00d3a1bd4ec11d1ccae3db06620227",
-                "size": 2044,
+                "digest": "6810f625479ee0a37f72754bc8a0b9a3a1aefaf9db0813b08c5312208aaa5a0d",
+                "size": 2206,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/dialect/quote.ts",
+                "digest": "00b19c12d989d76c4692138b7a9a492cc3710e1416caf51b9a58d153ab22d841",
+                "size": 307,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/error/error.ts",
-                "digest": "edd5ecd13cb8c0a098492d0547bd352fd0b75796de3409611dfea9eba1c3f89e",
-                "size": 887,
+                "digest": "8954845adad3a9523c79be85dbcd85940688daea0b2c2b569a08cbebf0d6c5d5",
+                "size": 2391,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/error/index.ts",
+                "digest": "5204d010b810dc6f9157b5fab6bd757fc5a6f64ff938adfabe11152bd1c6ac48",
+                "size": 28,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/index.ts",
-                "digest": "1de1be6a4f1edc4760f7bfa4b4690893471a2040e8a0ace5c16dffd2746cc21f",
-                "size": 252,
+                "digest": "659f8b7768b1931f89b6054157ef75b93d751b662b249e662867a69b26e1374e",
+                "size": 220,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/inspect/aggregate.ts",
+                "digest": "6e6e03b17ddd65c99d3ce0295c78c9a4e8d4a28a02dc037e690e31cffa210fc5",
+                "size": 1632,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/inspect/describe.ts",
-                "digest": "15b628edf9daec3daed355992ab1561ed57622442ac03e49c86e6d99460315b8",
-                "size": 7014,
+                "digest": "db1b303fa18c7bc1c7516d49bf573571aec4d6bd3cdb6ef29302861911444c43",
+                "size": 7424,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/inspect/log.ts",
+                "digest": "f15e1d4de06feb4336963cfc433d48f2707f8ac593445f89dee482eb08d59aa2",
+                "size": 1488,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/inspect/table.ts",
-                "digest": "101fb81d679bfa7a499b745604e5b4e97016e1b42aef43862189cb9d71f48fa8",
-                "size": 5563,
+                "digest": "5a15464a06cefddc5b72845f5077d46c0cbae3cc1c2a5b012117442ecc8fbc6e",
+                "size": 4221,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/inspect/tree.ts",
+                "digest": "ba148aced8dbcc9ac50f2a786eba458aa2e7ebcd086c6f3b8130d8cc2a121529",
+                "size": 1055,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/log/index.ts",
+                "digest": "56a5e2cf9e2cc28914a69bdf5397d14c0a0177cf59c96759d3d827f05ae4c816",
+                "size": 269,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/log/log.ts",
+                "digest": "f91ba59669121f0f862ac9160e8fe9aa6a450abb4140f618edcda3b4674e153d",
+                "size": 20146,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/log/notifier.ts",
+                "digest": "4416c8c6f35f18e55001ab7d6d78443b337010031c4585ddcef191aba404a042",
+                "size": 2547,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/log/position.ts",
+                "digest": "7b9ad1b28643da2d553708ecce8aaf2f033b5836a8e6b786cd5dfd7d245aa6fa",
+                "size": 1777,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/log/schema.ts",
+                "digest": "4270bd12fe928bea33fdcbcd88b640a31beb592069d334637283c13cf35c797b",
+                "size": 4305,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/log/snapshot.ts",
+                "digest": "44497b6d2e739144d08aa819316abd8da4bc6b67fb2dbcdf73fc45d3edfe1cff",
+                "size": 16032,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/log/watch.ts",
+                "digest": "f77953442ece6cca5bb9fbec5fc5727e849e53fd3da150bb1d5788c3e63ecec2",
+                "size": 4127,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/migration/state.ts",
+                "digest": "c48f3c8045e2badec07f29b4ff7a92896ff99232a365702dc53830b3bc1f3ba0",
+                "size": 14905,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -232,121 +630,277 @@
                 "mediaType": "application/octet-stream"
             },
             {
+                "path": "src/query/builder.ts",
+                "digest": "ae0720bdf8ff1cc5d354db8b5464d664f8be5a0f2cbd6ed496f4c754f82e7226",
+                "size": 583,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/query/condition.ts",
+                "digest": "21a85fae6dedcb02c43838c28505c2db0206b000f4b973a9145ce178ac7230f2",
+                "size": 20525,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/query/expression.ts",
+                "digest": "77565ca1d06382c5fdc9c74e8e1efae7a6e6af026fa427082a3200523de7fd6b",
+                "size": 19222,
+                "mediaType": "application/octet-stream"
+            },
+            {
                 "path": "src/query/index.ts",
-                "digest": "5507223acebcd46c310e04eb17ef07bb80ee4cdac6f025342ce87827a08c6842",
-                "size": 422,
+                "digest": "6e7fb0005779b86da24bccc9781b7b12980ec80bd8e50f30650378d61a069a8c",
+                "size": 171,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/query/key.ts",
+                "digest": "4eca366d4b97302ffacaaa1eb63a8df9222867700a08d48c6ae84c344fe50c78",
+                "size": 2605,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/query/namespace.ts",
+                "digest": "488c5c6e89ddf511df417b152cf93f156a39cc85209233e8d408282bce139d42",
+                "size": 1370,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/query/order.ts",
+                "digest": "94f24770bf87dc600d2a1e72d4be9da8ddc52e23bedabe497daa5506d8d8c423",
+                "size": 12165,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/query/predicate.ts",
-                "digest": "e1a87747c4c7704cf7f10c159d3b5932ba57bffe92c04ba2a6af1930fde2e006",
-                "size": 1789,
+                "digest": "a5ab943a7e5dbbe6612f9138a102c5f1f584b95aee8c23dd0e4ed9ad2cef36e1",
+                "size": 4081,
                 "mediaType": "application/octet-stream"
             },
             {
-                "path": "src/schema/index.ts",
-                "digest": "1567c0a0a10e54fe42a9bf6fde0609cbf156cbd89559a7a195c94574faf432b3",
-                "size": 60,
-                "mediaType": "application/octet-stream"
-            },
-            {
-                "path": "src/schema/relation.ts",
-                "digest": "2cf8617660a6c8512442d753a17b48c6a3222723255761daae39e1d4ff0ec87d",
-                "size": 5464,
-                "mediaType": "application/octet-stream"
-            },
-            {
-                "path": "src/schema/schema.ts",
-                "digest": "072148377209b6dc323101792be2cd42ec758a7f3273f5591be449113b9bd7ed",
-                "size": 3617,
+                "path": "src/query/statement.ts",
+                "digest": "ad7789a6cc4dc21c60621b2fd360abed8ce64d7bbe3c13317be43515f5b002a1",
+                "size": 2952,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/table/column.ts",
-                "digest": "3dcc919d6bea26137112f0982051ca1d7cafea59a05855e626241b686a2c7a77",
-                "size": 15725,
+                "digest": "0b0fc7389f5048de953fef2f0f03da7c5f7e31297390aacca0b7d896ce750bde",
+                "size": 18912,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/table/constraint.ts",
-                "digest": "a268cdca13ae7bfdc7b9f1c8767f4bda2504fa65d202dba170b13640a4eea5d4",
-                "size": 4883,
+                "digest": "486636dfb8ca558d413553e79e74fa177f66a12ccbd796da5b4acd564041e800",
+                "size": 4890,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/table/index.ts",
-                "digest": "5282fcd686c620ee0ab11692a359361059992c4b5f54dafbe0868881209fef2a",
-                "size": 119,
+                "digest": "d9bd653c3a15e2ef3866dd12b4c5e70e47862d63dc50bc31db83289eab36fb1a",
+                "size": 177,
                 "mediaType": "application/octet-stream"
             },
             {
-                "path": "src/table/record.ts",
-                "digest": "56e7f0a0306719c7ba649a882c87b5cd52c9c53ca30d5f22d09e5b8f89341f07",
-                "size": 1940,
+                "path": "src/table/namespace.ts",
+                "digest": "a1fe73843fbc0475b8880d11a51c1acb81a202a748c6013878b1c186f669139c",
+                "size": 1956,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/table/row.ts",
+                "digest": "d2458d2ff7fcfe9b01004e7b0d2d26c29b6e3affb67ee6b93e4348ceb2ea3fd8",
+                "size": 2418,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/table/schema.ts",
+                "digest": "fccc89635a80ba852dd01d56d8b7eae0e264ada60343f1542e842c7c37c72161",
+                "size": 2583,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/table/table.ts",
-                "digest": "ac95409199aaa4cca799deacb471185d39c4b9cb825ec15ce0e7204380d53c0b",
-                "size": 7931,
+                "digest": "cecb530e6636f6685bf90090fd7735ac698d9f15dd6a7dc65358b6fe574c8e50",
+                "size": 17527,
                 "mediaType": "application/octet-stream"
             },
             {
-                "path": "src/validate/index.ts",
-                "digest": "bd1e96a54f44d5dc7823cd77a753eb7fc4d9183cddd425ffd38b9c1dc6e96a06",
-                "size": 29,
-                "mediaType": "application/octet-stream"
-            },
-            {
-                "path": "src/validate/schema.ts",
-                "digest": "6ed7b80d2888edfb8c319dfbe653d3416ec25faf67fb86f137af52cec225dd56",
-                "size": 2246,
+                "path": "src/tree/tree.ts",
+                "digest": "adbf000ef19f73cbfddc234bcbdc2c9be3ce06ba90d0443a5914901fe88e9970",
+                "size": 10384,
                 "mediaType": "application/octet-stream"
             }
         ]
     },
-    "@destack/model@2026.9.0": {
+    "@destack/object@2026.9.0": {
         "kind": "source",
         "package": {
-            "id": "package-01a0c80b-614f-73f3-b32b-12779e5cd20a",
-            "name": "@destack/model",
+            "id": "package-01a0d462-1b26-7401-be27-6258e0a32141",
+            "name": "@destack/object",
             "version": "2026.9.0"
         },
         "files": [
             {
                 "path": "destack.json",
-                "digest": "403df07d7316369742ebc174d2082a74067778ccf9b7e8d5506a2cd2281a05f7",
-                "size": 129,
+                "digest": "b700f1480d7b40daa2ffefdb32a627115d156e834a8bb8ea3b918949b047165e",
+                "size": 446,
                 "mediaType": "application/json"
             },
             {
                 "path": "package.json",
-                "digest": "48b912e108eb6145b5fbfc15cadbd6e1c10b1a0a4315d80a7cd12a7af9d62f3f",
-                "size": 944,
+                "digest": "666b1ea779600888bb6cdc87d4ce0a2443fb96f8c55cec41786bd823204fcd9f",
+                "size": 1080,
                 "mediaType": "application/json"
             },
             {
-                "path": "src/declare/account.ts",
-                "digest": "54d9bf30ace6827d01baca22332d4d3057e46ec9457894158e641186703c015e",
-                "size": 3265,
-                "mediaType": "application/octet-stream"
-            },
-            {
-                "path": "src/declare/index.ts",
-                "digest": "cc3c6f7ac58acde5d77dd10becb9fb8a293a88cc7f2e42482e731d9cbc5ee771",
-                "size": 30,
-                "mediaType": "application/octet-stream"
-            },
-            {
                 "path": "src/error/error.ts",
-                "digest": "7565f9bbcc487b3761aa6cb1abd989803885b33618a93916d830cf1333745d0c",
-                "size": 399,
+                "digest": "8f06ad8713b1acf48e7ec7192cf86b8f8406c5deeb153271355f14d69fea7ac3",
+                "size": 495,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/error/index.ts",
                 "digest": "5204d010b810dc6f9157b5fab6bd757fc5a6f64ff938adfabe11152bd1c6ac48",
                 "size": 28,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/field/field.ts",
+                "digest": "7de44f56c5037b2568b57956729ec9ab650f518355dedcf3a1d5d3c528e96480",
+                "size": 14750,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/index.ts",
+                "digest": "6e6a9a39e8aeff0d22882afcb0058dff43a6a0c1cefd4df286d8cf0524c400bb",
+                "size": 683,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/method/call.ts",
+                "digest": "87ede79190f78c39734217a9bf46bbbbc5c45804e73e3c880df525d799c1d872",
+                "size": 3529,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/method/method.ts",
+                "digest": "e55ae77913e4cd32c7aa1ff68d5609dba8acc65fdf087d964bcef7f6009a99db",
+                "size": 4398,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/method/procedure.ts",
+                "digest": "ec03177581ee89df36d675018f9e15a698fd9cbc2da6925196b515dbb1304f7e",
+                "size": 12627,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/method/session.ts",
+                "digest": "e4ad942ffa4a581f0bbcdcc0af2f7a0ea0898c78cedf458733db86573f6277be",
+                "size": 7163,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/object/access.ts",
+                "digest": "27f06f3ee5f67dfa3a46d93891df54b9924e24878f7f2d20cd5c83b8749f071e",
+                "size": 6956,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/object/audit.ts",
+                "digest": "8f6126fc5f0bc9464fea23d48f7b31c9dd614711bd7af28f7e0c9cdd6b6d4cd5",
+                "size": 1271,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/object/duration.ts",
+                "digest": "f4805ef75ea2c16cc51c2d66e785168cdd8d27ef8d043615f7c662b6d8335c7a",
+                "size": 1888,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/object/listing.ts",
+                "digest": "97f63bf24022ea1e54058912bf5f13d988130c9ddad46600fa12c926dcc37cee",
+                "size": 4066,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/object/name.ts",
+                "digest": "02b1742cd6c3b8f58e2695872d3592d83361254ee6067d060c3d104486d1f2e0",
+                "size": 1055,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/object/object.ts",
+                "digest": "2fcf9278bb496e9052359dad79ec6065bba3dcbbf5c007df422f67f9648fde6e",
+                "size": 34693,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/object/query.ts",
+                "digest": "88ee24528d9a6d2ff4480b325cfb246c0686c8f0c44036ff5233eb9e1e8ba77c",
+                "size": 9896,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/object/table.ts",
+                "digest": "9c443b8bfcc2c18a18d7fd640ddc432436cba481068ee6f8e57891472c7cb40d",
+                "size": 7630,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/trait/deletion.ts",
+                "digest": "2c00aaf0f02d86c577d209cf799c34546c2f3ad8d0f5233629eb170622f0c786",
+                "size": 4996,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/trait/managed.ts",
+                "digest": "bc184bc74ea4ef2ffe4d1f74f4647a6feb39e76fa1c4420f47b2b0c93b9c65c5",
+                "size": 4290,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/trait/parent.ts",
+                "digest": "939537a3cb1ea9c12f8d99db5272f1cc6c5da83ddb83bdf27a3f1bc98a336c89",
+                "size": 6977,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/trait/reconciled.ts",
+                "digest": "901773701c2c934283a19ec14f5caa8497d17775ece1b2118c43b0eef34ce86d",
+                "size": 2898,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/trait/record.ts",
+                "digest": "84c669b9aa504acd631ec84358cf650a8fb8c6ef3fa13b26086d61a02af6ff3a",
+                "size": 20589,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/trait/sharing.ts",
+                "digest": "21fab2f248cb80cd324e2b9650a87cae17ea9730c312911ae6757d8770e10fd2",
+                "size": 13297,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/trait/states.ts",
+                "digest": "c4e36908b63527b432dc0ebe46a19b65f831a8bf05d5f10f1b7581204b7e890a",
+                "size": 4514,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/trait/trait.ts",
+                "digest": "23c71e4e33dde59571bf6c87a85d74888dffe5c865b5bfd77438f5a1f1082aea",
+                "size": 1335,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/trait/versions.ts",
+                "digest": "b8a38fd6bf7d873f3fba021d97192f468f9e9fe23d8c0bc179c389a763f5c8af",
+                "size": 3788,
                 "mediaType": "application/octet-stream"
             }
         ]
@@ -361,20 +915,20 @@
         "files": [
             {
                 "path": "destack.json",
-                "digest": "aa9535733837ab94450de01b2f71388ff4a3f073df8ee89038e4a462519d0b44",
-                "size": 176,
+                "digest": "86a8d01120ad431ea3a8f118ee061b0c10763acbd320f47dce5ab432fb54e438",
+                "size": 318,
                 "mediaType": "application/json"
             },
             {
                 "path": "package.json",
-                "digest": "8637280233d4123e25394be0b0f4e3f228d0fd31163dc1a8f8b6de0153889a5e",
-                "size": 1525,
+                "digest": "83d59f35a9aac4a903a94ff35c4ad0448deb32b98b44f5e4271b3a3109a221e9",
+                "size": 1635,
                 "mediaType": "application/json"
             },
             {
                 "path": "src/code/declaration.ts",
-                "digest": "a188a48da634b483047886623fec88f91af7a0ae9fcc3ee30c271a6e6165476a",
-                "size": 1204,
+                "digest": "3028e9b9f688957b86c84fbd61e73285505241e71d7d0070a36f48fdad0aca5e",
+                "size": 1189,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -390,9 +944,21 @@
                 "mediaType": "application/octet-stream"
             },
             {
+                "path": "src/code/graph.ts",
+                "digest": "aa6513ea41b5d5ea5fa051069cebbe8fdd2236e67717e0869ea043427053aeba",
+                "size": 1777,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/code/index.ts",
+                "digest": "596bb2d1d972be67576042fcc1f431de539febf660dd3b8c29c3940215c669e2",
+                "size": 304,
+                "mediaType": "application/octet-stream"
+            },
+            {
                 "path": "src/code/member.ts",
-                "digest": "634739649818f21305005e089ec0be71b21ae3d8fb20053719bb2e385f0c82a0",
-                "size": 957,
+                "digest": "24872652b16c88edf6f59ac0ac50ad0fae5ce8fba62bdd68ec78977af110274b",
+                "size": 947,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -415,8 +981,8 @@
             },
             {
                 "path": "src/code/symbol.ts",
-                "digest": "35954d019594e4f9687539fdea105e58b96075e203e343dfd9db8bc75e2a71f1",
-                "size": 2371,
+                "digest": "78d19b9d82b5d786cd0be9a41b7191c7e4147496126e5832ce6e1394cecea6d3",
+                "size": 2361,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -426,45 +992,39 @@
                 "mediaType": "application/octet-stream"
             },
             {
-                "path": "src/declare/constructor.ts",
-                "digest": "7c5b5f0b9d3969b675ed38f5a8507a181a98b105f115219d3413424b6e779b4f",
-                "size": 2167,
-                "mediaType": "application/octet-stream"
-            },
-            {
                 "path": "src/declare/declaration.ts",
-                "digest": "b477c2fc948a236de0f7077bc77795434e39e7c05f12b1873393f525bc2bf954",
-                "size": 1161,
+                "digest": "c6ecdc2db7ffd02c61a67b6e9e3b49599a9c7608573c53c3ad9fc94e78480703",
+                "size": 1571,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/declare/index.ts",
-                "digest": "f238ca580b08c1d000419a744864d7fcaab0a785a4514bc32647988eef4d60c7",
-                "size": 98,
+                "digest": "c15c588a2565b5ef23523c10821efc9febad09738e0b3d9b507be5d53733364b",
+                "size": 64,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/declare/package.ts",
-                "digest": "45a03f045749fd3c5516942e69f89befbb1441f155a8a1f9ce974162c5accfb5",
-                "size": 2217,
+                "digest": "f52289fba79c9b3471c9e4ccc10e4e1e5f11391b37c50651bde9fe9e012649b0",
+                "size": 2254,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/definition/compute.ts",
-                "digest": "0573fe0f330de70681b05eec1e4c31bbd71595fe0f22fc48715c819e78e28f71",
-                "size": 3269,
+                "digest": "50d1b599fdbfce10631257a013242fea8b84c0a04acd99647ecd79e2a6cbc75f",
+                "size": 3262,
                 "mediaType": "application/octet-stream"
             },
             {
-                "path": "src/definition/declaration.ts",
-                "digest": "97c56eafb3d2aad673bdec3effbc259e6cf3ce4d15d18ae552de9f2a35fb4de4",
-                "size": 2190,
+                "path": "src/definition/constructor.ts",
+                "digest": "62890e1f129b86de011318c6585d5c5a2acedfe01d78eeee5782c165a7953921",
+                "size": 1508,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/definition/definition.ts",
-                "digest": "7e460183b1194bf957ca043a8a9725f6b33542227b38f38a081fb46d96f4facf",
-                "size": 1891,
+                "digest": "8d1efc37591b721c1cab029ace6e7a28e43e7310620035c3de10e8bec10884ac",
+                "size": 2087,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -474,9 +1034,15 @@
                 "mediaType": "application/octet-stream"
             },
             {
+                "path": "src/definition/description.ts",
+                "digest": "97c56eafb3d2aad673bdec3effbc259e6cf3ce4d15d18ae552de9f2a35fb4de4",
+                "size": 2190,
+                "mediaType": "application/octet-stream"
+            },
+            {
                 "path": "src/definition/index.ts",
-                "digest": "fe8d58fdfba0cddf72a079a5a8021d0ce42c8e2ba7174199e81a45129b180944",
-                "size": 251,
+                "digest": "add6ccd05cbde130768caabf71daa368d918121f1a88215a3d9b21d920613a1b",
+                "size": 285,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -517,8 +1083,8 @@
             },
             {
                 "path": "src/file/file.ts",
-                "digest": "b5aea083671ec190312c1577dc6ad56f2c49abce06cab3d44fc75be49e19de28",
-                "size": 2309,
+                "digest": "20fe47fe5221f2202b7c11a633e8cf0972baf158ce2a6c4fca323ec994cc790c",
+                "size": 2222,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -547,8 +1113,8 @@
             },
             {
                 "path": "src/manifest/manifest.ts",
-                "digest": "4e66e32746ba40e4d69cedf901987f9134342a88950350fffeb705f28aa78d50",
-                "size": 3075,
+                "digest": "855ae5a7ab0dc56282e23badb27bb75e70f42f516a7c65b4757a10af110d395a",
+                "size": 3219,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -595,8 +1161,8 @@
             },
             {
                 "path": "src/template/template.ts",
-                "digest": "3359ff04e090766703fe00ea89d0a691af3188b1ab8e70216314d2d32deab476",
-                "size": 1391,
+                "digest": "b39214cd9ee7f47319b28fe971502de5434706a4421f19add4c7ffbd0e8a7d15",
+                "size": 1376,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -641,44 +1207,44 @@
             },
             {
                 "path": "package.json",
-                "digest": "fa134da712d91191886f0e746026ca9e7347867cdeefebe7c0f219ed2ee54659",
-                "size": 529,
+                "digest": "5e5e62c68da3f2f9ac4841e68e3714a1942ce2cd0207309e14df2b939dddca80",
+                "size": 670,
                 "mediaType": "application/json"
             },
             {
-                "path": "src/binding/binding.ts",
-                "digest": "21f222248b960672f637ded17a25107f81150e5de611a3d3d6497985cd9e84fe",
-                "size": 1185,
-                "mediaType": "application/octet-stream"
-            },
-            {
-                "path": "src/binding/index.ts",
-                "digest": "539fd060c20f1449053271f5a600bcd0a1f90507793e6792aff438f3c779a1af",
-                "size": 30,
-                "mediaType": "application/octet-stream"
-            },
-            {
                 "path": "src/index.ts",
-                "digest": "ff489a73539c17f3c90b12308c0b1d0186f90b3b84ead1f6180ee2fb30be9691",
-                "size": 73,
+                "digest": "087672c90dee6ff903591758e1b71c0f54448a320560a1ce3e1793f788a53a55",
+                "size": 37,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/resource/handle.ts",
-                "digest": "132441489000c242b18346e5acf1007b6664faddaca8ab64732d8c5d6bcff88c",
-                "size": 835,
+                "digest": "c6bf1399857215d3bf6928c15a7de595261712da9ab05a5704062bb35552d21e",
+                "size": 839,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/resource/index.ts",
-                "digest": "fa894af097a4d0145a25f2215810709b9217f9a55b05974e86f10974f37c43cc",
-                "size": 60,
+                "digest": "aa4dbc8762ba9fe34afaadd9aad07e8f22a411947f865b91d3f4c37723f2a32a",
+                "size": 118,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/resource/plan.ts",
+                "digest": "adbc5a62ce3a76125bf081ffefa327ef158967d1578c65c9170ae6cac09e19b4",
+                "size": 1802,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/resource/provider.ts",
+                "digest": "1000590585f7f5e08093bd545fd61269badb5bb9df35c3e74b859e33f2d4bebf",
+                "size": 2076,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/resource/resource.ts",
-                "digest": "e7c672ae8f5f43458b8c51c3e99e5f0b39644cabc2fc9cfb8a8de72bebcd91f8",
-                "size": 2131,
+                "digest": "2d9296e1386eb9e41149bf15344d55172a13c727bb17e126a1d4266c6a733f48",
+                "size": 3121,
                 "mediaType": "application/octet-stream"
             }
         ]
@@ -699,14 +1265,14 @@
             },
             {
                 "path": "package.json",
-                "digest": "647aa1b581be4af6288f6de73280db1c948a2457d3040059082b4a842fb676de",
-                "size": 787,
+                "digest": "845628fbdb65e9b24b068bcad6965ecff478967c32f3658af5ad7e5a9e18b709",
+                "size": 687,
                 "mediaType": "application/json"
             },
             {
                 "path": "src/identifier/identifier.ts",
-                "digest": "1b81171065f8f5b740a54487cc1b886c7346987c7ec86afbebb10ecf006240b6",
-                "size": 930,
+                "digest": "9fe123c831b328758387dc2e14e87d1af333cc05840149b738e1ab9543a4381a",
+                "size": 1378,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -729,20 +1295,168 @@
             },
             {
                 "path": "src/inspect/schema.ts",
-                "digest": "d95c928eedb1d6c6a94e33c81d74540ce81ad3404ea167770ebe218cf84260e9",
-                "size": 834,
+                "digest": "398f9bf3b56fa7ac3d1383ceefc03d5e8f1450fe56cfd73ab4e07c7e9f65b6e7",
+                "size": 731,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/json/index.ts",
+                "digest": "4e7681f20155d7d7059bbaf68331acbc9abb53843c78355e045ba1329abe395e",
+                "size": 27,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/json/json.ts",
+                "digest": "f6577037b378760f16450e17063dbc3c5774702d9e42e65333b41315293efc9b",
+                "size": 1668,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/validate/index.ts",
-                "digest": "9a9125c9bb108a14d3a1b9dd80a1602c18b56508ad08a65e6c0f24d0b502f158",
-                "size": 1064,
+                "digest": "8ec535c56fb9c664c4a347661fb5cc709b71d636cf5aea4ee078da30b9cee03a",
+                "size": 1106,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/validate/schema.ts",
-                "digest": "327af2887a8c5d3124531fe1447f43ca6feabdf9065fe113d4a2275bb113e6ff",
-                "size": 7131,
+                "digest": "9805b9c32c8adc8c0e4d674b3d54ca0aeba6e44d9a416019972496e4cbc30c8c",
+                "size": 7503,
+                "mediaType": "application/octet-stream"
+            }
+        ]
+    },
+    "@destack/service@2026.9.0": {
+        "kind": "source",
+        "package": {
+            "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
+            "name": "@destack/service",
+            "version": "2026.9.0"
+        },
+        "files": [
+            {
+                "path": "destack.json",
+                "digest": "ccc3536d52e52e891f1a607187736c468ea0ce2b24e3f0de20b46049ad3e87a5",
+                "size": 1195,
+                "mediaType": "application/json"
+            },
+            {
+                "path": "package.json",
+                "digest": "9ad0c29ebeac86865f033d422e742d284126523d70f06661eb11c509a37b08d6",
+                "size": 1893,
+                "mediaType": "application/json"
+            },
+            {
+                "path": "src/bookmark/bookmark.ts",
+                "digest": "fb41ae62eb87c4a1e8b5e0daf1043457c568b3827e2494416af3c1f07e05757d",
+                "size": 2223,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/bookmark/index.ts",
+                "digest": "74cf8b8dd5386bbceb4a3fe891b871f0e2174785227d5e8f29391e180b5b147f",
+                "size": 31,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/database/index.ts",
+                "digest": "6494b70989b1681291e760611347899c026e10186d0dcd252e2082b996760ea8",
+                "size": 30,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/database/journal.ts",
+                "digest": "5bffad182e1d88ff6fe1233a5f165d00961efd151477531d5513285cea832b8c",
+                "size": 13073,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/declare/connection.ts",
+                "digest": "4d6af5878ee21d136dc5582e93a1643442a150fe3263e94f515af027cbd16c95",
+                "size": 2374,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/declare/index.ts",
+                "digest": "00389900949119dd9bfa7022227eba153de3eceb2df7f3d0cdd22b9241266511",
+                "size": 63,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/declare/service.ts",
+                "digest": "9b55279c7305ba27fcbe22bae12f23a7a54d471f0db4ee1d922877090a821128",
+                "size": 3311,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/error/error.ts",
+                "digest": "280a3593681af7f09b2e5df5e99cd66f596fd5e55bddcf3332ba027b86d0c737",
+                "size": 1383,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/error/index.ts",
+                "digest": "5204d010b810dc6f9157b5fab6bd757fc5a6f64ff938adfabe11152bd1c6ac48",
+                "size": 28,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/index.ts",
+                "digest": "6550dfce948e699b063422c55c92cf0cc87eb5a085010e60818ebbfb1394f2d3",
+                "size": 70,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/page/index.ts",
+                "digest": "44371ffa44c54a2506b1ea3665067893f4c38d2035b6900e2174d97843c5b249",
+                "size": 27,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/page/page.ts",
+                "digest": "5e7b31c611dd279b86558c6fd847dca28fc6288bad35fe28f8f9cbf447123112",
+                "size": 3473,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/procedure/index.ts",
+                "digest": "6909ddfe33ee8b25e5fe9f77455275ed826a6741c8c1570fb9071df629cdb116",
+                "size": 62,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/procedure/procedure.ts",
+                "digest": "b538fa854e105c6e847616d4640d9ab19a165a3cd71cd56969519c36c51683dd",
+                "size": 1555,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/procedure/request.ts",
+                "digest": "2388f1f59e3ece98607d5aa7f1f9348e11bed8bac359025070933b98a0262ecd",
+                "size": 576,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/request/index.ts",
+                "digest": "1bb88bbf2e33dd13787ef11b7029369fb1f1e8fabcc96348887abbe4ce4fe059",
+                "size": 30,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/request/request.ts",
+                "digest": "505965c3841f633ed51026ac69c5d2f6a35fc25dc4f9d7d1920f4ac140e13301",
+                "size": 2888,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/service/index.ts",
+                "digest": "846f8aa599043c1e79f1ba809908cac686ba541af7e969ae7ef7f6722821c008",
+                "size": 30,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/service/service.ts",
+                "digest": "10d3f9d1fc31cbcd1d91909e9c0f8f184504daf8491ebeb81c2dd4f5b7a9d2fc",
+                "size": 391,
                 "mediaType": "application/octet-stream"
             }
         ]
@@ -757,56 +1471,56 @@
         "files": [
             {
                 "path": "destack.json",
-                "digest": "881f86a502f885b50485017cbb91c814be5b9729bf0c7e8848283987afa50619",
-                "size": 176,
+                "digest": "1c0282e66d36a6999d0de83636ca327d16c80954ad2fd5e8f760bba23e28a71a",
+                "size": 572,
                 "mediaType": "application/json"
             },
             {
                 "path": "package.json",
-                "digest": "538f013bb5ef3bd25595795c9b3af8f1d4dcf29488769912aa4a8dc9206e3b39",
-                "size": 1245,
+                "digest": "67c4cd2b3be43ccb525e7ab616d689d237a584a91eeac2852bae564e66f7c085",
+                "size": 1383,
                 "mediaType": "application/json"
             },
             {
-                "path": "src/declare/assignment.ts",
-                "digest": "58bb1017b779f1e6adefefda00210896a8a087b2efbdb2198181b2586e206863",
-                "size": 1252,
-                "mediaType": "application/octet-stream"
-            },
-            {
                 "path": "src/declare/index.ts",
-                "digest": "9cfd8c745c77f72200c694efda1d59fcd4cd538682193bbea14295adc5195c47",
-                "size": 92,
-                "mediaType": "application/octet-stream"
-            },
-            {
-                "path": "src/declare/policy.ts",
-                "digest": "757b63cd852b05a066c84f45d9db1b7287cc7585fbe1694274a182ad8208a937",
-                "size": 1546,
+                "digest": "d6ad222ab6495a4600ac1c2608464ac946cada8c17e60b8cea4598f6cce6dee2",
+                "size": 58,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/declare/setting.ts",
-                "digest": "1430897d369d9b22a9f4ba84003dca139e84608d327da7b5a8f499d63f97d928",
-                "size": 3421,
+                "digest": "0090872b0944b407fc886818a61a40c798f3b8cdf386e588f581ff1cfda392c5",
+                "size": 3408,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/declare/space.ts",
+                "digest": "9ce357da72e16a2fab71b4c61268ca84a9d143c587592c66ccd2cc12806cfa54",
+                "size": 1342,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/error/error.ts",
-                "digest": "7afe21e38df266342574efa94c12cb8ed1a359fd32ed10eede2c367366a147fb",
-                "size": 469,
+                "digest": "c25e0c0e54af6e9cc8c6b904a760a9224cf78278d4910c9d7ac31202688d224a",
+                "size": 470,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/setting/placement.ts",
+                "digest": "cb5b80afd87c04a1e3d5fec33843ee70b597040f988a2929072008fbf8f636e6",
+                "size": 1957,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/setting/setting.ts",
-                "digest": "89541750ba2ba48da653fddb5b275182458bd7bf6e2d44a2be681cb7dc568e3d",
-                "size": 3907,
+                "digest": "eaa6012551cb2e7f24456b40615966a01d08ffc43fc1d1322fba2bd016a0c6ba",
+                "size": 4412,
                 "mediaType": "application/octet-stream"
             },
             {
-                "path": "src/setting/target.ts",
-                "digest": "f1c44c34142e8448fd577b57dfce37674295228755140a3833979ad45ac1f468",
-                "size": 3965,
+                "path": "src/setting/value.ts",
+                "digest": "7992db8962a091b93a529c43aafe38fbe0316bb5efe9e50902bc64c7ae75dcf3",
+                "size": 1633,
                 "mediaType": "application/octet-stream"
             }
         ]
@@ -821,62 +1535,56 @@
         "files": [
             {
                 "path": "destack.json",
-                "digest": "b3dc15186d45eda1a92cf361bf7259544aca8d95a356c2fb2bdc294cb83ed656",
-                "size": 467,
+                "digest": "bcbc9e6dfbd726f70717ff8a67f67fc00f80de3d5623438e2c8da8008ae22d69",
+                "size": 889,
                 "mediaType": "application/json"
             },
             {
                 "path": "package.json",
-                "digest": "43e1659c381cfca4e31738c353713f6e00666ef25e75911a2696219abce54e14",
-                "size": 830,
+                "digest": "e46d5731a5d877f634d562924c48811c1af2225daf6f095802fd8cfdf5f16f45",
+                "size": 1534,
                 "mediaType": "application/json"
             },
             {
                 "path": "src/declare/index.ts",
-                "digest": "e31da25d4e73893f965a4e22afc5c29856affa055e03e8c47c997fd070eb6a09",
-                "size": 220,
+                "digest": "81b36bfb7c33c896a72ce87a65e09fde35c969ee05180c6f8a0fed8d364fd26a",
+                "size": 195,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/declare/installation.ts",
-                "digest": "2ca3669e9d5b80a42a075fc4bca2b0d02dfe2e99ad761fb2853f93797cde7205",
-                "size": 5103,
+                "digest": "03431ef493702991074d5ba2268e06046e9fe7c7b4f0c26d07929b9940429231",
+                "size": 5173,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/declare/permission.ts",
-                "digest": "87771a7cf57cf9a2a0d04e4432d162bc156ed873d86f04a4c4875b3777a6b365",
-                "size": 3272,
+                "digest": "f39d364fbf7bc28a39df0430057c4fc5a63cfdc7b82f0cd8f8cf628290b1f913",
+                "size": 3416,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/declare/resource.ts",
-                "digest": "890b70fec845b79cfd0684aa6840823484e00167e75262570ea04405b1f911a4",
-                "size": 3308,
+                "digest": "7bd12787550ec079f735473cc72c029abcd87419c60e08dafa3540de976e45c9",
+                "size": 3172,
                 "mediaType": "application/octet-stream"
             },
             {
-                "path": "src/declare/route.ts",
-                "digest": "9471aa3617ed1b7b65437fc177f12187d6dba88e9fdd0999d7a1bd26fd49a12b",
-                "size": 1667,
-                "mediaType": "application/octet-stream"
-            },
-            {
-                "path": "src/declare/source.ts",
-                "digest": "e57b0f085a095eabccc306db90f457d855229d37e3a29bb5d284a34729ed2a45",
-                "size": 3096,
+                "path": "src/declare/selection.ts",
+                "digest": "5970030567d46e59dca74a0f67b562ccc38f4422a99d5a6b0ccf35a5edf51b9d",
+                "size": 3668,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/declare/space.ts",
-                "digest": "a315de829bf7f284dca05ec6fcd06d77230ff624b24c0711de43c537111f0106",
-                "size": 6547,
+                "digest": "f90a8145a8129688f162f64c0140fd490d2f1e895671db1446037396e0feb004",
+                "size": 2623,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/error/error.ts",
-                "digest": "d1ff2d7fa9e6b25feaa0e059c85b8e0b7e69b871511c3d4c4d498a47fe42609b",
-                "size": 384,
+                "digest": "8fd61297df3fd17c27953b6394656c62433a0120fc31a2e359b3209c29c1c011",
+                "size": 566,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -905,14 +1613,286 @@
             },
             {
                 "path": "src/policy/package.ts",
-                "digest": "b7b30ed99945d49be8c1efbecd992d80d881ca3fc4a7107fa04fdd67488adf9c",
-                "size": 2648,
+                "digest": "980b42ab8c7476c96e50b36324a7650808281f60f3c647dfe56f388aa07f3d42",
+                "size": 2664,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/policy/policy.ts",
-                "digest": "da7fc7592373a2f5b47276ad1dbb6b1b39a040842354bb868ab223b4eec3999f",
-                "size": 1531,
+                "digest": "8ef170e8af47bb00cbfd7cddea29a7a3348cafceea826f2f0ab7db2458f04271",
+                "size": 1518,
+                "mediaType": "application/octet-stream"
+            }
+        ]
+    },
+    "@destack/sync@2026.9.0": {
+        "kind": "source",
+        "package": {
+            "id": "package-01a0d8d9-b82d-7100-8445-a0a43b3cfeb7",
+            "name": "@destack/sync",
+            "version": "2026.9.0"
+        },
+        "files": [
+            {
+                "path": "destack.json",
+                "digest": "d4f1008dd8429c80d0c1eac6bf89aa8daabd8bbcb4fc1abcf52ac1b05e457177",
+                "size": 176,
+                "mediaType": "application/json"
+            },
+            {
+                "path": "package.json",
+                "digest": "3e2f54c4486dd02abb0d6cf8a8dc3922ba7c69d738078fe132360a1442d00b36",
+                "size": 697,
+                "mediaType": "application/json"
+            },
+            {
+                "path": "src/dataflow/aggregation.ts",
+                "digest": "e2ef08df2914b816f85139d8394e70f3baa3bf047223e85a156df8cbaad4074a",
+                "size": 30972,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/dataflow/dataflow.ts",
+                "digest": "7b80e75a487c476f777d03b406ee841e3a96dd75cf9f8a7d2207f21ad8d28419",
+                "size": 30896,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/dataflow/filter.ts",
+                "digest": "fd9d0007203876b0dfbf9a4adc113b73e4a908d181939707e5d34d16783725df",
+                "size": 6256,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/dataflow/index.ts",
+                "digest": "7b30374edd80fdb9ba5cb0042b4ec0087bca991a8b8b7cc3c3bc6f60bc1a682a",
+                "size": 201,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/dataflow/input.ts",
+                "digest": "b92de101a767123e48da83fc7bb4778f4d46870311aec3db1a6606e3cb4c4c93",
+                "size": 21638,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/dataflow/pipeline.ts",
+                "digest": "510f4c9a333b40672c180a019666ac9ee6c775ec97832f406379637f4032ba51",
+                "size": 12510,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/dataflow/run.ts",
+                "digest": "3249389f0c7fae8b51cf1748e8c14e9097d2ee55d19e4aac084dba3258457f05",
+                "size": 6814,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/dataflow/selection.ts",
+                "digest": "88263bb34be08f870a082417e3565c89b1aff548149279f6bf3aea86412119a8",
+                "size": 21370,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/dataflow/sink.ts",
+                "digest": "d420040983f6fac7862f9d6bb390d2da2a55652cd9853db20464c01190989fc6",
+                "size": 10288,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/dataflow/tally.ts",
+                "digest": "b3b5467e78564c0c0ec826788e7faa72a76418a8b98f694a74a8f8005fc10e95",
+                "size": 17031,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/dataflow/upstream.ts",
+                "digest": "b37fa5d8d76992a33f67ce7fdc392d8e58244ac9a244ea7528282bcef4c031b5",
+                "size": 8388,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/dataflow/view.ts",
+                "digest": "73f83c354ecd591c8d511d9e4aa762165c1ea1a044608b3106efb10d662fc103",
+                "size": 16643,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/dataflow/window.ts",
+                "digest": "71f10090c0d1557c91863afa7c27d2179ebf4abbd038f8f05a896b65be430310",
+                "size": 9434,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/error/error.ts",
+                "digest": "fbb78ee6129c55fa3774d57a39259c5209fbfb6d93a698fc79353a2d7f7947aa",
+                "size": 497,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/error/index.ts",
+                "digest": "5204d010b810dc6f9157b5fab6bd757fc5a6f64ff938adfabe11152bd1c6ac48",
+                "size": 28,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/feed/audience.ts",
+                "digest": "ea0d0d18b809850fe0d8a036e71b16a9cd76fd080219af3518738734f1a3c5c9",
+                "size": 3137,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/feed/evaluation.ts",
+                "digest": "dae31e405124769ea96704455addb24d790c499096c5522a02697f36f04a7108",
+                "size": 14284,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/feed/feed.ts",
+                "digest": "37dd0acc42867845f4a9dc09d6dbfeb5bafacde122657d63ee6e663bcbf556c3",
+                "size": 24437,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/feed/index.ts",
+                "digest": "f8195d1279e07081ec437e9cc1e6bc561260ae70da2b7f1775bb04f4401f75a9",
+                "size": 58,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/feed/stream.ts",
+                "digest": "ec8638947e018ba1581551751bd8d6084cf5709b0207dfbbf8727ab564155352",
+                "size": 15570,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/index.ts",
+                "digest": "9402697981c543fbf41e7ea10c01a2fceb0e7f376838405f6a22546600ca62be",
+                "size": 209,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/outbox/index.ts",
+                "digest": "98e8a6254507fb46a2e6f66d793975eb47f4f2df8e3dae7bd608ec8846add01e",
+                "size": 29,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/outbox/outbox.ts",
+                "digest": "235985ce127df3232d3f0acc9d3eaee08d83993237581583c6b85bd5d2210428",
+                "size": 14363,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/query/index.ts",
+                "digest": "ba92549e291d6dd10d5cd70e4455dcf447ce58b0b613c0e2b18e045f5a3dc72a",
+                "size": 106,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/query/node.ts",
+                "digest": "fcb6c44e6d1f41fa31c26e03b438efb86a2149b2c3e2d007cfb4c310a5f7ed07",
+                "size": 34334,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/query/page.ts",
+                "digest": "aee477c460b576c55b3c8449ad3c255da32d078595bd237c06060fb4d95ba838",
+                "size": 4127,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/query/query.ts",
+                "digest": "5e791047489ba8aed8e5cd2dfd3bc60d40b842952065d840281030a83d356e4c",
+                "size": 4905,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/replica/index.ts",
+                "digest": "adc937fbdae8dfaff8461487ac99387b36063f2e220a57fe39555558420a8f70",
+                "size": 30,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/replica/replica.ts",
+                "digest": "2382c921805de2be0e3f41965e810e0d7fac932d5445a7f20f033d8cfdb9b353",
+                "size": 42633,
+                "mediaType": "application/octet-stream"
+            }
+        ]
+    },
+    "@destack/telemetry@2026.9.0": {
+        "kind": "source",
+        "package": {
+            "id": "package-01a0c80b-614f-73ef-ba8b-b65e3579f3d0",
+            "name": "@destack/telemetry",
+            "version": "2026.9.0"
+        },
+        "files": [
+            {
+                "path": "destack.json",
+                "digest": "3491dffb14e41acf35f1f4e3908622947e1d746cc05d152636b6d608b34d6c66",
+                "size": 605,
+                "mediaType": "application/json"
+            },
+            {
+                "path": "package.json",
+                "digest": "a0aa4927b6dd8a78b38d6e2c6981a6f52b93629ebd9fed7f01753f566f3f04fc",
+                "size": 1673,
+                "mediaType": "application/json"
+            },
+            {
+                "path": "src/api/index.ts",
+                "digest": "9f21136a6d1bf7b1166e7b095aaf44ff7fdd9a54081fb2a5693a10c4cd301ee6",
+                "size": 1203,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/context/context.ts",
+                "digest": "ab5d85369babf9aff3b4683bb5ef9eefb34b8f97ed7d48e8abff9eeec74610ef",
+                "size": 873,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/context/index.ts",
+                "digest": "25a434d6b6acaf12118f5e17229649a51943518c6da53888c430be74b7fe7127",
+                "size": 250,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/context/source.ts",
+                "digest": "d60f588e531319884e9cdbafdc9393c040e037342b6b2d8c5465feef8c272b58",
+                "size": 648,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/convention/source.ts",
+                "digest": "a17d03069a784c58c3bc4dbc887199694c63df1760f4eb89bd04605eb34c2dfb",
+                "size": 396,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/index.ts",
+                "digest": "7ea93eb1e787b410c6af22f53d803078f5a8c3731a28fa5810dde27a78fe1c25",
+                "size": 154,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/inspect/source.ts",
+                "digest": "61a6e5af65b86e5bebb50a34b8fc630003b204193facead0531d2489ceddab71",
+                "size": 1384,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/scope/index.ts",
+                "digest": "4b82518ba77df41343f32e3f22ce3aaed050dc9e4c7f2439b7b9224809214b8e",
+                "size": 28,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/scope/scope.ts",
+                "digest": "dd71787778b6d4d22258d254d168636008616892f49471d475ad5c79619df2f4",
+                "size": 884,
                 "mediaType": "application/octet-stream"
             }
         ]
@@ -933,9 +1913,21 @@
             },
             {
                 "path": "package.json",
-                "digest": "6a1db0a28f736817b6364e292233bd32273df955a7bc8bff845766cc9072a0ad",
-                "size": 976,
+                "digest": "eda8900ce7894ca5deb9d50bf49895be101ea7aaf4f377b6a968bc088535eca9",
+                "size": 981,
                 "mediaType": "application/json"
+            },
+            {
+                "path": "src/account/account.ts",
+                "digest": "78baaee359c49928cdb763382a60c076d5c20b66eba42d25e46602f64827a4c3",
+                "size": 230,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/account/index.ts",
+                "digest": "cc3c6f7ac58acde5d77dd10becb9fb8a293a88cc7f2e42482e731d9cbc5ee771",
+                "size": 30,
+                "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/bucket/bucket.ts",
@@ -951,8 +1943,8 @@
             },
             {
                 "path": "src/database/database.ts",
-                "digest": "e8c2565b172fde3526c2f86319312d8e0088116cfb1f1331d208732084af9f7d",
-                "size": 190,
+                "digest": "47e47adae82bcd0eaada6321474242c03fcf81d1fe362af1bd6ca7f3573f3809",
+                "size": 182,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -963,8 +1955,8 @@
             },
             {
                 "path": "src/index.ts",
-                "digest": "459597b7955be6facef619622bff59ec224c54bc5bebe0ed317e8e6c03b61088",
-                "size": 141,
+                "digest": "e78b663e9e3e5103f1d3342b5bb4ae479fc384d98d9981190cc62d8e0e5d819c",
+                "size": 211,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -977,6 +1969,18 @@
                 "path": "src/policy/policy.ts",
                 "digest": "b9f2fd2eb8607eccb59891ef86aae262b8a0145d1f4e2edc9de015e1270fe581",
                 "size": 912,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/space/index.ts",
+                "digest": "0301a854e9546d64eb6775bc3faf5a810428070fa9dc5464e41511528026d250",
+                "size": 28,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/space/space.ts",
+                "digest": "a83af433cf8be51aa7f50eb45475e7f742ec5232768b57c7bf66510dd6be5e78",
+                "size": 647,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -1003,26 +2007,32 @@
         "files": [
             {
                 "path": "destack.json",
-                "digest": "b06f0a50b16b784f039b7cc0b780154cd5b86e9ab68ff648312395209b30df95",
-                "size": 439,
+                "digest": "745e55031ae746d2d897628ed88e274d05d0586b67d1f6ac5da8f568f6b666d0",
+                "size": 1422,
                 "mediaType": "application/json"
             },
             {
                 "path": "package.json",
-                "digest": "2a98dfa8c2bd0f94885f25172062a14a9892dfdadac21abc0970bb5cc2c1825c",
-                "size": 1454,
+                "digest": "c96d58a333a1765f556eeef76873c3f84f55ce2952e0fbac08c83f9b75299f7e",
+                "size": 1641,
                 "mediaType": "application/json"
             },
             {
                 "path": "src/declare/index.ts",
-                "digest": "104187b4b5f33d9316f8f26a5361165cf9f4262e438e351497b62b55d26bc755",
-                "size": 57,
+                "digest": "6aa7f599ea2681e3394d23c25a657369f0965cb96846fdb5f83a8ffb6e7732ae",
+                "size": 85,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/declare/secret.ts",
                 "digest": "fbcea8daef81bcf6c3b2b134c447621112460ed226d38e5f2141c17a4a9d63e8",
                 "size": 2050,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/declare/space.ts",
+                "digest": "4ccfa87c587e7f0414a73867a92a80a0aa418ef19808509332ebe6781055dafe",
+                "size": 873,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -1033,6 +2043,87 @@
             }
         ]
     },
+    "@opentelemetry/api-logs@0.222.0": {
+        "kind": "npm",
+        "package": {
+            "name": "@opentelemetry/api-logs",
+            "version": "0.222.0"
+        },
+        "registry": "https://registry.npmjs.org/",
+        "integrity": "sha512-9mb1If+IF6u0ZVXkHQ6ogEae5HwA6ajIVUgpSDQyRASxft6BSXHvBvPooRle3yFN/fKnCdSOnuu0OC3PLcF6+g=="
+    },
+    "@opentelemetry/api@1.9.1": {
+        "kind": "npm",
+        "package": {
+            "name": "@opentelemetry/api",
+            "version": "1.9.1"
+        },
+        "registry": "https://registry.npmjs.org/",
+        "integrity": "sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q=="
+    },
+    "@opentelemetry/core@2.11.0": {
+        "kind": "npm",
+        "package": {
+            "name": "@opentelemetry/core",
+            "version": "2.11.0"
+        },
+        "registry": "https://registry.npmjs.org/",
+        "integrity": "sha512-7YP44XH0tV6+Mb54x2YGf84i7yi+31MBZlE8JwvozkxyTvXbSp10X7cI7YE49ChJ3shMJoBmCJF3+1QFBJctGA=="
+    },
+    "@opentelemetry/semantic-conventions@1.43.0": {
+        "kind": "npm",
+        "package": {
+            "name": "@opentelemetry/semantic-conventions",
+            "version": "1.43.0"
+        },
+        "registry": "https://registry.npmjs.org/",
+        "integrity": "sha512-eSYWTm620tTk45EKSedaUL8MFYI8hW164hIXsgIHyxu3VobUB3fFCu5t0hQby6OoWRPsG1KkKUG2M5UadiLiVg=="
+    },
+    "@orpc/client@1.15.1": {
+        "kind": "npm",
+        "package": {
+            "name": "@orpc/client",
+            "version": "1.15.1"
+        },
+        "registry": "https://registry.npmjs.org/",
+        "integrity": "sha512-EDGNwG7+0/yYB64s8hmxwRg3HA4lECwgn/UOv/OzMoke8d3Gk1ZwU5BnzUNj29VWnmW0hrLPn1fwx/umRFZMdg=="
+    },
+    "@orpc/contract@1.15.1": {
+        "kind": "npm",
+        "package": {
+            "name": "@orpc/contract",
+            "version": "1.15.1"
+        },
+        "registry": "https://registry.npmjs.org/",
+        "integrity": "sha512-iXVEEjooewmEkyrDLeWHY3vKYq67htdUQjCDLx0MoiqA0NFFVv6sZ1LNj/tPWZ1p5Mca34xcAx1SwYZcchQ/xA=="
+    },
+    "@orpc/shared@1.15.1": {
+        "kind": "npm",
+        "package": {
+            "name": "@orpc/shared",
+            "version": "1.15.1"
+        },
+        "registry": "https://registry.npmjs.org/",
+        "integrity": "sha512-ovITuaYp79d45ER+93wqtqMJRtbiwB/WdemqX6G+OxzoduCZVodxWMMsalteduKxvZZmiAF+tHZuRq5P4uPp9w=="
+    },
+    "@orpc/standard-server-fetch@1.15.1": {
+        "kind": "npm",
+        "package": {
+            "name": "@orpc/standard-server-fetch",
+            "version": "1.15.1"
+        },
+        "registry": "https://registry.npmjs.org/",
+        "integrity": "sha512-Luu0SnppLs4JHj/eg9erhIDajrAPL3+B0Gl3Xwn54tBa38GK3sAx7cXW3KEYi6ostfxYDCpWZToCJ/taNdcT5w=="
+    },
+    "@orpc/standard-server@1.15.1": {
+        "kind": "npm",
+        "package": {
+            "name": "@orpc/standard-server",
+            "version": "1.15.1"
+        },
+        "registry": "https://registry.npmjs.org/",
+        "integrity": "sha512-9DapOKyrEWqIAWQ0iZRTJ+AG7W70YXKhOBwlIlVv9ip7GeBytEcwghNtezNvIW5xwchkiCpNjSE91bW3Iw2txw=="
+    },
     "drizzle-orm@1.0.0-rc.4": {
         "kind": "npm",
         "package": {
@@ -1041,6 +2132,24 @@
         },
         "registry": "https://registry.npmjs.org/",
         "integrity": "sha512-BT+pf+qoiYHqltoA88Jmf6ilGMXPlpfE0hEJKc2adRtMCAl25Swk/t5gXcWxZNAwdtf3F5gCd2FpeOyP/pT0Hw=="
+    },
+    "radash@12.1.1": {
+        "kind": "npm",
+        "package": {
+            "name": "radash",
+            "version": "12.1.1"
+        },
+        "registry": "https://registry.npmjs.org/",
+        "integrity": "sha512-h36JMxKRqrAxVD8201FrCpyeNuUY9Y5zZwujr20fFO77tpUtGa6EZzfKw/3WaiBX95fq7+MpsuMLNdSnORAwSA=="
+    },
+    "uuid@14.0.2": {
+        "kind": "npm",
+        "package": {
+            "name": "uuid",
+            "version": "14.0.2"
+        },
+        "registry": "https://registry.npmjs.org/",
+        "integrity": "sha512-xZe/16rV4aa+HGSOCiY2YeLT1OybRLrrkL/Rqaq7p7GMVXjFh+6wN4oMYgjFmnSnhY8t6Xpdl2l9qmnHYuMHwQ=="
     },
     "zod@4.6.5": {
         "kind": "npm",

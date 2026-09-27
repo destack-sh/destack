@@ -36,10 +36,10 @@
             "isTypeOnly": false
         },
         {
-            "name": "notes",
+            "name": "note",
             "symbol": {
                 "module": "src/database.ts",
-                "name": "notes"
+                "name": "note"
             },
             "isTypeOnly": false
         }

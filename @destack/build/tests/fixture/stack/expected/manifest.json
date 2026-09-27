@@ -8,50 +8,11 @@
     "language": "typescript",
     "dependencies": {
         "path": "manifest/dependencies.json",
-        "digest": "ef0a6e87c660bbab5908182c9a1fd2264f217293e70d2ba58548aebd286e6867",
-        "size": 42765,
+        "digest": "999e2901e91e955fd26aa9f7867081688f9c51b6266137b4b925625a6066aa17",
+        "size": 88817,
         "mediaType": "application/json"
     },
     "descriptions": {
-        "bucket": {
-            "package": {
-                "id": "package-01a0c80b-614e-73a0-82d0-e8fa51e85a5b",
-                "name": "@destack/bucket",
-                "version": "2026.9.0"
-            },
-            "file": {
-                "path": "manifest/bucket.json",
-                "digest": "5af585cec22edb8ad8dfddd59475f512a1d0a542f44c3e40d5c8d272155fa238",
-                "size": 1040,
-                "mediaType": "application/json"
-            }
-        },
-        "db": {
-            "package": {
-                "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
-                "name": "@destack/db",
-                "version": "2026.9.0"
-            },
-            "file": {
-                "path": "manifest/db.json",
-                "digest": "5afe5ee3fdc052e6c2aacf8ac133c0acfe1b1177a7538682ddf9b85884fa3210",
-                "size": 1100,
-                "mediaType": "application/json"
-            }
-        },
-        "vault": {
-            "package": {
-                "id": "package-01a0c80b-614d-75a9-a76d-357d71d330a6",
-                "name": "@destack/vault",
-                "version": "2026.9.0"
-            },
-            "file": {
-                "path": "manifest/vault.json",
-                "digest": "29d080c9492d1983a25934ead68e0acb49b06f9ecdc21e883e3347a1e016ba5c",
-                "size": 1050,
-                "mediaType": "application/json"
-            }
-        },
         "setting": {
             "package": {
                 "id": "package-019f5530-8000-7000-8000-000000000001",
@@ -60,34 +21,21 @@
             },
             "file": {
                 "path": "manifest/setting.json",
-                "digest": "187aa5c90b691d5052361bf712eb23c92a5490bd6e4569bf6f82bb8302068de6",
-                "size": 4261,
+                "digest": "9bb21dcf3a90b468c0ef1657c4e4342729024def1d9afb882d74721b7a3126d2",
+                "size": 1638,
                 "mediaType": "application/json"
             }
         },
-        "model": {
+        "account": {
             "package": {
-                "id": "package-01a0c80b-614f-73f3-b32b-12779e5cd20a",
-                "name": "@destack/model",
+                "id": "package-01a0c80b-614c-76c1-90c6-f83bdcd72b32",
+                "name": "@destack/account",
                 "version": "2026.9.0"
             },
             "file": {
-                "path": "manifest/model.json",
-                "digest": "91187a02826a0d24c9cfdc189e1d4b714eec25243a7224952b2a6fb43b258cbe",
-                "size": 1021,
-                "mediaType": "application/json"
-            }
-        },
-        "access": {
-            "package": {
-                "id": "package-01a0c80b-614e-739e-a21a-66fd749e17ca",
-                "name": "@destack/access",
-                "version": "2026.9.0"
-            },
-            "file": {
-                "path": "manifest/access.json",
-                "digest": "d2deb7f5777cbba91a4aebcfc4a1c99af0c1e686dbad697ecf3ec51040a773a2",
-                "size": 1407,
+                "path": "manifest/account.json",
+                "digest": "3d7022a43ab446cae70c85a7cfb71103aa41dccceccdef3278bd23b2a7f2ab1c",
+                "size": 1023,
                 "mediaType": "application/json"
             }
         },
@@ -99,8 +47,8 @@
             },
             "file": {
                 "path": "manifest/space.json",
-                "digest": "560d34878d77e6f23ca0d5905c19c905ca0b879c06b5b4fa85e4476b6195e831",
-                "size": 2388,
+                "digest": "3bace0000280c14f0fd41ed4f9c19da637931e7a732dfdd4c829986bdb0f085b",
+                "size": 3247,
                 "mediaType": "application/json"
             }
         }
@@ -112,24 +60,10 @@
             "emit": true,
             "workloads": {},
             "descriptions": {
-                "bucket": [
-                    0
-                ],
-                "db": [
-                    0
-                ],
-                "vault": [
-                    0
-                ],
                 "setting": [
-                    0,
-                    1,
-                    2
-                ],
-                "model": [
                     0
                 ],
-                "access": [
+                "account": [
                     0
                 ],
                 "space": [
@@ -138,20 +72,20 @@
             },
             "directory": "output/stack",
             "exports": {
-                ".": "output/stack/index-D6Ta5ZhB.js"
+                ".": "output/stack/index-BDHUuIZY.js"
             },
             "dependencies": {}
         }
     },
     "files": {
         "path": "manifest/files.json",
-        "digest": "395a7db2c53ce8639705171b382a495b4a5f08f86a5ce2def40a40621309f45d",
+        "digest": "7f7c66411e8a8870d5129a756c43f0fe02c2904f59cf2734f83de1a17c3f7093",
         "size": 3458,
         "mediaType": "application/json"
     },
     "sourceMaps": {
         "path": "manifest/sourceMaps.json",
-        "digest": "023adc92d3791225e9fd6a615adf7faaf7dfe7cf415b6ff91dda653aed2caa7a",
+        "digest": "1313d5da02f8dd35c8cba40c6466fe41b240fa4dd5aa9724cb63aafb57354b00",
         "size": 123,
         "mediaType": "application/json"
     }

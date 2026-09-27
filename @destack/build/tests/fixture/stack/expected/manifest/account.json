@@ -4,8 +4,8 @@
         "kind": "account",
         "constructor": {
             "package": {
-                "id": "package-01a0c80b-614f-73f3-b32b-12779e5cd20a",
-                "name": "@destack/model",
+                "id": "package-01a0c80b-614c-76c1-90c6-f83bdcd72b32",
+                "name": "@destack/account",
                 "version": "2026.9.0"
             },
             "symbol": {
@@ -26,7 +26,7 @@
         },
         "source": {
             "file": "src/stack.ts",
-            "line": 54,
+            "line": 24,
             "column": 23
         },
         "description": {

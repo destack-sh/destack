@@ -13,7 +13,7 @@ import { PackageBuild } from "../build/build.ts";
 import { describeFile } from "@destack/package/file";
 import { openPackage, type PackageLocation } from "@destack/package/manifest";
 import { Server } from "@destack/service/server";
-import { hosting, createCaller } from "./tests/fixture.ts";
+import { hosting, createCaller, openAccess } from "./tests/fixture.ts";
 
 test("inspect and build authorized source through the service", async () => {
     const fixture = new URL("../../tests/fixture/library/", import.meta.url);
@@ -28,6 +28,7 @@ test("inspect and build authorized source through the service", async () => {
 
     // resolve client references before exposing source to the compiler
     await using resources = new AsyncDisposableStack();
+    await using opened = await openAccess();
     const service = implementService(
         {
             limits: {
@@ -89,7 +90,7 @@ test("inspect and build authorized source through the service", async () => {
                 },
             },
         },
-        hosting,
+        { access: opened.access, audit: async () => {} },
         resources,
     );
     let owner = "alice";

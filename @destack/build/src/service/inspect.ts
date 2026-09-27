@@ -1,7 +1,7 @@
 import { schema } from "@destack/schema";
+import * as policy from "../access/index.ts";
 import { PackageInspection } from "@destack/package/inspect";
 import { defineProcedure } from "@destack/service";
-import type {} from "@destack/package/import-meta";
 
 /** Select source and a named compiler configuration for inspection. */
 export const InspectRequest = schema.object({
@@ -17,11 +17,7 @@ export type InspectRequest = schema.Infer<typeof InspectRequest>;
 /** Inspect source through the same isolated toolchain used for builds. */
 export const inspect = defineProcedure({
     authentication: "identity",
-    permission: {
-        packageId: import.meta.destack.package.id,
-        type: "build",
-        name: "inspect",
-    },
+    permission: policy.build.permission("inspect"),
     audit: true,
 })
     .route({ method: "POST", path: "/inspect" })

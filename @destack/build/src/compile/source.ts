@@ -99,7 +99,7 @@ export function mapSource(
     const absolute = resolve(dirname(map), source);
     const location = locations.get(absolute);
     if (!location) {
-        throw new BuildError("BUILD_FAILED", `Unknown source map input: ${source}`);
+        throw new BuildError("BUILD_FAILED", `unknown source map input: ${source}`);
     }
     if (location.package) {
         return `package:${location.package}/${location.path}`;

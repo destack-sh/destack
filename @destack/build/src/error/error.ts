@@ -8,7 +8,7 @@ export type BuildErrorCode = schema.Infer<typeof BuildErrorCode>;
 
 /** A build failure with its original cause. */
 export class BuildError extends Error {
-    /** Stable failure code. */
+    /** The stable failure code. */
     readonly code: BuildErrorCode;
 
     /** Create a build failure. */
@@ -16,5 +16,19 @@ export class BuildError extends Error {
         super(message, options);
         this.name = "BuildError";
         this.code = code;
+    }
+
+    /** Report a failed bundle by the messages of its errors, keeping the bundler's error as cause. */
+    static fromBundle(error: unknown): BuildError {
+        // read the errors a Rolldown bundle failure aggregates
+        const errors = error instanceof Error && "errors" in error ? error.errors : undefined;
+        if (!Array.isArray(errors) || errors.length === 0) {
+            const message = error instanceof Error ? error.message : String(error);
+
+            return new BuildError("BUILD_FAILED", message, { cause: error });
+        }
+        const messages = errors.map((entry: { readonly message: string }) => entry.message);
+
+        return new BuildError("BUILD_FAILED", messages.join("\n"), { cause: error });
     }
 }

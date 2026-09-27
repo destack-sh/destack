@@ -1,15 +1,10 @@
 import { defineSpace, install } from "@destack/space";
 import stack from "./package.ts";
 import type {} from "@destack/package/import-meta";
-import { defineAccount } from "@destack/model/declare";
-import { defineObject, relation } from "@destack/access";
+import { defineAccount } from "@destack/account/declare";
 import { database } from "@destack/template-stack";
-import {
-    defineSetting,
-    defineSettingAssignment,
-    defineSettingPolicy,
-} from "@destack/setting/declare";
-import { schema, identifier } from "@destack/schema";
+import { defineSetting } from "@destack/setting/declare";
+import { schema } from "@destack/schema";
 
 /** Describe a shared setting without reading runtime values. */
 export const language = defineSetting({
@@ -23,44 +18,11 @@ export const language = defineSetting({
     apply: "immediate",
 });
 
-/** Configure the same declared value through typed source authoring. */
-export const languageAssignment = defineSettingAssignment(
-    language,
-    {
-        kind: "space",
-        location: {
-            spaceId: identifier("space").parse("space-019f5530-8000-7000-8000-000000000003"),
-        },
-    },
-    "de",
-);
-
-/** Describe a recommendation independently of the persisted assignment. */
-export const languagePolicy = defineSettingPolicy(
-    language,
-    {
-        authority: {
-            kind: "space",
-            spaceId: identifier("space").parse("space-019f5530-8000-7000-8000-000000000003"),
-        },
-        mode: "recommended",
-    },
-    "en",
-);
-
 /** Reuse the database declaration from the shared stack package. */
 export { database } from "@destack/template-stack";
 
 /** Declare environments independently of the destination space. */
 export const account = defineAccount({ environments: { development: {}, production: {} } });
-
-/** Declare inspectable application permissions. */
-export const note = defineObject({
-    name: "note",
-    attributes: {},
-    relations: { owner: { kind: "subject", subjects: ["user"] } },
-    permissions: { read: relation("owner") },
-});
 
 /** Configure a space without provisioning resources during compilation. */
 export const personal = defineSpace({
@@ -69,5 +31,9 @@ export const personal = defineSpace({
     },
     installations: {
         notes: install(stack, { main: "main" }),
+    },
+    settings: {
+        language: { setting: language, value: "de", mode: "set" },
+        "language-policy": { setting: language, value: "en", mode: "recommend" },
     },
 });

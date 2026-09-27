@@ -22,7 +22,7 @@ import { describeFile } from "@destack/package/file";
 import type { TestDeclaration } from "@destack/test/inspect";
 import { inspectErrors } from "@destack/check/inspect";
 import { collectTests } from "./test.ts";
-import { collectDeclarations } from "./declaration.ts";
+import { collectDeclarations, ConstructorCatalog } from "./declaration.ts";
 import type { DeclarationExport } from "../declaration/declaration.ts";
 import { collectGlobals } from "./global.ts";
 import { collectDirectories, type DirectoryReference } from "./directory.ts";
@@ -53,6 +53,7 @@ export async function describeProject(
     const tests: TestDeclaration[] = [];
     const declarations: DeclarationExport[] = [];
     const directories = new Map<string, DirectoryReference[]>();
+    const catalog = new ConstructorCatalog();
 
     // queue declarations reached through exports and public types
     const pending = new Map<number, TypeScriptSymbol>();
@@ -75,7 +76,7 @@ export async function describeProject(
     const runtime = await collectRuntimeFiles(project, files);
     const sourceFiles = new Map<string, SourceFile>();
 
-    // preserve domain declarations imported from shared source packages
+    // read authored modules and the directory references of every source module
     for (const file of fileNames) {
         if (!authored.has(file) && /\.d\.[cm]?ts$/.test(file)) {
             continue;
@@ -83,7 +84,7 @@ export async function describeProject(
         const source = await project.program.getSourceFile(file);
         if (authored.has(file)) {
             if (!source) {
-                throw new BuildError("INSPECTION_FAILED", `Missing compiler source: ${file}`);
+                throw new BuildError("INSPECTION_FAILED", `missing compiler source: ${file}`);
             }
             sourceFiles.set(file, source);
         }
@@ -97,14 +98,16 @@ export async function describeProject(
             directories.set(file, references);
         }
 
-        // associate domain declarations with their declaring package
-        const owner = await modulePackage(dirname(file));
-        const path = relative(owner.directory, file).split(sep).join("/");
-        const cases = await collectTests(source, path, project);
-        if (runtime.has(file)) {
-            declarations.push(...(await collectDeclarations(source, path, project, owner, cases)));
-        }
+        // describe the package's own declarations and tests, leaving dependencies to their manifests
         if (authored.has(file)) {
+            const owner = await catalog.locate(dirname(file));
+            const path = relative(owner.directory, file).split(sep).join("/");
+            const cases = await collectTests(source, path, project);
+            if (runtime.has(file)) {
+                declarations.push(
+                    ...(await collectDeclarations(source, path, project, owner, catalog, cases)),
+                );
+            }
             tests.push(...cases);
         }
     }
@@ -118,7 +121,7 @@ export async function describeProject(
         const bytes = new Uint8Array(await readFile(file));
         const text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
         if (text !== source.text) {
-            throw new BuildError("INSPECTION_FAILED", `Source changed during inspection: ${path}`);
+            throw new BuildError("INSPECTION_FAILED", `source changed during inspection: ${path}`);
         }
 
         // register every module before following references between declarations
@@ -131,7 +134,7 @@ export async function describeProject(
             length: source.text.length,
             imports: source.imports.map((entry) => {
                 if (!isStringLiteral(entry) && !isNoSubstitutionTemplateLiteral(entry)) {
-                    throw new BuildError("INSPECTION_FAILED", `Unsupported import in ${path}`);
+                    throw new BuildError("INSPECTION_FAILED", `unsupported import in ${path}`);
                 }
 
                 return entry.text;
@@ -161,7 +164,7 @@ export async function describeProject(
             if (await project.checker.isUnknownSymbol(original)) {
                 throw new BuildError(
                     "INSPECTION_FAILED",
-                    `Unresolved export: ${module.path}#${exported.name}`,
+                    `unresolved export: ${module.path}#${exported.name}`,
                 );
             }
 
@@ -181,7 +184,7 @@ export async function describeProject(
     for (const symbol of pending.values()) {
         const reference = await describeSymbol(symbol, project, root, modules, pending);
         if (!("module" in reference)) {
-            throw new BuildError("INSPECTION_FAILED", "Queued an external declaration.");
+            throw new BuildError("INSPECTION_FAILED", "queued an external declaration");
         }
         const description = await inspector.describe(symbol, reference.name);
         modules.get(reference.module)!.symbols.push(description);
@@ -271,7 +274,7 @@ async function isRuntimeExport(
     for (const handle of exported.declarations) {
         const declaration = await handle.resolve(project);
         if (!declaration) {
-            throw new BuildError("INSPECTION_FAILED", `Unresolved export declaration: ${key}`);
+            throw new BuildError("INSPECTION_FAILED", `unresolved export declaration: ${key}`);
         }
         if (declaration.getSourceFile().fileName !== source.fileName) {
             continue;
@@ -307,7 +310,7 @@ async function isRuntimeExport(
         if (!target) {
             throw new BuildError(
                 "INSPECTION_FAILED",
-                `Unresolved export module: ${statement.moduleSpecifier.getText()}`,
+                `unresolved export module: ${statement.moduleSpecifier.getText()}`,
             );
         }
 
@@ -331,7 +334,7 @@ async function isRuntimeExport(
         if (!declaration) {
             throw new BuildError(
                 "INSPECTION_FAILED",
-                `Unresolved module declaration: ${target.name}`,
+                `unresolved module declaration: ${target.name}`,
             );
         }
         if (await isRuntimeExport(project, declaration.getSourceFile(), candidate, visited)) {
@@ -357,7 +360,7 @@ async function describeSymbol(
             if (!node) {
                 throw new BuildError(
                     "INSPECTION_FAILED",
-                    `Unresolved source declaration: ${symbol.name}`,
+                    `unresolved source declaration: ${symbol.name}`,
                 );
             }
 
@@ -367,7 +370,7 @@ async function describeSymbol(
     if (!nodes.length) {
         throw new BuildError(
             "INSPECTION_FAILED",
-            `Export has no source declaration: ${symbol.name}`,
+            `export has no source declaration: ${symbol.name}`,
         );
     }
 
@@ -420,7 +423,7 @@ async function describeSymbol(
     if (!module) {
         throw new BuildError(
             "INSPECTION_FAILED",
-            `Declaration belongs to an unknown module: ${path}`,
+            `declaration belongs to an unknown module: ${path}`,
         );
     }
     pending.set(symbol.id, symbol);
@@ -438,7 +441,7 @@ async function declarationName(symbol: TypeScriptSymbol, project: Project): Prom
         if (!declaration) {
             throw new BuildError(
                 "INSPECTION_FAILED",
-                `Unresolved declaration parent: ${parent.name}`,
+                `unresolved declaration parent: ${parent.name}`,
             );
         }
         if (declaration.kind === SyntaxKind.SourceFile) {

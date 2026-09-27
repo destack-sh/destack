@@ -17,7 +17,7 @@ import {
     SyntaxKind,
 } from "typescript/unstable/ast";
 import type {
-    DeclarationDescription,
+    SourceDeclaration,
     SignatureDescription,
     SymbolDescription,
     SymbolReference,
@@ -100,7 +100,7 @@ export class SymbolInspector {
         if (symbol.flags & SymbolFlags.Value) {
             const type = await this.project.checker.getTypeOfSymbol(symbol);
             if (!type) {
-                throw new BuildError("INSPECTION_FAILED", `Missing value type: ${symbol.name}`);
+                throw new BuildError("INSPECTION_FAILED", `missing value type: ${symbol.name}`);
             }
 
             result.valueType = await this.type(type, nodes[0]);
@@ -179,7 +179,7 @@ export class SymbolInspector {
         if (type.isErrorType()) {
             throw new BuildError(
                 "INSPECTION_FAILED",
-                `Cannot inspect member: ${parent.name}.${symbol.name} (${symbol.flags}).`,
+                `cannot inspect member: ${parent.name}.${symbol.name} (${symbol.flags})`,
             );
         }
 
@@ -194,9 +194,9 @@ export class SymbolInspector {
     }
 
     /** Describe one source declaration independently of merged symbols. */
-    async declaration(node: Node): Promise<DeclarationDescription> {
+    async declaration(node: Node): Promise<SourceDeclaration> {
         // retain source ranges independently for merged declarations
-        const result: DeclarationDescription = {
+        const result: SourceDeclaration = {
             kind: SyntaxKind[node.kind],
             source: this.range(node),
             modifiers: [],
@@ -276,7 +276,7 @@ export class SymbolInspector {
     /** Describe an expression and the named declarations needed to understand it. */
     async type(type: Type, location: Node): Promise<TypeDescription> {
         if (type.isErrorType()) {
-            throw new BuildError("INSPECTION_FAILED", "Cannot inspect an unresolved type.");
+            throw new BuildError("INSPECTION_FAILED", "cannot inspect an unresolved type");
         }
 
         // track visited types and named references
@@ -358,7 +358,7 @@ export class SymbolInspector {
                 if (!propertyType) {
                     throw new BuildError(
                         "INSPECTION_FAILED",
-                        `Missing property type: ${property.name}`,
+                        `missing property type: ${property.name}`,
                     );
                 }
 
@@ -374,7 +374,7 @@ export class SymbolInspector {
                     // require a resolved return type
                     const returns = await this.project.checker.getReturnTypeOfSignature(signature);
                     if (!returns) {
-                        throw new BuildError("INSPECTION_FAILED", "Missing signature return type.");
+                        throw new BuildError("INSPECTION_FAILED", "missing signature return type");
                     }
                     result.push(returns);
 
@@ -384,7 +384,7 @@ export class SymbolInspector {
                         if (!parameterType) {
                             throw new BuildError(
                                 "INSPECTION_FAILED",
-                                `Missing parameter type: ${parameter.name}`,
+                                `missing parameter type: ${parameter.name}`,
                             );
                         }
 
@@ -423,7 +423,7 @@ export class SymbolInspector {
         if (!node || !returns) {
             throw new BuildError(
                 "INSPECTION_FAILED",
-                `Cannot describe a callable signature: ${declaration?.getText()}`,
+                `cannot describe a callable signature: ${declaration?.getText()}`,
             );
         }
 
@@ -441,7 +441,7 @@ export class SymbolInspector {
             const symbol = await parameter.getSymbol();
             const declaration = await symbol?.declarations[0]?.resolve(this.project);
             if (!declaration || !isTypeParameterDeclaration(declaration)) {
-                throw new BuildError("INSPECTION_FAILED", "Missing generic parameter declaration.");
+                throw new BuildError("INSPECTION_FAILED", "missing generic parameter declaration");
             }
             result.typeParameters.push(await this.parameterType(declaration));
         }
@@ -454,7 +454,7 @@ export class SymbolInspector {
             if (!type) {
                 throw new BuildError(
                     "INSPECTION_FAILED",
-                    `Missing parameter type: ${parameter.name}`,
+                    `missing parameter type: ${parameter.name}`,
                 );
             }
 
@@ -475,7 +475,7 @@ export class SymbolInspector {
         if (receiver) {
             const type = await this.project.checker.getTypeOfSymbol(receiver);
             if (!type) {
-                throw new BuildError("INSPECTION_FAILED", "Missing receiver type.");
+                throw new BuildError("INSPECTION_FAILED", "missing receiver type");
             }
             result.receiver = await this.type(type, declaration);
         }
@@ -484,13 +484,13 @@ export class SymbolInspector {
     }
 
     /** Read a generic parameter from its source declaration. */
-    async parameterType(node: Node): Promise<DeclarationDescription["typeParameters"][number]> {
+    async parameterType(node: Node): Promise<SourceDeclaration["typeParameters"][number]> {
         if (!isTypeParameterDeclaration(node)) {
-            throw new BuildError("INSPECTION_FAILED", "Expected a type parameter.");
+            throw new BuildError("INSPECTION_FAILED", "expected a type parameter");
         }
 
         // describe the parameter and each authored type expression
-        const result: DeclarationDescription["typeParameters"][number] = {
+        const result: SourceDeclaration["typeParameters"][number] = {
             name: node.name.getText(),
         };
         for (const key of ["constraint", "default"] as const) {
@@ -502,7 +502,7 @@ export class SymbolInspector {
             // resolve the authored constraint or default
             const type = await this.project.checker.getTypeFromTypeNode(expression);
             if (!type) {
-                throw new BuildError("INSPECTION_FAILED", `Missing generic ${key}: ${result.name}`);
+                throw new BuildError("INSPECTION_FAILED", `missing generic ${key}: ${result.name}`);
             }
 
             result[key] = await this.type(type, node);
@@ -527,7 +527,7 @@ export class SymbolInspector {
                 if (!node) {
                     throw new BuildError(
                         "INSPECTION_FAILED",
-                        `Missing declaration: ${symbol.name}`,
+                        `missing declaration: ${symbol.name}`,
                     );
                 }
 

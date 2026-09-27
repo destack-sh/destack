@@ -38,6 +38,8 @@ const { manifest, reader, directory: outputDirectory } = build;
 await build.write(destination);
 ```
 
+A manifest describes the declarations the package owns, and refers to its dependencies' declarations by package and name.
+
 ```ts
 import { PackageBuild } from "@destack/build";
 import { DeclarationDescription } from "@destack/package/inspect";
@@ -124,6 +126,7 @@ await client.preview.stop({ id: preview.id });
 import { implementService } from "@destack/build/server";
 import { Server } from "@destack/service/server";
 
+// decide the build package's `build` and `preview` policies through roles in the space
 const implementation = implementService({
     builds: {
         open: openImmutableSource,
@@ -135,7 +138,7 @@ const implementation = implementService({
         build: { concurrency: 4, capacity: 100, timeout: 60_000, retention: 3_600_000 },
         preview: { concurrency: 4, capacity: 100, retention: 3_600_000 },
     },
-}, { authorize, audit });
+}, { access, audit });
 
 await using server = Server.start({
     ...implementation,
@@ -150,4 +153,13 @@ await using server = Server.start({
 
 // host sandbox and listener
 await listen(server.fetch.bind(server));
+```
+
+Hosts register the `build` and `preview` policies with their authorizer, and hosts serving previews of their own declare procedures under `preview`'s `read`, `open`, `start` and `stop` permissions.
+
+```ts
+import { BUILD_POLICIES, preview } from "@destack/build/access";
+
+const objects = new ObjectServer({ policies: [...BUILD_POLICIES], database, context, audit, journal });
+const start = defineProcedure({ authentication: "host", permission: preview.permission("start") });
 ```

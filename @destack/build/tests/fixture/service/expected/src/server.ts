@@ -26,7 +26,7 @@ const instruments = telemetry.scope(import.meta.destack.package);
 /** The shared application database. */
 export const database = defineDatabase({
     name: "main",
-    spec: { dialect: "sqlite" },
+    tables: [],
 });
 /** The application's secret collection. */
 export const vault = defineVault({ name: "credentials", spec: {} });

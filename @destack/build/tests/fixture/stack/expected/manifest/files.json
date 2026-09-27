@@ -6,21 +6,21 @@
         "mediaType": "application/json"
     },
     {
-        "path": "output/stack/index-D6Ta5ZhB.js",
-        "digest": "cce66935e35b5aada59ef7617fb94c50c85131e8db616339341c6ca3a4842e82",
-        "size": 238491,
+        "path": "output/stack/index-BDHUuIZY.js",
+        "digest": "d022605270e699c69f64d3896cc6127f3f6bd03ea8b9db6d39c791f6e135e3a6",
+        "size": 265531,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/stack/index-D6Ta5ZhB.js.map",
-        "digest": "2ae4056959f304fce6e299c9bf0baa3a6a13145d05018e41782812889d3082b8",
-        "size": 639505,
+        "path": "output/stack/index-BDHUuIZY.js.map",
+        "digest": "040173cd944c82e485f1c76afdd65ffdcb51c8acb965924574ef80f633cc7dd4",
+        "size": 782499,
         "mediaType": "application/json"
     },
     {
         "path": "package.json",
-        "digest": "6cada94c5173f3bfd3c214db2dc8ea48c8e96fb7b4baf251fd6498be1ced1754",
-        "size": 463,
+        "digest": "93791cf1a966172895a0ffc21772f154470b6823c065965bb04361d7d5301e43",
+        "size": 465,
         "mediaType": "application/json"
     },
     {
@@ -41,8 +41,8 @@
                 ],
                 "file": {
                     "path": "manifest/files/src/index.ts.json",
-                    "digest": "7c376723cf8f44d74f0d9dae2caf42e9405a9b9f08ad1c4003c506155651b008",
-                    "size": 2595,
+                    "digest": "d24c54b5caf7bb894882a3040f388ae398d2aad149b023e05163df7b63f20658",
+                    "size": 1968,
                     "mediaType": "application/json"
                 }
             }
@@ -75,8 +75,8 @@
     },
     {
         "path": "src/stack.ts",
-        "digest": "665d1055b89db9d80ea380e2adb0239d813433aa37b80991280de2133feb2606",
-        "size": 2314,
+        "digest": "0fd044bf8b076b94638729e9b18cbc7fee85b127c261dcf793dca607d0b236b7",
+        "size": 1445,
         "mediaType": "application/octet-stream",
         "descriptions": [
             {
@@ -91,8 +91,8 @@
                 ],
                 "file": {
                     "path": "manifest/files/src/stack.ts.json",
-                    "digest": "d540dc6d6e392d6c6ae948db0610937e25cccbbe0fe66e55b9b662564a1eca2f",
-                    "size": 37672,
+                    "digest": "9d004b29b03fba2e654cb85215b74e9a27dd157be27de5aa7dc2a305fa606bdf",
+                    "size": 12001,
                     "mediaType": "application/json"
                 }
             }

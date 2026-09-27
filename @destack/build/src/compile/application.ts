@@ -11,6 +11,7 @@ import {
 } from "node:fs/promises";
 import { join, relative, resolve, sep, dirname } from "node:path";
 import { createBuilder } from "vite";
+import { BuildError } from "../error/index.ts";
 import { type StartOptions } from "@solidjs/vite-plugin";
 import { type PackageOutput } from "@destack/package/manifest";
 import { type BuildDescription } from "@destack/package/inspect";
@@ -220,7 +221,9 @@ export async function compileApplication(
                 },
             },
         });
-        await builder.buildApp();
+        await builder.buildApp().catch((error: unknown) => {
+            throw BuildError.fromBundle(error);
+        });
 
         // check server entrypoints and dependency imports before prerendering shared views
         if (server) {

@@ -1,7 +1,7 @@
 import { schema } from "@destack/schema";
+import * as policy from "../access/index.ts";
 import { OperationError } from "@destack/service/operation";
 import { defineProcedure, eventIterator } from "@destack/service";
-import type {} from "@destack/package/import-meta";
 
 /** Fields shared by every preview status. */
 const fields = schema.object({
@@ -69,11 +69,7 @@ export const preview = {
 function access(action: "read" | "start" | "stop") {
     return defineProcedure({
         authentication: "identity",
-        permission: {
-            packageId: import.meta.destack.package.id,
-            type: "preview",
-            name: action,
-        },
+        permission: policy.preview.permission(action),
         audit: action !== "read",
     });
 }

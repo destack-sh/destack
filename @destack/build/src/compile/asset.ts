@@ -52,12 +52,12 @@ export function directoryPlugin(
                     if (local === ".." || local.startsWith("../") || isAbsolute(local)) {
                         throw new BuildError(
                             "BUILD_FAILED",
-                            `Directory import leaves its package: ${path}`,
+                            `directory import leaves its package: ${path}`,
                         );
                     }
                     const entries = await readDirectory(source);
                     if (!entries.size) {
-                        throw new BuildError("BUILD_FAILED", `Directory import is empty: ${path}`);
+                        throw new BuildError("BUILD_FAILED", `directory import is empty: ${path}`);
                     }
                     const digest = createHash("sha256");
                     for (const [name, bytes] of entries) {
@@ -114,7 +114,7 @@ async function readDirectory(directory: string): Promise<Map<string, Uint8Array<
             } else if (entry.isFile()) {
                 files.set(name, new Uint8Array(await readFile(join(directory, name))));
             } else {
-                throw new BuildError("BUILD_FAILED", `Unsupported directory entry: ${name}`);
+                throw new BuildError("BUILD_FAILED", `unsupported directory entry: ${name}`);
             }
         }
     }
@@ -177,7 +177,7 @@ export function describeAssets(
 function assetKey(key: string, keys: ReadonlyMap<string, string>): string {
     const value = keys.get(key);
     if (value === undefined) {
-        throw new BuildError("BUILD_FAILED", `Missing Vite manifest entry: ${key}`);
+        throw new BuildError("BUILD_FAILED", `missing Vite manifest entry: ${key}`);
     }
 
     return value;

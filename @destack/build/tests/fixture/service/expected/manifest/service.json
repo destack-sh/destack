@@ -82,7 +82,7 @@
                             "PRECONDITION_FAILED": {
                                 "status": 412
                             },
-                            "SOURCE_MANAGED": {
+                            "MANAGED": {
                                 "status": 409
                             },
                             "UNSUPPORTED": {

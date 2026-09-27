@@ -94,7 +94,6 @@
         "@destack/access": "workspace:*",
         "@destack/check": "workspace:*",
         "@destack/package": "workspace:*",
-        "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
         "@destack/test": "workspace:*",
@@ -110,7 +109,9 @@
       },
       "devDependencies": {
         "@destack/db": "workspace:*",
+        "@destack/resource": "workspace:*",
         "@stylexjs/stylex": "0.19.1",
+        "uuid": "14.0.2",
       },
     },
     "@destack/build/tests/fixture/library/source": {

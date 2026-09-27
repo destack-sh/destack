@@ -105,7 +105,7 @@ export async function collectTests(
         if (name === undefined) {
             throw new BuildError(
                 "INSPECTION_FAILED",
-                `Test declaration requires a literal title: ${file}:${node.getStart()}`,
+                `test declaration requires a literal title: ${file}:${node.getStart()}`,
             );
         }
 
@@ -131,7 +131,7 @@ export async function collectTests(
             ) {
                 throw new BuildError(
                     "INSPECTION_FAILED",
-                    `Test declaration requires module or suite scope: ${file}:${node.getStart()}`,
+                    `test declaration requires module or suite scope: ${file}:${node.getStart()}`,
                 );
             }
             parent = parent.parent;
@@ -143,7 +143,7 @@ export async function collectTests(
             if (!callback || !(isArrowFunction(callback) || isFunctionExpression(callback))) {
                 throw new BuildError(
                     "INSPECTION_FAILED",
-                    `Suite declaration requires an inline callback: ${file}:${node.getStart()}`,
+                    `suite declaration requires an inline callback: ${file}:${node.getStart()}`,
                 );
             }
             suites.add(callback);

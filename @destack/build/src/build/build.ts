@@ -91,10 +91,10 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
         const paths = new Set<string>();
         for (const file of inventory) {
             if (file.path === "manifest.json" || file.path.startsWith("manifest.json/")) {
-                throw new PackageError("INVALID_FILE", `Reserved build path: ${file.path}`);
+                throw new PackageError("INVALID_FILE", `reserved build path: ${file.path}`);
             }
             if (paths.has(file.path)) {
-                throw new PackageError("INVALID_FILE", `Duplicate file: ${file.path}`);
+                throw new PackageError("INVALID_FILE", `duplicate file: ${file.path}`);
             }
             paths.add(file.path);
         }
@@ -106,7 +106,7 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
             ) {
                 const parent = path.slice(0, separator);
                 if (paths.has(parent)) {
-                    throw new PackageError("INVALID_FILE", `File is also a directory: ${parent}`);
+                    throw new PackageError("INVALID_FILE", `file is also a directory: ${parent}`);
                 }
             }
         }
@@ -117,7 +117,7 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
             if (directories.has(output.directory)) {
                 throw new PackageError(
                     "INVALID_FILE",
-                    `Duplicate output directory: ${output.directory}`,
+                    `duplicate output directory: ${output.directory}`,
                 );
             }
             directories.add(output.directory);
@@ -127,12 +127,12 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
             for (let count = 1; count <= segments.length; count++) {
                 const path = segments.slice(0, count).join("/");
                 if (paths.has(path)) {
-                    throw new PackageError("INVALID_FILE", `Output directory is a file: ${path}`);
+                    throw new PackageError("INVALID_FILE", `output directory is a file: ${path}`);
                 }
                 if (path !== directory && directories.has(path)) {
                     throw new PackageError(
                         "INVALID_FILE",
-                        `Overlapping output directories: ${path}, ${directory}`,
+                        `overlapping output directories: ${path}, ${directory}`,
                     );
                 }
             }
@@ -143,7 +143,7 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
         for (const output of Object.values(manifest.outputs)) {
             for (const path of Object.values(output.exports)) {
                 if (!path.startsWith(`${output.directory}/`)) {
-                    throw new PackageError("INVALID_FILE", `Export is outside its output: ${path}`);
+                    throw new PackageError("INVALID_FILE", `export is outside its output: ${path}`);
                 }
                 references.push(path);
             }
@@ -161,7 +161,7 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
         }
         for (const path of references) {
             if (!paths.has(path)) {
-                throw new PackageError("INVALID_FILE", `Missing build file: ${path}`);
+                throw new PackageError("INVALID_FILE", `missing build file: ${path}`);
             }
         }
 

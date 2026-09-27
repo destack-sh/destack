@@ -1,15 +1,18 @@
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { isBuiltin } from "node:module";
 import { SourceTextModule, SyntheticModule } from "node:vm";
 import { rolldown } from "rolldown";
 import { transform } from "rolldown/utils";
 import { DeclarationDescription } from "@destack/package/inspect";
+import type { Package } from "@destack/package";
 import type { DeclarationExport } from "./declaration.ts";
 import type { PackageSource } from "../source/index.ts";
 import { modulePlugin } from "@destack/package/transform/vite";
 import { BuildError } from "../error/index.ts";
 import { stringifyInspection } from "../build/serialization.ts";
 import { runtimeConditions } from "../compile/runtime.ts";
+import { selectExport } from "../source/source.ts";
 
 /** Evaluate exported declarations together in the current build worker. */
 export async function evaluateDeclarations(
@@ -20,33 +23,44 @@ export async function evaluateDeclarations(
         return [];
     }
 
-    // import declarations and inspectors into the same module graph
-    const inspector = fileURLToPath(new URL("./inspector.ts", import.meta.url));
-    const imports = declarations.map(
-        (declaration, index) =>
-            `import { ${JSON.stringify(declaration.export)} as declaration${index} } from ${JSON.stringify(
-                declaration.file,
-            )};`,
-    );
+    // select each describing module under the build's runtime conditions
+    const conditions = new Set(["import", "default", ...runtimeConditions(project.runtime)]);
+    const inspectors = declarations.map(({ inspector }) => {
+        const path = selectExport(inspector.target, conditions);
+        if (typeof path !== "string") {
+            throw new BuildError(
+                "INSPECTION_FAILED",
+                `${inspector.directory} exports no ${project.runtime} module at ${inspector.subpath}`,
+            );
+        }
 
-    // call each registered inspector with its declaring package
+        return join(inspector.directory, path);
+    });
+
+    // import declarations and their describing modules into the same module graph
+    const imports = declarations.flatMap((declaration, index) => [
+        `import { ${JSON.stringify(declaration.export)} as declaration${index} } from ${JSON.stringify(declaration.file)};`,
+        `import * as inspector${index} from ${JSON.stringify(inspectors[index])};`,
+    ]);
+
+    // describe each declaration with its constructor's function
     const descriptions = declarations.map(
         (declaration, index) =>
-            `describeDeclaration(${JSON.stringify(declaration.inspector)}, declaration${index}, ${JSON.stringify(
-                declaration.description.symbol.package,
-            )})`,
+            `inspector${index}[${JSON.stringify(declaration.inspector.name)}](declaration${index})`,
     );
 
     // collect all descriptions through one generated entry
     const source = [
-        `import { describeDeclaration } from ${JSON.stringify(inspector)};`,
         ...imports,
+        `export const declared = [${declarations.map((_, index) => `declaration${index}`).join(", ")}];`,
         `export default await Promise.all([${descriptions.join(",\n")}]);`,
     ].join("\n");
     const entry = "\0destack-declarations";
 
     // rebuild the complete graph so edits to imported modules cannot leave stale values
     let bundle: Awaited<ReturnType<typeof rolldown>> | undefined;
+    let declared: unknown[];
+    let described: DeclarationDescription[];
     try {
         bundle = await rolldown({
             input: entry,
@@ -90,7 +104,7 @@ export async function evaluateDeclarations(
         if (generated.output.length !== 1 || generated.output[0].type !== "chunk") {
             throw new BuildError(
                 "INSPECTION_FAILED",
-                "Declaration evaluation requires one JavaScript module.",
+                "declaration evaluation requires one JavaScript module",
             );
         }
 
@@ -100,7 +114,7 @@ export async function evaluateDeclarations(
             if (!isBuiltin(specifier)) {
                 throw new BuildError(
                     "INSPECTION_FAILED",
-                    `Unbundled declaration import: ${specifier}`,
+                    `unbundled declaration import: ${specifier}`,
                 );
             }
 
@@ -115,12 +129,14 @@ export async function evaluateDeclarations(
             });
         });
 
-        // evaluate exported declarations before serializing descriptions
+        // evaluate exported declarations, remembering them beside their descriptions
         await module.evaluate();
-        const values = (module.namespace as { default: unknown[] }).default;
+        const namespace = module.namespace as { default: unknown[]; declared: unknown[] };
+        const values = namespace.default;
+        declared = namespace.declared;
 
         // serialize domain descriptions while retaining compiler symbol ownership
-        return declarations.map((declaration, index) => {
+        described = declarations.map((declaration, index) => {
             const description = JSON.parse(stringifyInspection(values[index]));
 
             return DeclarationDescription.parse({
@@ -133,8 +149,31 @@ export async function evaluateDeclarations(
             });
         });
     } catch (cause) {
-        throw new BuildError("INSPECTION_FAILED", "Declaration evaluation failed.", { cause });
+        throw new BuildError("INSPECTION_FAILED", "declaration evaluation failed", { cause });
     } finally {
         await bundle?.close();
     }
+
+    // require every declaration to carry the package declaring it
+    for (const [index, declaration] of declarations.entries()) {
+        const stamped = (declared[index] as { package?: Package } | null)?.package;
+        const owner = declaration.description.symbol.package;
+        if (stamped === undefined) {
+            throw new BuildError(
+                "INSPECTION_FAILED",
+                `${declaration.export} declaration lacks its declaring package; stamp it in ${declaration.description.constructor.symbol.name}`,
+            );
+        } else if (
+            stamped.id !== owner.id ||
+            stamped.name !== owner.name ||
+            stamped.version !== owner.version
+        ) {
+            throw new BuildError(
+                "INSPECTION_FAILED",
+                `${declaration.export} declaration belongs to a different package`,
+            );
+        }
+    }
+
+    return described;
 }

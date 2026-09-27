@@ -27,7 +27,7 @@ export async function prerender(
     // require an HTTP origin
     const origin = new URL(options.origin);
     if (origin.origin !== options.origin || !["http:", "https:"].includes(origin.protocol)) {
-        throw new BuildError("BUILD_FAILED", `Expected an HTTP origin: ${options.origin}`);
+        throw new BuildError("BUILD_FAILED", `expected an HTTP origin: ${options.origin}`);
     }
     const files = new Map<string, Uint8Array<ArrayBuffer>>();
 
@@ -37,7 +37,7 @@ export async function prerender(
         // require a canonical path on the same origin
         const url = new URL(route, origin);
         if (url.origin !== origin.origin || url.pathname !== route || url.search || url.hash) {
-            throw new BuildError("BUILD_FAILED", `Expected a canonical URL path: ${route}`);
+            throw new BuildError("BUILD_FAILED", `expected a canonical URL path: ${route}`);
         }
         const isNotFound = route === options.notFound;
         const path = isNotFound
@@ -52,7 +52,7 @@ export async function prerender(
         return { url, path, status: isNotFound ? 404 : 200 };
     });
     if (new Set(requests.map((request) => request.path)).size !== requests.length) {
-        throw new BuildError("BUILD_FAILED", "Prerender routes produce duplicate files.");
+        throw new BuildError("BUILD_FAILED", "prerender routes produce duplicate files");
     }
 
     // reuse the renderer across requests
@@ -87,7 +87,7 @@ export async function prerender(
                 ) {
                     throw new BuildError(
                         "BUILD_FAILED",
-                        `Expected an HTML response: ${request.url.pathname} (${response.status})`,
+                        `expected an HTML response: ${request.url.pathname} (${response.status})`,
                     );
                 }
                 if (
@@ -98,12 +98,12 @@ export async function prerender(
                 ) {
                     throw new BuildError(
                         "BUILD_FAILED",
-                        `Cannot prerender a personalized response: ${request.url.pathname}`,
+                        `cannot prerender a personalized response: ${request.url.pathname}`,
                     );
                 }
                 files.set(request.path, new Uint8Array(await readFile(body)));
             } catch (cause) {
-                throw new BuildError("BUILD_FAILED", `Prerender failed: ${request.url.pathname}`, {
+                throw new BuildError("BUILD_FAILED", `prerender failed: ${request.url.pathname}`, {
                     cause,
                 });
             }
@@ -132,7 +132,7 @@ export async function runProgram(program: string, timeout: number, count: number
         const expire = () => {
             failure = new BuildError(
                 "BUILD_FAILED",
-                `Prerender response ${completed} exceeded ${timeout} ms.`,
+                `prerender response ${completed} exceeded ${timeout} ms`,
             );
             child.kill("SIGKILL");
         };
@@ -151,7 +151,7 @@ export async function runProgram(program: string, timeout: number, count: number
         child.stderr.on("data", (chunk: string) => {
             diagnostics += chunk;
             if (diagnostics.length > 1_048_576) {
-                failure = new BuildError("BUILD_FAILED", "Prerender diagnostics exceeded 1 MiB.");
+                failure = new BuildError("BUILD_FAILED", "prerender diagnostics exceeded 1 MiB");
                 child.kill("SIGKILL");
             }
         });
@@ -167,7 +167,7 @@ export async function runProgram(program: string, timeout: number, count: number
                 reject(
                     new BuildError(
                         "BUILD_FAILED",
-                        `Prerender failed (${completed}/${count}): ${diagnostics.trim()}`,
+                        `prerender failed (${completed}/${count}): ${diagnostics.trim()}`,
                     ),
                 );
             } else {

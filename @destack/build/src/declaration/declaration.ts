@@ -1,11 +1,19 @@
 import type { Package } from "@destack/package";
 import type { DeclarationDescription, BuildDescription } from "@destack/package/inspect";
-import type { InspectorName } from "./inspector.ts";
 
 /** An exported declaration located by the compiler. */
 export interface DeclarationExport {
-    /** The declaration constructor verified by its compiler symbol. */
-    inspector: InspectorName;
+    /** The function describing the declaration, exported by its constructor's package. */
+    inspector: {
+        /** The package directory. */
+        readonly directory: string;
+        /** The package export holding the function, such as `./inspect`. */
+        readonly subpath: string;
+        /** The export's package.json target, which may select a module by runtime condition. */
+        readonly target: unknown;
+        /** The function's export name. */
+        readonly name: string;
+    };
     /** The absolute source module path. */
     file: string;
     /** The exported constant name. */
@@ -32,7 +40,6 @@ export function selectDeclarations(
     }
 
     // retain authored declarations and only the dependencies used by this output
-
     return declarations.filter((declaration) => {
         const owner = declaration.symbol.package;
         if (owner.id === source.id && owner.version === source.version) {

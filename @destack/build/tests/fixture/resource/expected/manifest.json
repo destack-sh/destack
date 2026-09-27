@@ -8,8 +8,8 @@
     "language": "typescript",
     "dependencies": {
         "path": "manifest/dependencies.json",
-        "digest": "68cb2ea796638ee5a33f6961b6d7519d899798470880a4ad67cc66414f3c512d",
-        "size": 22668,
+        "digest": "5232abb77f5f3b2e57d5fd5bb68e625ee3669f2cb040be7149fe8b94f27db95b",
+        "size": 26327,
         "mediaType": "application/json"
     },
     "descriptions": {
@@ -21,8 +21,8 @@
             },
             "file": {
                 "path": "manifest/db.json",
-                "digest": "c2246f8ee802abdf17453eb743940a2f6c6a1055c4b1cdf5dcb87fddc94d434e",
-                "size": 6969,
+                "digest": "6a36b0851ad652077da174b27921bdaefcc2ab2aef0885cf57cde026466fe0fe",
+                "size": 3809,
                 "mediaType": "application/json"
             }
         }
@@ -35,26 +35,25 @@
             "workloads": {},
             "descriptions": {
                 "db": [
-                    0,
-                    1
+                    0
                 ]
             },
             "directory": "output/library",
             "exports": {
-                ".": "output/library/index-BOTAnCMe.js"
+                ".": "output/library/index-DbgZ_Ejw.js"
             },
             "dependencies": {}
         }
     },
     "files": {
         "path": "manifest/files.json",
-        "digest": "8ac95066c5f00ced44650739f3520da348060c1bf76612660f2ba5d6adddbe17",
-        "size": 3704,
+        "digest": "80861c6c58bcd897a5be41180cbd4dd1e7ec1f0edc95e10de7187e4c17bfbea5",
+        "size": 2588,
         "mediaType": "application/json"
     },
     "sourceMaps": {
         "path": "manifest/sourceMaps.json",
-        "digest": "102821723437a04439da5bef33ec4a3e2c5209e2cce6f055e13c429eba34b21c",
+        "digest": "95d9e9e83eef4b2b657e0f5eabac48ba314621e0359e637368b2fbd262aebd2d",
         "size": 127,
         "mediaType": "application/json"
     }

@@ -33,8 +33,10 @@
             "name": "main",
             "kind": "database",
             "version": 1,
-            "spec": {
-                "dialect": "sqlite"
+            "spec": {},
+            "tables": {
+                "sqlite": [],
+                "postgresql": []
             }
         }
     }

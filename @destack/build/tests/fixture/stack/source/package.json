@@ -9,9 +9,9 @@
         "@destack/setting": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/package": "workspace:*",
-        "@destack/model": "workspace:*",
         "@destack/access": "workspace:*",
         "@destack/template-stack": "workspace:*",
-        "@destack/space": "workspace:*"
+        "@destack/space": "workspace:*",
+        "@destack/account": "workspace:*"
     }
 }

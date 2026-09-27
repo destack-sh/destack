@@ -6,27 +6,27 @@
         "mediaType": "application/json"
     },
     {
-        "path": "output/bun/server-wG9ewff2.js",
-        "digest": "26aa0bfd2db4745871d2eac98c8d2aa87a4141e6452f4bb3eae3869620dc5e49",
-        "size": 276464,
+        "path": "output/bun/server-DMHck6up.js",
+        "digest": "cd8c6149956f5b2279441a4da5eae3500adb698c0e79070ff8a0f2d34b3b4d51",
+        "size": 324299,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/bun/server-wG9ewff2.js.map",
-        "digest": "0539eebe7d0e4d1ee845738bdbe196ad883cd22b7d8be91cdfeda2b4bfc58a61",
-        "size": 752829,
+        "path": "output/bun/server-DMHck6up.js.map",
+        "digest": "fb7e9cb7d096a0287d9a244fc10f05e0a287fbf01aa29ffb72ddd295724e8443",
+        "size": 913414,
         "mediaType": "application/json"
     },
     {
-        "path": "output/worker/server-wG9ewff2.js",
-        "digest": "26aa0bfd2db4745871d2eac98c8d2aa87a4141e6452f4bb3eae3869620dc5e49",
-        "size": 276464,
+        "path": "output/worker/server-DMHck6up.js",
+        "digest": "cd8c6149956f5b2279441a4da5eae3500adb698c0e79070ff8a0f2d34b3b4d51",
+        "size": 324299,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/worker/server-wG9ewff2.js.map",
-        "digest": "0539eebe7d0e4d1ee845738bdbe196ad883cd22b7d8be91cdfeda2b4bfc58a61",
-        "size": 752829,
+        "path": "output/worker/server-DMHck6up.js.map",
+        "digest": "fb7e9cb7d096a0287d9a244fc10f05e0a287fbf01aa29ffb72ddd295724e8443",
+        "size": 913414,
         "mediaType": "application/json"
     },
     {
@@ -37,8 +37,8 @@
     },
     {
         "path": "src/server.ts",
-        "digest": "2a698bf640de8c6fe77a60ec1713f5248189a66e36d06a9fe1d59c584cfba5f6",
-        "size": 3742,
+        "digest": "614605fee7ee91cb1f48da0d726cdbe51c290e05cfb41aa30d6e9a342ec16e39",
+        "size": 3725,
         "mediaType": "application/octet-stream",
         "descriptions": [
             {
@@ -54,8 +54,8 @@
                 ],
                 "file": {
                     "path": "manifest/files/src/server.ts.json",
-                    "digest": "cc03801616e7ff8cd05faac461ca2f72931cf234271eea50b9fb10b5e5accc89",
-                    "size": 113006,
+                    "digest": "d35a87081815dba6e51ed2eebece008c1eeeefb8bae36f0a334dad21d5dfd7b8",
+                    "size": 113705,
                     "mediaType": "application/json"
                 }
             }

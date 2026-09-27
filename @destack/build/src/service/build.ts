@@ -1,8 +1,8 @@
 import { schema } from "@destack/schema";
+import * as policy from "../access/index.ts";
 import { PackageLocation } from "@destack/package/manifest";
 import { defineOperation, defineOperationProcedures } from "@destack/service/operation";
 import { defineProcedure } from "@destack/service";
-import type {} from "@destack/package/import-meta";
 
 /** Select immutable source and named outputs from the host's build configuration. */
 export const BuildRequest = schema.object({
@@ -28,6 +28,7 @@ export type BuildResult = schema.Infer<typeof BuildResult>;
 
 /** Current build phase, without estimating work remaining. */
 export const BuildProgress = schema.object({
+    /** The current build phase. */
     phase: schema.enum(["preparing", "building", "storing"]),
 });
 
@@ -42,11 +43,7 @@ export const build = {
     ...defineOperationProcedures(BuildOperation, "/builds"),
     start: defineProcedure({
         authentication: "identity",
-        permission: {
-            packageId: import.meta.destack.package.id,
-            type: "build",
-            name: "start",
-        },
+        permission: policy.build.permission("start"),
         audit: true,
     })
         .route({ method: "POST", path: "/builds" })

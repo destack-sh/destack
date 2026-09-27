@@ -23,7 +23,7 @@ import { resolveView } from "../source/view.ts";
 import { checkRuntime, RuntimeCompiler } from "../compile/runtime.ts";
 import { checkPackage, formatPackage } from "@destack/check";
 import { serializeDescriptions, encodeDescription, type ManifestDescription } from "./manifest.ts";
-import { ModulePackages } from "@destack/package/transform";
+import { PackageLocator } from "@destack/package/transform";
 import { fileURLToPath } from "node:url";
 
 /** Compiler state and configurations retained for one source package. */
@@ -83,20 +83,20 @@ export class BuildCompiler implements AsyncDisposable {
             const output =
                 selected.kind === "web" ? await resolveView(options.directory, selected) : selected;
             if (!/^[a-z][a-z0-9-]*$/.test(name)) {
-                throw new BuildError("BUILD_FAILED", `Invalid output name: ${name}`);
+                throw new BuildError("BUILD_FAILED", `invalid output name: ${name}`);
             }
 
             // expand a web application into its runtime environments
             if (output.kind === "web") {
                 if (output.prerender && output.ssr === false) {
-                    throw new BuildError("BUILD_FAILED", "Prerendering requires an SSR handler.");
+                    throw new BuildError("BUILD_FAILED", "prerendering requires an SSR handler");
                 }
 
                 // reserve generated output names
                 const application = { name, options: output };
                 for (const generated of [`${name}-browser`, `${name}-server`]) {
                     if (Object.hasOwn(options.outputs, generated)) {
-                        throw new BuildError("BUILD_FAILED", `Duplicate output name: ${generated}`);
+                        throw new BuildError("BUILD_FAILED", `duplicate output name: ${generated}`);
                     }
                 }
 
@@ -131,7 +131,7 @@ export class BuildCompiler implements AsyncDisposable {
                 }
             } else {
                 if (requested.has(name)) {
-                    throw new BuildError("BUILD_FAILED", `Duplicate output name: ${name}`);
+                    throw new BuildError("BUILD_FAILED", `duplicate output name: ${name}`);
                 }
                 requested.set(name, { options: output });
             }
@@ -139,7 +139,7 @@ export class BuildCompiler implements AsyncDisposable {
 
         // require at least one output
         if (!requested.size) {
-            throw new BuildError("BUILD_FAILED", "A build requires at least one output.");
+            throw new BuildError("BUILD_FAILED", "a build requires at least one output");
         }
 
         // inspect every target before framework compilation builds both browser and server code
@@ -235,7 +235,7 @@ export class BuildCompiler implements AsyncDisposable {
                     source.name !== project.declaration.package.name ||
                     source.version !== project.declaration.package.version)
             ) {
-                throw new BuildError("BUILD_FAILED", "Package changed during build.");
+                throw new BuildError("BUILD_FAILED", "package changed during build");
             }
             source = project.declaration.package;
 
@@ -350,7 +350,7 @@ export class BuildCompiler implements AsyncDisposable {
                     dependency.package.version !== owner.version ||
                     (dependency.kind !== "npm" && dependency.package.id !== owner.id)
                 ) {
-                    throw new BuildError("BUILD_FAILED", `Unresolved declaration package: ${key}`);
+                    throw new BuildError("BUILD_FAILED", `unresolved declaration package: ${key}`);
                 }
                 if (
                     dependency.kind === "source" &&
@@ -358,7 +358,7 @@ export class BuildCompiler implements AsyncDisposable {
                 ) {
                     throw new BuildError(
                         "BUILD_FAILED",
-                        `Missing declaration source: ${key}/${declaration.source.file}`,
+                        `missing declaration source: ${key}/${declaration.source.file}`,
                     );
                 }
             }
@@ -574,7 +574,7 @@ function retainFile(
         (previous.length !== bytes.length ||
             previous.some((value, index) => value !== bytes[index]))
     ) {
-        throw new BuildError("BUILD_FAILED", `Conflicting build file: ${path}`);
+        throw new BuildError("BUILD_FAILED", `conflicting build file: ${path}`);
     }
 
     files.set(path, bytes);
@@ -642,7 +642,7 @@ function fileMediaType(path: string): string {
 
 /** Read the identity of a Destack package resolved from the build tool's dependencies. */
 async function findPackage(specifier: string): Promise<Package> {
-    const owner = await new ModulePackages().find(fileURLToPath(import.meta.resolve(specifier)));
+    const owner = await new PackageLocator().find(fileURLToPath(import.meta.resolve(specifier)));
     if (!owner) {
         throw new BuildError("BUILD_FAILED", `missing Destack package: ${specifier}`);
     }

@@ -96,7 +96,7 @@ export class PackageBuilder implements AsyncDisposable {
                 if (code !== 0 || !this.#disposed) {
                     this.#failure ??= new BuildError(
                         "BUILD_FAILED",
-                        `Compiler exited (${code}): ${this.#stderr.trim()}`,
+                        `compiler exited (${code}): ${this.#stderr.trim()}`,
                     );
                 }
                 this.#pending?.reject(this.#failure);
@@ -111,14 +111,14 @@ export class PackageBuilder implements AsyncDisposable {
         this.#child.stderr.on("data", (chunk: string) => {
             this.#stderr += chunk;
             if (this.#stderr.length > 1_048_576) {
-                this.#fail(new BuildError("BUILD_FAILED", "Build diagnostics exceeded 1 MiB."));
+                this.#fail(new BuildError("BUILD_FAILED", "build diagnostics exceeded 1 MiB"));
             }
         });
         const stdout = this.#child.stdout;
         void (async () => {
             for await (const response of readMessages(stdout)) {
                 if (!this.#pending) {
-                    throw new BuildError("BUILD_FAILED", "Unexpected compiler response.");
+                    throw new BuildError("BUILD_FAILED", "unexpected compiler response");
                 }
                 this.#pending.resolve(response as BuildResponse);
             }
@@ -191,17 +191,17 @@ export class PackageBuilder implements AsyncDisposable {
             throw this.#failure;
         }
         if (this.#pending) {
-            throw new BuildError("BUILD_FAILED", "A build is already running.");
+            throw new BuildError("BUILD_FAILED", "a build is already running");
         }
         if (signal?.aborted) {
-            throw new BuildError("BUILD_FAILED", "Build cancelled.", { cause: signal.reason });
+            throw new BuildError("BUILD_FAILED", "build cancelled", { cause: signal.reason });
         }
         const abort = () =>
             this.#fail(
-                new BuildError("BUILD_FAILED", "Build cancelled.", { cause: signal?.reason }),
+                new BuildError("BUILD_FAILED", "build cancelled", { cause: signal?.reason }),
             );
         const timer = setTimeout(
-            () => this.#fail(new BuildError("BUILD_FAILED", `Build exceeded ${timeout} ms.`)),
+            () => this.#fail(new BuildError("BUILD_FAILED", `build exceeded ${timeout} ms`)),
             timeout,
         );
         signal?.addEventListener("abort", abort, { once: true });
@@ -241,7 +241,7 @@ export class PackageBuilder implements AsyncDisposable {
         // mark disposal, fail a pending build and end the compiler input
         this.#disposed = true;
         if (this.#pending) {
-            this.#fail(new BuildError("BUILD_FAILED", "Compiler closed during a build."));
+            this.#fail(new BuildError("BUILD_FAILED", "compiler closed during a build"));
         }
         this.#child.stdin.end();
         let timeout: BuildError | undefined;

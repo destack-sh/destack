@@ -17,17 +17,17 @@ function checkValue(value: unknown, path: string, ancestors: Set<object>): void 
         return;
     }
     if (typeof value !== "object" || value === null) {
-        throw new BuildError("INSPECTION_FAILED", `Non-JSON inspection value at ${path}.`);
+        throw new BuildError("INSPECTION_FAILED", `non-JSON inspection value at ${path}`);
     }
 
     // reject objects with serialization behavior and cyclic references
     const isArray = Array.isArray(value);
     const prototype = Object.getPrototypeOf(value);
     if (prototype !== (isArray ? Array.prototype : Object.prototype) && prototype !== null) {
-        throw new BuildError("INSPECTION_FAILED", `Non-JSON inspection object at ${path}.`);
+        throw new BuildError("INSPECTION_FAILED", `non-JSON inspection object at ${path}`);
     }
     if (ancestors.has(value)) {
-        throw new BuildError("INSPECTION_FAILED", `Cyclic inspection value at ${path}.`);
+        throw new BuildError("INSPECTION_FAILED", `cyclic inspection value at ${path}`);
     }
     ancestors.add(value);
 
@@ -46,11 +46,11 @@ function checkValue(value: unknown, path: string, ancestors: Set<object>): void 
         if (typeof key !== "string" || !("value" in property)) {
             throw new BuildError(
                 "INSPECTION_FAILED",
-                `Non-JSON inspection property at ${location}.`,
+                `non-JSON inspection property at ${location}`,
             );
         }
         if (isArray && (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= value.length)) {
-            throw new BuildError("INSPECTION_FAILED", `Non-JSON array property at ${location}.`);
+            throw new BuildError("INSPECTION_FAILED", `non-JSON array property at ${location}`);
         }
         if (!isArray && property.value === undefined) {
             continue;
@@ -60,7 +60,7 @@ function checkValue(value: unknown, path: string, ancestors: Set<object>): void 
 
     // reject array holes, which JSON would replace with null
     if (isArray && Object.keys(properties).length !== value.length + 1) {
-        throw new BuildError("INSPECTION_FAILED", `Sparse inspection array at ${path}.`);
+        throw new BuildError("INSPECTION_FAILED", `sparse inspection array at ${path}`);
     }
     ancestors.delete(value);
 }

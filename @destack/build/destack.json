@@ -11,6 +11,10 @@
             "targets": ["browser", "server"],
             "runtimes": ["browser", "bun", "workerd"]
         },
+        "./access": {
+            "targets": ["browser", "server"],
+            "runtimes": ["browser", "bun", "workerd"]
+        },
         "./browser": {
             "targets": ["browser"],
             "runtimes": ["browser"]

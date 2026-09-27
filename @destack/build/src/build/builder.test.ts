@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { cp, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -62,6 +62,59 @@ test("rebuild a web application with emitted assets and restore every output", a
     await expectFiles(restored, first);
 });
 
+test("bundle each target's module variant and reject browser imports of server variants", async () => {
+    await using fixture = await Fixture.open("web");
+    const app = join(fixture.source, "src/app.tsx");
+    const original = await readFile(app, "utf8");
+
+    // declare a base module with a server variant and render it
+    await writeFile(
+        join(fixture.source, "src/origin.ts"),
+        '/** The render origin. */\nexport const origin = "browser origin";\n',
+    );
+    await writeFile(
+        join(fixture.source, "src/origin.server.ts"),
+        'export * from "./origin.ts";\n\n/** The render origin. */\nexport const origin = "server origin";\n',
+    );
+    const source = await formatSource(
+        app,
+        'import { origin } from "./origin.ts";\n' +
+            original.replace("Hello Destack", "Hello {origin}"),
+    );
+    await writeFile(app, source);
+    await using builder = await PackageBuilder.start(fixture.source);
+
+    // bundle the base for the browser and the variant for the server
+    await using build = await builder.build({
+        dependencies: fixture.dependencies,
+        outputs: { website: requests.server },
+    });
+    const bundles = await readOutputs(build.directory);
+    expect(
+        [...bundles.entries()]
+            .filter(([, code]) => code.includes("browser origin"))
+            .map(([path]) => path.split("/")[1]),
+    ).toEqual(["website-browser"]);
+    expect(
+        [...bundles.entries()]
+            .filter(([, code]) => code.includes("server origin"))
+            .map(([path]) => path.split("/")[1]),
+    ).toEqual(["website-server"]);
+
+    // reject a browser import naming the server variant
+    await writeFile(app, source.replace('"./origin.ts"', '"./origin.server.ts"'));
+    const directory = await realpath(fixture.source);
+    await expect(
+        builder.build({
+            dependencies: fixture.dependencies,
+            outputs: { website: requests.server },
+        }),
+    ).rejects.toMatchObject({
+        code: "BUILD_FAILED",
+        message: `browser module ${directory}/src/app.tsx imports server variant ${directory}/src/origin.server.ts`,
+    });
+});
+
 test("reinspect edited declaration helpers in a retained compiler", async () => {
     const fixture = new URL("../../tests/fixture/resource/source/", import.meta.url);
     const directory = await mkdtemp(join(tmpdir(), "destack-declaration-edit-"));
@@ -95,16 +148,19 @@ test("reinspect edited declaration helpers in a retained compiler", async () => 
         await using edited = await builder.build({ dependencies, ...resource.request });
         const baseline = (
             await first.reader.domain("db", schema.array(DeclarationDescription))
-        ).find((declaration) => declaration.kind === "database-schema")!;
+        ).find((declaration) => declaration.kind === "resource")!;
         const actual = (
             await edited.reader.domain("db", schema.array(DeclarationDescription))
-        ).find((declaration) => declaration.kind === "database-schema")!;
+        ).find((declaration) => declaration.kind === "resource")!;
         const expected = structuredClone(baseline);
         for (const dialect of ["sqlite", "postgresql"]) {
-            const schema = expected.description[dialect] as {
-                tables: { columns: { name: string }[] }[];
-            };
-            schema.tables[0].columns[1].name = "heading";
+            // rename the column in the table
+            const [state] = (
+                expected.description as {
+                    tables: Record<string, { table: { columns: { name: string }[] } }[]>;
+                }
+            ).tables[dialect]!;
+            state!.table.columns[1]!.name = "heading";
         }
         expect(actual).toEqual(expected);
 
@@ -172,7 +228,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
             }),
         ).rejects.toMatchObject({
             code: "BUILD_FAILED",
-            message: `Unsupported workerd API: document.title at src/note.ts:${note.length + 44}`,
+            message: `unsupported workerd API: document.title at src/note.ts:${note.length + 44}`,
         });
 
         // accept browser index signatures through the runtime's actual type declarations
@@ -194,26 +250,21 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
 
         // reject server functions before their bodies can enter a browser output
         await writeFile(notePath, '"use server";\n' + note);
-        const rejected = builder.build({
-            dependencies: {},
-            outputs: {
-                library: {
-                    kind: "module",
-                    target: "browser",
-                    runtime: "browser",
-                },
-            },
-        });
         const filename = await realpath(notePath);
-        const diagnostic = await rejected.then(
-            () => {
-                throw new Error("expected server-function rejection");
-            },
-            (error) => ({ code: error.code, message: error.message.split("\n    at ")[0] }),
-        );
-        expect(diagnostic).toEqual({
+        await expect(
+            builder.build({
+                dependencies: {},
+                outputs: {
+                    library: {
+                        kind: "module",
+                        target: "browser",
+                        runtime: "browser",
+                    },
+                },
+            }),
+        ).rejects.toMatchObject({
             code: "BUILD_FAILED",
-            message: `Build failed with 1 error:\n\n[plugin destack-framework] ${filename}\nBuildError: Solid server functions are unsupported: ${filename}:0`,
+            message: `solid server functions are unsupported: ${filename}:0`,
         });
         await writeFile(notePath, note);
 
@@ -255,7 +306,7 @@ test("reject invalid outputs and recover the retained compiler", async () => {
     await using builder = await PackageBuilder.start(source);
     await expect(builder.build({ dependencies: {}, outputs: {} })).rejects.toMatchObject({
         code: "BUILD_FAILED",
-        message: "A build requires at least one output.",
+        message: "a build requires at least one output",
     });
     await expect(
         builder.build({
@@ -267,7 +318,7 @@ test("reject invalid outputs and recover the retained compiler", async () => {
         }),
     ).rejects.toMatchObject({
         code: "BUILD_FAILED",
-        message: "Duplicate output name: website-browser",
+        message: "duplicate output name: website-browser",
     });
 
     // use the same compiler successfully after rejected requests
@@ -291,10 +342,28 @@ test("terminate compilation on cancellation and deadline", async () => {
     controller.abort();
     await expect(pending).rejects.toMatchObject({
         code: "BUILD_FAILED",
-        message: "Build cancelled.",
+        message: "build cancelled",
     });
     await expect(buildPackage({ ...request, directory, timeout: 1 })).rejects.toMatchObject({
         code: "BUILD_FAILED",
-        message: "Build exceeded 1 ms.",
+        message: "build exceeded 1 ms",
     });
 });
+
+/** Read every JavaScript output of a build by its path below the build directory. */
+async function readOutputs(directory: string): Promise<Map<string, string>> {
+    const names = (await readdir(join(directory, "output"), { recursive: true })).filter((name) =>
+        name.endsWith(".js"),
+    );
+    const entries = await Promise.all(
+        names.map(
+            async (name) =>
+                [
+                    `output/${name}`,
+                    await readFile(join(directory, "output", name), "utf8"),
+                ] as const,
+        ),
+    );
+
+    return new Map(entries);
+}

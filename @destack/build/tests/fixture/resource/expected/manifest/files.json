@@ -6,27 +6,15 @@
         "mediaType": "application/json"
     },
     {
-        "path": "output/library/asset/87b17192782a477c60547a58f765413ddd8c7c2ff58ea1d61859d2d2c4c6188c/postgresql/20260920000000_note/migration.sql",
-        "digest": "3a7e45e0c68fe1b6319acc51d4ed515ae88d87c97234731f0d517f358091015a",
-        "size": 65,
-        "mediaType": "application/octet-stream"
-    },
-    {
-        "path": "output/library/asset/87b17192782a477c60547a58f765413ddd8c7c2ff58ea1d61859d2d2c4c6188c/sqlite/20260920000000_note/migration.sql",
-        "digest": "3a7e45e0c68fe1b6319acc51d4ed515ae88d87c97234731f0d517f358091015a",
-        "size": 65,
-        "mediaType": "application/octet-stream"
-    },
-    {
-        "path": "output/library/index-BOTAnCMe.js",
-        "digest": "eefdecb6d9f1221072d40304eccdd145d59e58840b01b180d96da7a5d3fbc805",
-        "size": 215973,
+        "path": "output/library/index-DbgZ_Ejw.js",
+        "digest": "aca72531109c867d2b97c0aa1e68fb563c5a5ad0e05ceb11113873fb1004210d",
+        "size": 257924,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/library/index-BOTAnCMe.js.map",
-        "digest": "b02a2c2feab4723e43e09e66c75193c26e5dcc238f34209c3051a6bd566de3cd",
-        "size": 611400,
+        "path": "output/library/index-DbgZ_Ejw.js.map",
+        "digest": "ffa009a694107993aa58c3a3d2151fe657451428308ec0a85a2c19d51330ec8e",
+        "size": 706625,
         "mediaType": "application/json"
     },
     {
@@ -37,8 +25,8 @@
     },
     {
         "path": "src/database.ts",
-        "digest": "808c1ae7548ca781c21ceec12144858e2a46d61f3f5d5cbd291e72d30406d03a",
-        "size": 639,
+        "digest": "35cd8bdee5e0d9d09768917a2920dd1bd680b28105d816c8679b2c85ea6f25e5",
+        "size": 419,
         "mediaType": "application/octet-stream",
         "descriptions": [
             {
@@ -53,8 +41,8 @@
                 ],
                 "file": {
                     "path": "manifest/files/src/database.ts.json",
-                    "digest": "34880fb6c128cadca701416902c035afa4924c49f0b6da07b47438cc7729377b",
-                    "size": 15153,
+                    "digest": "9c447248311d4436105c3323336b8b88e780fe2a7797b0dc8dd1fc03a9f5f732",
+                    "size": 11868,
                     "mediaType": "application/json"
                 }
             }
@@ -78,23 +66,11 @@
                 ],
                 "file": {
                     "path": "manifest/files/src/index.ts.json",
-                    "digest": "0baeb4fbfe286c88e18a285451c7d680003582d8b183f641930fe5d7014f2290",
-                    "size": 1063,
+                    "digest": "1b4d7922e57b5c2aa5f79181f8c64e9bd604adcfcbf528f7b910f2e29c5166f1",
+                    "size": 1061,
                     "mediaType": "application/json"
                 }
             }
         ]
-    },
-    {
-        "path": "src/migration/postgresql/20260920000000_note/migration.sql",
-        "digest": "3a7e45e0c68fe1b6319acc51d4ed515ae88d87c97234731f0d517f358091015a",
-        "size": 65,
-        "mediaType": "application/octet-stream"
-    },
-    {
-        "path": "src/migration/sqlite/20260920000000_note/migration.sql",
-        "digest": "3a7e45e0c68fe1b6319acc51d4ed515ae88d87c97234731f0d517f358091015a",
-        "size": 65,
-        "mediaType": "application/octet-stream"
     }
 ]

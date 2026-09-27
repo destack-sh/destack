@@ -45,7 +45,7 @@ export class TypeScriptCompiler implements AsyncDisposable {
             if (!project) {
                 throw new BuildError(
                     "INSPECTION_FAILED",
-                    `TypeScript did not load ${configuration}`,
+                    `the TypeScript compiler did not load ${configuration}`,
                 );
             }
 
@@ -63,7 +63,7 @@ export class TypeScriptCompiler implements AsyncDisposable {
             if (diagnostics.length) {
                 throw new BuildError(
                     "INSPECTION_FAILED",
-                    `TypeScript inspection failed: ${JSON.stringify(diagnostics)}`,
+                    `the TypeScript inspection failed: ${JSON.stringify(diagnostics)}`,
                 );
             }
 

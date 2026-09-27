@@ -60,30 +60,6 @@
             "isTypeOnly": false
         },
         {
-            "name": "languageAssignment",
-            "symbol": {
-                "module": "src/stack.ts",
-                "name": "languageAssignment"
-            },
-            "isTypeOnly": false
-        },
-        {
-            "name": "languagePolicy",
-            "symbol": {
-                "module": "src/stack.ts",
-                "name": "languagePolicy"
-            },
-            "isTypeOnly": false
-        },
-        {
-            "name": "note",
-            "symbol": {
-                "module": "src/stack.ts",
-                "name": "note"
-            },
-            "isTypeOnly": false
-        },
-        {
             "name": "personal",
             "symbol": {
                 "module": "src/stack.ts",

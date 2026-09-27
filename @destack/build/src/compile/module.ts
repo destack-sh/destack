@@ -93,7 +93,7 @@ export async function compilePackage(
         };
     }
     if (entries.some((entry) => entry.endsWith(".html")) && !isBrowser) {
-        throw new BuildError("BUILD_FAILED", "HTML entries require the browser target.");
+        throw new BuildError("BUILD_FAILED", "entries in HTML require the browser target");
     }
 
     // retain HTML before Vite rewrites its module and asset references
@@ -196,7 +196,7 @@ export async function compilePackage(
                     ) {
                         throw new BuildError(
                             "BUILD_FAILED",
-                            `Undeclared runtime dependency: ${dependency}`,
+                            `undeclared runtime dependency: ${dependency}`,
                         );
                     }
                     if (options.bundle) {
@@ -206,13 +206,13 @@ export async function compilePackage(
                     if (!selected) {
                         throw new BuildError(
                             "BUILD_FAILED",
-                            `Unresolved runtime dependency: ${dependency}`,
+                            `unresolved runtime dependency: ${dependency}`,
                         );
                     }
                     if (selected.kind === "source") {
                         throw new BuildError(
                             "BUILD_FAILED",
-                            `Runtime dependency requires a registry release: ${dependency}`,
+                            `runtime dependency requires a registry release: ${dependency}`,
                         );
                     }
                     external[dependency] = DependencyRelease.parse(selected);
@@ -232,11 +232,13 @@ export async function compilePackage(
                 },
             },
         },
+    }).catch((error: unknown) => {
+        throw BuildError.fromBundle(error);
     });
 
     // retain generated paths and map authored entries to generated files
     if (!("output" in generated)) {
-        throw new BuildError("BUILD_FAILED", "Expected one Vite output.");
+        throw new BuildError("BUILD_FAILED", "expected one Vite output");
     }
     for (const entry of generated.output) {
         const path = PackagePath.parse(`${directory}/${entry.fileName}`);
@@ -259,7 +261,7 @@ export async function compilePackage(
     }
     for (const name of Object.keys(project.exports)) {
         if (!exports[name]) {
-            throw new BuildError("BUILD_FAILED", `Missing generated entry: ${name}`);
+            throw new BuildError("BUILD_FAILED", `missing generated entry: ${name}`);
         }
     }
 

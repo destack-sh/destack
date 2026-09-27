@@ -101,7 +101,7 @@ export function dependencyPlugin(
             // virtual modules have no package declaration on disk
             const path = module.id.split("?")[0];
             if (module.code === null) {
-                throw new BuildError("BUILD_FAILED", `Parsed module has no source: ${module.id}`);
+                throw new BuildError("BUILD_FAILED", `parsed module has no source: ${module.id}`);
             }
             if (!isAbsolute(path)) {
                 locations.set(module.id, {
@@ -152,7 +152,7 @@ export function dependencyPlugin(
             if (!resolution && !path.split(sep).includes("node_modules")) {
                 const previousDirectory = directories.get(key);
                 if (previousDirectory && previousDirectory !== source.directory) {
-                    throw new BuildError("BUILD_FAILED", `Conflicting dependency sources: ${key}`);
+                    throw new BuildError("BUILD_FAILED", `conflicting dependency sources: ${key}`);
                 }
                 directories.set(key, source.directory);
 
@@ -182,7 +182,7 @@ export function dependencyPlugin(
                 if (snapshot.kind !== "source") {
                     throw new BuildError(
                         "BUILD_FAILED",
-                        `Conflicting dependency resolution: ${key}`,
+                        `conflicting dependency resolution: ${key}`,
                     );
                 }
 
@@ -206,7 +206,7 @@ export function dependencyPlugin(
                 resolution.package.name !== source.name ||
                 resolution.package.version !== source.version
             ) {
-                throw new BuildError("BUILD_FAILED", `Unresolved bundled dependency: ${key}`);
+                throw new BuildError("BUILD_FAILED", `unresolved bundled dependency: ${key}`);
             }
             description.packages[key] = resolution;
         },
@@ -239,7 +239,7 @@ export function dependencyPlugin(
                         ) {
                             throw new BuildError(
                                 "BUILD_FAILED",
-                                `Unresolved asset dependency: ${key}`,
+                                `unresolved asset dependency: ${key}`,
                             );
                         }
                         description.packages[key] = resolution;
@@ -259,7 +259,7 @@ export function dependencyPlugin(
                     if (previous && previous.digest !== file.digest) {
                         throw new BuildError(
                             "BUILD_FAILED",
-                            `Dependency asset changed during build: ${path}`,
+                            `dependency asset changed during build: ${path}`,
                         );
                     }
                     if (!previous) {
@@ -342,7 +342,7 @@ export function resolutionPlugin(
                         declaration.optionalDependencies,
                     ].some((dependencies) => Object.hasOwn(dependencies, name))
                 ) {
-                    throw new BuildError("BUILD_FAILED", `Undeclared runtime dependency: ${name}`);
+                    throw new BuildError("BUILD_FAILED", `undeclared runtime dependency: ${name}`);
                 }
 
                 // resolve the package owning the imported file
@@ -390,7 +390,7 @@ export function resolutionPlugin(
                 if (selectedRuntime && required && !required.includes(selectedRuntime)) {
                     throw new BuildError(
                         "BUILD_FAILED",
-                        `Unsupported ${selectedRuntime} dependency: ${specifier}`,
+                        `unsupported ${selectedRuntime} dependency: ${specifier}`,
                     );
                 }
 
@@ -417,7 +417,7 @@ export function describeCompilation(
     for (const id of modules) {
         const location = locations.get(id);
         if (!location) {
-            throw new BuildError("BUILD_FAILED", `Missing parsed module: ${id}`);
+            throw new BuildError("BUILD_FAILED", `missing parsed module: ${id}`);
         }
         names.set(id, JSON.stringify([location.kind, location.package ?? "", location.path]));
     }
@@ -432,7 +432,7 @@ export function describeCompilation(
         const module = information.get(id);
         const location = locations.get(id);
         if (!module || !location) {
-            throw new BuildError("BUILD_FAILED", `Missing parsed module: ${id}`);
+            throw new BuildError("BUILD_FAILED", `missing parsed module: ${id}`);
         }
         const imports = [];
         for (const [dynamic, paths] of [
@@ -444,7 +444,7 @@ export function describeCompilation(
                 const isExternal = !information.has(path);
                 const reference = isExternal ? path : identifiers.get(path);
                 if (!reference) {
-                    throw new BuildError("BUILD_FAILED", `Unresolved module: ${path}`);
+                    throw new BuildError("BUILD_FAILED", `unresolved module: ${path}`);
                 }
                 imports.push({ path: reference, external: isExternal, dynamic });
             }
@@ -476,7 +476,7 @@ export function describeCompilation(
                 }
                 const reference = identifiers.get(id);
                 if (!reference) {
-                    throw new BuildError("BUILD_FAILED", `Unknown emitted module: ${id}`);
+                    throw new BuildError("BUILD_FAILED", `unknown emitted module: ${id}`);
                 }
                 inputs.push(reference);
             }

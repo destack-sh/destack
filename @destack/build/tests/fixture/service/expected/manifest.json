@@ -8,8 +8,8 @@
     "language": "typescript",
     "dependencies": {
         "path": "manifest/dependencies.json",
-        "digest": "0616cb92cf15146d301e193a92946e305ef32e14c7473823b0398b44a0b6e637",
-        "size": 50085,
+        "digest": "2f4d60e8eca8075234c42fc0c1d65f2114d2a77ec0776b17ba4f012a8f16d298",
+        "size": 73589,
         "mediaType": "application/json"
     },
     "descriptions": {
@@ -34,8 +34,8 @@
             },
             "file": {
                 "path": "manifest/db.json",
-                "digest": "d6ec8db25bbb1392c99db8743e68fbe942652dde6155fb9a71430b83829d850e",
-                "size": 1086,
+                "digest": "ac9b07e5646b3ec48228968792e9263183e5ecfcbaf4b0163204d80077183b6e",
+                "size": 1139,
                 "mediaType": "application/json"
             }
         },
@@ -60,8 +60,8 @@
             },
             "file": {
                 "path": "manifest/service.json",
-                "digest": "554dc236d689f7c553ada355d62bdf6c27cc04ec7c8d4ffcc62c0b65f92b552a",
-                "size": 9398,
+                "digest": "884ec98edadbb140ab882f212a05ccc15fad7240b5898ee2888445ecdabf6dd2",
+                "size": 9391,
                 "mediaType": "application/json"
             }
         }
@@ -147,7 +147,7 @@
             },
             "directory": "output/bun",
             "exports": {
-                "./server": "output/bun/server-wG9ewff2.js"
+                "./server": "output/bun/server-DMHck6up.js"
             },
             "dependencies": {}
         },
@@ -231,20 +231,20 @@
             },
             "directory": "output/worker",
             "exports": {
-                "./server": "output/worker/server-wG9ewff2.js"
+                "./server": "output/worker/server-DMHck6up.js"
             },
             "dependencies": {}
         }
     },
     "files": {
         "path": "manifest/files.json",
-        "digest": "557298c18a13696145d651e3e745d7dcc8d528f6ac12af4b0776efeb55ee889f",
+        "digest": "6fef834bbd80d1c3edcf88111a7af1a4ef03a59257961a79a90da65a4e1ec527",
         "size": 2159,
         "mediaType": "application/json"
     },
     "sourceMaps": {
         "path": "manifest/sourceMaps.json",
-        "digest": "e9ad09c7460a2be401879772686ca2189480a716e64ac72c6c9f67c787aee9cd",
+        "digest": "a4eb30aedecb7b074c6851670ce9e573995c045d3474d697473fcc23bab51325",
         "size": 245,
         "mediaType": "application/json"
     }

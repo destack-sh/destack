@@ -57,13 +57,13 @@ const invalid = [
         file: "src/app.test.ts",
         source: 'import { test } from "@destack/test";\ntest(String("renders"), () => {});\n',
         code: "INSPECTION_FAILED",
-        message: "Test declaration requires a literal title: src/app.test.ts:38",
+        message: "test declaration requires a literal title: src/app.test.ts:38",
     },
     {
         file: "src/app.test.ts",
         source: 'import { test } from "@destack/test";\nif (true) { test("renders", () => {}); }\n',
         code: "INSPECTION_FAILED",
-        message: "Test declaration requires module or suite scope: src/app.test.ts:50",
+        message: "test declaration requires module or suite scope: src/app.test.ts:50",
     },
 ];
 

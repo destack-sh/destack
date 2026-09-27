@@ -2,71 +2,30 @@
     "path": "src/database.ts",
     "source": {
         "path": "src/database.ts",
-        "digest": "808c1ae7548ca781c21ceec12144858e2a46d61f3f5d5cbd291e72d30406d03a",
-        "size": 639,
+        "digest": "35cd8bdee5e0d9d09768917a2920dd1bd680b28105d816c8679b2c85ea6f25e5",
+        "size": 419,
         "mediaType": "text/plain"
     },
-    "length": 639,
+    "length": 419,
     "imports": [
         "@destack/db",
         "@destack/db/declare"
     ],
-    "globals": [
-        {
-            "name": "URL",
-            "symbol": {
-                "compiler": {
-                    "name": "typescript",
-                    "version": "7.0.2"
-                },
-                "symbol": {
-                    "module": "lib.dom.d.ts",
-                    "name": "URL"
-                }
-            },
-            "members": [],
-            "dynamic": false,
-            "source": {
-                "file": "src/database.ts",
-                "start": 597,
-                "end": 600
-            }
-        }
-    ],
+    "globals": [],
     "errors": [
         {
             "source": {
                 "file": "src/database.ts",
                 "start": 0,
-                "end": 639
+                "end": 419
             },
             "throws": [],
             "calls": [
                 {
                     "source": {
                         "file": "src/database.ts",
-                        "start": 208,
-                        "end": 269
-                    },
-                    "target": {
-                        "package": {
-                            "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
-                            "name": "@destack/db",
-                            "version": "2026.9.0"
-                        },
-                        "symbol": {
-                            "module": "src/declare/database.ts",
-                            "name": "defineDatabase"
-                        }
-                    },
-                    "isAwaited": false,
-                    "catches": []
-                },
-                {
-                    "source": {
-                        "file": "src/database.ts",
-                        "start": 334,
-                        "end": 415
+                        "start": 182,
+                        "end": 278
                     },
                     "target": {
                         "package": {
@@ -76,7 +35,7 @@
                         },
                         "symbol": {
                             "module": "src/table/table.ts",
-                            "name": "table"
+                            "name": "defineTable"
                         }
                     },
                     "isAwaited": false,
@@ -85,8 +44,8 @@
                 {
                     "source": {
                         "file": "src/database.ts",
-                        "start": 354,
-                        "end": 380
+                        "start": 212,
+                        "end": 238
                     },
                     "target": {
                         "package": {
@@ -105,8 +64,8 @@
                 {
                     "source": {
                         "file": "src/database.ts",
-                        "start": 354,
-                        "end": 367
+                        "start": 212,
+                        "end": 225
                     },
                     "target": {
                         "package": {
@@ -125,8 +84,8 @@
                 {
                     "source": {
                         "file": "src/database.ts",
-                        "start": 389,
-                        "end": 412
+                        "start": 251,
+                        "end": 274
                     },
                     "target": {
                         "package": {
@@ -145,8 +104,8 @@
                 {
                     "source": {
                         "file": "src/database.ts",
-                        "start": 389,
-                        "end": 402
+                        "start": 251,
+                        "end": 264
                     },
                     "target": {
                         "package": {
@@ -165,8 +124,8 @@
                 {
                     "source": {
                         "file": "src/database.ts",
-                        "start": 513,
-                        "end": 637
+                        "start": 360,
+                        "end": 417
                     },
                     "target": {
                         "package": {
@@ -175,27 +134,8 @@
                             "version": "2026.9.0"
                         },
                         "symbol": {
-                            "module": "src/schema/schema.ts",
-                            "name": "defineDatabaseSchema"
-                        }
-                    },
-                    "isAwaited": false,
-                    "catches": []
-                },
-                {
-                    "source": {
-                        "file": "src/database.ts",
-                        "start": 593,
-                        "end": 633
-                    },
-                    "target": {
-                        "compiler": {
-                            "name": "typescript",
-                            "version": "7.0.2"
-                        },
-                        "symbol": {
-                            "module": "lib.dom.d.ts",
-                            "name": "URL"
+                            "module": "src/declare/database.ts",
+                            "name": "defineDatabase"
                         }
                     },
                     "isAwaited": false,
@@ -208,90 +148,66 @@
                 {
                     "source": {
                         "file": "src/database.ts",
-                        "start": 208,
-                        "end": 269
+                        "start": 182,
+                        "end": 278
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/database.ts",
-                        "start": 334,
-                        "end": 415
+                        "start": 212,
+                        "end": 238
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/database.ts",
-                        "start": 354,
-                        "end": 380
-                    },
-                    "reason": "call"
-                },
-                {
-                    "source": {
-                        "file": "src/database.ts",
-                        "start": 354,
-                        "end": 378
+                        "start": 212,
+                        "end": 236
                     },
                     "reason": "property"
                 },
                 {
                     "source": {
                         "file": "src/database.ts",
-                        "start": 354,
-                        "end": 367
+                        "start": 212,
+                        "end": 225
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/database.ts",
-                        "start": 389,
-                        "end": 412
+                        "start": 251,
+                        "end": 274
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/database.ts",
-                        "start": 389,
-                        "end": 410
+                        "start": 251,
+                        "end": 272
                     },
                     "reason": "property"
                 },
                 {
                     "source": {
                         "file": "src/database.ts",
-                        "start": 389,
-                        "end": 402
+                        "start": 251,
+                        "end": 264
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/database.ts",
-                        "start": 513,
-                        "end": 637
+                        "start": 360,
+                        "end": 417
                     },
                     "reason": "call"
-                },
-                {
-                    "source": {
-                        "file": "src/database.ts",
-                        "start": 593,
-                        "end": 633
-                    },
-                    "reason": "call"
-                },
-                {
-                    "source": {
-                        "file": "src/database.ts",
-                        "start": 617,
-                        "end": 632
-                    },
-                    "reason": "property"
                 }
             ]
         }
@@ -304,8 +220,8 @@
                     "kind": "VariableDeclaration",
                     "source": {
                         "file": "src/database.ts",
-                        "start": 197,
-                        "end": 269
+                        "start": 349,
+                        "end": 417
                     },
                     "modifiers": [],
                     "typeParameters": [],
@@ -339,14 +255,14 @@
             "indexes": []
         },
         {
-            "name": "notes",
+            "name": "note",
             "declarations": [
                 {
                     "kind": "VariableDeclaration",
                     "source": {
                         "file": "src/database.ts",
-                        "start": 505,
-                        "end": 637
+                        "start": 175,
+                        "end": 278
                     },
                     "modifiers": [],
                     "typeParameters": [],
@@ -354,24 +270,13 @@
                 }
             ],
             "documentation": {
-                "text": "Tables and committed migration files distributed with the package.",
+                "text": "Notes stored in the destination database.",
                 "tags": []
             },
             "typeSignatures": [],
             "valueType": {
-                "text": "import(\"@destack/db\").DatabaseSchema<{ note: import(\"@destack/db\").Table<\"note\", import(\"@destack/db\").TableColumns<{ id: import(\"@destack/db\").ColumnBuilder<number, true, false, false>; title: import(\"@destack/db\").ColumnBuilder<string, true, false, false>; }, \"note\">> & import(\"@destack/db\").TableColumns<{ id: import(\"@destack/db\").ColumnBuilder<number, true, false, false>; title: import(\"@destack/db\").ColumnBuilder<string, true, false, false>; }, \"note\">; }, {}>",
+                "text": "import(\"@destack/db\").Table<\"note\", import(\"@destack/db\").TableColumnMap<{ id: import(\"@destack/db\").ColumnBuilder<number, true, false, false>; title: import(\"@destack/db\").ColumnBuilder<string, true, false, false>; }, \"note\">> & import(\"@destack/db\").TableColumnMap<{ id: import(\"@destack/db\").ColumnBuilder<number, true, false, false>; title: import(\"@destack/db\").ColumnBuilder<string, true, false, false>; }, \"note\">",
                 "references": [
-                    {
-                        "package": {
-                            "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
-                            "name": "@destack/db",
-                            "version": "2026.9.0"
-                        },
-                        "symbol": {
-                            "module": "src/schema/schema.ts",
-                            "name": "DatabaseSchema"
-                        }
-                    },
                     {
                         "package": {
                             "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
@@ -402,7 +307,7 @@
                         },
                         "symbol": {
                             "module": "src/table/table.ts",
-                            "name": "TableColumns"
+                            "name": "TableColumnMap"
                         }
                     }
                 ]
@@ -423,10 +328,10 @@
             "isTypeOnly": false
         },
         {
-            "name": "notes",
+            "name": "note",
             "symbol": {
                 "module": "src/database.ts",
-                "name": "notes"
+                "name": "note"
             },
             "isTypeOnly": false
         }

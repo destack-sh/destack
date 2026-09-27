@@ -8,7 +8,7 @@ import { ServiceError } from "@destack/service/error";
 import { implementPreview } from "./preview.ts";
 import { PreviewPool } from "../preview/index.ts";
 import { Server } from "@destack/service/server";
-import { hosting, createCaller } from "./tests/fixture.ts";
+import { hosting, createCaller, openAccess } from "./tests/fixture.ts";
 import { createClient } from "@destack/service/client";
 import { preview } from "../service/preview.ts";
 import { requests } from "../../tests/fixture/web/request.ts";
@@ -60,8 +60,10 @@ test("serve an application and invalidate its edited source", async () => {
             },
             { concurrency: 1, capacity: 2, retention: 60_000 },
         );
+        await using opened = await openAccess();
         await using server = Server.start({
             ...hosting,
+            access: opened.access,
             router: { preview: implementPreview(previews) },
             health: new Health("build"),
             audit: async () => {},

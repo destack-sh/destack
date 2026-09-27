@@ -168,10 +168,10 @@ class BuildServer implements AsyncDisposable {
     }
 }
 
-/** Implement bounded build and preview operations with host-selected access and auditing. */
+/** Implement bounded build and preview operations under the host's access and audit. */
 export function implementService(
     options: BuildServerOptions,
-    access: Pick<ServiceImplementation, "authorize" | "audit">,
+    access: Required<Pick<ServiceImplementation, "access" | "audit">>,
     context: Pick<WorkloadContext, "defer">,
 ): ServiceImplementation {
     const server = new BuildServer(options);

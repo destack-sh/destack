@@ -61,7 +61,7 @@ export class RuntimeCompiler implements AsyncDisposable {
             try {
                 const project = snapshot.getProject(configuration);
                 if (!project) {
-                    throw new BuildError("BUILD_FAILED", `Missing ${runtime} type environment.`);
+                    throw new BuildError("BUILD_FAILED", `missing ${runtime} type environment`);
                 }
 
                 // check the isolated runtime configuration
@@ -71,7 +71,7 @@ export class RuntimeCompiler implements AsyncDisposable {
                     ...(await project.program.getGlobalDiagnostics()),
                 ];
                 if (diagnostics.length) {
-                    throw new BuildError("BUILD_FAILED", `Invalid ${runtime} type environment.`, {
+                    throw new BuildError("BUILD_FAILED", `invalid ${runtime} type environment`, {
                         cause: diagnostics,
                     });
                 }
@@ -82,7 +82,7 @@ export class RuntimeCompiler implements AsyncDisposable {
                     if (failure.fileName !== entry) {
                         throw new BuildError(
                             "BUILD_FAILED",
-                            `Invalid ${runtime} type environment.`,
+                            `invalid ${runtime} type environment`,
                             {
                                 cause: failures,
                             },
@@ -187,7 +187,7 @@ function unsupported(reference: GlobalReference, runtime: Runtime): BuildError {
 
     return new BuildError(
         "BUILD_FAILED",
-        `Unsupported ${runtime} API: ${path} at ${reference.source.file}:${reference.source.start}`,
+        `unsupported ${runtime} API: ${path} at ${reference.source.file}:${reference.source.start}`,
     );
 }
 
@@ -207,16 +207,16 @@ export async function checkRuntime(
     for (const id of inputs) {
         const input = build.inputs[id];
         if (!input) {
-            throw new BuildError("BUILD_FAILED", `Unknown compiled module: ${id}`);
+            throw new BuildError("BUILD_FAILED", `unknown compiled module: ${id}`);
         }
         if (input.runtimes && !input.runtimes.includes(runtime)) {
             throw new BuildError(
                 "BUILD_FAILED",
-                `Unsupported ${runtime} module: ${input.package ?? "source"}/${input.path}`,
+                `unsupported ${runtime} module: ${input.package ?? "source"}/${input.path}`,
             );
         }
         if (input.unresolvedImports?.length) {
-            throw new BuildError("BUILD_FAILED", `Unresolved runtime imports: ${input.path}`);
+            throw new BuildError("BUILD_FAILED", `unresolved runtime imports: ${input.path}`);
         }
 
         // dependency source declarations remain in the compiler inventory under their package
@@ -261,7 +261,7 @@ export function externalModule(specifier: string, runtime: Runtime): boolean {
     if (!isRuntimeModule(specifier, runtime)) {
         throw new BuildError(
             "BUILD_FAILED",
-            `Host module is unavailable on ${runtime}: ${specifier}`,
+            `host module is unavailable on ${runtime}: ${specifier}`,
         );
     }
 
