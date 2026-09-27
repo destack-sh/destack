@@ -1,6 +1,6 @@
 import init from "@sqlite.org/sqlite-wasm";
 import type { Channel } from "../../channel/channel.ts";
-import { serveDatabase, type Message } from "../../shared/shared.ts";
+import { serveDatabase, type Message } from "../shared/shared.ts";
 import { WasmClient } from "./client.ts";
 
 /** Open a database file in the origin's private file system, and serve it to every party of a channel until the returned stop runs. */

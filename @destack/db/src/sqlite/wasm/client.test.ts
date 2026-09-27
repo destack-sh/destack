@@ -1,8 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import init from "@sqlite.org/sqlite-wasm";
-import { migrate } from "../../migration/database.ts";
 import { asc, eq } from "../../index.ts";
-import { connectShared, serveDatabase, type Message } from "../../shared/shared.ts";
+import { connectShared, serveDatabase, type Message } from "../shared/shared.ts";
 import { WasmClient } from "./client.ts";
 import { changeTables, note } from "../../log/test/fixture.ts";
 import { channelHub } from "../../test/channel.ts";
@@ -21,11 +20,11 @@ test("declare, log and query tables on SQLite WebAssembly through a channel, as 
     onTestFinished(() => database.close());
 
     // declare the tables with their log triggers, and log a write
-    await migrate(database, changeTables);
+    await database.migrate(changeTables);
     const values = {
         id: "a",
         title: "First",
-        folder: "inbox",
+        scope: "inbox",
         summary: null,
         views: 9_007_199_254_740_993n,
         labels: ["draft"],

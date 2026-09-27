@@ -1,6 +1,6 @@
 import { canonicalize } from "@destack/schema/json";
 import type { TableDescription } from "../inspect/table.ts";
-import type { TableState } from "./state.ts";
+import { logOf, type TableState } from "./state.ts";
 
 /** The table states several declarations require of one database, and the tables they disagree on. */
 export interface MergedState {
@@ -119,9 +119,7 @@ function mergeTable(states: readonly TableState[]): {
     };
 
     // require the declarations to agree on the log and tree
-    const logs = new Set(
-        states.map((state) => canonicalize({ tier: state.log?.tier, route: state.log?.route })),
-    );
+    const logs = new Set(states.map((state) => logOf(state)));
     const trees = new Set(states.map((state) => canonicalize(state.tree ?? null)));
     if (logs.size > 1 || trees.size > 1) {
         return { state: newest, reason: "releases disagree on the table's log or tree" };

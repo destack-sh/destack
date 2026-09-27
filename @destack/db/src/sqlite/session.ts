@@ -90,6 +90,7 @@ export abstract class Session<Result, Relations extends AnyRelations> extends SQ
                 },
                 values: async (parameters) => {
                     statement ??= client.prepare(query.sql);
+
                     return (await statement).raw(true).all(...parameters);
                 },
             },
@@ -132,6 +133,7 @@ export class ConnectionSession<Result, Relations extends AnyRelations> extends S
     ): Promise<Value> {
         const transaction = this.connection.transactionAsync(async (client) => {
             const session = new TransactionSession(client, this.relations, this.options, 0);
+
             return await operation(
                 new Transaction("async", session.dialect, session, this.relations),
             );

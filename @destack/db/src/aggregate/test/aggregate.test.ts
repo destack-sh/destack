@@ -1,5 +1,4 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { migrate } from "../../migration/database.ts";
 import { TEST_DIALECTS, TestDatabase } from "../../test/database.ts";
 import { asc, eq } from "../../index.ts";
 import { item, list, lists, plainItem } from "./fixture.ts";
@@ -87,7 +86,7 @@ test.for(TEST_DIALECTS)(
         // compute each aggregate once declared, then keep it current
         const database = await test.connect(lists);
         onTestFinished(() => database.close());
-        await migrate(database, lists);
+        await database.migrate(lists);
         const read = async () =>
             (await database.select().from(list)).map((row) => [
                 row.items,

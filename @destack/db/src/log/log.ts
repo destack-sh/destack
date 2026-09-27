@@ -4,16 +4,13 @@ import type { DatabaseConnection } from "../database/connection.ts";
 import { TABLE, type Select, type Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever, DatabaseError } from "../error/error.ts";
-import {
-    LOG_EPOCH,
-    LOG_HORIZON,
-    LOG_COPYING,
-    LOG,
-    LOG_TRANSACTION,
-    loggedColumns,
-    primaryKey,
-} from "./trigger.ts";
-import type { LogPosition } from "./position.ts";
+import { LOG_EPOCH, LOG_HORIZON, LOG_COPYING, LOG, LOG_TRANSACTION } from "./schema.ts";
+import { latestOf, selectHead, type LogPosition } from "./position.ts";
+import { Snapshot, type Undo } from "./snapshot.ts";
+import type { Row } from "../table/row.ts";
+import type { Column } from "../table/column.ts";
+import { Key } from "../query/key.ts";
+import { CHAIN_TERMS } from "../query/predicate.ts";
 
 /**
  * The most changes one read returns by default before completing its last transaction.
@@ -37,7 +34,7 @@ export type ChangeRow<Definition extends Table> = Definition extends Table
 export interface Change<Definition extends Table = Table> {
     /** The change's position in commit order. */
     readonly sequence: number;
-    /** The committing transaction, absent for SQLite statements outside a transaction. */
+    /** The committing transaction, absent for SQLite scripts run outside a transaction. */
     readonly transaction: string | null;
     /** The changed table. */
     readonly table: Definition;
@@ -45,12 +42,12 @@ export interface Change<Definition extends Table = Table> {
     readonly key: Partial<Select<Definition>>;
     /** Whether the row was inserted, updated or deleted. */
     readonly operation: "insert" | "update" | "delete";
-    /** The row after an insertion or update, or before a deletion. */
-    readonly row: ChangeRow<Definition>;
-    /** The values an update changed, as they were before it. */
-    readonly previous?: Partial<ChangeRow<Definition>>;
-    /** The value of the table's routing column, absent for tables without a route. */
-    readonly route: string | null;
+    /** The row before an update or deletion. */
+    readonly before?: ChangeRow<Definition>;
+    /** The row after an insertion or update. */
+    readonly after?: ChangeRow<Definition>;
+    /** The scope the changed row lives in. */
+    readonly scope: string;
     /** The change time in UTC epoch milliseconds. */
     readonly changedAt: number;
 }
@@ -71,16 +68,16 @@ export interface ChangeSelection<Definition extends Table> {
     readonly after: number;
     /** The most changes a page holds before completing its last transaction. */
     readonly limit?: number;
-    /** Read only changes routed to these values, through the route index. */
-    readonly routes?: readonly string[];
+    /** Read only changes of rows living in these scopes, through the scope index. */
+    readonly scopes?: readonly string[];
 }
 
 /** A raw log entry. */
 interface ChangeEntry extends Record<string, unknown> {
-    /** The latest committed sequence in the log, zero while it is empty. */
-    latest: number | string;
-    /** The highest compacted sequence, zero before the first compaction. */
-    horizon: number | string;
+    /** The newest sequence the log holds, null while it holds none. */
+    logged: number | string | null;
+    /** The highest compacted sequence, null before the first compaction. */
+    horizon: number | string | null;
     /** The entry's sequence, absent when no entry matched. */
     sequence: number | string | null;
     /** The committing transaction. */
@@ -95,8 +92,8 @@ interface ChangeEntry extends Record<string, unknown> {
     row: string | Record<string, unknown> | null;
     /** The encoded values an update changed, before it. */
     previous: string | Record<string, unknown> | null;
-    /** The routing column's value. */
-    route: string | null;
+    /** The scope the changed row lives in, absent when no entry matched. */
+    scope: string | null;
     /** The change time. */
     changed_at: number | string | null;
 }
@@ -111,18 +108,50 @@ export class Log {
         this.database = database;
     }
 
+    /**
+     * Read the images a table's rows had before their first change after one sequence, up to another, by key.
+     *
+     * A row inserted after the sequence has a null image.
+     */
+    async images(table: Table, after: number, upto: number): Promise<Map<string, Row | null>> {
+        // read the table's changes page by page, keeping each row's image before its first change
+        const images = new Map<string, Row | null>();
+        for (let reached = after; reached < upto;) {
+            const read = await this.read({ tables: [table], after: reached });
+            for (const change of read.changes) {
+                const key = Key.name(table, change.key);
+                if (change.sequence <= upto && !images.has(key)) {
+                    images.set(key, (change.before as Row | undefined) ?? null);
+                }
+            }
+            if (read.sequence <= reached) {
+                break;
+            }
+            reached = read.sequence;
+        }
+
+        return images;
+    }
+
+    /** Show the database as it was at a position: its logged columns, as the log restores them. */
+    at(position: LogPosition, undo?: Undo): Snapshot {
+        return new Snapshot(this.database, position, undo);
+    }
+
     /** Read the position of the latest commit: the log's epoch and its latest sequence. */
     async position(): Promise<LogPosition> {
-        return { epoch: await this.epoch(), sequence: await this.latest() };
+        const [position] = await this.database.execute<{
+            epoch: string;
+            logged: number | string | null;
+            horizon: number | string | null;
+        }>(selectHead());
+
+        return { epoch: position!.epoch, sequence: latestOf(position!.logged, position!.horizon) };
     }
 
     /** Read the latest committed sequence; read it before listing rows, then follow after it. */
     async latest(): Promise<number> {
-        const [latest] = await this.database.execute<{ sequence: number | string }>(
-            sql`SELECT coalesce(max(sequence), 0) AS sequence FROM ${sql.identifier(LOG)}`,
-        );
-
-        return Number(latest!.sequence);
+        return (await this.position()).sequence;
     }
 
     /** Read the identifier the log records on the open transaction's changes, absent without a log. */
@@ -132,13 +161,10 @@ export class Log {
             throw new TypeError("read the transaction identity inside a transaction");
         }
 
-        // read the identity SQLite transactions stamp, or PostgreSQL's transaction identifier
+        // read the identity SQLite transactions stamp once the database holds a log, or PostgreSQL's transaction identifier
         const dialect = this.database.dialect;
         if (dialect === "sqlite") {
-            const [logged] = await this.database.execute<{ name: string }>(
-                sql`SELECT name FROM sqlite_schema WHERE type = 'table' AND name = ${LOG_TRANSACTION}`,
-            );
-            const [marked] = logged
+            const [marked] = this.database.state.isLogged
                 ? await this.database.execute<{ id: string }>(
                       sql`SELECT id FROM ${sql.identifier(LOG_TRANSACTION)} WHERE slot = 1`,
                   )
@@ -209,7 +235,7 @@ export class Log {
 
         // require the sequence to be within the retained log, for tables whose changes compaction removes
         const bounds = rows[0]!;
-        const horizon = Number(bounds.horizon);
+        const horizon = bounds.horizon === null ? 0 : Number(bounds.horizon);
         const isCompacted = selection.tables.some((table) => table[TABLE].tier === "window");
         if (isCompacted && selection.after < horizon) {
             throw new DatabaseError(
@@ -221,7 +247,7 @@ export class Log {
         // complete the last transaction of a full page
         let entries = rows.filter((entry) => entry.sequence !== null);
         const last = entries.at(-1);
-        if (entries.length === limit && last?.transaction !== null && last !== undefined) {
+        if (entries.length === limit && last !== undefined && last.transaction !== null) {
             const rest = await this.#entries(
                 selection,
                 tables,
@@ -238,7 +264,8 @@ export class Log {
 
         // skip past other tables' changes unless the page stopped at the limit
         const end = changes.length > 0 ? changes.at(-1)!.sequence : selection.after;
-        const sequence = changes.length >= limit ? end : Math.max(end, Number(bounds.latest));
+        const sequence =
+            changes.length >= limit ? end : Math.max(end, latestOf(bounds.logged, bounds.horizon));
 
         return { changes, sequence };
     }
@@ -339,44 +366,50 @@ export class Log {
         return Number(first!.sequence) - 1;
     }
 
-    /** Read log entries of the selected tables and routes with the latest sequence and horizon. */
+    /** Read log entries of the selected tables and scopes with the latest sequence and horizon. */
     async #entries(
         selection: ChangeSelection<Table>,
         tables: ReadonlyMap<string, Table>,
         position: SQL,
         limit?: number,
     ): Promise<ChangeEntry[]> {
-        // select the tables and routes
+        // select the tables and scopes, through a flat chain for a few scopes, which Turso plans far faster than a list
         const log = sql.identifier(LOG);
         const names = sql.join(
             [...tables.keys()].map((name) => sql`${name}`),
             sql`, `,
         );
-        const routes =
-            selection.routes === undefined
+        const scopes = selection.scopes;
+        const scoped =
+            scopes === undefined
                 ? sql``
-                : selection.routes.length === 0
+                : scopes.length === 0
                   ? sql`AND false`
-                  : sql`AND route IN (${sql.join(
-                        selection.routes.map((route) => sql`${route}`),
-                        sql`, `,
-                    )})`;
+                  : scopes.length <= CHAIN_TERMS
+                    ? sql`AND (${sql.join(
+                          scopes.map((scope) => sql`scope = ${scope}`),
+                          sql` OR `,
+                      )})`
+                    : sql`AND scope IN (${sql.join(
+                          scopes.map((scope) => sql`${scope}`),
+                          sql`, `,
+                      )})`;
 
         return await this.database.execute<ChangeEntry>(sql`
             WITH bounds AS (
                 SELECT
-                    coalesce((SELECT max(sequence) FROM ${log}), 0) AS latest,
-                    coalesce((SELECT sequence FROM ${sql.identifier(LOG_HORIZON)} WHERE slot = 1), 0) AS horizon
+                    (SELECT max(sequence) FROM ${log}) AS logged,
+                    (SELECT sequence FROM ${sql.identifier(LOG_HORIZON)} WHERE slot = 1) AS horizon
             ), entries AS (
-                SELECT sequence, "transaction", "table", key, operation, "row", previous, route, changed_at
+                SELECT sequence, "transaction", "table", key, operation, "row", previous, scope, changed_at
                 FROM ${log}
                 WHERE ${position}
                     AND "table" IN (${names})
-                    ${routes}
+                    ${scoped}
                 ORDER BY sequence
                 ${limit === undefined ? sql`` : sql`LIMIT ${limit}`}
             )
-            SELECT bounds.latest, bounds.horizon, entries.*
+            SELECT bounds.logged, bounds.horizon, entries.*
             FROM bounds
             LEFT JOIN entries ON 1 = 1
             ORDER BY entries.sequence
@@ -401,40 +434,43 @@ function decodeChange<Definition extends Table>(
     ) as Record<string, unknown> | null;
 
     // decode each value through its column, keeping missing values as null
-    const columns = Object.entries(table[TABLE].columns);
-    const keyColumns = primaryKey(table).map((column) =>
-        columns.find(([, candidate]) => candidate === column)!,
-    );
-    const decode = (column: (typeof columns)[number][1], value: unknown) =>
+    const { columns, entries, key: keyProperties, logged: recorded } = table[TABLE];
+    const decode = (column: Column, value: unknown) =>
         value === null || value === undefined ? null : column.definition.decode(value, dialect);
+
+    // restore the row before an update from the values it changed
+    const logged: Record<string, unknown> = {};
+    const changed: Record<string, unknown> = {};
+    for (const [property, column] of entries) {
+        if (!Object.hasOwn(recorded, property)) {
+            continue;
+        }
+        const name = column.definition.name;
+        logged[property] = decode(column, row[name]);
+        if (previous !== null && Object.hasOwn(previous, name)) {
+            changed[property] = decode(column, previous[name]);
+        }
+    }
+    const decodedKey: Record<string, unknown> = {};
+    for (const [index, property] of keyProperties.entries()) {
+        decodedKey[property] = decode(columns[property]!, key[index]);
+    }
 
     return {
         sequence: Number(entry.sequence),
         transaction: entry.transaction,
         table,
-        key: Object.fromEntries(
-            keyColumns.map(([property, column], index) => [property, decode(column, key[index])]),
-        ) as Partial<Select<Definition>>,
+        key: decodedKey as Partial<Select<Definition>>,
         operation: entry.operation!,
-        row: Object.fromEntries(
-            Object.entries(loggedColumns(table)).map(([property, column]) => [
-                property,
-                decode(column, row[column.definition.name]),
-            ]),
-        ) as ChangeRow<Definition>,
-        ...(previous === null || previous === undefined
-            ? {}
-            : {
-                  previous: Object.fromEntries(
-                      columns
-                          .filter(([, column]) => Object.hasOwn(previous, column.definition.name))
-                          .map(([property, column]) => [
-                              property,
-                              decode(column, previous[column.definition.name]),
-                          ]),
-                  ) as Partial<ChangeRow<Definition>>,
-              }),
-        route: entry.route ?? null,
+        ...(entry.operation === "insert"
+            ? { after: logged as ChangeRow<Definition> }
+            : entry.operation === "delete"
+              ? { before: logged as ChangeRow<Definition> }
+              : {
+                    before: { ...logged, ...changed } as ChangeRow<Definition>,
+                    after: logged as ChangeRow<Definition>,
+                }),
+        scope: entry.scope!,
         changedAt: Number(entry.changed_at),
     };
 }

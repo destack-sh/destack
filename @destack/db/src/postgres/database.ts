@@ -4,7 +4,7 @@ import type { EmptyRelations } from "drizzle-orm/relations";
 import type { DrizzlePgConfig } from "drizzle-orm/pg-core/utils";
 import { ConnectionState, DatabaseConnection } from "../database/connection.ts";
 import type { CommitNotifier } from "../log/notifier.ts";
-import { LOG_CHANNEL } from "../log/trigger.ts";
+import { LOG_CHANNEL } from "../log/schema.ts";
 import { DatabaseDriver } from "../database/driver.ts";
 import { PostgresSchemaCompiler } from "./compiler.ts";
 import { expandTrees } from "../tree/tree.ts";

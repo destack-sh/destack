@@ -10,7 +10,7 @@ import { TreeDescription } from "../inspect/tree.ts";
 import { AggregateDescription } from "../inspect/aggregate.ts";
 import { describeTable, inlineExpression } from "../inspect/describe.ts";
 import { qualify } from "../table/namespace.ts";
-import { describeLog, primaryKey } from "../log/trigger.ts";
+import { describeLog, primaryKey } from "../log/schema.ts";
 import { assertNever } from "../error/error.ts";
 import { expandTrees } from "../tree/tree.ts";
 import { literal, quote } from "../dialect/quote.ts";
@@ -103,14 +103,17 @@ export function unappliedTables(
         .map((state) => state.table.name);
 }
 
+/** Name how a state logs its changes, its tier and scope column, which releases of a table agree on. */
+export function logOf(state: TableState): string {
+    return canonicalize({ tier: state.log?.tier, scope: state.log?.scope });
+}
+
 /** Report whether an applied state holds a declaration, as it does for every release it was merged from. */
 export function holdsState(applied: TableState, declared: TableState): boolean {
     // require the same row shape version or a newer one, and the same log and tree
-    const log = (state: TableState) =>
-        canonicalize({ tier: state.log?.tier, route: state.log?.route });
     if (
         applied.version < declared.version ||
-        log(applied) !== log(declared) ||
+        logOf(applied) !== logOf(declared) ||
         canonicalize(applied.tree ?? null) !== canonicalize(declared.tree ?? null) ||
         canonicalize(applied.aggregates ?? []) !== canonicalize(declared.aggregates ?? [])
     ) {

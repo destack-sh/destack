@@ -54,7 +54,13 @@ export class CommitWatch {
             // register for the next commit before checking, so no commit goes unnoticed
             const checked = new AbortController();
             const next = this.#next(log, AbortSignal.any([signal, checked.signal]));
-            if (await check()) {
+            const isHeld = await check().catch(async (error: unknown) => {
+                // settle the registered wait before reporting the failed check
+                checked.abort();
+                await Promise.allSettled([next]);
+                throw error;
+            });
+            if (isHeld) {
                 checked.abort();
                 await next;
 

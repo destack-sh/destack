@@ -1,6 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { sql } from "drizzle-orm";
-import { migrate } from "../../migration/database.ts";
 import { TEST_DIALECTS, TestDatabase } from "../../test/database.ts";
 import { eq } from "../../index.ts";
 import { changeTables, lease, note, revision } from "./fixture.ts";
@@ -9,7 +8,7 @@ import { changeTables, lease, note, revision } from "./fixture.ts";
 async function open(dialect: (typeof TEST_DIALECTS)[number], storage?: "memory" | "file") {
     const test = await TestDatabase.create(dialect, changeTables, { storage });
     onTestFinished(() => test.close());
-    await migrate(test.database, changeTables);
+    await test.database.migrate(changeTables);
 
     return test;
 }
@@ -18,7 +17,7 @@ async function open(dialect: (typeof TEST_DIALECTS)[number], storage?: "memory" 
 const first = {
     id: "a",
     title: "First",
-    folder: "inbox",
+    scope: "inbox",
     summary: null,
     views: 9_007_199_254_740_993n,
     labels: ["draft"],
@@ -34,7 +33,9 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
     // record an insert with its transaction, exact values and no binary column
     await database.transaction(async (transaction) => {
         await transaction.insert(note).values(first);
-        await transaction.insert(revision).values({ noteId: "a", number: 1, title: "First" });
+        await transaction
+            .insert(revision)
+            .values({ scope: "inbox", noteId: "a", number: 1, title: "First" });
         await transaction.insert(lease).values({ name: "a", expiresAt: 1 });
     });
     const created = await database.log.read({ tables, after: 0 });
@@ -48,8 +49,8 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
             table: true,
             key: { id: "a" },
             operation: "insert",
-            row: logged,
-            route: "inbox",
+            after: logged,
+            scope: "inbox",
             changedAt: expect.any(Number),
         },
         {
@@ -58,8 +59,8 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
             table: false,
             key: { noteId: "a", number: 1 },
             operation: "insert",
-            row: { noteId: "a", number: 1, title: "First" },
-            route: null,
+            after: { scope: "inbox", noteId: "a", number: 1, title: "First" },
+            scope: "inbox",
             changedAt: expect.any(Number),
         },
     ]);
@@ -73,7 +74,7 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
         .where(eq(note.id, "a"));
     await database.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
     const updated = await database.log.read({ tables: [note], after: created.sequence });
-    expect(updated.changes.map((change) => [change.operation, change.row.title])).toEqual([
+    expect(updated.changes.map((change) => [change.operation, change.after?.title])).toEqual([
         ["update", "First"],
         ["update", "Renamed"],
     ]);
@@ -82,16 +83,22 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
     await database.update(note).set({ id: "b" }).where(eq(note.id, "a"));
     await database.delete(note).where(eq(note.id, "b"));
     const moved = await database.log.read({ tables: [note], after: updated.sequence });
-    expect(moved.changes.map((change) => [change.operation, change.key, change.row.title])).toEqual(
-        [
-            ["delete", { id: "a" }, "Renamed"],
-            ["insert", { id: "b" }, "Renamed"],
-            ["delete", { id: "b" }, "Renamed"],
-        ],
-    );
+    expect(
+        moved.changes.map((change) => [
+            change.operation,
+            change.key,
+            (change.after ?? change.before)?.title,
+        ]),
+    ).toEqual([
+        ["delete", { id: "a" }, "Renamed"],
+        ["insert", { id: "b" }, "Renamed"],
+        ["delete", { id: "b" }, "Renamed"],
+    ]);
 
     // advance a filtered cursor past other tables' changes
-    await database.insert(revision).values({ noteId: "b", number: 2, title: "Second" });
+    await database
+        .insert(revision)
+        .values({ scope: "inbox", noteId: "b", number: 2, title: "Second" });
     const filtered = await database.log.read({ tables: [note], after: moved.sequence });
     expect(filtered.changes).toEqual([]);
     expect(filtered.sequence).toBe(await database.log.latest());
@@ -125,43 +132,77 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
     expect((await following.next()).done).toBe(true);
 });
 
-test.for(TEST_DIALECTS)("read one route's changes with prior values on %s", async (dialect) => {
-    const { database } = await open(dialect);
-    await database.insert(note).values(first);
-    await database.insert(note).values({ ...first, id: "b", folder: "archive" });
-    const start = await database.log.read({ tables: [note], after: 0, routes: ["inbox"] });
-    expect(start.changes.map((change) => change.key)).toEqual([{ id: "a" }]);
+test.for(TEST_DIALECTS)(
+    "keep the latest sequence once compaction removes every change on %s",
+    async (dialect) => {
+        const { database } = await open(dialect);
+        await database.insert(note).values(first);
+        await database.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
+        const latest = await database.log.latest();
 
-    // carry the prior values of changed columns, nulls included
-    await database.update(note).set({ title: "Titled", summary: "Short" }).where(eq(note.id, "a"));
-    await database.update(note).set({ summary: null }).where(eq(note.id, "a"));
-    const updated = await database.log.read({
-        tables: [note],
-        after: start.sequence,
-        routes: ["inbox"],
-    });
-    expect(updated.changes.map((change) => [change.operation, change.previous])).toEqual([
-        ["update", { title: "First", summary: null }],
-        ["update", { summary: "Short" }],
-    ]);
+        // compact every windowed change, leaving the log empty at the same position
+        await database.log.compact(Date.now() + 1);
+        expect([
+            await database.log.latest(),
+            (await database.log.position()).sequence,
+            (await database.log.read({ tables: [note], after: latest })).sequence,
+        ]).toEqual([latest, latest, latest]);
+    },
+);
 
-    // log a route change as a deletion from the old route and an insertion into the new one
-    await database.update(note).set({ folder: "archive" }).where(eq(note.id, "a"));
-    const moved = await database.log.read({ tables: [note], after: updated.sequence });
-    expect(moved.changes.map((change) => [change.operation, change.route])).toEqual([
-        ["delete", "inbox"],
-        ["insert", "archive"],
-    ]);
-    const archived = await database.log.read({
-        tables: [note],
-        after: 0,
-        routes: ["archive"],
-    });
-    expect(archived.changes.map((change) => [change.operation, change.key])).toEqual([
-        ["insert", { id: "b" }],
-        ["insert", { id: "a" }],
-    ]);
-});
+test.for(TEST_DIALECTS)(
+    "read one scope's changes with the rows before and after them on %s",
+    async (dialect) => {
+        const { database } = await open(dialect);
+        await database.insert(note).values(first);
+        await database.insert(note).values({ ...first, id: "b", scope: "archive" });
+        const start = await database.log.read({ tables: [note], after: 0, scopes: ["inbox"] });
+        expect(start.changes.map((change) => change.key)).toEqual([{ id: "a" }]);
+
+        // restore the row before each update, nulls included
+        await database
+            .update(note)
+            .set({ title: "Titled", summary: "Short" })
+            .where(eq(note.id, "a"));
+        await database.update(note).set({ summary: null }).where(eq(note.id, "a"));
+        const updated = await database.log.read({
+            tables: [note],
+            after: start.sequence,
+            scopes: ["inbox"],
+        });
+        const texts = (row?: { readonly title: string; readonly summary: string | null }) => [
+            row?.title,
+            row?.summary,
+        ];
+        expect(
+            updated.changes.map((change) => [
+                change.operation,
+                texts(change.before),
+                texts(change.after),
+            ]),
+        ).toEqual([
+            ["update", ["First", null], ["Titled", "Short"]],
+            ["update", ["Titled", "Short"], ["Titled", null]],
+        ]);
+
+        // log a scope change as a deletion from the old scope and an insertion into the new one
+        await database.update(note).set({ scope: "archive" }).where(eq(note.id, "a"));
+        const moved = await database.log.read({ tables: [note], after: updated.sequence });
+        expect(moved.changes.map((change) => [change.operation, change.scope])).toEqual([
+            ["delete", "inbox"],
+            ["insert", "archive"],
+        ]);
+        const archived = await database.log.read({
+            tables: [note],
+            after: 0,
+            scopes: ["archive"],
+        });
+        expect(archived.changes.map((change) => [change.operation, change.key])).toEqual([
+            ["insert", { id: "b" }],
+            ["insert", { id: "a" }],
+        ]);
+    },
+);
 
 test.for(TEST_DIALECTS)(
     "wait for a position through this connection's and another connection's commits on %s",
@@ -195,19 +236,21 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)("end each page with a whole transaction on %s", async (dialect) => {
     const { database } = await open(dialect);
 
-    // write three notes in one transaction and read pages of two
+    // write three notes in one transaction, one alone, and three in one statement, then read pages of two
     await database.transaction(async (transaction) => {
         for (const id of ["a", "b", "c"]) {
             await transaction.insert(note).values({ ...first, id });
         }
     });
     await database.insert(note).values({ ...first, id: "d" });
+    await database.insert(note).values(["e", "f", "g"].map((id) => ({ ...first, id })));
     const page = await database.log.read({ tables: [note], after: 0, limit: 2 });
     const next = await database.log.read({ tables: [note], after: page.sequence, limit: 2 });
 
+    // complete the statement's changes as one transaction, as the explicit one
     expect([page, next].map(({ changes }) => changes.map((change) => change.key.id))).toEqual([
         ["a", "b", "c"],
-        ["d"],
+        ["d", "e", "f", "g"],
     ]);
 });
 

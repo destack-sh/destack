@@ -11,8 +11,8 @@ export const note = defineTable(
         id: text("id").primaryKey(),
         /** The title. */
         title: text("title").notNull(),
-        /** The folder routing the note's changes. */
-        folder: text("folder").notNull(),
+        /** The folder the note lives in, which its changes are filed under. */
+        scope: text("scope").notNull(),
         /** An optional summary. */
         summary: text("summary"),
         /** An exact counter beyond the safe integer range. */
@@ -24,13 +24,15 @@ export const note = defineTable(
         /** Attached bytes, left out of the log. */
         attachment: binary("attachment"),
     },
-    { log: { route: "folder" } },
+    { log: {} },
 );
 
 /** Note revisions whose changes are kept forever. */
 export const revision = defineTable(
     "revision",
     {
+        /** The folder the revision lives in. */
+        scope: text("scope").notNull(),
         /** The revised note. */
         noteId: text("note_id").notNull(),
         /** The revision number. */
@@ -45,16 +47,12 @@ export const revision = defineTable(
 );
 
 /** Short-lived locks whose changes are not logged. */
-export const lease = defineTable(
-    "lease",
-    {
-        /** The locked name. */
-        name: text("name").primaryKey(),
-        /** The expiry in UTC epoch milliseconds. */
-        expiresAt: integer("expires_at").notNull(),
-    },
-    { log: { tier: "none" } },
-);
+export const lease = defineTable("lease", {
+    /** The locked name. */
+    name: text("name").primaryKey(),
+    /** The expiry in UTC epoch milliseconds. */
+    expiresAt: integer("expires_at").notNull(),
+});
 
 /** The log example's tables. */
 export const changeTables = [note, revision, lease];

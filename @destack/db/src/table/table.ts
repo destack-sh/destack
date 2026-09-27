@@ -1,6 +1,6 @@
 import { type SQL, sql, type SQLWrapper } from "drizzle-orm";
 import { Column, type ColumnBuilder } from "./column.ts";
-import { check, ForeignKey, type TableConstraint } from "./constraint.ts";
+import { check, ForeignKey, type PrimaryKey, type TableConstraint } from "./constraint.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { declaringModule, type ModuleMetadata, type Package } from "@destack/package";
 import { qualify } from "./namespace.ts";
@@ -29,7 +29,21 @@ export class Table<
         readonly tree?: Tree;
         /** The original table when this declaration is a query alias. */
         readonly source?: Table;
+        /** The properties holding the primary key in key order, none for a table without one. */
+        readonly key: readonly string[];
+        /** The columns by property in declaration order, which row codecs walk. */
+        readonly entries: readonly (readonly [string, Column])[];
+        /** The columns the log records, by property: every column except binary and sensitive ones. */
+        readonly logged: Readonly<Record<string, Column>>;
     };
+    /** The primary key's properties, read once the constraints can be evaluated. */
+    #key: readonly string[] | undefined;
+    /** The columns by property in declaration order, read once. */
+    #entries: readonly (readonly [string, Column])[] | undefined;
+    /** The logged columns by property, read once. */
+    #logged: Readonly<Record<string, Column>> | undefined;
+    /** The statements over the table, built once each, by name. */
+    readonly #statements = new Map<string, unknown>();
     /** The selected application record type. */
     declare readonly $inferSelect: Select<Table<Name, Columns>>;
     /** The inserted application record type. */
@@ -42,25 +56,68 @@ export class Table<
         declaration: TableDeclaration,
         options: { readonly tree?: TreeColumns; readonly source?: Table } = {},
     ) {
-        const { constraints, tier, route, version, moved, convert, aggregates } = declaration;
-        this[TABLE] = {
+        // declare the table, reading its key once its constraints can be evaluated, or an alias's from its source
+        const { constraints, tier, version, moved, convert, aggregates } = declaration;
+        const declared = {
             ...identity,
             columns,
             constraints,
             tier,
-            ...(route === undefined ? {} : { route }),
             version,
             moved,
             convert,
             aggregates,
             ...(options.source === undefined ? {} : { source: options.source }),
         };
+        Object.defineProperties(declared, {
+            key: {
+                get: () => (this.#key ??= options.source?.[TABLE].key ?? keyOf(this)),
+                enumerable: true,
+            },
+            entries: {
+                get: () => (this.#entries ??= Object.entries(columns)),
+                enumerable: true,
+            },
+            logged: {
+                get: () =>
+                    (this.#logged ??= Object.fromEntries(
+                        Object.entries(columns).filter(
+                            ([, column]) =>
+                                column.definition.kind !== "binary" &&
+                                column.definition.classification !== "sensitive",
+                        ),
+                    )),
+                enumerable: true,
+            },
+        });
+        this[TABLE] = declared as typeof declared & {
+            readonly key: readonly string[];
+            readonly entries: readonly (readonly [string, Column])[];
+            readonly logged: Readonly<Record<string, Column>>;
+        };
+
+        // build the tree over the declared columns
         if (options.tree) {
-            this[TABLE] = {
-                ...this[TABLE],
-                tree: new Tree({ name: "tree", table: this, ...options.tree }),
-            };
+            Object.defineProperty(this[TABLE], "tree", {
+                value: new Tree({ name: "tree", table: this, ...options.tree }),
+                enumerable: true,
+            });
         }
+    }
+
+    /** Read a statement over the table, building it once per name. */
+    statement<Value>(name: string, build: () => Value): Value {
+        // reuse the statement of the same name
+        const known = this.#statements.get(name) as Value | undefined;
+        if (known !== undefined) {
+            return known;
+        }
+
+        // build it once
+        const built = build();
+        this.#statements.set(name, built);
+
+        return built;
     }
 
     /** Return the table identifier. */
@@ -139,10 +196,8 @@ interface TreeColumns<Property extends string = string> {
 interface TableDeclaration {
     /** Evaluate constraints after referenced tables have been declared. */
     readonly constraints: () => readonly TableConstraint[];
-    /** How long committed changes stay in the log. */
+    /** How long committed changes stay in the log, none for unlogged tables. */
     readonly tier: ChangeTier;
-    /** The property whose value routes each logged change. */
-    readonly route?: string;
     /** The version of the row shape. */
     readonly version: number;
     /** The table's previous names. */
@@ -173,13 +228,13 @@ export interface Aggregate {
 export interface TableOptions<Columns> {
     /** Constraints and indexes, evaluated after referenced tables are declared. */
     readonly constraints?: (columns: Columns) => readonly TableConstraint[];
-    /** How long committed changes stay in the log and the property routing them. */
-    readonly log?: {
-        /** The retention tier, the window by default. */
-        readonly tier?: ChangeTier;
-        /** The property whose value routes each change. */
-        readonly route?: keyof Columns & string;
-    };
+    /** Log committed changes, filed under the scope column each row lives in, which a logged table requires. */
+    readonly log?: "scope" extends keyof Columns
+        ? {
+              /** The retention tier, the window by default. */
+              readonly tier?: Exclude<ChangeTier, "none">;
+          }
+        : never;
     /** The properties of a single-parent tree maintained within each scope. */
     readonly tree?: TreeColumns<keyof Columns & string>;
     /** The version of the row shape, one by default, raised with each conversion. */
@@ -297,8 +352,7 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
         columns,
         {
             constraints: () => options.constraints?.(columns) ?? [],
-            tier: options.log?.tier ?? "window",
-            ...(options.log?.route === undefined ? {} : { route: options.log.route }),
+            tier: options.log === undefined ? "none" : (options.log.tier ?? "window"),
             version,
             moved: (options.moved ?? {}) as TableMove,
             convert: (options.convert ?? {}) as Readonly<Record<number, RowConversion>>,
@@ -341,4 +395,23 @@ export function alias<Definition extends Table, Name extends string>(
     );
 
     return Object.assign(definition, columns);
+}
+
+/** Read a table's primary key properties: a compound key constraint's, else the key columns'. */
+function keyOf(table: Table): readonly string[] {
+    // prefer a compound key constraint over column-level keys
+    const columns = table[TABLE].columns;
+    const declared = table
+        .constraints("sqlite")
+        .find((constraint): constraint is PrimaryKey => constraint.kind === "primaryKey");
+    const keys =
+        declared?.columns ??
+        Object.values(columns).filter((column) => column.definition.primaryKey);
+
+    // name each key column by its property
+    const properties = new Map(
+        Object.entries(columns).map(([property, column]) => [column, property]),
+    );
+
+    return keys.map((column) => properties.get(column)!);
 }

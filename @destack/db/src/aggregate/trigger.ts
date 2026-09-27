@@ -3,7 +3,7 @@ import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever } from "../error/error.ts";
 import { literal, quote } from "../dialect/quote.ts";
 import type { AggregateDescription } from "../inspect/aggregate.ts";
-import { LOG_COPYING } from "../log/trigger.ts";
+import { LOG_COPYING } from "../log/schema.ts";
 
 /** Generate the triggers keeping an aggregate current as the aggregated rows change. */
 function install(aggregate: AggregateDescription, dialect: Dialect): string[] {

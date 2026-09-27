@@ -1,9 +1,8 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { migrate } from "../migration/database.ts";
-import { asc, defineTable, eq, integer, text } from "../index.ts";
-import { connect } from "../sqlite/turso/connection.ts";
-import { channelHub } from "../test/channel.ts";
-import { channelNotifier } from "../log/notifier.ts";
+import { asc, defineTable, eq, integer, text } from "../../index.ts";
+import { connect } from "../turso/connection.ts";
+import { channelHub } from "../../test/channel.ts";
+import { channelNotifier } from "../../log/notifier.ts";
 import { connectShared, Party, serveDatabase, type Message } from "./shared.ts";
 
 /** Notes a party writes through the owner. */
@@ -19,7 +18,7 @@ test("run a party's statements and transactions on the owner's connection, notif
     const join = channelHub<Message>();
     const owner = await connect(":memory:", [note], { notifier: channelNotifier(join()) });
     onTestFinished(() => owner.close());
-    await migrate(owner, [note]);
+    await owner.migrate([note]);
     const stop = serveDatabase(owner.$client, join());
     onTestFinished(stop);
     const party = connectShared(join(), "tab-2", [note]);
@@ -66,7 +65,7 @@ test("hold requests until an owner serves, and fail requests a replaced owner le
     const join = channelHub<Message>();
     const first = await connect(":memory:", [note]);
     onTestFinished(() => first.close());
-    await migrate(first, [note]);
+    await first.migrate([note]);
     const party = new Party(join(), "tab-2");
     onTestFinished(() => party.close());
     const held = party.request({ type: "begin", mode: "deferred" });

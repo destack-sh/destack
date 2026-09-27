@@ -6,7 +6,6 @@ import type { DatabaseConnection } from "../database/connection.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import type { Table } from "../table/table.ts";
 import type * as declaration from "../declare/database.ts";
-import { migrate } from "../migration/database.ts";
 import { declareState } from "../migration/state.ts";
 import * as turso from "../sqlite/turso/connection.ts";
 import * as postgresql from "../postgres/connection.ts";
@@ -76,7 +75,7 @@ export class TestDatabase {
                 );
             const database = await open(tables);
             if (options.isMigrated) {
-                await migrate(database, declared);
+                await database.migrate(declared, { isReplica: options.isReplica ?? false });
             }
 
             return new TestDatabase(database, open, async () => {
@@ -96,7 +95,7 @@ export class TestDatabase {
             const directory = await mkdtemp(join(tmpdir(), "destack-test-"));
             const file = join(directory, "test.db");
             if (options.isMigrated) {
-                await copyFile(await sqliteTemplate(declared), file);
+                await copyFile(await sqliteTemplate(declared, options.isReplica ?? false), file);
             }
 
             return new TestDatabase(
@@ -132,12 +131,14 @@ export interface TestDatabaseOptions {
     readonly storage?: "memory" | "file";
     /** Whether the database starts migrated to its tables. */
     readonly isMigrated?: boolean;
+    /** Whether it migrates as a copy of another database's tables: without their trees and references. */
+    readonly isReplica?: boolean;
 }
 
-/** Migrate a SQLite template file of some tables once per process, and return its path. */
-function sqliteTemplate(tables: readonly Table[]): Promise<string> {
+/** Migrate a SQLite template file of some tables once per process, as a source or a copy, and return its path. */
+function sqliteTemplate(tables: readonly Table[], isReplica: boolean): Promise<string> {
     // reuse the template of the same declared state
-    const key = JSON.stringify(declareState(tables, "sqlite"));
+    const key = JSON.stringify(declareState(tables, "sqlite", { isReplica }));
     const known = templates.get(key);
     if (known) {
         return known;
@@ -149,7 +150,7 @@ function sqliteTemplate(tables: readonly Table[]): Promise<string> {
         const directory = await mkdtemp(join(tmpdir(), "destack-template-"));
         const file = join(directory, "template.db");
         const database = await turso.connect(file, tables);
-        await migrate(database, tables);
+        await database.migrate(tables, { isReplica });
         await database.executeScript("PRAGMA wal_checkpoint(TRUNCATE)");
         await database.close();
 

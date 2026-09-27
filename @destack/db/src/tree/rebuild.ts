@@ -10,6 +10,9 @@ const RECORD_PARAMETERS = 4;
 /** The most ancestor records one statement writes. */
 const BATCH_SIZE = Math.floor(PARAMETER_BUDGET / RECORD_PARAMETERS);
 
+/** The temporary table staging a rebuilt index's paths, dropped before the rebuild returns. */
+const STAGED = "destack_tree_rebuild";
+
 /** Rebuild a historical tree index inside the caller's write transaction. */
 export async function rebuildTree(
     database: DatabaseConnection,
@@ -69,10 +72,12 @@ export async function rebuildTree(
         }
     }
 
-    // write bounded batches without retaining the quadratic ancestor output in memory
-    await database.execute(sql`DELETE FROM ${sql.identifier(tree.ancestors)}`);
+    // stage the paths in bounded batches, unlogged, without retaining the quadratic output in memory
+    const staged = sql.identifier(STAGED);
+    await database.execute(sql`CREATE TEMPORARY TABLE ${staged}
+        (scope text NOT NULL, ancestor text NOT NULL, descendant text NOT NULL, depth integer NOT NULL)`);
     const flush = async (batch: readonly SQL[]) =>
-        database.execute(sql`INSERT INTO ${sql.identifier(tree.ancestors)}
+        database.execute(sql`INSERT INTO ${staged}
             (scope, ancestor, descendant, depth) VALUES ${sql.join([...batch], sql`, `)}`);
     let batch: SQL[] = [];
     for (const [scope, parents] of scopes) {
@@ -92,8 +97,21 @@ export async function rebuildTree(
         }
     }
 
-    // write the last partial batch
+    // stage the last partial batch
     if (batch.length > 0) {
         await flush(batch);
     }
+
+    // log only the paths that differ: remove the stale ones, then add the missing ones
+    const ancestors = sql.identifier(tree.ancestors);
+    const same = (left: typeof staged, right: typeof staged) => sql`${left}.scope = ${right}.scope
+        AND ${left}.ancestor = ${right}.ancestor
+        AND ${left}.descendant = ${right}.descendant
+        AND ${left}.depth = ${right}.depth`;
+    await database.execute(sql`DELETE FROM ${ancestors}
+        WHERE NOT EXISTS (SELECT 1 FROM ${staged} WHERE ${same(staged, ancestors)})`);
+    await database.execute(sql`INSERT INTO ${ancestors} (scope, ancestor, descendant, depth)
+        SELECT scope, ancestor, descendant, depth FROM ${staged}
+        WHERE NOT EXISTS (SELECT 1 FROM ${ancestors} WHERE ${same(ancestors, staged)})`);
+    await database.execute(sql`DROP TABLE ${staged}`);
 }

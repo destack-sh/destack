@@ -1,5 +1,4 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { migrate } from "../../migration/index.ts";
 import { sql } from "../../index.ts";
 import { TEST_DIALECTS, TestDatabase } from "../../test/database.ts";
 import { baseNode, tree, node } from "./fixture.ts";
@@ -11,7 +10,7 @@ test.for(TEST_DIALECTS)("migrate, query, move and remove scoped trees on %s", as
     const { database } = test;
 
     // populate ordinary parent records before the tree declaration exists
-    await migrate(database, [baseNode]);
+    await database.migrate([baseNode]);
     await database.insert(node).values([
         { id: "a", scope: "one", parent: null },
         { id: "b", scope: "one", parent: "a" },
@@ -22,7 +21,7 @@ test.for(TEST_DIALECTS)("migrate, query, move and remove scoped trees on %s", as
 
     // reject a missing parent without retaining the new index or migration history
     await database.execute(sql`UPDATE ${node} SET parent = 'missing' WHERE id = 'b'`);
-    await expect(migrate(database, [node])).rejects.toMatchObject({
+    await expect(database.migrate([node])).rejects.toMatchObject({
         code: "MIGRATION_FAILED",
         cause: { code: "INVALID_MIGRATION", message: "tree parent is missing" },
     });
@@ -36,13 +35,13 @@ test.for(TEST_DIALECTS)("migrate, query, move and remove scoped trees on %s", as
 
     // reject a cycle and then apply the same history after repairing the source
     await database.execute(sql`UPDATE ${node} SET parent = 'c' WHERE id = 'b'`);
-    await expect(migrate(database, [node])).rejects.toMatchObject({
+    await expect(database.migrate([node])).rejects.toMatchObject({
         code: "MIGRATION_FAILED",
         cause: { code: "INVALID_MIGRATION", message: "tree contains a cycle" },
     });
     await database.execute(sql`UPDATE ${node} SET parent = 'a' WHERE id = 'b'`);
-    await migrate(database, [node]);
-    await migrate(database, [node]);
+    await database.migrate([node]);
+    await database.migrate([node]);
 
     // compare the complete generated ancestry, including self paths
     expect(

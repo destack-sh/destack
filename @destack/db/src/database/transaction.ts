@@ -106,7 +106,7 @@ export class TransactionState {
     }
 }
 
-/** Transaction isolation shared by application queries. */
+/** How a transaction runs: its isolation, cancellation, access and constraint checks. */
 export interface TransactionOptions {
     /** The minimum isolation; SQLite transactions provide serializable isolation. */
     readonly isolationLevel?: "read committed" | "repeatable read" | "serializable";

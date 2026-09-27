@@ -1,12 +1,12 @@
 import type { EmptyRelations } from "drizzle-orm/relations";
 import type { DrizzleSQLiteConfig } from "drizzle-orm/sqlite-core/utils";
-import type * as declaration from "../declare/database.ts";
-import { channelNotifier } from "../log/notifier.ts";
-import type { Channel } from "../channel/channel.ts";
-import type { Table } from "../table/table.ts";
-import { SqliteDatabase } from "../sqlite/database.ts";
-import { DatabaseError } from "../error/error.ts";
-import type { ConnectionClient, QueryClient, Statement } from "../sqlite/client.ts";
+import type * as declaration from "../../declare/database.ts";
+import { channelNotifier } from "../../log/notifier.ts";
+import type { Channel } from "../../channel/channel.ts";
+import type { Table } from "../../table/table.ts";
+import { SqliteDatabase } from "../database.ts";
+import { DatabaseError } from "../../error/error.ts";
+import type { ConnectionClient, QueryClient, Statement } from "../client.ts";
 
 /**
  * How long an owner keeps a party's transaction open without a statement, in milliseconds.

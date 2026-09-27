@@ -1,7 +1,7 @@
 import { type SQL, sql } from "drizzle-orm";
 import { v7 } from "uuid";
 import type { ConnectionState } from "../database/connection.ts";
-import { LOG_TRANSACTION } from "./trigger.ts";
+import { LOG_TRANSACTION } from "./schema.ts";
 
 /** A native SQLite transaction able to run statements. */
 interface SQLiteTransaction {

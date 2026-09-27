@@ -1,10 +1,11 @@
 import { defineTable, TABLE, type Table } from "../table/table.ts";
 import { text, integer } from "../table/column.ts";
-import { index, unique } from "../table/constraint.ts";
+import { index, primaryKey } from "../table/constraint.ts";
 import { assertNever, DatabaseError } from "../error/index.ts";
 import type { TreeDescription } from "../inspect/tree.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { sql, type SQL } from "drizzle-orm";
+import { jsonElements, Statement } from "../query/statement.ts";
 
 /** A scoped parent relationship with a transactionally maintained ancestor index. */
 export class Tree {
@@ -14,6 +15,8 @@ export class Tree {
     readonly ancestors;
     /** The revision table serializing concurrent hierarchy writes within one scope. */
     readonly revision;
+    /** The statement reading the proper ancestors of a JSON list of nodes in a scope, nearest first. */
+    readonly ancestry: Statement<{ descendant: string; ancestor: string }>;
 
     /** Describe an existing application table's tree columns. */
     constructor(definition: TreeDefinition) {
@@ -50,10 +53,14 @@ export class Tree {
             },
             {
                 constraints: (path) => [
-                    unique(`${name}_path`).on(path.scope, path.ancestor, path.descendant),
+                    primaryKey({
+                        name: `${name}_path`,
+                        columns: [path.scope, path.ancestor, path.descendant],
+                    }),
                     index(`${name}_descendant`).on(path.scope, path.descendant, path.ancestor),
                 ],
-                log: { tier: "none" },
+                // log each path under its scope, so that feeds read the tree as of a position and follow its moves
+                log: { tier: "window" },
             },
             owner,
         );
@@ -62,8 +69,18 @@ export class Tree {
         this.revision = defineTable(
             `${name}_revision`,
             { scope: text("scope").primaryKey(), revision: integer("revision").notNull() },
-            { log: { tier: "none" } },
+            {},
             owner,
+        );
+
+        // read ancestors of many nodes at once through the index
+        const path = this.ancestors;
+        this.ancestry = new Statement(
+            (value) => sql`SELECT ${path.descendant} AS descendant, ${path.ancestor} AS ancestor
+                FROM ${jsonElements(value("ids"), "listed_node")}
+                JOIN ${path} ON ${path.scope} = ${value("scope")} AND ${path.descendant} = listed_node.value ->> 0
+                WHERE ${path.depth} > 0
+                ORDER BY ${path.depth}`,
         );
     }
 
