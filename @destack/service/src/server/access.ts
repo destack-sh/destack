@@ -24,7 +24,7 @@ export interface ProcedureAudit<State extends Context> {
     /** The invocation evaluated by the host. */
     call: ProcedureCall<State>;
     /** The stage reached by the invocation. */
-    outcome: "started" | "succeeded" | "failed" | "denied" | "cancelled";
+    outcome: "started" | "success" | "failure" | "denied" | "cancelled";
     /** The failure supplied to the host, which must redact its persisted record. */
     error?: unknown;
 }
@@ -47,12 +47,11 @@ export async function invokeProcedure<State extends Context>(
             await options.authorize(call);
         }
     } catch (error) {
+        const failure = reportError(error);
         if (audit) {
-            const isDenied =
-                error instanceof ServiceError && (error.status === 401 || error.status === 403);
-            await recordAudit({ call, outcome: isDenied ? "denied" : "failed", error }, audit);
+            await recordAudit({ call, outcome: outcomeOf(failure), error: failure }, audit);
         }
-        throw reportError(error);
+        throw failure;
     }
 
     // retain the actual application outcome independently of audit delivery failures
@@ -60,12 +59,11 @@ export async function invokeProcedure<State extends Context>(
     try {
         result = await next();
     } catch (error) {
+        const failure = reportError(error);
         if (audit) {
-            const isDenied =
-                error instanceof ServiceError && (error.status === 401 || error.status === 403);
-            await recordAudit({ call, outcome: isDenied ? "denied" : "failed", error }, audit);
+            await recordAudit({ call, outcome: outcomeOf(failure), error: failure }, audit);
         }
-        throw reportError(error);
+        throw failure;
     }
 
     // retain stream completion until its iterator closes
@@ -73,7 +71,7 @@ export async function invokeProcedure<State extends Context>(
         return streamProcedure(result as AsyncIterable<unknown>, call, options);
     }
     if (audit) {
-        await recordAudit({ call, outcome: "succeeded" }, audit);
+        await recordAudit({ call, outcome: "success" }, audit);
     }
 
     return result;
@@ -103,27 +101,25 @@ function streamProcedure<State extends Context>(
                     await options.authorize(call);
                 }
                 if (result.done) {
-                    outcome = "succeeded";
+                    outcome = "success";
                 }
 
                 return result;
             } catch (error) {
-                outcome =
-                    error instanceof ServiceError && (error.status === 401 || error.status === 403)
-                        ? "denied"
-                        : "failed";
-                failure = error;
-                throw reportError(error);
+                const reported = reportError(error);
+                failure = reported;
+                outcome = outcomeOf(reported);
+                throw reported;
             }
         },
         async (reason) => {
             // release and audit streams even when cancelled before their first value
             try {
-                if (reason !== "next" || outcome !== "succeeded") {
+                if (reason !== "next" || outcome !== "success") {
                     await iterator.return?.();
                 }
             } catch (error) {
-                outcome = "failed";
+                outcome = "failure";
                 failure = error;
                 throw reportError(error);
             } finally {
@@ -151,4 +147,9 @@ async function recordAudit<State extends Context>(
 
         throw reportError(failure);
     }
+}
+
+/** Classify a reported failure as a denial of access or a failure of the call. */
+function outcomeOf(failure: ServiceError<string, unknown>): "denied" | "failure" {
+    return failure.status === 401 || failure.status === 403 ? "denied" : "failure";
 }

@@ -1,10 +1,6 @@
 import type { JWTPayload } from "jose";
 import { Caller, CALLER_LIFETIME_MS } from "./caller.ts";
-import {
-    TokenAuthentication,
-    verifyTokenAuthentication,
-    type TokenIssuerAuthority,
-} from "./token.ts";
+import { TokenAuthentication, type TokenIssuerAuthority } from "./token.ts";
 import { ServiceError } from "../error/index.ts";
 
 /** Issue bounded access tokens from authority-verified caller records. */
@@ -21,13 +17,9 @@ export class TokenIssuer {
     async issue(caller: Caller<{ kind: string; id: string }>, now = Date.now()) {
         // retain the original verification deadline through repeated exchanges
         const current = caller.authentication;
-        caller.context(current.audience, now, current.scope);
+        caller.requireCurrent(current.audience, now, current.scope);
         const expiresAt = Math.floor(
-            Math.min(
-                current.expiresAt,
-                current.verifiedAt + CALLER_LIFETIME_MS,
-                ...(current.delegations ?? []).map((delegation) => delegation.expiresAt),
-            ) / 1000,
+            Math.min(current.expiresAt, current.verifiedAt + CALLER_LIFETIME_MS) / 1000,
         );
         const issuedAt = Math.floor(current.verifiedAt / 1000);
         if (expiresAt * 1000 <= now || expiresAt <= issuedAt) {
@@ -40,18 +32,14 @@ export class TokenIssuer {
             credential: current.credential,
             subject: current.subject,
             subjects: current.subjects,
-            actor: current.actor,
-            delegations: current.delegations,
+            assurance: current.assurance,
+            identifiers: current.identifiers,
+            delegates: current.delegates,
             deployments: current.deployments,
-            memberships: current.memberships ?? [],
             permissions: current.permissions,
             attributes: current.attributes,
         });
-        verifyTokenAuthentication(
-            { ...current, expiresAt: expiresAt * 1000 },
-            this.options.authority,
-            now,
-        );
+        caller.requireAuthority(this.options.authority);
 
         // sign registered token claims together with the authenticated caller
         const accessToken = await this.options.sign({

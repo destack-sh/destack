@@ -75,8 +75,9 @@ function visit(
     ancestors: Set<ServiceRouter>,
     procedures: ProcedureDescription[],
 ): void {
+    // reject a router that contains itself
     if (ancestors.has(service)) {
-        throw new TypeError(`Cyclic service definition: ${name.join(".")}`);
+        throw new TypeError(`cyclic service definition: ${name.join(".")}`);
     }
 
     // describe a procedure from its declared schemas, independent of generated OpenAPI defaults
@@ -122,9 +123,10 @@ function visit(
 }
 
 /** Describe a declared value validator or event iterator. */
-function describePayload(
+export function describePayload(
     validator: AnySchema | undefined,
 ): schema.Infer<typeof PayloadDescription> | undefined {
+    // describe no payload without a validator
     if (!validator) {
         return undefined;
     }
@@ -143,6 +145,7 @@ function describePayload(
 
 /** Require the portable schema definitions used throughout Destack. */
 function describeSchema(validator: AnySchema): schema.Infer<typeof JsonSchema> {
+    // reject validators of other schema libraries
     if (!(validator instanceof schema.Schema)) {
         throw new TypeError("expected a Destack schema");
     }

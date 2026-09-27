@@ -1,17 +1,23 @@
-import { expect, test } from "@destack/test";
+import { copyScope } from "@destack/access/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import {
-    Access,
-    AccessModel,
-    AccessSnapshot,
-    defineObject,
+    ACCESS_TABLES,
+    Authorizer,
+    Policy,
+    condition,
     relation,
     union,
-    type Grant,
+    type AccessContext,
     type Subject,
+    Authorization,
+    principal,
 } from "@destack/access";
+import { boolean, defineTable, eq, text } from "@destack/db";
+import { Condition } from "@destack/db/query";
+import { TestDatabase } from "@destack/db/test";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { Caller, TokenIssuer, TokenVerifier } from "../authentication/index.ts";
 import { Health } from "../health/index.ts";
@@ -42,7 +48,7 @@ test.each(["global", "host-local", "account-personal", "space-personal"])(
             authenticate: async () =>
                 new Caller({ ...createCaller("alice").authentication, scope: credentialScope }),
             router: implementation.router({
-                read: implementation.read.handler(({ context }) => context.scope),
+                read: implementation.read.handler(({ context }) => context.scope!),
             }),
         });
         const client = createClient(definition, {
@@ -66,22 +72,22 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     const packageId = PackageId.parse("package-019f7480-0000-7000-8000-000000000001");
     const spaceId = "space-019f7480-0000-7000-8000-000000000002";
     const module = { package: { id: packageId, name: "@example/notes", version: "2026.9.0" } };
-    const note = defineObject(
-        {
-            name: "note",
-            attributes: {},
-            relations: {
-                owner: { kind: "subject", subjects: ["user"] },
-                reader: { kind: "grant", subjects: ["user", "everyone"], permission: "share" },
-            },
-            permissions: {
-                read: union(relation("owner"), relation("reader")),
-                share: relation("owner"),
-            },
+    const note = new Policy(module.package, {
+        name: "note",
+        attributes: { public: "boolean" },
+        relations: {
+            owner: { subjects: [principal.user] },
+            reader: { subjects: [principal.user], grantedBy: "share" },
         },
-        module,
-    );
-    const model = new AccessModel([note]);
+        permissions: {
+            read: union(
+                relation("owner"),
+                relation("reader"),
+                condition(Condition.eq("public", true)),
+            ),
+            share: relation("owner"),
+        },
+    });
     const key = schema.object({ id: schema.string() });
     const service = {
         me: defineProcedure({ authentication: "identity", permission: null, audit: true })
@@ -121,8 +127,8 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
         audience: packageId,
         keys: { keys: [{ ...(await exportJWK(keys.publicKey)), kid: "current", alg: "ES256" }] },
     });
-    const owner: Subject = { kind: "user", authority: "global", id: "owner" };
-    const guest: Subject = { kind: "user", authority: "global", id: "guest" };
+    const owner: Subject = principal.user.reference("global", "owner");
+    const guest: Subject = principal.user.reference("global", "guest");
     const credentials = new Map<string, string>();
     for (const subject of [owner, guest]) {
         const now = Date.now();
@@ -140,8 +146,41 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
         credentials.set(subject.id, token.accessToken);
     }
 
-    // retain application records separately from the host's installation state
-    let grants: Grant[] = [];
+    // keep notes and their relationships in a real database the service's policies read
+    const noteTable = defineTable("note", {
+        id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
+        owner: text("owner").notNull(),
+        public: boolean("public").notNull(),
+    });
+    const space = new Policy(module.package, { name: "space", permissions: {}, scope: true });
+    const authorizer = new Authorizer(
+        [note, space],
+        [
+            {
+                policy: note,
+                table: noteTable,
+                id: "id",
+                scope: "scope",
+                attributes: { public: "public" },
+                relations: { owner: { column: "owner", scope: "global" } },
+            },
+        ],
+    );
+    const test = await TestDatabase.create("sqlite", [noteTable, ...ACCESS_TABLES], {
+        isMigrated: true,
+    });
+    onTestFinished(() => test.close());
+    const database = test.database;
+    await copyScope(database, { packageId, type: "space", scope: "global", id: spaceId });
+    await database
+        .insert(noteTable)
+        .values(
+            ["one", "two"].map((id) => ({ id, scope: spaceId, owner: owner.id, public: false })),
+        );
+    const asOwner: AccessContext = { subjects: [owner], now: Date.now(), attributes: {} };
+
+    // retain the host's installation state separately from application records
     let isEnabled = true;
     let invocations = 0;
     let authentications = 0;
@@ -154,6 +193,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
         resources,
         authenticate: async (request) => {
             authentications++;
+
             return request.headers.has("authorization") || request.headers.has("cookie")
                 ? verifier.authenticate(request, spaceId)
                 : null;
@@ -183,30 +223,10 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
         audit: async (event) => {
             outcomes.push(event.outcome);
         },
-        authorize: async ({ access, input, context }) => {
-            if (access.permission) {
-                const { id } = key.parse(input);
-                const snapshot = new AccessSnapshot(
-                    1,
-                    [
-                        {
-                            reference: note.reference(spaceId, id),
-                            attributes: {},
-                            subjects: { owner: [owner] },
-                            objects: {},
-                        },
-                    ],
-                    grants,
-                );
-                const allowed = new Access(model, snapshot).check(
-                    access.permission,
-                    note.reference(spaceId, id),
-                    context.access(),
-                );
-                if (!allowed) {
-                    throw new ServiceError("FORBIDDEN");
-                }
-            }
+        access: {
+            authorizer,
+            database,
+            target: async ({ input }) => note.reference(spaceId, key.parse(input).id),
         },
     });
 
@@ -250,34 +270,18 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     // grant a collaborator access to one object and reject the same credential on another
     bearer = credentials.get(guest.id);
     await expect(client.read({ id: "one" })).rejects.toMatchObject({ code: "FORBIDDEN" });
-    grants = [
-        {
-            id: "share-one",
-            object: note.reference(spaceId, "one"),
-            relation: "reader",
-            subject: guest,
-            createdAt: Date.now(),
-            expiresAt: null,
-            revokedAt: null,
-        },
-    ];
+    const shared = await new Authorization(authorizer, database, () => asOwner).grant({
+        object: note.reference(spaceId, "one"),
+        relation: "reader",
+        subject: guest,
+    });
     expect(await client.read({ id: "one" })).toBe("personal note");
     await expect(client.read({ id: "two" })).rejects.toMatchObject({ code: "FORBIDDEN" });
-    grants = [];
+    await new Authorization(authorizer, database, () => asOwner).revoke(shared.object, shared.id);
     await expect(client.read({ id: "one" })).rejects.toMatchObject({ code: "FORBIDDEN" });
 
-    // permit public sharing without letting invalid credentials become anonymous
-    grants = [
-        {
-            id: "public-one",
-            object: note.reference(spaceId, "one"),
-            relation: "reader",
-            subject: { kind: "everyone" },
-            createdAt: Date.now(),
-            expiresAt: null,
-            revokedAt: null,
-        },
-    ];
+    // permit public notes without letting invalid credentials become anonymous
+    await database.update(noteTable).set({ public: true }).where(eq(noteTable.id, "one"));
     bearer = undefined;
     expect(await client.read({ id: "one" })).toBe("personal note");
     await expect(client.me()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
@@ -291,30 +295,30 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     isEnabled = true;
     const stream = await client.watch({ id: "one" });
     expect(await stream.next()).toEqual({ done: false, value: "first" });
-    grants = [];
+    await database.update(noteTable).set({ public: false }).where(eq(noteTable.id, "one"));
     await expect(stream.next()).rejects.toMatchObject({ code: "FORBIDDEN" });
     expect(invocations).toBe(5);
     expect(outcomes).toEqual([
         "started",
-        "succeeded",
+        "success",
         "started",
-        "succeeded",
+        "success",
         "started",
-        "succeeded",
+        "success",
         "started",
-        "succeeded",
-        "started",
-        "denied",
-        "started",
-        "denied",
-        "started",
-        "succeeded",
+        "success",
         "started",
         "denied",
         "started",
         "denied",
         "started",
-        "succeeded",
+        "success",
+        "started",
+        "denied",
+        "started",
+        "denied",
+        "started",
+        "success",
         "started",
         "denied",
         "started",

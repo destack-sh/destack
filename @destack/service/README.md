@@ -1,149 +1,66 @@
-Define Destack HTTP services.
+Define, host and call Destack HTTP services.
 
-## Usage
+## Services
+
+A service declares procedures, each with its authentication, the permission it requires and whether it is audited.
 
 ```ts
 import { schema } from "@destack/schema";
 import { defineService, defineProcedure } from "@destack/service";
-import { describeService } from "@destack/service/inspect";
 
 export const notesService = defineService("notes", {
-    list: defineProcedure({ authentication: "identity", permission: null, audit: false })
+    list: defineProcedure({ authentication: "identity", permission: note.permission("read"), audit: false })
         .route({ method: "GET", path: "/notes" })
-        .output(schema.array(schema.object({ id: schema.string(), title: schema.string() }))),
-});
+        .output(schema.array(Note)),
 
-const description = describeService(notesService);
-```
-
-## Connections
-
-```ts
-// connection/notes.ts
-import { defineServiceConnection } from "@destack/service/declare";
-import { ClientContext } from "@destack/service/client";
-import { notesService } from "@example/notes/service";
-
-export const notes = defineServiceConnection("notes", notesService);
-
-// application or host startup
-const context = new ClientContext(configuration, transport);
-context.bind(notes);
-const result = await notes.get(context.resources).list();
-```
-
-```ts
-import { safe } from "@destack/service/client";
-
-const result = await safe(client.update(input));
-if (result.isDefined && result.error.code === "CONFLICT") {
-    console.log(result.error.data.revision);
-} else if (result.error) {
-    throw result.error;
-}
-```
-
-## Operations
-
-```ts
-import { schema } from "@destack/schema";
-import { defineOperation, defineOperationProcedures } from "@destack/service/operation";
-import { implementOperation, OperationStore } from "@destack/service/server";
-
-const result = schema.object({ url: schema.httpUrl() });
-const progress = schema.object({ completed: schema.number().int().nonnegative() });
-
-const operationDefinition = defineOperation(result, progress);
-const operations = new OperationStore(operationDefinition, {
-    concurrency: 4,
-    capacity: 100,
-    retention: 3600000,
-    timeout: 60000,
-});
-const definition = defineOperationProcedures(operationDefinition);
-const router = implementOperation(operations);
-
-const operation = operations.start(caller.id, { completed: 0 }, async ({ signal, report }) => {
-    const output = await publish({ signal });
-    report({ completed: 1 });
-    return { url: output.url };
+    // object types route their procedures under their key
+    objects: { notebook, note },
 });
 ```
 
 ## Hosting
 
-```ts
-// server/server.ts
-import { implement, type ServiceContext, type ServiceImplementation } from "@destack/service/server";
-import { notesService } from "../service/index.ts";
-import type { Notebook } from "../notebook/index.ts";
-
-export function implementService(notebook: Notebook): ServiceImplementation {
-    const service = implement(notesService).$context<ServiceContext>();
-
-    return {
-        router: service.router({
-            list: service.list.handler(({ context }) => notebook.list(context.access())),
-        }),
-        authorize: async ({ context }) => { context.requireCaller(); },
-    };
-}
-
-// server/index.ts
-export * from "./server.ts";
-```
+A `Server` authenticates each request, checks the declared permission on the call's target, and drains on close.
 
 ```ts
-import { Server } from "@destack/service/server";
-import { implementService } from "./server/index.ts";
-import { Health } from "@destack/service/health";
+import { Server, implement, type ServiceContext } from "@destack/service/server";
 
-const health = new Health("notes");
+const service = implement(notesService.router).$context<ServiceContext>();
 await using server = Server.start({
-    ...implementService(notebook),
-    health,
+    service: notesService,
+    router: service.router({
+        list: service.list.handler(({ context }) => notebook.list(context.authorization!)),
+    }),
+    access: { authorizer, database, target: async ({ input }) => note.reference(spaceId, input.id) },
     audience: servicePackageId,
     scope: spaceId,
     resources,
     authenticate,
-    authorizeHost: authorizeInstallation,
+    authorizeHost,
+    audit,
+    health: new Health("notes"),
     drainTimeout: 10000,
 });
-
-// pass requests from the host's listener
 const response = await server.fetch(request);
-server.health.set("not-serving");
-server.health.set("serving");
-```
-
-```ts
-import { health } from "@destack/service/health";
-import { createClient } from "@destack/service/client";
-
-const client = createClient({ health }, { url, headers });
-const status = await client.health.check();
-```
-
-## Inspection
-
-```ts
-import { implementInspection } from "@destack/service/server";
-
-const administration = {
-    inspection: await implementInspection(service, {
-        info: { title: "Publish", version: "1.0.0" },
-    }),
-};
 ```
 
 ## Workloads
 
+A workload starts once per instance and returns the services and schedules it implements.
+
 ```ts
-// workload/workload.ts
-import { defineWorkload } from "@destack/service/workload";
-import { implementService } from "../server/index.ts";
-import { database } from "../stack/db.ts";
-import { Notebook } from "../notebook/index.ts";
+import { defineWorkload, WorkloadInstance } from "@destack/service/workload";
+import { defineSchedule } from "@destack/service/schedule";
+import { serveProcess } from "@destack/service/bun";
+
+export const reminders = defineSchedule({
+    name: "reminders",
+    timing: "cron",
+    cron: "0 9 * * *",
+    timezone: "Europe/Zurich",
+    concurrency: "forbid",
+    deadline: 60000,
+});
 
 export const workload = defineWorkload({
     name: "main",
@@ -158,141 +75,110 @@ export const workload = defineWorkload({
         };
     },
 });
-```
 
-```ts
-// host startup, with authentication and resources selected by the host
-import { WorkloadInstance } from "@destack/service/workload";
-import { runWorkload } from "@destack/service/workload/bun";
-import { workload } from "@example/notes/workload";
-
-await using instance = await WorkloadInstance.start(workload, { resources, service: serviceOptions });
-await runWorkload(instance, { services: [{ service: notesService, hostname: "127.0.0.1", port: 8080 }] });
-```
-
-```ts
-// a request-driven host dispatches directly without opening a listener
+// host startup
 const instance = await WorkloadInstance.start(workload, { resources, service: serviceOptions });
-const response = await instance.fetch(notesService, request);
+await serveProcess({
+    endpoints: [{ hostname: "127.0.0.1", port: 8080, fetch: (request) => instance.fetch(notesService, request) }],
+    signal: instance.signal,
+    shutdown: () => instance.shutdown(),
+    close: () => instance.close(),
+});
 ```
 
-## Schedules
+## Clients
+
+A connection declares a dependency on a service, and the host binds it to an endpoint.
 
 ```ts
-import { defineSchedule } from "@destack/service/schedule";
+import { defineServiceConnection } from "@destack/service/declare";
+import { ClientContext, safe } from "@destack/service/client";
 
-export const reminders = defineSchedule({
-    name: "reminders",
-    timing: "cron",
-    cron: "0 9 * * *",
-    timezone: "Europe/Zurich",
-    concurrency: "forbid",
-    deadline: 60000,
-});
+export const notes = defineServiceConnection("notes", notesService);
+
+const context = new ClientContext(configuration, { headers, bookmark });
+context.bind(notes);
+const result = await safe(notes.get(context.resources).update(input));
+if (result.isDefined && result.error.code === "CONFLICT") {
+    retry(result.error.data.revision);
+}
 ```
 
 ## Authentication
 
-```ts
-import { Server, ServiceContext, implement } from "@destack/service/server";
-
-// application handlers receive the same context on every hosting target
-const implementation = implement(notesService).$context<ServiceContext>();
-const router = implementation.router({
-    list: implementation.list.handler(({ context }) =>
-        database
-            .select()
-            .from(note)
-            .where(noteAccess.where(noteRead, spaceId, context.access())),
-    ),
-});
-const server = Server.start({
-    router,
-    audience: servicePackageId,
-    scope: spaceId,
-    resources,
-    authenticate,
-    authorizeHost: authorizeInstallation,
-    health,
-    drainTimeout: 10000,
-    authorize: authorizeApplication,
-    audit: recordAudit,
-});
-
-// attach the worker or local Fetch listener
-const response = await server.fetch(request);
-```
+A `TokenIssuer` signs a verified caller, and a `TokenVerifier` checks the token and the issuer's authority at the receiving service.
 
 ```ts
-import { TokenVerifier } from "@destack/service/authentication";
+import { TokenIssuer, TokenVerifier } from "@destack/service/authentication";
+
+const issuer = new TokenIssuer({ authority: { kind: "global" }, issuer: accountOrigin, sign });
+const { accessToken } = await issuer.issue(caller);
 
 const verifier = new TokenVerifier({
-    authority: { kind: "global" },
-    issuer: accountOrigin,
-    audience: servicePackageId,
-    keys: new URL("/auth/jwks", accountOrigin),
-});
-const caller = await verifier.authenticate(request, spaceId);
-const access = caller.context(servicePackageId, Date.now(), spaceId);
-
-// authorize each operation against current records and credential restrictions
-await authorize(database, access, permission, object);
-```
-
-```ts
-import { TokenIssuer } from "@destack/service/authentication";
-
-// configure signing only in the authority, with a host-verified Caller
-const issuer = new TokenIssuer({
-    authority: { kind: "global" },
-    issuer: accountOrigin,
-    sign: async (payload) => {
-        const signed = await authentication.api.signJWT({ body: { payload } });
-        return signed.token;
-    },
-});
-const issued = await issuer.issue(caller);
-
-// constrain a space's signing keys independently at the receiving service
-const workloads = new TokenVerifier({
     authority: { kind: "space", spaceId },
     issuer: spaceIssuer,
     audience: servicePackageId,
-    keys: spacePublicKeys,
+    keys: new URL("/auth/jwks", spaceIssuer),
 });
+const verified = await verifier.authenticate(request, spaceId);
 ```
 
-## Requests
+## Journal
+
+A journal runs each request once in one transaction and replays its outcome, including final failures, to retries.
 
 ```ts
-import { createRequestId } from "@destack/service/request";
-import { defineRequestTable, IdempotencyStore } from "@destack/service/database";
+import { RequestId, RequestFingerprint } from "@destack/service/request";
+import { defineJournal, Journal } from "@destack/service/database";
 
-export const accountRequest = defineRequestTable("account_request");
-const requests = new IdempotencyStore(accountRequest);
+export const journal = new Journal(defineJournal("journal"));
 
-// retain the same mutation key through retries within seven days
-const requestId = createRequestId();
-await database.transaction(async (transaction) => {
-    await authorize(transaction, caller, permission);
-    const request = { caller: caller.id, scope: accountId, procedure: "account.update", requestId };
-    const claim = await requests.begin(
-        transaction,
-        request,
-        { digest },
-        (stored) => stored === digest,
-    );
-    if (claim.kind === "replay") {
-        return claim.value;
-    }
-
-    const result = await updateAccount(transaction, input);
-    await recordAudit(transaction, result);
-    await requests.complete(transaction, request, result);
-
-    return result;
+const request = { caller: caller.id, scope: spaceId, requestId: RequestId.create() };
+const digest = (await RequestFingerprint.hash(input)).toHex();
+const account = await journal.execute(database, request, { digest }, {
+    authorize: (transaction) => authorization.within(transaction).require(permission, target),
+    run: (transaction) => updateAccount(transaction, input),
 });
 
-// invoke from authorized host maintenance after the immutable retry deadlines
-await requests.prune(database, 100);
+// host maintenance after the retry deadlines
+await journal.prune(database, 100);
+```
+
+## Bookmarks
+
+A response carries the watermarks its writes reached, and a client sends them back so its later reads see its own writes.
+
+```ts
+import { Bookmark } from "@destack/service/bookmark";
+
+const bookmark = new Bookmark();
+const client = createClient(notesService.router, { url, bookmark });
+
+// in a handler
+context.observed.observe(await server.watermark(scope));
+await server.reach(context, scope);
+```
+
+## Operations
+
+An operation store runs long work in memory, with progress, cancellation and a deadline.
+
+```ts
+import { defineOperation } from "@destack/service/operation";
+import { implementOperation, OperationStore } from "@destack/service/server";
+
+const operations = new OperationStore(defineOperation(Published, Progress), {
+    concurrency: 4,
+    capacity: 100,
+    retention: 3600000,
+    timeout: 60000,
+});
+const router = implementOperation(operations);
+
+operations.start(caller.id, { completed: 0 }, async ({ signal, report }) => {
+    const output = await publish({ signal });
+    report({ completed: 1 });
+
+    return { url: output.url };
+});
 ```

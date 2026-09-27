@@ -7,7 +7,6 @@ import { defineProcedure } from "../procedure/index.ts";
 import { Health } from "../health/index.ts";
 import { implement, Server, type ServiceContext } from "../server/index.ts";
 import { hosting } from "../server/tests/fixture.ts";
-import { bindServiceConnection } from "./binding.ts";
 import { ClientContext } from "./context.ts";
 
 test("route independent connections through typed clients and retain verified caller identity", async () => {
@@ -42,55 +41,31 @@ test("route independent connections through typed clients and retain verified ca
             [personal, "alice"],
             [work, "bob"],
         ] as const) {
-            bindServiceConnection(
-                connection,
-                {
-                    declaration: reference(connection),
-                    url: "https://service.test",
-                },
-                {
-                    headers: { authorization: user },
-                    fetch: (request) => server.fetch(request),
-                },
+            const services = [{ declaration: reference(connection), url: "https://service.test" }];
+            new ClientContext(
+                { packageId: hosting.audience, services },
+                { headers: { authorization: user }, fetch: (request) => server.fetch(request) },
                 context,
-            );
+            ).bind(connection);
         }
         expect(await Promise.all([personal.get(context).read(), work.get(context).read()])).toEqual(
             ["alice", "bob"],
         );
 
-        // reject mismatched, missing and duplicate bindings before sending a request
+        // reject missing and duplicate bindings before sending a request
         expect(() => personal.get(new ResourceContext())).toThrow(
-            "Resource is not bound: personal",
+            "resource is not bound: personal",
         );
+        const binding = { declaration: reference(personal), url: "https://service.test" };
         expect(() =>
-            bindServiceConnection(
-                personal,
-                {
-                    declaration: reference(work),
-                    url: "https://service.test",
-                },
-                {},
-                new ResourceContext(),
-            ),
-        ).toThrow("service connection binding does not match its declaration");
-        expect(() =>
-            bindServiceConnection(
-                personal,
-                {
-                    declaration: reference(personal),
-                    url: "https://service.test",
-                },
+            new ClientContext(
+                { packageId: hosting.audience, services: [binding] },
                 {},
                 context,
-            ),
-        ).toThrow("Resource already bound: personal");
+            ).bind(personal),
+        ).toThrow("resource already bound: personal");
 
         // reject absent or ambiguous host configuration before constructing a client
-        const binding = {
-            declaration: reference(personal),
-            url: "https://service.test",
-        };
         for (const services of [[], [binding, binding]]) {
             const client = new ClientContext({ packageId: hosting.audience, services }, {});
             expect(() => client.bind(personal)).toThrow(

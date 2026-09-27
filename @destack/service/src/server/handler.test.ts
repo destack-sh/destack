@@ -1,3 +1,4 @@
+import { none, Policy } from "@destack/access";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { startTelemetry } from "@destack/telemetry/host";
@@ -38,14 +39,15 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     onTestFinished(() => telemetry.shutdown());
 
     // declare a protected, audited stream
+    const notes = new Policy(import.meta.destack.package, {
+        name: "notes",
+        relations: {},
+        permissions: { read: none() },
+    });
     const service = {
         read: defineProcedure({
             authentication: "identity",
-            permission: {
-                packageId: import.meta.destack.package.id,
-                type: "notes",
-                name: "read",
-            },
+            permission: notes.permission("read"),
             audit: true,
         })
             .route({ method: "GET", path: "/notes" })
@@ -112,7 +114,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     expect(values).toEqual(["first", "last"]);
     expect(records).toEqual([
         { caller: "alice", outcome: "started" },
-        { caller: "alice", outcome: "succeeded" },
+        { caller: "alice", outcome: "success" },
     ]);
 
     // record denied access without entering the application handler
@@ -128,7 +130,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     expect(invoked).toBe(1);
     expect(records).toEqual([
         { caller: "alice", outcome: "started" },
-        { caller: "alice", outcome: "succeeded" },
+        { caller: "alice", outcome: "success" },
         { caller: "bob", outcome: "started" },
         { caller: "bob", outcome: "denied" },
     ]);

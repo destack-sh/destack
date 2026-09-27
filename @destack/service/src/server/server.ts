@@ -2,14 +2,20 @@ import type { Service } from "../declare/service.ts";
 import type { PackageId } from "@destack/package";
 import type { Health } from "../health/health.ts";
 import { ServiceHandler, type HandlerOptions, type Router } from "./handler.ts";
-import { permitsCredential, permitsDelegation } from "@destack/access";
+import { isProcedure } from "@orpc/server";
+import { ProcedureAccess } from "../procedure/procedure.ts";
+import { Capability, delegationChain } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
 import type { Caller } from "../authentication/index.ts";
 import type { ServiceRouter } from "../service/index.ts";
 import { ServiceError } from "../error/index.ts";
-import { ServiceContext } from "./context.ts";
+import { BOOKMARK_HEADER, type Bookmark } from "../bookmark/index.ts";
+import { CAPABILITY_HEADER, ServiceContext, type ServiceAccess } from "./context.ts";
 import type { ProcedureCall } from "./access.ts";
 import { reportError } from "./error.ts";
+
+/** The longest delay a runtime timer accepts, the largest signed 32 bit integer, in milliseconds. */
+export const MAX_TIMER_DELAY = 2 ** 31 - 1;
 
 /** A host-managed HTTP service with readiness and streaming-aware draining. */
 export class Server implements AsyncDisposable {
@@ -36,7 +42,7 @@ export class Server implements AsyncDisposable {
     /** Construct the HTTP handler and retain lifecycle settings. */
     private constructor(options: ServerOptions) {
         // reject missing enforcement before wrapping callbacks for the HTTP adapter
-        for (const callback of ["authenticate", "authorizeHost", "authorize"] as const) {
+        for (const callback of ["authenticate", "authorizeHost"] as const) {
             if (typeof options[callback] !== "function") {
                 throw new TypeError(`${callback} must be configured before starting a server`);
             }
@@ -46,22 +52,22 @@ export class Server implements AsyncDisposable {
         if (
             !Number.isInteger(options.drainTimeout) ||
             options.drainTimeout <= 0 ||
-            options.drainTimeout > 2 ** 31 - 1
+            options.drainTimeout > MAX_TIMER_DELAY
         ) {
             throw new RangeError(
                 "drain timeout must be a positive integer within the runtime timer limit",
             );
         }
 
-        // construct the handler with mandatory host and application authorization
+        // require a policy declaring every permission a procedure requires
+        requirePolicies(options.router, options.access);
+
+        // construct the handler deciding every call through the service's policies and the host
         this.#options = options;
         this.health = options.health;
         this.#handler = new ServiceHandler(options.router, {
             ...options,
-            authorize: async (call) => {
-                await Server.#authorize(call, options);
-                await options.authorize(call);
-            },
+            authorize: (call) => Server.#authorize(call, options),
         });
     }
 
@@ -80,6 +86,8 @@ export class Server implements AsyncDisposable {
         if (probe) {
             return this.#headers(probe);
         }
+
+        // refuse application requests while draining
         if (this.#closing || this.health.status !== "serving") {
             return this.#headers(new Response(null, { status: 503 }));
         }
@@ -97,6 +105,7 @@ export class Server implements AsyncDisposable {
                 signal.throwIfAborted();
                 const result = await this.#handler.handle(accepted, { context });
                 response = result.matched ? result.response : new Response(null, { status: 404 });
+                response = attachBookmark(response, context.observed);
             }
 
             return this.#respond(this.#headers(response), controller, signal);
@@ -123,6 +132,7 @@ export class Server implements AsyncDisposable {
 
     /** Apply deployment response policy to success, failure and health responses. */
     #headers(response: Response): Response {
+        // keep responses unchanged without a response policy
         if (!this.#options.responseHeaders) {
             return response;
         }
@@ -151,24 +161,37 @@ export class Server implements AsyncDisposable {
         let caller: Caller | null = null;
         let authenticationError: unknown;
         try {
-            caller = await options.authenticate(request);
-            caller?.context(
+            const authenticated = await options.authenticate(request);
+            authenticated?.requireCurrent(
                 options.audience,
                 Date.now(),
-                options.target ? caller.authentication.scope : options.scope,
+                options.scope ?? authenticated.authentication.scope,
             );
+            caller = authenticated;
         } catch (error) {
             authenticationError = error ?? new ServiceError("UNAUTHORIZED");
         }
 
-        return new ServiceContext(
-            request,
-            options.audience,
-            options.target ? (caller?.authentication.scope ?? options.scope) : options.scope,
+        // digest the capabilities the request presents, keeping no secrets
+        const presented = (request.headers.get(CAPABILITY_HEADER) ?? "")
+            .split(",")
+            .map((secret) => secret.trim())
+            .filter((secret) => secret.length > 0);
+        const capabilities = await Promise.all(
+            presented.map((secret) => Capability.digest(secret)),
+        ).catch((error: unknown) => {
+            throw new ServiceError("UNAUTHORIZED", { message: "invalid capability", cause: error });
+        });
+
+        return new ServiceContext(request, {
+            audience: options.audience,
+            scope: options.scope ?? caller?.authentication.scope,
             caller,
-            options.resources,
+            resources: options.resources,
+            access: options.access,
             authenticationError,
-        );
+            capabilities,
+        });
     }
 
     /** Enforce identity, credential restrictions and current installation policy. */
@@ -177,23 +200,22 @@ export class Server implements AsyncDisposable {
         options: ServerOptions,
     ): Promise<void> {
         // reject invalid credentials on public routes and require identity on protected routes
-        let access = call.context.access();
         if (call.access.authentication !== "public") {
             call.context.requireCaller();
         }
 
-        // constrain the operation before application authorization selects its exact objects
+        // read current access for the call, and again before each value of a stream
+        call.context.authorization?.renew();
+
+        // decide a required permission on the call's target through the service's policies
         const permission = call.access.permission;
-        const target = options.target ? await options.target(call) : { scope: options.scope };
-        if (call.context.caller) {
-            access = call.context.caller.context(options.audience, Date.now(), target.scope);
+        if (permission !== null) {
+            const target = await options.access!.target!(call);
+            await call.context.authorization!.require(permission, target);
         }
-        if (
-            permission &&
-            (!permitsCredential(permission, target, access) ||
-                !permitsDelegation(permission, target, access))
-        ) {
-            throw new ServiceError("FORBIDDEN");
+        // reject invalid credentials and validate the caller's delegation chain in the service's scope
+        else {
+            delegationChain(call.context.access());
         }
 
         // let the host authorize the call
@@ -299,7 +321,7 @@ export class Server implements AsyncDisposable {
         // abort overdue requests after the drain deadline
         const deadline = Promise.withResolvers<never>();
         const timer = setTimeout(() => {
-            const error = new DOMException("Service drain deadline exceeded.", "TimeoutError");
+            const error = new DOMException("service drain deadline exceeded", "TimeoutError");
             for (const controller of this.#requests) {
                 controller.abort(error);
             }
@@ -322,8 +344,8 @@ export interface ServerOptions extends Omit<ServiceImplementation, "service"> {
     health: Health;
     /** Fixed receiving package identifier. */
     audience: PackageId;
-    /** Default authorization scope, such as a space, host, account or global authority. */
-    scope: string;
+    /** The one scope the service serves, such as a space, host or account; absent for regional services serving many. */
+    scope?: string;
     /** Installation resource clients selected by the host. */
     resources: ResourceContext;
     /** Verify credentials; return null only when the request has no credential. */
@@ -342,10 +364,58 @@ export interface ServiceImplementation extends Omit<HandlerOptions<ServiceContex
     router: Router<ServiceRouter, ServiceContext>;
     /** Response headers enforced on every response, including failures and probes. */
     responseHeaders?: ConstructorParameters<typeof Headers>[0];
-    /** Select an exact authorization target when a service administers other spaces or objects. */
-    target?(call: ProcedureCall<ServiceContext>): Promise<{ scope: string; id?: string }>;
+    /** The policies deciding the procedures that require a permission and the permissions handlers require. */
+    access?: ServiceAccess;
     /** Dispatch an additional HTTP protocol with its own authentication, or return undefined. */
     route?(request: Request): Promise<Response | undefined>;
-    /** Enforce application permissions, including exact objects and sharing grants. */
-    authorize(call: ProcedureCall<ServiceContext>): Promise<void>;
+}
+
+/** Require a policy of the service's authorizer to declare every permission a procedure requires. */
+function requirePolicies(router: unknown, access: ServiceAccess | undefined): void {
+    // check each procedure's permission
+    if (isProcedure(router)) {
+        const permission = ProcedureAccess.parse(router["~orpc"].meta).permission;
+        if (permission === null) {
+            return;
+        }
+
+        // require a target and a policy declaring the permission
+        if (access?.target === undefined) {
+            throw new TypeError(
+                `procedures requiring ${permission.name} need service access with targets`,
+            );
+        }
+        if (
+            !Object.hasOwn(
+                access.authorizer.policy(permission).definition.permissions,
+                permission.name,
+            )
+        ) {
+            throw new TypeError(`no policy declares ${permission.type}.${permission.name}`);
+        }
+    }
+    // check each nested router
+    else if (router !== null && typeof router === "object") {
+        for (const child of Object.values(router)) {
+            requirePolicies(child, access);
+        }
+    }
+}
+
+/** Attach the watermarks a request's writes reached to its response. */
+function attachBookmark(response: Response, observed: Bookmark): Response {
+    // keep a response without writes unchanged
+    if (observed.watermarks.length === 0) {
+        return response;
+    }
+
+    // copy the response with the bookmark header
+    const headers = new Headers(response.headers);
+    headers.set(BOOKMARK_HEADER, observed.format());
+
+    return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+    });
 }

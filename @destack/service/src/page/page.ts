@@ -1,12 +1,17 @@
 import { schema } from "@destack/schema";
 import { ServiceError } from "../error/index.ts";
 
+/** The records a page returns when the request names no limit. */
+const DEFAULT_PAGE_LIMIT = 50;
+/** The most records one page returns, bounding the rows and bytes of one response. */
+const MAX_PAGE_LIMIT = 1000;
+
 /** A bounded collection request whose cursor retains its original filters and ordering. */
 export const PageRequest = schema.object({
     /** Continuation returned by the preceding page. */
     cursor: schema.string().min(1).optional(),
-    /** Maximum records returned in this page. */
-    limit: schema.number().int().min(1).max(1000),
+    /** Maximum records returned in this page, 50 when absent. */
+    limit: schema.number().int().min(1).max(MAX_PAGE_LIMIT).optional(),
 });
 
 /** Collection continuation retaining its original scope and sort position. */
@@ -26,10 +31,10 @@ export class Page<Position extends schema.Schema> {
     ) {
         // bind the scope and validate the limit
         this.scope = scope;
-        this.limit = input.limit ?? 50;
-        if (!Number.isInteger(this.limit) || this.limit < 1 || this.limit > 1000) {
+        this.limit = input.limit ?? DEFAULT_PAGE_LIMIT;
+        if (!Number.isInteger(this.limit) || this.limit < 1 || this.limit > MAX_PAGE_LIMIT) {
             throw new ServiceError("BAD_REQUEST", {
-                message: "page limit must be between 1 and 1000",
+                message: `page limit must be between 1 and ${MAX_PAGE_LIMIT}`,
             });
         }
 

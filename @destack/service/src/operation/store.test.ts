@@ -239,7 +239,7 @@ test("enforce deadlines, expire completed operations, and cancel work on shutdow
         completedAt: expect.any(Number),
         cancellationRequested: true,
         state: "failed",
-        error: { code: "DEADLINE_EXCEEDED", message: "Operation deadline exceeded." },
+        error: { code: "DEADLINE_EXCEEDED", message: "operation deadline exceeded" },
     });
 
     // expire the retained result and remove it from both read paths

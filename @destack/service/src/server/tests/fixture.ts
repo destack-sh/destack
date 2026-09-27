@@ -1,7 +1,7 @@
+import { principal, type Subject } from "@destack/access";
 import { PackageId } from "@destack/package";
-import { Caller } from "../../authentication/index.ts";
-import type { Subject } from "@destack/access";
 import { ResourceContext } from "@destack/resource/context";
+import { Caller } from "../../authentication/index.ts";
 import { ServiceError } from "../../error/index.ts";
 
 /** Trusted hosting configuration for HTTP lifecycle and operation scenarios. */
@@ -18,12 +18,11 @@ export const hosting = {
         return createCaller(name);
     },
     authorizeHost: async () => {},
-    authorize: async () => {},
 };
 
 /** Construct a fresh verified identity for a known fixture user. */
 export function createCaller(name: string): Caller {
-    const subject: Subject = { kind: "user", authority: "global", id: name };
+    const subject: Subject = principal.user.reference("global", name);
     const now = Date.now();
 
     return new Caller({

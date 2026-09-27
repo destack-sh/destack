@@ -43,6 +43,8 @@ export class WorkloadInstance implements AsyncDisposable {
                 if (instance.#services.has(key)) {
                     throw new TypeError(`duplicate workload service: ${key}`);
                 }
+
+                // start the service's server
                 const server = Server.start({
                     ...service,
                     ...options.service(service.service),

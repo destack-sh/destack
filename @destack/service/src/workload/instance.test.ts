@@ -32,7 +32,7 @@ test("release startup resources when the workload shuts down during startup", as
                     context.shutdown();
 
                     return {
-                        services: [{ service: first, router: {}, authorize: async () => {} }],
+                        services: [{ service: first, router: {} }],
                     };
                 },
             }),
@@ -60,7 +60,6 @@ test("start two services and drain accepted requests before shared cleanup", asy
                         {
                             service: first,
                             router: {},
-                            authorize: async () => {},
                             route: async () => {
                                 accepted.resolve();
                                 await released.promise;
@@ -68,7 +67,7 @@ test("start two services and drain accepted requests before shared cleanup", asy
                                 return new Response("complete");
                             },
                         },
-                        { service: second, router: {}, authorize: async () => {} },
+                        { service: second, router: {} },
                     ],
                 };
             },
@@ -111,7 +110,6 @@ test("retain shared resources until an overdue request observes cancellation", a
                         {
                             service: first,
                             router: {},
-                            authorize: async () => {},
                             route: async (request: Request) => {
                                 request.signal.addEventListener("abort", () => cancelled.resolve());
                                 accepted.resolve();
@@ -132,13 +130,13 @@ test("retain shared resources until an overdue request observes cancellation", a
     const response = instance.fetch(first, new Request("https://fixture.test/work"));
     const responseFailure = expect(response).rejects.toMatchObject({
         name: "TimeoutError",
-        message: "Service drain deadline exceeded.",
+        message: "service drain deadline exceeded",
     });
     await accepted.promise;
     const closing = instance.close();
     const closeFailure = expect(closing).rejects.toMatchObject({
         message: "workload shutdown failed",
-        errors: [{ name: "TimeoutError", message: "Service drain deadline exceeded." }],
+        errors: [{ name: "TimeoutError", message: "service drain deadline exceeded" }],
     });
     await cancelled.promise;
     expect(events).toEqual([]);
@@ -151,7 +149,7 @@ test("retain shared resources until an overdue request observes cancellation", a
 
 test("reject a service implemented twice and release startup resources", async () => {
     const events: string[] = [];
-    const implementation = { service: first, router: {}, authorize: async () => {} };
+    const implementation = { service: first, router: {} };
     await expect(
         WorkloadInstance.start(
             defineWorkload({

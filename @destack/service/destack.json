@@ -2,5 +2,44 @@
     "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
     "language": "typescript",
     "targets": ["browser", "server"],
-    "runtimes": ["browser", "bun", "workerd"]
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        "./bun": {
+            "targets": ["server"],
+            "runtimes": ["bun"]
+        }
+    },
+    "declarations": {
+        "defineJournal": {
+            "module": 1
+        },
+        "defineSchedule": {
+            "module": 1,
+            "inspect": {
+                "kind": "schedule",
+                "describe": "./inspect#describeSchedule"
+            }
+        },
+        "defineService": {
+            "module": 2,
+            "inspect": {
+                "kind": "service",
+                "describe": "./inspect#describeService"
+            }
+        },
+        "defineServiceConnection": {
+            "module": 2,
+            "inspect": {
+                "kind": "service-connection",
+                "describe": "./inspect#describeServiceConnection"
+            }
+        },
+        "defineWorkload": {
+            "module": 1,
+            "inspect": {
+                "kind": "workload",
+                "describe": "./inspect#describeWorkload"
+            }
+        }
+    }
 }

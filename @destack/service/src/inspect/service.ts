@@ -46,5 +46,6 @@ export function describeService(service: Service): ServiceDescription {
 export function describeRouter(name: string, service: ServiceRouter): RouterDescription {
     // retain application schemas and declared errors
     const procedures = describeProcedures(service);
+
     return RouterDescription.parse({ name, procedures });
 }

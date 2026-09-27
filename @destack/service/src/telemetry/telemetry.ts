@@ -16,6 +16,10 @@ import type {} from "@destack/package/import-meta";
 
 /** The package declaring service instrumentation. */
 const manifest = import.meta.destack.package;
+/** The call duration buckets in seconds, as the OpenTelemetry semantic conventions advise for request durations. */
+const DURATION_BUCKETS = [
+    0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10,
+];
 
 /** Record complete RPC calls, including streamed results. */
 export class ServiceTelemetry {
@@ -26,22 +30,20 @@ export class ServiceTelemetry {
 
     /** Connect tracing and metrics to the host's providers. */
     constructor(kind: "client" | "server") {
+        // connect the providers and create the duration histogram
         instrumentService();
         this.#kind = kind === "client" ? SpanKind.CLIENT : SpanKind.SERVER;
         this.#duration = telemetry
             .scope(manifest)
             .meter.createHistogram(`rpc.${kind}.call.duration`, {
                 unit: "s",
-                advice: {
-                    explicitBucketBoundaries: [
-                        0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10,
-                    ],
-                },
+                advice: { explicitBucketBoundaries: DURATION_BUCKETS },
             });
     }
 
     /** Measure a call without retaining its inputs or results. */
     invoke(path: readonly string[], next: () => Promise<unknown>): Promise<unknown> {
+        // label the call by its procedure path
         const attributes: Attributes = { "rpc.system.name": "orpc", "rpc.method": path.join("/") };
 
         return telemetry
@@ -62,6 +64,8 @@ export class ServiceTelemetry {
         const active = context.active();
         try {
             const result = await next();
+
+            // keep a stream's span open until the stream ends
             if (result !== null && typeof result === "object" && Symbol.asyncIterator in result) {
                 return this.#watch(
                     result as AsyncIterable<unknown>,
@@ -72,6 +76,7 @@ export class ServiceTelemetry {
                 );
             }
 
+            // record a value's call when it returns
             this.#record(started, attributes, span);
 
             return result;
@@ -126,6 +131,8 @@ export class ServiceTelemetry {
             attributes["error.type"] =
                 error instanceof ServiceError ? String(error.status) : "internal";
         }
+
+        // mark failed and cancelled calls, then record the call
         if (attributes["error.type"]) {
             span.setStatus({ code: SpanStatusCode.ERROR });
         }

@@ -12,7 +12,6 @@
     },
     "exports": {
         "./workload": "./src/workload/index.ts",
-        "./workload/bun": "./src/workload/bun.ts",
         "./authentication": "./src/authentication/index.ts",
         "./request": "./src/request/index.ts",
         "./database": "./src/database/index.ts",
@@ -25,10 +24,11 @@
         "./error": "./src/error/index.ts",
         ".": "./src/index.ts",
         "./client": "./src/client/index.ts",
+        "./bookmark": "./src/bookmark/index.ts",
         "./server": "./src/server/index.ts",
-        "./openapi": "./src/openapi/index.ts",
         "./inspect": "./src/inspect/index.ts",
-        "./schedule": "./src/schedule/index.ts"
+        "./schedule": "./src/schedule/index.ts",
+        "./bun": "./src/server/bun.ts"
     },
     "devDependencies": {
         "@destack/test": "workspace:*"

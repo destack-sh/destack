@@ -14,7 +14,20 @@ import type { Health } from "../health/health.ts";
 import { invokeProcedure, type ProcedureCall, type ProcedureAudit } from "./access.ts";
 import { ServiceTelemetry } from "../telemetry/index.ts";
 import { SmartCoercionPlugin } from "@orpc/json-schema";
-import { schemaConverter } from "../openapi/document.ts";
+import { schema, toJsonSchema } from "@destack/schema";
+import type { ConditionalSchemaConverter, JSONSchema } from "@orpc/openapi";
+
+/** Convert portable Destack schemas for HTTP decoding and OpenAPI documents. */
+const schemaConverter: ConditionalSchemaConverter = {
+    condition: (validator) => validator instanceof schema.Schema,
+    convert: (validator) => {
+        if (!(validator instanceof schema.Schema)) {
+            throw new TypeError("expected a Destack schema");
+        }
+
+        return [true, toJsonSchema(validator) as JSONSchema];
+    },
+};
 
 /** Implement service procedures with typed context and middleware. */
 export { implement } from "@orpc/server";
@@ -61,6 +74,7 @@ export class ServiceHandler<State extends Context> extends OpenAPIHandler<State>
     override async handle(
         ...args: Parameters<OpenAPIHandler<State>["handle"]>
     ): ReturnType<OpenAPIHandler<State>["handle"]> {
+        // answer probes before routing procedures
         const response = this.health.probe(args[0]);
         if (response) {
             return { matched: true, response };
@@ -79,6 +93,8 @@ export class ServiceHandler<State extends Context> extends OpenAPIHandler<State>
         if (isLazy(router)) {
             throw new TypeError("service procedures must be declared before hosting");
         }
+
+        // reject a router that contains itself
         if (ancestors.has(router)) {
             throw new TypeError("service routers must not contain cycles");
         }
@@ -116,5 +132,5 @@ export interface HandlerOptions<State extends Context> extends OpenAPIHandlerOpt
     /** Persist required audit events before acknowledging their completion. */
     audit?(event: ProcedureAudit<State>): Promise<void>;
 }
+
 export type { Context, Middleware, Router } from "@orpc/server";
-export type { FetchHandleResult as HandleResult } from "@orpc/server/fetch";

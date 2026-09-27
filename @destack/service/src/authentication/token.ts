@@ -8,10 +8,17 @@ import {
     type JSONWebKeySet,
 } from "jose";
 import { schema, identifier } from "@destack/schema";
-import { Subject, PermissionReference, Attribute, sameSubject } from "@destack/access";
+import {
+    Attribute,
+    AuthenticationAssurance,
+    VerifiedIdentifier,
+    PermissionReference,
+    Delegate,
+    Subject,
+} from "@destack/access";
 import {
     Caller,
-    type CallerAuthentication,
+    CallerDeployment,
     CALLER_LIFETIME_MS,
     CALLER_CLOCK_TOLERANCE_MS,
 } from "./caller.ts";
@@ -19,7 +26,7 @@ import { ServiceError } from "../error/index.ts";
 
 /** Maximum interval between public-key refreshes in milliseconds. */
 const KEY_CACHE_MS = 60000;
-/** Bound key discovery latency in milliseconds. */
+/** The longest key discovery wait, and the pause after a failed one, in milliseconds. */
 const KEY_TIMEOUT_MS = 5000;
 
 /** Exact permission selection retained by credentials and delegation steps. */
@@ -43,53 +50,16 @@ export const TokenAuthentication = schema.object({
     }),
     /** Represented identity. */
     subject: Subject,
-    /** Acting software identity, when acting on behalf of another subject. */
-    actor: Subject.optional(),
-    /** Complete delegation chain, intersected with current object permissions. */
-    delegations: schema
-        .array(
-            schema.object({
-                /** Stable delegation identifier. */
-                id: schema.string().min(1),
-                /** Identity granting this step. */
-                subject: Subject,
-                /** Software identity receiving this step. */
-                actor: Subject,
-                /** Exact restrictions applied by this step. */
-                permissions: schema.array(permission),
-                /** Creation time in Unix milliseconds. */
-                createdAt: schema.number().int(),
-                /** Exclusive expiry in Unix milliseconds. */
-                expiresAt: schema.number().int(),
-                /** Revocation time, or null while active. */
-                revokedAt: schema.number().int().nullable(),
-            }),
-        )
-        .optional(),
+    /** How strongly and how recently the represented subject authenticated. */
+    assurance: AuthenticationAssurance.optional(),
+    /** Identifiers, such as email addresses, the represented subject proved control of. */
+    identifiers: schema.array(VerifiedIdentifier).optional(),
+    /** The principals acting in order, each for the one before and the first for the subject; the last sends the request. */
+    delegates: schema.array(Delegate).optional(),
     /** Deployment identities authenticated by the issuing host. */
-    deployments: schema
-        .array(
-            schema.object({
-                /** Represented or acting workload identity. */
-                subject: Subject,
-                /** Exact authenticated deployment. */
-                id: identifier("deployment"),
-            }),
-        )
-        .optional(),
-    /** Verified direct and group identities. */
+    deployments: schema.array(CallerDeployment).optional(),
+    /** The verified principals and the subject sets the caller belongs to. */
     subjects: schema.array(Subject),
-    /** Account memberships verified at issuance. */
-    memberships: schema.array(
-        schema.object({
-            /** Member identity. */
-            subject: Subject,
-            /** Administering account. */
-            accountId: identifier("account"),
-            /** Current membership record. */
-            id: identifier("account-membership"),
-        }),
-    ),
     /** Credential restrictions intersected with current local grants. */
     permissions: schema.array(permission).optional(),
     /** Trusted attributes asserted by the issuer. */
@@ -156,7 +126,7 @@ export class TokenVerifier {
         // verify signatures and registered claims before interpreting application claims
         let payload;
         try {
-            ({ payload } = await jwtVerify(authorization.slice(7), this.keys, {
+            ({ payload } = await jwtVerify(authorization.slice("Bearer ".length), this.keys, {
                 issuer: this.options.issuer,
                 audience: this.options.audience,
                 algorithms: ["ES256"],
@@ -166,6 +136,7 @@ export class TokenVerifier {
                 currentDate: new Date(now),
             }));
         } catch (error) {
+            // report a token that fails verification as unauthorized
             if (
                 error instanceof errors.JWTClaimValidationFailed ||
                 error instanceof errors.JWTExpired ||
@@ -181,6 +152,8 @@ export class TokenVerifier {
                     cause: error,
                 });
             }
+
+            // report other failures as unavailable keys
             throw new ServiceError("UNAVAILABLE", {
                 message: "authentication keys are unavailable",
                 cause: error,
@@ -213,8 +186,8 @@ export class TokenVerifier {
             verifiedAt: payload.iat! * 1000,
             expiresAt: payload.exp! * 1000,
         });
-        caller.context(this.options.audience, now, parsed.data.spaceId);
-        verifyTokenAuthentication(caller.authentication, this.options.authority, now);
+        caller.requireCurrent(this.options.audience, now, parsed.data.spaceId);
+        caller.requireAuthority(this.options.authority);
 
         return caller;
     }
@@ -246,92 +219,3 @@ export type TokenIssuerAuthority =
           /** Exact administered space. */
           readonly spaceId: string;
       };
-
-/** Verify identity claims against issuer authority, deployment identities and delegation chains. */
-export function verifyTokenAuthentication(
-    authentication: CallerAuthentication,
-    authority: TokenIssuerAuthority,
-    now: number,
-): void {
-    // collect every asserted identity
-    const subjects = [authentication.subject, ...authentication.subjects];
-
-    // a space signing key cannot assert global users, memberships or another space's identities
-    if (
-        authority.kind === "space" &&
-        (authentication.scope !== authority.spaceId ||
-            authentication.memberships?.length ||
-            authentication.actor ||
-            authentication.delegations?.length ||
-            subjects.some(
-                (subject) =>
-                    subject.kind !== "service-account" || subject.authority !== authority.spaceId,
-            ))
-    ) {
-        throw new ServiceError("UNAUTHORIZED", { message: "token exceeds issuer authority" });
-    }
-
-    // bind regional software identities to an authenticated deployment
-    const workloads = [
-        ...subjects,
-        ...(authentication.delegations ?? []).map((delegation) => delegation.actor),
-    ].filter(
-        (subject) =>
-            subject.kind === "service-account" && subject.authority === authentication.scope,
-    );
-    const deployments = authentication.deployments ?? [];
-    for (const subject of workloads) {
-        if (
-            deployments.filter((deployment) => sameSubject(deployment.subject, subject)).length !==
-            1
-        ) {
-            throw new ServiceError("UNAUTHORIZED", { message: "invalid workload token identity" });
-        }
-    }
-    if (
-        deployments.some(
-            (deployment) => !workloads.some((subject) => sameSubject(subject, deployment.subject)),
-        )
-    ) {
-        throw new ServiceError("UNAUTHORIZED", { message: "unexpected workload token identity" });
-    }
-
-    // reject incomplete, revoked, expired and cyclic delegation before invoking application code
-    const chain = authentication.delegations ?? [];
-    if (!authentication.actor) {
-        if (chain.length) {
-            throw new ServiceError("UNAUTHORIZED", { message: "delegation requires an actor" });
-        }
-        return;
-    }
-    let previous = authentication.subject;
-    const seen = new Set<string>([
-        JSON.stringify([previous.authority, previous.kind, previous.id]),
-    ]);
-    const ids = new Set<string>();
-    for (const delegation of chain) {
-        const identity = JSON.stringify([
-            delegation.actor.authority,
-            delegation.actor.kind,
-            delegation.actor.id,
-        ]);
-        if (
-            !sameSubject(previous, delegation.subject) ||
-            delegation.actor.kind !== "service-account" ||
-            ids.has(delegation.id) ||
-            seen.has(identity) ||
-            delegation.revokedAt !== null ||
-            delegation.createdAt > now ||
-            delegation.expiresAt < authentication.expiresAt ||
-            delegation.permissions.some((permission) => permission.scope !== authentication.scope)
-        ) {
-            throw new ServiceError("UNAUTHORIZED", { message: "invalid token delegation" });
-        }
-        ids.add(delegation.id);
-        seen.add(identity);
-        previous = delegation.actor;
-    }
-    if (!chain.length || !sameSubject(previous, authentication.actor)) {
-        throw new ServiceError("UNAUTHORIZED", { message: "invalid token delegation actor" });
-    }
-}

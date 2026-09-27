@@ -9,6 +9,7 @@ import { hosting } from "./tests/fixture.ts";
 import { Watch } from "../watch/index.ts";
 import { ServiceError } from "../error/index.ts";
 import type { ServiceContext } from "./context.ts";
+import { Bookmark, Watermark } from "../bookmark/index.ts";
 
 test("reauthenticate completed snapshot subscriptions and report revoked access", async () => {
     // expose a finite snapshot subscription through the real service transport
@@ -87,7 +88,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
         }),
     });
 
-    for (const callback of ["authenticate", "authorizeHost", "authorize"] as const) {
+    for (const callback of ["authenticate", "authorizeHost"] as const) {
         expect(() =>
             Server.start({
                 ...hosting,
@@ -231,7 +232,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
     const pending = authorized.get();
     const rejected = expect(pending).rejects.toMatchObject({
         message: "Cannot parse response body, please check the response body and content-type.",
-        cause: { name: "TimeoutError", message: "Service drain deadline exceeded." },
+        cause: { name: "TimeoutError", message: "service drain deadline exceeded" },
     });
 
     // keep resources alive until overdue work acknowledges cancellation
@@ -249,4 +250,46 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
     await server.stopped;
     expect(isStopped).toBe(true);
     expect(server.health.status).toBe("stopped");
+});
+
+test("return observed watermarks and require them on the client's later requests", async () => {
+    // observe a watermark on writes and report the watermarks reads require
+    const service = {
+        write: defineProcedure({ authentication: "identity", permission: null, audit: false })
+            .route({ method: "POST", path: "/write" })
+            .output(schema.object({})),
+        read: defineProcedure({ authentication: "identity", permission: null, audit: false })
+            .route({ method: "GET", path: "/read" })
+            .output(schema.array(Watermark)),
+    };
+    const implementation = implement(service).$context<ServiceContext>();
+    const server = Server.start({
+        ...hosting,
+        health: new Health("bookmark"),
+        drainTimeout: 1000,
+        router: implementation.router({
+            write: implementation.write.handler(({ context }) => {
+                context.observed.observe({ scope: "space-1", epoch: "epoch-1", sequence: 7 });
+                context.observed.observe({ scope: "space-1", epoch: "epoch-1", sequence: 5 });
+
+                return {};
+            }),
+            read: implementation.read.handler(({ context }) => [...context.bookmark.watermarks]),
+        }),
+    });
+    try {
+        const bookmark = new Bookmark();
+        const client = createClient(service, {
+            url: "https://test.local",
+            headers: { authorization: "alice" },
+            fetch: (request) => server.fetch(request),
+            bookmark,
+        });
+        expect(await client.read()).toEqual([]);
+        await client.write();
+        expect(bookmark.watermarks).toEqual([{ scope: "space-1", epoch: "epoch-1", sequence: 7 }]);
+        expect(await client.read()).toEqual([{ scope: "space-1", epoch: "epoch-1", sequence: 7 }]);
+    } finally {
+        await server.close();
+    }
 });

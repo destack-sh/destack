@@ -72,7 +72,6 @@ export const HealthStatus = schema.enum([
     "draining",
     "stopped",
 ]);
-
 /** Service readiness visible to clients and load balancers. */
 export type HealthStatus = schema.Infer<typeof HealthStatus>;
 

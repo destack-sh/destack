@@ -6,12 +6,14 @@ export class Watch<Value> {
         signal: AbortSignal,
     ): AsyncGenerator<Value> {
         while (!signal.aborted) {
-            // each successful subscription must publish its current snapshot
+            // pass on each value of the next subscription
             let isReceived = false;
             for await (const value of await open(signal)) {
                 isReceived = true;
                 yield value;
             }
+
+            // reject a subscription that ends without its snapshot
             if (!isReceived && !signal.aborted) {
                 throw new Error("snapshot subscription closed without a value");
             }
@@ -23,7 +25,7 @@ export class Watch<Value> {
     /** The current change number. */
     #revision = 0;
     /** Whether the producer has stopped. */
-    #closed = false;
+    #isClosed = false;
     /** Subscribers waiting for a changed value. */
     readonly #subscribers = new Set<() => void>();
 
@@ -39,7 +41,8 @@ export class Watch<Value> {
 
     /** Replace the value and wake waiting subscribers. */
     set(value: Value): void {
-        if (this.#closed) {
+        // reject values after the producer stops
+        if (this.#isClosed) {
             throw new Error("watch is closed");
         }
 
@@ -54,7 +57,7 @@ export class Watch<Value> {
     /** Stop waiting subscribers. */
     close(): void {
         // release all waiting subscribers
-        this.#closed = true;
+        this.#isClosed = true;
         for (const wake of this.#subscribers) {
             wake();
         }
@@ -64,7 +67,7 @@ export class Watch<Value> {
     async *watch(signal?: AbortSignal): AsyncGenerator<Value> {
         // deliver the current value before waiting for changes
         let revision = -1;
-        while (!this.#closed && !signal?.aborted) {
+        while (!this.#isClosed && !signal?.aborted) {
             // subscribe before reading to retain changes made while the consumer is suspended
             const pending = Promise.withResolvers<void>();
             const wake = () => pending.resolve();

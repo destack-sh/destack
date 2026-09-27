@@ -3,7 +3,7 @@ import { exportJWK, generateKeyPair, SignJWT, type JWTPayload } from "jose";
 import { TokenVerifier } from "./token.ts";
 import { TokenIssuer } from "./issuer.ts";
 import { Caller } from "./caller.ts";
-import { permitsDelegation, permitsCredential, type Subject } from "@destack/access";
+import { delegationChain, principal, Restriction, type Subject } from "@destack/access";
 import { PackageId } from "@destack/package";
 import { identifier } from "@destack/schema";
 
@@ -14,7 +14,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     const issuer = "https://account.example";
     const audience = PackageId.parse("package-019f7480-0000-7000-8000-000000000001");
     const spaceId = "space-019f7480-0000-7000-8000-000000000002";
-    const subject: Subject = { kind: "user", authority: "global", id: "user-example" };
+    const subject: Subject = principal.user.reference("global", "user-example");
     const issuedAt = Math.floor(Date.now() / 1000);
     const claims = {
         iss: issuer,
@@ -29,7 +29,6 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
             credential: { kind: "user", id: "session-example" },
             subject,
             subjects: [subject],
-            memberships: [],
         },
     };
     const verifier = new TokenVerifier({
@@ -49,6 +48,42 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     expect(() => caller.context(audience, issuedAt * 1000, "another-space")).toThrow(
         "caller authentication is expired or has a different audience or scope",
     );
+
+    // accept an administrator impersonating the user, and reject impersonating oneself or as software
+    const administrator: Subject = principal.user.reference("global", "user-administrator");
+    const impersonate = async (impersonator: Subject) =>
+        verifier.authenticate(
+            new Request(request, {
+                headers: {
+                    authorization: `Bearer ${await new SignJWT({
+                        ...claims,
+                        caller: {
+                            ...claims.caller,
+                            delegates: [{ subject: impersonator, authority: "full" }],
+                        },
+                    })
+                        .setProtectedHeader({ alg: "ES256", kid: "current" })
+                        .sign(keys.privateKey)}`,
+                },
+            }),
+            spaceId,
+            issuedAt * 1000,
+        );
+    const impersonated = (await impersonate(administrator)).context(
+        audience,
+        issuedAt * 1000,
+        spaceId,
+    );
+    expect([impersonated.subject, impersonated.delegates]).toEqual([
+        subject,
+        [{ subject: administrator, authority: "full" }],
+    ]);
+    for (const impersonator of [
+        subject,
+        principal.installation.reference("global", "installation-example"),
+    ]) {
+        await expect(impersonate(impersonator)).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    }
 
     // reject attacker-controlled claim substitutions even when signed by a trusted key
     for (const changed of [
@@ -130,28 +165,20 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         disconnected.authenticate(request, spaceId, issuedAt * 1000),
     ).rejects.toMatchObject({ code: "UNAVAILABLE" });
 
-    // preserve workload identity and delegation restrictions across real signing and verification
-    const actor: Subject = { kind: "service-account", authority: spaceId, id: "software-example" };
+    // preserve workload identity and the delegate chain across real signing and verification
+    const actor: Subject = principal.installation.reference(spaceId, "software-example");
     const deploymentId = identifier("deployment").parse(
         "deployment-019f7480-0000-7000-8000-000000000004",
     );
     const read = { packageId: PackageId.parse(audience), type: "note", name: "read" };
     const selection = { ...read, scope: spaceId, objectId: "note-one" };
-    const delegation = {
-        id: "delegation-example",
-        subject,
-        actor,
-        createdAt: issuedAt * 1000,
-        expiresAt: (issuedAt + 30) * 1000,
-        revokedAt: null,
-        permissions: [selection],
-    };
     const delegated = new Caller({
         ...caller.authentication,
-        actor,
         deployments: [{ subject: actor, id: deploymentId }],
-        delegations: [delegation],
+        delegates: [{ subject: actor, authority: "lent" }],
         permissions: [selection],
+        assurance: { level: 2, authenticatedAt: issuedAt * 1000 },
+        identifiers: ["email:alice@example.com"],
     });
     const signing = {
         authority: { kind: "global" as const },
@@ -163,7 +190,6 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     };
     const authority = new TokenIssuer(signing);
     const issued = await authority.issue(delegated, issuedAt * 1000);
-    expect(issued.expiresAt).toBe(delegation.expiresAt);
     const represented = await verifier.authenticate(
         new Request(request, {
             headers: { authorization: `Bearer ${issued.accessToken}` },
@@ -171,14 +197,18 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         spaceId,
         issuedAt * 1000,
     );
-    expect(represented.authentication.actor).toEqual(actor);
     expect(represented.authentication.deployments).toEqual([{ subject: actor, id: deploymentId }]);
-    expect(represented.authentication.delegations).toEqual([delegation]);
+    expect(represented.authentication.delegates).toEqual([{ subject: actor, authority: "lent" }]);
     const access = represented.context(audience, issuedAt * 1000, spaceId);
-    expect(permitsDelegation(read, { scope: spaceId, id: "note-one" }, access)).toBe(true);
-    expect(permitsDelegation(read, { scope: spaceId, id: "note-two" }, access)).toBe(false);
+    expect([access.assurance, access.identifiers]).toEqual([
+        { level: 2, authenticatedAt: issuedAt * 1000 },
+        ["email:alice@example.com"],
+    ]);
+    expect(delegationChain(access)).toEqual([
+        { delegate: actor, delegator: subject, authority: "lent" },
+    ]);
     expect(
-        permitsCredential({ ...read, name: "write" }, { scope: spaceId, id: "note-one" }, access),
+        Restriction.allows({ ...read, name: "write" }, { scope: spaceId, id: "note-one" }, access),
     ).toBe(false);
 
     // retain an independent deployment for every workload in a delegation chain
@@ -188,14 +218,13 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     );
     const chain = new Caller({
         ...delegated.authentication,
-        actor: secondActor,
         deployments: [
             { subject: actor, id: deploymentId },
             { subject: secondActor, id: secondDeployment },
         ],
-        delegations: [
-            delegation,
-            { ...delegation, id: "second-delegation", subject: actor, actor: secondActor },
+        delegates: [
+            { subject: actor, authority: "lent" },
+            { subject: secondActor, authority: "lent" },
         ],
     });
     const chained = await authority.issue(chain, issuedAt * 1000);
@@ -207,13 +236,10 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         issuedAt * 1000,
     );
     expect(chainedCaller.authentication.deployments).toEqual(chain.authentication.deployments);
-    expect(
-        permitsDelegation(
-            read,
-            { scope: spaceId, id: "note-one" },
-            chainedCaller.context(audience, issuedAt * 1000, spaceId),
-        ),
-    ).toBe(true);
+    expect(delegationChain(chainedCaller.context(audience, issuedAt * 1000, spaceId))).toEqual([
+        { delegate: actor, delegator: subject, authority: "lent" },
+        { delegate: secondActor, delegator: actor, authority: "lent" },
+    ]);
     await expect(
         authority.issue(
             new Caller({
@@ -224,14 +250,13 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         ),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
 
-    // reject malformed claims even when a signing authority bypasses TokenIssuer
-    for (const delegations of [
+    // reject malformed chains even when a signing authority bypasses TokenIssuer
+    for (const delegates of [
         [],
-        [delegation, delegation],
-        [{ ...delegation, revokedAt: issuedAt * 1000 }],
-        [{ ...delegation, subject: actor }],
-        [{ ...delegation, expiresAt: issuedAt * 1000 }],
-        [{ ...delegation, permissions: [{ ...selection, scope: "another-space" }] }],
+        [actor, actor],
+        [subject, actor],
+        [{ ...actor, kind: "user" as const }],
+        [secondActor],
     ]) {
         const token = await signing.sign({
             ...claims,
@@ -240,7 +265,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
                 ...claims.caller,
                 actor,
                 deployments: [{ subject: actor, id: deploymentId }],
-                delegations,
+                delegates,
             },
         });
         await expect(
@@ -254,16 +279,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     }
 
-    // reject revoked delegation and space authorities attempting to impersonate global users
-    await expect(
-        authority.issue(
-            new Caller({
-                ...delegated.authentication,
-                delegations: [{ ...delegation, revokedAt: issuedAt * 1000 }],
-            }),
-            issuedAt * 1000,
-        ),
-    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    // reject space authorities attempting to delegate for global users
     const local = new TokenIssuer({ ...signing, authority: { kind: "space", spaceId } });
     await expect(local.issue(delegated, issuedAt * 1000)).rejects.toMatchObject({
         code: "UNAUTHORIZED",
@@ -284,7 +300,6 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         credential: { kind: "workload", id: "credential-example" },
         subject: actor,
         subjects: [actor],
-        memberships: [],
         deployments: [{ subject: actor, id: deploymentId }],
     });
     const workloadToken = await local.issue(workload, issuedAt * 1000);
