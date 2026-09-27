@@ -1,4 +1,5 @@
 import { auditExport, auditPrune } from "../history/action.ts";
+import { Snapshot } from "@destack/db/log";
 import {
     implement,
     type ServiceAccess,
@@ -38,7 +39,10 @@ export function implementService(
                         scope: AuditScope,
                     ) => {
                         // require the permission on the scope object, denying an unknown scope
-                        const [link] = await Authorizer.chain(options.access.database, scope);
+                        const [link] = await Authorizer.chain(
+                            Snapshot.live(options.access.database),
+                            scope,
+                        );
                         if (link === undefined) {
                             throw new ServiceError("FORBIDDEN", {
                                 message: `permission denied: ${permission}`,
