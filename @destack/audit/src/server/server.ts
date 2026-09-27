@@ -1,124 +1,104 @@
-import { auditAction } from "../history/action.ts";
-import { schema } from "@destack/schema";
+import { auditExport, auditPrune } from "../history/action.ts";
 import {
     implement,
+    type ServiceAccess,
     type ServiceContext,
     type ServiceImplementation,
 } from "@destack/service/server";
+import { event } from "../history/access.ts";
 import { ServiceError } from "@destack/service";
 import { AuditHistory } from "../history/history.ts";
 import { AuditRecorder } from "../record/index.ts";
-import { AuditEvent, type AuditResult } from "../event/index.ts";
 import { AuditError } from "../error/index.ts";
 import { auditService, AuditScope } from "../service/index.ts";
-import { AuditEntry } from "../outbox/delivery.ts";
-
-/** Select the collection without decoding operation-specific fields. */
-const historySelection = schema.object({ scope: AuditScope }).strip();
-
-/** Authorization requests interpreted by the hosting account and residency policy. */
-export type AuditAccess =
-    | { action: "ingest"; producerId: string; event: AuditEvent }
-    | { action: "get" | "list" | "export" | "prune"; scope: AuditScope };
+import { Authorizer, GLOBAL_SCOPE } from "@destack/access";
 
 /** Verified request authority supplied by a local or regional host. */
 export interface AuditRequestContext {
-    /** Verify producer attestation on ingestion and collection permissions on reads and retention. */
-    authorizeAudit(access: AuditAccess): Promise<void>;
+    /** Require the caller to hold a history permission on a scope's history. */
+    authorizeAudit(permission: "ingest" | "read" | "prune", scope: AuditScope): Promise<void>;
     /** Record audit-history access under the authenticated request identity. */
-    audit: Pick<AuditRecorder, "begin" | "complete" | "append">;
+    audit: Pick<AuditRecorder, "attempt" | "stream">;
 }
 
-/** Bind history storage to authenticated producer and collection authorization. */
+/** Bind history storage to authorization on the scope whose history it is. */
 export function implementService(
-    history: AuditHistory,
+    auditHistory: AuditHistory,
     options: AuditServerOptions,
 ): ServiceImplementation {
+    // give each call its recorder and a check of history permissions
     const implementation = implement(auditService.router)
         .$context<ServiceContext>()
-        .use(async ({ context, next }) => {
-            return next({
+        .use(async ({ context, next }) =>
+            next({
                 context: {
                     audit: await options.record(context),
-                    authorizeAudit: (access: AuditAccess) => options.authorize(access, context),
+                    authorizeAudit: async (
+                        permission: "ingest" | "read" | "prune",
+                        scope: AuditScope,
+                    ) => {
+                        // require the permission on the scope object, denying an unknown scope
+                        const [link] = await Authorizer.chain(options.access.database, scope);
+                        if (link === undefined) {
+                            throw new ServiceError("FORBIDDEN", {
+                                message: `permission denied: ${permission}`,
+                            });
+                        }
+                        await context.authorization!.require(
+                            event.permission(permission),
+                            link.object,
+                        );
+                    },
                 },
-            });
-        });
+            }),
+        );
 
     return {
         service: auditService,
-        target: async (call) => {
-            // qualify credential restrictions by the selected history collection
-            if (call.path.at(-1) === "ingest") {
-                const selected = AuditEntry.safeParse(call.input);
-                if (!selected.success) {
-                    throw new ServiceError("BAD_REQUEST");
-                }
-                const { context } = selected.data.event;
-
-                return {
-                    scope: context.spaceId ?? context.accountId ?? context.hostId ?? "global",
-                };
-            }
-            const selected = historySelection.safeParse(call.input);
-            if (!selected.success) {
-                throw new ServiceError("BAD_REQUEST");
-            }
-
-            return { scope: scopeId(selected.data.scope) };
-        },
+        access: options.access,
         router: implementation.router({
             ingest: implementation.ingest.handler(async ({ input, context }) => {
-                await context.authorizeAudit({
-                    action: "ingest",
-                    producerId: input.producerId,
-                    event: input.event,
-                });
-
-                return history.ingest(input);
-            }),
-            get: implementation.get.handler(async ({ input, context }) => {
-                return access(context, "get", input.scope, () =>
-                    history.get(input.scope, input.id),
-                );
-            }),
-            list: implementation.list.handler(async ({ input, context }) => {
-                return access(context, "list", input.scope, () => history.list(input));
-            }),
-            export: implementation.export.handler(async function* ({ input, context, signal }) {
-                // open the attempt and assume cancellation until the stream finishes
-                const attempt = await beginAccess(context, "export", input.scope);
-                let result: AuditResult = { outcome: "cancelled", errorCode: "CANCELLED" };
-                let failureCause: unknown;
-                try {
-                    // recheck collection access while streaming bounded history pages
-                    for await (const record of history.export(input, signal)) {
-                        await context.authorizeAudit({ action: "export", scope: input.scope });
-                        yield record;
-                    }
-                    result = { outcome: "success" };
-                } catch (error) {
-                    failureCause = error;
-                    result = failure(error);
-                    throw error;
-                } finally {
-                    await completeAccess(context, attempt, result, failureCause);
+                // accept events of a scope other than the global one, whose administrators authorize the producer
+                const scope = input.event.context.scope;
+                if (scope === GLOBAL_SCOPE) {
+                    throw new ServiceError("BAD_REQUEST", {
+                        message: "audit events name a scope other than the global one",
+                    });
                 }
+                await context.authorizeAudit("ingest", scope);
+
+                return auditHistory.ingest(input);
             }),
-            prune: implementation.prune.handler(async ({ input, context }) => {
-                return access(context, "prune", input.scope, async () => ({
-                    events: await history.prune(input.scope, input.before, input.limit),
-                }));
-            }),
+            export: implementation.export.handler(({ input, context, signal }) =>
+                // recheck access to the scope's history before each bounded page it streams
+                context.audit.stream(auditExport, history(input.scope), async function* () {
+                    // require read access before the first page is read
+                    await context.authorizeAudit("read", input.scope);
+                    for await (const page of auditHistory.export(input, signal)) {
+                        await context.authorizeAudit("read", input.scope);
+                        for (const record of page) {
+                            signal?.throwIfAborted();
+                            yield record;
+                        }
+                    }
+                }),
+            ),
+            prune: implementation.prune.handler(({ input, context }) =>
+                context.audit.attempt(auditPrune, history(input.scope), async () => {
+                    await context.authorizeAudit("prune", input.scope);
+
+                    return {
+                        events: await auditHistory.prune(input),
+                    };
+                }),
+            ),
         }),
-        authorize: async ({ context }) => {
-            context.requireCaller();
-        },
         clientInterceptors: [
             async ({ next }) => {
                 try {
                     return await next();
                 } catch (error) {
+                    // report audit failures as the service failures they mean
                     if (error instanceof AuditError) {
                         throw new ServiceError(
                             error.code === "INVALID_EVENT" ? "BAD_REQUEST" : error.code,
@@ -132,101 +112,17 @@ export function implementService(
     };
 }
 
-/** Domain authority and request recording supplied by the hosting installation. */
+/** The access and request recording the hosting installation supplies. */
 export interface AuditServerOptions {
-    /** Verify producer attestation or current collection permissions for the caller. */
-    authorize(access: AuditAccess, context: ServiceContext): Promise<void>;
+    /** The host's policies, which include the history policy and the scope objects histories belong to. */
+    access: ServiceAccess;
     /** Create the durable recorder for history access under the verified caller. */
     record(
         context: ServiceContext,
     ): AuditRequestContext["audit"] | Promise<AuditRequestContext["audit"]>;
 }
 
-/** Record access and its result before returning history to the caller. */
-async function access<Value>(
-    context: AuditRequestContext,
-    operation: "get" | "list" | "export" | "prune",
-    scope: AuditScope,
-    execute: () => Promise<Value>,
-): Promise<Value> {
-    // persist the attempt before running the operation
-    const attempt = await beginAccess(context, operation, scope);
-    let value: Value;
-
-    // report application failure independently of audit completion failure
-    try {
-        value = await execute();
-    } catch (error) {
-        await completeAccess(context, attempt, failure(error), error);
-        throw error;
-    }
-    await context.audit.append(context.audit.complete(attempt, { outcome: "success" }));
-
-    return value;
-}
-
-/** Persist the request before checking the caller's collection permissions. */
-async function beginAccess(
-    context: AuditRequestContext,
-    operation: "get" | "list" | "export" | "prune",
-    scope: AuditScope,
-): Promise<AuditEvent> {
-    // persist the attempt and complete it as failed when authorization fails
-    const id = scopeId(scope);
-    const attempt = context.audit.begin(auditAction[operation], {
-        targets: { collection: { type: scope.type, id } },
-        details: {},
-    });
-    await context.audit.append(attempt);
-    try {
-        await context.authorizeAudit({ action: operation, scope });
-    } catch (error) {
-        await completeAccess(context, attempt, failure(error), error);
-        throw error;
-    }
-
-    return attempt;
-}
-
-/** Identify the authority administering a history collection. */
-function scopeId(scope: AuditScope): string {
-    switch (scope.type) {
-        case "space":
-            return scope.spaceId;
-        case "account":
-            return scope.accountId;
-        case "host":
-            return scope.hostId;
-        case "global":
-            return "global";
-    }
-}
-
-/** Retain safe error codes and distinguish rejected access from execution failure. */
-function failure(error: unknown): AuditResult {
-    const errorCode =
-        error instanceof ServiceError || error instanceof AuditError
-            ? error.code
-            : "INTERNAL_SERVER_ERROR";
-    const outcome =
-        errorCode === "FORBIDDEN" || errorCode === "UNAUTHORIZED" ? "denied" : "failure";
-
-    return { outcome, errorCode };
-}
-
-/** Preserve an operation failure when recording its outcome also fails. */
-async function completeAccess(
-    context: AuditRequestContext,
-    attempt: AuditEvent,
-    result: AuditResult,
-    cause?: unknown,
-): Promise<void> {
-    try {
-        await context.audit.append(context.audit.complete(attempt, result));
-    } catch (error) {
-        if (cause !== undefined) {
-            throw new AggregateError([cause, error], "audit access and result recording failed");
-        }
-        throw error;
-    }
+/** Name a scope's history as the target of an action on it. */
+function history(scope: AuditScope) {
+    return { targets: { scope: { type: "scope" as const, id: scope } }, details: {} };
 }

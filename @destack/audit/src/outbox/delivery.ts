@@ -8,8 +8,11 @@ export const AuditProducerId = identifier("audit-producer");
 /** One immutable event at a persistent producer position. */
 export const AuditEntry = defineSchema(
     schema.object({
+        /** The producer delivering the event. */
         producerId: AuditProducerId,
+        /** The producer's delivery position, one past its last acknowledged one. */
         sequence: schema.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+        /** The delivered event. */
         event: AuditEvent,
     }),
 );
@@ -19,7 +22,9 @@ export type AuditEntry = schema.Infer<typeof AuditEntry>;
 /** Durable acknowledgement of one producer position. */
 export const AuditAcknowledgement = defineSchema(
     schema.object({
+        /** The producer whose delivery the history accepted. */
         producerId: AuditProducerId,
+        /** The accepted delivery position. */
         sequence: schema.number().int().positive().max(Number.MAX_SAFE_INTEGER),
     }),
 );
@@ -38,6 +43,6 @@ export interface AuditOutboxOptions {
     signal: AbortSignal;
     /** Report every failed delivery without exposing event contents. */
     report(error: unknown): void;
-    /** Idle polling interval in milliseconds. */
-    interval?: number;
+    /** The first retry delay after a failed delivery, in milliseconds, doubling up to a minute. */
+    retryDelay?: number;
 }

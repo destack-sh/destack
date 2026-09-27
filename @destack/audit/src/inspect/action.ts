@@ -5,11 +5,17 @@ import { Package } from "@destack/package";
 /** A serializable action declaration collected by the package build. */
 export const AuditActionDescription = defineSchema(
     schema.object({
+        /** The package-local Noun.verb action name. */
         name: AuditActionName,
+        /** The declaring package. */
         package: Package,
+        /** The version of the targets and details schemas. */
         version: schema.number().int().positive(),
+        /** A short description. */
         description: schema.string().optional(),
+        /** The JSON Schema of the named affected objects. */
         targets: schema.json(),
+        /** The JSON Schema of the action details. */
         details: schema.json(),
     }),
 );

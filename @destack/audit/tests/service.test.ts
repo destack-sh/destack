@@ -1,18 +1,44 @@
 import { AuditStorage } from "./storage.ts";
 import { test, expect } from "@destack/test";
 import { schema } from "@destack/schema";
-import { ServiceError } from "@destack/service";
 import { Health } from "@destack/service/health";
 import { AuditRecorder } from "../src/record/index.ts";
 import { defineAuditAction } from "../src/action/index.ts";
 import { createAuditClient } from "../src/client/index.ts";
-import { implementService, createRecorder } from "../src/server/index.ts";
-import { auditList } from "../src/history/index.ts";
+import { implementService } from "../src/server/index.ts";
+import { auditExport } from "../src/history/index.ts";
 import { Server } from "@destack/service/server";
 import { Caller } from "@destack/service/authentication";
 import { ResourceContext } from "@destack/resource/context";
 import { AuditContext } from "../src/event/index.ts";
 import { PackageId } from "@destack/package";
+import {
+    Authorizer,
+    none,
+    Policy,
+    principal,
+    type AccessContext,
+    Authorization,
+} from "@destack/access";
+import { accountRecord } from "./stack/index.ts";
+import { copyScope } from "@destack/access/test";
+import { event } from "../src/history/index.ts";
+
+/** Accounts, whose histories the test reads, as scope objects. */
+const account = new Policy(
+    {
+        id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000005"),
+        name: "@example/account",
+        version: "1.0.0",
+    },
+    {
+        name: "account",
+        relations: {},
+        permissions: { share: none() },
+        grantedBy: "share",
+        scope: true,
+    },
+);
 
 /** Typed application action exercised through the HTTP service. */
 const publishDocument = defineAuditAction(
@@ -36,7 +62,6 @@ const publishDocument = defineAuditAction(
 test("authorize producers and readers, stream history, and record denied access", async () => {
     const storage = await AuditStorage.open();
     const { outbox, history } = storage;
-    let producerId: string;
 
     try {
         // bind producer authority separately from history reader credentials
@@ -45,34 +70,55 @@ test("authorize producers and readers, stream history, and record denied access"
             delegation: [],
             package: publishDocument.package,
             service: "document",
-            accountId: "account-01995da9-7223-7000-8000-000000000001",
+            scope: "account-01995da9-7223-7000-8000-000000000001",
         });
         const recorder = new AuditRecorder(context, outbox);
+
+        // let the reader ingest into and read the account's history, but not prune it
+        const database = storage.database;
+        const accountObject = account.reference("owner", context.scope);
+        const authorizer = new Authorizer(
+            [event, account],
+            [
+                {
+                    policy: account,
+                    table: accountRecord,
+                    id: "id",
+                    scope: "scope",
+                    attributes: {},
+                    relations: {},
+                },
+            ],
+        );
+        const owner: AccessContext = {
+            subjects: [principal.user.reference("global", "owner")],
+            now: Date.now(),
+            attributes: {},
+        };
+        const asOwner = new Authorization(authorizer, database, () => owner);
+        await copyScope(database, principal.user.reference("global", "owner"));
+        await database.insert(accountRecord).values({ id: context.scope, scope: "owner" });
+        await asOwner.create(accountObject, { owner: owner.subjects[0]! });
+        const reader = await asOwner.createRole(accountObject, {
+            name: "reader",
+            description: "Records and reads the account's history",
+            permissions: [event.permission("ingest"), event.permission("read")],
+        });
+        await asOwner.grant({
+            object: accountObject,
+            role: reader.id,
+            subject: principal.user.reference("global", "reader"),
+        });
         await using server = Server.start({
             ...implementService(history, {
+                access: { authorizer, database },
                 record: (request) =>
-                    createRecorder(request, outbox, {
+                    AuditRecorder.from(request.caller, outbox, {
                         package: publishDocument.package,
                         service: "audit",
-                        accountId: context.accountId,
+                        scope: context.scope,
+                        requestId: request.requestId,
                     }),
-                authorize: async (access) => {
-                    if (access.action === "ingest") {
-                        if (
-                            access.producerId !== producerId ||
-                            access.event.context.accountId !== context.accountId ||
-                            access.event.context.service !== "document"
-                        ) {
-                            throw new ServiceError("FORBIDDEN");
-                        }
-                    } else if (
-                        access.action === "prune" ||
-                        access.scope.type !== "account" ||
-                        access.scope.accountId !== context.accountId
-                    ) {
-                        throw new ServiceError("FORBIDDEN");
-                    }
-                },
             }),
             audience: publishDocument.package.id,
             scope: "global",
@@ -82,8 +128,8 @@ test("authorize producers and readers, stream history, and record denied access"
                 new Caller({
                     credential: { kind: "fixture" },
                     audience: publishDocument.package.id,
-                    subject: { kind: "user", authority: "global", id: "reader" },
-                    subjects: [{ kind: "user", authority: "global", id: "reader" }],
+                    subject: principal.user.reference("global", "reader"),
+                    subjects: [principal.user.reference("global", "reader")],
                     verifiedAt: Date.now(),
                     expiresAt: Date.now() + 60000,
                 }),
@@ -103,13 +149,12 @@ test("authorize producers and readers, stream history, and record denied access"
         await recorder.append(attempt);
         const result = recorder.complete(attempt, { outcome: "success" });
         await recorder.append(result);
-        producerId = (await outbox.next())!.producerId;
         expect(await outbox.flush(client)).toBe(2);
-        const scope = { type: "account" as const, accountId: context.accountId! };
+        const scope = context.scope;
         const query = { scope, action: publishDocument.name, limit: 1 };
-        const first = await client.list(query);
+        const first = await history.list(query);
         expect(first.items.map((record) => record.event)).toEqual([attempt]);
-        const second = await client.list({ ...query, cursor: first.cursor! });
+        const second = await history.list({ ...query, cursor: first.cursor! });
         expect(second.items.map((record) => record.event)).toEqual([result]);
         expect(second.cursor).toBeNull();
         const exported = [];
@@ -124,38 +169,33 @@ test("authorize producers and readers, stream history, and record denied access"
             client.ingest({
                 producerId: "audit-producer-01995da9-7223-7000-8000-000000000010",
                 sequence: 1,
-                event: { ...attempt, context: { ...context, accountId: foreign } },
+                event: { ...attempt, context: { ...context, scope: foreign } },
             }),
         ).rejects.toMatchObject({ code: "FORBIDDEN" });
-        await expect(
-            client.get({ scope: { type: "account", accountId: foreign }, id: attempt.id }),
-        ).rejects.toMatchObject({ code: "FORBIDDEN" });
+        const denied = async () => {
+            const records = [];
+            for await (const record of await client.export({
+                ...query,
+                scope: foreign,
+            })) {
+                records.push(record);
+            }
+
+            return records;
+        };
+        await expect(denied()).rejects.toMatchObject({ code: "FORBIDDEN" });
         const accesses = (await outbox.read()).filter(
-            (event) => event.action.package.id === auditList.package.id,
+            (event) => event.action.package.id === auditExport.package.id,
         );
-        expect(accesses.map((event) => event.action.name)).toEqual([
-            "Audit.list",
-            "Audit.list",
-            "Audit.list",
-            "Audit.list",
-            "Audit.export",
-            "Audit.export",
-            "Audit.get",
-            "Audit.get",
-        ]);
-        expect(accesses.map((event) => event.result)).toEqual([
-            { stage: "attempt" },
-            { stage: "result", outcome: "success" },
-            { stage: "attempt" },
-            { stage: "result", outcome: "success" },
-            { stage: "attempt" },
-            { stage: "result", outcome: "success" },
-            { stage: "attempt" },
-            { stage: "result", outcome: "denied", errorCode: "FORBIDDEN" },
+        expect(accesses.map((event) => [event.action.name, event.result])).toEqual([
+            ["Audit.export", { stage: "attempt" }],
+            ["Audit.export", { stage: "result", outcome: "success" }],
+            ["Audit.export", { stage: "attempt" }],
+            ["Audit.export", { stage: "result", outcome: "denied", errorCode: "FORBIDDEN" }],
         ]);
         expect(await history.get(scope, attempt.id)).toEqual(first.items[0]);
 
-        // history read access does not grant retention administration
+        // deny pruning to a caller that may only read the history
         await expect(
             client.prune({ scope, before: Date.now() + 1, limit: 100 }),
         ).rejects.toMatchObject({ code: "FORBIDDEN" });

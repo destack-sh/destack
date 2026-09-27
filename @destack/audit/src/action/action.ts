@@ -10,8 +10,11 @@ export const AuditActionName = defineSchema(
 /** Declaring package, action name, and action schema version. */
 export const AuditActionReference = defineSchema(
     schema.object({
+        /** The declaring package. */
         package: Package,
+        /** The package-local Noun.verb action name. */
         name: AuditActionName,
+        /** The version of the targets and details schemas. */
         version: schema.number().int().positive(),
     }),
 );

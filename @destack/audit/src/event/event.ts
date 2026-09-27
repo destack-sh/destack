@@ -4,17 +4,29 @@ import { AuditContext } from "./context.ts";
 import { AuditActionReference } from "../action/action.ts";
 import { AuditTarget } from "./target.ts";
 
+/** How an action ended. */
+export const AuditOutcome = defineSchema(
+    schema.enum(["success", "failure", "denied", "cancelled"]),
+);
+/** How an action ended. */
+export type AuditOutcome = schema.Infer<typeof AuditOutcome>;
+
 /** The observed result of an action. */
 export const AuditResult = defineSchema(
     schema.discriminatedUnion("outcome", [
-        schema.object({ outcome: schema.literal("success") }),
         schema.object({
-            outcome: schema.enum(["failure", "denied", "cancelled"]),
+            /** The action succeeded. */
+            outcome: AuditOutcome.extract(["success"]),
+        }),
+        schema.object({
+            /** The action failed, was denied or was cancelled. */
+            outcome: AuditOutcome.exclude(["success"]),
+            /** The stable code of the failure. */
             errorCode: schema.string().min(1),
         }),
     ]),
 );
-/** An observed outcome. */
+/** The observed result of an action. */
 export type AuditResult = schema.Infer<typeof AuditResult>;
 
 /** An immutable event acknowledged by durable recording. */
@@ -34,15 +46,18 @@ export const AuditEvent = defineSchema(
         targets: schema.record(schema.string().min(1), AuditTarget),
         /** Fields accepted by the declared details schema. */
         details: schema.json(),
-        /** An attempt has no outcome until a separate result is recorded. */
+        /** The recorded stage: an attempt without an outcome, or a result with its outcome. */
         result: schema.union([
-            schema.object({ stage: schema.literal("attempt") }),
-            schema.object({ stage: schema.literal("result"), outcome: schema.literal("success") }),
             schema.object({
-                stage: schema.literal("result"),
-                outcome: schema.enum(["failure", "denied", "cancelled"]),
-                errorCode: schema.string().min(1),
+                /** The event records an attempt. */
+                stage: schema.literal("attempt"),
             }),
+            ...AuditResult.options.map((result) =>
+                result.extend({
+                    /** The event records a result. */
+                    stage: schema.literal("result"),
+                }),
+            ),
         ]),
     }),
 );

@@ -4,48 +4,38 @@ import { ServiceContext } from "@destack/service/server";
 import { ResourceContext } from "@destack/resource/context";
 import { ServiceError } from "@destack/service";
 import { identifier } from "@destack/schema";
-import { createRecorder } from "../src/server/index.ts";
+import { AuditRecorder } from "../src/record/index.ts";
 import { AuditStorage, renameDocument, rename } from "./storage.ts";
+import { principal } from "@destack/access";
 
-test("persist verified caller identities and isolate history by authority", async () => {
+test("persist verified caller identities and tell apart identities of different scopes", async () => {
     const storage = await AuditStorage.open();
     try {
-        // use the same identifier under two independent identity authorities
-        const origin = { package: renameDocument.package, service: "document" };
+        // use the same identifier in two scopes
+        const origin = { package: renameDocument.package, service: "document", scope: "global" };
         const now = Date.now();
-        const represented = { kind: "user" as const, authority: "global", id: "person" };
-        const actor = { kind: "service-account" as const, authority: "space-example", id: "agent" };
+        const represented = principal.user.reference("global", "person");
+        const actor = principal.installation.reference("space-example", "agent");
         const deploymentId = identifier("deployment").parse(
             "deployment-01996ab0-0000-7000-8000-000000000001",
         );
         const requests = [
             { subject: represented },
-            { subject: { ...represented, authority: "host-example" } },
+            { subject: { ...represented, scope: "host-example" } },
             {
                 subject: represented,
-                actor,
                 deployments: [
                     {
-                        subject: { ...actor, authority: "another-space" },
+                        subject: { ...actor, scope: "another-space" },
                         id: identifier("deployment").parse(
                             "deployment-01996ab0-0000-7000-8000-000000000002",
                         ),
                     },
                     { subject: actor, id: deploymentId },
                 ],
-                delegations: [
-                    {
-                        id: "delegation-example",
-                        subject: represented,
-                        actor,
-                        permissions: [],
-                        createdAt: now,
-                        expiresAt: now + 60000,
-                        revokedAt: null,
-                    },
-                ],
+                delegates: [{ subject: actor, authority: "lent" as const }],
             },
-            { subject: { kind: "share-token" as const, authority: "space-example", id: "share" } },
+            { subject: principal.installation.reference("space-example", "share") },
         ];
         const events = [];
         for (const authentication of requests) {
@@ -57,51 +47,57 @@ test("persist verified caller identities and isolate history by authority", asyn
                 verifiedAt: now,
                 expiresAt: now + 60000,
             });
-            const request = new ServiceContext(
-                new Request("https://example.test"),
-                origin.package.id,
-                "global",
+            const request = new ServiceContext(new Request("https://example.test"), {
+                audience: origin.package.id,
+                scope: "global",
                 caller,
-                new ResourceContext(),
-            );
-            const recorder = createRecorder(request, storage.outbox, origin);
+                resources: new ResourceContext(),
+            });
+            const recorder = AuditRecorder.from(request.caller, storage.outbox, {
+                ...origin,
+                requestId: request.requestId,
+            });
             const event = recorder.begin(renameDocument, rename);
             await recorder.append(event);
             events.push(event);
         }
 
-        // failed authentication must not attribute the attempt to a retained caller
-        const rejected = new ServiceContext(
-            new Request("https://example.test"),
-            origin.package.id,
-            "global",
-            new Caller({
-                credential: {},
-                audience: origin.package.id,
-                subject: represented,
-                subjects: [represented],
-                verifiedAt: now,
-                expiresAt: now + 60000,
-            }),
-            new ResourceContext(),
-            new ServiceError("UNAUTHORIZED"),
-        );
-        const recorder = createRecorder(rejected, storage.outbox, origin);
+        // attribute an attempt after failed authentication to no caller
+        const rejected = new ServiceContext(new Request("https://example.test"), {
+            audience: origin.package.id,
+            scope: "global",
+            caller: null,
+            resources: new ResourceContext(),
+            authenticationError: new ServiceError("UNAUTHORIZED"),
+        });
+        const recorder = AuditRecorder.from(rejected.caller, storage.outbox, {
+            ...origin,
+            requestId: rejected.requestId,
+        });
         const anonymous = recorder.begin(renameDocument, rename);
         await recorder.append(anonymous);
         events.push(anonymous);
 
         // compare the full recorded identity, without credential or request payload fields
-        const person = { type: "user", authority: "global", id: "person" };
-        const local = { ...person, authority: "host-example" };
-        const software = { type: "service-account", authority: "space-example", id: "agent" };
-        const share = { type: "share-token", authority: "space-example", id: "share" };
+        const person = { type: "subject", subject: represented };
+        const local = { type: "subject", subject: { ...represented, scope: "host-example" } };
+        const software = { type: "subject", subject: actor };
+        const share = {
+            type: "subject",
+            subject: principal.installation.reference("space-example", "share"),
+        };
         expect(events.map(({ context: { requestId: _requestId, ...context } }) => context)).toEqual(
             [
-                { ...origin, actor: person, subject: person, delegation: [] },
-                { ...origin, actor: local, subject: local, delegation: [] },
-                { ...origin, actor: software, subject: person, delegation: [person], deploymentId },
-                { ...origin, actor: share, subject: share, delegation: [] },
+                { ...origin, actor: person, subject: person.subject, delegation: [] },
+                { ...origin, actor: local, subject: local.subject, delegation: [] },
+                {
+                    ...origin,
+                    actor: software,
+                    subject: person.subject,
+                    delegation: [person],
+                    deploymentId,
+                },
+                { ...origin, actor: share, subject: share.subject, delegation: [] },
                 { ...origin, actor: { type: "anonymous" }, delegation: [] },
             ],
         );
@@ -110,7 +106,7 @@ test("persist verified caller identities and isolate history by authority", asyn
         expect(await storage.outbox.flush(storage.history)).toBe(5);
         for (const event of events) {
             const page = await storage.history.list({
-                scope: { type: "global" },
+                scope: "global",
                 actor: event.context.actor,
                 limit: 10,
             });

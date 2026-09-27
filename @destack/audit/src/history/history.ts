@@ -1,3 +1,4 @@
+import { v7 } from "uuid";
 import {
     and,
     or,
@@ -5,7 +6,6 @@ import {
     gt,
     lt,
     gte,
-    isNull,
     inArray,
     notInArray,
     isNotNull,
@@ -13,11 +13,14 @@ import {
     type DatabaseConnection,
     type SQL,
 } from "@destack/db";
-import { AuditEvent, actorKey } from "../event/index.ts";
-import { encodeEvent, canonical } from "../event/encode.ts";
+import { AuditEvent, type AuditActor } from "../event/index.ts";
+import { subjectKey } from "@destack/access";
+import { canonicalize } from "@destack/schema/json";
+import { identifier } from "@destack/schema/identifier";
+import { encodeEvent } from "../event/encode.ts";
 import { AuditProducerId, AuditEntry, type AuditAcknowledgement } from "../outbox/delivery.ts";
 import { AuditError } from "../error/index.ts";
-import { AuditQuery, type AuditPage, type AuditScope } from "./query.ts";
+import { AuditPrune, AuditQuery, type AuditPage, type AuditScope } from "./query.ts";
 import { auditEvent, auditTarget, auditProducer } from "./stack/index.ts";
 
 /** Persist immutable history and query it within an authorized scope. */
@@ -42,11 +45,7 @@ export class AuditHistory {
                 // reserve and lock producer progress independently of retained history
                 await transaction
                     .insert(auditProducer)
-                    .values({
-                        id: entry.producerId,
-                        sequence: 0,
-                        digest: "",
-                    })
+                    .values({ id: entry.producerId, sequence: 0, digest: null })
                     .onConflictDoUpdate({
                         target: auditProducer.id,
                         set: { id: entry.producerId },
@@ -71,6 +70,8 @@ export class AuditHistory {
 
                     return { producerId: entry.producerId, sequence: entry.sequence };
                 }
+
+                // require the next position
                 if (entry.sequence !== producer.sequence + 1) {
                     throw new AuditError(
                         "CONFLICT",
@@ -78,21 +79,8 @@ export class AuditHistory {
                     );
                 }
 
-                // reject changed identities and index newly accepted events
-                const existing = await transaction
-                    .select()
-                    .from(auditEvent)
-                    .where(eq(auditEvent.id, event.id))
-                    .get();
-                if (existing && canonical(existing.event) !== content) {
-                    throw new AuditError(
-                        "CONFLICT",
-                        "audit event identifier has conflicting contents",
-                    );
-                }
-                if (!existing) {
-                    await this.#insert(event, transaction);
-                }
+                // index the event, accepting an identical one and rejecting other contents
+                await this.#insert(event, transaction);
 
                 // commit progress and event persistence atomically
                 await transaction
@@ -108,15 +96,12 @@ export class AuditHistory {
 
     /** Revoke a producer without releasing its identity for reuse. */
     async retire(producerId: string): Promise<void> {
+        // mark the producer retired, reserving its identity when it never delivered
+        const retiredAt = Date.now();
         await this.database
             .insert(auditProducer)
-            .values({
-                id: AuditProducerId.parse(producerId),
-                sequence: 0,
-                digest: "",
-                retiredAt: Date.now(),
-            })
-            .onConflictDoUpdate({ target: auditProducer.id, set: { retiredAt: Date.now() } });
+            .values({ id: AuditProducerId.parse(producerId), sequence: 0, digest: null, retiredAt })
+            .onConflictDoUpdate({ target: auditProducer.id, set: { retiredAt } });
     }
 
     /** Index an event independently of live application tables. */
@@ -144,7 +129,7 @@ export class AuditHistory {
                 } = event;
                 if (
                     attempt.event.result.stage !== "attempt" ||
-                    canonical(origin) !== canonical(completion)
+                    canonicalize(origin) !== canonicalize(completion)
                 ) {
                     throw new AuditError("CONFLICT", "audit result differs from its attempt");
                 }
@@ -153,16 +138,15 @@ export class AuditHistory {
 
         // extract query columns and retain the complete historical event
         const actor = actorKey(event.context.actor);
+        const scope = event.context.scope;
         const inserted = await transaction
             .insert(auditEvent)
             .values({
                 id: event.id,
+                scope,
                 attemptId: event.attemptId ?? null,
                 action: event.action.name,
                 packageId: event.action.package.id,
-                accountId: event.context.accountId ?? null,
-                spaceId: event.context.spaceId ?? null,
-                hostId: event.context.hostId ?? null,
                 actor,
                 stage: event.result.stage,
                 outcome: "outcome" in event.result ? event.result.outcome : null,
@@ -180,9 +164,11 @@ export class AuditHistory {
                 .from(auditEvent)
                 .where(eq(auditEvent.id, event.id))
                 .get();
-            if (existing && canonical(existing.event) === canonical(event)) {
+            if (existing && canonicalize(existing.event) === canonicalize(event)) {
                 return;
             }
+
+            // reject a changed identity or a second result of the attempt
             throw new AuditError(
                 "CONFLICT",
                 existing
@@ -193,22 +179,25 @@ export class AuditHistory {
 
         // index named object references without creating live foreign keys
         const targets = Object.entries(event.targets).map(([role, target]) => ({
-            eventId: event.id,
+            id: identifier("audit-target").parse(`audit-target-${v7()}`),
+            event: event.id,
+            scope,
             role,
             type: target.type,
-            id: target.id,
+            objectId: target.id,
         }));
         if (targets.length) {
             await transaction.insert(auditTarget).values(targets);
         }
     }
 
-    /** Read one event only when it belongs to the requested collection. */
+    /** Read one event of a scope's history. */
     async get(scope: AuditScope, id: AuditEvent["id"]) {
+        // read the event within its scope
         const row = await this.database
             .select({ event: auditEvent.event, recordedAt: auditEvent.recordedAt })
             .from(auditEvent)
-            .where(and(scopeFilter(scope), eq(auditEvent.id, id)))
+            .where(and(eq(auditEvent.scope, scope), eq(auditEvent.id, id)))
             .get();
         if (!row) {
             throw new AuditError("NOT_FOUND", "audit event not found");
@@ -219,9 +208,9 @@ export class AuditHistory {
 
     /** Read a bounded page in durable acceptance order. */
     async list(request: AuditQuery): Promise<AuditPage> {
-        // parse the query and filter by collection
+        // parse the query and filter by scope
         const query = AuditQuery.parse(request);
-        const filters: (SQL | undefined)[] = [scopeFilter(query.scope)];
+        const filters: (SQL | undefined)[] = [eq(auditEvent.scope, query.scope)];
 
         // select declared actions and producers
         if (query.action) {
@@ -246,12 +235,12 @@ export class AuditHistory {
             filters.push(eq(auditEvent.outcome, query.outcome));
         }
 
-        // find attempts whose result has not arrived
+        // find attempts whose result has not arrived, among the results of the same scope
         if (query.unresolved) {
             const completed = this.database
                 .select({ id: auditEvent.attemptId })
                 .from(auditEvent)
-                .where(isNotNull(auditEvent.attemptId));
+                .where(and(eq(auditEvent.scope, query.scope), isNotNull(auditEvent.attemptId)));
             filters.push(eq(auditEvent.stage, "attempt"), notInArray(auditEvent.id, completed));
         }
 
@@ -279,12 +268,12 @@ export class AuditHistory {
         // search affected objects through their target index
         if (query.target) {
             const targets = this.database
-                .select({ id: auditTarget.eventId })
+                .select({ id: auditTarget.event })
                 .from(auditTarget)
                 .where(
                     and(
                         eq(auditTarget.type, query.target.type),
-                        eq(auditTarget.id, query.target.id),
+                        eq(auditTarget.objectId, query.target.id),
                     ),
                 );
             filters.push(inArray(auditEvent.id, targets));
@@ -310,39 +299,28 @@ export class AuditHistory {
     }
 
     /** Remove expired event contents while retaining producer progress. */
-    async prune(scope: AuditScope, before: number, limit: number): Promise<number> {
-        AuditQuery.parse({ scope, before, limit });
+    async prune(request: AuditPrune): Promise<number> {
+        // validate the scope, cutoff and bound
+        const { scope, before, limit } = AuditPrune.parse(request);
 
-        return this.database.transaction(
-            async (transaction) => {
-                // bound retention work and cascade deletion to target indexes
-                const expired = await transaction
-                    .select({ id: auditEvent.id })
-                    .from(auditEvent)
-                    .where(and(scopeFilter(scope), lt(auditEvent.recordedAt, before)))
-                    .orderBy(asc(auditEvent.recordedAt), asc(auditEvent.id))
-                    .limit(limit);
-                if (!expired.length) {
-                    return 0;
-                }
-                const removed = await transaction
-                    .delete(auditEvent)
-                    .where(
-                        inArray(
-                            auditEvent.id,
-                            expired.map((event) => event.id),
-                        ),
-                    )
-                    .returning({ id: auditEvent.id });
+        // remove the oldest expired events, cascading to their target indexes
+        const expired = this.database
+            .select({ id: auditEvent.id })
+            .from(auditEvent)
+            .where(and(eq(auditEvent.scope, scope), lt(auditEvent.recordedAt, before)))
+            .orderBy(asc(auditEvent.recordedAt), asc(auditEvent.id))
+            .limit(limit);
+        const removed = await this.database
+            .delete(auditEvent)
+            .where(inArray(auditEvent.id, expired))
+            .returning({ id: auditEvent.id });
 
-                return removed.length;
-            },
-            { isolationLevel: "read committed" },
-        );
+        return removed.length;
     }
 
-    /** Stream bounded pages accepted before the export started. */
-    async *export(request: AuditQuery, signal?: AbortSignal) {
+    /** Stream the bounded pages of events accepted before the export started. */
+    async *export(request: AuditQuery, signal?: AbortSignal): AsyncGenerator<AuditPage["items"]> {
+        // fix the end of the export at its start
         const query = AuditQuery.parse({
             ...request,
             before:
@@ -352,10 +330,7 @@ export class AuditHistory {
             // keep memory bounded and stop before fetching another page on cancellation
             signal?.throwIfAborted();
             const page = await this.list(query);
-            for (const record of page.items) {
-                signal?.throwIfAborted();
-                yield record;
-            }
+            yield page.items;
             if (!page.cursor) {
                 return;
             }
@@ -364,28 +339,27 @@ export class AuditHistory {
     }
 }
 
-/** Apply collection membership independently of the host's permission check. */
-function scopeFilter(scope: AuditScope): SQL {
-    switch (scope.type) {
-        case "global":
-            return and(
-                isNull(auditEvent.accountId),
-                isNull(auditEvent.spaceId),
-                isNull(auditEvent.hostId),
-            )!;
-        case "account":
-            return eq(auditEvent.accountId, scope.accountId);
-        case "space":
-            return eq(auditEvent.spaceId, scope.spaceId);
-        case "host":
-            return eq(auditEvent.hostId, scope.hostId);
-    }
-}
-
 /** Hash validated JSON before taking the database writer lock. */
 async function digest(content: string): Promise<string> {
+    // hash the content bytes as hexadecimal
     const bytes = new TextEncoder().encode(content);
     const hash = await crypto.subtle.digest("SHA-256", bytes);
 
     return new Uint8Array(hash).toHex();
+}
+
+/** Encode the complete identity for indexed history selection. */
+function actorKey(actor: AuditActor): string {
+    // key a subject as access keys it
+    if (actor.type === "subject") {
+        return subjectKey(actor.subject);
+    }
+    // key a system component by its name
+    else if (actor.type === "system") {
+        return JSON.stringify([actor.type, actor.name]);
+    }
+    // key an anonymous caller by its type
+    else {
+        return JSON.stringify([actor.type]);
+    }
 }

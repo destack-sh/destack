@@ -1,3 +1,4 @@
+import { canonicalize } from "@destack/schema/json";
 import { AuditEvent } from "./event.ts";
 import { AuditError } from "../error/index.ts";
 
@@ -15,25 +16,10 @@ export function encodeEvent(value: AuditEvent): { event: AuditEvent; content: st
     }
 
     // bound both database records and individual delivery payloads
-    const content = canonical(event);
+    const content = canonicalize(event);
     if (new TextEncoder().encode(content).byteLength > MAX_EVENT_BYTES) {
-        throw new AuditError("INVALID_EVENT", "audit event exceeds 65536 bytes");
+        throw new AuditError("INVALID_EVENT", `audit event exceeds ${MAX_EVENT_BYTES} bytes`);
     }
 
     return { event, content };
-}
-
-/** Serialize JSON with stable object-key ordering for exact duplicate detection. */
-export function canonical(value: unknown): string {
-    if (value === null || typeof value !== "object") {
-        return JSON.stringify(value);
-    } else if (Array.isArray(value)) {
-        return `[${value.map(canonical).join(",")}]`;
-    } else {
-        const fields = Object.entries(value)
-            .filter(([, value]) => value !== undefined)
-            .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
-
-        return `{${fields.map(([key, value]) => `${JSON.stringify(key)}:${canonical(value)}`).join(",")}}`;
-    }
 }

@@ -5,41 +5,30 @@ import { document } from "./stack/index.ts";
 import { identifier } from "@destack/schema";
 import { AuditRecorder } from "../src/record/recorder.ts";
 
-test("retain standalone space history through global account association", async () => {
+test("keep each event in the history of its scope", async () => {
     const storage = await AuditStorage.open();
     try {
-        // persist local history without inventing an account
-        const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
-        const accountId = identifier("account").parse(
-            "account-01996ab0-0000-7000-8000-000000000002",
+        // record an event of a space
+        const scope = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
+        const recorder = new AuditRecorder(
+            {
+                actor: { type: "system" as const, name: "integration" },
+                delegation: [],
+                package: renameDocument.package,
+                service: "document",
+                scope,
+            },
+            storage.outbox,
         );
-        const context = {
-            actor: { type: "system" as const, name: "integration" },
-            delegation: [],
-            package: renameDocument.package,
-            service: "document",
-            spaceId,
-        };
-        const localRecorder = new AuditRecorder(context, storage.outbox);
-        const local = localRecorder.begin(renameDocument, rename);
-        await localRecorder.append(local);
+        const recorded = recorder.begin(renameDocument, rename);
+        await recorder.append(recorded);
         expect(await storage.outbox.flush(storage.history)).toBe(1);
 
-        // retain the original event while recording later events with the account association
-        const registeredRecorder = new AuditRecorder({ ...context, accountId }, storage.outbox);
-        const registered = registeredRecorder.begin(renameDocument, rename);
-        await registeredRecorder.append(registered);
-        expect(await storage.outbox.flush(storage.history)).toBe(1);
-        const history = await storage.history.list({
-            scope: { type: "space", spaceId },
-            limit: 100,
-        });
-        expect(history.items.map((record) => record.event)).toEqual([local, registered]);
-        expect(history.cursor).toBeNull();
-        expect(await storage.history.list({ scope: { type: "global" }, limit: 100 })).toEqual({
-            items: [],
-            cursor: null,
-        });
+        // read it in the space's history and nowhere else
+        expect([
+            (await storage.history.list({ scope, limit: 100 })).items.map((record) => record.event),
+            await storage.history.list({ scope: "global", limit: 100 }),
+        ]).toEqual([[recorded], { items: [], cursor: null }]);
     } finally {
         await storage.close();
     }
@@ -48,7 +37,7 @@ test("retain standalone space history through global account association", async
 test("commit and roll back application changes with their audit events", async () => {
     let storage = await AuditStorage.open();
     try {
-        // a rejected transaction leaves neither application state nor audit records
+        // roll back application state and audit records together
         const failure = new AuditError("CONFLICT", "cancel change");
         await expect(
             storage.database.transaction(async (transaction) => {
@@ -63,7 +52,7 @@ test("commit and roll back application changes with their audit events", async (
         expect(await storage.database.select().from(document)).toEqual([]);
         expect(await storage.outbox.read()).toEqual([]);
 
-        // committed changes and events survive closing every runtime object
+        // keep committed changes and events across a restart
         const event = await storage.database.transaction(async (transaction) => {
             await transaction.insert(document).values({ name: "renamed" });
 
@@ -84,7 +73,7 @@ test("commit and roll back application changes with their audit events", async (
 test("persist prepared attempts and outcomes without recreating events on retry", async () => {
     let storage = await AuditStorage.open();
     try {
-        // construction performs no persistence and the prepared event survives serialization
+        // persist prepared events only on append, including after serialization
         const attempt = storage.recorder.begin(renameDocument, rename);
         expect(await storage.outbox.read()).toEqual([]);
         await storage.recorder.append(attempt);
@@ -95,7 +84,7 @@ test("persist prepared attempts and outcomes without recreating events on retry"
         expect(await storage.outbox.read()).toEqual([attempt, result]);
         expect(result.attemptId).toBe(attempt.id);
 
-        // reusing an identity with different contents fails before delivery
+        // reject a reused identity with different contents before delivery
         await expect(
             storage.recorder.append({ ...result, details: { name: "different" } }),
         ).rejects.toMatchObject({

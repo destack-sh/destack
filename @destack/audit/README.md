@@ -2,99 +2,77 @@
 
 Declare audit actions, record them durably, and query authorized history.
 
-## Usage
+## Actions
+
+An action names a Noun.verb, the objects it affects and the details it records.
 
 ```ts
 import { defineAuditAction } from "@destack/audit";
-import { schema } from "@destack/schema";
 
 export const renameNote = defineAuditAction({
     name: "Note.rename",
     version: 1,
-    targets: schema.object({
-        note: schema.object({ type: schema.literal("note"), id: schema.string() }),
-    }),
+    targets: schema.object({ note: schema.object({ type: schema.literal("note"), id: schema.string() }) }),
     details: schema.object({ title: schema.string() }),
 });
 ```
 
+## Recording
+
+A recorder attributes events to the verified caller and writes them to the outbox, in the application's transaction where there is one.
+
 ```ts
+import { AuditRecorder } from "@destack/audit";
+import { AuditOutbox } from "@destack/audit/outbox";
+
+const audit = AuditRecorder.from(context.caller, new AuditOutbox(database), {
+    package: import.meta.destack.package,
+    service: "notes",
+    scope: spaceId,
+    requestId: context.requestId,
+});
+
+// record a database change in its transaction
 await database.transaction(async (transaction) => {
     await transaction.update(note).set({ title }).where(eq(note.id, id));
-    await context.audit.record(transaction, renameNote, {
+    await audit.record(transaction, renameNote, {
         targets: { note: { type: "note", id } },
         details: { title },
         outcome: "success",
     });
 });
+
+// record an external effect as an attempt and its result
+await audit.attempt(sendInvitation, { targets, details: {} }, () => invitations.send(id));
+
+// record every procedure call of a server
+Server.start({ ...options, audit: AuditRecorder.procedure(({ context }) => recorder(context)) });
 ```
 
-```ts
-const attempt = context.audit.begin(sendInvitation, {
-    targets: { invitation: { type: "invitation", id } },
-    details: {},
-});
-await context.audit.append(attempt);
+## Delivery
 
-try {
-    await invitations.send(id);
-} catch (error) {
-    const result = context.audit.complete(attempt, { outcome: "failure", errorCode: "SEND_FAILED" });
-    await context.audit.append(result);
-    throw error;
-}
-
-const result = context.audit.complete(attempt, { outcome: "success" });
-await context.audit.append(result);
-```
-
-## Host
+An outbox delivers events to the history as they commit, in order, and backs off after failed deliveries.
 
 ```ts
-import { AuditOutbox, auditOutboxSchema } from "@destack/audit/outbox";
-import { AuditHistory, auditSchema } from "@destack/audit/history";
-import { implementService, createProcedureAudit, createRecorder } from "@destack/audit/server";
-import { Server } from "@destack/service/server";
 import { createAuditClient } from "@destack/audit/client";
 
-// migrate auditOutboxSchema alongside each application's schema
-const outbox = new AuditOutbox(database);
-const record = (context) => createRecorder(context, outbox, {
-    package: import.meta.destack.package,
-    service: "notes",
-    spaceId,
-});
-
-// migrate auditSchema in the local or regional history database
-const history = new AuditHistory(historyDatabase);
-const server = Server.start({
-    ...implementService(history, { authorize: authorizeAudit, record }),
-    audience: receivingPackageId,
-    scope: spaceId,
-    resources,
-    health,
-    authenticate,
-    authorizeHost: authorizeInstallation,
-    drainTimeout: 10000,
-});
-const response = await server.fetch(request);
-
-const client = createAuditClient({ url, headers: authenticatedHeaders });
-await outbox.run(client, { signal, report: reportDeliveryFailure });
-
-const procedureAudit = createProcedureAudit(({ context }) => record(context));
+await outbox.run(createAuditClient({ url, headers }), { signal, report });
 ```
 
 ## History
 
-```ts
-const query = { scope: { type: "space", spaceId }, limit: 100 };
-const page = await client.list(query);
-const next = page.cursor && (await client.list({ ...query, cursor: page.cursor }));
+A history accepts events once per producer position and serves them to callers with the scope's `read` permission.
 
-for await (const record of await client.export(query)) {
+```ts
+import { AuditHistory } from "@destack/audit/history";
+import { implementService } from "@destack/audit/server";
+
+const history = new AuditHistory(historyDatabase);
+Server.start({ ...implementService(history, { access, record }), ...hosting });
+
+const page = await history.list({ scope: spaceId, limit: 100 });
+for await (const record of await client.export({ scope: spaceId, limit: 100 })) {
     await archive.write(record);
 }
-
-await client.prune({ scope: query.scope, before: retentionCutoff, limit: 100 });
+await client.prune({ scope: spaceId, before: retentionCutoff, limit: 100 });
 ```

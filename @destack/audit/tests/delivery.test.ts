@@ -21,9 +21,9 @@ test("resume lost acknowledgements after restart and history expiration", async 
         ).rejects.toBe(failure);
         expect(await storage.outbox.read()).toEqual([event]);
 
-        // removing retained contents does not remove delivery progress
-        const scope = { type: "global" as const };
-        expect(await storage.history.prune(scope, Date.now() + 1, 100)).toBe(1);
+        // keep delivery progress after pruning retained contents
+        const scope = "global";
+        expect(await storage.history.prune({ scope, before: Date.now() + 1, limit: 100 })).toBe(1);
         storage = await storage.reopen();
         expect(await storage.outbox.next()).toEqual(entry);
         expect(await storage.outbox.flush(storage.history)).toBe(1);
@@ -33,7 +33,7 @@ test("resume lost acknowledgements after restart and history expiration", async 
             cursor: null,
         });
 
-        // a late first delivery receives its own acceptance time and remains queryable
+        // give a late first delivery its own acceptance time and keep it queryable
         const late = storage.recorder.begin(renameDocument, rename);
         late.occurredAt = 0;
         await storage.recorder.append(late);
@@ -54,7 +54,7 @@ test("serialize competing senders and reject changed, skipped, or retired delive
     const storage = await AuditStorage.open();
     const connection = await storage.connection();
     try {
-        // independent senders resume the same persisted position
+        // resume the same persisted position from independent senders
         const event = storage.recorder.begin(renameDocument, rename);
         await storage.recorder.append(event);
         const other = new AuditOutbox(connection);
@@ -68,7 +68,7 @@ test("serialize competing senders and reject changed, skipped, or retired delive
         const failures: unknown[] = [];
         const options = {
             signal: AbortSignal.any([controller.signal, AbortSignal.timeout(1000)]),
-            interval: 1,
+            retryDelay: 1,
             report: (error: unknown) => failures.push(error),
         };
         const destination = {
@@ -86,12 +86,12 @@ test("serialize competing senders and reject changed, skipped, or retired delive
         expect(controller.signal.aborted).toBe(true);
         expect(await storage.outbox.read()).toEqual([]);
         expect(
-            (await storage.history.list({ scope: { type: "global" }, limit: 100 })).items.map(
+            (await storage.history.list({ scope: "global", limit: 100 })).items.map(
                 (record) => record.event,
             ),
         ).toEqual([event]);
 
-        // acceptance never advances on conflicting contents or a missing position
+        // keep acceptance in place on conflicting contents or a skipped position
         await expect(
             storage.history.ingest({ ...entry, event: { ...event, details: {} } }),
         ).rejects.toMatchObject({
@@ -122,13 +122,13 @@ test("retain rejected deliveries and reject competing results", async () => {
         const result = storage.recorder.complete(attempt, { outcome: "success" });
         await storage.recorder.append(result);
         expect(await storage.outbox.flush(storage.history)).toBe(2);
-        const scope = { type: "global" as const };
+        const scope = "global";
         expect(await storage.history.list({ scope, unresolved: true, limit: 100 })).toEqual({
             items: [],
             cursor: null,
         });
 
-        // an incompatible second outcome cannot advance producer progress or disappear
+        // keep an incompatible second outcome pending without advancing producer progress
         const conflicting = storage.recorder.complete(attempt, {
             outcome: "failure",
             errorCode: "FAILED",
