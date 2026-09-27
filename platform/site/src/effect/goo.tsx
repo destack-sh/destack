@@ -42,6 +42,8 @@ const sagTime = 1.4;
 const stirTime = 0.6;
 /** The pointer speed that stirs the goo fully, in CSS pixels per second. */
 const fullStir = 1500;
+/** The seconds a shooting star fired by a click takes to streak across and fade. */
+const starLife = 1.2;
 /** The milliseconds between measurements of the goo cells, in case the page shifts under them without resizing. */
 const remeasureTime = 1000;
 /** How far past the farthest point of the site frame the universe spreads, in CSS pixels, to settle its ragged edge. */
@@ -98,6 +100,7 @@ uniform vec4 hole;
 uniform float glow;
 uniform float flow;
 uniform float charge;
+uniform vec3 star;
 uniform vec4 islands[${islandCapacity}];
 uniform float islandCount;
 uniform float spread;
@@ -271,6 +274,20 @@ void main() {
     float sheen = (1.0 - smoothstep(0.0, 14.0, -d)) * 0.05;
     vec3 color = space + nebula * (1.0 + charge) + sheen + (distant * 0.6 + close * 0.8) * (1.0 + charge * 0.6) + meteor;
 
+    // streak a shooting star down and away from where the reader clicked, flashing where it starts
+    if (star.z >= 0.0 && star.z < ${starLife.toFixed(1)}) {
+        float life = star.z / ${starLife.toFixed(1)};
+        vec2 heading = normalize(vec2(-0.82, 0.57));
+        vec2 head = star.xy + heading * star.z * 520.0;
+        float tail = 120.0 * (1.0 - life);
+        vec2 back = frag - head;
+        float along = clamp(dot(back, -heading) / max(tail, 1.0), 0.0, 1.0);
+        float across = length(back + heading * along * tail);
+        float streak = exp(-across * across / 2.2) * (1.0 - along) * (1.0 - life);
+        float flash = exp(-dot(frag - star.xy, frag - star.xy) / 40.0) * max(0.0, 1.0 - star.z * 5.0);
+        color += vec3(1.0, 0.95, 0.85) * (streak * 1.4 + flash);
+    }
+
     // swallow the light behind a black hole ringed by a swirling accretion disk seen nearly edge on,
     // faint at rest and blazing while lit
     if (hole.z > 0.0) {
@@ -358,6 +375,8 @@ class Field {
     flare: number;
     /** The smoothed page charge from 0 to 1. */
     charge: number;
+    /** Where a click last fired a shooting star, in canvas CSS pixels, and when, in milliseconds. */
+    star: { x: number; y: number; at: number };
     /** The fixed canvas's place on screen, measured once and again after the window resizes. */
     bounds: DOMRect | undefined;
 
@@ -384,6 +403,7 @@ class Field {
         this.lastFlow = 0;
         this.flare = 0;
         this.charge = 0;
+        this.star = { x: 0, y: 0, at: -1e9 };
         this.bounds = undefined;
         window.addEventListener("resize", () => {
             this.bounds = undefined;
@@ -444,6 +464,12 @@ class Field {
         );
         context.uniform1f(shader.uniform("outline"), isDarkPage() ? 0 : 1);
         context.uniform1f(shader.uniform("charge"), this.isMoving ? this.charge : 0);
+        context.uniform3f(
+            shader.uniform("star"),
+            this.star.x,
+            this.star.y,
+            this.isMoving ? (now - this.star.at) / 1000 : -1,
+        );
         context.uniform1f(shader.uniform("wobble"), this.isMoving ? 2.2 : 0);
         context.uniform2f(shader.uniform("pointer"), this.pointer.x, this.pointer.y);
         context.uniform2f(shader.uniform("trail"), this.trail.x, this.trail.y);
@@ -513,6 +539,7 @@ class Field {
         const isBusy =
             this.pull > 0.02 ||
             this.stir > 0.02 ||
+            now - this.star.at < starLife * 1000 ||
             Math.hypot(this.pointer.x - this.trail.x, this.pointer.y - this.trail.y) > 1 ||
             this.glow > 0.02 ||
             this.flare > 0.02 ||
@@ -677,9 +704,37 @@ export function Universe(properties: { isOpen: boolean; flow: number }) {
         }
         field.shader.request();
 
+        // fire a shooting star from a click on empty goo, away from anything clickable
+        const shoot = (event: PointerEvent) => {
+            // skip clicks on anything clickable or draggable, and clicks outside the goo
+            const target = event.target as Element | null;
+            const isEmpty = !target?.closest(
+                "a, button, input, summary, [role=switch], [data-card]",
+            );
+            if (
+                !isEmpty ||
+                !field.isMoving ||
+                edgeAt(event.clientX, event.clientY, terrain(), performance.now() / 1000) >= 0
+            ) {
+                return;
+            }
+
+            // start the star where the click landed, and chime
+            const bounds = field.bounds ?? canvas.getBoundingClientRect();
+            field.star = {
+                x: event.clientX - bounds.left,
+                y: event.clientY - bounds.top,
+                at: performance.now(),
+            };
+            field.shader.request();
+            sound.play("star");
+        };
+        window.addEventListener("pointerdown", shoot, { passive: true });
+
         return () => {
             // stop following the pointer and the page, and release the shader
             window.removeEventListener("pointermove", point);
+            window.removeEventListener("pointerdown", shoot);
             window.removeEventListener("resize", remeasure);
             pageSize.disconnect();
             field.shader.dispose();

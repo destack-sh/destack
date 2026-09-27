@@ -173,11 +173,15 @@ const styles = stylex.create({
         paddingInlineStart: "1.75rem",
         position: "relative",
         zIndex: 1,
+        ":hover > svg": { translate: "0 2px" },
+        ":active > svg": { translate: "0 5px" },
     },
     system: {
         flexShrink: 0,
         height: "1.125rem",
+        transition: "translate 160ms cubic-bezier(0.3, 1.6, 0.5, 1)",
         width: "1.125rem",
+        "@media (prefers-reduced-motion: reduce)": { transition: "none" },
     },
     choices: {
         display: "flex",

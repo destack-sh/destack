@@ -637,6 +637,8 @@ type Cable = {
     path: SVGPathElement;
     /** The plugs at both ends. */
     ends: SVGPathElement;
+    /** The dash of light that runs down the cable when the scene changes. */
+    pulse: SVGPathElement;
     /** The straight-line middle on the previous frame, to feel how fast the ends move. */
     middle: Point | undefined;
     /** How far the middle swings off the straight line. */
@@ -879,12 +881,16 @@ export function Remix(properties: {
             if (!found) {
                 const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
                 const ends = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                const pulse = document.createElementNS("http://www.w3.org/2000/svg", "path");
                 path.setAttribute("class", stylex.attrs(styles.cable, cableKinds[kind]).class!);
                 ends.setAttribute("class", stylex.attrs(plugKinds[kind]).class!);
-                wires.append(path, ends);
+                pulse.setAttribute("class", stylex.attrs(styles.pulse).class!);
+                pulse.setAttribute("pathLength", "1");
+                wires.append(path, pulse, ends);
                 found = {
                     path,
                     ends,
+                    pulse,
                     middle: undefined,
                     offset: { x: 0, y: 0 },
                     velocity: { x: 0, y: 0 },
@@ -910,6 +916,7 @@ export function Remix(properties: {
             const opacity = String(found.alpha * fade);
             found.path.style.opacity = opacity;
             found.ends.style.opacity = opacity;
+            found.pulse.style.opacity = opacity;
             isStirring ||= found.alpha < 1;
         };
 
@@ -977,14 +984,13 @@ export function Remix(properties: {
             const bend =
                 mix(free.bend, grid.bend) + (isAcross ? offset.x : offset.y) * 1.33 * (1 - settle);
 
-            // draw the plugs and the right-angled path
+            // draw the plugs, the right-angled path, and its pulse along the same line
             found.ends.setAttribute("d", `${plug(from)}${plug(to)}`);
-            found.path.setAttribute(
-                "d",
-                isAcross
-                    ? `M${from.x} ${from.y}H${bend}V${to.y}H${to.x}`
-                    : `M${from.x} ${from.y}V${bend}H${to.x}V${to.y}`,
-            );
+            const line = isAcross
+                ? `M${from.x} ${from.y}H${bend}V${to.y}H${to.x}`
+                : `M${from.x} ${from.y}V${bend}H${to.x}V${to.y}`;
+            found.path.setAttribute("d", line);
+            found.pulse.setAttribute("d", line);
         };
 
         // trace every cable from the cards' measured positions
@@ -1200,9 +1206,11 @@ export function Remix(properties: {
                 found.alpha = Math.max(0, found.alpha - 0.12);
                 found.path.style.opacity = String(found.alpha);
                 found.ends.style.opacity = String(found.alpha);
+                found.pulse.style.opacity = String(found.alpha);
                 if (found.alpha === 0) {
                     found.path.remove();
                     found.ends.remove();
+                    found.pulse.remove();
                     cables.delete(key);
                 }
             }
@@ -1219,6 +1227,20 @@ export function Remix(properties: {
                 changedAt = now;
                 delay = moveTime * 0.8;
                 soundShifts(layout());
+
+                // run a dash of light down every open cable once the new scene's cables are in
+                if (properties.isOpen && !isStill) {
+                    for (const found of cables.values()) {
+                        found.pulse.animate(
+                            [{ strokeDashoffset: 1 }, { strokeDashoffset: -pulseLength }],
+                            {
+                                delay: delay + pulseDelay,
+                                duration: pulseTime,
+                                easing: "ease-in-out",
+                            },
+                        );
+                    }
+                }
             }
             wasScene = scene();
             wasToday = properties.today;
@@ -1301,6 +1323,7 @@ export function Remix(properties: {
                     return (
                         <div
                             ref={(element) => cards.set(id, element)}
+                            data-card
                             onPointerDown={(event) => grab(id, event)}
                             style={{
                                 ...span(placement()),
@@ -1355,6 +1378,18 @@ export function Remix(properties: {
 const captionedBus = 0.3;
 /** The easing of a card travelling between places. */
 const easing = "cubic-bezier(0.6, 0, 0.2, 1)";
+/** The length of the dash of light that runs down a cable, as a share of the cable. */
+const pulseLength = 0.12;
+/** The milliseconds the dash of light takes to run down a cable. */
+const pulseTime = 900;
+/** The milliseconds after a cable appears before its dash of light starts. */
+const pulseDelay = 250;
+/** A merged card settling into place: swelling slightly, then pressing down to its size. */
+const land = stylex.keyframes({
+    from: { scale: "0.97" },
+    "45%": { scale: "1.035" },
+    to: { scale: "1" },
+});
 /** The easing of a card springing back from a drag. */
 const spring = "cubic-bezier(0.3, 1.45, 0.5, 1)";
 /** The milliseconds a silo takes to swirl down the drain as the stack opens. */
@@ -1445,8 +1480,15 @@ function motion(isVendor: boolean, place: Placement): Record<string, string> {
           }
         : { "--ink": "0", "--ink-time": `${inkFade}ms`, "--ink-delay": `${swap - inkFade}ms` };
 
+    // land a card that grows out of a merge with a small springy bounce as it takes over
+    const landing: Record<string, string> =
+        isShown && place.isLate && place.step !== "park"
+            ? { animation: `${land} 480ms ${spring} ${swap}ms both` }
+            : {};
+
     return {
         ...ink,
+        ...landing,
         rotate: "x 0deg",
         opacity: isShown ? "1" : "0",
         "z-index": isShown ? "2" : "1",
@@ -1786,6 +1828,14 @@ const styles = stylex.create({
     cable: {
         fill: "none",
         strokeWidth: 1.25,
+    },
+    pulse: {
+        fill: "none",
+        stroke: tokens.cream,
+        strokeDasharray: `${pulseLength} 2`,
+        strokeDashoffset: 1,
+        strokeLinecap: "round",
+        strokeWidth: 2.5,
     },
     card: {
         cursor: "grab",

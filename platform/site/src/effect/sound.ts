@@ -90,7 +90,16 @@ const melodyAt = new Map(melody.map(([step, midi, length]) => [step, { midi, len
 const chimes = [74, 76, 78, 81, 83, 86, 88, 90];
 
 /** The one-off sounds the site plays. */
-export type Cue = "destack" | "restack" | "press" | "tap" | "lift" | "set" | "copy" | "theme";
+export type Cue =
+    | "destack"
+    | "restack"
+    | "press"
+    | "tap"
+    | "lift"
+    | "set"
+    | "copy"
+    | "theme"
+    | "star";
 
 /** The two moods of the figure: the sea under the stack today, and the music over the open stack. */
 export type Mood = "today" | "destack";
@@ -641,6 +650,8 @@ export class Sound {
         else if (kind === "fuse") {
             this.glide(start, 69, 64, 0.04, pan);
             this.glide(start, 57, 64, 0.04, -pan);
+            this.key(64, 0.035, start + 0.3, pan, this.air!);
+            this.key(71, 0.03, start + 0.38, -pan, this.air!);
         }
         // slide a card in
         else if (kind === "enter") {
@@ -735,6 +746,11 @@ export class Sound {
         else if (cue === "restack") {
             this.click(now, 0.8);
             this.rush(now + 0.1, 3, false);
+        }
+        // chime faintly as a shooting star streaks off
+        else if (cue === "star") {
+            this.key(88, 0.025, now + 0.01, 0.3, this.air!);
+            this.key(95, 0.018, now + 0.12, -0.3, this.air!);
         }
         // tick the switch down before it clicks
         else if (cue === "press") {
