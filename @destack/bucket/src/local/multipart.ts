@@ -1,0 +1,423 @@
+import { join } from "node:path";
+import { createHash } from "node:crypto";
+import { and, asc, eq, gt, gte, lt, or } from "@destack/db";
+import type {
+    Bucket,
+    BucketBody,
+    BucketFile,
+    MultipartOptions,
+    UploadPartOptions,
+} from "../bucket/index.ts";
+import { BucketFileBody, StorageClass } from "../bucket/index.ts";
+import { BucketKey } from "../bucket/key.ts";
+import { BucketListing, MAX_BATCH_FILES } from "../bucket/list.ts";
+import { MAX_PART_NUMBER, UploadedPart } from "../bucket/multipart.ts";
+import type {
+    Part,
+    PartCopyOptions,
+    PartListing,
+    PartListOptions,
+    S3MultipartUpload,
+    UploadListing,
+    UploadListOptions,
+} from "../s3/bucket.ts";
+import { StorageError } from "../error/index.ts";
+import { part, upload } from "./stack/index.ts";
+import { ContentFile } from "./content.ts";
+import type { LocalStorage } from "./storage.ts";
+import { LocalFile } from "./file.ts";
+
+/** Retain incomplete uploads for seven days. */
+const UPLOAD_RETENTION = 7 * 24 * 60 * 60 * 1000;
+/** Require five MiB for every multipart part except the last. */
+const MINIMUM_PART_SIZE = 5 * 1024 * 1024;
+
+/** A multipart upload in an embedded bucket. */
+export class LocalMultipartUpload implements S3MultipartUpload {
+    /** The destination key. */
+    readonly key: string;
+    /** The upload identifier. */
+    readonly uploadId: string;
+
+    /** The shared catalogue and content references. */
+    readonly #storage: LocalStorage;
+    /** The bucket part copies read from. */
+    readonly #bucket: Bucket;
+
+    /** Retain the upload identifiers, its open storage and its bucket. */
+    constructor(storage: LocalStorage, bucket: Bucket, key: string, uploadId: string) {
+        // retain the identifiers, the storage and the bucket
+        this.key = key;
+        this.uploadId = uploadId;
+        this.#storage = storage;
+        this.#bucket = bucket;
+    }
+
+    /** Create a durable multipart upload. */
+    static async create(
+        storage: LocalStorage,
+        bucket: Bucket,
+        key: string,
+        options: MultipartOptions = {},
+    ): Promise<LocalMultipartUpload> {
+        // validate the upload before registering it
+        BucketKey.check(key);
+        LocalFile.rejectCustomerKey(options.ssecKey);
+        const storageClass = StorageClass.read(options.storageClass ?? "Standard");
+        const uploadId = crypto.randomUUID();
+
+        // register the upload after reclaiming earlier writes
+        await storage.exclusive(async () => {
+            await storage.collect();
+            await storage.database.insert(upload).values({
+                id: uploadId,
+                key,
+                state: "active",
+                expires: Date.now() + UPLOAD_RETENTION,
+                storageClass,
+                options: {
+                    httpMetadata: LocalFile.encodeHttpMetadata(options.httpMetadata ?? {}),
+                    customMetadata: options.customMetadata ?? {},
+                },
+            });
+        });
+
+        return new LocalMultipartUpload(storage, bucket, key, uploadId);
+    }
+
+    /** List active uploads in key and upload identifier order while holding the catalogue lock. */
+    static async list(storage: LocalStorage, options: UploadListOptions): Promise<UploadListing> {
+        // validate the prefix and page size
+        const prefix = options.prefix ?? "";
+        if (prefix) {
+            BucketKey.check(prefix);
+        }
+        const limit = options.limit ?? MAX_BATCH_FILES;
+        BucketListing.checkLimit(limit);
+
+        // seek past the markers within the prefix
+        const end = BucketKey.prefixEnd(prefix);
+        const { keyMarker, uploadIdMarker } = options;
+        const after =
+            keyMarker === undefined
+                ? undefined
+                : uploadIdMarker === undefined
+                  ? gt(upload.key, keyMarker)
+                  : or(
+                        gt(upload.key, keyMarker),
+                        and(eq(upload.key, keyMarker), gt(upload.id, uploadIdMarker)),
+                    );
+
+        // read one lookahead entry to tell whether another page exists
+        const entries = await storage.exclusive(
+            async () =>
+                await storage.database
+                    .select()
+                    .from(upload)
+                    .where(
+                        and(
+                            eq(upload.state, "active"),
+                            gt(upload.expires, Date.now()),
+                            gte(upload.key, prefix),
+                            end === undefined ? undefined : lt(upload.key, end),
+                            after,
+                        ),
+                    )
+                    .orderBy(asc(upload.key), asc(upload.id))
+                    .limit(limit + 1),
+        );
+
+        return {
+            uploads: entries.slice(0, limit).map((entry) => ({
+                key: entry.key,
+                uploadId: entry.id,
+                initiated: new Date(entry.expires - UPLOAD_RETENTION),
+                storageClass: entry.storageClass,
+            })),
+            truncated: entries.length > limit,
+        };
+    }
+
+    /** Write and atomically replace one upload part. */
+    async uploadPart(
+        partNumber: number,
+        body: BucketBody,
+        options: UploadPartOptions = {},
+    ): Promise<Part> {
+        // validate the part before reading its body
+        UploadedPart.checkNumber(partNumber);
+        LocalFile.rejectCustomerKey(options.ssecKey);
+
+        // retain storage throughout the streamed upload
+        await this.#storage.beginUpload();
+        let content: ContentFile | undefined;
+        let isPublished = false;
+        try {
+            // write immutable contents before publishing the part
+            content = await ContentFile.write(join(this.#storage.directory, "files"), body);
+            const entry = {
+                uploadId: this.uploadId,
+                partNumber,
+                content: content.version,
+                size: content.size,
+                etag: content.version,
+                md5: content.etag,
+                uploaded: Date.now(),
+            };
+
+            // publish only if the upload remains active
+            await this.#storage.exclusive(async () => {
+                // read the part being replaced
+                await this.#upload();
+                const previous = await this.#storage.database
+                    .select()
+                    .from(part)
+                    .where(and(eq(part.uploadId, this.uploadId), eq(part.partNumber, partNumber)))
+                    .get();
+
+                // replace one part without invalidating existing readers
+                await this.#storage.database
+                    .insert(part)
+                    .values(entry)
+                    .onConflictDoUpdate({
+                        target: [part.uploadId, part.partNumber],
+                        set: entry,
+                    });
+
+                // retire replaced contents after committing their replacement
+                isPublished = true;
+                if (previous) {
+                    this.#storage.retired.add(previous.content);
+                }
+            });
+
+            return {
+                partNumber,
+                etag: entry.etag,
+                size: entry.size,
+                uploaded: new Date(entry.uploaded),
+            };
+        } finally {
+            // release the active writer and retain abandoned files for collection
+            if (content && !isPublished) {
+                this.#storage.retired.add(content.version);
+            }
+            this.#storage.uploads--;
+        }
+    }
+
+    /** Stream a file or a range of it into one upload part. */
+    async uploadPartCopy(
+        partNumber: number,
+        source: string,
+        options: PartCopyOptions = {},
+    ): Promise<Part | null> {
+        // read the source under its preconditions
+        UploadedPart.checkNumber(partNumber);
+        const selected = await this.#bucket.get(source, options);
+        if (selected === null) {
+            throw new StorageError("NO_SUCH_KEY", "the source file does not exist");
+        }
+        if (!(selected instanceof BucketFileBody)) {
+            return null;
+        }
+
+        return await this.uploadPart(partNumber, selected.body);
+    }
+
+    /** List the stored parts in part number order. */
+    async listParts(options: PartListOptions = {}): Promise<PartListing> {
+        // validate the page size
+        const limit = options.limit ?? MAX_BATCH_FILES;
+        BucketListing.checkLimit(limit);
+
+        // read one lookahead part of the active upload
+        const entries = await this.#storage.exclusive(async () => {
+            await this.#upload();
+
+            return await this.#storage.database
+                .select()
+                .from(part)
+                .where(
+                    and(
+                        eq(part.uploadId, this.uploadId),
+                        gt(part.partNumber, options.partNumberMarker ?? 0),
+                    ),
+                )
+                .orderBy(asc(part.partNumber))
+                .limit(limit + 1);
+        });
+
+        return {
+            parts: entries.slice(0, limit).map((entry) => ({
+                partNumber: entry.partNumber,
+                etag: entry.etag,
+                size: entry.size,
+                uploaded: new Date(entry.uploaded),
+            })),
+            truncated: entries.length > limit,
+        };
+    }
+
+    /** Publish the selected parts as the segments of one file in one catalogue transaction. */
+    async complete(selected: UploadedPart[]): Promise<BucketFile> {
+        // require distinct parts within the part limit
+        if (
+            selected.length === 0 ||
+            selected.length > MAX_PART_NUMBER ||
+            new Set(selected.map((entry) => entry.partNumber)).size !== selected.length
+        ) {
+            throw new StorageError(
+                "INVALID_PART",
+                `completion requires 1–${MAX_PART_NUMBER} distinct parts`,
+            );
+        }
+
+        return await this.#storage.exclusive(async () => {
+            // read the upload and index each part by number
+            const metadata = await this.#upload();
+            const entries = await this.#storage.database
+                .select()
+                .from(part)
+                .where(eq(part.uploadId, this.uploadId));
+            const indexed = new Map(entries.map((entry) => [entry.partNumber, entry]));
+
+            // match selected entity tags to the exact uploaded parts
+            const ordered = selected
+                .map((selected) => {
+                    const entry = indexed.get(selected.partNumber);
+                    if (!entry || entry.etag !== selected.etag) {
+                        throw new StorageError(
+                            "INVALID_PART",
+                            "a selected part is missing or has changed",
+                        );
+                    }
+
+                    return entry;
+                })
+                .sort((left, right) => left.partNumber - right.partNumber);
+
+            // enforce multipart sizes
+            if (
+                ordered.length > 1 &&
+                (ordered
+                    .slice(0, -1)
+                    .some(
+                        (entry) =>
+                            entry.size < MINIMUM_PART_SIZE || entry.size !== ordered[0]!.size,
+                    ) ||
+                    ordered.at(-1)!.size > ordered[0]!.size)
+            ) {
+                throw new StorageError(
+                    "INVALID_PART",
+                    "multipart parts require equal sizes of at least five MiB, except the final part",
+                );
+            }
+
+            // derive the multipart entity tag from the selected part checksums
+            const hash = createHash("md5");
+            for (const entry of ordered) {
+                hash.update(Uint8Array.fromHex(entry.md5));
+            }
+
+            // describe the file its parts' contents become, named after its first content file
+            const entry = {
+                key: this.key,
+                version: ordered[0]!.content,
+                size: ordered.reduce((size, entry) => size + entry.size, 0),
+                etag: `${hash.digest("hex")}-${ordered.length}`,
+                checksums: {},
+                uploaded: Date.now(),
+                httpMetadata: metadata.options.httpMetadata ?? {},
+                customMetadata: metadata.options.customMetadata ?? {},
+                storageClass: metadata.storageClass,
+            };
+
+            // publish the file and complete its upload in one transaction
+            const detached = await this.#storage.database.transaction(async (transaction) => {
+                // publish the segments, then drop the parts and close the upload
+                const detached = await this.#storage.publish(entry, ordered, transaction);
+                await transaction.delete(part).where(eq(part.uploadId, this.uploadId));
+                await transaction
+                    .update(upload)
+                    .set({ state: "completed" })
+                    .where(eq(upload.id, this.uploadId));
+
+                return detached;
+            });
+
+            // retire the replaced contents and every part, which collection keeps while a segment references it
+            for (const name of detached) {
+                this.#storage.retired.add(name);
+            }
+            for (const entry of entries) {
+                this.#storage.retired.add(entry.content);
+            }
+
+            return LocalFile.describe(entry);
+        });
+    }
+
+    /** Discard an incomplete upload and retire each uploaded part. */
+    async abort(): Promise<void> {
+        await this.#storage.exclusive(async () => {
+            // read the upload after reclaiming earlier writes
+            await this.#storage.collect();
+            const entry = await this.#storage.database
+                .select()
+                .from(upload)
+                .where(
+                    and(
+                        eq(upload.id, this.uploadId),
+                        eq(upload.key, this.key),
+                        gt(upload.expires, Date.now()),
+                    ),
+                )
+                .get();
+            if (!entry) {
+                throw new StorageError("NO_SUCH_UPLOAD", "multipart upload does not exist");
+            }
+            if (entry.state !== "active") {
+                return;
+            }
+
+            // delete the parts and mark the upload aborted in one transaction
+            const removed = await this.#storage.database.transaction(async (transaction) => {
+                const deleted = await transaction
+                    .delete(part)
+                    .where(eq(part.uploadId, this.uploadId))
+                    .returning({ content: part.content });
+                await transaction
+                    .update(upload)
+                    .set({ state: "aborted" })
+                    .where(eq(upload.id, this.uploadId));
+
+                return deleted;
+            });
+            for (const entry of removed) {
+                this.#storage.retired.add(entry.content);
+            }
+        });
+    }
+
+    /** Read a live upload for the requested key while holding the catalogue lock. */
+    async #upload(): Promise<typeof upload.$inferSelect> {
+        const entry = await this.#storage.database
+            .select()
+            .from(upload)
+            .where(
+                and(
+                    eq(upload.id, this.uploadId),
+                    eq(upload.key, this.key),
+                    eq(upload.state, "active"),
+                    gt(upload.expires, Date.now()),
+                ),
+            )
+            .get();
+        if (!entry) {
+            throw new StorageError("NO_SUCH_UPLOAD", "multipart upload does not exist");
+        }
+
+        return entry;
+    }
+}

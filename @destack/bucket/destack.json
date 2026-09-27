@@ -1,0 +1,58 @@
+{
+    "id": "package-01a0c80b-614e-73a0-82d0-e8fa51e85a5b",
+    "language": "typescript",
+    "targets": [
+        "browser",
+        "server"
+    ],
+    "exports": {
+        "./local": {
+            "targets": [
+                "server"
+            ],
+            "runtimes": [
+                "bun"
+            ]
+        },
+        "./r2": {
+            "targets": [
+                "server"
+            ],
+            "runtimes": [
+                "workerd"
+            ]
+        },
+        "./stack": {
+            "targets": [
+                "server"
+            ],
+            "runtimes": [
+                "bun",
+                "workerd"
+            ]
+        },
+        "./s3": {
+            "targets": [
+                "server"
+            ],
+            "runtimes": [
+                "bun",
+                "workerd"
+            ]
+        }
+    },
+    "runtimes": [
+        "browser",
+        "bun",
+        "workerd"
+    ],
+    "declarations": {
+        "defineBucket": {
+            "module": 1,
+            "inspect": {
+                "kind": "resource",
+                "describe": "./inspect#describeBucket"
+            }
+        }
+    }
+}

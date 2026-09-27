@@ -1,0 +1,41 @@
+{
+    "name": "@destack/bucket",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Declare object storage in Destack.",
+    "exports": {
+        "./declare": "./src/declare/index.ts",
+        ".": "./src/index.ts",
+        "./inspect": "./src/inspect/index.ts",
+        "./local": "./src/local/index.ts",
+        "./r2": "./src/r2/index.ts",
+        "./error": "./src/error/index.ts",
+        "./object": "./src/object/index.ts",
+        "./stack": "./src/stack/index.ts",
+        "./s3": "./src/s3/index.ts"
+    },
+    "dependencies": {
+        "@destack/fs": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@cloudflare/workers-types": "5.20260917.1",
+        "@destack/package": "workspace:*",
+        "@destack/access": "workspace:*",
+        "@destack/space": "workspace:*"
+    },
+    "scripts": {
+        "check": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts",
+        "test:r2": "bun run tests/r2/run.ts"
+    },
+    "devDependencies": {
+        "@destack/test": "workspace:*",
+        "esbuild": "~0.28.1",
+        "miniflare": "4.20260730.0",
+        "@aws-sdk/client-s3": "3.1141.0",
+        "@aws-sdk/s3-request-presigner": "3.1141.0"
+    }
+}
