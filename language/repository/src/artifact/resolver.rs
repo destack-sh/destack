@@ -238,8 +238,16 @@ impl<'a> ArtifactResolver<'a> {
                 ArtifactDependency::Projection(projection) => {
                     let projection_key = projection.projection();
                     match self.resolve(projection_key.artifact)? {
+                        // mark a projection of a failed owner stale
                         ArtifactResolution::Terminal {
-                            version: current, ..
+                            outcome: ArtifactOutcome::Failed(_),
+                            ..
+                        } => {
+                            is_stale = true;
+                        }
+                        ArtifactResolution::Terminal {
+                            version: current,
+                            outcome: ArtifactOutcome::Ok,
                         } => {
                             let fingerprint = self
                                 .repository
@@ -304,13 +312,32 @@ impl<'a> ArtifactResolver<'a> {
         }
     }
 
-    /// Return whether one module artifact belongs to a removed module.
+    /// Return whether one artifact addresses a removed module, target or profile.
     fn artifact_was_removed(&self, key: ArtifactKey) -> Result<bool, RepositoryError> {
-        let Some(module) = key.module_id() else {
-            return Ok(false);
-        };
-        let is_tracked = self.repository.module(self.revision, module)?.is_some();
+        // a removed module
+        if let Some(module) = key.module_id()
+            && self.repository.module(self.revision, module)?.is_none()
+        {
+            return Ok(true);
+        }
 
-        Ok(!is_tracked)
+        // a removed target
+        if let Some(target) = key.target_id()
+            && self
+                .repository
+                .target_or_builtin(self.revision, target)?
+                .is_none()
+        {
+            return Ok(true);
+        }
+
+        // a profile this revision no longer derives
+        if let Some(profile) = key.profile_id()
+            && self.repository.profile(self.revision, profile)?.is_none()
+        {
+            return Ok(true);
+        }
+
+        Ok(false)
     }
 }

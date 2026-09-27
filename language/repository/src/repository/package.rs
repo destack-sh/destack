@@ -98,6 +98,19 @@ impl Repository {
                 Some(_) => RepositoryError::MissingPackageName { path: config_path },
             });
         }
+
+        // name an implicit package after the directory its loose files share
+        let name = match (name, kind) {
+            (None, PackageKind::Implicit) => {
+                let directory = self.root.join(package_root);
+                let Some(directory) = directory.file_name() else {
+                    return Err(RepositoryError::MissingPackageName { path: config_path });
+                };
+
+                Some(directory.to_string_lossy().into_owned())
+            }
+            (name, _) => name,
+        };
         let mut targets = IndexMap::new();
         let mut conditional_dependencies = Vec::new();
         let mut exports = IndexMap::new();
@@ -428,6 +441,12 @@ impl Repository {
                 }
             }
             index += 1;
+        }
+
+        // depend on the builtin package
+        let builtin = self.embedded_builtin().package_id();
+        if !closure.contains(&builtin) {
+            closure.push(builtin);
         }
 
         Ok(closure)

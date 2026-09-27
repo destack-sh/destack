@@ -7,7 +7,7 @@ use std::sync::Arc;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use tspp_artifact::Stability;
+use tspp_artifact::{Code, Output, Stability};
 use tspp_source::{File, FileId, FileSystem, FileType, Uri, matches, matches_prefix};
 
 use crate::RepositoryError;
@@ -172,8 +172,11 @@ impl Manifest {
             }
         }
 
-        // canonicalize unordered code selections
+        // canonicalize code selections, defaulting a program to bytecode
         for target in self.targets.values_mut() {
+            if target.output == Output::Program && target.code.is_empty() {
+                target.code.push(Code::Bytecode);
+            }
             target.code.sort_unstable();
             target.code.dedup();
         }
