@@ -5,7 +5,7 @@ use crate::{
     Analysis, Block, CastOperator, Constant, ConstantTable, ControlTable, DataflowTable,
     ForwardTransfer, FunctionId, Instruction, Intrinsic, Lattice, LocalId, LocalNodeId,
     LocalNodeIdAny, Mutability, Mutation, Place, PlaceOrigin, PlaceType, Projection, Reference,
-    Storage, StorageSet, Substitution, Tree, Type, Value, is_copy,
+    Storage, StorageSet, Substitution, Tree, Type, TypeId, Value, is_copy,
 };
 
 /// How one place may alias others, by the root of its storage.
@@ -88,6 +88,22 @@ impl Place {
             .map_or(StorageSet::ANY, Storage::storage_set)
     }
 
+    /// Return whether writers other than the owning frame may reach this place.
+    pub fn is_aliasable(&self, function: FunctionId, tree: &Tree) -> bool {
+        matches!(self.origin, PlaceOrigin::Global(_))
+            || self
+                .dereferences(function, tree)
+                .any(|(_, reference)| !reference.is_unaliased_reference())
+    }
+
+    /// Return whether this place lies strictly inside another place of the same root.
+    pub fn is_strictly_inside(&self, other: &Self) -> bool {
+        let inner = &self.path.projections;
+        let outer = &other.path.projections;
+
+        self.origin == other.origin && inner.len() > outer.len() && inner.starts_with(outer)
+    }
+
     /// Return whether two structural places may overlap.
     pub fn may_overlap(
         &self,
@@ -100,6 +116,16 @@ impl Place {
         // compare one root's projections past their common prefix, before any reference
         if let Some(overlaps) = self.inline_overlap(other, constants) {
             return overlaps;
+        }
+
+        // keep places apart that diverge at disjoint projections and then follow unaliased references
+        if self.diverges_through_unaliased(other, constants, function, tree) {
+            return false;
+        }
+
+        // separate the slots of distinct fields
+        if self.selects_disjoint_fields(other, function, tree) {
+            return false;
         }
 
         // decide the rest by the alias class of each place
@@ -157,6 +183,84 @@ impl Place {
         Some(match (left.first(), right.first()) {
             (Some(left), Some(right)) => !Self::projections_are_disjoint(left, right, constants),
             _ => true,
+        })
+    }
+
+    /// Return whether two places select disjoint field slots.
+    fn selects_disjoint_fields(&self, other: &Self, function: FunctionId, tree: &Tree) -> bool {
+        let (Some(left), Some(right)) = (
+            self.field_slot(function, tree),
+            other.field_slot(function, tree),
+        ) else {
+            return false;
+        };
+        if (left.0, left.1) == (right.0, right.1) {
+            return false;
+        }
+
+        !contains_inline(tree, left.2, right.0) && !contains_inline(tree, right.2, left.0)
+    }
+
+    /// Return the owner type, field index and field type of the field slot this place selects.
+    fn field_slot(&self, function: FunctionId, tree: &Tree) -> Option<(TypeId, u32, TypeId)> {
+        // take a trailing field outside a case payload
+        let (Projection::Field { index }, prefix) = self.path.projections.split_last()? else {
+            return None;
+        };
+        if matches!(prefix.last(), Some(Projection::Variant { .. })) {
+            return None;
+        }
+
+        // type the owner and the field
+        let (_, PlaceType::Value(owner)) = self.prefix_types(function, tree).last()? else {
+            return None;
+        };
+        let PlaceType::Value(field) = self.ty(function, tree)? else {
+            return None;
+        };
+
+        Some((tree.storage_type(owner), *index, tree.storage_type(field)))
+    }
+
+    /// Return whether two places of one root diverge at disjoint projections past unaliased references.
+    fn diverges_through_unaliased(
+        &self,
+        other: &Self,
+        constants: &ConstantTable,
+        function: FunctionId,
+        tree: &Tree,
+    ) -> bool {
+        if self.origin != other.origin {
+            return false;
+        }
+
+        // find the first projections the places disagree on
+        let common = self
+            .path
+            .projections
+            .iter()
+            .zip(&other.path.projections)
+            .take_while(|(left, right)| left == right)
+            .count();
+        let (Some(left), Some(right)) = (
+            self.path.projections.get(common),
+            other.path.projections.get(common),
+        ) else {
+            return false;
+        };
+        if *left == Projection::Deref
+            || *right == Projection::Deref
+            || !Self::projections_are_disjoint(left, right, constants)
+        {
+            return false;
+        }
+
+        // require every later dereference to follow a reference no alias reaches
+        [self, other].iter().all(|place| {
+            place
+                .dereferences(function, tree)
+                .filter(|(length, _)| *length > common)
+                .all(|(_, reference)| reference.is_unaliased_reference())
         })
     }
 
@@ -398,7 +502,7 @@ impl Place {
 
                 Some((start, end))
             }
-            Projection::Elements | Projection::Deref => None,
+            Projection::Elements | Projection::Deref | Projection::Member { .. } => None,
             Projection::Slice { start, length } => {
                 let start = Self::projection_constant(*start, constants)?;
                 let length = Self::projection_constant(*length, constants)?;
@@ -654,6 +758,7 @@ impl PlaceTable {
         let roots: SmallVec<[Value; 4]> = match instruction {
             Instruction::Load { place, .. }
             | Instruction::Address { place, .. }
+            | Instruction::FakeBorrow { place, .. }
             | Instruction::Store { place, .. }
             | Instruction::AtomicLoad { place, .. }
             | Instruction::AtomicStore { place, .. }
@@ -788,7 +893,9 @@ impl PlaceTable {
         tree: &Tree,
     ) -> Resolution {
         match instruction {
-            Instruction::Address { place, .. } => Self::resolve(place, resolutions),
+            Instruction::Address { place, .. } | Instruction::FakeBorrow { place, .. } => {
+                Self::resolve(place, resolutions)
+            }
             Instruction::Select {
                 then_value,
                 else_value,
@@ -1009,6 +1116,43 @@ impl Resolution {
             _ => Self::Opaque,
         }
     }
+}
+
+/// Return whether one type may hold another type inline.
+fn contains_inline(tree: &Tree, ty: TypeId, target: TypeId) -> bool {
+    let mut visited = FxIndexSet::default();
+    let mut pending = vec![ty];
+    while let Some(ty) = pending.pop() {
+        // visit each type once
+        let ty = tree.storage_type(ty);
+        if ty == target {
+            return true;
+        }
+        if !visited.insert(ty) {
+            continue;
+        }
+
+        // follow inline storage, stopping at references
+        match tree.type_definition(ty) {
+            Type::Struct { fields } => {
+                pending.extend(fields.iter().map(|field| tree.get(*field).ty))
+            }
+            Type::Tuple { elements, .. } => pending.extend(elements.iter().copied()),
+            Type::Variant { cases, .. } => pending.extend(cases.iter().map(|case| case.ty)),
+            Type::FixedArray { element, .. } | Type::Vector { element, .. } => {
+                pending.push(*element)
+            }
+            Type::Newtype { value } | Type::Uninit { value } | Type::ManuallyDrop { value } => {
+                pending.push(*value);
+            }
+            Type::Parameter { .. } | Type::Dynamic { .. } | Type::Declaration { .. } => {
+                return true;
+            }
+            _ => {}
+        }
+    }
+
+    false
 }
 
 #[cfg(test)]

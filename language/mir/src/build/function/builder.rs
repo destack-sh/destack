@@ -116,8 +116,9 @@ impl<'a> FunctionBuilder<'a> {
         }
     }
 
-    /// Create one function builder over an existing declared function.
+    /// Create one function builder over an existing declared function of one module.
     pub fn from_declared(
+        module: ModuleId,
         tree: &'a mut Tree,
         effects: &'a mut EffectTable,
         pointer_bits: u16,
@@ -134,8 +135,6 @@ impl<'a> FunctionBuilder<'a> {
 
             Function::parameter_state(&function.parameters)
         };
-        let module = tree.get(function_id).symbol.declaring_module();
-
         Ok(Self {
             module,
             tree,

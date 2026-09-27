@@ -243,7 +243,7 @@ impl<'t, 'd> Importer<'t, 'd> {
     }
 
     /// Import one static.
-    fn import_static(&mut self, source: &Tree, id: StaticId) -> StaticId {
+    pub fn import_static(&mut self, source: &Tree, id: StaticId) -> StaticId {
         let mut value = source.static_value(id).clone();
         value.map_values(&mut |value| self.import_static(source, value));
         value.map_types(&mut |ty| self.import_type(source, ty));

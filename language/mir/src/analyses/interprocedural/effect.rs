@@ -509,6 +509,8 @@ impl FunctionEffectBuilder<'_> {
                 behavior: mir::FunctionBehavior::none().with_preserved_execution(),
             },
             mir::Instruction::Copy { .. }
+            | mir::Instruction::FakeBorrow { .. }
+            | mir::Instruction::FakeRead { .. }
             | mir::Instruction::Const { .. }
             | mir::Instruction::Binary { .. }
             | mir::Instruction::Unary { .. }

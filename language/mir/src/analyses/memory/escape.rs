@@ -975,6 +975,8 @@ impl EscapeBuilder<'_> {
                 destination.map(|value| value.id()),
             ),
             mir::Instruction::Drop { value } => self.flow(value.id(), self.body.retained, 0),
+            // a fake reference is never dereferenced
+            mir::Instruction::FakeBorrow { .. } | mir::Instruction::FakeRead { .. } => {}
             mir::Instruction::ContextReplace {
                 destination,
                 context,

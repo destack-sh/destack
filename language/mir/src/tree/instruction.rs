@@ -182,6 +182,20 @@ pub enum Instruction {
         /// The result reference type.
         result_type: TypeId,
     },
+    /// Borrow one place shallowly for the narrowed reads that follow, removed after verification.
+    FakeBorrow {
+        /// The SSA value to define with the fake reference.
+        destination: Value,
+        /// The narrowed storage.
+        place: Place,
+        /// The result reference type.
+        result_type: TypeId,
+    },
+    /// Hold one fake borrow live at a narrowed read, removed after verification.
+    FakeRead {
+        /// The fake reference.
+        value: Value,
+    },
     /// Write a place.
     Store {
         /// The storage to write.
@@ -303,12 +317,12 @@ pub enum Instruction {
         /// The result type of the payload value.
         result_type: TypeId,
     },
-    /// Read the concrete type id from a dynamic value's dispatch table.
+    /// Read the concrete type id of a dynamic value or a class object from its dispatch table.
     DynamicType {
         /// The SSA value to define with the type id.
         destination: Value,
-        /// The dynamic value whose concrete type is read.
-        dynamic: Value,
+        /// The dynamic value or class object handle whose concrete type is read.
+        value: Value,
     },
     /// Read one slot entry through a dynamic value's concrete table.
     DynamicRead {
@@ -616,6 +630,14 @@ impl Node for Instruction {
 }
 
 impl Instruction {
+    /// Return the call this instruction makes, when it is one.
+    pub fn call(&self) -> Option<&Call> {
+        match self {
+            Self::Call { call, .. } => Some(call),
+            _ => None,
+        }
+    }
+
     /// Return whether an instruction can have observable effects when its result is unused.
     pub fn has_side_effects(&self) -> bool {
         // preserve operations whose execution can trap
@@ -646,6 +668,7 @@ impl Instruction {
             | Self::VariantTagLoad { .. }
             | Self::VariantPayload { .. }
             | Self::Address { .. }
+            | Self::FakeBorrow { .. }
             | Self::SliceLength { .. }
             | Self::DynamicBind { .. }
             | Self::DynamicPayload { .. }
@@ -680,6 +703,9 @@ impl Instruction {
             | Self::AtomicRmw { .. }
             | Self::AtomicFence { .. }
             | Self::BarrierWrite { .. } => true,
+
+            // preserve fake reads until verification removes them
+            Self::FakeRead { .. } => true,
 
             // preserve calls
             Self::Call { .. }
@@ -757,6 +783,23 @@ impl Instruction {
             | Self::VariantTagLoad { place, .. }
             | Self::Store { place, .. }
             | Self::Address { place, .. }
+            | Self::FakeBorrow { place, .. }
+            | Self::AtomicLoad { place, .. }
+            | Self::AtomicStore { place, .. }
+            | Self::AtomicCompareExchange { place, .. }
+            | Self::AtomicRmw { place, .. } => Some(place),
+            _ => None,
+        }
+    }
+
+    /// Return the storage selected by a memory operation.
+    pub fn place_mut(&mut self) -> Option<&mut Place> {
+        match self {
+            Self::Load { place, .. }
+            | Self::VariantTagLoad { place, .. }
+            | Self::Store { place, .. }
+            | Self::Address { place, .. }
+            | Self::FakeBorrow { place, .. }
             | Self::AtomicLoad { place, .. }
             | Self::AtomicStore { place, .. }
             | Self::AtomicCompareExchange { place, .. }
@@ -841,9 +884,10 @@ impl Instruction {
             | Instruction::ContextReplace { destination, .. }
             | Instruction::ContextBind { destination, .. }
             | Instruction::ContextGet { destination, .. } => Some(*destination),
-            Instruction::Load { destination, .. } | Instruction::Address { destination, .. } => {
-                Some(*destination)
-            }
+            Instruction::Load { destination, .. }
+            | Instruction::Address { destination, .. }
+            | Instruction::FakeBorrow { destination, .. } => Some(*destination),
+            Instruction::FakeRead { .. } => None,
             Instruction::Store { .. } => None,
             Instruction::Aggregate { destination, .. } => Some(*destination),
             Instruction::FieldGet { destination, .. } => Some(*destination),
@@ -927,7 +971,9 @@ impl Instruction {
             } => smallvec![*context, *variable, *default],
             Instruction::Load { place, .. }
             | Instruction::Address { place, .. }
+            | Instruction::FakeBorrow { place, .. }
             | Instruction::AtomicLoad { place, .. } => place.uses(),
+            Instruction::FakeRead { value } => smallvec![*value],
             Instruction::Store { place, value }
             | Instruction::AtomicStore { place, value, .. }
             | Instruction::AtomicRmw { place, value, .. } => {
@@ -955,7 +1001,7 @@ impl Instruction {
             Instruction::SliceLength { slice, .. } => smallvec![*slice],
             Instruction::DynamicBind { payload, .. } => smallvec![*payload],
             Instruction::DynamicPayload { dynamic, .. } => smallvec![*dynamic],
-            Instruction::DynamicType { dynamic, .. } => smallvec![*dynamic],
+            Instruction::DynamicType { value, .. } => smallvec![*value],
             Instruction::DynamicRead { dynamic, .. } => smallvec![*dynamic],
             Instruction::DynamicFind { dynamic, key, .. } => smallvec![*dynamic, *key],
             Instruction::VectorSplat { value, .. } => smallvec![*value],

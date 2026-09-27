@@ -13,6 +13,11 @@ pub(super) fn format_static<'a>(id: StaticId, f: &mut Writer<'a, '_>) -> FormatR
 
     match value {
         Static::Parameter(index) => super::r#type::format_parameter(*index, f),
+        Static::Witness {
+            receiver,
+            interface,
+            member,
+        } => super::r#type::format_witness(*receiver, *interface, *member, f),
         Static::Null => write!(f, [token("null")]),
         Static::Undefined => write!(f, [token("undefined")]),
         Static::Boolean(value) => write!(f, [token(if *value { "true" } else { "false" })]),

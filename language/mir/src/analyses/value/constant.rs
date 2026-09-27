@@ -1513,6 +1513,7 @@ fn constant_tree_from_initializer(
         mir::GlobalInitializer::GlobalAddress(_) => ConstantTree::Unknown,
         mir::GlobalInitializer::String(_) => ConstantTree::Unknown,
         mir::GlobalInitializer::BigInt(_) => ConstantTree::Unknown,
+        mir::GlobalInitializer::Variant { .. } => ConstantTree::Unknown,
         mir::GlobalInitializer::Bytes(bytes) => {
             constant_tree_from_bytes(bytes, ty, tree, max_aggregate_elements)
         }

@@ -44,8 +44,27 @@ impl Parser {
         // append fields and indexed projections
         loop {
             if self.eat_token_if(TokenType::Dot) {
-                let index = self.parse_place_index(segments)?;
-                place.push(Projection::Field { index });
+                // read a parameter member with its type, else a field index
+                if self.eat_token_if(TokenType::OpenBrace) {
+                    let token = self
+                        .peek()
+                        .ok_or_else(|| ParseError::unexpected_end("member name", self.pos()))?;
+                    if self.token_type(token) != TokenType::Identifier {
+                        return Err(ParseError::invalid("member name", token.start()));
+                    }
+                    let name = self.tree.source_text(token.span).to_string();
+                    self.bump();
+                    self.eat_token(TokenType::Colon)?;
+                    let (ty, _) = self.parse_type_use_part()?;
+                    self.eat_token(TokenType::CloseBrace)?;
+                    place.push(Projection::Member {
+                        name: self.strings.intern(&name),
+                        ty,
+                    });
+                } else {
+                    let index = self.parse_place_index(segments)?;
+                    place.push(Projection::Field { index });
+                }
             } else if self.eat_token_if(TokenType::OpenBracket) {
                 let projection = if self.peek_is(TokenType::Integer) {
                     Projection::Element {

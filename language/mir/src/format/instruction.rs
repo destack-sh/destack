@@ -295,6 +295,22 @@ impl FormatNode for Instruction {
                     ]
                 )
             }
+            Instruction::FakeBorrow {
+                destination, place, ..
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("fake.borrow"),
+                        space(),
+                        place
+                    ]
+                )
+            }
             Instruction::Load {
                 destination, place, ..
             } => {
@@ -559,10 +575,7 @@ impl FormatNode for Instruction {
                 )
             }
 
-            Instruction::DynamicType {
-                destination,
-                dynamic,
-            } => {
+            Instruction::DynamicType { destination, value } => {
                 format_typed_destination(*destination, f)?;
                 write!(
                     f,
@@ -572,7 +585,7 @@ impl FormatNode for Instruction {
                         space(),
                         token("dynamic.type"),
                         space(),
-                        dynamic
+                        value
                     ]
                 )
             }
@@ -827,6 +840,9 @@ impl FormatNode for Instruction {
 
             Instruction::Drop { value } => {
                 write!(f, [token("drop"), space(), value])
+            }
+            Instruction::FakeRead { value } => {
+                write!(f, [token("fake.read"), space(), value])
             }
 
             Instruction::NewZeroed {

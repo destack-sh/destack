@@ -72,6 +72,7 @@ impl ModuleBuilder {
         function_id: LocalNodeId<Function>,
     ) -> BuildResult<FunctionBuilder<'_>> {
         FunctionBuilder::from_declared(
+            self.module,
             &mut self.tree,
             &mut self.effects,
             self.target_layout.pointer_bits(),

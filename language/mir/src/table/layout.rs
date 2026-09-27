@@ -660,8 +660,22 @@ impl VariantEncoding {
         }
     }
 
+    /// Encode one case with its logical discriminant into an existing physical scalar.
+    pub const fn encode_case(
+        self,
+        scalar: u128,
+        case: u32,
+        discriminant: Discriminant,
+        case_count: u32,
+    ) -> Option<u128> {
+        match self {
+            Self::Direct { field } => Some(field.insert(scalar, discriminant.bits())),
+            Self::Niche { .. } => self.encode_niche(scalar, case, case_count),
+        }
+    }
+
     /// Encode one niche case into an existing physical scalar.
-    pub const fn encode_niche(self, scalar: u128, case: u32, case_count: u32) -> Option<u128> {
+    const fn encode_niche(self, scalar: u128, case: u32, case_count: u32) -> Option<u128> {
         let Self::Niche {
             field,
             untagged_case,

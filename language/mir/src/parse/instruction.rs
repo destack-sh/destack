@@ -187,6 +187,11 @@ impl Parser {
 
                 Instruction::Drop { value }
             }
+            "fake.read" => {
+                let value = self.parse_value_segment(&mut segment_spans)?;
+
+                Instruction::FakeRead { value }
+            }
 
             // allocation protocol
             "release" => {
@@ -423,6 +428,14 @@ impl Parser {
                             result_type: destination_type,
                         }
                     }
+                    "fake.borrow" => {
+                        let place = self.parse_place(&mut segment_spans)?;
+                        Instruction::FakeBorrow {
+                            destination,
+                            place,
+                            result_type: destination_type,
+                        }
+                    }
                     "load" => {
                         let place = self.parse_place(&mut segment_spans)?;
                         Instruction::Load {
@@ -566,11 +579,8 @@ impl Parser {
                         }
                     }
                     "dynamic.type" => {
-                        let dynamic = self.parse_value_segment(&mut segment_spans)?;
-                        Instruction::DynamicType {
-                            destination,
-                            dynamic,
-                        }
+                        let value = self.parse_value_segment(&mut segment_spans)?;
+                        Instruction::DynamicType { destination, value }
                     }
                     "dynamic.read" => {
                         let dynamic = self.parse_value_segment(&mut segment_spans)?;

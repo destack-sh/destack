@@ -2,7 +2,9 @@ use serde::{Deserialize, Serialize};
 use tspp_core::StringId;
 use tspp_serde::Reflect;
 
-use crate::{FunctionId, GenericArgument, Global, LocalNodeId, Tree, TypeId, erase_lifetimes};
+use crate::{
+    FunctionId, GenericArgument, Global, LocalNodeId, StaticId, Tree, TypeId, erase_lifetimes,
+};
 
 /// The witness each closed type records for each interface it implements.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -61,6 +63,8 @@ pub struct WitnessConst {
     pub member: StringId,
     /// The global holding the value.
     pub global: LocalNodeId<Global>,
+    /// The compile-time value, when the const has one.
+    pub value: Option<StaticId>,
 }
 
 /// One associated type implemented by one type.
@@ -107,6 +111,25 @@ impl WitnessTable {
             .iter()
             .find(|found| found.member == member)
             .map(|found| found.ty)
+    }
+
+    /// Return the compile-time value one witness implements an associated const with.
+    pub fn associated_constant(
+        &self,
+        tree: &Tree,
+        receiver: TypeId,
+        interface: TypeId,
+        member: StringId,
+    ) -> Option<StaticId> {
+        let concrete = erase_lifetimes(tree, receiver);
+        let constraint = erase_lifetimes(tree, interface);
+        let witness = self.get(concrete, constraint)?;
+
+        witness
+            .constants
+            .iter()
+            .find(|found| found.member == member)
+            .and_then(|found| found.value)
     }
 
     /// Return the witness recording how one type implements one interface.

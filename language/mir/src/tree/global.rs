@@ -137,6 +137,13 @@ pub enum GlobalInitializer {
     Bytes(Vec<u8>),
     /// Aggregate (array/struct fields).
     Aggregate(Vec<GlobalInitializer>),
+    /// One variant value at its case, with the payload the case holds.
+    Variant {
+        /// The case index.
+        case: u32,
+        /// The case payload, absent for a payload-free case.
+        payload: Option<Box<GlobalInitializer>>,
+    },
     /// One string value, rewritten into its representation's fields by the constant encoder.
     String(StringId),
     /// One bigint value, rewritten into its representation's fields by the constant encoder.

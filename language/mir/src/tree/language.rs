@@ -5,7 +5,7 @@ use crate::{
     TypeDeclaration, TypeId,
 };
 
-/// One interface MIR recognizes by its language item key.
+/// One declaration MIR recognizes by its language item key.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LanguageItem {
     /// The interface of values a load duplicates.
@@ -18,6 +18,15 @@ pub enum LanguageItem {
     Zero,
     /// The interface of numbers with a multiplicative identity.
     One,
+
+    /// The class carrying string values.
+    String,
+    /// The class carrying bigint values.
+    BigInt,
+    /// The function comparing two strings by content.
+    StringEqual,
+    /// The function comparing two bigints by value.
+    BigIntEqual,
 }
 
 /// The attribute naming the language item of one declaration.
@@ -25,12 +34,16 @@ const ATTRIBUTE: &str = "languageItem";
 
 impl LanguageItem {
     /// Every language item.
-    const ALL: [LanguageItem; 5] = [
+    const ALL: [LanguageItem; 9] = [
         LanguageItem::Copy,
         LanguageItem::Clone,
         LanguageItem::Drop,
         LanguageItem::Zero,
         LanguageItem::One,
+        LanguageItem::String,
+        LanguageItem::BigInt,
+        LanguageItem::StringEqual,
+        LanguageItem::BigIntEqual,
     ];
 
     /// Return the stable `@languageItem` key.
@@ -41,6 +54,19 @@ impl LanguageItem {
             LanguageItem::Drop => "memory.Drop",
             LanguageItem::Zero => "math.Zero",
             LanguageItem::One => "math.One",
+            LanguageItem::String => "string.String",
+            LanguageItem::BigInt => "math.BigInt",
+            LanguageItem::StringEqual => "string.equal",
+            LanguageItem::BigIntEqual => "bigint.equal",
+        }
+    }
+
+    /// Return the function comparing the values this carrier class holds.
+    pub fn equality(self) -> Option<Self> {
+        match self {
+            LanguageItem::String => Some(LanguageItem::StringEqual),
+            LanguageItem::BigInt => Some(LanguageItem::BigIntEqual),
+            _ => None,
         }
     }
 

@@ -118,6 +118,19 @@ fn format_data_init<'a>(
             format_string_literal(&value, f)
         }
         GlobalInitializer::BigInt(value) => write!(f, [copied_text(&format!("{value}n"))]),
+        GlobalInitializer::Variant { case, payload } => {
+            write!(
+                f,
+                [token("variant"), space(), copied_text(&case.to_string())]
+            )?;
+            if let Some(payload) = payload {
+                write!(f, [space(), token("(")])?;
+                format_data_init(payload, None, f)?;
+                write!(f, [token(")")])?;
+            }
+
+            Ok(())
+        }
         GlobalInitializer::Aggregate(elements) => {
             write!(f, [token("{")])?;
             for (i, elem) in elements.iter().enumerate() {

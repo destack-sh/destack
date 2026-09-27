@@ -41,6 +41,8 @@ pub struct Loan {
     parents: SmallVec<[LoanId; 2]>,
     /// The operation that issued the loan.
     pub issued_at: LocalNodeIdAny,
+    /// Whether the loan guards only against overwriting its place.
+    pub is_shallow: bool,
 }
 
 /// The storage one access touches.
@@ -254,6 +256,7 @@ impl Loan {
             representation,
             parents: parents.into_iter().collect(),
             issued_at,
+            is_shallow: false,
         }
     }
 
@@ -270,6 +273,7 @@ impl Loan {
             representation: value,
             parents: SmallVec::new(),
             issued_at,
+            is_shallow: false,
         }
     }
 
@@ -358,6 +362,11 @@ impl Loan {
         function: FunctionId,
         tree: &Tree,
     ) -> bool {
+        // check only overwrites of a shallow loan
+        if self.is_shallow {
+            return self.overwrites(target, access, constants, places, function, tree);
+        }
+
         match target {
             // violate the loan's access, or retag or release its place
             AccessTarget::Place(place) => {
@@ -379,6 +388,37 @@ impl Loan {
                         || borrowed.is_releasable(function, tree));
 
                 !spaces.is_disjoint(loan_spaces) && (self.access.conflicts(access) || may_change)
+            }
+        }
+    }
+
+    /// Return whether one access may overwrite the borrowed place or a prefix of it.
+    fn overwrites(
+        &self,
+        target: &AccessTarget,
+        access: Access,
+        constants: &ConstantTable,
+        places: &PlaceTable,
+        function: FunctionId,
+        tree: &Tree,
+    ) -> bool {
+        let Some(borrowed) = self.place() else {
+            return false;
+        };
+        if !access.can_write() {
+            return false;
+        }
+
+        match target {
+            // overwrite a place that may cover the borrowed place
+            AccessTarget::Place(place) => {
+                place.may_overlap(borrowed, constants, places, function, tree)
+                    && !place.is_strictly_inside(borrowed)
+            }
+            // overwrite an aliasable place through overlapping storage
+            AccessTarget::Spaces(spaces) => {
+                borrowed.is_aliasable(function, tree)
+                    && !spaces.is_disjoint(borrowed.storage_set(function, tree))
             }
         }
     }

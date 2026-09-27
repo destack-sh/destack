@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
+use tspp_core::StringId;
 use tspp_serde::Reflect;
 
 use crate::{
@@ -271,6 +272,9 @@ impl PlaceType {
                     (Projection::Variant { case }, Type::Variant { cases, .. }) => {
                         cases.get(*case as usize).map(|case| Self::Value(case.ty))
                     }
+                    (Projection::Member { ty, .. }, Type::Parameter { .. }) => {
+                        Some(Self::Value(*ty))
+                    }
                     (
                         Projection::Elements
                         | Projection::Element { .. }
@@ -330,6 +334,13 @@ pub enum Projection {
     },
     /// The referent of a reference.
     Deref,
+    /// One field the bounds of a type parameter declare, resolved against the instance's storage.
+    Member {
+        /// The field name.
+        name: StringId,
+        /// The field type.
+        ty: TypeId,
+    },
 }
 
 impl Projection {
@@ -351,6 +362,7 @@ impl Projection {
             (Self::Field { index: left }, Self::Field { index: right })
             | (Self::Element { index: left }, Self::Element { index: right }) => left == right,
             (Self::Variant { case: left }, Self::Variant { case: right }) => left == right,
+            (Self::Member { name: left, .. }, Self::Member { name: right, .. }) => left == right,
             (Self::Deref, Self::Deref) => true,
             (
                 Self::Elements | Self::Element { .. } | Self::Index { .. } | Self::Slice { .. },
@@ -449,7 +461,8 @@ impl Path {
                 | Projection::Field { .. }
                 | Projection::Element { .. }
                 | Projection::Variant { .. }
-                | Projection::Deref => {}
+                | Projection::Deref
+                | Projection::Member { .. } => {}
             }
         }
     }

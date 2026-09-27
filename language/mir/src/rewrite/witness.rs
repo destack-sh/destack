@@ -1,4 +1,4 @@
-use crate::{Field, Tree, Type, TypeId, WitnessTable};
+use crate::{Field, Static, StaticId, Tree, Type, TypeId, WitnessTable};
 
 /// Resolve every closed associated type within one type through the witnesses answering for it.
 pub fn resolve_witness_types(tree: &Tree, witnesses: &WitnessTable, ty: TypeId) -> TypeId {
@@ -27,6 +27,23 @@ pub fn resolve_witness_types(tree: &Tree, witnesses: &WitnessTable, ty: TypeId) 
         }
     }
     resolved.map_child_type_ids(&mut |child| resolve_witness_types(tree, witnesses, child));
+    resolved.map_values(&mut |value| resolve_witness_value(tree, witnesses, value));
 
     tree.intern_type(resolved)
+}
+
+/// Resolve one closed associated const value through the witness answering for it.
+fn resolve_witness_value(tree: &Tree, witnesses: &WitnessTable, value: StaticId) -> StaticId {
+    let Static::Witness {
+        receiver,
+        interface,
+        member,
+    } = *tree.static_value(value)
+    else {
+        return value;
+    };
+
+    witnesses
+        .associated_constant(tree, receiver, interface, member)
+        .unwrap_or(value)
 }

@@ -117,6 +117,7 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
     match instruction {
         Instruction::Cast { to_type, .. } => walk_type_id(visitor, tree, to_type),
         Instruction::Address { result_type, .. }
+        | Instruction::FakeBorrow { result_type, .. }
         | Instruction::Load { result_type, .. }
         | Instruction::VariantNew { result_type, .. }
         | Instruction::DynamicPayload { result_type, .. }
@@ -219,6 +220,7 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
         | Instruction::VectorCompare { .. }
         | Instruction::VectorConvert { .. }
         | Instruction::Drop { .. }
+        | Instruction::FakeRead { .. }
         | Instruction::Release { .. }
         | Instruction::BarrierWrite { .. }
         | Instruction::AtomicStore { .. }
@@ -435,6 +437,14 @@ fn walk_type_id<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, reference
 fn walk_static<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, id: StaticId) {
     match tree.static_value(id) {
         Static::Type(ty) => walk_type_id(visitor, tree, ty),
+        Static::Witness {
+            receiver,
+            interface,
+            ..
+        } => {
+            walk_type_id(visitor, tree, receiver);
+            walk_type_id(visitor, tree, interface);
+        }
         Static::Array(values) | Static::Tuple(values) => {
             for value in values {
                 walk_static(visitor, tree, *value);

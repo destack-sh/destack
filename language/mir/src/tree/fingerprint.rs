@@ -113,6 +113,16 @@ impl TypeHasher {
                 self.hasher.write_u8(20);
                 self.hasher.write_u32(*index);
             }
+            Static::Witness {
+                receiver,
+                interface,
+                member,
+            } => {
+                self.hasher.write_u8(21);
+                self.hash_type(*receiver, tree);
+                self.hash_type(*interface, tree);
+                self.hasher.write_u64(member.raw());
+            }
             Static::Null => self.hasher.write_u8(0),
             Static::Undefined => self.hasher.write_u8(1),
             Static::Boolean(value) => {

@@ -45,12 +45,13 @@ impl mir::Instruction {
             | Self::SliceLength { slice: value, .. }
             | Self::DynamicBind { payload: value, .. }
             | Self::DynamicPayload { dynamic: value, .. }
-            | Self::DynamicType { dynamic: value, .. }
+            | Self::DynamicType { value, .. }
             | Self::DynamicRead { dynamic: value, .. }
             | Self::VectorSplat { value, .. }
             | Self::VectorReduce { vector: value, .. }
             | Self::VectorConvert { vector: value, .. }
             | Self::Drop { value }
+            | Self::FakeRead { value }
             | Self::NewComplete { value, .. }
             | Self::NewSliceZeroed { length: value, .. }
             | Self::NewSliceUninit { length: value, .. }
@@ -137,6 +138,7 @@ impl mir::Instruction {
             Self::VariantTagLoad { place, .. }
             | Self::Load { place, .. }
             | Self::Address { place, .. }
+            | Self::FakeBorrow { place, .. }
             | Self::AtomicLoad { place, .. } => place.map_values(map),
             Self::Store { place, value }
             | Self::AtomicStore { place, value, .. }

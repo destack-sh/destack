@@ -6,7 +6,8 @@ use crate::{
     ElementLayout, Function, Global, Layout, LayoutId, LayoutShape, LayoutTable, LocalNodeId,
     NewtypeLayout, NodeVisitor, PlaceType, Primitive, Reference, Representation, Scalar,
     ScalarField, Static, StructLayout, Substitution, TargetLayout, TraceMap, Tree, TupleLayout,
-    Type, TypeId, Validity, Vector, WitnessTable, resolve_witness_types, walk_function, walk_type,
+    Type, TypeDeclaration, TypeId, Validity, Vector, WitnessTable, resolve_witness_types,
+    walk_function, walk_type,
 };
 
 use super::aggregate::Aggregate;
@@ -155,6 +156,21 @@ impl<'tree> LayoutBuilder<'tree> {
             NodeVisitor::visit_global(&mut reachable, self.tree, id, global);
         }
 
+        // traverse every concrete type definition the tree declares and the heritage type tests name
+        for (_, declaration) in self.tree.iter_nodes::<TypeDeclaration>() {
+            if let Some(definition) = declaration.definition
+                && declaration.generics.is_empty()
+            {
+                let heritage = &declaration.heritage;
+                for ty in std::iter::once(definition)
+                    .chain(heritage.extends.iter().copied())
+                    .chain(heritage.implements.iter().copied())
+                {
+                    NodeVisitor::visit_type(&mut reachable, self.tree, ty, self.tree.get(ty));
+                }
+            }
+        }
+
         // traverse callable signatures and bodies
         for (id, function) in self.tree.iter_nodes::<Function>() {
             if function.generics.is_empty() {
@@ -219,9 +235,7 @@ impl<'tree> LayoutBuilder<'tree> {
     fn layout_reachable_type(&mut self, ty: TypeId) -> Result<(), LayoutError> {
         match self.tree.get(ty) {
             // skip types without runtime representations
-            Type::Error | Type::Never | Type::FunctionSignature { .. } | Type::Parameter { .. } => {
-                Ok(())
-            }
+            Type::Error | Type::FunctionSignature { .. } | Type::Parameter { .. } => Ok(()),
             // skip generic declarations, their instances laid out through their applications
             Type::Declaration { declaration }
                 if !self.tree.get(*declaration).generics.is_empty() =>
@@ -231,6 +245,7 @@ impl<'tree> LayoutBuilder<'tree> {
 
             // compute one layout for each represented type
             Type::Declaration { .. }
+            | Type::Never
             | Type::Void
             | Type::Null
             | Type::Boolean

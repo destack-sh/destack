@@ -87,6 +87,24 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    /// Borrow a place shallowly for verification.
+    pub fn fake_borrow(&mut self, place: Place, result_type: TypeId) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::FakeBorrow {
+            destination,
+            place,
+            result_type,
+        });
+        self.define_value(destination, result_type);
+
+        destination
+    }
+
+    /// Read a fake borrow for verification.
+    pub fn fake_read(&mut self, value: Value) {
+        self.insert_instruction(Instruction::FakeRead { value });
+    }
+
     /// Write a place.
     pub fn store(&mut self, place: Place, value: Value) {
         self.insert_instruction(Instruction::Store { place, value });
@@ -95,6 +113,19 @@ impl<'a> FunctionBuilder<'a> {
     /// Create a linear uninitialized allocation token type.
     pub fn type_uninit(&mut self, value: TypeId) -> TypeId {
         self.tree.intern_type(Type::Uninit { value })
+    }
+
+    /// Allocate uninitialized heap storage, returning its initialization token.
+    pub fn new_uninit(&mut self, storage_type: TypeId, result_type: TypeId, space: Space) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::NewUninit {
+            destination,
+            storage_type,
+            result_type,
+            space,
+        });
+        self.define_value(destination, result_type);
+        destination
     }
 
     /// Allocate zeroed heap storage.

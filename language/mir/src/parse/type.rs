@@ -1,4 +1,5 @@
 use crate::source::{Token, TokenType};
+use tspp_core::StringId;
 use tspp_source::Span;
 
 use crate::{
@@ -458,6 +459,17 @@ impl Parser {
 
     /// Parse an associated type projection.
     fn parse_witness_type(&mut self) -> ParseResult<Type> {
+        let (receiver, interface, member) = self.parse_witness()?;
+
+        Ok(Type::Witness {
+            receiver,
+            interface,
+            member,
+        })
+    }
+
+    /// Parse the receiver, interface, and member one witness projection names.
+    pub(super) fn parse_witness(&mut self) -> ParseResult<(TypeId, TypeId, StringId)> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
         let (receiver, _) = self.parse_type_use_part()?;
@@ -474,11 +486,7 @@ impl Parser {
         self.bump();
         self.eat_token(TokenType::GreaterThan)?;
 
-        Ok(Type::Witness {
-            receiver,
-            interface,
-            member: self.strings.intern(&member),
-        })
+        Ok((receiver, interface, self.strings.intern(&member)))
     }
 
     /// Parse a function pointer type.
@@ -858,12 +866,17 @@ impl Parser {
         })
     }
 
-    /// Parse one fixed array length: a literal or a value parameter in scope.
+    /// Parse one fixed array length: a literal, a value parameter in scope, or a witness const.
     fn parse_length(&mut self) -> ParseResult<StaticId> {
         // read a value parameter in scope
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("array length", self.pos()))?;
+        if self.token_type(token) == TokenType::Identifier
+            && self.tree.source_text(token.span) == "witness"
+        {
+            return self.parse_static();
+        }
         if self.token_type(token) == TokenType::Identifier {
             let name = self.tree.source_text(token.span).to_string();
             let Some((index, parameter)) = self.generic_parameter(&name) else {

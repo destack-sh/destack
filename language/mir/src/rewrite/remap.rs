@@ -79,6 +79,7 @@ impl Instruction {
             | Self::VariantTagLoad { place, .. }
             | Self::Store { place, .. }
             | Self::Address { place, .. }
+            | Self::FakeBorrow { place, .. }
             | Self::AtomicLoad { place, .. }
             | Self::AtomicStore { place, .. }
             | Self::AtomicCompareExchange { place, .. }
@@ -97,6 +98,7 @@ impl Instruction {
             Instruction::Const { value, .. } => value.map_ids(remap),
             Instruction::Cast { to_type, .. } => *to_type = remap.map_type(*to_type),
             Instruction::Address { result_type, .. }
+            | Instruction::FakeBorrow { result_type, .. }
             | Instruction::Load { result_type, .. }
             | Instruction::VariantNew { result_type, .. }
             | Instruction::DynamicPayload { result_type, .. }
@@ -196,6 +198,7 @@ impl Instruction {
             | Instruction::VectorCompare { .. }
             | Instruction::VectorConvert { .. }
             | Instruction::Drop { .. }
+            | Instruction::FakeRead { .. }
             | Instruction::Release { .. }
             | Instruction::BarrierWrite { .. }
             | Instruction::AtomicStore { .. }

@@ -588,6 +588,9 @@ impl OriginBuilder<'_> {
         let (representation, place, source) = match &instruction {
             Instruction::Address {
                 destination, place, ..
+            }
+            | Instruction::FakeBorrow {
+                destination, place, ..
             } => {
                 // retain the reference storage at the last dereference for parent loans
                 let source = place
@@ -640,7 +643,7 @@ impl OriginBuilder<'_> {
         let Some(access) = value_type.reference_access() else {
             unreachable!("borrowed reference has no access");
         };
-        let loan = Loan::new(
+        let mut loan = Loan::new(
             place,
             source,
             access,
@@ -648,6 +651,7 @@ impl OriginBuilder<'_> {
             [],
             instruction_id.into_any(),
         );
+        loan.is_shallow = matches!(instruction, Instruction::FakeBorrow { .. });
 
         Some((representation, loan))
     }

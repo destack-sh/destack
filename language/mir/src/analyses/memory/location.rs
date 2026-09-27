@@ -771,7 +771,8 @@ impl<'a> MemoryRegionBuilder<'a> {
                 self.region(value, depth + 1)?
             }
 
-            mir::Instruction::Address { place, .. } => self.place(place, depth + 1)?,
+            mir::Instruction::Address { place, .. }
+            | mir::Instruction::FakeBorrow { place, .. } => self.place(place, depth + 1)?,
 
             // preserve addresses through pointer bitcasts
             mir::Instruction::Cast {

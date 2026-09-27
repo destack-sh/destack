@@ -742,6 +742,24 @@ impl Parser {
 
                 Ok(GlobalInitializer::GlobalAddress(global))
             }
+            // variant initializer
+            TokenType::Identifier if self.tree.source_text(token.span) == "variant" => {
+                self.bump();
+                let case = self.parse_int_literal()?;
+                let case = u32::try_from(case)
+                    .map_err(|_| ParseError::invalid("case index", self.pos()))?;
+                let payload = match self.eat_token_if(TokenType::OpenParenthesis) {
+                    true => {
+                        let payload = self.parse_data_init(None)?;
+                        self.eat_token(TokenType::CloseParenthesis)?;
+
+                        Some(Box::new(payload))
+                    }
+                    false => None,
+                };
+
+                Ok(GlobalInitializer::Variant { case, payload })
+            }
             // aggregate initializer
             TokenType::OpenBrace => {
                 self.bump();

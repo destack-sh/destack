@@ -16,6 +16,15 @@ impl Parser {
         let start = token.start();
 
         match ty {
+            TokenType::Identifier if text == "witness" => {
+                let (receiver, interface, member) = self.parse_witness()?;
+
+                Ok(self.tree.intern_static(Static::Witness {
+                    receiver,
+                    interface,
+                    member,
+                }))
+            }
             TokenType::Identifier if text == "null" => {
                 self.bump();
                 Ok(self.tree.intern_static(Static::Null))

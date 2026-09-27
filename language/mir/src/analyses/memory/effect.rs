@@ -344,6 +344,8 @@ impl<'a> MemoryEffectBuilder<'a> {
 
             // omit instructions that access no memory
             mir::Instruction::Copy { .. }
+            | mir::Instruction::FakeBorrow { .. }
+            | mir::Instruction::FakeRead { .. }
             | mir::Instruction::Const { .. }
             | mir::Instruction::Binary { .. }
             | mir::Instruction::Unary { .. }

@@ -382,6 +382,14 @@ impl Node for Terminator {
 }
 
 impl Terminator {
+    /// Return the call this terminator makes, when it is one.
+    pub fn call(&self) -> Option<&Call> {
+        match self {
+            Self::Invoke { call, .. } | Self::TailCall { call } => Some(call),
+            _ => None,
+        }
+    }
+
     /// Return the heap one allocating terminator names.
     pub fn allocation_space(&self) -> Option<Space> {
         match self {

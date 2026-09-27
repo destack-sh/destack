@@ -16,6 +16,15 @@ pub struct StaticId(pub u32);
 pub enum Static {
     /// The value one template parameter names.
     Parameter(u32),
+    /// The associated const one type answers an interface with, resolved through its witness.
+    Witness {
+        /// The type answering the interface.
+        receiver: TypeId,
+        /// The applied interface declaring the const.
+        interface: TypeId,
+        /// The associated const name.
+        member: StringId,
+    },
     /// The null value.
     Null,
     /// The undefined value.
@@ -111,6 +120,14 @@ impl Static {
     pub fn map_types(&mut self, map: &mut impl FnMut(TypeId) -> TypeId) {
         match self {
             Self::Type(ty) | Self::Newtype { ty, .. } | Self::Struct { ty, .. } => *ty = map(*ty),
+            Self::Witness {
+                receiver,
+                interface,
+                ..
+            } => {
+                *receiver = map(*receiver);
+                *interface = map(*interface);
+            }
             _ => {}
         }
     }

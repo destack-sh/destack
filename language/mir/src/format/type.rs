@@ -1,3 +1,4 @@
+use tspp_core::StringId;
 use tspp_fir::format::{Allocator, Format, FormatError, FormatResult};
 use tspp_fir::prelude::*;
 use tspp_fir::write;
@@ -478,23 +479,7 @@ pub(super) fn format_type_expanded<'a>(
             receiver,
             interface,
             member,
-        } => {
-            let member = f.context().strings.get(*member).to_string();
-            write!(
-                f,
-                [
-                    token("witness<"),
-                    *receiver,
-                    token(","),
-                    space(),
-                    *interface,
-                    token(","),
-                    space(),
-                    copied_text(&member),
-                    token(">")
-                ]
-            )
-        }
+        } => format_witness(*receiver, *interface, *member, f),
         Type::FunctionPointer { signature } => {
             let signature_type = f.context().tree.get(*signature);
             let Type::FunctionSignature {
@@ -875,4 +860,29 @@ fn format_struct_field<'a>(field: &Field, f: &mut Writer<'a, '_>) -> FormatResul
         format_type_id(field.ty, f)?;
         write!(f, [token(";")])
     }
+}
+
+/// Format one projection an interface witness answers, a type or a value alike.
+pub(super) fn format_witness(
+    receiver: TypeId,
+    interface: TypeId,
+    member: StringId,
+    f: &mut Writer<'_, '_>,
+) -> FormatResult<()> {
+    let member = f.context().strings.get(member).to_string();
+
+    write!(
+        f,
+        [
+            token("witness<"),
+            receiver,
+            token(","),
+            space(),
+            interface,
+            token(","),
+            space(),
+            copied_text(&member),
+            token(">")
+        ]
+    )
 }

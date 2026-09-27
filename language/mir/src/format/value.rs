@@ -59,6 +59,23 @@ fn format_place<'a>(
 
             write!(f, [token("."), copied_text(&index.to_string())])
         }
+        Projection::Member { name, ty } => {
+            write!(f, [token("(")])?;
+            format_place(origin, prefix, f)?;
+            let name = f.context().strings.get(*name).to_string();
+            write!(
+                f,
+                [
+                    token(")."),
+                    token("{"),
+                    copied_text(&name),
+                    token(":"),
+                    space()
+                ]
+            )?;
+            format_type_id(*ty, f)?;
+            write!(f, [token("}")])
+        }
         Projection::Variant { case } => {
             write!(f, [token("(")])?;
             format_place(origin, prefix, f)?;

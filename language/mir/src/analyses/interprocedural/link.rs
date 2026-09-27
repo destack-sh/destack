@@ -172,6 +172,11 @@ impl LinkTable {
                     Self::add_initializer_edges(edges, source, element, tree);
                 }
             }
+            GlobalInitializer::Variant { payload, .. } => {
+                if let Some(payload) = payload {
+                    Self::add_initializer_edges(edges, source, payload, tree);
+                }
+            }
             GlobalInitializer::Zero
             | GlobalInitializer::Scalar(_)
             | GlobalInitializer::Bytes(_)

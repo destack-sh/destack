@@ -461,6 +461,9 @@ impl FromStr for Intrinsic {
             "memory.manuallyDrop.new" => Ok(Intrinsic::Transmute),
             "memory.manuallyDrop.intoInner" => Ok(Intrinsic::Transmute),
             "memory.manuallyDrop.asReference" => Ok(Intrinsic::Transmute),
+            "memory.unsafeCell.new" => Ok(Intrinsic::Transmute),
+            "memory.unsafeCell.intoInner" => Ok(Intrinsic::Transmute),
+            "memory.unsafeCell.asReference" => Ok(Intrinsic::Transmute),
             "memory.raw.eq" => Ok(Intrinsic::RawEq),
             "math.float.sqrt" => Ok(Intrinsic::Sqrt),
             "math.float.cbrt" => Ok(Intrinsic::Cbrt),
@@ -641,8 +644,6 @@ pub enum IntrinsicInstruction {
     PointerSwap,
     /// A drop of the pointed-to value.
     PointerDropInPlace,
-    /// A drop of one owned value.
-    Drop,
     /// An uninitialized storage value.
     InitUninit,
     /// A zeroed storage value.
@@ -719,11 +720,10 @@ impl IntrinsicInstruction {
             "memory.init.zeroed" => Self::InitZeroed,
             "memory.init.write" => Self::InitWrite,
             "memory.manuallyDrop.take" => Self::PointerLoad,
-            "memory.drop" => Self::Drop,
             "memory.ptr.swap" => Self::PointerSwap,
             "memory.ptr.dropInPlace" => Self::PointerDropInPlace,
             "memory.ptr.asReference" => Self::Cast(CastOperator::PointerToReference),
-            "memory.ptr.fromReference" | "memory.init.asPointer" => {
+            "memory.ptr.fromReference" | "memory.init.asPointer" | "memory.unsafeCell.get" => {
                 Self::Cast(CastOperator::ReferenceToPointer)
             }
             "sync.atomic.fence" => Self::AtomicFence,
@@ -749,7 +749,10 @@ impl IntrinsicInstruction {
             "memory.unique.leak"
             | "memory.manuallyDrop.new"
             | "memory.manuallyDrop.intoInner"
-            | "memory.manuallyDrop.asReference" => Self::Transmute,
+            | "memory.manuallyDrop.asReference"
+            | "memory.unsafeCell.new"
+            | "memory.unsafeCell.intoInner"
+            | "memory.unsafeCell.asReference" => Self::Transmute,
             "memory.dynamic.payload" => Self::DynamicPayload,
             "memory.dynamic.type" => Self::DynamicType,
             "math.vector.splat" => Self::VectorSplat,
@@ -793,7 +796,7 @@ impl IntrinsicTerminator {
     pub fn from_name(name: &str) -> Option<Self> {
         let denoted = match name {
             "error.abort" | "error.trap" => Self::Abort,
-            "error.panic" | "error.todo" => Self::Panic,
+            "error.panic" => Self::Panic,
             "error.unreachable" => Self::Unreachable,
             _ => return None,
         };

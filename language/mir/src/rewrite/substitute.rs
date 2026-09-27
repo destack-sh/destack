@@ -146,11 +146,33 @@ impl<'a> Substitution<'a> {
                 }
             }
             definition.map_values(&mut |value| self.value(value));
+            let distinct = Self::has_distinct_cases(&definition);
             definition.map_child_type_ids(&mut |child| self.ty(child));
+
+            // merge union cases the arguments made identical
+            if distinct
+                && let Type::Variant { cases, .. } = &definition
+                && !Self::has_distinct_cases(&definition)
+            {
+                let payloads = cases.iter().map(|case| case.ty).collect::<Vec<_>>();
+                self.depth = depth;
+
+                return self.tree.union_type(&payloads);
+            }
         }
         self.depth = depth;
 
         self.tree.intern_type(definition)
+    }
+
+    /// Return whether one variant's cases carry pairwise distinct payload types.
+    fn has_distinct_cases(definition: &Type) -> bool {
+        let Type::Variant { cases, .. } = definition else {
+            return false;
+        };
+        let payloads = cases.iter().map(|case| case.ty).collect::<Vec<_>>();
+
+        Tree::union_cases(&payloads).0.len() == payloads.len()
     }
 
     /// Return the type bound to one type parameter, rebound past the entered binders.
