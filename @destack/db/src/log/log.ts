@@ -295,9 +295,10 @@ export class Log {
 
         // decode each entry through its table's columns
         const dialect = this.database.dialect;
-        const changes = entries.map((entry) =>
-            decodeChange(entry, tables.get(entry.table!)!, dialect),
-        );
+        const changes = entries.map((entry) => ({
+            sequence: Number(entry.sequence),
+            ...decodeChange(entry, tables.get(entry.table!)!, dialect),
+        }));
 
         // skip past other tables' changes unless the page stopped at the limit
         const end = changes.length > 0 ? changes.at(-1)!.sequence : selection.after;
@@ -305,6 +306,37 @@ export class Log {
             changes.length >= limit ? end : Math.max(end, latestOf(bounds.logged, bounds.horizon));
 
         return { changes, sequence };
+    }
+
+    /** Read the changes the open transaction wrote to the given tables, in order, before its commit numbers them. */
+    async written<Definition extends Table>(
+        tables: readonly Definition[],
+    ): Promise<Omit<Change<Definition>, "sequence">[]> {
+        // read the open transaction's identity
+        const transaction = await this.currentTransaction();
+        if (transaction === undefined) {
+            throw new TypeError("read written changes of a logged database");
+        }
+
+        // read its entries of the tables in the order it wrote them, through PostgreSQL's index of unstamped entries
+        const byName = new Map(tables.map((table) => [table[TABLE].sqlName, table]));
+        const names = sql.join(
+            [...byName.keys()].map((name) => sql`${name}`),
+            sql`, `,
+        );
+        const written =
+            this.database.dialect === "postgresql"
+                ? sql`sequence IS NULL ORDER BY id`
+                : sql`true ORDER BY sequence`;
+        const entries = await this.database.execute<ChangeEntry>(sql`
+            SELECT sequence, "transaction", "table", key, operation, "row", previous, scope, changed_at
+            FROM ${sql.identifier(LOG)}
+            WHERE "transaction" = ${transaction} AND "table" IN (${names}) AND ${written}
+        `);
+
+        return entries.map((entry) =>
+            decodeChange(entry, byName.get(entry.table!)!, this.database.dialect),
+        );
     }
 
     /** Wait until the log holds a sequence, returning false when the signal aborts first. */
@@ -502,12 +534,12 @@ export class Log {
     }
 }
 
-/** Decode a log entry through its table's columns. */
+/** Decode a log entry through its table's columns, apart from the sequence its commit numbers. */
 function decodeChange<Definition extends Table>(
     entry: ChangeEntry,
     table: Definition,
     dialect: Dialect,
-): Change<Definition> {
+): Omit<Change<Definition>, "sequence"> {
     // read JSON text from SQLite and parsed JSON from PostgreSQL
     const key = (typeof entry.key === "string" ? JSON.parse(entry.key) : entry.key) as unknown[];
     const row = (typeof entry.row === "string" ? JSON.parse(entry.row) : entry.row) as Record<
@@ -542,7 +574,6 @@ function decodeChange<Definition extends Table>(
     }
 
     return {
-        sequence: Number(entry.sequence),
         transaction: entry.transaction,
         table,
         key: decodedKey as Partial<Select<Definition>>,

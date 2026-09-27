@@ -133,6 +133,31 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
 });
 
 test.for(TEST_DIALECTS)(
+    "read the changes the open transaction wrote before its commit on %s",
+    async (dialect) => {
+        const { database } = await open(dialect);
+        await database.insert(note).values(first);
+
+        // read this transaction's own changes of the given tables, in order, without another transaction's
+        const written = await database.transaction(async (transaction) => {
+            await transaction.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
+            await transaction
+                .insert(revision)
+                .values({ scope: "inbox", noteId: "a", number: 1, title: "First" });
+            await transaction.delete(note).where(eq(note.id, "a"));
+
+            return await transaction.log.written([note]);
+        });
+        expect(
+            written.map((change) => [change.operation, change.key, change.after?.title]),
+        ).toEqual([
+            ["update", { id: "a" }, "Renamed"],
+            ["delete", { id: "a" }, undefined],
+        ]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
     "keep the latest sequence once compaction removes every change on %s",
     async (dialect) => {
         const { database } = await open(dialect);
