@@ -7,6 +7,28 @@ import { join } from "node:path";
 import { SandboxError } from "../error/index.ts";
 import type { SandboxExit, SandboxOptions } from "../sandbox/index.ts";
 
+/** The system files every process reads, by platform: libraries, the dynamic linker, the shell and random devices. */
+export const RUNTIME_PATHS: Partial<Record<NodeJS.Platform, readonly string[]>> = {
+    darwin: [
+        "/System/Library",
+        "/usr/lib",
+        "/usr/share",
+        "/bin",
+        "/private/var/select/sh",
+        "/dev/null",
+        "/dev/urandom",
+    ],
+    linux: [
+        "/usr",
+        "/bin",
+        "/lib",
+        "/lib64",
+        "/etc/ld.so.cache",
+        "/etc/ld.so.conf",
+        "/etc/ld.so.conf.d",
+    ],
+};
+
 /** Run one sandbox manager under a private parent connection. */
 export async function runLauncher(): Promise<void> {
     // reject direct invocation without the supervising process
@@ -37,20 +59,23 @@ export async function runLauncher(): Promise<void> {
     const temporary = await realpath(await mkdtemp(join(tmpdir(), "destack-sandbox-")));
     process.env.CLAUDE_CODE_TMPDIR = temporary;
     try {
-        // configure a fresh manager with no access to other application state
+        // require the system files of this platform
         const options = await request.promise;
+        const runtime = RUNTIME_PATHS[process.platform];
+        if (runtime === undefined) {
+            throw new SandboxError(
+                "UNSUPPORTED",
+                `sandboxing is unsupported on ${process.platform}`,
+            );
+        }
+
+        // configure a fresh manager with no access to other application state
         await SandboxManager.initialize(
             {
                 filesystem: {
                     denyRead: ["/"],
                     allowRead: [
-                        "/System/Library",
-                        "/usr/lib",
-                        "/usr/share",
-                        "/bin",
-                        "/private/var/select/sh",
-                        "/dev/null",
-                        "/dev/urandom",
+                        ...runtime,
                         options.executable,
                         ...options.read,
                         ...options.write,
@@ -160,13 +185,16 @@ function quote(value: string): string {
 
 /** Signal the workload process group, accepting an already terminated group. */
 function signalGroup(child: ChildProcess, signal: NodeJS.Signals): void {
-    if (!child.pid) {
+    // leave exited workloads alone; their process group id may already be reused
+    if (!child.pid || child.exitCode !== null || child.signalCode !== null) {
         return;
     }
     try {
         process.kill(-child.pid, signal);
     } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "ESRCH") {
+        // accept groups that are gone; macOS reports groups of exited, unreaped workloads as not permitted
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code !== "ESRCH" && code !== "EPERM") {
             throw error;
         }
     }

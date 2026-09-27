@@ -1,6 +1,6 @@
 # @destack/sandbox
 
-Run macOS processes with explicit filesystem and network permissions through a separate sandbox manager.
+Run processes with explicit filesystem and network permissions on macOS (Seatbelt) and Linux (bubblewrap with `socat` and `ripgrep`) through a separate sandbox manager.
 
 ```ts
 import { Sandbox } from "@destack/sandbox";

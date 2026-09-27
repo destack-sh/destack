@@ -3,7 +3,9 @@ import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import type { Readable } from "node:stream";
+import { SandboxManager } from "@anthropic-ai/sandbox-runtime";
 import { SandboxError } from "../error/index.ts";
+import { RUNTIME_PATHS } from "../launcher/launcher.ts";
 
 /** Maximum time to prepare OS restrictions and launch a process, in milliseconds. */
 const START_TIMEOUT_MS = 10000;
@@ -11,6 +13,8 @@ const START_TIMEOUT_MS = 10000;
 const CLEANUP_TIMEOUT_MS = 1000;
 /** Default graceful workload shutdown duration, in milliseconds. */
 const STOP_TIMEOUT_MS = 5000;
+/** The longest graceful shutdown a caller may request, five minutes, in milliseconds. */
+const MAX_STOP_TIMEOUT_MS = 300000;
 
 /** A process running under independent filesystem and network restrictions. */
 export class Sandbox implements AsyncDisposable {
@@ -36,13 +40,19 @@ export class Sandbox implements AsyncDisposable {
 
     /** Spawn a restricted command; application readiness is reported by the application. */
     static async start(options: SandboxOptions): Promise<Sandbox> {
-        // refuse platforms whose enforcement has not been verified
-        if (process.platform !== "darwin") {
+        // refuse platforms without runtime paths and hosts missing the enforcement tools
+        if (!SandboxManager.isSupportedPlatform() || !RUNTIME_PATHS[process.platform]) {
             throw new SandboxError(
                 "UNSUPPORTED",
-                "sandbox enforcement is not verified on this platform",
+                `sandboxing is unsupported on ${process.platform}`,
             );
         }
+        const dependencies = SandboxManager.checkDependencies();
+        if (dependencies.errors.length > 0) {
+            throw new SandboxError("UNSUPPORTED", dependencies.errors.join("; "));
+        }
+
+        // require absolute paths for every permission
         const paths = [
             options.executable,
             options.directory,
@@ -163,10 +173,14 @@ export class Sandbox implements AsyncDisposable {
 
     /** Stop the workload's process group and release its proxies; detached children may survive. */
     stop(gracePeriodMs = STOP_TIMEOUT_MS): Promise<SandboxExit> {
-        if (!Number.isSafeInteger(gracePeriodMs) || gracePeriodMs < 0 || gracePeriodMs > 300000) {
-            throw new SandboxError(
-                "STOP_FAILED",
-                "grace period must be between 0 and 300000 milliseconds",
+        // require a bounded grace period
+        if (
+            !Number.isSafeInteger(gracePeriodMs) ||
+            gracePeriodMs < 0 ||
+            gracePeriodMs > MAX_STOP_TIMEOUT_MS
+        ) {
+            throw new RangeError(
+                `grace period must be between 0 and ${MAX_STOP_TIMEOUT_MS} milliseconds`,
             );
         }
 

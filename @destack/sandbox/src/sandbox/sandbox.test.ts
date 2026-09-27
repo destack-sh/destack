@@ -8,6 +8,12 @@ import { once } from "node:events";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+/** The errors a denied read and a denied write report: Seatbelt refuses both, bubblewrap hides denied files and mounts allowed ones read-only. */
+const DENIED_FAILURES: Partial<Record<NodeJS.Platform, readonly string[]>> = {
+    darwin: ["EPERM", "EPERM"],
+    linux: ["ENOENT", "EROFS"],
+};
+
 test("isolate filesystem access, environment and child processes", async () => {
     const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-sandbox-")));
     const permitted = join(directory, "permitted.txt");
@@ -54,7 +60,7 @@ test("isolate filesystem access, environment and child processes", async () => {
         expect(await sandbox.exited, await error).toEqual({ code: 0, signal: null });
         expect(JSON.parse(await output)).toEqual({
             content: "permitted",
-            failures: ["EPERM", "EPERM"],
+            failures: DENIED_FAILURES[process.platform],
             childCode: 1,
             environment: "explicit",
             inherited: null,
@@ -291,7 +297,15 @@ test("stop the workload when its supervising client disconnects", async () => {
 
         // wait for the launcher to reap its workload and release the proxies
         expect(await closed, await errors).toEqual([0, null]);
-        expect(() => process.kill(pid, 0)).toThrowError(expect.objectContaining({ code: "ESRCH" }));
+
+        // find no process of ours under the pid; another user's process may already reuse it
+        let code: unknown;
+        try {
+            process.kill(pid, 0);
+        } catch (error) {
+            code = (error as NodeJS.ErrnoException).code;
+        }
+        expect(code).toSatisfy((value) => value === "ESRCH" || value === "EPERM");
     } finally {
         if (launcher.connected) {
             launcher.disconnect();
