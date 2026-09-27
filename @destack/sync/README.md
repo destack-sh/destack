@@ -44,7 +44,7 @@ A dataflow compiles queries to one pipeline per node and keeps them current as o
 Dataflow                      queries → pipelines, stepped per run
 ├── Relation[]                measures relations filters read, deepest first
 ├── Selection | Aggregation   rows or groups per node, roots first
-│   ├── Reach                 partitions ⇄ rows: root, key, junction, tree
+│   ├── Input                 partitions ⇄ rows: scan, key, junction, tree
 │   ├── Filter                computed values, condition, visibility
 │   └── Window | Tally        first rows of an order, or a group's measures
 ├── Sink                      rows by holder count, groups shown → Patch
@@ -77,6 +77,7 @@ for await (const result of feed.watch("board", board, signal)) {
 | `subscribers`, `capacity` | The most subscribers, and the most rows and groups one evaluation knows |
 | `changes` | The recent changes kept in memory, which subscribers read without the log |
 | `observe` | A callback receiving each run's cost, for telemetry and slow-run logs |
+| `heartbeat` | How long a caught-up stream waits before repeating its position, so copies know their source is alive |
 
 `feed.inspect()` describes how far the feed read, what it keeps, and each shared evaluation's dataflow.
 
@@ -111,13 +112,14 @@ const projects = await copy.rows(database, "board", board, outbox);
 | Verb | Effect |
 |---|---|
 | `follow`, `apply` | Copy pages into the database |
-| `reach` | Wait until a copy holds a position |
+| `reach`, `origins` | Wait until a copy reflects its home up to a position, and read the home position each copy reflects |
 | `rows` | Read a query's rows with their includes nested, local predictions included |
 | `results` | Read an aggregate query's groups with local predictions added |
 | `upstream` | Measure relations and aggregates through the source's groups, for a dataflow over the copy |
-| `inspect` | Describe the position, whether the tables keep the copied shape, and what the copy holds and stages |
+| `inspect` | Describe the position, the origin, whether the tables keep the copied shape, and what the copy holds and stages |
 
 A copy records the shape of its tables' logged columns; once a migration changes them, it snapshots again.
+A database relaying its copies serves each copy's record with the rows, so its followers record the home position they reflect as their `origin`.
 
 ## Outboxes
 
@@ -134,4 +136,4 @@ An outbox holds a SQLite client's mutations, predicted locally, until the source
 
 ## Storage
 
-A database holding copies includes `REPLICA_TABLES`, and a client with an outbox also includes `mutation`.
+A database holding or serving copies includes `REPLICA_TABLES` and feeds them, and a client with an outbox also includes `mutation`.

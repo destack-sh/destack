@@ -7,6 +7,7 @@ import {
     gte,
     integer,
     json,
+    inArray,
     Key,
     lt,
     primaryKey,
@@ -22,6 +23,7 @@ import {
 } from "@destack/db";
 import { Condition, Order, Scalar, CHAIN_TERMS } from "@destack/db/query";
 import { DatabaseError } from "@destack/db/error";
+import { SyncError } from "../error/error.ts";
 import { schema } from "@destack/schema";
 import { canonicalize } from "@destack/schema/json";
 import { describeLog, type LogPosition } from "@destack/db/log";
@@ -43,7 +45,11 @@ const STAGED_BATCH = 16;
 /** The held keys a snapshot's completion reads at once to find the rows it left out. */
 const PRUNE_BATCH = 1000;
 
-/** The copies of remote queries a database holds, and the source position each holds up to. */
+/**
+ * The copies of remote queries a database holds, the source position each holds up to, and the home position its rows reflect.
+ *
+ * The table is logged, so a database relaying its copies serves each copy's record with its rows, and followers learn the home position they reflect.
+ */
 export const replica = defineTable(
     "replica",
     {
@@ -55,14 +61,19 @@ export const replica = defineTable(
         epoch: text("epoch"),
         /** The source log sequence the copy holds up to within the epoch, absent until its first complete snapshot. */
         sequence: integer("sequence"),
+        /** The epoch of the home log the copied rows reflect, absent when the source is their home. */
+        originEpoch: text("origin_epoch"),
+        /** The home log sequence the copied rows reflect within its epoch, absent when the source is their home. */
+        originSequence: integer("origin_sequence"),
         /** The queries the copy holds, in its follower's terms, absent while it follows the whole scope. */
         queries: json("queries", schema.json()),
         /** The shape of the copied tables' logged columns the copy's rows have, absent until its first complete snapshot. */
         shape: text("shape"),
-        /** The time the copy last advanced, in UTC epoch milliseconds. */
-        updatedAt: integer("updated_at").notNull(),
+        /** The time the copied rows were last confirmed current with their home, in UTC epoch milliseconds. */
+        confirmedAt: integer("confirmed_at").notNull(),
     },
     {
+        log: {},
         constraints: (copy) => [
             primaryKey({ name: "replica_key", columns: [copy.name, copy.scope] }),
         ],
@@ -174,10 +185,14 @@ export class Replica {
         );
     }
 
-    /** The queries the copy holds: the rows of its scope in each table its conditions select, by table name. */
+    /**
+     * The queries the copy holds: the rows of its scope in each table its conditions select, by table name.
+     *
+     * They include the source's own record of a copy of the same name and scope, which a relaying source holds and a home does not.
+     */
     get queries(): Record<string, Query> {
-        return Object.fromEntries(
-            this.tables.map((table) => {
+        return Object.fromEntries([
+            ...this.tables.map((table) => {
                 const where = this.where.get(table);
 
                 return [
@@ -185,7 +200,11 @@ export class Replica {
                     { table, scopes: [this.scope], ...(where === undefined ? {} : { where }) },
                 ];
             }),
-        );
+            [
+                replica[TABLE].sqlName,
+                { table: replica, scopes: [this.scope], where: Condition.eq("name", this.name) },
+            ],
+        ]);
     }
 
     /** Report whether a database copies a scope instead of holding its source. */
@@ -199,7 +218,7 @@ export class Replica {
         return copy !== undefined;
     }
 
-    /** Wait until a scope is copied and every copy holds its source up to a position; false once the signal aborts. */
+    /** Wait until a scope is copied and every copy reflects its home up to a position; false once the signal aborts. */
     static async reach(
         database: DatabaseConnection,
         scope: string,
@@ -207,14 +226,12 @@ export class Replica {
         signal: AbortSignal,
     ): Promise<boolean> {
         return database.log.until(async () => {
-            // read every copy of the scope
-            const copies = await database
-                .select({ epoch: replica.epoch, sequence: replica.sequence })
-                .from(replica)
-                .where(eq(replica.scope, scope));
+            // read the home position every copy of the scope reflects
+            const records = await database.select().from(replica).where(eq(replica.scope, scope));
+            const copies = records.map((record) => recordOrigin(record));
 
-            // refuse a position of a history the source no longer holds
-            if (copies.some((copy) => copy.epoch !== null && copy.epoch > position.epoch)) {
+            // refuse a position of a history the home no longer holds
+            if (copies.some((copy) => copy !== undefined && copy.position.epoch > position.epoch)) {
                 throw new DatabaseError(
                     "STALE_EPOCH",
                     `${scope} started a new epoch after the position`,
@@ -225,27 +242,72 @@ export class Replica {
                 copies.length > 0 &&
                 copies.every(
                     (copy) =>
-                        copy.epoch === position.epoch &&
-                        copy.sequence !== null &&
-                        copy.sequence >= position.sequence,
+                        copy !== undefined &&
+                        copy.position.epoch === position.epoch &&
+                        copy.position.sequence >= position.sequence,
                 )
             );
         }, signal);
     }
 
+    /** Refuse relaying a copy of a scope before it holds a position, whose followers would mistake the relay for the home. */
+    static async requireRelayable(
+        database: DatabaseConnection,
+        name: string,
+        scope: string,
+    ): Promise<void> {
+        const [record] = await database
+            .select()
+            .from(replica)
+            .where(and(eq(replica.name, name), eq(replica.scope, scope)));
+        if (record !== undefined && recordOrigin(record) === undefined) {
+            throw new SyncError("STALE", `copy of ${scope} holds no position yet`);
+        }
+    }
+
+    /** Read the home position each complete copy of a name among some scopes reflects, and when its home last confirmed it, by scope. */
+    static async origins(
+        database: DatabaseConnection,
+        name: string,
+        scopes: readonly string[],
+    ): Promise<Map<string, Origin>> {
+        const records = await database
+            .select()
+            .from(replica)
+            .where(and(eq(replica.name, name), inArray(replica.scope, scopes)));
+
+        return new Map(
+            records.flatMap((record) => {
+                const origin = recordOrigin(record);
+
+                return origin === undefined ? [] : [[record.scope, origin]];
+            }),
+        );
+    }
+
     /** Read the position the copy holds its source up to, absent before its first complete snapshot and once its tables changed shape. */
     async position(database: DatabaseConnection): Promise<LogPosition | undefined> {
-        const [row] = await database
-            .select({ epoch: replica.epoch, sequence: replica.sequence, shape: replica.shape })
+        return this.#held(await this.#record(database));
+    }
+
+    /** Read the copy's record, absent before it registered. */
+    async #record(database: DatabaseConnection): Promise<typeof replica.$inferSelect | undefined> {
+        const [record] = await database
+            .select()
             .from(replica)
             .where(and(eq(replica.name, this.name), eq(replica.scope, this.scope)));
 
-        return row === undefined ||
-            row.epoch === null ||
-            row.sequence === null ||
-            row.shape !== this.#shape
+        return record;
+    }
+
+    /** Read the position a record holds its source up to, absent before its first complete snapshot and once its tables changed shape. */
+    #held(record: typeof replica.$inferSelect | undefined): LogPosition | undefined {
+        return record === undefined ||
+            record.epoch === null ||
+            record.sequence === null ||
+            record.shape !== this.#shape
             ? undefined
-            : { epoch: row.epoch, sequence: row.sequence };
+            : { epoch: record.epoch, sequence: record.sequence };
     }
 
     /**
@@ -259,9 +321,11 @@ export class Replica {
             .select({
                 epoch: replica.epoch,
                 sequence: replica.sequence,
+                originEpoch: replica.originEpoch,
+                originSequence: replica.originSequence,
                 queries: replica.queries,
                 shape: replica.shape,
-                updatedAt: replica.updatedAt,
+                confirmedAt: replica.confirmedAt,
             })
             .from(replica)
             .where(and(eq(replica.name, this.name), eq(replica.scope, this.scope)));
@@ -280,12 +344,15 @@ export class Replica {
             ...(row?.epoch === null || row?.sequence === null || row === undefined
                 ? {}
                 : { position: { epoch: row.epoch, sequence: row.sequence } }),
+            ...(row?.originEpoch === null || row?.originSequence === null || row === undefined
+                ? {}
+                : { origin: { epoch: row.originEpoch, sequence: row.originSequence } }),
             isShaped: row?.shape === this.#shape,
             queries:
                 typeof row?.queries === "object" && row.queries !== null
                     ? Object.keys(row.queries)
                     : [],
-            ...(row === undefined ? {} : { updatedAt: row.updatedAt }),
+            ...(row === undefined ? {} : { confirmedAt: row.confirmedAt }),
             staged: staged!.pages,
             results: results!.groups,
         };
@@ -461,7 +528,7 @@ export class Replica {
                 epoch: null,
                 sequence: null,
                 queries: null,
-                updatedAt: Date.now(),
+                confirmedAt: Date.now(),
             })
             .onConflictDoNothing();
     }
@@ -527,7 +594,8 @@ export class Replica {
         await database.transaction(
             async (transaction) => {
                 // require changes of the epoch the copy holds, which only a snapshot changes
-                const held = await this.position(transaction);
+                const record = await this.#record(transaction);
+                const held = this.#held(record);
                 if (!isSnapshot && held !== undefined && held.epoch !== page.position.epoch) {
                     throw new DatabaseError(
                         "STALE_EPOCH",
@@ -559,6 +627,7 @@ export class Replica {
                               this.tables.map((table) => [table[TABLE].sqlName, new Set<string>()]),
                           )
                         : undefined;
+                    let relayed: Origin | undefined;
                     for (let start = 0; start < staged; start += STAGED_BATCH) {
                         const batch = await transaction
                             .select({ page: replicaPage.page })
@@ -572,10 +641,14 @@ export class Replica {
                             )
                             .orderBy(asc(replicaPage.index));
                         for (const row of batch) {
-                            outcomes.push(...(await this.#write(transaction, row.page, delivered)));
+                            const written = await this.#write(transaction, row.page, delivered);
+                            outcomes.push(...written.outcomes);
+                            relayed = written.origin ?? relayed;
                         }
                     }
-                    outcomes.push(...(await this.#write(transaction, page, delivered)));
+                    const written = await this.#write(transaction, page, delivered);
+                    outcomes.push(...written.outcomes);
+                    relayed = written.origin ?? relayed;
 
                     // remove the rows a snapshot no longer holds, children before parents
                     if (delivered !== undefined) {
@@ -585,15 +658,34 @@ export class Replica {
                         }
                     }
 
+                    // take the home position the rows reflect: a relaying source's record, or the source's own position for a copy of its home
+                    const isHome =
+                        relayed === undefined && (isSnapshot || record?.originEpoch === null);
+                    const origin =
+                        relayed !== undefined
+                            ? {
+                                  originEpoch: relayed.position.epoch,
+                                  originSequence: relayed.position.sequence,
+                                  confirmedAt: relayed.confirmedAt,
+                              }
+                            : isHome
+                              ? { originEpoch: null, originSequence: null, confirmedAt: Date.now() }
+                              : {};
+
                     // record the position the copy now holds, and drop the staged pages
                     const advanced = {
                         ...page.position,
+                        ...origin,
                         shape: this.#shape,
-                        updatedAt: Date.now(),
                     };
                     await transaction
                         .insert(replica)
-                        .values({ name: this.name, scope: this.scope, ...advanced })
+                        .values({
+                            name: this.name,
+                            scope: this.scope,
+                            confirmedAt: record?.confirmedAt ?? Date.now(),
+                            ...advanced,
+                        })
                         .onConflictDoUpdate({
                             target: [replica.name, replica.scope],
                             set: advanced,
@@ -608,15 +700,35 @@ export class Replica {
         );
     }
 
-    /** Write a page's changes in the order the source committed them, noting a snapshot's keys, and return its outcomes. */
+    /**
+     * Write a page's changes in the order the source committed them, noting a snapshot's keys.
+     *
+     * Return its outcomes, and the home position a relaying source's record of its own copy names.
+     */
     async #write(
         transaction: DatabaseConnection,
         page: QueryPage,
         delivered: ReadonlyMap<string, Set<string>> | undefined,
-    ): Promise<readonly MutationOutcome[]> {
+    ): Promise<{ readonly outcomes: readonly MutationOutcome[]; readonly origin?: Origin }> {
         // write each table's held rows and removals in batches, since a page decides each row once
         const batches = new Map<Table, { held: Row[]; removed: Row[] }>();
+        let origin: Origin | undefined;
         for (const change of page.changes) {
+            // take the relaying source's record of its copy as the home position the rows reflect
+            if (change.table === replica[TABLE].sqlName) {
+                origin =
+                    change.operation === "delete"
+                        ? undefined
+                        : recordOrigin(
+                              decodeRow(replica, change.row) as typeof replica.$inferSelect,
+                          );
+                if (origin === undefined) {
+                    throw new DatabaseError("STALE_EPOCH", `source stopped copying ${this.scope}`);
+                }
+                continue;
+            }
+
+            // stage a copied row's change
             const table = this.#copied.get(change.table);
             if (!table) {
                 throw new TypeError(`page names a table outside the replica: ${change.table}`);
@@ -644,7 +756,7 @@ export class Replica {
             await this.#hold(transaction, result);
         }
 
-        return page.outcomes ?? [];
+        return { outcomes: page.outcomes ?? [], ...(origin === undefined ? {} : { origin }) };
     }
 
     /** Hold an aggregate group's new values, or let go of it, or of every group of its query. */
@@ -734,6 +846,22 @@ export class Replica {
             );
         } while (last !== undefined);
     }
+}
+
+/** Read the home position a copy's record reflects, absent before its first complete snapshot. */
+function recordOrigin(record: typeof replica.$inferSelect): Origin | undefined {
+    // skip a copy that holds no position yet
+    if (record.epoch === null || record.sequence === null) {
+        return undefined;
+    }
+
+    // take a relayed copy's origin, and the source position of a copy of its home
+    const position =
+        record.originEpoch === null || record.originSequence === null
+            ? { epoch: record.epoch, sequence: record.sequence }
+            : { epoch: record.originEpoch, sequence: record.originSequence };
+
+    return { position, confirmedAt: record.confirmedAt };
 }
 
 /** A group as a prediction changes it: its measures, its rows, and the parts of its averages. */
@@ -855,6 +983,14 @@ function requireCopyable(table: Table): void {
     }
 }
 
+/** The home position a copy's rows reflect, and when their home last confirmed them. */
+export interface Origin {
+    /** The home log position the rows reflect. */
+    readonly position: LogPosition;
+    /** When the home last confirmed the copied rows current, in UTC epoch milliseconds. */
+    readonly confirmedAt: number;
+}
+
 /** What a copy holds, as inspection reads it. */
 export interface ReplicaInspection {
     /** The copy's name. */
@@ -863,12 +999,14 @@ export interface ReplicaInspection {
     readonly scope: string;
     /** The source position it recorded, absent before its first complete snapshot. */
     readonly position?: LogPosition;
+    /** The home position its rows reflect, absent when the source is their home. */
+    readonly origin?: LogPosition;
     /** Whether its tables have the shape it copied, without which it snapshots again. */
     readonly isShaped: boolean;
     /** The names of the queries it holds. */
     readonly queries: readonly string[];
-    /** The time it last advanced, in UTC epoch milliseconds, absent before it registered. */
-    readonly updatedAt?: number;
+    /** The time its rows were last confirmed current with their home, in UTC epoch milliseconds, absent before it registered. */
+    readonly confirmedAt?: number;
     /** The pages it staged of a run in progress. */
     readonly staged: number;
     /** The aggregate groups it holds. */

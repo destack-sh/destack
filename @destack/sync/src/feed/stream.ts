@@ -122,8 +122,14 @@ export class Stream {
                     published = page.position.sequence;
                     yield page;
                 }
+
+                // wait for a commit, repeating the position once a heartbeat passes without one
                 if (sequence === position.sequence) {
-                    await this.#evaluation.wait(sequence, signal);
+                    const beat = AbortSignal.timeout(this.#feed.heartbeat);
+                    await this.#evaluation.wait(sequence, AbortSignal.any([signal, beat]));
+                    if (beat.aborted && !signal.aborted && sequence === published) {
+                        yield { reset: false, complete: true, changes: [], position };
+                    }
                 }
                 position = { epoch: position.epoch, sequence };
 

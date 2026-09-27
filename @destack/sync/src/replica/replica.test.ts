@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { asc, encodeRow, eq, TABLE } from "@destack/db";
 import { Feed } from "../feed/feed.ts";
-import { Replica } from "./replica.ts";
+import { Replica, replica } from "./replica.ts";
 import { asset, first, note, open, openCopy, project, replicate, task } from "../test/fixture.ts";
 import type { Query } from "../query/query.ts";
 import type { QueryPage } from "../query/page.ts";
@@ -12,7 +12,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const source = await open(dialect);
         const copy = await openCopy(dialect);
-        const feed = new Feed(source, [note]);
+        const feed = new Feed(source, [note, replica]);
         const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
         await source.insert(note).values([first, { ...first, id: "b", scope: "archive" }]);
         await copy.insert(note).values({ ...first, id: "stale" });
@@ -45,7 +45,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const source = await open(dialect);
         const copy = await openCopy(dialect);
-        const feed = new Feed(source, [project, task]);
+        const feed = new Feed(source, [project, task, replica]);
         const projects = new Replica({ name: "work", scope: "inbox", tables: [project] });
         await source.insert(project).values({ id: "p1", scope: "inbox", name: "Plan" });
 
@@ -172,7 +172,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const source = await open(dialect);
         const copy = await openCopy(dialect);
-        const feed = new Feed(source, [project, task]);
+        const feed = new Feed(source, [project, task, replica]);
         const projects = new Replica({ name: "projects", scope: "inbox", tables: [project, task] });
         const tasks = (projectId: string, state: string, rank: number) => ({
             id: `${projectId}-${state}-${rank}`,

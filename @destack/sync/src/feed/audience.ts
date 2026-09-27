@@ -12,7 +12,7 @@ export const EVERYONE: Audience = {
     concealable: () => [],
     conceals: async (_table, rows) => rows.map(() => []),
     dependents: async () => [],
-    expiry: async () => undefined,
+    until: async () => undefined,
     refresh: async () => {},
 };
 
@@ -40,8 +40,8 @@ export interface Audience {
         position: LogPosition,
     ): Promise<readonly (readonly string[])[]>;
     /** Read when the audience's decisions next change by time alone, absent when only changes decide them. */
-    expiry(): Promise<number | undefined>;
-    /** Decide as of now from here on, once the expiry passed. */
+    until(): Promise<number | undefined>;
+    /** Decide as of now from here on, once the moment `until` names passed. */
     refresh(): Promise<void>;
     /** List the rows a change decides visibility of beyond itself, or everything when it reaches too far to list. */
     dependents(change: Change): Promise<readonly RowKey[] | "everything">;

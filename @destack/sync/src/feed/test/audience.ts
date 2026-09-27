@@ -60,7 +60,7 @@ export class ConditionAudience implements Audience {
     }
 
     /** Decide the same at every time. */
-    async expiry() {
+    async until() {
         return undefined;
     }
 

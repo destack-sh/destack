@@ -14,7 +14,7 @@ import type { Feed } from "./feed.ts";
 /** The recent sequences whose decided pages an evaluation keeps for streams a step behind. */
 const DECIDED_RECENT = 4;
 
-/** The longest delay a timer holds, 2^31 - 1 milliseconds; a later expiry waits again. */
+/** The longest delay a timer holds, 2^31 - 1 milliseconds; a later moment waits again. */
 const LONGEST_DELAY = 2_147_483_647;
 
 /**
@@ -30,7 +30,7 @@ export class Evaluation {
     readonly #audience: Audience;
     /** The pages after each recent sequence, decided once for every stream sharing the evaluation. */
     readonly #decided = new Map<number, Promise<Advance>>();
-    /** The sequences whose decisions reached no further, which hold until the feed passes them or the expiry they saw passes. */
+    /** The sequences whose decisions reached no further, which hold until the feed passes them or the moment their decisions held until passes. */
     readonly #idle = new Map<number, number | undefined>();
     /** The queries' dataflow. */
     readonly #dataflow: Dataflow;
@@ -85,10 +85,10 @@ export class Evaluation {
         // reuse the pages decided after the position, unless they reached no further and the feed moved on since
         const sequence = position.sequence;
         const known = this.#decided.get(sequence);
-        const expiry = this.#idle.get(sequence);
+        const until = this.#idle.get(sequence);
         const isStale =
             this.#idle.has(sequence) &&
-            (this.#feed.sequence > sequence || (expiry !== undefined && expiry <= Date.now()));
+            (this.#feed.sequence > sequence || (until !== undefined && until <= Date.now()));
         if (known !== undefined && !isStale) {
             return known;
         } else if (!isSame(this.position, position)) {
@@ -107,7 +107,7 @@ export class Evaluation {
             (result) => {
                 // note decisions that reached no further, which a later write replaces
                 if (result.sequence === sequence && this.#decided.get(sequence) === decided) {
-                    this.#idle.set(sequence, result.expiry);
+                    this.#idle.set(sequence, result.until);
                 }
             },
             () => this.#decided.delete(sequence),
@@ -119,16 +119,16 @@ export class Evaluation {
     /** Wait until the feed passes a sequence, or the audience's decisions expire, or the signal aborts. */
     async wait(sequence: number, signal: AbortSignal): Promise<void> {
         // wait for the feed alone while decisions never expire
-        const expiry = await this.#audience.expiry();
-        if (expiry === undefined) {
+        const until = await this.#audience.until();
+        if (until === undefined) {
             return this.#feed.next(sequence, signal);
         }
 
-        // wake at the expiry too
+        // wake at that moment too
         const expired = new AbortController();
         const timer = setTimeout(
             () => expired.abort(),
-            Math.min(expiry - Date.now(), LONGEST_DELAY),
+            Math.min(until - Date.now(), LONGEST_DELAY),
         );
         try {
             await this.#feed.next(sequence, AbortSignal.any([signal, expired.signal]));
@@ -280,12 +280,12 @@ export class Evaluation {
         }
 
         // decide again as of now once the audience's decisions expired
-        const expiry = await this.#audience.expiry();
-        if (expiry !== undefined && expiry <= Date.now()) {
+        const until = await this.#audience.until();
+        if (until !== undefined && until <= Date.now()) {
             pages.push(await this.refresh({ epoch: position.epoch, sequence: next.value }));
         }
 
-        return { pages, sequence: next.value, expiry: await this.#audience.expiry() };
+        return { pages, sequence: next.value, until: await this.#audience.until() };
     }
 
     /** Show the feed's database as of a position. */
@@ -301,7 +301,7 @@ export interface Advance {
     /** The sequence the pages reach. */
     readonly sequence: number;
     /** When the audience's decisions expire, absent when they never do. */
-    readonly expiry: number | undefined;
+    readonly until: number | undefined;
 }
 
 /** A reason a stream starts over with a snapshot: access changed beyond what its pages follow. */

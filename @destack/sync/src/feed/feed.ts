@@ -39,6 +39,14 @@ const CAPACITY = 100_000;
 /** The recent log sequences whose row reads subscribers share. */
 const SHARED_READS = 8;
 
+/**
+ * How long a caught-up stream waits for a commit before repeating its position, by default, in milliseconds.
+ *
+ * Each repeated position confirms a copy current with its source, and a copy three beats unconfirmed, 30 seconds, is stale.
+ * A beat costs one empty page per stream, about a microsecond of work every ten seconds.
+ */
+const HEARTBEAT_MILLISECONDS = 10_000;
+
 /** One database's log, read once per commit and served to every subscriber of its queries. */
 export class Feed implements Cache {
     /** The database whose log the feed reads. */
@@ -53,6 +61,8 @@ export class Feed implements Cache {
     readonly #memory: number;
     /** Report each evaluation run's cost, absent when nothing observes the feed. */
     readonly observe: ((cost: RunCost) => void) | undefined;
+    /** How long a caught-up stream waits for a commit before repeating its position, in milliseconds. */
+    readonly heartbeat: number;
     /** What a copy knows of its source, absent for a source database, whose own rows measure relations. */
     readonly upstream: Upstream | undefined;
     /** The recent changes in commit order. */
@@ -88,6 +98,7 @@ export class Feed implements Cache {
             readonly changes?: number;
             readonly upstream?: Upstream;
             readonly observe?: (cost: RunCost) => void;
+            readonly heartbeat?: number;
         } = {},
     ) {
         // serve the logged tables within the limits, with their tree indexes unless the database is a copy
@@ -105,6 +116,7 @@ export class Feed implements Cache {
         this.capacity = options.capacity ?? CAPACITY;
         this.#memory = options.changes ?? FEED_CHANGES;
         this.observe = options.observe;
+        this.heartbeat = options.heartbeat ?? HEARTBEAT_MILLISECONDS;
     }
 
     /** Describe the feed for inspection: how far it read, what it keeps, whom it serves, and each shared evaluation's dataflow. */
