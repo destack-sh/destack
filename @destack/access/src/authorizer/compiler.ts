@@ -4,7 +4,7 @@ import { AccessError } from "../error/index.ts";
 import { objectKey, type ObjectReference, type PermissionReference } from "../policy/policy.ts";
 import type { AccessExpression } from "../policy/expression.ts";
 import { subjectKey, type RelationDefinition } from "../policy/subject.ts";
-import type { AccessContext } from "../context/context.ts";
+import { requireAttribute, type AccessContext } from "../context/context.ts";
 import { Restriction } from "../context/restriction.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship, type RelationshipColumnMap } from "../relationship/table.ts";
@@ -89,15 +89,6 @@ export class Compiler {
             isOwn
                 ? this.#permission(permission, mapping, row, compilation)
                 : this.#bound(permission, mapping, row, compilation),
-        );
-    }
-
-    /** Match the object if the caller holds, on it or above it, a role granting everything, as its owners do. */
-    owns(target: ObjectReference, access: Access): SQL {
-        return this.#target(target, access, (mapping, row, compilation) =>
-            binding(access.universal(), compilation, (relationship) =>
-                this.#covers(relationship, mapping, row, compilation),
-            ),
         );
     }
 
@@ -521,20 +512,6 @@ function bindAttributes(
             );
         },
         column: (name) => column(source, mapping.attributes[name]!),
-        parameter: (name) => {
-            // require a present, finite request attribute, without inventing missing values
-            const value = context.attributes[name];
-            if (
-                !Object.hasOwn(context.attributes, name) ||
-                (typeof value === "number" && !Number.isFinite(value))
-            ) {
-                throw new AccessError(
-                    "INVALID_CONTEXT",
-                    `missing or invalid context attribute: ${name}`,
-                );
-            }
-
-            return value!;
-        },
+        parameter: (name) => requireAttribute(context, name),
     };
 }

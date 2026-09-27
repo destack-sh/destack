@@ -85,7 +85,11 @@ const mappings: TableMapping[] = [
         relations: {
             parent: {
                 column: "parentId",
-                subject: { packageId: "parentPackageId", type: "parentType", scope: "scope" },
+                subject: {
+                    packageId: "parentPackageId",
+                    type: "parentType",
+                    scope: "scope",
+                },
             },
         },
     },

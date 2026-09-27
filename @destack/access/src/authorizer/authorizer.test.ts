@@ -1,17 +1,22 @@
 import { expect, test } from "@destack/test";
+import { Snapshot } from "@destack/db/log";
 import { eq, type DatabaseConnection } from "@destack/db";
 import { identifier } from "@destack/schema";
+import { Condition } from "@destack/db/query";
 import {
+    AccessError,
     accessRelationship,
     Authorization,
     Authorizer,
     Capability,
+    condition,
     Policy,
     principal,
+    relation,
     type AccessContext,
     type RelationshipCondition,
 } from "../index.ts";
-import { cell, entity, item, mappings, node, policies, rows } from "../test/fixture.ts";
+import { cell, entity, item, mappings, module4, node, policies, rows } from "../test/fixture.ts";
 import { openFixture, userSubject } from "../test/database.ts";
 
 /** Provide an isolated database with notes and an explicit editor grant. */
@@ -51,7 +56,7 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
             .where(
                 query.where(
                     node.permission("edit"),
-                    await query.resolve(database, "personal", bob),
+                    await query.resolve(Snapshot.live(database), "personal", bob),
                 ),
             )
             .orderBy(item.id),
@@ -94,7 +99,7 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
             .where(
                 authorizer.where(
                     type.permission("edit"),
-                    await authorizer.resolve(database, "personal", context),
+                    await authorizer.resolve(Snapshot.live(database), "personal", context),
                 ),
             )
             .orderBy(item.id);
@@ -113,7 +118,7 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
             .where(
                 authorizer.where(
                     entity.permission("edit"),
-                    await authorizer.resolve(database, "personal", stale),
+                    await authorizer.resolve(Snapshot.live(database), "personal", stale),
                 ),
             ),
     ).toEqual([]);
@@ -145,7 +150,7 @@ databaseTest(
                     .where(
                         authorizer.where(
                             node.permission("read"),
-                            await authorizer.resolve(database, "personal", context),
+                            await authorizer.resolve(Snapshot.live(database), "personal", context),
                         ),
                     ),
             ).toEqual(expected);
@@ -157,7 +162,10 @@ databaseTest(
         });
 
         // let anyone presenting the link edit the subtree until it expires
-        const visitor = { ...anonymous, capabilities: [await Capability.digest(shared.secret)] };
+        const visitor = {
+            ...anonymous,
+            capabilities: [await Capability.digest(shared.secret)],
+        };
         await expectEditable(database, authorizer, node, visitor, ["b", "c"]);
         await expectEditable(database, authorizer, node, { ...visitor, now: 2000 }, []);
         const stranger = {
@@ -189,7 +197,10 @@ databaseTest(
                 relation: "editor",
                 subject: userSubject("bob"),
             }),
-        ).rejects.toMatchObject({ code: "CONFLICT", message: "relationship already exists" });
+        ).rejects.toMatchObject({
+            code: "CONFLICT",
+            message: "relationship already exists",
+        });
     },
 );
 
@@ -264,7 +275,10 @@ databaseTest(
                 { object: node.reference("personal", "c") },
                 { limit: 10 },
             ),
-        ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: share" });
+        ).rejects.toMatchObject({
+            code: "FORBIDDEN",
+            message: "permission denied: share",
+        });
         await new Authorization(authorizer, database, () => alice).accept(
             asked.relationship.object,
             asked.id,
@@ -273,15 +287,24 @@ databaseTest(
 
         // offer access to an email address and bind it to whoever proves it
         const offered = await new Authorization(authorizer, database, () => alice).propose({
-            relationship: { object: node.reference("personal", "a"), relation: "editor" },
+            relationship: {
+                object: node.reference("personal", "a"),
+                relation: "editor",
+            },
             recipient: "email:carol@example.com",
         });
         await expect(
             new Authorization(authorizer, database, () => dave).propose({
-                relationship: { object: node.reference("personal", "a"), relation: "editor" },
+                relationship: {
+                    object: node.reference("personal", "a"),
+                    relation: "editor",
+                },
                 recipient: "email:dave@example.com",
             }),
-        ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: share" });
+        ).rejects.toMatchObject({
+            code: "FORBIDDEN",
+            message: "permission denied: share",
+        });
         await expect(
             new Authorization(authorizer, database, () => dave).accept(
                 offered.relationship.object,
@@ -385,14 +408,23 @@ databaseTest(
         await grant({ assurance: 2, maxAge: 300 });
         expect(await readable(carol)).toEqual([]);
         expect(
-            await readable({ ...carol, assurance: { level: 1, authenticatedAt: 1000 } }),
+            await readable({
+                ...carol,
+                assurance: { level: 1, authenticatedAt: 1000 },
+            }),
         ).toEqual([]);
-        expect(await readable({ ...carol, assurance: { level: 2, authenticatedAt: 800 } })).toEqual(
-            ["c"],
-        );
-        expect(await readable({ ...carol, assurance: { level: 3, authenticatedAt: 600 } })).toEqual(
-            [],
-        );
+        expect(
+            await readable({
+                ...carol,
+                assurance: { level: 2, authenticatedAt: 800 },
+            }),
+        ).toEqual(["c"]);
+        expect(
+            await readable({
+                ...carol,
+                assurance: { level: 3, authenticatedAt: 600 },
+            }),
+        ).toEqual([]);
 
         // remove the consumed request grant
         expect(
@@ -441,14 +473,20 @@ databaseTest("constrain delegated access and credential selections", async ({ fi
             ...lending,
             subject: { ...userSubject("carol"), relation: "member" },
         }),
-    ).rejects.toMatchObject({ code: "FORBIDDEN", message: "a delegate must be one principal" });
+    ).rejects.toMatchObject({
+        code: "FORBIDDEN",
+        message: "a delegate must be one principal",
+    });
     await expect(
         new Authorization(authorizer, database, () => bob).grant({
             ...lending,
             object: node.reference("personal", "b"),
             conditions: { onBehalfOf: bob.subjects[0]! },
         }),
-    ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: share" });
+    ).rejects.toMatchObject({
+        code: "FORBIDDEN",
+        message: "permission denied: share",
+    });
     await new Authorization(authorizer, database, () => alice).grant(lending);
     await expectEditable(database, authorizer, node, delegated, ["b"]);
 
@@ -464,7 +502,10 @@ databaseTest("constrain delegated access and credential selections", async ({ fi
         database,
         authorizer,
         node,
-        { ...impersonated, delegates: [...impersonated.delegates!, ...delegated.delegates!] },
+        {
+            ...impersonated,
+            delegates: [...impersonated.delegates!, ...delegated.delegates!],
+        },
         ["b"],
     );
     await expectEditable(database, authorizer, node, { ...delegated, now: 2000 }, []);
@@ -475,7 +516,7 @@ databaseTest("constrain delegated access and credential selections", async ({ fi
             .where(
                 authorizer.where(
                     node.permission("edit"),
-                    await authorizer.resolve(database, "personal", delegated),
+                    await authorizer.resolve(Snapshot.live(database), "personal", delegated),
                 ),
             ),
     ).toEqual([{ id: "b" }]);
@@ -486,7 +527,7 @@ databaseTest("constrain delegated access and credential selections", async ({ fi
             .where(
                 authorizer.where(
                     node.permission("share"),
-                    await authorizer.resolve(database, "personal", delegated),
+                    await authorizer.resolve(Snapshot.live(database), "personal", delegated),
                 ),
             ),
     ).toEqual([]);
@@ -497,7 +538,7 @@ databaseTest("constrain delegated access and credential selections", async ({ fi
             .where(
                 authorizer.where(
                     node.permission("edit"),
-                    await authorizer.resolve(database, "personal", {
+                    await authorizer.resolve(Snapshot.live(database), "personal", {
                         ...delegated,
                         now: 2000,
                     }),
@@ -562,11 +603,21 @@ databaseTest("evaluate more rows than one query may bind", async ({ fixture }) =
         ...rows[position % 3]!,
         id: `copy-${position}`,
     }));
-    const access = await authorizer.resolve(database, "personal", {
+    const access = await authorizer.resolve(Snapshot.live(database), "personal", {
         ...alice,
-        attributes: { "first-row": 1, "last-row": 3, "first-column": 1, "last-column": 1 },
+        attributes: {
+            "first-row": 1,
+            "last-row": 3,
+            "first-column": 1,
+            "last-column": 1,
+        },
     });
-    const permitted = await authorizer.checkRows(database, cell.permission("edit"), access, copies);
+    const permitted = await authorizer.checkRows(
+        Snapshot.live(database),
+        cell.permission("edit"),
+        access,
+        copies,
+    );
 
     // permit editing every copy of the two unlocked cells alice owns, which only statements decide
     expect(permitted.held.size).toBe(copies.filter((copy) => copy.locked === 0).length);
@@ -585,7 +636,7 @@ async function readableNodes(
             .where(
                 authorizer.where(
                     node.permission("read"),
-                    await authorizer.resolve(database, "personal", context),
+                    await authorizer.resolve(Snapshot.live(database), "personal", context),
                 ),
             )
             .orderBy(item.id)
@@ -608,9 +659,23 @@ async function expectEditable(
         .where(
             authorizer.where(
                 type.permission("edit"),
-                await authorizer.resolve(database, "personal", context),
+                await authorizer.resolve(Snapshot.live(database), "personal", context),
             ),
         )
         .orderBy(item.id);
     expect(selected.map((row) => row.id)).toEqual(expected);
 }
+
+test("refuse policy conditions that follow relations when registering them", () => {
+    // decide one permission by a condition over a relation, which only grants and roles express
+    const fenced = new Policy(module4.package, {
+        name: "fenced",
+        relations: { owner: { subjects: [principal.user] } },
+        permissions: { read: relation("owner"), edit: condition(Condition.exists("owner")) },
+    });
+
+    // refuse it before any decision reads it
+    expect(() => new Authorizer([fenced], [])).toThrow(
+        new AccessError("INVALID_DECLARATION", "policy conditions follow no relations: owner"),
+    );
+});

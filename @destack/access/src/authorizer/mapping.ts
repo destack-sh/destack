@@ -1,14 +1,6 @@
-import {
-    jsonElements,
-    sql,
-    Statement,
-    TABLE,
-    type SQL,
-    type SQLWrapper,
-    type Table,
-} from "@destack/db";
+import { sql, TABLE, type SQL, type SQLWrapper, type Table } from "@destack/db";
 import type { Tree } from "@destack/db/tree";
-import type { SetRow } from "./access.ts";
+import type { Snapshot } from "@destack/db/log";
 import { AccessError } from "../error/index.ts";
 import type { Policy } from "../policy/policy.ts";
 import type { SubjectType } from "../policy/subject.ts";
@@ -39,7 +31,9 @@ export interface TableMapping {
                 /** The scope of every subject the column holds; the object's own scope when absent. */
                 readonly scope?: string;
                 /** The columns naming the subject's type, scope and relation, for relations accepting several subject types; objects need no relation column. */
-                readonly subject?: Omit<ReferenceColumns, "id"> & { readonly relation?: string };
+                readonly subject?: Omit<ReferenceColumns, "id"> & {
+                    readonly relation?: string;
+                };
                 /** Whether the column holds whole subject keys of any type, as `subjectKey` writes them. */
                 readonly isKey?: true;
             }
@@ -55,7 +49,7 @@ export interface TableMapping {
 
 /** Where a policy's objects live: reading their rows and scopes, and validating a mapping against its policy. */
 export const TableMapping = {
-    rows,
+    read,
     scope,
     scopeColumn,
     validate,
@@ -84,8 +78,6 @@ export interface FieldRelation {
     readonly field: TableMapping["relations"][string];
     /** The subject type the field holds. */
     readonly subject: SubjectType;
-    /** Read the sets the field makes a JSON list of subjects members of. */
-    readonly sets: Statement<Pick<SetRow, "packageId" | "type" | "scope" | "id">>;
 }
 
 /** Check mapped columns against their declared attribute and relation types. */
@@ -185,16 +177,25 @@ function freeze(mapping: TableMapping): TableMapping {
     });
 }
 
-/** Build the read of rows of a mapped type by a JSON list of identifiers in a scope, of the type where the table is shared. */
-function rows(mapping: TableMapping): Statement {
-    const table = mapping.table;
+/** Read rows of a mapped type in a scope by identifier as a snapshot shows them, of the type where the table is shared. */
+async function read(
+    snapshot: Snapshot,
+    mapping: TableMapping,
+    within: string,
+    ids: readonly string[],
+): Promise<Record<string, unknown>[]> {
     const definition = mapping.policy.definition;
+    const rows = await snapshot.select(
+        mapping.table,
+        [mapping.id],
+        ids.map((id) => [id]),
+    );
 
-    return new Statement(
-        (value) => sql`SELECT ${columnsOf(table)} FROM ${jsonElements(value("ids"), "listed_row")}
-            JOIN ${from(table)} ON ${column(table, mapping.id)} = listed_row.value ->> 0
-            WHERE ${mapping.scope === undefined ? sql`true` : sql`${column(table, mapping.scope)} = ${value("scope")}`}
-                ${mapping.isShared ? sql`AND ${column(table, "packageId")} = ${definition.packageId} AND ${column(table, "type")} = ${definition.name}` : sql``}`,
+    return rows.filter(
+        (row) =>
+            scope(mapping, row) === within &&
+            (!mapping.isShared ||
+                (row.packageId === definition.packageId && row.type === definition.name)),
     );
 }
 

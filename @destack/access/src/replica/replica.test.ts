@@ -1,4 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
+import { Snapshot } from "@destack/db/log";
 import { asc, type DatabaseConnection } from "@destack/db";
 import { Feed, Replica } from "@destack/sync";
 import {
@@ -110,7 +111,7 @@ test("relay an account's access through the space's database into an app's, and 
                 .where(
                     notes.where(
                         node.permission("read"),
-                        await notes.resolve(app.database, "personal", context),
+                        await notes.resolve(Snapshot.live(app.database), "personal", context),
                     ),
                 )
                 .orderBy(asc(item.id))
@@ -122,7 +123,9 @@ test("relay an account's access through the space's database into an app's, and 
     const revoked = await global.database.log.position();
     const impatient = new Authorizer(policies, mappings, { lag: 50 });
     await new Promise((resolve) => setTimeout(resolve, 60));
-    await expect(impatient.resolve(app.database, "personal", carol)).rejects.toMatchObject({
+    await expect(
+        impatient.resolve(Snapshot.live(app.database), "personal", carol),
+    ).rejects.toMatchObject({
         code: "STALE",
     });
 

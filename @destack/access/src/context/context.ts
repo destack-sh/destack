@@ -1,4 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
+import type { Scalar } from "@destack/db/query";
 import { AccessError } from "../error/index.ts";
 import { sameSubject, Subject } from "../policy/subject.ts";
 import type { Restriction } from "./restriction.ts";
@@ -121,4 +122,17 @@ export function verifiedIdentifiers(context: AccessContext): readonly string[] {
     const isLent = context.delegates?.some((delegate) => delegate.authority === "lent") ?? false;
 
     return isLent ? [] : (context.identifiers ?? []);
+}
+
+/** Read the request attribute a policy condition names, refusing a missing or non-finite one rather than inventing it. */
+export function requireAttribute(context: AccessContext, name: string): Scalar {
+    const value = context.attributes[name];
+    if (
+        !Object.hasOwn(context.attributes, name) ||
+        (typeof value === "number" && !Number.isFinite(value))
+    ) {
+        throw new AccessError("INVALID_CONTEXT", `missing or invalid context attribute: ${name}`);
+    }
+
+    return value!;
 }

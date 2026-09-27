@@ -1,5 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { and, asc, eq } from "@destack/db";
+import { Snapshot } from "@destack/db/log";
+import { and, asc, eq, sql } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import {
     Relationship,
@@ -14,8 +15,19 @@ import {
     type RelationshipCondition,
     type Subject,
 } from "../index.ts";
-import { cell, group, item, mappings, node, policies, team, teamTable } from "../test/fixture.ts";
+import {
+    cell,
+    entity,
+    group,
+    item,
+    mappings,
+    node,
+    policies,
+    team,
+    teamTable,
+} from "../test/fixture.ts";
 import { openFixture } from "../test/database.ts";
+import { GrantTree } from "./grant.ts";
 
 /** The number of random access models each dialect checks. */
 const MODELS = 6;
@@ -45,11 +57,12 @@ function lifetime(createdAt: number, expiresAt: number | null) {
 }
 
 test.for(TEST_DIALECTS)(
-    "admit exactly the callers the permission queries admit, for random access models on %s",
+    "decide in memory exactly as the permission queries do, every expression kind, for random access models on %s",
     async (dialect) => {
         const fixture = await openFixture(dialect);
         onTestFinished(() => fixture.close());
         const { database } = fixture;
+        const snapshot = Snapshot.live(database);
 
         // cover roles on ancestors through the tree, as well as without it
         const authorizers = [
@@ -62,7 +75,7 @@ test.for(TEST_DIALECTS)(
             ),
         ];
 
-        // define a role reading and editing nodes in the scope
+        // define a role reading and editing nodes in the scope, and reading cells, which it grants on nodes across types
         const roleId = "role-01996ab0-0000-7000-8000-000000000101";
         await database.insert(accessRole).values({
             id: roleId,
@@ -72,12 +85,13 @@ test.for(TEST_DIALECTS)(
             name: "editor",
             description: "Edits nodes",
         } as never);
-        for (const [position, name] of (["read", "edit"] as const).entries()) {
+        const granted = [node.permission("read"), node.permission("edit"), cell.permission("read")];
+        for (const [position, permission] of granted.entries()) {
             await database.insert(accessRolePermission).values({
                 id: `role-permission-01996ab0-0000-7000-8000-00000000020${position}`,
                 roleId,
                 scope: "personal",
-                ...node.permission(name),
+                ...permission,
             } as never);
         }
         await database.insert(teamTable).values({ id: "t1", scope: "personal", member: "bob" });
@@ -103,18 +117,28 @@ test.for(TEST_DIALECTS)(
             { onBehalfOf: user("bob") },
         ];
 
+        // call with the request attributes the policies' conditions read
+        const attributes = {
+            "first-row": 1,
+            "last-row": 2,
+            "first-column": 1,
+            "last-column": 2,
+            team: 1,
+            phase: "edit",
+        };
+
         // call as users, members, anonymous callers, presenters of capabilities and delegates
         const agent = principal.installation.reference("personal", "agent");
         const contexts: AccessContext[] = [
-            { subjects: [user("alice")], now: NOW, attributes: {} },
-            { subjects: [user("bob")], now: NOW, attributes: {} },
-            { subjects: [user("carol")], now: NOW, attributes: {} },
-            { subjects: [], now: NOW, attributes: {} },
-            { subjects: [], now: NOW, attributes: {}, capabilities: ["c".repeat(64)] },
+            { subjects: [user("alice")], now: NOW, attributes },
+            { subjects: [user("bob")], now: NOW, attributes },
+            { subjects: [user("carol")], now: NOW, attributes },
+            { subjects: [], now: NOW, attributes },
+            { subjects: [], now: NOW, attributes, capabilities: ["c".repeat(64)] },
             {
                 subjects: [user("bob")],
                 now: NOW,
-                attributes: {},
+                attributes,
                 assurance: { level: 2, authenticatedAt: NOW - 50 },
                 request: "request-1",
                 session: "session-1",
@@ -124,12 +148,12 @@ test.for(TEST_DIALECTS)(
                 subject: user("bob"),
                 delegates: [{ subject: agent, authority: "lent" }],
                 now: NOW,
-                attributes: {},
+                attributes,
             },
             {
                 subjects: [user("bob")],
                 now: NOW,
-                attributes: {},
+                attributes,
                 permissions: [{ ...node.permission("read"), scope: "personal", objectId: "b" }],
             },
         ];
@@ -138,6 +162,8 @@ test.for(TEST_DIALECTS)(
                 node.permission(name),
             ),
             cell.permission("read"),
+            cell.permission("edit"),
+            entity.permission("edit"),
         ];
 
         // compare each random model's grants with the permission queries, counting the admissions
@@ -187,13 +213,13 @@ test.for(TEST_DIALECTS)(
             for (const authorizer of authorizers) {
                 await Promise.all(
                     contexts.map(async (context) => {
-                        const access = await authorizer.resolve(database, "personal", context);
+                        const access = await authorizer.resolve(snapshot, "personal", context);
                         const rows = await database
                             .select()
                             .from(item)
                             .where(eq(item.scope, "personal"))
                             .orderBy(asc(item.id));
-                        const reader = authorizer.reader(database, access.scopes);
+                        const reader = authorizer.reader(snapshot, access.scopes);
                         for (const permission of permissions) {
                             const queried = (
                                 await database
@@ -202,12 +228,17 @@ test.for(TEST_DIALECTS)(
                                     .where(authorizer.where(permission, access))
                                     .orderBy(asc(item.id))
                             ).map((row) => row.id);
-                            const grants = await reader.read(permission, rows);
+                            const { held } = await authorizer.checkRows(
+                                snapshot,
+                                permission,
+                                access,
+                                rows,
+                                reader,
+                            );
                             const admitted = rows
-                                .filter((row, position) =>
-                                    authorizer.admits(permission, row, grants[position]!, access),
-                                )
+                                .filter((_row, position) => held.has(position))
                                 .map((row) => row.id);
+
                             admissions += admitted.length;
                             expect({ model, context, permission, admitted }).toEqual({
                                 model,
@@ -222,7 +253,7 @@ test.for(TEST_DIALECTS)(
                                 for (const row of rows) {
                                     const target = node.reference("personal", row.id);
                                     const decision = await authorizer.check(
-                                        database,
+                                        snapshot,
                                         permission,
                                         target,
                                         access,
@@ -232,11 +263,37 @@ test.for(TEST_DIALECTS)(
                                         decided.push(row.id);
                                     }
 
+                                    // decide a permission of another type, which roles bound on or above the node grant, as the object query does
+                                    const across = cell.permission("read");
+                                    const crossed = await authorizer.check(
+                                        snapshot,
+                                        across,
+                                        target,
+                                        access,
+                                        reader,
+                                    );
+                                    const [holding] = await database.execute<{
+                                        held: number | string;
+                                    }>(
+                                        sql`SELECT CASE WHEN ${authorizer.holds(across, target, access)} THEN 1 ELSE 0 END AS held`,
+                                    );
+                                    expect({
+                                        model,
+                                        context,
+                                        row: row.id,
+                                        across: crossed.isAllowed,
+                                    }).toEqual({
+                                        model,
+                                        context,
+                                        row: row.id,
+                                        across: Number(holding!.held) === 1,
+                                    });
+
                                     // hold each decision until the moment it names, as the query decides it just before then
                                     if (decision.until !== undefined) {
                                         const before = { ...context, now: decision.until - 1 };
                                         const later = await authorizer.resolve(
-                                            database,
+                                            snapshot,
                                             "personal",
                                             before,
                                         );
@@ -282,18 +339,22 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-test("decide intersections and comparisons by statement, reading their grants for when they change", async () => {
+test("read an intersection's grants as the superset its decisions change with", async () => {
     const fixture = await openFixture();
     onTestFinished(() => fixture.close());
 
     // read the owner each cell's edit permission reaches, which grants alone cannot decide
     const { database, authorizer } = fixture;
     const rows = await database.select().from(item).orderBy(asc(item.id));
-    const grants = await authorizer.reader(database, []).read(cell.permission("edit"), rows);
-    expect([
-        authorizer.isIndexable(cell.permission("edit")),
-        grants.map((entries) => entries.map((grant) => grant.subject.id)),
-    ]).toEqual([false, [["alice"], ["alice"], ["alice"], ["alice"]]]);
+    const trees = await authorizer
+        .reader(Snapshot.live(database), [])
+        .trees(cell.permission("edit"), rows);
+    expect(trees.map((tree) => GrantTree.flatten(tree).map((grant) => grant.subject.id))).toEqual([
+        ["alice"],
+        ["alice"],
+        ["alice"],
+        ["alice"],
+    ]);
 });
 
 test("explain which grants admit a caller and why the others fail", async () => {
@@ -320,9 +381,9 @@ test("explain which grants admit a caller and why the others fail", async () => 
 
     // explain reading the node for a visitor without and with the capability
     const explain = async (context: AccessContext) => {
-        const access = await authorizer.resolve(database, "personal", context);
+        const access = await authorizer.resolve(Snapshot.live(database), "personal", context);
         const explanation = await authorizer.explain(
-            database,
+            Snapshot.live(database),
             node.permission("read"),
             node.reference("personal", "c"),
             access,

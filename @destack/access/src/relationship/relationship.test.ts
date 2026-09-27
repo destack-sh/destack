@@ -1,4 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
+import { Snapshot } from "@destack/db/log";
 import { asc } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import {
@@ -30,7 +31,11 @@ test.for(TEST_DIALECTS)(
 
         // list the relationships each caller may read
         const visible = async (context: AccessContext) => {
-            const access = await authorizer.resolve(fixture.database, "personal", context);
+            const access = await authorizer.resolve(
+                Snapshot.live(fixture.database),
+                "personal",
+                context,
+            );
             const rows = await fixture.database
                 .select({
                     objectId: accessRelationship.objectId,
@@ -75,7 +80,11 @@ test.for(TEST_DIALECTS)(
 
         // list the proposals each caller may read, by proposer and addressee
         const visible = async (context: AccessContext) => {
-            const access = await authorizer.resolve(fixture.database, "personal", context);
+            const access = await authorizer.resolve(
+                Snapshot.live(fixture.database),
+                "personal",
+                context,
+            );
             const rows = await fixture.database
                 .select({
                     proposer: accessProposal.proposerKey,

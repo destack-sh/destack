@@ -1,20 +1,14 @@
 import {
-    alias,
     and,
-    asc,
     eq,
-    gt,
-    jsonElements,
     or,
-    PARAMETER_BUDGET,
     sql,
-    Statement,
-    TABLE,
     type DatabaseConnection,
     type SQL,
     type Table,
 } from "@destack/db";
 import { Condition } from "@destack/db/query";
+import { Snapshot } from "@destack/db/log";
 import type { PackageId } from "@destack/package";
 import { identifier } from "@destack/schema";
 import { Replica, type Watch } from "@destack/sync";
@@ -36,16 +30,16 @@ import {
 } from "../policy/subject.ts";
 import { INTRINSIC_POLICIES } from "../policy/principal.ts";
 import { GLOBAL_SCOPE, type AccessContext } from "../context/context.ts";
-import { accessRelationship } from "../relationship/table.ts";
+import { accessRelationship, type RelationshipRow } from "../relationship/table.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRole } from "../role/table.ts";
 import { accessScope } from "../scope/table.ts";
 import { ACCESS_TABLES, COPY_NAME, DECISION_TABLES } from "../replica/replica.ts";
-import { earliest, Access, type SetRow } from "./access.ts";
+import { earliest, Access } from "./access.ts";
 import { Compiler } from "./compiler.ts";
 import type { Decision, Explanation } from "./decision.ts";
-import { GrantReader, type Grant, type Lookup } from "./grant.ts";
-import { column, columnsOf, TableMapping, type FieldRelation } from "./mapping.ts";
+import { GrantReader, GrantTree, type Grant, type Lookup } from "./grant.ts";
+import { column, TableMapping, type FieldRelation } from "./mapping.ts";
 
 /**
  * How long a copy of access may go without hearing from its home before decisions refuse it, by default, in milliseconds.
@@ -84,8 +78,6 @@ export class Authorizer {
     readonly fields: FieldRelation[] = [];
     /** The subject sets some relation accepts and the relations of scopes: the memberships resolving a caller expands, and the sets roles may bind to. */
     readonly memberships: SubjectType[] = [];
-    /** Read the memberships a JSON list of subjects holds through relationships. */
-    readonly sets: Statement<SetRow>;
     /** How long a copy of access may go without hearing from its home before decisions refuse it, in milliseconds. */
     readonly lag: number;
     /** The object types this database holds the access rows of: those it maps a table of, other than access's own. */
@@ -96,10 +88,6 @@ export class Authorizer {
     readonly #contributions = new Map<string, SubjectType[]>();
     /** The table mappings indexed by package and type. */
     readonly #mappings = new Map<string, TableMapping>();
-    /** Read the rows of each mapped type by a JSON list of identifiers in a scope, by mapping. */
-    readonly #rows = new Map<TableMapping, Statement>();
-    /** Whether each permission is a union of relations, permissions and arrows, which grants decide in memory, by permission key. */
-    readonly #indexable = new Map<string, boolean>();
     /** The compiler of the registered policies to SQL. */
     readonly #compiler: Compiler;
 
@@ -226,8 +214,10 @@ export class Authorizer {
             const mapping = TableMapping.freeze(source);
             const definition = mapping.policy.definition;
             if (
-                this.policy({ packageId: definition.packageId, type: definition.name }) !==
-                mapping.policy
+                this.policy({
+                    packageId: definition.packageId,
+                    type: definition.name,
+                }) !== mapping.policy
             ) {
                 throw new AccessError(
                     "INVALID_DECLARATION",
@@ -241,7 +231,6 @@ export class Authorizer {
             TableMapping.validate(this, mapping);
             this.#requireCompilable(mapping);
             this.#mappings.set(key, mapping);
-            this.#rows.set(mapping, TableMapping.rows(mapping));
         }
 
         // list the types whose access rows this database holds
@@ -278,9 +267,12 @@ export class Authorizer {
         ]);
         for (const key of expanded) {
             const [packageId, type, relation] = JSON.parse(key) as [string, string, string];
-            this.memberships.push({ packageId: packageId as PackageId, type, relation });
+            this.memberships.push({
+                packageId: packageId as PackageId,
+                type,
+                relation,
+            });
         }
-        this.sets = Access.memberships(this.memberships);
 
         // expand subject sets through the fields holding them, which resolving looks up by an index leading with the column
         for (const mapping of this.#mappings.values()) {
@@ -307,7 +299,6 @@ export class Authorizer {
                         relation,
                         field,
                         subject: subject!,
-                        sets: Access.fieldSets({ mapping, field }),
                     });
                 }
             }
@@ -413,28 +404,25 @@ export class Authorizer {
         return [...this.#mappings.values()];
     }
 
-    /** Read rows of a registered mapping's type by a JSON list of identifiers in a scope. */
-    rows(mapping: TableMapping): Statement {
-        return this.#rows.get(mapping)!;
-    }
-
     /** Name the scope whose chain decides access to an object: the scope a scope object is, else the scope containing the object. */
     governingScope(target: ObjectReference): string {
         return this.policy(target).definition.scope === true ? target.id : target.scope;
     }
 
-    /** Read the objects of a scope and every scope enclosing it, nearest first, with whether each is suspended. */
-    static async chain(database: DatabaseConnection, scope: string): Promise<ScopeLink[]> {
+    /** Read the objects of a scope and every scope enclosing it, nearest first, with whether each is suspended, as a snapshot shows them. */
+    static async chain(snapshot: Snapshot, scope: string): Promise<ScopeLink[]> {
         // read the scope, then the scopes its row lists, then any those rows list beyond them, each by key
         const rows = new Map<string, ScopeRow>();
         for (let wanted = [scope]; wanted.length > 0;) {
-            const read = await SCOPES.all(database, {
-                ids: JSON.stringify(wanted.map((id) => [id])),
-            });
+            const read = (await snapshot.select(
+                accessScope,
+                ["scope"],
+                wanted.map((id) => [id]),
+            )) as ScopeRow[];
             for (const row of read) {
                 rows.set(row.scope, row);
             }
-            wanted = [...new Set(read.flatMap((row) => ancestorsOf(row)))].filter(
+            wanted = [...new Set(read.flatMap((row) => row.ancestors))].filter(
                 (id) => !rows.has(id) && !wanted.includes(id),
             );
         }
@@ -462,8 +450,8 @@ export class Authorizer {
     }
 
     /** Read a scope's own object, which lives in the scope containing it, failing when the database knows no such scope. */
-    static async scope(database: DatabaseConnection, id: string): Promise<ObjectReference> {
-        const [link] = await Authorizer.chain(database, id);
+    static async scope(snapshot: Snapshot, id: string): Promise<ObjectReference> {
+        const [link] = await Authorizer.chain(snapshot, id);
         if (link === undefined) {
             throw new AccessError("NOT_FOUND", `unknown scope: ${id}`);
         }
@@ -479,7 +467,9 @@ export class Authorizer {
     async isHeld(database: DatabaseConnection, object: ObjectReference): Promise<boolean> {
         // follow a role to the scope object defining it
         if (this.mappingOf(object)?.table === accessRole) {
-            return this.isHeld(database, await Authorizer.scope(database, object.scope));
+            const scope = await Authorizer.scope(Snapshot.live(database), object.scope);
+
+            return this.isHeld(database, scope);
         }
 
         return this.held.some(
@@ -528,42 +518,40 @@ export class Authorizer {
         return DECISION_TABLES.map((table) => ({ table, scopes: chain }));
     }
 
-    /** Read a page of one object's relationships and role bindings, ordered by identifier. */
+    /** Read a page of one object's relationships and role bindings as a snapshot shows them, ordered by identifier. */
     async relationships(
-        database: DatabaseConnection,
+        snapshot: Snapshot,
         object: ObjectReference,
         page: { readonly after?: string; readonly limit: number },
     ): Promise<Relationship[]> {
-        const rows = await database
-            .select()
-            .from(accessRelationship)
-            .where(
-                and(
-                    Relationship.on(object),
-                    page.after === undefined
-                        ? undefined
-                        : gt(accessRelationship.id, identifier("relationship").parse(page.after)),
-                ),
-            )
-            .orderBy(asc(accessRelationship.id))
-            .limit(page.limit);
+        const rows = await snapshot.ordered(accessRelationship, {
+            where: Condition.all(
+                Condition.eq("objectScope", object.scope),
+                Condition.eq("packageId", object.packageId),
+                Condition.eq("type", object.type),
+                Condition.eq("objectId", object.id),
+            ),
+            order: [{ column: "id", direction: "asc" }],
+            ...(page.after === undefined
+                ? {}
+                : { after: { id: identifier("relationship").parse(page.after) } }),
+            count: page.limit,
+        });
 
-        return rows.map(Relationship.decode);
+        return rows.map((row) => Relationship.decode(row as RelationshipRow));
     }
 
     /** Report whether relationships name an identifier of an object type in any scope, as they may after the object was deleted. */
-    async isRelated(database: DatabaseConnection, policy: Policy, id: string): Promise<boolean> {
-        const [row] = await database
-            .select({ id: accessRelationship.id })
-            .from(accessRelationship)
-            .where(
-                and(
-                    eq(accessRelationship.packageId, policy.definition.packageId),
-                    eq(accessRelationship.type, policy.definition.name),
-                    eq(accessRelationship.objectId, id),
-                ),
-            )
-            .limit(1);
+    async isRelated(snapshot: Snapshot, policy: Policy, id: string): Promise<boolean> {
+        const [row] = await snapshot.ordered(accessRelationship, {
+            where: Condition.all(
+                Condition.eq("packageId", policy.definition.packageId),
+                Condition.eq("type", policy.definition.name),
+                Condition.eq("objectId", id),
+            ),
+            order: [{ column: "id", direction: "asc" }],
+            count: 1,
+        });
 
         return row !== undefined;
     }
@@ -641,8 +629,8 @@ export class Authorizer {
     }
 
     /** Resolve a caller in a scope inside its transaction: its subject sets, the scope chain and the roles along it. */
-    resolve(database: DatabaseConnection, scope: string, context: AccessContext): Promise<Access> {
-        return Access.resolve(database, scope, context, this);
+    resolve(snapshot: Snapshot, scope: string, context: AccessContext): Promise<Access> {
+        return Access.resolve(snapshot, scope, context, this);
     }
 
     /** Restrict the rows of a table to those the caller holds a permission on, before sorting, counting, pagination, or mutation. */
@@ -655,14 +643,14 @@ export class Authorizer {
         return this.#compiler.holds(permission, target, access);
     }
 
-    /** Start reading the grants of rows within a scope chain, shared by every caller of the scope. */
-    reader(database: DatabaseConnection, scopes: readonly ObjectReference[]): GrantReader {
-        return new GrantReader(this, database, scopes);
+    /** Start reading the grants of rows within a scope chain, as a snapshot shows them, shared by every caller of the scope. */
+    reader(snapshot: Snapshot, scopes: readonly ObjectReference[]): GrantReader {
+        return new GrantReader(this, snapshot, scopes);
     }
 
     /** Decide whether a caller holds a permission on one object, and until when that holds by time alone. */
     async check(
-        database: DatabaseConnection,
+        snapshot: Snapshot,
         permission: PermissionReference,
         target: ObjectReference,
         access: Access,
@@ -670,180 +658,120 @@ export class Authorizer {
     ): Promise<Decision> {
         // decide a missing object, which nobody holds a permission on
         const mapping = this.mapping(target);
-        const row = await this.#read(database, target);
+        const row = await this.#read(snapshot, target);
         if (row === undefined) {
             return { isAllowed: false };
         }
 
-        // read the grants the permission reaches on the object
-        const [grants] = await (reader ?? this.reader(database, access.scopes)).read(
+        // read the tree the permission reaches on the object, whose grants bound when the decision next changes by time
+        const [tree] = await (reader ?? this.reader(snapshot, access.scopes)).trees(
             permission,
             [row],
             mapping,
         );
-        const until = earliest([access.until, grantsUntil(grants!, access)]);
+        const until = earliest([access.until, grantsUntil(GrantTree.flatten(tree!), access)]);
 
-        // decide from the grants in memory where they express the permission, and in one statement otherwise
-        const isOwn = permission.packageId === target.packageId && permission.type === target.type;
+        // admit the caller when every authority holds the permission, past its gate for one object
         const isAllowed =
-            isOwn && this.isIndexable(permission)
-                ? this.admits(permission, row, grants!, access, "object")
-                : (
-                      await database.execute(
-                          sql`SELECT 1 AS held WHERE ${this.holds(permission, target, access)}`,
-                      )
-                  ).length > 0;
+            this.#gate(permission, mapping, row, access, "object") === undefined &&
+            access.authorities.every((authority) => GrantTree.holds(tree!, authority, access));
 
         return { isAllowed, ...(until === undefined ? {} : { until }) };
     }
 
-    /** Require the caller to hold every permission on one object, naming the first it lacks, in one statement on a networked database. */
+    /**
+     * Require the caller to hold every permission on one object, naming the first it lacks.
+     *
+     * A live networked database decides in one statement, and an embedded database or a past snapshot decides from grant trees.
+     */
     async require(
-        database: DatabaseConnection,
+        snapshot: Snapshot,
         permissions: readonly PermissionReference[],
         target: ObjectReference,
         access: Access,
         reader?: GrantReader,
     ): Promise<void> {
-        // decide in memory what grants decide on an embedded database, which answers their small reads cheaply
-        const isOwn = (permission: PermissionReference) =>
-            permission.packageId === target.packageId && permission.type === target.type;
-        const inMemory =
-            database.state.locality === "embedded"
-                ? permissions.filter(
-                      (permission) => isOwn(permission) && this.isIndexable(permission),
-                  )
-                : [];
-        if (inMemory.length > 0) {
-            const row = await this.#read(database, target);
-            const read = reader ?? this.reader(database, access.scopes);
-            for (const permission of inMemory) {
-                const [grants] = row === undefined ? [[]] : await read.read(permission, [row]);
-                if (row === undefined || !this.admits(permission, row, grants!, access, "object")) {
+        // decide in memory where reads are cheap or the database is past
+        const database = snapshot.database;
+        if (snapshot.position !== undefined || database.state.locality === "embedded") {
+            const read = reader ?? this.reader(snapshot, access.scopes);
+            for (const permission of permissions) {
+                const decision = await this.check(snapshot, permission, target, access, read);
+                if (!decision.isAllowed) {
                     throw new AccessError("FORBIDDEN", `permission denied: ${permission.name}`);
                 }
             }
-        }
 
-        // evaluate the rest as the columns of a single row
-        const queried = permissions.filter((permission) => !inMemory.includes(permission));
-        if (queried.length === 0) {
             return;
         }
-        const columns = queried.map(
+
+        // decide every permission as a column of a single row
+        const columns = permissions.map(
             (permission, index) =>
                 sql`CASE WHEN ${this.holds(permission, target, access)} THEN 1 ELSE 0 END AS ${sql.identifier(`held_${index}`)}`,
         );
         const [row] = await database.execute<Record<string, number | string>>(
             sql`SELECT ${sql.join(columns, sql`, `)}`,
         );
-        const denied = queried.find((_, index) => Number(row![`held_${index}`]) !== 1);
+        const denied = permissions.find((_, index) => Number(row![`held_${index}`]) !== 1);
         if (denied) {
             throw new AccessError("FORBIDDEN", `permission denied: ${denied.name}`);
         }
     }
 
-    /** Check whether the caller owns one object, holding a role that grants everything on or above it. */
-    async owns(
-        database: DatabaseConnection,
-        target: ObjectReference,
-        access: Access,
-    ): Promise<boolean> {
-        const [row] = await database.execute(
-            sql`SELECT 1 AS held WHERE ${this.#compiler.owns(target, access)}`,
+    /** Decide whether the caller owns one object, every authority holding a role that grants everything on or above it. */
+    async owns(snapshot: Snapshot, target: ObjectReference, access: Access): Promise<boolean> {
+        // own no missing object
+        const row = await this.#read(snapshot, target);
+        if (row === undefined) {
+            return false;
+        }
+
+        // read the bindings on or above the object, which admit an authority through a role granting everything
+        const tree = await this.reader(snapshot, access.scopes).ownership(
+            row,
+            this.mapping(target),
         );
 
-        return row !== undefined;
+        return access.authorities.every((authority) => GrantTree.holds(tree, authority, access));
     }
 
     /**
      * Check a permission on each of the given rows, as they are or were: the positions the caller holds it on, and until when that holds by time alone.
      *
-     * A union of relations, permissions and arrows decides from the grants the reader shares among callers; statements decide the rest.
+     * Every permission decides in memory from the grant trees the reader shares among callers, as the compiled predicate decides in SQL.
      */
     async checkRows(
-        database: DatabaseConnection,
+        snapshot: Snapshot,
         permission: PermissionReference,
         access: Access,
         rows: readonly Readonly<Record<string, unknown>>[],
-        reader = this.reader(database, access.scopes),
+        reader = this.reader(snapshot, access.scopes),
     ): Promise<Admission> {
-        // read the rows' grants, which bound when the decisions next change by time
-        const grants = await reader.read(permission, rows);
+        // read the rows' grant trees, whose grants bound when the decisions next change by time
+        const trees = await reader.trees(permission, rows);
         const until = earliest([
             access.until,
-            ...grants.map((entry) => grantsUntil(entry, access)),
+            ...trees.map((tree) => grantsUntil(GrantTree.flatten(tree), access)),
         ]);
 
-        // admit rows through their grants where they express the permission
-        if (this.isIndexable(permission)) {
-            const held = rows.flatMap((row, position) =>
-                this.admits(permission, row, grants[position]!, access) ? [position] : [],
-            );
-
-            return { held: new Set(held), ...(until === undefined ? {} : { until }) };
-        }
-
-        // present each row as one row of a derived table standing in for the object's table
-        const mapping = this.mapping(permission);
-        const source = alias(mapping.table, "access_row");
-        const dialect = database.dialect;
-        const columns = Object.entries(mapping.table[TABLE].columns);
-        const selected = rows.map(
-            (row, position) =>
-                sql`SELECT ${position} AS access_position, ${sql.join(
-                    columns.map(([property, entry]) => {
-                        // bind the value through its column, which encodes it for the dialect
-                        const value = row[property];
-                        const encoded =
-                            value === null || value === undefined ? null : sql.param(value, entry);
-
-                        return sql`CAST(${encoded} AS ${sql.raw(entry.definition.types[dialect])}) AS ${sql.identifier(entry.definition.name)}`;
-                    }),
-                    sql`, `,
-                )}`,
-        );
-
-        // evaluate the permission over chunks of derived rows that stay within the parameter limit
-        const predicate = this.where(permission, access, source);
-        const chunk = Math.max(1, Math.floor(PARAMETER_BUDGET / (columns.length + 1)));
-        const held = new Set<number>();
-        for (let start = 0; start < selected.length; start += chunk) {
-            const derived = sql.join(selected.slice(start, start + chunk), sql` UNION ALL `);
-            const permitted = await database.execute<{ access_position: number | string }>(
-                sql`SELECT ${source}.access_position FROM (${derived}) AS ${source} WHERE ${predicate}`,
-            );
-            for (const row of permitted) {
-                held.add(Number(row.access_position));
-            }
-        }
-
-        return { held, ...(until === undefined ? {} : { until }) };
-    }
-
-    /**
-     * Decide in memory whether a caller holds a permission on a row through its grants, as the listing's or the object's statement does.
-     *
-     * Only a union of relations, permissions and arrows decides from grants; `isIndexable` tells which permissions are.
-     */
-    admits(
-        permission: PermissionReference,
-        row: Readonly<Record<string, unknown>>,
-        grants: readonly Grant[],
-        access: Access,
-        lookup: Lookup = "listing",
-    ): boolean {
-        return (
-            this.#gate(permission, row, access, lookup) === undefined &&
+        // admit the rows whose tree admits every authority of the caller, past the permission's gate
+        const held = rows.flatMap((row, position) =>
+            this.#gate(permission, this.mapping(permission), row, access, "listing") ===
+                undefined &&
             access.authorities.every((authority) =>
-                grants.some((grant) => authority.failure(grant, access) === undefined),
+                GrantTree.holds(trees[position]!, authority, access),
             )
+                ? [position]
+                : [],
         );
+
+        return { held: new Set(held), ...(until === undefined ? {} : { until }) };
     }
 
     /** Explain whether a caller holds a permission on one object: the gate, then each grant and why it fails, per authority. */
     async explain(
-        database: DatabaseConnection,
+        snapshot: Snapshot,
         permission: PermissionReference,
         target: ObjectReference,
         access: Access,
@@ -855,30 +783,21 @@ export class Authorizer {
                 "explain a permission of the object's own type",
             );
         }
-        const found = await this.#read(database, target);
+        const found = await this.#read(snapshot, target);
         if (found === undefined) {
             throw new AccessError("NOT_FOUND", `no ${target.type} ${target.id}`);
         }
 
-        // decide by statement where the permission's grants do not express it
-        const blocked = this.#gate(permission, found, access, "object");
-        if (!this.isIndexable(permission)) {
-            const decision = await this.check(database, permission, target, access);
-
-            return {
-                permission,
-                object: target,
-                isAllowed: decision.isAllowed,
-                ...(blocked === undefined ? {} : { gate: blocked }),
-                isQueried: true,
-                authorities: [],
-            };
-        }
-
-        // decide each grant for each authority
-        const [grants] = await this.reader(database, access.scopes).read(permission, [found]);
-        const decided = access.authorities.map((authority) => {
-            const decisions = grants!.map((grant) => {
+        // decide each authority by the permission's tree, and each grant it reaches alone
+        const blocked = this.#gate(permission, this.mapping(target), found, access, "object");
+        const [tree] = await this.reader(snapshot, access.scopes).trees(permission, [found]);
+        const grants = GrantTree.flatten(tree!);
+        const decided = access.authorities.map((authority) => ({
+            ...(authority.delegator === undefined
+                ? {}
+                : { delegate: authority.subjects[0]!, delegator: authority.delegator }),
+            isAllowed: GrantTree.holds(tree!, authority, access),
+            grants: grants.map((grant) => {
                 const failed = authority.failure(grant, access);
 
                 return {
@@ -888,85 +807,27 @@ export class Authorizer {
                     ...(grant.role === undefined ? {} : { role: grant.role.id }),
                     ...(failed === undefined ? {} : { failure: failed }),
                 };
-            });
-
-            return {
-                ...(authority.delegator === undefined
-                    ? {}
-                    : { delegate: authority.subjects[0]!, delegator: authority.delegator }),
-                isAllowed: decisions.some((decision) => decision.failure === undefined),
-                grants: decisions,
-            };
-        });
+            }),
+        }));
 
         return {
             permission,
             object: target,
             isAllowed: blocked === undefined && decided.every((entry) => entry.isAllowed),
             ...(blocked === undefined ? {} : { gate: blocked }),
-            isQueried: false,
             authorities: decided,
         };
-    }
-
-    /** Decide whether a permission is a union of relations, permissions and arrows, which grants decide in memory. */
-    isIndexable(permission: PermissionReference): boolean {
-        // decide each permission once
-        const key = permissionKey(permission);
-        const known = this.#indexable.get(key);
-        if (known !== undefined) {
-            return known;
-        }
-
-        // assume a permission met again along a cycle expressible, then walk its expression
-        this.#indexable.set(key, true);
-        const policy = this.policy(permission);
-        const pending = [this.expression(permission)];
-        let isIndexable = true;
-        while (pending.length > 0 && isIndexable) {
-            const expression = pending.pop()!;
-            switch (expression.kind) {
-                case "none":
-                case "relation":
-                    break;
-                case "union":
-                    pending.push(...expression.expressions);
-                    break;
-                case "permission":
-                    isIndexable = this.isIndexable(policy.permission(expression.name));
-                    break;
-                case "through":
-                    isIndexable = this.relation(policy, expression.relation).subjects.every(
-                        (subject) =>
-                            this.isIndexable({
-                                packageId: subject.packageId,
-                                type: subject.type,
-                                name: expression.permission,
-                            }),
-                    );
-                    break;
-                case "intersection":
-                case "exclusion":
-                case "condition":
-                case "grants":
-                    isIndexable = false;
-                    break;
-            }
-        }
-        this.#indexable.set(key, isIndexable);
-
-        return isIndexable;
     }
 
     /** Read the gate a request fails on a row before any grant: its credential, elevation or suspension, or a listed row outside the scope. */
     #gate(
         permission: PermissionReference,
+        mapping: TableMapping,
         row: Readonly<Record<string, unknown>>,
         access: Access,
         lookup: Lookup,
     ): ReturnType<Access["gate"]> | "outside" {
         // refuse the request its credential, elevation or suspension refuses
-        const mapping = this.mapping(permission);
         const refused = access.gate(permission, String(row[mapping.id]));
         if (refused !== undefined) {
             return refused;
@@ -991,15 +852,14 @@ export class Authorizer {
             : undefined;
     }
 
-    /** Read one object as a row of its type. */
+    /** Read one object as a row of its type, as it is or as a snapshot shows it. */
     async #read(
-        database: DatabaseConnection,
+        snapshot: Snapshot,
         target: ObjectReference,
     ): Promise<Record<string, unknown> | undefined> {
-        const [found] = await this.rows(this.mapping(target)).all(database, {
-            scope: target.scope,
-            ids: JSON.stringify([[target.id]]),
-        });
+        const [found] = await TableMapping.read(snapshot, this.mapping(target), target.scope, [
+            target.id,
+        ]);
 
         return found;
     }
@@ -1140,6 +1000,15 @@ function grantsUntil(grants: readonly Grant[], access: Access): number | undefin
 
 /** Require a condition to read declared attributes, ordering numbers only and comparing literals of their type. */
 function validateCondition(condition: Condition, type: Policy): void {
+    // refuse conditions following relations, which grants and roles express instead
+    const [relation] = Condition.relations(condition);
+    if (relation !== undefined) {
+        throw new AccessError(
+            "INVALID_DECLARATION",
+            `policy conditions follow no relations: ${relation.via}`,
+        );
+    }
+
     // require each attribute declared
     const attributes = type.definition.attributes;
     for (const name of Condition.columns(condition)) {
@@ -1195,19 +1064,14 @@ function listedPermissions(
     );
 }
 
-/** Read the scopes a scope row lists, as SQLite returns JSON in text and PostgreSQL parsed. */
-function ancestorsOf(row: ScopeRow): string[] {
-    return typeof row.ancestors === "string" ? JSON.parse(row.ancestors) : row.ancestors;
-}
-
-/** A scope row as a statement returns it. */
+/** A scope row as a snapshot reads it. */
 type ScopeRow = {
     /** The scope. */
     readonly scope: string;
     /** The containing scope. */
     readonly parent: string;
-    /** The containing scopes the row lists, in JSON. */
-    readonly ancestors: string | string[];
+    /** The containing scopes the row lists, nearest first. */
+    readonly ancestors: readonly string[];
     /** The package declaring the scope object's type. */
     readonly packageId: PackageId;
     /** The scope object's type. */
@@ -1215,11 +1079,3 @@ type ScopeRow = {
     /** When the scope was suspended. */
     readonly suspendedAt: number | string | null;
 };
-
-/** The scope rows by a JSON list of keys. */
-const SCOPES = new Statement<ScopeRow>(
-    (
-        value,
-    ) => sql`SELECT ${columnsOf(accessScope)} FROM ${jsonElements(value("ids"), "listed_scope")}
-        JOIN ${accessScope} ON ${accessScope.scope} = listed_scope.value ->> 0`,
-);

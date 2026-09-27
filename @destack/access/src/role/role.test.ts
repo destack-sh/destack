@@ -1,4 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
+import { Snapshot } from "@destack/db/log";
 import { asc, eq } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { identifier } from "@destack/schema";
@@ -63,7 +64,7 @@ async function openRoleFixture() {
                 .where(
                     query.where(
                         node.permission("read"),
-                        await query.resolve(database, "personal", context),
+                        await query.resolve(Snapshot.live(database), "personal", context),
                     ),
                 )
                 .orderBy(asc(item.id))
@@ -317,6 +318,33 @@ test("let owners hold everything in their scope, make owners, and never remove t
         subject: alice.subjects[0]!,
     });
 
+    // refuse a sharer who is no owner binding the role granting everything
+    const sharer = await new Authorization(home, database, () => carol).createRole(place, {
+        name: "sharer",
+        description: "Shares the space",
+        permissions: [space.permission("share")],
+    });
+    const dave: AccessContext = {
+        subjects: [principal.user.reference("global", "dave")],
+        now: 1000,
+        attributes: {},
+    };
+    await new Authorization(home, database, () => carol).grant({
+        object: place,
+        role: sharer.id,
+        subject: dave.subjects[0]!,
+    });
+    await expect(
+        new Authorization(home, database, () => dave).grant({
+            object: place,
+            role: owner!.id,
+            subject: principal.user.reference("global", "bob"),
+        }),
+    ).rejects.toMatchObject({
+        code: "FORBIDDEN",
+        message: "only owners may bind a role granting everything",
+    });
+
     // keep at least one owner
     const [first] = await database
         .select({ id: accessRelationship.id })
@@ -342,8 +370,13 @@ test("create a scope without owners of its own, which the owners of its account 
     await asCarol.create(place, {});
 
     // let carol hold everything in the space through her account, and refuse owners of an object that holds none
-    const access = await home.resolve(database, "shared", carol);
-    const decision = await home.check(database, space.permission("update"), place, access);
+    const access = await home.resolve(Snapshot.live(database), "shared", carol);
+    const decision = await home.check(
+        Snapshot.live(database),
+        space.permission("update"),
+        place,
+        access,
+    );
     await expect(
         asCarol.create(node.reference("shared", "a"), { owner: carol.subjects[0]! }),
     ).rejects.toMatchObject({ code: "INVALID_CONTEXT", message: "only a new scope has owners" });
@@ -386,7 +419,7 @@ test("list the spaces an account contains to the account's owner", async () => {
                 .where(
                     query.where(
                         space.permission("read"),
-                        await query.resolve(database, "account-1", context),
+                        await query.resolve(Snapshot.live(database), "account-1", context),
                     ),
                 )
                 .orderBy(asc(spaceTable.id))
@@ -403,7 +436,7 @@ test("list the spaces an account contains to the account's owner", async () => {
         .where(
             scopes.where(
                 space.permission("read"),
-                await scopes.resolve(database, "account-1", carol),
+                await scopes.resolve(Snapshot.live(database), "account-1", carol),
             ),
         )
         .orderBy(asc(accessScope.scope));

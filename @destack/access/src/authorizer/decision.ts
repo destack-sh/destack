@@ -50,8 +50,6 @@ export const Explanation = defineSchema(
         isAllowed: schema.boolean(),
         /** The gate the request fails before any grant: its credential, its elevation, its scope's suspension, or the object's scope. */
         gate: Gate.optional(),
-        /** Whether a query decided, for permissions whose intersections, exclusions or comparisons list no grants. */
-        isQueried: schema.boolean(),
         /** The represented subject, then each delegate, each of which must be admitted. */
         authorities: schema.array(
             schema.object({

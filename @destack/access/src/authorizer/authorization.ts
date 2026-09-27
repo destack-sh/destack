@@ -8,6 +8,7 @@ import {
     type SQL,
     type Table,
 } from "@destack/db";
+import { Snapshot } from "@destack/db/log";
 import { identifier } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
@@ -48,7 +49,10 @@ type Grantable = Omit<RelationshipRequest, "subject" | "expiresAt"> & {
 /** The first relationships of a new object, which no grant can precede, and the owners of a new scope. */
 export interface Creation {
     /** The relations the object's first holders hold. */
-    readonly relationships?: readonly { readonly relation: string; readonly subject: Subject }[];
+    readonly relationships?: readonly {
+        readonly relation: string;
+        readonly subject: Subject;
+    }[];
     /** The subject a new scope's owner role binds to, absent when the owners of the scopes containing it own it. */
     readonly owner?: Subject;
 }
@@ -59,6 +63,8 @@ export class Authorization {
     readonly authorizer: Authorizer;
     /** The database, or transaction, holding the access rows that decide. */
     readonly database: DatabaseConnection;
+    /** The database as its decisions read it, as each read finds it. */
+    readonly snapshot: Snapshot;
     /** Bind the verified caller to a scope it acts in, rejecting scopes its credential excludes. */
     readonly #bind: (scope: string) => AccessContext;
     /** The caller's access resolved in each scope during this call, until renewed. */
@@ -74,6 +80,7 @@ export class Authorization {
         // bind the caller per scope, reusing the access resolved in one scope
         this.authorizer = authorizer;
         this.database = database;
+        this.snapshot = Snapshot.live(database);
         this.#bind = bind;
         if (resolved !== undefined) {
             this.#resolved.set(resolved.scope, Promise.resolve(resolved));
@@ -97,7 +104,7 @@ export class Authorization {
         if (known !== undefined) {
             return known;
         }
-        const resolved = this.authorizer.resolve(this.database, scope, this.context(scope));
+        const resolved = this.authorizer.resolve(this.snapshot, scope, this.context(scope));
         this.#resolved.set(scope, resolved);
 
         return resolved;
@@ -108,17 +115,28 @@ export class Authorization {
         this.#resolved.clear();
     }
 
+    /** Require the caller to hold permissions on a scope as a transaction shows its access, resolved afresh. */
+    async #requireFresh(
+        transaction: DatabaseConnection,
+        scope: ObjectReference,
+        permissions: readonly PermissionReference[],
+    ): Promise<void> {
+        const snapshot = Snapshot.live(transaction);
+        const access = await this.authorizer.resolve(snapshot, scope.id, this.context(scope.id));
+        await this.authorizer.require(snapshot, permissions, scope, access);
+    }
+
     /** Decide whether the caller holds a permission on one object, and until when that holds by time alone. */
     async check(permission: PermissionReference, target: ObjectReference): Promise<Decision> {
         const access = await this.in(this.authorizer.governingScope(target));
 
-        return this.authorizer.check(this.database, permission, target, access);
+        return this.authorizer.check(this.snapshot, permission, target, access);
     }
 
     /** Require the caller to hold a permission on one object. */
     async require(permission: PermissionReference, target: ObjectReference): Promise<void> {
         const access = await this.in(this.authorizer.governingScope(target));
-        await this.authorizer.require(this.database, [permission], target, access);
+        await this.authorizer.require(this.snapshot, [permission], target, access);
     }
 
     /** Restrict rows of a scope to those the caller holds a permission on, before sorting, counting or pagination. */
@@ -135,14 +153,14 @@ export class Authorization {
     ): Promise<Admission> {
         const access = await this.in(scope);
 
-        return this.authorizer.checkRows(this.database, permission, access, rows, reader);
+        return this.authorizer.checkRows(this.snapshot, permission, access, rows, reader);
     }
 
     /** Explain whether the caller holds a permission on one object, and why. */
     async explain(permission: PermissionReference, target: ObjectReference): Promise<Explanation> {
         const access = await this.in(this.authorizer.governingScope(target));
 
-        return this.authorizer.explain(this.database, permission, target, access);
+        return this.authorizer.explain(this.snapshot, permission, target, access);
     }
 
     /**
@@ -488,13 +506,10 @@ export class Authorization {
             // require permission to define roles and every permission the role grants
             await this.authorizer.requireHeld(transaction, scope);
             const context = this.context(scope.id);
-            const access = await this.authorizer.resolve(transaction, scope.id, context);
-            await this.authorizer.require(
-                transaction,
-                [principal.role.permission("create"), ...request.permissions],
-                scope,
-                access,
-            );
+            await this.#requireFresh(transaction, scope, [
+                principal.role.permission("create"),
+                ...request.permissions,
+            ]);
 
             // insert the role under a name free in the scope, then its permissions
             const [record] = await transaction
@@ -534,13 +549,10 @@ export class Authorization {
             if (record.revision !== changes.revision) {
                 throw new AccessError("CONFLICT", "role revision has changed");
             }
-            const access = await this.authorizer.resolve(transaction, scope.id, context);
-            await this.authorizer.require(
-                transaction,
-                [principal.role.permission("update"), ...(changes.permissions ?? [])],
-                scope,
-                access,
-            );
+            await this.#requireFresh(transaction, scope, [
+                principal.role.permission("update"),
+                ...(changes.permissions ?? []),
+            ]);
 
             // apply the changes and replace the permissions when given
             const [updated] = await transaction
@@ -583,17 +595,7 @@ export class Authorization {
             if (record.revision !== revision) {
                 throw new AccessError("CONFLICT", "role revision has changed");
             }
-            const access = await this.authorizer.resolve(
-                transaction,
-                scope.id,
-                this.context(scope.id),
-            );
-            await this.authorizer.require(
-                transaction,
-                [principal.role.permission("delete")],
-                scope,
-                access,
-            );
+            await this.#requireFresh(transaction, scope, [principal.role.permission("delete")]);
 
             // refuse a role still bound or included, whose bindings and inclusions their grantors revoke first
             const [binding] = await transaction
@@ -649,7 +651,7 @@ export class Authorization {
         }
 
         // require a relation's grant permission, which lending a relation needs as much as granting it
-        const access = await this.authorizer.resolve(this.database, scope, context);
+        const access = await this.authorizer.resolve(this.snapshot, scope, context);
         const required: PermissionReference[] =
             onBehalfOf === undefined || request.role === undefined
                 ? [this.#grantPermission(request)]
@@ -661,12 +663,12 @@ export class Authorization {
             throw new AccessError("NOT_FOUND", "role not found");
         }
         required.push(...(grants?.permissions ?? []));
-        await this.authorizer.require(this.database, required, request.object, access);
+        await this.authorizer.require(this.snapshot, required, request.object, access);
 
         // require ownership to bind a role granting everything
         if (
             grants?.isUniversal &&
-            !(await this.authorizer.owns(this.database, request.object, access))
+            !(await this.authorizer.owns(this.snapshot, request.object, access))
         ) {
             throw new AccessError("FORBIDDEN", "only owners may bind a role granting everything");
         }
@@ -679,9 +681,9 @@ export class Authorization {
             return;
         }
         const scope = this.authorizer.governingScope(request.object);
-        const access = await this.authorizer.resolve(this.database, scope, this.context(scope));
+        const access = await this.authorizer.resolve(this.snapshot, scope, this.context(scope));
         await this.authorizer.require(
-            this.database,
+            this.snapshot,
             [this.#grantPermission(request)],
             request.object,
             access,

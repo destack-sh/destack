@@ -134,8 +134,15 @@ export class Authority {
                   ? undefined
                   : "subject";
         }
-        // require a bound role to grant the permission
-        else if (grant.role && !access.granting(grant.role.permission).includes(grant.role.id)) {
+        // require a bound role to grant the permission, or everything for ownership
+        else if (
+            grant.role &&
+            !(
+                grant.role.permission === undefined
+                    ? access.universal()
+                    : access.granting(grant.role.permission)
+            ).includes(grant.role.id)
+        ) {
             return "role";
         }
 

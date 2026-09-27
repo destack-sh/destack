@@ -45,13 +45,14 @@ const note = new Policy(pkg, { name: "note", ..., contributes: [{ policy: commen
 
 ## Authorizer
 
-An authorizer decides policies over the tables of one database their objects live in.
+An authorizer decides policies over a snapshot of the database their objects live in.
 
 ```ts
 const authorizer = new Authorizer([note], [{ policy: note, table: notes, id: "id", scope: "scope", attributes: {}, relations: {} }]);
-const access = await authorizer.resolve(database, spaceId, context);
+const snapshot = Snapshot.live(database);
+const access = await authorizer.resolve(snapshot, spaceId, context);
 await database.select().from(notes).where(authorizer.where(note.permission("read"), access));
-const decision = await authorizer.check(database, note.permission("share"), note.reference(spaceId, id), access);
+const decision = await authorizer.check(snapshot, note.permission("share"), note.reference(spaceId, id), access);
 ```
 
 | Verb | Decides |
@@ -59,11 +60,8 @@ const decision = await authorizer.check(database, note.permission("share"), note
 | `resolve` | A caller in a scope: its authorities, the scope chain and the roles along it |
 | `where` | The rows a caller holds a permission on, as SQL before sorting and paging |
 | `check`, `require`, `owns` | One object; a `Decision` holds until the moment time alone may change it |
-| `checkRows` | Rows as they are or were, through the grants a `GrantReader` shares among callers |
+| `checkRows` | Rows through the grant trees a `GrantReader` shares |
 | `explain` | Why a caller holds a permission or not: the gate, then each grant per authority |
-
-A union of relations, permissions and arrows decides in memory from grants; other permissions decide in SQL.
-Both evaluators decide each relationship condition and subject match by the same rules in `GrantCondition` and `Authority`.
 
 ## Authorization
 
@@ -94,7 +92,7 @@ An access row lives in the database holding its object; every other database dec
 | `DECISION_TABLES` | The rows a decision reads: scopes, roles, role permissions, relationships |
 | `Authorizer.replicaOf(scope, held)` | A copy of a scope's decision rows, leaving out those about the types the follower holds |
 | `held`, `requireHeld` | The types whose access this database writes, and the refusal of every other write |
-| `lag` | How long a copy may go without hearing from its home before decisions fail with `STALE` |
+| `lag` | How long a copy may go unconfirmed before live decisions fail with `STALE` |
 
 ## Storage
 

@@ -1,9 +1,10 @@
 import { sql, type Select, type SQL } from "@destack/db";
+import type { Snapshot } from "@destack/db/log";
 import { defineSchema, identifier, schema } from "@destack/schema";
 import { AccessName } from "../policy/expression.ts";
 import { ObjectReference } from "../policy/policy.ts";
 import { keySubject, Subject, subjectKey } from "../policy/subject.ts";
-import { accessRelationship, type RelationshipColumnMap } from "./table.ts";
+import { accessRelationship, type RelationshipColumnMap, type RelationshipRow } from "./table.ts";
 
 /** What a request must satisfy for a relationship to apply, beyond its lifetime. */
 export const RelationshipCondition = defineSchema(
@@ -75,6 +76,8 @@ export const Relationship = {
     encode,
     decode,
     on,
+    readByObject,
+    readBySubject,
     subjectColumns,
 };
 
@@ -149,6 +152,58 @@ function decode(row: Select<typeof accessRelationship>): Relationship {
         expiresAt: row.expiresAt,
         ...(Object.keys(conditions).length === 0 ? {} : { conditions }),
     };
+}
+
+/** Read the relationships on some objects as a snapshot shows them. */
+async function readByObject(
+    snapshot: Snapshot,
+    objects: readonly ObjectReference[],
+): Promise<RelationshipRow[]> {
+    return (await snapshot.select(
+        accessRelationship,
+        ["objectScope", "packageId", "type", "objectId"],
+        objects.map((object) => [object.scope, object.packageId, object.type, object.id]),
+    )) as RelationshipRow[];
+}
+
+/** Read the relationships some subjects hold as a snapshot shows them: plain subjects exactly and through wildcards, sets exactly. */
+async function readBySubject(
+    snapshot: Snapshot,
+    subjects: readonly Subject[],
+): Promise<RelationshipRow[]> {
+    // name each subject a relationship may hold for them, with the wildcards plain subjects match
+    const wanted = new Map<string, readonly (string | null)[]>();
+    for (const subject of subjects) {
+        const isPlain = subject.relation === undefined;
+        for (const scope of isPlain ? [subject.scope, "*"] : [subject.scope]) {
+            for (const id of isPlain ? [subject.id, "*"] : [subject.id]) {
+                const held = [subject.packageId, subject.type, scope, id, subject.relation ?? null];
+                wanted.set(JSON.stringify(held), held);
+            }
+        }
+    }
+
+    // read the relationships by subject, keeping those holding a wanted subject with its relation
+    const tuples = new Map(
+        [...wanted.values()].map((held) => [JSON.stringify(held.slice(0, 4)), held.slice(0, 4)]),
+    );
+    const rows = (await snapshot.select(
+        accessRelationship,
+        ["subjectPackageId", "subjectType", "subjectScope", "subjectId"],
+        [...tuples.values()],
+    )) as RelationshipRow[];
+
+    return rows.filter((row) =>
+        wanted.has(
+            JSON.stringify([
+                row.subjectPackageId,
+                row.subjectType,
+                row.subjectScope,
+                row.subjectId,
+                row.subjectRelation,
+            ]),
+        ),
+    );
 }
 
 /** Match the relationships on one object, in the relationship table or one of its aliases. */
