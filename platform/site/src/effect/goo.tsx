@@ -304,9 +304,9 @@ void main() {
 /** How charged the goo is, from 0 to 1, while the Destack switch is hovered. */
 const pageCharge = { target: 0 };
 
-/** Charge the goo so it swells and brightens, or let it settle again. */
-export function charge(isCharged: boolean) {
-    pageCharge.target = isCharged ? 1 : 0;
+/** Charge the page's goo to a level: 0 at rest, 1 while the switch promises Destack, and more while the switch is held down. */
+export function charge(level: number) {
+    pageCharge.target = level;
 }
 
 /** The pointer anywhere on the page in client pixels. */

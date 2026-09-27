@@ -34,6 +34,8 @@ import { Flotsam } from "./flotsam";
 import { orbitOf } from "./plate";
 import { appUses, Remix, sceneSources, scenes, slotApps, todayScenes } from "./remix";
 
+/** How hard the goo charges while the switch is held down, against 1 while it is hovered. */
+const heldCharge = 1.8;
 /** The media query for screens narrower than the desktop frame, where the drawing spans the whole frame. */
 const narrow = "@media (max-width: 1099px)";
 /** The media query for phone-width screens. */
@@ -462,7 +464,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     };
 
     // charge the goo while the switch promises Destack
-    const prime = (isPrimed: boolean) => charge(isPrimed && !isOpen());
+    const prime = (isPrimed: boolean) => charge(isPrimed && !isOpen() ? 1 : 0);
 
     // return the waterline of a configuration in canvas pixels
     const waterlineOf = (next: Stack) =>
@@ -1138,6 +1140,12 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                 onClick={() => select(isOpen() ? "today" : "destack")}
                 onPointerEnter={() => prime(true)}
                 onPointerLeave={() => prime(false)}
+                onPointerDown={() => {
+                    // tick the switch down, and charge the goo harder while it is held
+                    sound.play("press");
+                    charge(isOpen() ? 0 : heldCharge);
+                }}
+                onPointerUp={() => prime(true)}
                 ref={toggle}
                 {...stylex.attrs(styles.switch)}
             >
@@ -1152,7 +1160,10 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                         preserveAspectRatio="none"
                         {...stylex.attrs(styles.scrawl, isOpen() && styles.scrawlGone)}
                     >
-                        <path d="M1 4.5 C 20 2.5, 35 6, 55 4.5 S 85 3, 99 5" />
+                        <path
+                            d="M1 4.5 C 20 2.5, 35 6, 55 4.5 S 85 3, 99 5"
+                            {...stylex.attrs(styles.wobble)}
+                        />
                     </svg>
                     <span {...stylex.attrs(styles.rule, isOpen() && styles.ruleShown)} />
                 </span>
@@ -1337,6 +1348,13 @@ const nudge = stylex.keyframes({
     "95%": { translate: "9% 0" },
 });
 
+/** The crooked underline under the stack's name wobbling on hover, like something barely holding together. */
+const wiggle = stylex.keyframes({
+    "0%, 100%": { transform: "rotate(0deg) scaleY(1)" },
+    "25%": { transform: "rotate(-1.2deg) scaleY(1.6)" },
+    "75%": { transform: "rotate(1deg) scaleY(0.6)" },
+});
+
 /** The figure styles. */
 const styles = stylex.create({
     figure: {
@@ -1501,10 +1519,18 @@ const styles = stylex.create({
         strokeWidth: 3,
     },
     switch: {
+        "--wiggle": "paused",
         backgroundColor: "var(--destack-color-background)",
         borderColor: tokens.rule,
         borderStyle: "solid",
         borderWidth: tokens.hairline,
+        boxShadow: `0 3px 0 color-mix(in srgb, ${color.foreground} 14%, transparent)`,
+        transition: `transform 90ms ${easing}, box-shadow 90ms ${easing}`,
+        ":hover": { "--wiggle": "running" },
+        ":active": {
+            boxShadow: `0 1px 0 color-mix(in srgb, ${color.foreground} 14%, transparent)`,
+            transform: "translateY(2px)",
+        },
         color: color.foreground,
         columnGap: "1.5rem",
         cursor: "pointer",
@@ -1582,6 +1608,15 @@ const styles = stylex.create({
     scrawlGone: {
         opacity: 0,
     },
+    wobble: {
+        animationDuration: "900ms",
+        animationIterationCount: "infinite",
+        animationName: wiggle,
+        animationPlayState: "var(--wiggle)",
+        animationTimingFunction: "ease-in-out",
+        transformOrigin: "center",
+        [still]: { animationName: "none" },
+    },
     rule: {
         backgroundColor: "currentColor",
         height: "2px",
@@ -1590,10 +1625,13 @@ const styles = stylex.create({
         position: "absolute",
         right: 0,
         top: "calc(50% - 1px)",
-        transition: `opacity 250ms ${easing} 350ms`,
+        transform: "scaleX(0)",
+        transformOrigin: "left",
+        transition: `opacity 120ms ${easing} 350ms, transform 380ms cubic-bezier(0.3, 1.5, 0.5, 1) 350ms`,
     },
     ruleShown: {
         opacity: 1,
+        transform: "scaleX(1)",
     },
     knobNudge: {
         animationDuration: "4.5s",

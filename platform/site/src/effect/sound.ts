@@ -90,7 +90,7 @@ const melodyAt = new Map(melody.map(([step, midi, length]) => [step, { midi, len
 const chimes = [74, 76, 78, 81, 83, 86, 88, 90];
 
 /** The one-off sounds the site plays. */
-export type Cue = "destack" | "restack" | "tap" | "lift" | "set" | "copy" | "theme";
+export type Cue = "destack" | "restack" | "press" | "tap" | "lift" | "set" | "copy" | "theme";
 
 /** The two moods of the figure: the sea under the stack today, and the music over the open stack. */
 export type Mood = "today" | "destack";
@@ -735,6 +735,11 @@ export class Sound {
         else if (cue === "restack") {
             this.click(now, 0.8);
             this.rush(now + 0.1, 3, false);
+        }
+        // tick the switch down before it clicks
+        else if (cue === "press") {
+            this.burst(now, 5200, 0.12);
+            this.knock(now, 1500, 0.035);
         }
         // pick something up with a small wooden lift
         else if (cue === "lift") {
