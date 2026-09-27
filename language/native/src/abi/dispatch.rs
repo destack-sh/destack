@@ -4,6 +4,8 @@ use std::mem::{offset_of, size_of};
 #[repr(C)]
 #[derive(Debug)]
 pub struct VirtualTable {
+    /// The concrete program type id.
+    pub concrete: u32,
     /// Program function ids in virtual slot order.
     pub entries: [u32; 0],
 }
@@ -19,7 +21,7 @@ impl VirtualTable {
 #[repr(C)]
 #[derive(Debug)]
 pub struct DynamicTable {
-    /// Concrete Program type id.
+    /// The concrete program type id.
     pub concrete: u32,
     /// Field offsets or function ids in dynamic slot order.
     pub entries: [u32; 0],

@@ -75,7 +75,7 @@ impl Parser<'_> {
 
             // function values and dynamic values
             "function" => self.parse_function_operation(name, token, function),
-            "dynamic" => self.parse_dynamic_operation(name, token, function),
+            "dynamic" | "type" => self.parse_dynamic_operation(name, token, function),
 
             // execution contexts
             "context" => self.parse_context_operation(name, token, function),

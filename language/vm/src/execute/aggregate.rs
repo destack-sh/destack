@@ -128,18 +128,11 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         // encode the selected case into its discriminant field
         let field = variant.encoding.field();
         let scalar = self.read_discriminant(result.start, field)?;
-        let scalar = match variant.encoding {
-            VariantEncoding::Direct { field } => field.insert(scalar, case.discriminant.bits()),
-            VariantEncoding::Niche { .. } => {
-                let cases = self.machine.program.variant_cases(variant);
-                let case_count = cases.len() as u32;
-
-                variant
-                    .encoding
-                    .encode_niche(scalar, case_index, case_count)
-                    .ok_or_else(|| self.invalid_instruction())?
-            }
-        };
+        let case_count = self.machine.program.variant_cases(variant).len() as u32;
+        let scalar = variant
+            .encoding
+            .encode_case(scalar, case_index, case.discriminant, case_count)
+            .ok_or_else(|| self.invalid_instruction())?;
 
         self.write_discriminant(result.start, field, scalar)
     }

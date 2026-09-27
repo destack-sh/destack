@@ -1,7 +1,7 @@
-use tspp_bytecode::{Instruction, Opcode};
-use tspp_program::{Event, FrameEvent, Runtime, TypeId};
+use tspp_bytecode::{Instruction, Opcode, Scalar};
+use tspp_program::{Event, FrameEvent, LayoutShape, Runtime, TypeId, Word};
 
-use crate::diagnostic::{Error, ExecutionResult, Panic, Trap};
+use crate::diagnostic::{Error, ExecutionResult, Panic, Result, Trap};
 use crate::machine::{Activation, Return};
 
 impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
@@ -21,8 +21,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                 let range = operands.span()?;
                 let start = self.frame().range(range);
                 let words = self.fiber.stack.words(start, range.word_count as usize);
+                let message = self.panic_message(ty, &words)?;
 
-                (Panic::new(ty, words), Some(ty))
+                (Panic::new(ty, words).message(message), Some(ty))
             }
             _ => unreachable!("panic dispatch selects one panic opcode"),
         };
@@ -33,6 +34,41 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         self.panic = Some(panic);
 
         self.unwind()
+    }
+
+    /// Render the text of a string payload before unwinding.
+    fn panic_message(&self, ty: TypeId, words: &[Word]) -> Result<Option<String>> {
+        // render only references to the known string representation
+        let program = &self.machine.program;
+        let Some(string) = program.known().string else {
+            return Ok(None);
+        };
+        let layout = program
+            .layout(ty)
+            .ok_or_else(|| self.invalid_instruction())?;
+        let LayoutShape::Reference(reference) = layout.shape else {
+            return Ok(None);
+        };
+        if reference.pointee != string.ty {
+            return Ok(None);
+        }
+
+        // read the code unit slice address and count words
+        let base = self.activation.memory.base_address();
+        let object = words.first().ok_or_else(|| self.invalid_instruction())?;
+        let slice = base + object.bits() as usize + string.units_offset as usize;
+        let word_bytes = program.pointer_bytes() as usize;
+        let units = base + self.load(slice, Scalar::Uint64).bits() as usize;
+        let count = self.load(slice + word_bytes, Scalar::Uint64).bits() as usize;
+
+        // decode the UTF-16 code units, marking lone surrogates
+        let units =
+            (0..count).map(|index| self.load(units + 2 * index, Scalar::Uint16).bits() as u16);
+        let message = char::decode_utf16(units)
+            .map(|unit| unit.unwrap_or(char::REPLACEMENT_CHARACTER))
+            .collect();
+
+        Ok(Some(message))
     }
 
     /// Continue one pending panic beyond the active cleanup frame.

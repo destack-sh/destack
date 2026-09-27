@@ -242,7 +242,10 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     }
 
                     // dynamic values and calls
-                    Opcode::DYNAMIC_BIND | Opcode::DYNAMIC_READ | Opcode::DYNAMIC_TYPE => {
+                    Opcode::DYNAMIC_BIND
+                    | Opcode::DYNAMIC_READ
+                    | Opcode::TYPE_OF_DYNAMIC
+                    | Opcode::TYPE_OF_OBJECT => {
                         let memory = self.execute_dynamic(instruction)?;
                         if let Some((access, address)) = memory {
                             if is_observing_memory {

@@ -336,10 +336,15 @@ opcodes! {
         signature: "(value: dynamic, slot: uint16, byteLength: uint32) => value",
         operands: [ResultRange, RegisterSpan, Unsigned16, Unsigned32],
     }
-    DYNAMIC_TYPE = 0x007a {
-        text: "dynamic.type",
+    TYPE_OF_DYNAMIC = 0x007a {
+        text: "type.of.dynamic",
         signature: "(value: dynamic) => typeId",
         operands: [Result, RegisterSpan],
+    }
+    TYPE_OF_OBJECT = 0x007b {
+        text: "type.of.object",
+        signature: "(value: ref, dispatchOffset: uint32) => typeId",
+        operands: [Result, Register, Reference, Unsigned32],
     }
 
     // allocation and destruction

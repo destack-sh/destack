@@ -15,7 +15,8 @@ impl Parser<'_> {
         let opcode = match name {
             "dynamic.bind" => Opcode::DYNAMIC_BIND,
             "dynamic.read" => Opcode::DYNAMIC_READ,
-            "dynamic.type" => Opcode::DYNAMIC_TYPE,
+            "type.of.dynamic" => Opcode::TYPE_OF_DYNAMIC,
+            "type.of.object" => Opcode::TYPE_OF_OBJECT,
             _ => return Err(ParseError::new("unknown dynamic operation", token.span)),
         };
         let results = self.parse_definitions(opcode)?;
@@ -23,7 +24,8 @@ impl Parser<'_> {
         match name {
             "dynamic.bind" => self.parse_dynamic_bind(&results, function),
             "dynamic.read" => self.parse_dynamic_read(&results, function),
-            "dynamic.type" => self.parse_dynamic_type(&results, function),
+            "type.of.dynamic" => self.parse_type_of_dynamic(&results, function),
+            "type.of.object" => self.parse_type_of_object(&results, function),
             _ => Err(ParseError::new("invalid dynamic operation", token.span)),
         }
     }
@@ -75,7 +77,7 @@ impl Parser<'_> {
     }
 
     /// Parse one dynamic runtime type access.
-    fn parse_dynamic_type(
+    fn parse_type_of_dynamic(
         &mut self,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
@@ -83,8 +85,34 @@ impl Parser<'_> {
         let dynamic = self.parse_register_span()?;
 
         // encode the runtime type projection
-        let mut instruction = InstructionBuilder::new(Opcode::DYNAMIC_TYPE);
+        let mut instruction = InstructionBuilder::new(Opcode::TYPE_OF_DYNAMIC);
         instruction.span(dynamic);
+
+        function.emit(instruction, results, self.empty_span())
+    }
+
+    /// Parse one class object runtime type access.
+    fn parse_type_of_object(
+        &mut self,
+        results: &[RegisterSpan],
+        function: &mut FunctionParser,
+    ) -> ParseResult<()> {
+        // parse the object reference and the dispatch field holding its table
+        let object = self.parse_register()?;
+        self.eat_token(TokenType::Colon)?;
+        let reference = self
+            .parse_value_type()?
+            .reference_type()
+            .ok_or_else(|| ParseError::new("expected reference type", self.previous().span))?;
+        self.eat_token(TokenType::OpenBracket)?;
+        let dispatch_offset = self.parse_u32()?;
+        self.eat_token(TokenType::CloseBracket)?;
+
+        // encode the runtime type projection
+        let mut instruction = InstructionBuilder::new(Opcode::TYPE_OF_OBJECT);
+        instruction.register(object);
+        instruction.reference(reference.kind(), reference.storage());
+        instruction.u32(dispatch_offset);
 
         function.emit(instruction, results, self.empty_span())
     }

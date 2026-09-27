@@ -11,6 +11,8 @@ pub struct Panic {
     pub ty: Option<TypeId>,
     /// The encoded payload words.
     pub words: Vec<Word>,
+    /// The payload text rendered before unwinding when the payload is a string.
+    pub message: Option<String>,
 }
 
 impl Panic {
@@ -19,6 +21,7 @@ impl Panic {
         Self {
             ty: None,
             words: Vec::new(),
+            message: None,
         }
     }
 
@@ -27,16 +30,25 @@ impl Panic {
         Self {
             ty: Some(ty),
             words,
+            message: None,
         }
+    }
+
+    /// Attach the rendered payload text.
+    pub fn message(mut self, message: Option<String>) -> Self {
+        self.message = message;
+
+        self
     }
 }
 
 impl fmt::Display for Panic {
     /// Format one encoded panic payload.
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.ty {
-            Some(ty) => write!(formatter, "{ty:?} in {} words", self.words.len()),
-            None => formatter.write_str("no payload"),
+        match (&self.message, self.ty) {
+            (Some(message), _) => formatter.write_str(message),
+            (None, Some(ty)) => write!(formatter, "{ty:?} in {} words", self.words.len()),
+            (None, None) => formatter.write_str("no payload"),
         }
     }
 }

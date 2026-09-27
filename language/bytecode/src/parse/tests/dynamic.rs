@@ -11,7 +11,7 @@ function f0 {
     dynamic.bind r1:r2, r0, d0
     move r3, r1
     dynamic.read r3, r1:r2[1], 8
-    dynamic.type r4, r1:r2
+    type.of.dynamic r4, r1:r2
     return r1:r4
 }
 "#,
@@ -24,7 +24,7 @@ function f0 {
             Opcode::DYNAMIC_BIND,
             Opcode::MOVE,
             Opcode::DYNAMIC_READ,
-            Opcode::DYNAMIC_TYPE,
+            Opcode::TYPE_OF_DYNAMIC,
             Opcode::RETURN
         ]
     );

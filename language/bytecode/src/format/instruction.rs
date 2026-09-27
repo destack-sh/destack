@@ -165,9 +165,10 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::CONTEXT_GET => self.format_context(opcode),
 
             // dynamic values
-            Opcode::DYNAMIC_BIND | Opcode::DYNAMIC_READ | Opcode::DYNAMIC_TYPE => {
-                self.format_dynamic(opcode)
-            }
+            Opcode::DYNAMIC_BIND
+            | Opcode::DYNAMIC_READ
+            | Opcode::TYPE_OF_DYNAMIC
+            | Opcode::TYPE_OF_OBJECT => self.format_dynamic(opcode),
 
             // allocation and destruction
             Opcode::RELEASE | Opcode::FREE | Opcode::DROP => self.format_reference(opcode),

@@ -8,7 +8,7 @@ fn test_format_dynamic_operations() {
 function f0 {
 dynamic.bind r1:r2,r0,d0
 dynamic.read r3,r1:r2[1],8
-dynamic.type r4,r1:r2
+type.of.dynamic r4,r1:r2
 return r1:r4
 }
 "#,
@@ -16,7 +16,7 @@ return r1:r4
 function f0 {
     dynamic.bind r1:r2, r0, d0
     dynamic.read r3, r1:r2[1], 8
-    dynamic.type r4, r1:r2
+    type.of.dynamic r4, r1:r2
     return r1:r4
 }
 "#,

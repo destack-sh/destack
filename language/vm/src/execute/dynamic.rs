@@ -1,7 +1,7 @@
 use std::ptr;
 
 use tspp_bytecode::{Address, Instruction, Opcode};
-use tspp_program::{DynamicTableId, MemoryAccess, Runtime, Word};
+use tspp_program::{DynamicTableId, MemoryAccess, Runtime, VirtualTableId, Word};
 
 use crate::diagnostic::Result;
 use crate::machine::Activation;
@@ -62,7 +62,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
                 Some((MemoryAccess::Read, (source, byte_len)))
             }
-            Opcode::DYNAMIC_TYPE => {
+            Opcode::TYPE_OF_DYNAMIC => {
                 let target = operands.register()?;
                 let dynamic = operands.span()?;
                 if dynamic.word_count != 2 {
@@ -73,6 +73,26 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     .machine
                     .program
                     .dynamic_table(table)
+                    .ok_or_else(|| self.invalid_instruction())?;
+
+                self.write(target.0, Word::from_bits(table.concrete.0 as u64));
+
+                None
+            }
+            Opcode::TYPE_OF_OBJECT => {
+                let target = operands.register()?;
+                let object = operands.register()?;
+                let reference = operands.reference()?;
+                let dispatch_offset = operands.u32()?;
+                let edge = self.read_reference_edge(object, reference)?;
+                let address = self.activation.memory.address(edge) + dispatch_offset as usize;
+
+                // SAFETY: linked object type reads use the dispatch field from the object layout
+                let table = unsafe { ptr::read_unaligned(address as *const u32) };
+                let table = self
+                    .machine
+                    .program
+                    .virtual_table(VirtualTableId(table))
                     .ok_or_else(|| self.invalid_instruction())?;
 
                 self.write(target.0, Word::from_bits(table.concrete.0 as u64));

@@ -22,7 +22,7 @@ function f0 {
 function f1 {
     dynamic.bind r1:r2, r0, d1
     extract r3, r1:r2, 0:8
-    dynamic.type r4, r1:r2
+    type.of.dynamic r4, r1:r2
     call.dynamic r5, r1:r2[0](r0)
     return r3:r5
 }
