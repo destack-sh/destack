@@ -24,6 +24,9 @@ const promise = "to unify all your apps and agents with one open stack".split(" 
 /** The wordmark's syllables, set apart by a dictionary dot. */
 const syllables = ["DE", "STACK"];
 
+/** How far each letter's view of the star tile shifts from the last, in pixels, so no two letters show the same stars. */
+const starShift = { x: 97, y: 53 };
+
 /** Introduce Destack as a poster: the wordmark and promise on the left, the plate with the download on the right. */
 export function Hero() {
     return (
@@ -44,7 +47,11 @@ export function Hero() {
                         )}
                         <span
                             aria-hidden="true"
-                            style={{ "background-image": stillStars }}
+                            style={{
+                                "background-image": stillStars,
+                                "--star-x": `${index * starShift.x}px`,
+                                "--star-y": `${index * starShift.y}px`,
+                            }}
                             {...stylex.attrs(styles.letter)}
                         >
                             {letter}
@@ -80,8 +87,8 @@ export function Hero() {
 
 /** The slow drift of the starry space inside the wordmark's letters. */
 const drift = stylex.keyframes({
-    from: { backgroundPosition: "0 0" },
-    to: { backgroundPosition: "240px 120px" },
+    from: { backgroundPosition: "var(--star-x) var(--star-y)" },
+    to: { backgroundPosition: "calc(var(--star-x) + 240px) calc(var(--star-y) + 120px)" },
 });
 
 /** The hero styles. */
@@ -144,7 +151,6 @@ const styles = stylex.create({
         animationIterationCount: "infinite",
         animationName: drift,
         animationTimingFunction: "linear",
-        backgroundAttachment: "fixed",
         backgroundClip: "text",
         backgroundColor: tokens.space,
         color: "transparent",
