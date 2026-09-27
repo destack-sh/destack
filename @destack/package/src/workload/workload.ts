@@ -26,8 +26,8 @@ export const WorkloadDescription = defineSchema(
         export: schema.string().min(1),
         /** Service declarations of this package reachable from the workload. */
         services: schema.array(DeclarationReference),
-        /** Schedule declarations of this package reachable from the workload. */
-        schedules: schema.array(DeclarationReference),
+        /** Trigger declarations (schedules, webhooks, subscriptions) of this package reachable from the workload. */
+        triggers: schema.array(DeclarationReference),
         /** Resource declarations reachable from the workload. */
         resources: schema.array(DeclarationReference),
         /** Secret declarations reachable from the workload. */
