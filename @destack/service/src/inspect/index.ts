@@ -3,4 +3,8 @@ export * from "./procedure.ts";
 export * from "./connection.ts";
 export { ScheduleDescription } from "../schedule/index.ts";
 export * from "./schedule.ts";
+export { WebhookDescription } from "../webhook/index.ts";
+export * from "./webhook.ts";
+export { SubscriptionDescription } from "../subscription/index.ts";
+export * from "./subscription.ts";
 export * from "./workload.ts";

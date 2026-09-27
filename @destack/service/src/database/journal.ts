@@ -108,6 +108,20 @@ export class Journal {
         }
     }
 
+    /** Read the recorded outcome of a request, absent while it has none. */
+    async outcome(
+        database: DatabaseConnection,
+        request: RequestIdentity,
+    ): Promise<Outcome | undefined> {
+        const row = await database
+            .select({ outcome: this.table.outcome })
+            .from(this.table)
+            .where(this.key(request))
+            .get();
+
+        return row?.outcome ?? undefined;
+    }
+
     /** Claim a request in the transaction executing it, or replay its recorded outcome. */
     async claim(
         database: DatabaseConnection,

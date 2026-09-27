@@ -2,17 +2,22 @@ import type { ResourceContext } from "@destack/resource/context";
 import { reference } from "@destack/package/declare";
 import { Server, type ServerOptions, type ServiceImplementation } from "../server/index.ts";
 import type { Service } from "../declare/service.ts";
-import type { Schedule, ScheduleImplementation } from "../schedule/index.ts";
+import type {
+    Trigger,
+    TriggerEvent,
+    TriggerHandler,
+    TriggerImplementation,
+} from "../trigger/index.ts";
 import { Health } from "../health/index.ts";
 import { ServiceError } from "../error/index.ts";
 import type { Workload } from "./workload.ts";
 
-/** A running workload instance: its services and schedules sharing one lifetime. */
+/** A running workload instance: its services and triggers sharing one lifetime. */
 export class WorkloadInstance implements AsyncDisposable {
     /** Running services keyed by their declaration reference. */
     readonly #services = new Map<string, Server>();
-    /** Schedule handlers keyed by their declaration reference. */
-    readonly #schedules = new Map<string, ScheduleImplementation>();
+    /** Trigger handlers keyed by their kind and declaration reference. */
+    readonly #triggers = new Map<string, TriggerImplementation>();
     /** Cancellation requested by the host or workload. */
     readonly #controller = new AbortController();
     /** Resources released after service requests drain. */
@@ -54,13 +59,13 @@ export class WorkloadInstance implements AsyncDisposable {
                 instance.#services.set(key, server);
             }
 
-            // retain schedule handlers for the host scheduler
-            for (const schedule of implementation.schedules ?? []) {
-                const key = keyOf(schedule.schedule);
-                if (instance.#schedules.has(key)) {
-                    throw new TypeError(`duplicate workload schedule: ${key}`);
+            // retain trigger handlers for the host's dispatcher
+            for (const handler of implementation.triggers ?? []) {
+                const key = triggerKey(handler.trigger);
+                if (instance.#triggers.has(key)) {
+                    throw new TypeError(`duplicate workload ${key}`);
                 }
-                instance.#schedules.set(key, schedule);
+                instance.#triggers.set(key, handler);
             }
 
             // reject cancellation requested by the final initializer before publishing services
@@ -81,6 +86,11 @@ export class WorkloadInstance implements AsyncDisposable {
     /** Observe cooperative shutdown without assuming the host guarantees finalization. */
     get signal(): AbortSignal {
         return this.#controller.signal;
+    }
+
+    /** The declared triggers the workload implements, in the order it returned them. */
+    get triggers(): readonly Trigger[] {
+        return [...this.#triggers.values()].map((handler) => handler.trigger);
     }
 
     /** Report whether the workload implements a declared service. */
@@ -106,17 +116,24 @@ export class WorkloadInstance implements AsyncDisposable {
         return server.fetch(request);
     }
 
-    /** Run one occurrence of a declared schedule. */
-    run(schedule: Schedule, signal: AbortSignal): Promise<void> {
+    /**
+     * Deliver one event of a declared trigger to its handler.
+     *
+     * The host decides what to deliver and records each delivery as a run, delivering each cause once.
+     */
+    deliver<Declared extends Trigger>(
+        trigger: Declared,
+        event: TriggerEvent<Declared>,
+        signal: AbortSignal,
+    ): Promise<void> {
         // require a handler implemented by this workload
-        const implementation = this.#schedules.get(keyOf(schedule));
-        if (!implementation) {
-            throw new ServiceError("NOT_FOUND", {
-                message: `unknown workload schedule: ${keyOf(schedule)}`,
-            });
+        const key = triggerKey(trigger);
+        const handler = this.#triggers.get(key) as TriggerHandler<Declared> | undefined;
+        if (!handler) {
+            throw new ServiceError("NOT_FOUND", { message: `unknown workload ${key}` });
         }
 
-        return implementation.run(AbortSignal.any([signal, this.signal]));
+        return handler.handle(event, AbortSignal.any([signal, this.signal]));
     }
 
     /** Cancel background work and await request completion before releasing shared resources. */
@@ -169,8 +186,13 @@ export interface WorkloadInstanceOptions {
 }
 
 /** Key a declaration by its package and name. */
-function keyOf(declaration: Service | Schedule): string {
+function keyOf(declaration: Service | Trigger): string {
     const { packageId, name } = reference(declaration);
 
     return `${packageId}/${name}`;
+}
+
+/** Key a trigger by its kind, package and name, since kinds name their declarations independently. */
+function triggerKey(trigger: Trigger): string {
+    return `${trigger.kind}: ${keyOf(trigger)}`;
 }

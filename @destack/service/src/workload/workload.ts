@@ -3,13 +3,13 @@ import type { Declaration } from "@destack/package/declare";
 import { WorkloadDefinition } from "@destack/package/workload";
 import type { ResourceContext } from "@destack/resource/context";
 import type { ServiceImplementation } from "../server/index.ts";
-import type { ScheduleImplementation } from "../schedule/index.ts";
+import type { TriggerImplementation } from "../trigger/index.ts";
 
 /** A declared unit of deployment: code started once per instance and scaled together. */
 export interface Workload extends Declaration {
     /** Capacity and lifecycle policy for each instance. */
     readonly compute?: ComputeDefinition;
-    /** Start one instance and return the services and schedules it implements. */
+    /** Start one instance and return the services and triggers it implements. */
     start(context: WorkloadContext): WorkloadImplementation | Promise<WorkloadImplementation>;
 }
 
@@ -37,10 +37,10 @@ export interface WorkloadContext {
     defer(dispose: () => void | PromiseLike<void>): void;
 }
 
-/** Services and schedules implemented together by one workload. */
+/** Services and triggers implemented together by one workload. */
 export interface WorkloadImplementation {
     /** Implementations of declared services. */
     readonly services: readonly ServiceImplementation[];
-    /** Handlers of declared schedules. */
-    readonly schedules?: readonly ScheduleImplementation[];
+    /** Handlers of declared schedules, webhooks and subscriptions. */
+    readonly triggers?: readonly TriggerImplementation[];
 }

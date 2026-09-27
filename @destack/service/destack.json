@@ -34,6 +34,20 @@
                 "describe": "./inspect#describeServiceConnection"
             }
         },
+        "defineSubscription": {
+            "module": 1,
+            "inspect": {
+                "kind": "subscription",
+                "describe": "./inspect#describeSubscription"
+            }
+        },
+        "defineWebhook": {
+            "module": 1,
+            "inspect": {
+                "kind": "webhook",
+                "describe": "./inspect#describeWebhook"
+            }
+        },
         "defineWorkload": {
             "module": 1,
             "inspect": {

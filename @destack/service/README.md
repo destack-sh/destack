@@ -46,21 +46,10 @@ const response = await server.fetch(request);
 
 ## Workloads
 
-A workload starts once per instance and returns the services and schedules it implements.
+A workload starts once per instance and returns the services and triggers it implements.
 
 ```ts
 import { defineWorkload, WorkloadInstance } from "@destack/service/workload";
-import { defineSchedule } from "@destack/service/schedule";
-import { serveProcess } from "@destack/service/bun";
-
-export const reminders = defineSchedule({
-    name: "reminders",
-    timing: "cron",
-    cron: "0 9 * * *",
-    timezone: "Europe/Zurich",
-    concurrency: "forbid",
-    deadline: 60000,
-});
 
 export const workload = defineWorkload({
     name: "main",
@@ -69,22 +58,50 @@ export const workload = defineWorkload({
         const notebook = new Notebook(database.get(context.resources));
         context.defer(() => notebook.close());
 
-        return {
-            services: [implementService(notebook)],
-            schedules: [{ schedule: reminders, run: (signal) => notebook.remind(signal) }],
-        };
+        return { services: [implementService(notebook)], triggers: [reminders.handle((occurrence) => notebook.remind(occurrence))] };
     },
 });
 
-// host startup
 const instance = await WorkloadInstance.start(workload, { resources, service: serviceOptions });
-await serveProcess({
-    endpoints: [{ hostname: "127.0.0.1", port: 8080, fetch: (request) => instance.fetch(notesService, request) }],
-    signal: instance.signal,
-    shutdown: () => instance.shutdown(),
-    close: () => instance.close(),
-});
+const response = await instance.fetch(notesService, request);
 ```
+
+## Triggers
+
+A trigger is a declared event source, which the host delivers once per cause and records as a run.
+
+| Trigger | Declared with | Event | Cause |
+|---|---|---|---|
+| schedule | `defineSchedule` | `ScheduleOccurrence { scheduledAt }` | the occurrence time |
+| webhook | `defineWebhook` | `WebhookDelivery { id, event, payload, receivedAt }` | the delivery identifier |
+| subscription | `defineSubscription` | `SubscriptionChange { position, key?, operation, before?, after? }` | the log position, and the row key of a snapshot's rows |
+
+A package declares its triggers, and the host verifies and delivers each event.
+
+```ts
+export const reminders = defineSchedule({ name: "reminders", timing: "cron", cron: "0 9 * * *", timezone: "Europe/Zurich", concurrency: "forbid", deadline: 60000 });
+export const pushes = defineWebhook({ name: "github", verification: "github", secret: webhookSecret });
+export const published = defineSubscription({ name: "published", object: note, where: Condition.eq("status", "published"), on: ["create", "update", "delete"], from: "snapshot" });
+
+await instance.deliver(pushes, await WEBHOOK_SIGNATURES.github.verify(request, secret, Date.now()), request.signal);
+```
+
+A webhook's verification names the scheme its sender signs with.
+
+| Verification | Headers | Signed content |
+|---|---|---|
+| `standard` | `webhook-id`, `webhook-timestamp`, `webhook-signature: v1,<base64 HMAC-SHA256>` | `id.timestamp.body` with the `whsec_` base64 secret, within five minutes |
+| `github` | `x-github-delivery`, `x-github-event`, `x-hub-signature-256: sha256=<hex HMAC-SHA256>` | the body with the secret's UTF-8 bytes |
+
+A subscription consumes its object type's changes exactly.
+
+| Rule | Reason |
+|---|---|
+| rows entering the condition are created, rows leaving it deleted | the condition is the subscribed set |
+| each change is admitted by the access the installation had when it committed | the log replays history |
+| `from: "snapshot"` delivers every admitted row at the start as created | consumers building a projection start complete |
+| the log keeps changes for `maxLag` milliseconds, a week by default, then the subscription fails | a stuck consumer never pins the log forever |
+| handlers apply a change through a Journal request derived from its position and key | a host may deliver a change again |
 
 ## Clients
 

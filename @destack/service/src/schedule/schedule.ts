@@ -1,6 +1,10 @@
 import { defineSchema, schema } from "@destack/schema";
+import { handleTrigger, type Handled } from "../trigger/trigger.ts";
 import { DeclarationName, declaringModule, type ModuleMetadata } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
+
+/** How a trigger's runs may overlap: all at once, one at a time skipping the rest, or the latest replacing the running one. */
+export const CONCURRENCIES = ["allow", "forbid", "replace"] as const;
 
 /** Fields shared by calendar, interval, and one-off schedules. */
 const SCHEDULE = schema.object({
@@ -9,7 +13,7 @@ const SCHEDULE = schema.object({
     /** The declaration format version. */
     version: schema.literal(1),
     /** Whether occurrences may overlap. */
-    concurrency: schema.enum(["allow", "forbid", "replace"]),
+    concurrency: schema.enum(CONCURRENCIES),
     /** How late an occurrence may start, in milliseconds. */
     deadline: schema.number().int().nonnegative(),
 });
@@ -58,16 +62,19 @@ type WithoutVersion<Description> = Description extends unknown
     ? Omit<Description, "version">
     : never;
 
-/** A declared schedule, run by the workload that implements it. */
-export type Schedule = Declaration & ScheduleDescription;
+/** A declared schedule, whose occurrences the host delivers to the workload implementing it. */
+export type Schedule = Declaration &
+    ScheduleDescription & { readonly kind: "schedule" } & Handled<Schedule>;
 
-/** A workload's handler for one declared schedule. */
-export interface ScheduleImplementation {
-    /** The declared schedule this handler runs. */
-    readonly schedule: Schedule;
-    /** Run one occurrence, observing cancellation. */
-    run(signal: AbortSignal): Promise<void>;
-}
+/** One occurrence of a schedule, which the host delivers once. */
+export const ScheduleOccurrence = defineSchema(
+    schema.object({
+        /** The time the occurrence was due in UTC epoch milliseconds. */
+        scheduledAt: schema.number().int().nonnegative(),
+    }),
+);
+/** One occurrence of a schedule, which the host delivers once. */
+export type ScheduleOccurrence = schema.Infer<typeof ScheduleOccurrence>;
 
 /** Declare a controller-managed schedule. */
 export function defineSchedule(definition: ScheduleDefinition, module?: ModuleMetadata): Schedule {
@@ -75,5 +82,10 @@ export function defineSchedule(definition: ScheduleDefinition, module?: ModuleMe
     const owner = declaringModule(module, "defineSchedule").package;
     const description = ScheduleDescription.parse({ ...definition, version: 1 });
 
-    return Object.freeze({ ...description, package: owner });
+    return Object.freeze({
+        ...description,
+        kind: "schedule",
+        package: owner,
+        handle: handleTrigger,
+    });
 }

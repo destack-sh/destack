@@ -4,7 +4,7 @@ import { ScheduleDescription, type Schedule } from "../schedule/index.ts";
 /** Describe a declared schedule after checking its calendar and occurrence bounds. */
 export function describeSchedule(schedule: Schedule): ScheduleDescription {
     // resolve calendar expressions against their declared time zone
-    const { package: _owner, ...fields } = schedule;
+    const { package: _owner, kind: _kind, handle: _handle, ...fields } = schedule;
     const description = ScheduleDescription.parse(fields);
     if (description.timing === "cron") {
         new Intl.DateTimeFormat("en", { timeZone: description.timezone });

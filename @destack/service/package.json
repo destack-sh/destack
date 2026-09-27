@@ -28,6 +28,9 @@
         "./server": "./src/server/index.ts",
         "./inspect": "./src/inspect/index.ts",
         "./schedule": "./src/schedule/index.ts",
+        "./webhook": "./src/webhook/index.ts",
+        "./subscription": "./src/subscription/index.ts",
+        "./trigger": "./src/trigger/index.ts",
         "./bun": "./src/server/bun.ts"
     },
     "devDependencies": {

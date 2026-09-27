@@ -4,7 +4,7 @@ import { DatabaseError } from "@destack/db/error";
 
 export { ORPCError as ServiceError };
 
-/** Report a domain failure a retry would repeat as the service failure of the same meaning: an access decision, a duplicate record or an invalid query. */
+/** Report a domain failure a retry would repeat as the service failure of the same meaning: an access decision, a duplicate record, a broken reference, an invalid query or an invalid record. */
 export function domainFailure(error: unknown): ORPCError<string, unknown> | undefined {
     // report access decisions with their own classification, invalid context as a denial, and stale copies as unavailable until they catch up
     if (error instanceof AccessError && error.code !== "INVALID_DECLARATION") {
@@ -17,12 +17,18 @@ export function domainFailure(error: unknown): ORPCError<string, unknown> | unde
 
         return new ORPCError(code, { message: error.message });
     }
-    // report a duplicate unique key as a conflict
-    else if (error instanceof DatabaseError && error.code === "DUPLICATE") {
+    // report a duplicate unique key or a broken reference as a conflict
+    else if (
+        error instanceof DatabaseError &&
+        (error.code === "DUPLICATE" || error.code === "BROKEN_REFERENCE")
+    ) {
         return new ORPCError("CONFLICT", { message: error.message });
     }
-    // report a query the caller shaped wrongly as a bad request
-    else if (error instanceof DatabaseError && error.code === "INVALID_QUERY") {
+    // report a query the caller shaped wrongly, or a record failing a check, as a bad request
+    else if (
+        error instanceof DatabaseError &&
+        (error.code === "INVALID_QUERY" || error.code === "INVALID_RECORD")
+    ) {
         return new ORPCError("BAD_REQUEST", { message: error.message });
     }
 

@@ -2,7 +2,8 @@ import { expect, test } from "@destack/test";
 import { defineWorkload } from "./workload.ts";
 import { WorkloadInstance } from "./instance.ts";
 import { defineService } from "../declare/service.ts";
-import { defineSchedule } from "../schedule/index.ts";
+import { defineSchedule, type ScheduleOccurrence } from "../schedule/index.ts";
+import { defineWebhook, type WebhookDelivery } from "../webhook/index.ts";
 import { hosting } from "../server/tests/fixture.ts";
 
 /** The first declared fixture service. */
@@ -168,19 +169,31 @@ test("reject a service implemented twice and release startup resources", async (
     expect(events).toEqual(["resources"]);
 }, 1500);
 
-test("run a declared schedule through the workload that implements it", async () => {
-    const runs: string[] = [];
+test("deliver a schedule's occurrence and a webhook's delivery through the workload's triggers", async () => {
+    const delivered: unknown[] = [];
+    const github = defineWebhook({
+        name: "github",
+        verification: "github",
+        secret: { package: first.package, name: "github-webhook" },
+    });
     await using instance = await WorkloadInstance.start(
         defineWorkload({
             name: "fixture",
             start: () => ({
                 services: [],
-                schedules: [
+                triggers: [
                     {
-                        schedule: nightly,
-                        run: async (signal) => {
+                        trigger: nightly,
+                        handle: async (occurrence: ScheduleOccurrence, signal: AbortSignal) => {
                             signal.throwIfAborted();
-                            runs.push(nightly.name);
+                            delivered.push([nightly.name, occurrence.scheduledAt]);
+                        },
+                    },
+                    {
+                        trigger: github,
+                        handle: async (delivery: WebhookDelivery, signal: AbortSignal) => {
+                            signal.throwIfAborted();
+                            delivered.push([github.name, delivery.id]);
                         },
                     },
                 ],
@@ -189,10 +202,19 @@ test("run a declared schedule through the workload that implements it", async ()
         { resources: hosting.resources, service: () => ({ ...hosting, drainTimeout: 1000 }) },
     );
 
-    // run the implemented schedule and reject an unknown one
-    await instance.run(nightly, new AbortController().signal);
-    expect(runs).toEqual(["nightly"]);
-    const unknown = defineSchedule({
+    // deliver to each implemented trigger, listed in the order the workload returned them
+    expect(instance.triggers).toEqual([nightly, github]);
+    const signal = new AbortController().signal;
+    await instance.deliver(nightly, { scheduledAt: 1800000000000 }, signal);
+    const delivery = { id: "delivery-1", event: "push", payload: {}, receivedAt: 1 };
+    await instance.deliver(github, delivery, signal);
+    expect(delivered).toEqual([
+        ["nightly", 1800000000000],
+        ["github", "delivery-1"],
+    ]);
+
+    // reject a trigger the workload does not implement, naming its kind
+    const weekly = defineSchedule({
         name: "weekly",
         timing: "cron",
         cron: "0 3 * * 1",
@@ -200,7 +222,28 @@ test("run a declared schedule through the workload that implements it", async ()
         concurrency: "forbid",
         deadline: 60000,
     });
-    expect(() => instance.run(unknown, new AbortController().signal)).toThrow(
-        `unknown workload schedule: ${unknown.package.id}/weekly`,
+    expect(() => instance.deliver(weekly, { scheduledAt: 0 }, signal)).toThrow(
+        `unknown workload schedule: ${weekly.package.id}/weekly`,
     );
+}, 1500);
+
+test("reject a trigger implemented twice and release startup resources", async () => {
+    const events: string[] = [];
+    const handler = { trigger: nightly, handle: async () => {} };
+    await expect(
+        WorkloadInstance.start(
+            defineWorkload({
+                name: "fixture",
+                start: (context) => {
+                    context.defer(() => {
+                        events.push("resources");
+                    });
+
+                    return { services: [], triggers: [handler, handler] };
+                },
+            }),
+            { resources: hosting.resources, service: () => ({ ...hosting, drainTimeout: 1000 }) },
+        ),
+    ).rejects.toThrow(`duplicate workload schedule: ${nightly.package.id}/nightly`);
+    expect(events).toEqual(["resources"]);
 }, 1500);
