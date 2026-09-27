@@ -1,15 +1,14 @@
 # Agents
 
 The key words MUST, MUST NOT, SHOULD, SHOULD NOT and MAY follow RFC 2119.
-Every rule has a code: verb letter, noun letter, number.
-Codes number the rules in reading order and change when rules move.
-Rules come in short blocks of related rules, from the general to the specific.
-A lint name in parentheses, like (`destack/comment-style`), marks a rule the linter enforces.
-Destack packages MUST also follow the package rules in [`@destack/template-blank/AGENTS.md`](@destack/template-blank/AGENTS.md).
+- Every rule has a code: verb letter, noun letter, number.
+- Codes number the rules in reading order and change when rules move.
+- Rules come in short blocks of related rules, from the general to the specific.
+- A lint name in parentheses, like (`destack/comment-style`), marks a rule our linters enforce.
 
 ## Plan (P)
 
-Shape the change before writing it.
+Shape the change and desired behavior systematically before and after writing it.
 
 ### Shaping (PS)
 
@@ -96,7 +95,7 @@ Shape the change before writing it.
 
 ## Design (D)
 
-Model the problem with the fewest, most pristine nouns and verbs.
+Model the problem with the fewest, most pristine nouns and verbs in a way the target machine understands well.
 
 ### Modeling (DM)
 
@@ -110,7 +109,7 @@ Model the problem with the fewest, most pristine nouns and verbs.
 - **DM07** Types SHOULD be fewer and fatter unless the domain or the machine needs finer granularity.
 - **DM08** Abstractions MUST NOT be forced; forced abstraction is worse than duplication.
 - **DM09** Components SHOULD NOT pull in a deep object graph when used ("banana and the jungle"), except where an obvious god object exists, such as a game's current `World`.
-- **DM10** State and responsibility SHOULD be bundled with the nouns they belong to, without inheritance hierarchies.
+- **DM10** State and responsibility SHOULD be bundled with the nouns they belong to, without inheritance hierarchies (unless mechanically required).
 
 - **DM11** Every piece of information SHOULD have one clear representation with one obvious owner; values derivable from it, such as the acting principal being the last delegate, are computed instead of stored.
 - **DM12** Logic and state SHOULD be incrementally granular, reusable at several levels of granularity.
@@ -178,6 +177,8 @@ Model the problem with the fewest, most pristine nouns and verbs.
 
 ### Dependency (DD)
 
+Minimize dependencies, and - when necessary - use modern proven dependencies after discussion.
+
 - **DD01** Dependencies SHOULD be few.
 - **DD02** Simple logic MUST be implemented in the repository.
 - **DD03** Moderately complex logic MAY be vendored.
@@ -188,7 +189,7 @@ Model the problem with the fewest, most pristine nouns and verbs.
 
 ## Write (W)
 
-Write code and prose that read plainly.
+Write code and prose that read plain and boring.
 
 ### Naming (WN)
 
@@ -423,7 +424,7 @@ Write code and prose that read plainly.
 
 ## Rewrite (R)
 
-Rewrite as understanding grows, toward the final shape.
+Rewrite as understanding grows, toward the final shape, always rewrite: generalise, compress, subtract.
 
 ### Surveying (RS)
 
@@ -456,14 +457,14 @@ Rewrite as understanding grows, toward the final shape.
 
 ### Fixing (RF)
 
-- **RF01** Bugs MUST be treated as misalignment, not as a natural phenomenon; correct systems come from clarity, simplicity, strong invariants and clear expectations.
-- **RF02** Issues MUST be treated as challenges to the model, answered by the model's long term shape rather than by standalone fixes.
+- **RF01** Bugs MUST be treated as model misalignment, not as a natural phenomenon; correct systems come from clarity, simplicity, strong invariants and clear expectations.
+- **RF02** Issues of any kind MUST be treated as challenges to the model, answered by the model's long term shape rather than by standalone fixes.
 - **RF03** Fixes SHOULD NOT be additive or applied en masse; checking invariants is fine, making bad states impossible is better, and simplifying / compressing the model or avoiding the problem alltogether is best.
 - **RF04** Failures SHOULD act as a searchlight: study the model they expose, find its gaps, and correct the model in the most general, compressed, subtractive way.
 
 ## Check (C)
 
-Check every change with tests, formatting and lints.
+Check every change with tests, formatting, lints, and any relevant static and dynamic analysis.
 
 ### Testing (CT)
 
@@ -502,7 +503,7 @@ Check every change with tests, formatting and lints.
 
 ## Ship (S)
 
-Land changes through branches and plain commits.
+Land changes through branches and plain commits under the strict cooperation protocol.
 
 ### Branching (SB)
 
