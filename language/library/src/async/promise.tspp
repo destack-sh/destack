@@ -168,9 +168,9 @@ export class Promise<T: Copy> implements Awaitable<T> {
     /// Observe this fulfilled promise.
     private observe(): T {
         match (this.state) {
-            PromiseFulfilled { value } => value
-            PromiseForwarded { source } => source.observe()
-            _ => trap("promise does not own a fulfilled value")
+            PromiseFulfilled { value } => value,
+            PromiseForwarded { source } => source.observe(),
+            _ => trap("promise does not own a fulfilled value"),
         }
     }
 

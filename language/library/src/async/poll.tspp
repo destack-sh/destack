@@ -51,8 +51,8 @@ export extension<T> of Poll<T> {
     /// Map the available value.
     map<U>(this, f: ^Function<(T,), U, "once">): Poll<U> {
         match (this) {
-            Ready { value } => Poll.ready(f(value))
-            Pending {} => Poll.pending()
+            Ready { value } => Poll.ready(f(value)),
+            Pending {} => Poll.pending(),
         }
     }
 }
@@ -79,16 +79,16 @@ export extension<T> of Poll<T> implements Try, FromResidual<Poll<never>> {
     /// Create a poll from a propagated pending result.
     static fromResidual(residual: Poll<never>): Poll<T> {
         match (residual) {
-            Ready { value } => value
-            Pending {} => Poll.pending()
+            Ready { value } => value,
+            Pending {} => Poll.pending(),
         }
     }
 
     /// Branch into available or pending control flow.
     branch(this): ControlFlow<Poll<never>, T> {
         match (this) {
-            Ready { value } => ControlFlow.continue(value)
-            Pending {} => ControlFlow.break(Poll.pending())
+            Ready { value } => ControlFlow.continue(value),
+            Pending {} => ControlFlow.break(Poll.pending()),
         }
     }
 }
@@ -112,8 +112,8 @@ export extension PollableAwaitable<T, P: Pollable<T>, 'a> of &'a exclusive P
             loop {
                 pollable.setWaiter(Fiber.current());
                 match (pollable.poll()) {
-                    Ready { value } => return value
-                    Pending {} => Fiber.park()
+                    Ready { value } => return value,
+                    Pending {} => Fiber.park(),
                 }
             }
         }

@@ -76,8 +76,9 @@ export declare function abort(message?: string): never;
 
 /// Stop execution because code is intentionally unfinished.
 @languageItem("error.todo")
-@intrinsic("error.todo")
-export declare function todo(message?: string): never;
+export function todo(message?: string): never {
+    panic(message ?? "not yet implemented")
+}
 
 /// Mark this code path as unreachable.
 @languageItem("error.unreachable")

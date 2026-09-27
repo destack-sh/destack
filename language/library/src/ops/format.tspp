@@ -11,3 +11,10 @@ export newtype interface Debug {
     /// Return a developer-facing string representation.
     debug(this: &immutable this): ^string;
 }
+
+export extension<T: Display> of T {
+    /// Return the user-facing string representation.
+    toString(this: &immutable this): ^string {
+        this.display()
+    }
+}

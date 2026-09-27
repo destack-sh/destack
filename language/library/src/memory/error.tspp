@@ -50,11 +50,11 @@ export extension of AllocationError implements Error {
     /// Format this error for users.
     display(&immutable this): ^string {
         match (this) {
-            AllocationOutOfMemory { message } => (message ?? "out of memory").clone()
+            AllocationOutOfMemory { message } => (message ?? "out of memory").clone(),
             AllocationCapacityOverflow { message } => (
                 message ?? "allocation capacity overflow"
-            ).clone()
-            AllocationUnsupported { message } => (message ?? "allocation unsupported").clone()
+            ).clone(),
+            AllocationUnsupported { message } => (message ?? "allocation unsupported").clone(),
         }
     }
 }

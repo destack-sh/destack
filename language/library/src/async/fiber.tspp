@@ -26,14 +26,15 @@ export struct Fiber implements Copy, !SharedSafe {
         wakeFiber(this);
     }
 
-    /// Resume this fiber until it yields or returns.
+    /// Resume this fiber until it parks, yields, or returns.
     resume(this): void {
         resumeFiber(this);
+        parkFiber();
     }
 
     /// Yield execution to the fiber that resumed this one.
     static yield(): void {
-        yieldFiber();
+        parkFiber();
     }
 
     /// Request cancellation at this fiber's next park.
@@ -89,7 +90,7 @@ declare function parkFiber(): void;
 })
 declare function wakeFiber(fiber: Fiber): void;
 
-/// Resume one fiber until it yields or returns.
+/// Link the current fiber as one fiber's resumer and wake that fiber.
 @languageItem("async.Fiber.resume")
 @binding("tspp.fiber.resume", {
     provider: "runtime",
@@ -98,16 +99,6 @@ declare function wakeFiber(fiber: Fiber): void;
     affinity: "worker",
 })
 declare function resumeFiber(fiber: Fiber): void;
-
-/// Yield execution to the fiber that resumed this one.
-@binding("tspp.fiber.yield", {
-    provider: "runtime",
-    effect: "deterministic",
-    requires: [],
-    affinity: "worker",
-    park: true,
-})
-declare function yieldFiber(): void;
 
 /// Request cancellation at one fiber's next park.
 @binding("tspp.fiber.cancel", {

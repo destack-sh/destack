@@ -362,17 +362,7 @@ export declare function sliceView<T, const R: Region, const A: Access>(
     length: usize,
 ): Borrowed<[T], R, A>;
 
-export extension<T> of Slice<T> implements Index<isize> where T: Copy {
-    /// The copied indexed value.
-    type Output<const R: Region> = T;
-
-    /// Copy the indexed value.
-    index<const R: Region>(this: Borrowed<Slice<T>, R, "readonly">, key: isize): T {
-        todo("Slice.index")
-    }
-}
-
-export extension<T, const A: "immutable" | "exclusive"> of Slice<T> implements Index<isize, A> {
+export extension<T, const A: Access> of Slice<T> implements Index<isize, A> {
     /// The protected element storage.
     type Output<const R: Region> = Borrowed<T, R, A>;
 

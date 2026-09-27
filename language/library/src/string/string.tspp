@@ -5,7 +5,17 @@ import { CollatorOptions, IntlError, Locales } from "tspp:intl";
 import { Iterator } from "tspp:iter";
 import { Borrowed, Clone, Default, Region, WithAccess } from "tspp:memory";
 
-import { Add, DefaultEqual, Equal, Hash, Hasher, Ordering, PartialEqual } from "tspp:ops";
+import {
+    Add,
+    Debug,
+    DefaultEqual,
+    Display,
+    Equal,
+    Hash,
+    Hasher,
+    Ordering,
+    PartialEqual,
+} from "tspp:ops";
 import { RegExp, RegExpMatch } from "tspp:regexp";
 
 import { StringBuilder } from "./builder.tspp";
@@ -77,11 +87,23 @@ export extension of string
         Equal<string>,
         PartialEqual<StringSlice>,
         Equal<StringSlice>,
-        Hash
+        Hash,
+        Display,
+        Debug
 {
     /// Copy this string into owned storage.
     clone(this: &immutable this): ^this {
         this.as().toOwned()
+    }
+
+    /// Return a copy of this string as a user-facing string.
+    display(this: &immutable this): ^string {
+        this.clone()
+    }
+
+    /// Return this string quoted and escaped as a developer-facing string.
+    debug(this: &immutable this): ^string {
+        todo("String.debug")
     }
 
     /// The concatenated string type.
@@ -373,6 +395,12 @@ export extension<const A: Access> of String implements As<StringSlice, A>, Borro
 @languageItem("string.fromTemplate")
 export function stringFromTemplate(chunks: &readonly [string], spans: &readonly [string]): ^string {
     todo("stringFromTemplate")
+}
+
+/// Return whether two strings hold the same code units.
+@languageItem("string.equal")
+export function stringEqual(left: string, right: string): boolean {
+    todo("stringEqual")
 }
 
 export extension<Q: Borrow<StringSlice>> of string implements DefaultEqual<Q> {

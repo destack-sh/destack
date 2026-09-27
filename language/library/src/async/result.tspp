@@ -10,8 +10,8 @@ export extension PollResult<T, E> of Poll<Result<T, E>> implements FromResidual<
     /// Create an available failed result from a propagated residual.
     static fromResidual(residual: Result<never, E>): Poll<Result<T, E>> {
         match (residual) {
-            Ok { value } => value
-            Err { error } => Poll.ready(Result.err(error))
+            Ok { value } => value,
+            Err { error } => Poll.ready(Result.err(error)),
         }
     }
 }
@@ -20,8 +20,8 @@ export extension TaskResult<T, E> of Task<Result<T, E>> implements FromResidual<
     /// Create a failed result task from a propagated residual.
     static fromResidual(residual: Result<never, E>): Task<Result<T, E>> {
         match (residual) {
-            Ok { value } => value
-            Err { error } => Task.resolve(Result.err(error))
+            Ok { value } => value,
+            Err { error } => Task.resolve(Result.err(error)),
         }
     }
 
@@ -46,10 +46,10 @@ export extension TaskResult<T, E> of Task<Result<T, E>> implements FromResidual<
         match (result) {
             // rebuild the continuation result at the joined error type
             Ok { value } => match (await f(value)) {
-                Ok { value } => Result.ok(value)
-                Err { error } => Result.err(error)
+                Ok { value } => Result.ok(value),
+                Err { error } => Result.err(error),
             }
-            Err { error } => Result.err(error)
+            Err { error } => Result.err(error),
         }
     }
 
@@ -65,8 +65,8 @@ export extension TaskResult<T, E> of Task<Result<T, E>> implements FromResidual<
         const result = await this;
 
         match (result) {
-            Ok { value } => Result.ok(value)
-            Err { error } => await f(error)
+            Ok { value } => Result.ok(value),
+            Err { error } => await f(error),
         }
     }
 
@@ -126,8 +126,8 @@ export extension PromiseResult<T: Copy, E: Copy> of Promise<Result<T, E>>
     /// Create a failed result promise from a propagated residual.
     static fromResidual(residual: Result<never, E>): Promise<Result<T, E>> {
         match (residual) {
-            Ok { value } => value
-            Err { error } => Promise.resolve(Result.err(error))
+            Ok { value } => value,
+            Err { error } => Promise.resolve(Result.err(error)),
         }
     }
 }

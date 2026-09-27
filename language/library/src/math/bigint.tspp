@@ -6,6 +6,8 @@ import {
     Add,
     And,
     Compare,
+    Debug,
+    Display,
     Divide,
     Equal,
     Hash,
@@ -33,6 +35,12 @@ export class BigInt {
 
     /// The significant limb count, with no trailing zero limbs.
     private length: usize = 0;
+}
+
+/// Return whether two integers hold the same value.
+@languageItem("bigint.equal")
+export function bigintEqual(left: bigint, right: bigint): boolean {
+    todo("bigintEqual")
 }
 
 export extension of BigInt {
@@ -72,6 +80,8 @@ export extension of bigint
         Add<bigint>,
         And<bigint>,
         Compare<bigint>,
+        Debug,
+        Display,
         Divide<bigint>,
         Equal<bigint>,
         Hash,
@@ -132,6 +142,16 @@ export extension of bigint
     /// Return this integer as a string.
     toString(&readonly this, radix?: number): ^string {
         todo("BigInt.toString")
+    }
+
+    /// Return this integer as a user-facing string.
+    display(&immutable this): ^string {
+        this.toString()
+    }
+
+    /// Return this integer as a developer-facing string.
+    debug(&immutable this): ^string {
+        this.display()
     }
 
     /// Return this integer as a locale-aware string.

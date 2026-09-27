@@ -39,27 +39,27 @@ export declare function fromReference<T>(reference: &readonly T): *T;
 /// Read a value from `source`.
 @unsafe
 @intrinsic("memory.ptr.read")
-export declare function read<T>(source: *T): ^T;
+export declare function read<T>(source: *T): T;
 
 /// Perform a volatile read from `source`.
 @unsafe
 @intrinsic("memory.ptr.readVolatile")
-export declare function readVolatile<T: Copy>(source: *T): ^T;
+export declare function readVolatile<T: Copy>(source: *T): T;
 
 /// Write `value` into `destination`.
 @unsafe
 @intrinsic("memory.ptr.write")
-export declare function write<T>(destination: *T, value: ^T): void;
+export declare function write<T>(destination: *T, value: T): void;
 
 /// Perform a volatile write to `destination`.
 @unsafe
 @intrinsic("memory.ptr.writeVolatile")
-export declare function writeVolatile<T: Copy>(destination: *T, value: ^T): void;
+export declare function writeVolatile<T: Copy>(destination: *T, value: T): void;
 
 /// Replace the value at `destination`.
 @unsafe
 @intrinsic("memory.ptr.replace")
-export declare function replace<T>(destination: *T, value: ^T): ^T;
+export declare function replace<T>(destination: *T, value: T): T;
 
 /// Swap the values at `a` and `b`.
 @unsafe

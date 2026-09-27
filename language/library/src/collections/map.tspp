@@ -1,7 +1,7 @@
 import { From } from "tspp:convert";
 import { todo } from "tspp:error";
 import { Extend, FromIterator, Iterable, Iterator } from "tspp:iter";
-import { Borrowed, Copy, Default, MaybeUninit, Region, WithAccess } from "tspp:memory";
+import { Access, Borrowed, Copy, Default, MaybeUninit, Region, WithAccess } from "tspp:memory";
 import { Equality, Equate, Index, IndexSet } from "tspp:ops";
 
 import { Array } from "./array.tspp";
@@ -408,26 +408,7 @@ export extension<K, V, E> of ^Map<K, V, E>
     }
 }
 
-export extension<K, V, E, Q> of Map<K, V, E>
-    implements Index<&immutable Q>
-    where V: Copy, E: Equate<K, Q>
-{
-    /// The copied indexed value.
-    type Output<const R: Region> = V;
-
-    /// The missing index result.
-    type Missing = undefined;
-
-    /// Copy the indexed value.
-    index<const R: Region>(
-        this: Borrowed<Map<K, V, E>, R, "readonly">,
-        key: &immutable Q,
-    ): V | undefined {
-        todo("Map.index")
-    }
-}
-
-export extension<K, V, const A: "immutable" | "exclusive", E, Q> of Map<K, V, E>
+export extension<K, V, const A: Access, E, Q> of Map<K, V, E>
     implements Index<&immutable Q, A>
     where E: Equate<K, Q>
 {

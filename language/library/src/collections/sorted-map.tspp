@@ -1,7 +1,7 @@
 import { Borrow, From } from "tspp:convert";
 import { todo } from "tspp:error";
 import { Extend, FromIterator, Iterable, Iterator } from "tspp:iter";
-import { Borrowed, Copy, Default, MaybeUninit, Region, WithAccess } from "tspp:memory";
+import { Access, Borrowed, Copy, Default, MaybeUninit, Region, WithAccess } from "tspp:memory";
 import { Compare, Index, IndexSet } from "tspp:ops";
 import { RangeBounds } from "tspp:range";
 
@@ -338,23 +338,7 @@ export extension<K: Compare<K>, V> of ^SortedMap<K, V>
     }
 }
 
-export extension<K: Compare<K>, V> of SortedMap<K, V> implements Index<&immutable K> where V: Copy {
-    /// The copied indexed value.
-    type Output<const R: Region> = V;
-
-    /// The missing index result.
-    type Missing = undefined;
-
-    /// Copy the indexed value.
-    index<const R: Region>(
-        this: Borrowed<SortedMap<K, V>, R, "readonly">,
-        key: &immutable K,
-    ): V | undefined {
-        todo("SortedMap.index")
-    }
-}
-
-export extension<K: Compare<K>, V, const A: "immutable" | "exclusive"> of SortedMap<K, V>
+export extension<K: Compare<K>, V, const A: Access> of SortedMap<K, V>
     implements Index<&immutable K, A>
 {
     /// The protected element storage.

@@ -57,8 +57,8 @@ export class Generator<Y, R = void, N = void> {
             let producer = GeneratorProducer { state };
             let request = state.begin();
             let result = match (request) {
-                GeneratorNext {} => body(producer)
-                GeneratorReturn { value } => value
+                GeneratorNext {} => body(producer),
+                GeneratorReturn { value } => value,
             };
             state.complete(result);
         };
@@ -139,8 +139,8 @@ class GeneratorState<Y, R, N> {
                 this.phase.set(GeneratorExhausted { kind: "exhausted" });
 
                 return match (request) {
-                    GeneratorNext {} => IteratorResult(IteratorReturn { value: undefined })
-                    GeneratorReturn { value } => IteratorResult(IteratorReturn { value })
+                    GeneratorNext {} => IteratorResult(IteratorReturn { value: undefined }),
+                    GeneratorReturn { value } => IteratorResult(IteratorReturn { value }),
                 };
             }
             phase => {
@@ -249,8 +249,8 @@ export class AsyncGenerator<Y: Copy, R: Copy = void, N = void> {
             let producer = AsyncGeneratorProducer { state };
             let request = state.begin();
             let result = match (request) {
-                GeneratorNext {} => body(producer)
-                GeneratorReturn { value } => value
+                GeneratorNext {} => body(producer),
+                GeneratorReturn { value } => value,
             };
             state.complete(result);
         };
@@ -445,8 +445,8 @@ class AsyncGeneratorState<Y: Copy, R: Copy, N> {
         operation: GeneratorRequest<R, N>,
     ): GeneratorResult<Y, R> {
         return match (operation) {
-            GeneratorNext {} => IteratorResult(IteratorReturn { value: undefined })
-            GeneratorReturn { value } => IteratorResult(IteratorReturn { value })
+            GeneratorNext {} => IteratorResult(IteratorReturn { value: undefined }),
+            GeneratorReturn { value } => IteratorResult(IteratorReturn { value }),
         };
     }
 }

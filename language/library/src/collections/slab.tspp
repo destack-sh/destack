@@ -1,7 +1,7 @@
 import { From } from "tspp:convert";
 import { todo } from "tspp:error";
 import { Extend, FromIterator, Iterable, Iterator } from "tspp:iter";
-import { Borrowed, Copy, Default, MaybeUninit, Region } from "tspp:memory";
+import { Access, Borrowed, Copy, Default, MaybeUninit, Region } from "tspp:memory";
 import { Index, IndexSet } from "tspp:ops";
 
 import { Array } from "./array.tspp";
@@ -192,20 +192,7 @@ export extension<T> of Slab<T>
     }
 }
 
-export extension<T> of Slab<T> implements Index<SlabKey> where T: Copy {
-    /// The copied indexed value.
-    type Output<const R: Region> = T;
-
-    /// The missing index result.
-    type Missing = undefined;
-
-    /// Copy the indexed value.
-    index<const R: Region>(this: Borrowed<Slab<T>, R, "readonly">, key: SlabKey): T | undefined {
-        todo("Slab.index")
-    }
-}
-
-export extension<T, const A: "immutable" | "exclusive"> of Slab<T> implements Index<SlabKey, A> {
+export extension<T, const A: Access> of Slab<T> implements Index<SlabKey, A> {
     /// The protected element storage.
     type Output<const R: Region> = Borrowed<T, R, A>;
 

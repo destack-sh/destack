@@ -122,17 +122,7 @@ export extension<T, const N: usize, R: RangeBounds<isize>> of FixedArray<T, N>
     }
 }
 
-export extension<T, const N: usize> of FixedArray<T, N> implements Index<isize> where T: Copy {
-    /// The copied indexed value.
-    type Output<const R: Region> = T;
-
-    /// Copy the indexed value.
-    index<const R: Region>(this: Borrowed<FixedArray<T, N>, R, "readonly">, key: isize): T {
-        todo("FixedArray.index")
-    }
-}
-
-export extension<T, const N: usize, const A: "immutable" | "exclusive"> of FixedArray<T, N>
+export extension<T, const N: usize, const A: Access> of FixedArray<T, N>
     implements Index<isize, A>
 {
     /// The protected element storage.

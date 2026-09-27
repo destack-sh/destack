@@ -781,10 +781,7 @@ export extension<T, const A: Access> of Array<T>
     }
 }
 
-export extension<T, I: RangeBounds<isize>, const A: Access> of Array<T>
-    implements Index<I, A>
-    where A: "immutable" | "exclusive" | ((T,) extends (Copy,) ? Access : never)
-{
+export extension<T, I: RangeBounds<isize>, const A: Access> of Array<T> implements Index<I, A> {
     /// The borrowed range.
     type Output<const R: Region> = Borrowed<[T], R, A>;
 
@@ -862,17 +859,7 @@ export function arrayFromOwnedSlice<T>(values: ^[T]): ^Array<T> {
     todo("Array.fromOwnedSlice")
 }
 
-export extension<T> of Array<T> implements Index<isize> where T: Copy {
-    /// The copied indexed value.
-    type Output<const R: Region> = T;
-
-    /// Copy the indexed value.
-    index<const R: Region>(this: Borrowed<Array<T>, R, "readonly">, key: isize): T {
-        todo("Array.index")
-    }
-}
-
-export extension<T, const A: "immutable" | "exclusive"> of Array<T> implements Index<isize, A> {
+export extension<T, const A: Access> of Array<T> implements Index<isize, A> {
     /// The protected element storage.
     type Output<const R: Region> = Borrowed<T, R, A>;
 

@@ -39,17 +39,17 @@ export newtype interface RangeBounds<T> {
         value: &immutable U,
     ): boolean where T: PartialCompare<U> {
         let isAfterStart = match (this.startBound()) {
-            { kind: "included", value: bound } => *bound <= *value
-            { kind: "excluded", value: bound } => *bound < *value
-            { kind: "unbounded" } => true
+            { kind: "included", value: bound } => *bound <= *value,
+            { kind: "excluded", value: bound } => *bound < *value,
+            { kind: "unbounded" } => true,
         };
 
         // inspect the end only when the start admits the value
         isAfterStart
             && (match (this.endBound()) {
-                { kind: "included", value: bound } => *value <= *bound
-                { kind: "excluded", value: bound } => *value < *bound
-                { kind: "unbounded" } => true
+                { kind: "included", value: bound } => *value <= *bound,
+                { kind: "excluded", value: bound } => *value < *bound,
+                { kind: "unbounded" } => true,
             })
     }
 }

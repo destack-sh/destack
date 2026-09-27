@@ -1,6 +1,8 @@
-import { todo } from "tspp:error";
-
+import { Access } from "../access.tspp";
 import { Copy, SharedSafe } from "../capability.tspp";
+import { drop } from "../drop.tspp";
+import { read, replace, swap } from "../raw.tspp";
+import { WithAccess } from "../type.tspp";
 
 /// Unsafe interior mutable storage.
 @languageItem("memory.UnsafeCell")
@@ -9,24 +11,42 @@ export newtype UnsafeCell<T> = intrinsic;
 export extension<T> of UnsafeCell<T> implements !Copy, !SharedSafe {
     /// Create unsafe interior mutable storage.
     static new(value: T): UnsafeCell<T> {
-        todo("UnsafeCell.new")
+        newUnsafeCell<T>(value)
     }
 
     /// Return a raw pointer to the stored value.
     get(&readonly this): *T {
-        todo("UnsafeCell.get")
+        unsafeCellPointer<T>(this)
     }
 
     /// Borrow the stored value with mutable access.
     getExclusive(&exclusive this): &exclusive T {
-        todo("UnsafeCell.getExclusive")
+        unsafeCellReference<T, "exclusive">(this)
     }
 
     /// Move out the stored value.
     intoInner(this): T {
-        todo("UnsafeCell.intoInner")
+        intoUnsafeCellInner<T>(this)
     }
 }
+
+/// Wrap one value in unsafe interior mutable storage.
+@intrinsic("memory.unsafeCell.new")
+export declare function newUnsafeCell<T>(value: T): UnsafeCell<T>;
+
+/// Move one stored value out.
+@intrinsic("memory.unsafeCell.intoInner")
+export declare function intoUnsafeCellInner<T>(cell: UnsafeCell<T>): T;
+
+/// Return a raw pointer to one stored value.
+@intrinsic("memory.unsafeCell.get")
+export declare function unsafeCellPointer<T>(cell: &readonly UnsafeCell<T>): *T;
+
+/// Borrow one stored value at the access of its borrow.
+@intrinsic("memory.unsafeCell.asReference")
+export declare function unsafeCellReference<T, const A: Access = "mutable">(
+    cell: WithAccess<&UnsafeCell<T>, A>,
+): WithAccess<&T, A>;
 
 /// Aliased storage that transfers values without lending its contents.
 @languageItem("memory.Cell")
@@ -43,36 +63,36 @@ export extension<T> of Cell<T> {
 
     /// Copy the stored value.
     get(&readonly this): T where T: Copy {
-        todo("Cell.get")
+        read<T>(this.storage.get())
     }
 
     /// Return a raw pointer to the stored value.
     asPointer(&readonly this): *T {
-        todo("Cell.asPointer")
+        this.storage.get()
     }
 
     /// Borrow the stored value with mutable access.
     getExclusive(&exclusive this): &exclusive T {
-        todo("Cell.getExclusive")
+        this.storage.getExclusive()
     }
 
     /// Replace the stored value.
     set(&readonly this, value: T): void {
-        todo("Cell.set");
+        drop(this.replace(value));
     }
 
     /// Replace the stored value and return the old value.
     replace(&readonly this, value: T): T {
-        todo("Cell.replace")
+        replace<T>(this.storage.get(), value)
     }
 
     /// Swap two cells.
     swap(&readonly this, other: &readonly Cell<T>): void {
-        todo("Cell.swap");
+        swap<T>(this.storage.get(), other.storage.get());
     }
 
     /// Move out the stored value.
     intoInner(this): T {
-        todo("Cell.intoInner")
+        this.storage.intoInner()
     }
 }

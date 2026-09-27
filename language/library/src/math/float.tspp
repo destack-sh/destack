@@ -1,7 +1,7 @@
 import { Result, todo } from "tspp:error";
 import { IntlError, Locales, NumberFormatOptions, ToLocaleString } from "tspp:intl";
 import { Clone, Concrete, Copy } from "tspp:memory";
-import { PartialEqual } from "tspp:ops";
+import { Debug, Display, PartialEqual } from "tspp:ops";
 
 import { One, Zero } from "./identity.tspp";
 import { Integer } from "./integer.tspp";
@@ -15,7 +15,17 @@ export newtype interface FloatDomain {}
 export newtype interface Float extends Concrete, Copy, FloatDomain, Zero, One {}
 
 /// Methods shared by every builtin float format.
-export extension<T: Float> of T implements Clone, PartialEqual<T>, ToLocaleString {
+export extension<T: Float> of T implements Clone, PartialEqual<T>, ToLocaleString, Display, Debug {
+    /// Return this number as a user-facing string.
+    display(&immutable this): ^string {
+        (*this).toString()
+    }
+
+    /// Return this number as a developer-facing string.
+    debug(&immutable this): ^string {
+        this.display()
+    }
+
     /// Return this number as a string.
     toString(this, radix?: number): ^string {
         todo("Number.toString")

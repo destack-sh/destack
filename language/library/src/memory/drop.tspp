@@ -78,8 +78,8 @@ export extension<T> of ManuallyDrop<T> implements Default where T: Default {
 }
 
 /// End ownership of `value` at this point.
-@intrinsic("memory.drop")
-export declare function drop<T>(value: T): void;
+@languageItem("memory.drop")
+export function drop<T>(value: T): void {}
 
 /// End ownership of `value` without running its destructor.
 @languageItem("memory.forget")
