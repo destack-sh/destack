@@ -335,3 +335,26 @@ test.for(TEST_DIALECTS)(
         ).toEqual([]);
     },
 );
+
+test.for(TEST_DIALECTS)(
+    "bound a transaction's changes by the positions around it on %s",
+    async (dialect) => {
+        const { database } = await open(dialect);
+
+        // write two changes in one transaction
+        await database.insert(note).values(first);
+        const before = await database.log.latest();
+        await database.transaction(async (transaction) => {
+            await transaction.update(note).set({ summary: "u" }).where(eq(note.id, "a"));
+            await transaction.update(note).set({ title: "v" }).where(eq(note.id, "a"));
+        });
+
+        // read the positions before its first change and after its last, and its times in order
+        const bounds = await database.log.bounds(before + 1);
+        expect([bounds.before, bounds.after, bounds.startedAt <= bounds.committedAt]).toEqual([
+            before,
+            before + 2,
+            true,
+        ]);
+    },
+);

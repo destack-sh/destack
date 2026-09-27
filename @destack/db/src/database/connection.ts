@@ -15,9 +15,6 @@ import type { Selection } from "../query/selection.ts";
 import { type TransactionOptions, TransactionState } from "./transaction.ts";
 import { closeTransaction, openTransaction } from "../log/transaction.ts";
 import { Log } from "../log/log.ts";
-import { History } from "../log/history.ts";
-import { pastNative } from "../log/past.ts";
-import type { LogPosition } from "../log/position.ts";
 import type { CommitNotifier } from "../log/notifier.ts";
 import { CommitWatch } from "../log/watch.ts";
 import type { Dialect } from "../dialect/dialect.ts";
@@ -50,14 +47,6 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
     /** The log of the database. */
     get log(): Log {
         return new Log(this);
-    }
-
-    /** Show the database as it was at a log position: every read sees its logged tables then, and nothing writes. */
-    async at(position: LogPosition): Promise<DatabaseConnection<Driver>> {
-        const history = await History.read(this, position);
-        const native = pastNative(this.driver.native, history);
-
-        return new DatabaseConnection(new DatabaseDriver(native, this.state), this.compiler);
     }
 
     /** Select application records or explicit fields. */

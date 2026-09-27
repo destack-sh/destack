@@ -6,7 +6,7 @@ import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever, DatabaseError } from "../error/error.ts";
 import { LOG_EPOCH, LOG_HOLD, LOG_HORIZON, LOG_COPYING, LOG, LOG_TRANSACTION } from "./schema.ts";
 import { latestOf, selectHead, type LogPosition } from "./position.ts";
-import { Snapshot, type Undo } from "./snapshot.ts";
+import { Snapshot, type Rewind } from "./snapshot.ts";
 import type { Row } from "../table/row.ts";
 import type { Column } from "../table/column.ts";
 import { Key } from "../query/key.ts";
@@ -126,28 +126,53 @@ export class Log {
      * A row inserted after the sequence has a null image.
      */
     async images(table: Table, after: number, upto: number): Promise<Map<string, Row | null>> {
-        // read the table's changes page by page, keeping each row's image before its first change
-        const images = new Map<string, Row | null>();
+        return imagesOf(table, await this.#changes(table, after, upto));
+    }
+
+    /** Read images through one memory of each table's changes, which snapshots of nearby positions share. */
+    rewind(): Rewind {
+        const known = new Map<Table, { after: number; upto: number; changes: Change[] }>();
+
+        return async (table, after, upto) => {
+            // read the changes before and beyond those read so far
+            const read = known.get(table) ?? { after, upto: after, changes: [] };
+            const earlier = after < read.after ? await this.#changes(table, after, read.after) : [];
+            const later = upto > read.upto ? await this.#changes(table, read.upto, upto) : [];
+            const changes = [...earlier, ...read.changes, ...later];
+            known.set(table, {
+                after: Math.min(after, read.after),
+                upto: Math.max(upto, read.upto),
+                changes,
+            });
+
+            // keep the image of each row before its first change in the range
+            const range = changes.filter(
+                (change) => change.sequence > after && change.sequence <= upto,
+            );
+
+            return imagesOf(table, range);
+        };
+    }
+
+    /** Read a table's changes after one sequence, up to another, in commit order. */
+    async #changes(table: Table, after: number, upto: number): Promise<Change[]> {
+        // read page by page until the pages reach the upper sequence
+        const changes: Change[] = [];
         for (let reached = after; reached < upto;) {
             const read = await this.read({ tables: [table], after: reached });
-            for (const change of read.changes) {
-                const key = Key.name(table, change.key);
-                if (change.sequence <= upto && !images.has(key)) {
-                    images.set(key, (change.before as Row | undefined) ?? null);
-                }
-            }
+            changes.push(...read.changes.filter((change) => change.sequence <= upto));
             if (read.sequence <= reached) {
                 break;
             }
             reached = read.sequence;
         }
 
-        return images;
+        return changes;
     }
 
     /** Show the database as it was at a position: its logged columns, as the log restores them. */
-    at(position: LogPosition, undo?: Undo): Snapshot {
-        return new Snapshot(this.database, position, undo);
+    at(position: LogPosition, rewind?: Rewind): Snapshot {
+        return new Snapshot(this.database, position, rewind);
     }
 
     /** Read the position of the latest commit: the log's epoch and its latest sequence. */
@@ -533,4 +558,17 @@ function decodeChange<Definition extends Table>(
         scope: entry.scope!,
         changedAt: Number(entry.changed_at),
     };
+}
+
+/** Keep the image each row had before its first change among some changes, by key, null for a row they insert. */
+function imagesOf(table: Table, changes: readonly Change[]): Map<string, Row | null> {
+    const images = new Map<string, Row | null>();
+    for (const change of changes) {
+        const key = Key.name(table, change.key);
+        if (!images.has(key)) {
+            images.set(key, (change.before as Row | undefined) ?? null);
+        }
+    }
+
+    return images;
 }

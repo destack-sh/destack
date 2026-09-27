@@ -117,20 +117,12 @@ await snapshot.rows(note, Condition.eq("scope", spaceId));
 await snapshot.ordered(note, { where, order: [{ column: "title", direction: "asc" }], count: 20 });
 ```
 
-A database as of a position runs any read over its logged tables as they were then, and refuses writes.
-
-```ts
-const past = await database.at(position);
-await past.select({ id: note.id, title: note.title }).from(note).where(eq(note.scope, spaceId));
-await new Authorization(authorizer, past, bind).checkRows(permission, scope, rows);   // decide access as it was then
-```
-
-A past database reads only what the log can restore.
+A snapshot reads only what the log can restore.
 
 | Rule | Reason |
 |---|---|
-| each logged table reads its untouched rows and the images the log holds of the others | one statement, consistent without a transaction |
-| only logged columns exist; binary and sensitive ones fail | the log holds no images of them |
+| changed rows read as their image in the log | reads stay on current indexes |
+| only logged columns exist | the log holds no images of the others |
 | a position before the horizon of a windowed table fails with `CHANGES_COMPACTED` | its changes are gone |
 
 A transaction's bounds name the positions and times around it, and a consumer's hold keeps the changes after its position until the hold expires.

@@ -4,8 +4,8 @@ import { index, primaryKey } from "../table/constraint.ts";
 import { assertNever, DatabaseError } from "../error/index.ts";
 import type { TreeDescription } from "../inspect/tree.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
+import type { Snapshot } from "../log/snapshot.ts";
 import { sql, type SQL } from "drizzle-orm";
-import { jsonElements, Statement } from "../query/statement.ts";
 
 /** A scoped parent relationship with a transactionally maintained ancestor index. */
 export class Tree {
@@ -15,8 +15,6 @@ export class Tree {
     readonly ancestors;
     /** The revision table serializing concurrent hierarchy writes within one scope. */
     readonly revision;
-    /** The statement reading the proper ancestors of a JSON list of nodes in a scope, nearest first. */
-    readonly ancestry: Statement<{ descendant: string; ancestor: string }>;
 
     /** Describe an existing application table's tree columns. */
     constructor(definition: TreeDefinition) {
@@ -72,16 +70,27 @@ export class Tree {
             {},
             owner,
         );
+    }
 
-        // read ancestors of many nodes at once through the index
-        const path = this.ancestors;
-        this.ancestry = new Statement(
-            (value) => sql`SELECT ${path.descendant} AS descendant, ${path.ancestor} AS ancestor
-                FROM ${jsonElements(value("ids"), "listed_node")}
-                JOIN ${path} ON ${path.scope} = ${value("scope")} AND ${path.descendant} = listed_node.value ->> 0
-                WHERE ${path.depth} > 0
-                ORDER BY ${path.depth}`,
+    /** Read the proper ancestors of some nodes of a scope through the index, nearest first, as a snapshot shows them. */
+    async ancestry(
+        snapshot: Snapshot,
+        scope: string,
+        ids: readonly string[],
+    ): Promise<{ readonly descendant: string; readonly ancestor: string }[]> {
+        const paths = await snapshot.select(
+            this.ancestors,
+            ["scope", "descendant"],
+            ids.map((id) => [scope, id]),
         );
+
+        return paths
+            .filter((path) => Number(path.depth) > 0)
+            .sort((left, right) => Number(left.depth) - Number(right.depth))
+            .map((path) => ({
+                descendant: String(path.descendant),
+                ancestor: String(path.ancestor),
+            }));
     }
 
     /** Describe the physical columns used by generated maintenance SQL. */

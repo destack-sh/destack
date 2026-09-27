@@ -162,6 +162,7 @@ export const Condition = {
     literal,
     parameter,
     columns,
+    rename,
     relations,
     require: requireComparable,
     bind,
@@ -241,6 +242,32 @@ function literal(value: Scalar): Operand {
 /** Name a parameter operand. */
 function parameter(name: string): Operand {
     return { kind: "parameter", name };
+}
+
+/** Rename a condition's column operands, leaving relations to their host. */
+function rename(condition: Condition, name: (column: string) => string): Condition {
+    const operand = (value: Operand): Operand =>
+        value.kind === "column" ? { kind: "column", name: name(value.name) } : value;
+
+    // rename a comparison's or test's operands
+    if (condition.kind === "compare") {
+        return { ...condition, left: operand(condition.left), right: operand(condition.right) };
+    } else if (condition.kind === "in" || condition.kind === "null") {
+        return { ...condition, operand: operand(condition.operand) };
+    }
+    // rename through combinations
+    else if (condition.kind === "not") {
+        return { ...condition, condition: rename(condition.condition, name) };
+    } else if (condition.kind === "all" || condition.kind === "any") {
+        return {
+            ...condition,
+            conditions: condition.conditions.map((entry) => rename(entry, name)),
+        };
+    }
+    // leave a relation's condition, over its own table's columns
+    else {
+        return condition;
+    }
 }
 
 /** List the columns a condition reads, by property. */

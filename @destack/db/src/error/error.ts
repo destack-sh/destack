@@ -15,7 +15,6 @@ export type DatabaseErrorCode =
     | "DUPLICATE"
     | "BROKEN_REFERENCE"
     | "INVALID_RECORD"
-    | "READ_ONLY"
     | "INVALID_QUERY";
 
 /** A database failure with a stable code. */

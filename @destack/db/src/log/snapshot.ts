@@ -23,7 +23,7 @@ const KEYS_PER_READ = CHAIN_TERMS;
  *
  * A row inserted after the sequence has a null image.
  */
-export type Undo = (
+export type Rewind = (
     table: Table,
     after: number,
     upto: number,
@@ -55,24 +55,29 @@ export interface RelationView {
  */
 export class Snapshot {
     /** The database read. */
-    readonly #database: DatabaseConnection;
-    /** The position shown. */
-    readonly position: LogPosition;
+    readonly database: DatabaseConnection;
+    /** The position shown, absent for the database as each read finds it. */
+    readonly position: LogPosition | undefined;
     /** Where the earlier images of changed rows come from. */
-    readonly #undo: Undo;
+    readonly #rewind: Rewind;
 
-    /** Show a database as of a position, reading the images of later changes from the log unless given another source. */
-    constructor(database: DatabaseConnection, position: LogPosition, undo?: Undo) {
-        this.#database = database;
+    /** Show a database as of a position, reading the images of later changes once from the log unless given another source. */
+    constructor(database: DatabaseConnection, position: LogPosition | undefined, rewind?: Rewind) {
+        this.database = database;
         this.position = position;
-        this.#undo = undo ?? ((table, after, upto) => database.log.images(table, after, upto));
+        this.#rewind = rewind ?? database.log.rewind();
+    }
+
+    /** Show a database as each read finds it, with its transaction's own writes, as decisions made now read it. */
+    static live(database: DatabaseConnection): Snapshot {
+        return new Snapshot(database, undefined);
     }
 
     /** Read a table's rows a condition over its columns matches. */
     async rows(table: Table, where: Condition): Promise<Row[]> {
         // read the current rows, and the images of rows changed since the position
         const { rows, sequence } = await this.#read(table, render(where, table));
-        const images = await this.#undo(table, this.position.sequence, sequence);
+        const images = await this.#since(table, sequence);
 
         // keep unchanged rows, and the earlier images the condition matches
         const match = Condition.compile(where, table);
@@ -91,26 +96,25 @@ export class Snapshot {
      * Read a table's rows whose text columns hold one of some tuples of values in their JSON form, as of the position.
      *
      * One prepared statement per table and columns reads the log's head with the rows, and the tuples drive the table's index one at a time.
-     * A match decides the images of rows changed since the position.
+     * The images of rows changed since the position count where they hold one of the tuples.
      */
     async select(
         table: Table,
         columns: readonly string[],
         tuples: readonly (readonly unknown[])[],
-        match: (row: Row) => boolean,
     ): Promise<Row[]> {
         // read the head, then the current rows each tuple names, in one statement
         if (tuples.length === 0) {
             return [];
         }
-        const read = await tupleRead(table, columns).values(this.#database, {
+        const read = await tupleRead(table, columns).values(this.database, {
             tuples: JSON.stringify(tuples),
         });
         const [epoch, latest, horizon] = read[0]!;
         const sequence = this.#require(epoch as string, latestOf(latest, horizon));
 
         // decode the rows, skipping the tuples that named none
-        const dialect = this.#database.driver.native.dialect;
+        const dialect = this.database.driver.native.dialect;
         const selected = Object.entries(table[TABLE].logged);
         const key =
             HEAD_COLUMNS.length +
@@ -118,9 +122,12 @@ export class Snapshot {
         const rows = read
             .filter((values) => values[key] !== null)
             .map((values) => fromDriver(selected, values.slice(HEAD_COLUMNS.length), dialect));
-        const images = await this.#undo(table, this.position.sequence, sequence);
+        const images = await this.#since(table, sequence);
 
-        // keep unchanged rows, and the earlier images the match keeps
+        // keep unchanged rows, and the earlier images holding one of the tuples
+        const wanted = new Set(tuples.map((tuple) => JSON.stringify(tuple)));
+        const match = (row: Row) =>
+            wanted.has(JSON.stringify(columns.map((column) => toJson(table, column, row))));
         const kept =
             images.size === 0 ? rows : rows.filter((row) => !images.has(Key.name(table, row)));
         for (const image of images.values()) {
@@ -136,7 +143,7 @@ export class Snapshot {
     async row(table: Table, key: Row): Promise<Row | undefined> {
         // read the row now, and its earlier image when it changed since the position
         const { rows, sequence } = await this.#read(table, Key.match(table, key));
-        const images = await this.#undo(table, this.position.sequence, sequence);
+        const images = await this.#since(table, sequence);
         const name = Key.name(table, key);
 
         return images.has(name) ? (images.get(name) ?? undefined) : rows[0];
@@ -160,7 +167,7 @@ export class Snapshot {
         const namespace = query.namespace ?? { computed: {} };
         const relations = query.relations;
         let changed = -1;
-        let reached = this.position.sequence;
+        let reached = this.position?.sequence;
         const images = new Map<string, Row | null>();
         let unsettled = new Map<string, Row | null>();
         let rows: Row[] = [];
@@ -182,8 +189,13 @@ export class Snapshot {
             );
             rows = read.rows;
 
+            // take the rows as they are for the live database
+            if (reached === undefined) {
+                break;
+            }
+
             // extend the images by the first changes of rows beyond the sequence read before
-            for (const [name, image] of await this.#undo(table, reached, read.sequence)) {
+            for (const [name, image] of await this.#rewind(table, reached, read.sequence)) {
                 if (!images.has(name)) {
                     images.set(name, image);
                 }
@@ -191,7 +203,7 @@ export class Snapshot {
             reached = Math.max(reached, read.sequence);
             unsettled = new Map(images);
             const touched = (
-                (await relations?.touched(this.position.sequence, read.sequence)) ?? []
+                (await relations?.touched(this.position!.sequence, read.sequence)) ?? []
             ).filter((key) => !unsettled.has(Key.name(table, key)));
             for (const [name, row] of await this.#rowsOf(table, touched)) {
                 unsettled.set(name, row);
@@ -262,7 +274,7 @@ export class Snapshot {
                 ];
             }),
         );
-        const query = this.#database
+        const query = this.database
             .select({ ...table[TABLE].logged, ...computed })
             .from(table)
             .where(selection);
@@ -275,14 +287,21 @@ export class Snapshot {
 
     /** Read the log's latest sequence, which reads made before it are at or before, within the position's epoch. */
     async #latest(): Promise<number> {
-        const latest = await this.#database.log.position();
+        const latest = await this.database.log.position();
 
         return this.#require(latest.epoch, latest.sequence);
     }
 
+    /** Read the images rows changed after the position up to a sequence had, none for the live database. */
+    #since(table: Table, sequence: number): Promise<ReadonlyMap<string, Row | null>> {
+        return this.position === undefined
+            ? Promise.resolve(new Map())
+            : this.#rewind(table, this.position.sequence, sequence);
+    }
+
     /** Require a head of the position's history, which a restore replaces with a new epoch, returning its sequence. */
     #require(epoch: string, sequence: number): number {
-        if (epoch !== this.position.epoch) {
+        if (this.position !== undefined && epoch !== this.position.epoch) {
             throw new DatabaseError(
                 "STALE_EPOCH",
                 `position of epoch ${this.position.epoch} is not in the log's epoch ${epoch}`,
@@ -371,4 +390,9 @@ function tupleRead(table: Table, columns: readonly string[]): Statement {
                 )}`,
         );
     });
+}
+
+/** Write a row's column value in the JSON form tuples hold it in. */
+function toJson(table: Table, column: string, row: Row): unknown {
+    return table[TABLE].columns[column]!.definition.toJson(row[column]);
 }
