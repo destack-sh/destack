@@ -4,6 +4,7 @@ import * as stylex from "@destack/style";
 import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
 import { stillStars } from "../effect/goo";
+import { Dot } from "./dot";
 import { Install } from "./install";
 import { Plate } from "./plate";
 
@@ -33,28 +34,22 @@ export function Hero() {
                 aria-label="Destack"
                 {...stylex.attrs(lattice.ruleRight, lattice.ruleBottom, styles.wordmark)}
             >
-                {/* hang the dictionary dot on the end of the first syllable */}
-                {[...syllables[0]].map((letter, index) => (
-                    <span aria-hidden="true">
+                {/* space the letters evenly, and set the dictionary dot in the gap between the syllables */}
+                {[...syllables.join("")].map((letter, index) => (
+                    <>
+                        {index > 0 && (
+                            <span aria-hidden="true" {...stylex.attrs(styles.gap)}>
+                                {index === syllables[0].length && <Dot />}
+                            </span>
+                        )}
                         <span
+                            aria-hidden="true"
                             style={{ "background-image": stillStars }}
                             {...stylex.attrs(styles.letter)}
                         >
                             {letter}
                         </span>
-                        {index === syllables[0].length - 1 && (
-                            <span {...stylex.attrs(styles.dot)} />
-                        )}
-                    </span>
-                ))}
-                {[...syllables[1]].map((letter) => (
-                    <span
-                        aria-hidden="true"
-                        style={{ "background-image": stillStars }}
-                        {...stylex.attrs(styles.letter)}
-                    >
-                        {letter}
-                    </span>
+                    </>
                 ))}
             </h1>
 
@@ -159,14 +154,12 @@ const styles = stylex.create({
         WebkitTextStroke: `1.5px ${tokens.cream}`,
         "@media (prefers-reduced-motion: reduce)": { animationName: "none" },
     },
-    dot: {
-        backgroundColor: tokens.signal,
-        borderRadius: "50%",
-        display: "inline-block",
-        height: "0.17em",
-        marginLeft: "0.07em",
-        verticalAlign: "0.3em",
-        width: "0.17em",
+    gap: {
+        alignItems: "center",
+        alignSelf: "stretch",
+        display: "flex",
+        flexGrow: 1,
+        justifyContent: "center",
     },
     kicker: {
         alignItems: "baseline",
