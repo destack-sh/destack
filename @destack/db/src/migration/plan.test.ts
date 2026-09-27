@@ -3,7 +3,7 @@ import { defineTable, index, integer, sql, text } from "../index.ts";
 import { TABLE, type Table } from "../table/table.ts";
 import { qualify } from "../table/namespace.ts";
 import { defineDatabase } from "../declare/database.ts";
-import { migrate, planMigration, planStates } from "./database.ts";
+import { planMigration, planStates } from "./database.ts";
 import { applyPlan } from "./apply.ts";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
 import type { Dialect } from "../dialect/dialect.ts";
@@ -42,23 +42,30 @@ const labelUnique = defineTable("label", {
 });
 
 /** Tasks as first released. */
-const taskOne = defineTable("task", {
-    id: text("id").primaryKey(),
-    name: text("name").notNull(),
-    urgent: integer("urgent").notNull(),
-    note: text("note"),
-});
+const taskOne = defineTable(
+    "task",
+    {
+        id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
+        name: text("name").notNull(),
+        urgent: integer("urgent").notNull(),
+        note: text("note"),
+    },
+    { log: {} },
+);
 
 /** Tasks after renaming name to title, dropping the note, adding a due time and an index. */
 const taskTwo = defineTable(
     "task",
     {
         id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
         title: text("title").notNull(),
         urgent: integer("urgent").notNull(),
         dueAt: integer("due_at"),
     },
     {
+        log: {},
         moved: { columns: { title: "name" } },
         constraints: (task) => [index("task_due").on(task.dueAt)],
     },
@@ -69,12 +76,14 @@ const taskThree = defineTable(
     "task",
     {
         id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
         title: text("title").notNull(),
         urgent: integer("urgent").notNull(),
         priority: text("priority").notNull().default("normal"),
         dueAt: integer("due_at"),
     },
     {
+        log: {},
         version: 2,
         convert: {
             2: (task) => ({
@@ -121,7 +130,7 @@ test.for(TEST_DIALECTS)(
         const database = await open(dialect, [taskOne]);
 
         // create the table with its log and state, then find the database current
-        const plan = await migrate(database, [taskOne]);
+        const plan = await database.migrate([taskOne]);
         expect(review(plan)).toEqual([`safe createTable ${table(taskOne)}: create table`]);
         expect(review(await planMigration(database, declareState([taskOne], dialect)))).toEqual([]);
     },
@@ -131,9 +140,9 @@ test.for(TEST_DIALECTS)(
     "rename, drop, add and index columns while keeping rows on %s",
     async (dialect) => {
         const database = await open(dialect, [taskTwo]);
-        await migrate(database, [taskOne]);
+        await database.migrate([taskOne]);
         await database.execute(
-            sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, name, urgent, note) VALUES ('a', 'Plan', 1, 'old')`,
+            sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent, note) VALUES ('a', 'inbox', 'Plan', 1, 'old')`,
         );
 
         // classify the rename as backward-incompatible, the addition as safe and the dropped note as destructive
@@ -155,7 +164,7 @@ test.for(TEST_DIALECTS)(
         // keep the row under its renamed column and find the database current
         await applyPlan(database, plan);
         expect(await database.select().from(taskTwo)).toEqual([
-            { id: "a", title: "Plan", urgent: 1, dueAt: null },
+            { id: "a", scope: "inbox", title: "Plan", urgent: 1, dueAt: null },
         ]);
         expect(review(await planMigration(database, declareState([taskTwo], dialect)))).toEqual([]);
     },
@@ -165,28 +174,33 @@ test.for(TEST_DIALECTS)(
     "convert rows to a new version and log the converted values on %s",
     async (dialect) => {
         const database = await open(dialect, [taskThree]);
-        await migrate(database, [taskTwo]);
+        await database.migrate([taskTwo]);
         await database.execute(
-            sql`INSERT INTO ${sql.identifier(table(taskTwo))} (id, title, urgent, due_at) VALUES ('a', 'Plan', 1, NULL), ('b', 'Ship', 0, 5)`,
+            sql`INSERT INTO ${sql.identifier(table(taskTwo))} (id, scope, title, urgent, due_at) VALUES ('a', 'inbox', 'Plan', 1, NULL), ('b', 'inbox', 'Ship', 0, 5)`,
         );
         const before = await database.log.latest();
 
         // add the priority column, then convert every row through version two
-        const plan = await migrate(database, [taskThree]);
+        const plan = await database.migrate([taskThree]);
         expect(review(plan)).toEqual([
             `safe addColumn ${table(taskThree)}: add column priority`,
             `data-dependent convertRows ${table(taskThree)}: convert rows to version 2`,
         ]);
         expect(await database.select().from(taskThree).orderBy(taskThree.id)).toEqual([
-            { id: "a", title: "Plan", urgent: 1, priority: "high", dueAt: null },
-            { id: "b", title: "Ship", urgent: 0, priority: "normal", dueAt: 5 },
+            { id: "a", scope: "inbox", title: "Plan", urgent: 1, priority: "high", dueAt: null },
+            { id: "b", scope: "inbox", title: "Ship", urgent: 0, priority: "normal", dueAt: 5 },
         ]);
 
         // record the conversion's update in the log like any other write
         const changes = await database.log.read({ tables: [taskThree], after: before });
         expect(
-            changes.changes.map((change) => [change.operation, change.key, change.previous]),
-        ).toEqual([["update", { id: "a" }, { priority: "normal" }]]);
+            changes.changes.map((change) => [
+                change.operation,
+                change.key,
+                change.before?.priority,
+                change.after?.priority,
+            ]),
+        ).toEqual([["update", { id: "a" }, "normal", "high"]]);
     },
 );
 
@@ -194,7 +208,7 @@ test.for(TEST_DIALECTS)(
     "name what the declarations must fix instead of planning on %s",
     async (dialect) => {
         const database = await open(dialect, [taskUnfilled]);
-        await migrate(database, [taskOne]);
+        await database.migrate([taskOne]);
         await database.execute(sql`CREATE TABLE ${sql.identifier(table(labelPlain))} (id TEXT)`);
 
         // name the unfillable column and the table created outside any plan, all at once
@@ -227,7 +241,7 @@ test.for(TEST_DIALECTS)(
     "rebuild a table other tables reference, keeping their rows, on %s",
     async (dialect) => {
         const database = await open(dialect, [folderOne, document]);
-        await migrate(database, [folderOne, document]);
+        await database.migrate([folderOne, document]);
         await database.execute(
             sql`INSERT INTO ${sql.identifier(table(folderOne))} (id, extra) VALUES ('f', 'x')`,
         );
@@ -236,7 +250,7 @@ test.for(TEST_DIALECTS)(
         );
 
         // drop the referenced table's column and keep the referencing row valid
-        await migrate(database, [folderTwo, document]);
+        await database.migrate([folderTwo, document]);
         expect(
             await database.execute(
                 sql`SELECT id, folder_id FROM ${sql.identifier(table(document))}`,
@@ -252,12 +266,12 @@ test.for(TEST_DIALECTS)(
     "report a failing migration statement as a failed migration on %s",
     async (dialect) => {
         const database = await open(dialect, [labelPlain]);
-        await migrate(database, [labelPlain]);
+        await database.migrate([labelPlain]);
         const name = sql.identifier(table(labelPlain));
         await database.execute(sql`INSERT INTO ${name} (id, code) VALUES ('a', 'x'), ('b', 'x')`);
 
         // fail to make duplicated codes unique, keeping the rows and the applied state
-        await expect(migrate(database, [labelUnique])).rejects.toMatchObject({
+        await expect(database.migrate([labelUnique])).rejects.toMatchObject({
             code: "MIGRATION_FAILED",
         });
         expect(await database.execute(sql`SELECT id FROM ${name} ORDER BY id`)).toEqual([
@@ -269,7 +283,7 @@ test.for(TEST_DIALECTS)(
 
 test.for(TEST_DIALECTS)("make a column unique and enforce it on %s", async (dialect) => {
     const database = await open(dialect, [labelPlain]);
-    await migrate(database, [labelPlain]);
+    await database.migrate([labelPlain]);
 
     // add the column's unique constraint, which depends on the existing rows
     const plan = await planMigration(database, declareState([labelUnique], dialect));
@@ -324,9 +338,9 @@ test.for(TEST_DIALECTS)(
                 name: "main",
                 tables,
             }).state();
-        await migrate(database, [taskOne]);
+        await database.migrate([taskOne]);
         await database.execute(
-            sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, name, urgent, note) VALUES ('a', 'Plan', 1, 'old')`,
+            sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent, note) VALUES ('a', 'inbox', 'Plan', 1, 'old')`,
         );
 
         // add the new release's columns beside the old release's, relax the old title it omits, and bridge them
@@ -357,8 +371,12 @@ test.for(TEST_DIALECTS)(
 
         // keep both names equal for writes from either release
         const name = sql.identifier(table(taskOne));
-        await database.execute(sql`INSERT INTO ${name} (id, name, urgent) VALUES ('b', 'Old', 0)`);
-        await database.execute(sql`INSERT INTO ${name} (id, title, urgent) VALUES ('c', 'New', 0)`);
+        await database.execute(
+            sql`INSERT INTO ${name} (id, scope, name, urgent) VALUES ('b', 'inbox', 'Old', 0)`,
+        );
+        await database.execute(
+            sql`INSERT INTO ${name} (id, scope, title, urgent) VALUES ('c', 'inbox', 'New', 0)`,
+        );
         await database.execute(sql`UPDATE ${name} SET title = 'Plan again' WHERE id = 'a'`);
         expect(
             await database.execute(sql`SELECT id, name, title FROM ${name} ORDER BY id`),
@@ -403,7 +421,7 @@ test.for(TEST_DIALECTS)(
 
         // report the missing table, then nothing once applied
         expect(await declared.check(database)).toEqual([table(taskOne)]);
-        await migrate(database, [taskOne]);
+        await database.migrate([taskOne]);
         expect(await declared.check(database)).toEqual([]);
     },
 );

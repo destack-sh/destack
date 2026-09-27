@@ -5,8 +5,6 @@ import type { DatabaseConnection } from "../database/connection.ts";
 import { Database } from "../declare/database.ts";
 import { connect } from "./turso/connection.ts";
 import type { SqliteDatabase } from "./database.ts";
-import { planStates } from "../migration/database.ts";
-import { applyPlan } from "../migration/apply.ts";
 import type { Table } from "../table/table.ts";
 import { DatabaseError } from "../error/error.ts";
 
@@ -22,7 +20,7 @@ export function sqliteProvider(root: URL): Provider<DatabaseConnection> {
         code: "sqlite",
         provision: async (record) => {
             // create the space folder and the database file
-            const space = new URL(`${record.spaceId}/`, root);
+            const space = new URL(`${record.scope}/`, root);
             const file = new URL(`${record.id}.db`, space);
             await mkdir(space, { recursive: true });
             const connection = await connect(fileURLToPath(file));
@@ -34,7 +32,7 @@ export function sqliteProvider(root: URL): Provider<DatabaseConnection> {
             // diff the file's applied state against the union of its desired states
             const connection = await open(record, []);
             try {
-                return await planStates(connection, desired);
+                return await connection.plan(desired);
             } finally {
                 await connection.close();
             }
@@ -43,14 +41,14 @@ export function sqliteProvider(root: URL): Provider<DatabaseConnection> {
             // apply only the plan a review saw
             const connection = await open(record, []);
             try {
-                const plan = await planStates(connection, desired);
+                const plan = await connection.plan(desired);
                 if ((await digestPlan(plan)) !== digest) {
                     throw new DatabaseError(
                         "PLAN_CHANGED",
                         `plan of ${record.id} changed since review`,
                     );
                 }
-                await applyPlan(connection, plan);
+                await connection.apply(plan);
             } finally {
                 await connection.close();
             }

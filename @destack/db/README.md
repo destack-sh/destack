@@ -1,20 +1,20 @@
-Declare SQL tables and databases, query them on SQLite and PostgreSQL, and migrate them by plan.
+Declare, query, log and migrate SQL tables on SQLite and PostgreSQL.
 
 ## Tables
 
-A table declares its columns, constraints, log, tree, aggregates, version, previous names and conversions.
+A logged table files each change under its `scope` column.
 
 ```ts
 export const note = defineTable(
     "note",
     {
         id: identifier("id", "note").primaryKey(),
-        spaceId: identifier("space_id", "space").notNull(),
+        scope: identifier("scope", "space").notNull(),
         title: text("title").notNull(),
     },
     {
-        constraints: (note) => [index("note_space").on(note.spaceId)],
-        log: { tier: "history", route: "spaceId" },
+        constraints: (note) => [index("note_scope").on(note.scope)],
+        log: { tier: "history" },
         moved: { columns: { title: "name" } },
         version: 2,
         convert: { 2: (note) => ({ title: sql`trim(${note.title})` }) },
@@ -24,7 +24,7 @@ export const note = defineTable(
 
 ## Databases
 
-A database names its tables, supports every dialect, and a resource context connects it.
+A database names its tables.
 
 ```ts
 export const main = defineDatabase({ name: "main", tables: [note] });
@@ -36,21 +36,21 @@ const unapplied = await main.check(database);
 
 ## Connections
 
-Each entry point opens one kind of database, embedded or networked, which `connection.state.locality` names.
+Each entry point opens one kind of database.
 
 | Entry point | Opens |
 |---|---|
-| `@destack/db/turso` | A SQLite file or memory database through a `TursoClient`, which prepares each statement once |
+| `@destack/db/turso` | An embedded SQLite file or memory database |
 | `@destack/db/turso/serverless` | A hosted Turso database |
-| `@destack/db/postgres` | A PostgreSQL server, as a `PostgresDatabase` |
-| `@destack/db/wasm` | A browser SQLite database through a `WasmClient` |
-| `@destack/db/shared` | A database another party owns, over a `Channel` |
-| `@destack/db/channel` | `Channel` and `broadcastChannel`, the message transport of shared databases and `channelNotifier` |
-| `@destack/db/sqlite` | `sqliteProvider(root)`: SQLite files as provisioned resources |
+| `@destack/db/postgres` | A PostgreSQL server |
+| `@destack/db/wasm` | A browser SQLite database |
+| `@destack/db/shared` | A database another party owns |
+| `@destack/db/channel` | The transport of shared databases and commit notifications |
+| `@destack/db/sqlite` | SQLite files as provisioned resources |
 
 ## Statements
 
-A `Statement` renders once per database and runs with named values, and a JSON value lists many.
+A `Statement` renders once per database and runs with named values.
 
 ```ts
 const notes = new Statement((value) => sql`SELECT ${note.id} AS id FROM ${jsonElements(value("ids"), "listed")}
@@ -58,16 +58,34 @@ const notes = new Statement((value) => sql`SELECT ${note.id} AS id FROM ${jsonEl
 await notes.all(database, { ids: JSON.stringify(ids.map((id) => [id])) });
 ```
 
-## Plans
+## Conditions
 
-A plan takes the states recorded in `__destack_state` to the declared states.
+`@destack/db/query` holds conditions and expressions that SQL and memory decide alike.
 
 ```ts
-const plan = await planMigration(database, declareState([note], "sqlite"));
-await applyPlan(database, plan);
+const where = Condition.all(Condition.eq("scope", spaceId), Condition.gte("rank", 2));
+await database.select().from(note).where(Condition.render(where, Condition.bind(note)));
+Condition.matches(Condition.compile(where, note), row);
+```
 
-await migrate(database, [note]);
-await migrate(replica, [note], { isReplica: true });
+| Noun | Verbs |
+|---|---|
+| `Condition` | `eq`, `ne`, `lt`, `lte`, `gt`, `gte`, `oneOf`, `missing`, `all`, `any`, `not`, `exists`, `render`, `compile`, `matches`, `columns`, `require` |
+| `Expression` | `column`, `literal`, `add`, `subtract`, `multiply`, `divide`, `coalesce`, `lookup`, `rollup`, `render`, `kind`, `require` |
+| `Order` | `complete`, `render`, `after`, `rows` |
+| `Key` | `match`, `any`, `name`, `parse` |
+| `Row` | `encodeRow`, `decodeRow` |
+
+## Plans
+
+The connection plans and applies migrations.
+
+```ts
+await database.migrate([note]);
+await replica.migrate([note], { isReplica: true });
+
+const plan = await database.plan(desiredStates);
+await database.apply(plan);
 ```
 
 | Step risk | Example |
@@ -79,11 +97,11 @@ await migrate(replica, [note], { isReplica: true });
 
 ## Log
 
-Triggers record every committed change of a logged table, and readers follow it by `LogPosition`.
+Readers follow committed changes by `LogPosition`.
 
 ```ts
 const position = await database.log.position();
-for await (const page of database.log.follow({ tables: [note], after: position.sequence }, signal)) {
+for await (const page of database.log.follow({ tables: [note], scopes: [spaceId], after: position.sequence }, signal)) {
     apply(page.changes);
 }
 await database.log.wait(sequence, signal);
@@ -91,7 +109,15 @@ await database.log.renew();
 await database.transaction(async (transaction) => transaction.log.copying(() => copy(transaction)));
 ```
 
-Readers wake through the connection's `CommitWatch`, fed by its `CommitNotifier`.
+A `Snapshot` reads the database as it was at a position.
+
+```ts
+const snapshot = database.log.at(position);
+await snapshot.rows(note, Condition.eq("scope", spaceId));
+await snapshot.ordered(note, { where, order: [{ column: "title", direction: "asc" }], count: 20 });
+```
+
+Readers wake on commits through a `CommitNotifier`.
 
 | Notifier | Listens | Notifies |
 |---|---|---|
@@ -101,7 +127,7 @@ Readers wake through the connection's `CommitWatch`, fed by its `CommitNotifier`
 
 ## Aggregates
 
-A child table declares the aggregates its parents hold, and triggers keep them current.
+A child table declares the aggregates its parents hold.
 
 ```ts
 aggregates: [
@@ -112,7 +138,7 @@ aggregates: [
 
 ## Shared databases
 
-Parties reach a database through the one owner that serves a `Channel`.
+Parties reach a database through the owner serving a `Channel`.
 
 ```ts
 const stop = await serveBrowserDatabase("notes", channel);
@@ -129,7 +155,7 @@ const database = connectShared(channel, origin, tables);
 
 ## Tests
 
-`TestDatabase` opens an isolated database per dialect in `TEST_DIALECTS`, with PostgreSQL when `DESTACK_TEST_POSTGRES` names a server.
+`TestDatabase` opens an isolated database per dialect, PostgreSQL when `DESTACK_TEST_POSTGRES` is set.
 
 ```ts
 test.for(TEST_DIALECTS)("keep notes on %s", async (dialect) => {

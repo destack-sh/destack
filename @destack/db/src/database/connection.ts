@@ -6,6 +6,11 @@ import type { Table } from "../table/table.ts";
 import { SelectBuilder, type SelectedSubquery, type SelectQuery } from "../query/select.ts";
 import { sql, type SQL, type WithSubquery } from "drizzle-orm";
 import { MutationQuery } from "../query/mutation.ts";
+import type { ResourceState } from "@destack/package/declare";
+import { declareState, type DeclareOptions } from "../migration/state.ts";
+import { planMigration, planStates } from "../migration/database.ts";
+import { applyPlan } from "../migration/apply.ts";
+import type { TablePlan } from "../migration/plan.ts";
 import type { Selection } from "../query/selection.ts";
 import { type TransactionOptions, TransactionState } from "./transaction.ts";
 import { closeTransaction, openTransaction } from "../log/transaction.ts";
@@ -114,23 +119,26 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
 
     /** Execute a script of SQL statements in one round trip, without returning rows. */
     async executeScript(script: string): Promise<void> {
-        await this.driver.write(async () => {
-            const session = this.driver.native.database._.session;
-            // run SQLite scripts through the session's client
-            if (this.driver.native.dialect === "sqlite" && session instanceof Session) {
-                await session.exec(script);
-            }
-            // run PostgreSQL scripts as simple queries
-            else if (this.driver.native.dialect === "postgresql") {
-                await (session as PostgresJsSession<Sql, EmptyRelations>).client
-                    .unsafe(script)
-                    .simple();
-            }
-            // refuse sessions without a script path
-            else {
-                throw new TypeError(`${this.driver.native.dialect} session cannot run scripts`);
-            }
-        });
+        await this.driver.write(
+            async (native) => {
+                const session = native.database._.session;
+                // run SQLite scripts through the session's client
+                if (native.dialect === "sqlite" && session instanceof Session) {
+                    await session.exec(script);
+                }
+                // run PostgreSQL scripts as simple queries
+                else if (native.dialect === "postgresql") {
+                    await (session as PostgresJsSession<Sql, EmptyRelations>).client
+                        .unsafe(script)
+                        .simple();
+                }
+                // refuse sessions without a script path
+                else {
+                    throw new TypeError(`${native.dialect} session cannot run scripts`);
+                }
+            },
+            { isTransaction: true },
+        );
     }
 
     /** Execute explicit SQL and return its driver rows. */
@@ -138,6 +146,24 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         statement: SQL,
     ): Promise<Row[]> {
         return this.driver.all<Row>(this.driver.render(this.compiler.expression(statement)));
+    }
+
+    /** Plan and apply tables at once, for replicas, local stores and tests that own their database. */
+    async migrate(tables: readonly Table[], options: DeclareOptions = {}): Promise<TablePlan> {
+        const plan = await planMigration(this, declareState(tables, this.dialect, options));
+        await this.apply(plan);
+
+        return plan;
+    }
+
+    /** Plan the union of the desired states of every declaration bound to this database. */
+    plan(desired: readonly ResourceState[]): Promise<TablePlan> {
+        return planStates(this, desired);
+    }
+
+    /** Apply a plan in one transaction and record the declared state. */
+    apply(plan: TablePlan): Promise<void> {
+        return applyPlan(this, plan);
     }
 
     /** Commit a callback once, or roll back all its changes on failure. */
@@ -155,8 +181,9 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         const signal = signals.length ? AbortSignal.any(signals) : undefined;
         signal?.throwIfAborted();
 
-        // track nested transactions until their enclosing callback can finish
+        // open the native transaction in the connection's dialect
         const execute = async () => {
+            // run a SQLite transaction, or a savepoint within an enclosing one
             if (this.driver.native.dialect === "sqlite") {
                 const root = this.driver.native.database;
                 const isNested = this.driver.transaction !== undefined;
@@ -186,7 +213,9 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
                     },
                     { behavior: options.isReadOnly ? "deferred" : "immediate" },
                 );
-            } else if (this.driver.native.dialect === "postgresql") {
+            }
+            // run a PostgreSQL transaction at the requested isolation
+            else if (this.driver.native.dialect === "postgresql") {
                 return await this.driver.native.database.transaction(
                     async (transaction) => {
                         // check deferrable constraints at commit when asked to
@@ -205,7 +234,9 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
                         accessMode: options.isReadOnly ? "read only" : "read write",
                     },
                 );
-            } else {
+            }
+            // reject other dialects
+            else {
                 return assertNever(this.driver.native);
             }
         };
@@ -214,7 +245,7 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         try {
             return this.driver.transaction
                 ? await this.driver.transaction.run(execute, "report")
-                : await this.driver.write(execute);
+                : await this.driver.write(execute, { isTransaction: true });
         } catch (error) {
             throw classifyError(error);
         }
@@ -251,6 +282,8 @@ export class ConnectionState {
     readonly commits: CommitWatch;
     /** Whether the database holds a log, which once created never goes away. */
     isLogged = false;
+    /** The operations submitted so far: statements and transactions, which measure a workload's round trips. */
+    operations = 0;
     /** Operations that must finish before the client closes. */
     readonly #pending = new Set<Promise<void>>();
     /** The shared shutdown operation once closure starts. */
@@ -269,7 +302,8 @@ export class ConnectionState {
             throw new DatabaseError("CONNECTION_CLOSED", "the connection is closing or closed");
         }
 
-        // retain settlement separately from the result returned to the caller
+        // count the operation, and retain its settlement separately from the result returned to the caller
+        this.operations += 1;
         const result = Promise.resolve().then(operation);
         const settled = result.then(
             () => {

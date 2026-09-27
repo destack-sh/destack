@@ -8,6 +8,7 @@
     "sideEffects": false,
     "exports": {
         "./log": "./src/log/index.ts",
+        "./query": "./src/query/index.ts",
         "./tree": "./src/tree/index.ts",
         "./error": "./src/error/index.ts",
         "./declare": "./src/declare/index.ts",
@@ -19,7 +20,7 @@
         "./turso/serverless": "./src/sqlite/turso/serverless.ts",
         "./test": "./src/test/index.ts",
         "./channel": "./src/channel/index.ts",
-        "./shared": "./src/shared/index.ts",
+        "./shared": "./src/sqlite/shared/index.ts",
         "./sqlite": "./src/sqlite/index.ts",
         "./wasm": "./src/sqlite/wasm/index.ts"
     },
