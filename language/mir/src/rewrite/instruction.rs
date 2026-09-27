@@ -45,7 +45,7 @@ impl mir::Instruction {
             | Self::SliceLength { slice: value, .. }
             | Self::DynamicBind { payload: value, .. }
             | Self::DynamicPayload { dynamic: value, .. }
-            | Self::DynamicType { value, .. }
+            | Self::TypeOf { value, .. }
             | Self::DynamicRead { dynamic: value, .. }
             | Self::VectorSplat { value, .. }
             | Self::VectorReduce { vector: value, .. }

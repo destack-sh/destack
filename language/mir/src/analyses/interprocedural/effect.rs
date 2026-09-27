@@ -532,7 +532,7 @@ impl FunctionEffectBuilder<'_> {
             | mir::Instruction::SliceLength { .. }
             | mir::Instruction::DynamicBind { .. }
             | mir::Instruction::DynamicPayload { .. }
-            | mir::Instruction::DynamicType { .. }
+            | mir::Instruction::TypeOf { .. }
             | mir::Instruction::DynamicFind { .. }
             | mir::Instruction::VectorSplat { .. }
             | mir::Instruction::VectorExtract { .. }

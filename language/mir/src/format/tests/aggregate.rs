@@ -117,7 +117,7 @@ type FileWriter { }
 function dynamicAccess(v0: ref<FileWriter, managed, readonly, local>): typeId {
 entry(v0: ref<FileWriter, managed, readonly, local>):
     v1: dynamic<Writer, managed, mutable, local> = dynamic.bind v0, FileWriter
-    v2: typeId = dynamic.type v1
+    v2: typeId = type.of v1
     v3: ref<void, managed, readonly, local> = dynamic.payload v1
     return v2
 }

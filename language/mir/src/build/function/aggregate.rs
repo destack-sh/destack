@@ -186,10 +186,10 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Read the concrete type id of a dynamic value or a class object.
-    pub fn dynamic_type(&mut self, value: Value) -> Value {
+    pub fn type_of(&mut self, value: Value) -> Value {
         let destination = self.allocate_value();
         let type_id = self.tree.intern_type(Type::TypeId);
-        self.insert_instruction(Instruction::DynamicType { destination, value });
+        self.insert_instruction(Instruction::TypeOf { destination, value });
         self.define_value(destination, type_id);
         destination
     }

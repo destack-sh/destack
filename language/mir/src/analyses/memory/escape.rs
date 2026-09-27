@@ -1176,7 +1176,7 @@ impl EscapeBuilder<'_> {
             | mir::Instruction::VariantTag { .. }
             | mir::Instruction::VariantTagLoad { .. }
             | mir::Instruction::SliceLength { .. }
-            | mir::Instruction::DynamicType { .. }
+            | mir::Instruction::TypeOf { .. }
             | mir::Instruction::VectorCompare { .. }
             | mir::Instruction::NewZeroed { .. }
             | mir::Instruction::NewUninit { .. }

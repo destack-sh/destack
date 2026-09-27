@@ -578,9 +578,9 @@ impl Parser {
                             result_type: destination_type,
                         }
                     }
-                    "dynamic.type" => {
+                    "type.of" => {
                         let value = self.parse_value_segment(&mut segment_spans)?;
-                        Instruction::DynamicType { destination, value }
+                        Instruction::TypeOf { destination, value }
                     }
                     "dynamic.read" => {
                         let dynamic = self.parse_value_segment(&mut segment_spans)?;

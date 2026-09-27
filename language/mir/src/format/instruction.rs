@@ -575,7 +575,7 @@ impl FormatNode for Instruction {
                 )
             }
 
-            Instruction::DynamicType { destination, value } => {
+            Instruction::TypeOf { destination, value } => {
                 format_typed_destination(*destination, f)?;
                 write!(
                     f,
@@ -583,7 +583,7 @@ impl FormatNode for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("dynamic.type"),
+                        token("type.of"),
                         space(),
                         value
                     ]

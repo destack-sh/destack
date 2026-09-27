@@ -317,8 +317,8 @@ pub enum Instruction {
         /// The result type of the payload value.
         result_type: TypeId,
     },
-    /// Read the concrete type id of a dynamic value or a class object from its dispatch table.
-    DynamicType {
+    /// Read the concrete type id of a value from its dispatch table.
+    TypeOf {
         /// The SSA value to define with the type id.
         destination: Value,
         /// The dynamic value or class object handle whose concrete type is read.
@@ -672,7 +672,7 @@ impl Instruction {
             | Self::SliceLength { .. }
             | Self::DynamicBind { .. }
             | Self::DynamicPayload { .. }
-            | Self::DynamicType { .. }
+            | Self::TypeOf { .. }
             | Self::DynamicRead { .. }
             | Self::DynamicFind { .. }
             | Self::VectorSplat { .. }
@@ -901,7 +901,7 @@ impl Instruction {
             Instruction::SliceLength { destination, .. } => Some(*destination),
             Instruction::DynamicBind { destination, .. } => Some(*destination),
             Instruction::DynamicPayload { destination, .. } => Some(*destination),
-            Instruction::DynamicType { destination, .. } => Some(*destination),
+            Instruction::TypeOf { destination, .. } => Some(*destination),
             Instruction::DynamicRead { destination, .. } => Some(*destination),
             Instruction::DynamicFind { destination, .. } => Some(*destination),
             Instruction::VectorSplat { destination, .. } => Some(*destination),
@@ -1001,7 +1001,7 @@ impl Instruction {
             Instruction::SliceLength { slice, .. } => smallvec![*slice],
             Instruction::DynamicBind { payload, .. } => smallvec![*payload],
             Instruction::DynamicPayload { dynamic, .. } => smallvec![*dynamic],
-            Instruction::DynamicType { value, .. } => smallvec![*value],
+            Instruction::TypeOf { value, .. } => smallvec![*value],
             Instruction::DynamicRead { dynamic, .. } => smallvec![*dynamic],
             Instruction::DynamicFind { dynamic, key, .. } => smallvec![*dynamic, *key],
             Instruction::VectorSplat { value, .. } => smallvec![*value],
