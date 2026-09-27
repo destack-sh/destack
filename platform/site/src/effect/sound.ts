@@ -596,7 +596,8 @@ export class Sound {
 
         // freeze the ice shut as the last shard lands
         const last = Math.max(...flights.map((flight) => flight.reachIn));
-        this.crack(now + last, false);
+        this.creak(now + last, false, 1);
+        this.crack(now + last, false, 1);
     }
 
     /** Squelch and bubble the goo as the pointer stirs it, from still at 0 to churning at 1. */
@@ -725,10 +726,9 @@ export class Sound {
         const context = this.wake();
         const now = context.currentTime;
 
-        // click the switch down, crack the ice open, and pull the water down into the drain
+        // click the switch down and pull the water down into the drain
         if (cue === "destack") {
             this.click(now, 1);
-            this.crack(now + 0.05, true);
             this.rush(now + 0.1, 3, true);
         }
         // click the switch back and well the water up out of the drain
@@ -770,42 +770,68 @@ export class Sound {
         return (Math.max(0, Math.min(1, position)) * 2 - 1) * panWidth;
     }
 
-    /** Crack ice at an audio time: a low boom, a crunch of splinters, and a creak, as it breaks open or freezes shut. */
-    crack(start: number, isBreaking: boolean) {
+    /** Break one berg of ice: creak and tick as cracks spread through it, then boom and crunch as it bursts, at a pitch around 1. */
+    breakIce(crackIn: number, burstIn: number, pitch: number) {
+        if (!this.isOn) {
+            return;
+        }
+        const context = this.wake();
+        const now = context.currentTime;
+
+        // creak and tick faster and faster as the cracks spread
+        this.creak(now + crackIn, true, pitch);
+        const span = burstIn - crackIn;
+        for (let index = 0; index < 5; index++) {
+            const at = now + crackIn + span * (1 - (1 - index / 5) ** 2);
+            this.burst(at, 4000 * pitch + Math.random() * 2500, 0.02 + index * 0.012);
+        }
+
+        // burst the berg
+        this.crack(now + burstIn, true, pitch);
+    }
+
+    /** Crack ice at an audio time and pitch: a low boom and a crunch of splinters, as it breaks open or freezes shut. */
+    crack(start: number, isBreaking: boolean, pitch: number) {
         // boom the body of the ice
         const context = this.context!;
         const boom = context.createOscillator();
-        boom.frequency.setValueAtTime(isBreaking ? 130 : 90, start);
-        boom.frequency.exponentialRampToValueAtTime(40, start + 0.4);
+        boom.frequency.setValueAtTime((isBreaking ? 130 : 90) * pitch, start);
+        boom.frequency.exponentialRampToValueAtTime(40 * pitch, start + 0.4);
         const boomGain = context.createGain();
         boomGain.gain.setValueAtTime(0.0001, start);
-        boomGain.gain.exponentialRampToValueAtTime(isBreaking ? 0.3 : 0.2, start + 0.01);
+        boomGain.gain.exponentialRampToValueAtTime(isBreaking ? 0.22 : 0.2, start + 0.01);
         boomGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.5);
         boom.connect(boomGain).connect(this.master!);
         boom.start(start);
         boom.stop(start + 0.52);
 
         // crunch splinters, spreading out as it breaks and closing in as it freezes
-        for (let index = 0; index < 14; index++) {
+        for (let index = 0; index < 12; index++) {
             const spread = Math.random() ** (isBreaking ? 1.6 : 0.6) * 0.4;
             const at = isBreaking ? start + spread : start - spread;
-            this.burst(at, 1500 + Math.random() * 3500, 0.04 + Math.random() * 0.12);
+            this.burst(at, (1500 + Math.random() * 3500) * pitch, 0.04 + Math.random() * 0.1);
         }
+    }
 
-        // creak the ice through a narrow band that slides down
+    /** Creak ice at an audio time and pitch through a narrow band that slides down as it gives, or up as it sets. */
+    creak(start: number, isBreaking: boolean, pitch: number) {
+        // bow a low saw through a narrow sliding band
+        const context = this.context!;
         const creak = context.createOscillator();
         creak.type = "sawtooth";
-        creak.frequency.value = 48;
+        creak.frequency.value = 48 * pitch;
         const band = context.createBiquadFilter();
         band.type = "bandpass";
         band.Q.value = 12;
-        band.frequency.setValueAtTime(isBreaking ? 900 : 500, start);
-        band.frequency.exponentialRampToValueAtTime(isBreaking ? 260 : 700, start + 0.6);
-        const creakGain = context.createGain();
-        creakGain.gain.setValueAtTime(0.0001, start);
-        creakGain.gain.exponentialRampToValueAtTime(0.1, start + 0.05);
-        creakGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.7);
-        creak.connect(band).connect(creakGain).connect(this.master!);
+        band.frequency.setValueAtTime((isBreaking ? 900 : 500) * pitch, start);
+        band.frequency.exponentialRampToValueAtTime((isBreaking ? 260 : 700) * pitch, start + 0.6);
+
+        // swell the creak in and let it die away
+        const gain = context.createGain();
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.1, start + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.7);
+        creak.connect(band).connect(gain).connect(this.master!);
         creak.start(start);
         creak.stop(start + 0.72);
     }

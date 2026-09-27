@@ -5,8 +5,8 @@ import { createMemo, createSignal, For, type JSX, onSettled } from "@destack/vie
 import { Debris } from "../effect/debris";
 import { isDarkPage } from "../effect/gl";
 import { charge } from "../effect/goo";
-import { type Bob, Ice } from "../effect/ice";
-import { sound } from "../effect/sound";
+import { bergStagger, type Bob, crackTime, Ice } from "../effect/ice";
+import { type Flight, sound } from "../effect/sound";
 import { Sparks } from "../effect/sparks";
 import {
     drainAt,
@@ -34,6 +34,8 @@ import { Flotsam } from "./flotsam";
 import { orbitOf } from "./plate";
 import { appUses, Remix, sceneSources, scenes, slotApps, todayScenes } from "./remix";
 
+/** The pitch each berg cracks at, from the left to the right, so the three breaks sound apart. */
+const bergPitches = [1.12, 1, 0.9];
 /** How hard the goo charges while the switch is held down, against 1 while it is hovered. */
 const heldCharge = 1.8;
 /** The media query for screens narrower than the desktop frame, where the drawing spans the whole frame. */
@@ -439,6 +441,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     let destackWord!: HTMLSpanElement;
     let debrisCanvas!: HTMLCanvasElement;
     let settle: ReturnType<typeof setTimeout> | undefined;
+    let rising: ReturnType<typeof setTimeout> | undefined;
     let calm: ReturnType<typeof setTimeout> | undefined;
 
     // set things adrift after a while on still water
@@ -595,26 +598,36 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         sound.play(next === "destack" ? "destack" : "restack");
         sound.follow(next);
 
-        // send shards off the ice up into the planet's ring, or bring them home to the reforming ice
-        if (next === "destack") {
-            debris?.rise(shardOrigins());
-        } else {
-            debris?.fall();
-        }
-
         // sound each shard's flight, breaking off and chiming into the ring, or falling home to the freezing ice
-        if (debris) {
+        const soundFlights = (play: (flights: Flight[]) => void) => {
             const now = performance.now();
-            const flights = debris.shards.map((shard) => ({
-                leaveIn: (shard.at - now) / 1000,
-                reachIn: (shard.at + shard.duration - now) / 1000,
-                position: (shard.home.x - window.scrollX) / window.innerWidth,
-            }));
-            if (next === "destack") {
-                sound.shatter(flights);
-            } else {
-                sound.gather(flights);
-            }
+            play(
+                debris!.shards.map((shard) => ({
+                    leaveIn: (shard.at - now) / 1000,
+                    reachIn: (shard.at + shard.duration - now) / 1000,
+                    position: (shard.home.x - window.scrollX) / window.innerWidth,
+                })),
+            );
+        };
+
+        // crack each berg in turn, then send its shards up into the planet's ring once it bursts
+        clearTimeout(rising);
+        if (next === "destack") {
+            columnCentres.forEach((_, berg) => {
+                const crackIn = (berg * bergStagger) / 1000;
+                sound.breakIce(crackIn, crackIn + crackTime / 1000, bergPitches[berg]);
+            });
+            rising = setTimeout(() => {
+                if (debris) {
+                    debris.rise(shardOrigins());
+                    soundFlights((flights) => sound.shatter(flights));
+                }
+            }, crackTime);
+        }
+        // bring the shards home to the reforming ice
+        else if (debris) {
+            debris.fall();
+            soundFlights((flights) => sound.gather(flights));
         }
 
         // shatter the ice as the water drains, or clump it together just before it returns

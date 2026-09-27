@@ -2,6 +2,12 @@ import { Shader } from "./gl";
 
 /** The milliseconds the ice takes to shatter or reassemble. */
 const breakTime = 1200;
+/** The milliseconds hairline cracks spread through a berg before it bursts. */
+export const crackTime = 320;
+/** The milliseconds between one berg breaking and the next, from left to right. */
+export const bergStagger = 140;
+/** The milliseconds the whole break takes beyond one berg's, for the cracks and the stagger across all three. */
+const totalStagger = crackTime + bergStagger * 2;
 
 /** How one berg floats at a moment: its rise below the waterline and slide across in CSS pixels, and its lean clockwise in degrees. */
 export type Bob = { lift: number; sway: number; tilt: number };
@@ -16,7 +22,11 @@ uniform float waterline;
 uniform vec3 centres;
 uniform float column;
 uniform float bulk;
-uniform float shatter;
+uniform vec3 shatters;
+uniform vec3 cracks;
+
+// the shatter of the berg being drawn
+float shatter;
 uniform vec3 bobs;
 uniform vec3 sways;
 uniform vec3 tilts;
@@ -168,6 +178,8 @@ void main() {
         float lift = i == 0 ? bobs.x : (i == 1 ? bobs.y : bobs.z);
         float sway = i == 0 ? sways.x : (i == 1 ? sways.y : sways.z);
         float tilt = i == 0 ? tilts.x : (i == 1 ? tilts.y : tilts.z);
+        shatter = i == 0 ? shatters.x : (i == 1 ? shatters.y : shatters.z);
+        float crack = i == 0 ? cracks.x : (i == 1 ? cracks.y : cracks.z);
         vec2 p = frag - vec2(x + sway, waterline + lift);
         p = mat2(cos(tilt), sin(tilt), -sin(tilt), cos(tilt)) * p;
 
@@ -188,6 +200,12 @@ void main() {
                 vec3 color = shade(p, cell.xy, isAbove);
                 float crease = (1.0 - smoothstep(0.0, 0.04, cell.z)) * (isAbove ? 1.0 : 0.0);
                 color = mix(color, ink, crease * 0.08);
+
+                // spread hairline cracks along the facet edges from the waterline before the berg bursts
+                float reach = crack * column * 0.9;
+                float cracked = 1.0 - smoothstep(reach - 14.0, reach, length(p));
+                float fissure = 1.0 - smoothstep(0.01, 0.028, cell.z);
+                color = mix(color, ink, fissure * cracked * step(0.001, crack) * 0.75);
                 color = mix(color, ink, smoothstep(-1.6, -0.8, d) * 0.6);
                 gl_FragColor = vec4(color * inside, inside);
                 return;
@@ -282,22 +300,33 @@ export class Ice {
         this.shader.request();
     }
 
-    /** Shatter the ice, or reassemble it, after a delay in milliseconds. */
+    /** Shatter the ice, or reassemble it, after a delay in milliseconds; breaking bergs crack first, one after another. */
     breakTo(shatter: number, delay: number) {
-        // start a break from the current shatter
+        // start a break from the furthest the current one has come
         const now = performance.now();
-        this.from = this.shatterAt(now);
+        this.from = Math.max(...this.centres.map((_, berg) => this.shatterAt(now, berg)));
         this.to = shatter;
-        this.broke = this.isMoving ? now + delay : -breakTime;
+        this.broke = this.isMoving ? now + delay : -breakTime - totalStagger;
         this.shader.request();
     }
 
-    /** Return the shatter progress at a time, easing out as the shards slow or settle. */
-    shatterAt(now: number) {
-        const progress = Math.max(0, Math.min(1, (now - this.broke) / breakTime));
+    /** Return a berg's shatter progress at a time, cracking first when it breaks, and easing out as the shards slow or settle. */
+    shatterAt(now: number, berg: number) {
+        // wait for the berg's turn and its cracks when breaking, then ease out
+        const wait = this.to > this.from ? berg * bergStagger + crackTime : 0;
+        const progress = Math.max(0, Math.min(1, (now - this.broke - wait) / breakTime));
         const eased = 1 - (1 - progress) ** 2;
 
         return this.from + (this.to - this.from) * eased;
+    }
+
+    /** Return how far the cracks have spread through a berg at a time, from 0 whole to 1 about to burst. */
+    crackAt(now: number, berg: number) {
+        if (this.to <= this.from) {
+            return 0;
+        }
+
+        return Math.max(0, Math.min(1, (now - this.broke - berg * bergStagger) / crackTime));
     }
 
     /** Upload one frame, and return whether to keep going while the ice bobs or breaks. */
@@ -309,7 +338,8 @@ export class Ice {
         // centre one berg under each board column, sized to a third of the canvas
         const width = shader.width;
         const column = width / 3;
-        const shatter = this.shatterAt(now);
+        const shatters = this.centres.map((_, berg) => this.shatterAt(now, berg));
+        const cracks = this.centres.map((_, berg) => this.crackAt(now, berg));
 
         // float each berg as one body with everything riding on it, or hold it still
         const seconds = now / 1000;
@@ -324,7 +354,13 @@ export class Ice {
         context.uniform3f(shader.uniform("centres"), left, middle, right);
         context.uniform1f(shader.uniform("column"), column);
         context.uniform1f(shader.uniform("bulk"), this.bulk);
-        context.uniform1f(shader.uniform("shatter"), Math.min(shatter, 0.999));
+        context.uniform3f(
+            shader.uniform("shatters"),
+            Math.min(shatters[0], 0.999),
+            Math.min(shatters[1], 0.999),
+            Math.min(shatters[2], 0.999),
+        );
+        context.uniform3f(shader.uniform("cracks"), cracks[0], cracks[1], cracks[2]);
         context.uniform3f(shader.uniform("bobs"), first.lift, second.lift, third.lift);
         context.uniform3f(shader.uniform("sways"), first.sway, second.sway, third.sway);
         context.uniform3f(
@@ -336,8 +372,8 @@ export class Ice {
         this.onFrame();
 
         // stop once the ice is fully gone; keep bobbing while it stands
-        const isBreaking = now - this.broke < breakTime;
+        const isBreaking = now - this.broke < breakTime + totalStagger;
 
-        return isBreaking || (this.isMoving && shatter < 1);
+        return isBreaking || (this.isMoving && Math.min(...shatters) < 1);
     }
 }
