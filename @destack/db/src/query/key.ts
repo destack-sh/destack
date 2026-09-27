@@ -37,16 +37,19 @@ export const Key = {
 
     /** Name a row by its table and the JSON form of its key, the same in every dialect. */
     name(table: Table, row: Readonly<Record<string, unknown>>): string {
-        const columns = table[TABLE].columns;
-
-        return JSON.stringify([
-            table[TABLE].sqlName,
-            ...table[TABLE].key.map((property) =>
-                row[property] === null || row[property] === undefined
+        // write the JSON array of the table's name and key values, without building the array
+        const definition = table[TABLE];
+        let name = `[${JSON.stringify(definition.sqlName)}`;
+        for (const property of definition.key) {
+            const value = row[property];
+            name += `,${JSON.stringify(
+                value === null || value === undefined
                     ? null
-                    : columns[property]!.definition.toJson(row[property]),
-            ),
-        ]);
+                    : definition.columns[property]!.definition.toJson(value),
+            )}`;
+        }
+
+        return `${name}]`;
     },
 
     /** Read a row's key back from its name. */

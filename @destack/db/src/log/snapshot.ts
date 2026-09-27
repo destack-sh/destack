@@ -76,7 +76,8 @@ export class Snapshot {
 
         // keep unchanged rows, and the earlier images the condition matches
         const match = Condition.compile(where, table);
-        const kept = rows.filter((row) => !images.has(Key.name(table, row)));
+        const kept =
+            images.size === 0 ? rows : rows.filter((row) => !images.has(Key.name(table, row)));
         for (const image of images.values()) {
             if (image !== null && Condition.matches(match, image)) {
                 kept.push(image);
@@ -120,7 +121,8 @@ export class Snapshot {
         const images = await this.#undo(table, this.position.sequence, sequence);
 
         // keep unchanged rows, and the earlier images the match keeps
-        const kept = rows.filter((row) => !images.has(Key.name(table, row)));
+        const kept =
+            images.size === 0 ? rows : rows.filter((row) => !images.has(Key.name(table, row)));
         for (const image of images.values()) {
             if (image !== null && match(image)) {
                 kept.push(image);
@@ -198,7 +200,10 @@ export class Snapshot {
 
         // overlay the rows as they were of changed rows and of rows whose relations changed, which the condition and the admission admit
         const match = Condition.compile(query.where, table);
-        const kept = rows.filter((row) => !unsettled.has(Key.name(table, row)));
+        const kept =
+            unsettled.size === 0
+                ? rows
+                : rows.filter((row) => !unsettled.has(Key.name(table, row)));
         for (const image of unsettled.values()) {
             const augmented =
                 image === null
