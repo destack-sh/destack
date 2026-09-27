@@ -101,15 +101,15 @@ type Handles = (
 Dereference prefixes apply to scalar pattern heads.
 
 ```tspp
-match(value){*item=>item;*_=>0;*0..10=>1;_=>2}
+match(value){*item=>item,*_=>0,*0..10=>1,_=>2}
 ```
 
 ```tspp expected
 match (value) {
-    *item => item
-    *_ => 0
-    *0..10 => 1
-    _ => 2
+    *item => item,
+    *_ => 0,
+    *0..10 => 1,
+    _ => 2,
 }
 ```
 
@@ -118,15 +118,15 @@ match (value) {
 Dereference prefixes apply to tuple, array, and object pattern heads.
 
 ```tspp
-match(value){*(x,y)=>x+y;*[head,...tail]=>head;*{left,right}=>left+right;_=>0}
+match(value){*(x,y)=>x+y,*[head,...tail]=>head,*{left,right}=>left+right,_=>0}
 ```
 
 ```tspp expected
 match (value) {
-    *(x, y) => x + y
-    *[head, ...tail] => head
-    *{ left, right } => left + right
-    _ => 0
+    *(x, y) => x + y,
+    *[head, ...tail] => head,
+    *{ left, right } => left + right,
+    _ => 0,
 }
 ```
 
@@ -135,14 +135,14 @@ match (value) {
 Dereference prefixes apply to nominal tuple and struct pattern heads.
 
 ```tspp
-match(point){*Some(value)=>value;*Point{x:&readonly x,y:&readonly y}=>x+y;_=>0}
+match(point){*Some(value)=>value,*Point{x:&readonly x,y:&readonly y}=>x+y,_=>0}
 ```
 
 ```tspp expected
 match (point) {
-    *Some(value) => value
-    *Point { x: &readonly x, y: &readonly y } => x + y
-    _ => 0
+    *Some(value) => value,
+    *Point { x: &readonly x, y: &readonly y } => x + y,
+    _ => 0,
 }
 ```
 
@@ -151,16 +151,16 @@ match (point) {
 Borrow, move, and dereference prefixes compose without extra spacing.
 
 ```tspp
-match(value){&*borrowed=>borrowed;^*moved=>moved;*&readonly read=>read;*&exclusive unique=>unique;_=>fallback}
+match(value){&*borrowed=>borrowed,^*moved=>moved,*&readonly read=>read,*&exclusive unique=>unique,_=>fallback}
 ```
 
 ```tspp expected
 match (value) {
-    &*borrowed => borrowed
-    ^*moved => moved
-    *&readonly read => read
-    *&exclusive unique => unique
-    _ => fallback
+    &*borrowed => borrowed,
+    ^*moved => moved,
+    *&readonly read => read,
+    *&exclusive unique => unique,
+    _ => fallback,
 }
 ```
 
@@ -169,14 +169,14 @@ match (value) {
 Comments after ownership pattern prefixes keep a readable pattern boundary.
 
 ```tspp
-match(value){& /* borrowed */ item=>item;^ /* moved */ item=>item;*&readonly /* readonly */ read=>read;_=>fallback}
+match(value){& /* borrowed */ item=>item,^ /* moved */ item=>item,*&readonly /* readonly */ read=>read,_=>fallback}
 ```
 
 ```tspp expected
 match (value) {
-    & /* borrowed */ item => item
-    ^ /* moved */ item => item
-    *&readonly /* readonly */ read => read
-    _ => fallback
+    & /* borrowed */ item => item,
+    ^ /* moved */ item => item,
+    *&readonly /* readonly */ read => read,
+    _ => fallback,
 }
 ```

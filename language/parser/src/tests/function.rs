@@ -1790,6 +1790,20 @@ fn test_report_unparenthesized_arrow_call() {
     assert_eq!(parser.range_str(error.range()), "(");
 }
 
+/// Reject a TS type predicate after a function signature.
+#[test]
+fn test_reject_a_type_predicate_result() {
+    // source: function isText(value: unknown): value is string {}
+    let test = TestParser::new("function isText(value: unknown): value is string {}");
+    let mut parser = test.prepare();
+    let error = parser
+        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+        .unwrap_err();
+
+    // is
+    assert_eq!(parser.range_str(error.range()), "is");
+}
+
 /// Parse direct calls on parenthesized arrow functions.
 #[test]
 fn test_parse_parenthesized_arrow_call() {

@@ -105,20 +105,20 @@ function example(): void {
 fn test_rewrite_match_arm_sequence() {
     TestRewriter::new(
         "match (value) { $$$ARMS }",
-        "match (value) { Default => fallback $$$ARMS }",
+        "match (value) { Default => fallback, $$$ARMS }",
         r#"
 match (value) {
-    First => one
-    Second => two
+    First => one,
+    Second => two,
 }
 "#,
     )
     .assert(
         r#"
 match (value) {
-    Default => fallback
-    First => one
-    Second => two
+    Default => fallback,
+    First => one,
+    Second => two,
 }
 "#,
     );

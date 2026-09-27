@@ -24,16 +24,16 @@ fn test_format_logical_chain_indents_tail_operands() {
 fn test_format_logical_expression_breaks_before_multiline_operand() {
     assert_format_program!(
         r#"isAfterStart && (match (this.endBound()) {
-    { kind: "included", value: bound } => *value <= *bound
-    { kind: "excluded", value: bound } => *value < *bound
-    { kind: "unbounded" } => true
+    { kind: "included", value: bound } => *value <= *bound,
+    { kind: "excluded", value: bound } => *value < *bound,
+    { kind: "unbounded" } => true,
 })
 "#,
         r#"isAfterStart
     && (match (this.endBound()) {
-        { kind: "included", value: bound } => *value <= *bound
-        { kind: "excluded", value: bound } => *value < *bound
-        { kind: "unbounded" } => true
+        { kind: "included", value: bound } => *value <= *bound,
+        { kind: "excluded", value: bound } => *value < *bound,
+        { kind: "unbounded" } => true,
     });
 "#,
         FileType::Tspp,
@@ -46,18 +46,18 @@ fn test_format_logical_block_tail_breaks_before_multiline_operand() {
     assert_format_program!(
         r#"function contains(): boolean {
     isAfterStart && (match (this.endBound()) {
-        { kind: "included", value: bound } => *value <= *bound
-        { kind: "excluded", value: bound } => *value < *bound
-        { kind: "unbounded" } => true
+        { kind: "included", value: bound } => *value <= *bound,
+        { kind: "excluded", value: bound } => *value < *bound,
+        { kind: "unbounded" } => true,
     })
 }
 "#,
         r#"function contains(): boolean {
     isAfterStart
         && (match (this.endBound()) {
-            { kind: "included", value: bound } => *value <= *bound
-            { kind: "excluded", value: bound } => *value < *bound
-            { kind: "unbounded" } => true
+            { kind: "included", value: bound } => *value <= *bound,
+            { kind: "excluded", value: bound } => *value < *bound,
+            { kind: "unbounded" } => true,
         })
 }
 "#,

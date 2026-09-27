@@ -10,17 +10,17 @@ fn test_match_pattern_fields() {
         dir::NodeType::MatchArm,
         r#"
 match (point) {
-    Point {} => empty;
-    Point { x, y } => x
+    Point {} => empty,
+    Point { x, y } => x,
 }
 "#,
     )
     .assert(
         r#"
 match (point) {
-    Point {} => empty;
+    Point {} => empty,
     ^^^^^^^^^^^^^^^^^ match FIELDS.nodes=[] BODY.node="empty"
-    Point { x, y } => x
+    Point { x, y } => x,
     ^^^^^^^^^^^^^^^^^^^ match FIELDS.nodes=["x", "y"] BODY.node="x"
 }
 "#,

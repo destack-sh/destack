@@ -7,13 +7,13 @@
 Match expressions use arrow syntax for cases.
 
 ```tspp
-match (x) { 1 => "one"; 2 => "two" }
+match (x) { 1 => "one", 2 => "two" }
 ```
 
 ```tspp expected
 match (x) {
-    1 => "one"
-    2 => "two"
+    1 => "one",
+    2 => "two",
 }
 ```
 
@@ -22,13 +22,13 @@ match (x) {
 Wildcard patterns use underscore in match expressions.
 
 ```tspp
-match (value) { Some(x) => x; _ => defaultValue }
+match (value) { Some(x) => x, _ => defaultValue }
 ```
 
 ```tspp expected
 match (value) {
-    Some(x) => x
-    _ => defaultValue
+    Some(x) => x,
+    _ => defaultValue,
 }
 ```
 
@@ -37,13 +37,13 @@ match (value) {
 Match cases can have guards.
 
 ```tspp
-match (x) { n if (n > 0) => "positive"; _ => "non-positive" }
+match (x) { n if (n > 0) => "positive", _ => "non-positive" }
 ```
 
 ```tspp expected
 match (x) {
-    n if (n > 0) => "positive"
-    _ => "non-positive"
+    n if (n > 0) => "positive",
+    _ => "non-positive",
 }
 ```
 
@@ -52,14 +52,14 @@ match (x) {
 Annotations can appear on match arms and stay on their own line above the arm.
 
 ```tspp
-match (result) { @cold Err(e) => handle(e); Ok(v) => v }
+match (result) { @cold Err(e) => handle(e), Ok(v) => v }
 ```
 
 ```tspp expected
 match (result) {
     @cold
-    Err(e) => handle(e)
-    Ok(v) => v
+    Err(e) => handle(e),
+    Ok(v) => v,
 }
 ```
 
@@ -68,7 +68,7 @@ match (result) {
 Match cases can have block bodies.
 
 ```tspp
-match (result) { Ok(value) => { process(value); value }; Err(e) => { log(e); null } }
+match (result) { Ok(value) => { process(value); value }, Err(e) => { log(e); null } }
 ```
 
 ```tspp expected
@@ -89,12 +89,12 @@ match (result) {
 Empty block arms stay compact.
 
 ```tspp
-match (result) { Ok(value) => value; Err(_) => {} }
+match (result) { Ok(value) => value, Err(_) => {} }
 ```
 
 ```tspp expected
 match (result) {
-    Ok(value) => value
+    Ok(value) => value,
     Err(_) => {}
 }
 ```
@@ -104,13 +104,13 @@ match (result) {
 Object expression bodies keep parentheses after the case arrow.
 
 ```tspp
-match (result) { Ok { value } => ({ kind: "ok", value }); Err { error } => ({ kind: "err", error }) }
+match (result) { Ok { value } => ({ kind: "ok", value }), Err { error } => ({ kind: "err", error }) }
 ```
 
 ```tspp expected
 match (result) {
-    Ok { value } => ({ kind: "ok", value })
-    Err { error } => ({ kind: "err", error })
+    Ok { value } => ({ kind: "ok", value }),
+    Err { error } => ({ kind: "err", error }),
 }
 ```
 
@@ -119,13 +119,13 @@ match (result) {
 Match expression used as a value gets trailing semicolon.
 
 ```tspp
-const x = match (status) { Success => 1; Failure => 0 }
+const x = match (status) { Success => 1, Failure => 0 }
 ```
 
 ```tspp expected
 const x = match (status) {
-    Success => 1
-    Failure => 0
+    Success => 1,
+    Failure => 0,
 };
 ```
 
@@ -134,14 +134,14 @@ const x = match (status) {
 Match initializer values use the expanded arm-list shape.
 
 ```tspp
-const notification = match (event) { Created => createdView; Deleted => deletedView; _ => fallbackView }
+const notification = match (event) { Created => createdView, Deleted => deletedView, _ => fallbackView }
 ```
 
 ```tspp expected
 const notification = match (event) {
-    Created => createdView
-    Deleted => deletedView
-    _ => fallbackView
+    Created => createdView,
+    Deleted => deletedView,
+    _ => fallbackView,
 };
 ```
 
@@ -150,14 +150,14 @@ const notification = match (event) {
 Match assignment values use the expanded arm-list shape.
 
 ```tspp
-function update(state: State): Result { output.value = match (state) { Ready(value) => Result.Ok(value); Failed(error) => Result.Err(error) }; return output.value }
+function update(state: State): Result { output.value = match (state) { Ready(value) => Result.Ok(value), Failed(error) => Result.Err(error) }; return output.value }
 ```
 
 ```tspp expected
 function update(state: State): Result {
     output.value = match (state) {
-        Ready(value) => Result.Ok(value)
-        Failed(error) => Result.Err(error)
+        Ready(value) => Result.Ok(value),
+        Failed(error) => Result.Err(error),
     };
     return output.value;
 }
@@ -168,15 +168,15 @@ function update(state: State): Result {
 Match argument values use the expanded arm-list shape.
 
 ```tspp
-renderDashboard(match (user.role) { Admin => permissions.admin; Guest => permissions.guest; _ => permissions.default })
+renderDashboard(match (user.role) { Admin => permissions.admin, Guest => permissions.guest, _ => permissions.default })
 ```
 
 ```tspp expected
 renderDashboard(
     match (user.role) {
-        Admin => permissions.admin
-        Guest => permissions.guest
-        _ => permissions.default
+        Admin => permissions.admin,
+        Guest => permissions.guest,
+        _ => permissions.default,
     },
 );
 ```
@@ -186,18 +186,18 @@ renderDashboard(
 Match collection values preserve required grouping.
 
 ```tspp
-const values = [match (mode) { Fast => fastValue; Slow => slowValue }, ...(match (mode) { Fast => fastItems; _ => fallbackItems })]
+const values = [match (mode) { Fast => fastValue, Slow => slowValue }, ...(match (mode) { Fast => fastItems, _ => fallbackItems })]
 ```
 
 ```tspp expected
 const values = [
     match (mode) {
-        Fast => fastValue
-        Slow => slowValue
+        Fast => fastValue,
+        Slow => slowValue,
     },
     ...(match (mode) {
-        Fast => fastItems
-        _ => fallbackItems
+        Fast => fastItems,
+        _ => fallbackItems,
     }),
 ];
 ```
@@ -207,14 +207,14 @@ const values = [
 Default parameters can use expanded match values.
 
 ```tspp
-function render(view = match (kind) { Primary => primaryView; _ => fallbackView }) { use(view) }
+function render(view = match (kind) { Primary => primaryView, _ => fallbackView }) { use(view) }
 ```
 
 ```tspp expected
 function render(
     view = match (kind) {
-        Primary => primaryView
-        _ => fallbackView
+        Primary => primaryView,
+        _ => fallbackView,
     },
 ) {
     use(view)
@@ -226,14 +226,14 @@ function render(
 Expanded match values indent inside template interpolations.
 
 ```tspp
-const label = `state: ${match (status) { Ready => "ready"; _ => "pending" }}`
+const label = `state: ${match (status) { Ready => "ready", _ => "pending" }}`
 ```
 
 ```tspp expected
 const label = `state: ${
     match (status) {
-        Ready => "ready"
-        _ => "pending"
+        Ready => "ready",
+        _ => "pending",
     }
 }`;
 ```
@@ -243,15 +243,15 @@ const label = `state: ${
 Match logical operands preserve required grouping.
 
 ```tspp
-const enabled = flag && (match (mode) { Fast => fastEnabled; Slow => slowEnabled; _ => fallbackEnabled })
+const enabled = flag && (match (mode) { Fast => fastEnabled, Slow => slowEnabled, _ => fallbackEnabled })
 ```
 
 ```tspp expected
 const enabled = flag
     && (match (mode) {
-        Fast => fastEnabled
-        Slow => slowEnabled
-        _ => fallbackEnabled
+        Fast => fastEnabled,
+        Slow => slowEnabled,
+        _ => fallbackEnabled,
     });
 ```
 
@@ -260,13 +260,13 @@ const enabled = flag
 Match type assertion operands use the expanded arm-list shape.
 
 ```tspp
-const typed = (match (kind) { Primary => createPrimary(context); Secondary => createSecondary(context) }) as CreatedValue
+const typed = (match (kind) { Primary => createPrimary(context), Secondary => createSecondary(context) }) as CreatedValue
 ```
 
 ```tspp expected
 const typed = match (kind) {
-    Primary => createPrimary(context)
-    Secondary => createSecondary(context)
+    Primary => createPrimary(context),
+    Secondary => createSecondary(context),
 } as CreatedValue;
 ```
 
@@ -275,13 +275,13 @@ const typed = match (kind) {
 Match chain receiver values preserve required grouping.
 
 ```tspp
-const result = (match (kind) { Primary => createPrimaryBuilder(context); Secondary => createSecondaryBuilder(context) }).build().finalize()
+const result = (match (kind) { Primary => createPrimaryBuilder(context), Secondary => createSecondaryBuilder(context) }).build().finalize()
 ```
 
 ```tspp expected
 const result = (match (kind) {
-    Primary => createPrimaryBuilder(context)
-    Secondary => createSecondaryBuilder(context)
+    Primary => createPrimaryBuilder(context),
+    Secondary => createSecondaryBuilder(context),
 })
     .build()
     .finalize();
@@ -292,7 +292,7 @@ const result = (match (kind) {
 Long match initializer values expand arm bodies.
 
 ```tspp line-width=80
-const notification = match (event) { User.Created(user) => { const profile = loadProfile(user.id, context.region); renderCreatedNotification(profile, context.locale, context.timeZone) }; User.Deleted(user) => { const profile = loadProfile(user.id, context.region); renderDeletedNotification(profile, context.locale, context.timeZone) }; _ => renderDefaultNotification(event, context.locale) }
+const notification = match (event) { User.Created(user) => { const profile = loadProfile(user.id, context.region); renderCreatedNotification(profile, context.locale, context.timeZone) }, User.Deleted(user) => { const profile = loadProfile(user.id, context.region); renderDeletedNotification(profile, context.locale, context.timeZone) }, _ => renderDefaultNotification(event, context.locale) }
 ```
 
 ```tspp expected
@@ -305,7 +305,7 @@ const notification = match (event) {
         const profile = loadProfile(user.id, context.region);
         renderDeletedNotification(profile, context.locale, context.timeZone)
     }
-    _ => renderDefaultNotification(event, context.locale)
+    _ => renderDefaultNotification(event, context.locale),
 };
 ```
 
@@ -315,16 +315,16 @@ Manually broken match values keep their expanded arm list.
 
 ```tspp
 render(match (kind) {
-    Primary => primaryView
-    Secondary => secondaryView
+    Primary => primaryView,
+    Secondary => secondaryView,
 })
 ```
 
 ```tspp expected
 render(
     match (kind) {
-        Primary => primaryView
-        Secondary => secondaryView
+        Primary => primaryView,
+        Secondary => secondaryView,
     },
 );
 ```
@@ -334,15 +334,15 @@ render(
 Match expressions in function tail position preserve arm values.
 
 ```tspp
-function statusText(status: Status): string { match (status) { Ready => "ready"; Waiting => "waiting"; Failed(error) => error.message } }
+function statusText(status: Status): string { match (status) { Ready => "ready", Waiting => "waiting", Failed(error) => error.message } }
 ```
 
 ```tspp expected
 function statusText(status: Status): string {
     match (status) {
-        Ready => "ready"
-        Waiting => "waiting"
-        Failed(error) => error.message
+        Ready => "ready",
+        Waiting => "waiting",
+        Failed(error) => error.message,
     }
 }
 ```
@@ -352,7 +352,7 @@ function statusText(status: Status): string {
 Block arms preserve nested control-flow values.
 
 ```tspp
-match (result) { Ok(value) => { const normalized = value.normalize(); if (normalized.valid) { normalized.value } else { fallback } }; Err(error) => { log(error); fallback } }
+match (result) { Ok(value) => { const normalized = value.normalize(); if (normalized.valid) { normalized.value } else { fallback } }, Err(error) => { log(error); fallback } }
 ```
 
 ```tspp expected
@@ -377,7 +377,7 @@ match (result) {
 Match expressions in statement position keep nested branch statements.
 
 ```tspp
-match (result) { Ok(value) => { if (value.valid) { use(value); } else { reset(); } }; Err(error) => report(error) }
+match (result) { Ok(value) => { if (value.valid) { use(value); } else { reset(); } }, Err(error) => report(error) }
 ```
 
 ```tspp expected
@@ -389,7 +389,7 @@ match (result) {
             reset();
         }
     }
-    Err(error) => report(error)
+    Err(error) => report(error),
 }
 ```
 
@@ -398,7 +398,7 @@ match (result) {
 Explicit statement terminators inside block arms are preserved.
 
 ```tspp
-match (result) { Ok(value) => { use(value); }; Err(error) => { report(error); } }
+match (result) { Ok(value) => { use(value); }, Err(error) => { report(error); } }
 ```
 
 ```tspp expected
@@ -414,7 +414,7 @@ Comments inside value arms stay before the arm tail expression.
 
 ```tspp
 function statusText(status: Status): string { match (status) { Ready => { // ready branch
-"ready" }; Failed(error) => { // failed branch
+"ready" }, Failed(error) => { // failed branch
 error.message } } }
 ```
 
@@ -440,18 +440,18 @@ Comments before guarded arms stay attached to the arm.
 ```tspp
 match (value) {
     // positive
-    n if (n > 0) => n;
+    n if (n > 0) => n,
     // fallback
-    _ => 0
+    _ => 0,
 }
 ```
 
 ```tspp expected
 match (value) {
     // positive
-    n if (n > 0) => n
+    n if (n > 0) => n,
     // fallback
-    _ => 0
+    _ => 0,
 }
 ```
 
@@ -461,12 +461,12 @@ match (value) {
 The formatter should not convert match to switch.
 
 ```tspp
-match (status) { Success => "ok"; Failure => "error" }
+match (status) { Success => "ok", Failure => "error" }
 ```
 
 ```tspp expected
 match (status) {
-    Success => "ok"
-    Failure => "error"
+    Success => "ok",
+    Failure => "error",
 }
 ```

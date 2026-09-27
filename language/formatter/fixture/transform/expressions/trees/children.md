@@ -492,16 +492,16 @@ const node = (
 Match values used as children keep each element arm attached to its pattern.
 
 ```tspp
-const node = <Panel>{match (state) { Ready(item) => <Ready item={item} />; Pending => <Pending />; Failed(error) => <Failed error={error} /> }}</Panel>
+const node = <Panel>{match (state) { Ready(item) => <Ready item={item} />, Pending => <Pending />, Failed(error) => <Failed error={error} /> }}</Panel>
 ```
 
 ```tspp expected
 const node = (
     <Panel>
         {match (state) {
-            Ready(item) => <Ready item={item} />
-            Pending => <Pending />
-            Failed(error) => <Failed error={error} />
+            Ready(item) => <Ready item={item} />,
+            Pending => <Pending />,
+            Failed(error) => <Failed error={error} />,
         }}
     </Panel>
 );
@@ -512,16 +512,16 @@ const node = (
 Match values expand when any branch returns a tree.
 
 ```tspp
-const node = <Panel>{match (state) { Ready(item) => <Ready item={item} />; Empty => "empty"; Failed(error) => <Failed error={error} /> }}</Panel>
+const node = <Panel>{match (state) { Ready(item) => <Ready item={item} />, Empty => "empty", Failed(error) => <Failed error={error} /> }}</Panel>
 ```
 
 ```tspp expected
 const node = (
     <Panel>
         {match (state) {
-            Ready(item) => <Ready item={item} />
-            Empty => "empty"
-            Failed(error) => <Failed error={error} />
+            Ready(item) => <Ready item={item} />,
+            Empty => "empty",
+            Failed(error) => <Failed error={error} />,
         }}
     </Panel>
 );

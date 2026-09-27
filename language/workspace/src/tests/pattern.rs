@@ -285,7 +285,7 @@ fn test_rewrite_source_pattern_write() {
 /// Select and rewrite contextual MatchArm roots through the same command model.
 #[test]
 fn test_query_and_rewrite_match_arm() {
-    let source = "match (result) { Err(error) => recover(error); Ok(value) => value }\n";
+    let source = "match (result) { Err(error) => recover(error), Ok(value) => value }\n";
     let test = TestPattern::new("query-rewrite-match-arm").input("main.tspp", source);
     let output = test
         .query("match (value) { Err($ERROR) => $BODY }")
@@ -314,7 +314,7 @@ fn test_query_and_rewrite_match_arm() {
     assert_eq!(output.data.replacements, 1);
     assert_eq!(
         test.source("main.tspp"),
-        "match (result) { Err(error) => log(recover(error)); Ok(value) => value }\n"
+        "match (result) { Err(error) => log(recover(error)), Ok(value) => value }\n"
     );
 }
 

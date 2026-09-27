@@ -47,14 +47,19 @@ impl Parser {
                 continue;
             }
 
-            // consume separators between arms
-            if Self::is_statement_stop_token(self.peek_token_type()) {
-                self.eat_statement_stop()?;
-                continue;
-            }
-
             let arm = self.parse_match_arm().in_node(NodeType::MatchArm)?;
             arms.push(arm);
+
+            // separate arms with commas, optional after a block-like body and before the closing brace
+            let is_block_like = match *self.tree.get(arm) {
+                MatchArm::Block { .. } => true,
+                MatchArm::Expression { body, .. } => self.tree.get(body).is_block_like(),
+            };
+            if self.peek_is(TokenType::Comma) {
+                self.bump();
+            } else if !is_block_like && !self.peek_is(TokenType::CloseBrace) {
+                self.eat_token(TokenType::Comma)?;
+            }
         }
 
         Ok(arms)
@@ -104,7 +109,7 @@ impl Parser {
             }
         } else {
             let body =
-                self.parse_expression(ExpressionPosition::Value, ExpressionStop::MATCH_ARM_LINE)?;
+                self.parse_expression(ExpressionPosition::Value, ExpressionStop::default())?;
             MatchArm::Expression {
                 pattern,
                 guard,

@@ -101,7 +101,6 @@ impl Parser {
             if is_on_new_line
                 && !continues_postfix
                 && (position.is_decorator()
-                    || stop.has(ExpressionStop::MATCH_ARM_LINE)
                     || stop.has(ExpressionStop::NEWLINE_CALL)
                     || position.is_statement() && self.tree.get(left).ends_statement_on_newline())
             {

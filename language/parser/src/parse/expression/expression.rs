@@ -81,18 +81,16 @@ impl ExpressionStop {
     pub(crate) const SWITCH_COLON: Self = Self(1 << 0);
     /// An `of` token owned by an enclosing iteration clause.
     pub(crate) const FOR_EACH: Self = Self(1 << 1);
-    /// A newline owned by an enclosing match arm.
-    pub(crate) const MATCH_ARM_LINE: Self = Self(1 << 2);
     /// An angle close owned by an enclosing generic argument list.
-    pub(crate) const ANGLE_CLOSE: Self = Self(1 << 3);
+    pub(crate) const ANGLE_CLOSE: Self = Self(1 << 2);
     /// A newline call owned by an enclosing statement expression.
-    pub(crate) const NEWLINE_CALL: Self = Self(1 << 4);
+    pub(crate) const NEWLINE_CALL: Self = Self(1 << 3);
     /// A brace reserved for an enclosing control body during recovery.
-    pub(crate) const BODY_BRACE: Self = Self(1 << 5);
+    pub(crate) const BODY_BRACE: Self = Self(1 << 4);
     /// A colon owned by an enclosing conditional expression.
-    pub(crate) const CONDITIONAL_COLON: Self = Self(1 << 6);
+    pub(crate) const CONDITIONAL_COLON: Self = Self(1 << 5);
     /// A question owned by an enclosing iterative conditional ladder.
-    pub(crate) const CONDITIONAL_QUESTION: Self = Self(1 << 7);
+    pub(crate) const CONDITIONAL_QUESTION: Self = Self(1 << 6);
 
     /// Add one enclosing token.
     pub(crate) const fn add(self, stop: Self) -> Self {
@@ -541,11 +539,6 @@ impl Parser {
                 ExpressionOperator::As | ExpressionOperator::Satisfies
             )
         {
-            return true;
-        }
-
-        // leave match continuation lines to the enclosing arm
-        if stop.has(ExpressionStop::MATCH_ARM_LINE) && self.peek_is_on_new_line() {
             return true;
         }
 

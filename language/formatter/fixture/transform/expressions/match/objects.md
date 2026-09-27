@@ -7,14 +7,14 @@
 Objects can be destructured in match patterns.
 
 ```tspp
-match (user) { { name: "admin" } => "admin user"; { name, age } => `${name} is ${age}`; _ => "unknown" }
+match (user) { { name: "admin" } => "admin user", { name, age } => `${name} is ${age}`, _ => "unknown" }
 ```
 
 ```tspp expected
 match (user) {
-    { name: "admin" } => "admin user"
-    { name, age } => `${name} is ${age}`
-    _ => "unknown"
+    { name: "admin" } => "admin user",
+    { name, age } => `${name} is ${age}`,
+    _ => "unknown",
 }
 ```
 
@@ -23,12 +23,12 @@ match (user) {
 Named struct patterns include the struct name.
 
 ```tspp
-match (point) { Point { x: 0, y: 0 } => "origin"; Point { x, y } => `at (${x}, ${y})` }
+match (point) { Point { x: 0, y: 0 } => "origin", Point { x, y } => `at (${x}, ${y})` }
 ```
 
 ```tspp expected
 match (point) {
-    Point { x: 0, y: 0 } => "origin"
-    Point { x, y } => `at (${x}, ${y})`
+    Point { x: 0, y: 0 } => "origin",
+    Point { x, y } => `at (${x}, ${y})`,
 }
 ```

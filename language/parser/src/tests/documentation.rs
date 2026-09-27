@@ -626,7 +626,7 @@ import {
         r#"
 match (value) {
     /// Default result.
-    _ => 0
+    _ => 0,
 }
 "#,
     );

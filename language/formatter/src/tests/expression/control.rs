@@ -8,10 +8,10 @@ use tspp_source::FileType;
 #[test]
 fn test_format_match_expression_cases() {
     assert_format!(
-        "match (x) { 1 => 2; 3 => 4 }",
+        "match (x) { 1 => 2, 3 => 4 }",
         r#"match (x) {
-	1 => 2
-	3 => 4
+	1 => 2,
+	3 => 4,
 }"#,
         parse_first_expression,
         TsppFormatOptions::default_tab()
@@ -128,7 +128,7 @@ fn test_format_match_binding_guard() {
     assert_format_program!(
         r#"match(value){text if((ready||retry)&&let parsed! = parse(text)&&parsed>0)=>parsed}"#,
         r#"match (value) {
-    text if ((ready || retry) && let parsed! = parse(text) && parsed > 0) => parsed
+    text if ((ready || retry) && let parsed! = parse(text) && parsed > 0) => parsed,
 }
 "#,
         FileType::Tspp
@@ -183,11 +183,11 @@ fn test_format_switch_with_block() {
 #[test]
 fn test_format_match_with_annotated_arm() {
     assert_format_program!(
-        r#"match (result) { @cold Err(e) => handle(e); Ok(v) => v }"#,
+        r#"match (result) { @cold Err(e) => handle(e), Ok(v) => v }"#,
         r#"match (result) {
     @cold
-    Err(e) => handle(e)
-    Ok(v) => v
+    Err(e) => handle(e),
+    Ok(v) => v,
 }
 "#,
         FileType::Tspp,

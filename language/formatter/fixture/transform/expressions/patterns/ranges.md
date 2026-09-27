@@ -10,23 +10,23 @@ Range operators are attached to their bounds.
 
 ```tspp
 const label = match (value) {
-    0 .. 10 => "small"
-    0 ..= 10 => "inclusive"
-    0 .. => "from"
-    .. 10 => "to"
-    ..= 10 => "through"
-    _ => "other"
+    0 .. 10 => "small",
+    0 ..= 10 => "inclusive",
+    0 .. => "from",
+    .. 10 => "to",
+    ..= 10 => "through",
+    _ => "other",
 }
 ```
 
 ```tspp expected
 const label = match (value) {
-    0..10 => "small"
-    0..=10 => "inclusive"
-    0.. => "from"
-    ..10 => "to"
-    ..=10 => "through"
-    _ => "other"
+    0..10 => "small",
+    0..=10 => "inclusive",
+    0.. => "from",
+    ..10 => "to",
+    ..=10 => "through",
+    _ => "other",
 };
 ```
 
@@ -38,17 +38,17 @@ Identifier and path bounds keep member spacing.
 
 ```tspp
 const label = match (value) {
-    MIN .. MAX => "local"
-    Limits.Low ..= Limits.High => "shared"
-    _ => "other"
+    MIN .. MAX => "local",
+    Limits.Low ..= Limits.High => "shared",
+    _ => "other",
 }
 ```
 
 ```tspp expected
 const label = match (value) {
-    MIN..MAX => "local"
-    Limits.Low..=Limits.High => "shared"
-    _ => "other"
+    MIN..MAX => "local",
+    Limits.Low..=Limits.High => "shared",
+    _ => "other",
 };
 ```
 
@@ -60,15 +60,15 @@ Range patterns bind tighter than alternatives.
 
 ```tspp
 const isEdge = match (value) {
-    0 .. 10 | 90 ..= 99 => true
-    _ => false
+    0 .. 10 | 90 ..= 99 => true,
+    _ => false,
 }
 ```
 
 ```tspp expected
 const isEdge = match (value) {
-    0..10 | 90..=99 => true
-    _ => false
+    0..10 | 90..=99 => true,
+    _ => false,
 };
 ```
 
@@ -80,18 +80,18 @@ Comments around range pattern operators keep readable operator boundaries.
 
 ```tspp
 const label = match (value) {
-    0 /* min */ ..= /* max */ 10 => "small"
-    MIN /* low */ .. /* high */ MAX => "symbolic"
-    20 .. /* open */ => "large"
-    _ => "other"
+    0 /* min */ ..= /* max */ 10 => "small",
+    MIN /* low */ .. /* high */ MAX => "symbolic",
+    20 .. /* open */ => "large",
+    _ => "other",
 }
 ```
 
 ```tspp expected
 const label = match (value) {
-    0 /* min */ ..= /* max */ 10 => "small"
-    MIN /* low */ .. /* high */ MAX => "symbolic"
-    20 .. /* open */ => "large"
-    _ => "other"
+    0 /* min */ ..= /* max */ 10 => "small",
+    MIN /* low */ .. /* high */ MAX => "symbolic",
+    20 .. /* open */ => "large",
+    _ => "other",
 };
 ```

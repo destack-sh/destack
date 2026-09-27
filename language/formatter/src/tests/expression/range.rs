@@ -84,23 +84,23 @@ const all = items[..];
 fn test_format_range_pattern() {
     assert_format_program!(
         r#"const label = match (value) {
-    0 .. 10 => "small"
-    0 ..= 10 => "inclusive"
-    0 .. => "from"
-    .. 10 => "to"
-    ..= 10 => "through"
-    90 ..= 99 | 100 .. 110 => "edge"
-    _ => "other"
+    0 .. 10 => "small",
+    0 ..= 10 => "inclusive",
+    0 .. => "from",
+    .. 10 => "to",
+    ..= 10 => "through",
+    90 ..= 99 | 100 .. 110 => "edge",
+    _ => "other",
 }
 "#,
         r#"const label = match (value) {
-    0..10 => "small"
-    0..=10 => "inclusive"
-    0.. => "from"
-    ..10 => "to"
-    ..=10 => "through"
-    90..=99 | 100..110 => "edge"
-    _ => "other"
+    0..10 => "small",
+    0..=10 => "inclusive",
+    0.. => "from",
+    ..10 => "to",
+    ..=10 => "through",
+    90..=99 | 100..110 => "edge",
+    _ => "other",
 };
 "#,
         FileType::Tspp,

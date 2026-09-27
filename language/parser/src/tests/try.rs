@@ -168,8 +168,8 @@ fn test_parse_try_with_catch_match_object_patterns() {
 try {
     first + second
 } catch match (failure) {
-    MissingError { path } => path.length;
-    FormatError { line } => line;
+    MissingError { path } => path.length,
+    FormatError { line } => line,
 }
 "###,
     );
@@ -193,8 +193,8 @@ async function errorCase(): Promise<int32> {
     const recovered = try {
         first + second + third + local + forced
     } catch match (failure) {
-        MissingError { path } => path.length;
-        FormatError { line } => line;
+        MissingError { path } => path.length,
+        FormatError { line } => line,
     };
     return recovered;
 }

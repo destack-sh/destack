@@ -1459,9 +1459,14 @@ fn format_match_arm<'ast>(
 
     // arm body
     match arm {
+        // separate a value body with a comma, a block-like body ending in its own brace
         MatchArm::Expression { body, .. } => {
             write!(f, [space(), token("=>"), space(), *body])?;
+            if !f.context().tree.get(*body).is_block_like() {
+                write!(f, [token(",")])?;
+            }
         }
+        // write a block body, which ends in its own brace
         MatchArm::Block { body, .. } => {
             write!(f, [space(), token("=>"), space(), *body])?;
         }

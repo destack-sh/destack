@@ -393,15 +393,15 @@ function unwrap(maybe: Maybe<number>): number {
 Nested matches inside if-let tails preserve arm values.
 
 ```tspp
-function unwrap(maybe: Maybe<Result<number, Error>>): number { if (let Some(result) = maybe) { match (result) { Ok(value) => value; Err(_) => 0 } } else { 0 } }
+function unwrap(maybe: Maybe<Result<number, Error>>): number { if (let Some(result) = maybe) { match (result) { Ok(value) => value, Err(_) => 0 } } else { 0 } }
 ```
 
 ```tspp expected
 function unwrap(maybe: Maybe<Result<number, Error>>): number {
     if (let Some(result) = maybe) {
         match (result) {
-            Ok(value) => value
-            Err(_) => 0
+            Ok(value) => value,
+            Err(_) => 0,
         }
     } else {
         0

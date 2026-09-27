@@ -9,13 +9,13 @@ fn test_rewrite_pattern_fields() {
         "match (value) { Point { $$$FIELDS } => $BODY }",
         "match (value) { Point { $$$FIELDS } => trace($BODY) }",
         dir::NodeType::MatchArm,
-        "match (point) { Point {} => empty; Point { x, y } => x }",
+        "match (point) { Point {} => empty, Point { x, y } => x }",
     )
     .assert(
         r#"
 match (point) {
-    Point {} => trace(empty)
-    Point { x, y } => trace(x)
+    Point {} => trace(empty),
+    Point { x, y } => trace(x),
 }
 "#,
     );

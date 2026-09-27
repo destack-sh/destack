@@ -7,15 +7,15 @@
 Arrays can be destructured in match patterns.
 
 ```tspp
-match (arr) { [] => "empty"; [a] => `one: ${a}`; [a, b] => `two: ${a}, ${b}`; _ => "many" }
+match (arr) { [] => "empty", [a] => `one: ${a}`, [a, b] => `two: ${a}, ${b}`, _ => "many" }
 ```
 
 ```tspp expected
 match (arr) {
-    [] => "empty"
-    [a] => `one: ${a}`
-    [a, b] => `two: ${a}, ${b}`
-    _ => "many"
+    [] => "empty",
+    [a] => `one: ${a}`,
+    [a, b] => `two: ${a}, ${b}`,
+    _ => "many",
 }
 ```
 
@@ -24,13 +24,13 @@ match (arr) {
 Rest patterns capture remaining elements.
 
 ```tspp
-match (arr) { [first, ...rest] => first; [] => null }
+match (arr) { [first, ...rest] => first, [] => null }
 ```
 
 ```tspp expected
 match (arr) {
-    [first, ...rest] => first
-    [] => null
+    [first, ...rest] => first,
+    [] => null,
 }
 ```
 
@@ -40,12 +40,12 @@ The `..` pattern matches elements in the middle.
 Multi-element tuple results do not need a trailing comma.
 
 ```tspp
-match (arr) { [first, ..., last] => (first, last); _ => null }
+match (arr) { [first, ..., last] => (first, last), _ => null }
 ```
 
 ```tspp expected
 match (arr) {
-    [first, ..., last] => (first, last)
-    _ => null
+    [first, ..., last] => (first, last),
+    _ => null,
 }
 ```

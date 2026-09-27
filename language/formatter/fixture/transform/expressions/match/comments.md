@@ -15,7 +15,7 @@ match (
     Click(pos) /* click pattern */ if (
         // valid position
         pos.isValid()
-    ) => /* click body */ handleClick(pos);
+    ) => /* click body */ handleClick(pos),
     // fallback arm
     _ => fallback()
 }
@@ -30,9 +30,9 @@ match (
     Click(pos) /* click pattern */ if (
         // valid position
         pos.isValid()
-    ) => /* click body */ handleClick(pos)
+    ) => /* click body */ handleClick(pos),
     // fallback arm
-    _ => fallback()
+    _ => fallback(),
 }
 ```
 
@@ -41,14 +41,14 @@ match (
 Nested pattern comments stay inside their pattern containers.
 
 ```tspp
-match (value) { Result.Ok(Point { x: /* x */ x, y: /* y */ y }) => x + y; [first, /* middle */ ..., last] => first + last; _ => 0 }
+match (value) { Result.Ok(Point { x: /* x */ x, y: /* y */ y }) => x + y, [first, /* middle */ ..., last] => first + last, _ => 0 }
 ```
 
 ```tspp expected
 match (value) {
-    Result.Ok(Point { x: /* x */ x, y: /* y */ y }) => x + y
-    [first, /* middle */ ..., last] => first + last
-    _ => 0
+    Result.Ok(Point { x: /* x */ x, y: /* y */ y }) => x + y,
+    [first, /* middle */ ..., last] => first + last,
+    _ => 0,
 }
 ```
 
@@ -57,17 +57,17 @@ match (value) {
 Newtype object patterns keep aliases, defaults, rest fields, and guards structured.
 
 ```tspp
-match (shape) { Shape.Point({ x, y: renamed = 0, ...rest }) if (renamed > 0) => x + renamed; Shape.Line({ start: Point { x, y }, end }) => x + y; _ => 0 }
+match (shape) { Shape.Point({ x, y: renamed = 0, ...rest }) if (renamed > 0) => x + renamed, Shape.Line({ start: Point { x, y }, end }) => x + y, _ => 0 }
 ```
 
 ```tspp expected
 match (shape) {
-    Shape.Point({ x, y: renamed = 0, ...rest }) if (renamed > 0) => x + renamed
+    Shape.Point({ x, y: renamed = 0, ...rest }) if (renamed > 0) => x + renamed,
     Shape.Line({
         start: Point { x, y },
         end,
-    }) => x + y
-    _ => 0
+    }) => x + y,
+    _ => 0,
 }
 ```
 
@@ -76,14 +76,14 @@ match (shape) {
 Tagged tuple patterns keep defaults, rests, and nested object patterns.
 
 ```tspp
-match (result) { Result.Ok(Point { x, y }, meta = defaultMeta) => x + y; Result.Err(error, ...context) => context.length; _ => 0 }
+match (result) { Result.Ok(Point { x, y }, meta = defaultMeta) => x + y, Result.Err(error, ...context) => context.length, _ => 0 }
 ```
 
 ```tspp expected
 match (result) {
-    Result.Ok(Point { x, y }, meta = defaultMeta) => x + y
-    Result.Err(error, ...context) => context.length
-    _ => 0
+    Result.Ok(Point { x, y }, meta = defaultMeta) => x + y,
+    Result.Err(error, ...context) => context.length,
+    _ => 0,
 }
 ```
 
@@ -92,14 +92,14 @@ match (result) {
 Array patterns keep leading, middle, and trailing rest forms distinct.
 
 ```tspp
-match (items) { [first, ..., last] => first + last; [head, ...tail] => tail.length; [] => 0 }
+match (items) { [first, ..., last] => first + last, [head, ...tail] => tail.length, [] => 0 }
 ```
 
 ```tspp expected
 match (items) {
-    [first, ..., last] => first + last
-    [head, ...tail] => tail.length
-    [] => 0
+    [first, ..., last] => first + last,
+    [head, ...tail] => tail.length,
+    [] => 0,
 }
 ```
 
@@ -108,13 +108,13 @@ match (items) {
 Comments inside complex patterns stay on the pattern side of the arrow.
 
 ```tspp
-match (result) { Result.Ok(/* point */ Point { x: /* x */ x, y }) => x + y; Result.Err(/* error */ error) => error.code }
+match (result) { Result.Ok(/* point */ Point { x: /* x */ x, y }) => x + y, Result.Err(/* error */ error) => error.code }
 ```
 
 ```tspp expected
 match (result) {
-    Result.Ok(/* point */ Point { x: /* x */ x, y }) => x + y
-    Result.Err(/* error */ error) => error.code
+    Result.Ok(/* point */ Point { x: /* x */ x, y }) => x + y,
+    Result.Err(/* error */ error) => error.code,
 }
 ```
 
@@ -123,12 +123,12 @@ match (result) {
 Comments around match guards stay between the pattern and branch body.
 
 ```tspp
-match (packet) { Packet.Data(data) /* pattern */ if /* guard */ (data.isValid()) => /* body */ handle(data); _ => fallback() }
+match (packet) { Packet.Data(data) /* pattern */ if /* guard */ (data.isValid()) => /* body */ handle(data), _ => fallback() }
 ```
 
 ```tspp expected
 match (packet) {
-    Packet.Data(data) /* pattern */ if (/* guard */ data.isValid()) => /* body */ handle(data)
-    _ => fallback()
+    Packet.Data(data) /* pattern */ if (/* guard */ data.isValid()) => /* body */ handle(data),
+    _ => fallback(),
 }
 ```

@@ -73,10 +73,10 @@ fn test_parse_match_simple_arms() {
     let test = TestParser::new(
         r###"
 match (x) {
-    1 => 10
-    2 => 20
-    x => x
-    _ => 0
+    1 => 10,
+    2 => 20,
+    x => x,
+    _ => 0,
 }
 "###,
     );
@@ -135,8 +135,8 @@ fn test_parse_match_object_pattern_arms_with_expression_bodies() {
     let test = TestParser::new(
         r#"
 match (shape) {
-    { kind: "circle", radius } => radius
-    { kind: "square", size } => size
+    { kind: "circle", radius } => radius,
+    { kind: "square", size } => size,
 }
 "#,
     );
@@ -215,8 +215,8 @@ fn test_parse_match_tuple_guard_with_comparison() {
     let test = TestParser::new(
         r###"
 match (pair) {
-    (_, count) if (count > 0) => count
-    _ => 0
+    (_, count) if (count > 0) => count,
+    _ => 0,
 }
 "###,
     );
@@ -266,7 +266,7 @@ fn test_parse_match_binding_guard() {
     let test = TestParser::new(
         r#"
 match (input) {
-    text if (let value! = parse(text) && value > 0) => value
+    text if (let value! = parse(text) && value > 0) => value,
 }
 "#,
     );
@@ -325,9 +325,9 @@ fn test_parse_match_with_paths() {
     let test = TestParser::new(
         r"
 match (self) {
-    TetrisPieceShape.I => Color.Blue
-    TetrisPieceShape.J => Color.Red
-    _ => Color.Gray
+    TetrisPieceShape.I => Color.Blue,
+    TetrisPieceShape.J => Color.Red,
+    _ => Color.Gray,
 }
     ",
     );
@@ -438,8 +438,8 @@ fn test_parse_match_arm_keeps_if_else_branch_semicolons_as_statements() {
 match (result) {
     Ok(value) => {
         if (value.valid) { use(value); } else { reset(); }
-    };
-    Err(error) => report(error)
+    },
+    Err(error) => report(error),
 }
 "#,
     );

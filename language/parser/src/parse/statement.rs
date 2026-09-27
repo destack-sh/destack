@@ -11,7 +11,7 @@ impl Parser {
         self.peek_is_on_new_line()
             || matches!(
                 self.peek_token_type(),
-                TokenType::Semicolon | TokenType::CloseBrace | TokenType::End
+                TokenType::Semicolon | TokenType::Comma | TokenType::CloseBrace | TokenType::End
             )
     }
 

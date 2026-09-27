@@ -136,16 +136,16 @@ function score(value: number): void {
 Match expressions in function tail position keep arm values.
 
 ```tspp
-function label(status: Status): string { const normalized = status.normalize(); match (normalized) { Ready => "ready"; Waiting => "waiting"; Failed(error) => error.message } }
+function label(status: Status): string { const normalized = status.normalize(); match (normalized) { Ready => "ready", Waiting => "waiting", Failed(error) => error.message } }
 ```
 
 ```tspp expected
 function label(status: Status): string {
     const normalized = status.normalize();
     match (normalized) {
-        Ready => "ready"
-        Waiting => "waiting"
-        Failed(error) => error.message
+        Ready => "ready",
+        Waiting => "waiting",
+        Failed(error) => error.message,
     }
 }
 ```

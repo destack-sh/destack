@@ -547,6 +547,41 @@ fn test_parse_function_body_keeps_tail_expression_value() {
     });
 }
 
+/// Parse an arrow function tail as the body value.
+#[test]
+fn test_parse_function_body_keeps_arrow_tail_expression_value() {
+    let input = r#"
+function adder(step: int32): (value: int32) => int32 {
+    function unused() {}
+    (value) => value + step
+}
+"#;
+    let test = TestParser::new(input);
+    let mut parser = test.prepare();
+    let expressions = parser.parse_in_place();
+
+    test.assert_no_errors(&parser);
+
+    // function adder(...) { function unused() {} (value) => value + step }
+    assert_eq!(expressions.len(), 1);
+    assert_node!(parser.tree, expressions[0], Expression::Declaration(function_id) => {
+        assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
+            assert_node!(parser.tree, *body_id, Expression::Block(block_id) => {
+                let block = parser.tree.get(*block_id);
+                assert_eq!(block.leading_expressions.len(), 1);
+                assert_node!(parser.tree, block.leading_expressions[0], Expression::Declaration(inner_id) => {
+                    assert!(!parser.tree.get(*inner_id).is_function_value());
+                });
+
+                let tail_expression = block.tail_expression.expect("expected tail expression");
+                assert_node!(parser.tree, tail_expression, Expression::Declaration(arrow_id) => {
+                    assert!(parser.tree.get(*arrow_id).is_function_value());
+                });
+            });
+        });
+    });
+}
+
 /// Parse object literal function body tails as value expressions.
 #[test]
 fn test_parse_function_body_keeps_object_literal_tail_expression_value() {

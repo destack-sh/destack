@@ -9,13 +9,13 @@ fn test_rewrite_match_arm() {
         "match (value) { Err($ERROR) => $BODY }",
         "match (value) { Err($ERROR) => log($BODY) }",
         dir::NodeType::MatchArm,
-        "match (result) { Err(error) => recover(error); Ok(value) => value }",
+        "match (result) { Err(error) => recover(error), Ok(value) => value }",
     )
     .assert(
         r#"
 match (result) {
-    Err(error) => log(recover(error))
-    Ok(value) => value
+    Err(error) => log(recover(error)),
+    Ok(value) => value,
 }
 "#,
     );

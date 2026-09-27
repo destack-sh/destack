@@ -7,15 +7,15 @@
 Catch match clauses preserve match formatting.
 
 ```tspp
-try { foo() } catch match (e) { Error(err) => err; _ => null }
+try { foo() } catch match (e) { Error(err) => err, _ => null }
 ```
 
 ```tspp expected
 try {
     foo()
 } catch match (e) {
-    Error(err) => err
-    _ => null
+    Error(err) => err,
+    _ => null,
 }
 ```
 
@@ -24,7 +24,7 @@ try {
 Try branches, catch-match arms, and nested if-let branches all preserve value-tail shape.
 
 ```tspp
-function read(): number { try { if (let Some(value) = maybe) { value } else { fallback() } } catch match (error) { Network.Timeout({ duration }) if (duration > 1000) => retry(duration); Validation.Errors([first, ...rest]) => { report(first, rest); fallback() }; _ => panic("unhandled error") } }
+function read(): number { try { if (let Some(value) = maybe) { value } else { fallback() } } catch match (error) { Network.Timeout({ duration }) if (duration > 1000) => retry(duration), Validation.Errors([first, ...rest]) => { report(first, rest); fallback() }, _ => panic("unhandled error") } }
 ```
 
 ```tspp expected
@@ -36,12 +36,12 @@ function read(): number {
             fallback()
         }
     } catch match (error) {
-        Network.Timeout({ duration }) if (duration > 1000) => retry(duration)
+        Network.Timeout({ duration }) if (duration > 1000) => retry(duration),
         Validation.Errors([first, ...rest]) => {
             report(first, rest);
             fallback()
         }
-        _ => panic("unhandled error")
+        _ => panic("unhandled error"),
     }
 }
 ```
@@ -51,16 +51,16 @@ function read(): number {
 Catch match clauses keep patterns and guards structured.
 
 ```tspp
-try { read() } catch match (error) { Network.Timeout({ duration }) if (duration > 1000) => retry(duration); Validation.Errors([first, ...rest]) => report(first, rest); _ => panic("unhandled error") }
+try { read() } catch match (error) { Network.Timeout({ duration }) if (duration > 1000) => retry(duration), Validation.Errors([first, ...rest]) => report(first, rest), _ => panic("unhandled error") }
 ```
 
 ```tspp expected
 try {
     read()
 } catch match (error) {
-    Network.Timeout({ duration }) if (duration > 1000) => retry(duration)
-    Validation.Errors([first, ...rest]) => report(first, rest)
-    _ => panic("unhandled error")
+    Network.Timeout({ duration }) if (duration > 1000) => retry(duration),
+    Validation.Errors([first, ...rest]) => report(first, rest),
+    _ => panic("unhandled error"),
 }
 ```
 
@@ -69,7 +69,7 @@ try {
 Catch match block arms preserve explicit statements and arm tail values.
 
 ```tspp
-function recover(): Result { try { read() } catch match (error) { Network.Timeout(duration) => { log(duration); retry(duration) }; Validation.Errors(errors) => { report(errors); fallback } } }
+function recover(): Result { try { read() } catch match (error) { Network.Timeout(duration) => { log(duration); retry(duration) }, Validation.Errors(errors) => { report(errors); fallback } } }
 ```
 
 ```tspp expected
@@ -101,7 +101,7 @@ try {
     error
 ) {
     // timeout branch
-    Network.Timeout(/* duration */ duration) => retry(duration);
+    Network.Timeout(/* duration */ duration) => retry(duration),
     // fallback branch
     _ => panic("unhandled error")
 }
@@ -115,9 +115,9 @@ try {
     error
 ) {
     // timeout branch
-    Network.Timeout(/* duration */ duration) => retry(duration)
+    Network.Timeout(/* duration */ duration) => retry(duration),
     // fallback branch
-    _ => panic("unhandled error")
+    _ => panic("unhandled error"),
 }
 ```
 
@@ -159,8 +159,8 @@ Catch-match patterns keep comments attached while preserving arm value tails.
 
 ```tspp
 try { read() } catch match (error) { // network
-Network.Timeout({ duration }) if (duration > 1000) => retry(duration); // validation
-Validation.Errors([first, ...rest]) => { report(first, rest); fallback() }; _ => panic("unhandled error") }
+Network.Timeout({ duration }) if (duration > 1000) => retry(duration), // validation
+Validation.Errors([first, ...rest]) => { report(first, rest); fallback() }, _ => panic("unhandled error") }
 ```
 
 ```tspp expected
@@ -168,12 +168,12 @@ try {
     read()
 } catch match (error) {
     // network
-    Network.Timeout({ duration }) if (duration > 1000) => retry(duration)
+    Network.Timeout({ duration }) if (duration > 1000) => retry(duration),
     // validation
     Validation.Errors([first, ...rest]) => {
         report(first, rest);
         fallback()
     }
-    _ => panic("unhandled error")
+    _ => panic("unhandled error"),
 }
 ```

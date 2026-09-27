@@ -10,17 +10,17 @@ fn test_match_expression_arm() {
         dir::NodeType::MatchArm,
         r#"
 match (result) {
-    Err(error) => recover(error);
-    Ok(value) => value
+    Err(error) => recover(error),
+    Ok(value) => value,
 }
 "#,
     )
     .assert(
         r#"
 match (result) {
-    Err(error) => recover(error);
+    Err(error) => recover(error),
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ match ERROR.node="error" BODY.node="recover(error)"
-    Ok(value) => value
+    Ok(value) => value,
 }
 "#,
     );
@@ -34,17 +34,17 @@ fn test_match_nominal_object_arm() {
         dir::NodeType::MatchArm,
         r#"
 match (point) {
-    Point { x: left, y: 0 } => left;
-    Point { x: right, y: 1 } => right
+    Point { x: left, y: 0 } => left,
+    Point { x: right, y: 1 } => right,
 }
 "#,
     )
     .assert(
         r#"
 match (point) {
-    Point { x: left, y: 0 } => left;
+    Point { x: left, y: 0 } => left,
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ match X.node="left" BODY.node="left"
-    Point { x: right, y: 1 } => right
+    Point { x: right, y: 1 } => right,
 }
 "#,
     );

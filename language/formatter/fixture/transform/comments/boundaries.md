@@ -136,9 +136,9 @@ render(
     }, // state tail
     match (kind) {
         // primary
-        Primary => buildPrimary(context)
+        Primary => buildPrimary(context),
         // fallback
-        _ => buildFallback(context)
+        _ => buildFallback(context),
     }
 )
 ```
@@ -155,9 +155,9 @@ render(
     }, // state tail
     match (kind) {
         // primary
-        Primary => buildPrimary(context)
+        Primary => buildPrimary(context),
         // fallback
-        _ => buildFallback(context)
+        _ => buildFallback(context),
     },
 );
 ```
@@ -179,9 +179,9 @@ const values = [
     // mapped
     match (kind) {
         // primary
-        Primary => primaryValue
+        Primary => primaryValue,
         // fallback
-        _ => fallbackValue
+        _ => fallbackValue,
     }
 ]
 ```
@@ -199,9 +199,9 @@ const values = [
     // mapped
     match (kind) {
         // primary
-        Primary => primaryValue
+        Primary => primaryValue,
         // fallback
-        _ => fallbackValue
+        _ => fallbackValue,
     },
 ];
 ```

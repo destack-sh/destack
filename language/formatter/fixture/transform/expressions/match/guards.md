@@ -7,14 +7,14 @@
 Guard conditions keep their required parentheses.
 
 ```tspp
-match (n) { x if (x > 0) => "positive"; x if (x < 0) => "negative"; _ => "zero" }
+match (n) { x if (x > 0) => "positive", x if (x < 0) => "negative", _ => "zero" }
 ```
 
 ```tspp expected
 match (n) {
-    x if (x > 0) => "positive"
-    x if (x < 0) => "negative"
-    _ => "zero"
+    x if (x > 0) => "positive",
+    x if (x < 0) => "negative",
+    _ => "zero",
 }
 ```
 
@@ -23,14 +23,14 @@ match (n) {
 Guards can use any boolean expression.
 
 ```tspp
-match (user) { User { age } if (age >= 18) => "adult"; User { age } if (age >= 13) => "teen"; _ => "child" }
+match (user) { User { age } if (age >= 18) => "adult", User { age } if (age >= 13) => "teen", _ => "child" }
 ```
 
 ```tspp expected
 match (user) {
-    User { age } if (age >= 18) => "adult"
-    User { age } if (age >= 13) => "teen"
-    _ => "child"
+    User { age } if (age >= 18) => "adult",
+    User { age } if (age >= 13) => "teen",
+    _ => "child",
 }
 ```
 
@@ -39,13 +39,13 @@ match (user) {
 Method calls work in guard conditions.
 
 ```tspp
-match (x) { v if (v.isValid()) => process(v); _ => null }
+match (x) { v if (v.isValid()) => process(v), _ => null }
 ```
 
 ```tspp expected
 match (x) {
-    v if (v.isValid()) => process(v)
-    _ => null
+    v if (v.isValid()) => process(v),
+    _ => null,
 }
 ```
 
@@ -54,12 +54,12 @@ match (x) {
 Tuple pattern guards keep comparison expressions inside the guard.
 
 ```tspp
-match (pair) { (_, count) if (count > 0) => count; _ => 0 }
+match (pair) { (_, count) if (count > 0) => count, _ => 0 }
 ```
 
 ```tspp expected
 match (pair) {
-    (_, count) if (count > 0) => count
-    _ => 0
+    (_, count) if (count > 0) => count,
+    _ => 0,
 }
 ```

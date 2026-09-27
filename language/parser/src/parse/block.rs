@@ -278,7 +278,12 @@ impl Parser {
                 NodeSpanType::Region(NodeSpanRegion::Parentheses),
             )
             .is_some();
-        let is_statement = !is_parenthesized && node.is_statement_boundary();
+        let is_function_value = matches!(
+            node,
+            Expression::Declaration(declaration)
+                if self.tree.get(*declaration).is_function_value()
+        );
+        let is_statement = !is_parenthesized && !is_function_value && node.is_statement_boundary();
         let preserves_tail = node.preserves_value_tail_in_expression_block();
         let token_type = self.peek_token_type();
         let is_terminator = token_type == TokenType::End

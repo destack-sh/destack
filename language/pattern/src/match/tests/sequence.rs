@@ -83,8 +83,8 @@ fn test_match_wrapper_sequences() {
         "match (value) { $$$ARMS }",
         r#"
 match (value) {
-    First => one
-    Second => two
+    First => one,
+    Second => two,
 }
 "#,
     )
@@ -92,8 +92,8 @@ match (value) {
         r#"
 match (value) {
 ^ match:start ARMS.nodes=["First => one", "Second => two"]
-    First => one
-    Second => two
+    First => one,
+    Second => two,
 }
 ^ match:end
 "#,

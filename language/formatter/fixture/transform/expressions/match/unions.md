@@ -7,13 +7,13 @@
 Multiple patterns can be combined with `|`.
 
 ```tspp
-match (x) { 1 | 2 | 3 => "small"; _ => "other" }
+match (x) { 1 | 2 | 3 => "small", _ => "other" }
 ```
 
 ```tspp expected
 match (x) {
-    1 | 2 | 3 => "small"
-    _ => "other"
+    1 | 2 | 3 => "small",
+    _ => "other",
 }
 ```
 
@@ -22,13 +22,13 @@ match (x) {
 Or patterns work with any pattern type.
 
 ```tspp
-match (s) { "a" | "b" | "c" => true; _ => false }
+match (s) { "a" | "b" | "c" => true, _ => false }
 ```
 
 ```tspp expected
 match (s) {
-    "a" | "b" | "c" => true
-    _ => false
+    "a" | "b" | "c" => true,
+    _ => false,
 }
 ```
 
@@ -40,13 +40,13 @@ match (s) {
 Union patterns can match multiple literal values in one arm.
 
 ```tspp
-match (n) { 1 | 2 | 3 => "small"; 4 | 5 => "medium"; _ => "large" }
+match (n) { 1 | 2 | 3 => "small", 4 | 5 => "medium", _ => "large" }
 ```
 
 ```tspp expected
 match (n) {
-    1 | 2 | 3 => "small"
-    4 | 5 => "medium"
-    _ => "large"
+    1 | 2 | 3 => "small",
+    4 | 5 => "medium",
+    _ => "large",
 }
 ```

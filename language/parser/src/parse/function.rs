@@ -679,7 +679,15 @@ impl Parser {
             && self.peek_is(TokenType::ArrowWide)
         {
             self.parse_lambda_body(function)
-        } else {
+        }
+        // reject a trailing token after a bodiless function signature
+        else if function.signature.form == FunctionForm::Function
+            && !self.peek_semicolon_insertion()
+        {
+            Err(ParserError::unexpected(self.peek_token().range()))
+        }
+        // end a bodiless signature
+        else {
             Ok(())
         }
     }
