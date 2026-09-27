@@ -10,11 +10,11 @@ import { Mark } from "../site/mark";
 import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
 import { SiteLink } from "./link";
-import { primaryLinks } from "./navigation";
+import { pendingLinks, primaryLinks } from "./navigation";
 import { SoundToggle } from "./sound";
 import { ThemeToggle } from "./theme";
 
-/** The media query for screens too narrow for the sign in cell, which sign in through the account icon instead. */
+/** The media query for screens too narrow for navigation labels, which show only their icons. */
 const narrow = "@media (max-width: 1099px)";
 /** The media query for phone-width screens. */
 const mobile = "@media (max-width: 767px)";
@@ -59,16 +59,33 @@ export function TopBar() {
                     </SiteLink>
                 </Goo>
 
-                {/* give each destination one two-column cell */}
+                {/* give each destination one two-column cell: apps and agents, then documentation and blog */}
                 <nav
                     data-universe="parts"
                     aria-label="Primary navigation"
                     {...stylex.attrs(styles.navigation)}
                 >
-                    {primaryLinks.map(({ label, href, shortcut }) => (
+                    {pendingLinks.map(({ label, icon }) => (
+                        <button
+                            type="button"
+                            disabled
+                            aria-label={label}
+                            title={`${label} (soon)`}
+                            {...stylex.attrs(lattice.ruleRight, styles.link, styles.pending)}
+                        >
+                            <span
+                                aria-hidden="true"
+                                innerHTML={icon}
+                                {...stylex.attrs(styles.icon)}
+                            />
+                            <span {...stylex.attrs(styles.label)}>{label}</span>
+                        </button>
+                    ))}
+                    {primaryLinks.map(({ label, href, shortcut, icon }) => (
                         <SiteLink
                             href={href}
                             shortcut={shortcut}
+                            ariaLabel={label}
                             style={[
                                 lattice.ruleRight,
                                 styles.link,
@@ -76,31 +93,18 @@ export function TopBar() {
                             ]}
                             title={`${label} (Alt+${shortcut.toUpperCase()})`}
                         >
-                            {label}
+                            <span
+                                aria-hidden="true"
+                                innerHTML={icon}
+                                {...stylex.attrs(styles.icon)}
+                            />
+                            <span {...stylex.attrs(styles.label)}>{label}</span>
                         </SiteLink>
                     ))}
-
-                    {/* TODO #Incomplete: open the registry once it is live */}
-                    <button
-                        type="button"
-                        disabled
-                        {...stylex.attrs(lattice.ruleRight, styles.pending)}
-                    >
-                        Registry
-                    </button>
                 </nav>
 
-                {/* sign in above the planet, where the reader's own download and settings sit */}
+                {/* keep search, theme, sound, and sign in together on the right edge */}
                 {/* TODO #Incomplete: open the shared Destack account sign in once accounts are live */}
-                <button
-                    type="button"
-                    disabled
-                    {...stylex.attrs(lattice.ruleRight, styles.pending, styles.account)}
-                >
-                    Sign in
-                </button>
-
-                {/* keep search, theme, sound, and the narrow screens' account icon together on the right edge */}
                 <div data-universe {...stylex.attrs(styles.tools)}>
                     <CommandPalette />
                     <ThemeToggle />
@@ -110,7 +114,7 @@ export function TopBar() {
                         disabled
                         aria-label="Sign in"
                         title="Sign in"
-                        {...stylex.attrs(styles.accountIcon)}
+                        {...stylex.attrs(styles.signIn)}
                     >
                         <svg
                             aria-hidden="true"
@@ -203,6 +207,15 @@ export function TopBar() {
                             }
                         }}
                     >
+                        {pendingLinks.map(({ label }) => (
+                            <span
+                                aria-disabled="true"
+                                {...stylex.attrs(styles.menuLink, styles.menuPending)}
+                            >
+                                {label}
+                                <span {...stylex.attrs(styles.soon)}>Soon</span>
+                            </span>
+                        ))}
                         {primaryLinks.map(({ label, href, shortcut }) => (
                             <SiteLink
                                 href={href}
@@ -226,13 +239,6 @@ export function TopBar() {
                                 </svg>
                             </SiteLink>
                         ))}
-                        <span
-                            aria-disabled="true"
-                            {...stylex.attrs(styles.menuLink, styles.menuPending)}
-                        >
-                            Registry
-                            <span {...stylex.attrs(styles.soon)}>Soon</span>
-                        </span>
                     </nav>
                 </dialog>
             </Portal>
@@ -271,16 +277,34 @@ const styles = stylex.create({
     },
     navigation: {
         display: "grid",
-        gridColumn: "span 6",
-        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+        gridColumn: "span 8",
+        gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+        [narrow]: { gridColumn: "span 6" },
         [mobile]: { display: "none" },
     },
     link: {
         alignItems: "center",
         color: color.foreground,
         display: "flex",
+        gap: "0.5rem",
         justifyContent: "center",
         ":hover": hover,
+    },
+    icon: {
+        display: "block",
+        flexShrink: 0,
+        height: "18px",
+        width: "18px",
+    },
+    label: {
+        [narrow]: {
+            clipPath: "inset(50%)",
+            height: "1px",
+            overflow: "hidden",
+            position: "absolute",
+            whiteSpace: "nowrap",
+            width: "1px",
+        },
     },
     active: {
         fontWeight: 600,
@@ -306,11 +330,7 @@ const styles = stylex.create({
         fontFamily: fontFamily.default,
         fontSize: "var(--size-navigation)",
     },
-    account: {
-        gridColumn: "9 / span 2",
-        [narrow]: { display: "none" },
-    },
-    accountIcon: {
+    signIn: {
         alignItems: "center",
         backgroundColor: "transparent",
         borderWidth: 0,
@@ -321,7 +341,6 @@ const styles = stylex.create({
         justifyContent: "center",
         padding: 0,
         width: "2.75rem",
-        "@media (min-width: 1100px)": { display: "none" },
     },
     menuButton: {
         alignItems: "center",
