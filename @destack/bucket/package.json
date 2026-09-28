@@ -24,7 +24,8 @@
         "@cloudflare/workers-types": "5.20260917.1",
         "@destack/package": "workspace:*",
         "@destack/access": "workspace:*",
-        "@destack/space": "workspace:*"
+        "@destack/space": "workspace:*",
+        "@destack/service": "workspace:*"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",

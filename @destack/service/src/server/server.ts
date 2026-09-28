@@ -14,6 +14,7 @@ import { CAPABILITY_HEADER, ServiceContext, type ServiceAccess } from "./context
 import type { ProcedureCall } from "./access.ts";
 import { reportError } from "./error.ts";
 import { MAX_TIMER_DELAY } from "../timer/index.ts";
+import { copyRequest } from "../request/index.ts";
 
 /** A host-managed HTTP service with readiness and streaming-aware draining. */
 export class Server implements AsyncDisposable {
@@ -23,8 +24,12 @@ export class Server implements AsyncDisposable {
     readonly #options: ServerOptions;
     /** HTTP adapter constructed from the declared router. */
     readonly #handler: ServiceHandler<ServiceContext>;
-    /** Accepted requests, including responses still being consumed. */
-    readonly #requests = new Set<AbortController>();
+    /**
+     * Accepted requests by the controller cancelling each, held until their responses settle.
+     *
+     * A request's signal follows its caller's only while the request lives.
+     */
+    readonly #requests = new Map<AbortController, Request>();
     /** Notification when accepted requests complete. */
     readonly #drained = Promise.withResolvers<void>();
     /** Completion of request draining and resource disposal, including after a timeout. */
@@ -92,11 +97,12 @@ export class Server implements AsyncDisposable {
 
         // retain cancellation across authentication and response consumption
         const controller = new AbortController();
-        this.#requests.add(controller);
         const signal = AbortSignal.any([request.signal, controller.signal]);
+        this.#requests.set(controller, request);
         try {
             // dispatch additional protocols or authenticate the declared service procedures
-            const accepted = new Request(request, { signal });
+            const accepted = copyRequest(request, { signal });
+            this.#requests.set(controller, accepted);
             let response = await this.#options.route?.(accepted);
             if (response === undefined) {
                 const context = await Server.#authenticate(accepted, this.#options);
@@ -321,7 +327,7 @@ export class Server implements AsyncDisposable {
         const deadline = Promise.withResolvers<never>();
         const timer = setTimeout(() => {
             const error = new DOMException("service drain deadline exceeded", "TimeoutError");
-            for (const controller of this.#requests) {
+            for (const controller of this.#requests.keys()) {
                 controller.abort(error);
             }
 

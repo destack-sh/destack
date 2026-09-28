@@ -8,6 +8,21 @@ export const REQUEST_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 /** Maximum accepted clock difference for newly issued request keys. */
 const CLOCK_TOLERANCE_MS = 5 * 60 * 1000;
 
+/** The originals of copied requests, each held while its copy lives. */
+const ORIGINALS = new WeakMap<Request, Request>();
+
+/**
+ * Copy a request with changes, holding the original while the copy lives.
+ *
+ * A copy's signal follows the original's only while the original lives.
+ */
+export function copyRequest(request: Request, changes: RequestInit): Request {
+    const copy = new Request(request, changes);
+    ORIGINALS.set(copy, request);
+
+    return copy;
+}
+
 /** A timestamped idempotency key retained across attempts of the same mutation. */
 export const RequestId = {
     /** The schema of a request identifier, a UUIDv7. */

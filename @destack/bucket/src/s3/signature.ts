@@ -1,3 +1,4 @@
+import { copyRequest } from "@destack/service/request";
 import type { S3Credentials } from "./credentials.ts";
 import { S3Error } from "./error.ts";
 import { decodeUri, encodeUri, readQuery } from "./uri.ts";
@@ -133,7 +134,7 @@ export class SignatureV4 {
             `${ALGORITHM} Credential=${credentials.accessKeyId}/${scope}, SignedHeaders=${signed.signedHeaders.join(";")}, Signature=${signature}`,
         );
 
-        return new Request(request, { headers });
+        return copyRequest(request, { headers });
     }
 
     /** Presign a request's URL, hoisting its x-amz headers into the query and signing its other headers. */

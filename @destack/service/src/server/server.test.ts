@@ -293,3 +293,82 @@ test("return observed watermarks and require them on the client's later requests
         await server.close();
     }
 });
+
+test.for(["before the call", "during the call", "between events"] as const)(
+    "end a server stream once its caller aborts %s",
+    async (moment) => {
+        // wait between events on the context's signal, counting the generators running
+        let running = 0;
+        const service = {
+            follow: defineProcedure({ authentication: "identity", permission: null, audit: false })
+                .route({ method: "GET", path: "/follow" })
+                .output(eventIterator(schema.number())),
+        };
+        const implementation = implement(service).$context<ServiceContext>();
+        const server = Server.start({
+            ...hosting,
+            health: new Health("follow"),
+            drainTimeout: 1000,
+            router: implementation.router({
+                follow: implementation.follow.handler(async function* ({ context }) {
+                    running += 1;
+                    try {
+                        yield 1;
+                        await new Promise<void>((resolve) => {
+                            context.signal.addEventListener("abort", () => resolve(), {
+                                once: true,
+                            });
+                            if (context.signal.aborted) {
+                                resolve();
+                            }
+                        });
+                    } finally {
+                        running -= 1;
+                    }
+                }),
+            }),
+        });
+
+        // abort the call at the moment under test
+        const client = createClient(service, {
+            url: "https://test.local",
+            headers: { authorization: "alice" },
+            fetch: (request) => server.fetch(request),
+        });
+        const controller = new AbortController();
+        if (moment === "before the call") {
+            controller.abort();
+        }
+        const calling = client.follow(undefined, { signal: controller.signal });
+        if (moment === "during the call") {
+            controller.abort();
+        }
+        const read = async () => {
+            const events = await calling;
+            await events.next();
+            await collectGarbage();
+            if (moment === "between events") {
+                controller.abort();
+            }
+
+            return await events.next();
+        };
+        const outcome = await read().then(
+            () => "read",
+            () => "aborted",
+        );
+
+        // end every generator the calls started, leaving nothing for shutdown to drain
+        const started = performance.now();
+        await server.close();
+        expect([outcome, running, performance.now() - started < 100]).toEqual(["aborted", 0, true]);
+    },
+);
+
+/** Collect garbage until weakly held objects are gone, as a busy process eventually does. */
+async function collectGarbage(): Promise<void> {
+    for (let round = 0; round < 3; round++) {
+        (globalThis as unknown as { gc: () => void }).gc();
+        await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+}
