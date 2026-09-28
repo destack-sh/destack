@@ -143,8 +143,8 @@ type State =
 declare const state: State;
 
 const result = match (state) {
-    { inner: { kind: "a", value } } => value
-    { inner: { kind: "b", flag } } => 0
+    { inner: { kind: "a", value } } => value,
+    { inner: { kind: "b", flag } } => 0,
 };
 "#,
     );
@@ -158,10 +158,10 @@ declare const state: State;
 const result: int32 = match (state) {
     {
         inner: { kind: "a", value },
-    } => value
+    } => value,
     {
         inner: { kind: "b", flag },
-    } => 0
+    } => 0,
 };
 
 === dir ===
@@ -192,7 +192,7 @@ const result = match (state) {
 /// @resolution.place source=state placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=state root=state
 
-    { inner: { kind: "a", value } } => value
+    { inner: { kind: "a", value } } => value,
     /// @resolution.pattern source={ inner: { kind: "a", value } } kind=object adjustments=(union.payload({ inner: { kind: "a"; value: int32 } } | { inner: { kind: "b"; flag: boolean } }, { inner: { kind: "a"; value: int32 } }, { inner: { kind: "a"; value: int32 } })) fields={ inner: pattern }
     /// @resolution.pattern source={ kind: "a", value } kind=object fields={ kind: "a", value }
     /// @resolution.pattern source="\"a\"" kind=literal value="a"
@@ -201,7 +201,7 @@ const result = match (state) {
     /// @resolution.place source=value placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=value root=value
 
-    { inner: { kind: "b", flag } } => 0
+    { inner: { kind: "b", flag } } => 0,
     /// @resolution.pattern source={ inner: { kind: "b", flag } } kind=object adjustments=(union.payload({ inner: { kind: "a"; value: int32 } } | { inner: { kind: "b"; flag: boolean } }, { inner: { kind: "b"; flag: boolean } }, { inner: { kind: "b"; flag: boolean } })) fields={ inner: pattern }
     /// @resolution.pattern source={ kind: "b", flag } kind=object fields={ kind: "b", flag }
     /// @resolution.pattern source="\"b\"" kind=literal value="b"
@@ -231,8 +231,8 @@ type State = Pending | Ready;
 declare const state: State;
 
 const result = match (state) {
-    { kind: "pending", waiting } => waiting
-    { kind: "ready", value } => value
+    { kind: "pending", waiting } => waiting,
+    { kind: "ready", value } => value,
 };
 "#,
     );
@@ -254,8 +254,8 @@ type State = Pending | Ready;
 declare const state: State;
 
 const result: int32 = match (state) {
-    { kind: "pending", waiting } => waiting
-    { kind: "ready", value } => value
+    { kind: "pending", waiting } => waiting,
+    { kind: "ready", value } => value,
 };
 
 === dir ===
@@ -308,7 +308,7 @@ const result = match (state) {
 /// @resolution.place source=state placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=state root=state
 
-    { kind: "pending", waiting } => waiting
+    { kind: "pending", waiting } => waiting,
     /// @resolution.pattern source={ kind: "pending", waiting } kind=object fields={ Pending.kind: "pending", Pending.waiting }
     /// @type.node source="\"pending\"" type="pending"
     /// @resolution.pattern source="\"pending\"" kind=literal value="pending"
@@ -318,7 +318,7 @@ const result = match (state) {
     /// @resolution.place source=waiting placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=waiting root=waiting
 
-    { kind: "ready", value } => value
+    { kind: "ready", value } => value,
     /// @resolution.pattern source={ kind: "ready", value } kind=object fields={ Ready.kind: "ready", Ready.value }
     /// @type.node source="\"ready\"" type="ready"
     /// @resolution.pattern source="\"ready\"" kind=literal value="ready"
@@ -352,8 +352,8 @@ type Frame = Header | Trailer;
 declare const frame: Frame;
 
 const result = match (frame) {
-    { version: 1, length } => length
-    { version: 2, checksum } => checksum
+    { version: 1, length } => length,
+    { version: 2, checksum } => checksum,
 };
 "#,
     );
@@ -375,8 +375,8 @@ type Frame = Header | Trailer;
 declare const frame: Frame;
 
 const result: int32 = match (frame) {
-    { version: 1, length } => length
-    { version: 2, checksum } => checksum
+    { version: 1, length } => length,
+    { version: 2, checksum } => checksum,
 };
 
 === dir ===
@@ -429,7 +429,7 @@ const result = match (frame) {
 /// @resolution.place source=frame placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=frame root=frame
 
-    { version: 1, length } => length
+    { version: 1, length } => length,
     /// @resolution.pattern source={ version: 1, length } kind=object fields={ Header.version: 1, Header.length }
     /// @type.node source=1 type=1
     /// @resolution.pattern source=1 kind=literal value=1
@@ -439,7 +439,7 @@ const result = match (frame) {
     /// @resolution.place source=length placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=length root=length
 
-    { version: 2, checksum } => checksum
+    { version: 2, checksum } => checksum,
     /// @resolution.pattern source={ version: 2, checksum } kind=object fields={ Trailer.version: 2, Trailer.checksum }
     /// @type.node source=2 type=2
     /// @resolution.pattern source=2 kind=literal value=2
@@ -481,8 +481,8 @@ newtype Envelope = Opened | Closed;
 declare const envelope: Envelope;
 
 const result = match (envelope) {
-    { inner: { kind: "a", value } } => value
-    { inner: { kind: "b", flag } } => 0
+    { inner: { kind: "a", value } } => value,
+    { inner: { kind: "b", flag } } => 0,
 };
 "#,
     );
@@ -514,10 +514,10 @@ declare const envelope: Envelope;
 const result: int32 = match (envelope) {
     {
         inner: { kind: "a", value },
-    } => value
+    } => value,
     {
         inner: { kind: "b", flag },
-    } => 0
+    } => 0,
 };
 
 === dir ===
@@ -594,7 +594,7 @@ const result = match (envelope) {
 /// @resolution.place source=envelope placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=envelope root=envelope
 
-    { inner: { kind: "a", value } } => value
+    { inner: { kind: "a", value } } => value,
     /// @resolution.pattern source={ inner: { kind: "a", value } } kind=object adjustments=(newtype.payload(Envelope, Opened | Closed), union.payload(Opened | Closed, Opened, Opened)) fields={ Opened.inner: pattern }
     /// @resolution.pattern source={ kind: "a", value } kind=object fields={ Alpha.kind: "a", Alpha.value }
     /// @type.node source="\"a\"" type="a"
@@ -605,7 +605,7 @@ const result = match (envelope) {
     /// @resolution.place source=value placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=value root=value
 
-    { inner: { kind: "b", flag } } => 0
+    { inner: { kind: "b", flag } } => 0,
     /// @resolution.pattern source={ inner: { kind: "b", flag } } kind=object adjustments=(newtype.payload(Envelope, Opened | Closed), union.payload(Opened | Closed, Closed, Closed)) fields={ Closed.inner: pattern }
     /// @resolution.pattern source={ kind: "b", flag } kind=object fields={ Beta.kind: "b", Beta.flag }
     /// @type.node source="\"b\"" type="b"
@@ -637,8 +637,8 @@ type State = Pending | Ready;
 declare const state: &readonly State;
 
 const result = match (state) {
-    { kind: "pending", waiting } => waiting
-    { kind: "ready", value } => value
+    { kind: "pending", waiting } => waiting,
+    { kind: "ready", value } => value,
 };
 "#,
     );
@@ -660,8 +660,8 @@ type State = Pending | Ready;
 declare const state: &'static readonly State;
 
 const result: int32 = match (state) {
-    { kind: "pending", waiting } => waiting
-    { kind: "ready", value } => value
+    { kind: "pending", waiting } => waiting,
+    { kind: "ready", value } => value,
 };
 
 === dir ===
@@ -714,7 +714,7 @@ const result = match (state) {
 /// @resolution.place source=state placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=state root=state
 
-    { kind: "pending", waiting } => waiting
+    { kind: "pending", waiting } => waiting,
     /// @resolution.pattern source={ kind: "pending", waiting } kind=object adjustments=(union.payload(Pending | Ready, Pending, &'static readonly Pending)) fields={ Pending.kind: "pending", Pending.waiting }
     /// @type.node source="\"pending\"" type="pending"
     /// @resolution.pattern source="\"pending\"" kind=literal value="pending"
@@ -724,7 +724,7 @@ const result = match (state) {
     /// @resolution.place source=waiting placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=waiting root=waiting
 
-    { kind: "ready", value } => value
+    { kind: "ready", value } => value,
     /// @resolution.pattern source={ kind: "ready", value } kind=object adjustments=(union.payload(Pending | Ready, Ready, &'static readonly Ready)) fields={ Ready.kind: "ready", Ready.value }
     /// @type.node source="\"ready\"" type="ready"
     /// @resolution.pattern source="\"ready\"" kind=literal value="ready"

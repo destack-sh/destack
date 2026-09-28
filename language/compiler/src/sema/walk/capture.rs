@@ -14,7 +14,7 @@ impl CheckState<'_> {
         if let Some((is_own, receiver)) = self.flow.lexical_receiver() {
             // capture the receiver of an outer function
             if !is_own {
-                self.flow.capture_receiver(receiver);
+                self.flow.capture_receiver(receiver, source.local_id);
 
                 // name the captured binding `this` reads
                 if kind == dir::ReceiverKind::This {
@@ -61,7 +61,7 @@ impl CheckState<'_> {
         }
 
         // capture the outer symbol
-        self.flow.capture_symbol(symbol);
+        self.flow.capture_symbol(symbol, source.local_id);
         self.module_mut(source.module_id).flows.commit_binding_use(
             source.local_id,
             symbol,
@@ -85,29 +85,11 @@ impl CheckState<'_> {
             && !self.module(self.module_id).is_import_alias(symbol.local_id)
             && symbol != function
             && !self.is_symbol_owned_by_function(symbol, function)
-            && self.is_function_scoped_symbol(symbol)
-    }
-
-    /// Return whether one symbol lives inside some function body.
-    ///
-    /// Module and namespace bindings are static storage.
-    fn is_function_scoped_symbol(&self, symbol: dir::GlobalSymbolId) -> bool {
-        // start at the scope declaring the symbol
-        let bindings = self.module(self.module_id).binding_table();
-        let symbol = bindings.get_symbol(symbol.local_id);
-        let mut scope = Some(symbol.scope.id);
-
-        // climb to the nearest function scope
-        while let Some(scope_id) = scope {
-            let current = bindings.get_scope_by_id(scope_id);
-            if current.kind == dir::ScopeKind::Function {
-                return true;
-            }
-
-            scope = current.parent.map(|parent| parent.id);
-        }
-
-        false
+            && self
+                .module(self.module_id)
+                .binding_table()
+                .function_scope(symbol.local_id)
+                .is_some()
     }
 
     /// Return whether one symbol is the active lexical receiver.

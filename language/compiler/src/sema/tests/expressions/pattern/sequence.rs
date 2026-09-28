@@ -32,9 +32,9 @@ declare const values: [int32; 2];
 
 let [first, second] = values;
 /// @resolution.pattern source=[first, second] kind=sequence element=int32 arity=2 fields=(first, second)
-/// @generic.instantiation id="index#2<int32, 2, \"frame\" & \"local\">" template=index#2 arguments=(int32, 2, "frame" & "local")
+/// @generic.instantiation id="index#2<int32, 2, \"readonly\", \"frame\" & \"local\">" template=index#2 arguments=(int32, 2, "readonly", "frame" & "local")
 /// @generic.instance id="FixedArray<int32, 2>" template=FixedArray arguments=(int32, 2)
-/// @generic.instance id="index#2<int32, 2, \"bound0\" & \"local\">" template=index#2 arguments=(int32, 2, "bound0" & "local")
+/// @generic.instance id="index#2<int32, 2, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=(int32, 2, "readonly", "bound0" & "local")
 /// @type.symbol symbol=first source=first type=int32
 /// @resolution.pattern source=first kind=binding target=first
 /// @type.symbol symbol=second source=second type=int32

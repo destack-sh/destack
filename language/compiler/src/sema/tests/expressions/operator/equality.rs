@@ -33,9 +33,9 @@ function positive(value: &readonly (int32 | undefined)): boolean {
     /// @resolution.access source=value root=positive.value
     /// @resolution.name source=value target=positive.value
     /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
+    /// @resolution.narrowing source=value declared=&positive.'a readonly (int32 | undefined) arms=&positive.'a readonly int32
     /// @resolution.place source=value placement=positive.'a lifetime=positive.'a access="readonly"
     /// @resolution.access source=value root=positive.value
-    /// @resolution.narrowing source=value union=&positive.'a readonly (int32 | undefined) arms=&positive.'a readonly int32
 
 }
 "#,
@@ -75,9 +75,9 @@ function positive(value: &readonly (int32 | undefined)): boolean {
     /// @resolution.access source=value root=positive.value
     /// @resolution.name source=value target=positive.value
     /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
+    /// @resolution.narrowing source=value declared=&positive.'a readonly (int32 | undefined) arms=&positive.'a readonly int32
     /// @resolution.place source=value placement=positive.'a lifetime=positive.'a access="readonly"
     /// @resolution.access source=value root=positive.value
-    /// @resolution.narrowing source=value union=&positive.'a readonly (int32 | undefined) arms=&positive.'a readonly int32
 
 }
 "#,
@@ -156,9 +156,9 @@ function use(onValue?: (value: unknown) => void): void {
         /// @type.node source=onValue(1) type=void
         /// @resolution.name source=onValue target=use.onValue
         /// @resolution.call source=onValue(1) parameters=(unknown) arguments=(provided(1) as unknown) return=void kind=expression target=expression
+        /// @resolution.narrowing source=onValue declared=(unknown) => void | undefined arms=(unknown) => void
         /// @resolution.place source=onValue placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=onValue root=use.onValue
-        /// @resolution.narrowing source=onValue union=(unknown) => void | undefined arms=(unknown) => void
         /// @type.node source=1 type=1
 
     } else {
@@ -571,6 +571,7 @@ declare function requireStrictEqual<T: StrictEqual<T>>(value: T): void;
 /// @type.symbol symbol=requireStrictEqual.T source="T: StrictEqual<T>" type=T#1
 /// @resolution.name source=StrictEqual target=StrictEqual
 /// @resolution.name source=T target=requireStrictEqual.T
+/// @type.symbol symbol=requireStrictEqual.value source="value: T" type=T#1
 /// @resolution.name source=T target=requireStrictEqual.T
 
 declare function requireStringStrictEqual<T: StrictEqual<string>>(value: T): void;
@@ -578,6 +579,7 @@ declare function requireStringStrictEqual<T: StrictEqual<string>>(value: T): voi
 /// @type.symbol symbol=requireStringStrictEqual type=<T#2: StrictEqual<string>>(T#2) => void
 /// @type.symbol symbol=requireStringStrictEqual.T source="T: StrictEqual<string>" type=T#2
 /// @resolution.name source=StrictEqual target=StrictEqual
+/// @type.symbol symbol=requireStringStrictEqual.value source="value: T" type=T#2
 /// @resolution.name source=T target=requireStringStrictEqual.T
 
 struct Badge {

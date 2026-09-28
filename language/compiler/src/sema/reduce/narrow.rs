@@ -240,6 +240,13 @@ impl CheckState<'_> {
                     ),
                 },
                 dir::Type::Variable(_) | dir::Type::Parameter(_) => SmallVec::from_slice(&[source]),
+                // distribute booleans over their two literals
+                dir::Type::Primitive(dir::PrimitiveType::Boolean) => {
+                    let yes = self.intern_type(dir::Type::Literal(dir::Literal::Boolean(true)))?;
+                    let no = self.intern_type(dir::Type::Literal(dir::Literal::Boolean(false)))?;
+
+                    SmallVec::from_slice(&[yes, no])
+                }
                 // expand or defer operations before distributing
                 dir::Type::Operation(operation) => {
                     let variables = self.type_variables(source)?;
@@ -279,7 +286,8 @@ impl CheckState<'_> {
         };
 
         // filter each arm through the guard relation
-        let mut kept = Vec::with_capacity(elements.len());
+        let element_count = elements.len();
+        let mut kept = Vec::with_capacity(element_count);
         for element in elements {
             // defer the whole operation on an undecided arm
             let narrowed = match self.narrow_arm(origin, element, target, narrow.is_positive)? {
@@ -293,6 +301,16 @@ impl CheckState<'_> {
             if !kept.contains(&narrowed) {
                 kept.push(narrowed);
             }
+        }
+
+        // keep a boolean when both literals survive
+        if kept.len() == element_count
+            && matches!(
+                self.ty(source)?,
+                dir::Type::Primitive(dir::PrimitiveType::Boolean)
+            )
+        {
+            return Ok(Some(source));
         }
 
         // rebuild the filtered result

@@ -4,8 +4,8 @@ use tspp_dir as dir;
 
 use crate::sema::{
     Answer, BorrowConversion, CandidateOutcome, CauseId, Check, CheckFailure, CheckOutcome,
-    CheckState, ConversionCheck, Expectation, FlowSite, Goal, InferMode, Origin, PropertySource,
-    Relation, StoreTarget, Value, ValueConversion, ValueUse, Verdict,
+    CheckState, ConversionCheck, Expectation, FlowSite, Goal, InferMode, NodeForm, Origin,
+    PropertySource, Relation, StoreTarget, Value, ValueConversion, ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -301,7 +301,7 @@ impl CheckState<'_> {
         // record the access the destination borrow requires
         let access = self.type_borrow(target.module_id, borrow)?.access;
         if let Some(requested) = self.access_of(access)? {
-            self.commit_required_access(node, requested, true);
+            self.commit_required_access(node, requested, true)?;
         }
 
         Ok(())
@@ -745,6 +745,19 @@ impl CheckState<'_> {
         self.constrain_edge(site, cause, source, target, use_)
     }
 
+    /// Return the runtime type one stored constant takes.
+    pub(in crate::sema) fn materialized_store(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        Ok(match self.store_mode(origin, source, target)?.mode {
+            StoreMode::Materialize(base) => Some(base),
+            _ => None,
+        })
+    }
+
     /// Classify how one value stores into its slot, reading through readonly views.
     fn store_mode(
         &mut self,
@@ -971,8 +984,32 @@ impl CheckState<'_> {
         }
     }
 
+    /// Return whether one signature has fewer parameters than a target.
+    fn lacks_parameters(
+        &mut self,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        // read both signatures
+        let (Some(source_signature), Some(target_signature)) =
+            (self.signature_head(source)?, self.signature_head(target)?)
+        else {
+            return Ok(false);
+        };
+        let source_parameters =
+            self.expand_parameters(source.module_id, source_signature.parameters)?;
+        let target_parameters =
+            self.expand_parameters(target.module_id, target_signature.parameters)?;
+
+        // compare the fixed parameter counts
+        let has_rest = source_parameters.iter().any(|parameter| parameter.is_rest)
+            || target_parameters.iter().any(|parameter| parameter.is_rest);
+
+        Ok(!has_rest && source_parameters.len() < target_parameters.len())
+    }
+
     /// Clone one fresh managed literal into an owned slot of the same type.
-    fn clone_into_owned(
+    pub(in crate::sema) fn clone_into_owned(
         &mut self,
         origin: Origin,
         value: Value,
@@ -1155,7 +1192,7 @@ impl CheckState<'_> {
             && let Some(requested) = self.access_of(borrow.access)?
         {
             let is_aliased = self.type_is_aliased(origin, source.ty)?;
-            self.commit_required_access(node, requested, is_aliased);
+            self.commit_required_access(node, requested, is_aliased)?;
         }
 
         // lend the borrow itself on a handle acquisition and its payload on a reborrow
@@ -1211,7 +1248,7 @@ impl CheckState<'_> {
             match self.relate_access_assignable(origin, readonly, borrow.access)? {
                 Verdict::Holds => {}
                 Verdict::Fails => {
-                    self.commit_required_access(node, dir::Access::Mutable, is_aliased)
+                    self.commit_required_access(node, dir::Access::Mutable, is_aliased)?
                 }
                 Verdict::Ambiguous => {
                     return Err(CompilerError::Internal {
@@ -1450,6 +1487,23 @@ impl CheckState<'_> {
             {
                 return Ok(Some(dir::CoercionAdjustment::Newtype { target }));
             }
+        }
+
+        // project an enum case to its declared value
+        let families = self.scalar_families(origin, source)?;
+        let is_enum = families.is_some_and(|families| {
+            !families.is_empty()
+                && families
+                    .iter()
+                    .all(|family| matches!(family, dir::ScalarFamily::Enum(_)))
+        });
+        if is_enum
+            && self
+                .decide(|state| state.relate_castable(origin, cause, source, target))?
+                .0
+                == Verdict::Holds
+        {
+            return Ok(Some(dir::CoercionAdjustment::EnumValue { target }));
         }
 
         // convert between scalar formats
@@ -1775,6 +1829,26 @@ impl CheckState<'_> {
             let coercion = Self::read_coercion(source.ty, payload, conversion);
 
             return Ok(Ok(Some(Box::new(coercion))));
+        }
+
+        // adapt a lambda literal to a longer parameter list
+        let (source_base, target_base) = (source_chain.base(), target_chain.base());
+        if self.lacks_parameters(source_base, target_base)? {
+            let is_literal = source
+                .node
+                .is_some_and(|node| matches!(self.node_form(node), NodeForm::FunctionValue));
+            if !is_literal {
+                return Ok(Err(CheckFailure::Relation));
+            }
+            let arity = dir::CoercionAdjustment::Arity {
+                target: target_base,
+            };
+
+            return Ok(Ok(Some(Box::new(dir::Coercion::new(
+                source.ty,
+                vec![arity],
+                dir::CastOrigin::Implicit,
+            )))));
         }
 
         // select the adjustment this conversion requires

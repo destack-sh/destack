@@ -35,7 +35,7 @@ interface Reader {
 /// @type.symbol symbol=Reader type=Reader
 /// @definition.interface symbol=Reader template=(this: Reader)
 /// @definition.where symbol=Reader relation=satisfies left=this right=Reader
-/// @definition.method symbol=Reader.read source="read(@mark(\"parameter\") value: string): string" slot=read type=(string) => string
+/// @definition.method symbol=Reader.read source="read(@mark(\"parameter\") value: string): string" slot=read type=(this: this, string) => string
 
     @mark("checked")
     /// @decorator.node source="@mark(\"checked\")" owner="read(@mark(\"parameter\") value: string): string" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("checked") as string) newtype=mark backing=(string,) value="mark(\"checked\")"
@@ -44,7 +44,7 @@ interface Reader {
     /// @type.node source="\"checked\"" type="checked"
 
     read(@mark("parameter") value: string): string;
-    /// @type.symbol symbol=Reader.read source="read(@mark(\"parameter\") value: string): string" type=(string) => string
+    /// @type.symbol symbol=Reader.read source="read(@mark(\"parameter\") value: string): string" type=(this: this, string) => string
     /// @decorator.node source="@mark(\"parameter\")" owner="value: string" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("parameter") as string) newtype=mark backing=(string,) value="mark(\"parameter\")"
     /// @type.node source=mark type=mark
     /// @resolution.name source=mark target=mark
@@ -90,6 +90,7 @@ newtype mark = (string,);
 
 declare function read(mark: int32): void;
 /// @type.symbol symbol=read source="declare function read(mark: int32): void" type=(int32) => void
+/// @type.symbol symbol=read.mark source="mark: int32" type=int32
 "#,
     );
 }
@@ -290,6 +291,7 @@ class Sink {
 
 declare function consume(value: int32): void;
 /// @type.symbol symbol=consume source="declare function consume(value: int32): void" type=(int32) => void
+/// @type.symbol symbol=consume.value source="value: int32" type=int32
 
 function run(): void {
 /// @type.symbol symbol=run type=() => void
@@ -390,10 +392,12 @@ function run(): void {
     /// @type.symbol symbol=run.text source=text type=string
     /// @resolution.pattern source=text kind=binding target=run.text
     /// @type.node source="`value ${@mark(\"interpolation\") 6}`" type=string
-    /// @resolution.template source="`value ${@mark(\"interpolation\") 6}`" spans=[Display.display(parameters=(), arguments=(), return=^string, regions=("frame" & "local"))] build="stringFromTemplate(parameters=(&'frame readonly Slice<string>, &'frame readonly Slice<string>), arguments=(supplied(0) as &'frame readonly Slice<string>, supplied(1) as &'frame readonly Slice<string>), return=string, regions=(\"frame\", \"frame\"))"
-    /// @generic.instantiation id="Display.display<int64, \"frame\" & \"local\">" template=Display.display arguments=("frame" & "local")
+    /// @resolution.template source="`value ${@mark(\"interpolation\") 6}`" spans=[display(parameters=(), arguments=(), return=^string, regions=("frame" & "local"))] build="stringFromTemplate(parameters=(&'frame readonly Slice<string>, &'frame readonly Slice<string>), arguments=(supplied(0) as &'frame readonly Slice<string>, supplied(1) as &'frame readonly Slice<string>), return=string, regions=(\"frame\", \"frame\"))"
+    /// @generic.instantiation id="display<int64, \"frame\" & \"local\">" template=display arguments=(int64, "frame" & "local")
     /// @generic.instantiation id="stringFromTemplate<\"frame\", \"frame\">" template=stringFromTemplate arguments=("frame", "frame")
+    /// @generic.instance id="display<int64, \"bound0\" & \"local\">" template=display arguments=(int64, "bound0" & "local")
     /// @generic.instance id="stringFromTemplate<\"frame\", \"frame\">" template=stringFromTemplate arguments=("frame", "frame")
+    /// @generic.instance id=toString<int64> template=toString arguments=(int64)
     /// @decorator.node source="@mark(\"interpolation\")" owner="@mark(\"interpolation\") 6" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("interpolation") as string) newtype=mark backing=(string,) value="mark(\"interpolation\")"
     /// @type.node source=mark type=mark
     /// @resolution.name source=mark target=mark
@@ -474,9 +478,12 @@ function run(): void {
 === dir ===
 declare function consume(first: int32, second?: int32): void;
 /// @type.symbol symbol=consume source="declare function consume(first: int32, second?: int32): void" type=(int32, int32 | undefined?) => void
+/// @type.symbol symbol=consume.first source="first: int32" type=int32
+/// @type.symbol symbol=consume.second source="second?: int32" type=int32 | undefined
 
 declare function require(first: int32): void;
 /// @type.symbol symbol=require source="declare function require(first: int32): void" type=(int32) => void
+/// @type.symbol symbol=require.first source="first: int32" type=int32
 
 function run(): void {
 /// @type.symbol symbol=run type=() => void

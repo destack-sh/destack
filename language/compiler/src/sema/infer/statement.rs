@@ -8,7 +8,7 @@ use tspp_source::ModuleId;
 use crate::sema::{
     Cause, CauseKind, CheckState, ConditionBranch, ControlTargetForm, ElisionSite, Expectation,
     ExpectedType, FlowBranch, FlowSite, GeneratorTargets, InferMode, NodeForm, Obligation, Origin,
-    PatternCoverage, PatternCoverageObligation, PlaceUse, Relation, RelationCheck,
+    PatternCoverage, PatternCoverageObligation, PlaceUse, Relation, RelationCheck, Settle,
     SharedStorageObligation, StoreTarget, ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
@@ -360,7 +360,7 @@ impl CheckState<'_> {
         let node = site.node;
         let module = node.module_id;
 
-        // check the condition before the loop flow splits
+        // check the condition
         self.check_condition_operands(module, condition)?;
 
         // check the body under true condition flow inside the loop target
@@ -604,7 +604,7 @@ impl CheckState<'_> {
                     (None, ControlTargetForm::Iteration | ControlTargetForm::Switch) => {}
                 }
 
-                // capture branch flow at the break site
+                // capture the break branch
                 let checkpoint = self.flow.control_target_checkpoint(index);
                 let branch = self.flow.branch(checkpoint);
                 self.flow.push_break_branch(index, branch);
@@ -777,11 +777,11 @@ impl CheckState<'_> {
                     self.fresh_consts.insert(symbol);
                 }
 
-                let slot = match self.binding_slot(module, pattern)? {
+                let variable = match self.binding_slot(module, pattern)? {
                     Some(slot) => slot,
                     None => self.open_variable(site.origin()),
                 };
-                let slot = self.variable_type(slot)?;
+                let slot = self.variable_type(variable)?;
                 let cause = self.intern_cause(Cause::root(site.origin(), CauseKind::Expression));
                 let is_composite = matches!(self.node_form(site.node), NodeForm::Composite);
                 let mode = match binding_kind {
@@ -799,6 +799,10 @@ impl CheckState<'_> {
                         store: StoreTarget::Exact,
                     },
                 )?;
+
+                // fix the binding type at its initializer
+                self.fix_variables(&[variable])?;
+                self.settle_variables(&[variable], Settle::Possible)?;
 
                 Some(slot)
             }
@@ -1104,12 +1108,7 @@ impl CheckState<'_> {
         let (parsed, expanded) = self.patched_inputs(node.module_id);
         let tree = dir::View::new(&parsed.tree).patched(&expanded.patch);
 
-        Ok(matches!(
-            tree.get(declaration),
-            dir::Declaration::Function(function)
-                if function.signature.form == dir::FunctionForm::Lambda
-                    || function.name.is_none()
-        ))
+        Ok(tree.get(declaration).is_function_value())
     }
 
     /// Declare one function value and register its body at its first typing visit.

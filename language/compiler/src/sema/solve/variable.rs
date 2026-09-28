@@ -43,6 +43,15 @@ impl VariableKind {
         }
     }
 
+    /// Return the literal domain of one numeric kind.
+    pub(in crate::sema) fn literal_domain(self) -> Option<dir::ScalarDomain> {
+        match self {
+            Self::Type | Self::Memory(_) => None,
+            Self::Integer => Some(dir::ScalarDomain::Integer),
+            Self::Float => Some(dir::ScalarDomain::Float),
+        }
+    }
+
     /// Return the primitive the kind falls back to when nothing decides it.
     pub(in crate::sema) fn fallback(self) -> Option<dir::Type> {
         let primitive = match self {
@@ -73,12 +82,42 @@ pub(in crate::sema) struct Variable {
     pub(in crate::sema) parameter: Option<dir::GlobalGenericParameterId>,
     /// The declared default completing the variable when nothing else does.
     pub(in crate::sema) default: Option<dir::GlobalTypeId>,
-    /// Whether a function body read the variable, fixing it to its candidates so far.
-    pub(in crate::sema) is_fixed: bool,
-    /// Whether a rolled-back nested decision left the variable behind.
-    pub(in crate::sema) is_dead: bool,
-    /// Whether the variable joins the values it collects with them.
-    pub(in crate::sema) is_join: bool,
+    /// The marks inference sets on the variable.
+    pub(in crate::sema) flags: VariableFlags,
+}
+
+/// The marks inference sets on one variable.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(in crate::sema) struct VariableFlags(u8);
+
+impl VariableFlags {
+    /// A variable without marks.
+    pub(in crate::sema) const EMPTY: Self = Self(0);
+    /// The variable is fixed to its current candidates.
+    pub(in crate::sema) const FIXED: Self = Self(1 << 0);
+    /// A rolled-back decision abandoned the variable.
+    pub(in crate::sema) const DEAD: Self = Self(1 << 1);
+    /// The variable joins its collected values.
+    pub(in crate::sema) const JOIN: Self = Self(1 << 2);
+    /// The variable received never and completes as never.
+    pub(in crate::sema) const DIVERGING: Self = Self(1 << 3);
+    /// The marks an alias forwards onto its root.
+    pub(in crate::sema) const FORWARDED: Self = Self(Self::FIXED.0 | Self::JOIN.0);
+
+    /// Return whether every bit of `other` is set.
+    pub(in crate::sema) fn contains(self, other: Self) -> bool {
+        self.0 & other.0 == other.0
+    }
+
+    /// Set every bit of `other`.
+    pub(in crate::sema) fn insert(&mut self, other: Self) {
+        self.0 |= other.0;
+    }
+
+    /// Return the bits set in both.
+    pub(in crate::sema) fn intersection(self, other: Self) -> Self {
+        Self(self.0 & other.0)
+    }
 }
 
 /// Inference state of one variable.

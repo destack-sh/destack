@@ -3,8 +3,8 @@ use tspp_dir as dir;
 use tspp_source::ModuleId;
 
 use crate::sema::{
-    Bound, BoundEntry, BoundIter, BoundList, BoundSide, EMPTY, OriginId, Variable, VariableKind,
-    VariableState,
+    Bound, BoundEntry, BoundIter, BoundList, BoundSide, EMPTY, OriginId, Variable, VariableFlags,
+    VariableKind, VariableState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -96,9 +96,7 @@ impl VariableTable {
             kind,
             parameter: None,
             default: None,
-            is_fixed: false,
-            is_dead: false,
-            is_join: false,
+            flags: VariableFlags::EMPTY,
         });
     }
 

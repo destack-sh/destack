@@ -1,3 +1,5 @@
+use std::mem::take;
+
 use tspp_artifact::{DiagnosticBuilder, DiagnosticControl};
 use tspp_core::{FxIndexSet, NameMatch};
 use tspp_dir as dir;
@@ -1041,6 +1043,10 @@ impl CheckState<'_> {
         // show where the collected bounds came from
         if let Some(variable) = variable {
             for (side, bound) in self.variable_bound_list(variable)? {
+                // skip bounds on open variables
+                if self.root_variable(bound.ty)?.is_some() {
+                    continue;
+                }
                 let bound_origin = self.cause_origin(bound.cause);
                 let (_, bound_anchor) = self.origin_node_anchor(bound_origin)?;
                 if bound_anchor == anchor {
@@ -1425,6 +1431,29 @@ impl CheckState<'_> {
             anchor,
             module,
             interface: self.format_symbol(interface),
+        };
+
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report an escaping borrowing closure.
+    pub(in crate::sema) fn report_escaping_borrow_capture(
+        &mut self,
+        module: ModuleId,
+        function: dir::GlobalSymbolId,
+        binding: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        let declaration = self
+            .module(module)
+            .symbol_declaration_node(function.local_id)?;
+        let anchor = self.node_anchor(module, declaration)?;
+        let name = self.format_symbol(binding);
+        let error = CheckError::EscapingBorrowCapture {
+            anchor,
+            module,
+            name,
         };
 
         self.report(module, error);
@@ -2071,6 +2100,48 @@ impl CheckState<'_> {
         let error = CheckError::NoStrictIdentity { anchor, module, ty };
 
         self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report each stale captured narrowing.
+    pub(in crate::sema) fn report_captured_narrowings(&mut self) -> CompilerResult<()> {
+        // collect the changed bindings
+        let module = self.module_id;
+        let captured = take(&mut self.module_mut(module).captured_narrowings);
+        let changed: FxIndexSet<_> = self
+            .module(module)
+            .flows
+            .binding_occurrences()
+            .filter(|occurrence| {
+                occurrence.uses.contains(dir::BindingUse::WRITE)
+                    || occurrence.uses.contains(dir::BindingUse::MUTATE)
+            })
+            .map(|occurrence| occurrence.symbol)
+            .collect();
+
+        // report each read narrowed through a changed binding
+        for (read, symbol) in captured {
+            if !changed.contains(&symbol) {
+                continue;
+            }
+            let (module, anchor) = self.origin_node_anchor(Origin::Node(read, None))?;
+            let read = read.into_typed::<dir::Expression>();
+            let place = self
+                .format_access_expression(read.module_id, read.local_id)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: "a narrowed read outside an access path".to_string(),
+                })?;
+
+            self.report(
+                module,
+                CheckError::StaleCapturedNarrowing {
+                    anchor,
+                    module,
+                    place,
+                },
+            );
+        }
 
         Ok(())
     }

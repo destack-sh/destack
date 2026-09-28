@@ -294,6 +294,7 @@ declare function first<T: readonly unknown[]>(items: T[]): T;
 /// @generic.template symbol=first parameters=(T#1: readonly unknown[])
 /// @type.symbol symbol=first source="declare function first<T: readonly unknown[]>(items: T[]): T" type=<T#1: readonly unknown[]>(T#1[]) => T#1
 /// @type.symbol symbol=first.T source="T: readonly unknown[]" type=T#1
+/// @type.symbol symbol=first.items source="items: T[]" type=T#1[]
 /// @resolution.name source=T target=first.T
 /// @resolution.name source=T target=first.T
 
@@ -301,6 +302,7 @@ declare function box<T: unknown>(value: T): T;
 /// @generic.template symbol=box parameters=(T#2: unknown)
 /// @type.symbol symbol=box source="declare function box<T: unknown>(value: T): T" type=<T#2: unknown>(T#2) => T#2
 /// @type.symbol symbol=box.T source="T: unknown" type=T#2
+/// @type.symbol symbol=box.value source="value: T" type=T#2
 /// @resolution.name source=T target=box.T
 /// @resolution.name source=T target=box.T
 
@@ -373,6 +375,7 @@ declare function id<T>(value: T): T;
 /// @generic.template symbol=id parameters=(T#1)
 /// @type.symbol symbol=id source="declare function id<T>(value: T): T" type=<T#1>(T#1) => T#1
 /// @type.symbol symbol=id.T source=T type=T#1
+/// @type.symbol symbol=id.value source="value: T" type=T#1
 /// @resolution.name source=T target=id.T
 /// @resolution.name source=T target=id.T
 
@@ -380,6 +383,7 @@ declare function first<T>(values?: T[]): T;
 /// @generic.template symbol=first parameters=(T#2)
 /// @type.symbol symbol=first source="declare function first<T>(values?: T[]): T" type=<T#2>(T#2[] | undefined?) => T#2
 /// @type.symbol symbol=first.T source=T type=T#2
+/// @type.symbol symbol=first.values source="values?: T[]" type=T#2[] | undefined
 /// @resolution.name source=T target=first.T
 /// @resolution.name source=T target=first.T
 

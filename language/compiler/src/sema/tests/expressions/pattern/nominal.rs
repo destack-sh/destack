@@ -158,7 +158,7 @@ struct Point {
 declare const point: Point;
 
 match (point) {
-    Point { x, y } => x + y
+    Point { x, y } => x + y,
 }
 "#,
     );
@@ -176,7 +176,7 @@ struct Point {
 declare const point: Point;
 
 match (point) {
-    Point { x, y } => x + y
+    Point { x, y } => x + y,
 }
 
 === dir ===
@@ -207,7 +207,7 @@ match (point) {
 /// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 
-    Point { x, y } => x + y
+    Point { x, y } => x + y,
     /// @resolution.name source=Point target=Point
     /// @resolution.pattern source="Point { x, y }" kind=nominal_object target=Point fields={ Point.x, Point.y }
     /// @type.symbol symbol=x source=x type=int32
@@ -237,7 +237,7 @@ type Point = { x: int32; y: int32 };
 declare const point: Point;
 
 match (point) {
-    Point { x, y } => x + y
+    Point { x, y } => x + y,
 }
 "#,
     );
@@ -252,7 +252,7 @@ type Point = { x: int32; y: int32 };
 declare const point: Point;
 
 match (point) {
-    Point { x, y } => x + y
+    Point { x, y } => x + y,
 }
 
 === dir ===
@@ -274,7 +274,7 @@ match (point) {
 /// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 
-    Point { x, y } => x + y
+    Point { x, y } => x + y,
     /// @resolution.name source=Point target=Point
     /// @resolution.rejected source="Point { x, y }"
     /// @type.symbol symbol=x source=x type=<error>
@@ -294,7 +294,7 @@ match (point) {
 "#,
         r#"
 /// @diagnostic.error id=invalid-pattern-tag message="pattern tag '{ x: int32; y: int32 }' is not a nominal type"
-/// @diagnostic.label line=7 column=5 span="Point { x, y }" line_source="Point { x, y } => x + y"
+/// @diagnostic.label line=7 column=5 span="Point { x, y }" line_source="Point { x, y } => x + y,"
 "#,
     );
 }
@@ -313,7 +313,7 @@ class User {
 declare const user: User;
 
 match (user) {
-    User { displayName } => displayName
+    User { displayName } => displayName,
 }
 "#,
     );
@@ -333,7 +333,7 @@ class User {
 declare const user: User;
 
 match (user) {
-    User { displayName } => displayName
+    User { displayName } => displayName,
 }
 
 === dir ===
@@ -377,7 +377,7 @@ match (user) {
 /// @resolution.place source=user placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=user root=user
 
-    User { displayName } => displayName
+    User { displayName } => displayName,
     /// @resolution.name source=User target=User
     /// @resolution.pattern source="User { displayName }" kind=nominal_object target=User fields={}
     /// @type.symbol symbol=displayName source=displayName type=<error>
@@ -390,7 +390,7 @@ match (user) {
 "#,
         r#"
 /// @diagnostic.error id=pattern-member-not-field message="member 'displayName' on type 'User' is not a field"
-/// @diagnostic.label line=12 column=12 span="displayName" line_source="User { displayName } => displayName"
+/// @diagnostic.label line=12 column=12 span="displayName" line_source="User { displayName } => displayName,"
 "#,
     );
 }
@@ -416,14 +416,14 @@ function same<T: Equal<T>, E: Equal<E>>(left: &immutable Outcome<T, E>, right: &
     match (left) {
         Ok { value: a } => {
             match (right) {
-                Ok { value: b } => a.equal(b)
-                Err { error: _ } => false
+                Ok { value: b } => a.equal(b),
+                Err { error: _ } => false,
             }
         }
         Err { error: a } => {
             match (right) {
-                Err { error: b } => a.equal(b)
-                Ok { value: _ } => false
+                Err { error: b } => a.equal(b),
+                Ok { value: _ } => false,
             }
         }
     }
@@ -455,14 +455,14 @@ function same<T: Equal<T>, E: Equal<E>, 'a, 'b>(
     match (left) {
         Ok { value: a } => {
             match (right) {
-                Ok { value: b } => a.equal<T, 'a, 'b>(b)
-                Err { error: _ } => false
+                Ok { value: b } => a.equal<T, 'a, 'b>(b),
+                Err { error: _ } => false,
             }
         }
         Err { error: a } => {
             match (right) {
-                Err { error: b } => a.equal<E, 'a, 'b>(b)
-                Ok { value: _ } => false
+                Err { error: b } => a.equal<E, 'a, 'b>(b),
+                Ok { value: _ } => false,
             }
         }
     }
@@ -553,7 +553,7 @@ function same<T: Equal<T>, E: Equal<E>>(left: &immutable Outcome<T, E>, right: &
             /// @resolution.place source=right placement=same.'b lifetime=same.'b access="immutable"
             /// @resolution.access source=right root=same.right
 
-                Ok { value: b } => a.equal(b)
+                Ok { value: b } => a.equal(b),
                 /// @resolution.name source=Ok target=Ok
                 /// @resolution.pattern source="Ok { value: b }" kind=nominal_object adjustments=(newtype.payload(Outcome, &same.'b immutable (Ok<T#3> | Err<E#3>)), union.payload(Ok<T#3> | Err<E#3>, Ok<T#3>, &same.'b immutable Ok<T#3>)) target=Ok instance=Ok<T#3> fields={ Ok.value: same.b#1 }
                 /// @type.symbol symbol=same.b#1 source=b type=&same.'b immutable T#3
@@ -570,7 +570,7 @@ function same<T: Equal<T>, E: Equal<E>>(left: &immutable Outcome<T, E>, right: &
                 /// @resolution.place source=b placement=same.'b lifetime=same.'b access="immutable"
                 /// @resolution.access source=b root=same.b#1
 
-                Err { error: _ } => false
+                Err { error: _ } => false,
                 /// @resolution.name source=Err target=Err
                 /// @resolution.pattern source="Err { error: _ }" kind=nominal_object adjustments=(newtype.payload(Outcome, &same.'b immutable (Ok<T#3> | Err<E#3>)), union.payload(Ok<T#3> | Err<E#3>, Err<E#3>, &same.'b immutable Err<E#3>)) target=Err instance=Err<E#3> fields={ Err.error: _ }
                 /// @generic.instantiation id=Err<E#3> template=Err arguments=(E#3) owner=same
@@ -590,7 +590,7 @@ function same<T: Equal<T>, E: Equal<E>>(left: &immutable Outcome<T, E>, right: &
             /// @resolution.place source=right placement=same.'b lifetime=same.'b access="immutable"
             /// @resolution.access source=right root=same.right
 
-                Err { error: b } => a.equal(b)
+                Err { error: b } => a.equal(b),
                 /// @resolution.name source=Err target=Err
                 /// @resolution.pattern source="Err { error: b }" kind=nominal_object adjustments=(newtype.payload(Outcome, &same.'b immutable (Ok<T#3> | Err<E#3>)), union.payload(Ok<T#3> | Err<E#3>, Err<E#3>, &same.'b immutable Err<E#3>)) target=Err instance=Err<E#3> fields={ Err.error: same.b#2 }
                 /// @type.symbol symbol=same.b#2 source=b type=&same.'b immutable E#3
@@ -607,7 +607,7 @@ function same<T: Equal<T>, E: Equal<E>>(left: &immutable Outcome<T, E>, right: &
                 /// @resolution.place source=b placement=same.'b lifetime=same.'b access="immutable"
                 /// @resolution.access source=b root=same.b#2
 
-                Ok { value: _ } => false
+                Ok { value: _ } => false,
                 /// @resolution.name source=Ok target=Ok
                 /// @resolution.pattern source="Ok { value: _ }" kind=nominal_object adjustments=(newtype.payload(Outcome, &same.'b immutable (Ok<T#3> | Err<E#3>)), union.payload(Ok<T#3> | Err<E#3>, Ok<T#3>, &same.'b immutable Ok<T#3>)) target=Ok instance=Ok<T#3> fields={ Ok.value: _ }
                 /// @resolution.pattern source=_ kind=wildcard

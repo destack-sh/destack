@@ -41,6 +41,7 @@ declare function second(value: int32): Result<boolean, string>;
 /// @type.symbol symbol=second source="declare function second(value: int32): Result<boolean, string>" type=(int32) => Result<boolean, string>
 /// @generic.instance id="Result<boolean, string>" template=Result arguments=(boolean, string)
 /// @generic.instance id=Ok<boolean> template=Ok arguments=(boolean)
+/// @type.symbol symbol=second.value source="value: int32" type=int32
 /// @resolution.name source=Result target=Result
 
 const result: Result<boolean, string> = first().andThen((value) => second(value));
@@ -94,7 +95,9 @@ const result: Promise<string> = input.then(() => "done");
 import { Promise } from "tspp:async";
 
 declare const input: Promise<int32>;
-const result: Promise<string> = input.then<int32, string>((): string => "done");
+const result: Promise<string> = input.then<int32, string>(
+    ((): string => "done") as (value: int32) => string,
+);
 
 === dir ===
 import { Promise } from "tspp:async";
@@ -163,7 +166,9 @@ import { Promise } from "tspp:async";
 
 declare const input: Promise<int32>;
 declare const next: Promise<string>;
-const result: Promise<string> = input.then<int32, string>((): Promise<string> => next);
+const result: Promise<string> = input.then<int32, string>(
+    ((): Promise<string> => next) as (value: int32) => Promise<string>,
+);
 
 === dir ===
 import { Promise } from "tspp:async";
@@ -246,7 +251,7 @@ import { Promise } from "tspp:async";
 
 declare const input: Promise<int32>;
 const result: Promise<string> = input.then<int32, string>((value: int32): Promise<string> => {
-    input.then<int32, string>((): string => "done")
+    input.then<int32, string>(((): string => "done") as (value: int32) => string)
 });
 
 === dir ===
@@ -342,11 +347,11 @@ import { Promise } from "tspp:async";
 declare const input: Promise<int32>;
 declare const next: Promise<string>;
 declare const usePromise: boolean;
-const result: Promise<string | Promise<string>> = input.then<int32, Promise<string> | string>(
-    (): Promise<string> | string => {
-        usePromise ? (next as Promise<string> | string) : ("done" as Promise<string> | string)
-    },
-);
+const result: Promise<string | Promise<string>> = input.then<int32, Promise<string> | string>((():
+    | Promise<string>
+    | string => {
+    usePromise ? (next as Promise<string> | string) : ("done" as Promise<string> | string)
+}) as (value: int32) => Promise<string> | string);
 
 === dir ===
 import { Promise } from "tspp:async";
@@ -638,9 +643,11 @@ function first<T: Copy>(values: T[]): T {
     /// @resolution.name source=values target=first.values
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=first.values
-    /// @resolution.subscript source=values[0] type=T kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=T, regions=(\"managed\" & \"local\"))"
-    /// @generic.instantiation id="index#2<T, \"managed\" & \"local\">" template=index#2 arguments=(T, "managed" & "local") owner=first
-    /// @generic.instance id="index#2<T, \"bound0\" & \"local\">" template=index#2 arguments=(T, "bound0" & "local")
+    /// @resolution.place source=values[0] placement="local" lifetime="managed" access="mutable"
+    /// @resolution.access source=values[0] root=first.values keys=[0]
+    /// @resolution.subscript source=values[0] type=T kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=&'managed readonly T, regions=(\"managed\" & \"local\"))"
+    /// @generic.instantiation id="index#2<T, \"readonly\", \"managed\" & \"local\">" template=index#2 arguments=(T, "readonly", "managed" & "local") owner=first
+    /// @generic.instance id="index#2<T, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=(T, "readonly", "bound0" & "local")
     /// @type.node source=0 type=0
 
 }
@@ -653,7 +660,7 @@ const value = first([1, 2]);
 /// @resolution.name source=first target=first
 /// @resolution.call source="first([1, 2])" parameters=(int64[]) arguments=(provided([1, 2]) as int64[]) return=int64 kind=symbol target=first instance=first<int64>
 /// @generic.instantiation id=first<int64> template=first arguments=(int64)
-/// @generic.instance id="index#2<int64, \"bound0\" & \"local\">" template=index#2 arguments=(int64, "bound0" & "local")
+/// @generic.instance id="index#2<int64, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=(int64, "readonly", "bound0" & "local")
 /// @generic.instance id=Array<int64> template=Array arguments=(int64)
 /// @generic.instance id=first<int64> template=first arguments=(int64)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int64>> template=sliceAssumeInit arguments=(MaybeUninit<int64>)
@@ -962,8 +969,10 @@ function parse<T: Copy>(value: T[]): T {
     /// @resolution.name source=value target=parse.value#2
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=parse.value#2
-    /// @resolution.subscript source=value[0] type=T#2 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=T#2, regions=(\"managed\" & \"local\"))"
-    /// @generic.instantiation id="index#2<T#2, \"managed\" & \"local\">" template=index#2 arguments=(T#2, "managed" & "local") owner=parse#2
+    /// @resolution.place source=value[0] placement="local" lifetime="managed" access="mutable"
+    /// @resolution.access source=value[0] root=parse.value#2 keys=[0]
+    /// @resolution.subscript source=value[0] type=T#2 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=&'managed readonly T#2, regions=(\"managed\" & \"local\"))"
+    /// @generic.instantiation id="index#2<T#2, \"readonly\", \"managed\" & \"local\">" template=index#2 arguments=(T#2, "readonly", "managed" & "local") owner=parse#2
     /// @type.node source=0 type=0
 
 }
@@ -1013,7 +1022,9 @@ declare function pair<T, U = T>(left: T, right?: U): (T, U);
 /// @type.symbol symbol=pair.T source=T type=T
 /// @type.symbol symbol=pair.U source="U = T" type=U
 /// @resolution.name source=T target=pair.T
+/// @type.symbol symbol=pair.left source="left: T" type=T
 /// @resolution.name source=T target=pair.T
+/// @type.symbol symbol=pair.right source="right?: U" type=U | undefined
 /// @resolution.name source=U target=pair.U
 /// @resolution.name source=T target=pair.T
 /// @resolution.name source=U target=pair.U
@@ -1068,7 +1079,9 @@ declare function choose<T: 1 | 2>(left: T, right: T): T;
 /// @generic.template symbol=choose parameters=(T: 1 | 2)
 /// @type.symbol symbol=choose source="declare function choose<T: 1 | 2>(left: T, right: T): T" type=<T: 1 | 2>(T, T) => T
 /// @type.symbol symbol=choose.T source="T: 1 | 2" type=T
+/// @type.symbol symbol=choose.left source="left: T" type=T
 /// @resolution.name source=T target=choose.T
+/// @type.symbol symbol=choose.right source="right: T" type=T
 /// @resolution.name source=T target=choose.T
 /// @resolution.name source=T target=choose.T
 
@@ -1111,7 +1124,9 @@ declare function choose<T>(left: T, right: T): T where T: 1 | 2;
 /// @generic.template symbol=choose parameters=(T)
 /// @type.symbol symbol=choose source="declare function choose<T>(left: T, right: T): T where T: 1 | 2" type=<T>(T, T) => T
 /// @type.symbol symbol=choose.T source=T type=T
+/// @type.symbol symbol=choose.left source="left: T" type=T
 /// @resolution.name source=T target=choose.T
+/// @type.symbol symbol=choose.right source="right: T" type=T
 /// @resolution.name source=T target=choose.T
 /// @resolution.name source=T target=choose.T
 /// @resolution.name source=T target=choose.T
@@ -1355,9 +1370,9 @@ const kept = values
 === annotated ===
 declare const values: ^int32[];
 
-const kept: ^int32[] = values.map<int32, int32>((value: int32): int32 => value).filter<int32>(
-    (value: &immutable int32): boolean => value !== undefined,
-);
+const kept: ^int32[] = values.map<int32, int32>(
+    ((value: int32): int32 => value) as (value: int32, index: isize) => int32,
+).filter<int32>((value: &immutable int32): boolean => value !== undefined);
 
 === dir ===
 declare const values: ^int32[];
@@ -1554,7 +1569,10 @@ const defined = values.map((value) => value).filter((value) => value !== undefin
 declare const values: (int32 | undefined)[];
 
 const defined: ^(int32 | undefined)[] = values.map<int32 | undefined, int32 | undefined, "managed">(
-    (value: int32 | undefined): int32 | undefined => value,
+    ((value: int32 | undefined): int32 | undefined => value) as (
+        value: int32 | undefined,
+        index: isize,
+    ) => int32 | undefined,
 ).filter<int32 | undefined>(
     (value: &immutable (int32 | undefined)): boolean => value !== (undefined as int32 | undefined),
 );
@@ -1861,7 +1879,9 @@ declare function filterMap<T, U>(values: T[], callback: (value: T) => U | undefi
 /// @type.symbol symbol=filterMap type=<T, U>(T[], (T) => U | undefined) => U[]
 /// @type.symbol symbol=filterMap.T source=T type=T
 /// @type.symbol symbol=filterMap.U source=U type=U
+/// @type.symbol symbol=filterMap.values source="values: T[]" type=T[]
 /// @resolution.name source=T target=filterMap.T
+/// @type.symbol symbol=filterMap.callback source="callback: (value: T) => U | undefined" type=(T) => U | undefined
 /// @type.symbol symbol=filterMap.value source="value: T" type=T
 /// @resolution.name source=T target=filterMap.T
 /// @resolution.name source=U target=filterMap.U
@@ -1891,9 +1911,9 @@ const defined = filterMap(values, (value) => {
 
         return value;
         /// @resolution.name source=value target=symbol8.value
+        /// @resolution.narrowing source=value declared=int32 | undefined arms=int32
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=symbol8.value
-        /// @resolution.narrowing source=value union=int32 | undefined arms=int32
 
     }
     return undefined;
@@ -2048,6 +2068,7 @@ declare function requireCopy<T: Copy>(value: T): void;
 /// @type.symbol symbol=requireCopy source="declare function requireCopy<T: Copy>(value: T): void" type=<T: Copy>(T) => void
 /// @type.symbol symbol=requireCopy.T source="T: Copy" type=T
 /// @resolution.name source=Copy target=Copy
+/// @type.symbol symbol=requireCopy.value source="value: T" type=T
 /// @resolution.name source=T target=requireCopy.T
 
 declare const value: int32 | int32[];
@@ -2263,9 +2284,9 @@ if (value != null) {
     /// @type.node source="value satisfies int32" type=int32
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=value
+    /// @resolution.narrowing source=value declared=int32 | null | undefined arms=int32
     /// @resolution.place source=value placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=value root=value
-    /// @resolution.narrowing source=value union=int32 | null | undefined arms=int32
 
 }
 "#,
@@ -2474,6 +2495,7 @@ declare function pick<T>(value: Box<T> | Box<Box<T>>): T;
 /// @generic.template symbol=pick parameters=(T#2)
 /// @type.symbol symbol=pick source="declare function pick<T>(value: Box<T> | Box<Box<T>>): T" type=<T#2>(Box<T#2> | Box<Box<T#2>>) => T#2
 /// @type.symbol symbol=pick.T source=T type=T#2
+/// @type.symbol symbol=pick.value source="value: Box<T> | Box<Box<T>>" type=Box<T#2> | Box<Box<T#2>>
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=T target=pick.T
 /// @resolution.name source=Box target=Box
@@ -2558,7 +2580,9 @@ declare function collect<T, U>(values: T[], step: (value: T) => U | undefined): 
 /// @type.symbol symbol=collect type=<T, U>(T[], (T) => U | undefined) => U[]
 /// @type.symbol symbol=collect.T source=T type=T
 /// @type.symbol symbol=collect.U source=U type=U
+/// @type.symbol symbol=collect.values source="values: T[]" type=T[]
 /// @resolution.name source=T target=collect.T
+/// @type.symbol symbol=collect.step source="step: (value: T) => U | undefined" type=(T) => U | undefined
 /// @type.symbol symbol=collect.value source="value: T" type=T
 /// @resolution.name source=T target=collect.T
 /// @resolution.name source=U target=collect.U
@@ -2602,9 +2626,9 @@ const doubled = collect(collect(starts, (start) => {
         return start;
         /// @type.node source=start type=int32
         /// @resolution.name source=start target=symbol8.start
+        /// @resolution.narrowing source=start declared=int32 | undefined arms=int32
         /// @resolution.place source=start placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=start root=symbol8.start
-        /// @resolution.narrowing source=start union=int32 | undefined arms=int32
 
     }
     return undefined;
@@ -2967,9 +2991,9 @@ function positive(values: int32[]): int32[] {
     session.assert_dir("main.tspp", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 function positive(values: int32[]): int32[] {
-    return values.map<int32, int32, "managed">((value: int32): int32 => value + 1).filter<int32>(
-        (value: &immutable int32): boolean => (value as int32) > 0,
-    ) as int32[];
+    return values.map<int32, int32, "managed">(
+        ((value: int32): int32 => value + 1) as (value: int32, index: isize) => int32,
+    ).filter<int32>((value: &immutable int32): boolean => (value as int32) > 0) as int32[];
 }
 
 === dir ===
@@ -3038,7 +3062,10 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
 === annotated ===
 function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     return values.map<int32 | undefined, int32 | undefined, "managed">(
-        (value: int32 | undefined): int32 | undefined => value,
+        ((value: int32 | undefined): int32 | undefined => value) as (
+            value: int32 | undefined,
+            index: isize,
+        ) => int32 | undefined,
     ).filter<int32 | undefined>(
         (value: &immutable (int32 | undefined)): boolean =>
             value !== (undefined as int32 | undefined),
@@ -3110,7 +3137,11 @@ function containsPositive(values: int32[]): boolean {
 === annotated ===
 function containsPositive(values: int32[]): boolean {
     return values.reduce<int32, boolean, "managed">(
-        (found: boolean, value: int32): boolean => found || value > 0,
+        ((found: boolean, value: int32): boolean => found || value > 0) as (
+            accumulator: boolean,
+            value: int32,
+            index: isize,
+        ) => boolean,
         false,
     );
 }
@@ -3299,6 +3330,7 @@ declare function fix<T>(step: (value: T) => T): T;
 /// @generic.template symbol=fix parameters=(T)
 /// @type.symbol symbol=fix source="declare function fix<T>(step: (value: T) => T): T" type=<T>((T) => T) => T
 /// @type.symbol symbol=fix.T source=T type=T
+/// @type.symbol symbol=fix.step source="step: (value: T) => T" type=(T) => T
 /// @type.symbol symbol=fix.value source="value: T" type=T
 /// @resolution.name source=T target=fix.T
 /// @resolution.name source=T target=fix.T
@@ -3367,6 +3399,7 @@ declare function run<T>(body: ^Function<(), T, "once"> & Safe): T;
 /// @generic.template symbol=run parameters=(T)
 /// @type.symbol symbol=run source="declare function run<T>(body: ^Function<(), T, \"once\"> & Safe): T" type=<T>(^Function<(), T, "once"> & Safe) => T
 /// @type.symbol symbol=run.T source=T type=T
+/// @type.symbol symbol=run.body source="body: ^Function<(), T, \"once\"> & Safe" type=^Function<(), T, "once"> & Safe
 /// @resolution.name source=Function target=Function
 /// @resolution.name source=T target=run.T
 /// @resolution.name source=Safe target=Safe
@@ -3434,7 +3467,7 @@ export extension<T> of Box<T> {
 === annotated ===
 newtype Box<out T> = T;
 
-declare function address<T, 'a>(value: &readonly T): *T;
+declare function address<T, 'a>(value: &'a readonly T): *T;
 
 export extension<T> of Box<T> {
     backing(&readonly this): *T {
@@ -3454,6 +3487,7 @@ declare function address<T>(value: &readonly T): *T;
 /// @generic.template symbol=address parameters=(T#2, 'a)
 /// @type.symbol symbol=address source="declare function address<T>(value: &readonly T): *T" type=<T#2, address.'a>(&address.'a readonly T#2) => *T#2
 /// @type.symbol symbol=address.T source=T type=T#2
+/// @type.symbol symbol=address.value source="value: &readonly T" type=&address.'a readonly T#2
 /// @resolution.name source=T target=address.T
 /// @resolution.name source=T target=address.T
 

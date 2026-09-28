@@ -838,7 +838,10 @@ impl CheckState<'_> {
         let declared = self.definition(symbol)?;
         let Some(dir::Definition::Interface(definition)) = declared.as_deref() else {
             return Err(CompilerError::Internal {
-                message: format!("interface requirements target {interface:?} is not an interface"),
+                message: format!(
+                    "interface requirements target '{}' is not an interface",
+                    self.format_type(interface)
+                ),
             });
         };
 

@@ -101,6 +101,8 @@ pub(in crate::sema) enum FlowPointChange {
         /// The cleared path.
         path: Box<dir::AccessPath>,
     },
+    /// The entry of a function body.
+    Entry,
 }
 
 /// A checkpoint in the flow change log.
@@ -134,7 +136,7 @@ pub(in crate::sema) struct FlowBranch {
     /// Narrowings touched by this branch.
     narrowings: FxIndexMap<dir::AccessPath, SmallVec<[FlowPredicate; 2]>>,
     /// Whether the branch never completes, ending in a return, a jump, or a `never` value.
-    diverges: bool,
+    pub(in crate::sema) diverges: bool,
 }
 
 impl FlowBranch {
@@ -210,6 +212,17 @@ pub(in crate::sema) enum FlowPredicate {
         /// Whether this is the positive branch.
         is_positive: bool,
     },
+}
+
+impl FlowPredicate {
+    /// Return the test node that establishes this predicate.
+    pub(in crate::sema) fn test(&self) -> dir::GlobalNodeIdAny {
+        match *self {
+            Self::Pattern { pattern, .. } => pattern.into_any(),
+            Self::Equality { operation, .. } => operation,
+            Self::Guard { guard, .. } => guard.into_any(),
+        }
+    }
 }
 
 impl FlowState {
@@ -295,7 +308,7 @@ impl FlowState {
             symbol: function.symbol,
             symbols,
             receiver: function.captured_receiver,
-            annotation: None,
+            nodes: function.captured_nodes,
         };
         let branch = self.branch(function.checkpoint);
 
@@ -495,23 +508,33 @@ impl FlowState {
     }
 
     /// Capture one symbol in the current function body.
-    pub(in crate::sema) fn capture_symbol(&mut self, symbol: dir::GlobalSymbolId) {
+    pub(in crate::sema) fn capture_symbol(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        node: dir::LocalNodeIdAny,
+    ) {
         // require an active function frame
         let Some(function) = self.functions.last_mut() else {
             unreachable!("symbol capture requires an active function");
         };
 
         function.captured_symbols.insert(symbol);
+        function.captured_nodes.push(node);
     }
 
     /// Capture one receiver in the current function body.
-    pub(in crate::sema) fn capture_receiver(&mut self, receiver: ReceiverBinding) {
+    pub(in crate::sema) fn capture_receiver(
+        &mut self,
+        receiver: ReceiverBinding,
+        node: dir::LocalNodeIdAny,
+    ) {
         // require an active function frame
         let Some(function) = self.functions.last_mut() else {
             unreachable!("receiver capture requires an active function");
         };
 
         function.captured_receiver = Some(receiver);
+        function.captured_nodes.push(node);
     }
 
     /// Return the lexical receiver visible to the current function and whether it binds it.
@@ -635,6 +658,11 @@ impl FlowState {
             narrowings,
             diverges,
         }
+    }
+
+    /// Mark the entry of a function body.
+    pub(in crate::sema) fn push_entry(&mut self) {
+        self.push_point(FlowPointChange::Entry);
     }
 
     /// End the current path at a return, a jump, or a `never` value.

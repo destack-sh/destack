@@ -506,6 +506,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             };
             let body = FunctionBody {
                 symbol,
+                expression: body.into_global(walk.module),
                 site: body_site,
                 return_type,
                 generator,

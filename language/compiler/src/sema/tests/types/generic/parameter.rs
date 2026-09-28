@@ -25,6 +25,7 @@ declare function id<const T>(value: T): T;
 /// @generic.template symbol=id parameters=(const T)
 /// @type.symbol symbol=id source="declare function id<const T>(value: T): T" type=<const T>(T) => T
 /// @type.symbol symbol=id.T source="const T" type=T
+/// @type.symbol symbol=id.value source="value: T" type=T
 /// @resolution.name source=T target=id.T
 /// @resolution.name source=T target=id.T
 
@@ -66,6 +67,7 @@ declare function id<const T>(value: T): T;
 /// @generic.template symbol=id parameters=(const T)
 /// @type.symbol symbol=id source="declare function id<const T>(value: T): T" type=<const T>(T) => T
 /// @type.symbol symbol=id.T source="const T" type=T
+/// @type.symbol symbol=id.value source="value: T" type=T
 /// @resolution.name source=T target=id.T
 /// @resolution.name source=T target=id.T
 
@@ -89,9 +91,10 @@ const first = values[0];
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=values root=values
-/// @resolution.subscript source=values[0] type=1 | 2 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=1 | 2, regions=(\"managed\" & \"local\"))"
-/// @generic.instantiation id="index#2<1 | 2, \"managed\" & \"local\">" template=index#2 arguments=(1 | 2, "managed" & "local")
-/// @generic.instance id="index#2<1 | 2, \"bound0\" & \"local\">" template=index#2 arguments=(1 | 2, "bound0" & "local")
+/// @resolution.access source=values[0] root=values keys=[0]
+/// @resolution.subscript source=values[0] type=1 | 2 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=&'managed readonly (1 | 2), regions=(\"managed\" & \"local\"))"
+/// @generic.instantiation id="index#2<1 | 2, \"readonly\", \"managed\" & \"local\">" template=index#2 arguments=(1 | 2, "readonly", "managed" & "local")
+/// @generic.instance id="index#2<1 | 2, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=(1 | 2, "readonly", "bound0" & "local")
 "#,
     );
 }
@@ -123,6 +126,7 @@ declare function id<T>(value: T): T;
 /// @generic.template symbol=id parameters=(T)
 /// @type.symbol symbol=id source="declare function id<T>(value: T): T" type=<T>(T) => T
 /// @type.symbol symbol=id.T source=T type=T
+/// @type.symbol symbol=id.value source="value: T" type=T
 /// @resolution.name source=T target=id.T
 /// @resolution.name source=T target=id.T
 
@@ -146,9 +150,10 @@ const first = values[0];
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=values root=values
-/// @resolution.subscript source=values[0] type=int64 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=int64, regions=(\"managed\" & \"local\"))"
-/// @generic.instantiation id="index#2<int64, \"managed\" & \"local\">" template=index#2 arguments=(int64, "managed" & "local")
-/// @generic.instance id="index#2<int64, \"bound0\" & \"local\">" template=index#2 arguments=(int64, "bound0" & "local")
+/// @resolution.access source=values[0] root=values keys=[0]
+/// @resolution.subscript source=values[0] type=int64 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=&'managed readonly int64, regions=(\"managed\" & \"local\"))"
+/// @generic.instantiation id="index#2<int64, \"readonly\", \"managed\" & \"local\">" template=index#2 arguments=(int64, "readonly", "managed" & "local")
+/// @generic.instance id="index#2<int64, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=(int64, "readonly", "bound0" & "local")
 "#,
     );
 }
@@ -178,6 +183,7 @@ take(values);
 === dir ===
 declare function take(values: float64[]): void;
 /// @type.symbol symbol=take source="declare function take(values: float64[]): void" type=(float64[]) => void
+/// @type.symbol symbol=take.values source="values: float64[]" type=float64[]
 
 declare const values: (1 | 2)[];
 /// @type.symbol symbol=values source=values type=1 | 2[]
@@ -215,13 +221,14 @@ take([1, 2]);
         DirRows::checked(),
         r#"
 === annotated ===
-declare function take(values: Slice<float64>): void;
+declare function take(values: [float64]): void;
 
 take([1, 2]);
 
 === dir ===
 declare function take(values: Slice<float64>): void;
 /// @type.symbol symbol=take source="declare function take(values: Slice<float64>): void" type=(Slice<float64>) => void
+/// @type.symbol symbol=take.values source="values: Slice<float64>" type=Slice<float64>
 /// @resolution.name source=Slice target=Slice
 
 take([1, 2]);
@@ -260,6 +267,7 @@ take([1, 2]);
 === dir ===
 declare function take(values: [float64; 2]): void;
 /// @type.symbol symbol=take source="declare function take(values: [float64; 2]): void" type=(FixedArray<float64, 2>) => void
+/// @type.symbol symbol=take.values source="values: [float64; 2]" type=FixedArray<float64, 2>
 
 take([1, 2]);
 /// @resolution.name source=take target=take
@@ -291,6 +299,7 @@ take([1, 2, 3]);
 === dir ===
 declare function take(values: [float64; 2]): void;
 /// @type.symbol symbol=take source="declare function take(values: [float64; 2]): void" type=(FixedArray<float64, 2>) => void
+/// @type.symbol symbol=take.values source="values: [float64; 2]" type=FixedArray<float64, 2>
 
 take([1, 2, 3]);
 /// @resolution.name source=take target=take
@@ -330,6 +339,7 @@ declare function id<T>(value: T): T;
 /// @generic.template symbol=id parameters=(T)
 /// @type.symbol symbol=id source="declare function id<T>(value: T): T" type=<T>(T) => T
 /// @type.symbol symbol=id.T source=T type=T
+/// @type.symbol symbol=id.value source="value: T" type=T
 /// @resolution.name source=T target=id.T
 /// @resolution.name source=T target=id.T
 
@@ -376,6 +386,7 @@ declare function collect<const T>(values: T[]): T[];
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<T>> template=sliceAssumeInit arguments=(MaybeUninit<T>)
 /// @generic.instance id=sliceUninit<MaybeUninit<T>> template=sliceUninit arguments=(MaybeUninit<T>)
 /// @type.symbol symbol=collect.T source="const T" type=T
+/// @type.symbol symbol=collect.values source="values: T[]" type=T[]
 /// @resolution.name source=T target=collect.T
 /// @resolution.name source=T target=collect.T
 
@@ -400,9 +411,12 @@ const kind = values[0].kind;
 /// @resolution.member source=values[0].kind receiver={ readonly kind: "ready" } type="ready" kind=field target_receiver={ readonly kind: "ready" } key=kind target_type="ready"
 /// @resolution.place source=values placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=values root=values
-/// @resolution.subscript source=values[0] type={ readonly kind: "ready" } kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return={ readonly kind: \"ready\" }, regions=(\"managed\" & \"local\"))"
-/// @generic.instantiation id="index#2<{ readonly kind: \"ready\" }, \"managed\" & \"local\">" template=index#2 arguments=({ readonly kind: "ready" }, "managed" & "local")
-/// @generic.instance id="index#2<{ readonly kind: \"ready\" }, \"bound0\" & \"local\">" template=index#2 arguments=({ readonly kind: "ready" }, "bound0" & "local")
+/// @resolution.place source=values[0] placement="local" lifetime="managed" access="mutable"
+/// @resolution.access source=values[0] root=values keys=[0]
+/// @resolution.subscript source=values[0] type={ readonly kind: "ready" } kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=&'managed readonly { readonly kind: \"ready\" }, regions=(\"managed\" & \"local\"))"
+/// @resolution.access source=values[0].kind root=values keys=[0, kind]
+/// @generic.instantiation id="index#2<{ readonly kind: \"ready\" }, \"readonly\", \"managed\" & \"local\">" template=index#2 arguments=({ readonly kind: "ready" }, "readonly", "managed" & "local")
+/// @generic.instance id="index#2<{ readonly kind: \"ready\" }, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=({ readonly kind: "ready" }, "readonly", "bound0" & "local")
 "#,
     );
 }
@@ -431,6 +445,7 @@ declare function maybe<const T>(value: T | undefined): T | undefined;
 /// @generic.template symbol=maybe parameters=(const T)
 /// @type.symbol symbol=maybe source="declare function maybe<const T>(value: T | undefined): T | undefined" type=<const T>(T | undefined) => T | undefined
 /// @type.symbol symbol=maybe.T source="const T" type=T
+/// @type.symbol symbol=maybe.value source="value: T | undefined" type=T | undefined
 /// @resolution.name source=T target=maybe.T
 /// @resolution.name source=T target=maybe.T
 
@@ -476,6 +491,7 @@ declare function id<const T>(value: T): T;
 /// @generic.template symbol=id parameters=(const T)
 /// @type.symbol symbol=id source="declare function id<const T>(value: T): T" type=<const T>(T) => T
 /// @type.symbol symbol=id.T source="const T" type=T
+/// @type.symbol symbol=id.value source="value: T" type=T
 /// @resolution.name source=T target=id.T
 /// @resolution.name source=T target=id.T
 
@@ -540,6 +556,7 @@ declare function id<T>(value: T): T;
 /// @generic.template symbol=id parameters=(T)
 /// @type.symbol symbol=id source="declare function id<T>(value: T): T" type=<T>(T) => T
 /// @type.symbol symbol=id.T source=T type=T
+/// @type.symbol symbol=id.value source="value: T" type=T
 /// @resolution.name source=T target=id.T
 /// @resolution.name source=T target=id.T
 
@@ -664,11 +681,11 @@ interface Equal<T> {
 /// @type.symbol symbol=Equal type=Equal
 /// @definition.interface symbol=Equal template=(in T, this: Equal<T>)
 /// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T>
-/// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(T) => boolean
+/// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: this, T) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T
 
     equals(other: T): boolean;
-    /// @type.symbol symbol=Equal.equals source="equals(other: T): boolean" type=(T) => boolean
+    /// @type.symbol symbol=Equal.equals source="equals(other: T): boolean" type=(this: this, T) => boolean
     /// @type.symbol symbol=Equal.equals.other source="other: T" type=T
     /// @resolution.name source=T target=Equal.T
 
@@ -789,11 +806,11 @@ interface Equal<T> {
 /// @type.symbol symbol=Equal type=Equal
 /// @definition.interface symbol=Equal template=(in T#1, this: Equal<T#1>)
 /// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T#1>
-/// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(T#1) => boolean
+/// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: this, T#1) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T#1
 
     equals(other: T): boolean;
-    /// @type.symbol symbol=Equal.equals source="equals(other: T): boolean" type=(T#1) => boolean
+    /// @type.symbol symbol=Equal.equals source="equals(other: T): boolean" type=(this: this, T#1) => boolean
     /// @type.symbol symbol=Equal.equals.other source="other: T" type=T#1
     /// @resolution.name source=T target=Equal.T
 
@@ -805,6 +822,7 @@ declare function probe<T: Equal<T>>(value: T): boolean;
 /// @type.symbol symbol=probe.T source="T: Equal<T>" type=T#2
 /// @resolution.name source=Equal target=Equal
 /// @resolution.name source=T target=probe.T
+/// @type.symbol symbol=probe.value source="value: T" type=T#2
 /// @resolution.name source=T target=probe.T
 
 class Box<K> {
@@ -924,11 +942,11 @@ interface Equal<T> {
 /// @type.symbol symbol=Equal type=Equal
 /// @definition.interface symbol=Equal template=(in T#1, this: Equal<T#1>)
 /// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T#1>
-/// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(T#1) => boolean
+/// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: this, T#1) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T#1
 
     equals(other: T): boolean;
-    /// @type.symbol symbol=Equal.equals source="equals(other: T): boolean" type=(T#1) => boolean
+    /// @type.symbol symbol=Equal.equals source="equals(other: T): boolean" type=(this: this, T#1) => boolean
     /// @type.symbol symbol=Equal.equals.other source="other: T" type=T#1
     /// @resolution.name source=T target=Equal.T
 
@@ -940,6 +958,7 @@ declare function probe<T: Equal<T>>(value: T): boolean;
 /// @type.symbol symbol=probe.T source="T: Equal<T>" type=T#2
 /// @resolution.name source=Equal target=Equal
 /// @resolution.name source=T target=probe.T
+/// @type.symbol symbol=probe.value source="value: T" type=T#2
 /// @resolution.name source=T target=probe.T
 
 class Box<K> {
@@ -1045,6 +1064,7 @@ declare function probe<T>(value: T): boolean;
 /// @generic.template symbol=probe parameters=(T)
 /// @type.symbol symbol=probe source="declare function probe<T>(value: T): boolean" type=<T>(T) => boolean
 /// @type.symbol symbol=probe.T source=T type=T
+/// @type.symbol symbol=probe.value source="value: T" type=T
 /// @resolution.name source=T target=probe.T
 
 class Box<K> {
@@ -1172,10 +1192,10 @@ interface Hash {
 /// @type.symbol symbol=Hash type=Hash
 /// @definition.interface symbol=Hash template=(this: Hash)
 /// @definition.where symbol=Hash relation=satisfies left=this right=Hash
-/// @definition.method symbol=Hash.hash source="hash(): float64" slot=hash type=() => float64
+/// @definition.method symbol=Hash.hash source="hash(): float64" slot=hash type=(this: this) => float64
 
     hash(): float64;
-    /// @type.symbol symbol=Hash.hash source="hash(): float64" type=() => float64
+    /// @type.symbol symbol=Hash.hash source="hash(): float64" type=(this: this) => float64
 
 }
 
@@ -1184,11 +1204,11 @@ interface Equal<T> {
 /// @type.symbol symbol=Equal type=Equal
 /// @definition.interface symbol=Equal template=(in T#1, this: Equal<T#1>)
 /// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T#1>
-/// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(T#1) => boolean
+/// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: this, T#1) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T#1
 
     equals(other: T): boolean;
-    /// @type.symbol symbol=Equal.equals source="equals(other: T): boolean" type=(T#1) => boolean
+    /// @type.symbol symbol=Equal.equals source="equals(other: T): boolean" type=(this: this, T#1) => boolean
     /// @type.symbol symbol=Equal.equals.other source="other: T" type=T#1
     /// @resolution.name source=T target=Equal.T
 
@@ -1200,6 +1220,7 @@ declare function probe<T: Equal<T>>(value: T): boolean;
 /// @type.symbol symbol=probe.T source="T: Equal<T>" type=T#2
 /// @resolution.name source=Equal target=Equal
 /// @resolution.name source=T target=probe.T
+/// @type.symbol symbol=probe.value source="value: T" type=T#2
 /// @resolution.name source=T target=probe.T
 
 class Box<K> {
@@ -1342,10 +1363,10 @@ interface Doubling {
 /// @type.symbol symbol=Doubling type=Doubling
 /// @definition.interface symbol=Doubling template=(this: Doubling)
 /// @definition.where symbol=Doubling relation=satisfies left=this right=Doubling
-/// @definition.method symbol=Doubling.double source="double(): int32" slot=double type=() => int32
+/// @definition.method symbol=Doubling.double source="double(): int32" slot=double type=(this: this) => int32
 
     double(): int32;
-    /// @type.symbol symbol=Doubling.double source="double(): int32" type=() => int32
+    /// @type.symbol symbol=Doubling.double source="double(): int32" type=(this: this) => int32
 
 }
 
@@ -1360,10 +1381,12 @@ function twice<T>(value: T): int32 where T: Doubling {
 
     return value.double();
     /// @resolution.name source=value target=twice.value
-    /// @resolution.member source=value.double receiver=T type=() => int32 kind=symbol target_receiver=T target=Doubling.double
+    /// @resolution.member source=value.double receiver=T type=(this: T) => int32 kind=symbol target_receiver=T target=Doubling.double
     /// @resolution.call source=value.double() parameters=() return=int32 kind=symbol target=Doubling.double receiver=T
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=twice.value
+    /// @generic.instantiation id=Doubling.double<T> template=Doubling.double arguments=() owner=twice
+    /// @generic.instance id=Doubling.double<T> template=Doubling.double arguments=()
 
 }
 "#,
@@ -1422,6 +1445,7 @@ export extension<T> of Cell<T> {
 === dir ===
 declare function todo(message: string): never;
 /// @type.symbol symbol=todo source="declare function todo(message: string): never" type=(string) => never
+/// @type.symbol symbol=todo.message source="message: string" type=string
 
 newtype Inner<T> = intrinsic;
 /// @generic.template symbol=Inner parameters=(in out T#1)
@@ -2556,11 +2580,11 @@ export newtype interface Suite {
 /// @type.symbol symbol=Suite type=Suite
 /// @definition.interface symbol=Suite template=(this: Suite) nominal=true
 /// @definition.where symbol=Suite relation=satisfies left=this right=Suite
-/// @definition.method symbol=Suite.each source="each<P: readonly unknown[]>(values: Iterable<P>): Parameterized<P>" slot=each type=<P#2: readonly unknown[]>(Iterable<P#2>) => Parameterized<P#2>
+/// @definition.method symbol=Suite.each source="each<P: readonly unknown[]>(values: Iterable<P>): Parameterized<P>" slot=each type=<P#2: readonly unknown[]>(this: this, Iterable<P#2>) => Parameterized<P#2>
 
     each<P: readonly unknown[]>(values: Iterable<P>): Parameterized<P>;
     /// @generic.template symbol=Suite.each parent=template#1 parameters=(P#2: readonly unknown[])
-    /// @type.symbol symbol=Suite.each source="each<P: readonly unknown[]>(values: Iterable<P>): Parameterized<P>" type=<P#2: readonly unknown[]>(Iterable<P#2>) => Parameterized<P#2>
+    /// @type.symbol symbol=Suite.each source="each<P: readonly unknown[]>(values: Iterable<P>): Parameterized<P>" type=<P#2: readonly unknown[]>(this: this, Iterable<P#2>) => Parameterized<P#2>
     /// @type.symbol symbol=Suite.each.P source="P: readonly unknown[]" type=P#2
     /// @type.symbol symbol=Suite.each.values source="values: Iterable<P>" type=Iterable<P#2>
     /// @resolution.name source=Iterable target=Iterable
@@ -2645,12 +2669,12 @@ export newtype interface Test<TestValues = {}> {
 /// @type.symbol symbol=Test type=Test
 /// @definition.interface symbol=Test template=(in out TestValues = {}, this: Test<TestValues>) nominal=true
 /// @definition.where symbol=Test relation=satisfies left=this right=Test<TestValues>
-/// @definition.method symbol=Test.override slot=override type=<const Name: keyof TestValues>(Name, TestValues[Name]) => Omit<TestValues, Name>
+/// @definition.method symbol=Test.override slot=override type=<const Name: keyof TestValues>(this: this, Name, TestValues[Name]) => Omit<TestValues, Name>
 /// @type.symbol symbol=Test.TestValues source="TestValues = {}" type=TestValues
 
     override<const Name: keyof TestValues>(name: Name, value: TestValues[Name]): Omit<TestValues, Name>;
     /// @generic.template symbol=Test.override parent=template#0 parameters=(const Name: keyof TestValues)
-    /// @type.symbol symbol=Test.override type=<const Name: keyof TestValues>(Name, TestValues[Name]) => Omit<TestValues, Name>
+    /// @type.symbol symbol=Test.override type=<const Name: keyof TestValues>(this: this, Name, TestValues[Name]) => Omit<TestValues, Name>
     /// @type.symbol symbol=Test.override.Name source="const Name: keyof TestValues" type=Name
     /// @resolution.name source=TestValues target=Test.TestValues
     /// @type.symbol symbol=Test.override.name source="name: Name" type=Name

@@ -1069,6 +1069,34 @@ pub enum CheckError {
         operands: String,
     },
 
+    /// A closure reads a narrowing of a captured binding that changes elsewhere.
+    ///
+    /// ```tspp
+    /// declare function later(run: () => void): void;
+    ///
+    /// function watch(source: string | undefined): void {
+    ///     let name = source;
+    ///     if (name != undefined) {
+    ///         later(() => {
+    ///             const length: isize = name.length;
+    ///         });
+    ///     }
+    ///     name = undefined;
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "stale-captured-narrowing",
+        message = "'{place}' is narrowed in a closure while its binding changes elsewhere"
+    )]
+    StaleCapturedNarrowing {
+        /// Report the read.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The read place.
+        place: String,
+    },
+
     /// Strict equality operands do not have identity-compatible types.
     ///
     /// ```tspp
@@ -1200,6 +1228,25 @@ pub enum CheckError {
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
+    },
+
+    /// A borrowing closure escapes its frame.
+    ///
+    /// ```tspp
+    /// @capture("borrow")
+    /// const read: Function<(), int32> = () => count;
+    /// ```
+    #[diagnostic(
+        id = "escaping-borrow-capture",
+        message = "closure borrows '{name}', so it can only be used as a borrow of its frame"
+    )]
+    EscapingBorrowCapture {
+        /// Report the closure.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The borrowed binding.
+        name: String,
     },
 
     /// A capture decorator does not annotate a declared function value.

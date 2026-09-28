@@ -198,12 +198,17 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         target_node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<dir::Predicate> {
+        // compose a union value from the predicates of its arms
+        if let Some(predicate) = self.union_predicate(origin, value, target)? {
+            return Ok(predicate);
+        }
+
         // use executable RTTI predicates when the target names one
         if let Some(predicate) = self.runtime_predicate(origin, value, target)? {
             return Ok(predicate);
         }
 
-        // reduce structural targets when the source type already decides them
+        // decide a plain value statically
         if let Some(predicate) = self.static_predicate(origin, value, target)? {
             return Ok(predicate);
         }
@@ -305,65 +310,110 @@ impl CheckState<'_> {
         Ok(Some(predicate))
     }
 
-    /// Reduce one predicate decided by the static source and target types alone.
+    /// Compose the predicate of one union value by arm.
+    fn union_predicate(
+        &mut self,
+        origin: Origin,
+        value: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::Predicate>> {
+        // require the known runtime arms of a union
+        if self.is_erased_value(value)? {
+            return Ok(None);
+        }
+        let Some(elements) = self.union_leaves(origin, value)? else {
+            return Ok(None);
+        };
+
+        // test each arm
+        let mut alternatives = Vec::with_capacity(elements.len());
+        for element in elements {
+            let is_inside =
+                match self.decide_relation(origin, Relation::Subtype, element, target)? {
+                    Verdict::Holds => true,
+                    Verdict::Fails => false,
+                    Verdict::Ambiguous => return Ok(None),
+                };
+            let case = self.runtime_union_arm_predicate(origin, value, element)?;
+            let Some(case) = case else {
+                continue;
+            };
+
+            // accept the whole arm
+            if is_inside {
+                alternatives.push(case);
+            }
+            // test the target inside the arm payload
+            else if self
+                .decide_relation(origin, Relation::Subtype, target, element)?
+                .holds()
+                && let Some(inner) = self.arm_predicate(origin, value, element, target)?
+            {
+                alternatives.push(dir::Predicate::new(dir::PredicateTest::All(vec![
+                    case, inner,
+                ])));
+            }
+        }
+
+        // join the accepted arms
+        let predicate = match alternatives.len() {
+            0 => return Ok(None),
+            1 if !matches!(alternatives[0].test, dir::PredicateTest::All(_)) => {
+                alternatives.remove(0)
+            }
+            _ => self.predicate_with_narrowing(
+                dir::Predicate::new(dir::PredicateTest::Any(alternatives)),
+                value,
+                target,
+            )?,
+        };
+
+        Ok(Some(predicate))
+    }
+
+    /// Return the predicate of one target inside one arm.
+    fn arm_predicate(
+        &mut self,
+        origin: Origin,
+        union: dir::GlobalTypeId,
+        arm: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::Predicate>> {
+        // require one unary runtime test
+        let Some(predicate) = self.runtime_predicate(origin, arm, target)? else {
+            return Ok(None);
+        };
+        let dir::PredicateTest::Unary(test) = predicate.test else {
+            return Ok(None);
+        };
+
+        // apply the test to the arm payload
+        let operand = dir::PredicateOperand::projected(dir::Projection::Arm { union, ty: arm });
+
+        Ok(Some(dir::Predicate::unary(operand, test.condition)))
+    }
+
+    /// Decide the predicate of one plain value statically.
     fn static_predicate(
         &mut self,
         origin: Origin,
         value: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::Predicate>> {
-        // reject erased values, they have no testable static type
+        // reject an erased value
         if self.is_erased_value(value)? {
             return Ok(None);
         }
 
-        // test each runtime arm of the value
-        match self.union_leaves(origin, value)? {
-            // test the known runtime arms of a union, expanded to their leaves
-            Some(elements) => {
-                let mut alternatives = Vec::with_capacity(elements.len());
-                for element in elements {
-                    // give up the whole predicate on an undecided arm
-                    let is_matched =
-                        match self.decide_relation(origin, Relation::Subtype, element, target)? {
-                            Verdict::Holds => true,
-                            Verdict::Fails => false,
-                            Verdict::Ambiguous => return Ok(None),
-                        };
-                    let predicate = self.runtime_union_arm_predicate(origin, value, element)?;
-                    if is_matched && let Some(predicate) = predicate {
-                        alternatives.push(predicate);
-                    }
-                }
+        // decide the relation of the value to the target
+        let condition = match self.decide_relation(origin, Relation::Subtype, value, target)? {
+            Verdict::Holds => dir::PredicateCondition::Always,
+            Verdict::Fails => dir::PredicateCondition::Never,
+            Verdict::Ambiguous => return Ok(None),
+        };
+        let predicate = self.unary_predicate(origin, value, target, condition)?;
 
-                let predicate = match alternatives.len() {
-                    0 => {
-                        self.unary_predicate(origin, value, target, dir::PredicateCondition::Never)?
-                    }
-                    1 => alternatives.remove(0),
-                    _ => self.predicate_with_narrowing(
-                        dir::Predicate::new(dir::PredicateTest::Any(alternatives)),
-                        value,
-                        target,
-                    )?,
-                };
-
-                Ok(Some(predicate))
-            }
-
-            // plain values decide the target statically
-            None => {
-                let condition =
-                    match self.decide_relation(origin, Relation::Subtype, value, target)? {
-                        Verdict::Holds => dir::PredicateCondition::Always,
-                        Verdict::Fails => dir::PredicateCondition::Never,
-                        Verdict::Ambiguous => return Ok(None),
-                    };
-                let predicate = self.unary_predicate(origin, value, target, condition)?;
-
-                Ok(Some(predicate))
-            }
-        }
+        Ok(Some(predicate))
     }
 
     /// Return the runtime predicate that selects one union arm.

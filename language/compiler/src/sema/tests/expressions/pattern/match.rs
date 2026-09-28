@@ -10,8 +10,8 @@ struct Cancelled {
 
 function read(value: Cancelled | int32): int32 {
     match (value) {
-        Cancelled => 0
-        _ => 1
+        Cancelled => 0,
+        _ => 1,
     }
 }
 "#,
@@ -28,8 +28,8 @@ struct Cancelled {
 
 function read(value: Cancelled | int32): int32 {
     match (value) {
-        Cancelled => 0
-        _ => 1
+        Cancelled => 0,
+        _ => 1,
     }
 }
 
@@ -55,11 +55,11 @@ function read(value: Cancelled | int32): int32 {
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=read.value
 
-        Cancelled => 0
+        Cancelled => 0,
         /// @type.symbol symbol=read.Cancelled source=Cancelled type=Cancelled | int32
         /// @resolution.pattern source=Cancelled kind=binding target=read.Cancelled
 
-        _ => 1
+        _ => 1,
         /// @resolution.pattern source=_ kind=wildcard
 
     }
@@ -67,7 +67,7 @@ function read(value: Cancelled | int32): int32 {
 "#,
         r#"
 /// @diagnostic.error id=pattern-shadows-type message="bare pattern 'Cancelled' binds a new variable that shadows a type"
-/// @diagnostic.label line=8 column=9 span="Cancelled" line_source="Cancelled => 0"
+/// @diagnostic.label line=8 column=9 span="Cancelled" line_source="Cancelled => 0,"
 /// @diagnostic.help message="match values of the type with a nominal pattern like 'Cancelled { }'"
 "#,
     );
@@ -91,8 +91,8 @@ import { Cancelled } from "./library.tspp";
 
 function read(value: Cancelled | int32): int32 {
     match (value) {
-        Cancelled => 0
-        _ => 1
+        Cancelled => 0,
+        _ => 1,
     }
 }
 "#,
@@ -108,8 +108,8 @@ import { Cancelled } from "./library.tspp";
 
 function read(value: Cancelled | int32): int32 {
     match (value) {
-        Cancelled => 0
-        _ => 1
+        Cancelled => 0,
+        _ => 1,
     }
 }
 
@@ -127,11 +127,11 @@ function read(value: Cancelled | int32): int32 {
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=read.value
 
-        Cancelled => 0
+        Cancelled => 0,
         /// @type.symbol symbol=read.Cancelled source=Cancelled type=library.Cancelled | int32
         /// @resolution.pattern source=Cancelled kind=binding target=read.Cancelled
 
-        _ => 1
+        _ => 1,
         /// @resolution.pattern source=_ kind=wildcard
 
     }
@@ -139,7 +139,7 @@ function read(value: Cancelled | int32): int32 {
 "#,
         r#"
 /// @diagnostic.error id=pattern-shadows-type message="bare pattern 'Cancelled' binds a new variable that shadows a type"
-/// @diagnostic.label line=6 column=9 span="Cancelled" line_source="Cancelled => 0"
+/// @diagnostic.label line=6 column=9 span="Cancelled" line_source="Cancelled => 0,"
 /// @diagnostic.help message="match values of the type with a nominal pattern like 'Cancelled { }'"
 "#,
     );
@@ -151,8 +151,8 @@ fn test_accept_bare_arm_binding_a_plain_name() {
         r#"
 function read(value: int32): int32 {
     match (value) {
-        0 => 0
-        other => other
+        0 => 0,
+        other => other,
     }
 }
 "#,
@@ -165,8 +165,8 @@ function read(value: int32): int32 {
 === annotated ===
 function read(value: int32): int32 {
     match (value) {
-        0 => 0
-        other => other
+        0 => 0,
+        other => other,
     }
 }
 
@@ -181,10 +181,10 @@ function read(value: int32): int32 {
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=read.value
 
-        0 => 0
+        0 => 0,
         /// @resolution.pattern source=0 kind=literal value=0
 
-        other => other
+        other => other,
         /// @type.symbol symbol=read.other source=other type=int32
         /// @resolution.pattern source=other kind=binding target=read.other
         /// @resolution.name source=other target=read.other
@@ -205,8 +205,8 @@ const fallback = 1;
 
 function read(value: int32): int32 {
     match (value) {
-        0 => 0
-        fallback => fallback
+        0 => 0,
+        fallback => fallback,
     }
 }
 "#,
@@ -221,8 +221,8 @@ const fallback: 1 = 1;
 
 function read(value: int32): int32 {
     match (value) {
-        0 => 0
-        fallback => fallback
+        0 => 0,
+        fallback => fallback,
     }
 }
 
@@ -241,10 +241,10 @@ function read(value: int32): int32 {
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=read.value
 
-        0 => 0
+        0 => 0,
         /// @resolution.pattern source=0 kind=literal value=0
 
-        fallback => fallback
+        fallback => fallback,
         /// @type.symbol symbol=read.fallback source=fallback type=int32
         /// @resolution.pattern source=fallback kind=binding target=read.fallback
         /// @resolution.name source=fallback target=read.fallback
@@ -495,8 +495,8 @@ fn test_match_omits_statically_absent_arm() {
         r#"
 const value = match (true) {
     @if(false)
-    false => missingValue
-    _ => 1
+    false => missingValue,
+    _ => 1,
 };
 "#,
     );
@@ -508,8 +508,8 @@ const value = match (true) {
 === annotated ===
 const value: 1 = match (true) {
     @if(false)
-    false => missingValue
-    _ => 1
+    false => missingValue,
+    _ => 1,
 };
 
 === dir ===
@@ -521,8 +521,8 @@ const value = match (true) {
 /// @type.node source=true type=true
 
     @if(false)
-    false => missingValue
-    _ => 1
+    false => missingValue,
+    _ => 1,
     /// @resolution.pattern source=_ kind=wildcard
     /// @type.node source=1 type=1
 
@@ -660,6 +660,7 @@ switch (mode) {
         mode;
         /// @type.node source=mode type=Mode.Read
         /// @resolution.name source=mode target=mode
+        /// @resolution.narrowing source=mode declared=Mode arms=
         /// @resolution.place source=mode placement="local" lifetime="static" access="immutable"
         /// @resolution.access source=mode root=mode
 
@@ -677,6 +678,7 @@ switch (mode) {
         mode;
         /// @type.node source=mode type=Mode.Write
         /// @resolution.name source=mode target=mode
+        /// @resolution.narrowing source=mode declared=Mode arms=
         /// @resolution.place source=mode placement="local" lifetime="static" access="immutable"
         /// @resolution.access source=mode root=mode
 
@@ -688,6 +690,7 @@ switch (mode) {
         mode;
         /// @type.node source=mode type=Mode.Execute
         /// @resolution.name source=mode target=mode
+        /// @resolution.narrowing source=mode declared=Mode arms=
         /// @resolution.place source=mode placement="local" lifetime="static" access="immutable"
         /// @resolution.access source=mode root=mode
 
@@ -763,9 +766,9 @@ switch (state) {
         state;
         /// @type.node source=state type=Ready
         /// @resolution.name source=state target=state
+        /// @resolution.narrowing source=state declared=Ready | Pending arms=Ready
         /// @resolution.place source=state placement="local" lifetime="static" access="immutable"
         /// @resolution.access source=state root=state
-        /// @resolution.narrowing source=state union=Ready | Pending arms=Ready
 
         break;
         /// @type.node source=break type=never
@@ -775,9 +778,9 @@ switch (state) {
         state;
         /// @type.node source=state type=Pending
         /// @resolution.name source=state target=state
+        /// @resolution.narrowing source=state declared=Ready | Pending arms=Pending
         /// @resolution.place source=state placement="local" lifetime="static" access="immutable"
         /// @resolution.access source=state root=state
-        /// @resolution.narrowing source=state union=Ready | Pending arms=Pending
 
 }
 "#,
@@ -791,8 +794,8 @@ fn test_match_boolean_is_exhaustive() {
 declare const value: boolean;
 
 const label = match (value) {
-    true => "yes"
-    false => "no"
+    true => "yes",
+    false => "no",
 };
 
 label satisfies "yes" | "no";
@@ -807,8 +810,8 @@ label satisfies "yes" | "no";
 declare const value: boolean;
 
 const label: "yes" | "no" = match (value) {
-    true => "yes"
-    false => "no"
+    true => "yes",
+    false => "no",
 };
 
 label satisfies "yes" | "no";
@@ -828,12 +831,12 @@ const label = match (value) {
 /// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 
-    true => "yes"
+    true => "yes",
     /// @type.node source=true type=true
     /// @resolution.pattern source=true kind=literal value=true
     /// @type.node source="\"yes\"" type="yes"
 
-    false => "no"
+    false => "no",
     /// @type.node source=false type=false
     /// @resolution.pattern source=false kind=literal value=false
     /// @type.node source="\"no\"" type="no"
@@ -905,8 +908,8 @@ fn test_match_literal_union_is_exhaustive() {
 declare const status: "ready" | "error";
 
 const label = match (status) {
-    "ready" => "go"
-    "error" => "stop"
+    "ready" => "go",
+    "error" => "stop",
 };
 
 label satisfies "go" | "stop";
@@ -921,8 +924,8 @@ label satisfies "go" | "stop";
 declare const status: "ready" | "error";
 
 const label: "go" | "stop" = match (status) {
-    "ready" => "go"
-    "error" => "stop"
+    "ready" => "go",
+    "error" => "stop",
 };
 
 label satisfies "go" | "stop";
@@ -942,12 +945,12 @@ const label = match (status) {
 /// @resolution.place source=status placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=status root=status
 
-    "ready" => "go"
+    "ready" => "go",
     /// @type.node source="\"ready\"" type="ready"
     /// @resolution.pattern source="\"ready\"" kind=literal value="ready"
     /// @type.node source="\"go\"" type="go"
 
-    "error" => "stop"
+    "error" => "stop",
     /// @type.node source="\"error\"" type="error"
     /// @resolution.pattern source="\"error\"" kind=literal value="error"
     /// @type.node source="\"stop\"" type="stop"
@@ -971,7 +974,7 @@ fn test_match_reports_missing_literal_union_member() {
 declare const status: "ready" | "error";
 
 const label = match (status) {
-    "ready" => "go"
+    "ready" => "go",
 };
 "#,
     );
@@ -984,7 +987,7 @@ const label = match (status) {
 declare const status: "ready" | "error";
 
 const label: "go" = match (status) {
-    "ready" => "go"
+    "ready" => "go",
 };
 
 === dir ===
@@ -1002,7 +1005,7 @@ const label = match (status) {
 /// @resolution.place source=status placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=status root=status
 
-    "ready" => "go"
+    "ready" => "go",
     /// @type.node source="\"ready\"" type="ready"
     /// @resolution.pattern source="\"ready\"" kind=literal value="ready"
     /// @type.node source="\"go\"" type="go"
@@ -1024,8 +1027,8 @@ fn test_match_guard_does_not_prove_exhaustiveness() {
 declare const status: "ready" | "error";
 
 const label = match (status) {
-    "ready" if (true) => "go"
-    "error" => "stop"
+    "ready" if (true) => "go",
+    "error" => "stop",
 };
 "#,
     );
@@ -1038,8 +1041,8 @@ const label = match (status) {
 declare const status: "ready" | "error";
 
 const label: "go" | "stop" = match (status) {
-    "ready" if (true) => "go"
-    "error" => "stop"
+    "ready" if (true) => "go",
+    "error" => "stop",
 };
 
 === dir ===
@@ -1057,13 +1060,13 @@ const label = match (status) {
 /// @resolution.place source=status placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=status root=status
 
-    "ready" if (true) => "go"
+    "ready" if (true) => "go",
     /// @type.node source="\"ready\"" type="ready"
     /// @resolution.pattern source="\"ready\"" kind=literal value="ready"
     /// @type.node source=true type=true
     /// @type.node source="\"go\"" type="go"
 
-    "error" => "stop"
+    "error" => "stop",
     /// @type.node source="\"error\"" type="error"
     /// @resolution.pattern source="\"error\"" kind=literal value="error"
     /// @type.node source="\"stop\"" type="stop"
@@ -1075,7 +1078,7 @@ const label = match (status) {
 /// @diagnostic.label line=4 column=15 span="match" line_source="const label = match (status) {"
 /// @diagnostic.help message="cover the remaining values or add a wildcard '_' arm"
 /// @diagnostic.warning id=constant-condition message="condition is always true"
-/// @diagnostic.label line=5 column=17 span="true" line_source="\"ready\" if (true) => \"go\""
+/// @diagnostic.label line=5 column=17 span="true" line_source="\"ready\" if (true) => \"go\","
 "#,
     );
 }
@@ -1087,8 +1090,8 @@ fn test_match_guard_can_use_pattern_bindings() {
 declare const point: { x: int32; y: int32 };
 
 const result = match (point) {
-    { x, y } if (x == x) => y
-    _ => 0
+    { x, y } if (x == x) => y,
+    _ => 0,
 };
 
 result satisfies int32;
@@ -1103,8 +1106,8 @@ result satisfies int32;
 declare const point: { x: int32; y: int32 };
 
 const result: int32 = match (point) {
-    { x, y } if (x == x) => y
-    _ => 0
+    { x, y } if (x == x) => y,
+    _ => 0,
 };
 
 result satisfies int32;
@@ -1126,7 +1129,7 @@ const result = match (point) {
 /// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 
-    { x, y } if (x == x) => y
+    { x, y } if (x == x) => y,
     /// @resolution.pattern source={ x, y } kind=object fields={ x, y }
     /// @type.symbol symbol=x#2 source=x type=int32
     /// @type.symbol symbol=y#2 source=y type=int32
@@ -1145,7 +1148,7 @@ const result = match (point) {
     /// @resolution.place source=y placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=y root=y#2
 
-    _ => 0
+    _ => 0,
     /// @resolution.pattern source=_ kind=wildcard
     /// @type.node source=0 type=0
 
@@ -1170,8 +1173,8 @@ declare const input: (string, boolean) | null;
 declare function parse(text: string): (int32, string) | null;
 
 const output = match (input) {
-    (text, ready) if (ready && let (value, label) = parse(text) && value > 0 && true) => label
-    _ => "none"
+    (text, ready) if (ready && let (value, label) = parse(text) && value > 0 && true) => label,
+    _ => "none",
 };
 
 value;
@@ -1187,8 +1190,8 @@ declare const input: (string, boolean) | null;
 declare function parse(text: string): (int32, string) | null;
 
 const output: string = match (input) {
-    (text, ready) if (ready && let (value, label) = parse(text) && value > 0 && true) => label
-    _ => "none"
+    (text, ready) if (ready && let (value, label) = parse(text) && value > 0 && true) => label,
+    _ => "none",
 };
 
 value;
@@ -1200,6 +1203,7 @@ declare const input: (string, boolean) | null;
 
 declare function parse(text: string): (int32, string) | null;
 /// @type.symbol symbol=parse source="declare function parse(text: string): (int32, string) | null" type=(string) => (int32, string) | null
+/// @type.symbol symbol=parse.text source="text: string" type=string
 
 const output = match (input) {
 /// @type.symbol symbol=output source=output type=string
@@ -1211,7 +1215,7 @@ const output = match (input) {
 /// @resolution.place source=input placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=input root=input
 
-    (text, ready) if (ready && let (value, label) = parse(text) && value > 0 && true) => label
+    (text, ready) if (ready && let (value, label) = parse(text) && value > 0 && true) => label,
     /// @resolution.pattern source=(text, ready) kind=tuple fields=(text, ready)
     /// @type.symbol symbol=text source=text type=string
     /// @resolution.pattern source=text kind=binding target=text
@@ -1247,7 +1251,7 @@ const output = match (input) {
     /// @resolution.place source=label placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=label root=label
 
-    _ => "none"
+    _ => "none",
     /// @resolution.pattern source=_ kind=wildcard
     /// @type.node source="\"none\"" type="none"
 
@@ -1259,7 +1263,7 @@ value;
 "#,
         r#"
 /// @diagnostic.warning id=constant-condition message="condition is always true"
-/// @diagnostic.label line=6 column=81 span="true" line_source="(text, ready) if (ready && let (value, label) = parse(text) && value > 0 && true) => label"
+/// @diagnostic.label line=6 column=81 span="true" line_source="(text, ready) if (ready && let (value, label) = parse(text) && value > 0 && true) => label,"
 /// @diagnostic.error id=unresolved-reference message="cannot find 'value'"
 /// @diagnostic.label line=10 column=1 span="value" line_source="value;"
 "#,
@@ -1399,9 +1403,9 @@ match (packet) {
 
         labels: [first, second],
         /// @resolution.pattern source=[first, second] kind=sequence element=string arity=2 fields=(first, second)
-        /// @generic.instantiation id="index#2<string, 2, \"frame\" & \"local\">" template=index#2 arguments=(string, 2, "frame" & "local")
+        /// @generic.instantiation id="index#2<string, 2, \"readonly\", \"frame\" & \"local\">" template=index#2 arguments=(string, 2, "readonly", "frame" & "local")
         /// @generic.instance id="FixedArray<string, 2>" template=FixedArray arguments=(string, 2)
-        /// @generic.instance id="index#2<string, 2, \"bound0\" & \"local\">" template=index#2 arguments=(string, 2, "bound0" & "local")
+        /// @generic.instance id="index#2<string, 2, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=(string, 2, "readonly", "bound0" & "local")
         /// @type.symbol symbol=first source=first type=string
         /// @resolution.pattern source=first kind=binding target=first
         /// @type.symbol symbol=second source=second type=string
@@ -1457,7 +1461,7 @@ class User {
 declare const user: User;
 
 match (user) {
-    User { name } => name satisfies string
+    User { name } => name satisfies string,
 }
 "#,
     );
@@ -1478,7 +1482,7 @@ class User {
 declare const user: User;
 
 match (user) {
-    User { name } => name satisfies string
+    User { name } => name satisfies string,
 }
 
 === dir ===
@@ -1528,7 +1532,7 @@ match (user) {
 /// @resolution.place source=user placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=user root=user
 
-    User { name } => name satisfies string
+    User { name } => name satisfies string,
     /// @resolution.name source=User target=User
     /// @resolution.pattern source="User { name }" kind=nominal_object target=User fields={ User.name }
     /// @type.symbol symbol=name source=name type=string
@@ -1589,9 +1593,9 @@ match (values) {
 
     [head, ...tail] => {
     /// @resolution.pattern source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail
-    /// @generic.instantiation id="index#2<int32, \"managed\" & \"local\">" template=index#2 arguments=(int32, "managed" & "local")
+    /// @generic.instantiation id="index#2<int32, \"readonly\", \"managed\" & \"local\">" template=index#2 arguments=(int32, "readonly", "managed" & "local")
     /// @generic.instantiation id="rest#2<int32, \"managed\" & \"local\">" template=rest#2 arguments=(int32, "managed" & "local")
-    /// @generic.instance id="index#2<int32, \"bound0\" & \"local\">" template=index#2 arguments=(int32, "bound0" & "local")
+    /// @generic.instance id="index#2<int32, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=(int32, "readonly", "bound0" & "local")
     /// @generic.instance id="rest#2<int32, \"bound0\" & \"local\">" template=rest#2 arguments=(int32, "bound0" & "local")
     /// @type.symbol symbol=head source=head type=int32
     /// @resolution.pattern source=head kind=binding target=head
@@ -1625,7 +1629,7 @@ fn test_match_union_pattern_requires_compatible_bindings() {
 declare const value: { left: int32 } | { right: int32 };
 
 match (value) {
-    { left: item } | { right: item } => item satisfies int32
+    { left: item } | { right: item } => item satisfies int32,
 }
 "#,
     );
@@ -1638,7 +1642,7 @@ match (value) {
 declare const value: { left: int32 } | { right: int32 };
 
 match (value) {
-    { left: item } | { right: item } => item satisfies int32
+    { left: item } | { right: item } => item satisfies int32,
 }
 
 === dir ===
@@ -1656,7 +1660,7 @@ match (value) {
 /// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 
-    { left: item } | { right: item } => item satisfies int32
+    { left: item } | { right: item } => item satisfies int32,
     /// @resolution.pattern source={ left: item } kind=object fields={ left: item }
     /// @resolution.pattern source={ left: item } | { right: item } kind=union patterns=[pattern, pattern]
     /// @type.symbol symbol=item source=item type=int32
@@ -1681,8 +1685,8 @@ fn test_match_wildcard_fallback_uses_remaining_branch_type() {
 declare const status: "ready" | "error";
 
 const label = match (status) {
-    "ready" => "go"
-    _ => status
+    "ready" => "go",
+    _ => status,
 };
 "#,
     );
@@ -1695,8 +1699,8 @@ const label = match (status) {
 declare const status: "ready" | "error";
 
 const label: "go" | "error" = match (status) {
-    "ready" => "go"
-    _ => status
+    "ready" => "go",
+    _ => status,
 };
 
 === dir ===
@@ -1714,18 +1718,18 @@ const label = match (status) {
 /// @resolution.place source=status placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=status root=status
 
-    "ready" => "go"
+    "ready" => "go",
     /// @type.node source="\"ready\"" type="ready"
     /// @resolution.pattern source="\"ready\"" kind=literal value="ready"
     /// @type.node source="\"go\"" type="go"
 
-    _ => status
+    _ => status,
     /// @resolution.pattern source=_ kind=wildcard
     /// @type.node source=status type="error"
     /// @resolution.name source=status target=status
+    /// @resolution.narrowing source=status declared="ready" | "error" arms="error"
     /// @resolution.place source=status placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=status root=status
-    /// @resolution.narrowing source=status union="ready" | "error" arms="error"
 
 };
 "#,
@@ -1740,8 +1744,8 @@ newtype Count = (int32,);
 
 function isSmall(count: Count): boolean {
     return match (count) {
-        Count(0) | Count(1) => true
-        _ => false
+        Count(0) | Count(1) => true,
+        _ => false,
     };
 }
 "#,
@@ -1756,8 +1760,8 @@ newtype Count = (int32,);
 
 function isSmall(count: Count): boolean {
     return match (count) {
-        Count(0) | Count(1) => true
-        _ => false
+        Count(0) | Count(1) => true,
+        _ => false,
     };
 }
 
@@ -1777,7 +1781,7 @@ function isSmall(count: Count): boolean {
     /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=count root=isSmall.count
 
-        Count(0) | Count(1) => true
+        Count(0) | Count(1) => true,
         /// @resolution.name source=Count target=Count
         /// @resolution.pattern source="Count(0) | Count(1)" kind=union patterns=[pattern, pattern]
         /// @resolution.pattern source=Count(0) kind=newtype projection="newtype.payload(Count, (int32,))" pattern=pattern
@@ -1786,7 +1790,7 @@ function isSmall(count: Count): boolean {
         /// @resolution.pattern source=Count(1) kind=newtype projection="newtype.payload(Count, (int32,))" pattern=pattern
         /// @resolution.pattern source=1 kind=literal value=1
 
-        _ => false
+        _ => false,
         /// @resolution.pattern source=_ kind=wildcard
 
     };
@@ -1803,7 +1807,7 @@ newtype Count = (int32,);
 
 function isSmall(count: Count): boolean {
     return match (count) {
-        Count(0) | Count(1) => true
+        Count(0) | Count(1) => true,
     };
 }
 "#,
@@ -1818,7 +1822,7 @@ newtype Count = (int32,);
 
 function isSmall(count: Count): boolean {
     return match (count) {
-        Count(0) | Count(1) => true
+        Count(0) | Count(1) => true,
     };
 }
 
@@ -1838,7 +1842,7 @@ function isSmall(count: Count): boolean {
     /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=count root=isSmall.count
 
-        Count(0) | Count(1) => true
+        Count(0) | Count(1) => true,
         /// @resolution.name source=Count target=Count
         /// @resolution.pattern source="Count(0) | Count(1)" kind=union patterns=[pattern, pattern]
         /// @resolution.pattern source=Count(0) kind=newtype projection="newtype.payload(Count, (int32,))" pattern=pattern
@@ -1854,6 +1858,121 @@ function isSmall(count: Count): boolean {
 /// @diagnostic.error id=non-exhaustive-pattern message="match is not exhaustive: '(int32)' is not covered"
 /// @diagnostic.label line=5 column=12 span="match" line_source="return match (count) {"
 /// @diagnostic.help message="cover the remaining values or add a wildcard '_' arm"
+"#,
+    );
+}
+
+/// End the flow after a switch whose cases cover every value.
+#[test]
+fn test_end_the_flow_after_a_switch_over_every_case() {
+    let session = TestSession::single(
+        r#"
+enum Mode {
+    Read,
+    Write,
+}
+
+function rank(mode: Mode): int32 {
+    switch (mode) {
+        case Mode.Read: return 1;
+        case Mode.Write: return 2;
+    }
+}
+
+function flag(value: boolean): int32 {
+    switch (value) {
+        case true: return 1;
+        case false: return 0;
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.tspp",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+enum Mode {
+    Read,
+    Write,
+}
+
+function rank(mode: Mode): int32 {
+    switch (mode) {
+        case Mode.Read:
+            return 1;
+        case Mode.Write:
+            return 2;
+    }
+}
+
+function flag(value: boolean): int32 {
+    switch (value) {
+        case true:
+            return 1;
+        case false:
+            return 0;
+    }
+}
+
+=== dir ===
+enum Mode {
+/// @type.symbol symbol=Mode type=Mode
+/// @definition.enum symbol=Mode
+/// @definition.variant symbol=Mode.Read source=Read key=Read value=0
+/// @definition.variant symbol=Mode.Write source=Write key=Write value=1
+
+    Read,
+    /// @type.symbol symbol=Mode.Read source=Read type=Mode.Read
+
+    Write,
+    /// @type.symbol symbol=Mode.Write source=Write type=Mode.Write
+
+}
+
+function rank(mode: Mode): int32 {
+/// @type.symbol symbol=rank type=(Mode) => int32
+/// @type.symbol symbol=rank.mode source="mode: Mode" type=Mode
+/// @resolution.name source=Mode target=Mode
+
+    switch (mode) {
+    /// @resolution.name source=mode target=rank.mode
+    /// @resolution.place source=mode placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=mode root=rank.mode
+
+        case Mode.Read: return 1;
+        /// @resolution.operator source="case Mode.Read: return 1;" type=boolean operator="===" kind=builtin operands=[mode as Mode families=(Mode), Mode.Read as Mode.Read families=(Mode)]
+        /// @resolution.name source=Mode target=Mode
+        /// @resolution.member source=Mode.Read receiver=Mode type=Mode.Read kind=symbol target_receiver=Mode target=Mode.Read
+
+        case Mode.Write: return 2;
+        /// @resolution.operator source="case Mode.Write: return 2;" type=boolean operator="===" kind=builtin operands=[mode as Mode families=(Mode), Mode.Write as Mode.Write families=(Mode)]
+        /// @resolution.name source=Mode target=Mode
+        /// @resolution.member source=Mode.Write receiver=Mode type=Mode.Write kind=symbol target_receiver=Mode target=Mode.Write
+
+    }
+}
+
+function flag(value: boolean): int32 {
+/// @type.symbol symbol=flag type=(boolean) => int32
+/// @type.symbol symbol=flag.value source="value: boolean" type=boolean
+
+    switch (value) {
+    /// @resolution.name source=value target=flag.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=flag.value
+
+        case true: return 1;
+        /// @resolution.operator source="case true: return 1;" type=boolean operator="===" kind=builtin operands=[value as boolean families=(boolean), true as true families=(boolean)]
+
+        case false: return 0;
+        /// @resolution.operator source="case false: return 0;" type=boolean operator="===" kind=builtin operands=[value as boolean families=(boolean), false as false families=(boolean)]
+
+    }
+}
+"#,
+        r#"
 "#,
     );
 }

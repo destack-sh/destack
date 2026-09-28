@@ -1,7 +1,9 @@
 use tspp_dir as dir;
 
 use crate::CompilerResult;
-use crate::sema::{BoundSide, CheckState, Settle, VariableKind, VariableState, Verdict};
+use crate::sema::{
+    BoundSide, CheckState, Settle, VariableFlags, VariableKind, VariableState, Verdict,
+};
 
 /// Result of one candidate.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -69,7 +71,7 @@ impl CheckState<'_> {
                 continue;
             }
             match is_nested {
-                true => variable.is_dead = true,
+                true => variable.flags.insert(VariableFlags::DEAD),
                 false => variable.state = VariableState::Error(error),
             }
         }
@@ -99,11 +101,14 @@ impl CheckState<'_> {
         let mut is_open = false;
         for variable in self.open_scope_variables(scope)? {
             let opened = *self.infer.variable(variable)?;
-            if matches!(opened.kind, VariableKind::Memory(_)) || opened.is_dead {
+            if matches!(opened.kind, VariableKind::Memory(_))
+                || opened.flags.contains(VariableFlags::DEAD)
+            {
                 continue;
             }
-            // count a slot as decided by its default, its closed value, or its closed bounds
-            let mut is_decided = self.infer.variable(variable)?.default.is_some();
+            // decide a slot
+            let mut is_decided =
+                opened.default.is_some() || opened.flags.contains(VariableFlags::DIVERGING);
             let sides: &[BoundSide] = match self.infer.variable(variable)?.parameter.is_some()
                 || opened.kind.is_numeric()
             {

@@ -39,9 +39,9 @@ function first(value: int32 | undefined): int32 {
 
         return value;
         /// @resolution.name source=value target=first.value
+        /// @resolution.narrowing source=value declared=int32 | undefined arms=int32
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=first.value
-        /// @resolution.narrowing source=value union=int32 | undefined arms=int32
 
     }
     return 0;
@@ -90,9 +90,9 @@ function first(value: int32 | undefined): int32 {
 
         return value;
         /// @resolution.name source=value target=first.value
+        /// @resolution.narrowing source=value declared=int32 | undefined arms=int32
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=first.value
-        /// @resolution.narrowing source=value union=int32 | undefined arms=int32
 
     }
     return 0;
@@ -197,17 +197,17 @@ function render(message: string | (() => string) | undefined): string {
         return message();
         /// @resolution.name source=message target=render.message
         /// @resolution.call source=message() parameters=() return=string kind=expression target=expression
+        /// @resolution.narrowing source=message declared=string | () => string | undefined arms=() => string
         /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=message root=render.message
-        /// @resolution.narrowing source=message union=string | () => string | undefined arms=() => string
 
     }
     return message ?? "fallback";
     /// @resolution.name source=message target=render.message
     /// @resolution.operator source="message ?? \"fallback\"" type=string operator="??" kind=builtin operands=[message as string | undefined families=(string | undefined), "fallback" as "fallback" families=(string)]
+    /// @resolution.narrowing source=message declared=string | () => string | undefined arms=string | undefined
     /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=message root=render.message
-    /// @resolution.narrowing source=message union=string | () => string | undefined arms=string | undefined
 
 }
 "#, r#"
@@ -263,17 +263,17 @@ function render(message: Message | undefined): string {
         return message();
         /// @resolution.name source=message target=render.message
         /// @resolution.call source=message() parameters=() return=string kind=expression target=expression
+        /// @resolution.narrowing source=message declared=string | () => string | undefined arms=() => string
         /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=message root=render.message
-        /// @resolution.narrowing source=message union=string | () => string | undefined arms=() => string
 
     }
     return message ?? "fallback";
     /// @resolution.name source=message target=render.message
     /// @resolution.operator source="message ?? \"fallback\"" type=string operator="??" kind=builtin operands=[message as string | undefined families=(string | undefined), "fallback" as "fallback" families=(string)]
+    /// @resolution.narrowing source=message declared=string | () => string | undefined arms=string | undefined
     /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=message root=render.message
-    /// @resolution.narrowing source=message union=string | () => string | undefined arms=string | undefined
 
 }
 "#,
@@ -608,6 +608,7 @@ function incrementCount(source: string): Result<int32, string> {
 === dir ===
 declare function parseCount(source: string): Result<int32, string>;
 /// @type.symbol symbol=parseCount source="declare function parseCount(source: string): Result<int32, string>" type=(string) => Result<int32, string>
+/// @type.symbol symbol=parseCount.source source="source: string" type=string
 /// @resolution.name source=Result target=Result
 
 function incrementCount(source: string): Result<int32, string> {
@@ -651,8 +652,8 @@ fn test_match_a_result_exhaustively() {
         r#"
 function unwrap(result: Result<int32, string>): int32 {
     const value = match (result) {
-        Err { error: _ } => 0
-        Ok { value } => value
+        Err { error: _ } => 0,
+        Ok { value } => value,
     };
     return value;
 }
@@ -666,8 +667,8 @@ function unwrap(result: Result<int32, string>): int32 {
 === annotated ===
 function unwrap(result: Result<int32, string>): int32 {
     const value: int32 = match (result) {
-        Err { error: _ } => 0
-        Ok { value } => value
+        Err { error: _ } => 0,
+        Ok { value } => value,
     };
     return value;
 }
@@ -686,14 +687,14 @@ function unwrap(result: Result<int32, string>): int32 {
     /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=result root=unwrap.result
 
-        Err { error: _ } => 0
+        Err { error: _ } => 0,
         /// @resolution.name source=Err target=Err
         /// @resolution.pattern source="Err { error: _ }" kind=nominal_object adjustments=(newtype.payload(Result, Ok<int32> | Err<string>), union.payload(Ok<int32> | Err<string>, Err<string>, Err<string>)) target=Err instance=Err<string> fields={ Err.error: _ }
         /// @generic.instantiation id="Result<int32, string>" template=Result arguments=(int32, string)
         /// @generic.instantiation id=Err<string> template=Err arguments=(string)
         /// @resolution.pattern source=_ kind=wildcard
 
-        Ok { value } => value
+        Ok { value } => value,
         /// @resolution.name source=Ok target=Ok
         /// @resolution.pattern source="Ok { value }" kind=nominal_object adjustments=(newtype.payload(Result, Ok<int32> | Err<string>), union.payload(Ok<int32> | Err<string>, Ok<int32>, Ok<int32>)) target=Ok instance=Ok<int32> fields={ Ok.value }
         /// @generic.instantiation id=Ok<int32> template=Ok arguments=(int32)
@@ -733,7 +734,7 @@ function prepare(values: [int32]): void {
         DirRows::checked().with_flows(),
         r#"
 === annotated ===
-declare function fill<'a>(buffer: &[int32]): void;
+declare function fill<'a>(buffer: &'a [int32]): void;
 
 function prepare(values: [int32]): void {
     fill<"managed">(&values);
@@ -744,6 +745,7 @@ declare function fill(buffer: &[int32]): void;
 /// @generic.template symbol=fill parameters=('a)
 /// @type.symbol symbol=fill source="declare function fill(buffer: &[int32]): void" type=<fill.'a>(&fill.'a Slice<int32>) => void
 /// @flow.use symbol=fill uses=read
+/// @type.symbol symbol=fill.buffer source="buffer: &[int32]" type=&fill.'a Slice<int32>
 
 function prepare(values: [int32]): void {
 /// @type.symbol symbol=prepare type=(Slice<int32>) => void
@@ -795,6 +797,7 @@ function feed(output: int32[], values: [int32]): void {
 === dir ===
 declare function consume(values: Iterable<int32>): void;
 /// @type.symbol symbol=consume source="declare function consume(values: Iterable<int32>): void" type=(Iterable<int32>) => void
+/// @type.symbol symbol=consume.values source="values: Iterable<int32>" type=Iterable<int32>
 /// @resolution.name source=Iterable target=Iterable
 
 function feed(output: Array<int32>, values: [int32]): void {

@@ -37,6 +37,7 @@ declare function id<T>(value: T): T;
 /// @generic.template symbol=id parameters=(T#1)
 /// @type.symbol symbol=id source="declare function id<T>(value: T): T" type=<T#1>(T#1) => T#1
 /// @type.symbol symbol=id.T source=T type=T#1
+/// @type.symbol symbol=id.value source="value: T" type=T#1
 /// @resolution.name source=T target=id.T
 /// @resolution.name source=T target=id.T
 
@@ -45,7 +46,9 @@ declare function withLabel<T: string, U>(label: T, callback: (label: T) => U): U
 /// @type.symbol symbol=withLabel source="declare function withLabel<T: string, U>(label: T, callback: (label: T) => U): U" type=<T#2: string, U>(T#2, (T#2) => U) => U
 /// @type.symbol symbol=withLabel.T source="T: string" type=T#2
 /// @type.symbol symbol=withLabel.U source=U type=U
+/// @type.symbol symbol=withLabel.label#1 source="label: T" type=T#2
 /// @resolution.name source=T target=withLabel.T
+/// @type.symbol symbol=withLabel.callback source="callback: (label: T) => U" type=(T#2) => U
 /// @type.symbol symbol=withLabel.label#2 source="label: T" type=T#2
 /// @resolution.name source=T target=withLabel.T
 /// @resolution.name source=U target=withLabel.U
@@ -140,6 +143,7 @@ declare function id<T>(value: T): T;
 /// @generic.template symbol=id parameters=(T)
 /// @type.symbol symbol=id source="declare function id<T>(value: T): T" type=<T>(T) => T
 /// @type.symbol symbol=id.T source=T type=T
+/// @type.symbol symbol=id.value source="value: T" type=T
 /// @resolution.name source=T target=id.T
 /// @resolution.name source=T target=id.T
 

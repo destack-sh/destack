@@ -204,7 +204,7 @@ class Service {
     }
 }
 
-declare function modify<'a>(value: &int32): void;
+declare function modify<'a>(value: &'a int32): void;
 
 let borrowed: int32 = 0;
 &borrowed;

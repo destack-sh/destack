@@ -39,26 +39,55 @@ impl CheckState<'_> {
             return Ok(());
         };
         let directive = self.decode_capture_directive(value)?;
-        let capture = self
-            .module_mut(module)
-            .pending_captures
-            .iter_mut()
-            .find(|capture| capture.symbol == function)
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("capture decorator target {function:?} has no walked function"),
-            })?;
-        let previous = capture
-            .annotation
-            .as_ref()
-            .map(|annotation| annotation.source);
-        if let Some(previous) = previous {
+
+        // record the function's annotation
+        let annotations = &mut self.module_mut(module).capture_annotations;
+        if let Some(previous) = annotations
+            .get(&function)
+            .map(|annotation| annotation.source)
+        {
             self.report_duplicate_capture_decorator(source, previous)?;
 
             return Ok(());
         }
-        capture.annotation = Some(CaptureAnnotation { source, directive });
+        annotations.insert(function, CaptureAnnotation { source, directive });
 
         Ok(())
+    }
+
+    /// Apply the capture decorator of one function value.
+    pub(in crate::sema) fn resolve_capture_directive(
+        &mut self,
+        function: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<dir::CaptureDirective>> {
+        // find the function's pending capture decorator
+        let module = function.module_id;
+        let pending = self.decorators.iter().position(|application| {
+            self.environment_bound.language.item(application.symbol)
+                == Some(dir::LanguageItem::Capture)
+                && self
+                    .module(module)
+                    .declared_function(application.owner.local_id)
+                    == Some(function)
+        });
+
+        // apply the decorator
+        if self.is_checking()
+            && let Some(index) = pending
+        {
+            let application = self.decorators.remove(index);
+            let source = application.expression.decorator.into_global(module);
+            let site = self.node_site(source.into_any())?;
+            if let Some(selection) = self.select_decorator(site, application)? {
+                self.apply_decorator(selection)?;
+            }
+        }
+
+        Ok(self
+            .module(module)
+            .capture_annotations
+            .get(&function)
+            .map(|annotation| annotation.directive.clone()))
     }
 
     /// Read one capture directive from its annotation tuple.

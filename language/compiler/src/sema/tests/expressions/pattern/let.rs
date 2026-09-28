@@ -47,9 +47,9 @@ function parse(status: "ready" | "error"): "ready" {
     status
     /// @type.node source=status type="ready"
     /// @resolution.name source=status target=parse.status
+    /// @resolution.narrowing source=status declared="ready" | "error" arms="ready"
     /// @resolution.place source=status placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=status root=parse.status
-    /// @resolution.narrowing source=status union="ready" | "error" arms="ready"
 
 }
 "#,

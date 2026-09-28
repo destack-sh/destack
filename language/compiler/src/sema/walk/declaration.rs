@@ -6,7 +6,7 @@ use tspp_source::ModuleId;
 use crate::sema::{
     CauseKind, CheckError, CheckState, ElisionSite, FunctionHeader, GenericTemplateId,
     InducedParameterOwner, Origin, Receiver, ReceiverBinding, Relation, TypeSubstitution,
-    VariableKind, WalkState,
+    VariableFlags, VariableKind, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -1214,9 +1214,7 @@ impl WalkState<'_, '_> {
             result,
             tracked,
         )?;
-        let is_function_value =
-            declaration.signature.form == dir::FunctionForm::Lambda || declaration.name.is_none();
-        let function = if is_function_value {
+        let function = if declaration.is_value() {
             // infer a lambda's receiver access from its body
             let receiver = match declaration.signature.form {
                 dir::FunctionForm::Lambda => {
@@ -1584,7 +1582,11 @@ impl WalkState<'_, '_> {
 
             // join the values an inferred result's returns produce
             if let Some(variable) = self.check.root_variable(result)? {
-                self.check.infer.variable_mut(variable)?.is_join = true;
+                self.check
+                    .infer
+                    .variable_mut(variable)?
+                    .flags
+                    .insert(VariableFlags::JOIN);
             }
 
             return Ok((Some(result), Vec::new()));

@@ -108,9 +108,9 @@ declare const values: [int32; 3];
 /// @type.node source="[first, , last] = values" type=FixedArray<int32, 3>
 /// @resolution.pattern.assign source=[first, , last] kind=sequence element=int32 arity=3 fields=(first, last)
 /// @resolution.access source=[first, , last] root=values
-/// @generic.instantiation id="index#2<int32, 3, \"frame\" & \"local\">" template=index#2 arguments=(int32, 3, "frame" & "local")
+/// @generic.instantiation id="index#2<int32, 3, \"readonly\", \"frame\" & \"local\">" template=index#2 arguments=(int32, 3, "readonly", "frame" & "local")
 /// @generic.instance id="FixedArray<int32, 3>" template=FixedArray arguments=(int32, 3)
-/// @generic.instance id="index#2<int32, 3, \"bound0\" & \"local\">" template=index#2 arguments=(int32, 3, "bound0" & "local")
+/// @generic.instance id="index#2<int32, 3, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=(int32, 3, "readonly", "bound0" & "local")
 /// @type.node source=first type=int32
 /// @resolution.name source=first target=first
 /// @resolution.pattern.assign source=first kind=place
@@ -249,9 +249,9 @@ declare const values: int32[];
 /// @type.node source="[head, ...tail] = values" type=int32[]
 /// @resolution.pattern.assign source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail
 /// @resolution.access source=[head, ...tail] root=values
-/// @generic.instantiation id="index#2<int32, \"managed\" & \"local\">" template=index#2 arguments=(int32, "managed" & "local")
+/// @generic.instantiation id="index#2<int32, \"readonly\", \"managed\" & \"local\">" template=index#2 arguments=(int32, "readonly", "managed" & "local")
 /// @generic.instantiation id="rest#2<int32, \"managed\" & \"local\">" template=rest#2 arguments=(int32, "managed" & "local")
-/// @generic.instance id="index#2<int32, \"bound0\" & \"local\">" template=index#2 arguments=(int32, "bound0" & "local")
+/// @generic.instance id="index#2<int32, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=(int32, "readonly", "bound0" & "local")
 /// @generic.instance id="rest#2<int32, \"bound0\" & \"local\">" template=rest#2 arguments=(int32, "bound0" & "local")
 /// @type.node source=head type=int32
 /// @resolution.name source=head target=head

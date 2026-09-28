@@ -10,7 +10,7 @@ function isByte(value: int32): boolean {
             value satisfies 0..=255;
             true
         }
-        _ => false
+        _ => false,
     };
 }
 "#,
@@ -27,7 +27,7 @@ function isByte(value: int32): boolean {
             value satisfies 0..=255;
             true
         }
-        _ => false
+        _ => false,
     };
 }
 
@@ -53,6 +53,7 @@ function isByte(value: int32): boolean {
             /// @type.node source="value satisfies 0..=255" type=0..=255
             /// @type.node source=value type=0..=255
             /// @resolution.name source=value target=isByte.value
+            /// @resolution.narrowing source=value declared=int32 arms=
             /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
             /// @resolution.access source=value root=isByte.value
 
@@ -60,7 +61,7 @@ function isByte(value: int32): boolean {
             /// @type.node source=true type=true
 
         }
-        _ => false
+        _ => false,
         /// @resolution.pattern source=_ kind=wildcard
         /// @type.node source=false type=false
 
@@ -79,8 +80,8 @@ type Tiny = 0..=2;
 declare const value: Tiny;
 
 const label = match (value) {
-    0..=1 => "low"
-    2 => "two"
+    0..=1 => "low",
+    2 => "two",
 };
 "#,
     );
@@ -95,8 +96,8 @@ type Tiny = 0..=2;
 declare const value: Tiny;
 
 const label: "low" | "two" = match (value) {
-    0..=1 => "low"
-    2 => "two"
+    0..=1 => "low",
+    2 => "two",
 };
 
 === dir ===
@@ -119,13 +120,13 @@ const label = match (value) {
 /// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 
-    0..=1 => "low"
+    0..=1 => "low",
     /// @type.node source=0 type=0
     /// @resolution.pattern source=0..=1 kind=range domain=0..=2 start=0 end=1 bound=inclusive
     /// @type.node source=1 type=1
     /// @type.node source="\"low\"" type="low"
 
-    2 => "two"
+    2 => "two",
     /// @type.node source=2 type=2
     /// @resolution.pattern source=2 kind=literal value=2
     /// @type.node source="\"two\"" type="two"
@@ -144,8 +145,8 @@ type LowerAscii = 'a'..='z';
 declare const value: LowerAscii;
 
 const isEarly = match (value) {
-    'a'..='m' => true
-    'n'..='z' => false
+    'a'..='m' => true,
+    'n'..='z' => false,
 };
 "#,
     );
@@ -160,8 +161,8 @@ type LowerAscii = 'a'..='z';
 declare const value: LowerAscii;
 
 const isEarly: boolean = match (value) {
-    'a'..='m' => true
-    'n'..='z' => false
+    'a'..='m' => true,
+    'n'..='z' => false,
 };
 
 === dir ===
@@ -184,13 +185,13 @@ const isEarly = match (value) {
 /// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 
-    'a'..='m' => true
+    'a'..='m' => true,
     /// @type.node source='a' type='a'
     /// @resolution.pattern source='a'..='m' kind=range domain='a'..='z' start='a' end='m' bound=inclusive
     /// @type.node source='m' type='m'
     /// @type.node source=true type=true
 
-    'n'..='z' => false
+    'n'..='z' => false,
     /// @type.node source='n' type='n'
     /// @resolution.pattern source='n'..='z' kind=range domain='a'..='z' start='n' end='z' bound=inclusive
     /// @type.node source='z' type='z'
@@ -210,8 +211,8 @@ type Tiny = 0..=3;
 declare const value: Tiny;
 
 const label = match (value) {
-    0..=1 => "low"
-    3 => "high"
+    0..=1 => "low",
+    3 => "high",
 };
 "#,
     );
@@ -226,8 +227,8 @@ type Tiny = 0..=3;
 declare const value: Tiny;
 
 const label: "low" | "high" = match (value) {
-    0..=1 => "low"
-    3 => "high"
+    0..=1 => "low",
+    3 => "high",
 };
 
 === dir ===
@@ -250,13 +251,13 @@ const label = match (value) {
 /// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 
-    0..=1 => "low"
+    0..=1 => "low",
     /// @type.node source=0 type=0
     /// @resolution.pattern source=0..=1 kind=range domain=0..=3 start=0 end=1 bound=inclusive
     /// @type.node source=1 type=1
     /// @type.node source="\"low\"" type="low"
 
-    3 => "high"
+    3 => "high",
     /// @type.node source=3 type=3
     /// @resolution.pattern source=3 kind=literal value=3
     /// @type.node source="\"high\"" type="high"

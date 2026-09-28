@@ -29,6 +29,7 @@ function read(text: string): int32 {
 === dir ===
 declare function parse(text: string): int32 | undefined;
 /// @type.symbol symbol=parse source="declare function parse(text: string): int32 | undefined" type=(string) => int32 | undefined
+/// @type.symbol symbol=parse.text source="text: string" type=string
 
 function read(text: string): int32 {
 /// @type.symbol symbol=read type=(string) => int32

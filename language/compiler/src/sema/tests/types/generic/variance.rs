@@ -845,6 +845,7 @@ take(increment);
 === dir ===
 declare function take(callback: (value: int32) => int32 | undefined): void;
 /// @type.symbol symbol=take source="declare function take(callback: (value: int32) => int32 | undefined): void" type=((int32) => int32 | undefined) => void
+/// @type.symbol symbol=take.callback source="callback: (value: int32) => int32 | undefined" type=(int32) => int32 | undefined
 /// @type.symbol symbol=take.value source="value: int32" type=int32
 
 function increment(value: int32): int32 {
@@ -896,6 +897,7 @@ forEach(async (value: int32) => value);
 === dir ===
 declare function forEach(visit: (value: int32) => void): void;
 /// @type.symbol symbol=forEach source="declare function forEach(visit: (value: int32) => void): void" type=((int32) => void) => void
+/// @type.symbol symbol=forEach.visit source="visit: (value: int32) => void" type=(int32) => void
 /// @type.symbol symbol=forEach.value source="value: int32" type=int32
 
 forEach(async (value) => value);

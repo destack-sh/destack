@@ -16,8 +16,8 @@ newtype Outcome<T, E> = Ok<T> | Err<E>;
 
 function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
     match (outcome) {
-        Ok { value } => value
-        Err { error } => fallback
+        Ok { value } => value,
+        Err { error } => fallback,
     }
 }
 "#,
@@ -40,8 +40,8 @@ newtype Outcome<out T, out E> = Ok<T> | Err<E>;
 
 function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
     match (outcome) {
-        Ok { value } => value
-        Err { error } => fallback
+        Ok { value } => value,
+        Err { error } => fallback,
     }
 }
 
@@ -109,7 +109,7 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
     /// @resolution.place source=outcome placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=outcome root=unwrapOr.outcome
 
-        Ok { value } => value
+        Ok { value } => value,
         /// @resolution.name source=Ok target=Ok
         /// @resolution.pattern source="Ok { value }" kind=nominal_object adjustments=(newtype.payload(Outcome, Ok<T#3> | Err<E#3>), union.payload(Ok<T#3> | Err<E#3>, Ok<T#3>, Ok<T#3>)) target=Ok instance=Ok<T#3> fields={ Ok.value }
         /// @generic.instantiation id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3) owner=unwrapOr
@@ -120,7 +120,7 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
         /// @resolution.place source=value placement="local" lifetime="frame" access="immutable"
         /// @resolution.access source=value root=unwrapOr.value
 
-        Err { error } => fallback
+        Err { error } => fallback,
         /// @resolution.name source=Err target=Err
         /// @resolution.pattern source="Err { error }" kind=nominal_object adjustments=(newtype.payload(Outcome, Ok<T#3> | Err<E#3>), union.payload(Ok<T#3> | Err<E#3>, Err<E#3>, Err<E#3>)) target=Err instance=Err<E#3> fields={ Err.error }
         /// @generic.instantiation id=Err<E#3> template=Err arguments=(E#3) owner=unwrapOr
@@ -152,7 +152,7 @@ newtype Outcome<T, E> = Ok<T> | Err<E>;
 
 function unwrap<T, E>(outcome: Outcome<T, E>): T {
     match (outcome) {
-        Ok { value } => value
+        Ok { value } => value,
     }
 }
 "#,
@@ -175,7 +175,7 @@ newtype Outcome<out T, out E> = Ok<T> | Err<E>;
 
 function unwrap<T, E>(outcome: Outcome<T, E>): T {
     match (outcome) {
-        Ok { value } => value
+        Ok { value } => value,
     }
 }
 
@@ -236,7 +236,7 @@ function unwrap<T, E>(outcome: Outcome<T, E>): T {
     /// @resolution.place source=outcome placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=outcome root=unwrap.outcome
 
-        Ok { value } => value
+        Ok { value } => value,
         /// @resolution.name source=Ok target=Ok
         /// @resolution.pattern source="Ok { value }" kind=nominal_object adjustments=(newtype.payload(Outcome, Ok<T#3> | Err<E#3>), union.payload(Ok<T#3> | Err<E#3>, Ok<T#3>, Ok<T#3>)) target=Ok instance=Ok<T#3> fields={ Ok.value }
         /// @generic.instantiation id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3) owner=unwrap
@@ -265,8 +265,8 @@ fn test_tuple_match_covers_through_combined_arms() {
         r#"
 function finish(value: (int32, boolean)): int32 {
     return match (value) {
-        (left, true) => left
-        (right, false) => right
+        (left, true) => left,
+        (right, false) => right,
     };
 }
 "#,
@@ -279,8 +279,8 @@ function finish(value: (int32, boolean)): int32 {
 === annotated ===
 function finish(value: (int32, boolean)): int32 {
     return match (value) {
-        (left, true) => left
-        (right, false) => right
+        (left, true) => left,
+        (right, false) => right,
     };
 }
 
@@ -295,7 +295,7 @@ function finish(value: (int32, boolean)): int32 {
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=finish.value
 
-        (left, true) => left
+        (left, true) => left,
         /// @resolution.pattern source=(left, true) kind=tuple fields=(finish.left, true)
         /// @type.symbol symbol=finish.left source=left type=int32
         /// @resolution.pattern source=left kind=binding target=finish.left
@@ -304,7 +304,7 @@ function finish(value: (int32, boolean)): int32 {
         /// @resolution.place source=left placement="local" lifetime="frame" access="immutable"
         /// @resolution.access source=left root=finish.left
 
-        (right, false) => right
+        (right, false) => right,
         /// @resolution.pattern source=(right, false) kind=tuple fields=(finish.right, false)
         /// @type.symbol symbol=finish.right source=right type=int32
         /// @resolution.pattern source=right kind=binding target=finish.right
@@ -329,8 +329,8 @@ fn test_tuple_match_reports_the_uncovered_combination() {
         r#"
 function finish(value: (int32, boolean)): int32 {
     return match (value) {
-        (left, true) => left
-        (right, true) => right
+        (left, true) => left,
+        (right, true) => right,
     };
 }
 "#,
@@ -343,8 +343,8 @@ function finish(value: (int32, boolean)): int32 {
 === annotated ===
 function finish(value: (int32, boolean)): int32 {
     return match (value) {
-        (left, true) => left
-        (right, true) => right
+        (left, true) => left,
+        (right, true) => right,
     };
 }
 
@@ -359,7 +359,7 @@ function finish(value: (int32, boolean)): int32 {
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=finish.value
 
-        (left, true) => left
+        (left, true) => left,
         /// @resolution.pattern source=(left, true) kind=tuple fields=(finish.left, true)
         /// @type.symbol symbol=finish.left source=left type=int32
         /// @resolution.pattern source=left kind=binding target=finish.left
@@ -368,7 +368,7 @@ function finish(value: (int32, boolean)): int32 {
         /// @resolution.place source=left placement="local" lifetime="frame" access="immutable"
         /// @resolution.access source=left root=finish.left
 
-        (right, true) => right
+        (right, true) => right,
         /// @resolution.pattern source=(right, true) kind=tuple fields=(finish.right, true)
         /// @type.symbol symbol=finish.right source=right type=int32
         /// @resolution.pattern source=right kind=binding target=finish.right
@@ -395,8 +395,8 @@ fn test_nested_tuple_match_covers_through_expanded_columns() {
         r#"
 function pick(value: ((int32, boolean), string)): int32 {
     return match (value) {
-        ((left, true), first) => left
-        ((right, false), second) => right
+        ((left, true), first) => left,
+        ((right, false), second) => right,
     };
 }
 "#,
@@ -409,8 +409,8 @@ function pick(value: ((int32, boolean), string)): int32 {
 === annotated ===
 function pick(value: ((int32, boolean), string)): int32 {
     return match (value) {
-        ((left, true), first) => left
-        ((right, false), second) => right
+        ((left, true), first) => left,
+        ((right, false), second) => right,
     };
 }
 
@@ -425,7 +425,7 @@ function pick(value: ((int32, boolean), string)): int32 {
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=pick.value
 
-        ((left, true), first) => left
+        ((left, true), first) => left,
         /// @resolution.pattern source=((left, true), first) kind=tuple fields=(pattern, pick.first)
         /// @resolution.pattern source=(left, true) kind=tuple fields=(pick.left, true)
         /// @type.symbol symbol=pick.left source=left type=int32
@@ -437,7 +437,7 @@ function pick(value: ((int32, boolean), string)): int32 {
         /// @resolution.place source=left placement="local" lifetime="frame" access="immutable"
         /// @resolution.access source=left root=pick.left
 
-        ((right, false), second) => right
+        ((right, false), second) => right,
         /// @resolution.pattern source=((right, false), second) kind=tuple fields=(pattern, pick.second)
         /// @resolution.pattern source=(right, false) kind=tuple fields=(pick.right, false)
         /// @type.symbol symbol=pick.right source=right type=int32
@@ -465,8 +465,8 @@ fn test_tuple_match_covers_a_union_element_field() {
         r#"
 function label(value: (int32, "on" | "off")): int32 {
     return match (value) {
-        (first, "on") => first
-        (second, "off") => second
+        (first, "on") => first,
+        (second, "off") => second,
     };
 }
 "#,
@@ -479,8 +479,8 @@ function label(value: (int32, "on" | "off")): int32 {
 === annotated ===
 function label(value: (int32, "on" | "off")): int32 {
     return match (value) {
-        (first, "on") => first
-        (second, "off") => second
+        (first, "on") => first,
+        (second, "off") => second,
     };
 }
 
@@ -495,7 +495,7 @@ function label(value: (int32, "on" | "off")): int32 {
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=label.value
 
-        (first, "on") => first
+        (first, "on") => first,
         /// @resolution.pattern source=(first, "on") kind=tuple fields=(label.first, "on")
         /// @type.symbol symbol=label.first source=first type=int32
         /// @resolution.pattern source=first kind=binding target=label.first
@@ -504,7 +504,7 @@ function label(value: (int32, "on" | "off")): int32 {
         /// @resolution.place source=first placement="local" lifetime="frame" access="immutable"
         /// @resolution.access source=first root=label.first
 
-        (second, "off") => second
+        (second, "off") => second,
         /// @resolution.pattern source=(second, "off") kind=tuple fields=(label.second, "off")
         /// @type.symbol symbol=label.second source=second type=int32
         /// @resolution.pattern source=second kind=binding target=label.second
@@ -529,7 +529,7 @@ fn test_nested_tuple_match_reports_the_outer_uncovered_element() {
         r#"
 function pick(value: ((int32, boolean), string)): int32 {
     return match (value) {
-        ((left, true), first) => left
+        ((left, true), first) => left,
     };
 }
 "#,
@@ -542,7 +542,7 @@ function pick(value: ((int32, boolean), string)): int32 {
 === annotated ===
 function pick(value: ((int32, boolean), string)): int32 {
     return match (value) {
-        ((left, true), first) => left
+        ((left, true), first) => left,
     };
 }
 
@@ -557,7 +557,7 @@ function pick(value: ((int32, boolean), string)): int32 {
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=pick.value
 
-        ((left, true), first) => left
+        ((left, true), first) => left,
         /// @resolution.pattern source=((left, true), first) kind=tuple fields=(pattern, pick.first)
         /// @resolution.pattern source=(left, true) kind=tuple fields=(pick.left, true)
         /// @type.symbol symbol=pick.left source=left type=int32

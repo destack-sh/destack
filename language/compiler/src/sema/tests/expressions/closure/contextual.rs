@@ -319,7 +319,9 @@ declare function map<T, U>(values: T[], callback: (value: T) => U): U[];
 /// @type.symbol symbol=map source="declare function map<T, U>(values: T[], callback: (value: T) => U): U[]" type=<T, U>(T[], (T) => U) => U[]
 /// @type.symbol symbol=map.T source=T type=T
 /// @type.symbol symbol=map.U source=U type=U
+/// @type.symbol symbol=map.values source="values: T[]" type=T[]
 /// @resolution.name source=T target=map.T
+/// @type.symbol symbol=map.callback source="callback: (value: T) => U" type=(T) => U
 /// @type.symbol symbol=map.value source="value: T" type=T
 /// @resolution.name source=T target=map.T
 /// @resolution.name source=U target=map.U
@@ -387,6 +389,7 @@ run((value, extra): void => {
 === dir ===
 declare function run(callback: (value: int32) => void): void;
 /// @type.symbol symbol=run source="declare function run(callback: (value: int32) => void): void" type=((int32) => void) => void
+/// @type.symbol symbol=run.callback source="callback: (value: int32) => void" type=(int32) => void
 /// @type.symbol symbol=run.value source="value: int32" type=int32
 
 run((value, extra) => {
@@ -454,6 +457,7 @@ run((value: boolean): void => {
 === dir ===
 declare function run(callback: (value: int32 | string) => void): void;
 /// @type.symbol symbol=run source="declare function run(callback: (value: int32 | string) => void): void" type=((int32 | string) => void) => void
+/// @type.symbol symbol=run.callback source="callback: (value: int32 | string) => void" type=(int32 | string) => void
 /// @type.symbol symbol=run.value source="value: int32 | string" type=int32 | string
 
 run((value: int32 | string) => {
@@ -643,7 +647,9 @@ declare function withValue<T>(value: T, callback: (value: T) => void): void;
 /// @generic.template symbol=withValue parameters=(T)
 /// @type.symbol symbol=withValue source="declare function withValue<T>(value: T, callback: (value: T) => void): void" type=<T>(T, (T) => void) => void
 /// @type.symbol symbol=withValue.T source=T type=T
+/// @type.symbol symbol=withValue.value#1 source="value: T" type=T
 /// @resolution.name source=T target=withValue.T
+/// @type.symbol symbol=withValue.callback source="callback: (value: T) => void" type=(T) => void
 /// @type.symbol symbol=withValue.value#2 source="value: T" type=T
 /// @resolution.name source=T target=withValue.T
 
@@ -668,6 +674,110 @@ withValue("ready", (value) => {
 "#,
         r#"
 
+"#,
+    );
+}
+
+/// Adopt the context's longer parameter list on a lambda literal alone, refusing a named function.
+#[test]
+fn test_adopt_the_contextual_arity_on_a_lambda_literal_alone() {
+    let session = TestSession::single(
+        r#"
+function fold(step: (total: int32, value: int32, index: isize) => int32): int32 {
+    step(0, 1, 2)
+}
+
+function add(total: int32, value: int32): int32 {
+    total + value
+}
+
+const literal = fold((total, value) => total + value);
+const named = fold(add);
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.tspp",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function fold(step: (total: int32, value: int32, index: isize) => int32): int32 {
+    step(0, 1, 2)
+}
+
+function add(total: int32, value: int32): int32 {
+    total + value
+}
+
+const literal: int32 = fold(
+    ((total: int32, value: int32): int32 => total + value) as (
+        total: int32,
+        value: int32,
+        index: isize,
+    ) => int32,
+);
+const named: int32 = fold(add);
+
+=== dir ===
+function fold(step: (total: int32, value: int32, index: isize) => int32): int32 {
+/// @type.symbol symbol=fold type=((int32, int32, isize) => int32) => int32
+/// @type.symbol symbol=fold.step source="step: (total: int32, value: int32, index: isize) => int32" type=(int32, int32, isize) => int32
+/// @type.symbol symbol=fold.total source="total: int32" type=int32
+/// @type.symbol symbol=fold.value source="value: int32" type=int32
+/// @type.symbol symbol=fold.index source="index: isize" type=isize
+
+    step(0, 1, 2)
+    /// @resolution.name source=step target=fold.step
+    /// @resolution.call source="step(0, 1, 2)" parameters=(int32, int32, isize) arguments=(provided(0) as int32, provided(1) as int32, provided(2) as isize) return=int32 kind=expression target=expression
+    /// @resolution.place source=step placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=step root=fold.step
+
+}
+
+function add(total: int32, value: int32): int32 {
+/// @type.symbol symbol=add type=(int32, int32) => int32
+/// @type.symbol symbol=add.total source="total: int32" type=int32
+/// @type.symbol symbol=add.value source="value: int32" type=int32
+
+    total + value
+    /// @resolution.name source=total target=add.total
+    /// @resolution.operator source="total + value" type=int32 operator="+" kind=builtin operands=[total as int32 families=(integer), value as int32 families=(integer)]
+    /// @resolution.place source=total placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=total root=add.total
+    /// @resolution.name source=value target=add.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=add.value
+
+}
+
+const literal = fold((total, value) => total + value);
+/// @type.symbol symbol=literal source=literal type=int32
+/// @resolution.pattern source=literal kind=binding target=literal
+/// @resolution.name source=fold target=fold
+/// @resolution.call source="fold((total, value) => total + value)" parameters=((int32, int32, isize) => int32) arguments=(provided((total, value) => total + value) as (int32, int32, isize) => int32) return=int32 kind=symbol target=fold
+/// @type.symbol symbol=symbol9 source="(total, value) => total + value" type=Function<(int32, int32), int32, "readonly">
+/// @type.symbol symbol=symbol9.total source=total type=int32
+/// @type.symbol symbol=symbol9.value source=value type=int32
+/// @resolution.name source=total target=symbol9.total
+/// @resolution.operator source="total + value" type=int32 operator="+" kind=builtin operands=[total as int32 families=(integer), value as int32 families=(integer)]
+/// @resolution.place source=total placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=total root=symbol9.total
+/// @resolution.name source=value target=symbol9.value
+/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=value root=symbol9.value
+
+const named = fold(add);
+/// @type.symbol symbol=named source=named type=int32
+/// @resolution.pattern source=named kind=binding target=named
+/// @resolution.name source=fold target=fold
+/// @resolution.call source=fold(add) parameters=((int32, int32, isize) => int32) arguments=(provided(add) as (int32, int32, isize) => int32) return=int32 kind=symbol target=fold
+/// @resolution.name source=add target=add
+/// @resolution.function source=add type=Function<(int32, int32), int32, "readonly"> target=add
+"#,
+        r#"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'Function<(total: int32, value: int32), int32, \"readonly\">' is not assignable to parameter of type '(total: int32, value: int32, index: isize) => int32'"
+/// @diagnostic.label line=11 column=20 span="add" line_source="const named = fold(add);"
+/// @diagnostic.related line=11 column=15 span="fold(add)" line_source="const named = fold(add);" message="in this call"
 "#,
     );
 }

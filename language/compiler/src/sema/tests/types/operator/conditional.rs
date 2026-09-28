@@ -550,8 +550,10 @@ const first: Element<typeof values> = values[0];
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=values root=values
-/// @resolution.subscript source=values[0] type=int32[] kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=int32[], regions=(\"managed\" & \"local\"))"
-/// @generic.instantiation id="index#2<int32[], \"managed\" & \"local\">" template=index#2 arguments=(int32[], "managed" & "local")
+/// @resolution.place source=values[0] placement="local" lifetime="managed" access="mutable"
+/// @resolution.access source=values[0] root=values keys=[0]
+/// @resolution.subscript source=values[0] type=int32[] kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=&'managed readonly int32[], regions=(\"managed\" & \"local\"))"
+/// @generic.instantiation id="index#2<int32[], \"readonly\", \"managed\" & \"local\">" template=index#2 arguments=(int32[], "readonly", "managed" & "local")
 "#,
         r#"
 
@@ -1351,6 +1353,7 @@ declare function pick<T>(value: T): T extends string ? 1 : 0;
 /// @generic.template symbol=pick parameters=(T#1)
 /// @type.symbol symbol=pick source="declare function pick<T>(value: T): T extends string ? 1 : 0" type=<T#1>(T#1) => T#1 extends string ? 1 : 0
 /// @type.symbol symbol=pick.T source=T type=T#1
+/// @type.symbol symbol=pick.value source="value: T" type=T#1
 /// @resolution.name source=T target=pick.T
 /// @resolution.name source=T target=pick.T
 

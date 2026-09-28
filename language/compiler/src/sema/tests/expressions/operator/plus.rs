@@ -601,7 +601,7 @@ function wrap(text: string): string {
 
     return "[" + text + "]";
     /// @resolution.operator source="\"[\" + text + \"]\"" type=^string operator="+" kind=call parameters=(string) arguments=(provided("]") as string) return=^string regions=("frame" & "local") kind=symbol target=add receiver=^string adjustments=(borrow(&'frame readonly string)) instance="string.<extension#2>.add<\"frame\" & \"local\">"
-    /// @resolution.operator source="\"[\" + text" type=^string operator="+" kind=call parameters=(string) arguments=(provided(text) as string) return=^string regions=("managed" & "local") kind=symbol target=add receiver="[" adjustments=(borrow(&'managed readonly "[")) instance="string.<extension#2>.add<\"managed\" & \"local\">"
+    /// @resolution.operator source="\"[\" + text" type=^string operator="+" kind=call parameters=(string) arguments=(provided(text) as string) return=^string regions=("managed" & "local") kind=symbol target=add receiver="[" adjustments=(materialize("[", string), borrow(&'managed readonly string)) instance="string.<extension#2>.add<\"managed\" & \"local\">"
     /// @generic.instantiation id="add<\"frame\" & \"local\">" template=add arguments=("frame" & "local")
     /// @generic.instantiation id="add<\"managed\" & \"local\">" template=add arguments=("managed" & "local")
     /// @resolution.name source=text target=wrap.text

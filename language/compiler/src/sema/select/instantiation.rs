@@ -2,7 +2,9 @@ use smallvec::SmallVec;
 use tspp_dir as dir;
 
 use crate::CompilerResult;
-use crate::sema::{CheckState, GenericParameterId, Origin, TypeSubstitution, VariableState};
+use crate::sema::{
+    CheckState, GenericParameterId, Origin, TypeSubstitution, VariableFlags, VariableState,
+};
 
 impl CheckState<'_> {
     /// Bind one written argument to one parameter.
@@ -131,8 +133,8 @@ impl CheckState<'_> {
             let origin_id = self.infer.intern_origin(origin);
             if let Some(existing) = self.infer.instantiation(origin_id, parameter) {
                 let variable = self.infer.variable(existing)?;
-                let is_killed =
-                    variable.is_dead || matches!(variable.state, VariableState::Error(_));
+                let is_killed = variable.flags.contains(VariableFlags::DEAD)
+                    || matches!(variable.state, VariableState::Error(_));
                 let is_stale_memory =
                     binding.memory_parameter().is_some() && self.open_root(existing)?.is_none();
                 if !is_killed && !is_stale_memory {

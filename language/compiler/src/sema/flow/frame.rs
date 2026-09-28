@@ -32,6 +32,8 @@ pub(in crate::sema) struct FunctionFrame {
     pub(in crate::sema::flow) captured_symbols: FxIndexSet<dir::GlobalSymbolId>,
     /// Outer receiver read by this function.
     pub(in crate::sema::flow) captured_receiver: Option<ReceiverBinding>,
+    /// The nodes in this function that read an outer symbol or receiver.
+    pub(in crate::sema::flow) captured_nodes: Vec<dir::LocalNodeIdAny>,
 }
 
 /// A structured control target currently visible to flow analysis.

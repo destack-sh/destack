@@ -381,7 +381,7 @@ impl WalkState<'_, '_> {
                 }
 
                 // increments invalidate narrowings under the target
-                self.clear_mutated_expression_narrowings(right);
+                self.record_expression_write(right);
             }
             // !value, -value
             dir::Expression::Unary { right, .. } => {
@@ -812,7 +812,7 @@ impl WalkState<'_, '_> {
             self.assign_place(place);
 
             // assignments invalidate narrowings under the written expression
-            self.clear_mutated_expression_narrowings(expression);
+            self.record_expression_write(expression);
         }
     }
 

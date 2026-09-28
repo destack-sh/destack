@@ -2,9 +2,21 @@ use smallvec::SmallVec;
 use tspp_dir as dir;
 
 use crate::sema::{
-    CheckState, FlowPointChange, FlowPredicate, FlowSite, Origin, Relation, Verdict,
+    CheckState, FlowPoint, FlowPointChange, FlowPointId, FlowPredicate, FlowSite, Origin, Relation,
+    Verdict,
 };
 use crate::{CompilerError, CompilerResult};
+
+/// The narrowing one read sees at its flow site.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(in crate::sema) struct FlowNarrowing {
+    /// The narrowed type.
+    pub(in crate::sema) ty: dir::GlobalTypeId,
+    /// The test nodes the narrowing depends on.
+    pub(in crate::sema) tests: Vec<dir::GlobalNodeIdAny>,
+    /// Whether the narrowing comes from an outer function.
+    pub(in crate::sema) is_captured: bool,
+}
 
 impl CheckState<'_> {
     /// Return one type as viewed at one flow point.
@@ -31,13 +43,21 @@ impl CheckState<'_> {
             return Ok(ty);
         };
 
-        // narrow through the predicates visible at this site
-        let Some(narrowed) = self.flow_narrowed_type(site, path.path(), ty)? else {
+        // narrow the read and record a captured narrowing
+        let is_aliased = self.is_aliased_place(site.origin(), site.node.into_typed())?;
+        let Some(narrowing) = self.flow_narrowing(site, path.path(), is_aliased, ty)? else {
             return Ok(ty);
         };
-        self.commit_narrowing(site, ty, narrowed)?;
+        if narrowing.is_captured
+            && let dir::AccessRoot::Symbol(symbol) = path.path().root()
+        {
+            self.module_mut(site.node.module_id)
+                .captured_narrowings
+                .push((site.node, symbol));
+        }
+        self.commit_narrowing(site, ty, &narrowing)?;
 
-        Ok(narrowed)
+        Ok(narrowing.ty)
     }
 
     /// Record the narrowing one read sees, settled to live members at writeback.
@@ -45,53 +65,42 @@ impl CheckState<'_> {
         &mut self,
         site: FlowSite,
         declared: dir::GlobalTypeId,
-        narrowed: dir::GlobalTypeId,
+        narrowing: &FlowNarrowing,
     ) -> CompilerResult<()> {
-        // keep the union the first narrowing of this read declared
+        // keep the declared type of the first narrowing
         let node = site.node;
         let decisions = &mut self.module_mut(node.module_id).decisions_tail;
-        let union = decisions
+        let declared = decisions
             .narrowing(node)
-            .map_or(declared, |narrowing| narrowing.union);
+            .map_or(declared, |narrowing| narrowing.declared);
         decisions.set_narrowing(
             node,
             dir::Narrowing {
-                union,
-                arms: vec![narrowed],
+                declared,
+                arms: vec![narrowing.ty],
+                tests: narrowing.tests.clone(),
             },
         );
 
         Ok(())
     }
 
-    /// Return the type after narrowings visible at one flow site, none without a narrowing.
-    pub(in crate::sema) fn flow_narrowed_type(
+    /// Return the narrowing one path read sees.
+    pub(in crate::sema) fn flow_narrowing(
         &mut self,
         site: FlowSite,
         path: &dir::AccessPath,
+        is_aliased: bool,
         source: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        // read the checked module's flow graph from the live cursor before flushes
-        let module_id = self.module_id;
-        let module = self.module(site.node.module_id);
-        let flows = &module.flow_points;
-        let cursor = (site.node.module_id == module_id).then(|| self.flow.points());
-
+    ) -> CompilerResult<Option<FlowNarrowing>> {
         // collect every direct narrowing and descendant equality back to their clears
-        let mut predicates = Vec::new();
+        let mut narrowings = Vec::new();
+        let mut is_captured = false;
+        let mut is_outer = false;
         let mut cleared = Vec::new();
         let mut current = Some(site.flow);
         while let Some(point) = current {
-            // read each point from the flushed table, then from the cursor
-            let flow = flows.get(point.index());
-            let flow = flow.or_else(|| cursor.and_then(|points| points.get(point.index())));
-            let Some(flow) = flow else {
-                return Err(CompilerError::Internal {
-                    message: format!("flow point {point:?} is not in module flow table"),
-                });
-            };
-
-            // keep relevant narrowings that remain valid at this point
+            let flow = self.flow_point(site, point)?;
             match &flow.change {
                 FlowPointChange::Start => {}
                 FlowPointChange::Narrowing {
@@ -100,45 +109,89 @@ impl CheckState<'_> {
                 } => {
                     let is_cleared = cleared
                         .iter()
-                        .any(|cleared: &&dir::AccessPath| narrowed.starts_with(cleared));
+                        .any(|cleared: &dir::AccessPath| narrowed.starts_with(cleared));
                     let is_direct = narrowed.as_ref() == path;
                     let is_descendant_equality =
                         matches!(predicate, FlowPredicate::Equality { .. })
                             && narrowed.starts_with(path);
 
-                    if !is_cleared && (is_direct || is_descendant_equality) {
-                        let narrowing = (narrowed.as_ref().clone(), *predicate);
-                        if !predicates.contains(&narrowing) {
-                            predicates.push(narrowing);
-                        }
+                    // keep the narrowing
+                    let narrowing = (narrowed.as_ref().clone(), *predicate);
+                    if !is_cleared
+                        && (is_direct || is_descendant_equality)
+                        && !narrowings.contains(&narrowing)
+                    {
+                        is_captured |= is_outer;
+                        narrowings.push(narrowing);
                     }
                 }
-                FlowPointChange::Clear { path: cleared } if path.starts_with(cleared) => {
-                    break;
-                }
-                FlowPointChange::Clear { path } => cleared.push(path.as_ref()),
+                FlowPointChange::Clear { path: cleared } if path.starts_with(cleared) => break,
+                FlowPointChange::Clear { path } => cleared.push(path.as_ref().clone()),
+
+                // stop at a function entry for an aliased place
+                FlowPointChange::Entry if is_aliased => break,
+                FlowPointChange::Entry => is_outer = true,
             }
 
             // move toward the entry flow
             current = flow.parent;
         }
 
-        // stop when no narrowing affects this path
+        // apply the narrowings and collect their tests
+        let Some(ty) = self.apply_flow_predicates(site, path, source, &narrowings)? else {
+            return Ok(None);
+        };
+        let tests = narrowings
+            .iter()
+            .map(|(_, predicate)| predicate.test())
+            .collect();
+
+        Ok(Some(FlowNarrowing {
+            ty,
+            tests,
+            is_captured,
+        }))
+    }
+
+    /// Return one flow point.
+    fn flow_point(&self, site: FlowSite, point: FlowPointId) -> CompilerResult<&FlowPoint> {
+        let live = (site.node.module_id == self.module_id)
+            .then(|| self.flow.points().get(point.index()))
+            .flatten();
+        let flow = live.or_else(|| {
+            self.module(site.node.module_id)
+                .flow_points
+                .get(point.index())
+        });
+
+        flow.ok_or_else(|| CompilerError::Internal {
+            message: format!("flow point {point:?} is not in module flow table"),
+        })
+    }
+
+    /// Apply narrowings oldest first.
+    fn apply_flow_predicates(
+        &mut self,
+        site: FlowSite,
+        path: &dir::AccessPath,
+        source: dir::GlobalTypeId,
+        predicates: &[(dir::AccessPath, FlowPredicate)],
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         if predicates.is_empty() {
             return Ok(None);
         }
 
         // apply oldest first, so each later test refines the earlier result
         let mut narrowed = source;
-        for (tested, predicate) in predicates.into_iter().rev() {
+        for (tested, predicate) in predicates.iter().rev() {
             // resolve a variable blocking the narrowing structurally, then narrow once more
             let mut narrowing =
-                self.resolve_flow_predicate(site, path, &tested, narrowed, predicate)?;
+                self.resolve_flow_predicate(site, path, tested, narrowed, *predicate)?;
             if let Err(blocker) = narrowing {
                 let blocker = self.variable_type(blocker)?;
                 self.resolve_structurally(site, blocker)?;
                 narrowing =
-                    self.resolve_flow_predicate(site, path, &tested, narrowed, predicate)?;
+                    self.resolve_flow_predicate(site, path, tested, narrowed, *predicate)?;
             }
             if let Ok(Some(next)) = narrowing {
                 narrowed = next;

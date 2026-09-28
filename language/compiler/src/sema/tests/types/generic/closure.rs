@@ -33,6 +33,7 @@ declare function use<T>(callback: () => T | Box<T>): T;
 /// @type.symbol symbol=use source="declare function use<T>(callback: () => T | Box<T>): T" type=<T#2>(() => T#2 | Box<T#2>) => T#2
 /// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
 /// @type.symbol symbol=use.T source=T type=T#2
+/// @type.symbol symbol=use.callback source="callback: () => T | Box<T>" type=() => T#2 | Box<T#2>
 /// @resolution.name source=T target=use.T
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=T target=use.T
@@ -90,6 +91,7 @@ declare function load(): int32;
 declare function use(callback: () => int32 | Box<int32>): int32;
 /// @type.symbol symbol=use source="declare function use(callback: () => int32 | Box<int32>): int32" type=(() => int32 | Box<int32>) => int32
 /// @generic.instance id=Box<int32> template=Box arguments=(int32)
+/// @type.symbol symbol=use.callback source="callback: () => int32 | Box<int32>" type=() => int32 | Box<int32>
 /// @resolution.name source=Box target=Box
 
 const value = use(() => load());
@@ -148,6 +150,7 @@ declare function use<T>(callback: () => Box<T> | Box<Box<T>>): T;
 /// @generic.template symbol=use parameters=(T#2)
 /// @type.symbol symbol=use source="declare function use<T>(callback: () => Box<T> | Box<Box<T>>): T" type=<T#2>(() => Box<T#2> | Box<Box<T#2>>) => T#2
 /// @type.symbol symbol=use.T source=T type=T#2
+/// @type.symbol symbol=use.callback source="callback: () => Box<T> | Box<Box<T>>" type=() => Box<T#2> | Box<Box<T#2>>
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=T target=use.T
 /// @resolution.name source=Box target=Box
@@ -202,7 +205,9 @@ declare function map<T, U>(value: T, callback: (value: T) => U): U;
 /// @type.symbol symbol=map source="declare function map<T, U>(value: T, callback: (value: T) => U): U" type=<T, U>(T, (T) => U) => U
 /// @type.symbol symbol=map.T source=T type=T
 /// @type.symbol symbol=map.U source=U type=U
+/// @type.symbol symbol=map.value#1 source="value: T" type=T
 /// @resolution.name source=T target=map.T
+/// @type.symbol symbol=map.callback source="callback: (value: T) => U" type=(T) => U
 /// @type.symbol symbol=map.value#2 source="value: T" type=T
 /// @resolution.name source=T target=map.T
 /// @resolution.name source=U target=map.U
@@ -344,7 +349,9 @@ declare function map<T, U>(value: T, callback: (value: T) => U | Box<U>): U;
 /// @generic.instance id=Box<U> template=Box arguments=(U)
 /// @type.symbol symbol=map.T source=T type=T#2
 /// @type.symbol symbol=map.U source=U type=U
+/// @type.symbol symbol=map.value#1 source="value: T" type=T#2
 /// @resolution.name source=T target=map.T
+/// @type.symbol symbol=map.callback source="callback: (value: T) => U | Box<U>" type=(T#2) => U | Box<U>
 /// @type.symbol symbol=map.value#2 source="value: T" type=T#2
 /// @resolution.name source=T target=map.T
 /// @resolution.name source=U target=map.U
@@ -571,6 +578,71 @@ function call(): void {
         r#"
 /// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
 /// @diagnostic.label line=7 column=9 span="(value) => {}" line_source="run((value) => {});"
+/// @diagnostic.help message="annotate the type explicitly"
+"#,
+    );
+}
+
+#[test]
+fn test_report_lambda_parameters_a_diverging_body_or_a_template_leaves_open() {
+    let session = TestSession::single(
+        r#"
+function run(): void {
+    const echo = (value) => {
+        return value;
+    };
+    const print = (message) => `${message}`;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.tspp",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function run(): void {
+    const echo = (value) => {
+        return value;
+    };
+    const print = (message): string => `${message}`;
+}
+
+=== dir ===
+function run(): void {
+/// @type.symbol symbol=run type=() => void
+
+    const echo = (value) => {
+    /// @type.symbol symbol=run.echo source=echo type=Function<(<error>,), <error>, "readonly">
+    /// @resolution.pattern source=echo kind=binding target=run.echo
+    /// @type.symbol symbol=run.symbol2 type=Function<(<error>,), <error>, "readonly">
+    /// @type.symbol symbol=run.symbol2.value source=value type=<error>
+
+        return value;
+        /// @resolution.name source=value target=run.symbol2.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=run.symbol2.value
+
+    };
+    const print = (message) => `${message}`;
+    /// @type.symbol symbol=run.print source=print type=Function<(<error>,), string, "readonly">
+    /// @resolution.pattern source=print kind=binding target=run.print
+    /// @type.symbol symbol=run.symbol5 source="(message) => `${message}`" type=Function<(<error>,), string, "readonly">
+    /// @type.symbol symbol=run.symbol5.message source=message type=<error>
+    /// @resolution.template source=`${message}` spans=[] build="stringFromTemplate(parameters=(&'frame readonly Slice<string>, &'frame readonly Slice<string>), arguments=(supplied(0) as &'frame readonly Slice<string>, supplied(1) as &'frame readonly Slice<string>), return=string, regions=(\"frame\", \"frame\"))"
+    /// @generic.instantiation id="stringFromTemplate<\"frame\", \"frame\">" template=stringFromTemplate arguments=("frame", "frame")
+    /// @resolution.name source=message target=run.symbol5.message
+    /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=message root=run.symbol5.message
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
+/// @diagnostic.label line=3 column=18 span="(value) => {\n        return value;\n    }" line_source="const echo = (value) => {"
+/// @diagnostic.help message="annotate the type explicitly"
+/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
+/// @diagnostic.label line=6 column=35 span="message" line_source="const print = (message) => `${message}`;"
 /// @diagnostic.help message="annotate the type explicitly"
 "#,
     );

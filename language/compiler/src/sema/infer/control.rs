@@ -555,6 +555,7 @@ impl CheckState<'_> {
         self.select_switch_equality(value.into_global_any(module), scrutinee, &selectors)?;
 
         // route the unmatched flow into the default case
+        let is_exhausted = self.is_switch_exhausted(module, value, scrutinee, site.scope)?;
         let unmatched = self.collect_flow_branch(before);
         let unmatched = match default_index {
             Some(index) => {
@@ -562,7 +563,7 @@ impl CheckState<'_> {
 
                 None
             }
-            None => Some(unmatched),
+            None => (!is_exhausted).then_some(unmatched),
         };
 
         // execute bodies in source order and join adjacent fallthrough
@@ -603,6 +604,31 @@ impl CheckState<'_> {
         self.commit_node_type(node.into_any(), result)?;
 
         Ok(())
+    }
+
+    /// Return whether the failed cases exhaust the switch value.
+    fn is_switch_exhausted(
+        &mut self,
+        module: ModuleId,
+        value: dir::LocalNodeId<dir::Expression>,
+        scrutinee: dir::GlobalTypeId,
+        scope: Option<dir::GlobalGenericTemplateId>,
+    ) -> CompilerResult<bool> {
+        let Some(path) = self.lexical_access_path(value) else {
+            return Ok(false);
+        };
+        let node = value.into_global(module);
+        let site = FlowSite {
+            node: node.into_any(),
+            flow: self.flow.point(),
+            scope,
+        };
+        let is_aliased = self.is_aliased_place(site.origin(), node)?;
+        let Some(narrowing) = self.flow_narrowing(site, &path, is_aliased, scrutinee)? else {
+            return Ok(false);
+        };
+
+        Ok(matches!(self.ty(narrowing.ty)?, dir::Type::Never))
     }
 
     /// Report one bare pattern binding whose name shadows a visible type.

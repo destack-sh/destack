@@ -5,8 +5,8 @@ use tspp_dir as dir;
 use crate::sema::{
     Cause, CauseId, CauseKind, CheckOutcome, CheckState, Expectation, FailedCheck, FlowSite,
     InferMode, Obligation, OperatorExpressionResult, Origin, PlaceUse, ProtocolCall, Relation,
-    RelationCheck, SignatureRejection, StoreTarget, Value, ValueUse, VariableKind,
-    WritableTargetObligation, binary_operator_protocols, unary_operator_protocols,
+    RelationCheck, SignatureRejection, StoreTarget, Value, ValueUse, WritableTargetObligation,
+    binary_operator_protocols, unary_operator_protocols,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -1031,8 +1031,8 @@ impl CheckState<'_> {
         self.intern_type(base)
     }
 
-    /// Return the open integer binding variable one operand names, if any.
-    pub(in crate::sema) fn integer_variable(
+    /// Return the open numeric binding variable one operand names, if any.
+    pub(in crate::sema) fn numeric_variable(
         &mut self,
         operand: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::TypeVariableId>> {
@@ -1040,7 +1040,7 @@ impl CheckState<'_> {
         Ok(match self.ty(operand)? {
             dir::Type::Variable(variable) => {
                 let root = self.infer.alias_root(variable)?;
-                (self.infer.variable(root)?.kind == VariableKind::Integer).then_some(root)
+                self.infer.variable(root)?.kind.is_numeric().then_some(root)
             }
             _ => None,
         })
@@ -1061,28 +1061,26 @@ impl CheckState<'_> {
         let left = self.operand_as_base_scalar(left)?;
         let right = self.operand_as_base_scalar(right)?;
 
-        // an open integer variable takes the other operand's width, literals leave it open
-        let left_variable = self.integer_variable(left)?;
-        let right_variable = self.integer_variable(right)?;
-        if left_variable.is_some() || right_variable.is_some() {
-            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-            let joined = match (left_variable, right_variable) {
-                (Some(_), Some(_)) => {
-                    self.constrain_type(origin, cause, Relation::Equal, left, right)?;
-                    left
-                }
-                (Some(_), None) if matches!(self.ty(right)?, dir::Type::Literal(_)) => left,
-                (Some(_), None) => {
-                    self.constrain_type(origin, cause, Relation::Equal, left, right)?;
-                    right
-                }
-                (None, Some(_)) if matches!(self.ty(left)?, dir::Type::Literal(_)) => right,
-                (None, Some(_)) => {
-                    self.constrain_type(origin, cause, Relation::Equal, right, left)?;
-                    left
-                }
-                (None, None) => unreachable!("an integer variable operand was classified"),
-            };
+        // take the other operand's type for an open numeric variable
+        let left_variable = self.numeric_variable(left)?;
+        let right_variable = self.numeric_variable(right)?;
+        let is_left_literal = matches!(self.ty(left)?, dir::Type::Literal(_));
+        let is_right_literal = matches!(self.ty(right)?, dir::Type::Literal(_));
+        let joined = match (left_variable, right_variable) {
+            (None, None) => None,
+            (Some(_), None) if is_right_literal => Some((left, false)),
+            (None, Some(_)) if is_left_literal => Some((right, false)),
+            (Some(_), Some(_)) => Some((left, true)),
+            (Some(_), None) => Some((right, true)),
+            (None, Some(_)) => Some((left, true)),
+        };
+
+        // equate the variable with the typed operand it joins
+        if let Some((joined, is_equated)) = joined {
+            if is_equated {
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+                self.constrain_type(origin, cause, Relation::Equal, left, right)?;
+            }
 
             return Ok(Some(joined));
         }

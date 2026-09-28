@@ -535,11 +535,12 @@ const first = values[0];
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=values root=values
-/// @resolution.subscript source=values[0] type=int32 | string kind=union arms=[index#2(parameters=(isize), arguments=(provided(0) as isize), return=int32, regions=("managed" & "local")), index#2(parameters=(isize), arguments=(provided(0) as isize), return=string, regions=("managed" & "local"))]
-/// @generic.instantiation id="index#2<int32, \"managed\" & \"local\">" template=index#2 arguments=(int32, "managed" & "local")
-/// @generic.instantiation id="index#2<string, \"managed\" & \"local\">" template=index#2 arguments=(string, "managed" & "local")
-/// @generic.instance id="index#2<int32, \"bound0\" & \"local\">" template=index#2 arguments=(int32, "bound0" & "local")
-/// @generic.instance id="index#2<string, \"bound0\" & \"local\">" template=index#2 arguments=(string, "bound0" & "local")
+/// @resolution.access source=values[0] root=values keys=[0]
+/// @resolution.subscript source=values[0] type=int32 | string kind=union arms=[index#2(parameters=(isize), arguments=(provided(0) as isize), return=&'managed readonly int32, regions=("managed" & "local")), index#2(parameters=(isize), arguments=(provided(0) as isize), return=&'managed readonly string, regions=("managed" & "local"))]
+/// @generic.instantiation id="index#2<int32, \"readonly\", \"managed\" & \"local\">" template=index#2 arguments=(int32, "readonly", "managed" & "local")
+/// @generic.instantiation id="index#2<string, \"readonly\", \"managed\" & \"local\">" template=index#2 arguments=(string, "readonly", "managed" & "local")
+/// @generic.instance id="index#2<int32, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=(int32, "readonly", "bound0" & "local")
+/// @generic.instance id="index#2<string, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=(string, "readonly", "bound0" & "local")
 "#,
     );
 }

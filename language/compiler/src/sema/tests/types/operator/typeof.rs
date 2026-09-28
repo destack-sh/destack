@@ -20,7 +20,7 @@ const result = queried(value);
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
-declare function identity<T, 'a>(value: &readonly T): &readonly T;
+declare function identity<T, 'a>(value: &'a readonly T): &readonly T;
 
 declare const queried: typeof identity<int32>;
 
@@ -33,6 +33,7 @@ declare function identity<T>(value: &readonly T): &readonly T;
 /// @generic.template symbol=identity parameters=(T, 'a)
 /// @type.symbol symbol=identity source="declare function identity<T>(value: &readonly T): &readonly T" type=<T, identity.'a>(&identity.'a readonly T) => &identity.'a readonly T
 /// @type.symbol symbol=identity.T source=T type=T
+/// @type.symbol symbol=identity.value source="value: &readonly T" type=&identity.'a readonly T
 /// @resolution.name source=T target=identity.T
 /// @resolution.name source=T target=identity.T
 
@@ -153,6 +154,7 @@ declare function identity<T>(value: T): T;
 /// @generic.template symbol=identity parameters=(T)
 /// @type.symbol symbol=identity source="declare function identity<T>(value: T): T" type=<T>(T) => T
 /// @type.symbol symbol=identity.T source=T type=T
+/// @type.symbol symbol=identity.value source="value: T" type=T
 /// @resolution.name source=T target=identity.T
 /// @resolution.name source=T target=identity.T
 
@@ -431,7 +433,7 @@ class Counter {
 
 type CounterCtor = typeof Counter;
 
-declare function takesCounter(ctor: { new (value: int32): Counter }): void;
+declare function takesCounter(ctor: new (value: int32) => Counter): void;
 
 takesCounter(Counter);
 let version: int32 = Counter.version;
@@ -477,6 +479,7 @@ type CounterCtor = typeof Counter;
 
 declare function takesCounter(ctor: { new (value: int32): Counter }): void;
 /// @type.symbol symbol=takesCounter source="declare function takesCounter(ctor: { new (value: int32): Counter }): void" type=(new (int32) => Counter) => void
+/// @type.symbol symbol=takesCounter.ctor source="ctor: { new (value: int32): Counter }" type=new (int32) => Counter
 /// @type.symbol symbol=takesCounter.value source="value: int32" type=int32
 /// @resolution.name source=Counter target=Counter
 

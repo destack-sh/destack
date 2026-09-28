@@ -293,9 +293,9 @@ if ("name" in value) {
     /// @type.node source=value.name type=string
     /// @resolution.name source=value target=value
     /// @resolution.member source=value.name receiver={ name: string } type=string kind=field target_receiver={ name: string } key=name target_type=string
+    /// @resolution.narrowing source=value declared={ name: string } | { id: int32 } arms={ name: string }
     /// @resolution.place source=value placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=value root=value
-    /// @resolution.narrowing source=value union={ name: string } | { id: int32 } arms={ name: string }
     /// @resolution.place source=value.name placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=value.name root=value keys=[name]
 
@@ -368,9 +368,9 @@ if ("name" in value) {
     /// @type.node source=value.id type=int32
     /// @resolution.name source=value target=value
     /// @resolution.member source=value.id receiver={ id: int32 } type=int32 kind=field target_receiver={ id: int32 } key=id target_type=int32
+    /// @resolution.narrowing source=value declared={ name: string } | { id: int32 } arms={ id: int32 }
     /// @resolution.place source=value placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=value root=value
-    /// @resolution.narrowing source=value union={ name: string } | { id: int32 } arms={ id: int32 }
     /// @resolution.place source=value.id placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=value.id root=value keys=[id]
 

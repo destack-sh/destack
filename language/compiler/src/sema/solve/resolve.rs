@@ -4,8 +4,8 @@ use tspp_dir as dir;
 
 use crate::sema::{
     Bound, BoundSide, CauseId, CheckEvent, CheckOutcome, CheckState, GenericParameterId, Origin,
-    Relation, RelationCheck, Settle, TypeSubstitution, VariableBounds, VariableKind, VariableState,
-    Verdict, Wake, WorkState,
+    Relation, RelationCheck, Settle, TypeSubstitution, VariableBounds, VariableFlags, VariableKind,
+    VariableState, Verdict, Wake, WorkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -149,7 +149,10 @@ impl CheckState<'_> {
         origin: Origin,
     ) -> CompilerResult<dir::TypeVariableId> {
         let variable = self.open_variable(origin);
-        self.infer.variable_mut(variable)?.is_join = true;
+        self.infer
+            .variable_mut(variable)?
+            .flags
+            .insert(VariableFlags::JOIN);
 
         Ok(variable)
     }
@@ -191,7 +194,10 @@ impl CheckState<'_> {
         // fix each variable's component root
         for variable in variables {
             let root = self.infer.alias_root(*variable)?;
-            self.infer.variable_mut(root)?.is_fixed = true;
+            self.infer
+                .variable_mut(root)?
+                .flags
+                .insert(VariableFlags::FIXED);
         }
 
         Ok(())
@@ -318,7 +324,7 @@ impl CheckState<'_> {
         for index in scope..self.infer.variable_count() {
             let variable = dir::TypeVariableId(index as u32);
             let state = self.infer.variable(variable)?;
-            if state.state.is_open() && !state.is_dead {
+            if state.state.is_open() && !state.flags.contains(VariableFlags::DEAD) {
                 open.push(variable);
             }
         }
@@ -562,7 +568,9 @@ impl CheckState<'_> {
         if lower_types.is_empty()
             && equation.is_none()
             && let Some(first) = numeric_lower.first().copied()
-            && (upper.is_empty() || stage != Settle::Possible || state.is_fixed)
+            && (upper.is_empty()
+                || stage != Settle::Possible
+                || state.flags.contains(VariableFlags::FIXED))
         {
             for other in &numeric_lower[1..] {
                 self.alias_variable(first, *other)?;
@@ -573,7 +581,10 @@ impl CheckState<'_> {
         }
 
         // keep an open variable open until the final stage
-        if stage == Settle::Possible && equation.is_none() && !state.is_fixed {
+        if stage == Settle::Possible
+            && equation.is_none()
+            && !state.flags.contains(VariableFlags::FIXED)
+        {
             return Ok(false);
         }
 
@@ -593,7 +604,7 @@ impl CheckState<'_> {
         let mut is_widened = false;
         let lower_solution = match (lower_solution, state.parameter) {
             (Some(lower), Some(parameter))
-                if state.is_fixed
+                if state.flags.contains(VariableFlags::FIXED)
                     && self.is_literal_shape(lower)?
                     && !self.parameter_keeps_literals(origin, parameter, lower, true)? =>
             {
@@ -661,10 +672,16 @@ impl CheckState<'_> {
             Settle::Possible => (None, None),
         };
 
+        // complete a diverging variable as never
+        let diverging = match state.flags.contains(VariableFlags::DIVERGING) {
+            true => Some(self.intern_type(dir::Type::Never)?),
+            false => None,
+        };
+
         // choose the solution in candidate order
         let solution = match (
             equation,
-            lower_solution,
+            lower_solution.or(diverging),
             contextual,
             default.or(bound),
             fallback,
@@ -1016,7 +1033,13 @@ impl CheckState<'_> {
         // require a numeric join slot
         let root = self.infer.alias_root(variable)?;
         let kind = self.root_kind(root)?;
-        if !kind.is_numeric() || !self.infer.variable(root)?.is_join {
+        if !kind.is_numeric()
+            || !self
+                .infer
+                .variable(root)?
+                .flags
+                .contains(VariableFlags::JOIN)
+        {
             return Ok(());
         }
 
@@ -1098,9 +1121,10 @@ impl CheckState<'_> {
         let root_kind = self.infer.variable(root)?.kind;
         let root_state = self.infer.variable_mut(root)?;
         root_state.kind = root_kind.join(aliased_state.kind);
-        root_state.is_join |= aliased_state.is_join;
         root_state.parameter = root_state.parameter.or(aliased_state.parameter);
-        root_state.is_fixed |= aliased_state.is_fixed;
+        root_state
+            .flags
+            .insert(aliased_state.flags.intersection(VariableFlags::FORWARDED));
         self.infer.variable_mut(aliased)?.state = VariableState::Alias(root);
         self.fulfill.wake(Wake::Variable(aliased));
 
@@ -1339,6 +1363,21 @@ impl CheckState<'_> {
             && !self.numeric_bound_admits(origin, variable, bound)?
         {
             return Ok(Verdict::Fails);
+        }
+
+        // mark a variable that receives never as diverging
+        let resolved = self.shallow_resolve(bound)?;
+        if side == BoundSide::Lower
+            && relation != Relation::Equal
+            && kind == VariableKind::Type
+            && matches!(self.ty(resolved)?, dir::Type::Never)
+        {
+            self.infer
+                .variable_mut(variable)?
+                .flags
+                .insert(VariableFlags::DIVERGING);
+
+            return Ok(Verdict::Holds);
         }
 
         // solve a memory slot outright at the closed term it equals

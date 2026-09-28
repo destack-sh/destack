@@ -1009,6 +1009,19 @@ impl CheckState<'_> {
 
                 Ok(covered)
             }
+            // cover when every part covers
+            dir::PredicateTest::All(predicates) => {
+                let mut covered = Verdict::Holds;
+                for predicate in predicates {
+                    match self.decide_predicate_covers(predicate, value)? {
+                        Verdict::Fails => return Ok(Verdict::Fails),
+                        Verdict::Ambiguous => covered = Verdict::Ambiguous,
+                        Verdict::Holds => {}
+                    }
+                }
+
+                Ok(covered)
+            }
             // membership tests carry no static coverage
             dir::PredicateTest::Membership(_) => Ok(Verdict::Ambiguous),
         }

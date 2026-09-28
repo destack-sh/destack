@@ -42,8 +42,17 @@ impl CheckState<'_> {
         branches: &[FlowBranch],
     ) {
         // restore to base state when there are no branches
-        let Some(first) = branches.first() else {
+        if branches.is_empty() {
             self.restore_flow(checkpoint);
+
+            return;
+        }
+
+        // diverge when no branch completes
+        let mut completing = branches.iter().filter(|branch| !branch.diverges);
+        let Some(first) = completing.next() else {
+            self.restore_flow(checkpoint);
+            self.flow.insert_diverge();
 
             return;
         };
@@ -52,7 +61,7 @@ impl CheckState<'_> {
         self.restore_flow_branch(checkpoint, first);
 
         // intersect each remaining branch into the current flow
-        for branch in &branches[1..] {
+        for branch in completing {
             let current = self.collect_flow_branch(checkpoint);
 
             self.merge_flow_branches(checkpoint, &current, branch);

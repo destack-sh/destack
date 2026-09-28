@@ -12,8 +12,8 @@ enum Mode {
 
 function describe(mode: Mode): int32 {
     match (mode) {
-        Mode.Read => 10
-        Mode.Write => 20
+        Mode.Read => 10,
+        Mode.Write => 20,
     }
 }
 "#,
@@ -31,8 +31,8 @@ enum Mode {
 
 function describe(mode: Mode): int32 {
     match (mode) {
-        Mode.Read => 10
-        Mode.Write => 20
+        Mode.Read => 10,
+        Mode.Write => 20,
     }
 }
 
@@ -62,12 +62,14 @@ function describe(mode: Mode): int32 {
     /// @resolution.place source=mode placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=mode root=describe.mode
 
-        Mode.Read => 10
+        Mode.Read => 10,
         /// @resolution.name source=Mode target=Mode
+        /// @resolution.member source=Mode.Read receiver=Mode type=Mode.Read kind=symbol target_receiver=Mode target=Mode.Read
         /// @resolution.pattern source=Mode.Read kind=variant predicate="Mode is 1"
 
-        Mode.Write => 20
+        Mode.Write => 20,
         /// @resolution.name source=Mode target=Mode
+        /// @resolution.member source=Mode.Write receiver=Mode type=Mode.Write kind=symbol target_receiver=Mode target=Mode.Write
         /// @resolution.pattern source=Mode.Write kind=variant predicate="Mode is 2"
 
     }
@@ -90,7 +92,7 @@ enum Mode {
 
 function describe(mode: Mode): int32 {
     match (mode) {
-        Mode.Read => 10
+        Mode.Read => 10,
     }
 }
 "#,
@@ -108,7 +110,7 @@ enum Mode {
 
 function describe(mode: Mode): int32 {
     match (mode) {
-        Mode.Read => 10
+        Mode.Read => 10,
     }
 }
 
@@ -138,8 +140,9 @@ function describe(mode: Mode): int32 {
     /// @resolution.place source=mode placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=mode root=describe.mode
 
-        Mode.Read => 10
+        Mode.Read => 10,
         /// @resolution.name source=Mode target=Mode
+        /// @resolution.member source=Mode.Read receiver=Mode type=Mode.Read kind=symbol target_receiver=Mode target=Mode.Read
         /// @resolution.pattern source=Mode.Read kind=variant predicate="Mode is 1"
 
     }
@@ -170,7 +173,7 @@ enum Other {
 declare const status: Status;
 
 match (status) {
-    Other.Ready => 0
+    Other.Ready => 0,
 }
 "#,
     );
@@ -189,7 +192,7 @@ enum Other {
 declare const status: Status;
 
 match (status) {
-    Other.Ready => 0
+    Other.Ready => 0,
 }
 
 === dir ===
@@ -227,14 +230,15 @@ match (status) {
 /// @resolution.place source=status placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=status root=status
 
-    Other.Ready => 0
+    Other.Ready => 0,
     /// @resolution.name source=Other target=Other
+    /// @resolution.member source=Other.Ready receiver=Other type=Other.Ready kind=symbol target_receiver=Other target=Other.Ready
     /// @resolution.rejected source=Other.Ready
 
 }
 "#, r#"
 /// @diagnostic.error id=pattern-variant-not-in-type message="variant 'Other.Ready' is not a variant of type 'Status'"
-/// @diagnostic.label line=14 column=5 span="Other.Ready" line_source="Other.Ready => 0"
+/// @diagnostic.label line=14 column=5 span="Other.Ready" line_source="Other.Ready => 0,"
 "#);
 }
 
@@ -251,7 +255,7 @@ enum Status {
 declare const status: Status;
 
 match (status) {
-    Status.Done => 0
+    Status.Done => 0,
 }
 "#,
     );
@@ -269,7 +273,7 @@ enum Status {
 declare const status: Status;
 
 match (status) {
-    Status.Done => 0
+    Status.Done => 0,
 }
 
 === dir ===
@@ -298,7 +302,7 @@ match (status) {
 /// @resolution.place source=status placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=status root=status
 
-    Status.Done => 0
+    Status.Done => 0,
     /// @resolution.name source=Status target=Status
     /// @resolution.rejected source=Status.Done
     /// @resolution.pattern source=Status.Done kind=wildcard
@@ -307,7 +311,7 @@ match (status) {
 "#,
         r#"
 /// @diagnostic.error id=missing-member message="member 'Done' does not exist on type 'Status'"
-/// @diagnostic.label line=10 column=12 span="Done" line_source="Status.Done => 0"
+/// @diagnostic.label line=10 column=12 span="Done" line_source="Status.Done => 0,"
 "#,
     );
 }
@@ -325,8 +329,8 @@ enum Mode {
 declare const mode: &readonly Mode;
 
 const value = match (mode) {
-    Mode.Read => 10
-    Mode.Write => 20
+    Mode.Read => 10,
+    Mode.Write => 20,
 };
 "#,
     );
@@ -344,8 +348,8 @@ enum Mode {
 declare const mode: &'static readonly Mode;
 
 const value: 10 | 20 = match (mode) {
-    Mode.Read => 10
-    Mode.Write => 20
+    Mode.Read => 10,
+    Mode.Write => 20,
 };
 
 === dir ===
@@ -376,12 +380,14 @@ const value = match (mode) {
 /// @resolution.place source=mode placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=mode root=mode
 
-    Mode.Read => 10
+    Mode.Read => 10,
     /// @resolution.name source=Mode target=Mode
+    /// @resolution.member source=Mode.Read receiver=Mode type=Mode.Read kind=symbol target_receiver=Mode target=Mode.Read
     /// @resolution.pattern source=Mode.Read kind=variant predicate="Mode is 1"
 
-    Mode.Write => 20
+    Mode.Write => 20,
     /// @resolution.name source=Mode target=Mode
+    /// @resolution.member source=Mode.Write receiver=Mode type=Mode.Write kind=symbol target_receiver=Mode target=Mode.Write
     /// @resolution.pattern source=Mode.Write kind=variant predicate="Mode is 2"
 
 };

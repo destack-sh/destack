@@ -27,6 +27,7 @@ declare function parse<T: string>(value: `${T}-${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse source="declare function parse<T: string>(value: `${T}-${T}`): T" type=<T: string>(`${T}-${T}`) => T
 /// @type.symbol symbol=parse.T source="T: string" type=T
+/// @type.symbol symbol=parse.value source="value: `${T}-${T}`" type=`${T}-${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
@@ -72,6 +73,7 @@ declare function parse<T: string>(value: `${T}-${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse source="declare function parse<T: string>(value: `${T}-${T}`): T" type=<T: string>(`${T}-${T}`) => T
 /// @type.symbol symbol=parse.T source="T: string" type=T
+/// @type.symbol symbol=parse.value source="value: `${T}-${T}`" type=`${T}-${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
@@ -120,7 +122,9 @@ declare function withParsed<T: string, U>(value: `id:${T}`, callback: (segment: 
 /// @type.symbol symbol=withParsed type=<T: string, U>(`id:${T}`, (T) => U) => U
 /// @type.symbol symbol=withParsed.T source="T: string" type=T
 /// @type.symbol symbol=withParsed.U source=U type=U
+/// @type.symbol symbol=withParsed.value source="value: `id:${T}`" type=`id:${T}`
 /// @resolution.name source=T target=withParsed.T
+/// @type.symbol symbol=withParsed.callback source="callback: (segment: T) => U" type=(T) => U
 /// @type.symbol symbol=withParsed.segment source="segment: T" type=T
 /// @resolution.name source=T target=withParsed.T
 /// @resolution.name source=U target=withParsed.U
@@ -178,6 +182,7 @@ declare function parse<T: string>(value: `id:${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse source="declare function parse<T: string>(value: `id:${T}`): T" type=<T: string>(`id:${T}`) => T
 /// @type.symbol symbol=parse.T source="T: string" type=T
+/// @type.symbol symbol=parse.value source="value: `id:${T}`" type=`id:${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 

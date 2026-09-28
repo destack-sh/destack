@@ -91,9 +91,9 @@ function read<'a>(shape: Borrowed<Rectangle | Circle, 'a>): int32 {
         /// @type.node source=shape.width type=int32
         /// @resolution.name source=shape target=read.shape
         /// @resolution.member source=shape.width receiver=Narrow<&'a (Rectangle | Circle), &'a Rectangle> type=int32 kind=field target_receiver=Narrow<&'a (Rectangle | Circle), &'a Rectangle> key=width target=Rectangle.width target_type=int32
+        /// @resolution.narrowing source=shape declared=&'a (Rectangle | Circle) arms=&'a Rectangle
         /// @resolution.place source=shape placement='a lifetime='a access="mutable"
         /// @resolution.access source=shape root=read.shape
-        /// @resolution.narrowing source=shape union=&'a (Rectangle | Circle) arms=&'a Rectangle
         /// @resolution.place source=shape.width placement='a lifetime='a access="mutable"
         /// @resolution.access source=shape.width root=read.shape keys=[width]
 
@@ -104,9 +104,9 @@ function read<'a>(shape: Borrowed<Rectangle | Circle, 'a>): int32 {
     /// @type.node source=shape.radius type=int32
     /// @resolution.name source=shape target=read.shape
     /// @resolution.member source=shape.radius receiver=&'a Circle type=int32 kind=field target_receiver=&'a Circle key=radius target=Circle.radius target_type=int32
+    /// @resolution.narrowing source=shape declared=&'a (Rectangle | Circle) arms=&'a Circle
     /// @resolution.place source=shape placement='a lifetime='a access="mutable"
     /// @resolution.access source=shape root=read.shape
-    /// @resolution.narrowing source=shape union=&'a (Rectangle | Circle) arms=&'a Circle
     /// @resolution.place source=shape.radius placement='a lifetime='a access="mutable"
     /// @resolution.access source=shape.radius root=read.shape keys=[radius]
 
@@ -214,6 +214,7 @@ function read<'a, const A: Access>(
         /// @type.node source=shape.width type=int32
         /// @resolution.name source=shape target=read.shape
         /// @resolution.member source=shape.width receiver=Narrow<WithAccess<&'a (Rectangle | Circle), A>, WithAccess<&'a Rectangle, A>> type=int32 kind=field target_receiver=Narrow<WithAccess<&'a (Rectangle | Circle), A>, WithAccess<&'a Rectangle, A>> key=width target=Rectangle.width target_type=int32
+        /// @resolution.narrowing source=shape declared=WithAccess<&'a (Rectangle | Circle), A> arms=
         /// @resolution.place source=shape placement='a lifetime='a access=A
         /// @resolution.access source=shape root=read.shape
         /// @resolution.place source=shape.width placement='a lifetime='a access=A
@@ -226,9 +227,9 @@ function read<'a, const A: Access>(
     /// @type.node source=shape.radius type=int32
     /// @resolution.name source=shape target=read.shape
     /// @resolution.member source=shape.radius receiver=WithAccess<&'a Circle, A> type=int32 kind=field target_receiver=WithAccess<&'a Circle, A> key=radius target=Circle.radius target_type=int32
+    /// @resolution.narrowing source=shape declared=WithAccess<&'a (Rectangle | Circle), A> arms=WithAccess<&'a Circle, A>
     /// @resolution.place source=shape placement='a lifetime='a access=A
     /// @resolution.access source=shape root=read.shape
-    /// @resolution.narrowing source=shape union=WithAccess<&'a (Rectangle | Circle), A> arms=WithAccess<&'a Circle, A>
     /// @resolution.place source=shape.radius placement='a lifetime='a access=A
     /// @resolution.access source=shape.radius root=read.shape keys=[radius]
 

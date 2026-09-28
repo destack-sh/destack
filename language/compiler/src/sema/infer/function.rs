@@ -3,7 +3,7 @@ use tspp_dir as dir;
 use tspp_source::ModuleId;
 
 use crate::sema::{
-    BodyCheck, Check, CheckState, Expectation, FlowState, InferMode, Origin, Settle, Verdict,
+    BodyCheck, Check, CheckState, Expectation, FlowState, InferMode, Origin, Settle, Value, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -19,15 +19,45 @@ impl CheckState<'_> {
             return Ok(callable);
         }
 
-        // type the closure of its declaration symbol under the context
+        // type the closure
         self.commit_function_value(node)?;
         let symbol = self.function_value_symbol(node)?;
         let callable = self.symbol_type(symbol)?;
-        let callable = self.contextual_form(callable, context)?;
+        let directive = self.resolve_capture_directive(symbol)?;
+        let callable = match directive.is_some_and(|directive| directive.borrows()) {
+            true => self.frame_borrow(node, callable)?,
+            false => self.contextual_form(callable, context)?,
+        };
         self.commit_node_type(node, callable)?;
         self.queue_check_function_body(node)?;
 
         Ok(callable)
+    }
+
+    /// Return the borrow type of one closure's frame temporary.
+    fn frame_borrow(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        callable: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // place the closure in a frame temporary
+        let origin = Origin::Node(node, None);
+        let owned = self.owned_type(callable)?;
+        let value = Value {
+            ty: owned,
+            node: None,
+            place: None,
+            is_fresh: false,
+        };
+        let place = self.borrowed_place(origin, value, Some(dir::Access::BARE), true)?;
+
+        // borrow the temporary with an open access
+        let placement = self.shallow_resolve(place.placement)?;
+        let region = self.intern_region(place.lifetime, placement)?;
+        let access = self.open_memory_type(origin, dir::MemoryParameter::Access)?;
+        let borrowed = self.borrow_value(region, access, owned)?;
+
+        self.normalize(origin, borrowed)
     }
 
     /// Return the declaration one function value holds, read over the patched view.
@@ -164,32 +194,9 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        // read the bindings the body captures
-        let state = self.module(node.module_id);
-        let captured = state
-            .pending_captures
-            .iter()
-            .rev()
-            .find(|capture| capture.symbol == symbol)
-            .map(|capture| capture.symbols.as_slice())
-            .unwrap_or_default();
-
-        // take the strongest access the body makes of a captured binding
-        let mut required = dir::Access::Readonly;
-        for occurrence in state.flows.binding_occurrences() {
-            if !captured.contains(&occurrence.symbol) {
-                continue;
-            }
-            if occurrence.uses.contains(dir::BindingUse::WRITE)
-                || occurrence.uses.contains(dir::BindingUse::MUTATE)
-            {
-                required = required.join(dir::Access::Mutable);
-            }
-        }
-
-        let origin = Origin::Node(node, None);
-
         // require the receiver to grant the access the body takes
+        let required = self.captured_access(node.module_id, symbol)?;
+        let origin = Origin::Node(node, None);
         let requested = self.access_literal(required)?;
         let verdict = self.constrain_access_assignable(origin, function.receiver, requested)?;
         if verdict == Verdict::Fails {
@@ -197,7 +204,54 @@ impl CheckState<'_> {
             self.report_receiver_access_not_granted(origin, required, granted)?;
         }
 
+        // require a frame borrow to grant that access
+        if let Some(callable) = self.committed_node_type(node)
+            && let dir::Type::Form(dir::FormType {
+                form: dir::Form::Borrowed(borrow),
+                ..
+            }) = self.ty(callable)?
+        {
+            let borrow = self.type_borrow(callable.module_id, borrow)?;
+            let requested = self.access_literal(required.join(dir::Access::Mutable))?;
+            self.constrain_access_assignable(origin, borrow.access, requested)?;
+        }
+
         Ok(())
+    }
+
+    /// Return the access one closure takes of its captures.
+    fn captured_access(
+        &mut self,
+        module: ModuleId,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<dir::Access> {
+        // read the uses the body makes of each captured binding
+        let capture = self
+            .module(module)
+            .pending_captures
+            .iter()
+            .rev()
+            .find(|capture| capture.symbol == symbol)
+            .cloned()
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("checked function value {symbol:?} without its captures"),
+            })?;
+        let uses = self.captured_uses(&capture);
+        let directive = self.resolve_capture_directive(symbol)?;
+
+        // join the access each capture takes
+        let mut access = dir::Access::Readonly;
+        for (captured, captured_uses) in &uses {
+            let captured_access = captured_uses.borrowed_access();
+            let mode = self.capture_mode(module, directive.as_ref(), *captured)?;
+            if mode == dir::CaptureMode::Borrow && captured_access.writes() {
+                access = access.join(dir::Access::Exclusive);
+            } else if captured_access.writes() {
+                access = access.join(dir::Access::Mutable);
+            }
+        }
+
+        Ok(access)
     }
 
     /// Return the signature of one callable type, with the module that interns its rows.

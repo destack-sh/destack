@@ -357,7 +357,7 @@ declare function observe(): void;
 
 function value(result: Result<int32, string>): int32 {
     return match (result) {
-        Ok { value } => value
+        Ok { value } => value,
         Err { error: _ } => {
             observe();
             0
@@ -378,7 +378,7 @@ declare function observe(): void;
 
 function value(result: Result<int32, string>): int32 {
     return match (result) {
-        Ok { value } => value
+        Ok { value } => value,
         Err { error: _ } => {
             observe();
             0
@@ -403,7 +403,7 @@ function value(result: Result<int32, string>): int32 {
     /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=result root=value.result
 
-        Ok { value } => value
+        Ok { value } => value,
         /// @resolution.name source=Ok target=Ok
         /// @resolution.pattern source="Ok { value }" kind=nominal_object adjustments=(newtype.payload(Result, Ok<int32> | Err<string>), union.payload(Ok<int32> | Err<string>, Ok<int32>, Ok<int32>)) target=Ok instance=Ok<int32> fields={ Ok.value }
         /// @generic.instantiation id="Result<int32, string>" template=Result arguments=(int32, string)
@@ -541,6 +541,7 @@ declare function observe(): void;
 
 declare function take(compute: () => int32): int32;
 /// @type.symbol symbol=take source="declare function take(compute: () => int32): int32" type=(() => int32) => int32
+/// @type.symbol symbol=take.compute source="compute: () => int32" type=() => int32
 
 const taken = take(() => {
 /// @type.symbol symbol=taken source=taken type=int32

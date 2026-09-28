@@ -85,8 +85,8 @@ function first([head]: int32[]): int32 {
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
 /// @resolution.pattern source=[head] kind=sequence element=int32 arity=1 fields=(first.head)
-/// @generic.instantiation id="index#2<int32, \"managed\" & \"local\">" template=index#2 arguments=(int32, "managed" & "local")
-/// @generic.instance id="index#2<int32, \"bound0\" & \"local\">" template=index#2 arguments=(int32, "bound0" & "local")
+/// @generic.instantiation id="index#2<int32, \"readonly\", \"managed\" & \"local\">" template=index#2 arguments=(int32, "readonly", "managed" & "local")
+/// @generic.instance id="index#2<int32, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=(int32, "readonly", "bound0" & "local")
 /// @type.symbol symbol=first.head source=head type=int32
 /// @resolution.pattern source=head kind=binding target=first.head
 

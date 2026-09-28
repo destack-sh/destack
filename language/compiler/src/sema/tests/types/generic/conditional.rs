@@ -58,10 +58,10 @@ interface TextSink {
 /// @type.symbol symbol=TextSink type=TextSink
 /// @definition.interface symbol=TextSink template=(this: TextSink)
 /// @definition.where symbol=TextSink relation=satisfies left=this right=TextSink
-/// @definition.method symbol=TextSink.write source="write(value: string): void" slot=write type=(string) => void
+/// @definition.method symbol=TextSink.write source="write(value: string): void" slot=write type=(this: this, string) => void
 
     write(value: string): void;
-    /// @type.symbol symbol=TextSink.write source="write(value: string): void" type=(string) => void
+    /// @type.symbol symbol=TextSink.write source="write(value: string): void" type=(this: this, string) => void
     /// @type.symbol symbol=TextSink.write.value source="value: string" type=string
 
 }
@@ -71,10 +71,10 @@ interface NumberSink {
 /// @type.symbol symbol=NumberSink type=NumberSink
 /// @definition.interface symbol=NumberSink template=(this: NumberSink)
 /// @definition.where symbol=NumberSink relation=satisfies left=this right=NumberSink
-/// @definition.method symbol=NumberSink.write source="write(value: int32): void" slot=write type=(int32) => void
+/// @definition.method symbol=NumberSink.write source="write(value: int32): void" slot=write type=(this: this, int32) => void
 
     write(value: int32): void;
-    /// @type.symbol symbol=NumberSink.write source="write(value: int32): void" type=(int32) => void
+    /// @type.symbol symbol=NumberSink.write source="write(value: int32): void" type=(this: this, int32) => void
     /// @type.symbol symbol=NumberSink.write.value source="value: int32" type=int32
 
 }
@@ -194,10 +194,10 @@ interface TextSink {
 /// @type.symbol symbol=TextSink type=TextSink
 /// @definition.interface symbol=TextSink template=(this: TextSink)
 /// @definition.where symbol=TextSink relation=satisfies left=this right=TextSink
-/// @definition.method symbol=TextSink.write source="write(value: string): void" slot=write type=(string) => void
+/// @definition.method symbol=TextSink.write source="write(value: string): void" slot=write type=(this: this, string) => void
 
     write(value: string): void;
-    /// @type.symbol symbol=TextSink.write source="write(value: string): void" type=(string) => void
+    /// @type.symbol symbol=TextSink.write source="write(value: string): void" type=(this: this, string) => void
     /// @type.symbol symbol=TextSink.write.value source="value: string" type=string
 
 }
@@ -207,10 +207,10 @@ interface NumberSink {
 /// @type.symbol symbol=NumberSink type=NumberSink
 /// @definition.interface symbol=NumberSink template=(this: NumberSink)
 /// @definition.where symbol=NumberSink relation=satisfies left=this right=NumberSink
-/// @definition.method symbol=NumberSink.write source="write(value: int32): void" slot=write type=(int32) => void
+/// @definition.method symbol=NumberSink.write source="write(value: int32): void" slot=write type=(this: this, int32) => void
 
     write(value: int32): void;
-    /// @type.symbol symbol=NumberSink.write source="write(value: int32): void" type=(int32) => void
+    /// @type.symbol symbol=NumberSink.write source="write(value: int32): void" type=(this: this, int32) => void
     /// @type.symbol symbol=NumberSink.write.value source="value: int32" type=int32
 
 }

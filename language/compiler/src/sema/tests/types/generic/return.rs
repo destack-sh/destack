@@ -517,6 +517,7 @@ declare function ok<T, E>(value: T): Result<T, E>;
 /// @generic.instance id=Ok<T#6> template=Ok arguments=(T#6)
 /// @type.symbol symbol=ok.T source=T type=T#6
 /// @type.symbol symbol=ok.E source=E type=E#3
+/// @type.symbol symbol=ok.value source="value: T" type=T#6
 /// @resolution.name source=T target=ok.T
 /// @resolution.name source=Result target=Result
 /// @resolution.name source=T target=ok.T

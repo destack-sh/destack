@@ -299,18 +299,18 @@ if (let "ready" = status) {
     /// @type.node source="status satisfies \"ready\"" type="ready"
     /// @type.node source=status type="ready"
     /// @resolution.name source=status target=status
+    /// @resolution.narrowing source=status declared="ready" | "error" arms="ready"
     /// @resolution.place source=status placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=status root=status
-    /// @resolution.narrowing source=status union="ready" | "error" arms="ready"
 
 } else {
     status satisfies "error";
     /// @type.node source="status satisfies \"error\"" type="error"
     /// @type.node source=status type="error"
     /// @resolution.name source=status target=status
+    /// @resolution.narrowing source=status declared="ready" | "error" arms="error"
     /// @resolution.place source=status placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=status root=status
-    /// @resolution.narrowing source=status union="ready" | "error" arms="error"
 
 }
 "#,
@@ -363,18 +363,18 @@ if (let 1 | 2 = value) {
     /// @type.node source="value satisfies 1 | 2" type=1 | 2
     /// @type.node source=value type=1 | 2
     /// @resolution.name source=value target=value
+    /// @resolution.narrowing source=value declared=1 | 2 | 3 arms=1 | 2
     /// @resolution.place source=value placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=value root=value
-    /// @resolution.narrowing source=value union=1 | 2 | 3 arms=1 | 2
 
 } else {
     value satisfies 3;
     /// @type.node source="value satisfies 3" type=3
     /// @type.node source=value type=3
     /// @resolution.name source=value target=value
+    /// @resolution.narrowing source=value declared=1 | 2 | 3 arms=3
     /// @resolution.place source=value placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=value root=value
-    /// @resolution.narrowing source=value union=1 | 2 | 3 arms=3
 
 }
 "#,

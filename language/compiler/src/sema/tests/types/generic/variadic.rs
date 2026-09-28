@@ -35,7 +35,7 @@ newtype Sharding<in out ...Axes: Axis[]> = intrinsic;
 
 newtype Grid<in out T, in out P> = intrinsic;
 
-declare function mesh<T, ...Axes: Axis[], 'a>(grid: &readonly Grid<T, Sharding<...Axes>>): int32;
+declare function mesh<T, ...Axes: Axis[], 'a>(grid: &'a readonly Grid<T, Sharding<Axes>>): int32;
 
 export extension<T, ...Axes: Axis[]> of Grid<T, Sharding<...Axes>> {
     /// Return the mesh id.
@@ -76,6 +76,7 @@ declare function mesh<T, ...Axes: Axis[]>(
 /// @resolution.name source=Axis target=Axis
 
     grid: &readonly Grid<T, Sharding<...Axes>>,
+    /// @type.symbol symbol=mesh.grid source="grid: &readonly Grid<T, Sharding<...Axes>>" type=&mesh.'a readonly Grid<T#2, Sharding<Axes#2>>
     /// @resolution.name source=Grid target=Grid
     /// @resolution.name source=T target=mesh.T
     /// @resolution.name source=Sharding target=Sharding
@@ -166,7 +167,7 @@ extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
 === annotated ===
 import { Axis, Grid, Marker, Wrap } from "./sharding.tspp";
 
-declare function mesh<T, ...Xs: Axis[], 'a>(grid: &readonly Grid<T, Wrap<...Xs>>): int32;
+declare function mesh<T, ...Xs: Axis[], 'a>(grid: &'a readonly Grid<T, Wrap<Xs>>): int32;
 
 extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
     /// Return the mesh id.
@@ -186,6 +187,7 @@ declare function mesh<T, ...Xs: Axis[]>(
 /// @resolution.name source=Axis target=sharding.Axis
 
     grid: &readonly Grid<T, Wrap<...Xs>>,
+    /// @type.symbol symbol=mesh.grid source="grid: &readonly Grid<T, Wrap<...Xs>>" type=&mesh.'a readonly sharding.Grid<T#1, sharding.Wrap<Xs#1>>
     /// @resolution.name source=Grid target=sharding.Grid
     /// @resolution.name source=T target=mesh.T
     /// @resolution.name source=Wrap target=sharding.Wrap
@@ -259,6 +261,7 @@ declare function mesh<...Axes: Missing[]>(value: int32): int32;
 /// @type.symbol symbol=mesh source="declare function mesh<...Axes: Missing[]>(value: int32): int32" type=<...Axes: <error>[]>(int32) => int32
 /// @type.symbol symbol=mesh.Axes source="...Axes: Missing[]" type=Axes
 /// @resolution.unresolved source=Missing path=Missing
+/// @type.symbol symbol=mesh.value source="value: int32" type=int32
 "#,
         r#"
 /// @diagnostic.error id=unresolved-reference message="cannot find 'Missing'"

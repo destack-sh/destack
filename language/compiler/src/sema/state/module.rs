@@ -12,8 +12,9 @@ use smallvec::SmallVec;
 use tspp_source::{ModuleId, ProfileId, Span};
 
 use crate::sema::{
-    Capture, Cause, CauseKind, CheckError, CheckEvent, CheckState, CheckWarning, Expectation,
-    FlowPoint, FlowPointId, FlowSite, Origin, Pass, Relation, RelationCheck, StaticPresence,
+    Capture, CaptureAnnotation, Cause, CauseKind, CheckError, CheckEvent, CheckState, CheckWarning,
+    Expectation, FlowPoint, FlowPointId, FlowSite, Origin, Pass, Relation, RelationCheck,
+    StaticPresence,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -140,6 +141,10 @@ pub(in crate::sema) struct CheckModuleState<'a> {
     pub(in crate::sema) static_values: FxIndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
     /// Captures discovered while walking this module.
     pub(in crate::sema) pending_captures: Vec<Capture>,
+    /// The capture annotation each decorated function declares.
+    pub(in crate::sema) capture_annotations: FxIndexMap<dir::GlobalSymbolId, CaptureAnnotation>,
+    /// The narrowed closure reads of captured bindings.
+    pub(in crate::sema) captured_narrowings: Vec<(dir::GlobalNodeIdAny, dir::GlobalSymbolId)>,
     /// Durable flow states discovered while walking this module.
     pub(in crate::sema) flow_points: Vec<FlowPoint>,
     /// Entry flow point for each walked source node occurrence.
@@ -323,6 +328,8 @@ impl<'a> CheckModuleState<'a> {
             static_presence: FxIndexMap::default(),
             absent_symbols: FxIndexSet::default(),
             pending_captures: Vec::new(),
+            capture_annotations: FxIndexMap::default(),
+            captured_narrowings: Vec::new(),
             flow_points: Vec::new(),
             node_flows: FxIndexMap::default(),
             node_scopes: FxIndexMap::default(),
@@ -562,6 +569,19 @@ impl<'a> CheckModuleState<'a> {
             .definition_handle(symbol)
             .or_else(|| self.definitions.definition_handle(symbol))
             .cloned()
+    }
+
+    /// Return the derived constructors of one class.
+    pub(in crate::sema) fn class_constructors(
+        &self,
+        class: dir::GlobalSymbolId,
+    ) -> Option<&[dir::ClassConstructorDefinition]> {
+        self.members_tail.class_constructors(class).or_else(|| {
+            self.members
+                .iter()
+                .rev()
+                .find_map(|segment| segment.class_constructors(class))
+        })
     }
 
     /// Return the members selected to satisfy one `implements` clause.

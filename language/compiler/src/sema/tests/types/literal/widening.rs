@@ -40,10 +40,51 @@ const first = values[0];
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @resolution.subscript source=values[0] type=int64 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=int64, regions=(\"managed\" & \"local\"))"
-/// @generic.instantiation id="index#2<int64, \"managed\" & \"local\">" template=index#2 arguments=(int64, "managed" & "local")
-/// @generic.instance id="index#2<int64, \"bound0\" & \"local\">" template=index#2 arguments=(int64, "bound0" & "local")
+/// @resolution.access source=values[0] root=values keys=[0]
+/// @resolution.subscript source=values[0] type=int64 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=&'managed readonly int64, regions=(\"managed\" & \"local\"))"
+/// @generic.instantiation id="index#2<int64, \"readonly\", \"managed\" & \"local\">" template=index#2 arguments=(int64, "readonly", "managed" & "local")
+/// @generic.instance id="index#2<int64, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=(int64, "readonly", "bound0" & "local")
 /// @type.node source=0 type=0
+"#,
+    );
+}
+
+/// Type a let numeric literal by its arithmetic uses.
+#[test]
+fn test_decide_let_numeric_literals_by_their_arithmetic_uses() {
+    let session = TestSession::single(
+        r#"
+function total(price: float32, step: int16): float32 {
+    let sum = 0.0;
+    let count = 0;
+    sum += price;
+    count += step;
+    sum
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.tspp",
+        DirRows::none(),
+        r#"
+=== annotated ===
+function total(price: float32, step: int16): float32 {
+    let sum: float32 = 0.0;
+    let count: int16 = 0;
+    sum += price;
+    count += step;
+    sum
+}
+
+=== dir ===
+function total(price: float32, step: int16): float32 {
+    let sum = 0.0;
+    let count = 0;
+    sum += price;
+    count += step;
+    sum
+}
 "#,
     );
 }
@@ -88,9 +129,10 @@ const first = values[0];
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=values root=values
-/// @resolution.subscript source=values[0] type=1 | 2 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=1 | 2, regions=(\"managed\" & \"local\"))"
-/// @generic.instantiation id="index#2<1 | 2, \"managed\" & \"local\">" template=index#2 arguments=(1 | 2, "managed" & "local")
-/// @generic.instance id="index#2<1 | 2, \"bound0\" & \"local\">" template=index#2 arguments=(1 | 2, "bound0" & "local")
+/// @resolution.access source=values[0] root=values keys=[0]
+/// @resolution.subscript source=values[0] type=1 | 2 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=&'managed readonly (1 | 2), regions=(\"managed\" & \"local\"))"
+/// @generic.instantiation id="index#2<1 | 2, \"readonly\", \"managed\" & \"local\">" template=index#2 arguments=(1 | 2, "readonly", "managed" & "local")
+/// @generic.instance id="index#2<1 | 2, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=(1 | 2, "readonly", "bound0" & "local")
 /// @type.node source=0 type=0
 "#,
     );

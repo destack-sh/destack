@@ -213,7 +213,9 @@ function positive(values: int32[]): int32[] {
     session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 function positive(values: int32[]): int32[] {
-    return values.map<int32, int32, "managed">((value: int32): int32 => value + 1) as int32[];
+    return values.map<int32, int32, "managed">(
+        ((value: int32): int32 => value + 1) as (value: int32, index: isize) => int32,
+    ) as int32[];
 }
 
 === dir ===

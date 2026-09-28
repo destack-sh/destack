@@ -32,6 +32,7 @@ function positive(value: unknown): boolean {
     /// @resolution.access source=value root=positive.value
     /// @resolution.name source=value target=positive.value
     /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
+    /// @resolution.narrowing source=value declared=unknown arms=
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=positive.value
 
@@ -80,6 +81,7 @@ if (value is string) {
     /// @type.node source="value satisfies string" type=string
     /// @type.node source=value type=string
     /// @resolution.name source=value target=value
+    /// @resolution.narrowing source=value declared=unknown arms=
     /// @resolution.place source=value placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=value root=value
 
@@ -177,18 +179,18 @@ if (value is string) {
     /// @type.node source="value satisfies string" type=string
     /// @type.node source=value type=string
     /// @resolution.name source=value target=value
+    /// @resolution.narrowing source=value declared=string | int32 arms=string
     /// @resolution.place source=value placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=value root=value
-    /// @resolution.narrowing source=value union=string | int32 arms=string
 
 } else {
     value satisfies int32;
     /// @type.node source="value satisfies int32" type=int32
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=value
+    /// @resolution.narrowing source=value declared=string | int32 arms=int32
     /// @resolution.place source=value placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=value root=value
-    /// @resolution.narrowing source=value union=string | int32 arms=int32
 
 }
 "#,
@@ -300,6 +302,7 @@ if (value is &readonly Node) {
     /// @type.node source=value.id type=int32
     /// @resolution.name source=value target=value
     /// @resolution.member source=value.id receiver=Narrow<unknown, &'frame readonly Node> type=int32 kind=field target_receiver=Narrow<unknown, &'frame readonly Node> key=id target=Node.id target_type=int32
+    /// @resolution.narrowing source=value declared=unknown arms=
     /// @resolution.place source=value placement="frame" lifetime="frame" access="immutable"
     /// @resolution.access source=value root=value
     /// @resolution.place source=value.id placement="frame" lifetime="frame" access="readonly"

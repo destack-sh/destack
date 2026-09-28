@@ -1,5 +1,6 @@
 use std::mem::take;
 
+use rustc_hash::FxHashSet;
 use tspp_core::{FxIndexMap, FxIndexSet};
 use tspp_dir as dir;
 use tspp_source::ModuleId;
@@ -18,10 +19,10 @@ impl CheckState<'_> {
         // collect managed symbols per lifted lexical scope
         let mut managed_symbols =
             FxIndexMap::<dir::LocalScopeId, FxIndexSet<dir::GlobalSymbolId>>::default();
+        let annotations = take(&mut self.module_mut(module).capture_annotations);
         for capture in &captures {
-            let directive = capture
-                .annotation
-                .as_ref()
+            let directive = annotations
+                .get(&capture.symbol)
                 .map(|annotation| &annotation.directive);
             for symbol in &capture.symbols {
                 if self.capture_mode(module, directive, *symbol)? != dir::CaptureMode::Manage {
@@ -46,11 +47,10 @@ impl CheckState<'_> {
         }
 
         // write captures for each function
-        for mut capture in captures {
-            let directive = capture
-                .annotation
-                .take()
-                .map(|annotation| annotation.directive);
+        for capture in captures {
+            let directive = annotations
+                .get(&capture.symbol)
+                .map(|annotation| annotation.directive.clone());
             let (function, capture) =
                 self.write_capture(module, capture, directive.clone(), &frames)?;
 
@@ -140,6 +140,7 @@ impl CheckState<'_> {
         let function = capture.symbol;
         let mut used_frames = FxIndexSet::default();
         let mut captured = Vec::new();
+        let uses = self.captured_uses(&capture);
 
         // write captured lexical bindings
         for symbol in &capture.symbols {
@@ -171,6 +172,7 @@ impl CheckState<'_> {
                 dir::CaptureMode::Borrow => dir::CapturedBinding::Borrow {
                     symbol: *symbol,
                     ty,
+                    access: captured_use(&uses, *symbol)?.borrowed_access(),
                 },
                 dir::CaptureMode::Copy => dir::CapturedBinding::Copy {
                     symbol: *symbol,
@@ -185,23 +187,41 @@ impl CheckState<'_> {
             captured.push(binding);
         }
 
-        // write the captured receiver when present
+        // write the captured receiver
         let this = match capture.receiver {
             Some(receiver) => {
-                let mode = self.capture_mode(module, directive.as_ref(), receiver.symbol)?;
+                let symbol = receiver.symbol;
                 let ty = self.shallow_resolve(receiver.receiver.ty)?;
+                let binding = match self.capture_mode(module, directive.as_ref(), symbol)? {
+                    dir::CaptureMode::Borrow => dir::CapturedBinding::Borrow {
+                        symbol,
+                        ty,
+                        access: captured_use(&uses, symbol)?.borrowed_access(),
+                    },
+                    dir::CaptureMode::Move => dir::CapturedBinding::Move { symbol, ty },
+                    dir::CaptureMode::Copy | dir::CaptureMode::Manage => {
+                        dir::CapturedBinding::Copy { symbol, ty }
+                    }
+                };
 
-                Some(dir::CapturedReceiver {
-                    symbol: receiver.symbol,
-                    mode,
-                    ty,
-                })
+                Some(binding)
             }
             None => None,
         };
 
-        // assemble the function's capture record
+        // reject a borrowing closure outside a frame borrow
         let ownership = self.closure_environment_ownership(module, function)?;
+        let borrowed = captured
+            .iter()
+            .chain(&this)
+            .find(|binding| binding.access().is_some());
+        if let Some(binding) = borrowed
+            && ownership != dir::Ownership::Borrowed
+        {
+            self.report_escaping_borrow_capture(module, function, binding.symbol())?;
+        }
+
+        // assemble the function's capture record
         let capture = dir::Capture {
             frames: used_frames.into_iter().collect(),
             captures: captured,
@@ -242,12 +262,46 @@ impl CheckState<'_> {
 
         Ok(match form.map(|form| form.form) {
             Some(dir::Form::Owned) => dir::Ownership::Owned,
+            Some(dir::Form::Borrowed(_)) => dir::Ownership::Borrowed,
             _ => dir::Ownership::Managed,
         })
     }
 
+    /// Return the uses of each captured binding.
+    pub(in crate::sema) fn captured_uses(
+        &self,
+        capture: &Capture,
+    ) -> FxIndexMap<dir::GlobalSymbolId, dir::BindingUse> {
+        // seed every captured binding
+        let receiver = capture.receiver.map(|receiver| receiver.symbol);
+        let mut uses: FxIndexMap<_, _> = capture
+            .symbols
+            .iter()
+            .copied()
+            .chain(receiver)
+            .map(|symbol| (symbol, dir::BindingUse::default()))
+            .collect();
+
+        // join the uses at the capturing nodes
+        let nodes = capture.nodes.iter().copied().collect::<FxHashSet<_>>();
+        for occurrence in self
+            .module(capture.symbol.module_id)
+            .flows
+            .binding_occurrences()
+        {
+            let Some(joined) = uses.get_mut(&occurrence.symbol) else {
+                continue;
+            };
+            if nodes.contains(&occurrence.node) {
+                *joined |= occurrence.uses;
+            }
+        }
+
+        uses
+    }
+
     /// Return one capture mode from an optional directive.
-    fn capture_mode(
+    pub(in crate::sema) fn capture_mode(
         &self,
         module: ModuleId,
         directive: Option<&dir::CaptureDirective>,
@@ -289,4 +343,16 @@ impl CheckState<'_> {
 
         Ok(ty)
     }
+}
+
+/// Return the uses one closure makes of a binding it captures.
+fn captured_use(
+    uses: &FxIndexMap<dir::GlobalSymbolId, dir::BindingUse>,
+    symbol: dir::GlobalSymbolId,
+) -> CompilerResult<dir::BindingUse> {
+    uses.get(&symbol)
+        .copied()
+        .ok_or_else(|| CompilerError::Internal {
+            message: format!("captured binding {symbol:?} without its uses"),
+        })
 }

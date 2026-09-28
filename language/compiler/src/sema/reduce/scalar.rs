@@ -2,7 +2,7 @@ use smallvec::SmallVec;
 use tspp_dir as dir;
 
 use crate::CompilerResult;
-use crate::sema::{CheckState, Origin, VariableKind};
+use crate::sema::{CheckState, Origin};
 
 /// Scalar interpretation requested from one type.
 #[derive(Clone, Copy)]
@@ -160,14 +160,12 @@ impl CheckState<'_> {
         use_: ScalarUse,
         parameters: &mut SmallVec<[dir::GlobalGenericParameterId; 4]>,
     ) -> CompilerResult<Option<dir::ScalarFamilySet>> {
-        // an open integer variable is an integer until its uses decide the width
+        // read an open numeric variable as its literal domain
         if let dir::Type::Variable(variable) = ty
             && let root = self.infer.alias_root(*variable)?
-            && self.infer.variable(root)?.kind == VariableKind::Integer
+            && let Some(domain) = self.infer.variable(root)?.kind.literal_domain()
         {
-            return Ok(Some(
-                dir::ScalarFamily::Domain(dir::ScalarDomain::Integer).into(),
-            ));
+            return Ok(Some(dir::ScalarFamily::Domain(domain).into()));
         }
 
         // runtime values inherit the physical family of transparent newtypes

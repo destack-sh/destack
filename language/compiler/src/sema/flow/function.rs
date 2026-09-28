@@ -37,6 +37,7 @@ impl CheckState<'_> {
             asynchrony,
             captured_symbols: FxIndexSet::default(),
             captured_receiver: None,
+            captured_nodes: Vec::new(),
         };
 
         // expose function frame to nested flow checks
@@ -66,6 +67,13 @@ impl CheckState<'_> {
     /// Return the enclosing function's symbol.
     pub(in crate::sema) fn current_function_symbol(&self) -> Option<dir::GlobalSymbolId> {
         self.flow.current_function().map(|function| function.symbol)
+    }
+
+    /// Return whether the enclosing body is async or a module body.
+    pub(in crate::sema) fn is_async_context(&self) -> bool {
+        self.flow
+            .current_function()
+            .is_none_or(|function| function.asynchrony == dir::Asynchrony::Async)
     }
 
     /// Return the enclosing generator body's targets.

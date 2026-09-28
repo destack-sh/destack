@@ -18,8 +18,8 @@ pub(in crate::sema) struct Capture {
     pub(in crate::sema) symbols: Vec<dir::GlobalSymbolId>,
     /// Outer receiver read by this function.
     pub(in crate::sema) receiver: Option<ReceiverBinding>,
-    /// The optional capture annotation.
-    pub(in crate::sema) annotation: Option<CaptureAnnotation>,
+    /// The nodes in this function that read an outer symbol or receiver.
+    pub(in crate::sema) nodes: Vec<dir::LocalNodeIdAny>,
 }
 
 /// Receiver type visible in one lexical context.

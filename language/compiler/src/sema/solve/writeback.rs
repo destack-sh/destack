@@ -3,7 +3,7 @@ use tspp_dir as dir;
 use tspp_dir::{InstanceKeyVisit, TypeFold};
 use tspp_source::ModuleId;
 
-use crate::sema::{CheckModuleState, CheckState, Origin, ProjectionMemo};
+use crate::sema::{CheckModuleState, CheckState, Origin, ProjectionMemo, Relation};
 use crate::{CompilerError, CompilerResult};
 
 impl<'a> CheckState<'a> {
@@ -494,6 +494,52 @@ impl<'a> CheckState<'a> {
         Ok(self.symbol_kind(symbol)? == dir::SymbolKind::Enum)
     }
 
+    /// Return the declared members holding each arm.
+    fn holding_members(
+        &mut self,
+        origin: Origin,
+        members: &[dir::GlobalTypeId],
+        arms: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Option<Vec<dir::GlobalTypeId>>> {
+        let mut held = Vec::with_capacity(arms.len());
+        for arm in arms {
+            // find the holding member
+            let mut holder = members.contains(arm).then_some(*arm);
+            if holder.is_none() && self.is_class_type(*arm)? {
+                for member in members {
+                    if self.is_class_type(*member)?
+                        && self
+                            .decide_relation(origin, Relation::Subtype, *arm, *member)?
+                            .holds()
+                    {
+                        holder = Some(*member);
+                        break;
+                    }
+                }
+            }
+            let Some(holder) = holder else {
+                return Ok(None);
+            };
+            if !held.contains(&holder) {
+                held.push(holder);
+            }
+        }
+
+        // order the held members as declared
+        held.sort_by_key(|member| members.iter().position(|known| known == member));
+
+        Ok(Some(held))
+    }
+
+    /// Return whether one type names a class.
+    fn is_class_type(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+        let dir::Type::Application(instance) = self.ty(ty)? else {
+            return Ok(false);
+        };
+
+        Ok(self.symbol_kind(instance.symbol)? == dir::SymbolKind::Class)
+    }
+
     /// Settle each recorded narrowing on the solved members it keeps, dropping the vacuous ones.
     pub(in crate::sema) fn settle_narrowings(&mut self, module: ModuleId) -> CompilerResult<()> {
         let entries: Vec<_> = self
@@ -504,24 +550,52 @@ impl<'a> CheckState<'a> {
             .collect();
         for (node, narrowing) in entries {
             let origin = Origin::Node(node, None);
-            let union = self.fully_resolve(narrowing.union)?;
-            let union = self.normalize_type(origin, union)?;
+            let declared = self.fully_resolve(narrowing.declared)?;
+            let declared = self.normalize_type(origin, declared)?;
             let narrowed = self.fully_resolve(narrowing.arms[0])?;
             let narrowed = self.normalize_type(origin, narrowed)?;
 
-            // keep the declared members the narrowed type still names
-            let members = self.canonical_union_members(origin, union)?;
+            // keep the declared members that hold the narrowed arms
+            let members = self.canonical_union_members(origin, declared)?;
             let arms = match self.canonical_union_members(origin, narrowed)? {
                 Some(arms) => arms.to_vec(),
                 None => vec![narrowed],
             };
-            let is_projection = members.as_ref().is_some_and(|members| {
-                arms.len() < members.len() && arms.iter().all(|arm| members.contains(arm))
-            });
+            let held = match &members {
+                Some(members) => self.holding_members(origin, members, &arms)?,
+                None => None,
+            };
+            let is_projection = held
+                .as_ref()
+                .zip(members.as_ref())
+                .is_some_and(|(held, members)| held.len() < members.len());
+            let arms = match (is_projection, held) {
+                (true, Some(held)) => held,
+                _ => arms,
+            };
+
+            // keep a class narrowed to a subclass
+            let is_downcast = members.is_none()
+                && narrowed != declared
+                && self.is_class_type(declared)?
+                && self.is_class_type(narrowed)?;
+
+            // project only case and subclass narrowings onto arms
+            let arms = match is_projection || is_downcast {
+                true => arms,
+                false => Vec::new(),
+            };
             let decisions = &mut self.module_mut(module).decisions_tail;
-            match is_projection {
-                true => decisions.set_narrowing(node, dir::Narrowing { union, arms }),
-                false => decisions.remove_narrowing(node),
+            match narrowed == declared {
+                true => decisions.remove_narrowing(node),
+                false => decisions.set_narrowing(
+                    node,
+                    dir::Narrowing {
+                        declared,
+                        arms,
+                        tests: narrowing.tests,
+                    },
+                ),
             }
         }
 

@@ -303,11 +303,11 @@ export newtype interface PartialEqual<T = this> {
 /// @generic.instance id=PartialEqual<this> template=PartialEqual arguments=(this)
 /// @definition.interface symbol=PartialEqual template=(in T#1 = this, this: PartialEqual<T#1>) nominal=true
 /// @definition.where symbol=PartialEqual relation=satisfies left=this right=PartialEqual<T#1>
-/// @definition.method symbol=PartialEqual.equal source="equal(other: T): boolean" slot=equal type=(T#1) => boolean
+/// @definition.method symbol=PartialEqual.equal source="equal(other: T): boolean" slot=equal type=(this: this, T#1) => boolean
 /// @type.symbol symbol=PartialEqual.T source="T = this" type=T#1
 
     equal(other: T): boolean;
-    /// @type.symbol symbol=PartialEqual.equal source="equal(other: T): boolean" type=(T#1) => boolean
+    /// @type.symbol symbol=PartialEqual.equal source="equal(other: T): boolean" type=(this: this, T#1) => boolean
     /// @type.symbol symbol=PartialEqual.equal.other source="other: T" type=T#1
     /// @resolution.name source=T target=PartialEqual.T
 
@@ -543,18 +543,19 @@ interface Iter<T, in out R = unknown> {
 /// @type.symbol symbol=Iter type=Iter
 /// @definition.interface symbol=Iter template=(out T, in out R = unknown, this: Iter<T, R>)
 /// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
-/// @definition.method symbol=Iter.next source="next(): T" slot=next type=() => T
+/// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: this) => T
 /// @type.symbol symbol=Iter.T source=T type=T
 /// @type.symbol symbol=Iter.R source="in out R = unknown" type=R
 
     next(): T;
-    /// @type.symbol symbol=Iter.next source="next(): T" type=() => T
+    /// @type.symbol symbol=Iter.next source="next(): T" type=(this: this) => T
     /// @resolution.name source=T target=Iter.T
 
 }
 
 declare function probe(values: Iter<int32>): boolean;
 /// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(Iter<int32, unknown>) => boolean
+/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=Iter<int32, unknown>
 /// @resolution.name source=Iter target=Iter
 
 const value = probe(todo("iter"));
@@ -616,12 +617,12 @@ export newtype interface Iter<T, in out R = unknown> {
 /// @type.symbol symbol=Iter type=Iter
 /// @definition.interface symbol=Iter template=(out T, in out R = unknown, this: Iter<T, R>) nominal=true
 /// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
-/// @definition.method symbol=Iter.next source="next(): T" slot=next type=() => T
+/// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: this) => T
 /// @type.symbol symbol=Iter.T source=T type=T
 /// @type.symbol symbol=Iter.R source="in out R = unknown" type=R
 
     next(): T;
-    /// @type.symbol symbol=Iter.next source="next(): T" type=() => T
+    /// @type.symbol symbol=Iter.next source="next(): T" type=(this: this) => T
     /// @resolution.name source=T target=Iter.T
 
 }
@@ -648,6 +649,7 @@ import { Iter } from "./lib.tspp";
 declare function probe(values: Iter<int32>): boolean;
 /// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(inner.Iter<int32, unknown>) => boolean
 /// @generic.instance id="inner.Iter<int32, unknown>" template=inner.Iter arguments=(int32, unknown)
+/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=inner.Iter<int32, unknown>
 /// @resolution.name source=Iter target=inner.Iter
 
 const value = probe(todo("iter"));
@@ -725,6 +727,7 @@ export interface Marker {
 declare function probe(values: Iter<int32>): boolean;
 /// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(b.Iter<int32, unknown>) => boolean
 /// @generic.instance id="b.Iter<int32, unknown>" template=b.Iter arguments=(int32, unknown)
+/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=b.Iter<int32, unknown>
 /// @resolution.name source=Iter target=b.Iter
 
 const value = probe(todo("iter"));
@@ -753,17 +756,17 @@ export interface Iter<T, in out R = unknown> {
 /// @type.symbol symbol=Iter type=Iter
 /// @definition.interface symbol=Iter template=(out T, in out R = unknown, this: Iter<T, R>)
 /// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
-/// @definition.method symbol=Iter.mark source="mark(): Marker" slot=mark type=() => a.Marker
-/// @definition.method symbol=Iter.next source="next(): T" slot=next type=() => T
+/// @definition.method symbol=Iter.mark source="mark(): Marker" slot=mark type=(this: this) => a.Marker
+/// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: this) => T
 /// @type.symbol symbol=Iter.T source=T type=T
 /// @type.symbol symbol=Iter.R source="in out R = unknown" type=R
 
     next(): T;
-    /// @type.symbol symbol=Iter.next source="next(): T" type=() => T
+    /// @type.symbol symbol=Iter.next source="next(): T" type=(this: this) => T
     /// @resolution.name source=T target=Iter.T
 
     mark(): Marker;
-    /// @type.symbol symbol=Iter.mark source="mark(): Marker" type=() => a.Marker
+    /// @type.symbol symbol=Iter.mark source="mark(): Marker" type=(this: this) => a.Marker
     /// @resolution.name source=Marker target=a.Marker
 
 }
@@ -782,7 +785,7 @@ struct Wrap<T> {
 
 function unwrap(wrapped: Wrap<int64>): int64 {
     match (wrapped) {
-        Wrap { value } => value
+        Wrap { value } => value,
     }
 }
 
@@ -802,7 +805,7 @@ struct Wrap<out T> {
 
 function unwrap(wrapped: Wrap<int64>): int64 {
     match (wrapped) {
-        Wrap { value } => value
+        Wrap { value } => value,
     }
 }
 
@@ -834,7 +837,7 @@ function unwrap(wrapped: Wrap<int64>): int64 {
     /// @resolution.place source=wrapped placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=wrapped root=unwrap.wrapped
 
-        Wrap { value } => value
+        Wrap { value } => value,
         /// @resolution.name source=Wrap target=Wrap
         /// @resolution.pattern source="Wrap { value }" kind=nominal_object target=Wrap instance=Wrap<int64> fields={ Wrap.value }
         /// @generic.instantiation id=Wrap<int64> template=Wrap arguments=(int64)

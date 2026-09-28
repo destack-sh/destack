@@ -23,7 +23,9 @@ pub(in crate::sema) struct GeneratorTargets {
 pub(in crate::sema) struct FunctionBody {
     /// The function declaration symbol.
     pub(in crate::sema) symbol: dir::GlobalSymbolId,
-    /// The function body source use.
+    /// The function body expression.
+    pub(in crate::sema) expression: dir::GlobalNodeId<dir::Expression>,
+    /// The flow site of the body.
     pub(in crate::sema) site: FlowSite,
     /// The type the body completion must satisfy, except for constructors.
     pub(in crate::sema) return_type: Option<dir::GlobalTypeId>,
@@ -86,6 +88,9 @@ impl FunctionBody {
             check.assign_bindings(*entry);
         }
 
+        // mark the body's entry
+        check.flow.push_entry();
+
         // check the body under its generic template scope
         if let Some(template) = self.site.scope {
             check.flow.push_template_scope(template);
@@ -95,6 +100,13 @@ impl FunctionBody {
             check.flow.pop_template_scope();
         }
         let checked = checked?;
+
+        // type a block body as its block
+        let expression = self.expression.into_any();
+        if expression != self.site.node {
+            let ty = check.node_type(self.site.node)?;
+            check.commit_node_type(expression, ty)?;
+        }
         let branch = check.leave_function_frame();
 
         // record the constructor's exit branch for class initialization

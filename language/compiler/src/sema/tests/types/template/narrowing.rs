@@ -46,9 +46,9 @@ if (route != undefined) {
 
     route satisfies Route;
     /// @resolution.name source=route target=route
+    /// @resolution.narrowing source=route declared=`api:${string}` | undefined arms=`api:${string}`
     /// @resolution.place source=route placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=route root=route
-    /// @resolution.narrowing source=route union=`api:${string}` | undefined arms=`api:${string}`
     /// @resolution.name source=Route target=Route
 
 }
@@ -106,6 +106,7 @@ if (route == "api:users") {
 
     route satisfies Route;
     /// @resolution.name source=route target=route
+    /// @resolution.narrowing source=route declared=Route arms=
     /// @resolution.place source=route placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=route root=route
     /// @resolution.name source=Route target=Route
@@ -113,6 +114,7 @@ if (route == "api:users") {
 } else {
     route satisfies Route;
     /// @resolution.name source=route target=route
+    /// @resolution.narrowing source=route declared=Route arms=
     /// @resolution.place source=route placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=route root=route
     /// @resolution.name source=Route target=Route
@@ -132,8 +134,8 @@ type Route = `api:${"users" | "posts"}`;
 const route: Route = "api:users";
 
 const section = match (route) {
-    "api:users" => "users"
-    "api:posts" => "posts"
+    "api:users" => "users",
+    "api:posts" => "posts",
 };
 
 section satisfies "users" | "posts";
@@ -150,8 +152,8 @@ type Route = `api:${"users" | "posts"}`;
 const route: Route = "api:users";
 
 const section: "users" | "posts" = match (route) {
-    "api:users" => "users"
-    "api:posts" => "posts"
+    "api:users" => "users",
+    "api:posts" => "posts",
 };
 
 section satisfies "users" | "posts";
@@ -174,10 +176,10 @@ const section = match (route) {
 /// @resolution.place source=route placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=route root=route
 
-    "api:users" => "users"
+    "api:users" => "users",
     /// @resolution.pattern source="\"api:users\"" kind=literal value="api:users"
 
-    "api:posts" => "posts"
+    "api:posts" => "posts",
     /// @resolution.pattern source="\"api:posts\"" kind=literal value="api:posts"
 
 };

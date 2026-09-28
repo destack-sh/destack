@@ -169,6 +169,7 @@ declare function each<P: (...unknown[],) & Copy>(cases: P[]): (name: string, run
 /// @type.symbol symbol=each type=<P: (...unknown[],) & Copy>(P[]) => (string, (...P) => void) => void
 /// @type.symbol symbol=each.P source="P: (...unknown[],) & Copy" type=P
 /// @resolution.name source=Copy target=Copy
+/// @type.symbol symbol=each.cases source="cases: P[]" type=P[]
 /// @resolution.name source=P target=each.P
 /// @type.symbol symbol=each.name source="name: string" type=string
 /// @type.symbol symbol=each.run source="run: (...args: P) => void" type=(...P) => void
@@ -386,7 +387,7 @@ import { describe, test } from "tspp:test";
 
 test.each([(1,)]).only("parameterized case", (value: int32) => {});
 /// @resolution.name source=test target=test
-/// @resolution.member source=test.each receiver=Test<{}, {}, {}> type=<Test.each.P: (...unknown[],) & Copy>(Iterable<Test.each.P>) => ParameterizedTest<Test.each.P> kind=symbol target_receiver=Test<{}, {}, {}> dispatch=dynamic constraint=Test<{}, {}, {}> target=Test.each
+/// @resolution.member source=test.each receiver=Test<{}, {}, {}> type=<Test.each.P: (...unknown[],) & Copy>(this: Test<{}, {}, {}>, Iterable<Test.each.P>) => ParameterizedTest<Test.each.P> kind=symbol target_receiver=Test<{}, {}, {}> dispatch=dynamic constraint=Test<{}, {}, {}> target=Test.each
 /// @resolution.member source=test.each([(1,)]).only receiver=ParameterizedTest<(int32,)> type=ParameterizedTest<(int32,)> kind=field target_receiver=ParameterizedTest<(int32,)> dispatch=dynamic constraint=ParameterizedTest<(int32,)> key=only target=ParameterizedTest.only target_type=ParameterizedTest<(int32,)>
 /// @resolution.call source="test.each([(1,)]).only(\"parameterized case\", (value: int32) => {})" parameters=(string, (int32) => BodyResult | undefined) arguments=(provided("parameterized case") as string, provided((value: int32) => {}) as (int32) => BodyResult | undefined) return=void kind=dynamic target=call(type_member) receiver=ParameterizedTest<(int32,)> constraint=ParameterizedTest<(int32,)>
 /// @resolution.call source=test.each([(1,)]) parameters=(Iterable<(int32,)>) arguments=(provided([(1,)]) as Iterable<(int32,)>) return=ParameterizedTest<(int32,)> kind=dynamic target=Test.each receiver=Test<{}, {}, {}> constraint=Test<{}, {}, {}> generic_arguments=({}, {}, {}, (int32,))
@@ -401,7 +402,7 @@ test.each([(1,)]).only("parameterized case", (value: int32) => {});
 
 test.for([1]).only("table case", (value: &readonly int64) => {});
 /// @resolution.name source=test target=test
-/// @resolution.member source=test.for receiver=Test<{}, {}, {}> type=<Test.for.T>(Iterable<Test.for.T>) => TableTest<Test.for.T, {}, {}, {}> kind=symbol target_receiver=Test<{}, {}, {}> dispatch=dynamic constraint=Test<{}, {}, {}> target=Test.for
+/// @resolution.member source=test.for receiver=Test<{}, {}, {}> type=<Test.for.T>(this: Test<{}, {}, {}>, Iterable<Test.for.T>) => TableTest<Test.for.T, {}, {}, {}> kind=symbol target_receiver=Test<{}, {}, {}> dispatch=dynamic constraint=Test<{}, {}, {}> target=Test.for
 /// @resolution.member source=test.for([1]).only receiver=TableTest<int64, {}, {}, {}> type=TableTest<int64, {}, {}, {}> kind=field target_receiver=TableTest<int64, {}, {}, {}> dispatch=dynamic constraint=TableTest<int64, {}, {}, {}> key=only target=TableTest.only target_type=TableTest<int64, {}, {}, {}>
 /// @resolution.call source="test.for([1]).only(\"table case\", (value: &readonly int64) => {})" parameters=(string, <type_expression.'a, type_expression.'b>(&type_expression.'a readonly int64, &type_expression.'b TestContext<{}, {}, {}>) => BodyResult | undefined) arguments=(provided("table case") as string, provided((value: &readonly int64) => {}) as <type_expression.'a, type_expression.'b>(&type_expression.'a readonly int64, &type_expression.'b TestContext<{}, {}, {}>) => BodyResult | undefined) return=void kind=dynamic target=call(type_member) receiver=TableTest<int64, {}, {}, {}> constraint=TableTest<int64, {}, {}, {}>
 /// @resolution.call source=test.for([1]) parameters=(Iterable<int64>) arguments=(provided([1]) as Iterable<int64>) return=TableTest<int64, {}, {}, {}> kind=dynamic target=Test.for receiver=Test<{}, {}, {}> constraint=Test<{}, {}, {}> generic_arguments=({}, {}, {}, int64)
@@ -417,7 +418,7 @@ test.for([1]).only("table case", (value: &readonly int64) => {});
 
 describe.each([(1,)])("parameterized suite", (value: int32) => {});
 /// @resolution.name source=describe target=describe
-/// @resolution.member source=describe.each receiver=TestSuite type=<TestSuite.each.P: (...unknown[],)>(Iterable<TestSuite.each.P>) => ParameterizedSuite<TestSuite.each.P> kind=symbol target_receiver=TestSuite dispatch=dynamic constraint=TestSuite target=TestSuite.each
+/// @resolution.member source=describe.each receiver=TestSuite type=<TestSuite.each.P: (...unknown[],)>(this: TestSuite, Iterable<TestSuite.each.P>) => ParameterizedSuite<TestSuite.each.P> kind=symbol target_receiver=TestSuite dispatch=dynamic constraint=TestSuite target=TestSuite.each
 /// @resolution.call source="describe.each([(1,)])(\"parameterized suite\", (value: int32) => {})" parameters=(string, (int32) => void | undefined) arguments=(provided("parameterized suite") as string, provided((value: int32) => {}) as (int32) => void | undefined) return=void kind=dynamic target=call(type_member) receiver=ParameterizedSuite<(int32,)> constraint=ParameterizedSuite<(int32,)>
 /// @resolution.call source=describe.each([(1,)]) parameters=(Iterable<(int32,)>) arguments=(provided([(1,)]) as Iterable<(int32,)>) return=ParameterizedSuite<(int32,)> kind=dynamic target=TestSuite.each receiver=TestSuite constraint=TestSuite generic_arguments=((int32,))
 /// @resolution.place source=describe placement="local" lifetime="static" access="immutable"
@@ -428,7 +429,7 @@ describe.each([(1,)])("parameterized suite", (value: int32) => {});
 
 describe.for([1])("table suite", (value: int32) => {});
 /// @resolution.name source=describe target=describe
-/// @resolution.member source=describe.for receiver=TestSuite type=<TestSuite.for.T>(Iterable<TestSuite.for.T>) => TableSuite<TestSuite.for.T> kind=symbol target_receiver=TestSuite dispatch=dynamic constraint=TestSuite target=TestSuite.for
+/// @resolution.member source=describe.for receiver=TestSuite type=<TestSuite.for.T>(this: TestSuite, Iterable<TestSuite.for.T>) => TableSuite<TestSuite.for.T> kind=symbol target_receiver=TestSuite dispatch=dynamic constraint=TestSuite target=TestSuite.for
 /// @resolution.call source="describe.for([1])(\"table suite\", (value: int32) => {})" parameters=(string, (int32) => void | undefined) arguments=(provided("table suite") as string, provided((value: int32) => {}) as (int32) => void | undefined) return=void kind=dynamic target=call(type_member) receiver=TableSuite<int32> constraint=TableSuite<int32>
 /// @resolution.call source=describe.for([1]) parameters=(Iterable<int32>) arguments=(provided([1]) as Iterable<int32>) return=TableSuite<int32> kind=dynamic target=TestSuite.for receiver=TestSuite constraint=TestSuite generic_arguments=(int32)
 /// @resolution.place source=describe placement="local" lifetime="static" access="immutable"
@@ -440,7 +441,7 @@ describe.for([1])("table suite", (value: int32) => {});
 
 test.each([("a", 2)])("pairs", (text, count) => {
 /// @resolution.name source=test target=test
-/// @resolution.member source=test.each receiver=Test<{}, {}, {}> type=<Test.each.P: (...unknown[],) & Copy>(Iterable<Test.each.P>) => ParameterizedTest<Test.each.P> kind=symbol target_receiver=Test<{}, {}, {}> dispatch=dynamic constraint=Test<{}, {}, {}> target=Test.each
+/// @resolution.member source=test.each receiver=Test<{}, {}, {}> type=<Test.each.P: (...unknown[],) & Copy>(this: Test<{}, {}, {}>, Iterable<Test.each.P>) => ParameterizedTest<Test.each.P> kind=symbol target_receiver=Test<{}, {}, {}> dispatch=dynamic constraint=Test<{}, {}, {}> target=Test.each
 /// @resolution.call parameters=(string, (string, int64) => BodyResult | undefined) arguments=(provided("pairs") as string, provided(argument) as (string, int64) => BodyResult | undefined) return=void kind=dynamic target=call(type_member) receiver=ParameterizedTest<(string, int64)> constraint=ParameterizedTest<(string, int64)>
 /// @resolution.call source="test.each([(\"a\", 2)])" parameters=(Iterable<(string, int64)>) arguments=(provided([("a", 2)]) as Iterable<(string, int64)>) return=ParameterizedTest<(string, int64)> kind=dynamic target=Test.each receiver=Test<{}, {}, {}> constraint=Test<{}, {}, {}> generic_arguments=({}, {}, {}, (string, int64))
 /// @resolution.place source=test placement="local" lifetime="static" access="immutable"
@@ -643,10 +644,9 @@ table<int32>([1])<'a>("table", <'a,>(value: &'a readonly int32): void => {});
 optionalTable<int32>([1])<'a, "frame">("optional table", (<'a,>(
     value: &'a readonly int32
 ): void => {}) as ((value: &'a readonly int32, context: &'frame string) => void) | undefined);
-contextTable<int32>([1])<'a, "frame">(
-    "context table",
-    <'a,>(value: &'a readonly int32): void => {},
-);
+contextTable<int32>([1])<'a, "frame">("context table", (<'a,>(
+    value: &'a readonly int32
+): void => {}) as (value: &'a readonly int32, context: &'frame string) => void);
 iterTable<int32>([1] as Iterable<int32>)<'a>(
     "iter table",
     <'a,>(value: &'a readonly int32): void => {},
@@ -657,6 +657,7 @@ declare function run<P: (...unknown[],)>(cases: P[]): (name: string, body?: Func
 /// @generic.template symbol=run parameters=(P#1: (...unknown[],))
 /// @type.symbol symbol=run type=<P#1: (...unknown[],)>(P#1[]) => (string, Function<P#1, void, "mutable"> | undefined?) => void
 /// @type.symbol symbol=run.P source="P: (...unknown[],)" type=P#1
+/// @type.symbol symbol=run.cases source="cases: P[]" type=P#1[]
 /// @resolution.name source=P target=run.P
 /// @type.symbol symbol=run.name source="name: string" type=string
 /// @type.symbol symbol=run.body source="body?: Function<P, void>" type=Function<P#1, void, "mutable"> | undefined
@@ -667,6 +668,7 @@ declare function plain<P: (...unknown[],)>(cases: P[]): (name: string, body: Fun
 /// @generic.template symbol=plain parameters=(P#2: (...unknown[],))
 /// @type.symbol symbol=plain type=<P#2: (...unknown[],)>(P#2[]) => (string, Function<P#2, void, "mutable">) => void
 /// @type.symbol symbol=plain.P source="P: (...unknown[],)" type=P#2
+/// @type.symbol symbol=plain.cases source="cases: P[]" type=P#2[]
 /// @resolution.name source=P target=plain.P
 /// @type.symbol symbol=plain.name source="name: string" type=string
 /// @type.symbol symbol=plain.body source="body: Function<P, void>" type=Function<P#2, void, "mutable">
@@ -677,6 +679,7 @@ declare function table<T>(values: T[]): <'a>(name: string, body: (value: &'a rea
 /// @generic.template symbol=table parameters=(T#1)
 /// @type.symbol symbol=table type=<T#1>(T#1[]) => <'a#1>(string, (&'a#1 readonly T#1) => void) => void
 /// @type.symbol symbol=table.T source=T type=T#1
+/// @type.symbol symbol=table.values source="values: T[]" type=T#1[]
 /// @resolution.name source=T target=table.T
 /// @generic.template source=type_expression parent=template#2 parameters=('a#1)
 /// @type.symbol symbol=table.'a source='a type='a#1
@@ -690,6 +693,7 @@ declare function optionalTable<T>(values: T[]): <'a, 'b>(name: string, body?: (v
 /// @generic.template symbol=optionalTable parameters=(T#2)
 /// @type.symbol symbol=optionalTable type=<T#2>(T#2[]) => <'a#2, 'b#1>(string, (&'a#2 readonly T#2, &'b#1 string) => void | undefined?) => void
 /// @type.symbol symbol=optionalTable.T source=T type=T#2
+/// @type.symbol symbol=optionalTable.values source="values: T[]" type=T#2[]
 /// @resolution.name source=T target=optionalTable.T
 /// @generic.template source=type_expression parent=template#3 parameters=('a#2, 'b#1)
 /// @type.symbol symbol=optionalTable.'a source='a type='a#2
@@ -706,6 +710,7 @@ declare function iterTable<T>(values: Iterable<T>): <'a>(name: string, body: (va
 /// @generic.template symbol=iterTable parameters=(T#3)
 /// @type.symbol symbol=iterTable type=<T#3>(Iterable<T#3>) => <'a#3>(string, (&'a#3 readonly T#3) => void) => void
 /// @type.symbol symbol=iterTable.T source=T type=T#3
+/// @type.symbol symbol=iterTable.values source="values: Iterable<T>" type=Iterable<T#3>
 /// @resolution.name source=Iterable target=Iterable
 /// @resolution.name source=T target=iterTable.T
 /// @generic.template source=type_expression parent=template#4 parameters=('a#3)
@@ -720,6 +725,7 @@ declare function contextTable<T>(values: T[]): <'a, 'b>(name: string, body: (val
 /// @generic.template symbol=contextTable parameters=(T#4)
 /// @type.symbol symbol=contextTable type=<T#4>(T#4[]) => <'a#4, 'b#2>(string, (&'a#4 readonly T#4, &'b#2 string) => void) => void
 /// @type.symbol symbol=contextTable.T source=T type=T#4
+/// @type.symbol symbol=contextTable.values source="values: T[]" type=T#4[]
 /// @resolution.name source=T target=contextTable.T
 /// @generic.template source=type_expression parent=template#5 parameters=('a#4, 'b#2)
 /// @type.symbol symbol=contextTable.'a source='a type='a#4
@@ -854,6 +860,7 @@ declare function each<P: (...unknown[],) & Copy>(cases: P[]): (name: string, run
 /// @type.symbol symbol=each type=<P: (...unknown[],) & Copy>(P[]) => (string, (...P) => void) => void
 /// @type.symbol symbol=each.P source="P: (...unknown[],) & Copy" type=P
 /// @resolution.name source=Copy target=Copy
+/// @type.symbol symbol=each.cases source="cases: P[]" type=P[]
 /// @resolution.name source=P target=each.P
 /// @type.symbol symbol=each.name source="name: string" type=string
 /// @type.symbol symbol=each.run source="run: (...args: P) => void" type=(...P) => void
@@ -963,8 +970,8 @@ function parse(result: Result<string, string>): Result<int32, string> {
 
 function choose(result: Result<string, string>): Result<int32, string> {
     return result.andThen((value) => match (value.isEmpty) {
-        true => Result.err("empty")
-        false => Result.ok(1)
+        true => Result.err("empty"),
+        false => Result.ok(1),
     });
 }
 "#,
@@ -988,8 +995,8 @@ function choose(result: Result<string, string>): Result<int32, string> {
     return result.andThen<string, string, int32, string>(
         (value: string): Result<int32, string> =>
             match (value.isEmpty) {
-                true => Result.err<int32, string>("empty")
-                false => Result.ok<int32, string>(1)
+                true => Result.err<int32, string>("empty"),
+                false => Result.ok<int32, string>(1),
             },
     );
 }
@@ -1057,13 +1064,13 @@ function choose(result: Result<string, string>): Result<int32, string> {
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=choose.symbol8.value
 
-        true => Result.err("empty")
+        true => Result.err("empty"),
         /// @resolution.pattern source=true kind=literal value=true
         /// @resolution.name source=Result target=Result
         /// @resolution.member source=Result.err receiver=Result type=(E#1) => Result<T#1, E#1> kind=symbol target_receiver=Result target=err#1
         /// @resolution.call source="Result.err(\"empty\")" parameters=(string) arguments=(provided("empty") as string) return=Result<int32, string> kind=symbol target=err#1 instance="Result<int32, string>.<extension#1>.err#1"
 
-        false => Result.ok(1)
+        false => Result.ok(1),
         /// @resolution.pattern source=false kind=literal value=false
         /// @resolution.name source=Result target=Result
         /// @resolution.member source=Result.ok receiver=Result type=(T#1) => Result<T#1, E#1> kind=symbol target_receiver=Result target=ok#1

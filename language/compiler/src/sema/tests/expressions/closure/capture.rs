@@ -519,7 +519,7 @@ function make(): () => Promise<string> {
     /// @type.symbol symbol=make.client source=client type=Client
     /// @resolution.pattern source=client kind=binding target=make.client
     /// @type.node source="new Client()" type=Client
-    /// @resolution.construct source="new Client()" parameters=() return=Client kind=class target=Client constructor=default
+    /// @resolution.construct source="new Client()" parameters=() return=Client kind=class target=Client constructor=implicit
     /// @type.node source=Client type=typeof Client
     /// @resolution.name source=Client target=Client
 
@@ -544,11 +544,11 @@ function make(): () => Promise<string> {
     /// @capture.binding function=make.symbol6 symbol=client mode=copy type=Client
     /// @capture.directive function=make.symbol6 default=copy rules=0
     /// @type.node source="await client.read()" type=string
-    /// @resolution.call source="await client.read()" parameters=(Promise<string>) arguments=(provided(client.read()) as Promise<string>) return=string kind=symbol target=Promise.park receiver=Promise<string> instance=Promise<string>.park<string>
-    /// @generic.instantiation id="Promise.park<string, string>" template=Promise.park arguments=(string, string)
-    /// @generic.instance id="Promise.park<string, string>" template=Promise.park arguments=(string, string)
+    /// @resolution.call source="await client.read()" parameters=(Promise<string>) arguments=(provided(client.read()) as Promise<string>) return=string kind=symbol target=Promise.park receiver=Promise<string> instance=Promise.park<string>
+    /// @generic.instantiation id=Promise.park<string> template=Promise.park arguments=(string)
     /// @generic.instance id=Promise.addWaiter<string> template=Promise.addWaiter arguments=(string)
     /// @generic.instance id=Promise.observe<string> template=Promise.observe arguments=(string)
+    /// @generic.instance id=Promise.park<string> template=Promise.park arguments=(string)
     /// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
     /// @generic.instance id=PromiseAwaiter.symbol161<string> template=PromiseAwaiter.symbol161 arguments=(string)
     /// @generic.instance id=PromiseAwaiter<string> template=PromiseAwaiter arguments=(string)
@@ -621,7 +621,7 @@ class Counter {
         /// @type.symbol symbol=Counter.make.symbol6 source="() => this.value" type=Function<(), int32, "readonly">
         /// @type.node source="() => this.value" type=Function<(), int32, "readonly">
         /// @capture.function function=Counter.make.symbol6 bindings=0
-        /// @capture.receiver function=Counter.make.symbol6 symbol=this mode=manage type=Counter
+        /// @capture.receiver function=Counter.make.symbol6 symbol=this mode=copy type=Counter
         /// @type.node source=this type=Counter
         /// @type.node source=this.value type=int32
         /// @resolution.name source=this target=Counter.make.this
@@ -699,6 +699,165 @@ const reset = () => ({ value: (current = 0) });
 "#,
         r#"
 
+"#,
+    );
+}
+
+#[test]
+fn test_type_a_borrowing_closure_as_a_borrow_of_its_frame() {
+    let session = TestSession::single(
+        r#"
+function run(): int32 {
+    let count: int32 = 1;
+    let step: int32 = 2;
+    @capture({ default: "borrow", step: "copy" })
+    const bump = (): void => {
+        count = count + step;
+    };
+    bump();
+    @capture({ default: "borrow" })
+    const read = (): int32 => count;
+    return read();
+}
+
+function escape(): Function<(), int32> {
+    let count: int32 = 1;
+    @capture({ default: "borrow" })
+    const read: Function<(), int32> = (): int32 => count;
+    return read;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.tspp",
+        DirRows::checked().with_capture(),
+        r#"
+=== annotated ===
+function run(): int32 {
+    let count: int32 = 1;
+    let step: int32 = 2;
+    @capture({ default: "borrow", step: "copy" } as CaptureDirective)
+    const bump: &'frame exclusive (() => void) = (): void => {
+        count = count + step;
+    };
+    bump();
+    @capture({ default: "borrow" } as CaptureDirective)
+    const read: &'frame (() => int32) = (): int32 => count;
+    return read();
+}
+
+function escape(): () => int32 {
+    let count: int32 = 1;
+    @capture({ default: "borrow" } as CaptureDirective)
+    const read: () => int32 = (): int32 => count;
+    return read;
+}
+
+=== dir ===
+function run(): int32 {
+/// @type.symbol symbol=run type=() => int32
+/// @capture.function function=run bindings=0
+
+    let count: int32 = 1;
+    /// @type.symbol symbol=run.count source=count type=int32
+    /// @resolution.pattern source=count kind=binding target=run.count
+
+    let step: int32 = 2;
+    /// @type.symbol symbol=run.step source=step type=int32
+    /// @resolution.pattern source=step kind=binding target=run.step
+
+    @capture({ default: "borrow", step: "copy" })
+    /// @resolution.name source=capture target=capture
+
+    const bump = (): void => {
+    /// @type.symbol symbol=run.bump source=bump type=&'frame exclusive Function<(), void, "exclusive">
+    /// @resolution.pattern source=bump kind=binding target=run.bump
+    /// @type.symbol symbol=run.symbol4 type=Function<(), void, "exclusive">
+    /// @capture.function function=run.symbol4 bindings=2
+    /// @capture.binding function=run.symbol4 symbol=count#1 mode=borrow type=int32 access=exclusive
+    /// @capture.binding function=run.symbol4 symbol=step mode=copy type=int32
+    /// @capture.directive function=run.symbol4 default=borrow rules=1
+    /// @capture.rule function=run.symbol4 binding=step mode=copy
+
+        count = count + step;
+        /// @resolution.name source=count target=run.count
+        /// @resolution.pattern.assign source=count kind=place
+        /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=count root=run.count
+        /// @resolution.assignment source=count write=binding(run.count) type=int32
+        /// @resolution.name source=count target=run.count
+        /// @resolution.operator source="count + step" type=int32 operator="+" kind=builtin operands=[count as int32 families=(integer), step as int32 families=(integer)]
+        /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=count root=run.count
+        /// @resolution.name source=step target=run.step
+        /// @resolution.place source=step placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=step root=run.step
+
+    };
+    bump();
+    /// @resolution.name source=bump target=run.bump
+    /// @resolution.call source=bump() parameters=() return=void kind=expression target=expression
+    /// @resolution.place source=bump placement="local" lifetime="frame" access="immutable"
+    /// @resolution.access source=bump root=run.bump
+
+    @capture({ default: "borrow" })
+    /// @resolution.name source=capture target=capture
+
+    const read = (): int32 => count;
+    /// @type.symbol symbol=run.read source=read type=&'frame Function<(), int32, "readonly">
+    /// @resolution.pattern source=read kind=binding target=run.read
+    /// @type.symbol symbol=run.symbol6 source="(): int32 => count" type=Function<(), int32, "readonly">
+    /// @capture.function function=run.symbol6 bindings=1
+    /// @capture.binding function=run.symbol6 symbol=count#1 mode=borrow type=int32 access=immutable
+    /// @capture.directive function=run.symbol6 default=borrow rules=0
+    /// @resolution.name source=count target=run.count
+    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=count root=run.count
+
+    return read();
+    /// @resolution.name source=read target=run.read
+    /// @resolution.call source=read() parameters=() return=int32 kind=expression target=expression
+    /// @resolution.place source=read placement="local" lifetime="frame" access="immutable"
+    /// @resolution.access source=read root=run.read
+
+}
+
+function escape(): Function<(), int32> {
+/// @type.symbol symbol=escape type=() => () => int32
+/// @capture.function function=escape bindings=0
+/// @resolution.name source=Function target=Function
+
+    let count: int32 = 1;
+    /// @type.symbol symbol=escape.count source=count type=int32
+    /// @resolution.pattern source=count kind=binding target=escape.count
+
+    @capture({ default: "borrow" })
+    /// @resolution.name source=capture target=capture
+
+    const read: Function<(), int32> = (): int32 => count;
+    /// @type.symbol symbol=escape.read source=read type=() => int32
+    /// @resolution.pattern source=read kind=binding target=escape.read
+    /// @resolution.name source=Function target=Function
+    /// @type.symbol symbol=escape.symbol10 source="(): int32 => count" type=Function<(), int32, "readonly">
+    /// @capture.function function=escape.symbol10 bindings=1
+    /// @capture.binding function=escape.symbol10 symbol=count#2 mode=borrow type=int32 access=immutable
+    /// @capture.directive function=escape.symbol10 default=borrow rules=0
+    /// @resolution.name source=count target=escape.count
+    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=count root=escape.count
+
+    return read;
+    /// @resolution.name source=read target=escape.read
+    /// @resolution.place source=read placement="local" lifetime="frame" access="immutable"
+    /// @resolution.access source=read root=escape.read
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=not-assignable message="type '&'frame Function<(), int32, \"readonly\">' is not assignable to type '() => int32'"
+/// @diagnostic.label line=18 column=39 span="(): int32 => count" line_source="const read: Function<(), int32> = (): int32 => count;"
+/// @diagnostic.related line=18 column=17 span="Function" line_source="const read: Function<(), int32> = (): int32 => count;" message="expected due to this annotation"
 "#,
     );
 }

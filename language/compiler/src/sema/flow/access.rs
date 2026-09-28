@@ -1,7 +1,7 @@
 use tspp_dir as dir;
 
 use crate::CompilerResult;
-use crate::sema::{AssignedPlace, CheckState};
+use crate::sema::{AssignedPlace, CheckState, Origin};
 
 impl CheckState<'_> {
     /// Return the lexical access path for one expression.
@@ -71,18 +71,79 @@ impl CheckState<'_> {
         }
     }
 
-    /// Clear flow narrowings invalidated by mutating an expression.
-    pub(in crate::sema) fn clear_mutated_expression_narrowings(
+    /// Clear the narrowings under one written place.
+    pub(in crate::sema) fn record_expression_write(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
     ) {
-        // require a lexical path for the mutated expression
-        let Some(path) = self.lexical_access_path(id) else {
-            return;
+        if let Some(path) = self.lexical_access_path(id) {
+            self.flow.clear_narrowings_under(&path);
+        }
+    }
+
+    /// Return whether other frames may write one place.
+    pub(in crate::sema) fn is_aliased_place(
+        &mut self,
+        origin: Origin,
+        id: dir::GlobalNodeId<dir::Expression>,
+    ) -> CompilerResult<bool> {
+        // find the base of the projection
+        let view = self.module(id.module_id).view();
+        let base = match view.get(id.local_id) {
+            dir::Expression::Member { left, .. } | dir::Expression::Index { left, .. } => *left,
+            dir::Expression::Chain { expression } => {
+                let expression = expression.into_global(id.module_id);
+
+                return self.is_aliased_place(origin, expression);
+            }
+            dir::Expression::Identifier { .. } => return Ok(self.is_static_binding(id)),
+            _ => return Ok(false),
+        };
+        let base = base.into_global(id.module_id);
+
+        // treat an untyped base as static storage
+        let Some(ty) = self.committed_node_type(base.into_any()) else {
+            return Ok(true);
         };
 
-        // clear every dependent narrowing
-        self.flow.clear_narrowings_under(&path);
+        // check the base's storage and place
+        Ok(self.is_aliased_storage(origin, ty)? || self.is_aliased_place(origin, base)?)
+    }
+
+    /// Return whether one name reads a module or foreign binding.
+    fn is_static_binding(&self, id: dir::GlobalNodeId<dir::Expression>) -> bool {
+        // treat a foreign name as static
+        if id.module_id != self.module_id {
+            return true;
+        }
+        let root = self
+            .lexical_access_path(id.local_id)
+            .map(|path| path.root());
+        let Some(dir::AccessRoot::Symbol(symbol)) = root else {
+            return false;
+        };
+        if symbol.module_id != self.module_id {
+            return true;
+        }
+
+        self.module(symbol.module_id)
+            .binding_table()
+            .function_scope(symbol.local_id)
+            .is_none()
+    }
+
+    /// Return whether other frames may write one value's storage.
+    fn is_aliased_storage(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        match self.borrow_access(origin, ty)? {
+            // share a borrow's storage
+            Some(access) => Ok(!access.excludes()),
+            // follow the form chain for other values
+            None => self.type_is_aliased(origin, ty),
+        }
     }
 }
 

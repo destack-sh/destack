@@ -107,7 +107,7 @@ impl CheckState<'_> {
         // record the selected control target
         self.commit_transfer_target(source, index)?;
 
-        // capture branch flow at the continue site
+        // capture the continue branch
         let checkpoint = self.flow.control_target_checkpoint(index);
         let branch = self.flow.branch(checkpoint);
 
