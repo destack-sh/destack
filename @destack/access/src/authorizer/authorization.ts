@@ -200,21 +200,9 @@ export class Authorization {
         }
 
         // relate the first holders
-        for (const request of creation.relationships ?? []) {
-            this.authorizer.validate({ object, ...request }, context.now);
-            await this.database.insert(accessRelationship).values(
-                Relationship.encode(
-                    {
-                        id: identifier("relationship").parse(`relationship-${v7()}`),
-                        object,
-                        relation: request.relation,
-                        subject: request.subject,
-                        createdAt: context.now,
-                        expiresAt: null,
-                    },
-                    scope,
-                ),
-            );
+        const relationships = this.authorizer.initialRelationships(object, creation, context.now);
+        if (relationships.length > 0) {
+            await this.database.insert(accessRelationship).values(relationships);
         }
 
         // define a scope's owner role and bind it to its owner, whose containers' owners own it otherwise

@@ -1,3 +1,4 @@
+import { v7 } from "uuid";
 import { and, eq, or, sql, type DatabaseConnection, type SQL, type Table } from "@destack/db";
 import { Condition } from "@destack/db/query";
 import { Snapshot } from "@destack/db/log";
@@ -26,6 +27,7 @@ import { type AccessContext } from "../context/context.ts";
 import { HIGHEST_ASSURANCE, type Elevation, type StepUp } from "../context/elevation.ts";
 import { accessRelationship, type RelationshipRow } from "../relationship/table.ts";
 import { Relationship } from "../relationship/relationship.ts";
+import type { Creation } from "./authorization.ts";
 import { accessRole } from "../role/table.ts";
 import { accessScope } from "../scope/table.ts";
 import { ACCESS_TABLES, COPY_NAME, DECISION_TABLES } from "../replica/replica.ts";
@@ -481,6 +483,37 @@ export class Authorizer {
         });
 
         return rows.map((row) => Relationship.decode(row as RelationshipRow));
+    }
+
+    /** Encode a new object's first relationships as the rows its creation writes. */
+    initialRelationships(
+        object: ObjectReference,
+        creation: Creation,
+        now: number,
+    ): RelationshipRow[] {
+        const scope = this.governingScope(object);
+
+        return (creation.relationships ?? []).map((request) => {
+            // validate each relation before encoding it
+            this.validate({ object, ...request }, now);
+            const relationship = {
+                id: `relationship-${v7()}`,
+                object,
+                relation: request.relation,
+                subject: request.subject,
+                createdAt: now,
+                expiresAt: null,
+            };
+
+            return {
+                ...Relationship.encode(relationship, scope),
+                revision: 1,
+                managerInstallationId: null,
+                managerPackageId: null,
+                managerName: null,
+                detachedAt: null,
+            };
+        });
     }
 
     /** Require a relationship to name exactly one relation or role, a subject the relation or role accepts, and a future expiry. */

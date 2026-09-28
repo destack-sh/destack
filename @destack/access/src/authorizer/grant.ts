@@ -104,9 +104,9 @@ export class GrantReader {
         this.#scopes = scopes;
     }
 
-    /** Note an object a call creates, which holds no relationships before its creation writes them. */
-    creating(object: ObjectReference): void {
-        this.#read.set(objectKey(object), Promise.resolve([]));
+    /** Note an object a call creates, holding the relationships its creation writes. */
+    creating(object: ObjectReference, relationships: readonly RelationshipRow[]): void {
+        this.#read.set(objectKey(object), Promise.resolve([...relationships]));
     }
 
     /** Read one object as a row of its type, absent where none exists. */
