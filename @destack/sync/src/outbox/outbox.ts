@@ -314,9 +314,9 @@ export class Outbox {
             );
         }
 
-        // run the prediction after the latest logged change
+        // run the prediction after the latest change the transaction reaches
         const tables = [...this.tables.values()];
-        const before = await transaction.log.latest();
+        const before = (await transaction.log.reached()).sequence;
         const { calls, result } = await predict(transaction);
 
         // read every change it logged, page by page

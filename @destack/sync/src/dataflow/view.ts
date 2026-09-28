@@ -9,7 +9,7 @@ import {
 } from "@destack/db";
 import { DatabaseError } from "@destack/db/error";
 import { CHAIN_TERMS, Condition, type Scalar } from "@destack/db/query";
-import type { LogPosition, RelationView, Rewind, Snapshot } from "@destack/db/log";
+import { Snapshot, type LogPosition, type RelationView, type Rewind } from "@destack/db/log";
 import type { Node } from "../query/node.ts";
 import type { Audience } from "../feed/audience.ts";
 import type { Run } from "./run.ts";
@@ -33,20 +33,27 @@ export class View {
     /** The position shown. */
     readonly position: LogPosition;
 
-    /** Show a database as of a position, sharing reads through a feed or the view's own memory. */
-    constructor(database: DatabaseConnection, position: LogPosition, cache?: Cache) {
-        // read earlier images through the cache
+    /** Show a database as of a position, sharing reads through a feed or the view's own memory, as a snapshot reads it. */
+    constructor(
+        database: DatabaseConnection,
+        position: LogPosition,
+        cache?: Cache,
+        snapshot?: Snapshot,
+    ) {
+        // read earlier images through the cache, unless the snapshot reads the database as it is
         this.#database = database;
         this.position = position;
         this.#cache = cache ?? new Memory(database);
-        this.#snapshot = database.log.at(position, (table, after, upto) =>
-            this.#cache.images(table, after, upto),
-        );
+        this.#snapshot =
+            snapshot ??
+            database.log.at(position, (table, after, upto) =>
+                this.#cache.images(table, after, upto),
+            );
     }
 
-    /** Show a database as of its latest position, sharing reads in the view's own memory. */
+    /** Show a database as its open transaction reads it now, at the position those reads reach. */
     static async latest(database: DatabaseConnection): Promise<View> {
-        return new View(database, await database.log.position());
+        return new View(database, await database.log.reached(), undefined, Snapshot.live(database));
     }
 
     /**
