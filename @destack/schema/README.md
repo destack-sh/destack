@@ -15,6 +15,14 @@ toJsonSchema(Note);
 `schema` is Zod's API.
 A declared schema describes JSON values with rules JSON Schema can express, so transforms, refinements, dates and loose objects are rejected.
 
+A described schema validates again after it travels as JSON Schema.
+
+```ts
+import { fromJsonSchema } from "@destack/schema";
+
+fromJsonSchema(toJsonSchema(Note)).parse({ title: "Hello", archived: false });
+```
+
 ## Identifiers
 
 ```ts

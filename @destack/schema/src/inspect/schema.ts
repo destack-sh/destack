@@ -21,3 +21,8 @@ export function toJsonSchema(schema: z.ZodType): JsonSchema {
         io: "input",
     });
 }
+
+/** Build a validator from a JSON Schema Draft 2020-12 description. */
+export function fromJsonSchema(description: JsonSchema): z.ZodType {
+    return z.fromJSONSchema(description, { defaultTarget: "draft-2020-12" });
+}
