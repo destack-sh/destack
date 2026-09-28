@@ -476,9 +476,9 @@ Check every change with tests, formatting, lints, and any relevant static and dy
 - **CT05** Tests MUST be named with a verb that states their content, such as `test_roundtrip_duration` or `test_send_receive_message`.
 - **CT06** Test first lines or docstrings MUST describe the desired behavior without mentioning "test".
 
-- **CT07** Tests SHOULD be property-based or roundtrip tests where possible.
+- **CT07** Tests SHOULD be the strongest, most brutal form we can think of: PBT, DST, roundtrip tests, whatever is applicable.
 - **CT08** Tests SHOULD exercise the entire thing over a part, comparing complete output.
-- **CT09** Tests SHOULD assert the entire expected output as a snapshot.
+- **CT09** Tests SHOULD assert the entire expected output as some sort of snapshot or invasive assertion where possible.
 
 - **CT10** Tests MUST assert specific outcomes, such as "these two errors with that message", not "expect failed" or "any two errors".
 - **CT11** Tests MUST NOT assert partial values such as `x.contains('part of foo')`. (`destack/no-partial-assertions`)
