@@ -235,10 +235,7 @@ struct Node {
     id: int32;
 }
 
-declare function choose<'a, 'b>(
-    a: Borrowed<Node, 'a, "mutable">,
-    b: Borrowed<Node, 'b, "mutable">,
-): &Node;
+declare function choose<'a, 'b>(a: &'a Node, b: &'b Node): &Node;
 
 === dir ===
 struct Node { id: int32; }
@@ -254,11 +251,13 @@ declare function choose<'a, 'b>(
 /// @type.symbol symbol=choose.'b source='b type='b
 
     a: Borrowed<Node, 'a, "mutable">,
+    /// @type.symbol symbol=choose.a source="a: Borrowed<Node, 'a, \"mutable\">" type=&'a Node
     /// @resolution.name source=Borrowed target=Borrowed
     /// @resolution.name source=Node target=Node
     /// @resolution.name source='a target=choose.'a
 
     b: Borrowed<Node, 'b, "mutable">,
+    /// @type.symbol symbol=choose.b source="b: Borrowed<Node, 'b, \"mutable\">" type=&'b Node
     /// @resolution.name source=Borrowed target=Borrowed
     /// @resolution.name source=Node target=Node
     /// @resolution.name source='b target=choose.'b
@@ -1118,11 +1117,11 @@ interface Source<T> {
 /// @type.symbol symbol=Source type=Source
 /// @definition.interface symbol=Source template=(out T, this: Source<T>)
 /// @definition.where symbol=Source relation=satisfies left=this right=Source<T>
-/// @definition.method symbol=Source.read source="read(): T" slot=read type=() => T
+/// @definition.method symbol=Source.read source="read(): T" slot=read type=(this: this) => T
 /// @type.symbol symbol=Source.T source=T type=T
 
     read(): T;
-    /// @type.symbol symbol=Source.read source="read(): T" type=() => T
+    /// @type.symbol symbol=Source.read source="read(): T" type=(this: this) => T
     /// @resolution.name source=T target=Source.T
 
 }
@@ -1174,7 +1173,7 @@ struct Buffer {
     size: int32;
 }
 
-declare function read<'a>(borrow: Borrowed<Buffer, "readonly">): int32;
+declare function read<'a>(borrow: &'a readonly Buffer): int32;
 
 === dir ===
 struct Buffer { size: int32; }
@@ -1186,6 +1185,7 @@ struct Buffer { size: int32; }
 declare function read(borrow: Borrowed<Buffer, "readonly">): int32;
 /// @generic.template symbol=read parameters=('a)
 /// @type.symbol symbol=read source="declare function read(borrow: Borrowed<Buffer, \"readonly\">): int32" type=<read.'a>(&read.'a readonly Buffer) => int32
+/// @type.symbol symbol=read.borrow source="borrow: Borrowed<Buffer, \"readonly\">" type=&read.'a readonly Buffer
 /// @resolution.name source=Borrowed target=Borrowed
 /// @resolution.name source=Buffer target=Buffer
 "#,
@@ -1217,7 +1217,7 @@ struct Pair<const R: Region, const A: Access = "mutable"> {
     size: int32;
 }
 
-declare function read<'a>(pair: Pair<"readonly">): int32;
+declare function read<'a>(pair: Pair<'a, "readonly">): int32;
 
 === dir ===
 import { Region, Access } from "tspp:memory";
@@ -1242,6 +1242,7 @@ declare function read(pair: Pair<"readonly">): int32;
 /// @generic.template symbol=read parameters=('a)
 /// @type.symbol symbol=read source="declare function read(pair: Pair<\"readonly\">): int32" type=<read.'a>(Pair<read.'a, "readonly">) => int32
 /// @generic.instance id="Pair<read.'a, \"readonly\">" template=Pair arguments=(read.'a, "readonly")
+/// @type.symbol symbol=read.pair source="pair: Pair<\"readonly\">" type=Pair<read.'a, "readonly">
 /// @resolution.name source=Pair target=Pair
 "#,
     );

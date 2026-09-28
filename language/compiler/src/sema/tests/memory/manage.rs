@@ -205,6 +205,7 @@ declare function make(): ^User;
 
 declare function take(user: User): void;
 /// @type.symbol symbol=take source="declare function take(user: User): void" type=(User) => void
+/// @type.symbol symbol=take.user source="user: User" type=User
 /// @resolution.name source=User target=User
 
 function run(holder: Holder): User {
@@ -346,6 +347,7 @@ declare function identity<T>(value: T): T;
 /// @generic.template symbol=identity parameters=(T#1)
 /// @type.symbol symbol=identity source="declare function identity<T>(value: T): T" type=<T#1>(T#1) => T#1
 /// @type.symbol symbol=identity.T source=T type=T#1
+/// @type.symbol symbol=identity.value source="value: T" type=T#1
 /// @resolution.name source=T target=identity.T
 /// @resolution.name source=T target=identity.T
 
@@ -353,6 +355,7 @@ declare function first<T>(value: T | undefined): T;
 /// @generic.template symbol=first parameters=(T#2)
 /// @type.symbol symbol=first source="declare function first<T>(value: T | undefined): T" type=<T#2>(T#2 | undefined) => T#2
 /// @type.symbol symbol=first.T source=T type=T#2
+/// @type.symbol symbol=first.value source="value: T | undefined" type=T#2 | undefined
 /// @resolution.name source=T target=first.T
 /// @resolution.name source=T target=first.T
 
@@ -494,6 +497,7 @@ declare function identity<T>(value: T): T;
 /// @generic.template symbol=identity parameters=(T)
 /// @type.symbol symbol=identity source="declare function identity<T>(value: T): T" type=<T>(T) => T
 /// @type.symbol symbol=identity.T source=T type=T
+/// @type.symbol symbol=identity.value source="value: T" type=T
 /// @resolution.name source=T target=identity.T
 /// @resolution.name source=T target=identity.T
 
@@ -707,6 +711,7 @@ declare function make(): ^User;
 
 declare function take(user: User): void;
 /// @type.symbol symbol=take source="declare function take(user: User): void" type=(User) => void
+/// @type.symbol symbol=take.user source="user: User" type=User
 /// @resolution.name source=User target=User
 
 function run(): void {
@@ -932,6 +937,7 @@ declare function identity<T>(value: T): T;
 /// @generic.template symbol=identity parameters=(T)
 /// @type.symbol symbol=identity source="declare function identity<T>(value: T): T" type=<T>(T) => T
 /// @type.symbol symbol=identity.T source=T type=T
+/// @type.symbol symbol=identity.value source="value: T" type=T
 /// @resolution.name source=T target=identity.T
 /// @resolution.name source=T target=identity.T
 

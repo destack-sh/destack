@@ -81,6 +81,7 @@ function read<T: AtomicSafe>(value: &readonly Atomic<T>): T {
     /// @generic.instantiation id=load<T> template=load arguments=(T) owner=read
     /// @generic.instance id="get#1<T, read.'a>" template=get#1 arguments=(T, read.'a)
     /// @generic.instance id="load<T, MemoryOrdering.SequentiallyConsistent, read.'a>" template=load arguments=(T, MemoryOrdering.SequentiallyConsistent, read.'a)
+    /// @generic.instance id="unsafeCellPointer<T, read.'a>" template=unsafeCellPointer arguments=(T, read.'a)
     /// @generic.instance id=atomicLoad<T> template=atomicLoad arguments=(T)
     /// @resolution.name source=MemoryOrdering target=MemoryOrdering
     /// @resolution.member source=MemoryOrdering.SequentiallyConsistent receiver=MemoryOrdering type=MemoryOrdering.SequentiallyConsistent kind=symbol target_receiver=MemoryOrdering target=MemoryOrdering.SequentiallyConsistent

@@ -330,6 +330,7 @@ impl CheckState<'_> {
         index: Option<dir::LocalNodeId<dir::Expression>>,
         is_optional: bool,
         use_: PlaceUse,
+        access: dir::Access,
     ) -> CompilerResult<()> {
         // read the index expression's node and origin
         let node = site.node.into_typed::<dir::Expression>();
@@ -372,6 +373,7 @@ impl CheckState<'_> {
             origin,
             module,
             use_,
+            access,
             receiver_value,
             receiver_type,
             space,
@@ -425,12 +427,75 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Raise the Index reads under one place.
+    pub(in crate::sema) fn require_index_access(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        requested: dir::Access,
+    ) -> CompilerResult<()> {
+        // skip readonly uses
+        if requested == dir::Access::Readonly {
+            return Ok(());
+        }
+
+        // walk toward the place's root
+        let module = node.module_id;
+        let mut current = node;
+        while current.local_id.ty == dir::NodeType::Expression {
+            let expression = current.into_typed::<dir::Expression>();
+            match *self.module(module).view().get(expression.local_id) {
+                // step through a stored field
+                dir::Expression::Member { left, .. }
+                    if self.is_stored_access(current) == Some(true) =>
+                {
+                    current = left.into_global_any(module);
+                }
+                // reselect an Index read at the access
+                dir::Expression::Index {
+                    left,
+                    index: Some(index),
+                    is_optional,
+                    ..
+                } => {
+                    if self.is_index_read(current) {
+                        let site = self.visit_site(current)?;
+                        self.select_index(
+                            site,
+                            left,
+                            Some(index),
+                            is_optional,
+                            PlaceUse::Read,
+                            requested,
+                        )?;
+                    }
+                    current = left.into_global_any(module);
+                }
+                _ => break,
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Return whether one node reads through the Index protocol.
+    fn is_index_read(&self, node: dir::GlobalNodeIdAny) -> bool {
+        let Some(decision) = self.decisions(node.module_id).subscript_decision(node) else {
+            return false;
+        };
+
+        decision
+            .arms()
+            .iter()
+            .all(|subscript| matches!(subscript.target, dir::SubscriptTarget::Index(_)))
+    }
+
     /// Select one subscript operation against one receiver type.
     pub(in crate::sema) fn select_subscript(
         &mut self,
         origin: Origin,
         module: ModuleId,
         use_: PlaceUse,
+        access: dir::Access,
         receiver: Value,
         receiver_type: dir::GlobalTypeId,
         space: dir::MemberSpace,
@@ -469,6 +534,7 @@ impl CheckState<'_> {
                     origin,
                     module,
                     use_,
+                    access,
                     arm_receiver,
                     arm_type,
                     space,
@@ -522,7 +588,7 @@ impl CheckState<'_> {
                 dir::Type::Tuple(_) | dir::Type::Object(_)
             ) {
                 return self.select_subscript(
-                    origin, module, use_, receiver, payload, space, index_node, index,
+                    origin, module, use_, access, receiver, payload, space, index_node, index,
                 );
             }
         }
@@ -548,6 +614,7 @@ impl CheckState<'_> {
             | dir::Type::Literal(_) => self.select_protocol_subscript(
                 origin,
                 use_,
+                access,
                 receiver,
                 receiver_type,
                 index_node,
@@ -783,6 +850,7 @@ impl CheckState<'_> {
             origin,
             module,
             PlaceUse::Read,
+            dir::Access::Readonly,
             Value {
                 ty: receiver,
                 node: None,
@@ -1021,6 +1089,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         use_: PlaceUse,
+        access: dir::Access,
         receiver: Value,
         lookup_receiver: dir::GlobalTypeId,
         index_node: dir::GlobalNodeIdAny,
@@ -1028,9 +1097,14 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<SubscriptSelection>> {
         // select by the requested place use
         match use_ {
-            PlaceUse::Read => {
-                self.select_subscript_read(origin, receiver, lookup_receiver, index_node, index)
-            }
+            PlaceUse::Read => self.select_subscript_read(
+                origin,
+                receiver,
+                lookup_receiver,
+                index_node,
+                index,
+                access,
+            ),
             PlaceUse::Write => {
                 self.select_subscript_write(origin, receiver, lookup_receiver, index_node, index)
             }
@@ -1048,6 +1122,7 @@ impl CheckState<'_> {
         lookup_receiver: dir::GlobalTypeId,
         index_node: dir::GlobalNodeIdAny,
         index: dir::GlobalTypeId,
+        access: dir::Access,
     ) -> CompilerResult<Option<SubscriptSelection>> {
         self.select_subscript_read_source(
             origin,
@@ -1055,6 +1130,7 @@ impl CheckState<'_> {
             lookup_receiver,
             dir::ArgumentSource::Provided(index_node),
             index,
+            access,
         )
     }
 
@@ -1066,6 +1142,7 @@ impl CheckState<'_> {
         lookup_receiver: dir::GlobalTypeId,
         source: dir::ArgumentSource,
         index: dir::GlobalTypeId,
+        access: dir::Access,
     ) -> CompilerResult<Option<SubscriptSelection>> {
         // rebase the origin at the index expression
         let origin = match source {
@@ -1083,6 +1160,11 @@ impl CheckState<'_> {
         let sources = [source];
         let key = method.key(self.strings());
 
+        // select at the requested access
+        let key_variable = self.open_variable(origin);
+        let key_type = self.variable_type(key_variable)?;
+        let access = self.access_literal(access)?;
+
         // classify candidates against the checked key while still flowing context into it
         let index = self.shallow_resolve(index)?;
         let Some((_protocol, call)) = self.select_language_protocol_call(
@@ -1092,7 +1174,7 @@ impl CheckState<'_> {
             dir::MemberSpace::Instance,
             key,
             method.item(),
-            &[],
+            &[key_type, access],
             &[index],
             &sources,
         )?
@@ -1235,8 +1317,14 @@ impl CheckState<'_> {
         index: dir::GlobalTypeId,
     ) -> CompilerResult<Option<SubscriptSelection>> {
         // require both halves of the update
-        let read =
-            self.select_subscript_read(origin, receiver, lookup_receiver, index_node, index)?;
+        let read = self.select_subscript_read(
+            origin,
+            receiver,
+            lookup_receiver,
+            index_node,
+            index,
+            dir::Access::Readonly,
+        )?;
         let write =
             self.select_subscript_write(origin, receiver, lookup_receiver, index_node, index)?;
         let (Some(read), Some(write)) = (read, write) else {

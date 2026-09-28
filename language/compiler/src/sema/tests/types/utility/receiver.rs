@@ -114,10 +114,14 @@ const fn: Fn = (value) => `${value}`;
 /// @resolution.name source=Fn target=Fn
 /// @type.symbol symbol=symbol6 source="(value) => `${value}`" type=Function<(string,), string, "readonly">
 /// @type.symbol symbol=symbol6.value source=value type=string
-/// @resolution.template source=`${value}` spans=[Display.display(parameters=(), arguments=(), return=^string, regions=("managed" & "local"))] build="stringFromTemplate(parameters=(&'frame readonly Slice<string>, &'frame readonly Slice<string>), arguments=(supplied(0) as &'frame readonly Slice<string>, supplied(1) as &'frame readonly Slice<string>), return=string, regions=(\"frame\", \"frame\"))"
-/// @generic.instantiation id="Display.display<string, \"managed\" & \"local\">" template=Display.display arguments=("managed" & "local")
+/// @resolution.template source=`${value}` spans=[display(parameters=(), arguments=(), return=^string, regions=("managed" & "local"))] build="stringFromTemplate(parameters=(&'frame readonly Slice<string>, &'frame readonly Slice<string>), arguments=(supplied(0) as &'frame readonly Slice<string>, supplied(1) as &'frame readonly Slice<string>), return=string, regions=(\"frame\", \"frame\"))"
+/// @generic.instantiation id="display<\"managed\" & \"local\">" template=display arguments=("managed" & "local")
 /// @generic.instantiation id="stringFromTemplate<\"frame\", \"frame\">" template=stringFromTemplate arguments=("frame", "frame")
+/// @generic.instance id="as<\"immutable\", \"bound0\" & \"local\">" template=as arguments=("immutable", "bound0" & "local")
+/// @generic.instance id="clone<\"bound0\" & \"local\">" template=clone arguments=("bound0" & "local")
+/// @generic.instance id="display<\"bound0\" & \"local\">" template=display arguments=("bound0" & "local")
 /// @generic.instance id="stringFromTemplate<\"frame\", \"frame\">" template=stringFromTemplate arguments=("frame", "frame")
+/// @generic.instance id="toOwned<\"bound0\" & \"local\">" template=toOwned arguments=("bound0" & "local")
 /// @resolution.name source=value target=symbol6.value
 /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=value root=symbol6.value

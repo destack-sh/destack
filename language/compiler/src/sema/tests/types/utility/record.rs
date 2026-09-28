@@ -296,6 +296,7 @@ type Bag = Record<string, int32>;
 
 declare function read(bag: Bag): int32 | undefined;
 /// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
+/// @type.symbol symbol=read.bag source="bag: Bag" type=Bag
 /// @resolution.name source=Bag target=Bag
 
 const point: { x: int32 } = { x: 1 };
@@ -350,6 +351,7 @@ type Bag = Record<string, int32>;
 
 declare function read(bag: Bag): int32 | undefined;
 /// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
+/// @type.symbol symbol=read.bag source="bag: Bag" type=Bag
 /// @resolution.name source=Bag target=Bag
 
 const value = read({ x: 1, y: 2 });

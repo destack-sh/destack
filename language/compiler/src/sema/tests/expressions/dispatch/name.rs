@@ -83,6 +83,90 @@ const qualified = types.Count;
     );
 }
 
+/// An extension name qualifies no members, including through an import.
+#[test]
+fn test_reject_extension_names_as_member_qualifiers() {
+    let session = TestSession::builder()
+        .module(
+            "digits.tspp",
+            r#"
+export extension Digits of int32 {
+    static seven(): int32 {
+        7
+    }
+}
+"#,
+        )
+        .module(
+            "main.tspp",
+            r#"
+import { Digits } from "./digits.tspp";
+
+extension Local of int32 {
+    static eight(): int32 {
+        8
+    }
+}
+
+const local = Local.eight();
+const imported = Digits.seven();
+"#,
+        )
+        .build();
+
+    session.assert_dir_and_diagnostics(
+        "main.tspp",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Digits } from "./digits.tspp";
+
+extension Local of int32 {
+    static eight(): int32 {
+        8
+    }
+}
+
+const local = Local.eight();
+const imported = Digits.seven();
+
+=== dir ===
+import { Digits } from "./digits.tspp";
+
+extension Local of int32 {
+/// @definition.extension symbol=Local form=local target=int32
+/// @definition.method symbol=Local.eight slot=eight static=true type=() => int32
+
+    static eight(): int32 {
+    /// @type.symbol symbol=Local.eight type=() => int32
+
+        8
+    }
+}
+
+const local = Local.eight();
+/// @type.symbol symbol=local source=local type=<error>
+/// @resolution.pattern source=local kind=binding target=local
+/// @resolution.name source=Local target=Local
+/// @resolution.poisoned source=Local.eight
+/// @resolution.rejected source=Local.eight()
+
+const imported = Digits.seven();
+/// @type.symbol symbol=imported source=imported type=<error>
+/// @resolution.pattern source=imported kind=binding target=imported
+/// @resolution.name source=Digits target=digits.Digits
+/// @resolution.poisoned source=Digits.seven
+/// @resolution.rejected source=Digits.seven()
+"#,
+        r#"
+/// @diagnostic.error id=invalid-value-reference message="'Local' is not a value"
+/// @diagnostic.label line=10 column=15 span="Local" line_source="const local = Local.eight();"
+/// @diagnostic.error id=invalid-value-reference message="'Digits' is not a value"
+/// @diagnostic.label line=11 column=18 span="Digits" line_source="const imported = Digits.seven();"
+"#,
+    );
+}
+
 #[test]
 fn test_name_expression_resolves_local_binding() {
     let session = TestSession::single(

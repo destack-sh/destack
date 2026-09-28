@@ -454,10 +454,10 @@ interface Drawable {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable template=(this: Drawable)
 /// @definition.where symbol=Drawable relation=satisfies left=this right=Drawable
-/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=() => void
+/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
 
     draw(): void;
-    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=() => void
+    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: this) => void
 
 }
 
@@ -680,7 +680,7 @@ class PointClass {
 const point = new PointClass();
 /// @type.symbol symbol=point source=point type=PointClass
 /// @resolution.pattern source=point kind=binding target=point
-/// @resolution.construct source="new PointClass()" parameters=() return=PointClass kind=class target=PointClass constructor=default
+/// @resolution.construct source="new PointClass()" parameters=() return=PointClass kind=class target=PointClass constructor=implicit
 /// @resolution.name source=PointClass target=PointClass
 
 const value: Point = point;

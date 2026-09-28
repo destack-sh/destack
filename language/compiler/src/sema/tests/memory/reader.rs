@@ -903,8 +903,8 @@ takeText("a");
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
-declare function take<'a>(value: &readonly int32): void;
-declare function takeText<'a>(value: &readonly string): void;
+declare function take<'a>(value: &'a readonly int32): void;
+declare function takeText<'a>(value: &'a readonly string): void;
 declare function make(): int32;
 
 const stored: int32 = 1;
@@ -918,10 +918,12 @@ takeText<"managed">("a" as &'managed readonly string);
 declare function take(value: &readonly int32): void;
 /// @generic.template symbol=take parameters=('a)
 /// @type.symbol symbol=take source="declare function take(value: &readonly int32): void" type=<take.'a>(&take.'a readonly int32) => void
+/// @type.symbol symbol=take.value source="value: &readonly int32" type=&take.'a readonly int32
 
 declare function takeText(value: &readonly string): void;
 /// @generic.template symbol=takeText parameters=('a)
 /// @type.symbol symbol=takeText source="declare function takeText(value: &readonly string): void" type=<takeText.'a>(&takeText.'a readonly string) => void
+/// @type.symbol symbol=takeText.value source="value: &readonly string" type=&takeText.'a readonly string
 
 declare function make(): int32;
 /// @type.symbol symbol=make source="declare function make(): int32" type=() => int32

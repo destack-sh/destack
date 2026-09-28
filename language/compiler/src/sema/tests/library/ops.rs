@@ -68,6 +68,7 @@ declare function requireEqual<T: Equal<T>>(value: T): void;
 /// @type.symbol symbol=requireEqual.T source="T: Equal<T>" type=T#1
 /// @resolution.name source=Equal target=Equal
 /// @resolution.name source=T target=requireEqual.T
+/// @type.symbol symbol=requireEqual.value source="value: T" type=T#1
 /// @resolution.name source=T target=requireEqual.T
 
 declare function requirePartialEqual<T: PartialEqual<T>>(value: T): void;
@@ -76,6 +77,7 @@ declare function requirePartialEqual<T: PartialEqual<T>>(value: T): void;
 /// @type.symbol symbol=requirePartialEqual.T source="T: PartialEqual<T>" type=T#2
 /// @resolution.name source=PartialEqual target=PartialEqual
 /// @resolution.name source=T target=requirePartialEqual.T
+/// @type.symbol symbol=requirePartialEqual.value source="value: T" type=T#2
 /// @resolution.name source=T target=requirePartialEqual.T
 
 declare const booleanValue: boolean;
@@ -211,6 +213,7 @@ declare function requireEqual<T: Equal<T>>(value: T): void;
 /// @type.symbol symbol=requireEqual.T source="T: Equal<T>" type=T
 /// @resolution.name source=Equal target=Equal
 /// @resolution.name source=T target=requireEqual.T
+/// @type.symbol symbol=requireEqual.value source="value: T" type=T
 /// @resolution.name source=T target=requireEqual.T
 
 declare const value: float64;
@@ -264,6 +267,7 @@ declare function requireStringEqual<T: PartialEqual<string>>(value: T): void;
 /// @type.symbol symbol=requireStringEqual source="declare function requireStringEqual<T: PartialEqual<string>>(value: T): void" type=<T: PartialEqual<string>>(T) => void
 /// @type.symbol symbol=requireStringEqual.T source="T: PartialEqual<string>" type=T
 /// @resolution.name source=PartialEqual target=PartialEqual
+/// @type.symbol symbol=requireStringEqual.value source="value: T" type=T
 /// @resolution.name source=T target=requireStringEqual.T
 
 declare const value: int32;

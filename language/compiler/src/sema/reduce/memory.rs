@@ -103,6 +103,25 @@ impl CheckState<'_> {
         Ok(is_aliased)
     }
 
+    /// Return the access of one borrow.
+    pub(in crate::sema) fn borrow_access(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::Access>> {
+        let Some(form) = self.form_chain(origin, ty)?.forms().first().copied() else {
+            return Ok(None);
+        };
+        let dir::Form::Borrowed(borrow) = form.form else {
+            return Ok(None);
+        };
+        let access = self.type_borrow(ty.module_id, borrow)?.access;
+
+        Ok(Some(
+            self.access_of(access)?.unwrap_or(dir::Access::Mutable),
+        ))
+    }
+
     /// Return whether one memory form is represented by a safe reference.
     pub(in crate::sema) fn form_is_reference(
         &mut self,
@@ -845,7 +864,13 @@ impl CheckState<'_> {
             return Ok(false);
         }
 
-        Ok(self.default_ownership(origin, value)? == Some(dir::Ownership::Owned))
+        // reduce an owned union to the union
+        let value = self.normalize(origin, value)?;
+        if matches!(self.ty(value)?, dir::Type::Union(_)) {
+            return Ok(true);
+        }
+
+        Ok(self.ownership(value)? == Some(dir::Ownership::Owned))
     }
 
     /// Return the ownership one type's head defaults to, read off the head as given.

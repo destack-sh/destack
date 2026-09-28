@@ -813,14 +813,14 @@ interface Store {
 /// @type.symbol symbol=Store type=Store
 /// @definition.interface symbol=Store template=(this: Store)
 /// @definition.where symbol=Store relation=satisfies left=this right=Store
-/// @definition.method symbol=Store.value#1 source="get value(): string" slot=value role=getter type=() => string
-/// @definition.method symbol=Store.value#2 source="set value(next: string | int32)" slot=value role=setter type=(string | int32) => void
+/// @definition.method symbol=Store.value#1 source="get value(): string" slot=value role=getter type=(this: this) => string
+/// @definition.method symbol=Store.value#2 source="set value(next: string | int32)" slot=value role=setter type=(this: this, string | int32) => void
 
     get value(): string;
-    /// @type.symbol symbol=Store.value#1 source="get value(): string" type=() => string
+    /// @type.symbol symbol=Store.value#1 source="get value(): string" type=(this: this) => string
 
     set value(next: string | int32);
-    /// @type.symbol symbol=Store.value#2 source="set value(next: string | int32)" type=(string | int32) => void
+    /// @type.symbol symbol=Store.value#2 source="set value(next: string | int32)" type=(this: this, string | int32) => void
     /// @type.symbol symbol=Store.value.next source="next: string | int32" type=string | int32
 
 }
@@ -873,10 +873,10 @@ interface Store {
 /// @type.symbol symbol=Store type=Store
 /// @definition.interface symbol=Store template=(this: Store)
 /// @definition.where symbol=Store relation=satisfies left=this right=Store
-/// @definition.method symbol=Store.value source="get value(): string" slot=value role=getter type=() => string
+/// @definition.method symbol=Store.value source="get value(): string" slot=value role=getter type=(this: this) => string
 
     get value(): string;
-    /// @type.symbol symbol=Store.value source="get value(): string" type=() => string
+    /// @type.symbol symbol=Store.value source="get value(): string" type=(this: this) => string
 
 }
 const store: Store = {
@@ -927,10 +927,10 @@ interface Store {
 /// @type.symbol symbol=Store type=Store
 /// @definition.interface symbol=Store template=(this: Store)
 /// @definition.where symbol=Store relation=satisfies left=this right=Store
-/// @definition.method symbol=Store.value source="set value(next: string)" slot=value role=setter type=(string) => void
+/// @definition.method symbol=Store.value source="set value(next: string)" slot=value role=setter type=(this: this, string) => void
 
     set value(next: string);
-    /// @type.symbol symbol=Store.value source="set value(next: string)" type=(string) => void
+    /// @type.symbol symbol=Store.value source="set value(next: string)" type=(this: this, string) => void
     /// @type.symbol symbol=Store.value.next source="next: string" type=string
 
 }
@@ -998,10 +998,10 @@ interface Readable {
 /// @type.symbol symbol=Readable type=Readable
 /// @definition.interface symbol=Readable template=(this: Readable)
 /// @definition.where symbol=Readable relation=satisfies left=this right=Readable
-/// @definition.method symbol=Readable.value source="get value(): string" slot=value role=getter type=() => string
+/// @definition.method symbol=Readable.value source="get value(): string" slot=value role=getter type=(this: this) => string
 
     get value(): string;
-    /// @type.symbol symbol=Readable.value source="get value(): string" type=() => string
+    /// @type.symbol symbol=Readable.value source="get value(): string" type=(this: this) => string
 
 }
 interface Writable {
@@ -1009,10 +1009,10 @@ interface Writable {
 /// @type.symbol symbol=Writable type=Writable
 /// @definition.interface symbol=Writable template=(this: Writable)
 /// @definition.where symbol=Writable relation=satisfies left=this right=Writable
-/// @definition.method symbol=Writable.value source="set value(next: string)" slot=value role=setter type=(string) => void
+/// @definition.method symbol=Writable.value source="set value(next: string)" slot=value role=setter type=(this: this, string) => void
 
     set value(next: string);
-    /// @type.symbol symbol=Writable.value source="set value(next: string)" type=(string) => void
+    /// @type.symbol symbol=Writable.value source="set value(next: string)" type=(this: this, string) => void
     /// @type.symbol symbol=Writable.value.next source="next: string" type=string
 
 }
@@ -1259,10 +1259,14 @@ function retain(source: boolean[]): { active: boolean } {
 === annotated ===
 function retain(source: boolean[]): { active: boolean } {
     return source.reduce<{ active: boolean }>(
-        (output: { active: boolean }, value: boolean): { active: boolean } => ({
+        ((output: { active: boolean }, value: boolean): { active: boolean } => ({
             ...output,
             active: value,
-        }),
+        })) as (
+            accumulator: { active: boolean },
+            value: boolean,
+            index: isize,
+        ) => { active: boolean },
         { active: false },
     );
 }

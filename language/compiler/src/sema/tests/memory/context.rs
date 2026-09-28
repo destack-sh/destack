@@ -248,7 +248,7 @@ type Options = { skip?: boolean };
 
 type Argument = Options | (() => void);
 
-declare function register(argument?: Argument): void;
+declare function register(argument?: { skip?: boolean } | (() => void)): void;
 
 register({ skip: true as boolean | undefined } as { skip?: boolean } | (() => void) | undefined);
 
@@ -265,6 +265,7 @@ type Argument = Options | (() => void);
 
 declare function register(argument?: Argument): void;
 /// @type.symbol symbol=register source="declare function register(argument?: Argument): void" type=({ skip?: boolean } | () => void | undefined?) => void
+/// @type.symbol symbol=register.argument source="argument?: Argument" type={ skip?: boolean } | () => void | undefined
 /// @resolution.name source=Argument target=Argument
 
 register({ skip: true });
@@ -433,8 +434,10 @@ values[0];
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="shared" lifetime="static" access="immutable"
 /// @resolution.access source=values root=values
-/// @resolution.subscript source=values[0] type=int32 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=int32, regions=(\"static\" & \"shared\"))"
-/// @generic.instantiation id="index#2<int32, 2, \"static\" & \"shared\">" template=index#2 arguments=(int32, 2, "static" & "shared")
+/// @resolution.place source=values[0] placement="shared" lifetime="static" access="immutable"
+/// @resolution.access source=values[0] root=values keys=[0]
+/// @resolution.subscript source=values[0] type=int32 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=&'static readonly int32, regions=(\"static\" & \"shared\"))"
+/// @generic.instantiation id="index#2<int32, 2, \"readonly\", \"static\" & \"shared\">" template=index#2 arguments=(int32, 2, "readonly", "static" & "shared")
 "#,
         r#"
 
@@ -619,7 +622,7 @@ class Registry {
     static current: User = new User();
     /// @type.symbol symbol=Registry.current source="static current: User = new User()" type=User
     /// @resolution.name source=User target=User
-    /// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=default
+    /// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=implicit
     /// @resolution.name source=User target=User
 
 }

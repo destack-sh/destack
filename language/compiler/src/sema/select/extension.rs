@@ -203,8 +203,28 @@ impl CheckState<'_> {
 
             Ok(Some(arguments))
         })?;
+        let Some(mut arguments) = deduced else {
+            return Ok(None);
+        };
 
-        Ok(deduced)
+        // widen a literal receiver of a bare target parameter
+        if let Some(template) = template {
+            let parameters = self.generic_template_parameters(template)?;
+            for (argument, parameter) in arguments.iter_mut().zip(parameters) {
+                let is_target = matches!(
+                    self.ty(target_type)?,
+                    dir::Type::Parameter(target) if target == parameter
+                );
+                if is_target
+                    && self.is_literal_shape(*argument)?
+                    && !self.parameter_keeps_literals(origin, parameter, *argument, false)?
+                {
+                    *argument = self.widen_fresh(origin, *argument)?;
+                }
+            }
+        }
+
+        Ok(Some(arguments))
     }
 
     /// Collect the erased parameters one type graph mentions.

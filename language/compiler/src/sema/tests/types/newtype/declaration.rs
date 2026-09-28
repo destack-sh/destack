@@ -46,10 +46,10 @@ interface Writer {
 /// @type.symbol symbol=Writer type=Writer
 /// @definition.interface symbol=Writer template=(this: Writer)
 /// @definition.where symbol=Writer relation=satisfies left=this right=Writer
-/// @definition.method symbol=Writer.write source="write(bytes: readonly uint8[]): usize" slot=write type=(readonly uint8[]) => usize
+/// @definition.method symbol=Writer.write source="write(bytes: readonly uint8[]): usize" slot=write type=(this: this, readonly uint8[]) => usize
 
     write(bytes: readonly uint8[]): usize;
-    /// @type.symbol symbol=Writer.write source="write(bytes: readonly uint8[]): usize" type=(readonly uint8[]) => usize
+    /// @type.symbol symbol=Writer.write source="write(bytes: readonly uint8[]): usize" type=(this: this, readonly uint8[]) => usize
     /// @type.symbol symbol=Writer.write.bytes source="bytes: readonly uint8[]" type=readonly uint8[]
 
 }

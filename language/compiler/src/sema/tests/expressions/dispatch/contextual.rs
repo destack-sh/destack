@@ -285,7 +285,9 @@ function values(entries: { value: int32 }[]): int32[] {
         r#"
 === annotated ===
 function values(entries: { value: int32 }[]): int32[] {
-    return entries.map<{ value: int32 }, int32, "managed">(({ value }): int32 => value) as int32[];
+    return entries.map<{ value: int32 }, int32, "managed">(
+        (({ value }): int32 => value) as (value: { value: int32 }, index: isize) => int32,
+    ) as int32[];
 }
 
 === dir ===
@@ -338,7 +340,10 @@ function unwrap(values: (int32 | undefined)[]): int32[] {
 === annotated ===
 function unwrap(values: (int32 | undefined)[]): int32[] {
     return values.map<int32 | undefined, int32, "managed">(
-        (value: int32 | undefined): int32 => value!,
+        ((value: int32 | undefined): int32 => value!) as (
+            value: int32 | undefined,
+            index: isize,
+        ) => int32,
     ) as int32[];
 }
 
@@ -382,10 +387,10 @@ fn test_instantiate_a_generic_static_from_the_declared_result_in_nested_match_ar
 function join<U, E, F>(first: Result<U, E>, second: Result<U, F>): Result<U, E | F> {
     match (first) {
         Ok { value } => match (second) {
-            Ok { value } => Result.ok(value)
-            Err { error } => Result.err(error)
+            Ok { value } => Result.ok(value),
+            Err { error } => Result.err(error),
         }
-        Err { error } => Result.err(error)
+        Err { error } => Result.err(error),
     }
 }
 "#,
@@ -399,10 +404,10 @@ function join<U, E, F>(first: Result<U, E>, second: Result<U, F>): Result<U, E |
 function join<U, E, F>(first: Result<U, E>, second: Result<U, F>): Result<U, E | F> {
     match (first) {
         Ok { value } => match (second) {
-            Ok { value } => Result.ok<U, E | F>(value)
-            Err { error } => Result.err<U, E | F>(error as E | F)
+            Ok { value } => Result.ok<U, E | F>(value),
+            Err { error } => Result.err<U, E | F>(error as E | F),
         }
-        Err { error } => Result.err<U, E | F>(error as E | F)
+        Err { error } => Result.err<U, E | F>(error as E | F),
     }
 }
 
@@ -454,7 +459,7 @@ function join<U, E, F>(first: Result<U, E>, second: Result<U, F>): Result<U, E |
         /// @resolution.place source=second placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=second root=join.second
 
-            Ok { value } => Result.ok(value)
+            Ok { value } => Result.ok(value),
             /// @resolution.name source=Ok target=Ok
             /// @resolution.pattern source="Ok { value }" kind=nominal_object adjustments=(newtype.payload(Result, Ok<U> | Err<F>), union.payload(Ok<U> | Err<F>, Ok<U>, Ok<U>)) target=Ok instance=Ok<U> fields={ Ok.value }
             /// @generic.instantiation id="Result<U, F>" template=Result arguments=(U, F) owner=join
@@ -472,7 +477,7 @@ function join<U, E, F>(first: Result<U, E>, second: Result<U, F>): Result<U, E |
             /// @resolution.place source=value placement="local" lifetime="frame" access="immutable"
             /// @resolution.access source=value root=join.value#2
 
-            Err { error } => Result.err(error)
+            Err { error } => Result.err(error),
             /// @resolution.name source=Err target=Err
             /// @resolution.pattern source="Err { error }" kind=nominal_object adjustments=(newtype.payload(Result, Ok<U> | Err<F>), union.payload(Ok<U> | Err<F>, Err<F>, Err<F>)) target=Err instance=Err<F> fields={ Err.error }
             /// @generic.instantiation id=Err<F> template=Err arguments=(F) owner=join
@@ -492,7 +497,7 @@ function join<U, E, F>(first: Result<U, E>, second: Result<U, F>): Result<U, E |
             /// @coercion.node source=error from=F adjustments=[{ kind: union, target: E | F, cases: ({ source: F, target: F }) }] origin=implicit
 
         }
-        Err { error } => Result.err(error)
+        Err { error } => Result.err(error),
         /// @resolution.name source=Err target=Err
         /// @resolution.pattern source="Err { error }" kind=nominal_object adjustments=(newtype.payload(Result, Ok<U> | Err<E>), union.payload(Ok<U> | Err<E>, Err<E>, Err<E>)) target=Err instance=Err<E> fields={ Err.error }
         /// @generic.instantiation id=Err<E> template=Err arguments=(E) owner=join

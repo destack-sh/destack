@@ -78,9 +78,10 @@ const name = tuple[0];
 /// @resolution.name source=tuple target=tuple
 /// @resolution.place source=tuple placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=tuple root=tuple
-/// @resolution.subscript source=tuple[0] type="id" | 42 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=\"id\" | 42, regions=(\"managed\" & \"local\"))"
-/// @generic.instantiation id="index#2<\"id\" | 42, \"managed\" & \"local\">" template=index#2 arguments=("id" | 42, "managed" & "local")
-/// @generic.instance id="index#2<\"id\" | 42, \"bound0\" & \"local\">" template=index#2 arguments=("id" | 42, "bound0" & "local")
+/// @resolution.access source=tuple[0] root=tuple keys=[0]
+/// @resolution.subscript source=tuple[0] type="id" | 42 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=&'managed readonly (\"id\" | 42), regions=(\"managed\" & \"local\"))"
+/// @generic.instantiation id="index#2<\"id\" | 42, \"readonly\", \"managed\" & \"local\">" template=index#2 arguments=("id" | 42, "readonly", "managed" & "local")
+/// @generic.instance id="index#2<\"id\" | 42, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=("id" | 42, "readonly", "bound0" & "local")
 
 const count = tuple[1];
 /// @type.symbol symbol=count source=count type="id" | 42
@@ -88,7 +89,8 @@ const count = tuple[1];
 /// @resolution.name source=tuple target=tuple
 /// @resolution.place source=tuple placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=tuple root=tuple
-/// @resolution.subscript source=tuple[1] type="id" | 42 kind=call target="index#2(parameters=(isize), arguments=(provided(1) as isize), return=\"id\" | 42, regions=(\"managed\" & \"local\"))"
+/// @resolution.access source=tuple[1] root=tuple keys=[1]
+/// @resolution.subscript source=tuple[1] type="id" | 42 kind=call target="index#2(parameters=(isize), arguments=(provided(1) as isize), return=&'managed readonly (\"id\" | 42), regions=(\"managed\" & \"local\"))"
 "#,
     );
 }

@@ -74,11 +74,11 @@ extension<T: Copy> of Wrapper<T> {
         /// @type.symbol symbol=take.value source=value type=T#2
         /// @resolution.pattern source=value kind=binding target=take.value
         /// @type.node source="await this" type=T#2
-        /// @resolution.call source="await this" parameters=(Promise<T#2>) arguments=(provided(this) as Promise<T#2>) return=T#2 kind=symbol target=Promise.park receiver=Promise<T#2> instance=Promise<T#2>.park<T#2>
-        /// @generic.instantiation id="Promise.park<T#2, T#2>" template=Promise.park arguments=(T#2, T#2) owner=take
-        /// @generic.instance id="Promise.park<T#2, T#2>" template=Promise.park arguments=(T#2, T#2)
+        /// @resolution.call source="await this" parameters=(Promise<T#2>) arguments=(provided(this) as Promise<T#2>) return=T#2 kind=symbol target=Promise.park receiver=Promise<T#2> instance=Promise.park<T#2>
+        /// @generic.instantiation id=Promise.park<T#2> template=Promise.park arguments=(T#2) owner=take
         /// @generic.instance id=Promise.addWaiter<T#2> template=Promise.addWaiter arguments=(T#2)
         /// @generic.instance id=Promise.observe<T#2> template=Promise.observe arguments=(T#2)
+        /// @generic.instance id=Promise.park<T#2> template=Promise.park arguments=(T#2)
         /// @generic.instance id=Promise.queueWaiter<T#2> template=Promise.queueWaiter arguments=(T#2)
         /// @generic.instance id=PromiseAwaiter.symbol161<T#2> template=PromiseAwaiter.symbol161 arguments=(T#2)
         /// @generic.instance id=PromiseAwaiter<T#2> template=PromiseAwaiter arguments=(T#2)

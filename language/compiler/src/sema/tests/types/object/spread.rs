@@ -253,3 +253,42 @@ const fromRequired: Named = full;
 "#,
     );
 }
+
+/// Spread the fields of an aliased object type.
+#[test]
+fn test_spread_the_fields_of_an_aliased_object_type() {
+    let session = TestSession::single(
+        r#"
+type Point = { x: float64; y: float64 };
+
+declare const origin: Point;
+
+const moved: Point = { ...origin, x: 1.0 };
+const copied = { ...origin };
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.tspp",
+        DirRows::none(),
+        r#"
+=== annotated ===
+type Point = { x: float64; y: float64 };
+
+declare const origin: Point;
+
+const moved: Point = { ...origin, x: 1.0 };
+const copied: { x: float64; y: float64 } = { ...origin };
+
+=== dir ===
+type Point = { x: float64; y: float64 };
+
+declare const origin: Point;
+
+const moved: Point = { ...origin, x: 1.0 };
+const copied = { ...origin };
+"#,
+        r#"
+"#,
+    );
+}

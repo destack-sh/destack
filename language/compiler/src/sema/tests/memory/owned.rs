@@ -24,7 +24,7 @@ struct Payload {
     value: int32;
 }
 
-declare function consume(value: ^Payload): void;
+declare function consume(value: Payload): void;
 
 const payload: Payload = Payload { value: 1 };
 consume(payload);
@@ -42,6 +42,7 @@ struct Payload {
 
 declare function consume(value: ^Payload): void;
 /// @type.symbol symbol=consume source="declare function consume(value: ^Payload): void" type=(Payload) => void
+/// @type.symbol symbol=consume.value source="value: ^Payload" type=Payload
 /// @resolution.name source=Payload target=Payload
 
 const payload: ^Payload = Payload { value: 1 };
@@ -812,11 +813,11 @@ newtype interface Collect<T> {
 /// @type.symbol symbol=Collect type=Collect
 /// @definition.interface symbol=Collect template=(in T#1, this: Collect<T#1>) nominal=true
 /// @definition.where symbol=Collect relation=satisfies left=this right=Collect<T#1>
-/// @definition.method symbol=Collect.add source="add(value: T): void" slot=add type=(T#1) => void
+/// @definition.method symbol=Collect.add source="add(value: T): void" slot=add type=(this: this, T#1) => void
 /// @type.symbol symbol=Collect.T source=T type=T#1
 
     add(value: T): void;
-    /// @type.symbol symbol=Collect.add source="add(value: T): void" type=(T#1) => void
+    /// @type.symbol symbol=Collect.add source="add(value: T): void" type=(this: this, T#1) => void
     /// @type.symbol symbol=Collect.add.value source="value: T" type=T#1
     /// @resolution.name source=T target=Collect.T
 
@@ -952,11 +953,11 @@ newtype interface Collect<T> {
 /// @type.symbol symbol=Collect type=Collect
 /// @definition.interface symbol=Collect template=(in T, this: Collect<T>) nominal=true
 /// @definition.where symbol=Collect relation=satisfies left=this right=Collect<T>
-/// @definition.method symbol=Collect.add source="add(value: T): void" slot=add type=(T) => void
+/// @definition.method symbol=Collect.add source="add(value: T): void" slot=add type=(this: this, T) => void
 /// @type.symbol symbol=Collect.T source=T type=T
 
     add(value: T): void;
-    /// @type.symbol symbol=Collect.add source="add(value: T): void" type=(T) => void
+    /// @type.symbol symbol=Collect.add source="add(value: T): void" type=(this: this, T) => void
     /// @type.symbol symbol=Collect.add.value source="value: T" type=T
     /// @resolution.name source=T target=Collect.T
 
@@ -1656,7 +1657,7 @@ function make(): void {
     /// @type.symbol symbol=make.plain source=plain type=^Plain
     /// @resolution.pattern source=plain kind=binding target=make.plain
     /// @resolution.name source=Plain target=Plain
-    /// @resolution.construct source="new Plain()" parameters=() return=^Plain kind=class target=Plain constructor=default
+    /// @resolution.construct source="new Plain()" parameters=() return=^Plain kind=class target=Plain constructor=implicit
     /// @resolution.name source=Plain target=Plain
 
     const point: ^Point = new Point(1);

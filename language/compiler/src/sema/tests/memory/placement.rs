@@ -68,7 +68,7 @@ extension of Buffer implements Default {
     /// @type.symbol symbol=default type=() => ^Buffer
 
         return new Buffer();
-        /// @resolution.construct source="new Buffer()" parameters=() return=^Buffer kind=class target=Buffer constructor=default
+        /// @resolution.construct source="new Buffer()" parameters=() return=^Buffer kind=class target=Buffer constructor=implicit
         /// @resolution.name source=Buffer target=Buffer
 
     }
@@ -85,7 +85,7 @@ extension of Buffer {
     /// @resolution.name source=Buffer target=Buffer
 
         return new Buffer();
-        /// @resolution.construct source="new Buffer()" parameters=() return=Buffer kind=class target=Buffer constructor=default
+        /// @resolution.construct source="new Buffer()" parameters=() return=Buffer kind=class target=Buffer constructor=implicit
         /// @resolution.name source=Buffer target=Buffer
 
     }
@@ -106,7 +106,7 @@ const object = Buffer;
 const made = new Buffer();
 /// @type.symbol symbol=made source=made type=Buffer
 /// @resolution.pattern source=made kind=binding target=made
-/// @resolution.construct source="new Buffer()" parameters=() return=Buffer kind=class target=Buffer constructor=default
+/// @resolution.construct source="new Buffer()" parameters=() return=Buffer kind=class target=Buffer constructor=implicit
 /// @resolution.name source=Buffer target=Buffer
 
 const buffer = Buffer.make();
@@ -1314,9 +1314,9 @@ export function inspect(slot: ^Payload | undefined): int32 {
         /// @resolution.member source=holder.slot receiver=^Holder type=Payload | undefined kind=field target_receiver=^Holder key=slot target=Holder.slot target_type=Payload | undefined
         /// @resolution.place source=holder placement="local" lifetime="frame" access="immutable"
         /// @resolution.access source=holder root=inspect.holder
+        /// @resolution.narrowing source=holder.slot declared=Payload | undefined arms=Payload
         /// @resolution.place source=holder.slot placement="local" lifetime="frame" access="immutable"
         /// @resolution.access source=holder.slot root=inspect.holder keys=[slot]
-        /// @resolution.narrowing source=holder.slot union=Payload | undefined arms=Payload
 
         return held.value;
         /// @resolution.name source=held target=inspect.held
@@ -1674,8 +1674,8 @@ function run(name: string): void {
     /// @resolution.name source=show target=show
     /// @resolution.call source="show(`hello ${name}`)" parameters=(&'managed readonly string) arguments=(provided(`hello ${name}`) as &'managed readonly string) return=void regions=("managed" & "local") kind=symbol target=show instance="show<\"managed\" & \"local\">"
     /// @generic.instantiation id="show<\"managed\" & \"local\">" template=show arguments=("managed" & "local")
-    /// @resolution.template source="`hello ${name}`" spans=[Display.display(parameters=(), arguments=(), return=^string, regions=("managed" & "local"))] build="stringFromTemplate(parameters=(&'frame readonly Slice<string>, &'frame readonly Slice<string>), arguments=(supplied(0) as &'frame readonly Slice<string>, supplied(1) as &'frame readonly Slice<string>), return=string, regions=(\"frame\", \"frame\"))"
-    /// @generic.instantiation id="Display.display<string, \"managed\" & \"local\">" template=Display.display arguments=("managed" & "local")
+    /// @resolution.template source="`hello ${name}`" spans=[display(parameters=(), arguments=(), return=^string, regions=("managed" & "local"))] build="stringFromTemplate(parameters=(&'frame readonly Slice<string>, &'frame readonly Slice<string>), arguments=(supplied(0) as &'frame readonly Slice<string>, supplied(1) as &'frame readonly Slice<string>), return=string, regions=(\"frame\", \"frame\"))"
+    /// @generic.instantiation id="display<\"managed\" & \"local\">" template=display arguments=("managed" & "local")
     /// @generic.instantiation id="stringFromTemplate<\"frame\", \"frame\">" template=stringFromTemplate arguments=("frame", "frame")
     /// @resolution.name source=name target=run.name
     /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
@@ -1750,7 +1750,7 @@ class Source {
         /// @resolution.call source="body(new Item())" parameters=(Item) arguments=(provided(new Item()) as Item) return=R kind=expression target=expression
         /// @resolution.place source=body placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=body root=Source.map.body
-        /// @resolution.construct source="new Item()" parameters=() return=Item kind=class target=Item constructor=default
+        /// @resolution.construct source="new Item()" parameters=() return=Item kind=class target=Item constructor=implicit
         /// @resolution.name source=Item target=Item
 
     }
@@ -2594,11 +2594,11 @@ interface Await<T> {
 /// @type.symbol symbol=Await type=Await
 /// @definition.interface symbol=Await template=(out T#1, this: Await<T#1>)
 /// @definition.where symbol=Await relation=satisfies left=this right=Await<T#1>
-/// @definition.method symbol=Await.wait source="wait(): T" slot=wait type=() => T#1
+/// @definition.method symbol=Await.wait source="wait(): T" slot=wait type=(this: this) => T#1
 /// @type.symbol symbol=Await.T source=T type=T#1
 
     wait(): T;
-    /// @type.symbol symbol=Await.wait source="wait(): T" type=() => T#1
+    /// @type.symbol symbol=Await.wait source="wait(): T" type=(this: this) => T#1
     /// @resolution.name source=T target=Await.T
 
 }
@@ -2844,15 +2844,15 @@ class Queue {
         /// @resolution.access source=request root=Queue.take.request
 
             return new Request();
-            /// @resolution.construct source="new Request()" parameters=() return=Request kind=class target=Request constructor=default
+            /// @resolution.construct source="new Request()" parameters=() return=Request kind=class target=Request constructor=implicit
             /// @resolution.name source=Request target=Request
 
         }
         request
         /// @resolution.name source=request target=Queue.take.request
+        /// @resolution.narrowing source=request declared=Request | undefined arms=Request
         /// @resolution.place source=request placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=request root=Queue.take.request
-        /// @resolution.narrowing source=request union=Request | undefined arms=Request
 
     }
 }
@@ -2992,9 +2992,9 @@ class Registration {
             /// @resolution.receiver source=this kind=this declaration=Registration type=Registration
             /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
             /// @resolution.access source=this root=this
+            /// @resolution.narrowing source=this.state declared=State | undefined arms=State
             /// @resolution.place source=this.state placement="local" lifetime="managed" access="mutable"
             /// @resolution.access source=this.state root=this keys=[state]
-            /// @resolution.narrowing source=this.state union=State | undefined arms=State
             /// @resolution.member source=this.listener receiver=Registration type=Listener kind=field target_receiver=Registration key=listener target=Registration.listener target_type=Listener
             /// @resolution.receiver source=this kind=this declaration=Registration type=Registration
             /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
@@ -3053,16 +3053,16 @@ function evaluate(message: string | ^Function<(), string, "once">): string {
         return message();
         /// @resolution.name source=message target=evaluate.message
         /// @resolution.call source=message() parameters=() return=string kind=expression target=expression
+        /// @resolution.narrowing source=message declared=string | ^Function<(), string, "once"> arms=^Function<(), string, "once">
         /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=message root=evaluate.message
-        /// @resolution.narrowing source=message union=string | ^Function<(), string, "once"> arms=^Function<(), string, "once">
 
     }
     message
     /// @resolution.name source=message target=evaluate.message
+    /// @resolution.narrowing source=message declared=string | ^Function<(), string, "once"> arms=string
     /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=message root=evaluate.message
-    /// @resolution.narrowing source=message union=string | ^Function<(), string, "once"> arms=string
 
 }
 "#,
@@ -3124,8 +3124,8 @@ function run(actual: string, expected: string): void {
     /// @resolution.name source=show target=show
     /// @resolution.call source="show(`actual: ${actual}\\nexpected: ${expected}`)" parameters=(&'managed readonly string) arguments=(provided(`actual: ${actual}\nexpected: ${expected}`) as &'managed readonly string) return=never regions=("managed" & "local") kind=symbol target=show instance="show<\"managed\" & \"local\">"
     /// @generic.instantiation id="show<\"managed\" & \"local\">" template=show arguments=("managed" & "local")
-    /// @resolution.template source="`actual: ${actual}\\nexpected: ${expected}`" spans=[Display.display(parameters=(), arguments=(), return=^string, regions=("managed" & "local")), Display.display(parameters=(), arguments=(), return=^string, regions=("managed" & "local"))] build="stringFromTemplate(parameters=(&'frame readonly Slice<string>, &'frame readonly Slice<string>), arguments=(supplied(0) as &'frame readonly Slice<string>, supplied(1) as &'frame readonly Slice<string>), return=string, regions=(\"frame\", \"frame\"))"
-    /// @generic.instantiation id="Display.display<string, \"managed\" & \"local\">" template=Display.display arguments=("managed" & "local")
+    /// @resolution.template source="`actual: ${actual}\\nexpected: ${expected}`" spans=[display(parameters=(), arguments=(), return=^string, regions=("managed" & "local")), display(parameters=(), arguments=(), return=^string, regions=("managed" & "local"))] build="stringFromTemplate(parameters=(&'frame readonly Slice<string>, &'frame readonly Slice<string>), arguments=(supplied(0) as &'frame readonly Slice<string>, supplied(1) as &'frame readonly Slice<string>), return=string, regions=(\"frame\", \"frame\"))"
+    /// @generic.instantiation id="display<\"managed\" & \"local\">" template=display arguments=("managed" & "local")
     /// @generic.instantiation id="stringFromTemplate<\"frame\", \"frame\">" template=stringFromTemplate arguments=("frame", "frame")
     /// @resolution.name source=actual target=run.actual
     /// @resolution.place source=actual placement="local" lifetime="frame" access="exclusive"
@@ -3193,17 +3193,17 @@ function evaluate(message: Message | undefined, fallback: string): string {
         return message();
         /// @resolution.name source=message target=evaluate.message
         /// @resolution.call source=message() parameters=() return=string kind=expression target=expression
+        /// @resolution.narrowing source=message declared=string | ^Function<(), string, "once"> | undefined arms=^Function<(), string, "once">
         /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=message root=evaluate.message
-        /// @resolution.narrowing source=message union=string | ^Function<(), string, "once"> | undefined arms=^Function<(), string, "once">
 
     }
     message ?? fallback
     /// @resolution.name source=message target=evaluate.message
     /// @resolution.operator source="message ?? fallback" type=string operator="??" kind=builtin operands=[message as string | undefined families=(string | undefined), fallback as string families=(string)]
+    /// @resolution.narrowing source=message declared=string | ^Function<(), string, "once"> | undefined arms=string | undefined
     /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=message root=evaluate.message
-    /// @resolution.narrowing source=message union=string | ^Function<(), string, "once"> | undefined arms=string | undefined
     /// @resolution.name source=fallback target=evaluate.fallback
     /// @resolution.place source=fallback placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=fallback root=evaluate.fallback
@@ -3233,7 +3233,7 @@ function run(actual: string): void {
         DirRows::checked(),
         r#"
 === annotated ===
-declare function show<'a>(message: &readonly string): never;
+declare function show<'a>(message: &'a readonly string): never;
 
 function run(actual: string): void {
     show<"managed">(`actual: ${actual}` as &'managed readonly string);
@@ -3243,6 +3243,7 @@ function run(actual: string): void {
 declare function show(message: &readonly string): never;
 /// @generic.template symbol=show parameters=('a)
 /// @type.symbol symbol=show source="declare function show(message: &readonly string): never" type=<show.'a>(&show.'a readonly string) => never
+/// @type.symbol symbol=show.message source="message: &readonly string" type=&show.'a readonly string
 
 function run(actual: string): void {
 /// @type.symbol symbol=run type=(string) => void
@@ -3252,8 +3253,8 @@ function run(actual: string): void {
     /// @resolution.name source=show target=show
     /// @resolution.call source="show(`actual: ${actual}`)" parameters=(&'managed readonly string) arguments=(provided(`actual: ${actual}`) as &'managed readonly string) return=never regions=("managed" & "local") kind=symbol target=show instance="show<\"managed\" & \"local\">"
     /// @generic.instantiation id="show<\"managed\" & \"local\">" template=show arguments=("managed" & "local")
-    /// @resolution.template source="`actual: ${actual}`" spans=[Display.display(parameters=(), arguments=(), return=^string, regions=("managed" & "local"))] build="stringFromTemplate(parameters=(&'frame readonly Slice<string>, &'frame readonly Slice<string>), arguments=(supplied(0) as &'frame readonly Slice<string>, supplied(1) as &'frame readonly Slice<string>), return=string, regions=(\"frame\", \"frame\"))"
-    /// @generic.instantiation id="Display.display<string, \"managed\" & \"local\">" template=Display.display arguments=("managed" & "local")
+    /// @resolution.template source="`actual: ${actual}`" spans=[display(parameters=(), arguments=(), return=^string, regions=("managed" & "local"))] build="stringFromTemplate(parameters=(&'frame readonly Slice<string>, &'frame readonly Slice<string>), arguments=(supplied(0) as &'frame readonly Slice<string>, supplied(1) as &'frame readonly Slice<string>), return=string, regions=(\"frame\", \"frame\"))"
+    /// @generic.instantiation id="display<\"managed\" & \"local\">" template=display arguments=("managed" & "local")
     /// @generic.instantiation id="stringFromTemplate<\"frame\", \"frame\">" template=stringFromTemplate arguments=("frame", "frame")
     /// @resolution.name source=actual target=run.actual
     /// @resolution.place source=actual placement="local" lifetime="frame" access="exclusive"
@@ -3367,6 +3368,7 @@ import { todo } from "./lib.tspp";
 
 declare function local_todo(message?: string): never;
 /// @type.symbol symbol=local_todo source="declare function local_todo(message?: string): never" type=(string | undefined?) => never
+/// @type.symbol symbol=local_todo.message source="message?: string" type=string | undefined
 
 function run(): void {
 /// @type.symbol symbol=run type=() => void
@@ -3830,7 +3832,7 @@ extension<T> of [T] {
         DirRows::checked(),
         r#"
 === annotated ===
-declare function show<'a>(message: &readonly string): never;
+declare function show<'a>(message: &'a readonly string): never;
 
 function first<T, 'a>(values: &'a immutable [T]): &'a immutable T {
     if (values.size == 0) {
@@ -3854,6 +3856,7 @@ extension<T> of [T] {
 declare function show(message: &readonly string): never;
 /// @generic.template symbol=show parameters=('a)
 /// @type.symbol symbol=show source="declare function show(message: &readonly string): never" type=<show.'a>(&show.'a readonly string) => never
+/// @type.symbol symbol=show.message source="message: &readonly string" type=&show.'a readonly string
 
 function first<T>(values: &immutable [T]): &immutable T {
 /// @generic.template symbol=first parameters=(T#1, 'a)
@@ -3884,8 +3887,8 @@ function first<T>(values: &immutable [T]): &immutable T {
     /// @resolution.access source=values root=first.values
     /// @resolution.place source=values[0] placement=first.'a lifetime=first.'a access="immutable"
     /// @resolution.access source=values[0] root=first.values keys=[0]
-    /// @resolution.subscript source=values[0] type=T#1 kind=call target="index#3(parameters=(isize), arguments=(provided(0) as isize), return=&first.'a immutable T#1, regions=(first.'a))"
-    /// @generic.instantiation id="index#3<T#1, \"immutable\", first.'a>" template=index#3 arguments=(T#1, "immutable", first.'a) owner=first
+    /// @resolution.subscript source=values[0] type=T#1 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=&first.'a immutable T#1, regions=(first.'a))"
+    /// @generic.instantiation id="index#2<T#1, \"immutable\", first.'a>" template=index#2 arguments=(T#1, "immutable", first.'a) owner=first
 
 }
 
@@ -3923,8 +3926,8 @@ extension<T> of [T] {
         /// @resolution.access source=this root=this
         /// @resolution.place source=this[0] placement=head.'a lifetime=head.'a access="immutable"
         /// @resolution.access source=this[0] root=this keys=[0]
-        /// @resolution.subscript source=this[0] type=T#2 kind=call target="index#3(parameters=(isize), arguments=(provided(0) as isize), return=&head.'a immutable T#2, regions=(head.'a))"
-        /// @generic.instantiation id="index#3<T#2, \"immutable\", head.'a>" template=index#3 arguments=(T#2, "immutable", head.'a) owner=head
+        /// @resolution.subscript source=this[0] type=T#2 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=&head.'a immutable T#2, regions=(head.'a))"
+        /// @generic.instantiation id="index#2<T#2, \"immutable\", head.'a>" template=index#2 arguments=(T#2, "immutable", head.'a) owner=head
 
     }
 }
@@ -3988,18 +3991,18 @@ function evaluate(message: Message | undefined, fallback: string): string {
         return message();
         /// @resolution.name source=message target=evaluate.message
         /// @resolution.call source=message() parameters=() return=string kind=expression target=expression
+        /// @resolution.narrowing source=message declared=string | ^Function<(), string, "once"> | undefined arms=^Function<(), string, "once">
         /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=message root=evaluate.message
-        /// @resolution.narrowing source=message union=string | ^Function<(), string, "once"> | undefined arms=^Function<(), string, "once">
 
     }
 
     message ?? fallback
     /// @resolution.name source=message target=evaluate.message
     /// @resolution.operator source="message ?? fallback" type=string operator="??" kind=builtin operands=[message as string | undefined families=(string | undefined), fallback as string families=(string)]
+    /// @resolution.narrowing source=message declared=string | ^Function<(), string, "once"> | undefined arms=string | undefined
     /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=message root=evaluate.message
-    /// @resolution.narrowing source=message union=string | ^Function<(), string, "once"> | undefined arms=string | undefined
     /// @resolution.name source=fallback target=evaluate.fallback
     /// @resolution.place source=fallback placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=fallback root=evaluate.fallback
@@ -4071,18 +4074,18 @@ function evaluate(message: Message | undefined, fallback: string): string {
         return message();
         /// @resolution.name source=message target=evaluate.message
         /// @resolution.call source=message() parameters=() return=string kind=expression target=expression
+        /// @resolution.narrowing source=message declared=string | ^Function<(), string, "once"> | undefined arms=^Function<(), string, "once">
         /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=message root=evaluate.message
-        /// @resolution.narrowing source=message union=string | ^Function<(), string, "once"> | undefined arms=^Function<(), string, "once">
 
     }
 
     message ?? fallback
     /// @resolution.name source=message target=evaluate.message
     /// @resolution.operator source="message ?? fallback" type=string operator="??" kind=builtin operands=[message as string | undefined families=(string | undefined), fallback as string families=(string)]
+    /// @resolution.narrowing source=message declared=string | ^Function<(), string, "once"> | undefined arms=string | undefined
     /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=message root=evaluate.message
-    /// @resolution.narrowing source=message union=string | ^Function<(), string, "once"> | undefined arms=string | undefined
     /// @resolution.name source=fallback target=evaluate.fallback
     /// @resolution.place source=fallback placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=fallback root=evaluate.fallback
@@ -5377,7 +5380,7 @@ export extension<T: Copy> of Source<T> {
         /// @resolution.access source=this root=this
         /// @generic.instantiation id=Source.find<T#2> template=Source.find arguments=(T#2) owner=findCopy
         /// @generic.template symbol=findCopy.symbol17 parameters=('a)
-        /// @type.symbol symbol=findCopy.symbol17 source=(value: &immutable T, index: isize) => predicate(*value, index) type=Function<(&findCopy.symbol17.'a immutable T#2, isize), boolean, "readonly">
+        /// @type.symbol symbol=findCopy.symbol17 source=(value: &immutable T, index: isize) => predicate(*value, index) type=<findCopy.symbol17.'a>(&findCopy.symbol17.'a immutable T#2, isize) => boolean
         /// @type.symbol symbol=findCopy.symbol17.value source="value: &immutable T" type=&findCopy.symbol17.'a immutable T#2
         /// @resolution.name source=T target=T
         /// @type.symbol symbol=findCopy.symbol17.index source="index: isize" type=isize
@@ -5633,7 +5636,7 @@ function run(): void {
     take(new Item());
     /// @resolution.name source=take target=take
     /// @resolution.call source="take(new Item())" parameters=(Item) arguments=(provided(new Item()) as Item) return=void kind=symbol target=take
-    /// @resolution.construct source="new Item()" parameters=() return=Item kind=class target=Item constructor=default
+    /// @resolution.construct source="new Item()" parameters=() return=Item kind=class target=Item constructor=implicit
     /// @resolution.name source=Item target=Item
 
 }
@@ -5880,7 +5883,7 @@ function inner<T>(body: (span: Span) => T): T {
     /// @resolution.call source="body(new Span())" parameters=(Span) arguments=(provided(new Span()) as Span) return=T#1 kind=expression target=expression
     /// @resolution.place source=body placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=body root=inner.body
-    /// @resolution.construct source="new Span()" parameters=() return=Span kind=class target=Span constructor=default
+    /// @resolution.construct source="new Span()" parameters=() return=Span kind=class target=Span constructor=implicit
     /// @resolution.name source=Span target=Span
 
 }
@@ -6034,11 +6037,11 @@ interface Tracer {
 /// @type.symbol symbol=Tracer type=Tracer
 /// @definition.interface symbol=Tracer template=(this: Tracer)
 /// @definition.where symbol=Tracer relation=satisfies left=this right=Tracer
-/// @definition.method symbol=Tracer.span source="span<T>(name: string, body: (span: Span) => T): T" slot=span type=<T#1>(string, (Span) => T#1) => T#1
+/// @definition.method symbol=Tracer.span source="span<T>(name: string, body: (span: Span) => T): T" slot=span type=<T#1>(this: this, string, (Span) => T#1) => T#1
 
     span<T>(name: string, body: (span: Span) => T): T;
     /// @generic.template symbol=Tracer.span parent=template#0 parameters=(T#1)
-    /// @type.symbol symbol=Tracer.span source="span<T>(name: string, body: (span: Span) => T): T" type=<T#1>(string, (Span) => T#1) => T#1
+    /// @type.symbol symbol=Tracer.span source="span<T>(name: string, body: (span: Span) => T): T" type=<T#1>(this: this, string, (Span) => T#1) => T#1
     /// @type.symbol symbol=Tracer.span.T source=T type=T#1
     /// @type.symbol symbol=Tracer.span.name source="name: string" type=string
     /// @type.symbol symbol=Tracer.span.body source="body: (span: Span) => T" type=(Span) => T#1
@@ -6072,7 +6075,7 @@ function span<T>(name: string, body: (span: Span) => T): T {
 
     tracer().span(name, body)
     /// @resolution.name source=tracer target=tracer
-    /// @resolution.member source=tracer().span receiver=Tracer type=<T#1>(string, (Span) => T#1) => T#1 kind=symbol target_receiver=Tracer dispatch=dynamic constraint=Tracer target=Tracer.span
+    /// @resolution.member source=tracer().span receiver=Tracer type=<T#1>(this: Tracer, string, (Span) => T#1) => T#1 kind=symbol target_receiver=Tracer dispatch=dynamic constraint=Tracer target=Tracer.span
     /// @resolution.call source="tracer().span(name, body)" parameters=(string, (Span) => T#2) arguments=(provided(name) as string, provided(body) as (Span) => T#2) return=T#2 kind=dynamic target=Tracer.span receiver=Tracer constraint=Tracer generic_arguments=(T#2)
     /// @resolution.call source=tracer() parameters=() return=Tracer kind=symbol target=tracer
     /// @resolution.name source=name target=span.name
@@ -6241,10 +6244,10 @@ export interface Binding {
 /// @type.symbol symbol=Binding type=Binding
 /// @definition.interface symbol=Binding template=(this: Binding)
 /// @definition.where symbol=Binding relation=satisfies left=this right=Binding
-/// @definition.method symbol=Binding.ready source="ready(): boolean" slot=ready type=() => boolean
+/// @definition.method symbol=Binding.ready source="ready(): boolean" slot=ready type=(this: this) => boolean
 
     ready(): boolean;
-    /// @type.symbol symbol=Binding.ready source="ready(): boolean" type=() => boolean
+    /// @type.symbol symbol=Binding.ready source="ready(): boolean" type=(this: this) => boolean
 
 }
 
@@ -6447,7 +6450,7 @@ function run(item: SharedItem): void {
     keep(new Item());
     /// @resolution.name source=keep target=keep
     /// @resolution.call source="keep(new Item())" parameters=(unknown) arguments=(provided(new Item()) as unknown) return=void kind=symbol target=keep
-    /// @resolution.construct source="new Item()" parameters=() return=Item kind=class target=Item constructor=default
+    /// @resolution.construct source="new Item()" parameters=() return=Item kind=class target=Item constructor=implicit
     /// @resolution.name source=Item target=Item
 
     keep(item);
@@ -7164,15 +7167,15 @@ class State<T> {
         /// @type.symbol symbol=State.push.values source=values type=Deque<Ready<T>>
         /// @resolution.pattern source=values kind=binding target=State.push.values
         /// @resolution.member source=this.values receiver=&State.push.'a readonly State<T> type=Cell<Deque<Ready<T>>> kind=field target_receiver=&State.push.'a readonly State<T> key=values target=State.values target_type=Cell<Deque<Ready<T>>>
-        /// @resolution.member source=this.values.replace receiver=Cell<Deque<Ready<T>>> type=<replace.'a>(this: &replace.'a readonly Cell<Deque<Ready<T>>>, Deque<Ready<T>>) => Deque<Ready<T>> kind=symbol target_receiver=Cell<Deque<Ready<T>>> target=replace
-        /// @resolution.call source=this.values.replace(Deque.new()) parameters=(Deque<Ready<T>>) arguments=(provided(Deque.new()) as Deque<Ready<T>>) return=Deque<Ready<T>> regions=(State.push.'a) kind=symbol target=replace receiver=Cell<Deque<Ready<T>>> adjustments=(borrow(&State.push.'a readonly Cell<Deque<Ready<T>>>)) instance=Cell<Deque<Ready<T>>>.<extension#2>.replace<State.push.'a>
+        /// @resolution.member source=this.values.replace receiver=Cell<Deque<Ready<T>>> type=<replace#1.'a>(this: &replace#1.'a readonly Cell<Deque<Ready<T>>>, Deque<Ready<T>>) => Deque<Ready<T>> kind=symbol target_receiver=Cell<Deque<Ready<T>>> target=replace#1
+        /// @resolution.call source=this.values.replace(Deque.new()) parameters=(Deque<Ready<T>>) arguments=(provided(Deque.new()) as Deque<Ready<T>>) return=Deque<Ready<T>> regions=(State.push.'a) kind=symbol target=replace#1 receiver=Cell<Deque<Ready<T>>> adjustments=(borrow(&State.push.'a readonly Cell<Deque<Ready<T>>>)) instance=Cell<Deque<Ready<T>>>.<extension#2>.replace#1<State.push.'a>
         /// @resolution.receiver source=this kind=this declaration=State type=&State.push.'a readonly State<T>
         /// @resolution.place source=this placement=State.push.'a lifetime=State.push.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.values placement=State.push.'a lifetime=State.push.'a access="readonly"
         /// @resolution.access source=this.values root=this keys=[values]
-        /// @generic.instantiation id="replace<Deque<Ready<T>>, State.push.'a>" template=replace arguments=(Deque<Ready<T>>, State.push.'a) owner=State.push
-        /// @generic.instantiation id=replace<Deque<Ready<T>>> template=replace arguments=(Deque<Ready<T>>) owner=State.push
+        /// @generic.instantiation id="replace#1<Deque<Ready<T>>, State.push.'a>" template=replace#1 arguments=(Deque<Ready<T>>, State.push.'a) owner=State.push
+        /// @generic.instantiation id=replace#1<Deque<Ready<T>>> template=replace#1 arguments=(Deque<Ready<T>>) owner=State.push
         /// @resolution.name source=Deque target=Deque
         /// @resolution.member source=Deque.new receiver=typeof Deque type=() => ^Deque<T#4> kind=symbol target_receiver=typeof Deque target=new
         /// @resolution.call source=Deque.new() parameters=() return=^Deque<Ready<T>> kind=symbol target=new instance=Deque<Ready<T>>.<extension#4>.new

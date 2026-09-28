@@ -87,11 +87,12 @@ impl CheckState<'_> {
                 });
             };
             let value_site = self.visit_site(value)?;
-            let receiver = self.expression_value(value_site, *span)?;
+            let span = self.resolve_structurally(value_site, *span)?;
+            let receiver = self.expression_value(value_site, span)?;
             let selected = self.select_language_protocol_call(
                 origin,
                 receiver,
-                *span,
+                span,
                 dir::MemberSpace::Instance,
                 key,
                 dir::LanguageItem::Display,
@@ -100,9 +101,11 @@ impl CheckState<'_> {
                 &[],
             )?;
 
-            // report a span outside the display protocol
+            // report a span without Display
             let Some((_, call)) = selected else {
-                self.report_template_span_not_displayable(value);
+                if !self.has_error_operand(&[span])? {
+                    self.report_template_span_not_displayable(value);
+                }
 
                 continue;
             };

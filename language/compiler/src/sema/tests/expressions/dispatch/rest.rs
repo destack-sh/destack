@@ -16,6 +16,7 @@ declare function collect(...values: [int32; 2]): void;
 === dir ===
 declare function collect(...values: [int32; 2]): void;
 /// @type.symbol symbol=collect source="declare function collect(...values: [int32; 2]): void" type=(...FixedArray<int32, 2>) => void
+/// @type.symbol symbol=collect.values source="...values: [int32; 2]" type=FixedArray<int32, 2>
 "#, r#"
 /// @diagnostic.error id=invalid-rest-parameter message="rest parameter type FixedArray<int32, 2> must be a dynamic array, slice, or tuple"
 /// @diagnostic.label line=2 column=29 span="values" line_source="declare function collect(...values: [int32; 2]): void;"
@@ -42,7 +43,7 @@ collect(1, 2);
 === annotated ===
 type Pair = [int32; 2];
 
-declare function collect<'a>(...values: &readonly Pair): void;
+declare function collect<'a>(...values: &'a readonly Pair): void;
 
 collect(1, 2);
 
@@ -54,6 +55,7 @@ type Pair = [int32; 2];
 declare function collect(...values: &readonly Pair): void;
 /// @generic.template symbol=collect parameters=('a)
 /// @type.symbol symbol=collect source="declare function collect(...values: &readonly Pair): void" type=<collect.'a>(...&collect.'a readonly Pair) => void
+/// @type.symbol symbol=collect.values source="...values: &readonly Pair" type=&collect.'a readonly Pair
 /// @resolution.name source=Pair target=Pair
 
 collect(1, 2);
@@ -84,11 +86,12 @@ declare function collect(...values: (string, ...[int32; 2])): void;
         DirRows::checked(),
         r#"
 === annotated ===
-declare function collect(...values: (string, ...[int32; 2])): void;
+declare function collect(...values: string): void;
 
 === dir ===
 declare function collect(...values: (string, ...[int32; 2])): void;
 /// @type.symbol symbol=collect source="declare function collect(...values: (string, ...[int32; 2])): void" type=(string, ...FixedArray<int32, 2>) => void
+/// @type.symbol symbol=collect.values source="...values: (string, ...[int32; 2])" type=string
 "#,
         r#"
 /// @diagnostic.error id=invalid-rest-parameter message="rest parameter type (string, ...FixedArray<int32, 2>) must be a dynamic array, slice, or tuple"
@@ -113,7 +116,7 @@ collect("Ada", 1, 2);
         DirRows::checked(),
         r#"
 === annotated ===
-declare function collect(...values: (string, ...int32[])): void;
+declare function collect(...values: string): void;
 
 collect("Ada", 1, 2);
 
@@ -123,6 +126,7 @@ declare function collect(...values: (string, ...int32[])): void;
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
+/// @type.symbol symbol=collect.values source="...values: (string, ...int32[])" type=string
 
 collect("Ada", 1, 2);
 /// @resolution.name source=collect target=collect
@@ -403,6 +407,7 @@ impossible(1);
 === dir ===
 declare function impossible(...values: never): void;
 /// @type.symbol symbol=impossible source="declare function impossible(...values: never): void" type=(...never) => void
+/// @type.symbol symbol=impossible.values source="...values: never" type=never
 
 impossible();
 /// @resolution.name source=impossible target=impossible
@@ -443,6 +448,7 @@ collect(1, 2);
 === dir ===
 declare function collect(...values: int32): void;
 /// @type.symbol symbol=collect source="declare function collect(...values: int32): void" type=(...int32) => void
+/// @type.symbol symbol=collect.values source="...values: int32" type=int32
 
 collect();
 /// @resolution.name source=collect target=collect
@@ -481,7 +487,7 @@ slice(1, 2);
 === annotated ===
 declare function array(...values: int32[]): void;
 
-declare function slice<'a>(...values: &readonly [int32]): void;
+declare function slice<'a>(...values: &'a readonly [int32]): void;
 
 array(1, 2);
 slice<"frame">(1, 2);
@@ -492,10 +498,12 @@ declare function array(...values: int32[]): void;
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
+/// @type.symbol symbol=array.values source="...values: int32[]" type=int32[]
 
 declare function slice(...values: &readonly [int32]): void;
 /// @generic.template symbol=slice parameters=('a)
 /// @type.symbol symbol=slice source="declare function slice(...values: &readonly [int32]): void" type=<slice.'a>(...&slice.'a readonly Slice<int32>) => void
+/// @type.symbol symbol=slice.values source="...values: &readonly [int32]" type=&slice.'a readonly Slice<int32>
 
 array(1, 2);
 /// @resolution.name source=array target=array

@@ -37,9 +37,9 @@ const byte = bytes[index];
 /// @resolution.name source=bytes target=bytes
 /// @resolution.place source=bytes placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=bytes root=bytes
-/// @resolution.subscript source=bytes[index] type=uint8 kind=call target="index#2(parameters=(isize), arguments=(provided(index) as isize), return=uint8, regions=(\"managed\" & \"local\"))"
-/// @generic.instantiation id="index#2<uint8, \"managed\" & \"local\">" template=index#2 arguments=(uint8, "managed" & "local")
-/// @generic.instance id="index#2<uint8, \"bound0\" & \"local\">" template=index#2 arguments=(uint8, "bound0" & "local")
+/// @resolution.subscript source=bytes[index] type=uint8 kind=call target="index#2(parameters=(isize), arguments=(provided(index) as isize), return=&'managed readonly uint8, regions=(\"managed\" & \"local\"))"
+/// @generic.instantiation id="index#2<uint8, \"readonly\", \"managed\" & \"local\">" template=index#2 arguments=(uint8, "readonly", "managed" & "local")
+/// @generic.instance id="index#2<uint8, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=(uint8, "readonly", "bound0" & "local")
 /// @resolution.name source=index target=index
 /// @resolution.place source=index placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=index root=index
@@ -130,10 +130,10 @@ bytes[index] += 1;
 /// @resolution.place source=bytes placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=bytes root=bytes
 /// @resolution.pattern.assign source=bytes[index] kind=place
-/// @resolution.assignment source=bytes[index] read="index#2(parameters=(isize), arguments=(provided(index) as isize), return=uint8, regions=(\"managed\" & \"local\"))" write="indexSet#1(parameters=(isize, uint8), arguments=(provided(index) as isize, supplied(0) as uint8), return=void, regions=(\"managed\" & \"local\"))" type=uint8
-/// @generic.instantiation id="index#2<uint8, \"managed\" & \"local\">" template=index#2 arguments=(uint8, "managed" & "local")
+/// @resolution.assignment source=bytes[index] read="index#2(parameters=(isize), arguments=(provided(index) as isize), return=&'managed readonly uint8, regions=(\"managed\" & \"local\"))" write="indexSet#1(parameters=(isize, uint8), arguments=(provided(index) as isize, supplied(0) as uint8), return=void, regions=(\"managed\" & \"local\"))" type=uint8
+/// @generic.instantiation id="index#2<uint8, \"readonly\", \"managed\" & \"local\">" template=index#2 arguments=(uint8, "readonly", "managed" & "local")
 /// @generic.instantiation id="indexSet#1<uint8, \"managed\" & \"local\">" template=indexSet#1 arguments=(uint8, "managed" & "local")
-/// @generic.instance id="index#2<uint8, \"bound0\" & \"local\">" template=index#2 arguments=(uint8, "bound0" & "local")
+/// @generic.instance id="index#2<uint8, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=(uint8, "readonly", "bound0" & "local")
 /// @generic.instance id="indexSet#1<uint8, \"bound0\" & \"local\">" template=indexSet#1 arguments=(uint8, "bound0" & "local")
 /// @resolution.name source=index target=index
 /// @resolution.place source=index placement="local" lifetime="static" access="immutable"
@@ -203,8 +203,9 @@ function copy(target: &unknown[], source: &readonly int32[]): void {
         /// @resolution.name source=source target=copy.source
         /// @resolution.place source=source placement=copy.'b lifetime=copy.'b access="readonly"
         /// @resolution.access source=source root=copy.source
-        /// @resolution.subscript source=source[index] type=int32 kind=call target="index#2(parameters=(isize), arguments=(provided(index) as isize), return=int32, regions=(copy.'b))"
-        /// @generic.instantiation id="index#2<int32, copy.'b>" template=index#2 arguments=(int32, copy.'b)
+        /// @resolution.place source=source[index] placement=copy.'b lifetime=copy.'b access="readonly"
+        /// @resolution.subscript source=source[index] type=int32 kind=call target="index#2(parameters=(isize), arguments=(provided(index) as isize), return=&copy.'b readonly int32, regions=(copy.'b))"
+        /// @generic.instantiation id="index#2<int32, \"readonly\", copy.'b>" template=index#2 arguments=(int32, "readonly", copy.'b)
         /// @resolution.name source=index target=copy.index
         /// @resolution.place source=index placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=index root=copy.index

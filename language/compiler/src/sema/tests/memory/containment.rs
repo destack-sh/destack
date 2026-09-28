@@ -354,7 +354,7 @@ shared class Service {
     user: User = new User();
     /// @type.symbol symbol=Service.user source="user: User = new User()" type=User
     /// @resolution.name source=User target=User
-    /// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=default
+    /// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=implicit
     /// @resolution.name source=User target=User
 
     accept(user: User): void {}
@@ -607,6 +607,7 @@ declare function publish<T: SharedSafe>(value: T): void;
 /// @type.symbol symbol=publish source="declare function publish<T: SharedSafe>(value: T): void" type=<T: SharedSafe>(T) => void
 /// @type.symbol symbol=publish.T source="T: SharedSafe" type=T
 /// @resolution.name source=SharedSafe target=SharedSafe
+/// @type.symbol symbol=publish.value source="value: T" type=T
 /// @resolution.name source=T target=publish.T
 
 declare const cleanEnvelope: CleanEnvelope;
@@ -811,7 +812,7 @@ function probe(borrowed: &Point, handle: User, exclusive: &exclusive int32[]): i
     const fresh = new User();
     /// @type.symbol symbol=probe.fresh source=fresh type=User
     /// @resolution.pattern source=fresh kind=binding target=probe.fresh
-    /// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=default
+    /// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=implicit
     /// @resolution.name source=User target=User
 
     return local.x + owned.x + borrowed.x + handle.age + fresh.age + exclusive[0];
@@ -853,9 +854,11 @@ function probe(borrowed: &Point, handle: User, exclusive: &exclusive int32[]): i
     /// @resolution.name source=exclusive target=probe.exclusive
     /// @resolution.place source=exclusive placement=probe.'b lifetime=probe.'b access="exclusive"
     /// @resolution.access source=exclusive root=probe.exclusive
-    /// @resolution.subscript source=exclusive[0] type=int32 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=int32, regions=(probe.'b))"
-    /// @generic.instantiation id="index#2<int32, probe.'b>" template=index#2 arguments=(int32, probe.'b)
-    /// @generic.instance id="index#2<int32, probe.'b>" template=index#2 arguments=(int32, probe.'b)
+    /// @resolution.place source=exclusive[0] placement=probe.'b lifetime=probe.'b access="exclusive"
+    /// @resolution.access source=exclusive[0] root=probe.exclusive keys=[0]
+    /// @resolution.subscript source=exclusive[0] type=int32 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=&probe.'b readonly int32, regions=(probe.'b))"
+    /// @generic.instantiation id="index#2<int32, \"readonly\", probe.'b>" template=index#2 arguments=(int32, "readonly", probe.'b)
+    /// @generic.instance id="index#2<int32, \"readonly\", probe.'b>" template=index#2 arguments=(int32, "readonly", probe.'b)
 
 }
 "#,

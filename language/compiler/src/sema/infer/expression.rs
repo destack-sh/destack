@@ -46,7 +46,7 @@ impl CheckState<'_> {
                         let mut is_qualifier = resolution.denoted_type().is_some();
                         for symbol in resolution.symbols() {
                             let kind = self.symbol_kind(*symbol)?;
-                            is_qualifier |= !kind.is_value() || kind == dir::SymbolKind::Class;
+                            is_qualifier |= kind.is_type();
                         }
                         is_qualifier.then_some(resolution)
                     }
@@ -413,7 +413,7 @@ impl CheckState<'_> {
                 index,
                 is_optional,
                 ..
-            } => self.select_index(site, left, index, is_optional, use_),
+            } => self.select_index(site, left, index, is_optional, use_, dir::Access::Readonly),
             dir::Expression::Instantiation {
                 left,
                 generic_arguments,
@@ -464,11 +464,7 @@ impl CheckState<'_> {
             dir::Expression::AwaitMaybe { expression: left }
             | dir::Expression::AwaitMust { expression: left } => {
                 // require the enclosing body's asynchrony
-                if self
-                    .flow
-                    .current_function()
-                    .is_none_or(|function| function.asynchrony != dir::Asynchrony::Async)
-                {
+                if !self.is_async_context() {
                     self.report_await_outside_async_context(
                         node.module_id,
                         node.local_id.into_any(),

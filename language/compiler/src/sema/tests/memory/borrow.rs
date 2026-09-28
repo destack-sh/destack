@@ -318,8 +318,8 @@ modify(&user);
 class User {}
 
 declare const user: User;
-declare function inspect<'a>(value: &readonly User): void;
-declare function modify<'a>(value: &User): void;
+declare function inspect<'a>(value: &'a readonly User): void;
+declare function modify<'a>(value: &'a User): void;
 
 inspect<"managed">(&user);
 modify<"managed">(&user);
@@ -339,11 +339,13 @@ declare const user: User;
 declare function inspect(value: &readonly User): void;
 /// @generic.template symbol=inspect parameters=('a)
 /// @type.symbol symbol=inspect source="declare function inspect(value: &readonly User): void" type=<inspect.'a>(&inspect.'a readonly User) => void
+/// @type.symbol symbol=inspect.value source="value: &readonly User" type=&inspect.'a readonly User
 /// @resolution.name source=User target=User
 
 declare function modify(value: &User): void;
 /// @generic.template symbol=modify parameters=('a)
 /// @type.symbol symbol=modify source="declare function modify(value: &User): void" type=<modify.'a>(&modify.'a User) => void
+/// @type.symbol symbol=modify.value source="value: &User" type=&modify.'a User
 /// @resolution.name source=User target=User
 
 inspect(&user);
@@ -410,7 +412,7 @@ modify(readonlyView);
 class User {}
 
 declare const readonlyView: &'static readonly User;
-declare function modify<'a>(value: &User): void;
+declare function modify<'a>(value: &'a User): void;
 
 modify<"static">(readonlyView);
 
@@ -427,6 +429,7 @@ declare const readonlyView: &readonly User;
 declare function modify(value: &User): void;
 /// @generic.template symbol=modify parameters=('a)
 /// @type.symbol symbol=modify source="declare function modify(value: &User): void" type=<modify.'a>(&modify.'a User) => void
+/// @type.symbol symbol=modify.value source="value: &User" type=&modify.'a User
 /// @resolution.name source=User target=User
 
 modify(readonlyView);

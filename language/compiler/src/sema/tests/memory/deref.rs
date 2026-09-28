@@ -612,8 +612,6 @@ function run(boxed: Box<Point>, nested: Box<Box<Point>>, viewed: &readonly Box<P
 /// @diagnostic.label line=23 column=12 span="bump" line_source="viewed.bump();"
 /// @diagnostic.note message="the source grants at most 'readonly' access"
 /// @diagnostic.help message="request the granted access or use a source that grants more"
-/// @diagnostic.error id=missing-member message="member 'bump' does not exist on type '&'a readonly Box<Point>'"
-/// @diagnostic.label line=23 column=12 span="bump" line_source="viewed.bump();"
 "#,
     );
 }

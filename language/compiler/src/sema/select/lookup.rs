@@ -347,6 +347,11 @@ impl MemberCandidate {
 
     /// Return whether two candidates read one member.
     pub(in crate::sema) fn reads_same(&self, other: &Self) -> bool {
+        // keep candidates of distinct union arms apart
+        if self.arm != other.arm {
+            return false;
+        }
+
         // compare the two candidates by their sources
         match (&self.source, &other.source) {
             (CandidateSource::Declared(left), CandidateSource::Declared(right)) => {

@@ -199,6 +199,7 @@ declare function parse<T: number>(value: `${T}`): T;
 /// @generic.template symbol=parse parameters=(T: float64)
 /// @type.symbol symbol=parse source="declare function parse<T: number>(value: `${T}`): T" type=<T: float64>(`${T}`) => T
 /// @type.symbol symbol=parse.T source="T: number" type=T
+/// @type.symbol symbol=parse.value source="value: `${T}`" type=`${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 
@@ -243,6 +244,7 @@ declare function parse<T: int8>(value: `${T}`): T;
 /// @generic.template symbol=parse parameters=(T: int8)
 /// @type.symbol symbol=parse source="declare function parse<T: int8>(value: `${T}`): T" type=<T: int8>(`${T}`) => T
 /// @type.symbol symbol=parse.T source="T: int8" type=T
+/// @type.symbol symbol=parse.value source="value: `${T}`" type=`${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 
@@ -286,6 +288,7 @@ declare function parse<T: bigint>(value: `${T}`): T;
 /// @generic.template symbol=parse parameters=(T: bigint)
 /// @type.symbol symbol=parse source="declare function parse<T: bigint>(value: `${T}`): T" type=<T: bigint>(`${T}`) => T
 /// @type.symbol symbol=parse.T source="T: bigint" type=T
+/// @type.symbol symbol=parse.value source="value: `${T}`" type=`${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 

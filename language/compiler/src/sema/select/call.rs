@@ -193,7 +193,7 @@ impl CheckState<'_> {
 
             // build one overload candidate per declared symbol
             let mut candidates = SmallVec::new();
-            for symbol in symbols {
+            for symbol in symbols.iter().copied() {
                 // skip declarations removed by statically false gates
                 if self.is_absent_symbol(symbol) {
                     continue;
@@ -230,6 +230,17 @@ impl CheckState<'_> {
                     ty,
                     generic_arguments: Vec::new(),
                 });
+            }
+
+            // reject a declaration without a call signature
+            if let ([symbol], true) = (symbols.as_slice(), candidates.is_empty())
+                && !self.is_absent_symbol(*symbol)
+            {
+                let reference =
+                    self.intern_type(dir::Type::Reference(dir::TypeReference::new(*symbol)))?;
+                self.report_not_callable(origin, reference)?;
+
+                return Ok(None);
             }
 
             // declaration callees name exactly one runtime callee
@@ -1185,6 +1196,11 @@ impl CheckState<'_> {
             self.commit_coercion(source, coercion)?;
         }
 
+        // commit the access each selected receiver borrow takes
+        for (candidate, signature) in &selected {
+            self.commit_receiver_borrow(origin, candidate, signature)?;
+        }
+
         // type a bare declaration head as its selected overload
         if let [(candidate, signature)] = selected.as_slice()
             && matches!(candidate.target, CallableTarget::Symbol(_))
@@ -1332,6 +1348,40 @@ impl CheckState<'_> {
         Ok(resolution)
     }
 
+    /// Commit the access of one receiver borrow.
+    fn commit_receiver_borrow(
+        &mut self,
+        origin: Origin,
+        candidate: &CallableCandidate,
+        signature: &SignatureSelection,
+    ) -> CompilerResult<()> {
+        // read the borrow a direct instance receiver ends in
+        let Some(receiver) = candidate
+            .receiver
+            .as_ref()
+            .filter(|_| candidate.member_space != Some(dir::MemberSpace::Static))
+        else {
+            return Ok(());
+        };
+        let Some(dir::MemberReceiver::Direct(selected)) = candidate.selected_receiver(signature)
+        else {
+            return Ok(());
+        };
+        let (Some(node), Some(dir::ReceiverAdjustment::Borrow { ty })) =
+            (receiver.value.node, selected.adjustments.last())
+        else {
+            return Ok(());
+        };
+
+        // commit the borrow's access
+        let Some(access) = self.borrow_access(origin, *ty)? else {
+            return Ok(());
+        };
+        let is_aliased = self.type_is_aliased(origin, receiver.value.ty)?;
+
+        self.commit_required_access(node, access, is_aliased)
+    }
+
     /// Commit one accepted call selection.
     fn commit_call_selection(
         &mut self,
@@ -1343,7 +1393,7 @@ impl CheckState<'_> {
         for call in resolution.arms() {
             parks |= self.signature_parks(call.callable_type)?;
         }
-        if parks && !self.current_function_parks()? {
+        if parks && !self.current_function_may_park()? {
             self.report_park_outside_protocol(node.module_id, node.local_id);
         }
 

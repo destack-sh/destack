@@ -29,6 +29,8 @@ pub(in crate::sema) struct ReceiverOffer {
     defaults: SmallVec<[ReceiverForm; 2]>,
     /// Whether the step is an access view over its value.
     is_view: bool,
+    /// The step type with its forms.
+    ty: dir::GlobalTypeId,
 }
 
 /// How one member takes a dereference step.
@@ -43,7 +45,7 @@ pub(in crate::sema) enum Acceptance {
 }
 
 impl CheckState<'_> {
-    /// Match one member key over the receiver's dereference steps.
+    /// Match one member key over the receiver's dereference steps, none when rejected.
     pub(in crate::sema) fn match_member(
         &mut self,
         origin: Origin,
@@ -53,10 +55,10 @@ impl CheckState<'_> {
         key: dir::StaticKey,
         access: dir::Access,
         protocol: Option<&Protocol>,
-    ) -> CompilerResult<MemberLookup> {
+    ) -> CompilerResult<Option<MemberLookup>> {
         // look statics up on their declaration directly
         if subject.space == dir::MemberSpace::Static {
-            return match protocol {
+            let lookup = match protocol {
                 Some(protocol) => self.lookup_protocol_member(
                     origin,
                     module,
@@ -64,9 +66,11 @@ impl CheckState<'_> {
                     subject.space,
                     key,
                     protocol,
-                ),
-                None => self.lookup_member(origin, module, subject, key),
+                )?,
+                None => self.lookup_member(origin, module, subject, key)?,
             };
+
+            return Ok(Some(lookup));
         }
 
         // step down the receiver until one step exposes the key
@@ -88,13 +92,13 @@ impl CheckState<'_> {
                         subject.target,
                     )?;
 
-                    return Ok(MemberLookup::default());
+                    return Ok(None);
                 };
                 for adjustment in found.adjustments.clone().into_iter().rev() {
                     lookup.prepend_adjustment(&adjustment);
                 }
 
-                return Ok(lookup);
+                return Ok(Some(lookup));
             }
 
             // explore one step further, keeping the exploration out of the committed state
@@ -115,12 +119,13 @@ impl CheckState<'_> {
             };
             if depth == DEREFERENCE_LIMIT {
                 self.report_dereference_depth_exceeded(origin, receiver.ty)?;
-                break;
+
+                return Ok(None);
             }
             step = adjustment.ty();
         }
 
-        Ok(MemberLookup::default())
+        Ok(Some(MemberLookup::default()))
     }
 
     /// Return the member one dereference step exposes under a key, by value or through a borrow.
@@ -284,6 +289,7 @@ impl CheckState<'_> {
             explicit,
             defaults,
             is_view,
+            ty: step,
         })
     }
 
@@ -303,8 +309,16 @@ impl CheckState<'_> {
             let owner_form = owner.unwrap_or(*default);
             let this_form = self.declared_this_form(origin, callable, owner_form)?;
 
-            // take the step itself, else borrow it outside an access view
-            is_by_value &= this_form.is_overlapping(step_form);
+            // take the step by value or by copy
+            let is_copied = step_form.ownership == dir::Ownership::Owned
+                && this_form.ownership == dir::Ownership::Managed
+                && self
+                    .decide(|state| {
+                        state.decide_auto_interface(origin, step.ty, dir::AutoInterface::Copy)
+                    })?
+                    .0
+                    == Verdict::Holds;
+            is_by_value &= this_form.is_overlapping(step_form) || is_copied;
             is_by_borrow &= this_form.is_overlapping(step_form)
                 || (this_form.ownership == dir::Ownership::Borrowed
                     && step_form.ownership != dir::Ownership::Borrowed
@@ -780,13 +794,21 @@ impl CheckState<'_> {
         if !acquired.holds() {
             return Ok(None);
         }
-        // lend the object the receiver names
+        // lend the receiver's object
         let value = self.ownership_payload(origin, step.ty)?;
+        let payload = self.form_chain(origin, parameter_type)?.base();
+        let carrier = self.materialized_store(origin, value, payload)?;
         let borrowed = self.intern_type(dir::Type::Form(dir::FormType {
             form: conversion.borrow.form,
-            value,
+            value: carrier.unwrap_or(value),
         }))?;
         let mut adjustments = step.adjustments.clone();
+        if let Some(carrier) = carrier {
+            adjustments.push(dir::ReceiverAdjustment::Materialize {
+                singleton: value,
+                ty: carrier,
+            });
+        }
 
         // reborrow through the reference the step read
         if let Some(dir::ReceiverAdjustment::Dereference(dereference)) = adjustments.last()

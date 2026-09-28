@@ -28,10 +28,11 @@ const byte = bytes[1];
 /// @resolution.name source=bytes target=bytes
 /// @resolution.place source=bytes placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=bytes root=bytes
-/// @resolution.subscript source=bytes[1] type=uint8 kind=call target="index#2(parameters=(isize), arguments=(provided(1) as isize), return=uint8, regions=(\"static\" & \"local\"))"
-/// @generic.instantiation id="index#2<uint8, 4, \"static\" & \"local\">" template=index#2 arguments=(uint8, 4, "static" & "local")
+/// @resolution.access source=bytes[1] root=bytes keys=[1]
+/// @resolution.subscript source=bytes[1] type=uint8 kind=call target="index#2(parameters=(isize), arguments=(provided(1) as isize), return=&'static readonly uint8, regions=(\"static\" & \"local\"))"
+/// @generic.instantiation id="index#2<uint8, 4, \"readonly\", \"static\" & \"local\">" template=index#2 arguments=(uint8, 4, "readonly", "static" & "local")
 /// @generic.instance id="FixedArray<uint8, 4>" template=FixedArray arguments=(uint8, 4)
-/// @generic.instance id="index#2<uint8, 4, \"bound0\" & \"local\">" template=index#2 arguments=(uint8, 4, "bound0" & "local")
+/// @generic.instance id="index#2<uint8, 4, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=(uint8, 4, "readonly", "bound0" & "local")
 "#,
     );
 }

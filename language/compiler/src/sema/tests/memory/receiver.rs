@@ -168,7 +168,7 @@ class Counter {
     /// @resolution.name source=Counter target=Counter
 
         return new Counter();
-        /// @resolution.construct source="new Counter()" parameters=() return=Counter kind=class target=Counter constructor=default
+        /// @resolution.construct source="new Counter()" parameters=() return=Counter kind=class target=Counter constructor=implicit
         /// @resolution.name source=Counter target=Counter
 
     }

@@ -30,9 +30,9 @@ const slice = bytes[1..3];
 /// @resolution.name source=bytes target=bytes
 /// @resolution.place source=bytes placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=bytes root=bytes
-/// @resolution.subscript source=bytes[1..3] type=Slice<uint8> kind=call target="index#1(parameters=(Range<isize>), arguments=(provided(1..3) as Range<isize>), return=&'static immutable Slice<uint8>, regions=(\"static\" & \"local\"))"
-/// @generic.instantiation id="index#1<uint8, 4, Range<isize>, \"immutable\", \"static\" & \"local\">" template=index#1 arguments=(uint8, 4, Range<isize>, "immutable", "static" & "local")
-/// @generic.instance id="index#1<uint8, 4, Range<isize>, \"immutable\", \"bound0\" & \"local\">" template=index#1 arguments=(uint8, 4, Range<isize>, "immutable", "bound0" & "local")
+/// @resolution.subscript source=bytes[1..3] type=Slice<uint8> kind=call target="index#1(parameters=(Range<isize>), arguments=(provided(1..3) as Range<isize>), return=&'static readonly Slice<uint8>, regions=(\"static\" & \"local\"))"
+/// @generic.instantiation id="index#1<uint8, 4, Range<isize>, \"readonly\", \"static\" & \"local\">" template=index#1 arguments=(uint8, 4, Range<isize>, "readonly", "static" & "local")
+/// @generic.instance id="index#1<uint8, 4, Range<isize>, \"readonly\", \"bound0\" & \"local\">" template=index#1 arguments=(uint8, 4, Range<isize>, "readonly", "bound0" & "local")
 /// @type.node source=1 type=1
 /// @type.node source=1..3 type=Range<isize>
 /// @generic.instance id=Range<isize> template=Range arguments=(isize)

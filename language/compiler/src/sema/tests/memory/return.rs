@@ -34,8 +34,10 @@ function first(values: &immutable [int32]): &immutable int32 {
     /// @resolution.name source=values target=first.values
     /// @resolution.place source=values placement=first.'a lifetime=first.'a access="immutable"
     /// @resolution.access source=values root=first.values
-    /// @resolution.subscript source=values[0] type=int32 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=int32, regions=(first.'a))"
-    /// @generic.instantiation id="index#2<int32, first.'a>" template=index#2 arguments=(int32, first.'a)
+    /// @resolution.place source=values[0] placement=first.'a lifetime=first.'a access="immutable"
+    /// @resolution.access source=values[0] root=first.values keys=[0]
+    /// @resolution.subscript source=values[0] type=int32 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=&first.'a immutable int32, regions=(first.'a))"
+    /// @generic.instantiation id="index#2<int32, \"immutable\", first.'a>" template=index#2 arguments=(int32, "immutable", first.'a)
 
 }
 
@@ -239,8 +241,10 @@ function first(values: &readonly [int32]): &readonly int32 {
     /// @resolution.name source=values target=first.values
     /// @resolution.place source=values placement=first.'a lifetime=first.'a access="readonly"
     /// @resolution.access source=values root=first.values
-    /// @resolution.subscript source=values[0] type=int32 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=int32, regions=(first.'a))"
-    /// @generic.instantiation id="index#2<int32, first.'a>" template=index#2 arguments=(int32, first.'a)
+    /// @resolution.place source=values[0] placement=first.'a lifetime=first.'a access="readonly"
+    /// @resolution.access source=values[0] root=first.values keys=[0]
+    /// @resolution.subscript source=values[0] type=int32 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=&first.'a readonly int32, regions=(first.'a))"
+    /// @generic.instantiation id="index#2<int32, \"readonly\", first.'a>" template=index#2 arguments=(int32, "readonly", first.'a)
 
 }
 

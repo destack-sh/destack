@@ -319,9 +319,12 @@ impl CheckState<'_> {
                 None => self.type_space(chain.base())?,
             };
 
-            // hold only references proven outside local space
+            // reject a local reference unless its referent is owned
             let is_local = !matches!(space, Some(dir::Space::Shared | dir::Space::Constant));
-            if is_local && self.form_is_reference(origin, &chain)? {
+            if is_local
+                && ownership != Some(dir::Ownership::Owned)
+                && self.form_is_reference(origin, &chain)?
+            {
                 return Ok(Some(RepresentationFailure::LocalReference(source)));
             }
             ty = chain.base();

@@ -127,7 +127,7 @@ impl CheckState<'_> {
     }
 
     /// Return whether the member or subscript decision at one node stores its target.
-    fn is_stored_access(&self, node: dir::GlobalNodeIdAny) -> Option<bool> {
+    pub(in crate::sema) fn is_stored_access(&self, node: dir::GlobalNodeIdAny) -> Option<bool> {
         // read the stored flag off a member, subscript, or assignment decision
         match self.decisions(node.module_id).decision(node)? {
             dir::Decision::Member(decision) => Some(decision.is_stored()),
@@ -474,7 +474,7 @@ impl CheckState<'_> {
                 Some(node) => self
                     .decisions(node.module_id)
                     .narrowing(node)
-                    .map(|narrowing| narrowing.union),
+                    .map(|narrowing| narrowing.declared),
                 None => None,
             };
             let target = self.form_chain(origin, stored.unwrap_or(value.ty))?.base();
@@ -666,7 +666,7 @@ impl CheckState<'_> {
                     ty: receiver,
                     ..receiver_value
                 };
-                let mut lookup = self.match_member(
+                let Some(mut lookup) = self.match_member(
                     origin,
                     module,
                     receiver_value,
@@ -674,10 +674,21 @@ impl CheckState<'_> {
                     key,
                     dir::Access::Mutable,
                     None,
-                )?;
+                )?
+                else {
+                    return Ok(None);
+                };
 
                 // project the answer onto its physical receiver arms
                 self.adjust_narrowed_lookup(origin, receiver, subject.target, &mut lookup)?;
+
+                // report a missing key
+                if lookup.is_empty() {
+                    let key = self.strings().get(name).to_string();
+                    self.report_rejected_member(source, origin, receiver, key)?;
+
+                    return Ok(None);
+                }
 
                 let Some(selection) =
                     self.select_member_assignment(origin, receiver_value, key, use_, lookup)?
@@ -694,6 +705,7 @@ impl CheckState<'_> {
                 // commit the stored member path
                 if let Some(key) = stored_key {
                     self.commit_projected_access(source, receiver_node, key)?;
+                    self.require_index_access(receiver_node, dir::Access::Mutable)?;
                 }
 
                 Ok(Some(target))
@@ -725,11 +737,15 @@ impl CheckState<'_> {
                 let receiver_type = self.readable_value(receiver)?;
                 let space = self.member_receiver_space(receiver_node, receiver)?;
 
+                // raise the receiver to mutable
+                self.require_index_access(receiver_node, dir::Access::Mutable)?;
+
                 // select the subscript operator for the receiver and index
                 let selection = self.select_subscript(
                     origin,
                     module,
                     use_,
+                    dir::Access::Readonly,
                     receiver_value,
                     receiver_type,
                     space,
@@ -817,7 +833,7 @@ impl CheckState<'_> {
 
                 // record the mutable access a write through the pointer requires
                 let is_aliased = self.type_is_aliased(origin, receiver)?;
-                self.commit_required_access(receiver_node, dir::Access::Mutable, is_aliased);
+                self.commit_required_access(receiver_node, dir::Access::Mutable, is_aliased)?;
                 let write = dir::WriteResolution::Dereference(write);
 
                 Ok(Some(AssignmentSelection {

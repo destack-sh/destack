@@ -334,6 +334,13 @@ impl CheckState<'_> {
                 self.object_properties(current.module_id, shape.properties)?
                     .to_vec(),
             )),
+            // spread an alias's named type
+            dir::Type::Application(instance)
+                if let Some(value) =
+                    self.type_alias_body(origin, current.module_id, &instance)? =>
+            {
+                self.spread_fields(origin, module, value)
+            }
             // instances spread their visible fields
             dir::Type::Application(instance) => {
                 let keys = self.nominal_member_keys(instance.symbol)?;

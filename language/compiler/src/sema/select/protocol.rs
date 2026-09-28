@@ -349,9 +349,9 @@ impl CheckState<'_> {
             dir::Access::Readonly,
             Some(protocol),
         )?;
-        if candidates.is_empty() {
+        let Some(candidates) = candidates.filter(|candidates| !candidates.is_empty()) else {
             return Ok(None);
-        }
+        };
 
         // read the first candidate per runtime arm, joining several as one union
         let arms = candidates.arms();
@@ -411,9 +411,9 @@ impl CheckState<'_> {
             dir::Access::Readonly,
             Some(protocol),
         )?;
-        if candidates.is_empty() {
+        let Some(candidates) = candidates.filter(|candidates| !candidates.is_empty()) else {
             return Ok(Err(SignatureRejection::Inapplicable));
-        }
+        };
 
         // select the first accepting candidate per runtime arm, joining several as one union
         let arms = candidates.arms();

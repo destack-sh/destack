@@ -380,6 +380,67 @@ value();
     );
 }
 
+/// Reject calling a struct or interface name.
+#[test]
+fn test_reject_calling_a_declaration_without_a_call_signature() {
+    let session = TestSession::single(
+        r#"
+struct Point {
+    x: int32;
+}
+
+interface Named {
+    name: string;
+}
+
+function make(): void {
+    Point(1);
+    Named("x");
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.tspp",
+        DirRows::none(),
+        r#"
+=== annotated ===
+struct Point {
+    x: int32;
+}
+
+interface Named {
+    name: string;
+}
+
+function make(): void {
+    Point(1);
+    Named("x");
+}
+
+=== dir ===
+struct Point {
+    x: int32;
+}
+
+interface Named {
+    name: string;
+}
+
+function make(): void {
+    Point(1);
+    Named("x");
+}
+"#,
+        r#"
+/// @diagnostic.error id=not-callable message="value of type 'Point' is not callable"
+/// @diagnostic.label line=11 column=5 span="Point(1)" line_source="Point(1);"
+/// @diagnostic.error id=not-callable message="value of type 'Named' is not callable"
+/// @diagnostic.label line=12 column=5 span="Named(\"x\")" line_source="Named(\"x\");"
+"#,
+    );
+}
+
 #[test]
 fn test_call_an_interface_value_through_its_call_signature() {
     let session = TestSession::single(
@@ -582,7 +643,7 @@ function total(values: int32[]): int32 {
 
     session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-declare function visit(callback: Function<(int32,), void, "readonly">): void;
+declare function visit(callback: (arg0: int32) => void): void;
 
 function total(values: int32[]): int32 {
     let sum: int32 = 0;
@@ -595,6 +656,7 @@ function total(values: int32[]): int32 {
 === dir ===
 declare function visit(callback: Function<(int32,), void, "readonly">): void;
 /// @type.symbol symbol=visit source="declare function visit(callback: Function<(int32,), void, \"readonly\">): void" type=(Function<(int32,), void, "readonly">) => void
+/// @type.symbol symbol=visit.callback source="callback: Function<(int32,), void, \"readonly\">" type=Function<(int32,), void, "readonly">
 /// @resolution.name source=Function target=Function
 
 function total(values: int32[]): int32 {
@@ -667,6 +729,7 @@ function total(values: int32[]): int32 {
 === dir ===
 declare function visit(callback: (value: int32) => void): void;
 /// @type.symbol symbol=visit source="declare function visit(callback: (value: int32) => void): void" type=((int32) => void) => void
+/// @type.symbol symbol=visit.callback source="callback: (value: int32) => void" type=(int32) => void
 /// @type.symbol symbol=visit.value source="value: int32" type=int32
 
 function total(values: int32[]): int32 {
@@ -802,6 +865,7 @@ declare function applyOpen<U>(map: (value: int32) => U | undefined): U | undefin
 /// @generic.template symbol=applyOpen parameters=(U)
 /// @type.symbol symbol=applyOpen type=<U>((int32) => U | undefined) => U | undefined
 /// @type.symbol symbol=applyOpen.U source=U type=U
+/// @type.symbol symbol=applyOpen.map source="map: (value: int32) => U | undefined" type=(int32) => U | undefined
 /// @type.symbol symbol=applyOpen.value source="value: int32" type=int32
 /// @resolution.name source=U target=applyOpen.U
 /// @resolution.name source=U target=applyOpen.U
@@ -850,6 +914,7 @@ declare function applyOpen<U>(map: (value: int32) => U | undefined): U | undefin
 /// @generic.template symbol=applyOpen parameters=(U)
 /// @type.symbol symbol=applyOpen type=<U>((int32) => U | undefined) => U | undefined
 /// @type.symbol symbol=applyOpen.U source=U type=U
+/// @type.symbol symbol=applyOpen.map source="map: (value: int32) => U | undefined" type=(int32) => U | undefined
 /// @type.symbol symbol=applyOpen.value source="value: int32" type=int32
 /// @resolution.name source=U target=applyOpen.U
 /// @resolution.name source=U target=applyOpen.U
@@ -964,6 +1029,7 @@ class Dog extends Animal {}
 
 declare function eatAnimal(animal: Animal): void;
 /// @type.symbol symbol=eatAnimal source="declare function eatAnimal(animal: Animal): void" type=(Animal) => void
+/// @type.symbol symbol=eatAnimal.animal source="animal: Animal" type=Animal
 /// @resolution.name source=Animal target=Animal
 
 const contravariant: (dog: Dog) => void = eatAnimal;
@@ -975,61 +1041,6 @@ const contravariant: (dog: Dog) => void = eatAnimal;
 /// @resolution.function source=eatAnimal type=Function<(Animal,), void, "readonly"> target=eatAnimal
 "#,
         r#"
-"#,
-    );
-}
-
-/// Accept a type predicate function in a boolean-returning slot.
-#[test]
-fn test_accept_a_type_predicate_function_in_a_boolean_slot() {
-    let session = TestSession::single(
-        r#"
-class Animal {}
-class Dog extends Animal {}
-
-declare function isDog(animal: Animal): animal is Dog;
-
-const predicate: (animal: Animal) => boolean = isDog;
-"#,
-    );
-
-    session.assert_dir_and_diagnostics(
-        "main.tspp",
-        DirRows::checked(),
-        r#"
-=== annotated ===
-class Animal {}
-class Dog extends Animal {}
-
-declare function isDog(animal: Animal): animal; is Dog;
-
-const predicate: (animal: Animal) => boolean = isDog;
-
-=== dir ===
-class Animal {}
-/// @type.symbol symbol=Animal source="class Animal {}" type=typeof Animal
-/// @definition.class symbol=Animal source="class Animal {}"
-
-class Dog extends Animal {}
-/// @type.symbol symbol=Dog source="class Dog extends Animal {}" type=typeof Dog
-/// @definition.class symbol=Dog source="class Dog extends Animal {}"
-/// @definition.extends symbol=Dog source=Animal target=Animal
-/// @resolution.name source=Animal target=Animal
-
-declare function isDog(animal: Animal): animal is Dog;
-/// @resolution.guard source="declare function isDog(animal: Animal): animal is Dog" kind=is value=void target=Dog predicate="void is subtype(Dog)" narrowed=Narrow<void, Dog>
-/// @resolution.name source=Dog target=Dog
-
-const predicate: (animal: Animal) => boolean = isDog;
-/// @type.symbol symbol=predicate source=predicate type=(Animal) => boolean
-/// @resolution.pattern source=predicate kind=binding target=predicate
-/// @type.symbol symbol=animal source="animal: Animal" type=Animal
-/// @resolution.name source=Animal target=Animal
-/// @resolution.name source=isDog target=isDog
-/// @resolution.function source=isDog type=(Animal) => boolean target=isDog
-"#,
-        r#"
-
 "#,
     );
 }

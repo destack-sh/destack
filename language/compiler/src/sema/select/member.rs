@@ -531,10 +531,20 @@ impl CheckState<'_> {
             ..receiver
         };
 
+        // drop the owner arguments of a static member
+        let is_owner_scoped = candidate.space == dir::MemberSpace::Instance
+            || matches!(
+                self.definition(declared.owner)?.as_deref(),
+                Some(dir::Definition::Extension(_) | dir::Definition::Interface(_))
+            );
+        let owner_arguments = match is_owner_scoped {
+            true => declared.generic_arguments.as_slice(),
+            false => &[],
+        };
         let carried = self.member_call_arguments(
             origin,
             Some(declared.symbol),
-            &declared.generic_arguments,
+            owner_arguments,
             &declared.region_arguments,
             selection_type,
         )?;
@@ -658,7 +668,7 @@ impl CheckState<'_> {
         let key = dir::StaticKey::Name(name);
         let receiver_site = self.visit_site(receiver_node)?;
         let receiver_value = self.expression_value(receiver_site, receiver)?;
-        let mut lookup = self.match_member(
+        let Some(mut lookup) = self.match_member(
             origin,
             module,
             receiver_value,
@@ -666,7 +676,13 @@ impl CheckState<'_> {
             key,
             dir::Access::Readonly,
             None,
-        )?;
+        )?
+        else {
+            self.commit_decision(node, dir::Decision::Rejected)?;
+            self.commit_error_node(node)?;
+
+            return Ok(());
+        };
 
         // project the answer onto its physical receiver arms
         self.adjust_narrowed_lookup(origin, receiver, subject.target, &mut lookup)?;
@@ -862,7 +878,7 @@ impl CheckState<'_> {
     }
 
     /// Report one rejected member access with a diagnostic.
-    fn report_rejected_member(
+    pub(in crate::sema) fn report_rejected_member(
         &mut self,
         node: dir::GlobalNodeIdAny,
         origin: Origin,

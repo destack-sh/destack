@@ -273,8 +273,22 @@ impl WalkState<'_, '_> {
                 ..
             } => self.walk_borrowed_type(id, *lifetime, *access, *target_type),
             // *T
-            dir::TypeExpression::PointerOf { target_type, .. } => {
+            dir::TypeExpression::PointerOf {
+                mutability,
+                target_type,
+            } => {
                 let value = self.walk_type_expression(*target_type)?;
+                let value = match mutability {
+                    // *readonly T points at a readonly value
+                    Some(dir::Mutability::Immutable) => {
+                        self.intern_type(dir::Type::Form(dir::FormType {
+                            form: dir::Form::Readonly,
+                            value,
+                        }))?
+                    }
+                    // *T points at the value itself
+                    _ => value,
+                };
 
                 self.intern_type(dir::Type::Form(dir::FormType {
                     form: dir::Form::Raw,

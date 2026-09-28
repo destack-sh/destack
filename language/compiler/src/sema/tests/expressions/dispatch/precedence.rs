@@ -633,8 +633,8 @@ export extension<T, E> of Outcome<T, E> {
 
     map<U>(f: (value: T) => U): Outcome<U, E> {
         match (this) {
-            Ok { value } => Outcome.ok(f(value))
-            Err { error } => Outcome.err(error)
+            Ok { value } => Outcome.ok(f(value)),
+            Err { error } => Outcome.err(error),
         }
     }
 }
@@ -667,8 +667,8 @@ export extension<T, E> of Outcome<T, E> {
 
     map<U>(f: (value: T) => U): Outcome<U, E> {
         match (this) {
-            Ok { value } => Outcome.ok<U, E>(f(value))
-            Err { error } => Outcome.err<U, E>(error)
+            Ok { value } => Outcome.ok<U, E>(f(value)),
+            Err { error } => Outcome.err<U, E>(error),
         }
     }
 }
@@ -790,7 +790,7 @@ export extension<T, E> of Outcome<T, E> {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
 
-            Ok { value } => Outcome.ok(f(value))
+            Ok { value } => Outcome.ok(f(value)),
             /// @resolution.name source=Ok target=Ok
             /// @resolution.pattern source="Ok { value }" kind=nominal_object adjustments=(newtype.payload(Outcome, Ok<T#3> | Err<E#3>), union.payload(Ok<T#3> | Err<E#3>, Ok<T#3>, Ok<T#3>)) target=Ok instance=Ok<T#3> fields={ Ok.value }
             /// @generic.instantiation id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3) owner=map
@@ -814,7 +814,7 @@ export extension<T, E> of Outcome<T, E> {
             /// @resolution.place source=value placement="local" lifetime="frame" access="immutable"
             /// @resolution.access source=value root=map.value#2
 
-            Err { error } => Outcome.err(error)
+            Err { error } => Outcome.err(error),
             /// @resolution.name source=Err target=Err
             /// @resolution.pattern source="Err { error }" kind=nominal_object adjustments=(newtype.payload(Outcome, Ok<T#3> | Err<E#3>), union.payload(Ok<T#3> | Err<E#3>, Err<E#3>, Err<E#3>)) target=Err instance=Err<E#3> fields={ Err.error }
             /// @generic.instantiation id=Err<E#3> template=Err arguments=(E#3) owner=map

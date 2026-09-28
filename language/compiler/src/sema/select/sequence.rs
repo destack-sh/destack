@@ -310,6 +310,7 @@ impl CheckState<'_> {
             receiver,
             dir::ArgumentSource::Static(index),
             index,
+            dir::Access::Readonly,
         )?
         else {
             return Ok(None);

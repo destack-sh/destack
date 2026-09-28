@@ -860,9 +860,9 @@ function bump(cell: Cell): void {
         /// @resolution.member source=cell.value receiver=Cell type=string | float64 kind=field target_receiver=Cell key=value target=Cell.value target_type=string | float64
         /// @resolution.place source=cell placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=cell root=bump.cell
+        /// @resolution.narrowing source=cell.value declared=string | float64 arms=float64
         /// @resolution.place source=cell.value placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=cell.value root=bump.cell keys=[value]
-        /// @resolution.narrowing source=cell.value union=string | float64 arms=float64
 
         *slot = 2;
         /// @resolution.pattern.assign source=*slot kind=place
@@ -952,9 +952,10 @@ function copy(values: int32[], output: int32[]): void {
         /// @resolution.name source=values target=copy.values
         /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=values root=copy.values
-        /// @resolution.subscript source=values[index] type=int32 kind=call target="index#2(parameters=(isize), arguments=(provided(index) as isize), return=int32, regions=(\"managed\" & \"local\"))"
-        /// @generic.instantiation id="index#2<int32, \"managed\" & \"local\">" template=index#2 arguments=(int32, "managed" & "local")
-        /// @generic.instance id="index#2<int32, \"bound0\" & \"local\">" template=index#2 arguments=(int32, "bound0" & "local")
+        /// @resolution.place source=values[index] placement="local" lifetime="managed" access="mutable"
+        /// @resolution.subscript source=values[index] type=int32 kind=call target="index#2(parameters=(isize), arguments=(provided(index) as isize), return=&'managed readonly int32, regions=(\"managed\" & \"local\"))"
+        /// @generic.instantiation id="index#2<int32, \"readonly\", \"managed\" & \"local\">" template=index#2 arguments=(int32, "readonly", "managed" & "local")
+        /// @generic.instance id="index#2<int32, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=(int32, "readonly", "bound0" & "local")
         /// @flow.access source=values root=copy.values uses=read
         /// @resolution.name source=index target=copy.index
         /// @resolution.place source=index placement="local" lifetime="frame" access="exclusive"
@@ -993,16 +994,17 @@ function observe(values: Iterator<^string>): Iterator<^string> {
 declare function consume(value: ^string): void;
 
 function observe(values: Iterator<^string>): Iterator<^string> {
-    return values.map<^string, ^string>((value: ^string): ^string => {
+    return values.map<^string, ^string>(((value: ^string): ^string => {
         consume(value);
         value
-    }) as Iterator<^string>;
+    }) as (value: ^string, index: isize) => ^string) as Iterator<^string>;
 }
 
 === dir ===
 declare function consume(value: ^string): void;
 /// @type.symbol symbol=consume source="declare function consume(value: ^string): void" type=(^string) => void
 /// @flow.use symbol=consume uses=read
+/// @type.symbol symbol=consume.value source="value: ^string" type=^string
 
 function observe(values: Iterator<^string>): Iterator<^string> {
 /// @type.symbol symbol=observe type=(Iterator<^string>) => Iterator<^string>
@@ -1087,6 +1089,7 @@ class User {}
 declare function observe(user: User): void;
 /// @type.symbol symbol=observe source="declare function observe(user: User): void" type=(User) => void
 /// @flow.use symbol=observe uses=read
+/// @type.symbol symbol=observe.user source="user: User" type=User
 /// @resolution.name source=User target=User
 
 function inspect(user: User): User {
@@ -1276,9 +1279,9 @@ function read(holder: Holder): int32 {
         /// @resolution.member source=holder.slot receiver=Holder type=Payload | undefined kind=field target_receiver=Holder key=slot target=Holder.slot target_type=Payload | undefined
         /// @resolution.place source=holder placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=holder root=read.holder
+        /// @resolution.narrowing source=holder.slot declared=Payload | undefined arms=Payload
         /// @resolution.place source=holder.slot placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=holder.slot root=read.holder keys=[slot]
-        /// @resolution.narrowing source=holder.slot union=Payload | undefined arms=Payload
 
         return held.value;
         /// @resolution.name source=held target=read.held
@@ -1408,9 +1411,9 @@ function peek(holder: Holder): isize {
         /// @resolution.member source=holder.slot receiver=Holder type=Buffer | undefined kind=field target_receiver=Holder key=slot target=Holder.slot target_type=Buffer | undefined
         /// @resolution.place source=holder placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=holder root=peek.holder
+        /// @resolution.narrowing source=holder.slot declared=Buffer | undefined arms=Buffer
         /// @resolution.place source=holder.slot placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=holder.slot root=peek.holder keys=[slot]
-        /// @resolution.narrowing source=holder.slot union=Buffer | undefined arms=Buffer
 
         return held.steps.length;
         /// @resolution.name source=held target=peek.held

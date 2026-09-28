@@ -73,7 +73,7 @@ function replace(user: User): void {
 === annotated ===
 class User {}
 
-declare function consume<'a>(value: &User): void;
+declare function consume<'a>(value: &'a User): void;
 
 function replace(user: User): void {
     consume<"managed">(user as &'managed User);
@@ -87,6 +87,7 @@ class User {}
 declare function consume(value: &User): void;
 /// @generic.template symbol=consume parameters=('a)
 /// @type.symbol symbol=consume source="declare function consume(value: &User): void" type=<consume.'a>(&consume.'a User) => void
+/// @type.symbol symbol=consume.value source="value: &User" type=&consume.'a User
 /// @resolution.name source=User target=User
 
 function replace(user: User): void {
@@ -353,8 +354,8 @@ struct Holder<out T> {
     value: T;
 }
 
-declare function maybe<'a>(value: &readonly User | undefined): &readonly User | undefined;
-declare function inspect<'a>(holder: Holder<&readonly User>): void;
+declare function maybe<'a>(value: &'a readonly User | undefined): &readonly User | undefined;
+declare function inspect<'a>(holder: Holder<&'a readonly User>): void;
 
 === dir ===
 class User {}
@@ -377,12 +378,14 @@ struct Holder<T> {
 declare function maybe(value: &readonly User | undefined): &readonly User | undefined;
 /// @generic.template symbol=maybe parameters=('a)
 /// @type.symbol symbol=maybe type=<maybe.'a>(&maybe.'a readonly User | undefined) => &maybe.'a readonly User | undefined
+/// @type.symbol symbol=maybe.value source="value: &readonly User | undefined" type=&maybe.'a readonly User | undefined
 /// @resolution.name source=User target=User
 /// @resolution.name source=User target=User
 
 declare function inspect(holder: Holder<&readonly User>): void;
 /// @generic.template symbol=inspect parameters=('a)
 /// @type.symbol symbol=inspect source="declare function inspect(holder: Holder<&readonly User>): void" type=<inspect.'a>(Holder<&inspect.'a readonly User>) => void
+/// @type.symbol symbol=inspect.holder source="holder: Holder<&readonly User>" type=Holder<&inspect.'a readonly User>
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=User target=User
 "#,

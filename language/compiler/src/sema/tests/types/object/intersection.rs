@@ -199,7 +199,7 @@ export class Zoned {
     /// @resolution.name source=Zoned target=Zoned
 
         return new Zoned();
-        /// @resolution.construct source="new Zoned()" parameters=() return=Zoned kind=class target=Zoned constructor=default
+        /// @resolution.construct source="new Zoned()" parameters=() return=Zoned kind=class target=Zoned constructor=implicit
         /// @resolution.name source=Zoned target=Zoned
 
     }
@@ -274,6 +274,7 @@ type Narrowed = (Zoned | Plain) & Plain;
 
 export declare function pick(value: Narrowed): int32;
 /// @type.symbol symbol=pick source="export declare function pick(value: Narrowed): int32" type=(Narrowed) => int32
+/// @type.symbol symbol=pick.value source="value: Narrowed" type=Narrowed
 /// @resolution.name source=Narrowed target=Narrowed
 "#,
     );

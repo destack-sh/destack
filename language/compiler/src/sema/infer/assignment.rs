@@ -72,7 +72,7 @@ impl CheckState<'_> {
             if let Some(assigned) = self.assigned_place(*expression)? {
                 self.assign_place(assigned);
             }
-            self.clear_mutated_expression_narrowings(*expression);
+            self.record_expression_write(*expression);
 
             value
         } else {

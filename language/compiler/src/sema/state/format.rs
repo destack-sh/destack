@@ -869,29 +869,48 @@ impl CheckState<'_> {
             return self.format_symbol(symbol);
         };
 
-        self.format_assignment_expression(source.module_id, source.local_id)
+        self.format_access_expression(source.module_id, source.local_id)
             .unwrap_or_else(|| self.format_symbol(symbol))
     }
 
-    /// Format one assignment target expression when it is a simple path.
-    fn format_assignment_expression(
+    /// Format one static access path.
+    pub(in crate::sema) fn format_access_expression(
         &self,
         module: ModuleId,
         source: dir::LocalNodeId<dir::Expression>,
     ) -> Option<String> {
-        match self.module(module).view().get(source) {
-            dir::Expression::Identifier { name } => {
-                Some(self.format_static_key(&dir::StaticKey::Name(*name)))
-            }
+        let view = self.module(module).view();
+        match view.get(source) {
+            // name the root binding or receiver
+            dir::Expression::Identifier { name } => Some(self.text(*name)),
+            dir::Expression::This => Some("this".to_string()),
+            dir::Expression::Super => Some("super".to_string()),
+
+            // format members, static indexes and chains
             dir::Expression::Member {
                 left,
                 name: Some(name),
                 ..
             } => {
-                let left = self.format_assignment_expression(module, *left)?;
-                let name = self.format_static_key(&dir::StaticKey::Name(*name));
+                let left = self.format_access_expression(module, *left)?;
 
-                Some(format!("{left}.{name}"))
+                Some(format!("{left}.{}", self.text(*name)))
+            }
+            dir::Expression::Index {
+                left,
+                index: Some(index),
+                ..
+            } => {
+                let left = self.format_access_expression(module, *left)?;
+                let key = match view.get(*index).static_key()? {
+                    dir::StaticKey::Name(name) => format!("[\"{}\"]", self.text(name)),
+                    dir::StaticKey::Index(index) => format!("[{index}]"),
+                };
+
+                Some(format!("{left}{key}"))
+            }
+            dir::Expression::Chain { expression } => {
+                self.format_access_expression(module, *expression)
             }
             _ => None,
         }

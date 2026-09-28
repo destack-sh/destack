@@ -30,6 +30,7 @@ impl CheckState<'_> {
             true => requested.join(dir::Access::Immutable),
             false => requested,
         };
+        // TODO #Incomplete: prove the 'managed grant through an Index output
         let place = self.borrowed_place(origin, value, Some(required), false)?;
 
         // derive borrow form parameters from the place and the annotated access
@@ -51,7 +52,7 @@ impl CheckState<'_> {
         // commit the access this borrow requires from the lent place
         if is_granted && let Some(source) = value.node {
             let is_aliased = self.type_is_aliased(origin, value.ty)?;
-            self.commit_required_access(source, requested, is_aliased);
+            self.commit_required_access(source, requested, is_aliased)?;
         }
 
         // build the borrow form from the lent place's lifetime and placement
@@ -71,7 +72,10 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
         requested: dir::Access,
         is_aliased: bool,
-    ) {
+    ) -> CompilerResult<()> {
+        // raise the Index reads
+        self.require_index_access(node, requested)?;
+
         // retain exclusion requirements independently of mutation
         if requested.excludes() {
             self.commit_access_use(node, dir::BindingUse::EXCLUSIVE);
@@ -79,7 +83,7 @@ impl CheckState<'_> {
 
         // stop at a request without writes
         if !requested.writes() {
-            return;
+            return Ok(());
         }
 
         // record writes to the binding when it stores the borrowed value directly
@@ -87,5 +91,7 @@ impl CheckState<'_> {
         if !is_aliased {
             self.commit_access_use(node, dir::BindingUse::MUTATE);
         }
+
+        Ok(())
     }
 }

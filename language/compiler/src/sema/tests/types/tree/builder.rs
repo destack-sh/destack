@@ -74,7 +74,7 @@ extension of Panel implements Maker {
     /// @resolution.name source=Panel target=Panel
 
         return new Panel();
-        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=implicit
         /// @resolution.name source=Panel target=Panel
 
     }
@@ -157,7 +157,7 @@ extension of Panel implements Tagger {
     /// @resolution.name source=Panel target=Panel
 
         return new Panel();
-        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=implicit
         /// @resolution.name source=Panel target=Panel
 
     }
@@ -260,7 +260,7 @@ extension of Panel implements Rowed {
     /// @resolution.name source=Panel target=Panel
 
         return new Panel();
-        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=implicit
         /// @resolution.name source=Panel target=Panel
 
     }
@@ -369,7 +369,7 @@ extension of Panel implements Rowed {
     /// @resolution.name source=Panel target=Panel
 
         return new Panel();
-        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=implicit
         /// @resolution.name source=Panel target=Panel
 
     }
@@ -455,7 +455,7 @@ extension of Panel implements Grouper {
     /// @resolution.name source=Panel target=Panel
 
         return new Panel();
-        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=implicit
         /// @resolution.name source=Panel target=Panel
 
     }
@@ -590,7 +590,7 @@ extension of Panel implements TreeBuilder {
     /// @resolution.name source=Panel target=Panel
 
         return new Panel();
-        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=implicit
         /// @resolution.name source=Panel target=Panel
 
     }
@@ -604,7 +604,7 @@ extension of Panel implements TreeBuilder {
     /// @resolution.name source=Panel target=Panel
 
         return new Panel();
-        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=implicit
         /// @resolution.name source=Panel target=Panel
 
     }
@@ -753,7 +753,7 @@ extension of Panel implements TreeBuilder {
     /// @resolution.name source=Panel target=Panel
 
         return new Panel();
-        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=implicit
         /// @resolution.name source=Panel target=Panel
 
     }
@@ -767,7 +767,7 @@ extension of Panel implements TreeBuilder {
     /// @resolution.name source=Panel target=Panel
 
         return new Panel();
-        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=implicit
         /// @resolution.name source=Panel target=Panel
 
     }
@@ -912,7 +912,7 @@ extension of Panel {
     /// @resolution.name source=Panel target=Panel
 
         return new Panel();
-        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=implicit
         /// @resolution.name source=Panel target=Panel
 
     }
@@ -930,7 +930,7 @@ function render(): Panel {
     /// @resolution.member source=Panel.element receiver=typeof Panel type=<const Tag: keyof Panel.Tags, Children: (...unknown[],)>(Tag, { div: { class?: string }; span: {} }[Tag], Children) => Panel kind=symbol target_receiver=typeof Panel target=element
     /// @resolution.call source="Panel.element(\"div\", { class: \"intro\" }, (new Panel(),))" parameters=("div", { div: { class?: string }; span: {} }["div"], (Panel,)) arguments=(provided("div") as "div", provided({ class: "intro" }) as { div: { class?: string }; span: {} }["div"], provided((new Panel(),)) as (Panel,)) return=Panel kind=symbol target=element instance="Panel.<extension#1>.element<\"div\", (Panel,)>"
     /// @generic.instantiation id="element<\"div\", (Panel,)>" template=element arguments=("div", (Panel,))
-    /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+    /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=implicit
     /// @resolution.name source=Panel target=Panel
 
     return page;

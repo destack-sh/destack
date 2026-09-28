@@ -157,9 +157,11 @@ parse(true);
 === dir ===
 declare function parse(value: string): int32;
 /// @type.symbol symbol=parse#1 source="declare function parse(value: string): int32" type=(string) => int32
+/// @type.symbol symbol=parse.value#1 source="value: string" type=string
 
 declare function parse(value: int32): int32;
 /// @type.symbol symbol=parse#2 source="declare function parse(value: int32): int32" type=(int32) => int32
+/// @type.symbol symbol=parse.value#2 source="value: int32" type=int32
 
 parse(true);
 /// @type.node source=parse(true) type=<error>
@@ -194,6 +196,7 @@ function parse(value: string): int32;
 === dir ===
 function parse(value: string): int32;
 /// @type.symbol symbol=parse source="function parse(value: string): int32" type=(string) => int32
+/// @type.symbol symbol=parse.value source="value: string" type=string
 "#,
         r#"
 /// @diagnostic.error id=missing-declaration-body message="declaration 'parse' requires a body"
@@ -1285,6 +1288,7 @@ function forward(values: int32[][]): void {
 === dir ===
 declare function take(...items: (int32 | readonly int32[])[]): void;
 /// @type.symbol symbol=take source="declare function take(...items: (int32 | readonly int32[])[]): void" type=(...int32 | readonly int32[][]) => void
+/// @type.symbol symbol=take.items source="...items: (int32 | readonly int32[])[]" type=int32 | readonly int32[][]
 
 function forward(values: int32[][]): void {
 /// @type.symbol symbol=forward type=(int32[][]) => void

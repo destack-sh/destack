@@ -108,9 +108,10 @@ const first = values[0];
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=values root=values
-/// @resolution.subscript source=values[0] type=1 | 2 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=1 | 2, regions=(\"managed\" & \"local\"))"
-/// @generic.instantiation id="index#2<1 | 2, \"managed\" & \"local\">" template=index#2 arguments=(1 | 2, "managed" & "local")
-/// @generic.instance id="index#2<1 | 2, \"bound0\" & \"local\">" template=index#2 arguments=(1 | 2, "bound0" & "local")
+/// @resolution.access source=values[0] root=values keys=[0]
+/// @resolution.subscript source=values[0] type=1 | 2 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=&'managed readonly (1 | 2), regions=(\"managed\" & \"local\"))"
+/// @generic.instantiation id="index#2<1 | 2, \"readonly\", \"managed\" & \"local\">" template=index#2 arguments=(1 | 2, "readonly", "managed" & "local")
+/// @generic.instance id="index#2<1 | 2, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=(1 | 2, "readonly", "bound0" & "local")
 /// @type.node source=0 type=0
 "#,
     );

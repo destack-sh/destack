@@ -17,10 +17,16 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
 === annotated ===
 function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
     values.iterator<int32 | undefined>().map<int32 | undefined, int32 | undefined>(
-        (value: int32 | undefined): int32 | undefined => value,
+        ((value: int32 | undefined): int32 | undefined => value) as (
+            value: int32 | undefined,
+            index: isize,
+        ) => int32 | undefined,
     ).find<int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>>(
-        (value: int32 | undefined): boolean =>
-            value !== (undefined as int32 | undefined) && value > 0,
+        ((value: int32 | undefined): boolean =>
+            value !== (undefined as int32 | undefined) && value > 0) as (
+            value: int32 | undefined,
+            index: isize,
+        ) => boolean,
     )
 }
 
@@ -62,9 +68,9 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
     /// @resolution.access source=value root=firstPositive.symbol5.value
     /// @resolution.name source=value target=firstPositive.symbol5.value
     /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
+    /// @resolution.narrowing source=value declared=int32 | undefined arms=int32
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=firstPositive.symbol5.value
-    /// @resolution.narrowing source=value union=int32 | undefined arms=int32
 
 }
 "#,
@@ -225,6 +231,7 @@ function source(value?: unknown): void {}
 
 declare function use(callback: (value: unknown) => void): void;
 /// @type.symbol symbol=use source="declare function use(callback: (value: unknown) => void): void" type=((unknown) => void) => void
+/// @type.symbol symbol=use.callback source="callback: (value: unknown) => void" type=(unknown) => void
 /// @type.symbol symbol=use.value source="value: unknown" type=unknown
 
 use(source);
@@ -261,13 +268,14 @@ const value = map(() => 1);
 === annotated ===
 declare function map<T>(callback: (value: unknown) => T): T;
 
-const value: int64 = map<int64>((): int64 => 1);
+const value: int64 = map<int64>(((): int64 => 1) as (value: unknown) => int64);
 
 === dir ===
 declare function map<T>(callback: (value: unknown) => T): T;
 /// @generic.template symbol=map parameters=(T)
 /// @type.symbol symbol=map source="declare function map<T>(callback: (value: unknown) => T): T" type=<T>((unknown) => T) => T
 /// @type.symbol symbol=map.T source=T type=T
+/// @type.symbol symbol=map.callback source="callback: (value: unknown) => T" type=(unknown) => T
 /// @type.symbol symbol=map.value source="value: unknown" type=unknown
 /// @resolution.name source=T target=map.T
 /// @resolution.name source=T target=map.T

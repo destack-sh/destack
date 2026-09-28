@@ -105,6 +105,62 @@ const values: int32[] = [1, 2];
 }
 
 #[test]
+fn test_fix_the_literal_binding_form_at_its_initializer() {
+    let session = TestSession::single(
+        r#"
+function take(values: ^int32[]): void {}
+
+function fill(): void {
+    const local = [3, 4];
+    take(local);
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.tspp",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function take(values: ^int32[]): void {}
+
+function fill(): void {
+    const local: int64[] = [3, 4];
+    take(local);
+}
+
+=== dir ===
+function take(values: ^int32[]): void {}
+/// @type.symbol symbol=take source="function take(values: ^int32[]): void {}" type=(^int32[]) => void
+/// @type.symbol symbol=take.values source="values: ^int32[]" type=^int32[]
+
+function fill(): void {
+/// @type.symbol symbol=fill type=() => void
+
+    const local = [3, 4];
+    /// @type.symbol symbol=fill.local source=local type=int64[]
+    /// @resolution.pattern source=local kind=binding target=fill.local
+    /// @resolution.call source=[3, 4] parameters=(^Slice<int64>) arguments=(rest(provided(3) as int64, provided(4) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
+    /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
+
+    take(local);
+    /// @resolution.name source=take target=take
+    /// @resolution.call source=take(local) parameters=(^int32[]) arguments=(provided(local) as ^int32[]) return=void kind=symbol target=take
+    /// @resolution.name source=local target=fill.local
+    /// @resolution.place source=local placement="local" lifetime="frame" access="immutable"
+    /// @resolution.access source=local root=fill.local
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'int64[]' is not assignable to parameter of type '^int32[]'"
+/// @diagnostic.label line=6 column=10 span="local" line_source="take(local);"
+/// @diagnostic.related line=6 column=5 span="take(local)" line_source="take(local);" message="in this call"
+"#,
+    );
+}
+
+#[test]
 fn test_settle_an_array_literal_receiver_eagerly() {
     let session = TestSession::single(
         r#"

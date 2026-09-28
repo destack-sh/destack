@@ -304,8 +304,10 @@ extension of [int32; 3] {
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&head#1.'a readonly FixedArray<int32, 3>
         /// @resolution.place source=this placement=head#1.'a lifetime=head#1.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.subscript source=this[0] type=int32 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=int32, regions=(head#1.'a))"
-        /// @generic.instantiation id="index#2<int32, 3, head#1.'a>" template=index#2 arguments=(int32, 3, head#1.'a)
+        /// @resolution.place source=this[0] placement=head#1.'a lifetime=head#1.'a access="readonly"
+        /// @resolution.access source=this[0] root=this keys=[0]
+        /// @resolution.subscript source=this[0] type=int32 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=&head#1.'a readonly int32, regions=(head#1.'a))"
+        /// @generic.instantiation id="index#2<int32, 3, \"readonly\", head#1.'a>" template=index#2 arguments=(int32, 3, "readonly", head#1.'a)
 
     }
 }

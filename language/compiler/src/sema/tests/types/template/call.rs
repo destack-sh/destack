@@ -29,6 +29,7 @@ declare function parse<T: string>(value: `id:${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse source="declare function parse<T: string>(value: `id:${T}`): T" type=<T: string>(`id:${T}`) => T
 /// @type.symbol symbol=parse.T source="T: string" type=T
+/// @type.symbol symbol=parse.value source="value: `id:${T}`" type=`id:${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 
@@ -77,6 +78,7 @@ declare function build<T: string>(value: T): `id:${T}`;
 /// @generic.template symbol=build parameters=(T: string)
 /// @type.symbol symbol=build source="declare function build<T: string>(value: T): `id:${T}`" type=<T: string>(T) => `id:${T}`
 /// @type.symbol symbol=build.T source="T: string" type=T
+/// @type.symbol symbol=build.value source="value: T" type=T
 /// @resolution.name source=T target=build.T
 /// @resolution.name source=T target=build.T
 
@@ -129,6 +131,7 @@ declare function identity<T: string>(value: `${T}`): T;
 /// @generic.template symbol=identity parameters=(T: string)
 /// @type.symbol symbol=identity source="declare function identity<T: string>(value: `${T}`): T" type=<T: string>(`${T}`) => T
 /// @type.symbol symbol=identity.T source="T: string" type=T
+/// @type.symbol symbol=identity.value source="value: `${T}`" type=`${T}`
 /// @resolution.name source=T target=identity.T
 /// @resolution.name source=T target=identity.T
 
@@ -184,6 +187,7 @@ declare function parse<T: string>(value: `id:${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse source="declare function parse<T: string>(value: `id:${T}`): T" type=<T: string>(`id:${T}`) => T
 /// @type.symbol symbol=parse.T source="T: string" type=T
+/// @type.symbol symbol=parse.value source="value: `id:${T}`" type=`id:${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 
@@ -236,6 +240,7 @@ declare function parse<T: string>(value: `id:${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse source="declare function parse<T: string>(value: `id:${T}`): T" type=<T: string>(`id:${T}`) => T
 /// @type.symbol symbol=parse.T source="T: string" type=T
+/// @type.symbol symbol=parse.value source="value: `id:${T}`" type=`id:${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 
@@ -284,6 +289,7 @@ declare function parse<T: number>(value: `${T}`): T;
 /// @generic.template symbol=parse parameters=(T: float64)
 /// @type.symbol symbol=parse source="declare function parse<T: number>(value: `${T}`): T" type=<T: float64>(`${T}`) => T
 /// @type.symbol symbol=parse.T source="T: number" type=T
+/// @type.symbol symbol=parse.value source="value: `${T}`" type=`${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 
@@ -328,6 +334,7 @@ declare function parse<T: number>(value: `${T}`): T;
 /// @generic.template symbol=parse parameters=(T: float64)
 /// @type.symbol symbol=parse source="declare function parse<T: number>(value: `${T}`): T" type=<T: float64>(`${T}`) => T
 /// @type.symbol symbol=parse.T source="T: number" type=T
+/// @type.symbol symbol=parse.value source="value: `${T}`" type=`${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 
@@ -369,8 +376,10 @@ declare function parse<T: string>(value: `id:${NoInfer<T>}`, fallback: T): T;
 /// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse source="declare function parse<T: string>(value: `id:${NoInfer<T>}`, fallback: T): T" type=<T: string>(`id:${NoInfer<T>}`, T) => T
 /// @type.symbol symbol=parse.T source="T: string" type=T
+/// @type.symbol symbol=parse.value source="value: `id:${NoInfer<T>}`" type=`id:${NoInfer<T>}`
 /// @resolution.name source=NoInfer target=NoInfer
 /// @resolution.name source=T target=parse.T
+/// @type.symbol symbol=parse.fallback source="fallback: T" type=T
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 

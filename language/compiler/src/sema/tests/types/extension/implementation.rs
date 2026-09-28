@@ -53,10 +53,10 @@ newtype interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show template=(this: Show) nominal=true
 /// @definition.where symbol=Show relation=satisfies left=this right=Show
-/// @definition.method symbol=Show.show source="show(): string" slot=show type=() => string
+/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: this) => string
 
     show(): string;
-    /// @type.symbol symbol=Show.show source="show(): string" type=() => string
+    /// @type.symbol symbol=Show.show source="show(): string" type=(this: this) => string
 
 }
 
@@ -139,10 +139,10 @@ newtype interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show template=(this: Show) nominal=true
 /// @definition.where symbol=Show relation=satisfies left=this right=Show
-/// @definition.method symbol=Show.show source="show(): string" slot=show type=() => string
+/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: this) => string
 
     show(): string;
-    /// @type.symbol symbol=Show.show source="show(): string" type=() => string
+    /// @type.symbol symbol=Show.show source="show(): string" type=(this: this) => string
 
 }
 
@@ -212,10 +212,10 @@ newtype interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named template=(this: Named) nominal=true
 /// @definition.where symbol=Named relation=satisfies left=this right=Named
-/// @definition.method symbol=Named.name source="name(): string" slot=name type=() => string
+/// @definition.method symbol=Named.name source="name(): string" slot=name type=(this: this) => string
 
     name(): string;
-    /// @type.symbol symbol=Named.name source="name(): string" type=() => string
+    /// @type.symbol symbol=Named.name source="name(): string" type=(this: this) => string
 
 }
 
@@ -225,11 +225,11 @@ newtype interface Show extends Named {
 /// @definition.interface symbol=Show template=(this: Show) nominal=true
 /// @definition.where symbol=Show relation=satisfies left=this right=Show
 /// @definition.extends symbol=Show source=Named target=Named
-/// @definition.method symbol=Show.show source="show(): string" slot=show type=() => string
+/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: this) => string
 /// @resolution.name source=Named target=Named
 
     show(): string;
-    /// @type.symbol symbol=Show.show source="show(): string" type=() => string
+    /// @type.symbol symbol=Show.show source="show(): string" type=(this: this) => string
 
 }
 
@@ -318,11 +318,11 @@ newtype interface PartialEqual<T = this> {
 /// @generic.instance id=PartialEqual<this> template=PartialEqual arguments=(this)
 /// @definition.interface symbol=PartialEqual template=(in T#1 = this, this: PartialEqual<T#1>) nominal=true
 /// @definition.where symbol=PartialEqual relation=satisfies left=this right=PartialEqual<T#1>
-/// @definition.method symbol=PartialEqual.equal source="equal(other: T): boolean" slot=equal type=(T#1) => boolean
+/// @definition.method symbol=PartialEqual.equal source="equal(other: T): boolean" slot=equal type=(this: this, T#1) => boolean
 /// @type.symbol symbol=PartialEqual.T source="T = this" type=T#1
 
     equal(other: T): boolean;
-    /// @type.symbol symbol=PartialEqual.equal source="equal(other: T): boolean" type=(T#1) => boolean
+    /// @type.symbol symbol=PartialEqual.equal source="equal(other: T): boolean" type=(this: this, T#1) => boolean
     /// @type.symbol symbol=PartialEqual.equal.other source="other: T" type=T#1
     /// @resolution.name source=T target=PartialEqual.T
 
@@ -383,11 +383,13 @@ function compare<T: PartialEqual<T>>(left: T, right: T): boolean {
 
     left.equal(right)
     /// @resolution.name source=left target=compare.left
-    /// @resolution.member source=left.equal receiver=T#3 type=(T#3) => boolean kind=symbol target_receiver=T#3 target=PartialEqual.equal
+    /// @resolution.member source=left.equal receiver=T#3 type=(this: T#3, T#3) => boolean kind=symbol target_receiver=T#3 target=PartialEqual.equal
     /// @resolution.call source=left.equal(right) parameters=(T#3) arguments=(provided(right) as T#3) return=boolean kind=symbol target=PartialEqual.equal receiver=T#3 instance=PartialEqual<T#3>.equal
     /// @resolution.place source=left placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=left root=compare.left
+    /// @generic.instantiation id="PartialEqual.equal<T#3, T#3>" template=PartialEqual.equal arguments=(T#3) owner=compare
     /// @generic.instantiation id=PartialEqual.equal<T#3> template=PartialEqual.equal arguments=(T#3) owner=compare
+    /// @generic.instance id="PartialEqual.equal<T#3, T#3>" template=PartialEqual.equal arguments=(T#3)
     /// @resolution.name source=right target=compare.right
     /// @resolution.place source=right placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=right root=compare.right
@@ -494,10 +496,10 @@ interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show template=(this: Show)
 /// @definition.where symbol=Show relation=satisfies left=this right=Show
-/// @definition.method symbol=Show.show source="show(): string" slot=show type=() => string
+/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: this) => string
 
     show(): string;
-    /// @type.symbol symbol=Show.show source="show(): string" type=() => string
+    /// @type.symbol symbol=Show.show source="show(): string" type=(this: this) => string
 
 }
 type Alias = Show;
@@ -576,10 +578,10 @@ interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show template=(this: Show)
 /// @definition.where symbol=Show relation=satisfies left=this right=Show
-/// @definition.method symbol=Show.show source="show(): string" slot=show type=() => string
+/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: this) => string
 
     show(): string;
-    /// @type.symbol symbol=Show.show source="show(): string" type=() => string
+    /// @type.symbol symbol=Show.show source="show(): string" type=(this: this) => string
 
 }
 interface Debug {
@@ -587,10 +589,10 @@ interface Debug {
 /// @type.symbol symbol=Debug type=Debug
 /// @definition.interface symbol=Debug template=(this: Debug)
 /// @definition.where symbol=Debug relation=satisfies left=this right=Debug
-/// @definition.method symbol=Debug.debug source="debug(): ^string" slot=debug type=() => ^string
+/// @definition.method symbol=Debug.debug source="debug(): ^string" slot=debug type=(this: this) => ^string
 
     debug(): ^string;
-    /// @type.symbol symbol=Debug.debug source="debug(): ^string" type=() => ^string
+    /// @type.symbol symbol=Debug.debug source="debug(): ^string" type=(this: this) => ^string
 
 }
 
@@ -660,12 +662,12 @@ interface Doubling {
 /// @definition.interface symbol=Doubling template=(this: Doubling)
 /// @definition.where symbol=Doubling relation=satisfies left=this right=Doubling
 /// @definition.associated.type symbol=Doubling.Output source="type Output" key=Output
-/// @definition.method symbol=Doubling.double source="double(): this.Output" slot=double type=() => this.Output
+/// @definition.method symbol=Doubling.double source="double(): this.Output" slot=double type=(this: this) => this.Output
 
     type Output;
 
     double(): this.Output;
-    /// @type.symbol symbol=Doubling.double source="double(): this.Output" type=() => this.Output
+    /// @type.symbol symbol=Doubling.double source="double(): this.Output" type=(this: this) => this.Output
     /// @resolution.name source=this.Output target=Doubling.Output
 
 }
@@ -751,12 +753,12 @@ interface Container {
 /// @definition.interface symbol=Container template=(this: Container)
 /// @definition.where symbol=Container relation=satisfies left=this right=Container
 /// @definition.associated.type symbol=Container.Item source="type Item" key=Item
-/// @definition.method symbol=Container.get source="get(): this.Item" slot=get type=() => this.Item
+/// @definition.method symbol=Container.get source="get(): this.Item" slot=get type=(this: this) => this.Item
 
     type Item;
 
     get(): this.Item;
-    /// @type.symbol symbol=Container.get source="get(): this.Item" type=() => this.Item
+    /// @type.symbol symbol=Container.get source="get(): this.Item" type=(this: this) => this.Item
     /// @resolution.name source=this.Item target=Container.Item
 
 }
@@ -879,7 +881,7 @@ interface Container<S> {
 /// @definition.where symbol=Container relation=satisfies left=this right=Container<S>
 /// @definition.associated.type symbol=Container.Item source="type Item" key=Item
 /// @definition.associated.type symbol=Container.Output source="type Output = this.Item" key=Output value=this.Item
-/// @definition.method symbol=Container.get slot=get type=(S) => (this.Item, this.Output, Container<S>.Item, Container<string>.Item, string)
+/// @definition.method symbol=Container.get slot=get type=(this: this, S) => (this.Item, this.Output, Container<S>.Item, Container<string>.Item, string)
 /// @type.symbol symbol=Container.S source=S type=S
 
     type Item;
@@ -888,7 +890,7 @@ interface Container<S> {
     /// @resolution.name source=this.Item target=Container.Item
 
     get(value: S): (
-    /// @type.symbol symbol=Container.get type=(S) => (this.Item, this.Output, Container<S>.Item, Container<string>.Item, string)
+    /// @type.symbol symbol=Container.get type=(this: this, S) => (this.Item, this.Output, Container<S>.Item, Container<string>.Item, string)
     /// @type.symbol symbol=Container.get.value source="value: S" type=S
     /// @resolution.name source=S target=Container.S
 
@@ -1139,12 +1141,12 @@ interface Halving {
 /// @definition.interface symbol=Halving template=(this: Halving)
 /// @definition.where symbol=Halving relation=satisfies left=this right=Halving
 /// @definition.associated.type symbol=Halving.Output source="type Output" key=Output
-/// @definition.method symbol=Halving.halve source="halve(): this.Output" slot=halve type=() => this.Output
+/// @definition.method symbol=Halving.halve source="halve(): this.Output" slot=halve type=(this: this) => this.Output
 
     type Output;
 
     halve(): this.Output;
-    /// @type.symbol symbol=Halving.halve source="halve(): this.Output" type=() => this.Output
+    /// @type.symbol symbol=Halving.halve source="halve(): this.Output" type=(this: this) => this.Output
     /// @resolution.name source=this.Output target=Halving.Output
 
 }
@@ -1258,12 +1260,12 @@ interface Reading {
 /// @definition.interface symbol=Reading template=(this: Reading)
 /// @definition.where symbol=Reading relation=satisfies left=this right=Reading
 /// @definition.associated.type symbol=Reading.Output source="type Output" key=Output
-/// @definition.method symbol=Reading.read source="read(): this.Output" slot=read type=() => this.Output
+/// @definition.method symbol=Reading.read source="read(): this.Output" slot=read type=(this: this) => this.Output
 
     type Output;
 
     read(): this.Output;
-    /// @type.symbol symbol=Reading.read source="read(): this.Output" type=() => this.Output
+    /// @type.symbol symbol=Reading.read source="read(): this.Output" type=(this: this) => this.Output
     /// @resolution.name source=this.Output target=Reading.Output
 
 }
@@ -1274,12 +1276,12 @@ interface Writing {
 /// @definition.interface symbol=Writing template=(this: Writing)
 /// @definition.where symbol=Writing relation=satisfies left=this right=Writing
 /// @definition.associated.type symbol=Writing.Output source="type Output" key=Output
-/// @definition.method symbol=Writing.write source="write(): this.Output" slot=write type=() => this.Output
+/// @definition.method symbol=Writing.write source="write(): this.Output" slot=write type=(this: this) => this.Output
 
     type Output;
 
     write(): this.Output;
-    /// @type.symbol symbol=Writing.write source="write(): this.Output" type=() => this.Output
+    /// @type.symbol symbol=Writing.write source="write(): this.Output" type=(this: this) => this.Output
     /// @resolution.name source=this.Output target=Writing.Output
 
 }
@@ -1454,6 +1456,7 @@ declare function requireMine<T: Mine<T>>(value: T): void;
 /// @type.symbol symbol=requireMine.T source="T: Mine<T>" type=T#3
 /// @resolution.name source=Mine target=Mine
 /// @resolution.name source=T target=requireMine.T
+/// @type.symbol symbol=requireMine.value source="value: T" type=T#3
 /// @resolution.name source=T target=requireMine.T
 
 struct Badge {}
@@ -1529,12 +1532,12 @@ interface Eq<T> {
 /// @type.symbol symbol=Eq type=Eq
 /// @definition.interface symbol=Eq template=(in T#1, this: Eq<T#1>)
 /// @definition.where symbol=Eq relation=satisfies left=this right=Eq<T#1>
-/// @definition.method symbol=Eq.equals source="equals(other: &readonly T): boolean" slot=equals type=<Eq.equals.'a>(&Eq.equals.'a readonly T#1) => boolean
+/// @definition.method symbol=Eq.equals source="equals(other: &readonly T): boolean" slot=equals type=<Eq.equals.'a>(this: this, &Eq.equals.'a readonly T#1) => boolean
 /// @type.symbol symbol=Eq.T source=T type=T#1
 
     equals(other: &readonly T): boolean;
     /// @generic.template symbol=Eq.equals parent=template#0 parameters=('a)
-    /// @type.symbol symbol=Eq.equals source="equals(other: &readonly T): boolean" type=<Eq.equals.'a>(&Eq.equals.'a readonly T#1) => boolean
+    /// @type.symbol symbol=Eq.equals source="equals(other: &readonly T): boolean" type=<Eq.equals.'a>(this: this, &Eq.equals.'a readonly T#1) => boolean
     /// @type.symbol symbol=Eq.equals.other source="other: &readonly T" type=&Eq.equals.'a readonly T#1
     /// @resolution.name source=T target=Eq.T
 
@@ -1545,12 +1548,12 @@ interface Has<T> {
 /// @type.symbol symbol=Has type=Has
 /// @definition.interface symbol=Has template=(in T#2, this: Has<T#2>)
 /// @definition.where symbol=Has relation=satisfies left=this right=Has<T#2>
-/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'a>(&Has.has.'a readonly T#2) => boolean
+/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'a>(this: this, &Has.has.'a readonly T#2) => boolean
 /// @type.symbol symbol=Has.T source=T type=T#2
 
     has(value: &readonly T): boolean;
     /// @generic.template symbol=Has.has parent=template#1 parameters=('a)
-    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<Has.has.'a>(&Has.has.'a readonly T#2) => boolean
+    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<Has.has.'a>(this: this, &Has.has.'a readonly T#2) => boolean
     /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=&Has.has.'a readonly T#2
     /// @resolution.name source=T target=Has.T
 
@@ -1660,12 +1663,12 @@ interface Has<T> {
 /// @type.symbol symbol=Has type=Has
 /// @definition.interface symbol=Has template=(in T#1, this: Has<T#1>)
 /// @definition.where symbol=Has relation=satisfies left=this right=Has<T#1>
-/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'a>(&Has.has.'a readonly T#1) => boolean
+/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'a>(this: this, &Has.has.'a readonly T#1) => boolean
 /// @type.symbol symbol=Has.T source=T type=T#1
 
     has(value: &readonly T): boolean;
     /// @generic.template symbol=Has.has parent=template#1 parameters=('a)
-    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<Has.has.'a>(&Has.has.'a readonly T#1) => boolean
+    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<Has.has.'a>(this: this, &Has.has.'a readonly T#1) => boolean
     /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=&Has.has.'a readonly T#1
     /// @resolution.name source=T target=Has.T
 
@@ -1762,12 +1765,12 @@ interface Has<T> {
 /// @type.symbol symbol=Has type=Has
 /// @definition.interface symbol=Has template=(in T#1, this: Has<T#1>)
 /// @definition.where symbol=Has relation=satisfies left=this right=Has<T#1>
-/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'a>(&Has.has.'a readonly T#1) => boolean
+/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'a>(this: this, &Has.has.'a readonly T#1) => boolean
 /// @type.symbol symbol=Has.T source=T type=T#1
 
     has(value: &readonly T): boolean;
     /// @generic.template symbol=Has.has parent=template#0 parameters=('a)
-    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<Has.has.'a>(&Has.has.'a readonly T#1) => boolean
+    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<Has.has.'a>(this: this, &Has.has.'a readonly T#1) => boolean
     /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=&Has.has.'a readonly T#1
     /// @resolution.name source=T target=Has.T
 
@@ -2073,10 +2076,10 @@ interface Greeter {
 /// @type.symbol symbol=Greeter type=Greeter
 /// @definition.interface symbol=Greeter template=(this: Greeter)
 /// @definition.where symbol=Greeter relation=satisfies left=this right=Greeter
-/// @definition.method symbol=Greeter.greet source="greet(): string" slot=greet type=() => string
+/// @definition.method symbol=Greeter.greet source="greet(): string" slot=greet type=(this: this) => string
 
     greet(): string;
-    /// @type.symbol symbol=Greeter.greet source="greet(): string" type=() => string
+    /// @type.symbol symbol=Greeter.greet source="greet(): string" type=(this: this) => string
 
 }
 
@@ -2862,6 +2865,7 @@ declare function hush<T: Quiet>(value: T): string;
 /// @type.symbol symbol=hush source="declare function hush<T: Quiet>(value: T): string" type=<T: bell.Quiet>(T) => string
 /// @type.symbol symbol=hush.T source="T: Quiet" type=T
 /// @resolution.name source=Quiet target=bell.Quiet
+/// @type.symbol symbol=hush.value source="value: T" type=T
 /// @resolution.name source=T target=hush.T
 
 const sound = hush(Bell {});
@@ -2934,10 +2938,10 @@ interface Sized {
 /// @type.symbol symbol=Sized type=Sized
 /// @definition.interface symbol=Sized template=(this: Sized)
 /// @definition.where symbol=Sized relation=satisfies left=this right=Sized
-/// @definition.method symbol=Sized.size source="size(): isize" slot=size type=() => isize
+/// @definition.method symbol=Sized.size source="size(): isize" slot=size type=(this: this) => isize
 
     size(): isize;
-    /// @type.symbol symbol=Sized.size source="size(): isize" type=() => isize
+    /// @type.symbol symbol=Sized.size source="size(): isize" type=(this: this) => isize
 
 }
 
@@ -2974,10 +2978,11 @@ function measure<T: Sized>(value: T): isize {
 
     return value.size();
     /// @resolution.name source=value target=measure.value
-    /// @resolution.member source=value.size receiver=T type=() => isize kind=symbol target_receiver=T target=Sized.size
+    /// @resolution.member source=value.size receiver=T type=(this: T) => isize kind=symbol target_receiver=T target=Sized.size
     /// @resolution.call source=value.size() parameters=() return=isize kind=symbol target=Sized.size receiver=T
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=measure.value
+    /// @generic.instantiation id=Sized.size<T> template=Sized.size arguments=() owner=measure
 
 }
 
@@ -3403,10 +3408,10 @@ newtype interface Speak {
 /// @type.symbol symbol=Speak type=Speak
 /// @definition.interface symbol=Speak template=(this: Speak) nominal=true
 /// @definition.where symbol=Speak relation=satisfies left=this right=Speak
-/// @definition.method symbol=Speak.say source="say(): void" slot=say type=() => void
+/// @definition.method symbol=Speak.say source="say(): void" slot=say type=(this: this) => void
 
     say(): void;
-    /// @type.symbol symbol=Speak.say source="say(): void" type=() => void
+    /// @type.symbol symbol=Speak.say source="say(): void" type=(this: this) => void
 
 }
 
@@ -3489,13 +3494,13 @@ newtype interface Adder<T = this> {
 /// @definition.interface symbol=Adder template=(in T = this, this: Adder<T>) nominal=true
 /// @definition.where symbol=Adder relation=satisfies left=this right=Adder<T>
 /// @definition.associated.type symbol=Adder.Output source="type Output" key=Output
-/// @definition.method symbol=Adder.add source="add(other: T): this.Output" slot=add type=(T) => this.Output
+/// @definition.method symbol=Adder.add source="add(other: T): this.Output" slot=add type=(this: this, T) => this.Output
 /// @type.symbol symbol=Adder.T source="T = this" type=T
 
     type Output;
 
     add(other: T): this.Output;
-    /// @type.symbol symbol=Adder.add source="add(other: T): this.Output" type=(T) => this.Output
+    /// @type.symbol symbol=Adder.add source="add(other: T): this.Output" type=(this: this, T) => this.Output
     /// @type.symbol symbol=Adder.add.other source="other: T" type=T
     /// @resolution.name source=T target=Adder.T
     /// @resolution.name source=this.Output target=Adder.Output

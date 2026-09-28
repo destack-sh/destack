@@ -134,6 +134,7 @@ type Bag = { readonly [key: string]: int32 };
 
 declare function read(bag: Bag): int32 | undefined;
 /// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
+/// @type.symbol symbol=read.bag source="bag: Bag" type=Bag
 /// @resolution.name source=Bag target=Bag
 
 const mixed: { x: int32; y: string } = { x: 1, y: "two" };
@@ -240,6 +241,7 @@ type Bag = { [key: string]: int32 };
 
 declare function write(bag: Bag): int32 | undefined;
 /// @type.symbol symbol=write source="declare function write(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
+/// @type.symbol symbol=write.bag source="bag: Bag" type=Bag
 /// @resolution.name source=Bag target=Bag
 
 const point: { x: int32; y: int32 } = { x: 1, y: 2 };
@@ -486,9 +488,9 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.storage placement="local" lifetime=R#2 access="readonly"
         /// @resolution.access source=this.storage root=this keys=[storage]
-        /// @resolution.subscript source=this.storage[key] type=int32 | undefined kind=call target="index#1(parameters=(&'managed immutable string), arguments=(provided(key) as &'managed immutable string), return=int32 | undefined, regions=(\"frame\", \"managed\" & \"local\", \"managed\" & \"local\"))"
-        /// @generic.instantiation id="index#1<string, int32, Equality<string>, string, \"frame\", \"managed\" & \"local\", \"managed\" & \"local\">" template=index#1 arguments=(string, int32, Equality<string>, string, "frame", "managed" & "local", "managed" & "local")
-        /// @generic.instance id="index#1<string, int32, Equality<string>, string, \"frame\", \"bound1\" & \"local\", \"bound2\" & \"local\">" template=index#1 arguments=(string, int32, Equality<string>, string, "frame", "bound1" & "local", "bound2" & "local")
+        /// @resolution.subscript source=this.storage[key] type=int32 | undefined kind=call target="index(parameters=(&'managed immutable string), arguments=(provided(key) as &'managed immutable string), return=&'managed readonly int32 | undefined, regions=(\"frame\", \"managed\" & \"local\", \"managed\" & \"local\"))"
+        /// @generic.instantiation id="index<string, int32, \"readonly\", Equality<string>, string, \"frame\", \"managed\" & \"local\", \"managed\" & \"local\">" template=index arguments=(string, int32, "readonly", Equality<string>, string, "frame", "managed" & "local", "managed" & "local")
+        /// @generic.instance id="index<string, int32, \"readonly\", Equality<string>, string, \"frame\", \"bound1\" & \"local\", \"bound2\" & \"local\">" template=index arguments=(string, int32, "readonly", Equality<string>, string, "frame", "bound1" & "local", "bound2" & "local")
         /// @resolution.name source=key target=index.key
         /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=key root=index.key
@@ -531,6 +533,7 @@ declare let store: Store;
 
 declare function write(bag: Bag): int32 | undefined;
 /// @type.symbol symbol=write source="declare function write(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
+/// @type.symbol symbol=write.bag source="bag: Bag" type=Bag
 /// @resolution.name source=Bag target=Bag
 
 const value = write(store);
@@ -584,6 +587,7 @@ type Bag = Record<string, int32>;
 
 declare function read(bag: Bag): int32 | undefined;
 /// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
+/// @type.symbol symbol=read.bag source="bag: Bag" type=Bag
 /// @resolution.name source=Bag target=Bag
 
 const point: { x: int32 } = { x: 1 };
@@ -1379,9 +1383,9 @@ extension of Store {
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.storage placement="local" lifetime=read#1.'a access="mutable"
         /// @resolution.access source=this.storage root=this keys=[storage]
-        /// @resolution.subscript source=this.storage[key] type=int32 | undefined kind=call target="index#1(parameters=(&'managed immutable string), arguments=(provided(key) as &'managed immutable string), return=int32 | undefined, regions=(\"frame\", \"managed\" & \"local\", \"managed\" & \"local\"))"
-        /// @generic.instantiation id="index#1<string, int32, Equality<string>, string, \"frame\", \"managed\" & \"local\", \"managed\" & \"local\">" template=index#1 arguments=(string, int32, Equality<string>, string, "frame", "managed" & "local", "managed" & "local")
-        /// @generic.instance id="index#1<string, int32, Equality<string>, string, \"frame\", \"bound1\" & \"local\", \"bound2\" & \"local\">" template=index#1 arguments=(string, int32, Equality<string>, string, "frame", "bound1" & "local", "bound2" & "local")
+        /// @resolution.subscript source=this.storage[key] type=int32 | undefined kind=call target="index(parameters=(&'managed immutable string), arguments=(provided(key) as &'managed immutable string), return=&'managed readonly int32 | undefined, regions=(\"frame\", \"managed\" & \"local\", \"managed\" & \"local\"))"
+        /// @generic.instantiation id="index<string, int32, \"readonly\", Equality<string>, string, \"frame\", \"managed\" & \"local\", \"managed\" & \"local\">" template=index arguments=(string, int32, "readonly", Equality<string>, string, "frame", "managed" & "local", "managed" & "local")
+        /// @generic.instance id="index<string, int32, \"readonly\", Equality<string>, string, \"frame\", \"bound1\" & \"local\", \"bound2\" & \"local\">" template=index arguments=(string, int32, "readonly", Equality<string>, string, "frame", "bound1" & "local", "bound2" & "local")
         /// @resolution.name source=key target=read.key#1
         /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=key root=read.key#1
@@ -1402,7 +1406,7 @@ export function read(key: string): int32 | undefined {
     /// @resolution.name source=map target=map
     /// @resolution.place source=map placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=map root=map
-    /// @resolution.subscript source=map[key] type=int32 | undefined kind=call target="index#1(parameters=(&'managed immutable string), arguments=(provided(key) as &'managed immutable string), return=int32 | undefined, regions=(\"frame\", \"managed\" & \"local\", \"managed\" & \"local\"))"
+    /// @resolution.subscript source=map[key] type=int32 | undefined kind=call target="index(parameters=(&'managed immutable string), arguments=(provided(key) as &'managed immutable string), return=&'managed readonly int32 | undefined, regions=(\"frame\", \"managed\" & \"local\", \"managed\" & \"local\"))"
     /// @resolution.name source=key target=read.key
     /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=key root=read.key

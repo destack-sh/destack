@@ -325,7 +325,11 @@ function copy(source: int32[]): int32[] {
 === annotated ===
 function copy(source: int32[]): int32[] {
     return source.reduce<int32, int32[], "managed">(
-        (output: int32[], value: int32): int32[] => [...output, value],
+        ((output: int32[], value: int32): int32[] => [...output, value]) as (
+            accumulator: int32[],
+            value: int32,
+            index: isize,
+        ) => int32[],
         [],
     );
 }

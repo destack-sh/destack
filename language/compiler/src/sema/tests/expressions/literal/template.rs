@@ -27,10 +27,14 @@ const greeting = `hello ${name}`;
 /// @type.symbol symbol=greeting source=greeting type=string
 /// @resolution.pattern source=greeting kind=binding target=greeting
 /// @type.node source="`hello ${name}`" type=string
-/// @resolution.template source="`hello ${name}`" spans=[Display.display(parameters=(), arguments=(), return=^string, regions=("managed" & "local"))] build="stringFromTemplate(parameters=(&'frame readonly Slice<string>, &'frame readonly Slice<string>), arguments=(supplied(0) as &'frame readonly Slice<string>, supplied(1) as &'frame readonly Slice<string>), return=string, regions=(\"frame\", \"frame\"))"
-/// @generic.instantiation id="Display.display<string, \"managed\" & \"local\">" template=Display.display arguments=("managed" & "local")
+/// @resolution.template source="`hello ${name}`" spans=[display(parameters=(), arguments=(), return=^string, regions=("managed" & "local"))] build="stringFromTemplate(parameters=(&'frame readonly Slice<string>, &'frame readonly Slice<string>), arguments=(supplied(0) as &'frame readonly Slice<string>, supplied(1) as &'frame readonly Slice<string>), return=string, regions=(\"frame\", \"frame\"))"
+/// @generic.instantiation id="display<\"managed\" & \"local\">" template=display arguments=("managed" & "local")
 /// @generic.instantiation id="stringFromTemplate<\"frame\", \"frame\">" template=stringFromTemplate arguments=("frame", "frame")
+/// @generic.instance id="as<\"immutable\", \"bound0\" & \"local\">" template=as arguments=("immutable", "bound0" & "local")
+/// @generic.instance id="clone<\"bound0\" & \"local\">" template=clone arguments=("bound0" & "local")
+/// @generic.instance id="display<\"bound0\" & \"local\">" template=display arguments=("bound0" & "local")
 /// @generic.instance id="stringFromTemplate<\"frame\", \"frame\">" template=stringFromTemplate arguments=("frame", "frame")
+/// @generic.instance id="toOwned<\"bound0\" & \"local\">" template=toOwned arguments=("bound0" & "local")
 /// @type.node source=name type="Ada"
 /// @resolution.name source=name target=name
 /// @resolution.place source=name placement="local" lifetime="static" access="immutable"
@@ -291,8 +295,8 @@ const rendered = `x${count}`;
 /// @type.symbol symbol=rendered source=rendered type=string
 /// @resolution.pattern source=rendered kind=binding target=rendered
 /// @type.node source=`x${count}` type=string
-/// @resolution.template source=`x${count}` spans=[Display.display(parameters=(), arguments=(), return=^string, regions=("static" & "local"))] build="stringFromTemplate(parameters=(&'frame readonly Slice<string>, &'frame readonly Slice<string>), arguments=(supplied(0) as &'frame readonly Slice<string>, supplied(1) as &'frame readonly Slice<string>), return=string, regions=(\"frame\", \"frame\"))"
-/// @generic.instantiation id="Display.display<float64, \"static\" & \"local\">" template=Display.display arguments=("static" & "local")
+/// @resolution.template source=`x${count}` spans=[display(parameters=(), arguments=(), return=^string, regions=("static" & "local"))] build="stringFromTemplate(parameters=(&'frame readonly Slice<string>, &'frame readonly Slice<string>), arguments=(supplied(0) as &'frame readonly Slice<string>, supplied(1) as &'frame readonly Slice<string>), return=string, regions=(\"frame\", \"frame\"))"
+/// @generic.instantiation id="display<float64, \"static\" & \"local\">" template=display arguments=(float64, "static" & "local")
 /// @generic.instantiation id="stringFromTemplate<\"frame\", \"frame\">" template=stringFromTemplate arguments=("frame", "frame")
 /// @type.node source=count type=float64
 /// @resolution.name source=count target=count
@@ -335,8 +339,8 @@ const contextual: `x${number}` = `x${count}`;
 /// @type.symbol symbol=contextual source=contextual type=`x${float64}`
 /// @resolution.pattern source=contextual kind=binding target=contextual
 /// @type.node source=`x${count}` type=`x${float64}`
-/// @resolution.template source=`x${count}` spans=[Display.display(parameters=(), arguments=(), return=^string, regions=("static" & "local"))] build="stringFromTemplate(parameters=(&'frame readonly Slice<string>, &'frame readonly Slice<string>), arguments=(supplied(0) as &'frame readonly Slice<string>, supplied(1) as &'frame readonly Slice<string>), return=string, regions=(\"frame\", \"frame\"))"
-/// @generic.instantiation id="Display.display<float64, \"static\" & \"local\">" template=Display.display arguments=("static" & "local")
+/// @resolution.template source=`x${count}` spans=[display(parameters=(), arguments=(), return=^string, regions=("static" & "local"))] build="stringFromTemplate(parameters=(&'frame readonly Slice<string>, &'frame readonly Slice<string>), arguments=(supplied(0) as &'frame readonly Slice<string>, supplied(1) as &'frame readonly Slice<string>), return=string, regions=(\"frame\", \"frame\"))"
+/// @generic.instantiation id="display<float64, \"static\" & \"local\">" template=display arguments=(float64, "static" & "local")
 /// @generic.instantiation id="stringFromTemplate<\"frame\", \"frame\">" template=stringFromTemplate arguments=("frame", "frame")
 /// @type.node source=count type=float64
 /// @resolution.name source=count target=count
@@ -348,7 +352,7 @@ const asserted = `x${count}` as const;
 /// @resolution.pattern source=asserted kind=binding target=asserted
 /// @type.node source="`x${count}` as const" type=`x${float64}`
 /// @type.node source=`x${count}` type=`x${float64}`
-/// @resolution.template source=`x${count}` spans=[Display.display(parameters=(), arguments=(), return=^string, regions=("static" & "local"))] build="stringFromTemplate(parameters=(&'frame readonly Slice<string>, &'frame readonly Slice<string>), arguments=(supplied(0) as &'frame readonly Slice<string>, supplied(1) as &'frame readonly Slice<string>), return=string, regions=(\"frame\", \"frame\"))"
+/// @resolution.template source=`x${count}` spans=[display(parameters=(), arguments=(), return=^string, regions=("static" & "local"))] build="stringFromTemplate(parameters=(&'frame readonly Slice<string>, &'frame readonly Slice<string>), arguments=(supplied(0) as &'frame readonly Slice<string>, supplied(1) as &'frame readonly Slice<string>), return=string, regions=(\"frame\", \"frame\"))"
 /// @type.node source=count type=float64
 /// @resolution.name source=count target=count
 /// @resolution.place source=count placement="local" lifetime="static" access="immutable"

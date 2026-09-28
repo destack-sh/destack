@@ -43,6 +43,30 @@ declare const point: ^Point;
     );
 }
 
+/// Reduce an owned form on a union to the union, its arms kept in their families.
+#[test]
+fn test_reduce_owned_form_on_union_to_its_slot() {
+    let session = TestSession::single(
+        r#"
+declare const name: ^(string | undefined);
+"#,
+    );
+
+    session.assert_dir(
+        "main.tspp",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare const name: string | undefined;
+
+=== dir ===
+declare const name: ^(string | undefined);
+/// @type.symbol symbol=name source=name type=string | undefined
+/// @resolution.pattern source=name kind=binding target=name
+"#,
+    );
+}
+
 /// Reduce stacked owned forms on a struct to the bare payload.
 #[test]
 fn test_reduce_stacked_owned_forms_on_struct() {

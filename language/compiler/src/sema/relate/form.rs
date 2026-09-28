@@ -367,6 +367,51 @@ impl CheckState<'_> {
                 )?)))
             }
 
+            // convert a borrow to a raw pointer
+            (
+                dir::Type::Form(dir::FormType {
+                    form: dir::Form::Borrowed(source_borrow),
+                    value: source_value,
+                }),
+                dir::Type::Form(dir::FormType {
+                    form: dir::Form::Raw,
+                    value: target_value,
+                }),
+            ) if relation == Relation::Storable => {
+                // require writes for a mutable pointee
+                let target_value = match self.ty(target_value)? {
+                    dir::Type::Form(dir::FormType {
+                        form: dir::Form::Readonly,
+                        value,
+                    }) => value,
+                    _ => {
+                        let source_borrow = self.type_borrow(source.module_id, source_borrow)?;
+                        let mutable = self.access_literal(dir::Access::Mutable)?;
+                        let access = self.constrain_access_assignable(
+                            origin,
+                            source_borrow.access,
+                            mutable,
+                        )?;
+                        if access == Verdict::Fails {
+                            return Ok(Some(Verdict::Fails));
+                        }
+
+                        target_value
+                    }
+                };
+                let source_value = self.lent_payload(origin, source_value)?;
+
+                Ok(Some(self.constrain_form_value(
+                    origin,
+                    cause,
+                    relation,
+                    target.module_id,
+                    dir::Form::Raw,
+                    source_value,
+                    target_value,
+                )?))
+            }
+
             // memory forms check constructor then payload
             (dir::Type::Form(source_form), dir::Type::Form(target_form)) => {
                 // relate the constructors before the values beneath them

@@ -58,6 +58,7 @@ declare function duplicate<T: Copy>(value: T): void;
 /// @type.symbol symbol=duplicate source="declare function duplicate<T: Copy>(value: T): void" type=<T: Copy>(T) => void
 /// @type.symbol symbol=duplicate.T source="T: Copy" type=T
 /// @resolution.name source=Copy target=Copy
+/// @type.symbol symbol=duplicate.value source="value: T" type=T
 /// @resolution.name source=T target=duplicate.T
 
 declare const guard: Guard;
@@ -156,6 +157,7 @@ declare function duplicate<T: Copy>(value: T): void;
 /// @type.symbol symbol=duplicate source="declare function duplicate<T: Copy>(value: T): void" type=<T: Copy>(T) => void
 /// @type.symbol symbol=duplicate.T source="T: Copy" type=T
 /// @resolution.name source=Copy target=Copy
+/// @type.symbol symbol=duplicate.value source="value: T" type=T
 /// @resolution.name source=T target=duplicate.T
 
 declare const guard: Guard;
@@ -255,6 +257,7 @@ declare function duplicate<T: Copy>(value: T): void;
 /// @type.symbol symbol=duplicate source="declare function duplicate<T: Copy>(value: T): void" type=<T: Copy>(T) => void
 /// @type.symbol symbol=duplicate.T source="T: Copy" type=T
 /// @resolution.name source=Copy target=Copy
+/// @type.symbol symbol=duplicate.value source="value: T" type=T
 /// @resolution.name source=T target=duplicate.T
 
 declare const plain: Plain;

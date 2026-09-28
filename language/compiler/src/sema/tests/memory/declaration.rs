@@ -132,16 +132,16 @@ newtype interface LocalReadable { read(): int32; }
 /// @type.symbol symbol=LocalReadable source="newtype interface LocalReadable { read(): int32; }" type=LocalReadable
 /// @definition.interface symbol=LocalReadable source="newtype interface LocalReadable { read(): int32; }" template=(this: LocalReadable) nominal=true
 /// @definition.where symbol=LocalReadable source="newtype interface LocalReadable { read(): int32; }" relation=satisfies left=this right=LocalReadable
-/// @definition.method symbol=LocalReadable.read source="read(): int32" slot=read type=() => int32
-/// @type.symbol symbol=LocalReadable.read source="read(): int32" type=() => int32
+/// @definition.method symbol=LocalReadable.read source="read(): int32" slot=read type=(this: this) => int32
+/// @type.symbol symbol=LocalReadable.read source="read(): int32" type=(this: this) => int32
 
 shared newtype interface SharedReadable { read(): int32; }
 /// @generic.template symbol=SharedReadable parameters=(this: SharedReadable)
 /// @type.symbol symbol=SharedReadable source="shared newtype interface SharedReadable { read(): int32; }" type=SharedReadable
 /// @definition.interface symbol=SharedReadable source="shared newtype interface SharedReadable { read(): int32; }" template=(this: SharedReadable) nominal=true
 /// @definition.where symbol=SharedReadable source="shared newtype interface SharedReadable { read(): int32; }" relation=satisfies left=this right=SharedReadable
-/// @definition.method symbol=SharedReadable.read source="read(): int32" slot=read type=() => int32
-/// @type.symbol symbol=SharedReadable.read source="read(): int32" type=() => int32
+/// @definition.method symbol=SharedReadable.read source="read(): int32" slot=read type=(this: this) => int32
+/// @type.symbol symbol=SharedReadable.read source="read(): int32" type=(this: this) => int32
 
 declare const localUser: LocalUser;
 /// @type.symbol symbol=localUser source=localUser type=LocalUser
@@ -569,6 +569,7 @@ declare function consume<T>(request: Request<T>): void;
 /// @generic.template symbol=consume parameters=(T#3)
 /// @type.symbol symbol=consume source="declare function consume<T>(request: Request<T>): void" type=<T#3>(Request<T#3>) => void
 /// @type.symbol symbol=consume.T source=T type=T#3
+/// @type.symbol symbol=consume.request source="request: Request<T>" type=Request<T#3>
 /// @resolution.name source=Request target=Request
 /// @resolution.name source=T target=consume.T
 

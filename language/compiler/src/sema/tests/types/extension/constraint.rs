@@ -208,10 +208,10 @@ interface Readable {
 /// @type.symbol symbol=Readable type=Readable
 /// @definition.interface symbol=Readable template=(this: Readable)
 /// @definition.where symbol=Readable relation=satisfies left=this right=Readable
-/// @definition.method symbol=Readable.read source="read(): string" slot=read type=() => string
+/// @definition.method symbol=Readable.read source="read(): string" slot=read type=(this: this) => string
 
     read(): string;
-    /// @type.symbol symbol=Readable.read source="read(): string" type=() => string
+    /// @type.symbol symbol=Readable.read source="read(): string" type=(this: this) => string
 
 }
 
@@ -251,16 +251,17 @@ extension<T> of Box<T> where T: Readable {
         return this.value.read();
         /// @type.node source=this type=&read.'a readonly Box<T#2>
         /// @type.node source=this.value type=T#2
-        /// @type.node source=this.value.read type=() => string
+        /// @type.node source=this.value.read type=(this: T#2) => string
         /// @type.node source=this.value.read() type=string
         /// @resolution.member source=this.value receiver=&read.'a readonly Box<T#2> type=T#2 kind=field target_receiver=&read.'a readonly Box<T#2> key=value target=Box.value target_type=T#2
-        /// @resolution.member source=this.value.read receiver=T#2 type=() => string kind=symbol target_receiver=T#2 target=Readable.read
+        /// @resolution.member source=this.value.read receiver=T#2 type=(this: T#2) => string kind=symbol target_receiver=T#2 target=Readable.read
         /// @resolution.call source=this.value.read() parameters=() return=string kind=symbol target=Readable.read receiver=T#2
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&read.'a readonly Box<T#2>
         /// @resolution.place source=this placement=read.'a lifetime=read.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement=read.'a lifetime=read.'a access="readonly"
         /// @resolution.access source=this.value root=this keys=[value]
+        /// @generic.instantiation id=Readable.read<T#2> template=Readable.read arguments=() owner=read
 
     }
 }
@@ -351,13 +352,13 @@ interface Keyed<I> {
 /// @definition.interface symbol=Keyed template=(in I, this: Keyed<I>)
 /// @definition.where symbol=Keyed relation=satisfies left=this right=Keyed<I>
 /// @definition.associated.type symbol=Keyed.Output source="type Output" key=Output
-/// @definition.method symbol=Keyed.index source="index(key: I): this.Output" slot=index type=(I) => this.Output
+/// @definition.method symbol=Keyed.index source="index(key: I): this.Output" slot=index type=(this: this, I) => this.Output
 /// @type.symbol symbol=Keyed.I source=I type=I
 
     type Output;
 
     index(key: I): this.Output;
-    /// @type.symbol symbol=Keyed.index source="index(key: I): this.Output" type=(I) => this.Output
+    /// @type.symbol symbol=Keyed.index source="index(key: I): this.Output" type=(this: this, I) => this.Output
     /// @type.symbol symbol=Keyed.index.key source="key: I" type=I
     /// @resolution.name source=I target=Keyed.I
     /// @resolution.name source=this.Output target=Keyed.Output

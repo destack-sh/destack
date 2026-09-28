@@ -212,7 +212,7 @@ function build(values: [int32]): void {
     ] as Iterable<int32>) as Set<int32, Equality<int32>>;
     const mapped: ^int32[] = Array.from<int32, int32>(
         [...values] as Iterable<int32>,
-        (value: int32): int32 => value,
+        ((value: int32): int32 => value) as (value: int32, index: isize) => int32,
     );
 }
 

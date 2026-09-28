@@ -157,10 +157,10 @@ newtype interface Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.interface symbol=Sink template=(this: Sink) nominal=true
 /// @definition.where symbol=Sink relation=satisfies left=this right=Sink
-/// @definition.method symbol=Sink.write source="write(value: string): void" slot=write type=(string) => void
+/// @definition.method symbol=Sink.write source="write(value: string): void" slot=write type=(this: this, string) => void
 
     write(value: string): void;
-    /// @type.symbol symbol=Sink.write source="write(value: string): void" type=(string) => void
+    /// @type.symbol symbol=Sink.write source="write(value: string): void" type=(this: this, string) => void
     /// @type.symbol symbol=Sink.write.value source="value: string" type=string
 
 }
@@ -458,10 +458,10 @@ interface Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.interface symbol=Sink template=(this: Sink)
 /// @definition.where symbol=Sink relation=satisfies left=this right=Sink
-/// @definition.method symbol=Sink.write source="write(value: string): void" slot=write type=(string) => void
+/// @definition.method symbol=Sink.write source="write(value: string): void" slot=write type=(this: this, string) => void
 
     write(value: string): void;
-    /// @type.symbol symbol=Sink.write source="write(value: string): void" type=(string) => void
+    /// @type.symbol symbol=Sink.write source="write(value: string): void" type=(this: this, string) => void
     /// @type.symbol symbol=Sink.write.value source="value: string" type=string
 
 }

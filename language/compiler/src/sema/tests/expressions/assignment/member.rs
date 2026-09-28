@@ -75,14 +75,14 @@ interface Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.interface symbol=Counter template=(this: Counter)
 /// @definition.where symbol=Counter relation=satisfies left=this right=Counter
-/// @definition.method symbol=Counter.current#1 source="get current(): int32" slot=current role=getter type=() => int32
-/// @definition.method symbol=Counter.current#2 source="set current(next: int32)" slot=current role=setter type=(int32) => void
+/// @definition.method symbol=Counter.current#1 source="get current(): int32" slot=current role=getter type=(this: this) => int32
+/// @definition.method symbol=Counter.current#2 source="set current(next: int32)" slot=current role=setter type=(this: this, int32) => void
 
     get current(): int32;
-    /// @type.symbol symbol=Counter.current#1 source="get current(): int32" type=() => int32
+    /// @type.symbol symbol=Counter.current#1 source="get current(): int32" type=(this: this) => int32
 
     set current(next: int32);
-    /// @type.symbol symbol=Counter.current#2 source="set current(next: int32)" type=(int32) => void
+    /// @type.symbol symbol=Counter.current#2 source="set current(next: int32)" type=(this: this, int32) => void
     /// @type.symbol symbol=Counter.current.next source="next: int32" type=int32
 
 }
@@ -144,14 +144,14 @@ interface Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.interface symbol=Counter template=(this: Counter)
 /// @definition.where symbol=Counter relation=satisfies left=this right=Counter
-/// @definition.method symbol=Counter.current#1 source="get current(): int32" slot=current role=getter type=() => int32
-/// @definition.method symbol=Counter.current#2 source="set current(next: int32)" slot=current role=setter type=(int32) => void
+/// @definition.method symbol=Counter.current#1 source="get current(): int32" slot=current role=getter type=(this: this) => int32
+/// @definition.method symbol=Counter.current#2 source="set current(next: int32)" slot=current role=setter type=(this: this, int32) => void
 
     get current(): int32;
-    /// @type.symbol symbol=Counter.current#1 source="get current(): int32" type=() => int32
+    /// @type.symbol symbol=Counter.current#1 source="get current(): int32" type=(this: this) => int32
 
     set current(next: int32);
-    /// @type.symbol symbol=Counter.current#2 source="set current(next: int32)" type=(int32) => void
+    /// @type.symbol symbol=Counter.current#2 source="set current(next: int32)" type=(this: this, int32) => void
     /// @type.symbol symbol=Counter.current.next source="next: int32" type=int32
 
 }
@@ -209,10 +209,10 @@ interface Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.interface symbol=Counter template=(this: Counter)
 /// @definition.where symbol=Counter relation=satisfies left=this right=Counter
-/// @definition.method symbol=Counter.current source="get current(): int32" slot=current role=getter type=() => int32
+/// @definition.method symbol=Counter.current source="get current(): int32" slot=current role=getter type=(this: this) => int32
 
     get current(): int32;
-    /// @type.symbol symbol=Counter.current source="get current(): int32" type=() => int32
+    /// @type.symbol symbol=Counter.current source="get current(): int32" type=(this: this) => int32
 
 }
 
@@ -263,10 +263,10 @@ interface Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.interface symbol=Sink template=(this: Sink)
 /// @definition.where symbol=Sink relation=satisfies left=this right=Sink
-/// @definition.method symbol=Sink.value source="set value(next: int32)" slot=value role=setter type=(int32) => void
+/// @definition.method symbol=Sink.value source="set value(next: int32)" slot=value role=setter type=(this: this, int32) => void
 
     set value(next: int32);
-    /// @type.symbol symbol=Sink.value source="set value(next: int32)" type=(int32) => void
+    /// @type.symbol symbol=Sink.value source="set value(next: int32)" type=(this: this, int32) => void
     /// @type.symbol symbol=Sink.value.next source="next: int32" type=int32
 
 }
@@ -282,6 +282,61 @@ sink.value = 1;
 /// @resolution.access source=sink root=sink
 /// @resolution.pattern.assign source=sink.value kind=place
 /// @resolution.assignment source=sink.value write="receiver=Sink, target=dynamic(Sink as Sink, Sink.value)(parameters=(int32), arguments=(supplied(0) as int32), return=void), type=int32" type=int32
+"#,
+    );
+}
+
+/// Reject a write to a member the receiver declares nowhere.
+#[test]
+fn test_reject_a_write_to_a_missing_member() {
+    let session = TestSession::single(
+        r#"
+type Point = { x: float64 };
+
+class Counter {
+    value: int32 = 0;
+}
+
+function move(point: Point, counter: Counter): void {
+    point.z = 1.0;
+    counter.total = 1;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.tspp",
+        DirRows::none(),
+        r#"
+=== annotated ===
+type Point = { x: float64 };
+
+class Counter {
+    value: int32 = 0;
+}
+
+function move(point: Point, counter: Counter): void {
+    point.z = 1.0;
+    counter.total = 1;
+}
+
+=== dir ===
+type Point = { x: float64 };
+
+class Counter {
+    value: int32 = 0;
+}
+
+function move(point: Point, counter: Counter): void {
+    point.z = 1.0;
+    counter.total = 1;
+}
+"#,
+        r#"
+/// @diagnostic.error id=missing-member message="member 'z' does not exist on type 'Point'"
+/// @diagnostic.label line=9 column=11 span="z" line_source="point.z = 1.0;"
+/// @diagnostic.error id=missing-member message="member 'total' does not exist on type 'Counter'"
+/// @diagnostic.label line=10 column=13 span="total" line_source="counter.total = 1;"
 "#,
     );
 }
@@ -317,10 +372,10 @@ interface Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.interface symbol=Counter template=(this: Counter)
 /// @definition.where symbol=Counter relation=satisfies left=this right=Counter
-/// @definition.method symbol=Counter.current source="get current(): int32" slot=current role=getter type=() => int32
+/// @definition.method symbol=Counter.current source="get current(): int32" slot=current role=getter type=(this: this) => int32
 
     get current(): int32;
-    /// @type.symbol symbol=Counter.current source="get current(): int32" type=() => int32
+    /// @type.symbol symbol=Counter.current source="get current(): int32" type=(this: this) => int32
 
 }
 
@@ -373,10 +428,10 @@ interface Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.interface symbol=Sink template=(this: Sink)
 /// @definition.where symbol=Sink relation=satisfies left=this right=Sink
-/// @definition.method symbol=Sink.value source="set value(next: int32)" slot=value role=setter type=(int32) => void
+/// @definition.method symbol=Sink.value source="set value(next: int32)" slot=value role=setter type=(this: this, int32) => void
 
     set value(next: int32);
-    /// @type.symbol symbol=Sink.value source="set value(next: int32)" type=(int32) => void
+    /// @type.symbol symbol=Sink.value source="set value(next: int32)" type=(this: this, int32) => void
     /// @type.symbol symbol=Sink.value.next source="next: int32" type=int32
 
 }
