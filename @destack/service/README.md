@@ -44,6 +44,22 @@ await using server = Server.start({
 const response = await server.fetch(request);
 ```
 
+A permission its policy elevates answers a caller who authenticated too weakly or too long ago with a step-up challenge, which the client answers by authenticating again and retrying the request.
+
+```ts
+// 401 { code: "INSUFFICIENT_AUTHENTICATION", data: { assurance: 2, maxAge: 900000 } }
+```
+
+## Timers
+
+`wait` pauses for a delay as the web platform's `scheduler.wait` does, rejecting with the signal's reason once it aborts.
+
+```ts
+import { wait } from "@destack/service/timer";
+
+await wait(1000, { signal });
+```
+
 ## Workloads
 
 A workload starts once per instance and returns the services and triggers it implements.
@@ -142,7 +158,7 @@ const verified = await verifier.authenticate(request, spaceId);
 
 ## Journal
 
-A journal runs each request once in one transaction and replays its outcome, including final failures, to retries.
+A journal runs each request once in one transaction and replays its outcome, including final failures, to retries; challenges and transient failures stay open to the retry, and fingerprints leave out the input's sensitive values.
 
 ```ts
 import { RequestId, RequestFingerprint } from "@destack/service/request";
@@ -151,8 +167,8 @@ import { defineJournal, Journal } from "@destack/service/database";
 export const journal = new Journal(defineJournal("journal"));
 
 const request = { caller: caller.id, scope: spaceId, requestId: RequestId.create() };
-const digest = (await RequestFingerprint.hash(input)).toHex();
-const account = await journal.execute(database, request, { digest }, {
+const fingerprint = await RequestFingerprint.hash(AccountUpdate, input); // schema.sensitive fields are left out
+const account = await journal.execute(database, request, fingerprint, {
     authorize: (transaction) => authorization.within(transaction).require(permission, target),
     run: (transaction) => updateAccount(transaction, input),
 });

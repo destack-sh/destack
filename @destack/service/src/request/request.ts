@@ -46,24 +46,19 @@ export interface RequestIdentity {
     readonly requestId: string;
 }
 
-/** A canonical fingerprint of a request's input, optionally protected by a versioned encryption key. */
+/** A fingerprint of a request's input: the SHA-256 digest of its canonical JSON without its sensitive values. */
 export interface RequestFingerprint {
-    /** Serialized fingerprint; request secrets must be protected against offline guessing. */
-    readonly digest: schema.Infer<ReturnType<typeof schema.json>>;
-    /** Encryption key version indexed for rewrapping. */
-    readonly keyId?: string;
+    /** The digest, as lowercase hexadecimal. */
+    readonly digest: string;
 }
 
-/** A canonical fingerprint of a request's input, optionally protected by a versioned encryption key. */
+/** A fingerprint of a request's input, which holds nothing derived from its sensitive values. */
 export const RequestFingerprint = {
-    /** Hash the canonical JSON of a request's input. */
-    async hash(input: unknown): Promise<Uint8Array<ArrayBuffer>> {
-        // hash the canonical input bytes, then clear them
-        const bytes = new TextEncoder().encode(canonicalize(schema.json().parse(input)));
-        try {
-            return new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
-        } finally {
-            bytes.fill(0);
-        }
+    /** Digest the canonical JSON of an input without the values its schema marks sensitive. */
+    async hash(input: schema.Schema, value: unknown): Promise<RequestFingerprint> {
+        const canonical = canonicalize(schema.json().parse(schema.redact(input, value) ?? null));
+        const bytes = new TextEncoder().encode(canonical);
+
+        return { digest: new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)).toHex() };
     },
 };

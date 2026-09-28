@@ -69,10 +69,6 @@ export class Journal {
         steps: {
             /** Check the caller may make the request, before replaying or running it. */
             authorize?(transaction: DatabaseConnection): Promise<void>;
-            /** Compare a stored fingerprint with this request's, by digest equality when absent. */
-            matches?(
-                stored: schema.Infer<ReturnType<typeof schema.json>>,
-            ): boolean | Promise<boolean>;
             /** Run the request, returning its public result. */
             run(transaction: DatabaseConnection): Promise<unknown>;
         },
@@ -85,12 +81,7 @@ export class Journal {
             return await database.transaction(async (transaction) => {
                 // authorize, then replay an executed request with the same fingerprint
                 await steps.authorize?.(transaction);
-                const claim = await this.claim(
-                    transaction,
-                    request,
-                    fingerprint,
-                    steps.matches ?? ((stored) => stored === fingerprint.digest),
-                );
+                const claim = await this.claim(transaction, request, fingerprint);
                 if (claim.kind === "replay") {
                     return claim.value;
                 }
@@ -127,9 +118,6 @@ export class Journal {
         database: DatabaseConnection,
         request: RequestIdentity,
         fingerprint: RequestFingerprint,
-        matches: (
-            stored: schema.Infer<ReturnType<typeof schema.json>>,
-        ) => boolean | Promise<boolean>,
     ): Promise<JournalClaim> {
         // keep the claim, the request's changes and its outcome within one commit
         requireTransaction(database);
@@ -142,7 +130,6 @@ export class Journal {
                 ...request,
                 transaction: null,
                 digest: fingerprint.digest,
-                keyId: fingerprint.keyId ?? null,
                 createdAt: Date.now(),
                 expiresAt,
             })
@@ -156,7 +143,7 @@ export class Journal {
 
         // wait for the first transaction on the key, then replay its outcome for the same input
         const previous = await database.select().from(this.table).where(this.key(request)).get();
-        if (!previous || previous.outcome === null || !(await matches(previous.digest))) {
+        if (!previous || previous.outcome === null || previous.digest !== fingerprint.digest) {
             throw new ServiceError("CONFLICT", {
                 message: "request identifier has already been used",
             });
@@ -208,7 +195,6 @@ export class Journal {
                 ...request,
                 transaction: null,
                 digest: fingerprint.digest,
-                keyId: fingerprint.keyId ?? null,
                 outcome,
                 createdAt: Date.now(),
                 expiresAt,
@@ -306,10 +292,8 @@ export function defineJournal(name: string, module?: ModuleMetadata) {
             requestId: text("request_id").notNull(),
             /** The transaction identity the request's logged changes carry, absent without a log. */
             transaction: text("transaction"),
-            /** Canonical request fingerprint or its encrypted representation. */
-            digest: json("digest", schema.json()).notNull().sensitive(),
-            /** Key protecting sensitive fingerprints. */
-            keyId: text("key_id"),
+            /** The fingerprint of the request's input without its sensitive values. */
+            digest: text("digest").notNull(),
             /** The recorded outcome, absent while the claiming transaction runs. */
             outcome: json("outcome", Outcome),
             /** Persisted request time. */
@@ -322,7 +306,6 @@ export function defineJournal(name: string, module?: ModuleMetadata) {
             constraints: (journal) => [
                 primaryKey({ columns: [journal.caller, journal.scope, journal.requestId] }),
                 index(`${name}_expiry`).on(journal.expiresAt),
-                index(`${name}_key`).on(journal.keyId, journal.scope),
             ],
         },
         owner,
