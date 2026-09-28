@@ -49,6 +49,8 @@ export interface PolicyDefinition {
     readonly administration?: readonly string[];
     /** Whether the type's objects are scopes, holding other objects while living in their own container like any object. */
     readonly scope?: true;
+    /** Whether the type's objects live in the global scope, so an identifier alone names each, as users do. */
+    readonly isGlobal?: true;
     /** The open relations of other types this type's objects may be subjects of. */
     readonly contributes?: readonly {
         readonly packageId: PackageId;
@@ -132,6 +134,7 @@ export class Policy<Name extends string = string> {
                     ? {}
                     : { administration: [...input.administration] }),
                 ...(input.scope ? { scope: true } : {}),
+                ...(input.isGlobal ? { isGlobal: true } : {}),
                 ...(input.contributes === undefined || input.contributes.length === 0
                     ? {}
                     : {
@@ -274,6 +277,8 @@ export interface PolicyInput<Name extends string> {
     readonly administration?: readonly NoInfer<Name>[];
     /** Whether the type's objects are scopes, holding other objects while living in their own container like any object. */
     readonly scope?: boolean;
+    /** Whether the type's objects live in the global scope, so an identifier alone names each, as users do. */
+    readonly isGlobal?: boolean;
     /** The open relations of other types this type's objects may be subjects of, such as an attachment's parent. */
     readonly contributes?: readonly { readonly policy: Policy; readonly relation: string }[];
 }

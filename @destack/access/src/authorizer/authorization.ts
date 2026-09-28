@@ -1,13 +1,4 @@
-import {
-    and,
-    asc,
-    eq,
-    or,
-    type DatabaseConnection,
-    type Select,
-    type SQL,
-    type Table,
-} from "@destack/db";
+import { and, asc, eq, or, type DatabaseConnection, type Select } from "@destack/db";
 import { Snapshot } from "@destack/db/log";
 import { identifier } from "@destack/schema";
 import { v7 } from "uuid";
@@ -37,7 +28,7 @@ import { accessRole, accessRolePermission } from "../role/table.ts";
 import { accessScope } from "../scope/table.ts";
 import type { Access } from "./access.ts";
 import type { Admission, Authorizer } from "./authorizer.ts";
-import type { Decision, Explanation } from "./decision.ts";
+import type { Decision } from "./decision.ts";
 import type { GrantReader } from "./grant.ts";
 
 /** What authorizing a relationship reads from a request, a proposal or a stored relationship, whose subject a proposal may leave open. */
@@ -148,11 +139,6 @@ export class Authorization {
         await this.authorizer.require(this.snapshot, [permission], target, access);
     }
 
-    /** Restrict rows of a scope to those the caller holds a permission on, before sorting, counting or pagination. */
-    async where(permission: PermissionReference, scope: string, source?: Table): Promise<SQL> {
-        return this.authorizer.where(permission, await this.in(scope), source);
-    }
-
     /** Check a permission on rows of a scope, as they are or were, through grants a reader shares: the rows held, and until when. */
     async checkRows(
         permission: PermissionReference,
@@ -163,13 +149,6 @@ export class Authorization {
         const access = await this.in(scope);
 
         return this.authorizer.checkRows(this.snapshot, permission, access, rows, reader);
-    }
-
-    /** Explain whether the caller holds a permission on one object, and why. */
-    async explain(permission: PermissionReference, target: ObjectReference): Promise<Explanation> {
-        const access = await this.in(this.authorizer.governingScope(target));
-
-        return this.authorizer.explain(this.snapshot, permission, target, access);
     }
 
     /**

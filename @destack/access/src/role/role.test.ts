@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { Snapshot } from "@destack/db/log";
-import { asc, eq } from "@destack/db";
+import { and, asc, eq, ne } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { identifier } from "@destack/schema";
 import {
@@ -349,7 +349,12 @@ test("let owners hold everything in their scope, make owners, and never remove t
     const [first] = await database
         .select({ id: accessRelationship.id })
         .from(accessRelationship)
-        .where(eq(accessRelationship.roleId, owner!.id));
+        .where(
+            and(
+                eq(accessRelationship.roleId, owner!.id),
+                ne(accessRelationship.id, second.id as never),
+            ),
+        );
     await new Authorization(home, database, () => carol).revoke(place, second.id);
     await expect(
         new Authorization(home, database, () => carol).revoke(place, first!.id),

@@ -166,7 +166,13 @@ test.for(TEST_DIALECTS)(
         const queried = await database
             .select({ id: remarks.id })
             .from(remarks)
-            .where(await authorization.where(remark.permission("read"), "personal", remarks))
+            .where(
+                authorization.authorizer.where(
+                    remark.permission("read"),
+                    await authorization.in("personal"),
+                    remarks,
+                ),
+            )
             .orderBy(asc(remarks.id));
 
         // admit the remarks on her own article and photo, never bob's article or a photo that does not exist

@@ -3,7 +3,7 @@ import { Condition, type Binding } from "@destack/db/query";
 import { AccessError } from "../error/index.ts";
 import { objectKey, type ObjectReference, type PermissionReference } from "../policy/policy.ts";
 import type { AccessExpression } from "../policy/expression.ts";
-import { subjectKey, type RelationDefinition } from "../policy/subject.ts";
+import { accepts, subjectKey, type RelationDefinition } from "../policy/subject.ts";
 import { requireAttribute, type AccessContext } from "../context/context.ts";
 import { Restriction } from "../context/restriction.ts";
 import { Relationship } from "../relationship/relationship.ts";
@@ -287,11 +287,15 @@ export class Compiler {
         if (field && authority.delegator !== undefined) {
             return sql`false`;
         }
-        // match a subject key the column holds against the authority's own subjects and subject sets
+        // match a subject key the column holds against the authority's subjects the relation accepts
         else if (field?.isKey) {
-            const keys = authority.subjects.map((subject) => subjectKey(subject));
+            const keys = authority.subjects
+                .filter((subject) => accepts(relation, subject))
+                .map((subject) => subjectKey(subject));
 
-            return sql`coalesce(${inArray(column(source, field.column), keys)}, false)`;
+            return keys.length === 0
+                ? sql`false`
+                : sql`coalesce(${inArray(column(source, field.column), keys)}, false)`;
         }
         // match a subject whose type, scope and relation the row's columns name
         else if (field?.subject !== undefined) {

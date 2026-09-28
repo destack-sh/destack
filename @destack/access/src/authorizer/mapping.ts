@@ -91,13 +91,13 @@ function validate(authorizer: Authorizer, mapping: TableMapping): void {
         }
     }
 
-    // require non-null columns with the scalar type declared by the object
+    // require columns with the scalar type declared by the object, whose nulls conditions read as missing, in three-valued logic
     for (const [name, expected] of Object.entries(definition.attributes)) {
         const attribute = column(mapping.table, mapping.attributes[name]).definition;
         const kind = attribute.kind;
         const type =
             kind === "integer" || kind === "real" ? "number" : kind === "text" ? "string" : kind;
-        if (attribute.nullable || type !== expected) {
+        if (type !== expected) {
             throw new AccessError("INVALID_DECLARATION", `incompatible attribute column: ${name}`);
         }
     }

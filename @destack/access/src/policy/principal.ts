@@ -14,12 +14,12 @@ export const ACCESS_PACKAGE_ID = OWNER.id;
 /** The kinds of principal that authenticate: people, machines and installed software. */
 export const principal = {
     /** A person, identified globally, and the scope holding their own objects. */
-    user: new Policy(OWNER, { name: "user", permissions: {}, scope: true }),
-    /** A machine running Destack, and the scope of its local operations. */
+    user: new Policy(OWNER, { name: "user", permissions: {}, scope: true, isGlobal: true }),
+    /** A machine running Destack, living in its account, and the scope of its local operations. */
     host: new Policy(OWNER, { name: "host", permissions: {}, scope: true }),
     /** A region of Destack's hosted platform, administering the spaces placed in it. */
-    region: new Policy(OWNER, { name: "region", permissions: {} }),
-    /** An application installed into an account or space: the principal of software, wherever it runs. */
+    region: new Policy(OWNER, { name: "region", permissions: {}, isGlobal: true }),
+    /** An application installed into an account or space, living there: the principal of software, wherever it runs. */
     installation: new Policy(OWNER, { name: "installation", permissions: {} }),
 };
 
