@@ -18,6 +18,7 @@ import {
     accepts,
     type RelationDefinition,
     type Subject,
+    subjectKey,
     type SubjectType,
 } from "../policy/subject.ts";
 import { INTRINSIC_POLICIES } from "../policy/principal.ts";
@@ -554,6 +555,27 @@ export class Authorizer {
         }
     }
 
+    /** Resolve a principal in a scope as if it authenticated just now as strongly as any permission asks, to decide on its behalf. */
+    resolveAssured(
+        snapshot: Snapshot,
+        scope: string,
+        subject: Subject,
+        now: number,
+        known?: readonly ScopeLink[],
+    ): Promise<Access> {
+        return this.resolve(
+            snapshot,
+            scope,
+            {
+                subjects: [subject],
+                now,
+                attributes: {},
+                assurance: { level: HIGHEST_ASSURANCE, authenticatedAt: now },
+            },
+            known,
+        );
+    }
+
     /** Resolve a caller in a scope inside its transaction: its subject sets, the scope chain and the roles along it. */
     resolve(
         snapshot: Snapshot,
@@ -678,6 +700,74 @@ export class Authorizer {
         }
 
         return undefined;
+    }
+
+    /**
+     * List a page of the principals of a type holding a permission on one object now, in subject key order, through subject sets.
+     *
+     * Each candidate is decided as a check decides it, authenticated as strongly as the permission asks.
+     * A wildcard of a whole type names no principals, so the principals it admits are not listed.
+     */
+    async subjects(
+        snapshot: Snapshot,
+        permission: PermissionReference,
+        target: ObjectReference,
+        type: TypeReference,
+        now: number,
+        page: { readonly after?: string; readonly limit: number },
+    ): Promise<Subject[]> {
+        // read the grants the permission reaches on the object, through one reader of its scope chain
+        const scope = this.governingScope(target);
+        const links = await Scope.chain(snapshot, scope);
+        const reader = this.reader(
+            snapshot,
+            links.map((link) => link.object),
+        );
+        const row = await reader.row(this.mapping(target), target);
+        if (row === undefined) {
+            return [];
+        }
+        const [tree] = await reader.trees(permission, [row], this.mapping(target));
+
+        // expand the grants' subject sets into their members, keeping the principals of the type
+        const candidates = new Map<string, Subject>();
+        const seen = new Set<string>();
+        for (
+            let frontier = GrantTree.flatten(tree!).map((grant) => grant.subject);
+            frontier.length > 0;
+        ) {
+            const sets: Subject[] = [];
+            for (const subject of frontier) {
+                const key = subjectKey(subject);
+                if (seen.has(key) || subject.id === "*") {
+                    continue;
+                }
+                seen.add(key);
+                if (subject.relation !== undefined) {
+                    sets.push(subject);
+                } else if (subject.packageId === type.packageId && subject.type === type.type) {
+                    candidates.set(key, subject);
+                }
+            }
+            frontier = await members(snapshot, sets);
+        }
+
+        // decide the candidates after the page's cursor in key order, at the strongest authentication, until the page is full
+        const ordered = [...candidates.entries()]
+            .filter(([key]) => page.after === undefined || key > page.after)
+            .toSorted(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
+        const held: Subject[] = [];
+        for (const [, subject] of ordered) {
+            if (held.length === page.limit) {
+                break;
+            }
+            const access = await this.resolveAssured(snapshot, scope, subject, now, links);
+            if ((await this.check(snapshot, permission, target, access, reader)).isAllowed) {
+                held.push(subject);
+            }
+        }
+
+        return held;
     }
 
     /** Decide whether the caller owns one object, every authority holding a role that grants everything on or above it. */
@@ -1035,4 +1125,31 @@ function listedPermissions(
             ),
         ),
     );
+}
+
+/** Read the members of subject sets: the subjects their objects' relationships of the set's relation hold. */
+async function members(snapshot: Snapshot, sets: readonly Subject[]): Promise<Subject[]> {
+    // read nothing for no sets
+    if (sets.length === 0) {
+        return [];
+    }
+
+    // read the sets' objects' relationships, keeping those of each set's relation
+    const wanted = new Set(sets.map((set) => subjectKey(set)));
+    const rows = await Relationship.readByObject(
+        snapshot,
+        sets.map((set) => ({
+            packageId: set.packageId,
+            type: set.type,
+            scope: set.scope,
+            id: set.id,
+        })),
+    );
+
+    return rows
+        .map((row) => Relationship.decode(row))
+        .filter((relationship) =>
+            wanted.has(subjectKey({ ...relationship.object, relation: relationship.relation! })),
+        )
+        .map((relationship) => relationship.subject);
 }
