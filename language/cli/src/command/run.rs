@@ -7,9 +7,9 @@ use tspp_artifact::{ArtifactPayload, ConditionSet, Host, Platform, Runtime};
 use tspp_program::Program;
 use tspp_repository::{Environment, RuntimeOptions, WorldOptions};
 use tspp_runtime::binding::BindingTable;
-use tspp_runtime::diagnostic::RuntimeResult;
+use tspp_runtime::diagnostic::{RuntimeError, RuntimeResult};
 use tspp_runtime::machine::Engine;
-use tspp_runtime::world::World;
+use tspp_runtime::world::{RunOutcome, World};
 use tspp_vm::MachineLimits;
 use tspp_workspace::{BuildInput, BuildOutputs, CommandRevision, Output};
 
@@ -24,15 +24,19 @@ use crate::diagnostic::ConsoleError;
 
 #[derive(Args, Debug, Clone)]
 pub struct RunArgs {
+    /// Input arguments.
     #[command(flatten)]
     pub input: InputArgs,
 
+    /// Target configuration.
     #[command(flatten)]
     pub target: TargetArgs,
 
+    /// The program options.
     #[command(flatten)]
     pub program: ProgramArgs,
 
+    /// Report output options.
     #[command(flatten)]
     pub report: ReportArgs,
 }
@@ -44,6 +48,42 @@ struct RunPayload {
     initializers: usize,
 }
 
+/// Arguments for evaluating inline code as a program.
+#[derive(Args, Debug, Clone)]
+pub struct EvalArgs {
+    /// The inline modules to evaluate.
+    #[arg(value_name = "CODE", required = true)]
+    pub code: Vec<String>,
+
+    /// Target configuration.
+    #[command(flatten)]
+    pub target: TargetArgs,
+
+    /// The program options.
+    #[command(flatten)]
+    pub program: ProgramArgs,
+
+    /// Report output options.
+    #[command(flatten)]
+    pub report: ReportArgs,
+}
+
+/// Evaluate inline code by running it as a program.
+pub async fn eval(args: &EvalArgs) -> i32 {
+    let run_args = RunArgs {
+        input: InputArgs {
+            eval: args.code.clone(),
+            ..InputArgs::default()
+        },
+        target: args.target.clone(),
+        program: args.program.clone(),
+        report: args.report.clone(),
+    };
+
+    run(&run_args).await
+}
+
+/// Build a program and run it.
 pub async fn run(args: &RunArgs) -> i32 {
     let started_at = Instant::now();
     let inputs = if args.input.has_input() {
@@ -199,6 +239,11 @@ fn run_program(program: Arc<Program>, target: Option<&str>) -> RuntimeResult<usi
     )?;
     world.bootstrap_host()?;
     world.run_initializers(runtime_id)?;
+
+    // run the work the initializers left until the world is idle
+    if let RunOutcome::Stopped { .. } = world.drain()? {
+        return Err(RuntimeError::execution_stopped().boxed());
+    }
 
     Ok(program.initializers().len())
 }

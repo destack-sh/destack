@@ -8,6 +8,7 @@ mod lint;
 mod query;
 mod report;
 mod rewrite;
+mod run;
 mod targets;
 mod task;
 mod tests;

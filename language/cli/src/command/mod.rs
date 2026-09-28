@@ -38,7 +38,7 @@ pub use lint::LintArgs;
 pub use lsp::LspArgs;
 pub use query::QueryArgs;
 pub use rewrite::RewriteArgs;
-pub use run::RunArgs;
+pub use run::{EvalArgs, RunArgs};
 pub use settings::SettingsArgs;
 pub use targets::TargetsArgs;
 pub use task::TaskArgs;
