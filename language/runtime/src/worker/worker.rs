@@ -17,7 +17,7 @@ use crate::host::{HostEventKind, ResourceId, ResourceTable};
 use crate::machine::{Engine, Machine, MachineImage};
 use crate::runtime::RuntimeId;
 use crate::scheduler::{
-    Callback, EventLoop, EventLoopImage, Readiness, RetainedRunnable, ScheduledTimer,
+    Call, EventLoop, EventLoopImage, Readiness, RetainedRunnable, ScheduledTimer,
 };
 use crate::world::topology::LabelSet;
 use crate::world::{RestoreContext, WorkerSequence, WorldState};
@@ -289,12 +289,12 @@ impl Worker {
     }
 
     /// Add one waiter for a timer resource.
-    pub fn add_timer_waiter(&mut self, handle: ResourceId, callback: Callback) {
+    pub fn add_timer_waiter(&mut self, handle: ResourceId, callback: Call) {
         self.event_loop.add_timer_waiter(handle, callback);
     }
 
     /// Remove the waiter registered for one timer resource.
-    pub fn remove_timer_waiter(&mut self, handle: ResourceId) -> Option<Callback> {
+    pub fn remove_timer_waiter(&mut self, handle: ResourceId) -> Option<Call> {
         self.event_loop.remove_timer_waiter(handle)
     }
 
@@ -313,14 +313,14 @@ impl Worker {
         &mut self,
         resource_id: ResourceId,
         readiness: Readiness,
-        callback: Callback,
+        callback: Call,
     ) {
         self.event_loop
             .add_resource_waiter(resource_id, readiness, callback);
     }
 
     /// Add one waiter for a host event kind.
-    pub fn add_host_waiter(&mut self, kind: HostEventKind, callback: Callback) {
+    pub fn add_host_waiter(&mut self, kind: HostEventKind, callback: Call) {
         self.event_loop.add_host_waiter(kind, callback);
     }
 

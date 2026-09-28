@@ -13,7 +13,7 @@ use crate::host::{HostEvent, HostEventKind, ResourceId};
 use crate::machine::native::{Loader, Platform};
 use crate::machine::{Engine, Entry};
 use crate::runtime::RuntimeId;
-use crate::scheduler::{Callback, Invocation, RunnableId, ScheduledTimer, TimerDeadline};
+use crate::scheduler::{Call, Invocation, RunnableId, ScheduledTimer, TimerDeadline};
 use crate::tests::{TestProgram, TestWorker};
 use crate::worker::{Worker, WorkerId, WorkerOptions};
 use crate::world::time::Nanos;
@@ -378,7 +378,7 @@ impl TestWorld {
             .program
             .function_id_by_name(entry)
             .expect("runtime test function should exist");
-        let callback = Callback::call(function, [value], program::Context::empty());
+        let callback = Call::new(function, [value], program::Context::empty());
 
         self.with_worker_mut(worker_id, |worker| {
             worker.add_host_waiter(kind, callback);
@@ -573,10 +573,10 @@ impl TestWorld {
     }
 
     /// Build one repeatable callback for one explicit worker.
-    pub(crate) fn callback(&mut self, worker_id: WorkerId, entry: &str, value: u64) -> Callback {
+    pub(crate) fn callback(&mut self, worker_id: WorkerId, entry: &str, value: u64) -> Call {
         let (function, value) = self.call(worker_id, entry, value);
 
-        Callback::call(function, [value], program::Context::empty())
+        Call::new(function, [value], program::Context::empty())
     }
 
     /// Resolve one test function and its single argument.

@@ -10,8 +10,8 @@ use crate::host::poller::{
 use crate::host::time::TimerClock;
 use crate::host::{HostEvent, LifecycleEvent, LifecycleSourceKind, LifecycleState, ResourceId};
 use crate::scheduler::{
-    Callback, EventLoop, HostWake, Invocation, Readiness, ResourceWake, ScheduledTimer,
-    TimerDeadline, Wake,
+    Call, EventLoop, HostWake, Invocation, Readiness, ResourceWake, ScheduledTimer, TimerDeadline,
+    Wake,
 };
 use crate::worker::WorkerId;
 use crate::world::time::Nanos;
@@ -130,7 +130,7 @@ fn test_event_loop_identifies_repeated_dispatches() {
     event_loop.add_resource_waiter(
         resource_id,
         Readiness::Readable,
-        Callback::call(program::FunctionId(0), [], program::Context::empty()),
+        Call::new(program::FunctionId(0), [], program::Context::empty()),
     );
     let wake = Wake::Resource(ResourceWake::poller(PollerEvent {
         resource_id,

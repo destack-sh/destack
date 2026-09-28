@@ -10,7 +10,7 @@ use crate::host::{
     Host, HostError, HostQueue, family_name, host_name, monotonic_now_ns, platform_name,
 };
 use crate::runtime::RuntimeId;
-use crate::scheduler::{EventLoop, Invocation, RunnableId};
+use crate::scheduler::{Call, EventLoop, Invocation, RunnableId};
 use crate::world::random::RandomStreamId;
 use crate::world::time::ClockSource;
 use crate::world::trace::{EntropySubject, TraceLog};
@@ -249,12 +249,13 @@ impl<'a> Activation<'a> {
         arguments: Vec<program::Value>,
         context: program::Context,
     ) -> RunnableId {
-        self.event_loop.enqueue_microtask(Invocation::Function {
-            function,
-            environment,
-            arguments,
-            context,
-        })
+        self.event_loop
+            .enqueue_microtask(Invocation::Function(Call {
+                function,
+                environment,
+                arguments,
+                context,
+            }))
     }
 
     /// Return whether this call is running on the process main thread.

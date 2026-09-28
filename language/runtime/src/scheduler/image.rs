@@ -7,7 +7,7 @@ use tspp_program as program;
 
 use super::fiber::{FiberTable, FiberTableImage};
 use super::timer::TimerQueue;
-use super::{Callback, EventLoop, Runnable, ScheduledTimer, Wake, WakeKey};
+use super::{Call, EventLoop, Runnable, ScheduledTimer, Wake, WakeKey};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 
 /// Durable event-loop state captured in one World image.
@@ -31,7 +31,7 @@ pub struct EventLoopActiveImage {
     /// Captured scheduled timers.
     pub timers: Vec<ScheduledTimer>,
     /// Captured external wake waiters.
-    pub wake_waiters: Vec<(WakeKey, Callback)>,
+    pub wake_waiters: Vec<(WakeKey, Call)>,
     /// Captured live fibers with their parked executions.
     pub(super) fibers: FiberTableImage,
     /// Captured values awaiting generated destruction.

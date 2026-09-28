@@ -1,4 +1,4 @@
-use super::{Callback, TimerWake, Wake, WakeKey};
+use super::{Call, TimerWake, Wake, WakeKey};
 use crate::diagnostic::RuntimeResult;
 use crate::host::{HostEventKind, ResourceId};
 use crate::scheduler::{Readiness, RunnableId};
@@ -8,13 +8,13 @@ use super::EventLoop;
 
 impl EventLoop {
     /// Add one waiter for a timer resource.
-    pub(crate) fn add_timer_waiter(&mut self, resource_id: ResourceId, callback: Callback) {
+    pub(crate) fn add_timer_waiter(&mut self, resource_id: ResourceId, callback: Call) {
         self.wake_waiters
             .insert(WakeKey::Timer(resource_id), callback);
     }
 
     /// Remove the callback registered for one timer resource.
-    pub(crate) fn remove_timer_waiter(&mut self, resource_id: ResourceId) -> Option<Callback> {
+    pub(crate) fn remove_timer_waiter(&mut self, resource_id: ResourceId) -> Option<Call> {
         self.wake_waiters.remove(&WakeKey::Timer(resource_id))
     }
 
@@ -23,7 +23,7 @@ impl EventLoop {
         &mut self,
         resource_id: ResourceId,
         readiness: Readiness,
-        callback: Callback,
+        callback: Call,
     ) {
         self.wake_waiters.insert(
             WakeKey::Resource {
@@ -47,7 +47,7 @@ impl EventLoop {
     }
 
     /// Add one waiter for a host event kind.
-    pub(crate) fn add_host_waiter(&mut self, kind: HostEventKind, callback: Callback) {
+    pub(crate) fn add_host_waiter(&mut self, kind: HostEventKind, callback: Call) {
         self.wake_waiters.insert(WakeKey::Host(kind), callback);
     }
 

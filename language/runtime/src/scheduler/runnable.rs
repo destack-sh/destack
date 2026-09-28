@@ -19,16 +19,7 @@ pub struct Runnable {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Invocation {
     /// Invoke one function.
-    Function {
-        /// Function to invoke.
-        function: program::FunctionId,
-        /// Hidden closure environment when one exists.
-        environment: Option<program::Value>,
-        /// Source-level arguments in parameter order.
-        arguments: Vec<program::Value>,
-        /// Dynamically scoped context captured when this call was queued.
-        context: program::Context,
-    },
+    Function(Call),
     /// Wake one parked fiber with a delivered value.
     Wake {
         /// Fiber identity to resume.
@@ -38,17 +29,17 @@ pub enum Invocation {
     },
 }
 
-/// One repeatable program callback.
+/// One function call with its environment, arguments, and captured context.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Callback {
+pub struct Call {
     /// Function to invoke.
-    function: program::FunctionId,
+    pub function: program::FunctionId,
     /// Hidden closure environment when one exists.
-    environment: Option<program::Value>,
-    /// Copyable source-level arguments in parameter order.
-    arguments: Vec<program::Value>,
-    /// Dynamically scoped context captured at registration.
-    context: program::Context,
+    pub environment: Option<program::Value>,
+    /// Source-level arguments in parameter order.
+    pub arguments: Vec<program::Value>,
+    /// Dynamically scoped context captured when the call was made.
+    pub context: program::Context,
 }
 
 /// Runnable retained across one runtime handshake or debugger stop.
@@ -97,7 +88,7 @@ impl Runnable {
     pub(crate) fn release(self) -> Option<program::Value> {
         match self.invocation {
             Invocation::Wake { value, .. } => Some(value),
-            Invocation::Function { .. } => None,
+            Invocation::Function(_) => None,
         }
     }
 }
@@ -109,12 +100,7 @@ impl Invocation {
         arguments: impl IntoIterator<Item = program::Value>,
         context: program::Context,
     ) -> Self {
-        Self::Function {
-            function,
-            environment: None,
-            arguments: arguments.into_iter().collect(),
-            context,
-        }
+        Self::Function(Call::new(function, arguments, context))
     }
 
     /// Create one fiber wake delivery.
@@ -125,17 +111,7 @@ impl Invocation {
     /// Fork this invocation for one forked World.
     pub fn inherit(&self) -> Self {
         match self {
-            Self::Function {
-                function,
-                environment,
-                arguments,
-                context,
-            } => Self::Function {
-                function: *function,
-                environment: environment.as_ref().map(program::Value::fork),
-                arguments: arguments.iter().map(program::Value::fork).collect(),
-                context: *context,
-            },
+            Self::Function(call) => Self::Function(call.fork()),
             Self::Wake { fiber_id, value } => Self::Wake {
                 fiber_id: *fiber_id,
                 value: value.fork(),
@@ -146,7 +122,7 @@ impl Invocation {
     /// Return the dynamically scoped context carried by fresh invocations.
     pub const fn context(&self) -> Option<program::Context> {
         match self {
-            Self::Function { context, .. } => Some(*context),
+            Self::Function(call) => Some(call.context),
             Self::Wake { .. } => None,
         }
     }
@@ -158,27 +134,8 @@ impl Invocation {
         visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
     ) -> RuntimeResult<()> {
         match self {
-            // function values
-            Self::Function {
-                environment,
-                arguments,
-                context,
-                ..
-            } => {
-                visit(heap::RootSlot::HeapReference(context.reference_mut()))?;
-
-                if let Some(environment) = environment {
-                    program
-                        .visit_value_root_slots(environment, visit)
-                        .map_err(Box::<RuntimeError>::from)?;
-                }
-
-                for argument in arguments {
-                    program
-                        .visit_value_root_slots(argument, visit)
-                        .map_err(Box::<RuntimeError>::from)?;
-                }
-            }
+            // function calls
+            Self::Function(call) => call.visit_root_slots(program, visit)?,
             // wake value delivered to one parked fiber
             Self::Wake { value, .. } => {
                 program
@@ -191,9 +148,9 @@ impl Invocation {
     }
 }
 
-impl Callback {
-    /// Create one direct function callback.
-    pub fn call(
+impl Call {
+    /// Create one direct function call without an environment.
+    pub fn new(
         function: program::FunctionId,
         arguments: impl IntoIterator<Item = program::Value>,
         context: program::Context,
@@ -206,17 +163,12 @@ impl Callback {
         }
     }
 
-    /// Create one callback invocation while retaining this registration.
+    /// Create one invocation of this call while retaining it.
     pub fn invoke(&self) -> Invocation {
-        Invocation::Function {
-            function: self.function,
-            environment: self.environment.as_ref().map(program::Value::fork),
-            arguments: self.arguments.iter().map(program::Value::fork).collect(),
-            context: self.context,
-        }
+        Invocation::Function(self.fork())
     }
 
-    /// Fork this callback for one forked World.
+    /// Fork this call for one forked World.
     pub fn fork(&self) -> Self {
         Self {
             function: self.function,
@@ -226,7 +178,7 @@ impl Callback {
         }
     }
 
-    /// Visit mutable heap root slots retained by this callback.
+    /// Visit mutable heap root slots retained by this call.
     pub(crate) fn visit_root_slots(
         &mut self,
         program: &program::Program,

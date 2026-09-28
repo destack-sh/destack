@@ -5,7 +5,7 @@ use tspp_vm as vm;
 
 use super::fiber::FiberTable;
 use super::timer::TimerQueue;
-use super::{Callback, Invocation, Runnable, RunnableId, Wake, WakeKey};
+use super::{Call, Invocation, Runnable, RunnableId, Wake, WakeKey};
 use crate::diagnostic::RuntimeResult;
 
 /// Event loop for tasks, microtasks, timers, waiters, and wakes.
@@ -20,7 +20,7 @@ pub(crate) struct EventLoop {
     /// Pending external wakes.
     pub(super) wakes: VecDeque<Wake>,
     /// Repeatable callbacks keyed by their external wake source.
-    pub(super) wake_waiters: BTreeMap<WakeKey, Callback>,
+    pub(super) wake_waiters: BTreeMap<WakeKey, Call>,
     /// Live fibers with their parked executions.
     pub(super) fibers: FiberTable,
     /// Values released by scheduler transitions and awaiting destruction.

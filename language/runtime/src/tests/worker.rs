@@ -21,8 +21,8 @@ use crate::host::{
 use crate::machine::native::Code;
 use crate::machine::{Engine, Entry};
 use crate::scheduler::{
-    Callback, HostWake, Invocation, Readiness, ResourceWake, RunnableId, ScheduledTimer,
-    TimerDeadline, Wake,
+    Call, HostWake, Invocation, Readiness, ResourceWake, RunnableId, ScheduledTimer, TimerDeadline,
+    Wake,
 };
 use crate::worker::{Request, Worker, WorkerRunOutcome};
 use crate::world::time::Nanos;
@@ -389,10 +389,10 @@ impl TestWorker {
     }
 
     /// Build one repeatable callback in the wrapped worker.
-    fn callback(&self, entry: &str, value: u64) -> Callback {
+    fn callback(&self, entry: &str, value: u64) -> Call {
         let (function, value) = self.call(entry, value);
 
-        Callback::call(function, [value], program::Context::empty())
+        Call::new(function, [value], program::Context::empty())
     }
 
     /// Resolve one test function and its single argument.
