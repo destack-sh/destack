@@ -98,20 +98,22 @@ export class Access {
      * Resolve a caller in a scope as a snapshot shows its access: its subject sets, the scope chain and the roles along it, in small indexed reads issued together.
      *
      * It refuses to decide on a copy of the chain's access whose home stayed silent past the authorizer's lag.
+     * A caller that read the chain in the same snapshot passes its links as `known`.
      */
     static async resolve(
         snapshot: Snapshot,
         scope: string,
         context: AccessContext,
         authorizer: Authorizer,
+        known?: readonly ScopeLink[],
     ): Promise<Access> {
         // reject invalid request time before reading expiring records
         if (!Number.isFinite(context.now)) {
             throw new AccessError("INVALID_CONTEXT", "request time must be finite");
         }
 
-        // read the chain
-        const links = await Scope.chain(snapshot, scope);
+        // read the chain, unless the caller read it in the same snapshot already
+        const links = known ?? (await Scope.chain(snapshot, scope));
         const chain = [scope, ...links.map((link) => link.object.id).filter((id) => id !== scope)];
 
         // read the roles alongside the caller's and every lent delegate's subject sets, refusing copies whose home went silent

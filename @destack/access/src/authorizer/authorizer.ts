@@ -33,7 +33,7 @@ import { Compiler } from "./compiler.ts";
 import type { Decision, Explanation } from "./decision.ts";
 import { GrantReader, GrantTree, type Grant, type Lookup } from "./grant.ts";
 import { column, TableMapping, type FieldRelation } from "./mapping.ts";
-import { Scope } from "../scope/scope.ts";
+import { Scope, type ScopeLink } from "../scope/scope.ts";
 
 /**
  * How long a copy of access may go without hearing from its home before decisions refuse it, by default, in milliseconds.
@@ -570,8 +570,13 @@ export class Authorizer {
     }
 
     /** Resolve a caller in a scope inside its transaction: its subject sets, the scope chain and the roles along it. */
-    resolve(snapshot: Snapshot, scope: string, context: AccessContext): Promise<Access> {
-        return Access.resolve(snapshot, scope, context, this);
+    resolve(
+        snapshot: Snapshot,
+        scope: string,
+        context: AccessContext,
+        links?: readonly ScopeLink[],
+    ): Promise<Access> {
+        return Access.resolve(snapshot, scope, context, this, links);
     }
 
     /** Restrict the rows of a table to those the caller holds a permission on, before sorting, counting, pagination, or mutation. */
