@@ -42,6 +42,8 @@ export class ServiceContext {
     readonly observed = new Bookmark();
     /** The caller's authorization under the service's policies, for services that declare them. */
     readonly authorization: Authorization | undefined;
+    /** The object the call's permission was decided on, absent before the check and for procedures without one. */
+    target?: ObjectReference;
 
     /** Retain host-selected scope independently of request input. */
     constructor(request: Request, options: ServiceContextOptions) {

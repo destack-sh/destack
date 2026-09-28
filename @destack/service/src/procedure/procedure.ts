@@ -22,6 +22,7 @@ export function defineProcedure(
     return oc.$meta<ProcedureAccess>(access).errors({
         NOT_IMPLEMENTED: { status: 501 },
         UNAUTHORIZED: { status: 401 },
+        INSUFFICIENT_AUTHENTICATION: { status: 401 },
         FORBIDDEN: { status: 403 },
         NOT_FOUND: { status: 404 },
         CONFLICT: { status: 409 },

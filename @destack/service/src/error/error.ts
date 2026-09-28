@@ -4,10 +4,18 @@ import { DatabaseError } from "@destack/db/error";
 
 export { ORPCError as ServiceError };
 
-/** Report a domain failure a retry would repeat as the service failure of the same meaning: an access decision, a duplicate record, a broken reference, an invalid query or an invalid record. */
+/** Report a domain failure as the service failure of the same meaning: an access decision or step-up challenge, a duplicate record, a broken reference, an invalid query or an invalid record. */
 export function domainFailure(error: unknown): ORPCError<string, unknown> | undefined {
-    // report access decisions with their own classification, invalid context as a denial, and stale copies as unavailable until they catch up
-    if (error instanceof AccessError && error.code !== "INVALID_DECLARATION") {
+    // challenge a caller for the authentication that would admit it, as a step-up the client answers by authenticating again and retrying
+    if (error instanceof AccessError && error.code === "INSUFFICIENT_AUTHENTICATION") {
+        return new ORPCError(error.code, {
+            status: 401,
+            message: error.message,
+            data: error.stepUp,
+        });
+    }
+    // report other access decisions with their own classification, invalid context as a denial, and stale copies as unavailable until they catch up
+    else if (error instanceof AccessError && error.code !== "INVALID_DECLARATION") {
         const code =
             error.code === "INVALID_CONTEXT"
                 ? "FORBIDDEN"

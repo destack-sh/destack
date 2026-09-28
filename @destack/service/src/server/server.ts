@@ -13,9 +13,7 @@ import { BOOKMARK_HEADER, type Bookmark } from "../bookmark/index.ts";
 import { CAPABILITY_HEADER, ServiceContext, type ServiceAccess } from "./context.ts";
 import type { ProcedureCall } from "./access.ts";
 import { reportError } from "./error.ts";
-
-/** The longest delay a runtime timer accepts, the largest signed 32 bit integer, in milliseconds. */
-export const MAX_TIMER_DELAY = 2 ** 31 - 1;
+import { MAX_TIMER_DELAY } from "../timer/index.ts";
 
 /** A host-managed HTTP service with readiness and streaming-aware draining. */
 export class Server implements AsyncDisposable {
@@ -207,11 +205,12 @@ export class Server implements AsyncDisposable {
         // read current access for the call, and again before each value of a stream
         call.context.authorization?.renew();
 
-        // decide a required permission on the call's target through the service's policies
+        // decide a required permission on the call's target through the service's policies, recording the target for the handler
         const permission = call.access.permission;
         if (permission !== null) {
             const target = await options.access!.target!(call);
             await call.context.authorization!.require(permission, target);
+            call.context.target = target;
         }
         // reject invalid credentials and validate the caller's delegation chain in the service's scope
         else {
