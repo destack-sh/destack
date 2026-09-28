@@ -6,7 +6,7 @@ import { TemplateDefinition } from "../template/index.ts";
 import { DeclarationName, PackageId } from "./package.ts";
 import { ViewDefinition } from "../view/index.ts";
 import { DeclarationConstructorMap } from "./constructor.ts";
-import { PublishDefinition } from "./publish.ts";
+import { Publication } from "./publication.ts";
 
 /** The declarations authored in destack.json. */
 export const PackageDefinition = defineSchema(
@@ -26,7 +26,7 @@ export const PackageDefinition = defineSchema(
         /** The declaration constructors the package exports, by name. */
         declarations: DeclarationConstructorMap.optional(),
         /** How the registry publishes the package. */
-        publish: PublishDefinition.optional(),
+        publication: Publication.schema.optional(),
         /** Compatibility overrides keyed by the names in package.json exports. */
         exports: schema
             .record(

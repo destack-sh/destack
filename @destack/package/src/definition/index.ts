@@ -7,4 +7,4 @@ export * from "./compute.ts";
 export * from "./dependency.ts";
 export * from "./metadata.ts";
 export * from "./constructor.ts";
-export * from "./publish.ts";
+export * from "./publication.ts";

@@ -9,8 +9,8 @@ export const ExportCondition = defineSchema(schema.string().regex(/^[a-z][a-z0-9
 /** An npm export condition. */
 export type ExportCondition = schema.Infer<typeof ExportCondition>;
 
-/** How the registry publishes the package. */
-export const PublishDefinition = defineSchema(
+/** The schema of a package's publication. */
+const publicationSchema = defineSchema(
     schema.object({
         /** The module outputs a published build holds, by name. */
         outputs: schema.record(
@@ -26,11 +26,19 @@ export const PublishDefinition = defineSchema(
         conditions: schema.record(ExportCondition, DeclarationName),
     }),
 );
-/** How the registry publishes the package. */
-export type PublishDefinition = schema.Infer<typeof PublishDefinition>;
+/** How the registry publishes a package: its outputs and the export condition loading each. */
+export type Publication = schema.Infer<typeof publicationSchema>;
+
+/** A package's publication. */
+export const Publication = {
+    /** The schema of a publication. */
+    schema: publicationSchema,
+    /** Require the default condition last and every condition to load a published output. */
+    require,
+};
 
 /** Require the default condition last and every condition to load a published output. */
-export function requirePublish(publish: PublishDefinition): void {
+function require(publish: Publication): void {
     // require the default condition to close the priority order
     const conditions = Object.entries(publish.conditions);
     if (conditions.at(-1)?.[0] !== "default") {

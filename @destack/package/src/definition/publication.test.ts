@@ -1,10 +1,10 @@
 import { expect, test } from "@destack/test";
-import { PublishDefinition, requirePublish } from "./publish.ts";
+import { Publication } from "./publication.ts";
 
-/** Report the message a publish definition fails with, or none. */
+/** Report the message a publication fails with, or none. */
 function failure(publish: unknown): string | undefined {
     try {
-        requirePublish(PublishDefinition.parse(publish));
+        Publication.require(Publication.schema.parse(publish));
     } catch (error) {
         return (error as Error).message;
     }
