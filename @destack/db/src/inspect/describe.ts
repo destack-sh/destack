@@ -8,14 +8,14 @@ import { boundedName, constraintName } from "../table/namespace.ts";
 import { assertNever } from "../error/error.ts";
 import { literal, quote } from "../dialect/quote.ts";
 
-/** Describe logical fields and constraints without opening a database. */
+/** Describe a table in a dialect. */
 export function describeTable(table: Table, dialect: Dialect): TableDescription {
-    // collect the declared constraints for the dialect
+    // collect the declared constraints
     const definition = table[TABLE];
     const constraints = table.constraints(dialect);
     const columns = Object.values(definition.columns);
 
-    // gather primary keys and unique constraints declared on columns and on the table
+    // gather primary keys and unique constraints
     const keys: { kind: "primaryKey" | "unique"; name?: string; columns: readonly Column[] }[] = [
         ...columns
             .filter((column) => column.definition.primaryKey)
@@ -44,6 +44,7 @@ export function describeTable(table: Table, dialect: Dialect): TableDescription 
         name: definition.sqlName,
         columns: columns.map((column) => ({
             name: column.definition.name,
+            kind: column.definition.kind,
             type: column.definition.types[dialect],
             nullable: column.definition.nullable,
             ...(column.definition.default === undefined
@@ -139,14 +140,14 @@ export function describeTable(table: Table, dialect: Dialect): TableDescription 
     };
 }
 
-/** Derive a constraint name from a table, its columns and a suffix, bounded to the identifier limit. */
+/** Derive a constraint name within the identifier limit. */
 function derivedName(table: string, columns: readonly Column[], suffix: string): string {
     return boundedName(
         [table, ...columns.map((column) => column.definition.name), suffix].join("_"),
     );
 }
 
-/** Render a declaration expression with quoted SQL identifiers and literals. */
+/** Render an expression with quoted identifiers and literals. */
 export function inlineExpression(value: unknown, dialect: Dialect): string {
     // write bigints as integer literals
     if (typeof value === "bigint") {
@@ -171,12 +172,12 @@ export function inlineExpression(value: unknown, dialect: Dialect): string {
         }
     }
 
-    // write JSON documents as string literals, which JSON columns cast from
+    // write JSON documents as string literals
     if (typeof value === "object" && value !== null && !(value instanceof SQL)) {
         return literal(JSON.stringify(value));
     }
 
-    // render the expression with unqualified columns
+    // render the expression
     const expression = value instanceof SQL ? value : sql`${value}`;
     const unqualified = (chunk: SQLChunk) =>
         chunk instanceof Column ? sql.identifier(chunk.definition.name) : chunk;

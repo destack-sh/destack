@@ -1,6 +1,7 @@
 import { canonicalize } from "@destack/schema/json";
 import { sql } from "drizzle-orm";
 import { defineSchema, schema } from "@destack/schema";
+import { Package } from "@destack/package";
 import { TABLE, type Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
@@ -16,15 +17,15 @@ import { assertNever } from "../error/error.ts";
 import { expandTrees } from "../tree/tree.ts";
 import { literal, quote } from "../dialect/quote.ts";
 
-/** The SQL name of the table recording each managed table's applied state. */
+/** The SQL name of the applied state table. */
 export const STATE = "__destack_state";
 
-/** A managed table as a release declares it or a database applied it. */
+/** A managed table as declared or applied. */
 export const TableState = defineSchema(
     schema.object({
-        /** The package owning the table. */
-        packageId: schema.string().min(1),
-        /** The version of the row shape, raised by each declared conversion. */
+        /** The package release declaring the table. */
+        package: Package,
+        /** The row shape version, raised by each conversion. */
         version: schema.number().int().positive(),
         /** The table's columns, keys, indexes and checks. */
         table: TableDescription,
@@ -32,20 +33,20 @@ export const TableState = defineSchema(
         log: ChangeDescription.optional(),
         /** The ancestor index maintained over the table, absent without a tree. */
         tree: TreeDescription.optional(),
-        /** The aggregates of this table's rows other tables hold, kept current by triggers on this table. */
+        /** The aggregates of this table's rows that other tables hold. */
         aggregates: schema.array(AggregateDescription).optional(),
-        /** The rows of other tables referencing this table's rows under a condition, kept by triggers on this table. */
+        /** The rows of other tables referencing this table's rows. */
         dependents: schema.array(DependentDescription).optional(),
-        /** The table's and its columns' previous SQL names, declared rather than applied. */
+        /** The previous SQL names of the table and its columns. */
         moved: schema
             .object({
                 /** The table's previous SQL name. */
                 table: schema.string().min(1).optional(),
-                /** Previous SQL column names indexed by current SQL column name. */
+                /** The previous SQL column names by current name. */
                 columns: schema.record(schema.string(), schema.string()),
             })
             .optional(),
-        /** Columns kept equal to the columns they were renamed from, while an older release still uses those. */
+        /** The renamed columns kept equal to their previous columns. */
         bridges: schema
             .array(
                 schema.object({
@@ -56,16 +57,16 @@ export const TableState = defineSchema(
                 }),
             )
             .optional(),
-        /** Column assignments converting rows to each version above the first, declared rather than applied. */
+        /** The column assignments converting rows to each version above the first. */
         conversions: schema
             .record(schema.string(), schema.record(schema.string(), schema.string()))
             .optional(),
     }),
 );
-/** A managed table as a release declares it or a database applied it. */
+/** A managed table as declared or applied. */
 export type TableState = schema.Infer<typeof TableState>;
 
-/** The tables a database declaration requires in every dialect: its desired state. */
+/** The tables a database declaration requires in every dialect. */
 export const DatabaseState = defineSchema(
     schema.object({
         /** The declared table states per dialect. */
@@ -77,20 +78,16 @@ export const DatabaseState = defineSchema(
         }),
     }),
 );
-/** The tables a database declaration requires in every dialect: its desired state. */
+/** The tables a database declaration requires in every dialect. */
 export type DatabaseState = schema.Infer<typeof DatabaseState>;
 
-/** How to declare tables in a database. */
+/** The options of a table declaration. */
 export interface DeclareOptions {
-    /**
-     * Whether the database holds a partial copy of the tables' rows.
-     *
-     * A copy keeps no foreign keys and no tree index, since the rows they refer to may stay at the source.
-     */
+    /** Whether the database holds a partial copy, without foreign keys and tree indexes. */
     readonly isReplica?: boolean;
 }
 
-/** Name the declared tables whose applied state does not hold their declaration. */
+/** Name the declared tables whose declaration is not applied. */
 export function unappliedTables(
     applied: readonly TableState[],
     declared: readonly TableState[],
@@ -106,14 +103,14 @@ export function unappliedTables(
         .map((state) => state.table.name);
 }
 
-/** Name how a state logs its changes, its tier and scope column, which releases of a table agree on. */
+/** Name a state's log tier and scope column. */
 export function logOf(state: TableState): string {
     return canonicalize({ tier: state.log?.tier, scope: state.log?.scope });
 }
 
-/** Report whether an applied state holds a declaration, as it does for every release it was merged from. */
+/** Report whether an applied state holds a declaration. */
 export function holdsState(applied: TableState, declared: TableState): boolean {
-    // require the same row shape version or a newer one, and the same log and tree
+    // require the same or a newer version and the same log and tree
     if (
         applied.version < declared.version ||
         logOf(applied) !== logOf(declared) ||
@@ -124,7 +121,7 @@ export function holdsState(applied: TableState, declared: TableState): boolean {
         return false;
     }
 
-    // require every declared column, allowing the applied one to accept NULL
+    // require every declared column
     const columns = new Map(applied.table.columns.map((column) => [column.name, column]));
     const hasColumns = declared.table.columns.every((column) => {
         const current = columns.get(column.name);
@@ -136,7 +133,7 @@ export function holdsState(applied: TableState, declared: TableState): boolean {
         );
     });
 
-    // require every declared constraint and index under its name
+    // require every declared constraint and index
     const entries = new Map(
         [...applied.table.constraints, ...applied.table.indexes].map((entry) => [
             entry.name,
@@ -147,24 +144,24 @@ export function holdsState(applied: TableState, declared: TableState): boolean {
         (entry) => entries.get(entry.name) === canonicalize(entry),
     );
 
-    // require the log to record every column the declaration records
+    // require every declared logged column
     const logged = new Set(applied.log?.columns ?? []);
     const hasLog = (declared.log?.columns ?? []).every((column) => logged.has(column));
 
     return hasColumns && hasParts && hasLog;
 }
 
-/** Describe declared tables, their trees' index tables included, as data in one dialect. */
+/** Describe declared tables in one dialect. */
 export function declareState(
     tables: readonly Table[],
     dialect: Dialect,
     options: DeclareOptions = {},
 ): TableState[] {
-    // attach each aggregate to the table whose rows it aggregates
+    // attach each aggregate to its aggregated table
     const aggregates = describeAggregates(tables, options.isReplica ?? false);
 
     return (options.isReplica ? tables : expandTrees(tables)).map((table) => {
-        // describe the table with its log recording and tree
+        // describe the table with its log and tree
         const definition = table[TABLE];
         const log = describeLog(table);
         const tree = options.isReplica ? undefined : definition.tree?.describe();
@@ -173,7 +170,7 @@ export function declareState(
         const dependents = options.isReplica ? [] : describeDependents(table, tables);
 
         return {
-            packageId: definition.package.id,
+            package: definition.package,
             version: definition.version,
             table: options.isReplica
                 ? withoutReferences(describeTable(table, dialect))
@@ -190,7 +187,7 @@ export function declareState(
     });
 }
 
-/** Create the state table, portable across dialects. */
+/** Create the state table. */
 export function createState(): string {
     return `CREATE TABLE IF NOT EXISTS "${STATE}" (
         "table" TEXT PRIMARY KEY,
@@ -201,7 +198,7 @@ export function createState(): string {
     )`;
 }
 
-/** Read the names of the tables in a connected database's current schema. */
+/** Read the table names of a connected database. */
 export async function readTables(database: DatabaseConnection): Promise<string[]> {
     const native = database.driver.native;
     const rows =
@@ -218,14 +215,14 @@ export async function readTables(database: DatabaseConnection): Promise<string[]
     return rows.map((row) => row.name);
 }
 
-/** Read the applied state of every managed table, empty before the first plan applied. */
+/** Read every managed table's applied state. */
 export async function readState(database: DatabaseConnection): Promise<TableState[]> {
-    // find the state table in the connection's schema
+    // find the state table
     if (!(await readTables(database)).includes(STATE)) {
         return [];
     }
 
-    // decode each recorded table in name order
+    // decode each table in name order
     const rows = await database.execute<{ state: string }>(
         sql`SELECT state FROM ${sql.identifier(STATE)} ORDER BY "table"`,
     );
@@ -235,12 +232,12 @@ export async function readState(database: DatabaseConnection): Promise<TableStat
 
 /** Record the applied state of one table. */
 export function writeState(state: TableState, appliedAt: number): string {
-    // record the table without its moves and conversions
+    // drop the moves and conversions
     const { moved: _moved, conversions: _conversions, ...applied } = state;
     const encoded = literal(JSON.stringify(applied));
 
     return `INSERT INTO ${quote(STATE)} ("table", package_id, version, state, applied_at)
-        VALUES (${literal(state.table.name)}, ${literal(state.packageId)}, ${state.version}, ${encoded}, ${appliedAt})
+        VALUES (${literal(state.table.name)}, ${literal(state.package.id)}, ${state.version}, ${encoded}, ${appliedAt})
         ON CONFLICT ("table") DO UPDATE SET package_id = excluded.package_id,
             version = excluded.version, state = excluded.state, applied_at = excluded.applied_at`;
 }
@@ -250,9 +247,9 @@ export function deleteState(table: string): string {
     return `DELETE FROM ${quote(STATE)} WHERE "table" = ${literal(table)}`;
 }
 
-/** Describe a table's declared previous names in SQL terms. */
+/** Describe a table's previous names in SQL terms. */
 function describeMoves(table: Table): TableState["moved"] {
-    // map each moved property's current SQL column to its previous name
+    // map each moved column to its previous name
     const definition = table[TABLE];
     const columns = Object.fromEntries(
         Object.entries(definition.moved.columns ?? {}).map(([property, previous]) => [
@@ -272,9 +269,9 @@ function describeMoves(table: Table): TableState["moved"] {
     };
 }
 
-/** Render each version's row conversion as SQL column assignments in one dialect. */
+/** Render each version's conversion as SQL assignments. */
 function describeConversions(table: Table, dialect: Dialect): TableState["conversions"] {
-    // evaluate each conversion over the table's columns and inline its expressions
+    // evaluate and inline each conversion
     const definition = table[TABLE];
     const versions = Object.entries(definition.convert);
     if (versions.length === 0) {
@@ -294,7 +291,7 @@ function describeConversions(table: Table, dialect: Dialect): TableState["conver
     );
 }
 
-/** Describe the aggregates tables hold, by the table each aggregates; a replica skips aggregates between tables it lacks, whose values arrive copied. */
+/** Describe the aggregates by aggregated table, skipping those a replica lacks. */
 function describeAggregates(
     tables: readonly Table[],
     isReplica: boolean,
@@ -302,7 +299,7 @@ function describeAggregates(
     const described = new Map<string, AggregateDescription[]>();
     for (const table of tables) {
         for (const aggregate of table[TABLE].aggregates) {
-            // require both tables among the declared ones, where a replica lacking one receives the values copied
+            // require both tables unless a replica lacks one
             const source = "from" in aggregate ? aggregate.from() : table;
             const holder = "into" in aggregate ? aggregate.into() : table;
             const definition = source[TABLE];
@@ -316,7 +313,7 @@ function describeAggregates(
                 );
             }
 
-            // require a single-column key on the holding table
+            // require a single-column key
             const [id, ...rest] = primaryKey(holder);
             if (id === undefined || rest.length > 0) {
                 throw new TypeError(
@@ -324,7 +321,7 @@ function describeAggregates(
                 );
             }
 
-            // name every column by its SQL name
+            // name every column by SQL name
             const entries = described.get(definition.sqlName) ?? [];
             entries.push({
                 table: holder[TABLE].sqlName,
@@ -348,12 +345,12 @@ function describeAggregates(
     return described;
 }
 
-/** Describe the rows of other tables referencing a table's rows under a condition, requiring those tables among the declared ones. */
+/** Describe the rows referencing a table's rows. */
 function describeDependents(table: Table, tables: readonly Table[]): DependentDescription[] {
     const definition = table[TABLE];
 
     return definition.dependents.map((dependent) => {
-        // require the dependent table and a single-column key on the referenced one
+        // require the dependent table and a single-column key
         const source = dependent.from();
         if (!tables.includes(source)) {
             throw new TypeError(
@@ -379,7 +376,7 @@ function describeDependents(table: Table, tables: readonly Table[]): DependentDe
     });
 }
 
-/** Leave out a table's foreign keys, which a partial copy cannot keep. */
+/** Leave out a table's foreign keys. */
 function withoutReferences(table: TableDescription): TableDescription {
     return {
         ...table,
@@ -387,7 +384,7 @@ function withoutReferences(table: TableDescription): TableDescription {
     };
 }
 
-/** Name a column an aggregate of a source table reads or fills by its SQL name. */
+/** Name a column of an aggregate by its SQL name. */
 function sqlColumn(table: Table, name: string, source: Table): string {
     const column = table[TABLE].columns[name];
     if (!column) {

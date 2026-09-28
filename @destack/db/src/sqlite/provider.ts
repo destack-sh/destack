@@ -7,10 +7,11 @@ import { connect } from "./bun/connection.ts";
 import type { SqliteDatabase } from "./database.ts";
 import type { Table } from "../table/table.ts";
 import { DatabaseError } from "../error/error.ts";
+import { Replication } from "../replication/replication.ts";
 
-/** Provide databases as SQLite files under a directory URL, one per resource in a folder per space. */
+/** Provide databases as SQLite files, one folder per space. */
 export function sqliteProvider(root: URL): Provider<DatabaseConnection> {
-    // require a directory, whose URL ends with a slash
+    // require a directory URL
     if (root.protocol !== "file:" || !root.pathname.endsWith("/")) {
         throw new TypeError(`sqlite provider root must be a file directory URL: ${root.href}`);
     }
@@ -29,7 +30,7 @@ export function sqliteProvider(root: URL): Provider<DatabaseConnection> {
             return { reference: file.href };
         },
         plan: async (record, desired) => {
-            // diff the file's applied state against the union of its desired states
+            // diff the applied state against the desired states
             const connection = await open(record, []);
             try {
                 return await connection.plan(desired);
@@ -38,7 +39,7 @@ export function sqliteProvider(root: URL): Provider<DatabaseConnection> {
             }
         },
         apply: async (record, desired, digest) => {
-            // apply only the plan a review saw
+            // apply the reviewed plan
             const connection = await open(record, []);
             try {
                 const plan = await connection.plan(desired);
@@ -54,7 +55,7 @@ export function sqliteProvider(root: URL): Provider<DatabaseConnection> {
             }
         },
         connect: async (record, declaration) => {
-            // refuse a database lacking the tables its declaration requires
+            // refuse a database lacking its tables
             const database = requireDatabase(declaration);
             const connection = await open(record, database.tables);
             const unapplied = await database.check(connection);
@@ -68,8 +69,34 @@ export function sqliteProvider(root: URL): Provider<DatabaseConnection> {
 
             return connection;
         },
+        export: async function* (copy, after, signal) {
+            // read the source file's tables
+            const replication = Replication.of(copy.desired, "sqlite");
+            const connection = await open(copy.record, replication.tables);
+            try {
+                yield* replication.export(
+                    connection,
+                    `copy:${copy.record.id}`,
+                    copy.stage,
+                    after,
+                    signal,
+                );
+            } finally {
+                await connection.close();
+            }
+        },
+        import: async (copy, chunk) => {
+            // write the chunk into the target
+            const replication = Replication.of(copy.desired, "sqlite");
+            const connection = await open(copy.record, replication.tables);
+            try {
+                await replication.import(connection, chunk);
+            } finally {
+                await connection.close();
+            }
+        },
         destroy: async (record) => {
-            // remove the database file with its write-ahead log and shared memory
+            // remove the file with its WAL and shared memory
             const path = fileURLToPath(requireReference(record.reference));
             for (const suffix of ["", "-wal", "-shm"]) {
                 await rm(`${path}${suffix}`, { force: true });
@@ -96,7 +123,7 @@ function requireDatabase(declaration: unknown): Database {
     return declaration;
 }
 
-/** Open a provisioned database file with the tables queries use. */
+/** Open a provisioned database file. */
 function open(record: ResourceRecord, tables: readonly Table[]): Promise<SqliteDatabase> {
     return connect(fileURLToPath(requireReference(record.reference)), tables);
 }

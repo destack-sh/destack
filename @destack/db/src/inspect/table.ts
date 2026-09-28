@@ -1,11 +1,14 @@
 import { defineSchema, schema } from "@destack/schema";
 import { Dialect } from "../dialect/dialect.ts";
+import { COLUMN_KINDS } from "../table/column.ts";
 
 /** A column as the database holds it. */
 export const ColumnDescription = defineSchema(
     schema.object({
         /** The SQL column name. */
         name: schema.string(),
+        /** The logical value type. */
+        kind: schema.enum(COLUMN_KINDS),
         /** The dialect-specific SQL type. */
         type: schema.string(),
         /** Whether the declaration allows NULL. */
@@ -15,7 +18,7 @@ export const ColumnDescription = defineSchema(
         /** The generated column expression and storage mode. */
         generated: schema
             .object({
-                /** The declared storage mode; omission uses the dialect default. */
+                /** The storage mode, the dialect default when absent. */
                 mode: schema.enum(["virtual", "stored"]).optional(),
                 /** The SQL generation expression. */
                 expression: schema.string(),
@@ -90,7 +93,7 @@ export type IndexDescription = schema.Infer<typeof IndexDescription>;
 /** A table's columns, constraints and indexes. */
 export const TableDescription = defineSchema(
     schema.object({
-        /** The physical SQL dialect described by this table. */
+        /** The SQL dialect. */
         dialect: Dialect,
         /** The SQL table name. */
         name: schema.string(),
