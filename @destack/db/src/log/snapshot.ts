@@ -31,9 +31,9 @@ export type Rewind = (
 
 /** What an ordered read admits beyond a condition: SQL over current rows, and the same decision on earlier images. */
 export interface Admission {
-    /** Match the current rows admitted. */
-    readonly current: SQL;
-    /** Decide whether an earlier image is admitted. */
+    /** Match the current rows admitted, absent to decide every row in memory through `image`. */
+    readonly current?: SQL;
+    /** Decide whether a row image is admitted: an earlier image, or any current row without `current`. */
     readonly image: (row: Row) => Promise<boolean>;
 }
 
@@ -162,7 +162,9 @@ export class Snapshot {
             readonly relations?: RelationView;
         },
     ): Promise<Row[]> {
-        // read enough current rows to outnumber the count by every row changed, or whose relations changed, since the position
+        // read enough current rows to outnumber the count by every row changed, or whose relations changed, since the position; every row when admitted in memory
+        const admits = query.admits;
+        const isAdmittedInMemory = admits !== undefined && admits.current === undefined;
         const order = Order.complete(query.order, table);
         const namespace = query.namespace ?? { computed: {} };
         const relations = query.relations;
@@ -175,7 +177,7 @@ export class Snapshot {
             changed = unsettled.size;
             const selection = and(
                 render(query.where, table, namespace),
-                query.admits?.current,
+                admits?.current,
                 query.after === undefined
                     ? undefined
                     : Order.after(order, table, query.after, namespace),
@@ -184,7 +186,7 @@ export class Snapshot {
                 table,
                 selection,
                 order,
-                query.count + changed,
+                isAdmittedInMemory ? undefined : query.count + changed,
                 namespace,
             );
             rows = read.rows;
@@ -212,10 +214,14 @@ export class Snapshot {
 
         // overlay the rows as they were of changed rows and of rows whose relations changed, which the condition and the admission admit
         const match = Condition.compile(query.where, table);
-        const kept =
+        const current =
             unsettled.size === 0
                 ? rows
                 : rows.filter((row) => !unsettled.has(Key.name(table, row)));
+        const decided = isAdmittedInMemory
+            ? await Promise.all(current.map((row) => admits.image(row)))
+            : undefined;
+        const kept = decided === undefined ? current : current.filter((_, index) => decided[index]);
         for (const image of unsettled.values()) {
             const augmented =
                 image === null
@@ -225,7 +231,7 @@ export class Snapshot {
                 augmented !== null &&
                 (await decides(match, query.where, augmented, relations)) &&
                 (query.after === undefined || Order.rows(order, augmented, query.after) > 0) &&
-                (query.admits === undefined || (await query.admits.image(augmented)))
+                (admits === undefined || (await admits.image(augmented)))
             ) {
                 kept.push(augmented);
             }
