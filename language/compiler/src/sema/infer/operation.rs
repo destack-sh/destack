@@ -355,11 +355,7 @@ impl CheckState<'_> {
         let origin = site.origin();
 
         // require the enclosing body's asynchrony
-        if self
-            .flow
-            .current_function()
-            .is_none_or(|function| function.asynchrony != dir::Asynchrony::Async)
-        {
+        if !self.is_async_context() {
             self.report_await_outside_async_context(module, node.local_id.into_any());
         }
 

@@ -27,6 +27,7 @@ class Reader {
 === dir ===
 declare function read(count: int32 = 1): void;
 /// @type.symbol symbol=read source="declare function read(count: int32 = 1): void" type=(int32 | undefined?) => void
+/// @type.symbol symbol=read.count source="count: int32 = 1" type=int32
 
 class Reader {
 /// @type.symbol symbol=Reader type=typeof Reader

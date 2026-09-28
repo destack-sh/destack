@@ -217,7 +217,7 @@ function connect(): Connection {
 /// @resolution.name source=Connection target=Connection
 
     return new Connection();
-    /// @resolution.construct source="new Connection()" parameters=() return=Connection kind=class target=Connection constructor=default
+    /// @resolution.construct source="new Connection()" parameters=() return=Connection kind=class target=Connection constructor=implicit
     /// @resolution.name source=Connection target=Connection
 
 }
@@ -231,10 +231,10 @@ async function run(): Promise<void> {
     /// @type.symbol symbol=run.connection source=connection type=Connection
     /// @resolution.disposal source="connection = connect()" dispose="Connection.asyncDispose(parameters=(), arguments=(), return=Promise<void>)" await="Promise.park(parameters=(Promise<void>), arguments=(supplied(0) as Promise<void>), return=void)"
     /// @resolution.pattern source=connection kind=binding target=run.connection
-    /// @generic.instantiation id="Promise.park<void, void>" template=Promise.park arguments=(void, void)
-    /// @generic.instance id="Promise.park<void, void>" template=Promise.park arguments=(void, void)
+    /// @generic.instantiation id=Promise.park<void> template=Promise.park arguments=(void)
     /// @generic.instance id=Promise.addWaiter<void> template=Promise.addWaiter arguments=(void)
     /// @generic.instance id=Promise.observe<void> template=Promise.observe arguments=(void)
+    /// @generic.instance id=Promise.park<void> template=Promise.park arguments=(void)
     /// @generic.instance id=Promise.queueWaiter<void> template=Promise.queueWaiter arguments=(void)
     /// @generic.instance id=PromiseAwaiter.symbol161<void> template=PromiseAwaiter.symbol161 arguments=(void)
     /// @generic.instance id=PromiseAwaiter<void> template=PromiseAwaiter arguments=(void)

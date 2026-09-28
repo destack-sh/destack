@@ -16,11 +16,7 @@ impl CheckState<'_> {
         let module = anchor.module_id;
 
         // require an async body for an await using
-        let is_async_body = self
-            .flow
-            .current_function()
-            .is_some_and(|function| function.asynchrony == dir::Asynchrony::Async);
-        if asynchrony == dir::Asynchrony::Async && !is_async_body {
+        if asynchrony == dir::Asynchrony::Async && !self.is_async_context() {
             self.report_await_outside_async_context(module, anchor.local_id);
         }
 

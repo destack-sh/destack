@@ -155,11 +155,13 @@ impl CheckState<'_> {
             .is_some_and(|signature| signature.parks))
     }
 
-    /// Return whether the enclosing function's own signature parks.
-    pub(in crate::sema) fn current_function_parks(&mut self) -> CompilerResult<bool> {
+    /// Return whether the enclosing function may park.
+    pub(in crate::sema) fn current_function_may_park(&mut self) -> CompilerResult<bool> {
         let Some(function) = self.current_function_symbol() else {
             return Ok(false);
         };
+
+        // park where the function's signature declares it
         let Some(ty) = self.symbol_type_maybe(function)? else {
             return Ok(false);
         };

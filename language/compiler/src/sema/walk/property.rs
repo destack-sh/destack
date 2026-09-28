@@ -684,13 +684,18 @@ impl WalkState<'_, '_> {
                         false,
                     )?;
 
+                    // elide the receiver as this
                     let header_this = header.this_parameter;
+                    let elided_this = match (is_static, signature.this_parameter) {
+                        (false, None) => Some(walk.intern_type(dir::Type::This)?),
+                        _ => None,
+                    };
                     let method = walk.walk_function_signature_type(
                         id.into_any(),
                         signature,
                         header,
                         Some(induction),
-                        None,
+                        elided_this,
                         result,
                         tracked,
                     )?;

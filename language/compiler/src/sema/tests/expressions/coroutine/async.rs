@@ -91,11 +91,11 @@ async function double(): Promise<int32> {
     const count = await fetchCount();
     /// @type.symbol symbol=double.count source=count type=int32
     /// @resolution.pattern source=count kind=binding target=double.count
-    /// @resolution.call source="await fetchCount()" parameters=(Promise<int32>) arguments=(provided(fetchCount()) as Promise<int32>) return=int32 kind=symbol target=Promise.park receiver=Promise<int32> instance=Promise<int32>.park<int32>
-    /// @generic.instantiation id="Promise.park<int32, int32>" template=Promise.park arguments=(int32, int32)
-    /// @generic.instance id="Promise.park<int32, int32>" template=Promise.park arguments=(int32, int32)
+    /// @resolution.call source="await fetchCount()" parameters=(Promise<int32>) arguments=(provided(fetchCount()) as Promise<int32>) return=int32 kind=symbol target=Promise.park receiver=Promise<int32> instance=Promise.park<int32>
+    /// @generic.instantiation id=Promise.park<int32> template=Promise.park arguments=(int32)
     /// @generic.instance id=Promise.addWaiter<int32> template=Promise.addWaiter arguments=(int32)
     /// @generic.instance id=Promise.observe<int32> template=Promise.observe arguments=(int32)
+    /// @generic.instance id=Promise.park<int32> template=Promise.park arguments=(int32)
     /// @generic.instance id=Promise.queueWaiter<int32> template=Promise.queueWaiter arguments=(int32)
     /// @generic.instance id=PromiseAwaiter.symbol161<int32> template=PromiseAwaiter.symbol161 arguments=(int32)
     /// @generic.instance id=PromiseAwaiter<int32> template=PromiseAwaiter arguments=(int32)
@@ -176,7 +176,7 @@ async function sum(): Promise<int32> {
 
     for await (const value of stream()) {
     /// @resolution.iteration iterator="asyncIterator(parameters=(), arguments=(), return=AsyncGenerator<int32, void, void>)" next="next#2(parameters=(), arguments=(), return=Promise<IteratorResult<int32, void>>, regions=(\"managed\" & \"local\"))" await="Promise.park(parameters=(Promise<IteratorResult<int32, void>>), arguments=(supplied(0) as Promise<IteratorResult<int32, void>>), return=IteratorResult<int32, void>)" awaits=result
-    /// @generic.instantiation id="Promise.park<IteratorResult<int32, void>, IteratorResult<int32, void>>" template=Promise.park arguments=(IteratorResult<int32, void>, IteratorResult<int32, void>)
+    /// @generic.instantiation id="Promise.park<IteratorResult<int32, void>>" template=Promise.park arguments=(IteratorResult<int32, void>)
     /// @generic.instantiation id="asyncIterator<int32, AsyncGenerator<int32, void, void>>" template=asyncIterator arguments=(int32, AsyncGenerator<int32, void, void>)
     /// @generic.instantiation id="next#2<int32, void, void, \"managed\" & \"local\">" template=next#2 arguments=(int32, void, void, "managed" & "local")
     /// @type.symbol symbol=sum.value source=value type=int32

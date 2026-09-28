@@ -34,11 +34,16 @@ function* count(limit: int32): Generator<int32, void, void> {
 /// @generic.instance id="GeneratorState.complete<int32, void, void, \"bound0\" & \"local\">" template=GeneratorState.complete arguments=(int32, void, void, "bound0" & "local")
 /// @generic.instance id="GeneratorState.symbol88<int32, void, void>" template=GeneratorState.symbol88 arguments=(int32, void, void)
 /// @generic.instance id="GeneratorState<int32, void, void>" template=GeneratorState arguments=(int32, void, void)
+/// @generic.instance id="get#1<Fiber | undefined, \"bound0\" & \"local\">" template=get#1 arguments=(Fiber | undefined, "bound0" & "local")
 /// @generic.instance id="new#1<Fiber | undefined>" template=new#1 arguments=(Fiber | undefined)
 /// @generic.instance id="new#1<GeneratorPhase<int32, void, void>>" template=new#1 arguments=(GeneratorPhase<int32, void, void>)
 /// @generic.instance id="new#2<Fiber | undefined>" template=new#2 arguments=(Fiber | undefined)
 /// @generic.instance id="new#2<GeneratorPhase<int32, void, void>>" template=new#2 arguments=(GeneratorPhase<int32, void, void>)
-/// @generic.instance id="replace<Fiber | undefined, \"bound0\" & \"local\">" template=replace arguments=(Fiber | undefined, "bound0" & "local")
+/// @generic.instance id="newUnsafeCell<Fiber | undefined>" template=newUnsafeCell arguments=(Fiber | undefined)
+/// @generic.instance id="newUnsafeCell<GeneratorPhase<int32, void, void>>" template=newUnsafeCell arguments=(GeneratorPhase<int32, void, void>)
+/// @generic.instance id="replace#1<Fiber | undefined, \"bound0\" & \"local\">" template=replace#1 arguments=(Fiber | undefined, "bound0" & "local")
+/// @generic.instance id="replace<Fiber | undefined>" template=replace arguments=(Fiber | undefined)
+/// @generic.instance id="unsafeCellPointer<Fiber | undefined, \"bound0\" & \"local\">" template=unsafeCellPointer arguments=(Fiber | undefined, "bound0" & "local")
 /// @type.symbol symbol=count.limit source="limit: int32" type=int32
 /// @resolution.name source=Generator target=Generator
 
@@ -67,8 +72,12 @@ function* count(limit: int32): Generator<int32, void, void> {
         /// @generic.instance id="GeneratorRequested<void, void>" template=GeneratorRequested arguments=(void, void)
         /// @generic.instance id="GeneratorState.publish<int32, void, void, \"bound0\" & \"local\">" template=GeneratorState.publish arguments=(int32, void, void, "bound0" & "local")
         /// @generic.instance id="GeneratorState.takeRequest<int32, void, void, \"bound0\" & \"local\">" template=GeneratorState.takeRequest arguments=(int32, void, void, "bound0" & "local")
-        /// @generic.instance id="replace<GeneratorPhase<int32, void, void>, \"bound0\" & \"local\">" template=replace arguments=(GeneratorPhase<int32, void, void>, "bound0" & "local")
+        /// @generic.instance id="drop<GeneratorPhase<int32, void, void>>" template=drop arguments=(GeneratorPhase<int32, void, void>)
+        /// @generic.instance id="get#1<GeneratorPhase<int32, void, void>, \"bound0\" & \"local\">" template=get#1 arguments=(GeneratorPhase<int32, void, void>, "bound0" & "local")
+        /// @generic.instance id="replace#1<GeneratorPhase<int32, void, void>, \"bound0\" & \"local\">" template=replace#1 arguments=(GeneratorPhase<int32, void, void>, "bound0" & "local")
+        /// @generic.instance id="replace<GeneratorPhase<int32, void, void>>" template=replace arguments=(GeneratorPhase<int32, void, void>)
         /// @generic.instance id="set<GeneratorPhase<int32, void, void>, \"bound0\" & \"local\">" template=set arguments=(GeneratorPhase<int32, void, void>, "bound0" & "local")
+        /// @generic.instance id="unsafeCellPointer<GeneratorPhase<int32, void, void>, \"bound0\" & \"local\">" template=unsafeCellPointer arguments=(GeneratorPhase<int32, void, void>, "bound0" & "local")
         /// @generic.instance id=GeneratorNext<void> template=GeneratorNext arguments=(void)
         /// @generic.instance id=GeneratorReturn<void> template=GeneratorReturn arguments=(void)
         /// @resolution.name source=value target=count.value

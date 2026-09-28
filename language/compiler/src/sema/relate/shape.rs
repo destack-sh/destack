@@ -856,6 +856,17 @@ impl CheckState<'_> {
         };
         let source = instantiation.signature;
 
+        // reject a parking source where the target cannot park
+        let source_parks = self.signature_parks(source)?;
+        let target_parks = self.signature_parks(target)?;
+        let is_park_related = match relation {
+            Relation::Equal => source_parks == target_parks,
+            Relation::Subtype | Relation::Storable => !source_parks || target_parks,
+        };
+        if !is_park_related {
+            return Ok(Verdict::Fails);
+        }
+
         // collect directed comparison pairs
         let Some(pairs) =
             self.function_assignability_pairs(source, target, ThisParameterComparison::Compare)?

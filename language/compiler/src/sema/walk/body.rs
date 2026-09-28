@@ -432,11 +432,6 @@ impl WalkState<'_, '_> {
             &declaration.signature.parameters,
         )?;
 
-        // skip the body, declaring already reported it missing
-        let Some(body) = declaration.body else {
-            return Ok(true);
-        };
-
         // read the declared signature the body checks against
         let Some(function) = self.check.adopt_symbol_type_maybe(symbol)? else {
             return Ok(false);
@@ -449,6 +444,13 @@ impl WalkState<'_, '_> {
         };
         let Some(head) = self.check.signature_head(signature)? else {
             return Ok(false);
+        };
+
+        // bind a bodiless function's parameters as declared
+        let Some(body) = declaration.body else {
+            self.bind_declared_parameters(&declaration.signature, signature.module_id, &head)?;
+
+            return Ok(true);
         };
         let Some(result) = head.return_type else {
             return Ok(false);
