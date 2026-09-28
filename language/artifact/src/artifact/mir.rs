@@ -32,8 +32,6 @@ pub struct MirLowered {
     pub drops: mir::DropTable,
     /// The witnesses that satisfy each closed type's constraints.
     pub witnesses: mir::WitnessTable,
-    /// Function and call effect table.
-    pub effects: mir::EffectTable,
     /// Static profile counter table.
     pub profile: mir::ProfileTable,
 }
@@ -49,7 +47,6 @@ impl MirLowered {
             dispatch: mir::DispatchTable::default(),
             drops: mir::DropTable::default(),
             witnesses: mir::WitnessTable::default(),
-            effects: mir::EffectTable::default(),
             profile: mir::ProfileTable::default(),
         }
     }
@@ -83,8 +80,6 @@ pub struct MirInstantiated {
     pub dispatch: mir::DispatchTable,
     /// Drop hooks by type.
     pub drops: mir::DropTable,
-    /// Function and call effects.
-    pub effects: mir::EffectTable,
     /// Static profile counters.
     pub profile: mir::ProfileTable,
     /// Required ownership retention in this tree.
@@ -106,8 +101,6 @@ pub struct MirElaborated {
     pub dispatch: mir::DispatchTable,
     /// Canonical MIR drop table.
     pub drops: mir::DropTable,
-    /// Function and call effect table.
-    pub effects: mir::EffectTable,
     /// Static profile counter table.
     pub profile: mir::ProfileTable,
 }
@@ -127,8 +120,6 @@ pub struct MirOptimized {
     pub dispatch: mir::DispatchTable,
     /// Canonical MIR drop table.
     pub drops: mir::DropTable,
-    /// Function and call effect table.
-    pub effects: mir::EffectTable,
     /// Static profile counter table.
     pub profile: mir::ProfileTable,
 }
@@ -143,7 +134,6 @@ impl MirOptimized {
             layouts: mir::LayoutTable::default(),
             dispatch: mir::DispatchTable::default(),
             drops: mir::DropTable::default(),
-            effects: mir::EffectTable::default(),
             profile: mir::ProfileTable::default(),
         }
     }
