@@ -31,21 +31,9 @@ impl<'a> FunctionEmitter<'a> {
         target: &mir::BlockTarget,
         unwind: &mir::BlockTarget,
     ) -> Result<(), EmitError> {
-        // read the result type from the call signature
-        let result = self
-            .optimized
-            .tree
-            .get(call.signature)
-            .function_signature_parts()
-            .map(|(_, _, result)| result)
-            .ok_or_else(|| self.internal("call has no callable signature"))?;
-
         // select registers for the returned value
-        let destinations = if matches!(self.optimized.tree.get(result), mir::Type::Void) {
-            Vec::new()
-        } else {
-            self.successor_destinations(terminator, mir::Successor::InvokeNormal, target)?
-        };
+        let destinations =
+            self.successor_destinations(terminator, mir::Successor::InvokeNormal, target)?;
 
         // resolve the normal and unwind continuation labels
         let target = self.edge_label(terminator, mir::Successor::InvokeNormal, target)?;

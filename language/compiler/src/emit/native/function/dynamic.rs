@@ -72,13 +72,49 @@ impl FunctionEmitter<'_> {
     }
 
     /// Emit one dynamic table identity projection.
-    pub(super) fn emit_dynamic_type(
+    pub(super) fn emit_type_of(
         &mut self,
         destination: mir::Value,
-        dynamic: mir::Value,
+        value: mir::Value,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
-        let (_, table) = self.dynamic_table(dynamic, builder)?;
+        // read a class object's type through the virtual table its dispatch field names
+        let ty = self.value_type(value)?;
+        if let mir::Type::Reference { pointee, .. } =
+            self.optimized.tree.type_definition(ty).clone()
+        {
+            let layout = self
+                .optimized
+                .layouts
+                .type_layout(pointee)
+                .ok_or_else(|| self.invalid("native object type read without a layout"))?;
+            let mir::LayoutShape::Object(layout) = &layout.shape else {
+                return Err(self.invalid("native object type read of a non-object type"));
+            };
+            let offset = layout
+                .dispatch_offset
+                .ok_or_else(|| self.invalid("native object type read without a dispatch field"))?;
+            let object = self.materialize_pointer(value, builder)?;
+            let table = builder.ins().load(
+                cir::types::I32,
+                cir::MemFlagsData::trusted(),
+                object,
+                offset as i32,
+            );
+            let row = self.virtual_table_address(table, builder)?;
+            let concrete = builder.ins().load(
+                cir::types::I32,
+                cir::MemFlagsData::trusted(),
+                row,
+                std::mem::offset_of!(native::abi::VirtualTable, concrete) as i32,
+            );
+            self.set(destination, Value::Direct(concrete))?;
+
+            return Ok(());
+        }
+
+        // read a dynamic value's type through its dispatch table
+        let (_, table) = self.dynamic_table(value, builder)?;
         let concrete = builder.ins().load(
             cir::types::I32,
             cir::MemFlagsData::trusted(),

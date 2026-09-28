@@ -131,6 +131,15 @@ impl<'a> FrameEmitter<'a> {
                         points.push(point);
                     }
                 }
+
+                // retain the frame a panic lands back in
+                let terminator = self.optimized.tree.get(block.terminator);
+                if let mir::Terminator::Panic {
+                    unwind: Some(_), ..
+                } = terminator
+                {
+                    points.push(FramePoint::operation(self.points.terminator(block_id)));
+                }
             }
         }
 

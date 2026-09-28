@@ -4,6 +4,8 @@ use tspp_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, Asset, Code, DirResolved, MirOptimized,
     Output,
 };
+use tspp_core::FxIndexSet;
+use tspp_mir as mir;
 use tspp_mir::ModuleCache;
 use tspp_repository::{ProfileId, ProviderContext};
 use tspp_source::{ModuleId, TargetId};
@@ -207,11 +209,29 @@ impl Compiler {
             .read::<DirResolved>((module, profile))
             .map_err(CompilerError::from)?;
 
-        // collect resolved imports
+        // depend on the imports and the homes of imported symbols and opaque types
+        let imported_functions = optimized
+            .tree
+            .iter_nodes::<mir::Function>()
+            .filter(|(_, function)| function.linkage == mir::Linkage::Import)
+            .filter_map(|(_, function)| function.symbol.module());
+        let imported_globals = optimized
+            .tree
+            .iter_nodes::<mir::Global>()
+            .filter(|(_, global)| global.linkage == mir::Linkage::Import)
+            .filter_map(|(_, global)| global.symbol.module());
+        let named_types = optimized
+            .tree
+            .iter_nodes::<mir::TypeDeclaration>()
+            .filter(|(_, declaration)| declaration.definition.is_none())
+            .filter_map(|(_, declaration)| declaration.symbol.module());
         let modules = resolved
             .target_modules()
+            .chain(imported_functions)
+            .chain(imported_globals)
+            .chain(named_types)
             .filter(|target| *target != module)
-            .collect::<Vec<_>>();
+            .collect::<FxIndexSet<_>>();
 
         // share analyses across object and code emission
         let mut analyses = ModuleCache::with_target_layout(optimized.target);

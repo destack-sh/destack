@@ -18,17 +18,6 @@ impl TypeEmitter<'_> {
         Ok(self.layout(ty)?.size)
     }
 
-    /// Return one source-ordered field layout.
-    pub(crate) fn field(
-        &self,
-        ty: mir::TypeId,
-        index: u32,
-    ) -> Result<&mir::LayoutField, EmitError> {
-        self.layout(ty)?
-            .source_field(index)
-            .ok_or_else(|| self.missing("field layout"))
-    }
-
     /// Return one source-ordered aggregate placement.
     pub(crate) fn placement(&self, ty: mir::TypeId, index: u32) -> Result<(u32, u32), EmitError> {
         // read the aggregate layout
@@ -105,6 +94,6 @@ impl TypeEmitter<'_> {
         let layout = self.layout(ty)?;
         let words = layout.size.div_ceil(size_of::<u64>() as u32);
 
-        u16::try_from(words).map_err(|_| self.unsupported_type())
+        u16::try_from(words).map_err(|_| self.unsupported(format!("a {words}-word value")))
     }
 }

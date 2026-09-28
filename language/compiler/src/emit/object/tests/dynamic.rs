@@ -12,7 +12,7 @@ export function inspect(v0: ref<FileWriter, managed, readonly, local>): typeId {
 entry(v0: ref<FileWriter, managed, readonly, local>):
     v1: dynamic<Writer, managed, readonly, local> = dynamic.bind v0, FileWriter
     v2: ref<void, managed, readonly, local> = dynamic.payload v1
-    v3: typeId = dynamic.type v1
+    v3: typeId = type.of v1
     return v3
 }
 "#,
@@ -23,7 +23,7 @@ entry(v0: ref<FileWriter, managed, readonly, local>):
         r#"function inspect {
     dynamic.bind r1:r2, r0, d0
     move r0, r1
-    dynamic.type r0, r1:r2
+    type.of.dynamic r0, r1:r2
     return r0
 }
 "#,

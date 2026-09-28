@@ -7,7 +7,7 @@ use tspp_program::object::{FramePoint, Point};
 use crate::EmitError;
 
 use super::super::r#type::ValueType;
-use super::{FunctionEmitter, Return, Value};
+use super::{Call, FunctionEmitter, Return, Value};
 
 impl FunctionEmitter<'_> {
     /// Emit one call with explicit normal and unwind continuations.
@@ -22,6 +22,34 @@ impl FunctionEmitter<'_> {
         // build the call frame map
         let frame = self.stack_map(FramePoint::operation(point), builder)?;
         let call = self.call(call, &frame, builder)?;
+
+        self.emit_unwinding_call(call, frame.entries, Some(target), unwind, builder)
+    }
+
+    /// Emit one runtime panic entering this frame's cleanup.
+    pub(in crate::emit::native::function) fn emit_panic_invoke(
+        &mut self,
+        operation: native::abi::Operation,
+        arguments: &[cir::Value],
+        unwind: &mir::BlockTarget,
+        point: Point,
+        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
+    ) -> Result<(), EmitError> {
+        let frame = self.stack_map(FramePoint::operation(point), builder)?;
+        let call = self.runtime_call(operation, arguments, builder)?;
+
+        self.emit_unwinding_call(call, frame.entries, None, unwind, builder)
+    }
+
+    /// Emit one call whose unwind lands in a MIR cleanup, continuing at the target if it returns.
+    fn emit_unwinding_call(
+        &mut self,
+        call: Call,
+        entries: Vec<cir::UserStackMapEntry>,
+        target: Option<&mir::BlockTarget>,
+        unwind: &mir::BlockTarget,
+        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
+    ) -> Result<(), EmitError> {
         let returned = builder.create_block();
         let landing = builder.create_block();
         let skipped = builder.create_block();
@@ -52,7 +80,10 @@ impl FunctionEmitter<'_> {
         }
 
         // preserve explicit MIR edge arguments across the call
-        for argument in self.optimized.tree.get_values(target.arguments) {
+        let target_arguments = target.map_or(&[][..], |target| {
+            self.optimized.tree.get_values(target.arguments)
+        });
+        for argument in target_arguments {
             let value = self.value(*argument)?;
             let mut values = Vec::new();
             value.append_values(&mut values);
@@ -112,37 +143,16 @@ impl FunctionEmitter<'_> {
                 [cir::ExceptionTableItem::Default(exceptional)],
             ));
         let instruction = call.invoke(exceptions, builder);
-        Self::attach_stack_map(frame.entries, instruction, builder);
+        Self::attach_stack_map(entries, instruction, builder);
 
-        // translate physical returns into the MIR result parameter
+        // continue at the target, or trap when the call never returns
         builder.switch_to_block(returned);
         builder.seal_block(returned);
-        let parameters = builder.block_params(returned).to_vec();
-        let mut index = 0;
-        let result = match call.result {
-            Return::Void => None,
-            Return::Registers(value_type) => {
-                Value::from_parameters(value_type, &parameters, &mut index)
-            }
-            Return::Address { .. } => {
-                let address = parameters[index];
-                index += 1;
-
-                Some(Value::Address(address))
-            }
-            Return::Buffer { value_type, .. } => {
-                let address = parameters[index];
-                index += 1;
-
-                Some(self.load(address, value_type, builder)?)
-            }
-        };
-        let mut arguments = Vec::new();
-        if let Some(result) = result {
-            result.append_block_arguments(&mut arguments);
+        if let Some(target) = target {
+            self.emit_returned(returned, call.result, target, builder)?;
+        } else {
+            Self::terminate_runtime(builder);
         }
-        arguments.extend(parameters[index..].iter().copied().map(cir::BlockArg::from));
-        builder.ins().jump(self.blocks[&target.block], &arguments);
 
         // classify the unwind before entering language cleanup
         builder.switch_to_block(landing);
@@ -177,6 +187,46 @@ impl FunctionEmitter<'_> {
             builder,
         )?;
         Self::terminate_runtime(builder);
+
+        Ok(())
+    }
+
+    /// Translate physical returns into the MIR result parameter and jump to the target.
+    fn emit_returned(
+        &mut self,
+        returned: cir::Block,
+        result: Return,
+        target: &mir::BlockTarget,
+        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
+    ) -> Result<(), EmitError> {
+        let parameters = builder.block_params(returned).to_vec();
+        let mut index = 0;
+        let result = match result {
+            Return::Void => None,
+            Return::Registers(value_type) => {
+                Value::from_parameters(value_type, &parameters, &mut index)
+            }
+            Return::Address { .. } => {
+                let address = parameters[index];
+                index += 1;
+
+                Some(Value::Address(address))
+            }
+            Return::Buffer { value_type, .. } => {
+                let address = parameters[index];
+                index += 1;
+
+                Some(self.load(address, value_type, builder)?)
+            }
+        };
+
+        // pass the result ahead of the explicit edge arguments
+        let mut arguments = Vec::new();
+        if let Some(result) = result {
+            result.append_block_arguments(&mut arguments);
+        }
+        arguments.extend(parameters[index..].iter().copied().map(cir::BlockArg::from));
+        builder.ins().jump(self.blocks[&target.block], &arguments);
 
         Ok(())
     }

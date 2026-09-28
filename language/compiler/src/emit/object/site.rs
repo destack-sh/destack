@@ -399,7 +399,7 @@ impl SiteEmitter {
         mode: CallMode,
         call: &mir::Call,
     ) -> Result<CallSite, EmitError> {
-        // resolve the callee storage and dispatch type
+        // resolve the callee dispatch type and a handle receiver's heap space
         let (space, dispatch_type) = match call.callee {
             mir::Callee::Virtual {
                 receiver, class, ..
@@ -408,12 +408,9 @@ impl SiteEmitter {
                     ObjectEmitter::internal(module, "missing virtual receiver type")
                 })?;
                 let space = Self::reference_storage(optimized, receiver_type)
-                    .and_then(mir::Storage::heap_space)
-                    .ok_or_else(|| {
-                        ObjectEmitter::internal(module, "missing virtual receiver space")
-                    })?;
+                    .and_then(mir::Storage::heap_space);
 
-                (Some(space), Some(class))
+                (space, Some(class))
             }
             mir::Callee::Dynamic {
                 receiver,
@@ -424,12 +421,9 @@ impl SiteEmitter {
                     ObjectEmitter::internal(module, "missing dynamic receiver type")
                 })?;
                 let space = Self::reference_storage(optimized, receiver_type)
-                    .and_then(mir::Storage::heap_space)
-                    .ok_or_else(|| {
-                        ObjectEmitter::internal(module, "missing dynamic receiver space")
-                    })?;
+                    .and_then(mir::Storage::heap_space);
 
-                (Some(space), Some(constraint))
+                (space, Some(constraint))
             }
             mir::Callee::Direct { .. }
             | mir::Callee::Indirect { .. }

@@ -14,6 +14,9 @@ impl<'a> FunctionEmitter<'a> {
     ) -> Result<(), EmitError> {
         match instruction {
             mir::Instruction::Error => Err(self.internal("invalid instruction")),
+            mir::Instruction::FakeBorrow { .. } | mir::Instruction::FakeRead { .. } => {
+                Err(self.internal("a fake borrow after elaboration"))
+            }
             mir::Instruction::Const { destination, value } => {
                 self.emit_constant(*destination, value)
             }
@@ -162,10 +165,9 @@ impl<'a> FunctionEmitter<'a> {
                 dynamic,
                 ..
             } => self.emit_dynamic_payload(*destination, *dynamic),
-            mir::Instruction::DynamicType {
-                destination,
-                dynamic,
-            } => self.emit_dynamic_type(*destination, *dynamic),
+            mir::Instruction::TypeOf { destination, value } => {
+                self.emit_type_of(*destination, *value)
+            }
             mir::Instruction::DynamicRead {
                 destination,
                 dynamic,

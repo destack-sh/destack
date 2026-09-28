@@ -63,14 +63,44 @@ impl<'a> FunctionEmitter<'a> {
         self.encode(instruction, &[destination])
     }
 
-    /// Emit one dynamic concrete-type projection.
-    pub(super) fn emit_dynamic_type(
+    /// Emit one runtime type read of a dynamic value or a class object.
+    pub(super) fn emit_type_of(
         &mut self,
         destination: mir::Value,
-        dynamic: mir::Value,
+        value: mir::Value,
     ) -> Result<(), EmitError> {
-        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::DYNAMIC_TYPE);
-        instruction.span(self.register(dynamic)?);
+        // read a class object's type through the virtual table its dispatch field names
+        let ty = self.value_type(value)?;
+        let ty = self.optimized.tree.type_definition(ty).clone();
+        if let mir::Type::Reference { pointee, .. } = ty {
+            let reference = self
+                .register_type(value)?
+                .reference_type()
+                .ok_or_else(|| self.internal("object type read of a non-reference value"))?;
+            let layout = self
+                .optimized
+                .layouts
+                .type_layout(pointee)
+                .ok_or_else(|| self.internal("object type read of a type without a layout"))?;
+            let mir::LayoutShape::Object(layout) = &layout.shape else {
+                return Err(self.internal("object type read of a non-object type"));
+            };
+            let dispatch_offset = layout.dispatch_offset.ok_or_else(|| {
+                self.internal("object type read of a class without a dispatch field")
+            })?;
+            let mut instruction =
+                bytecode::InstructionBuilder::new(bytecode::Opcode::TYPE_OF_OBJECT);
+            instruction.register(self.word(value)?);
+            instruction.reference(reference.kind(), reference.storage());
+            instruction.u32(dispatch_offset);
+            let destination = self.register(destination)?;
+
+            return self.encode(instruction, &[destination]);
+        }
+
+        // read a dynamic value's type through its dispatch table
+        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::TYPE_OF_DYNAMIC);
+        instruction.span(self.register(value)?);
         let destination = self.register(destination)?;
 
         self.encode(instruction, &[destination])

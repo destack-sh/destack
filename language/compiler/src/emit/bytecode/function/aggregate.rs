@@ -70,9 +70,9 @@ impl<'a> FunctionEmitter<'a> {
         field: u32,
     ) -> Result<(), EmitError> {
         let aggregate_type = self.value_type(aggregate)?;
-        let field = self.types.field(aggregate_type, field)?;
+        let (byte_offset, byte_len) = self.types.placement(aggregate_type, field)?;
 
-        self.emit_extract(destination, aggregate, field.offset, field.size)
+        self.emit_extract(destination, aggregate, byte_offset, byte_len)
     }
 
     /// Replace one source-ordered field inside a packed value.
@@ -84,9 +84,9 @@ impl<'a> FunctionEmitter<'a> {
         value: mir::Value,
     ) -> Result<(), EmitError> {
         let aggregate_type = self.value_type(aggregate)?;
-        let field = self.types.field(aggregate_type, field)?;
+        let (byte_offset, byte_len) = self.types.placement(aggregate_type, field)?;
 
-        self.emit_insert(destination, aggregate, field.offset, field.size, value)
+        self.emit_insert(destination, aggregate, byte_offset, byte_len, value)
     }
 
     /// Read one fixed element from a packed value.

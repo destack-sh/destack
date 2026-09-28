@@ -245,11 +245,11 @@ impl FunctionEmitter<'_> {
                 (None, Some(function), None)
             }
         };
-        if let Some(environment) = environment {
-            arguments.push(environment);
-        }
         for argument in self.optimized.tree.get_values(call.arguments) {
             self.value(*argument)?.append_values(&mut arguments);
+        }
+        if let Some(environment) = environment {
+            arguments.push(environment);
         }
 
         // issue direct calls without materializing one function address
@@ -369,11 +369,10 @@ impl FunctionEmitter<'_> {
             .iadd_imm_u(function, program::FunctionId::WORD_BIAS as i64))
     }
 
-    /// Load one function identity from a process-local virtual table.
-    fn virtual_entry(
+    /// Return the address of one process-local virtual table row.
+    pub(super) fn virtual_table_address(
         &self,
         table: cir::Value,
-        slot: u32,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
         let pointer = self.types.pointer();
@@ -386,10 +385,21 @@ impl FunctionEmitter<'_> {
             .ins()
             .ishl_imm_u(table, i64::from(pointer.bytes().trailing_zeros()));
         let table_address = builder.ins().iadd(tables, table_offset);
-        let table_address =
-            builder
-                .ins()
-                .load(pointer, cir::MemFlagsData::trusted(), table_address, 0);
+
+        Ok(builder
+            .ins()
+            .load(pointer, cir::MemFlagsData::trusted(), table_address, 0))
+    }
+
+    /// Load one function identity from a process-local virtual table.
+    fn virtual_entry(
+        &self,
+        table: cir::Value,
+        slot: u32,
+        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
+    ) -> Result<cir::Value, EmitError> {
+        let pointer = self.types.pointer();
+        let table_address = self.virtual_table_address(table, builder)?;
         let function = builder.ins().load(
             cir::types::I32,
             cir::MemFlagsData::trusted(),

@@ -30,10 +30,11 @@ pub enum EmitError {
     // types
     // -------------------------------------------------------------------------
     /// Unsupported type for emit.
-    #[diagnostic(id = "unsupported-emission-type", message = "unsupported type")]
+    #[diagnostic(id = "unsupported-emission-type", message = "unsupported type {ty}")]
     UnsupportedType {
         anchor: DiagnosticAnchor,
         module: ModuleId,
+        ty: String,
     },
 
     /// Missing type information.

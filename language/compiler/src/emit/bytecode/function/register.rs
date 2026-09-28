@@ -333,6 +333,7 @@ impl<'a> RegisterAllocator<'a> {
         EmitError::UnsupportedType {
             anchor: self.module.into(),
             module: self.module,
+            ty: format!("a register file past {} registers", u16::MAX),
         }
     }
 }
@@ -417,7 +418,12 @@ impl<'a> FunctionEmitter<'a> {
         ty: bytecode::ValueType,
     ) -> Result<(), EmitError> {
         if source.word_count != ty.word_count() || destination.word_count != ty.word_count() {
-            return Err(self.internal("block argument width"));
+            return Err(self.internal(&format!(
+                "a {}-word move from {} words into {} words",
+                ty.word_count(),
+                source.word_count,
+                destination.word_count
+            )));
         }
         let opcode = if source.word_count == 1 {
             bytecode::Opcode::MOVE

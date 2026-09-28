@@ -15,13 +15,12 @@ impl TypeEmitter<'_> {
 
         // map each MIR type onto its bytecode register representation
         let value_type = match definition {
-            mir::Type::Never
-            | mir::Type::Void
-            | mir::Type::Null
-            | mir::Type::Parameter { .. }
+            // hold zero-sized values in no registers
+            mir::Type::Never | mir::Type::Void | mir::Type::Null => bytecode::ValueType::void(),
+            mir::Type::Parameter { .. }
             | mir::Type::Witness { .. }
             | mir::Type::Declaration { .. } => {
-                return Err(self.unsupported_type());
+                return Err(self.unsupported_type(representation));
             }
             mir::Type::Boolean => bytecode::ValueType::scalar(bytecode::Scalar::Boolean),
             mir::Type::Character => bytecode::ValueType::scalar(bytecode::Scalar::Uint32),
@@ -55,8 +54,8 @@ impl TypeEmitter<'_> {
                     return Err(self.internal("MIR vector has no vector representation"));
                 };
                 let scalar = self.scalar(*element)?;
-                let lane_count =
-                    u16::try_from(vector.lanes).map_err(|_| self.unsupported_type())?;
+                let lane_count = u16::try_from(vector.lanes)
+                    .map_err(|_| self.unsupported_type(representation))?;
 
                 bytecode::ValueType::vector(bytecode::VectorType::new(scalar, lane_count))
             }
@@ -73,16 +72,17 @@ impl TypeEmitter<'_> {
             | mir::Type::Variant { .. }
             | mir::Type::Newtype { .. } => {
                 let word_count = self.word_count(representation)?;
-                if word_count == 0 {
-                    return Err(self.unsupported_type());
+                match word_count {
+                    0 => bytecode::ValueType::void(),
+                    _ => bytecode::ValueType::indexed(self.type_id(representation)?, word_count),
                 }
-
-                bytecode::ValueType::indexed(self.type_id(representation)?, word_count)
             }
             mir::Type::ManuallyDrop { .. }
             | mir::Type::Application { .. }
             | mir::Type::Error
-            | mir::Type::FunctionSignature { .. } => return Err(self.unsupported_type()),
+            | mir::Type::FunctionSignature { .. } => {
+                return Err(self.unsupported_type(representation));
+            }
         };
 
         // require semantic bytecode types to preserve the canonical MIR width
@@ -101,7 +101,7 @@ impl TypeEmitter<'_> {
         let layout = self.layout(storage)?;
         let scalar = match layout.representation {
             mir::Representation::Scalar(scalar) => scalar,
-            _ => return Err(self.unsupported_type()),
+            _ => return Err(self.unsupported_type(storage)),
         };
 
         // pick the signedness and width from the MIR type
@@ -113,7 +113,7 @@ impl TypeEmitter<'_> {
             mir::Type::Usize => self.integer_scalar(scalar.bit_width(), false),
             mir::Type::Float(format) => Ok(self.float(*format)),
             mir::Type::TypeId => Ok(bytecode::Scalar::Uint32),
-            _ => Err(self.unsupported_type()),
+            _ => Err(self.unsupported_type(storage)),
         }
     }
 
@@ -133,7 +133,7 @@ impl TypeEmitter<'_> {
                 self.reference_kind(*kind),
                 self.reference_storage(*kind),
             )),
-            _ => Err(self.unsupported_type()),
+            _ => Err(self.unsupported_type(ty)),
         }
     }
 
@@ -145,7 +145,7 @@ impl TypeEmitter<'_> {
     ) -> Result<bytecode::ValueType, EmitError> {
         // require a scalar layout for the integer
         let mir::Representation::Scalar(scalar) = layout.representation else {
-            return Err(self.unsupported_type());
+            return Err(self.unsupported(format!("an integer at {:?}", layout.representation)));
         };
 
         let width = scalar.bit_width();
@@ -181,7 +181,7 @@ impl TypeEmitter<'_> {
             (17..=32, false) => Ok(bytecode::Scalar::Uint32),
             (33..=64, true) => Ok(bytecode::Scalar::Int64),
             (33..=64, false) => Ok(bytecode::Scalar::Uint64),
-            _ => Err(self.unsupported_type()),
+            _ => Err(self.unsupported(format!("a {width}-bit integer scalar"))),
         }
     }
 

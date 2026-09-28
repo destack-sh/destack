@@ -319,3 +319,80 @@ block0(v0: i64, v1: i64, v2: i64):
 "#,
     );
 }
+
+/// Emit boolean negation as a one-bit flip.
+#[test]
+fn test_emit_boolean_not() {
+    let program = TestProgram::mir(
+        r#"
+export function negate(v0: boolean): boolean {
+entry(v0: boolean):
+    v1: boolean = not v0
+    return v1
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+function negate {
+    not.boolean r1, r0
+    return r1
+}
+"#,
+    );
+
+    program.assert_native(
+        r#"
+function u0:0(i64 vmctx, i8) -> i8 native {
+    region0 = 0 "activation"
+    region1 = 1 "world"
+    gv0 = vmctx
+    gv1 = load.i64 notrap aligned gv0+48
+    stack_limit = gv1
+
+block0(v0: i64, v1: i8):
+    v2 = iconst.i8 1
+    v3 = bxor v1, v2  ; v2 = 1
+    return v3
+}
+
+function u1:0(i64, i64, i64) native {
+    sig0 = (i64 vmctx, i8) -> i8 native
+    fn0 = colocated u0:0 sig0
+
+block0(v0: i64, v1: i64, v2: i64):
+    v3 = load.i8 notrap aligned v1
+    v4 = call fn0(v0, v3)
+    store notrap aligned v4, v2
+    return
+}
+"#,
+    );
+}
+
+/// Emit reference equality as a word comparison, its negation through boolean not.
+#[test]
+fn test_emit_reference_equality() {
+    let program = TestProgram::mir(
+        r#"
+export function differs(v0: ref<int32, managed, mutable, local>, v1: ref<int32, managed, mutable, local>): boolean {
+entry(v0: ref<int32, managed, mutable, local>, v1: ref<int32, managed, mutable, local>):
+    v2: boolean = eq v0, v1
+    v3: boolean = ne v0, v1
+    return v3
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+function differs {
+    equal r2, r0, r1
+    equal r3, r0, r1
+    not.boolean r2, r3
+    return r2
+}
+"#,
+    );
+}

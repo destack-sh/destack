@@ -88,18 +88,18 @@ impl FunctionEmitter<'_> {
 
     /// Resolve and verify one context node's inline value offset.
     fn context_value_offset(&self, node_type: mir::TypeId) -> Result<u32, EmitError> {
-        let parent = self.types.field(node_type, 0)?;
-        let variable = self.types.field(node_type, 1)?;
-        let value = self.types.field(node_type, 2)?;
+        let (parent, _) = self.types.placement(node_type, 0)?;
+        let (variable, _) = self.types.placement(node_type, 1)?;
+        let (value, _) = self.types.placement(node_type, 2)?;
 
         // require every generated context node to share the Program header ABI
-        if parent.offset as usize != ContextNode::PARENT_OFFSET
-            || variable.offset as usize != ContextNode::VARIABLE_OFFSET
-            || value.offset < ContextNode::BYTE_LEN as u32
+        if parent as usize != ContextNode::PARENT_OFFSET
+            || variable as usize != ContextNode::VARIABLE_OFFSET
+            || value < ContextNode::BYTE_LEN as u32
         {
             return Err(self.internal("context node does not match the Program ABI"));
         }
 
-        Ok(value.offset)
+        Ok(value)
     }
 }

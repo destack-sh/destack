@@ -65,15 +65,15 @@ impl TypeEmitter<'_> {
             signature.params.push(cir::AbiParam::new(self.pointer()));
         }
 
-        // pass the captured environment before explicit parameters
-        if let Some(environment) = environment {
-            signature.params.extend(environment.abi(self.pointer()));
-        }
-
         // flatten direct values and pass larger values by canonical address
         for parameter in parameters {
             let parameter = self.value(parameter)?;
             signature.params.extend(parameter.abi(self.pointer()));
+        }
+
+        // pass the environment last, where a callee without one ignores it
+        if let Some(environment) = environment {
+            signature.params.extend(environment.abi(self.pointer()));
         }
 
         // return direct results in their native physical representation

@@ -87,11 +87,17 @@ impl<'a> TypeEmitter<'a> {
         ObjectEmitter::internal(self.module, message)
     }
 
-    /// Build one unsupported type diagnostic.
-    pub(super) fn unsupported_type(&self) -> EmitError {
+    /// Build one unsupported type diagnostic naming the MIR type.
+    pub(super) fn unsupported_type(&self, ty: mir::TypeId) -> EmitError {
+        self.unsupported(format!("{:?}", self.optimized.tree.type_definition(ty)))
+    }
+
+    /// Build one unsupported type diagnostic from its description.
+    pub(super) fn unsupported(&self, description: String) -> EmitError {
         EmitError::UnsupportedType {
             anchor: self.module.into(),
             module: self.module,
+            ty: description,
         }
     }
 }

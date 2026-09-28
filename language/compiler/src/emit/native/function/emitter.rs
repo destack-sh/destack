@@ -165,15 +165,16 @@ impl<'a> FunctionEmitter<'a> {
             call_arguments.insert(1, result_address);
         }
 
-        // unpack the hidden callable environment before explicit parameters
+        // unpack the environment leading the argument words
         let mut byte_offset = 0i32;
-        if let Some(environment) = function.environment {
-            let value_type = types.value(environment)?;
+        let mut environment = Vec::new();
+        if let Some(ty) = function.environment {
+            let value_type = types.value(ty)?;
             Self::append_entry_value(
                 value_type,
                 arguments,
                 byte_offset,
-                &mut call_arguments,
+                &mut environment,
                 &mut builder,
             );
             byte_offset += i32::try_from(value_type.word_count() * 8)
@@ -193,6 +194,9 @@ impl<'a> FunctionEmitter<'a> {
             byte_offset += i32::try_from(value_type.word_count() * 8)
                 .map_err(|_| Self::internal(module, "native argument range is too large"))?;
         }
+
+        // pass the environment last
+        call_arguments.extend(environment);
 
         // call the typed body and marshal its direct result
         let call = builder.ins().call(callee, &call_arguments);
@@ -358,15 +362,14 @@ impl<'a> FunctionEmitter<'a> {
             self.result = Some(parameters[index]);
             index += 1;
         }
-        if self.function.environment.is_some() {
-            self.environment = Some(parameters[index]);
-            index += 1;
-        }
         for parameter in &self.function.parameters {
             let value_type = self.types.value(parameter.ty)?;
             let value = Value::from_parameters(value_type, &parameters, &mut index)
                 .ok_or_else(|| self.invalid("native function parameters do not match its ABI"))?;
             self.set(parameter.value, value)?;
+        }
+        if self.function.environment.is_some() {
+            self.environment = Some(parameters[index]);
         }
 
         builder.seal_block(entry);

@@ -48,24 +48,8 @@ impl<'a> FunctionEmitter<'a> {
                 target,
                 unwind,
             } => self.emit_invoke(terminator, call, target, unwind),
-            mir::Terminator::Panic { payload } => {
-                let opcode = if payload.is_some() {
-                    bytecode::Opcode::PANIC_VALUE
-                } else {
-                    bytecode::Opcode::PANIC
-                };
-                let mut instruction = bytecode::InstructionBuilder::new(opcode);
-                if let Some(payload) = payload {
-                    let ty = self
-                        .function
-                        .value_type(*payload)
-                        .ok_or_else(|| self.internal("missing panic payload type"))?;
-                    let ty = self.types.type_id(ty)?;
-                    instruction.relocation(bytecode::RelocationTag::TYPE, ty.0);
-                    instruction.span(self.register(*payload)?);
-                }
-
-                self.encode(instruction, &[])
+            mir::Terminator::Panic { payload, unwind } => {
+                self.emit_panic(terminator, *payload, unwind.as_ref())
             }
             mir::Terminator::UnwindResume => self.emit_empty(bytecode::Opcode::UNWIND_RESUME),
             mir::Terminator::TailCall { call } => self.emit_tail_call(call),
@@ -128,6 +112,39 @@ impl<'a> FunctionEmitter<'a> {
                 failure,
             ),
             mir::Terminator::Error => Err(self.internal("invalid terminator")),
+        }
+    }
+
+    /// Emit one panic, then enter its cleanup or leave the frame.
+    fn emit_panic(
+        &mut self,
+        terminator: &mir::Terminator,
+        payload: Option<mir::Value>,
+        unwind: Option<&mir::BlockTarget>,
+    ) -> Result<(), EmitError> {
+        // record the panic with its typed payload
+        let instruction = match payload {
+            Some(payload) => {
+                let ty = self
+                    .function
+                    .value_type(payload)
+                    .ok_or_else(|| self.internal("missing panic payload type"))?;
+                let ty = self.types.type_id(ty)?;
+                let mut instruction =
+                    bytecode::InstructionBuilder::new(bytecode::Opcode::PANIC_VALUE);
+                instruction.relocation(bytecode::RelocationTag::TYPE, ty.0);
+                instruction.span(self.register(payload)?);
+
+                instruction
+            }
+            None => bytecode::InstructionBuilder::new(bytecode::Opcode::PANIC),
+        };
+        self.encode(instruction, &[])?;
+
+        // unwind through this frame's cleanup or out of the frame
+        match unwind {
+            Some(unwind) => self.emit_jump(terminator, mir::Successor::PanicUnwind, unwind),
+            None => self.emit_empty(bytecode::Opcode::UNWIND_RESUME),
         }
     }
 }

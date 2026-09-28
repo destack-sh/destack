@@ -91,8 +91,9 @@ impl<'a> FunctionEmitter<'a> {
                 let values = builder.inst_results(call).to_vec();
                 builder.ins().return_(&values);
             }
-            mir::Terminator::Panic { payload } => {
-                if let Some(payload) = payload {
+            mir::Terminator::Panic { payload, unwind } => {
+                // spill the payload for the runtime
+                let (operation, arguments) = if let Some(payload) = payload {
                     let ty = self.value_type(*payload)?;
                     let value_type = self.types.value(ty)?;
                     let word_count = value_type.word_count();
@@ -103,11 +104,19 @@ impl<'a> FunctionEmitter<'a> {
                         .map_err(|_| self.invalid("native panic type identity exceeds u32"))?;
                     let ty = self.index_u32(native::Index::Type { ty }, builder)?;
 
-                    self.emit_runtime(native::abi::Operation::PanicValue, &[ty, words], builder)?;
+                    (native::abi::Operation::PanicValue, vec![ty, words])
                 } else {
-                    self.emit_runtime(native::abi::Operation::Panic, &[], builder)?;
+                    (native::abi::Operation::Panic, Vec::new())
+                };
+
+                // land in this frame's cleanup, else leave the frame
+                if let Some(unwind) = unwind {
+                    let point = self.object.terminator_point(block);
+                    self.emit_panic_invoke(operation, &arguments, unwind, point, builder)?;
+                } else {
+                    self.emit_runtime(operation, &arguments, builder)?;
+                    Self::terminate_runtime(builder);
                 }
-                Self::terminate_runtime(builder);
             }
             mir::Terminator::UnwindResume => {
                 let slot = self.unwind_slot(builder);

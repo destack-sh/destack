@@ -20,6 +20,9 @@ impl<'a> FunctionEmitter<'a> {
             mir::Instruction::Error => {
                 return Err(self.invalid("native emission received an invalid instruction"));
             }
+            mir::Instruction::FakeBorrow { .. } | mir::Instruction::FakeRead { .. } => {
+                return Err(self.invalid("native emission received a fake borrow"));
+            }
             mir::Instruction::Const { destination, value } => {
                 let value = self.emit_constant(value, builder)?;
                 self.set(*destination, Value::Direct(value))?;
@@ -58,13 +61,15 @@ impl<'a> FunctionEmitter<'a> {
                     .optimized
                     .tree
                     .storage_type(self.value_type(*argument)?);
-                let is_float = self
-                    .optimized
-                    .tree
-                    .type_definition(ty)
-                    .is_float(&self.optimized.tree);
+                let definition = self.optimized.tree.type_definition(ty);
+                let is_float = definition.is_float(&self.optimized.tree);
+                let is_boolean = matches!(definition, mir::Type::Boolean);
                 let argument = self.scalar(*argument)?;
                 let value = match (*operator, is_float) {
+                    // flip the one bit a boolean holds
+                    (mir::UnaryOperator::Not, _) if is_boolean => {
+                        builder.ins().bxor_imm_u(argument, 1)
+                    }
                     (mir::UnaryOperator::Negate, false) => builder.ins().ineg(argument),
                     (mir::UnaryOperator::Negate, true) => builder.ins().fneg(argument),
                     (mir::UnaryOperator::Not, false) => builder.ins().bnot(argument),
@@ -238,10 +243,9 @@ impl<'a> FunctionEmitter<'a> {
                 dynamic,
                 ..
             } => self.emit_dynamic_payload(*destination, *dynamic)?,
-            mir::Instruction::DynamicType {
-                destination,
-                dynamic,
-            } => self.emit_dynamic_type(*destination, *dynamic, builder)?,
+            mir::Instruction::TypeOf { destination, value } => {
+                self.emit_type_of(*destination, *value, builder)?
+            }
             mir::Instruction::DynamicRead {
                 destination,
                 dynamic,

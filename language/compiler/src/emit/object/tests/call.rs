@@ -450,25 +450,25 @@ function dispatch {
 
     program.assert_native(
         r#"
-function u0:0(i64 vmctx, i64, i32) -> i64 native {
+function u0:0(i64 vmctx, i32, i64) -> i64 native {
     region0 = 0 "activation"
     region1 = 1 "world"
     gv0 = vmctx
     gv1 = load.i64 notrap aligned gv0+48
     stack_limit = gv1
 
-block0(v0: i64, v1: i64, v2: i32):
-    return v1
+block0(v0: i64, v1: i32, v2: i64):
+    return v2
 }
 
 function u1:0(i64, i64, i64) native {
-    sig0 = (i64 vmctx, i64, i32) -> i64 native
+    sig0 = (i64 vmctx, i32, i64) -> i64 native
     fn0 = colocated u0:0 sig0
 
 block0(v0: i64, v1: i64, v2: i64):
     v3 = load.i64 notrap aligned v1
     v4 = load.i32 notrap aligned v1+8
-    v5 = call fn0(v0, v3, v4)
+    v5 = call fn0(v0, v4, v3)
     store notrap aligned v5, v2
     return
 }
@@ -484,7 +484,7 @@ function u0:2(i64 vmctx, i64, i32) -> i64 native {
     gv2 = symbol colocated userextname0
     gv3 = symbol colocated userextname1
     sig0 = (i64, i32, i64) native
-    sig1 = (i64 vmctx, i64, i32) -> i64 native
+    sig1 = (i64 vmctx, i32, i64) -> i64 native
     stack_limit = gv1
 
 block0(v0: i64, v1: i64, v2: i32):
@@ -517,7 +517,7 @@ block2:
     trap user4
 
 block1:
-    v22 = call_indirect.i64 sig1, v15(v0, v1, v2), stack_map=[i8 @ ss0+0, i8 @ ss1+0, i8 @ ss2+0]
+    v22 = call_indirect.i64 sig1, v15(v0, v2, v1), stack_map=[i8 @ ss0+0, i8 @ ss1+0, i8 @ ss2+0]
     return v22
 }
 

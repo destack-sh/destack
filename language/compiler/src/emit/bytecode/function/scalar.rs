@@ -258,9 +258,21 @@ impl<'a> FunctionEmitter<'a> {
         };
         let destination =
             destination.ok_or_else(|| self.internal("raw equality result is missing"))?;
-        let left_type = self.value_type(*left)?;
-        let left = self.register(*left)?;
-        let right = self.register(*right)?;
+        let destination = self.register(destination)?;
+
+        self.emit_raw_equal_into(destination, *left, *right)
+    }
+
+    /// Emit byte-wise equality of two values into one destination register.
+    fn emit_raw_equal_into(
+        &mut self,
+        destination: bytecode::RegisterSpan,
+        left: mir::Value,
+        right: mir::Value,
+    ) -> Result<(), EmitError> {
+        let left_type = self.value_type(left)?;
+        let left = self.register(left)?;
+        let right = self.register(right)?;
         let instruction = if left.word_count == 1 {
             let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::EQUAL);
             instruction.register(left.start);
@@ -275,7 +287,6 @@ impl<'a> FunctionEmitter<'a> {
 
             instruction
         };
-        let destination = self.register(destination)?;
 
         self.encode(instruction, &[destination])
     }
@@ -294,9 +305,28 @@ impl<'a> FunctionEmitter<'a> {
         if ty.vector_type().is_some() {
             return self.emit_vector_element(destination, operator, left, right);
         }
-        let scalar = ty
-            .scalar_type()
-            .ok_or_else(|| self.internal("unsupported binary value type"))?;
+
+        // compare a reference or aggregate representation by its bytes
+        let Some(scalar) = ty.scalar_type() else {
+            return match operator {
+                mir::BinaryOperator::Equal => {
+                    self.emit_raw_equal(Some(destination), &[left, right])
+                }
+                mir::BinaryOperator::NotEqual => {
+                    let equal =
+                        self.scratch(bytecode::ValueType::scalar(bytecode::Scalar::Boolean))?;
+                    self.emit_raw_equal_into(equal, left, right)?;
+                    let mut instruction = bytecode::InstructionBuilder::new(
+                        bytecode::Opcode::boolean(bytecode::BooleanOperation::Not),
+                    );
+                    instruction.register(equal.start);
+                    let destination = self.register(destination)?;
+
+                    self.encode(instruction, &[destination])
+                }
+                _ => Err(self.internal("unsupported binary value type")),
+            };
+        };
 
         // select the concrete floating point opcode family
         if scalar.is_float() {
@@ -388,6 +418,9 @@ impl<'a> FunctionEmitter<'a> {
             .scalar_type()
             .ok_or_else(|| self.internal("unsupported unary value type"))?;
         let opcode = match (operator, scalar.is_float()) {
+            (mir::UnaryOperator::Not, _) if scalar == bytecode::Scalar::Boolean => {
+                Some(bytecode::Opcode::boolean(bytecode::BooleanOperation::Not))
+            }
             (mir::UnaryOperator::Negate, false) => {
                 bytecode::Opcode::integer(bytecode::IntegerOperation::Negate, scalar)
             }
