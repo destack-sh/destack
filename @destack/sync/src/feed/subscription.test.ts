@@ -15,7 +15,18 @@ import { Replica, replicaResult } from "../replica/replica.ts";
 import { comment, open, openCopy, page, project, tag, task, taskTag } from "../test/fixture.ts";
 import { Follower } from "./test/copy.ts";
 import { evaluate, type Holding } from "./test/oracle.ts";
-import { AUDIENCE, EVERYTHING, FILTERS, QUERY_SETS, TREE, WINDOWS } from "./test/queries.ts";
+import type { ConditionAudience } from "./test/audience.ts";
+import {
+    AUDIENCE,
+    EVERYTHING,
+    FILTERS,
+    MEMORY_AUDIENCE,
+    PATHS,
+    QUERY_SETS,
+    TALLIES,
+    TREE,
+    WINDOWS,
+} from "./test/queries.ts";
 import { Random } from "./test/random.ts";
 import { Workload } from "./test/workload.ts";
 
@@ -51,6 +62,8 @@ interface Run {
     readonly isReplicated?: boolean;
     /** The tasks and comments inserted before following, which pages several snapshot pages deep. */
     readonly seedRows?: number;
+    /** The audience deciding the rows, the SQL-deciding one by default. */
+    readonly audience?: ConditionAudience;
 }
 
 /** The run at scale: every query set over thousands of rows through a replica, reconnecting every other burst. */
@@ -85,6 +98,18 @@ const RUNS: Readonly<Record<string, Run>> = {
         reconnect: 5,
         reshape: TREE,
     },
+    ...Object.fromEntries(
+        Object.entries({
+            filters: FILTERS,
+            windows: WINDOWS,
+            tree: TREE,
+            tallies: TALLIES,
+            paths: PATHS,
+        }).map(([name, queries]) => [
+            `${name} decided in memory`,
+            { queries, seed: 37, bursts: 16, reconnect: 5, audience: MEMORY_AUDIENCE },
+        ]),
+    ),
     "windows moved to filters": {
         queries: WINDOWS,
         seed: 29,
@@ -120,8 +145,9 @@ async function holdExactly(run: Run, dialect: Dialect): Promise<void> {
     // follow the queries, through a replica into a second database when replicated
     const client = run.isReplicated ? await openCopy(dialect) : undefined;
     const replica = new Replica({ name: "copy", scope: "inbox", tables: TABLES });
+    const audience = run.audience ?? AUDIENCE;
     const follower = new Follower(feed, run.queries, TABLES, {
-        audience: AUDIENCE,
+        audience,
         ...(client === undefined ? {} : { replica: { replica, database: client } }),
     });
     follower.start();
@@ -140,7 +166,7 @@ async function holdExactly(run: Run, dialect: Dialect): Promise<void> {
         }
 
         // hold exactly what the queries select in memory, in the copy and in the replica
-        const expected = holding(await evaluate(source, queries, AUDIENCE));
+        const expected = holding(await evaluate(source, queries, audience));
         expect([burst, ...holding(follower.copy)]).toEqual([burst, ...expected]);
         if (client !== undefined) {
             expect([burst, ...holding(await replicated(client))]).toEqual([burst, ...expected]);

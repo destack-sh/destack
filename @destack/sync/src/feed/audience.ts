@@ -25,8 +25,8 @@ export const EVERYONE: Audience = {
 export interface Audience {
     /** The tables whose changes decide visibility, followed without being held. */
     readonly watches: readonly Watch[];
-    /** Match the rows of a table the subscriber may hold, as SQL. */
-    where(table: Table): SQL;
+    /** Match the rows of a table the subscriber may hold, as SQL, or "memory" when only `admits` decides them, as for tables held in another database than their access. */
+    where(table: Table): SQL | "memory";
     /** The name of everything the audience decides, equal for audiences that decide alike, so that their subscribers share evaluations. */
     readonly key: string;
     /** Decide which rows of a table as of a position the subscriber may hold now, by index in the list, sharing reads per position. */

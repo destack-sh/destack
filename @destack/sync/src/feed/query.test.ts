@@ -19,7 +19,7 @@ import {
     take,
     until,
 } from "../test/fixture.ts";
-import { AUDIENCE } from "./test/queries.ts";
+import { AUDIENCE, MEMORY_AUDIENCE } from "./test/queries.ts";
 
 /** The tables the feed serves. */
 const TABLES: readonly Table[] = [project, task, comment, tag, taskTag, page];
@@ -139,6 +139,20 @@ test.for(TEST_DIALECTS)(
                     scopes: ["inbox"],
                     compute: { peers: Expression.rollup("count", "tasks") },
                 }),
+                refusal(
+                    {
+                        table: project,
+                        scopes: ["inbox"],
+                        relations: {
+                            tasks: {
+                                table: task,
+                                on: { kind: "key", column: "projectId", parent: "id" },
+                            },
+                        },
+                        compute: { open: Expression.rollup("count", "tasks") },
+                    },
+                    MEMORY_AUDIENCE,
+                ),
             ]),
         ).toEqual([
             "query query reads concealable columns of task: title",
@@ -154,6 +168,7 @@ test.for(TEST_DIALECTS)(
             "measure sum(title) adds up a non-numeric column",
             "rollup tasks of query measures another table",
             "relation tasks is not declared by query",
+            "relations read no rows of task, which the audience decides in memory",
         ]);
     },
 );

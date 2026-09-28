@@ -443,14 +443,20 @@ export const QUERY_SETS: Readonly<Record<string, Readonly<Record<string, Query>>
     everything: EVERYTHING,
 };
 
-/** An audience that never sees secret tasks, fifth comments, hidden tags, the fourth tag's task tags or pages ranked seven, and never reads the titles of high-ranked tasks. */
-export const AUDIENCE = new ConditionAudience(
-    new Map<Table, Condition>([
-        [task, Condition.eq("isSecret", false)],
-        [comment, Condition.ne("position", 5)],
-        [tag, Condition.ne("name", "hidden")],
-        [taskTag, Condition.ne("tagId", "g3")],
-        [page, Condition.ne("rank", 7)],
-    ]),
-    new Map([[task as Table, { when: Condition.gt("rank", 7), columns: ["title"] }]]),
-);
+/** Tasks that are not secret, comments but the fifth, tags but hidden ones, task tags but the fourth tag's and pages not ranked seven. */
+const VISIBLE = new Map<Table, Condition>([
+    [task, Condition.eq("isSecret", false)],
+    [comment, Condition.ne("position", 5)],
+    [tag, Condition.ne("name", "hidden")],
+    [taskTag, Condition.ne("tagId", "g3")],
+    [page, Condition.ne("rank", 7)],
+]);
+
+/** The titles of high-ranked tasks. */
+const CONCEALED = new Map([[task as Table, { when: Condition.gt("rank", 7), columns: ["title"] }]]);
+
+/** An audience that sees only the visible rows and never reads the concealed titles, deciding in SQL and in memory. */
+export const AUDIENCE = new ConditionAudience(VISIBLE, CONCEALED);
+
+/** The same audience, deciding every row in memory, as for tables held apart from their access. */
+export const MEMORY_AUDIENCE = new ConditionAudience(VISIBLE, CONCEALED, { isInMemory: true });

@@ -1,4 +1,13 @@
-import { and, Key, TABLE, type DatabaseConnection, type Row, type Table } from "@destack/db";
+import {
+    and,
+    Key,
+    TABLE,
+    type DatabaseConnection,
+    type Row,
+    type SQL,
+    type Table,
+} from "@destack/db";
+import { DatabaseError } from "@destack/db/error";
 import { CHAIN_TERMS, Condition, type Scalar } from "@destack/db/query";
 import type { LogPosition, RelationView, Rewind, Snapshot } from "@destack/db/log";
 import type { Node } from "../query/node.ts";
@@ -154,19 +163,21 @@ export class View {
     ): Promise<Row[][]> {
         return Promise.all(
             segments.map((segment) => {
+                // name the read, which audiences deciding alike share, and admit its rows in SQL or in memory
                 const after =
                     segment.after === undefined ? "" : Key.name(node.table, segment.after);
                 const key = `ordered:${node.selection}:${node.partition(segment.value)}:${after}:${count}:${audience.key}`;
+                const current = audience.where(node.table);
 
                 return this.#cache.share(this.position.sequence, key, () =>
                     this.#snapshot.ordered(node.table, {
                         where: node.condition(segment.value),
                         order: node.order,
-                        namespace: node.namespace((table) => audience.where(table)),
+                        namespace: node.namespace((table) => admittedSQL(audience, table)),
                         ...(segment.after === undefined ? {} : { after: segment.after }),
                         count,
                         admits: {
-                            current: audience.where(node.table),
+                            ...(current === "memory" ? {} : { current }),
                             image: async (row) => (await run.seen(node.table, [row])).length > 0,
                         },
                         ...(relations === undefined ? {} : { relations }),
@@ -186,17 +197,20 @@ export class View {
         within: Condition,
         audience: Audience,
     ): Promise<{ readonly sequence: number; readonly tallies: Tally[] }> {
-        const admitted = (table: Table) => audience.where(table);
-
-        return Tally.measure(
-            this.#database,
-            node,
-            and(
-                Condition.render(Condition.all(node.condition(), within), node.bind(admitted)),
-                audience.where(node.table),
-            )!,
-            admitted,
+        // tally the rows the audience admits in memory when it decides none in SQL
+        const admitted = (table: Table) => admittedSQL(audience, table);
+        const current = audience.where(node.table);
+        const selection = Condition.render(
+            Condition.all(node.condition(), within),
+            node.bind(admitted),
         );
+        if (current === "memory") {
+            return Tally.measure(this.#database, node, selection, admitted, async (rows) =>
+                audience.admits(node.table, rows, this.position),
+            );
+        }
+
+        return Tally.measure(this.#database, node, and(selection, current)!, admitted);
     }
 
     /**
@@ -379,4 +393,17 @@ function tupleOf(table: Table, columns: readonly string[], row: Row): Tuple {
 /** Name the shared read of a table's rows whose columns hold a tuple of values. */
 function rowsKey(table: Table, columns: readonly string[], tuple: Tuple): string {
     return `rows:${table[TABLE].sqlName}.${columns.join(",")}=${JSON.stringify(tuple)}`;
+}
+
+/** Match the rows of a related table an audience admits in SQL, refusing tables it decides in memory, which no relation reads. */
+function admittedSQL(audience: Audience, table: Table): SQL {
+    const where = audience.where(table);
+    if (where === "memory") {
+        throw new DatabaseError(
+            "INVALID_QUERY",
+            `relations read no rows of ${table[TABLE].name}, which the audience decides in memory`,
+        );
+    }
+
+    return where;
 }

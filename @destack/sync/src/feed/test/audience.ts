@@ -3,7 +3,7 @@ import { Condition, type Match } from "@destack/db/query";
 import type { Audience } from "../audience.ts";
 import type { Row } from "@destack/db";
 
-/** An audience whose visibility and concealment conditions decide rows alike in SQL and in memory. */
+/** An audience whose visibility and concealment conditions decide rows alike in SQL and in memory, or only in memory. */
 export class ConditionAudience implements Audience {
     /** The tables whose changes decide visibility: none, since conditions read the row itself. */
     readonly watches = [];
@@ -13,6 +13,8 @@ export class ConditionAudience implements Audience {
     readonly #visible: ReadonlyMap<Table, Condition>;
     /** The conditions compiled so far, by condition. */
     readonly #matches = new Map<Condition, Match>();
+    /** Whether rows are decided only in memory, as for tables held apart from their access. */
+    readonly #isInMemory: boolean;
     /** The columns hidden on a table's rows meeting a condition. */
     readonly #concealed: ReadonlyMap<
         Table,
@@ -26,22 +28,28 @@ export class ConditionAudience implements Audience {
             Table,
             { readonly when: Condition; readonly columns: readonly string[] }
         > = new Map(),
+        options: { readonly isInMemory?: boolean } = {},
     ) {
+        // hold the conditions, and name them so that audiences deciding alike share evaluations
         this.#visible = visible;
         this.#concealed = concealed;
+        this.#isInMemory = options.isInMemory ?? false;
         this.key = JSON.stringify([
+            this.#isInMemory,
             [...visible].map(([table, condition]) => [table[TABLE].sqlName, condition]),
             [...concealed].map(([table, hidden]) => [table[TABLE].sqlName, hidden]),
         ]);
     }
 
-    /** Match the visible rows of a table in SQL. */
+    /** Match the visible rows of a table in SQL, or leave every table with a condition to memory. */
     where(table: Table) {
         const condition = this.#visible.get(table);
 
         return condition === undefined
             ? sql`true`
-            : Condition.render(condition, Condition.bind(table));
+            : this.#isInMemory
+              ? "memory"
+              : Condition.render(condition, Condition.bind(table));
     }
 
     /** Decide which rows of a table are visible. */

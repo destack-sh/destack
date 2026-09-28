@@ -248,7 +248,7 @@ export class Stream {
  *
  * A merged page holds each row's net change and each group's last values, completing at the last page's position.
  */
-async function* coalesce(
+export async function* coalesce(
     pages: AsyncGenerator<QueryPage>,
     every: number,
     tables: readonly Table[],

@@ -173,45 +173,45 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "merge the pages within an interval into one holding each row's net change on %s",
-    { timeout: 10_000 },
+    "follow the head through pages merged within an interval on %s",
     async (dialect) => {
         const database = await open(dialect);
         const feed = new Feed(database, [note]);
         await database.insert(note).values({ ...first, id: "a" });
 
-        // follow the notes with pages at most every three seconds, longer than the writes take on a loaded machine
+        // follow the notes with pages merged within a short interval
         const pages = feed.subscribe(
             { notes: { table: note, scopes: ["inbox"] } },
             undefined,
-            AbortSignal.timeout(8000),
-            {
-                every: 3000,
-            },
+            AbortSignal.timeout(4000),
+            { every: 10 },
         );
-        await until(pages, (page) => page.complete);
+        const snapshot = await until(pages, (page) => page.complete);
 
-        // start an interval with a page of its own, so that the writes after it merge
-        await database.update(note).set({ summary: "Primed" }).where(eq(note.id, "a"));
-        await until(pages, (page) =>
-            page.changes.some((change) => change.row.summary === "Primed"),
-        );
-
-        // rename one note, add and remove another, and add a third, within one interval
+        // rename one note, add and remove another, and add a third
         await database.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
         await database.insert(note).values({ ...first, id: "b" });
         await database.delete(note).where(eq(note.id, "b"));
         await database.insert(note).values({ ...first, id: "c" });
-        const merged = await until(pages, (page) =>
+        const following = await until(pages, (page) =>
             page.changes.some((change) => change.row.id === "c"),
         );
-        expect(
-            merged.flatMap((page) =>
-                page.changes.map((change) => [change.operation, change.row.id]),
-            ),
-        ).toEqual([
-            ["update", "a"],
-            ["insert", "c"],
+
+        // hold each note as the pages leave it, however they merged
+        const held = new Map<unknown, unknown>();
+        for (const change of [...snapshot, ...following].flatMap((page) => page.changes)) {
+            // forget a deleted note
+            if (change.operation === "delete") {
+                held.delete(change.row.id);
+            }
+            // hold an entered or changed note as it is
+            else {
+                held.set(change.row.id, change.row.title);
+            }
+        }
+        expect([...held]).toEqual([
+            ["a", "Renamed"],
+            ["c", "First"],
         ]);
     },
 );
@@ -276,5 +276,25 @@ test.for(TEST_DIALECTS)(
         ]);
         controller.abort();
         await Promise.all(streams.map((pages) => pages.return(undefined)));
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "keep serving a subscriber while another stops reading on %s",
+    async (dialect) => {
+        const database = await open(dialect);
+        const feed = new Feed(database, [note]);
+        const query = { table: note, scopes: ["inbox"] };
+        const signal = AbortSignal.timeout(5000);
+
+        // let one subscriber read its snapshot and stop, while the other reads a page per write
+        const idle = feed.subscribe({ query }, undefined, signal);
+        await idle.next();
+        const busy = feed.subscribe({ query }, undefined, signal);
+        await busy.next();
+        for (let index = 0; index < 20; index += 1) {
+            await database.insert(note).values({ ...first, id: `n${index}` });
+            expect((await busy.next()).done).toBe(false);
+        }
     },
 );

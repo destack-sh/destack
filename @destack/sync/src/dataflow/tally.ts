@@ -1,4 +1,4 @@
-import { count, max, min, sql, sum, type DatabaseConnection, type SQL } from "@destack/db";
+import { count, max, min, sql, sum, TABLE, type DatabaseConnection, type SQL } from "@destack/db";
 import { Order, type Scalar } from "@destack/db/query";
 import type { Visibility, Node } from "../query/node.ts";
 import type { Measure } from "../query/query.ts";
@@ -45,19 +45,20 @@ export class Tally implements Result {
         }
     }
 
-    /** Read the measures of an aggregate node's groups among the rows a selection matches, at one log sequence. */
+    /** Read the measures of an aggregate node's groups among the rows a selection matches and an admission admits, at one log sequence. */
     static async measure(
         database: DatabaseConnection,
         node: Node,
         selection: SQL,
         visibility?: Visibility,
+        admit?: (rows: readonly Row[]) => Promise<ReadonlySet<number>>,
     ): Promise<{ readonly sequence: number; readonly tallies: Tally[] }> {
-        // tally real numbers from their values, since SQL sums them in an order of its own
+        // tally real numbers from their values, since SQL sums them in an order of its own, and rows admitted in memory
         const aggregate = node.aggregate!;
         const grouping = node.grouping;
         const summed = summedColumns(aggregate.values);
-        if (summed.some((name) => node.kindOf(name) === "real")) {
-            return Tally.#tally(database, node, selection, visibility);
+        if (admit !== undefined || summed.some((name) => node.kindOf(name) === "real")) {
+            return Tally.#tally(database, node, selection, visibility, admit);
         }
 
         // select the group columns and every measure's parts
@@ -139,12 +140,13 @@ export class Tally implements Result {
         };
     }
 
-    /** Read the measured columns of the rows a selection matches, at one log sequence, and tally them by group in memory. */
+    /** Read the measured columns of the rows a selection matches, at one log sequence, and tally those admitted by group in memory. */
     static async #tally(
         database: DatabaseConnection,
         node: Node,
         selection: SQL,
         visibility: Visibility | undefined,
+        admit: ((rows: readonly Row[]) => Promise<ReadonlySet<number>>) | undefined,
     ): Promise<{ readonly sequence: number; readonly tallies: Tally[] }> {
         // select the columns the groups and measures read, and every computed value
         const measured = Object.values(node.aggregate!.values).flatMap((measure) =>
@@ -154,6 +156,7 @@ export class Tally implements Result {
             [...node.grouping, ...measured].flatMap((name) => node.columnsOf(name)),
         );
         const fields = {
+            ...(admit === undefined ? {} : node.table[TABLE].logged),
             ...Object.fromEntries([...names].map((name) => [name, node.columns[name]!])),
             ...Object.fromEntries(
                 Object.keys(node.computed).map((name) => [name, valueOf(node, name, visibility)]),
@@ -169,9 +172,13 @@ export class Tally implements Result {
             { isolationLevel: "repeatable read", isReadOnly: true },
         );
 
-        // tally each row in its group
+        // tally each admitted row in its group
+        const admitted = admit === undefined ? undefined : await admit(rows);
         const tallies = new Map<string, Tally>();
-        for (const row of rows) {
+        for (const [index, row] of rows.entries()) {
+            if (admitted !== undefined && !admitted.has(index)) {
+                continue;
+            }
             const group = node.groupOf(row);
             const key = JSON.stringify(group);
             const tally = tallies.get(key) ?? Tally.empty(node, group, sequence);
