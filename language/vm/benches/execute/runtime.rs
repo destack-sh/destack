@@ -79,13 +79,8 @@ impl program::Runtime for BenchmarkRuntime {
         _binding: &program::Binding,
         _arguments: &[Word],
         _result: &mut [Word],
-    ) -> Result<()> {
+    ) -> Result<program::BindingExit> {
         unreachable!("direct execution benchmarks do not call runtime bindings")
-    }
-
-    /// Reject fiber parks outside asynchronous benchmarks.
-    fn park(&mut self, _fiber: program::FiberId) -> Result<program::Park> {
-        unreachable!("direct execution benchmarks do not park")
     }
 }
 
