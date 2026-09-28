@@ -21,10 +21,10 @@ import {
 import { Random } from "./test/random.ts";
 import { Workload } from "./test/workload.ts";
 
-/** The writes a scenario runs before measuring, so that measured writes run compiled code. */
+/** The warmup writes before measuring. */
 const WARMUP_WRITES = 20;
 
-/** The queries a snapshot's per-row budget was measured on: filters, windows, a tree, tallies and paths. */
+/** The queries of the snapshot budget. */
 const SNAPSHOT_QUERIES = { ...FILTERS, ...WINDOWS, ...TREE, ...TALLIES, ...PATHS };
 
 /** The tables the workload writes and subscribers copy. */
@@ -33,51 +33,51 @@ const TABLES: readonly Table[] = [project, task, comment, tag, taskTag, page];
 /**
  * The most database operations a snapshot of every query set may cost.
  *
- * It reads a page of each root's rows, each window partition and each aggregate batch once, with a head read each: about 65, with room for half again.
+ * A snapshot reads each root page, window partition and aggregate batch once: about 65.
  */
 const SNAPSHOT_OPERATIONS = 100;
 
 /**
  * The most database operations a replica may cost to hold the same snapshot.
  *
- * It stages the pages and applies them in one completing transaction: about 5.
+ * A replica stages the pages and applies them in one transaction: about 5.
  */
 const REPLICA_OPERATIONS = 8;
 
 /**
- * The most database operations one committed write may cost a hundred subscribers of one audience, on average.
+ * The most database operations one write may cost a hundred subscribers of one audience, on average.
  *
- * The subscribers share the write's decision, so it reads what it touches once for all of them: well under one.
+ * The subscribers share one decision: well under one.
  */
 const DECISION_OPERATIONS = 1;
 
 /**
- * The most database operations a committed write every subscriber follows may cost to reach a thousand of them, on average.
+ * The most database operations one write may cost a thousand subscribers, on average.
  *
- * One shared evaluation decides the write, reading the changed rows and the log once: about 6.
+ * One shared evaluation reads the changed rows and the log once: about 6.
  */
 const FAN_OUT_OPERATIONS = 10;
 
 /** The subscribers of one space. */
 const SPACE_SUBSCRIBERS = 300;
 
-/** The distinct audiences the space's subscribers' access forms. */
+/** The distinct audiences of the space's subscribers. */
 const SPACE_AUDIENCES = 50;
 
 /**
- * The most database operations one committed write may cost every subscriber of a space, on average.
+ * The most database operations one write may cost every subscriber of a space, on average.
  *
- * The 50 audiences share each read of a position, so the write reads what it touches about once: about 6.
+ * The 50 audiences share each read: about 6.
  */
 const SPACE_OPERATIONS = 10;
 
-/** The rows a follower of every query set holds at scale, a few projects with hundreds of tasks each. */
+/** The rows a follower of every query set holds at scale. */
 const SCALE_ROWS = 3000;
 
 /**
- * The most database operations one committed write may cost a follower of every query set at scale, on average.
+ * The most database operations one write may cost a follower of every query set at scale, on average.
  *
- * Each node a write touches reads its changed partitions and relations in one batch.
+ * Each touched node reads its changed partitions and relations in one batch.
  */
 const SCALE_OPERATIONS = 12;
 
@@ -87,7 +87,7 @@ const FLIPPED_ROWS = 1500;
 /** The tasks one window sorts by how many comments each has. */
 const RANKED_ROWS = 10_000;
 
-/** The ten most discussed tasks, sorted by a rollup of their comments over every task. */
+/** The ten most commented tasks. */
 const DISCUSSED = {
     discussed: {
         table: task,
@@ -101,10 +101,10 @@ const DISCUSSED = {
     },
 } as const;
 
-/** The most database operations a comment may cost the window, whatever the number of tasks it sorts. */
+/** The most database operations a comment may cost the window. */
 const RANKED_OPERATIONS = 12;
 
-/** The most database operations a write flipping every row may cost: a batch of the flipped rows per node, 90 keys a read. */
+/** The most database operations a write flipping every row may cost, at 90 keys a read. */
 const FLIP_OPERATIONS = 60;
 
 test.for(TEST_DIALECTS)(
@@ -115,7 +115,7 @@ test.for(TEST_DIALECTS)(
         const feed = new Feed(source, TABLES);
         await new Workload(new Random(3)).seed(source, 4000);
 
-        // snapshot every query set into memory, once to warm up and once measured
+        // snapshot every query set into memory
         const snapshotOnce = async () => {
             const operations = source.driver.state.operations;
             const start = cpuTime();
@@ -133,7 +133,7 @@ test.for(TEST_DIALECTS)(
         await snapshotOnce();
         const { milliseconds: snapshot, operations, rows } = await snapshotOnce();
 
-        // snapshot them through a replica into a second database, once to warm up and once measured
+        // snapshot them through a replica
         const copyOnce = async () => {
             const client = await openCopy(dialect);
             const replica = new Replica({ name: "copy", scope: "inbox", tables: TABLES });
@@ -155,7 +155,7 @@ test.for(TEST_DIALECTS)(
         await copyOnce();
         const copied = await copyOnce();
 
-        // stay within the operation budgets over enough rows to page, reporting the time per row
+        // stay within the budgets and report the time per row
         report("snapshot CPU µs per row", (snapshot * 1000) / rows);
         report("replica CPU µs per row", (copied.milliseconds * 1000) / rows);
         expect(rows).toBeGreaterThan(2000);
@@ -175,7 +175,7 @@ test.for(TEST_DIALECTS)(
         const workload = new Workload(new Random(9));
         await workload.seed(source, 500);
 
-        // follow filters and windows with a hundred subscribers, each holding its snapshot
+        // follow filters and windows with a hundred subscribers
         const followers = Array.from(
             { length: 100 },
             () => new Follower(feed, { ...FILTERS, ...WINDOWS }, TABLES, { audience: AUDIENCE }),
@@ -186,7 +186,7 @@ test.for(TEST_DIALECTS)(
         const snapshot = await source.log.position();
         await Promise.all(followers.map((follower) => follower.reach(snapshot)));
 
-        // write a burst, and time until every subscriber holds it, once to warm up and once measured
+        // time a burst of writes
         const writes = 40;
         const burst = async () => {
             for (let index = 0; index < writes; index += 1) {
@@ -206,7 +206,7 @@ test.for(TEST_DIALECTS)(
         const { milliseconds: elapsed, operations } = await burst();
         await Promise.all(followers.map((follower) => follower.stop()));
 
-        // stay within the operations per write, reporting the time per subscriber and write
+        // stay within the budget and report the time
         report("CPU µs per decision", (elapsed * 1000) / (followers.length * writes));
         expect(operations, "operations per write").toBeLessThan(DECISION_OPERATIONS);
     },
@@ -219,7 +219,7 @@ test.for(TEST_DIALECTS)(
         const feed = new Feed(source, TABLES);
         await new Workload(new Random(13)).seed(source, 1500);
 
-        // follow filters and windows, then reconnect from the held position
+        // follow, then reconnect from the held position
         const follower = new Follower(feed, { ...FILTERS, ...WINDOWS }, TABLES, {
             audience: AUDIENCE,
         });
@@ -229,7 +229,7 @@ test.for(TEST_DIALECTS)(
         await follower.reconnect();
         await follower.reach(await source.log.position());
 
-        // rebuild windows as the subscriber held them, sending no rows and no snapshot
+        // rebuild the windows without rows or a snapshot
         const resumed = follower.copy.pages.slice(held);
         expect([
             resumed.some((page) => page.reset),
@@ -246,7 +246,7 @@ test.for(TEST_DIALECTS)(
         const feed = new Feed(source, TABLES, { subscribers: 1000 });
         await new Workload(new Random(21)).seed(source, 200);
 
-        // follow the same queries with a thousand subscribers, each noting the last position it holds
+        // follow with a thousand subscribers
         const controller = new AbortController();
         const reached = Array.from({ length: 1000 }, () => -1);
         const subscribers = reached.map(async (_, index) => {
@@ -264,7 +264,7 @@ test.for(TEST_DIALECTS)(
         };
         await reach(await source.log.position());
 
-        // change one row every subscriber holds, timing each write from its commit until every subscriber holds it
+        // time a write every subscriber holds
         const { milliseconds, operations } = await measure(
             source,
             40,
@@ -279,7 +279,7 @@ test.for(TEST_DIALECTS)(
         controller.abort();
         await Promise.all(subscribers);
 
-        // stay within the operations per write, reporting the time
+        // stay within the budget and report the time
         report("CPU ms per write", milliseconds);
         expect(operations, "operations per write").toBeLessThan(FAN_OUT_OPERATIONS);
     },
@@ -292,7 +292,7 @@ test.for(TEST_DIALECTS)(
         const source = await open(dialect);
         const feed = new Feed(source, TABLES);
 
-        // file every task in one project, and follow the tasks by the project's name
+        // follow the tasks of a named project
         await source.insert(project).values({ id: "p0", scope: "inbox", name: "a" });
         await source.insert(task).values(
             Array.from({ length: FLIPPED_ROWS }, (_, index) => ({
@@ -310,7 +310,7 @@ test.for(TEST_DIALECTS)(
         follower.start();
         await follower.reach(await source.log.position());
 
-        // rename the project back and forth, flipping every task out of the named tasks and back, timing each write until the subscriber holds it
+        // rename the project back and forth
         const { milliseconds, operations } = await measure(
             source,
             6,
@@ -324,7 +324,7 @@ test.for(TEST_DIALECTS)(
         );
         await follower.stop();
 
-        // stay within the operations per write, reporting the time
+        // stay within the budget and report the time
         report("CPU ms per flip", milliseconds);
         expect(operations, "operations per flip").toBeLessThan(FLIP_OPERATIONS);
     },
@@ -339,12 +339,12 @@ test.for(TEST_DIALECTS)(
         const workload = new Workload(new Random(31));
         await workload.seed(source, SCALE_ROWS);
 
-        // follow every query set, holding its snapshot
+        // follow every query set
         const follower = new Follower(feed, EVERYTHING, TABLES, { audience: AUDIENCE });
         follower.start();
         await follower.reach(await source.log.position());
 
-        // write one row at a time, timing each write from its commit until the follower holds it
+        // time single writes
         const { milliseconds, operations } = await measure(
             source,
             48,
@@ -353,7 +353,7 @@ test.for(TEST_DIALECTS)(
         );
         await follower.stop();
 
-        // stay within the operations per write, the workload's own writes among them, reporting the time
+        // stay within the budget and report the time
         report("CPU ms per write", milliseconds);
         expect(operations, "operations per write").toBeLessThan(SCALE_OPERATIONS);
     },
@@ -368,7 +368,7 @@ test.for(TEST_DIALECTS)(
         const workload = new Workload(new Random(41));
         await workload.seed(source, 500);
 
-        // follow filters and windows as subscribers of distinct audiences, each hiding one task of its own
+        // follow as subscribers of distinct audiences
         const audiences = Array.from(
             { length: SPACE_AUDIENCES },
             (_, index) =>
@@ -387,7 +387,7 @@ test.for(TEST_DIALECTS)(
         const snapshot = await source.log.position();
         await Promise.all(followers.map((follower) => follower.reach(snapshot)));
 
-        // write one row at a time, timing each write from its commit until every subscriber holds it
+        // time single writes
         const { milliseconds, operations } = await measure(
             source,
             40,
@@ -398,7 +398,7 @@ test.for(TEST_DIALECTS)(
         );
         await Promise.all(followers.map((follower) => follower.stop()));
 
-        // stay within the operations per write, reporting the time
+        // stay within the budget and report the time
         report("CPU ms per write", milliseconds);
         expect(operations, "operations per write").toBeLessThan(SPACE_OPERATIONS);
     },
@@ -411,7 +411,7 @@ test.for(TEST_DIALECTS)(
         const source = await open(dialect);
         const feed = new Feed(source, TABLES);
 
-        // file ten thousand tasks, then follow the ten with the most comments
+        // file ten thousand tasks and follow the ten most commented
         for (let start = 0; start < RANKED_ROWS; start += 500) {
             await source.insert(task).values(
                 Array.from({ length: 500 }, (_, index) => ({
@@ -427,7 +427,7 @@ test.for(TEST_DIALECTS)(
         follower.start();
         await follower.reach(await source.log.position());
 
-        // comment on random tasks, moving them into and among the ten, timing each write until the subscriber holds it
+        // comment on random tasks
         const random = new Random(17);
         const { milliseconds, operations } = await measure(
             source,
@@ -444,17 +444,13 @@ test.for(TEST_DIALECTS)(
         );
         await follower.stop();
 
-        // stay within the operations per write, the comments among them, reporting the time
+        // stay within the budget and report the time
         report("CPU ms per comment", milliseconds);
         expect(operations, "operations per comment").toBeLessThan(RANKED_OPERATIONS);
     },
 );
 
-/**
- * Run a scenario's writes after warmup writes, returning the CPU time and database operations each measured write spent until its subscribers held it, on average.
- *
- * The warmup lets measured writes run compiled code, as a long running server does.
- */
+/** Run a scenario's writes after warmup, returning the average CPU time and operations per write. */
 async function measure(
     source: DatabaseConnection,
     writes: number,
@@ -467,7 +463,7 @@ async function measure(
         await reach(await source.log.position());
     }
 
-    // time each write from its commit until its subscribers hold it
+    // time each write until its subscribers hold it
     let elapsed = 0;
     const operations = source.driver.state.operations;
     for (let index = WARMUP_WRITES; index < WARMUP_WRITES + writes; index += 1) {
@@ -483,14 +479,14 @@ async function measure(
     };
 }
 
-/** Read the CPU time the process spent so far, in milliseconds, which a loaded machine stretches less than wall time. */
+/** Read the process CPU time, in milliseconds. */
 function cpuTime(): number {
     const { user, system } = process.cpuUsage();
 
     return (user + system) / 1000;
 }
 
-/** Report a measured cost beside the test's result, which tracks it without failing on a loaded machine. */
+/** Report a measured cost beside the test result. */
 function report(label: string, value: number): void {
     console.info(`${expect.getState().currentTestName}: ${label} ${value.toFixed(2)}`);
 }

@@ -66,7 +66,7 @@ test.for(TEST_DIALECTS)(
             return error;
         };
 
-        // refuse concealable, unordered, unlogged and misshapen reads with their reasons
+        // refuse invalid reads with their reasons
         expect(
             await Promise.all([
                 refusal(
@@ -179,7 +179,7 @@ test.for(TEST_DIALECTS)(
         const database = await open(dialect);
         await database.insert(task).values([TASK, { ...TASK, id: "t2", rank: 9 }]);
 
-        // send the low-ranked task whole, and the high-ranked one without its title
+        // send the low-ranked task whole and the high-ranked one without its title
         const page = await first(
             new Feed(database, TABLES),
             { tasks: { table: task, scopes: ["inbox"] } },
@@ -201,7 +201,7 @@ test.for(TEST_DIALECTS)(
         const feed = new Feed(database, [...TABLES, note]);
         await database.insert(task).values([TASK, { ...TASK, id: "t2" }]);
 
-        // see the tasks a note names, and re-decide the tasks a note's change names
+        // see the tasks a note names
         const audience: Audience = {
             ...EVERYONE,
             watches: [{ table: note, scopes: ["grants"] }],
@@ -239,7 +239,7 @@ test.for(TEST_DIALECTS)(
             },
         );
 
-        // hold nothing, then the granted task, then nothing once the grant goes
+        // hold nothing, then the granted task, then nothing after revocation
         const [snapshot] = await until(pages, (page) => page.complete);
         const granted = until(pages, (page) => page.changes.length > 0);
         await database.insert(note).values({ ...grant, id: "t1" });
@@ -273,7 +273,7 @@ test.for(TEST_DIALECTS)(
             { audience },
         );
 
-        // follow a snapshot, then another once access changes everything
+        // start over after access changes everything
         await until(pages, (page) => page.complete);
         const again = until(pages, (page) => page.reset);
         await database.insert(note).values({
@@ -314,7 +314,7 @@ test.for(TEST_DIALECTS)(
             })),
         );
 
-        // hold two tasks per project, four in all, beyond a capacity of three
+        // exceed a capacity of three
         const pages = feed.subscribe(
             {
                 projects: {
@@ -346,7 +346,7 @@ test.for(TEST_DIALECTS)("refuse subscribers beyond a feed's limit on %s", async 
     const query = { tasks: { table: task, scopes: ["inbox"] } };
     const signal = AbortSignal.timeout(5000);
 
-    // serve the first subscriber, and refuse the second while it follows
+    // refuse a second subscriber
     const served = feed.subscribe(query, undefined, signal);
     await served.next();
     const refused = await feed
@@ -382,7 +382,7 @@ test.for(TEST_DIALECTS)(
             });
         }
 
-        // send the large transaction whole, and close a page once it holds a page and a transaction ends
+        // send the large transaction whole and split pages at transaction ends
         const pages: QueryPage[] = await take(
             feed.subscribe({ tasks: { table: task, scopes: ["inbox"] } }, start, signal),
             (page) => page.changes.some((change) => change.row.id === "t2899"),

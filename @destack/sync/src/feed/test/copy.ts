@@ -8,7 +8,7 @@ import type { Audience } from "../audience.ts";
 import type { Feed } from "../feed.ts";
 import { groupName, type Holding } from "./oracle.ts";
 
-/** What a subscriber holds after applying its pages, as JSON. */
+/** What a subscriber holds after applying its pages. */
 export class Copy implements Holding {
     /** The tables the copy's rows belong to. */
     readonly #tables: ReadonlyMap<string, Table>;
@@ -30,14 +30,14 @@ export class Copy implements Holding {
 
     /** Apply one page. */
     apply(page: QueryPage): void {
-        // record the page, and start over with a snapshot
+        // record the page and reset on a snapshot
         this.pages.push(page);
         if (page.reset) {
             this.rows.clear();
             this.results.clear();
         }
 
-        // hold and let go of rows, holding concealed columns as missing, refusing changes that contradict what the copy holds
+        // hold and let go of rows, refusing contradicting changes
         for (const change of page.changes) {
             const table = this.#tables.get(change.table)!;
             const key = Key.name(table, keyOf(table, change.row));
@@ -54,7 +54,7 @@ export class Copy implements Holding {
             }
         }
 
-        // hold and let go of groups, or of every group of a query
+        // hold and let go of groups
         for (const result of page.results ?? []) {
             if (result.group === null) {
                 for (const key of this.results.keys()) {
@@ -74,7 +74,7 @@ export class Copy implements Holding {
             }
         }
 
-        // note the position a complete page reaches, and wake the waiters
+        // note the complete position and wake the waiters
         if (page.complete) {
             this.position = page.position;
         }
@@ -90,13 +90,13 @@ export class Copy implements Holding {
     }
 }
 
-/** A subscriber following queries of a feed into a copy, through a replica database when given one. */
+/** A subscriber following a feed's queries into a copy. */
 export class Follower {
     /** The feed followed. */
     readonly #feed: Feed;
     /** The subscriber's audience. */
     readonly #audience: Audience | undefined;
-    /** The replica the pages pass through, and its database. */
+    /** The replica and its database. */
     readonly #replica:
         | { readonly replica: Replica; readonly database: DatabaseConnection }
         | undefined;
@@ -111,7 +111,7 @@ export class Follower {
     /** The failure that stopped a stream. */
     #failure: unknown;
 
-    /** Follow queries of a feed for an audience, through a replica when given one. */
+    /** Create the follower. */
     constructor(
         feed: Feed,
         queries: Readonly<Record<string, Query>>,
@@ -121,7 +121,7 @@ export class Follower {
             readonly replica?: { readonly replica: Replica; readonly database: DatabaseConnection };
         } = {},
     ) {
-        // follow the queries from the start, holding rows of the tables
+        // keep the feed, queries and tables
         this.#feed = feed;
         this.#queries = queries;
         this.#audience = options.audience;
@@ -129,9 +129,9 @@ export class Follower {
         this.copy = new Copy(tables);
     }
 
-    /** Start following from the copy's position, moving from previous queries when given them. */
+    /** Follow from the copy's position. */
     start(previous?: Readonly<Record<string, Query>>): void {
-        // subscribe from the copy's position, through the replica when given one
+        // subscribe from the copy's position
         this.#stop = new AbortController();
         const signal = this.#stop.signal;
         const pages = this.#feed.subscribe(this.#queries, this.copy.position, signal, {
@@ -157,7 +157,7 @@ export class Follower {
 
     /** Reconnect from the copy's position, to other queries when given them. */
     async reconnect(queries?: Readonly<Record<string, Query>>): Promise<void> {
-        // stop, then follow the new queries moving from the previous ones
+        // stop and follow the new queries
         await this.stop();
         const previous = queries === undefined ? undefined : this.#queries;
         this.#queries = queries ?? this.#queries;
@@ -170,7 +170,7 @@ export class Follower {
         await this.#running;
     }
 
-    /** Wait until the copy holds a position, failing with what stopped the stream. */
+    /** Wait until the copy holds a position. */
     async reach(position: LogPosition): Promise<void> {
         for (;;) {
             if (this.#failure !== undefined) {

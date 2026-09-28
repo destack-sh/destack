@@ -3,17 +3,17 @@ import { Condition, type Match } from "@destack/db/query";
 import type { Audience } from "../audience.ts";
 import type { Row } from "@destack/db";
 
-/** An audience whose visibility and concealment conditions decide rows alike in SQL and in memory, or only in memory. */
+/** An audience deciding by conditions per table, in SQL and in memory or only in memory. */
 export class ConditionAudience implements Audience {
-    /** The tables whose changes decide visibility: none, since conditions read the row itself. */
+    /** The tables whose changes decide visibility: none. */
     readonly watches = [];
-    /** The name of the conditions deciding visibility and concealment, by table. */
+    /** The name of the conditions. */
     readonly key: string;
-    /** The condition a table's visible rows meet, all rows of other tables being visible. */
+    /** The condition of each table's visible rows. */
     readonly #visible: ReadonlyMap<Table, Condition>;
-    /** The conditions compiled so far, by condition. */
+    /** The compiled conditions. */
     readonly #matches = new Map<Condition, Match>();
-    /** Whether rows are decided only in memory, as for tables held apart from their access. */
+    /** Whether rows are decided only in memory. */
     readonly #isInMemory: boolean;
     /** The columns hidden on a table's rows meeting a condition. */
     readonly #concealed: ReadonlyMap<
@@ -21,7 +21,7 @@ export class ConditionAudience implements Audience {
         { readonly when: Condition; readonly columns: readonly string[] }
     >;
 
-    /** Decide visibility and concealment by conditions per table. */
+    /** Create the audience. */
     constructor(
         visible: ReadonlyMap<Table, Condition>,
         concealed: ReadonlyMap<
@@ -30,7 +30,7 @@ export class ConditionAudience implements Audience {
         > = new Map(),
         options: { readonly isInMemory?: boolean } = {},
     ) {
-        // hold the conditions, and name them so that audiences deciding alike share evaluations
+        // hold and name the conditions
         this.#visible = visible;
         this.#concealed = concealed;
         this.#isInMemory = options.isInMemory ?? false;
@@ -41,7 +41,7 @@ export class ConditionAudience implements Audience {
         ]);
     }
 
-    /** Match the visible rows of a table in SQL, or leave every table with a condition to memory. */
+    /** Match the visible rows of a table in SQL, or in memory. */
     where(table: Table) {
         const condition = this.#visible.get(table);
 

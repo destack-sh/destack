@@ -3,7 +3,7 @@ import { type Condition } from "@destack/db/query";
 import type { Change, LogPosition } from "@destack/db/log";
 import type { Row } from "@destack/db";
 
-/** An audience that holds and reads every row, for copies between trusted databases. */
+/** An audience that holds and reads every row. */
 export const EVERYONE: Audience = {
     watches: [],
     where: () => sql`true`,
@@ -16,48 +16,43 @@ export const EVERYONE: Audience = {
     refresh: async () => {},
 };
 
-/**
- * Who a subscription serves: which rows it may hold, which columns it may read, and what changes that.
- *
- * It decides rows as of a page's position with access as of now, so a page never sends what a committed revocation hides.
- * A change of access reaches the subscriber through the rows it affects.
- */
+/** Who a subscription serves: the rows it may hold and the columns it may read. */
 export interface Audience {
-    /** The tables whose changes decide visibility, followed without being held. */
+    /** The tables whose changes decide visibility. */
     readonly watches: readonly Watch[];
-    /** Match the rows of a table the subscriber may hold, as SQL, or "memory" when only `admits` decides them, as for tables held in another database than their access. */
+    /** Match the rows of a table the subscriber may hold, as SQL, or "memory" when only `admits` decides. */
     where(table: Table): SQL | "memory";
-    /** The name of everything the audience decides, equal for audiences that decide alike, so that their subscribers share evaluations. */
+    /** The name of everything the audience decides. */
     readonly key: string;
-    /** Decide which rows of a table as of a position the subscriber may hold now, by index in the list, sharing reads per position. */
+    /** Decide which rows of a table the subscriber may hold, by index. */
     admits(table: Table, rows: readonly Row[], position: LogPosition): Promise<ReadonlySet<number>>;
-    /** List the columns of a table the subscriber may not read on some rows, which queries may not filter, order, join or measure by. */
+    /** List the columns of a table the subscriber may not read on some rows. */
     concealable(table: Table): readonly string[];
-    /** List, for each row of a table as of a position, the columns the subscriber may not read now, sharing reads per position. */
+    /** List the columns the subscriber may not read on each row. */
     conceals(
         table: Table,
         rows: readonly Row[],
         position: LogPosition,
     ): Promise<readonly (readonly string[])[]>;
-    /** Read when the audience's decisions next change by time alone, absent when only changes decide them. */
+    /** Read when the decisions next change by time alone. */
     until(): Promise<number | undefined>;
-    /** Decide as of now from here on, once the moment `until` names passed. */
+    /** Decide as of now once the `until` moment passed. */
     refresh(): Promise<void>;
-    /** List the rows a change decides visibility of beyond itself, or everything when it reaches too far to list. */
+    /** List the rows a change decides visibility of beyond itself. */
     dependents(change: Change): Promise<readonly RowKey[] | "everything">;
 }
 
-/** The tables and scopes whose changes decide what a subscriber may hold. */
+/** The tables and scopes whose changes decide what a subscriber holds. */
 export interface Watch {
     /** The logged table. */
     readonly table: Table;
     /** The scopes whose changes matter. */
     readonly scopes: readonly string[];
-    /** The rows whose changes matter within the scopes, as they were or are, absent for every row. */
+    /** The rows whose changes matter, absent for every row. */
     readonly where?: Condition;
 }
 
-/** A row whose visibility a change decided beyond the row itself. */
+/** A row whose visibility a change decided. */
 export interface RowKey {
     /** The row's table. */
     readonly table: Table;

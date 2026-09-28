@@ -17,12 +17,7 @@ import { PAGE_ROWS, Selection } from "./selection.ts";
 import { Sink } from "./sink.ts";
 import { Trace, type Upstream } from "./upstream.ts";
 
-/**
- * Queries compiled to one pipeline per node, kept current as of a log position, one run at a time.
- *
- * A hydration fills every pipeline as of a view; a step applies a run of whole transactions to what they hold.
- * Relations run first, deepest first, since conditions read their measures; then row and aggregate pipelines, roots first, since parents open their children's partitions.
- */
+/** Queries compiled to one pipeline per node, kept current as of a log position. */
 export class Dataflow implements Arrangement {
     /** The root nodes of the queries. */
     readonly roots: readonly Node[];
@@ -30,37 +25,37 @@ export class Dataflow implements Arrangement {
     readonly nodes: readonly Node[];
     /** What the subscriber holds. */
     readonly sink = new Sink();
-    /** The log position the pipelines hold, absent before the first hydration. */
+    /** The held log position, absent before the first hydration. */
     #position: LogPosition | undefined;
     /** What the pipelines share. */
     readonly #context: Context;
-    /** Each node's pipeline, absent for nodes keeping no state. */
+    /** Each node's pipeline, absent for stateless nodes. */
     readonly #pipelines = new Map<Node, Pipeline>();
-    /** The row and aggregate pipelines, shallowest first, which runs step through in order. */
+    /** The row and aggregate pipelines, shallowest first. */
     readonly #steps: readonly Pipeline[];
-    /** The relation pipelines, deepest first, since a relation's rows may meet conditions over deeper ones. */
+    /** The relation pipelines, deepest first. */
     readonly #relations: readonly Relation[];
-    /** The pipelines deciding a table's rows one by one, by table. */
+    /** The pipelines deciding rows one by one, by table. */
     readonly #deciding = new Map<Table, Pipeline[]>();
     /** The aggregations counting by images. */
     readonly #linear: readonly Aggregation[];
     /** The aggregations a copy reads from its source. */
     readonly #mirrors: readonly Mirror[];
-    /** The arrangement of a copy's relations, absent for a source database. */
+    /** The arrangement of a copy's relations. */
     readonly #trace: Trace | undefined;
     /** The relations a copy follows through its source, deepest first. */
     readonly #traced: readonly Node[];
     /** The tables and scopes the queries read. */
     readonly #reads: readonly Watch[];
-    /** The canonical form of the queries, which names them together with the audience. */
+    /** The canonical form of the queries. */
     readonly #queries: string;
-    /** The most rows and groups the pipelines may know together, absent for no limit. */
+    /** The most rows and groups the pipelines may know. */
     readonly #capacity: number | undefined;
-    /** Report each run's cost as it completes, absent when nothing observes the dataflow. */
+    /** Report each run's cost. */
     readonly #observe: ((cost: RunCost) => void) | undefined;
     /** The cost of the last run. */
     #last: RunCost | undefined;
-    /** The costs of every run so far, added up, and how many runs there were. */
+    /** The summed cost of every run, and the run count. */
     #total: RunCost & { readonly runs: number } = {
         runs: 0,
         changes: 0,
@@ -70,7 +65,7 @@ export class Dataflow implements Arrangement {
         milliseconds: 0,
     };
 
-    /** Compile queries for an audience over a database, or over a copy measuring through its source. */
+    /** Compile queries for an audience over a database or a copy. */
     constructor(
         queries: Readonly<Record<string, Query>>,
         options: {
@@ -112,7 +107,7 @@ export class Dataflow implements Arrangement {
                 : []),
         ]);
 
-        // refuse unlogged watched tables and queries reading concealable columns, whose values they would reveal
+        // refuse unlogged watched tables and concealable columns
         for (const watch of this.watches()) {
             if (watch.table[TABLE].tier === "none") {
                 throw new DatabaseError(
@@ -132,7 +127,7 @@ export class Dataflow implements Arrangement {
             }
         }
 
-        // build each node's pipeline: a copy mirrors measured aggregates and follows its relations
+        // build each node's pipeline
         const hasTreeIndex = upstream === undefined;
         for (const node of this.nodes) {
             const pipeline =
@@ -152,7 +147,7 @@ export class Dataflow implements Arrangement {
             }
         }
 
-        // link the pipelines, and index those deciding rows one by one by table
+        // link the pipelines and index them by table
         for (const [node, pipeline] of this.#pipelines) {
             pipeline.parent =
                 node.parent === undefined ? undefined : this.#pipelines.get(node.parent);
@@ -188,22 +183,22 @@ export class Dataflow implements Arrangement {
             .sort((left, right) => right.depth - left.depth);
     }
 
-    /** The log position the pipelines hold, absent before the first hydration. */
+    /** The held log position, absent before the first hydration. */
     get position(): LogPosition | undefined {
         return this.#position;
     }
 
-    /** Hold the pipelines at a later position of the same epoch, whose changes since the held one none of them watches. */
+    /** Move to a later position of the same epoch without watched changes. */
     advance(position: LogPosition): void {
         this.#position = position;
     }
 
-    /** The name of the queries and of everything the audience decides, equal for dataflows that decide alike. */
+    /** The name of the queries and the audience. */
     get key(): string {
         return `${this.#queries}\n${this.#context.audience.key}`;
     }
 
-    /** List the tables and scopes whose changes the dataflow reads. */
+    /** List the tables and scopes the dataflow reads. */
     watches(): Watch[] {
         return [
             ...this.#reads,
@@ -212,7 +207,7 @@ export class Dataflow implements Arrangement {
         ];
     }
 
-    /** The rows and groups the pipelines know, which count against a capacity. */
+    /** The rows and groups the pipelines know. */
     get size(): number {
         let size = 0;
         for (const pipeline of this.#pipelines.values()) {
@@ -222,7 +217,7 @@ export class Dataflow implements Arrangement {
         return size;
     }
 
-    /** Forget everything the pipelines hold, holding nothing as of a position until a hydration holds it again. */
+    /** Forget everything, holding nothing as of a position. */
     forget(position: LogPosition): void {
         // hold nothing as of the position
         this.#position = position;
@@ -233,19 +228,19 @@ export class Dataflow implements Arrangement {
         this.#trace?.forget();
     }
 
-    /** Hold every root's rows and results as of a run's position, after a row of each root's order when given one, yielding after each page of a root's rows. */
+    /** Hold every root's rows and results as of a run's position, yielding after each page. */
     async *hydrate(run: Run, start?: Row): AsyncGenerator<void> {
-        // measure every relation first, since the rows of every node read them
+        // measure every relation first
         const cost = this.#measure(run);
         for (const relation of this.#relations) {
             await relation.hydrate(run);
         }
         for (const root of this.roots) {
-            // open the root's one partition, which never closes
+            // open the root's one partition
             const pipeline = this.#pipelines.get(root)!;
             pipeline.openRoot(start);
 
-            // count an aggregate, or fill a window, and hold what follows
+            // count an aggregate or fill a window
             if (root.aggregate !== undefined || root.limit !== undefined) {
                 run.workOf(pipeline).opened.set("", undefined);
                 await this.#settle(run);
@@ -254,7 +249,7 @@ export class Dataflow implements Arrangement {
                 continue;
             }
 
-            // hold the root's rows a page at a time, in order, with what they include
+            // hold the root's rows a page at a time
             const selection = pipeline as Selection;
             let after = start;
             for (let isDone = false; !isDone;) {
@@ -271,7 +266,7 @@ export class Dataflow implements Arrangement {
         this.#requireCapacity();
     }
 
-    /** Hold every root's rows and results as of a view at once, after a row of each root's order when given one, for reading them. */
+    /** Hold every root's rows and results as of a view. */
     async fill(view: View, start?: Row): Promise<void> {
         this.forget(view.position);
         const run = new Run(view, this.#context.audience, "collect");
@@ -280,11 +275,7 @@ export class Dataflow implements Arrangement {
         }
     }
 
-    /**
-     * Apply a run of committed changes as of the run's position, filling the run's patch; false when access changed too far to follow.
-     *
-     * The rows each pipeline decides again are the changed rows, the rows the audience decides again, the rows those move, and the holders of relations they reach.
-     */
+    /** Apply a run of committed changes, returning false when access changed too far to follow. */
     async step(run: Run): Promise<boolean> {
         // take each changed row's first and last image
         const cost = this.#measure(run);
@@ -300,7 +291,7 @@ export class Dataflow implements Arrangement {
             });
         }
 
-        // decide each changed row again as it is at the position, and the rows its change moves
+        // decide each changed row and the rows it moves again
         for (const [table, rows] of transitions) {
             for (const [key, { before, after }] of rows) {
                 run.changed.add(key);
@@ -309,7 +300,7 @@ export class Dataflow implements Arrangement {
             }
         }
 
-        // decide the rows the audience decides again, read at once per table, and the rows their visibility moves
+        // decide again the rows the audience decides again
         const affected = new Map<Table, Row[]>();
         for (const change of run.changes) {
             const entries = await this.#context.audience.dependents(change);
@@ -336,7 +327,7 @@ export class Dataflow implements Arrangement {
             }
         }
 
-        // measure the relations, decide every pipeline from the roots down, and count the aggregates counting by images
+        // measure the relations, decide the pipelines, and count linear aggregates
         if (this.#trace !== undefined) {
             await this.#trace.relate(
                 this.#traced,
@@ -353,7 +344,7 @@ export class Dataflow implements Arrangement {
             await aggregation.tally(run);
         }
 
-        // read a copy's aggregates again where the run changed their rows or their source's groups
+        // read a copy's changed aggregates again
         for (const mirror of this.#mirrors) {
             const upstream = this.#context.upstream!;
             if (
@@ -374,14 +365,9 @@ export class Dataflow implements Arrangement {
         return true;
     }
 
-    /**
-     * Read a root's result as a materialized dataflow holds it: its rows with what each includes nested, or its aggregate groups.
-     *
-     * A child type's rows nest as a list; the object a key join names nests as that row or null.
-     * An aggregate include nests each row's measures, or a list of its groups when it groups by columns.
-     */
+    /** Read a root's held result: its rows with their includes nested, or its groups. */
     async read(name: string): Promise<Readonly<Record<string, unknown>>[]> {
-        // require held rows, which only a materialized dataflow keeps
+        // require a materialized dataflow
         if (!this.#context.isMaterialized) {
             throw new TypeError("a dataflow reads its results only when it materializes its rows");
         }
@@ -393,7 +379,7 @@ export class Dataflow implements Arrangement {
             : groupsOf(pipeline, "").map(({ group, values }) => ({ group, values }));
     }
 
-    /** Look up a relation's measures of the rows naming a held value in its tallies: none when no row names it. */
+    /** Look up a relation's measures of the rows naming a held value. */
     measured(relation: Node, value: unknown): Readonly<Record<string, Scalar>> {
         const pipeline = this.#pipelines.get(relation) as Relation;
         const tally = pipeline.tallies.get(JSON.stringify(relation.groupFor(value)));
@@ -401,14 +387,10 @@ export class Dataflow implements Arrangement {
         return tally === undefined || tally.isEmpty ? {} : tally.values();
     }
 
-    /** Prepare nothing, since the tallies hold every measure. */
+    /** Prepare nothing. */
     async prepare(): Promise<void> {}
 
-    /**
-     * Describe what the pipelines hold and what their runs cost, for inspection.
-     *
-     * Each pipeline reports its node, what it keeps and how its node's rows reach their partitions.
-     */
+    /** Describe the pipelines and run costs. */
     inspect(): DataflowInspection {
         return {
             ...(this.#position === undefined ? {} : { position: this.#position }),
@@ -434,15 +416,15 @@ export class Dataflow implements Arrangement {
         };
     }
 
-    /** Start measuring a run, returning how to record its cost once it completes. */
+    /** Start measuring a run, returning the function that records its cost. */
     #measure(run: Run): () => void {
-        // note the operations and time at the start
+        // note the operations and time
         const database = this.#context.database;
         const operations = database.driver.state.operations;
         const started = performance.now();
 
         return () => {
-            // add the run's cost to every run's, and report it
+            // add up and report the cost
             const cost = {
                 changes: run.changes.length,
                 operations: database.driver.state.operations - operations,
@@ -464,7 +446,7 @@ export class Dataflow implements Arrangement {
         };
     }
 
-    /** Require the pipelines to know at most the capacity of rows and groups. */
+    /** Require the pipelines to stay within the capacity. */
     #requireCapacity(): void {
         const held = this.size;
         if (this.#capacity !== undefined && held > this.#capacity) {
@@ -475,7 +457,7 @@ export class Dataflow implements Arrangement {
         }
     }
 
-    /** Step every pipeline with work, from the roots down, then show the relation groups held rows name. */
+    /** Step every pipeline with work, then show the relation groups. */
     async #settle(run: Run): Promise<void> {
         for (const pipeline of this.#steps) {
             const work = run.work.get(pipeline);
@@ -493,14 +475,14 @@ export class Dataflow implements Arrangement {
         }
     }
 
-    /** Decide a row again at every pipeline deciding its table's rows one by one. */
+    /** Decide a row again at every pipeline of its table. */
     #mark(run: Run, table: Table, key: string, row: Row | undefined): void {
         for (const pipeline of this.#deciding.get(table) ?? []) {
             run.workOf(pipeline).dirty.set(key, row);
         }
     }
 
-    /** Decide again the rows a changed row moves beyond itself through each pipeline's path, as they are at the position. */
+    /** Decide again the rows a changed row moves through each pipeline's path. */
     async #moved(
         run: Run,
         table: Table,
@@ -517,12 +499,12 @@ export class Dataflow implements Arrangement {
         }
     }
 
-    /** Read the held rows of a selection's partitions in order, without the columns the audience conceals, with what each includes nested. */
+    /** Read a selection's held rows in order, with concealed columns left out and includes nested. */
     async #nest(
         pipeline: Selection,
         names: readonly string[],
     ): Promise<Map<string, Readonly<Record<string, unknown>>[]>> {
-        // take every partition's held rows in order
+        // take every partition's held rows
         const node = pipeline.node;
         const ordered = names.map((name) =>
             pipeline
@@ -531,7 +513,7 @@ export class Dataflow implements Arrangement {
                 .sort((left, right) => node.compare(left, right)),
         );
 
-        // leave out the columns the audience conceals on each row, deciding every row at once
+        // leave out concealed columns
         const concealed = await this.#context.audience.conceals(
             node.table,
             ordered.flat(),
@@ -548,7 +530,7 @@ export class Dataflow implements Arrangement {
             }),
         );
 
-        // nest each include's rows or groups, reading each child's partitions at once
+        // nest each include's rows or groups
         for (const [index, child] of node.children.entries()) {
             const included = pipeline.children[index];
             if (child.kind !== "include" || included === undefined) {
@@ -589,20 +571,20 @@ export class Dataflow implements Arrangement {
     }
 }
 
-/** Read an aggregate include's result for one held row's partition: its measures, or a list of its groups when it groups by columns. */
+/** Read an aggregate include's result for one held row's partition. */
 function measuresOf(child: Node, pipeline: Pipeline, name: string | undefined): unknown {
-    // list the partition's groups without the held row's value
+    // list the partition's groups
     const listed = (name === undefined ? [] : groupsOf(pipeline, name)).map(
         ({ group: { [child.partitionName!]: _joined, ...group }, values }) => ({ group, values }),
     );
 
-    // take the one group's measures, or the measures of no rows
+    // take the one group's measures
     return child.aggregate!.groupBy === undefined || child.aggregate!.groupBy.length === 0
         ? (listed[0]?.values ?? child.emptyValues())
         : listed;
 }
 
-/** Read an aggregate pipeline's groups in one partition, a root's in its one partition. */
+/** Read an aggregate pipeline's groups in one partition. */
 function groupsOf(
     pipeline: Pipeline,
     name: string,
@@ -628,12 +610,12 @@ function isPresent(value: unknown): boolean {
     return value !== null && value !== undefined;
 }
 
-/** Read every change of watched tables after one sequence through another straight from a database's log, absent once compacted. */
+/** Read the watched changes between two sequences from a database's log. */
 export function changesThroughLog(database: DatabaseConnection): Context["changesThrough"] {
     return async (watches, after, through) => {
         const changes: Change[] = [];
         for (let sequence = after; sequence < through;) {
-            // read a page of the log, absent once compaction removed it
+            // read a page, absent once compacted
             let read;
             try {
                 read = await database.log.read({
@@ -648,7 +630,7 @@ export function changesThroughLog(database: DatabaseConnection): Context["change
                 throw error;
             }
 
-            // keep the changes up to the sequence read through
+            // keep the changes up to the end sequence
             changes.push(...read.changes.filter((change) => change.sequence <= through));
             if (read.sequence <= sequence) {
                 break;
@@ -660,7 +642,7 @@ export function changesThroughLog(database: DatabaseConnection): Context["change
     };
 }
 
-/** Describe a query or include in JSON, its tables by SQL name. */
+/** Describe a query or include in JSON. */
 function describe(
     query:
         | (Omit<Query, "scopes"> & { readonly scopes?: readonly string[] })
@@ -691,31 +673,31 @@ function describe(
     };
 }
 
-/** What a dataflow holds and what its runs cost, as inspection reads it. */
+/** The inspection of a dataflow. */
 export interface DataflowInspection {
-    /** The log position the pipelines hold, absent before the first hydration. */
+    /** The held log position. */
     readonly position?: LogPosition;
     /** The rows and groups the pipelines know. */
     readonly size: number;
-    /** The most rows and groups they may know, absent for no limit. */
+    /** The most rows and groups they may know. */
     readonly capacity?: number;
-    /** The cost of the last run, absent before the first. */
+    /** The cost of the last run. */
     readonly last?: RunCost;
-    /** The costs of every run so far, added up, and how many runs there were. */
+    /** The summed cost of every run, and the run count. */
     readonly total: RunCost & { readonly runs: number };
-    /** Each node's pipeline: what it keeps and how its node's rows reach their partitions. */
+    /** Each node's pipeline. */
     readonly pipelines: readonly {
-        /** The node, by its path of names. */
+        /** The node's path of names. */
         readonly node: string;
-        /** What the pipeline keeps: rows, groups, a relation's groups, or a copy's source groups. */
+        /** What the pipeline keeps. */
         readonly kind: "selection" | "aggregation" | "relation" | "mirror";
-        /** How the node's rows reach their partitions: a root, or its path's kind. */
+        /** How the node's rows reach their partitions. */
         readonly path: string;
         /** The open partitions. */
         readonly partitions: number;
-        /** The rows the pipeline holds in its partitions. */
+        /** The held rows. */
         readonly members: number;
-        /** The window rows or groups the pipeline knows, which count against the capacity. */
+        /** The window rows or groups the pipeline knows. */
         readonly size: number;
     }[];
 }

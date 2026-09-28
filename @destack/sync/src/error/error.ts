@@ -1,9 +1,9 @@
-/** Reject a subscription the source cannot serve: now, while overloaded, or at all, once it holds too much. */
+/** A subscription the source cannot serve. */
 export class SyncError extends Error {
-    /** The stable failure classification. */
+    /** The error classification. */
     readonly code: "OVERLOADED" | "OVER_CAPACITY" | "STALE";
 
-    /** Retain the error classification and cause. */
+    /** Create the error with its code and cause. */
     constructor(code: SyncError["code"], message: string, options?: ErrorOptions) {
         super(message, options);
         this.name = "SyncError";

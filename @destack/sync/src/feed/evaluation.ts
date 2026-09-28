@@ -11,33 +11,28 @@ import { View } from "../dataflow/view.ts";
 import type { Audience } from "./audience.ts";
 import type { Feed } from "./feed.ts";
 
-/** The recent sequences whose decided pages an evaluation keeps for streams a step behind. */
+/** The recent sequences whose decided pages an evaluation keeps. */
 const DECIDED_RECENT = 4;
 
-/** The longest delay a timer holds, 2^31 - 1 milliseconds; a later moment waits again. */
+/** The longest timer delay, 2^31 - 1 milliseconds. */
 const LONGEST_DELAY = 2_147_483_647;
 
-/**
- * One set of queries evaluated for one audience over a feed, published page by page.
- *
- * Its dataflow keeps what each node holds as of the evaluation's position, and each run of committed changes applies to it as a delta.
- * Streams whose queries and audience decide alike share one evaluation at the head of the feed, and each of its pages.
- */
+/** One set of queries evaluated for one audience over a feed. */
 export class Evaluation {
     /** The feed the evaluation reads. */
     readonly #feed: Feed;
-    /** Who the evaluation serves, deciding alike for every stream sharing it. */
+    /** Who the evaluation serves. */
     readonly #audience: Audience;
-    /** The pages after each recent sequence, decided once for every stream sharing the evaluation. */
+    /** The decided pages after each recent sequence. */
     readonly #decided = new Map<number, Promise<Advance>>();
-    /** The sequences whose decisions reached no further, which hold until the feed passes them or the moment their decisions held until passes. */
+    /** The sequences whose decisions reached no further, with their expiry. */
     readonly #idle = new Map<number, number | undefined>();
     /** The queries' dataflow. */
     readonly #dataflow: Dataflow;
 
-    /** Compile queries over a feed's tables for an audience. */
+    /** Compile queries for an audience over a feed. */
     constructor(feed: Feed, queries: Readonly<Record<string, Query>>, audience: Audience) {
-        // compile the queries, naming them canonically
+        // compile the queries
         this.#feed = feed;
         this.#audience = audience;
         this.#dataflow = new Dataflow(queries, {
@@ -61,28 +56,24 @@ export class Evaluation {
         }
     }
 
-    /** The name of the queries and of everything the audience decides, equal for evaluations that decide alike. */
+    /** The name of the queries and the audience. */
     get key(): string {
         return this.#dataflow.key;
     }
 
-    /** Describe the evaluation's dataflow for inspection. */
+    /** Describe the dataflow. */
     inspect(): DataflowInspection {
         return this.#dataflow.inspect();
     }
 
-    /** The log position the dataflow holds, absent before the first walk. */
+    /** The held log position, absent before the first walk. */
     get position(): LogPosition | undefined {
         return this.#dataflow.position;
     }
 
-    /**
-     * Decide the pages after the position the evaluation holds, once for every stream sharing it; absent for another position.
-     *
-     * The pages complete at their positions, followed by a refresh once the audience's decisions expired.
-     */
+    /** Decide the pages after the held position, absent for another position. */
     after(position: LogPosition): Promise<Advance> | undefined {
-        // reuse the pages decided after the position, unless they reached no further and the feed moved on since
+        // reuse the decided pages unless stale
         const sequence = position.sequence;
         const known = this.#decided.get(sequence);
         const until = this.#idle.get(sequence);
@@ -95,7 +86,7 @@ export class Evaluation {
             return undefined;
         }
 
-        // decide the pages after it, keeping a few recent decisions for streams a step behind
+        // decide the pages, keeping a few recent ones
         const decided = this.#pagesAfter(position);
         this.#decided.set(sequence, decided);
         this.#idle.delete(sequence);
@@ -105,7 +96,7 @@ export class Evaluation {
         }
         decided.then(
             (result) => {
-                // note decisions that reached no further, which a later write replaces
+                // note decisions that reached no further
                 if (result.sequence === sequence && this.#decided.get(sequence) === decided) {
                     this.#idle.set(sequence, result.until);
                 }
@@ -116,15 +107,15 @@ export class Evaluation {
         return decided;
     }
 
-    /** Wait until the feed passes a sequence, or the audience's decisions expire, or the signal aborts. */
+    /** Wait until the feed passes a sequence, the decisions expire, or the signal aborts. */
     async wait(sequence: number, signal: AbortSignal): Promise<void> {
-        // wait for the feed alone while decisions never expire
+        // wait for the feed alone without expiry
         const until = await this.#audience.until();
         if (until === undefined) {
             return this.#feed.next(sequence, signal);
         }
 
-        // wake at that moment too
+        // wake at the expiry too
         const expired = new AbortController();
         const timer = setTimeout(
             () => expired.abort(),
@@ -137,9 +128,9 @@ export class Evaluation {
         }
     }
 
-    /** Move what another evaluation holds to what this one holds at one position, as a page that does not complete. */
+    /** Move from another evaluation's state to this one's at one position. */
     async moveFrom(previous: Evaluation, position: LogPosition): Promise<QueryPage> {
-        // collect both at the position and send the difference
+        // collect both and send the difference
         const view = this.#view(position);
         const held = await previous.collect(view);
         const holding = await this.collect(view);
@@ -148,15 +139,15 @@ export class Evaluation {
         return patch.page(position, this.#audience, this.#feed, { reset: false, complete: false });
     }
 
-    /** Decide what the subscriber holds again as of now at a position it holds, sending what the audience's refreshed decisions change. */
+    /** Decide the subscriber's rows again as of now at a held position. */
     async refresh(position: LogPosition): Promise<QueryPage> {
-        // collect what the subscriber holds, then what it holds once the audience decides as of now
+        // collect before and after refreshing the audience
         const view = this.#view(position);
         const held = await this.collect(view);
         await this.#audience.refresh();
         const holding = await this.collect(view);
 
-        // send the difference, and every held row whose readable columns may have changed
+        // send the difference and rows whose readable columns may have changed
         const patch = Patch.difference(
             held,
             holding,
@@ -167,14 +158,14 @@ export class Evaluation {
         return patch.page(position, this.#audience, this.#feed, { reset: false, complete: true });
     }
 
-    /** Send the pages the changes after a sequence make, completing each when live; return the sequence read up to. */
+    /** Send the pages of the changes after a sequence, returning the sequence read up to. */
     async *advance(
         epoch: string,
         sequence: number,
         isComplete: boolean,
         signal: AbortSignal,
     ): AsyncGenerator<QueryPage, number> {
-        // read what follows from the feed, or from the log when it is older
+        // read from the feed or the log
         const read = await this.#feed.changes(this.#dataflow.watches(), sequence);
         if (read === undefined) {
             throw new DatabaseError(
@@ -183,7 +174,7 @@ export class Evaluation {
             );
         }
 
-        // step each run of whole transactions as of its last one, publishing what it changes
+        // step each run of whole transactions
         let from = sequence;
         for (const changes of chunks(read.changes)) {
             if (signal.aborted) {
@@ -204,7 +195,7 @@ export class Evaluation {
             }
         }
 
-        // hold the position decided up to, all of the read unless aborted
+        // hold the reached position
         const reached = Math.max(sequence, read.sequence);
         const held = signal.aborted ? from : reached;
         this.#dataflow.advance({ epoch, sequence: held });
@@ -212,9 +203,9 @@ export class Evaluation {
         return held;
     }
 
-    /** Walk the queries as of a view, holding what they hold there and sending what the walk sends; return the last patch's page. */
+    /** Walk the queries as of a view, returning the last page. */
     async *walk(view: View, walk: Walk): AsyncGenerator<QueryPage, QueryPage> {
-        // clear what a rebuilt subscriber held of every aggregate, whose groups follow
+        // clear the aggregates of a rebuilt subscriber
         const run = new Run(view, this.#audience, walk);
         let isFirst = walk === "snapshot";
         if (walk === "rebuild") {
@@ -225,7 +216,7 @@ export class Evaluation {
             }
         }
 
-        // hold each root's rows and results, sending full pages of a snapshot as they fill
+        // hold each root's rows and results
         for await (const _batch of this.#dataflow.hydrate(run)) {
             if (walk === "snapshot" && run.patch.size >= PAGE_ROWS) {
                 await nextTask();
@@ -238,7 +229,7 @@ export class Evaluation {
             }
         }
 
-        // hold the walked position, within the capacity
+        // hold the walked position within the capacity
 
         return await run.patch.page(view.position, this.#audience, this.#feed, {
             reset: isFirst,
@@ -246,9 +237,9 @@ export class Evaluation {
         });
     }
 
-    /** Collect every row and result the queries hold as of a view, holding them there. */
+    /** Collect every row and result as of a view. */
     async collect(view: View): Promise<Patch> {
-        // hold nothing, then every root's rows as of the view
+        // hold every root's rows as of the view
         this.forget(view.position);
         const run = new Run(view, this.#audience, "collect");
         for await (const _batch of this.#dataflow.hydrate(run)) {
@@ -258,14 +249,14 @@ export class Evaluation {
         return run.patch;
     }
 
-    /** Forget everything the evaluation holds, holding nothing as of a position until a walk holds it again. */
+    /** Forget everything, holding nothing as of a position. */
     forget(position: LogPosition): void {
         this.#dataflow.forget(position);
     }
 
-    /** Decide the pages after the position the evaluation holds, and a refresh once the audience's decisions expired. */
+    /** Decide the pages after the held position, and a refresh once decisions expire. */
     async #pagesAfter(position: LogPosition): Promise<Advance> {
-        // decide what follows, completing each page
+        // decide what follows
         const pages: QueryPage[] = [];
         const advancing = this.advance(
             position.epoch,
@@ -279,7 +270,7 @@ export class Evaluation {
             next = await advancing.next();
         }
 
-        // decide again as of now once the audience's decisions expired
+        // refresh once the decisions expired
         const until = await this.#audience.until();
         if (until !== undefined && until <= Date.now()) {
             pages.push(await this.refresh({ epoch: position.epoch, sequence: next.value }));
@@ -294,27 +285,27 @@ export class Evaluation {
     }
 }
 
-/** The pages decided after a sequence, the sequence they reach, and when the decisions expire. */
+/** The pages decided after a sequence. */
 export interface Advance {
     /** The pages, each complete at its position. */
     readonly pages: readonly QueryPage[];
     /** The sequence the pages reach. */
     readonly sequence: number;
-    /** When the audience's decisions expire, absent when they never do. */
+    /** When the audience's decisions expire. */
     readonly until: number | undefined;
 }
 
-/** A reason a stream starts over with a snapshot: access changed beyond what its pages follow. */
+/** A restart of a stream from a snapshot. */
 export class Restart extends Error {}
 
-/** Let other work run before deciding more, since decisions on shared reads continue without waiting on input or output. */
+/** Let other work run before deciding more. */
 export function nextTask(): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 /** Split changes into runs of about a page, each ending with a whole transaction. */
 function chunks(changes: readonly Change[]): Change[][] {
-    // close a run once it holds a page and the next change starts another transaction
+    // close a run once it holds a page and a transaction ends
     const runs: Change[][] = [];
     let run: Change[] = [];
     for (const [index, change] of changes.entries()) {
@@ -329,12 +320,12 @@ function chunks(changes: readonly Change[]): Change[][] {
     return runs;
 }
 
-/** Whether two changes belong to one transaction, which a page never splits. */
+/** Whether two changes belong to one transaction. */
 function isSameTransaction(change: Change, next: Change): boolean {
     return change.transaction !== null && change.transaction === next.transaction;
 }
 
-/** Whether two positions are the same, absent ones never. */
+/** Whether two positions are the same. */
 function isSame(left: LogPosition | undefined, right: LogPosition): boolean {
     return left !== undefined && left.epoch === right.epoch && left.sequence === right.sequence;
 }

@@ -8,7 +8,7 @@ import { ConditionAudience } from "./audience.ts";
 /** The scopes every query set follows. */
 const ROUTES = ["inbox"];
 
-/** Queries of every row they hold: filters over each table, no windows or tallies. */
+/** Queries of every row: filters over each table. */
 export const FILTERS: Readonly<Record<string, Query>> = {
     projects: { table: project, scopes: ROUTES, where: Condition.ne("name", "x") },
     open: {
@@ -26,7 +26,7 @@ export const FILTERS: Readonly<Record<string, Query>> = {
     },
 };
 
-/** Queries of the first rows of orders: descending, multi-key, over missing values. */
+/** Queries of ordered windows. */
 export const WINDOWS: Readonly<Record<string, Query>> = {
     top: {
         table: task,
@@ -47,7 +47,7 @@ export const WINDOWS: Readonly<Record<string, Query>> = {
     },
 };
 
-/** Queries of a tree: projects with their first tasks, those tasks' first comments and project, and per-project tallies. */
+/** Queries of a tree of projects, tasks and comments with tallies. */
 export const TREE: Readonly<Record<string, Query>> = {
     projects: {
         table: project,
@@ -126,7 +126,7 @@ const TAGS: Path = {
     to: { column: "tagId", key: "id" },
 };
 
-/** Queries through paths: tags of tasks through a join table, pages below root pages, and pages above ranked pages. */
+/** Queries through junction and tree paths. */
 export const PATHS: Readonly<Record<string, Query>> = {
     tagged: {
         table: task,
@@ -166,7 +166,7 @@ export const PATHS: Readonly<Record<string, Query>> = {
     },
 };
 
-/** Queries of pages below root pages, the first of an order: members deeper than the rows between them carry those rows. */
+/** Queries of limited tree includes whose members carry chains. */
 export const CHAINS: Readonly<Record<string, Query>> = {
     roots: {
         table: page,
@@ -184,7 +184,7 @@ export const CHAINS: Readonly<Record<string, Query>> = {
     },
 };
 
-/** A task's formula values, as a database view computes them: a score, a ratio missing on zero, and a label. */
+/** A task's formula values: a score, a ratio missing on zero, and a label. */
 const FORMULAS: Computed = {
     score: Expression.multiply(
         Expression.column("rank"),
@@ -197,7 +197,7 @@ const FORMULAS: Computed = {
     label: Expression.coalesce(Expression.column("title"), Expression.literal("untitled")),
 };
 
-/** Queries of a database view with formula columns: filtered, sorted and grouped by them, in a root and per project. */
+/** Queries over formula columns. */
 export const COMPUTED: Readonly<Record<string, Query>> = {
     scored: {
         table: task,
@@ -256,13 +256,13 @@ export const COMPUTED: Readonly<Record<string, Query>> = {
     },
 };
 
-/** The relations of a task: its tags, through its task tags, and its comments. */
+/** The relations of a task. */
 const TASK_RELATIONS: Readonly<Record<string, Relation>> = {
     tags: { table: tag, on: TAGS },
     comments: { table: comment, on: { kind: "key", column: "taskId", parent: "id" } },
 };
 
-/** Queries of an issue tracker's filters: tagged, untagged and discussed tasks, projects with open discussed work, and counts of tagged tasks per state. */
+/** Queries over tags and discussions. */
 export const RELATED: Readonly<Record<string, Query>> = {
     tagged: {
         table: task,
@@ -322,7 +322,7 @@ export const RELATED: Readonly<Record<string, Query>> = {
     },
 };
 
-/** A task's project, and the project's name each task sorts and groups by. */
+/** A task's project and its name. */
 const PROJECT: {
     readonly relations: Readonly<Record<string, Relation>>;
     readonly compute: Computed;
@@ -333,7 +333,7 @@ const PROJECT: {
     compute: { projectName: Expression.lookup("project", "name") },
 };
 
-/** Queries of tasks sorted, filtered and counted by their project's name, in a root and within a tree. */
+/** Queries by the project's name. */
 export const LOOKUPS: Readonly<Record<string, Query>> = {
     byProject: {
         table: task,
@@ -372,7 +372,7 @@ const PROJECT_TASKS: Readonly<Record<string, Relation>> = {
     tasks: { table: task, on: { kind: "key", column: "projectId", parent: "id" } },
 };
 
-/** Queries of projects and tasks sorted, filtered and grouped by what their related rows measure. */
+/** Queries by rollups of related rows. */
 export const ROLLUPS: Readonly<Record<string, Query>> = {
     busiest: {
         table: project,
@@ -443,7 +443,7 @@ export const QUERY_SETS: Readonly<Record<string, Readonly<Record<string, Query>>
     everything: EVERYTHING,
 };
 
-/** Tasks that are not secret, comments but the fifth, tags but hidden ones, task tags but the fourth tag's and pages not ranked seven. */
+/** The visible rows of each table. */
 const VISIBLE = new Map<Table, Condition>([
     [task, Condition.eq("isSecret", false)],
     [comment, Condition.ne("position", 5)],
@@ -455,8 +455,8 @@ const VISIBLE = new Map<Table, Condition>([
 /** The titles of high-ranked tasks. */
 const CONCEALED = new Map([[task as Table, { when: Condition.gt("rank", 7), columns: ["title"] }]]);
 
-/** An audience that sees only the visible rows and never reads the concealed titles, deciding in SQL and in memory. */
+/** An audience seeing the visible rows without the concealed titles. */
 export const AUDIENCE = new ConditionAudience(VISIBLE, CONCEALED);
 
-/** The same audience, deciding every row in memory, as for tables held apart from their access. */
+/** The same audience, deciding in memory. */
 export const MEMORY_AUDIENCE = new ConditionAudience(VISIBLE, CONCEALED, { isInMemory: true });

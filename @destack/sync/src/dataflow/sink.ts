@@ -8,11 +8,7 @@ import type { Cache } from "./view.ts";
 import type { Run } from "./run.ts";
 import type { Result } from "./tally.ts";
 
-/**
- * What the subscriber holds: each row by how many members and chains hold it, and each aggregate group it is shown.
- *
- * A row enters when its first holder holds it and leaves with its last, so rows several nodes hold travel once.
- */
+/** What the subscriber holds: each row by its holder count, and each shown group. */
 export class Sink {
     /** How many members and chains hold each row, by key. */
     readonly #rows = new Map<string, number>();
@@ -24,7 +20,7 @@ export class Sink {
         return this.#rows.has(key);
     }
 
-    /** Note a row a run touched, as it is at the position when known, and whether the subscriber held it before. */
+    /** Note a row a run touched, and whether the subscriber held it before. */
     touch(run: Run, table: Table, key: string, row: Row | undefined): void {
         const touched = run.touched.get(key);
         if (touched === undefined) {
@@ -38,7 +34,7 @@ export class Sink {
         }
     }
 
-    /** Count a row one holder more or less, noting how the run touched it. */
+    /** Count a row's holders up or down. */
     retain(run: Run, table: Table, key: string, row: Row | undefined, step: 1 | -1): void {
         this.touch(run, table, key, row);
         const count = (this.#rows.get(key) ?? 0) + step;
@@ -49,7 +45,7 @@ export class Sink {
         }
     }
 
-    /** Record an aggregate group's values while its tally holds rows and the subscriber is shown it, or its leaving once it is not. */
+    /** Record a shown group's values while it holds rows, or its leaving. */
     result(
         run: Run,
         node: Node,
@@ -67,7 +63,7 @@ export class Sink {
         }
     }
 
-    /** Send what a run changed: rows entering, leaving, or changing within what the subscriber holds; a rebuild sends none. */
+    /** Send the rows a run moved into, out of or within the subscriber's set. */
     emit(run: Run): void {
         for (const [key, touched] of run.touched) {
             const isHeld = this.#rows.has(key);
@@ -93,13 +89,13 @@ export class Sink {
     }
 }
 
-/** What a page decides: the rows the subscriber holds or lets go of, and the aggregate groups it updates. */
+/** The row and group decisions of a page. */
 export class Patch {
     /** The row decisions, by row key. */
     readonly rows = new Map<string, Decision>();
     /** The group results, by query and group. */
     readonly results = new Map<string, ResultChange>();
-    /** The groups the page shows first, which leaving within it takes out of the page. */
+    /** The groups the page shows first. */
     readonly #entered = new Set<string>();
 
     /** The decisions the patch holds. */
@@ -107,14 +103,14 @@ export class Patch {
         return this.rows.size + this.results.size;
     }
 
-    /** Record a group's new values, noting whether the subscriber held it before, or its leaving, which takes out a group the page showed first. */
+    /** Record a group's new values, or its leaving. */
     result(
         node: Node,
         group: Readonly<Record<string, Scalar>>,
         tally: Result | undefined,
         isNew = false,
     ): void {
-        // take a group the page showed first out of it again
+        // take a group the page showed first out again
         const key = `${node.name}${JSON.stringify(group)}`;
         const isHeld = tally !== undefined && !tally.isEmpty;
         if (!isHeld && this.#entered.delete(key)) {
@@ -124,7 +120,7 @@ export class Patch {
             this.#entered.add(key);
         }
 
-        // record the group's values, or its leaving
+        // record the values or the leaving
         const parts = isHeld ? tally.parts() : {};
         this.results.set(key, {
             query: node.name,
@@ -147,11 +143,7 @@ export class Patch {
         this.results.set(node.name, { query: node.name, group: null, values: null });
     }
 
-    /**
-     * Turn the patch into a page at a position, encoding held rows without the columns the audience conceals and naming them.
-     *
-     * Each row encodes once for every subscriber sending it alike at the position.
-     */
+    /** Encode the patch into a page at a position, leaving out concealed columns. */
     async page(
         position: LogPosition,
         audience: Audience,
@@ -166,7 +158,7 @@ export class Patch {
             byTable.set(decision.table, decisions);
         }
 
-        // encode each table's rows, deciding the concealed columns of its held rows at once
+        // encode each table's rows
         const changes: RowChange[] = [];
         for (const [table, decisions] of byTable) {
             const held = decisions.filter(([, decision]) => decision.operation !== "delete");
@@ -197,18 +189,14 @@ export class Patch {
         };
     }
 
-    /**
-     * Decide what moves a subscriber from what one collection held to what another holds, at one position.
-     *
-     * Rows of tables whose readable columns may differ are sent again whenever both hold them.
-     */
+    /** Build the patch from one collection to another at one position. */
     static difference(
         held: Patch,
         holding: Patch,
         nodes: readonly Node[],
         isResent: (table: Table) => boolean,
     ): Patch {
-        // hold what only the new collection holds, and what may read differently
+        // hold what only the new collection holds, or may read differently
         const patch = new Patch();
         for (const [key, decision] of holding.rows) {
             if (!held.rows.has(key)) {
@@ -218,14 +206,14 @@ export class Patch {
             }
         }
 
-        // let go of what only the earlier collection held
+        // let go of what only the old collection held
         for (const [key, decision] of held.rows) {
             if (!holding.rows.has(key)) {
                 patch.rows.set(key, { ...decision, operation: "delete" });
             }
         }
 
-        // replace every aggregate group with the new collection's
+        // replace every group
         for (const node of nodes) {
             if (node.aggregate !== undefined) {
                 patch.clear(node);
@@ -239,17 +227,17 @@ export class Patch {
     }
 }
 
-/** One row a page decides: held with its values, or let go. */
+/** One row decision of a page. */
 export interface Decision {
     /** The row's table. */
     readonly table: Table;
-    /** The row, or its key alone once let go. */
+    /** The row, or its key once let go. */
     readonly row: Row;
     /** Whether the row enters, changes or leaves. */
     readonly operation: RowChange["operation"];
 }
 
-/** Encode a held row's logged columns at a position, leaving out and naming the concealed ones, once for every subscriber sending it alike. */
+/** Encode a held row's logged columns at a position, leaving out concealed ones. */
 function encode(
     table: Table,
     key: string,

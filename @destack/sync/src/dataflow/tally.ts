@@ -4,11 +4,11 @@ import type { Visibility, Node } from "../query/node.ts";
 import type { Measure } from "../query/query.ts";
 import type { Row } from "@destack/db";
 
-/** One group's measures, kept current row by row from the log sequence its last count read. */
+/** One group's measures, kept current from the log sequence of its count. */
 export class Tally implements Result {
-    /** The aggregate node whose rows the tally measures. */
+    /** The aggregate node. */
     readonly #node: Node;
-    /** The group's values in their JSON form, the held row's join value first for an include. */
+    /** The group's values in JSON form, the join value first for an include. */
     readonly group: Record<string, Scalar>;
     /** The measures by name. */
     readonly #measures: Readonly<Record<string, Measure>>;
@@ -18,16 +18,16 @@ export class Tally implements Result {
     #count = 0;
     /** The sums of the added-up columns, by property. */
     readonly #sums = new Map<string, Sum>();
-    /** The extreme measures' values, by measure name, null while the group holds no value. */
+    /** The extreme values by measure name, null while the group holds no value. */
     readonly #extremes = new Map<string, unknown>();
-    /** The log sequence the tally holds changes up to; it counts later changes only. */
+    /** The log sequence the tally holds changes up to. */
     sequence: number;
-    /** The measures as last read, until a row counts in or out. */
+    /** The cached measures. */
     #values: Record<string, Scalar> | undefined;
 
-    /** Start a tally of a node's group at a log sequence, from a count read at that sequence. */
+    /** Start a tally from a count read at a log sequence. */
     constructor(node: Node, group: Record<string, Scalar>, count: Measurement) {
-        // take the count's rows, sums and extremes at its sequence
+        // take the count's rows, sums and extremes
         const measures = node.aggregate!.values;
         this.#node = node;
         this.group = group;
@@ -45,7 +45,7 @@ export class Tally implements Result {
         }
     }
 
-    /** Read the measures of an aggregate node's groups among the rows a selection matches and an admission admits, at one log sequence. */
+    /** Measure an aggregate node's groups among the rows a selection matches, at one log sequence. */
     static async measure(
         database: DatabaseConnection,
         node: Node,
@@ -53,7 +53,7 @@ export class Tally implements Result {
         visibility?: Visibility,
         admit?: (rows: readonly Row[]) => Promise<ReadonlySet<number>>,
     ): Promise<{ readonly sequence: number; readonly tallies: Tally[] }> {
-        // tally real numbers from their values, since SQL sums them in an order of its own, and rows admitted in memory
+        // tally real numbers and admitted rows in memory
         const aggregate = node.aggregate!;
         const grouping = node.grouping;
         const summed = summedColumns(aggregate.values);
@@ -61,7 +61,7 @@ export class Tally implements Result {
             return Tally.#tally(database, node, selection, visibility, admit);
         }
 
-        // select the group columns and every measure's parts
+        // select the group columns and each measure's parts
         const extremes = Object.entries(aggregate.values).filter(
             ([, measure]) => measure.function === "min" || measure.function === "max",
         );
@@ -84,10 +84,10 @@ export class Tally implements Result {
             ),
         };
 
-        // read them grouped by select list position, which names a computed group alike in both dialects, in one read transaction with its sequence
+        // read the groups by select list position in one read transaction
         const { sequence, rows } = await database.transaction(
             async (transaction) => ({
-                sequence: await transaction.log.latest(),
+                sequence: (await transaction.log.position()).sequence,
                 rows: (await transaction
                     .select(fields as never)
                     .from(node.table)
@@ -140,7 +140,7 @@ export class Tally implements Result {
         };
     }
 
-    /** Read the measured columns of the rows a selection matches, at one log sequence, and tally those admitted by group in memory. */
+    /** Tally the matched and admitted rows by group in memory, at one log sequence. */
     static async #tally(
         database: DatabaseConnection,
         node: Node,
@@ -148,7 +148,7 @@ export class Tally implements Result {
         visibility: Visibility | undefined,
         admit: ((rows: readonly Row[]) => Promise<ReadonlySet<number>>) | undefined,
     ): Promise<{ readonly sequence: number; readonly tallies: Tally[] }> {
-        // select the columns the groups and measures read, and every computed value
+        // select the measured and computed columns
         const measured = Object.values(node.aggregate!.values).flatMap((measure) =>
             measure.column === undefined ? [] : [measure.column],
         );
@@ -163,10 +163,10 @@ export class Tally implements Result {
             ),
         };
 
-        // read them in one read transaction with its sequence
+        // read them in one read transaction
         const { sequence, rows } = await database.transaction(
             async (transaction) => ({
-                sequence: await transaction.log.latest(),
+                sequence: (await transaction.log.position()).sequence,
                 rows: (await transaction.select(fields).from(node.table).where(selection)) as Row[],
             }),
             { isolationLevel: "repeatable read", isReadOnly: true },
@@ -189,7 +189,7 @@ export class Tally implements Result {
         return { sequence, tallies: [...tallies.values()] };
     }
 
-    /** Start an empty tally of a node's group as of a log sequence. */
+    /** Start an empty tally at a log sequence. */
     static empty(node: Node, group: Record<string, Scalar>, sequence: number): Tally {
         return new Tally(node, group, { sequence, rows: 0, sums: {}, extremes: {} });
     }
@@ -204,18 +204,14 @@ export class Tally implements Result {
         return this.#count === 0;
     }
 
-    /**
-     * Measurement a row holding its computed values in or out, returning false when counting out took an extreme, which only a recount restores.
-     *
-     * Counting in keeps each extreme the row passes.
-     */
+    /** Count a row in or out, returning false when counting out took an extreme. */
     count(row: Row, sign: 1 | -1): boolean {
-        // forget the measures read before, and count the row with its added-up values
+        // clear the cache and add up the row
         this.#values = undefined;
         this.#count += sign;
         this.#add(row, sign);
 
-        // keep or lose each extreme the row holds
+        // keep or lose each extreme
         let isExact = true;
         for (const [name, measure] of Object.entries(this.#measures)) {
             const value = measure.column === undefined ? null : (row[measure.column] ?? null);
@@ -237,7 +233,7 @@ export class Tally implements Result {
         return isExact;
     }
 
-    /** Read the measures in their JSON form, once until a row counts in or out. */
+    /** Read the measures in JSON form. */
     values(): Record<string, Scalar> {
         this.#values ??= Object.fromEntries(
             Object.entries(this.#measures).map(([name, measure]) => [
@@ -249,7 +245,7 @@ export class Tally implements Result {
         return this.#values;
     }
 
-    /** Read each average's sum and count of present values, which let a copy add predictions to it. */
+    /** Read each average's sum and count of present values. */
     parts(): Record<string, Part> {
         return Object.fromEntries(
             Object.entries(this.#measures)
@@ -265,14 +261,14 @@ export class Tally implements Result {
         );
     }
 
-    /** Read one measure in its JSON form. */
+    /** Read one measure in JSON form. */
     #value(name: string, measure: Measure): Scalar {
         // count rows
         if (measure.function === "count") {
             return this.#count;
         }
 
-        // add up a column, averaging over the rows holding a value
+        // add up a column, averaging over present values
         if (measure.function === "sum" || measure.function === "avg") {
             const { sum, count } = this.#sums.get(measure.column!) ?? { sum: [], count: 0 };
 
@@ -283,13 +279,13 @@ export class Tally implements Result {
                   : (this.#node.json(measure.column!, total(sum)) as Scalar);
         }
 
-        // write an extreme in the column's JSON form
+        // write an extreme in JSON form
         const extreme = this.#extremes.get(name) ?? null;
 
         return extreme === null ? null : (this.#node.json(measure.column!, extreme) as Scalar);
     }
 
-    /** Add or subtract a row's values of each added-up column. */
+    /** Add or subtract a row's summed columns. */
     #add(row: Row, sign: 1 | -1): void {
         for (const column of this.#summed) {
             const value = row[column];
@@ -309,19 +305,19 @@ export class Tally implements Result {
     }
 }
 
-/** A group's measures as a page sends them: its rows, its measures, and the parts of its averages. */
+/** A group's measures as a page sends them. */
 export interface Result {
     /** The rows the group holds. */
     readonly rows: number;
     /** Whether the group holds no rows. */
     readonly isEmpty: boolean;
-    /** Read the measures in their JSON form. */
+    /** Read the measures in JSON form. */
     values(): Record<string, Scalar>;
     /** Read each average's sum and count of present values. */
     parts(): Record<string, Part>;
 }
 
-/** A group's measures as one SQL count read them, at the log sequence it read. */
+/** A group's measures as one SQL count read them. */
 export interface Measurement {
     /** The log sequence the count read at. */
     readonly sequence: number;
@@ -329,23 +325,23 @@ export interface Measurement {
     readonly rows: number;
     /** The sums of the added-up columns, by property. */
     readonly sums: Readonly<Record<string, Sum>>;
-    /** The extreme measures' values, by measure name. */
+    /** The extreme values by measure name. */
     readonly extremes: Readonly<Record<string, unknown>>;
 }
 
-/** One column's sum over the group's rows, and how many of them hold a value. */
+/** One column's sum over a group and its count of present values. */
 interface Sum {
-    /** The sum of a bigint column, or the nonoverlapping partials whose exact sum a number column's values add up to. */
+    /** The sum of a bigint column, or the exact nonoverlapping partials of a number column. */
     readonly sum: bigint | readonly number[];
     /** The rows holding a value. */
     readonly count: number;
 }
 
-/** An average's parts: the sum of the group's present values in their JSON form, and how many there are. */
+/** An average's parts: the sum of present values in JSON form, and their count. */
 export interface Part {
     /** The sum. */
     readonly sum: Scalar;
-    /** The present values. */
+    /** The count of present values. */
     readonly count: number;
 }
 
@@ -356,7 +352,7 @@ function valueOf(node: Node, name: string, visibility: Visibility | undefined): 
     return node.kindOf(name) === "text" ? value.mapWith(String) : value.mapWith(Number);
 }
 
-/** Select a measure's extreme, a computed number as a number. */
+/** Select a measure's extreme. */
 function extremeOf(node: Node, measure: Measure, visibility: Visibility | undefined): SQL {
     const extreme = (measure.function === "min" ? min : max)(node.sql(measure.column!, visibility));
     const computed = node.computed[measure.column!];
@@ -366,7 +362,7 @@ function extremeOf(node: Node, measure: Measure, visibility: Visibility | undefi
         : extreme;
 }
 
-/** List the distinct columns sums and averages add up. */
+/** List the distinct summed columns. */
 export function summedColumns(measures: Readonly<Record<string, Measure>>): string[] {
     return [
         ...new Set(
@@ -379,7 +375,7 @@ export function summedColumns(measures: Readonly<Record<string, Measure>>): stri
 
 /** Add a number to nonoverlapping partials exactly, as Shewchuk's expansion sum does. */
 function grow(partials: readonly number[], value: number): number[] {
-    // carry the value through each partial, keeping each rounding error as a smaller partial
+    // carry the value through each partial
     const next: number[] = [];
     let carried = value;
     for (const partial of partials) {
@@ -397,9 +393,9 @@ function grow(partials: readonly number[], value: number): number[] {
     return next;
 }
 
-/** Round the exact sum of partials to the nearest number, zero unsigned, and keep a bigint sum as it is. */
+/** Round the exact sum of partials to the nearest number. */
 function total(sum: bigint | readonly number[]): number | bigint {
-    // keep bigint sums, and add the partials from the largest down until a rounding error remains
+    // add the partials from the largest down
     if (typeof sum === "bigint") {
         return sum;
     }
@@ -417,7 +413,7 @@ function total(sum: bigint | readonly number[]): number | bigint {
         }
     }
 
-    // round half to even across the remaining partials, as the exact sum would
+    // round half to even
     if (index > 0 && ((low < 0 && sum[index - 1]! < 0) || (low > 0 && sum[index - 1]! > 0))) {
         const doubled = low * 2;
         const rounded = high + doubled;

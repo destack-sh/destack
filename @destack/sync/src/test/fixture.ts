@@ -18,7 +18,7 @@ import type { Outbox } from "../outbox/outbox.ts";
 import type { QueryPage } from "../query/page.ts";
 import { schema } from "@destack/schema";
 
-/** Notes whose changes stay within the compaction window. */
+/** Test notes. */
 export const note = defineTable(
     "note",
     {
@@ -70,7 +70,7 @@ export const project = defineTable(
     { log: {} },
 );
 
-/** Tasks of projects, ranked, pointed and sometimes secret. */
+/** Tasks of projects. */
 export const task = defineTable(
     "task",
     {
@@ -120,7 +120,7 @@ export const comment = defineTable(
     },
 );
 
-/** Tags of tasks, joined to them through task tags. */
+/** Tags of tasks. */
 export const tag = defineTable(
     "tag",
     {
@@ -176,10 +176,10 @@ export const page = defineTable(
     },
 );
 
-/** The tables each test database holds: notes, projects, tasks, comments, tags, task tags, pages and the replicas. */
+/** The tables of each test database. */
 export const TABLES = [note, project, task, comment, tag, taskTag, page, ...REPLICA_TABLES];
 
-/** Open a migrated test database of the notes and the replicas. */
+/** Open a migrated test database. */
 export async function open(
     dialect: (typeof TEST_DIALECTS)[number],
     tables: readonly Table[] = TABLES,
@@ -190,7 +190,7 @@ export async function open(
     return test.database;
 }
 
-/** Open a migrated test database copying the notes: without their trees and references, as a replica holds them. */
+/** Open a migrated copy database without trees and references. */
 export async function openCopy(
     dialect: (typeof TEST_DIALECTS)[number],
     tables: readonly Table[] = TABLES,
@@ -213,7 +213,7 @@ export const first = {
     attachment: new Uint8Array([1, 2, 3]),
 };
 
-/** Take pages from a subscription until one satisfies a condition, then stop it. */
+/** Take pages from a subscription until one satisfies a condition, then stop. */
 export async function take(
     pages: AsyncGenerator<QueryPage>,
     until: (page: QueryPage) => boolean,
@@ -241,7 +241,7 @@ export async function replicate(
     }
 }
 
-/** Read pages from a subscription until one satisfies a condition, leaving it open for later reads. */
+/** Read pages from a subscription until one satisfies a condition. */
 export async function until(
     pages: AsyncGenerator<QueryPage>,
     condition: (page: QueryPage) => boolean,

@@ -5,7 +5,7 @@ import type { Include, Measure, Query, Relation } from "../../query/query.ts";
 import type { Row } from "@destack/db";
 import type { ConditionAudience } from "./audience.ts";
 
-/** What a subscriber should hold: rows by key as JSON with concealed columns missing, and groups by query and group. */
+/** What a subscriber should hold. */
 export interface Holding {
     /** The rows, by table and key. */
     readonly rows: Map<string, Record<string, unknown>>;
@@ -13,13 +13,13 @@ export interface Holding {
     readonly results: Map<string, Record<string, Scalar>>;
 }
 
-/** Evaluate queries in memory over every row of their tables, as an audience's subscriber should hold them. */
+/** Evaluate queries in memory over every row of their tables. */
 export async function evaluate(
     database: DatabaseConnection,
     queries: Readonly<Record<string, Query>>,
     audience: ConditionAudience,
 ): Promise<Holding> {
-    // read every row of every table the queries name
+    // read every row of each table
     const read = new Map<Table, Row[]>();
     for (const table of new Set(Object.values(queries).flatMap(tablesOf))) {
         read.set(table, (await database.select().from(table as never)) as Row[]);
@@ -49,7 +49,7 @@ export function groupName(query: string, group: Readonly<Record<string, unknown>
     return JSON.stringify(query) + canonicalize(group);
 }
 
-/** Hold the rows of a query or include among candidates, in one held row's partition for an include, and what they include. */
+/** Hold the rows of a query or include and what they include. */
 function hold(
     name: string,
     query: Query | Include,
@@ -60,7 +60,7 @@ function hold(
     audience: ConditionAudience,
     holding: Holding,
 ): Row[] {
-    // compute the query's values, and keep visible rows of the scopes meeting the condition
+    // keep the visible matching rows with their values
     const table = query.table;
     const scope = "scope";
     const computed = query.compute ?? {};
@@ -121,7 +121,7 @@ function hold(
         return [];
     }
 
-    // hold the first rows of the order, concealing what the audience hides
+    // hold the first rows, concealing hidden columns
     const order = Order.complete(query.order ?? [], table);
     const held = [...rows]
         .sort((left, right) => Order.rows(order, left, right))
@@ -134,7 +134,7 @@ function hold(
         });
     }
 
-    // measure what each held row's relations reach and meet: their count, and what lookups and rollups read of them
+    // measure each held row's relations
     for (const { suffix, via, where, values } of measures(query)) {
         const relation = relationOf(query, via, where);
         const path = relation.on as Extract<Include["on"], { kind: "key" | "junction" }>;
@@ -158,7 +158,7 @@ function hold(
         }
     }
 
-    // hold what each held row includes, per held row, and the join rows its junction paths pass through
+    // hold each include per held row
     for (const [child, include] of Object.entries(query.include ?? {})) {
         for (const row of held) {
             const reached = reach(include, table, row, scopes, tables, audience);
@@ -180,7 +180,7 @@ function hold(
                 holding,
             );
 
-            // hold the rows between each member of a filtered or limited tree include and the held row
+            // hold the chains of a tree include
             const path = include.on;
             if (
                 (path.kind === "descendants" || path.kind === "ancestors") &&
@@ -213,7 +213,7 @@ function hold(
     return held;
 }
 
-/** Read the rows strictly between a lower row and an upper one, walking the parent column up through rows the audience sees. */
+/** Read the visible rows strictly between a lower row and an upper one. */
 function chain(
     table: Table,
     column: string,
@@ -223,13 +223,13 @@ function chain(
     tables: Rows,
     audience: ConditionAudience,
 ): Row[] {
-    // walk up from the lower row, guarding against cycles
+    // walk up, guarding against cycles
     const key = table[TABLE].key[0]!;
     const rows: Row[] = [];
     const seen = new Set<unknown>([lower[key]]);
     let current = lower;
     for (;;) {
-        // stop once the walk reaches the upper row, a cycle, or a row it may not pass through
+        // stop at the upper row, a cycle or an impassable row
         const parentKey = current[column];
         if (parentKey === null || parentKey === undefined || seen.has(parentKey)) {
             return [];
@@ -253,7 +253,7 @@ function chain(
     }
 }
 
-/** Decide whether a row meets a query's condition, reaching each relation's rows the audience sees in the scopes. */
+/** Decide whether a row meets a query's condition. */
 function meets(
     query: Query | Include,
     row: Row,
@@ -261,7 +261,7 @@ function meets(
     tables: Rows,
     audience: ConditionAudience,
 ): boolean {
-    // decide the columns, and each relation by the rows it reaches that meet its condition
+    // decide the columns and relations
     if (query.where === undefined) {
         return true;
     }
@@ -289,7 +289,7 @@ function meets(
     );
 }
 
-/** Read the rows a relation relates to a row that meet a condition, in the scopes the audience sees. */
+/** Read a row's visible related rows that meet a condition. */
 function relatedOf(
     query: Query | Include,
     via: string,
@@ -310,7 +310,7 @@ function relatedOf(
     );
 }
 
-/** Measure rows: count them, add an integer column, or keep its least or greatest value. */
+/** Measure rows by a rollup. */
 function rolledUp(measure: Rollup, column: string | undefined, rows: readonly Row[]): Scalar {
     if (measure === "count") {
         return rows.length;
@@ -328,7 +328,7 @@ function rolledUp(measure: Rollup, column: string | undefined, rows: readonly Ro
     return (measure === "min" ? sorted[0] : sorted.at(-1)) as Scalar;
 }
 
-/** Read a query's relation as an include of its related rows meeting a condition. */
+/** Read a relation as an include. */
 function relationOf(query: Query | Include, via: string, where: Condition | undefined): Include {
     const relation = query.relations![via]!;
 
@@ -340,14 +340,14 @@ function relationOf(query: Query | Include, via: string, where: Condition | unde
     };
 }
 
-/** List the measures of each relation and condition a query reads, with the suffix naming its aggregate: counts for conditions, and what lookups and rollups read. */
+/** List the measures of each relation and condition a query reads. */
 function measures(query: Query | Include): {
     readonly suffix: string;
     readonly via: string;
     readonly where: Condition | undefined;
     readonly values: Record<string, Measure>;
 }[] {
-    // count each relation and condition's rows, adding the measures lookups and rollups read of them
+    // count each relation and condition's rows
     const found = new Map<
         string,
         {
@@ -358,7 +358,7 @@ function measures(query: Query | Include): {
         }
     >();
     const use = (via: string, where: Condition | undefined, measure?: Measure) => {
-        // count the relation's rows under the condition, adding what else a use reads
+        // add the measures a use reads
         const suffix = where === undefined ? "" : canonicalize(where);
         const entry = found.get(`${via}${suffix}`) ?? {
             suffix,
@@ -406,7 +406,7 @@ function rollupsOf(expression: Expression): Extract<Expression, { readonly kind:
             : [];
 }
 
-/** Input the rows an include's path joins to one held row, the join rows passed through, and the partition they form. */
+/** Read the rows an include's path joins to one held row. */
 function reach(
     include: Include,
     table: Table,
@@ -419,7 +419,7 @@ function reach(
     readonly joins: Row[];
     readonly partition: { readonly name: string; readonly value: unknown };
 } {
-    // pass only through rows of the scopes the audience sees
+    // pass only through visible rows of the scopes
     const path = include.on;
     const passes = (through: Table, row: Row) =>
         scopes.includes(row.scope as string) && audience.isVisible(through, row);
@@ -453,7 +453,7 @@ function reach(
         };
     }
 
-    // follow the parent column down or up through seen rows
+    // follow the parent column
     const key = Object.keys(table[TABLE].columns).find((column) =>
         table[TABLE].key.includes(column),
     )!;
@@ -496,14 +496,14 @@ function reach(
     };
 }
 
-/** Measure one group's rows in the JSON form a page carries. */
+/** Measure one group's rows in JSON form. */
 function measured(table: Table, measure: Measure, rows: readonly Row[]): Scalar {
     // count rows
     if (measure.function === "count") {
         return rows.length;
     }
 
-    // measure the present values of a column
+    // measure the present values
     const values = rows
         .map((row) => row[measure.column!])
         .filter((value) => value !== null && value !== undefined);
@@ -529,11 +529,11 @@ function loggedOf(table: Table, row: Row): Row {
     return Object.fromEntries(Object.keys(table[TABLE].logged).map((name) => [name, row[name]]));
 }
 
-/** Every row of the tables an evaluation reads, looked up by a column's value through indexes built on first use. */
+/** Every row of the evaluated tables, with lazy column indexes. */
 class Rows {
     /** The rows, by table. */
     readonly #rows: ReadonlyMap<Table, Row[]>;
-    /** The rows by the JSON form of a column's value, by table and column. */
+    /** The rows by column value, by table and column. */
     readonly #indexes = new Map<Table, Map<string, Map<string, Row[]>>>();
 
     /** Hold every row of some tables. */
@@ -546,9 +546,9 @@ class Rows {
         return this.#rows.get(table)!;
     }
 
-    /** Read the rows of a table whose column holds a present value. */
+    /** Read the rows of a table whose column holds a value. */
     where(table: Table, column: string, value: unknown): Row[] {
-        // index the table's rows by the column once
+        // index the column once
         const byColumn = this.#indexes.get(table) ?? new Map<string, Map<string, Row[]>>();
         this.#indexes.set(table, byColumn);
         let index = byColumn.get(column);
@@ -567,7 +567,7 @@ class Rows {
     }
 }
 
-/** List the tables a query, include or relation reads, its includes' and relations' too. */
+/** List the tables a query reads. */
 function tablesOf(query: Query | Include | Relation): Table[] {
     return [
         query.table,
@@ -577,7 +577,7 @@ function tablesOf(query: Query | Include | Relation): Table[] {
     ];
 }
 
-/** Write a column value in its JSON form, and a computed value as it is. */
+/** Write a column value in JSON form. */
 function json(table: Table, column: string, value: unknown): unknown {
     return value === null || value === undefined
         ? null
@@ -588,12 +588,12 @@ function json(table: Table, column: string, value: unknown): unknown {
           : table[TABLE].columns[column].definition.toJson(value);
 }
 
-/** The smallest subnormal's exponent, which scales every finite number to an integer. */
+/** The smallest subnormal's exponent. */
 const SCALE = 1074n;
 
-/** Add numbers exactly as integers of the smallest subnormal, and round the sum half to even once. */
+/** Add numbers exactly and round the sum half to even once. */
 function exactSum(values: readonly number[]): number {
-    // scale each value to an exact integer and add them
+    // add the values as scaled integers
     let scaled = 0n;
     for (const value of values) {
         const [mantissa, exponent] = decompose(value);
@@ -602,7 +602,7 @@ function exactSum(values: readonly number[]): number {
     const sign = scaled < 0n ? -1 : 1;
     const magnitude = scaled < 0n ? -scaled : scaled;
 
-    // keep 53 significant bits, rounding the dropped ones half to even
+    // round to 53 significant bits, half to even
     const bits = magnitude.toString(2).length;
     const dropped = BigInt(Math.max(0, bits - 53));
     let kept = magnitude >> dropped;

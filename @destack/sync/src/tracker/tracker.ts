@@ -13,24 +13,24 @@ import { CHAIN_TERMS } from "@destack/db/query";
 import type { Relay } from "@destack/db/relay";
 
 /**
- * How often an instance announces that it is alive, in milliseconds.
+ * The heartbeat interval, in milliseconds.
  *
- * One small message per instance every 15 s costs nothing, and three missed beats bound a crashed instance's rows to 45 s.
+ * Three missed beats bound a crashed instance's rows to 45 s.
  */
 const HEARTBEAT_MILLISECONDS = 15_000;
 
-/** How many heartbeats an instance may miss before the others drop its rows. */
+/** The missed heartbeats before the others drop an instance's rows. */
 const MISSED_HEARTBEATS = 3;
 
-/** One row of a tracked table as it travels between instances: its key, its values or none once deleted, and its owner. */
+/** One row of a tracked table between instances. */
 export interface TrackedRow {
     /** The table's SQL name. */
     readonly table: string;
     /** The row's name: its table and key as JSON. */
     readonly key: string;
-    /** The row's values in their JSON form, null once deleted. */
+    /** The row's values in JSON form, null once deleted. */
     readonly row: Readonly<Record<string, JsonValue>> | null;
-    /** The owner whose end removes the row, such as a session or a call. */
+    /** The owner whose end removes the row. */
     readonly owner: string;
 }
 
@@ -58,56 +58,51 @@ export type TrackerMessage =
 
 /** How a tracker announces itself. */
 export interface TrackerOptions {
-    /** This instance's identifier, unique among the instances sharing the relay. */
+    /** This instance's identifier. */
     readonly instance?: string;
-    /** How often this instance announces that it is alive, in milliseconds. */
+    /** The heartbeat interval, in milliseconds. */
     readonly heartbeat?: number;
 }
 
-/**
- * Rows of tables held in memory on every instance, replicated between them and removed with their owners, never stored.
- *
- * Each instance writes rows into its own database and publishes them; the others apply them into theirs.
- * Rows go when their owner ends, or when the instance that last wrote them stops or falls silent.
- */
+/** Rows of tables held in memory on every instance and removed with their owners. */
 export class Tracker {
     /** This instance's identifier. */
     readonly instance: string;
-    /** The database holding the tracked tables on this instance. */
+    /** The database of the tracked tables. */
     readonly database: DatabaseConnection;
     /** The tracked tables by SQL name. */
     readonly #tables: ReadonlyMap<string, Table>;
     /** The relay reaching the other instances. */
     readonly #relay: Relay<TrackerMessage>;
-    /** Each owner's rows and the instance that last wrote them, by owner. */
+    /** Each owner's rows and their last writing instance. */
     readonly #owners = new Map<string, { instance: string; keys: Set<string> }>();
     /** The owner of each row, by row name. */
     readonly #rows = new Map<string, string>();
-    /** When each other instance last announced itself, in UTC epoch milliseconds. */
+    /** The last heartbeat of each other instance, in UTC epoch milliseconds. */
     readonly #instances = new Map<string, number>();
-    /** The instances holding each owner alive, by owner. */
+    /** The instances holding each owner. */
     readonly #holds = new Map<string, Set<string>>();
-    /** The listeners told when an owner becomes held or released by every instance. */
+    /** The listeners of owner hold changes. */
     readonly #holders = new Set<(owner: string, isHeld: boolean) => void>();
     /** The listeners of each broadcast topic. */
     readonly #listeners = new Map<string, Set<(event: JsonValue) => void>>();
-    /** How often this instance announces itself, in milliseconds. */
+    /** The heartbeat interval, in milliseconds. */
     readonly #heartbeat: number;
-    /** The timer announcing this instance and dropping silent ones. */
+    /** The heartbeat timer. */
     readonly #beat: ReturnType<typeof setInterval>;
     /** Stop listening to the relay. */
     readonly #stop: () => void;
-    /** The applications of other instances' messages, in arrival order. */
+    /** The pending applications of other instances' messages. */
     #applied: Promise<void> = Promise.resolve();
 
-    /** Track tables of a database with the other instances listening on a relay. */
+    /** Track tables of a database on a relay. */
     constructor(
         database: DatabaseConnection,
         tables: readonly Table[],
         relay: Relay<TrackerMessage>,
         options: TrackerOptions = {},
     ) {
-        // require every column in the log, since rows travel as the log records them
+        // require every column in the log
         for (const table of tables) {
             const { columns, logged, name } = table[TABLE];
             const unlogged = Object.keys(columns).find(
@@ -125,7 +120,7 @@ export class Tracker {
         this.#relay = relay;
         this.#heartbeat = options.heartbeat ?? HEARTBEAT_MILLISECONDS;
 
-        // apply the others' messages in order, asking for every live row whenever delivery starts or resumes
+        // apply messages in order and ask for live rows on each start or resume
         this.#stop = relay.listen(
             (message) => {
                 this.#applied = this.#applied.then(() => this.#receive(message));
@@ -133,7 +128,7 @@ export class Tracker {
             () => relay.post({ kind: "hello", instance: this.instance }),
         );
 
-        // announce this instance, and drop the rows of instances that went silent
+        // announce this instance and drop silent ones
         this.#beat = setInterval(() => {
             relay.post({ kind: "heartbeat", instance: this.instance });
             const deadline = Date.now() - this.#heartbeat * MISSED_HEARTBEATS;
@@ -145,12 +140,12 @@ export class Tracker {
         }, this.#heartbeat);
     }
 
-    /** Read what an open transaction wrote to the tracked tables, each row owned by its table's owner, to publish once it commits. */
+    /** Read the rows an open transaction wrote to the tracked tables. */
     async record(
         transaction: DatabaseConnection,
         ownerOf: (table: Table) => string,
     ): Promise<TrackedRow[]> {
-        // keep the last image of each row the transaction wrote
+        // keep each row's last image
         const images = new Map<string, TrackedRow>();
         for (const change of await transaction.log.written([...this.#tables.values()])) {
             const key = Key.name(change.table, change.key);
@@ -167,7 +162,7 @@ export class Tracker {
         return [...images.values()];
     }
 
-    /** Publish rows a committed transaction wrote to the other instances, holding their owners here. */
+    /** Publish committed rows to the other instances. */
     publish(rows: readonly TrackedRow[]): void {
         if (rows.length === 0) {
             return;
@@ -178,13 +173,13 @@ export class Tracker {
         this.#relay.post({ kind: "write", instance: this.instance, rows });
     }
 
-    /** End an owner: remove its rows here and on every other instance. */
+    /** End an owner everywhere. */
     async end(owner: string): Promise<void> {
         await this.#end(owner);
         this.#relay.post({ kind: "end", instance: this.instance, owner });
     }
 
-    /** Hold an owner alive on this instance, such as while a session's stream is open here. */
+    /** Hold an owner on this instance. */
     hold(owner: string): void {
         this.#hold(owner, this.instance);
         this.#relay.post({ kind: "hold", instance: this.instance, owner });
@@ -201,25 +196,25 @@ export class Tracker {
         return this.#holds.has(owner);
     }
 
-    /** Tell a listener whenever an owner becomes held by some instance or released by every one, until the returned stop runs. */
+    /** Tell a listener when an owner becomes held or released, until stopped. */
     watchHolds(listener: (owner: string, isHeld: boolean) => void): () => void {
         this.#holders.add(listener);
 
         return () => this.#holders.delete(listener);
     }
 
-    /** List the owners holding rows, with the instance that last wrote each. */
+    /** List the owners with their last writing instance. */
     owners(): Map<string, string> {
         return new Map([...this.#owners].map(([owner, held]) => [owner, held.instance]));
     }
 
-    /** Send an event to the listeners of a topic on every instance, never stored. */
+    /** Send an event to a topic on every instance. */
     broadcast(topic: string, event: JsonValue): void {
         this.#deliver(topic, event);
         this.#relay.post({ kind: "broadcast", instance: this.instance, topic, event });
     }
 
-    /** Listen to a topic's events until the returned stop runs. */
+    /** Listen to a topic until stopped. */
     listen(topic: string, receive: (event: JsonValue) => void): () => void {
         const listeners = this.#listeners.get(topic) ?? new Set();
         this.#listeners.set(topic, listeners.add(receive));
@@ -232,12 +227,12 @@ export class Tracker {
         };
     }
 
-    /** Wait until every message received so far is applied. */
+    /** Wait until every received message is applied. */
     settled(): Promise<void> {
         return this.#applied;
     }
 
-    /** Stop tracking, telling the others to drop the rows this instance last wrote. */
+    /** Stop tracking and tell the others to drop this instance's rows. */
     close(): void {
         clearInterval(this.#beat);
         this.#relay.post({ kind: "stop", instance: this.instance });
@@ -251,7 +246,7 @@ export class Tracker {
             this.#instances.set(message.instance, Date.now());
         }
 
-        // apply its rows, their owners' ends and its broadcasts
+        // apply the rows, ends and broadcasts
         if (message.kind === "write") {
             await this.#apply(message.rows, message.instance);
         } else if (message.kind === "state") {
@@ -268,7 +263,7 @@ export class Tracker {
         } else if (message.kind === "broadcast") {
             this.#deliver(message.topic, message.event);
         }
-        // answer a new or resumed instance with the rows this instance last wrote
+        // answer a hello with this instance's rows
         else if (message.kind === "hello") {
             const holds = [...this.#holds]
                 .filter(([, instances]) => instances.has(this.instance))
@@ -286,11 +281,11 @@ export class Tracker {
         }
     }
 
-    /** Write rows another instance published into this instance's tables. */
+    /** Write another instance's rows into this instance's tables. */
     async #apply(rows: readonly TrackedRow[], instance: string): Promise<void> {
         await this.database.transaction(async (transaction) => {
             for (const tracked of rows) {
-                // upsert a live row, and remove a deleted one
+                // upsert a live row and remove a deleted one
                 const table = this.#tables.get(tracked.table)!;
                 if (tracked.row === null) {
                     await transaction
@@ -314,7 +309,7 @@ export class Tracker {
             this.#forget(previous, tracked.key);
         }
 
-        // forget a deleted row, and hold a live one under the instance that last wrote its owner's rows
+        // forget a deleted row or hold a live one
         if (tracked.row === null) {
             this.#forget(tracked.owner, tracked.key);
         } else {
@@ -328,7 +323,7 @@ export class Tracker {
 
     /** Forget one row of an owner, and the owner once it holds none. */
     #forget(owner: string, key: string): void {
-        // forget the row, and the owner once empty
+        // forget the row and an empty owner
         const held = this.#owners.get(owner);
         held?.keys.delete(key);
         this.#rows.delete(key);
@@ -349,7 +344,7 @@ export class Tracker {
             this.#rows.delete(key);
         }
 
-        // delete them, a chain of keys per statement for each table
+        // delete them, a chain of keys per statement
         const byTable = Map.groupBy(held.keys, (key) => JSON.parse(key)[0] as string);
         await this.database.transaction(async (transaction) => {
             for (const [name, keys] of byTable) {
@@ -364,7 +359,7 @@ export class Tracker {
         });
     }
 
-    /** Remove every row whose owner another instance last wrote for, and every hold it kept. */
+    /** Remove every row and hold of an instance. */
     async #drop(instance: string): Promise<void> {
         this.#instances.delete(instance);
         for (const owner of this.#holds.keys()) {
@@ -377,7 +372,7 @@ export class Tracker {
         }
     }
 
-    /** Read the rows this instance last wrote, as a new instance receives them. */
+    /** Read the rows this instance last wrote. */
     async #state(): Promise<TrackedRow[]> {
         const rows: TrackedRow[] = [];
         for (const [owner, held] of this.#owners) {
@@ -402,9 +397,9 @@ export class Tracker {
         return rows;
     }
 
-    /** Note an instance holding an owner, telling the listeners once the first one does. */
+    /** Note an instance holding an owner. */
     #hold(owner: string, instance: string): void {
-        // note the instance, telling the listeners when it is the first
+        // tell the listeners on the first hold
         const instances = this.#holds.get(owner) ?? new Set<string>();
         const isFirst = instances.size === 0;
         this.#holds.set(owner, instances.add(instance));
@@ -415,9 +410,9 @@ export class Tracker {
         }
     }
 
-    /** Note an instance releasing an owner, telling the listeners once no instance holds it. */
+    /** Note an instance releasing an owner. */
     #release(owner: string, instance: string): void {
-        // forget the instance, telling the listeners when no other is left
+        // tell the listeners on the last release
         const instances = this.#holds.get(owner);
         if (instances === undefined || !instances.delete(instance) || instances.size > 0) {
             return;

@@ -6,31 +6,27 @@ import { TreeJoin } from "./input.ts";
 import type { Run, Work } from "./run.ts";
 import { Window } from "./window.ts";
 
-/** The most rows one read of a root's rows holds: about 1 MB at about 1 KB a row, a page of a snapshot. */
+/** The most rows of one root read: about 1 MB at about 1 KB a row. */
 export const PAGE_ROWS = 1000;
 
-/**
- * The rows a node holds per partition: every candidate, or the first of its order in a window when limited.
- *
- * Held rows hold their children's partitions open; a tree include whose members skip rows holds the rows between as chains.
- */
+/** The rows a node holds per partition: every candidate, or a window of the first ones. */
 export class Selection extends Pipeline {
-    /** The partitions whose arrangements keep each candidate row, by key. */
+    /** The partitions arranging each candidate row, by key. */
     readonly #arranged = new Map<string, Set<string>>();
     /** The rows the open partitions' windows know. */
     #windowed = 0;
-    /** The windows that lost held rows, which refill once the run decided the node's rows. */
+    /** The windows that lost rows and wait for a refill. */
     readonly #refills = new Set<string>();
-    /** The tree path whose members hold the rows between them and their partitions' held rows, absent unless they skip rows. */
+    /** The tree path whose members hold chains of the rows between. */
     readonly #chaining: TreeJoin | undefined;
-    /** The rows between each member and the held rows whose partitions hold it, by member and partition. */
+    /** The rows between each member and its partitions' held rows, by member and partition. */
     readonly #chains = new Map<string, Map<string, readonly Row[]>>();
     /** How many chains hold each row, by key. */
     readonly #chained = new Map<string, number>();
-    /** The members whose chains the run moved, as they are at the position when known. */
+    /** The members whose chains the run moved. */
     readonly #rechains = new Map<string, Row | undefined>();
 
-    /** Hold a node's rows within a dataflow. */
+    /** Create the selection of a node. */
     constructor(node: Node, context: Context, hasTreeIndex: boolean) {
         super(node, context, hasTreeIndex);
         this.#chaining =
@@ -44,7 +40,7 @@ export class Selection extends Pipeline {
         return this.#windowed;
     }
 
-    /** Forget everything the selection holds. */
+    /** Forget everything. */
     forget(): void {
         // forget the partitions and members, then the windows and chains
         super.forget();
@@ -56,9 +52,9 @@ export class Selection extends Pipeline {
         this.#rechains.clear();
     }
 
-    /** Empty the closed partitions, fill the opened ones, and decide the dirty rows again. */
+    /** Empty closed partitions, fill opened ones, and decide dirty rows again. */
     async step(work: Work, run: Run): Promise<void> {
-        // empty and forget the closed partitions
+        // empty the closed partitions
         for (const name of work.closed) {
             const partition = this.partitions.get(name);
             if (partition === undefined || partition.holders > 0) {
@@ -76,16 +72,16 @@ export class Selection extends Pipeline {
             this.partitions.delete(name);
         }
 
-        // fill the opened partitions, then decide the dirty rows again
+        // fill the opened partitions and decide the dirty rows
         const opened = [...work.opened].filter(([name]) => this.partitions.has(name));
         await this.#fill(opened, run);
         await this.decide(work.dirty, run);
         await this.settle(run);
     }
 
-    /** Hold the next page of a root's rows in order after a row, returning the rows read. */
+    /** Hold the next page of a root's rows after a row, returning the rows read. */
     async page(after: Row | undefined, run: Run): Promise<Row[]> {
-        // read after the row with its computed values, as the order compares them
+        // resolve the start row's computed values
         if (after !== undefined) {
             await this.filter.prepare([after], run);
         }
@@ -101,22 +97,22 @@ export class Selection extends Pipeline {
         return rows!;
     }
 
-    /** Refill the windows that lost rows and chain the members that moved, once the run decided the node's rows. */
+    /** Refill the windows and chain the moved members. */
     async settle(run: Run): Promise<void> {
         await this.#refill(run);
         await this.#rechain(run);
     }
 
-    /** Read the keys of a partition's held rows, in order for a window. */
+    /** Read the keys of a partition's held rows. */
     keys(name: string): readonly string[] {
         const partition = this.partitions.get(name);
 
         return partition?.window?.held() ?? [...(partition?.members ?? [])];
     }
 
-    /** Fill opened partitions: the first rows of each window, every candidate of an arrangement, or every candidate. */
+    /** Fill opened partitions. */
     async #fill(opened: readonly (readonly [string, unknown])[], run: Run): Promise<void> {
-        // read the first rows of each window, or every candidate of each partition
+        // read each window's first rows, or every candidate
         const node = this.node;
         const limit = node.limit;
         if (opened.length === 0) {
@@ -164,7 +160,7 @@ export class Selection extends Pipeline {
                 continue;
             }
 
-            // order a window of the first rows, or arrange every candidate by the values it sorts by
+            // order a window or arrange every candidate
             const byKey = keyed(node, rows);
             const window = new Window(
                 (left, right) => node.compare(left, right),
@@ -179,7 +175,7 @@ export class Selection extends Pipeline {
             this.partitions.get(name)!.window = window;
             this.#windowed += window.size;
 
-            // hold the first rows, noting where each candidate is arranged
+            // hold the first rows and note the arrangements
             for (const key of node.isArranged ? byKey.keys() : []) {
                 this.#arrange(key, name);
             }
@@ -189,7 +185,7 @@ export class Selection extends Pipeline {
         }
     }
 
-    /** Admit a decided row: place it in its windows when limited, else hold it in its partitions. */
+    /** Admit a decided row to its windows or partitions. */
     protected admit(key: string, row: Row | undefined, names: ReadonlySet<string>, run: Run): void {
         this.context.sink.touch(run, this.node.table, key, row);
         if (this.node.limit === undefined) {
@@ -199,19 +195,19 @@ export class Selection extends Pipeline {
         }
     }
 
-    /** Place a row in the windows of the partitions it belongs to, and take it out of the others, letting go of what a full window pushes out. */
+    /** Place a row in its partitions' windows and take it out of the others. */
     #place(key: string, row: Row | undefined, names: ReadonlySet<string>, run: Run): void {
-        // start from the windows holding or arranging the row now
+        // start from the windows holding or arranging the row
         const node = this.node;
         const held = new Set(this.members.get(key)?.partitions ?? NOWHERE);
         for (const name of new Set([...held, ...(this.#arranged.get(key) ?? NOWHERE), ...names])) {
-            // skip partitions without a window, which a fill decides
+            // skip partitions without a window
             const window = this.partitions.get(name)?.window;
             if (window === undefined) {
                 continue;
             }
 
-            // place the row where the order puts it, letting go of the row a full window pushes out
+            // place the row in order, evicting the last row of a full window
             if (names.has(name)) {
                 const wasHeld = window.holds(key);
                 const size = window.size;
@@ -229,7 +225,7 @@ export class Selection extends Pipeline {
                     this.#refills.add(name);
                 }
 
-                // let go of the row pushed out, which an arrangement may not hold yet while a refill waits
+                // let go of the evicted row
                 const evicted =
                     placed.evicted === undefined ? undefined : this.members.get(placed.evicted);
                 if (evicted !== undefined) {
@@ -245,7 +241,7 @@ export class Selection extends Pipeline {
                     );
                 }
             }
-            // take the row out of a window it no longer belongs to, refilling it
+            // take the row out of a window it left, refilling it
             else {
                 const size = window.size;
                 const wasHeld = window.remove(key);
@@ -267,18 +263,14 @@ export class Selection extends Pipeline {
         this.#assign(key, row, new Set([...partitions, name]), run);
     }
 
-    /**
-     * Set the partitions holding a row, as the row is at the position when known.
-     *
-     * A row entering holds its children's partitions and the subscriber's copy; one leaving lets go of them; one staying moves the partitions its join values name.
-     */
+    /** Set the partitions holding a row, holding or letting go of what it holds. */
     #assign(key: string, row: Row | undefined, names: ReadonlySet<string>, run: Run): void {
-        // move the row between the partitions' members
+        // move the row between partitions
         const node = this.node;
         const sink = this.context.sink;
         const member = this.move(key, names);
 
-        // enter, leave, or move the partitions the row's join values name
+        // enter, leave or move its children's partitions
         const joins =
             row === undefined
                 ? (member?.joins ?? [])
@@ -309,13 +301,13 @@ export class Selection extends Pipeline {
             }
         }
 
-        // chain the member again once the run decided the node's rows
+        // chain the member again
         if (this.#chaining !== undefined) {
             this.#rechains.set(key, row ?? this.#rechains.get(key));
         }
     }
 
-    /** Hold or let go of the children's partitions a member's join values name. */
+    /** Hold or let go of the children's partitions a member names. */
     #holdChildren(joins: readonly unknown[], step: 1 | -1, run: Run): void {
         for (const [index, child] of this.children.entries()) {
             const value = joins[index];
@@ -325,9 +317,9 @@ export class Selection extends Pipeline {
         }
     }
 
-    /** Refill the windows that lost rows with the candidates following their last ones, all at once. */
+    /** Refill the windows that lost rows, all at once. */
     async #refill(run: Run): Promise<void> {
-        // hold the arranged rows that moved up among the first, reading them by key
+        // hold the arranged rows that moved into the window
         const names = [...this.#refills];
         this.#refills.clear();
         const promoted: [string, string][] = [];
@@ -340,7 +332,7 @@ export class Selection extends Pipeline {
                     promoted.push([name, key]);
                 }
             }
-            // note the windows lacking rows unless none follow
+            // note the windows lacking rows
             else if (window !== undefined && !window.isExhaustive && !window.isFull) {
                 segments.push([name, window]);
             }
@@ -353,7 +345,7 @@ export class Selection extends Pipeline {
             this.#join(key, rows[index]!, name, run);
         }
 
-        // read as many rows as each window lacks, in order after its last row, all at once
+        // read the missing rows after each window's last row
         const missing = segments.map(([, window]) => this.node.limit! - window.size);
         const read = await Promise.all(
             segments.map(([, window], index) =>
@@ -382,9 +374,9 @@ export class Selection extends Pipeline {
         }
     }
 
-    /** Read candidate rows by key with their computed values, which an arrangement knows to be candidates as of the run. */
+    /** Read arranged candidate rows by key with their computed values. */
     async #rowsOf(keys: readonly string[], run: Run): Promise<Row[]> {
-        // read the rows and decide their visibility and relations at once
+        // read and decide the rows
         const node = this.node;
         const read = await run.view.keyed(
             node.table,
@@ -399,7 +391,7 @@ export class Selection extends Pipeline {
         });
         await this.filter.prepare(rows, run);
 
-        // require each to be a candidate, as the arrangement holds it
+        // require each to be a candidate
         return rows.map((row, index) => {
             if (!this.filter.isCandidate(row, run)) {
                 throw new TypeError(
@@ -411,7 +403,7 @@ export class Selection extends Pipeline {
         });
     }
 
-    /** Note that a partition's arrangement keeps a row. */
+    /** Note that a partition arranges a row. */
     #arrange(key: string, name: string): void {
         let names = this.#arranged.get(key);
         if (names === undefined) {
@@ -421,7 +413,7 @@ export class Selection extends Pipeline {
         names.add(name);
     }
 
-    /** Note that a partition's arrangement no longer keeps a row. */
+    /** Note that a partition no longer arranges a row. */
     #unarrange(key: string, name: string): void {
         const names = this.#arranged.get(key);
         names?.delete(name);
@@ -430,13 +422,9 @@ export class Selection extends Pipeline {
         }
     }
 
-    /**
-     * Chain again the members whose partitions or rows moved: hold the rows strictly between each and every held row whose partition holds it.
-     *
-     * A row a chain holds stays held while any chain or member holds it.
-     */
+    /** Chain the moved members again to the rows between them and their held rows. */
     async #rechain(run: Run): Promise<void> {
-        // read the rows between each moved member and each of its partitions' held rows at once
+        // read the rows between each moved member and its held rows
         const moved = [...this.#rechains];
         this.#rechains.clear();
         if (moved.length === 0) {
@@ -462,7 +450,7 @@ export class Selection extends Pipeline {
             found.set(pair.key, chains.set(pair.name, between[index]!));
         }
 
-        // chain each member in each partition holding it, keeping the chains of a member whose row the run did not read
+        // chain each member in each partition
         for (const [key, row] of moved) {
             const known = this.#chains.get(key);
             const next = new Map<string, readonly Row[]>();
@@ -473,7 +461,7 @@ export class Selection extends Pipeline {
                 }
             }
 
-            // count the rows of the new chains in, then those of the old ones out
+            // count the new chains in and the old ones out
             for (const rows of next.values()) {
                 for (const between of rows) {
                     this.#chain(between, 1, run);
@@ -492,9 +480,9 @@ export class Selection extends Pipeline {
         }
     }
 
-    /** Count a row one chain more or less, holding it while any chain does. */
+    /** Count a row's chains up or down, holding it while any chain does. */
     #chain(row: Row, step: 1 | -1, run: Run): void {
-        // hold the row with its first chain and let it go after its last
+        // hold the row with its first chain and let go after its last
         const node = this.node;
         const key = node.keyOf(row);
         const count = (this.#chained.get(key) ?? 0) + step;

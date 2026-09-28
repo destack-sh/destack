@@ -6,7 +6,7 @@ import { Random } from "../feed/test/random.ts";
 /** The rows an arrangement holds at most. */
 const LIMIT = 5;
 
-/** The keys the random moves pick from, enough rows to span several chunks. */
+/** The keys the random moves pick from, enough for several chunks. */
 const KEYS = 1500;
 
 /** Sort rows by score descending, then by key. */
@@ -18,14 +18,14 @@ function compare(left: Row, right: Row): number {
 }
 
 test("arrange rows as a sorted list does through random moves", () => {
-    // place, move and remove rows at random in an arrangement and a sorted list alike
+    // move rows at random in a window and a sorted list alike
     const random = new Random(7);
     const window = new Window(compare, LIMIT, undefined, [], true);
     const reference: Row[] = [];
     const evictions: string[] = [];
     const expected: string[] = [];
     for (let step = 0; step < 3000; step += 1) {
-        // take the row out of the list, remembering the held keys before
+        // take the row out of the list
         const key = `r${random.integer(KEYS)}`;
         const before = reference.slice(0, LIMIT).map((row) => row.id as string);
         const index = reference.findIndex((row) => row.id === key);
@@ -39,7 +39,7 @@ test("arrange rows as a sorted list does through random moves", () => {
             continue;
         }
 
-        // place it in both, noting the row it pushes out of the held ones when it enters them
+        // place it in both, noting the row it evicts
         const row = { id: key, score: random.integer(100) };
         const placed = window.place(key, row);
         const position = reference.findIndex((entry) => compare(entry, row) > 0);
@@ -54,7 +54,7 @@ test("arrange rows as a sorted list does through random moves", () => {
         }
     }
 
-    // hold the first rows of the list, knowing every row, having pushed out exactly the rows entering ones displaced
+    // hold the list's first rows and evict the displaced rows
     expect([window.held(), window.size, evictions]).toEqual([
         reference.slice(0, LIMIT).map((row) => row.id),
         reference.length,

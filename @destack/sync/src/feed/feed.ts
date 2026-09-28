@@ -15,24 +15,23 @@ import { Run, type RunCost } from "../dataflow/run.ts";
 import { View, type Cache } from "../dataflow/view.ts";
 
 /**
- * The most recent changes a feed keeps in memory for its subscribers by default.
+ * The default count of recent changes a feed keeps in memory.
  *
- * At about 1 KB a change, a busy database's feed holds about 10 MB, and an idle one holds what arrived since it started.
+ * At about 1 KB a change, a busy feed holds about 10 MB.
  */
 const FEED_CHANGES = 10_000;
 
 /**
- * The most subscribers one feed serves by default.
+ * The default subscriber limit of a feed.
  *
- * Streams that decide alike share one evaluation, so a row every subscriber follows costs each about 4 µs to publish, about 4 ms in all.
+ * A row every subscriber follows costs each about 4 µs to publish, about 4 ms in all.
  */
 const FEED_SUBSCRIBERS = 1000;
 
 /**
- * The most rows and groups an evaluation's windows, arrangements and tallies know together, by default.
+ * The default count of rows and groups one evaluation knows.
  *
- * Windows hold a limit of rows with their logged columns, about 1 KB each, and arrangements every candidate's sort values, about 100 B each.
- * A hundred thousand, mostly arranged entries and groups, keep an evaluation within about 20 MB.
+ * Window rows take about 1 KB and arranged entries about 100 B, so 100k stay within about 20 MB.
  */
 const CAPACITY = 100_000;
 
@@ -40,55 +39,54 @@ const CAPACITY = 100_000;
 const SHARED_READS = 8;
 
 /**
- * How long a caught-up stream waits for a commit before repeating its position, by default, in milliseconds.
+ * The default wait before a caught-up stream repeats its position, in milliseconds.
  *
- * Each repeated position confirms a copy current with its source, and a copy three beats unconfirmed, 30 seconds, is stale.
- * A beat costs one empty page per stream, about a microsecond of work every ten seconds.
+ * A copy three beats unconfirmed, 30 seconds, is stale.
  */
 const HEARTBEAT_MILLISECONDS = 10_000;
 
-/** One database's log, read once per commit and served to every subscriber of its queries. */
+/** One database's log, read once per commit and served to every subscriber. */
 export class Feed implements Cache {
     /** The database whose log the feed reads. */
     readonly database: DatabaseConnection;
     /** The logged tables subscribers may read. */
     readonly tables: readonly Table[];
-    /** The most subscribers the feed serves at once. */
+    /** The subscriber limit. */
     readonly #limit: number;
-    /** The most rows and groups one evaluation's windows, arrangements and tallies know together. */
+    /** The most rows and groups one evaluation knows. */
     readonly capacity: number;
-    /** The most recent changes the feed keeps in memory, which subscribers at or after the oldest read without the log. */
+    /** The count of recent changes kept in memory. */
     readonly #memory: number;
-    /** Report each evaluation run's cost, absent when nothing observes the feed. */
+    /** Report each run's cost. */
     readonly observe: ((cost: RunCost) => void) | undefined;
-    /** How long a caught-up stream waits for a commit before repeating its position, in milliseconds. */
+    /** The wait before a caught-up stream repeats its position, in milliseconds. */
     readonly heartbeat: number;
-    /** What a copy knows of its source, absent for a source database, whose own rows measure relations. */
+    /** What a copy knows of its source. */
     readonly upstream: Upstream | undefined;
     /** The recent changes in commit order. */
     #changes: Change[] = [];
-    /** The sequence before the oldest kept change; subscribers at or after it read from memory. */
+    /** The sequence before the oldest kept change. */
     #start = Number.POSITIVE_INFINITY;
-    /** The sequence the kept changes reach, below zero before reading starts. */
+    /** The sequence the kept changes reach, below zero before reading. */
     #sequence = -1;
     /** The subscribers waiting for the feed to pass a sequence. */
     readonly #waiting = new Set<() => void>();
-    /** The number of subscribers, which keep the feed reading. */
+    /** The subscriber count. */
     #subscribers = 0;
-    /** Stop reading once the last subscriber leaves. */
+    /** Stop reading after the last subscriber. */
     #reading?: AbortController;
-    /** The failure that stopped reading, reported to every subscriber. */
+    /** The failure that stopped reading. */
     #failure?: unknown;
-    /** The evaluations streams share at the head, by what they evaluate for whom. */
+    /** The shared evaluations by key. */
     readonly #evaluations = new Map<string, Evaluation>();
     /** Each shared evaluation's key and the streams sharing it. */
     readonly #shares = new Map<Evaluation, { key: string; streams: number }>();
-    /** The reads subscribers share deciding recent sequences, by sequence and what they read. */
+    /** The shared reads by sequence and key. */
     readonly #reads = new Map<number, Map<string, unknown>>();
-    /** The conditions of watches over the rows whose changes matter, compiled once per watch. */
+    /** The compiled row conditions of watches. */
     readonly #watchedRows = new WeakMap<Watch, Match>();
 
-    /** Serve the logged ones among a database's tables to at most a limit of subscribers, each evaluation within a capacity of rows and groups, keeping a number of recent changes in memory. */
+    /** Serve a database's logged tables within the limits. */
     constructor(
         database: DatabaseConnection,
         tables: readonly Table[],
@@ -101,7 +99,7 @@ export class Feed implements Cache {
             readonly heartbeat?: number;
         } = {},
     ) {
-        // serve the logged tables within the limits, with their tree indexes unless the database is a copy
+        // keep the logged tables and the limits
         this.database = database;
         this.upstream = options.upstream;
         this.tables = tables
@@ -119,7 +117,7 @@ export class Feed implements Cache {
         this.heartbeat = options.heartbeat ?? HEARTBEAT_MILLISECONDS;
     }
 
-    /** Describe the feed for inspection: how far it read, what it keeps, whom it serves, and each shared evaluation's dataflow. */
+    /** Describe the feed. */
     inspect(): FeedInspection {
         return {
             sequence: this.#sequence,
@@ -134,17 +132,16 @@ export class Feed implements Cache {
         };
     }
 
-    /** The sequence the feed has read the log up to. */
+    /** The sequence the feed read the log up to. */
     get sequence(): number {
         return this.#sequence;
     }
 
     /**
-     * Follow queries from a position for an audience, moving from previous queries when given them.
+     * Follow queries from a position for an audience.
      *
-     * A subscriber without a position of the log's epoch first receives a paged snapshot.
-     * So does one whose position the log compacted away.
-     * With an interval, pages that follow the head arrive at most once per interval, merged.
+     * A subscriber without a current position first receives a paged snapshot.
+     * With an interval, pages at the head merge within the interval.
      */
     async *subscribe(
         queries: Readonly<Record<string, Query>>,
@@ -156,7 +153,7 @@ export class Feed implements Cache {
             readonly every?: number;
         } = {},
     ): AsyncGenerator<QueryPage> {
-        // resolve the queries before serving them
+        // resolve the queries
         const audience = options.audience ?? EVERYONE;
         const stream = new Stream(this, queries, audience, options.every);
         const previous =
@@ -164,7 +161,7 @@ export class Feed implements Cache {
                 ? undefined
                 : new Evaluation(this, options.previous, audience);
 
-        // refuse subscribers beyond the limit, and keep the feed reading while subscribed
+        // refuse subscribers beyond the limit
         if (this.#subscribers >= this.#limit) {
             throw new SyncError("OVERLOADED", `feed serves ${this.#limit} subscribers already`);
         }
@@ -176,18 +173,13 @@ export class Feed implements Cache {
         }
     }
 
-    /**
-     * Follow one query's result as the log changes it until the signal aborts: its rows with what each includes nested, or its groups.
-     *
-     * The result holds every row the query selects; a copy's feed measures relations and aggregates through its source.
-     * It starts over from the latest position whenever the log no longer holds a position it needs.
-     */
+    /** Follow one query's result until the signal aborts. */
     async *watch(
         name: string,
         query: Query,
         signal: AbortSignal,
     ): AsyncGenerator<readonly Readonly<Record<string, unknown>>[]> {
-        // compile the query, and keep the feed reading while watched
+        // compile the query
         const dataflow = new Dataflow(
             { [name]: query },
             {
@@ -206,7 +198,7 @@ export class Feed implements Cache {
         try {
             let position: LogPosition | undefined;
             while (!signal.aborted) {
-                // hold the query as of the latest position, and read its result
+                // hold the query and read its result
                 if (position === undefined) {
                     position = await this.database.log.position();
                     await dataflow.fill(new View(this.database, position, this));
@@ -214,7 +206,7 @@ export class Feed implements Cache {
                     continue;
                 }
 
-                // apply what follows, reading the result again once it changed, or wait for more
+                // apply the changes and read the result again
                 const read = await this.changes(dataflow.watches(), position.sequence);
                 if (read === undefined) {
                     position = undefined;
@@ -240,7 +232,7 @@ export class Feed implements Cache {
         }
     }
 
-    /** Read the changes of watched tables and scopes after a sequence, absent once the log no longer holds them. */
+    /** Read the watched changes after a sequence, absent once compacted. */
     async changes(
         watches: readonly Watch[],
         sequence: number,
@@ -258,7 +250,7 @@ export class Feed implements Cache {
         return this.#logged(watches, sequence);
     }
 
-    /** Read every change of watched tables and scopes after one sequence through another, from memory and then the log, absent once the log no longer holds them. */
+    /** Read the watched changes between two sequences, absent once compacted. */
     async changesThrough(
         watches: readonly Watch[],
         after: number,
@@ -266,7 +258,7 @@ export class Feed implements Cache {
     ): Promise<Change[] | undefined> {
         const changes: Change[] = [];
         for (let sequence = after; sequence < through;) {
-            // read from memory while it holds the sequence and reaches beyond it, else a page of the log
+            // read from memory or a page of the log
             const read =
                 sequence >= this.#start && this.#sequence > sequence
                     ? await this.changes(watches, sequence)
@@ -277,7 +269,7 @@ export class Feed implements Cache {
                 throw new TypeError(`log ends at ${read.sequence} before ${through}`);
             }
 
-            // keep the changes up to the sequence read through
+            // keep the changes up to the end sequence
             changes.push(...read.changes.filter((change) => change.sequence <= through));
             sequence = read.sequence;
         }
@@ -285,7 +277,7 @@ export class Feed implements Cache {
         return changes;
     }
 
-    /** Read a page of watched tables' and scopes' changes after a sequence from the log, absent once the log no longer holds them. */
+    /** Read a page of watched changes from the log, absent once compacted. */
     async #logged(
         watches: readonly Watch[],
         sequence: number,
@@ -309,21 +301,17 @@ export class Feed implements Cache {
         }
     }
 
-    /**
-     * Read the images a table's rows had before their first change after a sequence, up to another, by key.
-     *
-     * A row inserted after the sequence has a null image; overlaying the images on current rows restores the table as it was.
-     */
+    /** Read the images a table's rows had before their first change between two sequences, by key. */
     images(table: Table, after: number, upto: number): Promise<ReadonlyMap<string, Row | null>> {
-        // reuse images of the same table after the same sequence that cover as far
+        // share the images per range
         return this.share(after, `images:${table[TABLE].sqlName}:${upto}`, async () => {
-            // take them from memory when the feed holds every change of the range, else from the log
+            // read from the log unless memory holds the range
             if (upto <= after || after < this.#start || this.#sequence < upto) {
                 return this.database.log.images(table, after, upto);
             }
             const images = new Map<string, Row | null>();
             for (let index = this.#after(after); index < this.#changes.length; index += 1) {
-                // keep the table's first change in the range of each row
+                // keep each row's first change in the range
                 const change = this.#changes[index]!;
                 if (change.sequence > upto) {
                     break;
@@ -338,19 +326,15 @@ export class Feed implements Cache {
         });
     }
 
-    /**
-     * Compute once, for every subscriber deciding the same log sequence, what a key names: a read or an encoding.
-     *
-     * A read that fails is forgotten, so that the next subscriber reads again, and the reads of the lowest sequences go first.
-     */
+    /** Compute a keyed read or encoding once per log sequence, forgetting failed reads. */
     share<Value>(sequence: number, key: string, compute: () => Value): Value {
-        // reuse a read made for the same sequence
+        // reuse a read of the same sequence
         let reads = this.#reads.get(sequence);
         if (reads?.has(key) === true) {
             return reads.get(key) as Value;
         }
 
-        // start the sequence's reads, letting go of the lowest sequence's beyond the kept number
+        // start the sequence's reads, dropping the oldest beyond the kept number
         if (reads === undefined) {
             reads = new Map<string, unknown>();
             this.#reads.set(sequence, reads);
@@ -359,7 +343,7 @@ export class Feed implements Cache {
             }
         }
 
-        // read, forgetting a read that fails
+        // read, forgetting a failed read
         const value = compute();
         reads.set(key, value);
         if (value instanceof Promise) {
@@ -374,18 +358,14 @@ export class Feed implements Cache {
         return value;
     }
 
-    /** Decide whether a read for a sequence is shared already. */
+    /** Decide whether a read for a sequence is shared. */
     isShared(sequence: number, key: string): boolean {
         return this.#reads.get(sequence)?.has(key) === true;
     }
 
-    /**
-     * Share the evaluation of streams deciding alike at a position, returning the one a stream follows from there.
-     *
-     * A stream shares its own evaluation when none decides alike yet; it keeps its own while the shared one holds another position.
-     */
+    /** Share the evaluation of streams deciding alike at a position, returning the one to follow. */
     join(evaluation: Evaluation, position: LogPosition): Evaluation {
-        // follow the key of a shared evaluation whose audience's decisions changed
+        // rekey a shared evaluation whose audience changed
         const key = evaluation.key;
         const share = this.#shares.get(evaluation);
         if (share !== undefined) {
@@ -398,7 +378,7 @@ export class Feed implements Cache {
             return evaluation;
         }
 
-        // join the shared evaluation at the same position, or share this one when none decides alike
+        // join a shared evaluation at the same position, or share this one
         const shared = this.#evaluations.get(key);
         const held = shared?.position;
         if (
@@ -417,15 +397,15 @@ export class Feed implements Cache {
         return evaluation;
     }
 
-    /** Stop sharing an evaluation with a stream that left it, forgetting it once no stream shares it. */
+    /** Count a stream out of a shared evaluation, forgetting it after the last. */
     leave(evaluation: Evaluation): void {
-        // ignore a stream that evaluates alone
+        // skip an unshared evaluation
         const share = this.#shares.get(evaluation);
         if (share === undefined) {
             return;
         }
 
-        // count the stream out, forgetting the evaluation after the last one
+        // count the stream out
         share.streams -= 1;
         if (share.streams === 0) {
             this.#evaluations.delete(share.key);
@@ -433,7 +413,7 @@ export class Feed implements Cache {
         }
     }
 
-    /** Decide whether streams share an evaluation through the feed. */
+    /** Decide whether an evaluation is shared. */
     isJoined(evaluation: Evaluation): boolean {
         return this.#shares.has(evaluation);
     }
@@ -441,7 +421,7 @@ export class Feed implements Cache {
     /** Wait until the feed passes a sequence, reading fails, or the signal aborts. */
     async next(sequence: number, signal: AbortSignal): Promise<void> {
         await new Promise<void>((resolve) => {
-            // wake at once when already past, failed or aborted
+            // wake once past, failed or aborted
             const wake = () => {
                 if (this.#sequence > sequence || this.#failure !== undefined || signal.aborted) {
                     this.#waiting.delete(wake);
@@ -454,7 +434,7 @@ export class Feed implements Cache {
             wake();
         });
 
-        // report the failure that stopped reading
+        // report the reading failure
         if (this.#failure !== undefined) {
             throw this.#failure;
         }
@@ -462,7 +442,7 @@ export class Feed implements Cache {
 
     /** Find the index of the first kept change after a sequence. */
     #after(sequence: number): number {
-        // search the kept changes, which are in sequence order
+        // search the kept changes in sequence order
         let low = 0;
         let high = this.#changes.length;
         while (low < high) {
@@ -485,7 +465,7 @@ export class Feed implements Cache {
             this.#reading = reading;
             this.#failure = undefined;
             this.#follow(reading.signal).catch((error: unknown) => {
-                // report the failure to this reading's subscribers only
+                // report the failure to this reading's subscribers
                 if (this.#reading === reading) {
                     this.#failure = error;
                     this.#wake();
@@ -508,10 +488,10 @@ export class Feed implements Cache {
         }
     }
 
-    /** Read every commit's changes into memory until the signal aborts, keeping the most recent. */
+    /** Read each commit's changes into memory until the signal aborts. */
     async #follow(signal: AbortSignal): Promise<void> {
-        // start at the latest sequence with nothing kept
-        const latest = await this.database.log.latest();
+        // start at the latest sequence
+        const latest = (await this.database.log.position()).sequence;
         if (signal.aborted) {
             return;
         }
@@ -537,14 +517,14 @@ export class Feed implements Cache {
         }
     }
 
-    /** Let every waiting subscriber check whether it can continue. */
+    /** Wake every waiting subscriber. */
     #wake(): void {
         for (const wake of this.#waiting) {
             wake();
         }
     }
 
-    /** Decide whether a change is of a watched table, scope and row, as the row was or is. */
+    /** Decide whether a change is of a watched table, scope and row. */
     #isWatched(watches: readonly Watch[], change: Change): boolean {
         return watches.some((entry) => {
             // require the table and scope
@@ -568,19 +548,19 @@ export class Feed implements Cache {
     }
 }
 
-/** What a feed holds and serves, as inspection reads it. */
+/** The inspection of a feed. */
 export interface FeedInspection {
-    /** The sequence the feed read the log up to, below zero before reading starts. */
+    /** The sequence the feed read the log up to, below zero before reading. */
     readonly sequence: number;
-    /** The recent changes it keeps in memory. */
+    /** The kept recent changes. */
     readonly changes: number;
     /** The subscribers it serves. */
     readonly subscribers: number;
-    /** The most subscribers it serves at once. */
+    /** The subscriber limit. */
     readonly limit: number;
     /** The most rows and groups one evaluation may know. */
     readonly capacity: number;
-    /** The evaluations streams share at the head, with how many streams share each. */
+    /** The shared evaluations with their stream counts. */
     readonly evaluations: readonly {
         /** The streams sharing the evaluation. */
         readonly streams: number;

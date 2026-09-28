@@ -3,12 +3,7 @@ import { Order } from "@destack/db/query";
 import { Node } from "../query/node.ts";
 import type { Run } from "./run.ts";
 
-/**
- * Where a node's rows come from: a scan of a root's scopes, or a join of each held parent row to the rows its path names.
- *
- * It reads each partition's rows and locates each row's partitions, both ways, a batch of partitions or rows per call.
- * A key join names the rows holding a value; a junction join the rows its join rows name; a tree join every row below or above a held row, through rows the audience sees.
- */
+/** The source of a node's rows: a scan of a root's scopes, or a join to held parent rows. */
 export abstract class Input {
     /** The node whose rows the input reads. */
     readonly node: Node;
@@ -18,7 +13,7 @@ export abstract class Input {
         this.node = node;
     }
 
-    /** Read a node's rows by its path: a scan for a root, else a join, following trees through their index unless the database holds none. */
+    /** Create the input of a node's path. */
     static of(node: Node, hasTreeIndex: boolean): Input {
         const path = node.path;
 
@@ -31,13 +26,13 @@ export abstract class Input {
                 : new TreeJoin(node, hasTreeIndex);
     }
 
-    /** Read each partition's rows, before the node's condition and the audience's view of them, aligned with the held values naming them. */
+    /** Read each partition's rows, aligned with the held values naming them. */
     abstract members(values: readonly unknown[], run: Run): Promise<Row[][]>;
 
-    /** Read the held values naming the partitions each row belongs to, aligned with the rows. */
+    /** Read the held values naming each row's partitions. */
     abstract locate(rows: readonly Row[], run: Run): Promise<unknown[][]>;
 
-    /** Add the rows of the node's table a change of a row moves beyond itself to the rows to decide again, as they are at the position. */
+    /** Add the rows a changed row moves beyond itself to the rows to decide again. */
     async moves(
         _table: Table,
         _before: Row | undefined,
@@ -47,7 +42,7 @@ export abstract class Input {
         _dirty: Map<string, Row | undefined>,
     ): Promise<void> {}
 
-    /** Keep the rows of a table in the node's scopes the audience sees, which a path may pass through. */
+    /** Keep the visible rows of a table in the node's scopes. */
     protected async passable(table: Table, rows: readonly Row[], run: Run): Promise<Row[]> {
         return run.seen(
             table,
@@ -98,16 +93,16 @@ class KeyJoin extends Input {
     }
 }
 
-/** A junction path: the rows the join rows of a held row name, through join rows the audience sees. */
+/** A junction path: the rows a held row's visible join rows name. */
 class JunctionJoin extends Input {
     /** The path. */
     get #path(): Extract<NonNullable<Node["path"]>, { readonly kind: "junction" }> {
         return this.node.path as Extract<NonNullable<Node["path"]>, { readonly kind: "junction" }>;
     }
 
-    /** Read the rows the seen join rows of each value name, once each. */
+    /** Read the rows each value's visible join rows name, once each. */
     async members(values: readonly unknown[], run: Run): Promise<Row[][]> {
-        // read the join rows naming each value, keeping those the path passes through
+        // read the visible join rows naming each value
         const path = this.#path;
         const joins = await run.view.lookup(
             path.table,
@@ -116,7 +111,7 @@ class JunctionJoin extends Input {
         const passable = new Set(await this.passable(path.table, joins.flat(), run));
         const named = joins.map((rows) => rows.filter((join) => passable.has(join)));
 
-        // read the rows every join row names at once, then each value's rows once each
+        // read the named rows at once
         const targets = await run.view.lookup(
             this.node.table,
             named.flat().map((join) => ({ [path.to.key]: join[path.to.column] })),
@@ -127,9 +122,9 @@ class JunctionJoin extends Input {
         ]);
     }
 
-    /** Name the held values the seen join rows naming each row join, once each. */
+    /** Name the held values each row's visible join rows join. */
     async locate(rows: readonly Row[], run: Run): Promise<unknown[][]> {
-        // read the join rows naming each row, keeping those the path passes through
+        // read the visible join rows naming each row
         const path = this.#path;
         const joins = await run.view.lookup(
             path.table,
@@ -137,7 +132,7 @@ class JunctionJoin extends Input {
         );
         const passable = new Set(await this.passable(path.table, joins.flat(), run));
 
-        // name each distinct present value once, since a row belongs to a partition once however many join rows name it
+        // name each distinct value once
         return joins.map((entries) => {
             const values = new Map<string, unknown>();
             for (const join of entries) {
@@ -151,7 +146,7 @@ class JunctionJoin extends Input {
         });
     }
 
-    /** Decide again the rows a changed join row names, as it was and is. */
+    /** Decide again the rows a changed join row names. */
     async moves(
         table: Table,
         before: Row | undefined,
@@ -160,7 +155,7 @@ class JunctionJoin extends Input {
         run: Run,
         dirty: Map<string, Row | undefined>,
     ): Promise<void> {
-        // follow the join row's images to the rows they name
+        // follow the join row's images
         const path = this.#path;
         if (table !== path.table) {
             return;
@@ -176,11 +171,7 @@ class JunctionJoin extends Input {
     }
 }
 
-/**
- * A tree path: every row below a held row, or above it, along its table's parent column, through rows the audience sees.
- *
- * A database's tree index lists every ancestor of every row with its depth; a copy holds none and walks the parent column.
- */
+/** A tree path: every visible row below or above a held row. */
 export class TreeJoin extends Input {
     /** Whether the database holds the tree index. */
     readonly #isIndexed: boolean;
@@ -191,9 +182,9 @@ export class TreeJoin extends Input {
     /** The table's one key column. */
     readonly #key: string;
 
-    /** Follow a node's tree path, through its index when the database holds one. */
+    /** Create the input of a tree path. */
     constructor(node: Node, isIndexed: boolean) {
-        // note which way the path reaches, and its columns
+        // note the direction and columns
         super(node);
         this.#isIndexed = isIndexed;
         this.#isDown = node.path!.kind === "descendants";
@@ -203,7 +194,7 @@ export class TreeJoin extends Input {
 
     /** Read the rows below each held row, or above it. */
     async members(values: readonly unknown[], run: Run): Promise<Row[][]> {
-        // read the held rows, then every row the path reaches from each
+        // read the held rows and the rows they reach
         const held = await run.view.keyed(
             this.node.table,
             values.map((value) => ({ [this.#key]: value })),
@@ -217,18 +208,14 @@ export class TreeJoin extends Input {
         return held.map((row) => (row === undefined ? [] : byRow.get(row)!));
     }
 
-    /** Name the rows whose partitions each row belongs to: every seen row above it, or below it. */
+    /** Name the visible rows above or below each row. */
     async locate(rows: readonly Row[], run: Run): Promise<unknown[][]> {
         const reached = this.#isDown ? await this.above(rows, run) : await this.below(rows, run);
 
         return reached.map((entries) => entries.map((entry) => entry[this.#key]));
     }
 
-    /**
-     * Decide again the rows a changed row carries along: those a tree index row gains or loses, those below or above a row that moved, and those whose paths pass a row whose visibility may change.
-     *
-     * A copy, which holds no index, walks from the row's images instead.
-     */
+    /** Decide again the rows a changed row carries along a tree. */
     async moves(
         table: Table,
         before: Row | undefined,
@@ -237,7 +224,7 @@ export class TreeJoin extends Input {
         run: Run,
         dirty: Map<string, Row | undefined>,
     ): Promise<void> {
-        // follow a copy's tree row, whose move or visibility carries the rows its images reach
+        // follow a copy's tree row
         const node = this.node;
         const end = this.#isDown ? "descendant" : "ancestor";
         if (!this.#isIndexed && table === node.table) {
@@ -255,14 +242,14 @@ export class TreeJoin extends Input {
                 dirty.set(node.keyOf(row), row);
             }
         }
-        // follow a tree index row to the row whose partitions it changes
+        // follow a tree index row
         else if (this.#isIndexed && table === node.closure) {
             const ends = [before, after]
                 .filter((image): image is Row => image !== undefined && image.depth !== 0)
                 .map((image) => image[end]);
             await this.#mark(ends, run, dirty);
         }
-        // follow a tree row whose visibility may change to every row whose path passes through it
+        // follow a tree row whose visibility may change
         else if (
             this.#isIndexed &&
             table === node.table &&
@@ -277,16 +264,12 @@ export class TreeJoin extends Input {
         }
     }
 
-    /**
-     * Read the rows strictly between each member and the held row whose value names a partition holding it, through rows the audience sees.
-     *
-     * A member the path no longer reaches from the held row has no rows between.
-     */
+    /** Read the rows strictly between each member and its held row. */
     async between(
         pairs: readonly { readonly member: Row; readonly value: unknown }[],
         run: Run,
     ): Promise<Row[][]> {
-        // walk up from the lower row of each pair to the upper one
+        // walk up from the lower row of each pair
         const key = this.#key;
         const held = this.#isDown
             ? []
@@ -299,9 +282,9 @@ export class TreeJoin extends Input {
         const reached = await this.above(present, run);
         const byRow = new Map(present.map((row, index) => [row, reached[index]!]));
 
-        // keep the rows up to the upper row, none when the walk misses it
+        // keep the rows up to the upper row
         return pairs.map(({ member, value }, index) => {
-            // walk up from the lower row until the upper one
+            // walk up until the upper row
             const upper = this.#isDown ? value : member[key];
             const rows: Row[] = [];
             const row = lower[index];
@@ -316,14 +299,14 @@ export class TreeJoin extends Input {
         });
     }
 
-    /** Read the seen rows above each row, nearest first, stopping at a row the path may not pass through. */
+    /** Read the visible rows above each row, nearest first. */
     async above(rows: readonly Row[], run: Run): Promise<Row[][]> {
-        // walk the parent column up without an index
+        // walk up without an index
         if (!this.#isIndexed) {
             return this.#walkUp(rows, run);
         }
 
-        // read every row's ancestors from the index, nearest first, with their visibility at once
+        // read the ancestors from the index
         const node = this.node;
         const paths = await run.view.lookup(
             node.closure!,
@@ -346,7 +329,7 @@ export class TreeJoin extends Input {
             ),
         );
 
-        // keep each row's ancestors up to the first the path may not pass through
+        // keep ancestors up to the first impassable row
         return unflatten(ancestors, nearest).map((entries) => {
             const blocked = entries.findIndex(
                 (ancestor) => ancestor === undefined || !passable.has(ancestor),
@@ -356,14 +339,14 @@ export class TreeJoin extends Input {
         });
     }
 
-    /** Read the seen rows below each row, reached through seen rows only, shallowest first. */
+    /** Read the visible rows below each row, shallowest first. */
     async below(rows: readonly Row[], run: Run): Promise<Row[][]> {
-        // walk the children of each level without an index
+        // walk down without an index
         if (!this.#isIndexed) {
             return this.#walkDown(rows, run);
         }
 
-        // read every row's descendants from the index, shallowest first, with their visibility at once
+        // read the descendants from the index
         const node = this.node;
         const paths = await run.view.lookup(
             node.closure!,
@@ -386,9 +369,9 @@ export class TreeJoin extends Input {
             ),
         );
 
-        // reach each seen descendant whose parent the path reached
+        // keep each descendant whose parent the path reached
         return unflatten(descendants, shallowest).map((entries, position) => {
-            // start from the held row, adding each descendant the path reaches
+            // start from the held row
             const reached = new Set<unknown>([rows[position]![this.#key]]);
             const kept: Row[] = [];
             for (const descendant of entries) {
@@ -406,9 +389,9 @@ export class TreeJoin extends Input {
         });
     }
 
-    /** Walk each row's parent column up through the seen rows a copy holds, a level of every row at once, nearest first. */
+    /** Walk each row's parent column up, a level at a time. */
     async #walkUp(rows: readonly Row[], run: Run): Promise<Row[][]> {
-        // walk every row up at once, guarding against cycles
+        // walk every row up, guarding against cycles
         const key = this.#key;
         const walks = rows.map((row) => ({
             rows: [] as Row[],
@@ -416,7 +399,7 @@ export class TreeJoin extends Input {
             current: row as Row | undefined,
         }));
         for (;;) {
-            // read the next parent of every walk still open
+            // read the next parent of every open walk
             const open = walks.filter((walk) => {
                 // close a walk at the top or at a cycle
                 const parent = walk.current?.[this.#column];
@@ -442,7 +425,7 @@ export class TreeJoin extends Input {
                 ),
             );
 
-            // step each walk up, stopping at a row the path may not pass through
+            // step each walk up
             for (const [index, walk] of open.entries()) {
                 const parent = parents[index];
                 if (parent === undefined || !passable.has(parent)) {
@@ -456,9 +439,9 @@ export class TreeJoin extends Input {
         }
     }
 
-    /** Walk the children of each level down through the seen rows a copy holds, a level of every row at once. */
+    /** Walk each row's children down, a level at a time. */
     async #walkDown(rows: readonly Row[], run: Run): Promise<Row[][]> {
-        // walk every row down at once, guarding against cycles
+        // walk every row down, guarding against cycles
         const key = this.#key;
         const walks = rows.map((row) => ({
             rows: [] as Row[],
@@ -466,7 +449,7 @@ export class TreeJoin extends Input {
             level: [row],
         }));
         while (walks.some((walk) => walk.level.length > 0)) {
-            // read the children of every walk's level at once
+            // read the children of every walk's level
             const parents = walks.flatMap((walk) => walk.level);
             const children = await run.view.lookup(
                 this.node.table,
@@ -474,7 +457,7 @@ export class TreeJoin extends Input {
             );
             const passable = new Set(await this.passable(this.node.table, children.flat(), run));
 
-            // take each walk's next level of seen rows once each
+            // take each walk's next level once
             const levels = unflatten(
                 children,
                 walks.map((walk) => walk.level),
@@ -495,12 +478,12 @@ export class TreeJoin extends Input {
         return walks.map((walk) => walk.rows);
     }
 
-    /** Decide whether the path may pass through a row: present, of the node's scopes, and seen by the audience. */
+    /** Decide whether the path may pass through a row. */
     async #passes(row: Row | undefined, run: Run): Promise<boolean> {
         return row !== undefined && (await this.passable(this.node.table, [row], run)).length > 0;
     }
 
-    /** Decide the rows at some ends of tree paths again, by key, as they are at the position. */
+    /** Decide again the rows at some tree path ends. */
     async #mark(
         ends: readonly unknown[],
         run: Run,
@@ -514,7 +497,7 @@ export class TreeJoin extends Input {
     }
 }
 
-/** Split a flat list into consecutive groups as long as some lists, undoing their flattening. */
+/** Split a flat list into groups as long as some lists. */
 function unflatten<Item>(flat: readonly Item[], lists: readonly (readonly unknown[])[]): Item[][] {
     // take each list's length of items in turn
     let offset = 0;

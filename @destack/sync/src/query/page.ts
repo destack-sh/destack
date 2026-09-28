@@ -2,57 +2,57 @@ import { Scalar } from "@destack/db/query";
 import { defineSchema, schema } from "@destack/schema";
 import { LogPosition } from "@destack/db/log";
 
-/** How the source settled one of a subscriber's mutations: executed, or rejected with its failure. */
+/** The source's outcome of a subscriber's mutation. */
 export const MutationOutcome = defineSchema(
     schema.object({
         /** The mutation's request identifier. */
         id: schema.string().min(1),
-        /** The failure the source recorded, absent once executed. */
+        /** The recorded failure, absent once executed. */
         error: schema.json().optional(),
     }),
 );
-/** How the source settled one of a subscriber's mutations: executed, or rejected with its failure. */
+/** The source's outcome of a subscriber's mutation. */
 export type MutationOutcome = schema.Infer<typeof MutationOutcome>;
 
-/** One row entering, changing within or leaving the rows a subscriber holds, as it travels. */
+/** One row entering, changing within or leaving a subscriber's rows. */
 export const RowChange = defineSchema(
     schema.object({
         /** The row's table, by SQL name. */
         table: schema.string().min(1),
-        /** Whether the row enters, changes within or leaves. */
+        /** Whether the row enters, changes or leaves. */
         operation: schema.enum(["insert", "update", "delete"]),
-        /** The row's columns by property, as JSON: its readable columns after an insertion or update, its key for a deletion. */
+        /** The row's columns as JSON, or its key for a deletion. */
         row: schema.record(schema.string(), schema.json()),
-        /** The row before an update, as JSON, which a copy restores to revert a prediction. */
+        /** The row before an update, as JSON. */
         before: schema.record(schema.string(), schema.json()).optional(),
-        /** The columns the subscriber may not read, which the row leaves out and a copy holds as missing. */
+        /** The columns the subscriber may not read. */
         concealed: schema.array(schema.string()).optional(),
     }),
 );
-/** One row entering, changing within or leaving the rows a subscriber holds, as it travels. */
+/** One row entering, changing within or leaving a subscriber's rows. */
 export type RowChange = schema.Infer<typeof RowChange>;
 
-/** One group of an aggregate query taking new values or leaving, or every group of the query leaving. */
+/** One aggregate group taking new values or leaving, or every group leaving. */
 export const ResultChange = defineSchema(
     schema.object({
         /** The query, by its path of names. */
         query: schema.string().min(1),
-        /** The group's values by column property, the held row's join value first for an include; null for every group. */
+        /** The group's values, the join value first for an include, null for every group. */
         group: schema.record(schema.string(), Scalar).nullable(),
-        /** The group's measures by name, or null once the group holds no rows. */
+        /** The group's measures, or null once empty. */
         values: schema.record(schema.string(), Scalar).nullable(),
-        /** The rows the group holds while it holds any, which let a copy predict when it empties. */
+        /** The group's row count. */
         rows: schema.number().int().positive().optional(),
-        /** Each average's sum and count of present values, by measure name, which let a copy add predictions to it. */
+        /** Each average's sum and count of present values. */
         parts: schema
             .record(schema.string(), schema.object({ sum: Scalar, count: schema.number().int() }))
             .optional(),
     }),
 );
-/** One group of an aggregate query taking new values or leaving, or every group of the query leaving. */
+/** One aggregate group taking new values or leaving, or every group leaving. */
 export type ResultChange = schema.Infer<typeof ResultChange>;
 
-/** An event sent to one topic, such as an object, which its subscribers receive and nothing stores. */
+/** An event sent to one topic, never stored. */
 export const Broadcast = defineSchema(
     schema.object({
         /** The topic the event was sent to. */
@@ -64,24 +64,24 @@ export const Broadcast = defineSchema(
 /** An event sent to one topic, never stored. */
 export type Broadcast = schema.Infer<typeof Broadcast>;
 
-/** Rows and aggregates of queries as subscribers receive them: snapshot pages, or whole transactions after a position. */
+/** A page of query rows and aggregates. */
 export const QueryPage = defineSchema(
     schema.object({
-        /** Whether the page starts a snapshot, replacing everything the subscriber holds. */
+        /** Whether the page starts a snapshot. */
         reset: schema.boolean(),
-        /** Whether the subscriber holds all of its queries once it applies the page, false within a snapshot. */
+        /** Whether the subscriber holds all its queries after the page. */
         complete: schema.boolean(),
-        /** The rows entering, changing within or leaving the queries. */
+        /** The row changes. */
         changes: schema.array(RowChange),
-        /** The aggregate groups taking new values or leaving. */
+        /** The group changes. */
         results: schema.array(ResultChange).optional(),
-        /** The log position to continue after once the subscriber holds all of its queries. */
+        /** The log position to continue after. */
         position: LogPosition,
-        /** The outcomes of the subscriber's own mutations whose changes the page holds. */
+        /** The outcomes of the subscriber's mutations. */
         outcomes: schema.array(MutationOutcome).optional(),
-        /** The events sent to what the subscriber follows since the last page, never stored. */
+        /** The events since the last page. */
         broadcasts: schema.array(Broadcast).optional(),
     }),
 );
-/** Rows and aggregates of queries as subscribers receive them: snapshot pages, or whole transactions after a position. */
+/** A page of query rows and aggregates. */
 export type QueryPage = schema.Infer<typeof QueryPage>;

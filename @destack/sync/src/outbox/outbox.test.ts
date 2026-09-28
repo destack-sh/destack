@@ -4,20 +4,20 @@ import { asc, eq, TABLE, type DatabaseConnection, encodeRow } from "@destack/db"
 import { Replica, REPLICA_TABLES } from "../replica/replica.ts";
 import type { QueryPage } from "../query/page.ts";
 import type { Query } from "../query/query.ts";
-import { first, note, open, replicate } from "../test/fixture.ts";
-import { mutation, Outbox, type Mutation } from "./outbox.ts";
+import { first, note, open, replicate, tag } from "../test/fixture.ts";
+import { mutation, OUTBOX_TABLES, Outbox, type Mutation } from "./outbox.ts";
 
-/** The source log's epoch every page belongs to. */
+/** The source log's epoch. */
 const EPOCH = "01996ab0-0000-7000-8000-000000000001";
 
-/** The request identifiers of three mutations, in the order they were made. */
+/** The request identifiers of three mutations, in order. */
 const IDS = [
     "01996ab0-0000-7000-8000-00000000000a",
     "01996ab0-0000-7000-8000-00000000000b",
     "01996ab0-0000-7000-8000-00000000000c",
 ] as const;
 
-/** Predict a mutation's calls: each creates the note it names with its title. */
+/** Predict a mutation by creating each named note. */
 async function predict(transaction: DatabaseConnection, predicted: Mutation): Promise<void> {
     for (const call of predicted.calls) {
         const { id, title } = call.input as { id: string; title: string };
@@ -25,7 +25,7 @@ async function predict(transaction: DatabaseConnection, predicted: Mutation): Pr
     }
 }
 
-/** A complete page of a source's changes at a sequence. */
+/** A complete page of a source's changes. */
 function page(
     sequence: number,
     rows: readonly { readonly id: string; readonly title: string }[],
@@ -45,16 +45,16 @@ function page(
 }
 
 test("rebase predicted mutations onto source pages until the source executes or rejects them", async () => {
-    const client = await open("sqlite", [note, ...REPLICA_TABLES, mutation]);
-    const outbox = new Outbox([note], predict);
+    const client = await open("sqlite", [note, ...REPLICA_TABLES, ...OUTBOX_TABLES]);
+    const outbox = new Outbox([note], predict, () => [note[TABLE].sqlName]);
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const titles = async () =>
         (await client.select().from(note).orderBy(asc(note.id))).map((row) => [row.id, row.title]);
     const outcomes = async () =>
-        Promise.all(IDS.map(async (id) => (await outbox.outcome(client, id)).kind));
+        Promise.all(IDS.map(async (id) => (await outbox.outcomes(client, [id])).get(id)!.kind));
     await replicate(notes, client, [page(1, [], { reset: true })], outbox);
 
-    // predict three notes locally, each waiting for the source
+    // predict three notes
     for (const [index, id] of IDS.entries()) {
         const input = { id: ["a", "b", "c"][index]!, title: "Local" };
         await outbox.add(client, id, "tab-1", async (transaction) => {
@@ -71,7 +71,7 @@ test("rebase predicted mutations onto source pages until the source executes or 
     ]);
     expect((await outbox.pending(client)).map((entry) => entry.id)).toEqual([...IDS]);
 
-    // replace the executed prediction with the source's row, and drop the rejected one
+    // replace the executed prediction and drop the rejected one
     await replicate(
         notes,
         client,
@@ -87,13 +87,13 @@ test("rebase predicted mutations onto source pages until the source executes or 
         ["c", "Local"],
     ]);
     expect(await outcomes()).toEqual(["executed", "rejected", "pending"]);
-    expect(await outbox.outcome(client, IDS[1])).toEqual({
+    expect((await outbox.outcomes(client, [IDS[1]])).get(IDS[1])).toEqual({
         kind: "rejected",
         error: { code: "FORBIDDEN" },
     });
     expect((await outbox.pending(client)).map((entry) => entry.id)).toEqual([IDS[2]]);
 
-    // stop pushing an acknowledged mutation, and drop it once a snapshot holds its position
+    // acknowledge a mutation and drop it once a snapshot holds it
     await outbox.acknowledge(client, IDS[2], { epoch: EPOCH, sequence: 3 });
     expect(await outbox.pending(client)).toEqual([]);
     await replicate(
@@ -117,15 +117,15 @@ test("rebase predicted mutations onto source pages until the source executes or 
     ]);
     expect(await outcomes()).toEqual(["executed", "rejected", "executed"]);
 
-    // forget the rejection once its origin read it
+    // forget the rejection once read
     await outbox.forget(client, "tab-1", IDS[1]);
     expect((await client.select({ id: mutation.id }).from(mutation)).length).toBe(0);
 });
 
 test("drop a group every predicted row left, without a count measuring it", async () => {
-    // hold one group of the notes by title, measured by the greatest identity only
-    const client = await open("sqlite", [note, ...REPLICA_TABLES, mutation]);
-    const outbox = new Outbox([note], predict);
+    // hold one group of notes by title
+    const client = await open("sqlite", [note, ...REPLICA_TABLES, ...OUTBOX_TABLES]);
+    const outbox = new Outbox([note], predict, () => [note[TABLE].sqlName]);
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const titles: Omit<Query, "scopes"> = {
         table: note,
@@ -145,7 +145,7 @@ test("drop a group every predicted row left, without a count measuring it", asyn
         outbox,
     );
 
-    // predict a retitle that moves the group's only row into another group
+    // predict a retitle moving the group's only row
     await outbox.add(client, IDS[0], "tab-1", async (transaction) => {
         await transaction.update(note).set({ title: "Local" }).where(eq(note.id, "a"));
 
@@ -159,8 +159,8 @@ test("drop a group every predicted row left, without a count measuring it", asyn
 test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
     "refuse predicting on PostgreSQL, whose log sequences changes only at commit",
     async () => {
-        const database = await open("postgresql", [note, ...REPLICA_TABLES, mutation]);
-        const outbox = new Outbox([note], predict);
+        const database = await open("postgresql", [note, ...REPLICA_TABLES, ...OUTBOX_TABLES]);
+        const outbox = new Outbox([note], predict, () => [note[TABLE].sqlName]);
         await expect(
             outbox.add(database, IDS[0], "tab-1", async () => ({ calls: [], result: undefined })),
         ).rejects.toThrow(
@@ -168,3 +168,41 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
         );
     },
 );
+
+test("rebase predictions only onto pages changing a table they reach", async () => {
+    const client = await open("sqlite", [note, tag, ...REPLICA_TABLES, ...OUTBOX_TABLES]);
+    let predictions = 0;
+    const counted = async (transaction: DatabaseConnection, predicted: Mutation) => {
+        predictions += 1;
+        await predict(transaction, predicted);
+    };
+    const outbox = new Outbox([note, tag], counted, () => [note[TABLE].sqlName]);
+    const copy = new Replica({ name: "notes", scope: "inbox", tables: [note, tag] });
+    await replicate(copy, client, [page(1, [], { reset: true })], outbox);
+
+    // predict a note
+    await outbox.add(client, IDS[0], "tab-1", async (transaction) => {
+        const calls = [{ method: "note.create", input: { id: "a", title: "Local" } }];
+        await predict(transaction, { id: IDS[0], calls });
+
+        return { calls, result: undefined };
+    });
+
+    // apply a page of tags, then a page of notes
+    const tags: QueryPage = {
+        reset: false,
+        complete: true,
+        changes: [
+            {
+                table: tag[TABLE].sqlName,
+                operation: "insert",
+                row: encodeRow(tag, { id: "t", scope: "inbox", name: "urgent" }),
+            },
+        ],
+        position: { epoch: EPOCH, sequence: 2 },
+    };
+    await replicate(copy, client, [tags], outbox);
+    const afterTags = predictions;
+    await replicate(copy, client, [page(3, [{ id: "b", title: "Server" }])], outbox);
+    expect([afterTags, predictions]).toEqual([0, 1]);
+});

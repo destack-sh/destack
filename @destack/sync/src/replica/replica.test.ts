@@ -17,7 +17,7 @@ test.for(TEST_DIALECTS)(
         await source.insert(note).values([first, { ...first, id: "b", scope: "archive" }]);
         await copy.insert(note).values({ ...first, id: "stale" });
 
-        // follow the source until the copy holds the renamed note
+        // follow until the copy holds the renamed note
         const controller = new AbortController();
         const following = notes.follow(
             copy,
@@ -32,7 +32,7 @@ test.for(TEST_DIALECTS)(
         controller.abort();
         await following;
 
-        // hold the scope's rows as renamed, pruned of what the snapshot left out
+        // hold the renamed rows and prune the rest
         expect((await copy.select().from(note)).map((row) => [row.id, row.title])).toEqual([
             ["a", "Renamed"],
         ]);
@@ -56,7 +56,7 @@ test.for(TEST_DIALECTS)(
         const projects = new Replica({ name: "work", scope: "inbox", tables: [project] });
         await source.insert(project).values({ id: "p1", scope: "inbox", name: "Plan" });
 
-        // hold the projects, then read the same copy as one of projects and tasks
+        // copy projects, then projects and tasks
         const controller = new AbortController();
         const following = projects.follow(
             copy,
@@ -69,7 +69,7 @@ test.for(TEST_DIALECTS)(
         await following;
         const work = new Replica({ name: "work", scope: "inbox", tables: [project, task] });
 
-        // hold a position only as the shape that copied it, so that the new shape snapshots again
+        // hold a position per shape
         expect([await projects.position(copy), await work.position(copy)]).toEqual([
             await source.log.position(),
             undefined,
@@ -86,10 +86,10 @@ test.for(TEST_DIALECTS)(
         const reach = () =>
             Replica.reach(copy, "inbox", { epoch, sequence: 5 }, AbortSignal.timeout(20));
 
-        // never reach a position of a scope the database does not copy
+        // reach no position of an uncopied scope
         expect([await Replica.isCopied(copy, "inbox"), await reach()]).toEqual([false, false]);
 
-        // wait once registered, until a complete page reaches the position
+        // wait until a complete page reaches the position
         await notes.register(copy);
         expect([await Replica.isCopied(copy, "inbox"), await reach()]).toEqual([true, false]);
         await replicate(notes, copy, [
@@ -102,7 +102,7 @@ test.for(TEST_DIALECTS)(
         ]);
         expect(await reach()).toBe(true);
 
-        // refuse a watermark of an epoch older than the copy's
+        // refuse an older epoch
         await replicate(notes, copy, [
             {
                 reset: true,
@@ -151,12 +151,12 @@ test.for(TEST_DIALECTS)(
             { ...first, id: "stale" },
         ]);
 
-        // keep the copy as it was while a run is staged
+        // keep the copy while a run is staged
         const stream = notes.apply(copy, snapshot);
         await stream.next();
         expect(await held()).toEqual([["b", "stale"], undefined]);
 
-        // drop what a broken stream staged, so a later run never completes it
+        // drop a broken stream's staged run
         await stream.return(undefined);
         await replicate(notes, copy, [
             {
@@ -168,7 +168,7 @@ test.for(TEST_DIALECTS)(
         ]);
         expect(await held()).toEqual([["b", "c", "stale"], { epoch, sequence: 2 }]);
 
-        // apply the whole snapshot at once, pruning the rows it left out
+        // apply the snapshot and prune the left out rows
         await replicate(notes, copy, snapshot);
         expect(await held()).toEqual([["a", "b"], { epoch, sequence: 4 }]);
     },
@@ -199,7 +199,7 @@ test.for(TEST_DIALECTS)(
             .insert(task)
             .values([tasks("p", "open", 1), tasks("p", "open", 4), tasks("p", "done", 2)]);
 
-        // count each project's tasks, and measure them per state
+        // count tasks per project and state
         const query: Query = {
             table: project,
             scopes: ["inbox"],
@@ -242,7 +242,7 @@ test.for(TEST_DIALECTS)(
         controller.abort();
         await following;
 
-        // nest a project's measures, the measures of no rows for an empty one, and each state's group
+        // nest the measures of each project and state
         const { scopes: _routes, ...local } = query;
         const read = await projects.rows(copy, "projects", local);
         expect(

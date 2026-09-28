@@ -33,7 +33,7 @@ import { Workload } from "./test/workload.ts";
 /** The tables the workload writes and subscribers copy. */
 const TABLES: readonly Table[] = [project, task, comment, tag, taskTag, page];
 
-/** The writes each burst makes before the subscriber must hold them. */
+/** The writes of each burst. */
 const WRITES = 8;
 
 /** The longest a run may take, in milliseconds. */
@@ -42,11 +42,11 @@ const RUN_MILLISECONDS = 15_000;
 /**
  * The longest the run at scale may take, in milliseconds.
  *
- * It copies about 2900 rows through a replica four times, a snapshot and three rebuilds of about 3 s each on PostgreSQL under load.
+ * It copies about 2900 rows through a replica four times, about 3 s each on PostgreSQL under load.
  */
 const SCALE_RUN_MILLISECONDS = 30_000;
 
-/** One random run: queries followed through bursts of writes, reconnecting, and moving to other queries, on a cadence. */
+/** One random run of queries through bursts of writes, reconnects and reshapes. */
 interface Run {
     /** The queries followed first. */
     readonly queries: Readonly<Record<string, Query>>;
@@ -60,13 +60,13 @@ interface Run {
     readonly reshape?: Readonly<Record<string, Query>>;
     /** Whether the pages pass through a replica into a second database. */
     readonly isReplicated?: boolean;
-    /** The tasks and comments inserted before following, which pages several snapshot pages deep. */
+    /** The tasks and comments inserted before following. */
     readonly seedRows?: number;
-    /** The audience deciding the rows, the SQL-deciding one by default. */
+    /** The deciding audience. */
     readonly audience?: ConditionAudience;
 }
 
-/** The run at scale: every query set over thousands of rows through a replica, reconnecting every other burst. */
+/** The run at scale. */
 const SCALE_RUN: Run = {
     queries: EVERYTHING,
     seed: 31,
@@ -76,7 +76,7 @@ const SCALE_RUN: Run = {
     isReplicated: true,
 };
 
-/** The runs, by name: each query set with two seeds, a replicated run, and moves between stateless and stateful queries. */
+/** The runs, by name. */
 const RUNS: Readonly<Record<string, Run>> = {
     ...Object.fromEntries(
         Object.entries(QUERY_SETS).flatMap(([name, queries]) => [
@@ -133,7 +133,7 @@ test.for(TEST_DIALECTS)(
     (dialect) => holdExactly(SCALE_RUN, dialect),
 );
 
-/** Follow a run's queries through its bursts of random writes, holding exactly what an oracle selects after each. */
+/** Follow a run's queries through random writes, holding exactly what an oracle selects. */
 async function holdExactly(run: Run, dialect: Dialect): Promise<void> {
     const source = await open(dialect);
     const feed = new Feed(source, TABLES);
@@ -142,7 +142,7 @@ async function holdExactly(run: Run, dialect: Dialect): Promise<void> {
         await workload.seed(source, run.seedRows);
     }
 
-    // follow the queries, through a replica into a second database when replicated
+    // follow the queries
     const client = run.isReplicated ? await openCopy(dialect) : undefined;
     const replica = new Replica({ name: "copy", scope: "inbox", tables: TABLES });
     const audience = run.audience ?? AUDIENCE;
@@ -154,25 +154,25 @@ async function holdExactly(run: Run, dialect: Dialect): Promise<void> {
 
     let queries = run.queries;
     for (let burst = 0; burst < run.bursts; burst += 1) {
-        // write a burst, and wait until the subscriber holds it
+        // write a burst and wait for it
         for (let index = 0; index < WRITES; index += 1) {
             await workload.write(source);
         }
         await follower.reach(await source.log.position());
 
-        // hold more than a page of rows when seeded, so that snapshots and rebuilds page
+        // seed more than a page of rows
         if (run.seedRows !== undefined) {
             expect(follower.copy.rows.size).toBeGreaterThan(PAGE_ROWS);
         }
 
-        // hold exactly what the queries select in memory, in the copy and in the replica
+        // hold exactly the oracle's selection
         const expected = holding(await evaluate(source, queries, audience));
         expect([burst, ...holding(follower.copy)]).toEqual([burst, ...expected]);
         if (client !== undefined) {
             expect([burst, ...holding(await replicated(client))]).toEqual([burst, ...expected]);
         }
 
-        // move to other queries halfway, and reconnect on the cadence
+        // reshape halfway and reconnect on the cadence
         if (run.reshape !== undefined && burst === Math.floor(run.bursts / 2)) {
             queries = run.reshape;
             await follower.reconnect(queries);
@@ -183,7 +183,7 @@ async function holdExactly(run: Run, dialect: Dialect): Promise<void> {
     await follower.stop();
 }
 
-/** Present a holding for comparison, rows and groups sorted by key. */
+/** Sort a holding for comparison. */
 function holding(held: Holding): [Record<string, unknown>, Record<string, unknown>] {
     return [
         Object.fromEntries([...held.rows].sort(([left], [right]) => (left < right ? -1 : 1))),
@@ -191,9 +191,9 @@ function holding(held: Holding): [Record<string, unknown>, Record<string, unknow
     ];
 }
 
-/** Read what a replica database holds: its copied rows and aggregate groups. */
+/** Read what a replica database holds. */
 async function replicated(database: DatabaseConnection): Promise<Holding> {
-    // read every copied row as JSON of its logged columns
+    // read every copied row
     const rows = new Map<string, Record<string, unknown>>();
     for (const table of TABLES) {
         for (const row of (await database.select().from(table as never)) as Record<
@@ -205,7 +205,7 @@ async function replicated(database: DatabaseConnection): Promise<Holding> {
         }
     }
 
-    // read every copied group by query and group
+    // read every copied group
     const results = new Map(
         (await database.select().from(replicaResult)).map((row) => [
             JSON.stringify(row.query) + row.group,

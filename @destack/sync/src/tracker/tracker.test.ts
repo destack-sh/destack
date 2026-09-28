@@ -23,7 +23,7 @@ test("replicate rows between instances, and remove them with their owner", async
     const east = await open(join());
     const west = await open(join());
 
-    // write, move and remove a cursor on one instance, and see each on the other
+    // write, move and remove a cursor and see each on the other instance
     await write(east, "alice", (database) =>
         database.insert(cursor).values({ id: "a", scope: "space", position: 0 }),
     );
@@ -35,7 +35,7 @@ test("replicate rows between instances, and remove them with their owner", async
     await write(east, "alice", (database) => database.delete(cursor).where(eq(cursor.id, "a")));
     expect([await read(east), await read(west)]).toEqual([[], []]);
 
-    // remove every row of an ended owner on both instances, keeping another owner's
+    // remove an ended owner's rows everywhere
     await write(west, "bob", (database) =>
         database.insert(cursor).values([
             { id: "b", scope: "space", position: 1 },
@@ -52,7 +52,7 @@ test("replicate rows between instances, and remove them with their owner", async
         [{ id: "d", scope: "space", position: 3 }],
     ]);
 
-    // deliver a broadcast to the listeners of its topic on every instance
+    // deliver a broadcast on every instance
     const events: unknown[] = [];
     west.listen("board", (event) => events.push(event));
     east.broadcast("board", { reaction: "👍" });
@@ -67,7 +67,7 @@ test("hand a late instance the rows, and drop those of stopped and silent instan
         database.insert(cursor).values({ id: "a", scope: "space", position: 0 }),
     );
 
-    // answer a late instance's hello with the rows written before it started
+    // answer a late instance with the earlier rows
     const west = await open(join());
     await until(async () => (await read(west)).length === 1);
 
@@ -97,13 +97,13 @@ test("replicate which instance holds an owner, released everywhere once its inst
     const changes: [string, boolean][] = [];
     west.watchHolds((owner, isHeld) => changes.push([owner, isHeld]));
 
-    // hold an owner on one instance, and see it held on the other until released
+    // see a hold on the other instance until released
     east.hold("alice");
     await until(() => west.isHeld("alice"));
     east.release("alice");
     await until(() => !west.isHeld("alice"));
 
-    // release every hold of an instance once it stops
+    // release an instance's holds when it stops
     east.hold("bob");
     await until(() => west.isHeld("bob"));
     east.close();
@@ -116,7 +116,7 @@ test("replicate which instance holds an owner, released everywhere once its inst
     ]);
 });
 
-/** Track the cursors of an in-memory database on a relay with fast heartbeats, closed after the test. */
+/** Track the cursors of an in-memory database on a relay. */
 async function open(relay: Relay<TrackerMessage>): Promise<Tracker> {
     const storage = await TestDatabase.create("sqlite", [cursor], { isMigrated: true });
     const tracker = new Tracker(storage.database, [cursor], relay, { heartbeat: 5 });
@@ -128,7 +128,7 @@ async function open(relay: Relay<TrackerMessage>): Promise<Tracker> {
     return tracker;
 }
 
-/** Write in a transaction owned by an owner, then publish it and let every instance apply it. */
+/** Write in an owner's transaction and publish it. */
 async function write(
     tracker: Tracker,
     owner: string,
@@ -143,14 +143,14 @@ async function write(
     await new Promise((resolve) => setTimeout(resolve, 1));
 }
 
-/** Read an instance's cursors once it applied what it received. */
+/** Read an instance's cursors once it applied its messages. */
 async function read(tracker: Tracker) {
     await tracker.settled();
 
     return tracker.database.select().from(cursor).orderBy(cursor.id);
 }
 
-/** Wait until a check holds, giving timers and messages a turn between checks. */
+/** Wait until a check holds. */
 async function until(check: () => boolean | Promise<boolean>): Promise<void> {
     while (!(await check())) {
         await new Promise((resolve) => setTimeout(resolve, 1));

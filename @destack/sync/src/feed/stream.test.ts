@@ -27,7 +27,7 @@ test("publish a page at once after a quiet interval, and merge the pages within 
         value: page(1, [change("update", "a")]),
     });
 
-    // hold the pages within the interval: rename one note, add and remove another, and add a third
+    // hold the pages within the interval
     const merged = settled(published.next());
     source.push(page(2, [change("update", "a", "Renamed")]));
     source.push(page(3, [change("insert", "b")]));
@@ -36,7 +36,7 @@ test("publish a page at once after a quiet interval, and merge the pages within 
     await vi.advanceTimersByTimeAsync(EVERY - 1);
     expect(merged.value).toBeUndefined();
 
-    // publish each row's net change at the last page's position once the interval ends
+    // publish each row's net change at the interval's end
     await vi.advanceTimersByTimeAsync(1);
     expect(merged.value).toEqual({
         done: false,
@@ -59,7 +59,7 @@ test("publish the held page once the pages end", async () => {
     await published.next();
     source.push(page(2, [change("update", "a", "Renamed")]));
 
-    // publish the held page without waiting for the interval, then end
+    // publish the held page at the end
     source.end();
     expect(await published.next()).toEqual({
         done: false,
@@ -73,7 +73,7 @@ function page(sequence: number, changes: RowChange[]): QueryPage {
     return { reset: false, complete: true, changes, position: { epoch: "e", sequence } };
 }
 
-/** Build one change of a note by identifier, with its title after an insertion or update. */
+/** Build one change of a note. */
 function change(operation: RowChange["operation"], id: string, title = "Open"): RowChange {
     return {
         table: note[TABLE].sqlName,
@@ -82,7 +82,7 @@ function change(operation: RowChange["operation"], id: string, title = "Open"): 
     };
 }
 
-/** Follow a promise's value once it settles, absent before. */
+/** Follow a promise's value once it settles. */
 function settled<Value>(promise: Promise<Value>): { value: Value | undefined } {
     const holder: { value: Value | undefined } = { value: undefined };
     void promise.then((value) => (holder.value = value));
@@ -90,13 +90,13 @@ function settled<Value>(promise: Promise<Value>): { value: Value | undefined } {
     return holder;
 }
 
-/** Start a source of pages a test pushes one by one and ends. */
+/** Start a source of pushed pages. */
 function pages(): {
     readonly pages: AsyncGenerator<QueryPage>;
     push(page: QueryPage): void;
     end(): void;
 } {
-    // queue pushed pages until the generator takes them, waking it as they arrive
+    // queue pushed pages until taken
     const queued: (QueryPage | undefined)[] = [];
     let wake = () => {};
     const generate = async function* (): AsyncGenerator<QueryPage> {

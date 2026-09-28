@@ -2,13 +2,13 @@ import { and, eq, inArray, type DatabaseConnection } from "@destack/db";
 import { comment, page, project, tag, task, taskTag } from "../../test/fixture.ts";
 import type { Random } from "./random.ts";
 
-/** The rows one seeding insert writes: a few hundred rows of a few columns stay well within every parameter budget. */
+/** The rows of one seeding insert, well within every parameter budget. */
 const SEED_BATCH = 250;
 
 /** The folders rows live in, most of them followed. */
 const FOLDERS = ["inbox", "inbox", "inbox", "inbox", "archive"] as const;
 
-/** Random writes to projects, tasks, comments, tags, task tags and pages: inserts, updates, moves between folders and parents, deletions. */
+/** Random writes to every test table. */
 export class Workload {
     /** The random sequence the writes follow. */
     readonly #random: Random;
@@ -37,9 +37,9 @@ export class Workload {
         this.#pages = Array.from({ length: 16 }, (_, index) => `q${index}`);
     }
 
-    /** Insert many rows at once: every project, and a number of tasks and comments beyond the ones writes pick. */
+    /** Insert every project and a number of extra tasks and comments. */
     async seed(database: DatabaseConnection, count: number): Promise<void> {
-        // insert projects, then tasks and comments in batches well within the parameter budget
+        // insert projects, then tasks and comments in batches
         const random = this.#random;
         await database.insert(project).values(
             this.#projects.map((id) => ({
@@ -78,7 +78,7 @@ export class Workload {
 
     /** Make one write, or a few in one transaction. */
     async write(database: DatabaseConnection): Promise<void> {
-        // group some writes into one transaction, so that pages carry several changes of one commit
+        // group some writes into one transaction
         if (this.#random.chance(0.15)) {
             await database.transaction(async (transaction) => {
                 for (let index = 0; index < 3; index += 1) {
@@ -92,7 +92,7 @@ export class Workload {
 
     /** Make one write to a random row. */
     async #write(database: DatabaseConnection): Promise<void> {
-        // pick the table, whether the write deletes, and the folder
+        // pick the table, the deletion and the folder
         const random = this.#random;
         const kind = random.pick([
             "project",
@@ -157,7 +157,7 @@ export class Workload {
                       .values(values)
                       .onConflictDoUpdate({ target: tag.id, set: values }));
         }
-        // tag a task, or untag it
+        // tag or untag a task
         else if (kind === "taskTag") {
             const id = random.pick(this.#taskTags);
             const values = {
@@ -173,7 +173,7 @@ export class Workload {
                       .values(values)
                       .onConflictDoUpdate({ target: taskTag.id, set: values }));
         }
-        // write a page within its tree: under a lower-numbered page of its folder mostly, making deep trees, or at the top, deleting only leaves
+        // write a page under a lower page of its folder or at the top, deleting only leaves
         else if (kind === "page") {
             const index = random.integer(this.#pages.length);
             const id = this.#pages[index]!;

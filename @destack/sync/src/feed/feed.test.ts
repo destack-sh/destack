@@ -16,7 +16,7 @@ test.for(TEST_DIALECTS)("keep a query of one scope's matching rows on %s", async
         { ...first, id: "c", title: "Open", scope: "archive" },
     ]);
 
-    // snapshot the matching rows of the scope, as JSON of their logged columns
+    // snapshot the matching rows of the scope
     const signal = AbortSignal.timeout(5000);
     const pages = feed.subscribe({ notes: query }, undefined, signal);
     const [snapshot] = await take(pages, (page) => page.complete);
@@ -41,7 +41,7 @@ test.for(TEST_DIALECTS)("keep a query of one scope's matching rows on %s", async
         position: await database.log.position(),
     });
 
-    // enter, leave and move between scopes, never revealing rows outside the query
+    // enter, leave and move between scopes
     const following = feed.subscribe({ notes: query }, snapshot!.position, signal);
     const next = take(following, (page) => page.changes.some((change) => change.row.id === "c"));
     await database.update(note).set({ title: "Open" }).where(eq(note.id, "b"));
@@ -69,7 +69,7 @@ test.for(TEST_DIALECTS)(
         );
         await database.insert(note).values(ids.map((id) => ({ ...first, id })));
 
-        // read three key-ordered pages, starting fresh and completing with the last
+        // read three key-ordered pages
         const signal = AbortSignal.timeout(5000);
         const pages = await take(
             feed.subscribe({ notes: { table: note, scopes: ["inbox"] } }, undefined, signal),
@@ -94,7 +94,7 @@ test.for(TEST_DIALECTS)(
         const signal = AbortSignal.timeout(5000);
         const start = await database.log.position();
 
-        // keep the feed reading, then commit before and while a second subscriber catches up
+        // commit while a second subscriber catches up
         const current = feed.subscribe(query, start, signal);
         const seen = take(current, (page) => page.changes.some((change) => change.row.id === "b"));
         await database.insert(note).values(first);
@@ -129,7 +129,7 @@ test.for(TEST_DIALECTS)(
         const carrying = (await continued).filter((page) => page.reset || page.changes.length > 0);
         expect(carrying.map((page) => [page.reset, page.changes.length])).toEqual([[false, 1]]);
 
-        // start over from a snapshot of the restored history
+        // start over after a restore
         const renewed = await database.log.renew();
         const [snapshot] = await take(
             feed.subscribe(query, before, signal),
@@ -151,14 +151,14 @@ test.for(TEST_DIALECTS)(
         const query = { table: note, scopes: ["inbox"] };
         await database.insert(note).values({ ...first, id: "a" });
 
-        // follow the same query in two streams until both hold the snapshot
+        // follow one query in two streams
         const signal = AbortSignal.timeout(5000);
         const streams = [0, 1].map(() => feed.subscribe({ notes: query }, undefined, signal));
         for (const pages of streams) {
             await until(pages, (page) => page.complete);
         }
 
-        // receive the same page for a write, decided once
+        // decide a write once for both
         await database.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
         const [left, right] = await Promise.all(
             streams.map(async (pages) =>
@@ -179,7 +179,7 @@ test.for(TEST_DIALECTS)(
         const feed = new Feed(database, [note]);
         await database.insert(note).values({ ...first, id: "a" });
 
-        // follow the notes with pages merged within a short interval
+        // follow with merged pages
         const pages = feed.subscribe(
             { notes: { table: note, scopes: ["inbox"] } },
             undefined,
@@ -188,7 +188,7 @@ test.for(TEST_DIALECTS)(
         );
         const snapshot = await until(pages, (page) => page.complete);
 
-        // rename one note, add and remove another, and add a third
+        // rename, add, remove and add notes
         await database.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
         await database.insert(note).values({ ...first, id: "b" });
         await database.delete(note).where(eq(note.id, "b"));
@@ -197,7 +197,7 @@ test.for(TEST_DIALECTS)(
             page.changes.some((change) => change.row.id === "c"),
         );
 
-        // hold each note as the pages leave it, however they merged
+        // hold each note as the pages leave it
         const held = new Map<unknown, unknown>();
         for (const change of [...snapshot, ...following].flatMap((page) => page.changes)) {
             // forget a deleted note
@@ -224,7 +224,7 @@ test.for(TEST_DIALECTS)(
         const query = { table: note, scopes: ["inbox"] };
         await database.insert(note).values({ ...first, id: "a" });
 
-        // follow one query in two open streams, which share one evaluation at the head
+        // follow one query in two streams
         const controller = new AbortController();
         const streams = [0, 1].map(() =>
             feed.subscribe({ notes: query }, undefined, controller.signal),
@@ -244,7 +244,7 @@ test.for(TEST_DIALECTS)(
         await database.insert(note).values({ ...first, id: "b" });
         await followed;
 
-        // describe the one shared evaluation: its root pipeline holding both notes, and its last run's one change and decision
+        // describe the shared evaluation
         const inspection = feed.inspect();
         expect([
             inspection.subscribers,
@@ -287,7 +287,7 @@ test.for(TEST_DIALECTS)(
         const query = { table: note, scopes: ["inbox"] };
         const signal = AbortSignal.timeout(5000);
 
-        // let one subscriber read its snapshot and stop, while the other reads a page per write
+        // let one subscriber stop after its snapshot
         const idle = feed.subscribe({ query }, undefined, signal);
         await idle.next();
         const busy = feed.subscribe({ query }, undefined, signal);

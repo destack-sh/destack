@@ -15,32 +15,28 @@ import type { Audience } from "../feed/audience.ts";
 import type { Run } from "./run.ts";
 import { Tally } from "./tally.ts";
 
-/** The values one batched read names at most, an OR chain well within the parameter budget and a condition's terms. */
+/** The most values one batched read names, bounded by the parameter budget. */
 const BATCH_VALUES = 500;
 
-/**
- * The database as of a log position, with every read batched and shared among the readers deciding that position.
- *
- * Rows changed since the position read as their earlier images.
- */
+/** The database as of a log position, with batched reads shared among its readers. */
 export class View {
     /** The database read. */
     readonly #database: DatabaseConnection;
-    /** Where reads are shared and images found. */
+    /** The shared reads and images. */
     readonly #cache: Cache;
     /** The database as of the position. */
     readonly #snapshot: Snapshot;
     /** The position shown. */
     readonly position: LogPosition;
 
-    /** Show a database as of a position, sharing reads through a feed or the view's own memory, as a snapshot reads it. */
+    /** Show a database as of a position. */
     constructor(
         database: DatabaseConnection,
         position: LogPosition,
         cache?: Cache,
         snapshot?: Snapshot,
     ) {
-        // read earlier images through the cache, unless the snapshot reads the database as it is
+        // read earlier images through the cache
         this.#database = database;
         this.position = position;
         this.#cache = cache ?? new Memory(database);
@@ -51,16 +47,12 @@ export class View {
             );
     }
 
-    /** Show a database as its open transaction reads it now, at the position those reads reach. */
+    /** Show a database as its open transaction reads it now. */
     static async latest(database: DatabaseConnection): Promise<View> {
         return new View(database, await database.log.reached(), undefined, Snapshot.live(database));
     }
 
-    /**
-     * Read the rows of a table whose columns hold each match's values, aligned with the matches, which name the same columns.
-     *
-     * Matches no reader read yet are read a batch at a time; a match with a missing value holds no rows.
-     */
+    /** Read the rows of a table matching each match's values, aligned with the matches. */
     async lookup(table: Table, matches: readonly Row[]): Promise<(readonly Row[])[]> {
         // name each complete match's read
         if (matches.length === 0) {
@@ -77,7 +69,7 @@ export class View {
             tuple === undefined ? undefined : rowsKey(table, columns, tuple),
         );
 
-        // read the matches no reader read yet, a batch at a time, grouping each batch's rows by match
+        // read the unread matches a batch at a time
         const missing = new Map<string, Tuple>();
         for (const [index, key] of keys.entries()) {
             if (key !== undefined && !this.#cache.isShared(sequence, key)) {
@@ -108,7 +100,7 @@ export class View {
             }
         }
 
-        // answer each match from its batch or an earlier reader's read, reading one alone after a failed read
+        // answer each match from its read
         return Promise.all(
             keys.map((key, index) =>
                 key === undefined
@@ -121,9 +113,9 @@ export class View {
         );
     }
 
-    /** Read rows of a table by their keys, aligned with the keys, absent where no row held a key at the position. */
+    /** Read rows of a table by key, aligned with the keys. */
     async keyed(table: Table, keys: readonly Row[]): Promise<(Row | undefined)[]> {
-        // read a table keyed by one column as the rows holding each value
+        // read a single-column key as a lookup
         const [column, ...rest] = table[TABLE].key;
         if (rest.length === 0) {
             const read = await this.lookup(
@@ -134,7 +126,7 @@ export class View {
             return read.map((rows) => rows[0]);
         }
 
-        // read a compound key's rows one key at a time, shared per position
+        // read compound keys one at a time
         return Promise.all(
             keys.map((key) =>
                 this.#cache.share(this.position.sequence, `row:${Key.name(table, key)}`, () =>
@@ -144,22 +136,17 @@ export class View {
         );
     }
 
-    /** Read one row by its key, absent when it did not exist at the position. */
+    /** Read one row by its key. */
     async row(table: Table, key: Row): Promise<Row | undefined> {
         return (await this.keyed(table, [key]))[0];
     }
 
-    /** Read a table's rows a condition over its columns matches. */
+    /** Read a table's rows matching a condition. */
     matching(table: Table, where: Condition): Promise<Row[]> {
         return this.#snapshot.rows(table, where);
     }
 
-    /**
-     * Read the first rows of a node's partitions an audience sees, in the node's order after each segment's row, up to a count each.
-     *
-     * Each partition reads through its own index-ordered statement, all at once; audiences that decide alike share each read.
-     * The run decides the audience's view of rows changed since the position.
-     */
+    /** Read the first visible rows of a node's partitions in order after each segment's row, up to a count each. */
     ordered(
         node: Node,
         segments: readonly Segment[],
@@ -170,7 +157,7 @@ export class View {
     ): Promise<Row[][]> {
         return Promise.all(
             segments.map((segment) => {
-                // name the read, which audiences deciding alike share, and admit its rows in SQL or in memory
+                // name the shared read and admit its rows in SQL or in memory
                 const after =
                     segment.after === undefined ? "" : Key.name(node.table, segment.after);
                 const key = `ordered:${node.selection}:${node.partition(segment.value)}:${after}:${count}:${audience.key}`;
@@ -194,17 +181,13 @@ export class View {
         );
     }
 
-    /**
-     * Measure an aggregate node's groups among its rows a condition over columns selects that an audience sees, in one grouped read.
-     *
-     * The read counts the rows as of the log sequence it returns, at or after the view's position.
-     */
+    /** Measure an aggregate node's visible groups among the rows a condition selects, in one grouped read. */
     measure(
         node: Node,
         within: Condition,
         audience: Audience,
     ): Promise<{ readonly sequence: number; readonly tallies: Tally[] }> {
-        // tally the rows the audience admits in memory when it decides none in SQL
+        // admit rows in memory when the audience decides none in SQL
         const admitted = (table: Table) => admittedSQL(audience, table);
         const current = audience.where(node.table);
         const selection = Condition.render(
@@ -220,13 +203,9 @@ export class View {
         return Tally.measure(this.#database, node, and(selection, current)!, admitted);
     }
 
-    /**
-     * Read a node's rows whose related rows changed after one sequence, up to another, as they were and are: a superset a snapshot decides again.
-     *
-     * A relation's own relations reach through its rows whose related rows changed.
-     */
+    /** Read a node's rows whose related rows changed between two sequences, as they were and are. */
     async dependents(node: Node, after: number, upto: number): Promise<Row[]> {
-        // name the held values of the related rows and join rows that changed, as they were and are
+        // name the values of the changed related and join rows
         const rows = new Map<string, Row>();
         for (const relation of node.relations) {
             const path = relation.path!;
@@ -239,7 +218,7 @@ export class View {
             if (path.kind === "key") {
                 values.push(...changed.map((row) => row[path.column]));
             }
-            // follow a junction path through its current and changed join rows
+            // follow a junction path through its join rows
             else if (path.kind === "junction") {
                 const targets = changed.map((row) => row[path.to.key]);
                 const joins = await this.#current(path.table, path.to.column, targets);
@@ -249,7 +228,7 @@ export class View {
                 }
             }
 
-            // read the node's rows holding each value, as of the position and now
+            // read the node's rows holding each value, then and now
             const column = relation.parentColumn!;
             const present = values.filter((entry) => entry !== null && entry !== undefined);
             const read = await this.lookup(
@@ -267,9 +246,9 @@ export class View {
         return [...rows.values()];
     }
 
-    /** Read a table's rows whose columns hold one of some tuples of values: through a prepared statement for text columns, else through a condition. */
+    /** Read a table's rows whose columns hold one of some tuples. */
     #read(table: Table, columns: readonly string[], tuples: readonly Tuple[]): Promise<Row[]> {
-        // match the rows holding a listed tuple in a condition over non-text columns
+        // match non-text columns in a condition
         const definitions = table[TABLE].columns;
         if (columns.some((column) => definitions[column]!.definition.kind !== "text")) {
             return this.#snapshot.rows(
@@ -291,13 +270,13 @@ export class View {
             );
         }
 
-        // read them through the columns' prepared statement
+        // read through the columns' prepared statement
         return this.#snapshot.select(table, columns, tuples);
     }
 
-    /** Read the rows of a table changed after one sequence, up to another, as they were then and are now. */
+    /** Read the rows of a table changed between two sequences, as they were and are. */
     async #changed(table: Table, after: number, upto: number): Promise<Row[]> {
-        // take each changed row's image, then read the rows as they are now, a chain of keys per read
+        // take each changed row's image, then read the current rows
         const images = await this.#cache.images(table, after, upto);
         const rows = [...images.values()].filter((image): image is Row => image !== null);
         const keys = [...images.keys()].map((name) => Key.parse(table, name));
@@ -313,9 +292,9 @@ export class View {
         return rows;
     }
 
-    /** Read a table's current rows whose column holds one of some values, a chain of values per read. */
+    /** Read a table's current rows whose column holds one of some values. */
     async #current(table: Table, column: string, values: readonly unknown[]): Promise<Row[]> {
-        // match the distinct present values by their JSON forms
+        // match the distinct present values
         const definition = table[TABLE].columns[column]!.definition;
         const present = [
             ...new Set(values.filter((value) => value !== null && value !== undefined)),
@@ -334,37 +313,37 @@ export class View {
     }
 }
 
-/** Where views share their reads per log sequence and find the images of changed rows: a feed for its subscribers, or a view's own. */
+/** The shared reads and row images of views. */
 export interface Cache {
-    /** Compute once per log sequence what a key names: a read or an encoding. */
+    /** Compute a keyed read or encoding once per log sequence. */
     share<Value>(sequence: number, key: string, compute: () => Value): Value;
-    /** Decide whether a read for a sequence is shared already. */
+    /** Decide whether a read for a sequence is shared. */
     isShared(sequence: number, key: string): boolean;
-    /** Read the images a table's rows had before their first change after one sequence, up to another, by key. */
+    /** Read the images a table's rows had before their first change between two sequences, by key. */
     images(table: Table, after: number, upto: number): Promise<ReadonlyMap<string, Row | null>>;
 }
 
-/** One partition an ordered read reads: its held value, absent for a root, and the row to read after. */
+/** One partition an ordered read reads. */
 export interface Segment {
-    /** The held value naming the partition, absent for a root's one partition. */
+    /** The held value naming the partition, absent for a root. */
     readonly value?: unknown;
-    /** The row the read continues after, absent from the start. */
+    /** The row the read continues after. */
     readonly after?: Row;
 }
 
-/** A view's own reads: shared within the view, with images from the log. */
+/** A view's own shared reads, with images from the log. */
 class Memory implements Cache {
     /** The images of the log's changes, read once. */
     readonly #rewind: Rewind;
     /** The reads made, by key. */
     readonly #reads = new Map<string, unknown>();
 
-    /** Share reads of one database's views. */
+    /** Create the memory of a database's views. */
     constructor(database: DatabaseConnection) {
         this.#rewind = database.log.rewind();
     }
 
-    /** Compute what a key names once. */
+    /** Compute a keyed value once. */
     share<Value>(_sequence: number, key: string, compute: () => Value): Value {
         if (!this.#reads.has(key)) {
             this.#reads.set(key, compute());
@@ -378,16 +357,16 @@ class Memory implements Cache {
         return this.#reads.has(key);
     }
 
-    /** Read the images from the log through the views' shared memory of its changes. */
+    /** Read images from the log. */
     images(table: Table, after: number, upto: number): Promise<ReadonlyMap<string, Row | null>> {
         return this.#rewind(table, after, upto);
     }
 }
 
-/** The JSON forms of a row's values in some columns, which conditions compare. */
+/** The JSON forms of a row's values in some columns. */
 type Tuple = (string | number | boolean)[];
 
-/** Write a row's values in some columns in the JSON form conditions compare. */
+/** Write a row's values in some columns in JSON form. */
 function tupleOf(table: Table, columns: readonly string[], row: Row): Tuple {
     const definitions = table[TABLE].columns;
 
@@ -397,12 +376,12 @@ function tupleOf(table: Table, columns: readonly string[], row: Row): Tuple {
     );
 }
 
-/** Name the shared read of a table's rows whose columns hold a tuple of values. */
+/** Name the shared read of a tuple. */
 function rowsKey(table: Table, columns: readonly string[], tuple: Tuple): string {
     return `rows:${table[TABLE].sqlName}.${columns.join(",")}=${JSON.stringify(tuple)}`;
 }
 
-/** Match the rows of a related table an audience admits in SQL, refusing tables it decides in memory, which no relation reads. */
+/** Match the rows of a related table an audience admits in SQL. */
 function admittedSQL(audience: Audience, table: Table): SQL {
     const where = audience.where(table);
     if (where === "memory") {
