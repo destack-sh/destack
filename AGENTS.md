@@ -362,7 +362,7 @@ Write code and prose that read plain and boring.
 - **WD03** Documentation MUST consist of proper sentences with punctuation. (`destack/jsdoc-sentence`)
 - **WD04** Files MUST NOT have top-level documentation comments, since they always get stale. (`destack/jsdoc-sentence`)
 
-- **WD05** Documentation SHOULD fit one line at the 100 character width.
+- **WD05** Documentation SHOULD fit one line at the 100 character width. In rare, complex cases multiline documentation MAY come after a blank line in a multiline doc comment.
 - **WD06** Documentation with more than one sentence MUST go multiline, with one sentence per line. (`destack/jsdoc-sentence`)
 - **WD07** Multiline documentation SHOULD use a header line, a blank line, then paragraph lines. (`destack/jsdoc-sentence`)
 
