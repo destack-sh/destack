@@ -44,7 +44,7 @@ impl InstantiateState<'_> {
         // normalize types introduced by generic substitution
         let receiver = mir::erase_lifetimes(&self.tree, receiver);
         let interface = mir::erase_lifetimes(&self.tree, interface);
-        let Some(witness) = self.witnesses.get(receiver, interface) else {
+        let Some(witness) = self.witness(receiver, interface)? else {
             return Err(CompilerError::Internal {
                 message: format!(
                     "a witness call to '{}' at a closed receiver without a witness",
@@ -156,7 +156,7 @@ impl InstantiateState<'_> {
                 message: "an erasure without a registered constraint shape".to_string(),
             });
         };
-        let witness = self.witnesses.get(concrete, constraint).cloned();
+        let witness = self.witness(concrete, constraint)?;
 
         // lay out the concrete storage before recording field offsets
         let storage = match self.tree.type_definition(concrete) {
@@ -248,7 +248,7 @@ impl InstantiateState<'_> {
         // normalize types introduced by generic substitution
         let receiver = mir::erase_lifetimes(&self.tree, receiver);
         let interface = mir::erase_lifetimes(&self.tree, interface);
-        let Some(witness) = self.witnesses.get(receiver, interface) else {
+        let Some(witness) = self.witness(receiver, interface)? else {
             return Err(CompilerError::Internal {
                 message: format!(
                     "a witness const '{}' read at a closed receiver without a witness",
@@ -281,7 +281,14 @@ impl InstantiateState<'_> {
             Some(mir::LanguageItem::Drop) => Ok(Dispatch::Drop),
             Some(mir::LanguageItem::Zero) => Ok(Dispatch::Zero),
             Some(mir::LanguageItem::One) => Ok(Dispatch::One),
-            Some(mir::LanguageItem::Copy) | None => Err(CompilerError::Internal {
+            Some(
+                mir::LanguageItem::Copy
+                | mir::LanguageItem::String
+                | mir::LanguageItem::BigInt
+                | mir::LanguageItem::StringEqual
+                | mir::LanguageItem::BigIntEqual,
+            )
+            | None => Err(CompilerError::Internal {
                 message: format!(
                     "an intrinsic '{}' requirement outside the structural set",
                     self.strings.get(self.tree.get(requirement).name)
@@ -312,6 +319,9 @@ impl InstantiateState<'_> {
             })
             .collect();
         let return_type = self.close_type(declared.return_type, &arguments);
+        let environment = declared
+            .environment
+            .map(|environment| self.close_type(environment, &arguments));
         let specialization = mir::Function {
             generics: Vec::new(),
             arguments,
@@ -319,6 +329,7 @@ impl InstantiateState<'_> {
             linkage: mir::Linkage::Shared,
             parameters,
             return_type,
+            environment,
             template: Some(template),
             body: None,
             ..declared

@@ -23,6 +23,36 @@ pub(crate) struct Specialization<'s, 'a> {
     pub(crate) locals: FxIndexMap<mir::LocalId, mir::LocalId>,
     /// The copied block of each template block.
     pub(crate) blocks: FxIndexMap<mir::BlockId, mir::BlockId>,
+    /// The instructions inserted before the next copied instruction.
+    pub(crate) prefix: Vec<mir::Instruction>,
+    /// The locals the copy adds.
+    pub(crate) added_locals: Vec<mir::LocalId>,
+    /// The types of the values the copy adds.
+    pub(crate) added_values: Vec<mir::TypeId>,
+}
+
+impl<'s, 'a> Specialization<'s, 'a> {
+    /// Create one specialization of a template at its arguments.
+    pub(crate) fn new(
+        state: &'s mut InstantiateState<'a>,
+        module: ModuleId,
+        source: &'s mir::Tree,
+        template: mir::FunctionId,
+        arguments: Vec<mir::GenericArgument>,
+    ) -> Self {
+        Self {
+            state,
+            module,
+            source,
+            template,
+            arguments,
+            locals: FxIndexMap::default(),
+            blocks: FxIndexMap::default(),
+            prefix: Vec::new(),
+            added_locals: Vec::new(),
+            added_values: Vec::new(),
+        }
+    }
 }
 
 impl Specialization<'_, '_> {
@@ -33,7 +63,45 @@ impl Specialization<'_, '_> {
         self.state.import_type(self.module, ty, &arguments)
     }
 
-    /// Close the generic arguments one callee of the template applies.
+    /// Return the template type of one value the template body reads.
+    pub(super) fn template_value_type(&self, value: mir::Value) -> CompilerResult<mir::TypeId> {
+        self.source
+            .get(self.template)
+            .value_type(value)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("an untyped template value {value:?}"),
+            })
+    }
+
+    /// Return the closed type of one copied value.
+    pub(super) fn value_type(&mut self, value: mir::Value) -> CompilerResult<mir::TypeId> {
+        let index = value.id() as usize;
+        let template_values = self.template_value_count();
+        if index >= template_values {
+            return Ok(self.added_values[index - template_values]);
+        }
+        let ty = self.template_value_type(value)?;
+
+        Ok(self.ty(ty))
+    }
+
+    /// Define one value the copied body adds.
+    pub(super) fn add_value(&mut self, ty: mir::TypeId) -> mir::Value {
+        let index = self.template_value_count() + self.added_values.len();
+        self.added_values.push(ty);
+
+        mir::Value::new(index as u32)
+    }
+
+    /// Return the number of values the template body defines.
+    fn template_value_count(&self) -> usize {
+        self.source
+            .get(self.template)
+            .body()
+            .map_or(0, |body| body.value_types().len())
+    }
+
+    /// Close the generic arguments of one mapped callee.
     fn arguments(&mut self, applied: &[mir::GenericArgument]) -> Vec<mir::GenericArgument> {
         let source = self.source;
         let module = self.module;
@@ -41,8 +109,8 @@ impl Specialization<'_, '_> {
         applied
             .iter()
             .map(|argument| match argument {
-                // import a type argument through the type map
-                mir::GenericArgument::Type(ty) => mir::GenericArgument::Type(self.ty(*ty)),
+                // keep a closed type argument
+                mir::GenericArgument::Type(ty) => mir::GenericArgument::Type(*ty),
                 // import every other argument, then substitute this instance's arguments into it
                 argument => {
                     let imported = if module == self.state.module {
@@ -105,6 +173,11 @@ impl Specialization<'_, '_> {
             let mut instructions = Vec::with_capacity(declared.instructions.len());
             for instruction in declared.instructions {
                 if let Some(mapped) = self.instruction(instruction)? {
+                    let mapped = self.reshape_instruction(instruction, mapped)?;
+                    let mapped = self.reshape_equality(mapped)?;
+                    for added in std::mem::take(&mut self.prefix) {
+                        instructions.push(self.state.tree.insert(added));
+                    }
                     let inserted = self.state.tree.insert(mapped);
                     if let Some(span) = self.source.get_span(instruction) {
                         self.state.tree.set_span(inserted, span);
@@ -113,17 +186,28 @@ impl Specialization<'_, '_> {
                 }
             }
             let terminator = self.terminator(declared.terminator)?;
+            for added in std::mem::take(&mut self.prefix) {
+                instructions.push(self.state.tree.insert(added));
+            }
+            let terminator = match self.source.get(declared.terminator) {
+                mir::Terminator::VariantSwitch { value, .. } => {
+                    self.reshape_variant_switch(*value, terminator)?
+                }
+                _ => terminator,
+            };
             let terminator_id = self.state.tree.get(copied).terminator;
             self.state.tree.set(terminator_id, terminator);
             self.state.tree.get_mut(copied).instructions = instructions;
         }
 
-        // substitute each existing SSA value type
-        let value_types = body
+        // substitute the value types, then append the added ones
+        let mut value_types = body
             .value_types()
             .iter()
             .map(|ty| ty.map(|ty| self.ty(ty)))
             .collect::<Vec<_>>();
+        value_types.extend(self.added_values.iter().copied().map(Some));
+        locals.extend(self.added_locals.iter().copied());
         let entry = self.blocks[&body.entry()];
         let next_value_id = value_types.len() as u32;
 
@@ -253,9 +337,16 @@ impl Specialization<'_, '_> {
                 }));
             }
             mir::Instruction::Call { destination, call } => {
-                let arguments = self.values(call.arguments);
+                let mut arguments = self.values(call.arguments);
                 match self.dispatch(&call.callee)? {
                     Some(Dispatch::Function(function)) => {
+                        if matches!(call.callee, mir::Callee::Witness { .. })
+                            && let Some(adjusted) = self.witness_receiver(function, arguments)?
+                        {
+                            arguments = adjusted;
+                            let signature = self.state.tree.get(function).signature();
+                            call.signature = self.state.tree.intern_type(signature);
+                        }
                         call.callee = mir::Callee::Direct {
                             function,
                             arguments: Vec::new(),
@@ -383,9 +474,13 @@ impl Specialization<'_, '_> {
                 call.arguments = self.values(call.arguments);
                 self.dispatch_call(call, "tail position")?;
             }
+            mir::Terminator::Panic { unwind, .. } => {
+                if let Some(unwind) = unwind {
+                    self.target(unwind);
+                }
+            }
             mir::Terminator::Error
             | mir::Terminator::Return { .. }
-            | mir::Terminator::Panic { .. }
             | mir::Terminator::UnwindResume
             | mir::Terminator::Abort { .. }
             | mir::Terminator::Unreachable => {}
@@ -397,6 +492,13 @@ impl Specialization<'_, '_> {
     fn dispatch_call(&mut self, call: &mut mir::Call, position: &str) -> CompilerResult<()> {
         match self.dispatch(&call.callee)? {
             Some(Dispatch::Function(function)) => {
+                if matches!(call.callee, mir::Callee::Witness { .. })
+                    && let Some(adjusted) = self.witness_receiver(function, call.arguments)?
+                {
+                    call.arguments = adjusted;
+                    let signature = self.state.tree.get(function).signature();
+                    call.signature = self.state.tree.intern_type(signature);
+                }
                 call.callee = mir::Callee::Direct {
                     function,
                     arguments: Vec::new(),

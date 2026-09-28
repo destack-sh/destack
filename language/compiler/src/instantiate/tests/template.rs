@@ -18,14 +18,14 @@ function main(): int32 {
     session.assert_mir_elaborated(
         "main.tspp",
         r#"
-function test.main.main(): int32 {
+export function test.main.main(): int32 {
 entry:
     v0: int32 = 1
     v1: int32 = call test.main.identity<int32>(v0): (int32) => int32
     return v1
 }
 
-function test.main.identity<T>(v0: T): T;
+export function test.main.identity<T>(v0: T): T;
 
 shared function test.main.identity<int32>(v0: int32): int32 {
     local l0: int32
@@ -34,6 +34,64 @@ entry(v0: int32):
     store l0, v0
     v1: int32 = load l0
     return v1
+}
+"#,
+    );
+}
+
+/// Collapse a union whose arms an instance makes identical.
+#[test]
+fn test_collapse_a_union_whose_arms_an_instance_makes_identical() {
+    let session = TestSession::single(
+        r#"
+function either<E, F>(isLeft: boolean, left: E, right: F): E | F {
+    if (isLeft) {
+        left
+    } else {
+        right
+    }
+}
+
+function main(): int32 {
+    const left: int32 = 1;
+    const right: int32 = 2;
+    return either(true, left, right);
+}
+"#,
+    );
+
+    session.assert_mir_elaborated_function(
+        "main.tspp",
+        "test.main.either<int32, int32>",
+        r#"
+shared function test.main.either<int32, int32>(v0: boolean, v1: int32, v2: int32): int32 {
+    local l0: boolean
+    local l1: int32
+    local l2: int32
+    local l3: int32
+
+entry(v0: boolean, v1: int32, v2: int32):
+    store l0, v0
+    store l1, v1
+    store l2, v2
+    v3: boolean = load l0
+    branch v3 => b1 | b2
+
+b1:
+    v4: int32 = load l1
+    v5: int32 = copy v4
+    store l3, v5
+    jump b3
+
+b2:
+    v6: int32 = load l2
+    v7: int32 = copy v6
+    store l3, v7
+    jump b3
+
+b3:
+    v8: int32 = load l3
+    return v8
 }
 "#,
     );
@@ -66,7 +124,7 @@ function main(): int32 {
     session.assert_mir_elaborated(
         "main.tspp",
         r#"
-function test.main.main(): int32 {
+export function test.main.main(): int32 {
 entry:
     v0: int32 = 1
     v1: int32 = call test.identity.identity<int32>(v0): (int32) => int32
@@ -139,7 +197,7 @@ type Zero { }
 @languageItem("math.One")
 type One { }
 
-function test.main.main(): int32 {
+export function test.main.main(): int32 {
     local l0: int8
 
 entry:
@@ -150,7 +208,7 @@ entry:
     return v2
 }
 
-function test.main.widen<T: Integer>(v0: T): int32;
+export function test.main.widen<T: Integer>(v0: T): int32;
 
 shared function test.main.widen<int8>(v0: int8): int32 {
     local l0: int8
@@ -161,6 +219,14 @@ entry(v0: int8):
     v2: int32 = cast.intToInt v1 -> int32
     return v2
 }
+
+/// @layout.struct name=Concrete size=0 align=1
+/// @layout.struct name=Copy size=0 align=1
+/// @layout.struct name=Clone size=0 align=1
+/// @layout.struct name=IntegerDomain size=0 align=1
+/// @layout.struct name=Zero size=0 align=1
+/// @layout.struct name=One size=0 align=1
+/// @layout.struct name=type@4 size=0 align=1
 
 /// @dispatch.shape constraint=type@2 function=clone function=cloneFrom function=zero function=one
 /// @dispatch.shape constraint=type@7 function=clone function=cloneFrom
@@ -200,7 +266,7 @@ type test.main.User { }
 @languageItem("ops.StrictEqual")
 type StrictEqual<T> { }
 
-function test.main.main(): boolean {
+export function test.main.main(): boolean {
     local l0: variant<uint1> { 0uint1 = int32; 1uint1 = null; }
     local l1: variant<uint1> { 0uint1 = ref<test.main.User, managed, mutable, local>; 1uint1 = null; }
     local l2: boolean
@@ -215,23 +281,20 @@ entry:
     v4: variant<uint1> { 0uint1 = int32; 1uint1 = null; } = load l0
     v5: boolean = call test.main.isNull<variant<uint1> { 0uint1 = int32; 1uint1 = null; }>(v4): (variant<uint1> { 0uint1 = int32; 1uint1 = null; }) => boolean
     store l2, v5
-    branch v5 => b2 | b1
+    branch v5 => b1 | b2
 
 b1:
-    jump b3
-
-b2:
     v6: variant<uint1> { 0uint1 = ref<test.main.User, managed, mutable, local>; 1uint1 = null; } = load l1
     v7: boolean = call test.main.isNull<variant<uint1> { 0uint1 = ref<test.main.User, managed, mutable, local>; 1uint1 = null; }>(v6): (variant<uint1> { 0uint1 = ref<test.main.User, managed, mutable, local>; 1uint1 = null; }) => boolean
     store l2, v7
-    jump b3
+    jump b2
 
-b3:
+b2:
     v8: boolean = load l2
     return v8
 }
 
-function test.main.isNull<T: StrictEqual<null>>(v0: T): boolean;
+export function test.main.isNull<T: StrictEqual<null>>(v0: T): boolean;
 
 shared function test.main.isNull<variant<uint1> { 0uint1 = int32; 1uint1 = null; }>(v0: variant<uint1> { 0uint1 = int32; 1uint1 = null; }): boolean {
     local l0: variant<uint1> { 0uint1 = int32; 1uint1 = null; }
@@ -309,7 +372,7 @@ type MemoryOrdering = variant<uint8> { 0uint8 = void; 1uint8 = void; 2uint8 = vo
 @languageItem("memory.Clone")
 type Clone { }
 
-function test.main.acquire(v0: ptr<int32, mutable>): int32 {
+export function test.main.acquire(v0: ptr<int32, mutable>): int32 {
     local l0: ptr<int32, mutable>
 
 entry(v0: ptr<int32, mutable>):
@@ -321,7 +384,7 @@ entry(v0: ptr<int32, mutable>):
     return v4
 }
 
-function test.main.relaxed(v0: ptr<int32, mutable>): int32 {
+export function test.main.relaxed(v0: ptr<int32, mutable>): int32 {
     local l0: ptr<int32, mutable>
 
 entry(v0: ptr<int32, mutable>):
@@ -333,7 +396,7 @@ entry(v0: ptr<int32, mutable>):
     return v4
 }
 
-function test.main.load<const Order: MemoryOrdering>(v0: ptr<int32, mutable>, v1: variant<uint1> { 0uint1 = MemoryOrdering; 1uint1 = void; }): int32;
+export function test.main.load<const Order: MemoryOrdering>(v0: ptr<int32, mutable>, v1: variant<uint1> { 0uint1 = MemoryOrdering; 1uint1 = void; }): int32;
 
 shared function test.main.load<1>(v0: ptr<int32, mutable>, v1: variant<uint1> { 0uint1 = MemoryOrdering; 1uint1 = void; }): int32 {
     local l0: ptr<int32, mutable>
@@ -377,8 +440,267 @@ entry(v0: ptr<int32, mutable>, v1: variant<uint1> { 0uint1 = MemoryOrdering; 1ui
 /// @layout.discriminant owner=type@7 kind=niche offset=0 byte_len=1 bit_offset=0 bit_len=8 untagged=0 niche_start=5
 /// @layout.case owner=type@7 index=0 discriminant=0 payload_offset=0
 /// @layout.case owner=type@7 index=1 discriminant=1 payload_offset=0
+/// @layout.struct name=type@10 size=0 align=1
 
 /// @dispatch.shape constraint=type@8 function=clone function=cloneFrom
+"#,
+    );
+}
+
+/// Compare strict-equal values an instance closes at string by content.
+#[test]
+fn test_instantiate_strict_equality_at_string_as_content_comparison() {
+    let session = TestSession::single(
+        r#"
+import { StrictEqual } from "tspp:ops";
+
+function same<T: StrictEqual<T>>(left: T, right: T): boolean {
+    left === right
+}
+
+function main(left: string, right: string): boolean {
+    same(left, right)
+}
+"#,
+    );
+
+    session.assert_mir_elaborated(
+        "main.tspp",
+        r#"
+@nocopy
+@languageItem("string.String")
+type String {
+    codeUnits: slice<uint16, unique, mutable>;
+}
+
+@nocopy
+@languageItem("ops.StrictEqual")
+type StrictEqual<T> { }
+
+export function test.main.main(v0: ref<String, managed, mutable, local>, v1: ref<String, managed, mutable, local>): boolean {
+    local l0: ref<String, managed, mutable, local>
+    local l1: ref<String, managed, mutable, local>
+
+entry(v0: ref<String, managed, mutable, local>, v1: ref<String, managed, mutable, local>):
+    store l0, v0
+    store l1, v1
+    v2: ref<String, managed, mutable, local> = load l0
+    v3: ref<String, managed, mutable, local> = load l1
+    v4: boolean = call test.main.same<ref<String, managed, mutable, local>>(v2, v3): (ref<String, managed, mutable, local>, ref<String, managed, mutable, local>) => boolean
+    return v4
+}
+
+export function test.main.same<T: StrictEqual<T>>(v0: T, v1: T): boolean;
+
+shared function test.main.same<ref<String, managed, mutable, local>>(v0: ref<String, managed, mutable, local>, v1: ref<String, managed, mutable, local>): boolean {
+    local l0: ref<String, managed, mutable, local>
+    local l1: ref<String, managed, mutable, local>
+
+entry(v0: ref<String, managed, mutable, local>, v1: ref<String, managed, mutable, local>):
+    store l0, v0
+    store l1, v1
+    v2: ref<String, managed, mutable, local> = load l0
+    v3: ref<String, managed, mutable, local> = load l1
+    v4: boolean = call stringEqual(v2, v3): (ref<String, managed, mutable, local>, ref<String, managed, mutable, local>) => boolean
+    return v4
+}
+
+external function stringEqual(ref<String, managed, mutable, local>, ref<String, managed, mutable, local>): boolean
+
+/// @layout.struct name=String size=16 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.struct name=type@4 size=16 align=8
+/// @layout.field owner=type@4 index=0 name=codeUnits offset=0 size=16 align=8
+
+/// @dispatch.shape constraint=type@7
+"#,
+    );
+}
+
+/// Compare strict-unequal values an instance closes at string by negated content.
+#[test]
+fn test_instantiate_strict_inequality_at_string_as_content_comparison() {
+    let session = TestSession::single(
+        r#"
+import { StrictEqual } from "tspp:ops";
+
+function differ<T: StrictEqual<T>>(left: T, right: T): boolean {
+    left !== right
+}
+
+function main(left: string, right: string): boolean {
+    differ(left, right)
+}
+"#,
+    );
+
+    session.assert_mir_elaborated(
+        "main.tspp",
+        r#"
+@nocopy
+@languageItem("string.String")
+type String {
+    codeUnits: slice<uint16, unique, mutable>;
+}
+
+@nocopy
+@languageItem("ops.StrictEqual")
+type StrictEqual<T> { }
+
+export function test.main.main(v0: ref<String, managed, mutable, local>, v1: ref<String, managed, mutable, local>): boolean {
+    local l0: ref<String, managed, mutable, local>
+    local l1: ref<String, managed, mutable, local>
+
+entry(v0: ref<String, managed, mutable, local>, v1: ref<String, managed, mutable, local>):
+    store l0, v0
+    store l1, v1
+    v2: ref<String, managed, mutable, local> = load l0
+    v3: ref<String, managed, mutable, local> = load l1
+    v4: boolean = call test.main.differ<ref<String, managed, mutable, local>>(v2, v3): (ref<String, managed, mutable, local>, ref<String, managed, mutable, local>) => boolean
+    return v4
+}
+
+export function test.main.differ<T: StrictEqual<T>>(v0: T, v1: T): boolean;
+
+shared function test.main.differ<ref<String, managed, mutable, local>>(v0: ref<String, managed, mutable, local>, v1: ref<String, managed, mutable, local>): boolean {
+    local l0: ref<String, managed, mutable, local>
+    local l1: ref<String, managed, mutable, local>
+
+entry(v0: ref<String, managed, mutable, local>, v1: ref<String, managed, mutable, local>):
+    store l0, v0
+    store l1, v1
+    v2: ref<String, managed, mutable, local> = load l0
+    v3: ref<String, managed, mutable, local> = load l1
+    v4: boolean = call stringEqual(v2, v3): (ref<String, managed, mutable, local>, ref<String, managed, mutable, local>) => boolean
+    v5: boolean = not v4
+    return v5
+}
+
+external function stringEqual(ref<String, managed, mutable, local>, ref<String, managed, mutable, local>): boolean
+
+/// @layout.struct name=String size=16 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.struct name=type@4 size=16 align=8
+/// @layout.field owner=type@4 index=0 name=codeUnits offset=0 size=16 align=8
+
+/// @dispatch.shape constraint=type@7
+"#,
+    );
+}
+
+/// Instantiate the park call an awaited async function result lowers to.
+#[test]
+fn test_instantiate_the_park_call_of_an_await() {
+    let session = TestSession::single(
+        r#"
+async function answer(): Promise<int32> {
+    42
+}
+
+async function main(): Promise<int32> {
+    await answer()
+}
+"#,
+    );
+
+    session.assert_mir_elaborated_function(
+        "main.tspp",
+        "test.main.main.body",
+        r#"
+@nocopy
+@languageItem("async.Promise")
+type Promise<T: Copy>;
+
+@environment(ref<{  }, unique, mutable>)
+park function test.main.main.body(): int32 {
+entry:
+    v0: ref<{  }, unique, mutable> = function.environment.current
+    v1: {  } = load (*v0)
+    v2: ref<uninit<{  }>, unique, mutable> = cast.bit v0 -> ref<uninit<{  }>, unique, mutable>
+    release v2
+    v3: ref<Promise<int32>, managed, mutable, local> = call test.main.answer(): () => ref<Promise<int32>, managed, mutable, local>
+    v4: int32 = call Promise.park<int32>(v3): park (ref<Promise<int32>, managed, mutable, local>) => int32
+    return v4
+}
+
+/// @layout.struct name=type@6 size=0 align=1
+"#,
+    );
+}
+
+/// Bind a closure of a generic function at the specialization of its enclosing function.
+#[test]
+fn test_bind_a_generic_closure_at_its_enclosing_specialization() {
+    let session = TestSession::single(
+        r#"
+function wrap<T: Copy>(value: T): () => T {
+    () => value
+}
+
+const make = wrap<int32>(1);
+"#,
+    );
+
+    session.assert_mir_elaborated(
+        "main.tspp",
+        r#"
+@nocopy
+@languageItem("memory.Copy")
+type Copy extends Clone { }
+
+@nocopy
+@languageItem("memory.Clone")
+type Clone { }
+
+export global test.main.make: function<() => int32, repeatable, managed, mutable, local> = zeroinit
+
+export function test.main.wrap<T: Copy>(v0: T): function<() => T, repeatable, managed, mutable, local>;
+
+export park function test.main.@init(): void {
+entry:
+    v0: int32 = 1
+    v1: function<() => int32, repeatable, managed, mutable, local> = call test.main.wrap<int32>(v0): (int32) => function<() => int32, repeatable, managed, mutable, local>
+    store @test.main.make, v1
+    return
+}
+
+shared function test.main.wrap<int32>(v0: int32): function<() => int32, repeatable, managed, mutable, local> {
+    local l0: int32
+
+entry(v0: int32):
+    store l0, v0
+    v1: int32 = load l0
+    v2: ref<{ value: int32 }, managed, mutable, local> = new.zeroed { value: int32 }, local
+    store (*v2).0, v1
+    v3: { ref<{ value: int32 }, managed, mutable, local> } = aggregate (v2)
+    v4: uninit<ref<{ ref<{ value: int32 }, managed, mutable, local> }, managed, mutable, local>> = new.uninit { ref<{ value: int32 }, managed, mutable, local> }, local
+    store (*v4), v3
+    v5: ref<{ ref<{ value: int32 }, managed, mutable, local> }, managed, mutable, local> = new.complete v4
+    v6: function<() => int32, repeatable, managed, mutable, local> = function.bind test.main.wrap.closure#0<int32>, v5
+    return v6
+}
+
+@environment(ref<{ ref<{ value: T }, managed, mutable, local> }, managed, mutable, local>)
+export function test.main.wrap.closure#0<T: Copy>(): T;
+
+@environment(ref<{ ref<{ value: int32 }, managed, mutable, local> }, managed, mutable, local>)
+shared function test.main.wrap.closure#0<int32>(): int32 {
+entry:
+    v0: ref<{ ref<{ value: int32 }, managed, mutable, local> }, managed, mutable, local> = function.environment.current
+    v1: ref<{ value: int32 }, managed, mutable, local> = load (*v0).0
+    v2: int32 = load (*v1).0
+    return v2
+}
+
+/// @layout.struct name=Clone size=0 align=1
+/// @layout.struct name=type@8 size=0 align=1
+/// @layout.struct name=type@26 size=4 align=4
+/// @layout.field owner=type@26 index=0 name=value offset=0 size=4 align=4
+/// @layout.struct name=type@28 size=8 align=8
+/// @layout.field owner=type@28 index=0 offset=0 size=8 align=8
+
+/// @dispatch.shape constraint=type@6 function=clone function=cloneFrom
+/// @dispatch.shape constraint=type@9 function=clone function=cloneFrom
 "#,
     );
 }

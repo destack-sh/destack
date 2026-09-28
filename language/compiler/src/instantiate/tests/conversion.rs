@@ -45,7 +45,7 @@ type Zero { }
 @languageItem("math.One")
 type One { }
 
-function test.main.main(): int32 {
+export function test.main.main(): int32 {
     local l0: int32
 
 entry:
@@ -56,7 +56,7 @@ entry:
     return v2
 }
 
-function test.main.duplicate<T: Clone, 'a>(v0: ref<?T, borrowed, 'a, immutable>): T;
+export function test.main.duplicate<T: Clone, 'a>(v0: ref<?T, borrowed, 'a, immutable>): T;
 
 external function Clone.clone<this: Clone, 'a>(ref<?this, borrowed, 'a, immutable>): ?this
 
@@ -67,9 +67,8 @@ shared function Integer.Clone.clone<int32, 'a>(v0: ref<int32, borrowed, 'a, immu
 
 entry(v0: ref<int32, borrowed, 'a, immutable>):
     store l0, v0
-    v1: ref<int32, borrowed, 'a, immutable> = load l0
-    v2: int32 = load (*v1)
-    return v2
+    v1: int32 = load (*l0)
+    return v1
 }
 
 shared function test.main.duplicate<int32, 'a>(v0: ref<int32, borrowed, 'a, immutable>): int32 {
@@ -82,6 +81,14 @@ entry(v0: ref<int32, borrowed, 'a, immutable>):
     v3: int32 = copy v2
     return v3
 }
+
+/// @layout.struct name=Clone size=0 align=1
+/// @layout.struct name=Concrete size=0 align=1
+/// @layout.struct name=Copy size=0 align=1
+/// @layout.struct name=IntegerDomain size=0 align=1
+/// @layout.struct name=Zero size=0 align=1
+/// @layout.struct name=One size=0 align=1
+/// @layout.struct name=type@6 size=0 align=1
 
 /// @dispatch.shape constraint=type@4 function=clone function=cloneFrom
 "#,

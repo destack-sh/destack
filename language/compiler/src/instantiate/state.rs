@@ -26,8 +26,6 @@ pub(crate) struct InstantiateState<'a> {
     pub(super) dispatch: mir::DispatchTable,
     /// Drop hooks by type.
     pub(super) drops: mir::DropTable,
-    /// Function and call effects.
-    pub(super) effects: mir::EffectTable,
     /// The witness each closed type answers an interface with.
     pub(super) witnesses: mir::WitnessTable,
     /// The MIR of each reachable module, by module.
@@ -38,6 +36,9 @@ pub(crate) struct InstantiateState<'a> {
     pub(super) globals: FxIndexMap<mir::Symbol, mir::GlobalId>,
     /// The module and function defining each template, by symbol.
     pub(super) templates: FxIndexMap<mir::Symbol, (ModuleId, mir::FunctionId)>,
+    /// The function declaring each language item, by home module.
+    pub(super) language_functions:
+        FxIndexMap<(ModuleId, mir::LanguageItem), Option<mir::FunctionId>>,
     /// The declared MIR of every declaring module read for a definition.
     pub(super) declared: FxIndexMap<ModuleId, Arc<MirDeclared>>,
     /// The first declared MIR read that blocked, yielding the instantiation to the engine.
@@ -72,12 +73,12 @@ impl<'a> InstantiateState<'a> {
             layouts: lowered.layouts.clone(),
             dispatch: lowered.dispatch.clone(),
             drops: lowered.drops.clone(),
-            effects: lowered.effects.clone(),
             witnesses: lowered.witnesses.clone(),
             sources: FxIndexMap::from_iter([(module, lowered)]),
             functions: FxIndexMap::default(),
             globals: FxIndexMap::default(),
             templates: FxIndexMap::default(),
+            language_functions: FxIndexMap::default(),
             declared: FxIndexMap::default(),
             blocked: None,
             artifacts,
@@ -111,6 +112,10 @@ impl<'a> InstantiateState<'a> {
 
         // close calls and allocations in the module's existing concrete bodies
         for function in bodies {
+            if self.calls_witness(function) {
+                self.close_witness_calls(function)?;
+                self.specializations.push(function);
+            }
             self.declare_dynamic_tables(function)?;
         }
 
@@ -157,7 +162,6 @@ impl<'a> InstantiateState<'a> {
             self.strings,
             &self.drops,
             &self.dispatch,
-            &self.effects,
             None,
             self.layout,
         );
@@ -188,7 +192,6 @@ impl<'a> InstantiateState<'a> {
             layouts: self.layouts,
             dispatch: self.dispatch,
             drops: self.drops,
-            effects: self.effects,
             profile: source.profile.clone(),
             retention,
         })
@@ -212,13 +215,19 @@ impl<'a> InstantiateState<'a> {
         }
 
         // index the templates every reachable module defines
-        for (module, source) in &self.sources {
-            for (id, function) in source.tree.iter_nodes::<mir::Function>() {
-                if function.is_polymorphic() && function.body.is_some() {
-                    self.templates
-                        .entry(function.symbol)
-                        .or_insert((*module, id));
-                }
+        let sources = self.sources.clone();
+        for (module, source) in &sources {
+            self.index_templates(*module, source);
+        }
+    }
+
+    /// Index the templates one module defines.
+    pub(super) fn index_templates(&mut self, module: ModuleId, source: &MirLowered) {
+        for (id, function) in source.tree.iter_nodes::<mir::Function>() {
+            if function.is_polymorphic() && function.body.is_some() {
+                self.templates
+                    .entry(function.symbol)
+                    .or_insert((module, id));
             }
         }
     }
@@ -249,6 +258,37 @@ impl<'a> InstantiateState<'a> {
             })
     }
 
+    /// Return whether one body makes a witness call.
+    fn calls_witness(&self, function: mir::FunctionId) -> bool {
+        let Some(body) = &self.tree.get(function).body else {
+            return false;
+        };
+
+        // scan every call
+        body.blocks().iter().any(|block| {
+            let block = self.tree.get(*block);
+            let instructions = block.instructions.iter();
+            let calls = instructions
+                .filter_map(|instruction| self.tree.get(*instruction).call())
+                .chain(self.tree.get(block.terminator).call());
+
+            calls
+                .into_iter()
+                .any(|call| matches!(call.callee, mir::Callee::Witness { .. }))
+        })
+    }
+
+    /// Dispatch the witness calls of one concrete body.
+    fn close_witness_calls(&mut self, function: mir::FunctionId) -> CompilerResult<()> {
+        let module = self.module;
+        let source = self.sources[&module].clone();
+        let mut closed = Specialization::new(self, module, &source.tree, function, Vec::new());
+        let body = closed.body()?;
+        self.tree.get_mut(function).set_body(body);
+
+        Ok(())
+    }
+
     /// Give one specialization its template's body at the specialization's arguments.
     fn specialize(&mut self, instance: mir::FunctionId) -> CompilerResult<()> {
         // read the instance arguments and generic template
@@ -269,22 +309,9 @@ impl<'a> InstantiateState<'a> {
         }
 
         // copy the template's body at the arguments
-        let mut specialization = Specialization {
-            state: self,
-            module,
-            source: &source.tree,
-            template,
-            arguments,
-            locals: FxIndexMap::default(),
-            blocks: FxIndexMap::default(),
-        };
+        let mut specialization =
+            Specialization::new(self, module, &source.tree, template, arguments);
         let body = specialization.body()?;
-
-        // copy the template's effects to the instance
-        let effect = source.effects.function(template).cloned();
-        if let Some(effect) = effect {
-            *self.effects.upsert_function(instance) = effect;
-        }
         self.tree.get_mut(instance).set_body(body);
 
         Ok(())

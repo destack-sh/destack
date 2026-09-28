@@ -52,6 +52,20 @@ impl InstantiateState<'_> {
         id
     }
 
+    /// Return this tree's static for one source static.
+    pub(crate) fn import_static(
+        &mut self,
+        module: ModuleId,
+        source: &mir::Tree,
+        value: mir::StaticId,
+    ) -> mir::StaticId {
+        if module == self.module {
+            return value;
+        }
+
+        self.import_declared(|importer| importer.import_static(source, value))
+    }
+
     /// Return this tree's type for one source type under the instance arguments.
     pub(crate) fn import_type(
         &mut self,
