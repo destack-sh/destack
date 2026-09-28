@@ -256,13 +256,15 @@ async function claim(
         await held.end();
     }
 
-    // create a new schema with its claim time in one statement, so that no cleanup finds it unclaimed, then migrate it under the claim
+    // claim the new schema's name before it exists, so that no other test claims it half migrated
     const schema = `${prefix}${crypto.randomUUID().replaceAll("-", "")}`;
+    const held = postgres(address, { max: 1, onnotice: () => {} });
+    await hold(held, schema);
+
+    // create it with its claim time in one statement, so that no cleanup finds it unclaimed, then migrate it
     await server.unsafe(
         `CREATE SCHEMA "${schema}"; COMMENT ON SCHEMA "${schema}" IS '${Date.now()}';`,
     );
-    const held = postgres(address, { max: 1, onnotice: () => {} });
-    await hold(held, schema);
     const database = await connector(schema)(tables);
     await database.apply(await planMigration(database, state));
 
