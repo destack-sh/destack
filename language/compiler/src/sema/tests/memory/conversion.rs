@@ -1983,10 +1983,7 @@ filtered;
 === annotated ===
 declare const values: (int32 | undefined)[];
 const mapped: ^(int32 | undefined)[] = values.map<int32 | undefined, int32 | undefined, "managed">(
-    ((value: int32 | undefined): int32 | undefined => value) as (
-        value: int32 | undefined,
-        index: isize,
-    ) => int32 | undefined,
+    (value: int32 | undefined): int32 | undefined => value,
 );
 const filtered: ^(int32 | undefined)[] = mapped.filter<int32 | undefined>(
     (value: &immutable (int32 | undefined)): boolean => (value as int32 | undefined) != undefined,
@@ -2009,7 +2006,7 @@ const mapped = values.map((value) => value);
 /// @resolution.access source=values root=values
 /// @generic.instantiation id="map#2<int32 | undefined, int32 | undefined, \"managed\" & \"local\">" template=map#2 arguments=(int32 | undefined, int32 | undefined, "managed" & "local")
 /// @generic.instantiation id="map#2<int32 | undefined>" template=map#2 arguments=(int32 | undefined)
-/// @type.symbol symbol=symbol2 source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined, "readonly">
+/// @type.symbol symbol=symbol2 source="(value) => value" type=Function<(int32 | undefined, isize), int32 | undefined, "readonly">
 /// @type.symbol symbol=symbol2.value source=value type=int32 | undefined
 /// @resolution.name source=value target=symbol2.value
 /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
@@ -2024,7 +2021,7 @@ const filtered = mapped.filter((value) => value != undefined);
 /// @resolution.place source=mapped placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=mapped root=mapped
 /// @generic.instantiation id="filter#1<int32 | undefined>" template=filter#1 arguments=(int32 | undefined)
-/// @type.symbol symbol=symbol5 source="(value) => value != undefined" type=Function<(&type_expression.'a immutable (int32 | undefined),), boolean, "readonly">
+/// @type.symbol symbol=symbol5 source="(value) => value != undefined" type=Function<(&type_expression.'a immutable (int32 | undefined), isize), boolean, "readonly">
 /// @type.symbol symbol=symbol5.value source=value type=&type_expression.'a immutable (int32 | undefined)
 /// @resolution.name source=value target=symbol5.value
 /// @resolution.operator source="value != undefined" type=boolean operator="!=" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as undefined families=(undefined)]

@@ -432,8 +432,12 @@ impl WalkState<'_, '_> {
             &declaration.signature.parameters,
         )?;
 
-        // read the declared signature the body checks against
-        let Some(function) = self.check.adopt_symbol_type_maybe(symbol)? else {
+        // read the written or declared signature the body checks against
+        let function = match self.check.written_values.get(&symbol) {
+            Some(written) => Some(*written),
+            None => self.check.adopt_symbol_type_maybe(symbol)?,
+        };
+        let Some(function) = function else {
             return Ok(false);
         };
 

@@ -89,6 +89,11 @@ pub(in crate::sema) struct CheckState<'a> {
     pub(in crate::sema) functions: FxIndexMap<dir::GlobalSymbolId, FunctionBody>,
     /// Lambda bodies keyed by their value expression.
     pub(in crate::sema) lambdas: FxIndexMap<dir::GlobalNodeIdAny, FunctionBody>,
+    /// The written callable of each function value, before its context completes its arity.
+    pub(in crate::sema) written_values: FxIndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
+    /// The binder each function value mints for one target binder at one adopted slot.
+    pub(in crate::sema) slot_binders:
+        FxIndexMap<(dir::GlobalSymbolId, usize, usize), GenericParameterId>,
     /// Coroutine bodies in discovery order, kept until their creation rows commit.
     pub(in crate::sema) coroutines: Vec<CoroutineBody>,
     /// Member block bodies discovered while checking, in discovery order.
@@ -245,6 +250,8 @@ impl<'a> CheckState<'a> {
             flow: FlowState::default(),
             functions: FxIndexMap::default(),
             lambdas: FxIndexMap::default(),
+            written_values: FxIndexMap::default(),
+            slot_binders: FxIndexMap::default(),
             coroutines: Vec::new(),
             blocks: Vec::new(),
             decorators: Vec::new(),

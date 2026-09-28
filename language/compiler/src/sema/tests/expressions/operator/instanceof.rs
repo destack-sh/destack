@@ -606,8 +606,8 @@ function adopt<T>(value: T | Deferred<T>): void {
         /// @generic.instantiation id=Deferred.then<*> template=Deferred.then arguments=(*) owner=adopt
         /// @generic.instantiation id=Deferred.then<T#2> template=Deferred.then arguments=(T#2) owner=adopt
         /// @generic.instance id=Deferred.then<T#2> template=Deferred.then arguments=(T#2)
-        /// @type.symbol symbol=adopt.symbol10 source="() => {}" type=Function<(), void, "readonly">
-        /// @type.node source="() => {}" type=Function<(), void, "readonly">
+        /// @type.symbol symbol=adopt.symbol10 source="() => {}" type=Function<(*,), void, "readonly">
+        /// @type.node source="() => {}" type=Function<(*,), void, "readonly">
 
     }
 }

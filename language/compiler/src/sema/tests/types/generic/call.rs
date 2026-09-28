@@ -95,9 +95,7 @@ const result: Promise<string> = input.then(() => "done");
 import { Promise } from "tspp:async";
 
 declare const input: Promise<int32>;
-const result: Promise<string> = input.then<int32, string>(
-    ((): string => "done") as (value: int32) => string,
-);
+const result: Promise<string> = input.then<int32, string>((): string => "done");
 
 === dir ===
 import { Promise } from "tspp:async";
@@ -138,8 +136,8 @@ const result: Promise<string> = input.then(() => "done");
 /// @generic.instance id=PromiseFulfilled<int32> template=PromiseFulfilled arguments=(int32)
 /// @generic.instance id=PromiseReaction.symbol173<int32> template=PromiseReaction.symbol173 arguments=(int32)
 /// @generic.instance id=PromiseReaction<int32> template=PromiseReaction arguments=(int32)
-/// @type.symbol symbol=symbol3 source="() => \"done\"" type=Function<(), string, "readonly">
-/// @type.node source="() => \"done\"" type=Function<(), string, "readonly">
+/// @type.symbol symbol=symbol3 source="() => \"done\"" type=Function<(int32,), string, "readonly">
+/// @type.node source="() => \"done\"" type=Function<(int32,), string, "readonly">
 /// @type.node source="\"done\"" type="done"
 "#,
     );
@@ -166,9 +164,7 @@ import { Promise } from "tspp:async";
 
 declare const input: Promise<int32>;
 declare const next: Promise<string>;
-const result: Promise<string> = input.then<int32, string>(
-    ((): Promise<string> => next) as (value: int32) => Promise<string>,
-);
+const result: Promise<string> = input.then<int32, string>((): Promise<string> => next);
 
 === dir ===
 import { Promise } from "tspp:async";
@@ -219,8 +215,8 @@ const result: Promise<string> = input.then(() => next);
 /// @generic.instance id=PromiseReaction.symbol173<string> template=PromiseReaction.symbol173 arguments=(string)
 /// @generic.instance id=PromiseReaction<int32> template=PromiseReaction arguments=(int32)
 /// @generic.instance id=PromiseReaction<string> template=PromiseReaction arguments=(string)
-/// @type.symbol symbol=symbol4 source="() => next" type=Function<(), Promise<string>, "readonly">
-/// @type.node source="() => next" type=Function<(), Promise<string>, "readonly">
+/// @type.symbol symbol=symbol4 source="() => next" type=Function<(int32,), Promise<string>, "readonly">
+/// @type.node source="() => next" type=Function<(int32,), Promise<string>, "readonly">
 /// @type.node source=next type=Promise<string>
 /// @resolution.name source=next target=next
 /// @resolution.place source=next placement="local" lifetime="static" access="immutable"
@@ -251,7 +247,7 @@ import { Promise } from "tspp:async";
 
 declare const input: Promise<int32>;
 const result: Promise<string> = input.then<int32, string>((value: int32): Promise<string> => {
-    input.then<int32, string>(((): string => "done") as (value: int32) => string)
+    input.then<int32, string>((): string => "done")
 });
 
 === dir ===
@@ -313,8 +309,8 @@ const result: Promise<string> = input.then((value) => {
     /// @generic.instantiation id="Promise.then#2<int32, string>" template=Promise.then#2 arguments=(int32, string)
     /// @generic.instance id="Promise.then#2<int32, string>" template=Promise.then#2 arguments=(int32, string)
     /// @generic.instance id=Promise.fulfill<string> template=Promise.fulfill arguments=(string)
-    /// @type.symbol symbol=symbol3.symbol5 source="() => \"done\"" type=Function<(), string, "readonly">
-    /// @type.node source="() => \"done\"" type=Function<(), string, "readonly">
+    /// @type.symbol symbol=symbol3.symbol5 source="() => \"done\"" type=Function<(int32,), string, "readonly">
+    /// @type.node source="() => \"done\"" type=Function<(int32,), string, "readonly">
     /// @type.node source="\"done\"" type="done"
 
 });
@@ -347,11 +343,11 @@ import { Promise } from "tspp:async";
 declare const input: Promise<int32>;
 declare const next: Promise<string>;
 declare const usePromise: boolean;
-const result: Promise<string | Promise<string>> = input.then<int32, Promise<string> | string>((():
-    | Promise<string>
-    | string => {
-    usePromise ? (next as Promise<string> | string) : ("done" as Promise<string> | string)
-}) as (value: int32) => Promise<string> | string);
+const result: Promise<string | Promise<string>> = input.then<int32, Promise<string> | string>(
+    (): Promise<string> | string => {
+        usePromise ? (next as Promise<string> | string) : ("done" as Promise<string> | string)
+    },
+);
 
 === dir ===
 import { Promise } from "tspp:async";
@@ -404,8 +400,8 @@ const result: Promise<string | Promise<string>> = input.then(() => {
 /// @generic.instance id=PromiseFulfilled<int32> template=PromiseFulfilled arguments=(int32)
 /// @generic.instance id=PromiseReaction.symbol173<int32> template=PromiseReaction.symbol173 arguments=(int32)
 /// @generic.instance id=PromiseReaction<int32> template=PromiseReaction arguments=(int32)
-/// @type.symbol symbol=symbol5 type=Function<(), Promise<string> | string, "readonly">
-/// @type.node type=Function<(), Promise<string> | string, "readonly">
+/// @type.symbol symbol=symbol5 type=Function<(int32,), Promise<string> | string, "readonly">
+/// @type.node type=Function<(int32,), Promise<string> | string, "readonly">
 
     usePromise ? next : "done"
     /// @type.node source="usePromise ? next : \"done\"" type=Promise<string> | string
@@ -1370,9 +1366,9 @@ const kept = values
 === annotated ===
 declare const values: ^int32[];
 
-const kept: ^int32[] = values.map<int32, int32>(
-    ((value: int32): int32 => value) as (value: int32, index: isize) => int32,
-).filter<int32>((value: &immutable int32): boolean => value !== undefined);
+const kept: ^int32[] = values.map<int32, int32>((value: int32): int32 => value).filter<int32>(
+    (value: &immutable int32): boolean => value !== undefined,
+);
 
 === dir ===
 declare const values: ^int32[];
@@ -1394,14 +1390,14 @@ const kept = values
 /// @generic.instantiation id=map#1<int32> template=map#1 arguments=(int32)
 
     .map((value) => value)
-    /// @type.symbol symbol=symbol2 source="(value) => value" type=Function<(int32,), int32, "readonly">
+    /// @type.symbol symbol=symbol2 source="(value) => value" type=Function<(int32, isize), int32, "readonly">
     /// @type.symbol symbol=symbol2.value source=value type=int32
     /// @resolution.name source=value target=symbol2.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=symbol2.value
 
     .filter((value) => value !== undefined);
-    /// @type.symbol symbol=symbol4 source="(value) => value !== undefined" type=Function<(&type_expression.'a immutable int32,), boolean, "readonly">
+    /// @type.symbol symbol=symbol4 source="(value) => value !== undefined" type=Function<(&type_expression.'a immutable int32, isize), boolean, "readonly">
     /// @type.symbol symbol=symbol4.value source=value type=&type_expression.'a immutable int32
     /// @resolution.name source=value target=symbol4.value
     /// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 families=(integer), undefined as undefined families=(undefined)]
@@ -1569,10 +1565,7 @@ const defined = values.map((value) => value).filter((value) => value !== undefin
 declare const values: (int32 | undefined)[];
 
 const defined: ^(int32 | undefined)[] = values.map<int32 | undefined, int32 | undefined, "managed">(
-    ((value: int32 | undefined): int32 | undefined => value) as (
-        value: int32 | undefined,
-        index: isize,
-    ) => int32 | undefined,
+    (value: int32 | undefined): int32 | undefined => value,
 ).filter<int32 | undefined>(
     (value: &immutable (int32 | undefined)): boolean => value !== (undefined as int32 | undefined),
 );
@@ -1595,12 +1588,12 @@ const defined = values.map((value) => value).filter((value) => value !== undefin
 /// @generic.instantiation id="filter#1<int32 | undefined>" template=filter#1 arguments=(int32 | undefined)
 /// @generic.instantiation id="map#2<int32 | undefined, int32 | undefined, \"managed\" & \"local\">" template=map#2 arguments=(int32 | undefined, int32 | undefined, "managed" & "local")
 /// @generic.instantiation id="map#2<int32 | undefined>" template=map#2 arguments=(int32 | undefined)
-/// @type.symbol symbol=symbol2 source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined, "readonly">
+/// @type.symbol symbol=symbol2 source="(value) => value" type=Function<(int32 | undefined, isize), int32 | undefined, "readonly">
 /// @type.symbol symbol=symbol2.value source=value type=int32 | undefined
 /// @resolution.name source=value target=symbol2.value
 /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=value root=symbol2.value
-/// @type.symbol symbol=symbol4 source="(value) => value !== undefined" type=Function<(&type_expression.'a immutable (int32 | undefined),), boolean, "readonly">
+/// @type.symbol symbol=symbol4 source="(value) => value !== undefined" type=Function<(&type_expression.'a immutable (int32 | undefined), isize), boolean, "readonly">
 /// @type.symbol symbol=symbol4.value source=value type=&type_expression.'a immutable (int32 | undefined)
 /// @resolution.name source=value target=symbol4.value
 /// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as int32 | undefined families=(integer | undefined)]
@@ -2331,7 +2324,7 @@ const positive = values.filter((value) => value > 0);
 /// @resolution.place source=values placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id=filter#1<int32> template=filter#1 arguments=(int32)
-/// @type.symbol symbol=symbol2 source="(value) => value > 0" type=Function<(&type_expression.'a immutable int32,), boolean, "readonly">
+/// @type.symbol symbol=symbol2 source="(value) => value > 0" type=Function<(&type_expression.'a immutable int32, isize), boolean, "readonly">
 /// @type.symbol symbol=symbol2.value source=value type=&type_expression.'a immutable int32
 /// @resolution.name source=value target=symbol2.value
 /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
@@ -2991,9 +2984,9 @@ function positive(values: int32[]): int32[] {
     session.assert_dir("main.tspp", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 function positive(values: int32[]): int32[] {
-    return values.map<int32, int32, "managed">(
-        ((value: int32): int32 => value + 1) as (value: int32, index: isize) => int32,
-    ).filter<int32>((value: &immutable int32): boolean => (value as int32) > 0) as int32[];
+    return values.map<int32, int32, "managed">((value: int32): int32 => value + 1).filter<int32>(
+        (value: &immutable int32): boolean => (value as int32) > 0,
+    ) as int32[];
 }
 
 === dir ===
@@ -3022,8 +3015,8 @@ function positive(values: int32[]): int32[] {
     /// @generic.instantiation id=map#2<int32> template=map#2 arguments=(int32)
     /// @generic.instance id="map#2<int32, int32, \"bound0\" & \"local\">" template=map#2 arguments=(int32, int32, "bound0" & "local")
     /// @generic.instance id=filter#1<int32> template=filter#1 arguments=(int32)
-    /// @type.symbol symbol=positive.symbol3 source="(value) => value + 1" type=Function<(int32,), int32, "readonly">
-    /// @type.node source="(value) => value + 1" type=Function<(int32,), int32, "readonly">
+    /// @type.symbol symbol=positive.symbol3 source="(value) => value + 1" type=Function<(int32, isize), int32, "readonly">
+    /// @type.node source="(value) => value + 1" type=Function<(int32, isize), int32, "readonly">
     /// @type.symbol symbol=positive.symbol3.value source=value type=int32
     /// @type.node source="value + 1" type=int32
     /// @type.node source=value type=int32
@@ -3032,8 +3025,8 @@ function positive(values: int32[]): int32[] {
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=positive.symbol3.value
     /// @type.node source=1 type=1
-    /// @type.symbol symbol=positive.symbol5 source="(value) => value > 0" type=Function<(&type_expression.'a immutable int32,), boolean, "readonly">
-    /// @type.node source="(value) => value > 0" type=Function<(&type_expression.'a immutable int32,), boolean, "readonly">
+    /// @type.symbol symbol=positive.symbol5 source="(value) => value > 0" type=Function<(&type_expression.'a immutable int32, isize), boolean, "readonly">
+    /// @type.node source="(value) => value > 0" type=Function<(&type_expression.'a immutable int32, isize), boolean, "readonly">
     /// @type.symbol symbol=positive.symbol5.value source=value type=&type_expression.'a immutable int32
     /// @type.node source="value > 0" type=boolean
     /// @type.node source=value type=&type_expression.'a immutable int32
@@ -3062,10 +3055,7 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
 === annotated ===
 function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     return values.map<int32 | undefined, int32 | undefined, "managed">(
-        ((value: int32 | undefined): int32 | undefined => value) as (
-            value: int32 | undefined,
-            index: isize,
-        ) => int32 | undefined,
+        (value: int32 | undefined): int32 | undefined => value,
     ).filter<int32 | undefined>(
         (value: &immutable (int32 | undefined)): boolean =>
             value !== (undefined as int32 | undefined),
@@ -3098,15 +3088,15 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     /// @generic.instantiation id="map#2<int32 | undefined>" template=map#2 arguments=(int32 | undefined)
     /// @generic.instance id="filter#1<int32 | undefined>" template=filter#1 arguments=(int32 | undefined)
     /// @generic.instance id="map#2<int32 | undefined, int32 | undefined, \"bound0\" & \"local\">" template=map#2 arguments=(int32 | undefined, int32 | undefined, "bound0" & "local")
-    /// @type.symbol symbol=defined.symbol3 source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined, "readonly">
-    /// @type.node source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined, "readonly">
+    /// @type.symbol symbol=defined.symbol3 source="(value) => value" type=Function<(int32 | undefined, isize), int32 | undefined, "readonly">
+    /// @type.node source="(value) => value" type=Function<(int32 | undefined, isize), int32 | undefined, "readonly">
     /// @type.symbol symbol=defined.symbol3.value source=value type=int32 | undefined
     /// @type.node source=value type=int32 | undefined
     /// @resolution.name source=value target=defined.symbol3.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=defined.symbol3.value
-    /// @type.symbol symbol=defined.symbol5 source="(value) => value !== undefined" type=Function<(&type_expression.'a immutable (int32 | undefined),), boolean, "readonly">
-    /// @type.node source="(value) => value !== undefined" type=Function<(&type_expression.'a immutable (int32 | undefined),), boolean, "readonly">
+    /// @type.symbol symbol=defined.symbol5 source="(value) => value !== undefined" type=Function<(&type_expression.'a immutable (int32 | undefined), isize), boolean, "readonly">
+    /// @type.node source="(value) => value !== undefined" type=Function<(&type_expression.'a immutable (int32 | undefined), isize), boolean, "readonly">
     /// @type.symbol symbol=defined.symbol5.value source=value type=&type_expression.'a immutable (int32 | undefined)
     /// @type.node source="value !== undefined" type=boolean
     /// @type.node source=value type=&type_expression.'a immutable (int32 | undefined)
@@ -3137,11 +3127,7 @@ function containsPositive(values: int32[]): boolean {
 === annotated ===
 function containsPositive(values: int32[]): boolean {
     return values.reduce<int32, boolean, "managed">(
-        ((found: boolean, value: int32): boolean => found || value > 0) as (
-            accumulator: boolean,
-            value: int32,
-            index: isize,
-        ) => boolean,
+        (found: boolean, value: int32): boolean => found || value > 0,
         false,
     );
 }
@@ -3167,8 +3153,8 @@ function containsPositive(values: int32[]): boolean {
     /// @generic.instance id="reduce#2<int32, boolean, \"bound0\" & \"local\">" template=reduce#2 arguments=(int32, boolean, "bound0" & "local")
 
         (found, value) => found || value > 0,
-        /// @type.symbol symbol=containsPositive.symbol3 source="(found, value) => found || value > 0" type=Function<(boolean, int32), boolean, "readonly">
-        /// @type.node source="(found, value) => found || value > 0" type=Function<(boolean, int32), boolean, "readonly">
+        /// @type.symbol symbol=containsPositive.symbol3 source="(found, value) => found || value > 0" type=Function<(boolean, int32, isize), boolean, "readonly">
+        /// @type.node source="(found, value) => found || value > 0" type=Function<(boolean, int32, isize), boolean, "readonly">
         /// @type.symbol symbol=containsPositive.symbol3.found source=found type=boolean
         /// @type.symbol symbol=containsPositive.symbol3.value source=value type=int32
         /// @type.node source="found || value > 0" type=boolean

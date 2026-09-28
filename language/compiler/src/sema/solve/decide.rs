@@ -29,6 +29,7 @@ impl CheckState<'_> {
         let binding_types = self.binding_types.len();
         let functions = self.functions.len();
         let lambdas = self.lambdas.len();
+        let written_values = self.written_values.len();
         let fresh_consts = self.fresh_consts.len();
         let scheduling = self.fulfill.scheduling();
 
@@ -60,6 +61,7 @@ impl CheckState<'_> {
         self.binding_types.truncate(binding_types);
         self.functions.truncate(functions);
         self.lambdas.truncate(lambdas);
+        self.written_values.truncate(written_values);
         self.fresh_consts.truncate(fresh_consts);
 
         // leave a nested decision's variables dead, poisoning them from the outermost one

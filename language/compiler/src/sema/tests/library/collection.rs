@@ -325,11 +325,7 @@ function copy(source: int32[]): int32[] {
 === annotated ===
 function copy(source: int32[]): int32[] {
     return source.reduce<int32, int32[], "managed">(
-        ((output: int32[], value: int32): int32[] => [...output, value]) as (
-            accumulator: int32[],
-            value: int32,
-            index: isize,
-        ) => int32[],
+        (output: int32[], value: int32): int32[] => [...output, value],
         [],
     );
 }
@@ -347,7 +343,7 @@ function copy(source: int32[]): int32[] {
     /// @resolution.access source=source root=copy.source
     /// @generic.instantiation id="reduce#2<int32, int32[], \"managed\" & \"local\">" template=reduce#2 arguments=(int32, int32[], "managed" & "local")
     /// @generic.instantiation id=reduce#2<int32> template=reduce#2 arguments=(int32)
-    /// @type.symbol symbol=copy.symbol3 source="(output, value) => [...output, value]" type=Function<(int32[], int32), int32[], "readonly">
+    /// @type.symbol symbol=copy.symbol3 source="(output, value) => [...output, value]" type=Function<(int32[], int32, isize), int32[], "readonly">
     /// @type.symbol symbol=copy.symbol3.output source=output type=int32[]
     /// @type.symbol symbol=copy.symbol3.value source=value type=int32
     /// @resolution.call source=[...output, value] parameters=(^Slice<int32>) arguments=(rest(spread(provided(...output) as int32[], iterator=iterator#2(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>, regions=("managed" & "local"))) as int32, provided(value) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>

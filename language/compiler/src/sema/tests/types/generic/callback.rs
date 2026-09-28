@@ -366,7 +366,7 @@ test.each<{}, {}, {}, (int32,)>([(1,)] as Iterable<(int32,)>).only(
 );
 test.for<{}, {}, {}, int64>([1] as Iterable<int64>).only(
     "table case",
-    <'a,>(value: &'a readonly int64): BodyResult => {},
+    <'a, 'b>(value: &'a readonly int64): BodyResult => {},
 );
 describe.each<(int32,)>([(1,)] as Iterable<(int32,)>)("parameterized suite", ((
     value: int32
@@ -412,8 +412,8 @@ test.for([1]).only("table case", (value: &readonly int64) => {});
 /// @generic.instantiation id="Test.for<{}, {}, {}>" template=Test.for arguments=({}, {}, {})
 /// @resolution.call source=[1] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
-/// @generic.template symbol=symbol5 parameters=('a)
-/// @type.symbol symbol=symbol5 source="(value: &readonly int64) => {}" type=Function<(&symbol5.'a readonly int64,), BodyResult, "readonly">
+/// @generic.template symbol=symbol5 parameters=('a, 'b)
+/// @type.symbol symbol=symbol5 source="(value: &readonly int64) => {}" type=Function<(&symbol5.'a readonly int64, &symbol5.'b TestContext<{}, {}, {}>), BodyResult, "readonly">
 /// @type.symbol symbol=symbol5.value source="value: &readonly int64" type=&symbol5.'a readonly int64
 
 describe.each([(1,)])("parameterized suite", (value: int32) => {});
@@ -644,9 +644,10 @@ table<int32>([1])<'a>("table", <'a,>(value: &'a readonly int32): void => {});
 optionalTable<int32>([1])<'a, "frame">("optional table", (<'a,>(
     value: &'a readonly int32
 ): void => {}) as ((value: &'a readonly int32, context: &'frame string) => void) | undefined);
-contextTable<int32>([1])<'a, "frame">("context table", (<'a,>(
-    value: &'a readonly int32
-): void => {}) as (value: &'a readonly int32, context: &'frame string) => void);
+contextTable<int32>([1])<'a, "frame">(
+    "context table",
+    <'a,>(value: &'a readonly int32): void => {},
+);
 iterTable<int32>([1] as Iterable<int32>)<'a>(
     "iter table",
     <'a,>(value: &'a readonly int32): void => {},
@@ -775,7 +776,7 @@ optionalTable([1])("optional table", (value: &readonly int32) => {});
 /// @generic.instantiation id=optionalTable<int32> template=optionalTable arguments=(int32)
 /// @resolution.call source=[1] parameters=(^Slice<int32>) arguments=(rest(provided(1) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.template symbol=symbol49 parameters=('a)
-/// @type.symbol symbol=symbol49 source="(value: &readonly int32) => {}" type=Function<(&symbol49.'a readonly int32,), void, "readonly">
+/// @type.symbol symbol=symbol49 source="(value: &readonly int32) => {}" type=Function<(&symbol49.'a readonly int32, &'frame string), void, "readonly">
 /// @type.symbol symbol=symbol49.value source="value: &readonly int32" type=&symbol49.'a readonly int32
 
 contextTable([1])("context table", (value: &readonly int32) => {});
@@ -785,7 +786,7 @@ contextTable([1])("context table", (value: &readonly int32) => {});
 /// @generic.instantiation id=contextTable<int32> template=contextTable arguments=(int32)
 /// @resolution.call source=[1] parameters=(^Slice<int32>) arguments=(rest(provided(1) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.template symbol=symbol51 parameters=('a)
-/// @type.symbol symbol=symbol51 source="(value: &readonly int32) => {}" type=Function<(&symbol51.'a readonly int32,), void, "readonly">
+/// @type.symbol symbol=symbol51 source="(value: &readonly int32) => {}" type=Function<(&symbol51.'a readonly int32, &'frame string), void, "readonly">
 /// @type.symbol symbol=symbol51.value source="value: &readonly int32" type=&symbol51.'a readonly int32
 
 iterTable([1])("iter table", (value: &readonly int32) => {});

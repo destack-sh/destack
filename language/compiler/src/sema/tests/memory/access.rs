@@ -994,10 +994,10 @@ function observe(values: Iterator<^string>): Iterator<^string> {
 declare function consume(value: ^string): void;
 
 function observe(values: Iterator<^string>): Iterator<^string> {
-    return values.map<^string, ^string>(((value: ^string): ^string => {
+    return values.map<^string, ^string>((value: ^string): ^string => {
         consume(value);
         value
-    }) as (value: ^string, index: isize) => ^string) as Iterator<^string>;
+    }) as Iterator<^string>;
 }
 
 === dir ===
@@ -1024,7 +1024,7 @@ function observe(values: Iterator<^string>): Iterator<^string> {
     /// @generic.instantiation id=Iterator.map<^string> template=Iterator.map arguments=(^string)
     /// @generic.instance id="MapIterator<Iterator<^string>, ^string, ^string>" template=MapIterator arguments=(Iterator<^string>, ^string, ^string)
     /// @flow.access source=values root=observe.values uses=read
-    /// @type.symbol symbol=observe.symbol5 type=Function<(^string,), ^string, "readonly">
+    /// @type.symbol symbol=observe.symbol5 type=Function<(^string, isize), ^string, "readonly">
     /// @type.symbol symbol=observe.symbol5.value source=value type=^string
     /// @flow.use symbol=value#2 uses=read+moved
 

@@ -1127,7 +1127,10 @@ impl CheckState<'_> {
             .module(module)
             .declaration_symbol(declaration.into_any())
         {
-            Some(symbol) => self.symbol_type_maybe(symbol)?.is_some(),
+            Some(symbol) => {
+                self.written_values.contains_key(&symbol)
+                    || self.symbol_type_maybe(symbol)?.is_some()
+            }
             None => false,
         };
         if is_walked || self.lambdas.contains_key(&node) {

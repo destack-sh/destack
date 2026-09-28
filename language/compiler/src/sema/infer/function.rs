@@ -3,7 +3,8 @@ use tspp_dir as dir;
 use tspp_source::ModuleId;
 
 use crate::sema::{
-    BodyCheck, Check, CheckState, Expectation, FlowState, InferMode, Origin, Settle, Value, Verdict,
+    BodyCheck, Check, CheckState, Expectation, FlowState, GenericParameterId, GenericTemplateId,
+    InferMode, Origin, Settle, TypeSubstitution, Value, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -19,10 +20,10 @@ impl CheckState<'_> {
             return Ok(callable);
         }
 
-        // type the closure
+        // type the closure at the arity its context calls it with
         self.commit_function_value(node)?;
         let symbol = self.function_value_symbol(node)?;
-        let callable = self.symbol_type(symbol)?;
+        let callable = self.adopt_contextual_arity(symbol, context)?;
         let directive = self.resolve_capture_directive(symbol)?;
         let callable = match directive.is_some_and(|directive| directive.borrows()) {
             true => self.frame_borrow(node, callable)?,
@@ -32,6 +33,264 @@ impl CheckState<'_> {
         self.queue_check_function_body(node)?;
 
         Ok(callable)
+    }
+
+    /// Commit one function value's type at the arity its context calls it with.
+    fn adopt_contextual_arity(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        context: Option<Expectation>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let Some(written) = self.written_values.get(&symbol).copied() else {
+            return Err(CompilerError::Internal {
+                message: format!("function value {symbol:?} without its written type"),
+            });
+        };
+        let adopted = match context.and_then(Expectation::contextual_target) {
+            Some(target) => self.extended_callable(symbol, written, target, context)?,
+            None => written,
+        };
+
+        self.commit_symbol_type(symbol, adopted)
+    }
+
+    /// Return the one callable signature a contextual target offers, through forms and union arms.
+    fn contextual_signature(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // read each arm of the target
+        let arms = match self.union_arms(origin, target)? {
+            Some(arms) => arms,
+            None => SmallVec::from_slice(&[target]),
+        };
+
+        // keep the signature of the single callable arm
+        let mut signature = None;
+        for arm in arms {
+            let arm = self.form_chain(origin, arm)?.base();
+            let arm = self.normalize(origin, arm)?;
+            let arm = match self.ty(arm)? {
+                dir::Type::Function(function) => function.signature,
+                dir::Type::FunctionPointer(function) => function.signature,
+                dir::Type::FunctionSignature(_) => arm,
+                _ => continue,
+            };
+            if signature.replace(arm).is_some() {
+                return Ok(None);
+            }
+        }
+
+        Ok(signature)
+    }
+
+    /// Bind the target binders in trailing parameters to the lambda's own, none for a type binder.
+    fn rebind_trailing(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        template: Option<GenericTemplateId>,
+        binders: GenericTemplateId,
+        trailing: Vec<dir::FunctionParameterType>,
+        first: usize,
+    ) -> CompilerResult<Option<(Option<GenericTemplateId>, Vec<dir::FunctionParameterType>)>> {
+        let mut template = template;
+        let mut rebound = Vec::with_capacity(trailing.len());
+        for (offset, parameter) in trailing.into_iter().enumerate() {
+            // keep a parameter without target binders
+            let mentioned = self.template_binders(parameter.ty, binders)?;
+            if mentioned.is_empty() {
+                rebound.push(parameter);
+                continue;
+            }
+
+            // open the lambda's template for its first binder
+            let own_template = match template {
+                Some(own_template) => own_template,
+                None => {
+                    let source = self.value_source(symbol)?;
+                    let parent = self.flow.template_scope();
+                    let opened = self.open_generic_template(source, parent)?;
+                    template = Some(opened);
+
+                    opened
+                }
+            };
+
+            // bind each mentioned binder to the lambda's binder for this slot
+            let mut substitution = TypeSubstitution::default();
+            for (ordinal, binder) in mentioned.into_iter().enumerate() {
+                let Some(own) =
+                    self.slot_binder(symbol, own_template, first + offset, ordinal, binder)?
+                else {
+                    return Ok(None);
+                };
+                substitution.bindings.push(dir::GenericArgumentBinding {
+                    parameter: binder,
+                    argument: own,
+                });
+            }
+            let ty = self.substitute_type(parameter.ty, &substitution)?;
+            rebound.push(dir::FunctionParameterType { ty, ..parameter });
+        }
+
+        Ok(Some((template, rebound)))
+    }
+
+    /// Return the lambda's binder standing for one target binder at one slot, minted once.
+    fn slot_binder(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        template: GenericTemplateId,
+        slot: usize,
+        ordinal: usize,
+        binder: GenericParameterId,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // reuse the binder a previous adoption minted
+        let key = (symbol, slot, ordinal);
+        let own = match self.slot_binders.get(&key) {
+            Some(own) => *own,
+            None => {
+                // mint a memory binder, refusing a type binder
+                let kind = self.generic_parameter(binder)?.map(|binding| binding.kind);
+                let Some(dir::GenericParameterKind::Memory(memory)) = kind else {
+                    return Ok(None);
+                };
+                let source = self.value_source(symbol)?;
+                let own = self.push_induced_memory_parameter(template, source, memory)?;
+                self.slot_binders.insert(key, own);
+
+                own
+            }
+        };
+
+        Ok(self.generic_parameter(own)?.map(|binding| binding.ty))
+    }
+
+    /// Return the parameters of one template a type mentions, in first-mention order.
+    fn template_binders(
+        &mut self,
+        ty: dir::GlobalTypeId,
+        template: GenericTemplateId,
+    ) -> CompilerResult<Vec<GenericParameterId>> {
+        let mut binders = Vec::new();
+        let mut pending = vec![ty];
+        while let Some(ty) = pending.pop() {
+            // keep a parameter the template owns
+            let ty = self.shallow_resolve(ty)?;
+            let kind = self.ty(ty)?;
+            if let dir::Type::Parameter(parameter) = kind
+                && parameter.module_id == template.module_id
+                && self
+                    .generic_parameter(parameter)?
+                    .is_some_and(|binding| binding.template == template.local_id)
+                && !binders.contains(&parameter)
+            {
+                binders.push(parameter);
+            }
+
+            // walk the children
+            self.for_each_type_child(ty.module_id, &kind, |child| pending.push(child))?;
+        }
+
+        Ok(binders)
+    }
+
+    /// Return the declaration node of one function value symbol.
+    fn value_source(&self, symbol: dir::GlobalSymbolId) -> CompilerResult<dir::GlobalNodeIdAny> {
+        let node = self
+            .module(symbol.module_id)
+            .symbol_declaration_node(symbol.local_id)?;
+
+        Ok(node.into_global(symbol.module_id))
+    }
+
+    /// Return the written callable of one function value.
+    fn written_callable(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        match self.written_values.get(&symbol) {
+            Some(written) => Ok(*written),
+            None => self.symbol_type(symbol),
+        }
+    }
+
+    /// Return one written callable with the trailing parameters of a target signature appended.
+    fn extended_callable(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        written: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+        context: Option<Expectation>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // read the written signature and the target's
+        let dir::Type::Function(function) = self.ty(written)? else {
+            return Ok(written);
+        };
+        let origin = match context {
+            Some(context) => self.cause_origin(context.cause),
+            None => return Ok(written),
+        };
+        let Some(target) = self.contextual_signature(origin, target)? else {
+            return Ok(written);
+        };
+        let (Some(head), Some(target_head)) = (
+            self.signature_head(function.signature)?,
+            self.signature_head(target)?,
+        ) else {
+            return Ok(written);
+        };
+
+        // require a longer fixed target list
+        let parameters = self
+            .signature_parameters(function.signature.module_id, head.parameters)?
+            .to_vec();
+        let target_parameters = self
+            .signature_parameters(target.module_id, target_head.parameters)?
+            .to_vec();
+        let has_rest = parameters
+            .iter()
+            .chain(&target_parameters)
+            .any(|parameter| parameter.is_rest);
+        if has_rest || parameters.len() >= target_parameters.len() {
+            return Ok(written);
+        }
+
+        // bind the trailing parameters under the lambda's own binders
+        let trailing = target_parameters[parameters.len()..].to_vec();
+        let (template, trailing) = match target_head.template {
+            Some(binders) => {
+                let rebound = self.rebind_trailing(
+                    symbol,
+                    head.template,
+                    binders,
+                    trailing,
+                    parameters.len(),
+                )?;
+                let Some(rebound) = rebound else {
+                    return Ok(written);
+                };
+
+                rebound
+            }
+            None => (head.template, trailing),
+        };
+
+        // append the target's trailing parameters
+        let mut extended = parameters;
+        extended.extend(trailing);
+        let parameters = self.intern_parameters(&extended)?;
+        let signature = self.intern_signature(dir::FunctionSignatureType {
+            parameters,
+            template,
+            ..head
+        })?;
+
+        self.intern_type(dir::Type::Function(dir::FunctionType {
+            signature,
+            ..function
+        }))
     }
 
     /// Return the borrow type of one closure's frame temporary.
@@ -126,8 +385,9 @@ impl CheckState<'_> {
         &mut self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<SmallVec<[dir::TypeVariableId; 2]>> {
-        // read the parameter types of the declared callable
-        let callable = self.symbol_type(self.function_value_symbol(node)?)?;
+        // read the parameter types of the written callable
+        let symbol = self.function_value_symbol(node)?;
+        let callable = self.written_callable(symbol)?;
         let parameters = match self.callable_signature_head(callable)? {
             Some((module, head)) => self
                 .signature_parameters(module, head.parameters)?
@@ -182,8 +442,8 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<()> {
-        // read the declared callable's receiver term
-        let callable = self.symbol_type(symbol)?;
+        // read the written callable's receiver term
+        let callable = self.written_callable(symbol)?;
         let callable = self.shallow_resolve(callable)?;
         let dir::Type::Function(function) = self.ty(callable)? else {
             return Ok(());

@@ -285,9 +285,7 @@ function values(entries: { value: int32 }[]): int32[] {
         r#"
 === annotated ===
 function values(entries: { value: int32 }[]): int32[] {
-    return entries.map<{ value: int32 }, int32, "managed">(
-        (({ value }): int32 => value) as (value: { value: int32 }, index: isize) => int32,
-    ) as int32[];
+    return entries.map<{ value: int32 }, int32, "managed">(({ value }): int32 => value) as int32[];
 }
 
 === dir ===
@@ -311,7 +309,7 @@ function values(entries: { value: int32 }[]): int32[] {
     /// @generic.instantiation id="map#2<{ value: int32 }, int32, \"managed\" & \"local\">" template=map#2 arguments=({ value: int32 }, int32, "managed" & "local")
     /// @generic.instantiation id="map#2<{ value: int32 }>" template=map#2 arguments=({ value: int32 })
     /// @generic.instance id="map#2<{ value: int32 }, int32, \"bound0\" & \"local\">" template=map#2 arguments=({ value: int32 }, int32, "bound0" & "local")
-    /// @type.symbol symbol=values.symbol5 source="({ value }) => value" type=Function<({ value: int32 },), int32, "readonly">
+    /// @type.symbol symbol=values.symbol5 source="({ value }) => value" type=Function<({ value: int32 }, isize), int32, "readonly">
     /// @resolution.pattern source={ value } kind=object fields={ value }
     /// @type.symbol symbol=values.symbol5.value source=value type=int32
     /// @resolution.name source=value target=values.symbol5.value
@@ -340,10 +338,7 @@ function unwrap(values: (int32 | undefined)[]): int32[] {
 === annotated ===
 function unwrap(values: (int32 | undefined)[]): int32[] {
     return values.map<int32 | undefined, int32, "managed">(
-        ((value: int32 | undefined): int32 => value!) as (
-            value: int32 | undefined,
-            index: isize,
-        ) => int32,
+        (value: int32 | undefined): int32 => value!,
     ) as int32[];
 }
 
@@ -367,7 +362,7 @@ function unwrap(values: (int32 | undefined)[]): int32[] {
     /// @generic.instantiation id="map#2<int32 | undefined, int32, \"managed\" & \"local\">" template=map#2 arguments=(int32 | undefined, int32, "managed" & "local")
     /// @generic.instantiation id="map#2<int32 | undefined>" template=map#2 arguments=(int32 | undefined)
     /// @generic.instance id="map#2<int32 | undefined, int32, \"bound0\" & \"local\">" template=map#2 arguments=(int32 | undefined, int32, "bound0" & "local")
-    /// @type.symbol symbol=unwrap.symbol3 source="(value) => value!" type=Function<(int32 | undefined,), int32, "readonly">
+    /// @type.symbol symbol=unwrap.symbol3 source="(value) => value!" type=Function<(int32 | undefined, isize), int32, "readonly">
     /// @type.symbol symbol=unwrap.symbol3.value source=value type=int32 | undefined
     /// @resolution.name source=value target=unwrap.symbol3.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"

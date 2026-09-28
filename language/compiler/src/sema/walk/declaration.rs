@@ -1214,26 +1214,31 @@ impl WalkState<'_, '_> {
             result,
             tracked,
         )?;
-        let function = if declaration.is_value() {
-            // infer a lambda's receiver access from its body
-            let receiver = match declaration.signature.form {
-                dir::FunctionForm::Lambda => {
-                    let origin = Origin::Node(id.into_global_any(self.module), None);
-                    self.check
-                        .open_memory_type(origin, dir::MemoryParameter::Access)?
-                }
-                dir::FunctionForm::Function => {
-                    self.check.receiver_literal(dir::ReceiverMode::Borrowed {
-                        access: dir::Access::Readonly,
-                    })?
-                }
-            };
 
-            self.push_function_value_type(signature, receiver)?
-        } else {
-            signature
+        // commit a declared function's type
+        if !declaration.is_value() {
+            self.commit_symbol_type(symbol, signature)?;
+
+            return Ok(());
+        }
+
+        // infer a lambda's receiver access from its body
+        let receiver = match declaration.signature.form {
+            dir::FunctionForm::Lambda => {
+                let origin = Origin::Node(id.into_global_any(self.module), None);
+                self.check
+                    .open_memory_type(origin, dir::MemoryParameter::Access)?
+            }
+            dir::FunctionForm::Function => {
+                self.check.receiver_literal(dir::ReceiverMode::Borrowed {
+                    access: dir::Access::Readonly,
+                })?
+            }
         };
-        self.commit_symbol_type(symbol, function)?;
+
+        // keep a function value's written type until its context completes it
+        let function = self.push_function_value_type(signature, receiver)?;
+        self.check.written_values.insert(symbol, function);
 
         Ok(())
     }

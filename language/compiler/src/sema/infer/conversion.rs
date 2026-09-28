@@ -4,8 +4,8 @@ use tspp_dir as dir;
 
 use crate::sema::{
     Answer, BorrowConversion, CandidateOutcome, CauseId, Check, CheckFailure, CheckOutcome,
-    CheckState, ConversionCheck, Expectation, FlowSite, Goal, InferMode, NodeForm, Origin,
-    PropertySource, Relation, StoreTarget, Value, ValueConversion, ValueUse, Verdict,
+    CheckState, ConversionCheck, Expectation, FlowSite, Goal, InferMode, Origin, PropertySource,
+    Relation, StoreTarget, Value, ValueConversion, ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -1831,24 +1831,9 @@ impl CheckState<'_> {
             return Ok(Ok(Some(Box::new(coercion))));
         }
 
-        // adapt a lambda literal to a longer parameter list
-        let (source_base, target_base) = (source_chain.base(), target_chain.base());
-        if self.lacks_parameters(source_base, target_base)? {
-            let is_literal = source
-                .node
-                .is_some_and(|node| matches!(self.node_form(node), NodeForm::FunctionValue));
-            if !is_literal {
-                return Ok(Err(CheckFailure::Relation));
-            }
-            let arity = dir::CoercionAdjustment::Arity {
-                target: target_base,
-            };
-
-            return Ok(Ok(Some(Box::new(dir::Coercion::new(
-                source.ty,
-                vec![arity],
-                dir::CastOrigin::Implicit,
-            )))));
+        // reject a function value with fewer parameters
+        if self.lacks_parameters(source_chain.base(), target_chain.base())? {
+            return Ok(Err(CheckFailure::Relation));
         }
 
         // select the adjustment this conversion requires

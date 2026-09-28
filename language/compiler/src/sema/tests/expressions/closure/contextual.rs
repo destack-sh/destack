@@ -709,13 +709,7 @@ function add(total: int32, value: int32): int32 {
     total + value
 }
 
-const literal: int32 = fold(
-    ((total: int32, value: int32): int32 => total + value) as (
-        total: int32,
-        value: int32,
-        index: isize,
-    ) => int32,
-);
+const literal: int32 = fold((total: int32, value: int32): int32 => total + value);
 const named: int32 = fold(add);
 
 === dir ===
@@ -755,7 +749,7 @@ const literal = fold((total, value) => total + value);
 /// @resolution.pattern source=literal kind=binding target=literal
 /// @resolution.name source=fold target=fold
 /// @resolution.call source="fold((total, value) => total + value)" parameters=((int32, int32, isize) => int32) arguments=(provided((total, value) => total + value) as (int32, int32, isize) => int32) return=int32 kind=symbol target=fold
-/// @type.symbol symbol=symbol9 source="(total, value) => total + value" type=Function<(int32, int32), int32, "readonly">
+/// @type.symbol symbol=symbol9 source="(total, value) => total + value" type=Function<(int32, int32, isize), int32, "readonly">
 /// @type.symbol symbol=symbol9.total source=total type=int32
 /// @type.symbol symbol=symbol9.value source=value type=int32
 /// @resolution.name source=total target=symbol9.total

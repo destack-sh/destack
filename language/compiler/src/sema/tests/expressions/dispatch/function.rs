@@ -17,16 +17,10 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
 === annotated ===
 function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
     values.iterator<int32 | undefined>().map<int32 | undefined, int32 | undefined>(
-        ((value: int32 | undefined): int32 | undefined => value) as (
-            value: int32 | undefined,
-            index: isize,
-        ) => int32 | undefined,
+        (value: int32 | undefined): int32 | undefined => value,
     ).find<int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>>(
-        ((value: int32 | undefined): boolean =>
-            value !== (undefined as int32 | undefined) && value > 0) as (
-            value: int32 | undefined,
-            index: isize,
-        ) => boolean,
+        (value: int32 | undefined): boolean =>
+            value !== (undefined as int32 | undefined) && value > 0,
     )
 }
 
@@ -54,12 +48,12 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
     /// @generic.instance id="Iterator<int32 | undefined>" template=Iterator arguments=(int32 | undefined)
     /// @generic.instance id="MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined>" template=MapIterator arguments=(Iterator<int32 | undefined>, int32 | undefined, int32 | undefined)
     /// @generic.instance id="iterator#2<int32 | undefined>" template=iterator#2 arguments=(int32 | undefined)
-    /// @type.symbol symbol=firstPositive.symbol3 source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined, "readonly">
+    /// @type.symbol symbol=firstPositive.symbol3 source="(value) => value" type=Function<(int32 | undefined, isize), int32 | undefined, "readonly">
     /// @type.symbol symbol=firstPositive.symbol3.value source=value type=int32 | undefined
     /// @resolution.name source=value target=firstPositive.symbol3.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=firstPositive.symbol3.value
-    /// @type.symbol symbol=firstPositive.symbol5 source="(value) => value !== undefined && value > 0" type=Function<(int32 | undefined,), boolean, "readonly">
+    /// @type.symbol symbol=firstPositive.symbol5 source="(value) => value !== undefined && value > 0" type=Function<(int32 | undefined, isize), boolean, "readonly">
     /// @type.symbol symbol=firstPositive.symbol5.value source=value type=int32 | undefined
     /// @resolution.name source=value target=firstPositive.symbol5.value
     /// @resolution.operator source="value !== undefined && value > 0" type=boolean operator="&&" kind=builtin operands=[value !== undefined as boolean families=(boolean), value > 0 as boolean families=(boolean)]
@@ -268,7 +262,7 @@ const value = map(() => 1);
 === annotated ===
 declare function map<T>(callback: (value: unknown) => T): T;
 
-const value: int64 = map<int64>(((): int64 => 1) as (value: unknown) => int64);
+const value: int64 = map<int64>((): int64 => 1);
 
 === dir ===
 declare function map<T>(callback: (value: unknown) => T): T;
@@ -289,8 +283,8 @@ const value = map(() => 1);
 /// @resolution.call source="map(() => 1)" parameters=((unknown) => int64) arguments=(provided(() => 1) as (unknown) => int64) return=int64 kind=symbol target=map instance=map<int64>
 /// @generic.instantiation id=map<int64> template=map arguments=(int64)
 /// @generic.instance id=map<int64> template=map arguments=(int64)
-/// @type.symbol symbol=symbol5 source="() => 1" type=Function<(), int64, "readonly">
-/// @type.node source="() => 1" type=Function<(), int64, "readonly">
+/// @type.symbol symbol=symbol5 source="() => 1" type=Function<(unknown,), int64, "readonly">
+/// @type.node source="() => 1" type=Function<(unknown,), int64, "readonly">
 /// @type.node source=1 type=1
 "#,
     );

@@ -213,9 +213,7 @@ function positive(values: int32[]): int32[] {
     session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 function positive(values: int32[]): int32[] {
-    return values.map<int32, int32, "managed">(
-        ((value: int32): int32 => value + 1) as (value: int32, index: isize) => int32,
-    ) as int32[];
+    return values.map<int32, int32, "managed">((value: int32): int32 => value + 1) as int32[];
 }
 
 === dir ===
@@ -235,7 +233,7 @@ function positive(values: int32[]): int32[] {
     /// @generic.instantiation id="map#2<int32, int32, \"managed\" & \"local\">" template=map#2 arguments=(int32, int32, "managed" & "local")
     /// @generic.instantiation id=map#2<int32> template=map#2 arguments=(int32)
     /// @generic.instance id="map#2<int32, int32, \"bound0\" & \"local\">" template=map#2 arguments=(int32, int32, "bound0" & "local")
-    /// @type.symbol symbol=positive.symbol3 source="(value) => value + 1" type=Function<(int32,), int32, "readonly">
+    /// @type.symbol symbol=positive.symbol3 source="(value) => value + 1" type=Function<(int32, isize), int32, "readonly">
     /// @type.symbol symbol=positive.symbol3.value source=value type=int32
     /// @resolution.name source=value target=positive.symbol3.value
     /// @resolution.operator source="value + 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]

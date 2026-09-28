@@ -212,7 +212,7 @@ function build(values: [int32]): void {
     ] as Iterable<int32>) as Set<int32, Equality<int32>>;
     const mapped: ^int32[] = Array.from<int32, int32>(
         [...values] as Iterable<int32>,
-        ((value: int32): int32 => value) as (value: int32, index: isize) => int32,
+        (value: int32): int32 => value,
     );
 }
 
@@ -261,7 +261,7 @@ function build(values: [int32]): void {
     /// @resolution.name source=values target=build.values
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=build.values
-    /// @type.symbol symbol=build.symbol6 source="(value) => value" type=Function<(int32,), int32, "readonly">
+    /// @type.symbol symbol=build.symbol6 source="(value) => value" type=Function<(int32, isize), int32, "readonly">
     /// @type.symbol symbol=build.symbol6.value source=value type=int32
     /// @resolution.name source=value target=build.symbol6.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"

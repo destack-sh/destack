@@ -31,9 +31,9 @@ describe("arithmetic", () => {
 import { beforeEach, describe, expect, test } from "tspp:test";
 
 describe("arithmetic", ((): void => {
-    beforeEach((): BodyResult => {});
+    beforeEach(<'a,>(): BodyResult => {});
 
-    test("adds values", ((): BodyResult => {
+    test("adds values", (<'a,>(): BodyResult => {
         expect<2, "frame">((1 + 1) as &'frame immutable 2).toEqual<"frame", 2, int64, "frame">(
             2 as &'frame immutable int64,
         );
@@ -46,8 +46,8 @@ describe("arithmetic", ((): void => {
         >("apple");
     }) as Body<TestContext<{}, {}, {}>> | undefined);
 
-    test.only("focused", ((): BodyResult => {}) as Body<TestContext<{}, {}, {}>> | undefined);
-    test.skip("skipped", ((): BodyResult => {}) as Body<TestContext<{}, {}, {}>> | undefined);
+    test.only("focused", (<'a,>(): BodyResult => {}) as Body<TestContext<{}, {}, {}>> | undefined);
+    test.skip("skipped", (<'a,>(): BodyResult => {}) as Body<TestContext<{}, {}, {}>> | undefined);
     test.todo("pending");
 }) as SuiteBody | undefined);
 

@@ -1259,14 +1259,10 @@ function retain(source: boolean[]): { active: boolean } {
 === annotated ===
 function retain(source: boolean[]): { active: boolean } {
     return source.reduce<{ active: boolean }>(
-        ((output: { active: boolean }, value: boolean): { active: boolean } => ({
+        (output: { active: boolean }, value: boolean): { active: boolean } => ({
             ...output,
             active: value,
-        })) as (
-            accumulator: { active: boolean },
-            value: boolean,
-            index: isize,
-        ) => { active: boolean },
+        }),
         { active: false },
     );
 }
@@ -1288,7 +1284,7 @@ function retain(source: boolean[]): { active: boolean } {
     /// @type.symbol symbol=retain.active#2 source="active: boolean" type=boolean
 
         (output, value) => ({ ...output, active: value }),
-        /// @type.symbol symbol=retain.symbol7 source=(output, value) => ({ ...output, active: value }) type=Function<({ active: boolean }, boolean), { active: boolean }, "readonly">
+        /// @type.symbol symbol=retain.symbol7 source=(output, value) => ({ ...output, active: value }) type=Function<({ active: boolean }, boolean, isize), { active: boolean }, "readonly">
         /// @type.symbol symbol=retain.symbol7.output source=output type={ active: boolean }
         /// @type.symbol symbol=retain.symbol7.value source=value type=boolean
         /// @resolution.name source=output target=retain.symbol7.output
