@@ -23,7 +23,7 @@ test("keep each event in the history of its scope", async () => {
         );
         const recorded = recorder.begin(renameDocument, rename);
         await recorder.append(recorded);
-        expect(await storage.outbox.flush(storage.history)).toBe(1);
+        expect(await storage.outbox.deliver(storage.history)).toBe(1);
 
         // read it in the space's history and nowhere else
         expect([
@@ -74,7 +74,7 @@ test("commit and roll back application changes with their audit events", async (
 test("persist prepared attempts and outcomes without recreating events on retry", async () => {
     let storage = await AuditStorage.open();
     try {
-        // persist prepared events only on append, including after serialization
+        // persist prepared events only on append
         const attempt = storage.recorder.begin(renameDocument, rename);
         expect(await storage.outbox.read()).toEqual([]);
         await storage.recorder.append(attempt);
@@ -85,17 +85,16 @@ test("persist prepared attempts and outcomes without recreating events on retry"
         expect(await storage.outbox.read()).toEqual([attempt, result]);
         expect(result.attemptId).toBe(attempt.id);
 
-        // reject a reused identity with different contents before delivery
+        // reject a reused identity with other contents
         await expect(
             storage.recorder.append({ ...result, details: { name: "different" } }),
         ).rejects.toMatchObject({
             code: "CONFLICT",
-            message: "audit event identifier has conflicting contents",
+            message: `audit message ${result.id} has conflicting contents`,
         });
-        await expect(storage.outbox.append(result, storage.database)).rejects.toMatchObject({
-            code: "INVALID_EVENT",
-            message: "audit recording requires a transaction on this database",
-        });
+        await expect(storage.outbox.append(result, storage.database)).rejects.toThrow(
+            new TypeError("outbox appends need a transaction on the outbox's database"),
+        );
     } finally {
         await storage.close();
     }
@@ -104,7 +103,7 @@ test("persist prepared attempts and outcomes without recreating events on retry"
 test("name in a result what only the action's value tells, beside the attempt's details", async () => {
     const storage = await AuditStorage.open();
     try {
-        // attempt a rename, naming the new name its value tells
+        // attempt a rename with result details
         const value = await storage.recorder.attempt(
             renameDocument,
             rename,
@@ -127,7 +126,7 @@ test("name in a result what only the action's value tells, beside the attempt's 
 test("leave sensitive values out of attempt and result details", async () => {
     const storage = await AuditStorage.open();
     try {
-        // declare a sign-in whose code is sensitive, and whose result names the account without its secret
+        // declare a sign-in with a sensitive code and an account result
         const signIn = defineAuditAction(
             {
                 name: "Account.signIn",
@@ -144,7 +143,7 @@ test("leave sensitive values out of attempt and result details", async () => {
             { package: renameDocument.package },
         );
 
-        // keep the method, and not the code, in the attempt's details
+        // keep the method in the attempt's details
         const targets = rename.targets;
         const attempt = storage.recorder.begin(signIn, {
             targets,
@@ -152,7 +151,7 @@ test("leave sensitive values out of attempt and result details", async () => {
         });
         expect(attempt.details).toEqual({ method: "code" });
 
-        // keep the account's identifier, and not its secret, in the details the result derives
+        // keep the account's identifier in the result details
         const attempted = await storage.recorder.attempt(
             signIn,
             { targets, details: { method: "code" } },

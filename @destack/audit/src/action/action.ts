@@ -2,12 +2,12 @@ import { defineSchema, schema } from "@destack/schema";
 import { AuditTarget } from "../event/target.ts";
 import { declaringModule, Package, type ModuleMetadata } from "@destack/package";
 
-/** A package-local action named Noun.verb, with PascalCase nouns and a camelCase present-tense verb. */
+/** A package-local action name of the form Noun.verb. */
 export const AuditActionName = defineSchema(
     schema.string().regex(/^[A-Z][A-Za-z0-9]*(?:\.[A-Z][A-Za-z0-9]*)*\.[a-z][A-Za-z0-9]*$/),
 );
 
-/** Declaring package, action name, and action schema version. */
+/** A reference to a versioned action of a package. */
 export const AuditActionReference = defineSchema(
     schema.object({
         /** The declaring package. */
@@ -26,9 +26,9 @@ export interface AuditAction<
     Targets extends schema.Schema = schema.Schema,
     Details extends schema.Schema = schema.Schema,
 > {
-    /** The declaring package, supplied by the module transform. */
+    /** The declaring package. */
     readonly package: Package;
-    /** The package-local Noun.verb action name, with a present-tense verb. */
+    /** The package-local Noun.verb action name. */
     readonly name: string;
     /** The version of the targets and details schemas. */
     readonly version: number;
@@ -36,11 +36,11 @@ export interface AuditAction<
     readonly description?: string;
     /** Named affected objects. */
     readonly targets: Targets;
-    /** Explicitly selected, serializable action details. */
+    /** The serializable action details. */
     readonly details: Details;
 }
 
-/** Declare an action without recording an event or acquiring authority. */
+/** Declare an action. */
 export function defineAuditAction<
     Targets extends schema.Schema<Record<string, AuditTarget>>,
     Details extends schema.Schema,

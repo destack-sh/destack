@@ -6,40 +6,44 @@ import { canonicalize } from "@destack/schema/json";
 import { AuditContext } from "../event/context.ts";
 import { AuditError } from "../error/index.ts";
 import { ServiceError } from "@destack/service";
-import { domainFailure } from "@destack/service/error";
 import type { Caller } from "@destack/service/authentication";
-import type { ProcedureAudit, ProcedureCall } from "@destack/service/server";
+import {
+    domainFailure,
+    type ProcedureAudit,
+    type ProcedureCall,
+    type ServiceContext,
+} from "@destack/service/server";
 import { sameSubject, type Subject } from "@destack/access";
 import { context, trace, isSpanContextValid } from "@destack/telemetry";
 import type { AuditActor } from "../event/actor.ts";
 import { invokeService } from "./action.ts";
 
-/** Host-selected event origin, independent of the authenticated caller. */
+/** The host-selected origin of events. */
 export type AuditOrigin = Omit<
     AuditContext,
     "actor" | "subject" | "delegation" | "deploymentId" | "traceId"
 >;
 
-/** Durable append provided by the host or an application transaction. */
+/** The durable store of recorded events. */
 export interface AuditWriter<Transaction = never> {
-    /** Acknowledge only after durable persistence, or inclusion in the caller's transaction. */
+    /** Append an event, inside a transaction when given. */
     append(event: AuditEvent, transaction?: Transaction): Promise<void>;
 }
 
-/** Record typed actions under host-supplied authority. */
+/** Record actions under a fixed context. */
 export class AuditRecorder<Transaction = never> {
-    /** Immutable authority captured for this invocation. */
+    /** The context of every event. */
     readonly #context: AuditContext;
-    /** Durable append used for external effects. */
+    /** The writer events go to. */
     readonly #writer: AuditWriter<Transaction>;
 
-    /** Record under a verified caller, or none, with the active trace and a host-selected origin. */
+    /** Record under a verified caller, or none, with the active trace. */
     static from<Transaction>(
         caller: Caller | null,
         writer: AuditWriter<Transaction>,
         origin: AuditOrigin,
     ): AuditRecorder<Transaction> {
-        // separate the principal sending the request from the represented subject and the chain between them
+        // split the caller into subject, delegation and acting principal
         const authentication = caller?.authentication;
         const delegates = (authentication?.delegates ?? []).map((delegate) => delegate.subject);
         const acting = delegates.at(-1) ?? authentication?.subject;
@@ -48,7 +52,7 @@ export class AuditRecorder<Transaction = never> {
                 ? [authentication.subject, ...delegates.slice(0, -1)]
                 : [];
 
-        // select only the deployment verified for the acting identity
+        // select the acting principal's deployment
         const deploymentId = acting
             ? authentication?.deployments?.find((entry) => sameSubject(entry.subject, acting))?.id
             : undefined;
@@ -67,7 +71,40 @@ export class AuditRecorder<Transaction = never> {
         );
     }
 
-    /** Record each service invocation as an attempt and its result, with failure codes only. */
+    /** Record a service's calls in the verified caller's scope, or the service's own. */
+    static service<Transaction>(
+        writer: AuditWriter<Transaction>,
+        origin: Omit<AuditOrigin, "scope" | "requestId">,
+    ): (scope: string, context?: ServiceContext) => AuditRecorder<Transaction> {
+        return (scope, context) =>
+            context === undefined
+                ? AuditRecorder.system(writer, { ...origin, scope })
+                : AuditRecorder.from(context.caller, writer, {
+                      ...origin,
+                      scope,
+                      requestId: context.requestId,
+                  });
+    }
+
+    /** Record as the service itself, with the active trace. */
+    static system<Transaction>(
+        writer: AuditWriter<Transaction>,
+        origin: AuditOrigin,
+    ): AuditRecorder<Transaction> {
+        const span = trace.getSpanContext(context.active());
+
+        return new AuditRecorder(
+            {
+                ...origin,
+                actor: { type: "system", name: origin.service },
+                delegation: [],
+                traceId: span && isSpanContextValid(span) ? span.traceId : undefined,
+            },
+            writer,
+        );
+    }
+
+    /** Record each procedure call as an attempt and its result. */
     static procedure<State extends object>(
         recorder: (call: ProcedureCall<State>) => ProcedureRecorder | Promise<ProcedureRecorder>,
     ): (event: ProcedureAudit<State>) => Promise<void> {
@@ -88,7 +125,7 @@ export class AuditRecorder<Transaction = never> {
                 await writer.append(attempt);
                 attempts.set(event.call, { recorder: writer, event: attempt });
             }
-            // complete the attempt with codes only, since exception messages can contain credentials
+            // complete the attempt with the failure code only
             else {
                 const attempt = attempts.get(event.call);
                 if (!attempt) {
@@ -98,7 +135,7 @@ export class AuditRecorder<Transaction = never> {
                     );
                 }
 
-                // map the call's outcome and failure code to the result
+                // map the outcome and failure code to the result
                 const errorCode =
                     event.error instanceof ServiceError
                         ? event.error.code
@@ -117,19 +154,19 @@ export class AuditRecorder<Transaction = never> {
         };
     }
 
-    /** Bind trusted context to durable storage. */
+    /** Create the recorder. */
     constructor(context: AuditContext, writer: AuditWriter<Transaction>) {
         this.#context = structuredClone(AuditContext.parse(context));
         this.#writer = writer;
     }
 
-    /** Record a completed action through the caller's transaction-bound writer. */
+    /** Record a completed action. */
     async record<Targets extends schema.Schema, Details extends schema.Schema>(
         transaction: Transaction,
         action: AuditAction<Targets, Details>,
         values: { targets: schema.Input<Targets>; details: schema.Input<Details> } & AuditResult,
     ): Promise<AuditEvent> {
-        // build the result event and append it in the caller's transaction
+        // append the result event
         const { targets, details, ...result } = values;
         const event = this.#event(
             action,
@@ -141,7 +178,7 @@ export class AuditRecorder<Transaction = never> {
         return event;
     }
 
-    /** Prepare an attempt for persistence before an external effect. */
+    /** Prepare an attempt. */
     begin<Targets extends schema.Schema, Details extends schema.Schema>(
         action: AuditAction<Targets, Details>,
         values: { targets: schema.Input<Targets>; details: schema.Input<Details> },
@@ -149,13 +186,13 @@ export class AuditRecorder<Transaction = never> {
         return this.#event(action, values, { stage: "attempt" });
     }
 
-    /** Prepare the observed result once, naming what only the result knows beside the attempt's details, then append the same event on every persistence retry. */
+    /** Prepare the result of an attempt, merging any result details. */
     complete(
         attempt: AuditEvent,
         result: AuditResult,
         details?: Readonly<Record<string, unknown>>,
     ): AuditEvent {
-        // require an actual attempt from this recorder's authority
+        // require an attempt of this context
         attempt = AuditEvent.parse(attempt);
         if (
             attempt.result.stage !== "attempt" ||
@@ -179,7 +216,7 @@ export class AuditRecorder<Transaction = never> {
         });
     }
 
-    /** Persist an attempt, execute the action, and persist its result, failed when the action throws. */
+    /** Persist an attempt, run the action, and persist its result. */
     async attempt<Targets extends schema.Schema, Details extends schema.Schema, Value>(
         action: AuditAction<Targets, Details>,
         values: { targets: schema.Input<Targets>; details: schema.Input<Details> },
@@ -209,13 +246,13 @@ export class AuditRecorder<Transaction = never> {
         return value;
     }
 
-    /** Persist an attempt, pass on a stream's values, and persist its result once it ends, cancelled when its consumer stops. */
+    /** Persist an attempt, pass on a stream's values, and persist its result when it ends. */
     async *stream<Targets extends schema.Schema, Details extends schema.Schema, Value>(
         action: AuditAction<Targets, Details>,
         values: { targets: schema.Input<Targets>; details: schema.Input<Details> },
         source: () => AsyncIterable<Value>,
     ): AsyncGenerator<Value> {
-        // persist the attempt, assuming cancellation until the stream ends
+        // persist the attempt, cancelled until the stream ends
         const attempt = this.begin(action, values);
         await this.append(attempt);
         let result: AuditResult = { outcome: "cancelled", errorCode: "CANCELLED" };
@@ -234,7 +271,7 @@ export class AuditRecorder<Transaction = never> {
         }
     }
 
-    /** Persist a prepared event under this recorder's verified authority. */
+    /** Append a prepared event of this context. */
     async append(event: AuditEvent): Promise<void> {
         // require this recorder's context
         if (canonicalize(event.context) !== canonicalize(this.#context)) {
@@ -245,14 +282,14 @@ export class AuditRecorder<Transaction = never> {
         await this.#writer.append(event);
     }
 
-    /** Persist an attempt's result, keeping the action's failure when persisting fails too. */
+    /** Persist an attempt's result, keeping the action's failure. */
     async #conclude(
         attempt: AuditEvent,
         result: AuditResult,
         cause?: unknown,
         details?: Readonly<Record<string, unknown>>,
     ): Promise<void> {
-        // append the result, keeping the action's failure beside a recording failure
+        // append the result, keeping both failures
         try {
             await this.append(this.complete(attempt, result, details));
         } catch (error) {
@@ -266,7 +303,7 @@ export class AuditRecorder<Transaction = never> {
         }
     }
 
-    /** Validate declared fields, leaving out the details' sensitive values, and assign immutable event identity. */
+    /** Build an event, redacting sensitive details. */
     #event<Targets extends schema.Schema, Details extends schema.Schema>(
         action: AuditAction<Targets, Details>,
         values: { targets: schema.Input<Targets>; details: schema.Input<Details> },
@@ -284,12 +321,12 @@ export class AuditRecorder<Transaction = never> {
     }
 }
 
-/** The recorder steps a procedure's audit uses, independent of the writer's transaction type. */
+/** The recorder methods a procedure's audit uses. */
 type ProcedureRecorder = Pick<AuditRecorder<unknown>, "begin" | "complete" | "append">;
 
-/** Keep an error's safe code, and tell rejected access from failed execution. */
+/** Map an error to a result. */
 function resultOf(error: unknown): AuditResult {
-    // classify domain failures as the service failures they mean
+    // map domain failures to service failures
     const known = domainFailure(error) ?? error;
     const errorCode =
         known instanceof ServiceError || known instanceof AuditError

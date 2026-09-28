@@ -2,7 +2,7 @@ import { defineSchema, schema, toJsonSchema } from "@destack/schema";
 import { AuditActionName, type AuditAction } from "../action/index.ts";
 import { Package } from "@destack/package";
 
-/** A serializable action declaration collected by the package build. */
+/** A serializable action declaration. */
 export const AuditActionDescription = defineSchema(
     schema.object({
         /** The package-local Noun.verb action name. */
@@ -22,7 +22,7 @@ export const AuditActionDescription = defineSchema(
 /** An inspected action declaration. */
 export type AuditActionDescription = schema.Infer<typeof AuditActionDescription>;
 
-/** Describe the action's target roles and explicitly allowed details. */
+/** Describe an action. */
 export function describeAuditAction(action: AuditAction): AuditActionDescription {
     return AuditActionDescription.parse({
         name: action.name,

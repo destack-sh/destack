@@ -4,15 +4,15 @@ import { AuditEvent, AuditActor, AuditOutcome } from "../event/index.ts";
 import { AuditActionName } from "../action/index.ts";
 import { PackageId } from "@destack/package";
 
-/** The most events one page returns or one prune removes, bounding the rows of one statement. */
+/** The most events one page returns or one prune removes. */
 export const MAX_AUDIT_BATCH = 1000;
 
-/** The scope whose history an audit query reads, independently authorized. */
+/** The scope whose history a query reads. */
 export const AuditScope = defineSchema(schema.string().min(1));
 /** The requested scope. */
 export type AuditScope = schema.Infer<typeof AuditScope>;
 
-/** A stable ingestion-order continuation, independent of producer clock skew. */
+/** The position after an event in acceptance order. */
 export const AuditCursor = defineSchema(
     schema.object({
         /** The acceptance time of the last returned event, in UTC milliseconds. */
@@ -21,7 +21,7 @@ export const AuditCursor = defineSchema(
         id: identifier("audit-event"),
     }),
 );
-/** A bounded, authorized history query. */
+/** A history query. */
 export const AuditQuery = defineSchema(
     schema.object({
         /** The scope whose history the query reads. */
@@ -40,7 +40,7 @@ export const AuditQuery = defineSchema(
         attemptId: identifier("audit-event").optional(),
         /** The outcome the results report. */
         outcome: AuditOutcome.optional(),
-        /** Return retained attempts without a retained result. */
+        /** Whether to return only attempts without a result. */
         unresolved: schema.boolean().optional(),
         /** The inclusive earliest acceptance time, in UTC milliseconds. */
         from: schema.number().int().nonnegative().optional(),
@@ -55,7 +55,7 @@ export const AuditQuery = defineSchema(
 /** A validated history query. */
 export type AuditQuery = schema.Infer<typeof AuditQuery>;
 
-/** An event and its durable ingestion time. */
+/** An event and its acceptance time. */
 export const AuditRecord = defineSchema(
     schema.object({
         /** The event. */
@@ -64,7 +64,7 @@ export const AuditRecord = defineSchema(
         recordedAt: schema.number().int().nonnegative(),
     }),
 );
-/** A page that can be continued without repeating accepted events. */
+/** A page of history. */
 export const AuditPage = defineSchema(
     schema.object({
         /** The records of the page, in acceptance order. */
@@ -76,7 +76,7 @@ export const AuditPage = defineSchema(
 /** A page of history. */
 export type AuditPage = schema.Infer<typeof AuditPage>;
 
-/** A bounded removal of the events a scope's history accepted before a time. */
+/** A removal of a scope's events accepted before a time. */
 export const AuditPrune = defineSchema(
     schema.object({
         /** The scope whose history loses the events. */
@@ -87,5 +87,5 @@ export const AuditPrune = defineSchema(
         limit: schema.number().int().min(1).max(MAX_AUDIT_BATCH),
     }),
 );
-/** A bounded removal of the events a scope's history accepted before a time. */
+/** A removal of a scope's events accepted before a time. */
 export type AuditPrune = schema.Infer<typeof AuditPrune>;

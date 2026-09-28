@@ -10,15 +10,15 @@ import {
 } from "@destack/db";
 import { AuditEvent, AuditOutcome } from "../../event/index.ts";
 
-/** Immutable searchable history with independent acceptance timestamps. */
+/** The audit events. */
 export const auditEvent = defineTable(
     "event",
     {
         /** The event identity. */
         id: identifier("id", "audit-event").primaryKey().notNull(),
-        /** The attempt a result completes, null for an attempt or a standalone event. */
+        /** The attempt a result completes. */
         attemptId: identifier("attempt_id", "audit-event"),
-        /** The scope whose history holds the event, routing its changes. */
+        /** The scope whose history holds the event. */
         scope: text("scope").notNull(),
         /** The action's name. */
         action: text("action").notNull(),
@@ -28,13 +28,13 @@ export const auditEvent = defineTable(
         actor: text("actor").notNull(),
         /** Whether the event records an attempt or its result. */
         stage: text("stage", { enum: ["attempt", "result"] }).notNull(),
-        /** The result's outcome, null for an attempt. */
+        /** The result's outcome. */
         outcome: text("outcome", {
             enum: AuditOutcome.options as [AuditOutcome, ...AuditOutcome[]],
         }),
-        /** The producer's time of the event in UTC milliseconds. */
+        /** The producer's time of the event, in UTC milliseconds. */
         occurredAt: integer("occurred_at").notNull(),
-        /** The time the history accepted the event in UTC milliseconds. */
+        /** The acceptance time, in UTC milliseconds. */
         recordedAt: integer("recorded_at").notNull(),
         /** The complete validated event. */
         event: json("event", AuditEvent).notNull(),
@@ -51,17 +51,17 @@ export const auditEvent = defineTable(
     },
 );
 
-/** Historical object references indexed independently of live application tables. */
+/** The objects audit events name. */
 export const auditTarget = defineTable(
     "target",
     {
         /** The target identity. */
         id: identifier("id", "audit-target").primaryKey().notNull(),
-        /** The event naming the target, removing the target with it. */
+        /** The event naming the target. */
         event: identifier("event_id", "audit-event")
             .notNull()
             .references(() => auditEvent.id, { onDelete: "cascade" }),
-        /** The scope of the event's history, routing its changes. */
+        /** The scope of the event's history. */
         scope: text("scope").notNull(),
         /** The name of the target within its event. */
         role: text("role").notNull(),
@@ -79,17 +79,5 @@ export const auditTarget = defineTable(
     },
 );
 
-/** Delivery progress retained independently of event history. */
-export const auditProducer = defineTable("producer", {
-    /** The authenticated producer identity, reserved for good after retirement. */
-    id: identifier("id", "audit-producer").primaryKey().notNull(),
-    /** The last accepted delivery position. */
-    sequence: integer("sequence").notNull(),
-    /** The hash of the last accepted delivery, which acknowledges its retries, null before the first. */
-    digest: text("digest"),
-    /** The retirement time in UTC milliseconds, after which the producer submits nothing. */
-    retiredAt: integer("retired_at"),
-});
-
-/** The tables of local or regional retained audit history. */
-export const auditTables: readonly Table[] = [auditEvent, auditTarget, auditProducer];
+/** The audit history tables. */
+export const auditTables: readonly Table[] = [auditEvent, auditTarget];

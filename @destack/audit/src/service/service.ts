@@ -1,18 +1,18 @@
 import { schema } from "@destack/schema";
 import { defineProcedure, defineService, eventIterator } from "@destack/service";
-import { AuditEntry, AuditAcknowledgement } from "../outbox/delivery.ts";
+import { AuditBatch } from "../outbox/delivery.ts";
 import { AuditPrune, AuditQuery, AuditRecord } from "../history/query.ts";
 import type {} from "@destack/package/import-meta";
 
-/** An operation whose handler records the history access, then decides the history permission itself. */
+/** A procedure that records its call and checks the history permission in its handler. */
 const procedure = defineProcedure({ authentication: "identity", permission: null, audit: false });
 
-/** The portable audit service definition. */
+/** The audit service definition. */
 export const auditService = defineService("audit", {
     ingest: procedure
         .route({ method: "POST", path: "/audit/events" })
-        .input(AuditEntry)
-        .output(AuditAcknowledgement),
+        .input(AuditBatch)
+        .output(schema.object({ events: schema.number().int().nonnegative() })),
     export: procedure
         .route({ method: "POST", path: "/audit/export" })
         .input(AuditQuery)

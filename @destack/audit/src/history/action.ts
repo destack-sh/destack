@@ -5,10 +5,10 @@ import { defineAuditAction } from "../action/index.ts";
 const historyTarget = schema.object({
     scope: schema.object({ type: schema.literal("scope"), id: schema.string() }),
 });
-/** History actions omit filters and event contents. */
+/** The empty details of history actions. */
 const historyDetails = schema.object({});
 
-/** Record audit-history export requests and outcomes. */
+/** Export audit history. */
 export const auditExport = defineAuditAction({
     name: "Audit.export",
     version: 1,
@@ -16,7 +16,7 @@ export const auditExport = defineAuditAction({
     details: historyDetails,
 });
 
-/** Record audit-history prune requests and outcomes. */
+/** Prune audit history. */
 export const auditPrune = defineAuditAction({
     name: "Audit.prune",
     version: 1,

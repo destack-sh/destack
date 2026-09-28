@@ -1,15 +1,15 @@
 import { defineSchema, schema } from "@destack/schema";
 
-/** An affected object retained independently of its current existence. */
+/** An affected object. */
 export const AuditTarget = defineSchema(
     schema.object({
-        /** The object type, qualified by its defining package when application-defined. */
+        /** The object type. */
         type: schema.string().min(1),
-        /** The stable object identifier. */
+        /** The object identifier. */
         id: schema.string().min(1),
-        /** The historical display name. */
+        /** The display name at the time of the event. */
         name: schema.string().optional(),
-        /** The accessed or changed object version. */
+        /** The object version. */
         version: schema.string().optional(),
     }),
 );

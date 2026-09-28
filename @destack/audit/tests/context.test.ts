@@ -62,7 +62,7 @@ test("persist verified caller identities and tell apart identities of different 
             events.push(event);
         }
 
-        // attribute an attempt after failed authentication to no caller
+        // attribute an attempt without authentication to no caller
         const rejected = new ServiceContext(new Request("https://example.test"), {
             audience: origin.package.id,
             scope: "global",
@@ -78,7 +78,7 @@ test("persist verified caller identities and tell apart identities of different 
         await recorder.append(anonymous);
         events.push(anonymous);
 
-        // compare the full recorded identity, without credential or request payload fields
+        // compare the full recorded identity
         const person = { type: "subject", subject: represented };
         const local = { type: "subject", subject: { ...represented, scope: "host-example" } };
         const software = { type: "subject", subject: actor };
@@ -102,8 +102,8 @@ test("persist verified caller identities and tell apart identities of different 
             ],
         );
 
-        // retain exact identities through durable delivery and indexed history queries
-        expect(await storage.outbox.flush(storage.history)).toBe(5);
+        // read the identities back through delivery and history queries
+        expect(await storage.outbox.deliver(storage.history)).toBe(5);
         for (const event of events) {
             const page = await storage.history.list({
                 scope: "global",

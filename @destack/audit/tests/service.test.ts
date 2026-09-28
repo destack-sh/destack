@@ -24,7 +24,7 @@ import { accountRecord } from "./stack/index.ts";
 import { copyScope } from "@destack/access/test";
 import { event } from "../src/history/index.ts";
 
-/** Accounts, whose histories the test reads, as scope objects. */
+/** The accounts whose histories the test reads. */
 const account = new Policy(
     {
         id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000005"),
@@ -40,7 +40,7 @@ const account = new Policy(
     },
 );
 
-/** Typed application action exercised through the HTTP service. */
+/** A document action recorded through the service. */
 const publishDocument = defineAuditAction(
     {
         name: "Document.publish",
@@ -64,7 +64,7 @@ test("authorize producers and readers, stream history, and record denied access"
     const { outbox, history } = storage;
 
     try {
-        // bind producer authority separately from history reader credentials
+        // bind the producer context
         const context = AuditContext.parse({
             actor: { type: "system", name: "document" },
             delegation: [],
@@ -74,7 +74,7 @@ test("authorize producers and readers, stream history, and record denied access"
         });
         const recorder = new AuditRecorder(context, outbox);
 
-        // let the reader ingest into and read the account's history, but not prune it
+        // let the reader ingest and read but not prune
         const database = storage.database;
         const accountObject = account.reference("owner", context.scope);
         const authorizer = new Authorizer(
@@ -141,7 +141,7 @@ test("authorize producers and readers, stream history, and record denied access"
             fetch: (request) => server.fetch(request),
         });
 
-        // deliver a real attempt and result through serialization and acknowledgement
+        // deliver an attempt and its result as one batch
         const attempt = recorder.begin(publishDocument, {
             targets: { document: { type: "document", id: "one" } },
             details: { revision: 3 },
@@ -149,7 +149,7 @@ test("authorize producers and readers, stream history, and record denied access"
         await recorder.append(attempt);
         const result = recorder.complete(attempt, { outcome: "success" });
         await recorder.append(result);
-        expect(await outbox.flush(client)).toBe(2);
+        expect(await outbox.deliver(client)).toBe(2);
         const scope = context.scope;
         const query = { scope, action: publishDocument.name, limit: 1 };
         const first = await history.list(query);
@@ -163,13 +163,11 @@ test("authorize producers and readers, stream history, and record denied access"
         }
         expect(exported).toEqual([...first.items, ...second.items]);
 
-        // reject both a forged producer scope and cross-account history access
+        // reject a foreign scope and cross-account access
         const foreign = "account-01995da9-7223-7000-8000-000000000002";
         await expect(
             client.ingest({
-                producerId: "audit-producer-01995da9-7223-7000-8000-000000000010",
-                sequence: 1,
-                event: { ...attempt, context: { ...context, scope: foreign } },
+                events: [{ ...attempt, context: { ...context, scope: foreign } }],
             }),
         ).rejects.toMatchObject({ code: "FORBIDDEN" });
         const denied = async () => {
@@ -195,7 +193,7 @@ test("authorize producers and readers, stream history, and record denied access"
         ]);
         expect(await history.get(scope, attempt.id)).toEqual(first.items[0]);
 
-        // deny pruning to a caller that may only read the history
+        // deny pruning to a reader
         await expect(
             client.prune({ scope, before: Date.now() + 1, limit: 100 }),
         ).rejects.toMatchObject({ code: "FORBIDDEN" });

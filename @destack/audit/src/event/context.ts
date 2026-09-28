@@ -4,16 +4,16 @@ import { Package } from "@destack/package";
 import { Subject } from "@destack/access";
 import { AuditActor } from "./actor.ts";
 
-/** Authority and origin supplied by the trusted host. */
+/** The host-supplied authority and origin of an event. */
 export const AuditContext = defineSchema(
     schema.object({
         /** The authenticated actor performing the action. */
         actor: AuditActor,
-        /** The represented identity when authenticated work acts on its behalf. */
+        /** The subject the actor acts for. */
         subject: Subject.optional(),
-        /** Verified delegators, from the original initiator to the immediate delegator. */
+        /** The delegators, from the initiator to the immediate delegator. */
         delegation: schema.array(AuditActor),
-        /** The scope whose history receives this event: the scope of the object it is about, or global for platform events outside every scope. */
+        /** The scope whose history receives the event. */
         scope: schema.string().min(1),
         /** The package producing the event. */
         package: Package,
@@ -48,5 +48,5 @@ export const AuditContext = defineSchema(
         userAgent: schema.string().optional(),
     }),
 );
-/** Trusted event context. */
+/** The context of an event. */
 export type AuditContext = schema.Infer<typeof AuditContext>;

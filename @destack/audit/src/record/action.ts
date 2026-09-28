@@ -1,7 +1,7 @@
 import { schema } from "@destack/schema";
 import { defineAuditAction } from "../action/index.ts";
 
-/** Procedure execution, separate from any domain action committed by its handler. */
+/** Invoke a service procedure. */
 export const invokeService = defineAuditAction({
     name: "Service.invoke",
     version: 1,

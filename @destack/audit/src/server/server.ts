@@ -14,20 +14,20 @@ import { AuditError } from "../error/index.ts";
 import { auditService, AuditScope } from "../service/index.ts";
 import { GLOBAL_SCOPE, Scope } from "@destack/access";
 
-/** Verified request authority supplied by a local or regional host. */
+/** The request authority a host supplies. */
 export interface AuditRequestContext {
-    /** Require the caller to hold a history permission on a scope's history. */
+    /** Require a history permission on a scope. */
     authorizeAudit(permission: "ingest" | "read" | "prune", scope: AuditScope): Promise<void>;
-    /** Record audit-history access under the authenticated request identity. */
+    /** The recorder of history access. */
     audit: Pick<AuditRecorder, "attempt" | "stream">;
 }
 
-/** Bind history storage to authorization on the scope whose history it is. */
+/** Implement the audit service on a history. */
 export function implementService(
     auditHistory: AuditHistory,
     options: AuditServerOptions,
 ): ServiceImplementation {
-    // give each call its recorder and a check of history permissions
+    // add a recorder and a permission check to each call
     const implementation = implement(auditService.router)
         .$context<ServiceContext>()
         .use(async ({ context, next }) =>
@@ -38,7 +38,7 @@ export function implementService(
                         permission: "ingest" | "read" | "prune",
                         scope: AuditScope,
                     ) => {
-                        // require the permission on the scope object, denying an unknown scope
+                        // require the permission on the scope object
                         const [link] = await Scope.chain(
                             Snapshot.live(options.access.database),
                             scope,
@@ -62,21 +62,23 @@ export function implementService(
         access: options.access,
         router: implementation.router({
             ingest: implementation.ingest.handler(async ({ input, context }) => {
-                // accept events of a scope other than the global one, whose administrators authorize the producer
-                const scope = input.event.context.scope;
-                if (scope === GLOBAL_SCOPE) {
+                // reject events of the global scope and authorize each scope
+                const scopes = new Set(input.events.map((event) => event.context.scope));
+                if (scopes.has(GLOBAL_SCOPE)) {
                     throw new ServiceError("BAD_REQUEST", {
                         message: "audit events name a scope other than the global one",
                     });
                 }
-                await context.authorizeAudit("ingest", scope);
+                for (const scope of scopes) {
+                    await context.authorizeAudit("ingest", scope);
+                }
 
-                return auditHistory.ingest(input);
+                return { events: await auditHistory.ingest(input) };
             }),
             export: implementation.export.handler(({ input, context, signal }) =>
-                // recheck access to the scope's history before each bounded page it streams
+                // recheck read access before each page
                 context.audit.stream(auditExport, history(input.scope), async function* () {
-                    // require read access before the first page is read
+                    // require read access before the first page
                     await context.authorizeAudit("read", input.scope);
                     for await (const page of auditHistory.export(input, signal)) {
                         await context.authorizeAudit("read", input.scope);
@@ -102,7 +104,7 @@ export function implementService(
                 try {
                     return await next();
                 } catch (error) {
-                    // report audit failures as the service failures they mean
+                    // map audit failures to service failures
                     if (error instanceof AuditError) {
                         throw new ServiceError(
                             error.code === "INVALID_EVENT" ? "BAD_REQUEST" : error.code,
@@ -116,17 +118,17 @@ export function implementService(
     };
 }
 
-/** The access and request recording the hosting installation supplies. */
+/** The access and recording a host supplies. */
 export interface AuditServerOptions {
-    /** The host's policies, which include the history policy and the scope objects histories belong to. */
+    /** The host's policies. */
     access: ServiceAccess;
-    /** Create the durable recorder for history access under the verified caller. */
+    /** Create the recorder of history access. */
     record(
         context: ServiceContext,
     ): AuditRequestContext["audit"] | Promise<AuditRequestContext["audit"]>;
 }
 
-/** Name a scope's history as the target of an action on it. */
+/** Name a scope's history as a target. */
 function history(scope: AuditScope) {
     return { targets: { scope: { type: "scope" as const, id: scope } }, details: {} };
 }

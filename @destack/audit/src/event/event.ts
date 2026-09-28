@@ -29,24 +29,24 @@ export const AuditResult = defineSchema(
 /** The observed result of an action. */
 export type AuditResult = schema.Infer<typeof AuditResult>;
 
-/** An immutable event acknowledged by durable recording. */
+/** A recorded event. */
 export const AuditEvent = defineSchema(
     schema.object({
-        /** The producer-generated delivery identity. */
+        /** The event identifier. */
         id: identifier("audit-event"),
-        /** The preceding attempt, omitted for atomic database results. */
+        /** The attempt this result completes. */
         attemptId: identifier("audit-event").optional(),
-        /** The declaring package and versioned action. */
+        /** The versioned action. */
         action: AuditActionReference,
         /** The producer's timestamp, in UTC epoch milliseconds. */
         occurredAt: schema.number().int().nonnegative(),
-        /** The host-attested origin and authority. */
+        /** The origin and authority of the event. */
         context: AuditContext,
-        /** Named historical object references. */
+        /** The named affected objects. */
         targets: schema.record(schema.string().min(1), AuditTarget),
-        /** Fields accepted by the declared details schema. */
+        /** The details the action schema accepts. */
         details: schema.json(),
-        /** The recorded stage: an attempt without an outcome, or a result with its outcome. */
+        /** The attempt, or the result with its outcome. */
         result: schema.union([
             schema.object({
                 /** The event records an attempt. */
@@ -61,5 +61,5 @@ export const AuditEvent = defineSchema(
         ]),
     }),
 );
-/** A validated immutable event. */
+/** A validated event. */
 export type AuditEvent = schema.Infer<typeof AuditEvent>;

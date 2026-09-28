@@ -8,7 +8,7 @@ import { accountRecord, document } from "./stack/index.ts";
 import { PackageId } from "@destack/package";
 import { ACCESS_TABLES } from "@destack/access";
 
-/** A declared change with explicit historical details. */
+/** A document rename action. */
 export const renameDocument = defineAuditAction(
     {
         name: "Document.rename",
@@ -30,11 +30,11 @@ export const renameDocument = defineAuditAction(
 /** The tables the audit scenarios use. */
 const TABLES = [document, accountRecord, ...auditOutboxTables, ...auditTables, ...ACCESS_TABLES];
 
-/** Persistent storage shared by recording and delivery scenarios. */
+/** The storage of the audit scenarios. */
 export class AuditStorage {
-    /** The isolated database, which outlives restarts of its connection. */
+    /** The test database. */
     readonly test: TestDatabase;
-    /** Connection replaced when a scenario simulates a restart. */
+    /** The current connection. */
     database: DatabaseConnection & { close(): Promise<void> };
     /** The pending delivery queue. */
     outbox: AuditOutbox;
@@ -43,7 +43,7 @@ export class AuditStorage {
     /** The recorder writing into the outbox. */
     recorder: AuditRecorder<DatabaseConnection>;
 
-    /** Bind the same authority after each connection restart. */
+    /** Bind the storage to a connection. */
     constructor(test: TestDatabase, database: AuditStorage["database"]) {
         this.test = test;
         this.database = database;
@@ -61,21 +61,21 @@ export class AuditStorage {
         );
     }
 
-    /** Create migrated storage in a file, or a database of the configured dialect. */
+    /** Create migrated storage. */
     static async open(): Promise<AuditStorage> {
         const test = await TestDatabase.create(TEST_DIALECTS.at(-1)!, TABLES, { isMigrated: true });
 
         return new AuditStorage(test, test.database);
     }
 
-    /** Reopen persistent state without retaining delivery objects. */
+    /** Reopen the storage on a new connection. */
     async reopen(): Promise<AuditStorage> {
         await this.database.close();
 
         return new AuditStorage(this.test, await this.test.connect(TABLES));
     }
 
-    /** Open an independent connection to exercise database locking. */
+    /** Open another connection. */
     connection(): Promise<AuditStorage["database"]> {
         return this.test.connect(TABLES);
     }
@@ -87,7 +87,7 @@ export class AuditStorage {
     }
 }
 
-/** The values used by the rename scenarios. */
+/** The values of the rename scenarios. */
 export const rename = {
     targets: { document: { type: "document" as const, id: "one" } },
     details: { name: "renamed" },

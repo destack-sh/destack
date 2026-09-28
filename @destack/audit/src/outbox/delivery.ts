@@ -1,48 +1,25 @@
 import { defineSchema, schema } from "@destack/schema";
-import { identifier } from "@destack/schema/identifier";
 import { AuditEvent } from "../event/index.ts";
 
-/** Stable identity of one outbox and its configured destination. */
-export const AuditProducerId = identifier("audit-producer");
+/**
+ * The most events one delivery carries.
+ *
+ * A history inserts a hundred events in one transaction within tens of milliseconds.
+ */
+export const AUDIT_BATCH_EVENTS = 100;
 
-/** One immutable event at a persistent producer position. */
-export const AuditEntry = defineSchema(
+/** Events delivered together, oldest first. */
+export const AuditBatch = defineSchema(
     schema.object({
-        /** The producer delivering the event. */
-        producerId: AuditProducerId,
-        /** The producer's delivery position, one past its last acknowledged one. */
-        sequence: schema.number().int().positive().max(Number.MAX_SAFE_INTEGER),
-        /** The delivered event. */
-        event: AuditEvent,
+        /** The events, oldest first. */
+        events: schema.array(AuditEvent).min(1).max(AUDIT_BATCH_EVENTS),
     }),
 );
-/** A transport request, independent of the action declaration. */
-export type AuditEntry = schema.Infer<typeof AuditEntry>;
+/** Events delivered together, oldest first. */
+export type AuditBatch = schema.Infer<typeof AuditBatch>;
 
-/** Durable acknowledgement of one producer position. */
-export const AuditAcknowledgement = defineSchema(
-    schema.object({
-        /** The producer whose delivery the history accepted. */
-        producerId: AuditProducerId,
-        /** The accepted delivery position. */
-        sequence: schema.number().int().positive().max(Number.MAX_SAFE_INTEGER),
-    }),
-);
-/** The accepted producer position. */
-export type AuditAcknowledgement = schema.Infer<typeof AuditAcknowledgement>;
-
-/** Authenticated history destination supplied by the host. */
+/** The history an outbox delivers to. */
 export interface AuditDestination {
-    /** Accept the event and its producer position in one transaction. */
-    ingest(request: AuditEntry, options?: { signal?: AbortSignal }): Promise<AuditAcknowledgement>;
-}
-
-/** Background delivery settings supplied by the host. */
-export interface AuditOutboxOptions {
-    /** Stop delivery and interrupt retry delays. */
-    signal: AbortSignal;
-    /** Report every failed delivery without exposing event contents. */
-    report(error: unknown): void;
-    /** The first retry delay after a failed delivery, in milliseconds, doubling up to a minute. */
-    retryDelay?: number;
+    /** Store a batch's events in one transaction, each once. */
+    ingest(batch: AuditBatch, options?: { signal?: AbortSignal }): Promise<unknown>;
 }

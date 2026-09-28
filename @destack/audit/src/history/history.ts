@@ -18,95 +18,41 @@ import { subjectKey } from "@destack/access";
 import { canonicalize } from "@destack/schema/json";
 import { identifier } from "@destack/schema/identifier";
 import { encodeEvent } from "../event/encode.ts";
-import { AuditProducerId, AuditEntry, type AuditAcknowledgement } from "../outbox/delivery.ts";
+import { AuditBatch } from "../outbox/delivery.ts";
 import { AuditError } from "../error/index.ts";
 import { AuditPrune, AuditQuery, type AuditPage, type AuditScope } from "./query.ts";
-import { auditEvent, auditTarget, auditProducer } from "./stack/index.ts";
+import { auditEvent, auditTarget } from "./stack/index.ts";
 
-/** Persist immutable history and query it within an authorized scope. */
+/** The stored audit events of each scope. */
 export class AuditHistory {
-    /** Prepared history database. */
+    /** The history database. */
     readonly database: DatabaseConnection;
 
-    /** Bind storage whose scope is enforced by the hosting service. */
+    /** Bind the history to its database. */
     constructor(database: DatabaseConnection) {
         this.database = database;
     }
 
-    /** Accept an ordered event and acknowledge its durable producer position. */
-    async ingest(value: AuditEntry): Promise<AuditAcknowledgement> {
-        // encode the event and digest its content
-        const entry = AuditEntry.parse(value);
-        const { event, content } = encodeEvent(entry.event);
-        const hash = await digest(content);
-
-        return this.database.transaction(
+    /** Store a batch's events in one transaction, each once, returning how many it holds. */
+    async ingest(value: AuditBatch): Promise<number> {
+        // parse the batch and insert each event
+        const batch = AuditBatch.parse(value);
+        const events = batch.events.map((event) => encodeEvent(event).event);
+        await this.database.transaction(
             async (transaction) => {
-                // reserve and lock producer progress independently of retained history
-                await transaction
-                    .insert(auditProducer)
-                    .values({ id: entry.producerId, sequence: 0, digest: null })
-                    .onConflictDoUpdate({
-                        target: auditProducer.id,
-                        set: { id: entry.producerId },
-                    });
-                const producer = await transaction
-                    .select()
-                    .from(auditProducer)
-                    .where(eq(auditProducer.id, entry.producerId))
-                    .get();
-                if (!producer || producer.retiredAt !== null) {
-                    throw new AuditError("FORBIDDEN", "audit producer is retired or unavailable");
+                for (const event of events) {
+                    await this.#insert(event, transaction);
                 }
-
-                // acknowledge unchanged retries even after history retention
-                if (entry.sequence === producer.sequence) {
-                    if (producer.digest !== hash) {
-                        throw new AuditError(
-                            "CONFLICT",
-                            "audit delivery position has conflicting contents",
-                        );
-                    }
-
-                    return { producerId: entry.producerId, sequence: entry.sequence };
-                }
-
-                // require the next position
-                if (entry.sequence !== producer.sequence + 1) {
-                    throw new AuditError(
-                        "CONFLICT",
-                        "audit delivery position is stale or skips events",
-                    );
-                }
-
-                // index the event, accepting an identical one and rejecting other contents
-                await this.#insert(event, transaction);
-
-                // commit progress and event persistence atomically
-                await transaction
-                    .update(auditProducer)
-                    .set({ sequence: entry.sequence, digest: hash })
-                    .where(eq(auditProducer.id, entry.producerId));
-
-                return { producerId: entry.producerId, sequence: entry.sequence };
             },
             { isolationLevel: "read committed" },
         );
+
+        return events.length;
     }
 
-    /** Revoke a producer without releasing its identity for reuse. */
-    async retire(producerId: string): Promise<void> {
-        // mark the producer retired, reserving its identity when it never delivered
-        const retiredAt = Date.now();
-        await this.database
-            .insert(auditProducer)
-            .values({ id: AuditProducerId.parse(producerId), sequence: 0, digest: null, retiredAt })
-            .onConflictDoUpdate({ target: auditProducer.id, set: { retiredAt } });
-    }
-
-    /** Index an event independently of live application tables. */
+    /** Insert one event. */
     async #insert(event: AuditEvent, transaction: DatabaseConnection): Promise<void> {
-        // compare a result against its retained attempt and reject competing outcomes
+        // reject a second outcome of an attempt
         if (event.attemptId) {
             const attempt = await transaction
                 .select({ event: auditEvent.event })
@@ -136,7 +82,7 @@ export class AuditHistory {
             }
         }
 
-        // extract query columns and retain the complete historical event
+        // insert the event with its query columns
         const actor = actorKey(event.context.actor);
         const scope = event.context.scope;
         const inserted = await transaction
@@ -157,7 +103,7 @@ export class AuditHistory {
             .onConflictDoNothing()
             .returning({ id: auditEvent.id });
 
-        // resolve concurrent uniqueness conflicts through the persisted event identity
+        // resolve a conflict against the stored event
         if (!inserted.length) {
             const existing = await transaction
                 .select({ event: auditEvent.event })
@@ -168,7 +114,7 @@ export class AuditHistory {
                 return;
             }
 
-            // reject a changed identity or a second result of the attempt
+            // reject a changed event or a second result
             throw new AuditError(
                 "CONFLICT",
                 existing
@@ -177,7 +123,7 @@ export class AuditHistory {
             );
         }
 
-        // index named object references without creating live foreign keys
+        // index the named targets
         const targets = Object.entries(event.targets).map(([role, target]) => ({
             id: identifier("audit-target").parse(`audit-target-${v7()}`),
             event: event.id,
@@ -206,13 +152,13 @@ export class AuditHistory {
         return row;
     }
 
-    /** Read a bounded page in durable acceptance order. */
+    /** Read one page in acceptance order. */
     async list(request: AuditQuery): Promise<AuditPage> {
         // parse the query and filter by scope
         const query = AuditQuery.parse(request);
         const filters: (SQL | undefined)[] = [eq(auditEvent.scope, query.scope)];
 
-        // select declared actions and producers
+        // filter by action and package
         if (query.action) {
             filters.push(eq(auditEvent.action, query.action));
         }
@@ -220,7 +166,7 @@ export class AuditHistory {
             filters.push(eq(auditEvent.packageId, query.packageId));
         }
 
-        // select an actor or occurrence
+        // filter by actor or attempt
         if (query.actor) {
             filters.push(eq(auditEvent.actor, actorKey(query.actor)));
         }
@@ -230,12 +176,12 @@ export class AuditHistory {
             );
         }
 
-        // select observed outcomes
+        // filter by outcome
         if (query.outcome) {
             filters.push(eq(auditEvent.outcome, query.outcome));
         }
 
-        // find attempts whose result has not arrived, among the results of the same scope
+        // find attempts without a result
         if (query.unresolved) {
             const completed = this.database
                 .select({ id: auditEvent.attemptId })
@@ -244,7 +190,7 @@ export class AuditHistory {
             filters.push(eq(auditEvent.stage, "attempt"), notInArray(auditEvent.id, completed));
         }
 
-        // restrict durable acceptance time
+        // filter by acceptance time
         if (query.from !== undefined) {
             filters.push(gte(auditEvent.recordedAt, query.from));
         }
@@ -252,7 +198,7 @@ export class AuditHistory {
             filters.push(lt(auditEvent.recordedAt, query.before));
         }
 
-        // resume after the last accepted record
+        // continue after the cursor
         if (query.cursor) {
             filters.push(
                 or(
@@ -265,7 +211,7 @@ export class AuditHistory {
             );
         }
 
-        // search affected objects through their target index
+        // filter by target
         if (query.target) {
             const targets = this.database
                 .select({ id: auditTarget.event })
@@ -279,7 +225,7 @@ export class AuditHistory {
             filters.push(inArray(auditEvent.id, targets));
         }
 
-        // fetch one extra record to distinguish exhaustion from a full page
+        // fetch one extra record to detect the last page
         const rows = await this.database
             .select({ event: auditEvent.event, recordedAt: auditEvent.recordedAt })
             .from(auditEvent)
@@ -298,12 +244,12 @@ export class AuditHistory {
         };
     }
 
-    /** Remove expired event contents while retaining producer progress. */
+    /** Remove a scope's oldest events accepted before a time, returning how many. */
     async prune(request: AuditPrune): Promise<number> {
-        // validate the scope, cutoff and bound
+        // parse the request
         const { scope, before, limit } = AuditPrune.parse(request);
 
-        // remove the oldest expired events, cascading to their target indexes
+        // remove the oldest expired events with their targets
         const expired = this.database
             .select({ id: auditEvent.id })
             .from(auditEvent)
@@ -318,16 +264,16 @@ export class AuditHistory {
         return removed.length;
     }
 
-    /** Stream the bounded pages of events accepted before the export started. */
+    /** Stream the pages of events accepted before the export started. */
     async *export(request: AuditQuery, signal?: AbortSignal): AsyncGenerator<AuditPage["items"]> {
-        // fix the end of the export at its start
+        // fix the end of the export
         const query = AuditQuery.parse({
             ...request,
             before:
                 request.before === undefined ? Date.now() : Math.min(request.before, Date.now()),
         });
         while (true) {
-            // keep memory bounded and stop before fetching another page on cancellation
+            // stop on cancellation
             signal?.throwIfAborted();
             const page = await this.list(query);
             yield page.items;
@@ -339,18 +285,9 @@ export class AuditHistory {
     }
 }
 
-/** Hash validated JSON before taking the database writer lock. */
-async function digest(content: string): Promise<string> {
-    // hash the content bytes as hexadecimal
-    const bytes = new TextEncoder().encode(content);
-    const hash = await crypto.subtle.digest("SHA-256", bytes);
-
-    return new Uint8Array(hash).toHex();
-}
-
-/** Encode the complete identity for indexed history selection. */
+/** Encode an actor as its query key. */
 function actorKey(actor: AuditActor): string {
-    // key a subject as access keys it
+    // key a subject by its access key
     if (actor.type === "subject") {
         return subjectKey(actor.subject);
     }

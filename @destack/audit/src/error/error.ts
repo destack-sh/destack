@@ -1,9 +1,9 @@
-/** Fail an audit operation without changing the reported application outcome. */
+/** An audit failure. */
 export class AuditError extends Error {
-    /** Stable error classification. */
+    /** The error classification. */
     readonly code: "INVALID_EVENT" | "CONFLICT" | "FORBIDDEN" | "NOT_FOUND" | "UNAVAILABLE";
 
-    /** Retain the failure and its original cause. */
+    /** Create the error with its code and cause. */
     constructor(code: AuditError["code"], message: string, options?: ErrorOptions) {
         super(message, options);
         this.name = "AuditError";
