@@ -52,6 +52,18 @@ export const ResultChange = defineSchema(
 /** One group of an aggregate query taking new values or leaving, or every group of the query leaving. */
 export type ResultChange = schema.Infer<typeof ResultChange>;
 
+/** An event sent to one topic, such as an object, which its subscribers receive and nothing stores. */
+export const Broadcast = defineSchema(
+    schema.object({
+        /** The topic the event was sent to. */
+        topic: schema.string().min(1),
+        /** The event. */
+        event: schema.json(),
+    }),
+);
+/** An event sent to one topic, never stored. */
+export type Broadcast = schema.Infer<typeof Broadcast>;
+
 /** Rows and aggregates of queries as subscribers receive them: snapshot pages, or whole transactions after a position. */
 export const QueryPage = defineSchema(
     schema.object({
@@ -67,6 +79,8 @@ export const QueryPage = defineSchema(
         position: LogPosition,
         /** The outcomes of the subscriber's own mutations whose changes the page holds. */
         outcomes: schema.array(MutationOutcome).optional(),
+        /** The events sent to what the subscriber follows since the last page, never stored. */
+        broadcasts: schema.array(Broadcast).optional(),
     }),
 );
 /** Rows and aggregates of queries as subscribers receive them: snapshot pages, or whole transactions after a position. */
