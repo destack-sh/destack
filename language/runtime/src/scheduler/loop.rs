@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, VecDeque};
 use tspp_program as program;
 use tspp_vm as vm;
 
-use super::fiber::{FiberTable, Resumer};
+use super::fiber::{Cancellation, FiberTable, Resumer};
 use super::timer::TimerQueue;
 use super::{Call, Invocation, Runnable, RunnableId, Wake, WakeKey};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -95,7 +95,7 @@ impl EventLoop {
         resumer: Resumer,
         value: program::Value,
     ) -> RuntimeResult<()> {
-        self.fibers.mark_resuming(resumer.fiber_id)?;
+        self.fibers.set_resuming(resumer.fiber_id, true)?;
         self.fibers.set_resumer(fiber_id, resumer)?;
 
         self.hand_off_fiber(fiber_id, value)
@@ -113,7 +113,7 @@ impl EventLoop {
         }
 
         // keep the resumer waiting while the fiber runs one it resumed
-        if self.fibers.take_resuming(fiber_id)? {
+        if self.fibers.is_resuming(fiber_id)? {
             return Ok(());
         }
 
@@ -155,13 +155,57 @@ impl EventLoop {
         Ok(true)
     }
 
+    /// Request cancellation of one fiber, waking it to unwind at its park.
+    pub(crate) fn cancel_fiber(
+        &mut self,
+        fiber_id: program::FiberId,
+        value: program::Value,
+    ) -> RuntimeResult<()> {
+        match self.fibers.cancel(fiber_id)? {
+            // retire a fiber that never started, releasing its call
+            Cancellation::Unstarted(call) => {
+                self.release_call(call);
+                self.release(value);
+
+                self.retire_fiber(fiber_id)
+            }
+            // wake a live fiber so it unwinds
+            Cancellation::Requested => self.wake_fiber(fiber_id, value),
+            // leave a resuming fiber to unwind once handed back, or ignore a finished one
+            Cancellation::Resuming | Cancellation::Finished => {
+                self.release(value);
+
+                Ok(())
+            }
+        }
+    }
+
+    /// Return whether cancellation was requested for one fiber.
+    pub(crate) fn is_cancelled(&mut self, fiber_id: program::FiberId) -> RuntimeResult<bool> {
+        self.fibers.is_cancelled(fiber_id)
+    }
+
+    /// Release the environment and arguments one dropped call holds.
+    fn release_call(&mut self, call: Call) {
+        for value in call.environment.into_iter().chain(call.arguments) {
+            self.release(value);
+        }
+    }
+
     /// Hand the worker back to the fiber waiting for one fiber's next park or completion.
     fn wake_resumer(&mut self, fiber_id: program::FiberId) -> RuntimeResult<()> {
         if let Some(resumer) = self.fibers.take_resumer(fiber_id)? {
-            self.hand_off_fiber(resumer.fiber_id, resumer.value)?;
+            self.hand_back(resumer)?;
         }
 
         Ok(())
+    }
+
+    /// Hand the worker back to one resumer, ending its wait.
+    fn hand_back(&mut self, resumer: Resumer) -> RuntimeResult<()> {
+        self.fibers.set_resuming(resumer.fiber_id, false)?;
+
+        self.hand_off_fiber(resumer.fiber_id, resumer.value)
     }
 
     /// Take one wake buffered before the running fiber parked.
@@ -232,7 +276,7 @@ impl EventLoop {
             self.release(pending);
         }
         if let Some(resumer) = resumer {
-            self.hand_off_fiber(resumer.fiber_id, resumer.value)?;
+            self.hand_back(resumer)?;
         }
 
         Ok(())

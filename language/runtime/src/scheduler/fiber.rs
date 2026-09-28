@@ -31,8 +31,22 @@ struct FiberSlot {
     resumer: Option<Resumer>,
     /// Whether the slot keeps the fiber's result until the creator takes it.
     is_joined: bool,
-    /// Whether the next park hands the worker to a resumed fiber, keeping the resumer waiting.
+    /// Whether cancellation was requested, delivered as unwinding at the next park.
+    is_cancelled: bool,
+    /// Whether the fiber waits on a fiber it resumed until that fiber hands the worker back.
     is_resuming: bool,
+}
+
+/// What one cancellation request found.
+pub(crate) enum Cancellation {
+    /// The fiber never started, and its call is dropped.
+    Unstarted(Call),
+    /// The fiber runs or parks, and unwinds at its next park.
+    Requested,
+    /// The fiber waits on a fiber it resumed, and unwinds once handed the worker back.
+    Resuming,
+    /// The fiber already finished.
+    Finished,
 }
 
 /// The fiber waiting for a resumed fiber's next park or completion.
@@ -94,6 +108,7 @@ impl FiberTable {
                 state: None,
                 resumer: None,
                 is_joined: false,
+                is_cancelled: false,
                 is_resuming: false,
             });
 
@@ -102,6 +117,7 @@ impl FiberTable {
         let slot = &mut self.slots[index as usize];
         slot.state = Some(state);
         slot.is_joined = is_joined;
+        slot.is_cancelled = false;
         slot.is_resuming = false;
         self.len += 1;
 
@@ -190,6 +206,45 @@ impl FiberTable {
         Ok(Some(value))
     }
 
+    /// Request cancellation of one fiber.
+    pub(crate) fn cancel(&mut self, fiber_id: program::FiberId) -> RuntimeResult<Cancellation> {
+        let slot = self.slot_mut(fiber_id)?;
+
+        // record the request while the fiber waits on one it resumed
+        if slot.is_resuming {
+            slot.is_cancelled = true;
+
+            return Ok(Cancellation::Resuming);
+        }
+
+        match slot.state.take() {
+            // drop a fiber that never started along with its call
+            Some(FiberState::Created(call)) => {
+                slot.state = Some(FiberState::Running { pending: None });
+
+                Ok(Cancellation::Unstarted(call))
+            }
+            // leave a finished fiber alone
+            Some(state @ FiberState::Finished(_)) => {
+                slot.state = Some(state);
+
+                Ok(Cancellation::Finished)
+            }
+            // mark every other fiber for unwinding at its next park
+            state => {
+                slot.state = state;
+                slot.is_cancelled = true;
+
+                Ok(Cancellation::Requested)
+            }
+        }
+    }
+
+    /// Return whether cancellation was requested for one fiber.
+    pub(crate) fn is_cancelled(&mut self, fiber_id: program::FiberId) -> RuntimeResult<bool> {
+        Ok(self.slot_mut(fiber_id)?.is_cancelled)
+    }
+
     /// Take the fiber waiting for one fiber's next park or completion.
     pub(crate) fn take_resumer(
         &mut self,
@@ -198,18 +253,20 @@ impl FiberTable {
         Ok(self.slot_mut(fiber_id)?.resumer.take())
     }
 
-    /// Mark one running fiber as handing its next park to a fiber it resumes.
-    pub(crate) fn mark_resuming(&mut self, fiber_id: program::FiberId) -> RuntimeResult<()> {
-        self.slot_mut(fiber_id)?.is_resuming = true;
+    /// Set whether one fiber waits on a fiber it resumed.
+    pub(crate) fn set_resuming(
+        &mut self,
+        fiber_id: program::FiberId,
+        is_resuming: bool,
+    ) -> RuntimeResult<()> {
+        self.slot_mut(fiber_id)?.is_resuming = is_resuming;
 
         Ok(())
     }
 
-    /// Take whether one fiber's park hands the worker to a fiber it resumed.
-    pub(crate) fn take_resuming(&mut self, fiber_id: program::FiberId) -> RuntimeResult<bool> {
-        let slot = self.slot_mut(fiber_id)?;
-
-        Ok(std::mem::take(&mut slot.is_resuming))
+    /// Return whether one fiber waits on a fiber it resumed.
+    pub(crate) fn is_resuming(&mut self, fiber_id: program::FiberId) -> RuntimeResult<bool> {
+        Ok(self.slot_mut(fiber_id)?.is_resuming)
     }
 
     /// Park one running fiber, returning a wake it buffered while running.
@@ -404,6 +461,7 @@ impl FiberTable {
                     state: slot.state.as_ref().map(FiberState::image),
                     resumer: slot.resumer.as_ref().map(Resumer::fork),
                     is_joined: slot.is_joined,
+                    is_cancelled: slot.is_cancelled,
                     is_resuming: slot.is_resuming,
                 })
                 .collect(),
@@ -427,6 +485,7 @@ impl FiberTable {
                 state,
                 resumer: slot.resumer.as_ref().map(Resumer::fork),
                 is_joined: slot.is_joined,
+                is_cancelled: slot.is_cancelled,
                 is_resuming: slot.is_resuming,
             });
         }
@@ -449,6 +508,7 @@ impl FiberTable {
                     state: slot.state.as_ref().map(|state| state.fork(memory)),
                     resumer: slot.resumer.as_ref().map(Resumer::fork),
                     is_joined: slot.is_joined,
+                    is_cancelled: slot.is_cancelled,
                     is_resuming: slot.is_resuming,
                 })
                 .collect(),
@@ -515,7 +575,9 @@ struct FiberSlotImage {
     resumer: Option<Resumer>,
     /// Whether the slot keeps the fiber's result until the creator takes it.
     is_joined: bool,
-    /// Whether the next park hands the worker to a resumed fiber, keeping the resumer waiting.
+    /// Whether cancellation was requested, delivered as unwinding at the next park.
+    is_cancelled: bool,
+    /// Whether the fiber waits on a fiber it resumed until that fiber hands the worker back.
     is_resuming: bool,
 }
 
@@ -567,6 +629,7 @@ impl FiberTableImage {
                     state: slot.state.as_ref().map(FiberStateImage::inherit),
                     resumer: slot.resumer.as_ref().map(Resumer::fork),
                     is_joined: slot.is_joined,
+                    is_cancelled: slot.is_cancelled,
                     is_resuming: slot.is_resuming,
                 })
                 .collect(),

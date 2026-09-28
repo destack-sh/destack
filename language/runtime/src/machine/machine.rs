@@ -141,6 +141,20 @@ impl Machine {
         machine.resume(fiber, activation, value, stop_points, watch_points, profile)
     }
 
+    /// Cancel one parked fiber, unwinding its cleanups from the parked call.
+    pub fn cancel<'run>(
+        &mut self,
+        fiber: &mut vm::Fiber,
+        activation: program::Activation<'run, 'run, Activation<'_>>,
+        stop_points: Option<&'run program::StopSet>,
+        watch_points: Option<&'run program::WatchSet>,
+        profile: Option<&'run mut program::Profile>,
+    ) -> RuntimeResult<Outcome<Value>> {
+        let machine = &mut self.vm;
+
+        machine.cancel(fiber, activation, stop_points, watch_points, profile)
+    }
+
     /// Continue one fiber retained at a debugger stop.
     pub fn continue_execution<'run>(
         &mut self,

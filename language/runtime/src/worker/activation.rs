@@ -239,6 +239,11 @@ impl<'a> Activation<'a> {
         fiber_id: program::FiberId,
         result: &mut [program::Word],
     ) -> RuntimeResult<program::BindingExit> {
+        // park a cancelled fiber, its buffered wake unwinding it
+        if self.event_loop.is_cancelled(fiber_id)? {
+            return Ok(program::BindingExit::Parked);
+        }
+
         // return an already delivered wake in place
         let Some(value) = self.event_loop.take_pending_wake(fiber_id)? else {
             return Ok(program::BindingExit::Parked);
@@ -253,6 +258,15 @@ impl<'a> Activation<'a> {
         result.copy_from_slice(words);
 
         Ok(program::BindingExit::Returned)
+    }
+
+    /// Request cancellation of one fiber, unwinding it at its next park.
+    pub fn cancel_fiber(
+        &mut self,
+        fiber_id: program::FiberId,
+        value: program::Value,
+    ) -> RuntimeResult<()> {
+        self.event_loop.cancel_fiber(fiber_id, value)
     }
 
     /// Create one fiber that runs a body once first woken.

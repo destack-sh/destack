@@ -17,6 +17,8 @@ pub const FIBER_PARK: &str = "tspp.fiber.park";
 pub const FIBER_WAKE: &str = "tspp.fiber.wake";
 /// Stable name of the fiber resume binding.
 pub const FIBER_RESUME: &str = "tspp.fiber.resume";
+/// Stable name of the fiber cancellation binding.
+pub const FIBER_CANCEL: &str = "tspp.fiber.cancel";
 /// Stable name of the microtask queue binding.
 pub const MICROTASK_QUEUE: &str = "tspp.async.microtask.queue";
 
@@ -47,6 +49,11 @@ impl BindingTable {
             program::BindingId::from_static_name(FIBER_RESUME),
             ReplayPayload::ArgumentsAndResults,
             resume,
+        ));
+        self.upsert(Binding::new(
+            program::BindingId::from_static_name(FIBER_CANCEL),
+            ReplayPayload::ArgumentsAndResults,
+            cancel,
         ));
         self.upsert(Binding::new(
             program::BindingId::from_static_name(MICROTASK_QUEUE),
@@ -184,6 +191,30 @@ fn void_value(
         .program()
         .value(ty, [])
         .map_err(Box::<RuntimeError>::from)
+}
+
+/// Request cancellation of one fiber, unwinding it at its next park.
+fn cancel(
+    activation: &mut Activation<'_>,
+    _memory: Memory<'_>,
+    _context: program::Context,
+    _fiber_id: Option<program::FiberId>,
+    declaration: &program::Binding,
+    arguments: &[Word],
+    _result: &mut [Word],
+) -> RuntimeResult<program::BindingExit> {
+    let [fiber] = arguments else {
+        return Err(RuntimeError::Internal {
+            message: "fiber.cancel requires one fiber handle".to_string(),
+        }
+        .boxed());
+    };
+    let fiber_id = program::FiberId::from_bits(fiber.bits());
+    let value = void_value(activation, declaration)?;
+
+    activation.cancel_fiber(fiber_id, value)?;
+
+    Ok(program::BindingExit::Returned)
 }
 
 /// Deliver one wake value, buffering it until the target fiber parks.

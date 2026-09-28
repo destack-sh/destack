@@ -1116,6 +1116,10 @@ impl Worker {
         };
         let mut context = invocation.context().unwrap_or_else(|| execution.context());
 
+        // unwind a cancelled fiber from its park instead of delivering the wake
+        let is_cancelled = self.event_loop.is_cancelled(fiber_id)?;
+        let mut released = None;
+
         let mut activation = Activation::new(
             self.runtime_id,
             self.id,
@@ -1162,6 +1166,17 @@ impl Worker {
                     self.profile.as_mut(),
                 )
             }
+            Invocation::Wake { value, .. } if is_cancelled => {
+                released = Some(value);
+
+                self.machine.cancel(
+                    &mut execution,
+                    activation,
+                    Some(&self.stop_points),
+                    Some(&self.watch_points),
+                    self.profile.as_mut(),
+                )
+            }
             Invocation::Wake { value, .. } => self.machine.resume(
                 &mut execution,
                 activation,
@@ -1171,6 +1186,9 @@ impl Worker {
                 self.profile.as_mut(),
             ),
         };
+        if let Some(value) = released {
+            self.event_loop.release(value);
+        }
         let outcome = match outcome {
             Ok(outcome) => outcome,
             Err(error) => {
