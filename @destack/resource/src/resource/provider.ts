@@ -1,5 +1,6 @@
 import type { Identifier } from "@destack/schema";
 import type { ResourceState } from "@destack/package/declare";
+import type { Chunk, Copy } from "./copy.ts";
 import type { Plan } from "./plan.ts";
 import type { Resource } from "./resource.ts";
 
@@ -41,4 +42,27 @@ export interface Provider<Client = unknown> {
     connect(record: ResourceRecord, declaration: Resource<Client>): Promise<Client>;
     /** Destroy the resource and everything it stores. */
     destroy(record: ResourceRecord): Promise<void>;
+
+    /**
+     * Read the source's content after a cursor as chunks, repeatably, ending once the stage's content is read.
+     *
+     * The live stage reads what the source holds now; the fenced stage also reads what changed since and what only a fenced source keeps still.
+     */
+    export(copy: Copy, after: string | undefined, signal: AbortSignal): AsyncIterable<Chunk>;
+    /** Write one exported chunk into the target's resource, idempotently, so that a repeated export converges. */
+    import(copy: Copy, chunk: Chunk): Promise<void>;
 }
+
+/** Infrastructure on one host for resources of each kind. */
+export const Provider = {
+    /** Refuse a provider that cannot move its resources' content with a transfer. */
+    require<Client>(provider: Provider<Client>): Provider<Client> {
+        if (typeof provider.export !== "function" || typeof provider.import !== "function") {
+            throw new TypeError(
+                `provider ${provider.code} of ${provider.kind} exports and imports no content`,
+            );
+        }
+
+        return provider;
+    },
+};
