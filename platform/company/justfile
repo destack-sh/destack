@@ -1,0 +1,16 @@
+set shell := ["bash", "-cu"]
+set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
+
+# the Wrangler version, the same as platform/site
+wrangler := "bunx wrangler@4.134.0"
+
+_default:
+    @just --list --unsorted
+
+# serve the site locally
+dev:
+    {{wrangler}} dev --port 3838
+
+# deploy
+deploy:
+    CLOUDFLARE_API_TOKEN="${CLOUDFLARE_COMPANY_API_TOKEN:?CLOUDFLARE_COMPANY_API_TOKEN is required}" {{wrangler}} deploy

@@ -1,0 +1,11 @@
+{
+    "$schema": "https://unpkg.com/wrangler@4.134.0/config-schema.json",
+    "name": "symbol-company",
+    "account_id": "27c0d00fb3a27a4ccbf46a3cceab9301",
+    "compatibility_date": "2026-09-17",
+    "workers_dev": false,
+    "assets": {
+        "directory": "public",
+        "html_handling": "auto-trailing-slash",
+    },
+}
