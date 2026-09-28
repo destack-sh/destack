@@ -1,0 +1,11 @@
+# check
+check:
+    bun run check
+
+# test
+test:
+    bun run --bun test
+
+# format
+fmt:
+    bun run destack-check format src tests
