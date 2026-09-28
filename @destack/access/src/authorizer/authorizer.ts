@@ -21,7 +21,7 @@ import {
     type SubjectType,
 } from "../policy/subject.ts";
 import { INTRINSIC_POLICIES } from "../policy/principal.ts";
-import { GLOBAL_SCOPE, type AccessContext } from "../context/context.ts";
+import { type AccessContext } from "../context/context.ts";
 import { HIGHEST_ASSURANCE, type Elevation, type StepUp } from "../context/elevation.ts";
 import { accessRelationship, type RelationshipRow } from "../relationship/table.ts";
 import { Relationship } from "../relationship/relationship.ts";
@@ -33,6 +33,7 @@ import { Compiler } from "./compiler.ts";
 import type { Decision, Explanation } from "./decision.ts";
 import { GrantReader, GrantTree, type Grant, type Lookup } from "./grant.ts";
 import { column, TableMapping, type FieldRelation } from "./mapping.ts";
+import { Scope } from "../scope/scope.ts";
 
 /**
  * How long a copy of access may go without hearing from its home before decisions refuse it, by default, in milliseconds.
@@ -47,16 +48,6 @@ export interface Admission {
     readonly held: ReadonlySet<number>;
     /** The next moment time alone may change which rows the caller holds it on, absent when only changes to access do. */
     readonly until?: number;
-}
-
-/** One scope of a chain: its object, the scope containing it, and whether it is suspended. */
-export interface ScopeLink {
-    /** The scope's object. */
-    readonly object: ObjectReference;
-    /** The scope containing this one, the global scope for users and organisations. */
-    readonly parent: string;
-    /** Whether the scope is suspended. */
-    readonly isSuspended: boolean;
 }
 
 /** Decide policies over the tables their objects live in: registered and validated once, compiled to SQL, or decided in memory from grants. */
@@ -409,56 +400,6 @@ export class Authorizer {
         return this.policy(target).definition.scope === true ? target.id : target.scope;
     }
 
-    /** Read the objects of a scope and every scope enclosing it, nearest first, with whether each is suspended, as a snapshot shows them. */
-    static async chain(snapshot: Snapshot, scope: string): Promise<ScopeLink[]> {
-        // read the scope, then the scopes its row lists, then any those rows list beyond them, each by key
-        const rows = new Map<string, ScopeRow>();
-        for (let wanted = [scope]; wanted.length > 0;) {
-            const read = (await snapshot.select(
-                accessScope,
-                ["scope"],
-                wanted.map((id) => [id]),
-            )) as ScopeRow[];
-            for (const row of read) {
-                rows.set(row.scope, row);
-            }
-            wanted = [...new Set(read.flatMap((row) => row.ancestors))].filter(
-                (id) => !rows.has(id) && !wanted.includes(id),
-            );
-        }
-
-        // order the scopes from the scope up through their parents
-        const links: ScopeLink[] = [];
-        for (let current = rows.get(scope); current !== undefined;) {
-            if (links.some((link) => link.object.id === current!.scope)) {
-                throw new AccessError("INVALID_CONTEXT", `cyclic scope: ${current.scope}`);
-            }
-            links.push({
-                object: {
-                    packageId: current.packageId,
-                    type: current.type,
-                    scope: current.parent,
-                    id: current.scope,
-                },
-                parent: current.parent,
-                isSuspended: current.suspendedAt !== null,
-            });
-            current = current.parent === GLOBAL_SCOPE ? undefined : rows.get(current.parent);
-        }
-
-        return links;
-    }
-
-    /** Read a scope's own object, which lives in the scope containing it, failing when the database knows no such scope. */
-    static async scope(snapshot: Snapshot, id: string): Promise<ObjectReference> {
-        const [link] = await Authorizer.chain(snapshot, id);
-        if (link === undefined) {
-            throw new AccessError("NOT_FOUND", `unknown scope: ${id}`);
-        }
-
-        return link.object;
-    }
-
     /**
      * Decide whether this database holds an object's access rows: those of objects of a type it maps a table of.
      *
@@ -467,7 +408,7 @@ export class Authorizer {
     async isHeld(database: DatabaseConnection, object: ObjectReference): Promise<boolean> {
         // follow a role to the scope object defining it
         if (this.mappingOf(object)?.table === accessRole) {
-            const scope = await Authorizer.scope(Snapshot.live(database), object.scope);
+            const scope = await Scope.object(Snapshot.live(database), object.scope);
 
             return this.isHeld(database, scope);
         }
@@ -1119,19 +1060,3 @@ function listedPermissions(
         ),
     );
 }
-
-/** A scope row as a snapshot reads it. */
-type ScopeRow = {
-    /** The scope. */
-    readonly scope: string;
-    /** The containing scope. */
-    readonly parent: string;
-    /** The containing scopes the row lists, nearest first. */
-    readonly ancestors: readonly string[];
-    /** The package declaring the scope object's type. */
-    readonly packageId: PackageId;
-    /** The scope object's type. */
-    readonly type: string;
-    /** When the scope was suspended. */
-    readonly suspendedAt: number | string | null;
-};

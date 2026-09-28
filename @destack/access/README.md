@@ -102,6 +102,15 @@ An access row lives in the database holding its object; every other database dec
 | `held`, `requireHeld` | The types whose access this database writes, and the refusal of every other write |
 | `lag` | How long a copy may go unconfirmed before live decisions fail with `STALE` |
 
+`Scope` reads a scope's chain and fences the scope while a transfer moves its database.
+
+| Member | Meaning |
+|---|---|
+| `Scope.chain`, `Scope.object` | The scope and the scopes enclosing it, nearest first; its own object |
+| `Scope.fence`, `Scope.unfence` | Send the scope's writes to another holder, and stop |
+| `Scope.guard` | Keep a write's scopes unfenced until it commits |
+| `Access.moved` | The fenced scope and its holder |
+
 ## Storage
 
 Every database holding protected objects includes `ACCESS_TABLES`.

@@ -19,8 +19,10 @@ import { COPY_NAME } from "../replica/replica.ts";
 import { Authority } from "./authority.ts";
 import { GrantCondition, type ConditionContext } from "./condition.ts";
 import type { Gate } from "./decision.ts";
-import { Authorizer, type ScopeLink } from "./authorizer.ts";
+import { Authorizer } from "./authorizer.ts";
+import type { ScopeLink } from "../scope/scope.ts";
 import { type FieldRelation, TableMapping } from "./mapping.ts";
+import { Scope } from "../scope/scope.ts";
 
 /** A caller's access in one scope: its authorities, the scope chain, the roles along it, and the time it holds for. */
 export class Access {
@@ -36,6 +38,8 @@ export class Access {
     readonly grants: ReadonlyMap<string, RoleGrant>;
     /** Whether the scope or one enclosing it is suspended, withholding every permission but administration. */
     readonly isSuspended: boolean;
+    /** The fenced scope nearest in the chain and the holder it moves to. */
+    readonly moved: { readonly scope: string; readonly holder: string } | undefined;
     /** The next moment time alone changes the caller's subject sets, roles or elevation, absent when it never does. */
     readonly until: number | undefined;
     /** The roles along the scope chain that grant each permission, by permission key. */
@@ -65,6 +69,9 @@ export class Access {
         this.scopes = resolved.links.map((link) => link.object);
         this.grants = resolved.grants;
         this.isSuspended = resolved.links.some((link) => link.isSuspended);
+        const fenced = resolved.links.find((link) => link.movedTo !== undefined);
+        this.moved =
+            fenced === undefined ? undefined : { scope: fenced.object.id, holder: fenced.movedTo! };
         this.until = resolved.until;
 
         // index the roles by the permissions they grant, apart from the roles granting everything
@@ -104,7 +111,7 @@ export class Access {
         }
 
         // read the chain
-        const links = await Authorizer.chain(snapshot, scope);
+        const links = await Scope.chain(snapshot, scope);
         const chain = [scope, ...links.map((link) => link.object.id).filter((id) => id !== scope)];
 
         // read the roles alongside the caller's and every lent delegate's subject sets, refusing copies whose home went silent
