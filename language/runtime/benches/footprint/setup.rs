@@ -292,13 +292,8 @@ impl program::Runtime for VmRuntime {
         _binding: &program::Binding,
         _arguments: &[program::Word],
         _result: &mut [program::Word],
-    ) -> Result<()> {
+    ) -> Result<program::BindingExit> {
         unreachable!("runtime footprint execution does not call runtime bindings")
-    }
-
-    /// Reject fiber parks outside the runtime scheduler.
-    fn park(&mut self, fiber_id: program::FiberId) -> Result<program::Park> {
-        Err(program::Error::UndefinedFiber { fiber_id }.into())
     }
 }
 
@@ -319,7 +314,7 @@ impl VmSetup {
         let object = Arc::new(emitter.bytecode(bytecode).build());
 
         // link the object into one executable Program
-        let program = ProgramLinker::new(package, vec![(module, object)], &strings)
+        let program = ProgramLinker::new(vec![(module, object)], &strings)
             .expect("footprint object should initialize its linker")
             .link()
             .expect("footprint object should link");
@@ -346,8 +341,7 @@ impl VmSetup {
         {
             panic!("failed to parse footprint MIR: {:?}", parsed.diagnostics);
         }
-        let (tree, target, layouts, dispatch, drops, effects, profile, strings, _) =
-            parsed.into_parts();
+        let (tree, target, layouts, dispatch, drops, profile, strings, _) = parsed.into_parts();
         let tree = std::sync::Arc::new(tree);
         let lowered = MirLowered {
             tree: std::sync::Arc::clone(&tree),
@@ -356,7 +350,6 @@ impl VmSetup {
             dispatch,
             drops,
             witnesses: mir::WitnessTable::default(),
-            effects,
             profile,
             initializer: None,
         };
@@ -375,7 +368,6 @@ impl VmSetup {
             layouts,
             dispatch: lowered.dispatch.clone(),
             drops: lowered.drops.clone(),
-            effects: lowered.effects.clone(),
             profile: lowered.profile.clone(),
         };
 

@@ -38,8 +38,7 @@ impl TestProgram {
         {
             panic!("failed to parse runtime test MIR: {:?}", parsed.diagnostics);
         }
-        let (tree, target, layouts, dispatch, drops, effects, profile, strings, _) =
-            parsed.into_parts();
+        let (tree, target, layouts, dispatch, drops, profile, strings, _) = parsed.into_parts();
 
         Self {
             lowered: MirLowered {
@@ -49,7 +48,6 @@ impl TestProgram {
                 dispatch,
                 drops,
                 witnesses: mir::WitnessTable::default(),
-                effects,
                 profile,
                 initializer: None,
             },
@@ -122,7 +120,7 @@ impl TestProgram {
         let object = Arc::new(emitter.bytecode(bytecode).build());
 
         // link the object through the production Program path
-        ProgramLinker::new(package, vec![(module, object)], &self.strings)
+        ProgramLinker::new(vec![(module, object)], &self.strings)
             .expect("runtime test object should initialize its linker")
             .link()
             .expect("runtime test object should link")
@@ -159,7 +157,6 @@ impl TestProgram {
             layouts,
             dispatch: self.lowered.dispatch.clone(),
             drops: self.lowered.drops.clone(),
-            effects: self.lowered.effects.clone(),
             profile: self.lowered.profile.clone(),
         }
     }
