@@ -1,0 +1,20 @@
+{
+    "id": "package-01a0e95b-c8db-7258-a257-e7661dbc93c3",
+    "language": "typescript",
+    "targets": ["browser", "server"],
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        "./server": {
+            "targets": ["server"]
+        }
+    },
+    "declarations": {
+        "defineNotification": {
+            "module": 1,
+            "inspect": {
+                "kind": "notification",
+                "describe": "./inspect#describeNotification"
+            }
+        }
+    }
+}
