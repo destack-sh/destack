@@ -106,13 +106,13 @@ type Box {
     value: int32;
 }
 
-@binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
-external function park(): void
+@binding("test.park", { provider: "runtime", effect: "deterministic" })
+external park function park(): void
 
-function test(v0: ref<Box, unique, mutable>): int32 {
+park function test(v0: ref<Box, unique, mutable>): int32 {
 entry(v0: ref<Box, unique, mutable>):
     v1: ref<int32, borrowed, 'frame, readonly> = address (*v0).0
-    call park(): () => void
+    call park(): park () => void
     v2: int32 = load (*v1)
     return v2
 }
@@ -125,16 +125,22 @@ type Box {
     value: int32;
 }
 
-@binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
-external function park(): void
+@binding("test.park", { provider: "runtime", effect: "deterministic" })
+external park function park(): void
 
-function test(v0: ref<Box, unique, mutable>): int32 {
+park function test(v0: ref<Box, unique, mutable>): int32 {
 entry(v0: ref<Box, unique, mutable>):
     v1: ref<int32, borrowed, 'frame, readonly> = address (*v0).0
-    call park(): () => void
+    invoke park(): park () => void => b1 | b2
+
+b1:
     v2: int32 = load (*v1)
     release v0
     return v2
+
+b2:
+    release v0
+    unwind.resume
 }
 "#,
     );

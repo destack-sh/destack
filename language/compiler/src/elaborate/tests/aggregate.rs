@@ -32,7 +32,7 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
     return
 }
 
-function drop.frame<Pair, 'a>(v0: ref<Pair, borrowed, 'a, exclusive>): void {
+shared function drop.frame<Pair, 'a>(v0: ref<Pair, borrowed, 'a, exclusive>): void {
 entry(v0: ref<Pair, borrowed, 'a, exclusive>):
     v1: ref<ref<int32, unique, mutable>, borrowed, 'a, exclusive> = address (*v0).1
     v2: ref<int32, unique, mutable> = load (*v1)
@@ -116,7 +116,7 @@ entry(v0: slice<int32, unique, mutable>):
     return
 }
 
-function drop.frame<Buffer, 'a>(v0: ref<Buffer, borrowed, 'a, exclusive>): void {
+shared function drop.frame<Buffer, 'a>(v0: ref<Buffer, borrowed, 'a, exclusive>): void {
 entry(v0: ref<Buffer, borrowed, 'a, exclusive>):
     v1: ref<slice<int32, unique, mutable>, borrowed, 'a, exclusive> = address (*v0).0
     v2: slice<int32, unique, mutable> = load (*v1)

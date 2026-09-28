@@ -22,8 +22,6 @@ pub(crate) struct ElaborateState<'a> {
     pub(in crate::elaborate) dispatch: mir::DispatchTable,
     /// Canonical MIR drop table.
     pub(in crate::elaborate) drops: mir::DropTable,
-    /// Function and call effect table.
-    pub(in crate::elaborate) effects: mir::EffectTable,
 
     /// The module initializer, when one exists.
     initializer: Option<mir::FunctionId>,
@@ -48,7 +46,6 @@ impl<'a> ElaborateState<'a> {
             target: instantiated.target,
             layouts: instantiated.layouts.clone(),
             drops: instantiated.drops.clone(),
-            effects: instantiated.effects.clone(),
             dispatch: instantiated.dispatch.clone(),
             profile: instantiated.profile.clone(),
             strings,
@@ -60,6 +57,9 @@ impl<'a> ElaborateState<'a> {
         &mut self,
         retention: &mir::RetentionTable,
     ) -> CompilerResult<()> {
+        // remove the fake borrows
+        self.remove_fake_borrows();
+
         // collect the source functions with bodies
         let functions = self
             .tree
@@ -90,7 +90,6 @@ impl<'a> ElaborateState<'a> {
             &mut self.tree,
             self.target,
             &mut self.drops,
-            &mut self.effects,
             self.strings,
         );
         destructors.build_allocations();
@@ -110,6 +109,25 @@ impl<'a> ElaborateState<'a> {
         Ok(())
     }
 
+    /// Remove every fake borrow and fake read from the tree's blocks.
+    fn remove_fake_borrows(&mut self) {
+        let blocks = self
+            .tree
+            .iter_nodes::<mir::Block>()
+            .map(|(id, _)| id)
+            .collect::<Vec<_>>();
+        for block in blocks {
+            let mut instructions = self.tree.get(block).instructions.clone();
+            instructions.retain(|&instruction| {
+                !matches!(
+                    self.tree.get(instruction),
+                    mir::Instruction::FakeBorrow { .. } | mir::Instruction::FakeRead { .. }
+                )
+            });
+            self.tree.get_mut(block).instructions = instructions;
+        }
+    }
+
     /// Finish elaborated MIR.
     pub(in crate::elaborate) fn finish(self) -> MirElaborated {
         MirElaborated {
@@ -119,7 +137,6 @@ impl<'a> ElaborateState<'a> {
             layouts: self.layouts,
             dispatch: self.dispatch,
             drops: self.drops,
-            effects: self.effects,
             profile: self.profile,
         }
     }

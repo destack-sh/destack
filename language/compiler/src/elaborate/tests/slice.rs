@@ -28,14 +28,14 @@ entry(v0: slice<Box, unique, mutable>):
     return
 }
 
-function drop.frame<slice<Box, unique, mutable>, 'a>(v0: ref<slice<Box, unique, mutable>, borrowed, 'a, exclusive>): void {
+shared function drop.frame<slice<Box, unique, mutable>, 'a>(v0: ref<slice<Box, unique, mutable>, borrowed, 'a, exclusive>): void {
 entry(v0: ref<slice<Box, unique, mutable>, borrowed, 'a, exclusive>):
     v1: slice<Box, unique, mutable> = load (*v0)
     release v1
     return
 }
 
-function drop.local<Box, 'a>(v0: ref<Box, borrowed, 'a, exclusive>): void {
+shared function drop.local<Box, 'a>(v0: ref<Box, borrowed, 'a, exclusive>): void {
 entry(v0: ref<Box, borrowed, 'a, exclusive>):
     v1: ref<ref<int32, unique, mutable>, borrowed, 'a, exclusive> = address (*v0).0
     v2: ref<int32, unique, mutable> = load (*v1)
@@ -43,7 +43,7 @@ entry(v0: ref<Box, borrowed, 'a, exclusive>):
     return
 }
 
-function drop.shared<Box, 'a>(v0: ref<Box, borrowed, 'a, exclusive>): void {
+shared function drop.shared<Box, 'a>(v0: ref<Box, borrowed, 'a, exclusive>): void {
 entry(v0: ref<Box, borrowed, 'a, exclusive>):
     v1: ref<ref<int32, unique, mutable>, borrowed, 'a, exclusive> = address (*v0).0
     v2: ref<int32, unique, mutable> = load (*v1)
@@ -82,21 +82,21 @@ entry(v0: slice<slice<Box, unique, mutable>, unique, mutable>):
     return
 }
 
-function drop.frame<slice<slice<Box, unique, mutable>, unique, mutable>, 'a>(v0: ref<slice<slice<Box, unique, mutable>, unique, mutable>, borrowed, 'a, exclusive>): void {
+shared function drop.frame<slice<slice<Box, unique, mutable>, unique, mutable>, 'a>(v0: ref<slice<slice<Box, unique, mutable>, unique, mutable>, borrowed, 'a, exclusive>): void {
 entry(v0: ref<slice<slice<Box, unique, mutable>, unique, mutable>, borrowed, 'a, exclusive>):
     v1: slice<slice<Box, unique, mutable>, unique, mutable> = load (*v0)
     release v1
     return
 }
 
-function drop.local<slice<Box, unique, mutable>, 'a>(v0: ref<slice<Box, unique, mutable>, borrowed, 'a, exclusive>): void {
+shared function drop.local<slice<Box, unique, mutable>, 'a>(v0: ref<slice<Box, unique, mutable>, borrowed, 'a, exclusive>): void {
 entry(v0: ref<slice<Box, unique, mutable>, borrowed, 'a, exclusive>):
     v1: slice<Box, unique, mutable> = load (*v0)
     release v1
     return
 }
 
-function drop.local<Box, 'a>(v0: ref<Box, borrowed, 'a, exclusive>): void {
+shared function drop.local<Box, 'a>(v0: ref<Box, borrowed, 'a, exclusive>): void {
 entry(v0: ref<Box, borrowed, 'a, exclusive>):
     v1: ref<ref<int32, unique, mutable>, borrowed, 'a, exclusive> = address (*v0).0
     v2: ref<int32, unique, mutable> = load (*v1)
@@ -104,7 +104,7 @@ entry(v0: ref<Box, borrowed, 'a, exclusive>):
     return
 }
 
-function drop.shared<Box, 'a>(v0: ref<Box, borrowed, 'a, exclusive>): void {
+shared function drop.shared<Box, 'a>(v0: ref<Box, borrowed, 'a, exclusive>): void {
 entry(v0: ref<Box, borrowed, 'a, exclusive>):
     v1: ref<ref<int32, unique, mutable>, borrowed, 'a, exclusive> = address (*v0).0
     v2: ref<int32, unique, mutable> = load (*v1)
@@ -112,7 +112,7 @@ entry(v0: ref<Box, borrowed, 'a, exclusive>):
     return
 }
 
-function drop.shared<slice<Box, unique, mutable>, 'a>(v0: ref<slice<Box, unique, mutable>, borrowed, 'a, exclusive>): void {
+shared function drop.shared<slice<Box, unique, mutable>, 'a>(v0: ref<slice<Box, unique, mutable>, borrowed, 'a, exclusive>): void {
 entry(v0: ref<slice<Box, unique, mutable>, borrowed, 'a, exclusive>):
     v1: slice<Box, unique, mutable> = load (*v0)
     release v1

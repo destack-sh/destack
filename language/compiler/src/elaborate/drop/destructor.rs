@@ -14,8 +14,6 @@ pub(in crate::elaborate) struct DestructorBuilder<'a> {
     target: mir::TargetLayout,
     /// Canonical MIR drop table.
     drops: &'a mut mir::DropTable,
-    /// Function and call effect table.
-    effects: &'a mut mir::EffectTable,
     /// Strings needed by generated MIR names.
     strings: &'a StringPool,
 }
@@ -27,7 +25,6 @@ impl<'a> DestructorBuilder<'a> {
         tree: &'a mut mir::Tree,
         target: mir::TargetLayout,
         drops: &'a mut mir::DropTable,
-        effects: &'a mut mir::EffectTable,
         strings: &'a StringPool,
     ) -> Self {
         Self {
@@ -35,7 +32,6 @@ impl<'a> DestructorBuilder<'a> {
             tree,
             target,
             drops,
-            effects,
             strings,
         }
     }
@@ -167,7 +163,8 @@ impl<'a> DestructorBuilder<'a> {
         let segment = storage.segment();
         let name = self.strings.intern(&format!("drop.{segment}"));
         let arguments = vec![mir::GenericArgument::Type(ty)];
-        let symbol = mir::Symbol::named(self.module, name).instantiate(&arguments, self.tree);
+        // name the glue by its type
+        let symbol = mir::Symbol::language(name).instantiate(&arguments, self.tree);
         // borrow the dropped storage for the destructor's own binder
         let binder = self.strings.intern("'a");
         let lifetimes = vec![mir::LifetimeParameter::new(Some(binder))];
@@ -182,9 +179,10 @@ impl<'a> DestructorBuilder<'a> {
         let void = self.tree.void_type();
 
         // register a bodyless function first so recursive drops can call it
-        let function = mir::Function::declare(self.module, name, lifetimes, parameters, void)
+        let mut function = mir::Function::declare(self.module, name, lifetimes, parameters, void)
             .with_arguments(arguments)
             .with_symbol(symbol);
+        function.linkage = mir::Linkage::Shared;
 
         self.tree.insert(function)
     }
@@ -257,8 +255,8 @@ impl<'a> DestructorBuilder<'a> {
     ) {
         // turn the declaration into a real body
         let mut builder = mir::FunctionBuilder::from_declared(
+            self.module,
             self.tree,
-            self.effects,
             self.target.pointer_bits(),
             function,
         )

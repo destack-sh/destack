@@ -32,7 +32,6 @@ impl TestProgram {
                 layouts: self.lowered.layouts.clone(),
                 dispatch: self.lowered.dispatch.clone(),
                 drops: self.lowered.drops.clone(),
-                effects: self.lowered.effects.clone(),
                 profile: self.lowered.profile.clone(),
                 retention: retention.clone(),
             },
@@ -46,7 +45,6 @@ impl TestProgram {
         self.lowered.tree = Arc::new(optimized.tree);
         self.lowered.layouts = optimized.layouts;
         self.lowered.drops = optimized.drops;
-        self.lowered.effects = optimized.effects;
     }
 
     /// Assert the MIR produced by elaboration and optimization.

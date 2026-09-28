@@ -72,7 +72,7 @@ entry:
     return v0
 }
 
-function drop.local<Item, 'a>(v0: ref<Item, borrowed, 'a, exclusive>): void {
+shared function drop.local<Item, 'a>(v0: ref<Item, borrowed, 'a, exclusive>): void {
 entry(v0: ref<Item, borrowed, 'a, exclusive>):
     v1: ref<Item, borrowed, 'a, mutable> = address (*v0)
     call dropItem(v1): <'a_1>(ref<Item, borrowed, 'a_1, mutable>) => void
@@ -119,7 +119,7 @@ entry:
     return v0
 }
 
-function drop.local<Item, 'a>(v0: ref<Item, borrowed, 'a, exclusive>): void {
+shared function drop.local<Item, 'a>(v0: ref<Item, borrowed, 'a, exclusive>): void {
 entry(v0: ref<Item, borrowed, 'a, exclusive>):
     v1: ref<Item, borrowed, 'a, mutable> = address (*v0)
     call dropItem(v1): <'a_1>(ref<Item, borrowed, 'a_1, mutable>) => void

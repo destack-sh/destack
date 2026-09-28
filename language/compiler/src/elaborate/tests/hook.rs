@@ -35,7 +35,7 @@ entry(v0: ref<int32, unique, mutable>):
     return
 }
 
-function drop.frame<Box, 'a>(v0: ref<Box, borrowed, 'a, exclusive>): void {
+shared function drop.frame<Box, 'a>(v0: ref<Box, borrowed, 'a, exclusive>): void {
 entry(v0: ref<Box, borrowed, 'a, exclusive>):
     v1: ref<Box, borrowed, 'a, mutable> = address (*v0)
     call dropBox(v1): <'a_1>(ref<Box, borrowed, 'a_1, mutable>) => void
@@ -89,7 +89,7 @@ entry(v0: ref<int32, unique, mutable>):
     return
 }
 
-function drop.frame<Box, 'a>(v0: ref<Box, borrowed, 'a, exclusive>): void {
+shared function drop.frame<Box, 'a>(v0: ref<Box, borrowed, 'a, exclusive>): void {
 entry(v0: ref<Box, borrowed, 'a, exclusive>):
     v1: ref<Box, borrowed, 'a, mutable> = address (*v0)
     call dropBox(v1): <'a_1>(ref<Box, borrowed, 'a_1, mutable>) => void

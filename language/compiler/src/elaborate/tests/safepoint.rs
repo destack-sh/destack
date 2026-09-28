@@ -132,13 +132,13 @@ type Box {
     value: int32;
 }
 
-@binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
-external function park(): void
+@binding("test.park", { provider: "runtime", effect: "deterministic" })
+external park function park(): void
 
-function test(v0: ref<Box, managed, mutable, local>): int32 {
+park function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
     v1: ref<int32, borrowed, 'managed, readonly> = address (*v0).0
-    call park(): () => void
+    call park(): park () => void
     v2: int32 = load (*v1)
     return v2
 }
@@ -151,13 +151,13 @@ type Box {
     value: int32;
 }
 
-@binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
-external function park(): void
+@binding("test.park", { provider: "runtime", effect: "deterministic" })
+external park function park(): void
 
-function test(v0: ref<Box, managed, mutable, local>): int32 {
+park function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
     v1: ref<int32, borrowed, 'managed, readonly> = address (*v0).0
-    call park(): () => void
+    call park(): park () => void
     v2: int32 = load (*v1)
     return v2
 }
@@ -174,13 +174,13 @@ type Box {
     value: int32;
 }
 
-@binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
-external function park(): int32
+@binding("test.park", { provider: "runtime", effect: "deterministic" })
+external park function park(): int32
 
-function test(v0: ref<Box, managed, mutable, local>): int32 {
+park function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
     v1: ref<int32, borrowed, 'managed, readonly> = address (*v0).0
-    invoke park(): () => int32 => resume | cleanup
+    invoke park(): park () => int32 => resume | cleanup
 
 resume(v2: int32):
     v3: int32 = load (*v1)
@@ -198,13 +198,13 @@ type Box {
     value: int32;
 }
 
-@binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
-external function park(): int32
+@binding("test.park", { provider: "runtime", effect: "deterministic" })
+external park function park(): int32
 
-function test(v0: ref<Box, managed, mutable, local>): int32 {
+park function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
     v1: ref<int32, borrowed, 'managed, readonly> = address (*v0).0
-    invoke park(): () => int32 => b1 | b2
+    invoke park(): park () => int32 => b1 | b2
 
 b1(v2: int32):
     v3: int32 = load (*v1)
@@ -226,14 +226,14 @@ type Box {
     value: int32;
 }
 
-@binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
-external function park(): void
+@binding("test.park", { provider: "runtime", effect: "deterministic" })
+external park function park(): void
 
-function test(v0: ref<Box, managed, mutable, local>): int32 {
+park function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
     v1: ref<int32, borrowed, 'managed, readonly> = address (*v0).0
     v2: int32 = load (*v1)
-    call park(): () => void
+    call park(): park () => void
     return v2
 }
 "#,
@@ -245,14 +245,14 @@ type Box {
     value: int32;
 }
 
-@binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
-external function park(): void
+@binding("test.park", { provider: "runtime", effect: "deterministic" })
+external park function park(): void
 
-function test(v0: ref<Box, managed, mutable, local>): int32 {
+park function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
     v1: ref<int32, borrowed, 'managed, readonly> = address (*v0).0
     v2: int32 = load (*v1)
-    call park(): () => void
+    call park(): park () => void
     return v2
 }
 "#,
@@ -266,12 +266,12 @@ entry(v0: ref<Box, managed, mutable, local>):
 fn test_hold_nothing_for_a_borrowed_parameter_across_a_park() {
     let mut program = TestProgram::mir(
         r#"
-@binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
-external function park(): void
+@binding("test.park", { provider: "runtime", effect: "deterministic" })
+external park function park(): void
 
-function test<'a>(v0: ref<int32, borrowed, 'a, readonly>): int32 {
+park function test<'a>(v0: ref<int32, borrowed, 'a, readonly>): int32 {
 entry(v0: ref<int32, borrowed, 'a, readonly>):
-    call park(): () => void
+    call park(): park () => void
     v1: int32 = load (*v0)
     return v1
 }
@@ -280,12 +280,12 @@ entry(v0: ref<int32, borrowed, 'a, readonly>):
 
     program.assert_optimized(
         r#"
-@binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
-external function park(): void
+@binding("test.park", { provider: "runtime", effect: "deterministic" })
+external park function park(): void
 
-function test<'a>(v0: ref<int32, borrowed, 'a, readonly>): int32 {
+park function test<'a>(v0: ref<int32, borrowed, 'a, readonly>): int32 {
 entry(v0: ref<int32, borrowed, 'a, readonly>):
-    call park(): () => void
+    call park(): park () => void
     v1: int32 = load (*v0)
     return v1
 }

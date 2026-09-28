@@ -3,7 +3,7 @@ use tspp_core::FxIndexMap;
 use tspp_mir as mir;
 
 use crate::elaborate::drop::{
-    BlockDrop, DropAction, DropEmitter, DropPlan, EdgeDrop, OverwriteDrop,
+    BlockDrop, DropAction, DropEmitter, DropPlan, EdgeDrop, OverwriteDrop, UnwindDrop,
 };
 
 /// Inserter for planned MIR drops.
@@ -45,9 +45,15 @@ impl<'a> DropInserter<'a> {
                 block_drops,
                 edge_drops,
                 overwrite_drops,
+                unwind_drops,
             } = plan;
             self.insert_block_drops(function_id, &paths, block_drops, overwrite_drops);
             self.insert_edge_drops(function_id, &paths, edge_drops);
+
+            // split each block at its last call first, keeping earlier calls in place
+            for unwind in unwind_drops.into_iter().rev() {
+                self.insert_unwind_drops(function_id, &paths, unwind);
+            }
         }
     }
 
@@ -218,5 +224,84 @@ impl<'a> DropInserter<'a> {
                 }
             }
         }
+    }
+
+    /// Turn one call into an invoke whose unwind edge destroys the values it leaves owned.
+    fn insert_unwind_drops(
+        &mut self,
+        function_id: mir::LocalNodeId<mir::Function>,
+        paths: &mir::MoveTable,
+        unwind: UnwindDrop,
+    ) {
+        // find the call in its block
+        let block_id = unwind.block;
+        let index = self
+            .tree
+            .get(block_id)
+            .instructions
+            .iter()
+            .position(|id| *id == unwind.call)
+            .unwrap_or_else(|| unreachable!("planned unwind call is absent from its block"));
+        let mir::Instruction::Call { destination, call } = self.tree.get(unwind.call).clone()
+        else {
+            unreachable!("planned unwind point is a call");
+        };
+
+        // move the instructions after the call into the normal continuation
+        let block = self.tree.get_mut(block_id);
+        let rest = block.instructions.split_off(index + 1);
+        block.instructions.pop();
+        let terminator = block.terminator;
+        let parameters = destination
+            .map(|value| {
+                let ty = self
+                    .tree
+                    .get(function_id)
+                    .value_type(value)
+                    .unwrap_or_else(|| unreachable!("a call result without its type"));
+
+                mir::BlockParameter { value, ty }
+            })
+            .into_iter()
+            .collect();
+        let mut normal = mir::Block::with_parameters(parameters, terminator);
+        normal.instructions = rest;
+        let normal = self.tree.insert(normal);
+
+        // destroy the owned values on the unwind edge, then continue unwinding
+        let resume = self.tree.insert(mir::Terminator::UnwindResume);
+        let cleanup = self.tree.insert(mir::Block::new(resume));
+        let mut instructions = Vec::new();
+        for action in unwind.actions {
+            instructions.extend(
+                DropEmitter::new(self.tree, self.drops, function_id, cleanup, paths).emit(action),
+            );
+        }
+        let instructions = instructions
+            .into_iter()
+            .map(|instruction| self.tree.insert(instruction))
+            .collect();
+        self.tree.get_mut(cleanup).instructions = instructions;
+
+        // end the call's block in the invoke, keeping the call's source
+        let no_arguments = self.tree.add_values(&[]);
+        let invoke = self.tree.insert(mir::Terminator::Invoke {
+            call,
+            target: mir::BlockTarget::new(normal, no_arguments),
+            unwind: mir::BlockTarget::new(cleanup, no_arguments),
+        });
+        if let Some(source) = self.tree.get_source(unwind.call.id) {
+            self.tree.set_source(invoke.id, source);
+        }
+        if let Some(span) = self.tree.get_span_by_id(unwind.call.id) {
+            self.tree.set_span_by_id(invoke.id, span);
+        }
+        self.tree.get_mut(block_id).terminator = invoke;
+
+        // order the continuation and the cleanup after the call's block
+        let mut function = self.tree.get(function_id).clone();
+        function.insert_block_after(block_id, normal, self.tree);
+        function.insert_block_after(normal, cleanup, self.tree);
+        self.tree.set(function_id, function);
     }
 }

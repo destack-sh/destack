@@ -41,6 +41,8 @@ pub(in crate::elaborate) struct DropPlan {
     pub(in crate::elaborate) edge_drops: Vec<EdgeDrop>,
     /// Planned destruction of the values stores overwrite inside each block.
     pub(in crate::elaborate) overwrite_drops: FxIndexMap<mir::BlockId, Vec<OverwriteDrop>>,
+    /// Planned destruction on the unwind edge of each call holding owned values.
+    pub(in crate::elaborate) unwind_drops: Vec<UnwindDrop>,
 }
 
 /// Destruction of the value one store overwrites through a reference.
@@ -50,6 +52,17 @@ pub(in crate::elaborate) struct OverwriteDrop {
     pub(in crate::elaborate) store: usize,
     /// The storage the store overwrites.
     pub(in crate::elaborate) place: mir::Place,
+}
+
+/// Destruction one call's unwind edge runs before unwinding further.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(in crate::elaborate) struct UnwindDrop {
+    /// The block holding the call.
+    pub(in crate::elaborate) block: mir::LocalNodeId<mir::Block>,
+    /// The call receiving an unwind edge.
+    pub(in crate::elaborate) call: mir::LocalNodeId<mir::Instruction>,
+    /// Destruction of every value still owned after the call.
+    pub(in crate::elaborate) actions: Vec<DropAction>,
 }
 
 /// Ownership analyses used to build one drop plan.
@@ -79,6 +92,8 @@ struct DropAnalysis<'a> {
     edge_drops: Vec<EdgeDrop>,
     /// Planned destruction of the values stores overwrite inside each block.
     overwrite_drops: FxIndexMap<mir::BlockId, Vec<OverwriteDrop>>,
+    /// Planned destruction on the unwind edge of each call holding owned values.
+    unwind_drops: Vec<UnwindDrop>,
 }
 
 /// Destruction planned at one instruction boundary.
@@ -200,6 +215,7 @@ impl<'a> DropAnalysis<'a> {
             block_drops: FxIndexMap::default(),
             edge_drops: Vec::new(),
             overwrite_drops: FxIndexMap::default(),
+            unwind_drops: Vec::new(),
         };
 
         // plan block-local and edge-specific destruction
@@ -213,6 +229,7 @@ impl<'a> DropAnalysis<'a> {
             block_drops: analysis.block_drops,
             edge_drops: analysis.edge_drops,
             overwrite_drops: analysis.overwrite_drops,
+            unwind_drops: analysis.unwind_drops,
         }
     }
 
@@ -275,6 +292,7 @@ impl<'a> DropAnalysis<'a> {
             self.initialization
                 .transfer_instruction(*instruction_id, state, self.tree);
             live.advance(instruction, self.tree);
+            self.plan_unwind(block_id, *instruction_id, instruction, state);
 
             // include newly defined ownership
             if let Some(destination) = instruction.destination()
@@ -321,6 +339,37 @@ impl<'a> DropAnalysis<'a> {
                     self.plan_drop(block_id, block.instructions.len(), root, state);
                 }
             }
+        }
+    }
+
+    /// Plan destruction of every value a call leaves owned, run when the call unwinds.
+    fn plan_unwind(
+        &mut self,
+        block: mir::LocalNodeId<mir::Block>,
+        instruction_id: mir::LocalNodeId<mir::Instruction>,
+        instruction: &mir::Instruction,
+        state: &mir::InitializationState,
+    ) {
+        let mir::Instruction::Call { destination, .. } = instruction else {
+            return;
+        };
+
+        // destroy every initialized owner except the result the call never produced
+        let result = destination
+            .and_then(|value| self.paths.value(value))
+            .map(|path| self.paths.root(path));
+        let actions = self
+            .owners()
+            .rev()
+            .filter(|root| Some(*root) != result)
+            .flat_map(|root| self.initialized_drop_actions(root, state))
+            .collect::<Vec<_>>();
+        if !actions.is_empty() {
+            self.unwind_drops.push(UnwindDrop {
+                block,
+                call: instruction_id,
+                actions,
+            });
         }
     }
 
@@ -430,6 +479,11 @@ impl<'a> DropAnalysis<'a> {
         root: mir::MovePathId,
         state: &mir::InitializationState,
     ) -> Vec<DropAction> {
+        // skip copyable values
+        if self.paths.get(root).is_copy {
+            return Vec::new();
+        }
+
         // drop a completely initialized subtree as one value
         if state.is_initialized(root, &self.paths) {
             return vec![DropAction::Drop(root)];

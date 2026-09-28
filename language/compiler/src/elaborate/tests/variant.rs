@@ -23,7 +23,7 @@ entry(v0: Value):
     return
 }
 
-function drop.frame<Value, 'a>(v0: ref<Value, borrowed, 'a, exclusive>): void {
+shared function drop.frame<Value, 'a>(v0: ref<Value, borrowed, 'a, exclusive>): void {
 entry(v0: ref<Value, borrowed, 'a, exclusive>):
     v1: uint1 = variant.tag.load (*v0)
     v2: uint1 = 0
