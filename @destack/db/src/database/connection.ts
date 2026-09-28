@@ -7,7 +7,12 @@ import { SelectBuilder, type SelectedSubquery, type SelectQuery } from "../query
 import { sql, type SQL, type WithSubquery } from "drizzle-orm";
 import { MutationQuery } from "../query/mutation.ts";
 import type { ResourceState } from "@destack/package/declare";
-import { declareState, type DeclareOptions } from "../migration/state.ts";
+import {
+    declareState,
+    readState,
+    unappliedTables,
+    type DeclareOptions,
+} from "../migration/state.ts";
 import { planMigration, planStates } from "../migration/database.ts";
 import { applyPlan } from "../migration/apply.ts";
 import type { TablePlan } from "../migration/plan.ts";
@@ -154,6 +159,11 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         await this.apply(plan);
 
         return plan;
+    }
+
+    /** Name the tables whose applied state does not hold their declaration, none once a migration applied them. */
+    async unapplied(tables: readonly Table[], options: DeclareOptions = {}): Promise<string[]> {
+        return unappliedTables(await readState(this), declareState(tables, this.dialect, options));
     }
 
     /** Plan the union of the desired states of every declaration bound to this database. */

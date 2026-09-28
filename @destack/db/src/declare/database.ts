@@ -5,12 +5,7 @@ import type { ResourceContext } from "@destack/resource/context";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { TABLE, type Table } from "../table/table.ts";
 import { expandTrees } from "../tree/tree.ts";
-import {
-    type DatabaseState,
-    declareState,
-    readState,
-    unappliedTables,
-} from "../migration/state.ts";
+import { type DatabaseState, declareState } from "../migration/state.ts";
 export type { DatabaseConnection } from "../database/connection.ts";
 
 /** Where a database lives: once for the universe, once per region, or with each space. */
@@ -55,11 +50,8 @@ export class Database extends Resource<DatabaseConnection, DatabaseDescription> 
     }
 
     /** Name the tables this declaration requires that a connected database has not applied. */
-    async check(connection: DatabaseConnection): Promise<string[]> {
-        return unappliedTables(
-            await readState(connection),
-            declareState(this.tables, connection.dialect),
-        );
+    check(connection: DatabaseConnection): Promise<string[]> {
+        return connection.unapplied(this.tables);
     }
 }
 
