@@ -171,6 +171,11 @@ export function inlineExpression(value: unknown, dialect: Dialect): string {
         }
     }
 
+    // write JSON documents as string literals, which JSON columns cast from
+    if (typeof value === "object" && value !== null && !(value instanceof SQL)) {
+        return literal(JSON.stringify(value));
+    }
+
     // render the expression with unqualified columns
     const expression = value instanceof SQL ? value : sql`${value}`;
     const unqualified = (chunk: SQLChunk) =>

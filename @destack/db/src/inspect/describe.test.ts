@@ -1,7 +1,8 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { sql } from "drizzle-orm";
 import { defineTable, TABLE } from "../table/table.ts";
-import { text } from "../table/column.ts";
+import { json, text } from "../table/column.ts";
+import { schema } from "@destack/schema";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
 import { DatabaseError } from "../error/error.ts";
 
@@ -11,6 +12,29 @@ const lamp = defineTable("describe_lamp", {
     id: text("id").primaryKey(),
     /** Whether the lamp shines, absent before it is wired. */
     state: text("state", { enum: ["on", "off"] }),
+});
+
+/** Shelves whose labels and layout start empty. */
+const shelf = defineTable("describe_shelf", {
+    /** The shelf's identifier. */
+    id: text("id").primaryKey(),
+    /** The labels on the shelf. */
+    labels: json("labels", schema.array(schema.string())).notNull().default([]),
+    /** The shelf's layout. */
+    layout: json("layout", schema.record(schema.string(), schema.number())).notNull().default({}),
+});
+
+test.for(TEST_DIALECTS)("fill JSON columns with their declared defaults on %s", async (dialect) => {
+    const storage = await TestDatabase.create(dialect, [shelf], { isMigrated: true });
+    onTestFinished(() => storage.close());
+
+    // insert through raw SQL, which leaves both columns to their database defaults
+    await storage.database.execute(
+        sql`INSERT INTO ${sql.identifier(shelf[TABLE].sqlName)} (id) VALUES ('a')`,
+    );
+    expect(await storage.database.select().from(shelf)).toEqual([
+        { id: "a", labels: [], layout: {} },
+    ]);
 });
 
 test.for(TEST_DIALECTS)(
