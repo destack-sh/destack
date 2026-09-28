@@ -1,7 +1,8 @@
 use smallvec::{SmallVec, smallvec};
 use tspp_mir::{
-    BlockId, BlockTarget, Call, FunctionId, Instruction, Multiplicity, Place, PlaceType, Reference,
-    Space, Substitution, Successor, Terminator, Tree, Type, TypeId, Value, is_copy,
+    BlockId, BlockParameter, BlockTarget, Call, FunctionId, Instruction, Multiplicity, Place,
+    PlaceType, Reference, Space, Substitution, Successor, Terminator, Tree, Type, TypeId, Value,
+    is_copy,
 };
 
 use crate::verify::VerifyState;
@@ -113,9 +114,7 @@ impl VerifyState<'_> {
         }
     }
 
-    /// Validate that one address result references the type of the place it addresses.
-    ///
-    /// A result that cannot write may also weaken the access of the referenced value.
+    /// Validate that one address result references its place's type at equal or weaker access.
     fn validate_address(&mut self, function_id: FunctionId, place: &Place, result_type: TypeId) {
         let tree = self.tree;
         let result = tree.type_definition(tree.storage_type(result_type));
@@ -178,11 +177,7 @@ impl VerifyState<'_> {
         }
     }
 
-    /// Validate the values one edge produces and passes against its target block's parameters.
-    ///
-    /// A normal invoke edge of a non-void call produces the call result as the first parameter.
-    /// A fallible allocation's success edge produces the allocation as the first parameter.
-    /// Every other edge produces nothing, and the explicit arguments fill the remaining parameters.
+    /// Validate the values one edge produces and passes against its target's parameters.
     fn validate_edge(
         &mut self,
         function_id: FunctionId,
@@ -195,14 +190,10 @@ impl VerifyState<'_> {
         let parameters = &tree.get(target.block).parameters;
         let produced = terminator.target_result_count(tree, successor);
 
-        // fill the call result or hold an allocation of the named heap
+        // check the produced call result or allocation
         match (terminator, &parameters[..produced]) {
-            (Terminator::Invoke { call, .. }, [result]) => {
-                let Some((_, _, actual)) = tree.get(call.signature).function_signature_parts()
-                else {
-                    unreachable!("an invoke producing a result has a function signature");
-                };
-                self.validate_fill(function_id, actual, result.ty, "call result");
+            (Terminator::Invoke { call, .. }, result) if successor == Successor::InvokeNormal => {
+                self.validate_invoke_result(function_id, call, result);
             }
             (
                 Terminator::NewZeroedTry { space, .. }
@@ -214,7 +205,7 @@ impl VerifyState<'_> {
             _ => {}
         }
 
-        // fill each remaining parameter with its explicit argument
+        // check each explicit argument
         let Some(explicit) = terminator.target_parameters(tree, successor, target) else {
             unreachable!("an analysed block target has an invalid argument count");
         };
@@ -224,7 +215,29 @@ impl VerifyState<'_> {
         }
     }
 
-    /// Validate one call's signature, its arity, and each argument against its parameter type.
+    /// Validate the result an invoke passes to its normal target.
+    fn validate_invoke_result(
+        &mut self,
+        function_id: FunctionId,
+        call: &Call,
+        result: &[BlockParameter],
+    ) {
+        let tree = self.tree;
+        let Some((_, _, actual)) = tree.get(call.signature).function_signature_parts() else {
+            return;
+        };
+
+        // fill the declared result
+        if let [result] = result {
+            self.validate_fill(function_id, actual, result.ty, "call result");
+        }
+        // drop only a void result
+        else if !matches!(tree.get(actual), Type::Void) {
+            self.reject_mir(function_id, "an invoke drops its call result".to_string());
+        }
+    }
+
+    /// Validate one call's signature, its arity, park, and each argument against its parameter.
     fn validate_call(&mut self, function_id: FunctionId, call: &Call) {
         let tree = self.tree;
         let Some((_, parameters, _)) = tree.get(call.signature).function_signature_parts() else {
@@ -234,6 +247,15 @@ impl VerifyState<'_> {
             );
             return;
         };
+
+        // park only inside a function that declares it parks
+        if call.park(tree).may_park() && !tree.get(function_id).park.may_park() {
+            self.reject_mir(
+                function_id,
+                "a parking call inside a function that cannot park".to_string(),
+            );
+        }
+
         let arguments = tree.get_values(call.arguments);
         if arguments.len() != parameters.len() {
             self.reject_mir(
@@ -327,8 +349,6 @@ impl VerifyState<'_> {
 }
 
 /// Return each value one instruction stores with the type of the storage it fills.
-///
-/// A slice descriptor stores an untyped address and length, which `validate_slice` checks.
 pub(super) fn stored_values(
     tree: &Tree,
     function_id: FunctionId,
@@ -450,8 +470,6 @@ pub(super) fn struct_field_count(tree: &Tree, ty: TypeId) -> Option<usize> {
 }
 
 /// Return whether one value type fills a destination type up to lifetimes.
-///
-/// The outermost layer also takes `never` and weakens reference access and multiplicity.
 fn fills(tree: &Tree, expected: TypeId, actual: TypeId, is_outermost: bool) -> bool {
     let expected = Substitution::resolve(expected, tree);
     let actual = Substitution::resolve(actual, tree);

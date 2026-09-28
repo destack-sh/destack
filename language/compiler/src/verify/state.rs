@@ -5,8 +5,8 @@ use tspp_artifact::{DiagnosticBuilder, MirLowered};
 use tspp_core::{FxIndexSet, StringPool};
 use tspp_mir::{
     CallTable, DispatchTable, DropTable, EffectTable, FormatOptions, Formatter, Function,
-    FunctionBehavior, FunctionCache, FunctionId, LocalNodeId, LocalNodeIdAny, ResolutionTable,
-    RetentionTable, TargetLayout, Tree, TypeId, WitnessTable,
+    FunctionCache, FunctionId, LocalNodeIdAny, ResolutionTable, RetentionTable, TargetLayout, Tree,
+    TypeId, WitnessTable,
 };
 
 use crate::verify::{FunctionChecker, VerifyError};
@@ -42,7 +42,6 @@ impl<'a> VerifyState<'a> {
             strings,
             &lowered.drops,
             &lowered.dispatch,
-            &lowered.effects,
             Some(&lowered.witnesses),
             lowered.target,
         )
@@ -54,13 +53,12 @@ impl<'a> VerifyState<'a> {
         strings: &'a StringPool,
         drops: &'a DropTable,
         dispatch: &DispatchTable,
-        effects: &EffectTable,
         witnesses: Option<&WitnessTable>,
         target: TargetLayout,
     ) -> Self {
         let resolution = ResolutionTable::analyse(dispatch, witnesses, tree);
         let calls = CallTable::analyse(&resolution, tree);
-        let effects = Arc::new(EffectTable::analyse(&resolution, &calls, effects, tree));
+        let effects = Arc::new(EffectTable::analyse(&resolution, &calls, tree));
 
         Self {
             tree,
@@ -118,31 +116,15 @@ impl<'a> VerifyState<'a> {
         self.check_drop_effects();
     }
 
-    /// Check every authored drop hook for forbidden effects.
+    /// Reject every authored drop hook that may park.
     fn check_drop_effects(&mut self) {
         let hooks: FxIndexSet<_> = self.drops.hooks().map(|(_, function)| function).collect();
-        let effects = self.effects.clone();
-
-        // check each hook whose body this module analyzed
         for function in hooks {
-            let Some(effect) = effects.function(function) else {
-                continue;
-            };
-            let behavior = effect.behavior.clone();
-
-            self.check_drop_hook(function, &behavior);
+            if self.tree.get(function).park.may_park() {
+                let anchor = self.anchor(function.into_any());
+                self.emit_error(VerifyError::DropEffect { anchor });
+            }
         }
-    }
-
-    /// Check one drop hook's closed behavior.
-    fn check_drop_hook(&mut self, function: LocalNodeId<Function>, behavior: &FunctionBehavior) {
-        if !behavior.park.may_park() {
-            return;
-        }
-
-        let anchor = self.anchor(function.into_any());
-
-        self.emit_error(VerifyError::DropEffect { anchor });
     }
 
     /// Create a source anchor for one MIR node.

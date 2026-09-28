@@ -483,7 +483,7 @@ type String {
 
 type test.main.Ref = newtype<test.main.Id>;
 
-function test.main.wrap(v0: ref<test.main.Id, managed, mutable, local>): ref<test.main.Ref, managed, mutable, local> {
+export function test.main.wrap(v0: ref<test.main.Id, managed, mutable, local>): ref<test.main.Ref, managed, mutable, local> {
     local l0: ref<test.main.Id, managed, mutable, local>
 
 entry(v0: ref<test.main.Id, managed, mutable, local>):
@@ -495,7 +495,7 @@ entry(v0: ref<test.main.Id, managed, mutable, local>):
     return v4
 }
 
-function test.main.map<T, U>(v0: T, v1: function<(T) => U, repeatable, managed, mutable, local>): U {
+export function test.main.map<T, U>(v0: T, v1: function<(T) => U, repeatable, managed, mutable, local>): U {
     local l0: T
     local l1: function<(T) => U, repeatable, managed, mutable, local>
 
@@ -511,7 +511,7 @@ entry(v0: T, v1: function<(T) => U, repeatable, managed, mutable, local>):
 
 shared function test.main.map<ref<test.main.Id, managed, mutable, local>, ref<test.main.Ref, managed, mutable, local>>(v0: ref<test.main.Id, managed, mutable, local>, v1: function<(ref<test.main.Id, managed, mutable, local>) => ref<test.main.Ref, managed, mutable, local>, repeatable, managed, mutable, local>): ref<test.main.Ref, managed, mutable, local>;
 
-function test.main.wrap.closure#0(v0: ref<test.main.Id, managed, mutable, local>): ref<test.main.Ref, managed, mutable, local> {
+export function test.main.wrap.closure#0(v0: ref<test.main.Id, managed, mutable, local>): ref<test.main.Ref, managed, mutable, local> {
     local l0: ref<test.main.Id, managed, mutable, local>
 
 entry(v0: ref<test.main.Id, managed, mutable, local>):
@@ -568,7 +568,7 @@ type String {
 
 type test.main.Ref = newtype<test.main.Id>;
 
-function test.main.wrap<'a>(v0: ref<test.main.Id, managed, mutable, local>, v1: ref<String, borrowed, 'a, readonly>): ref<test.main.Ref, managed, mutable, local> {
+export function test.main.wrap<'a>(v0: ref<test.main.Id, managed, mutable, local>, v1: ref<String, borrowed, 'a, readonly>): ref<test.main.Ref, managed, mutable, local> {
     local l0: ref<test.main.Id, managed, mutable, local>
     local l1: ref<String, borrowed, 'a, readonly>
 
@@ -582,7 +582,7 @@ entry(v0: ref<test.main.Id, managed, mutable, local>, v1: ref<String, borrowed, 
     return v5
 }
 
-function test.main.map<T, U>(v0: T, v1: function<(T) => U, repeatable, managed, mutable, local>): U {
+export function test.main.map<T, U>(v0: T, v1: function<(T) => U, repeatable, managed, mutable, local>): U {
     local l0: T
     local l1: function<(T) => U, repeatable, managed, mutable, local>
 
@@ -598,7 +598,7 @@ entry(v0: T, v1: function<(T) => U, repeatable, managed, mutable, local>):
 
 shared function test.main.map<ref<test.main.Id, managed, mutable, local>, ref<test.main.Ref, managed, mutable, local>>(v0: ref<test.main.Id, managed, mutable, local>, v1: function<(ref<test.main.Id, managed, mutable, local>) => ref<test.main.Ref, managed, mutable, local>, repeatable, managed, mutable, local>): ref<test.main.Ref, managed, mutable, local>;
 
-function test.main.wrap.closure#0<'a>(v0: ref<test.main.Id, managed, mutable, local>): ref<test.main.Ref, managed, mutable, local> {
+export function test.main.wrap.closure#0<'a>(v0: ref<test.main.Id, managed, mutable, local>): ref<test.main.Ref, managed, mutable, local> {
     local l0: ref<test.main.Id, managed, mutable, local>
 
 entry(v0: ref<test.main.Id, managed, mutable, local>):

@@ -712,7 +712,7 @@ export function run(sink: Dynamic<Sink>): void {
 @nocopy
 type test.main.Sink { }
 
-function test.main.run(v0: dynamic<test.main.Sink, managed, mutable, local>): void {
+export function test.main.run(v0: dynamic<test.main.Sink, managed, mutable, local>): void {
     local l0: dynamic<test.main.Sink, managed, mutable, local>
     local l1: int32
 
@@ -790,9 +790,9 @@ type test.main.Base<T: Copy> {
     value: T;
 }
 
-global test.main.derived: ref<test.main.Derived<int32>, managed, mutable, local> = zeroinit
+export global test.main.derived: ref<test.main.Derived<int32>, managed, mutable, local> = zeroinit
 
-function test.main.run(): int32 {
+export function test.main.run(): int32 {
 entry:
     v0: ref<test.main.Derived<int32>, managed, mutable, local> = load @test.main.derived
     v1: ref<test.main.Base<int32>, managed, mutable, local> = cast.bit v0 -> ref<test.main.Base<int32>, managed, mutable, local>
@@ -800,7 +800,7 @@ entry:
     return v2
 }
 
-constructor test.main.Base.constructor<T: Copy>(v0: ref<uninit<test.main.Base<T>>, borrowed, 'managed, mutable>, v1: T): void {
+export constructor test.main.Base.constructor<T: Copy>(v0: ref<uninit<test.main.Base<T>>, borrowed, 'managed, mutable>, v1: T): void {
     local l0: T
     local l1: ref<uninit<test.main.Base<T>>, borrowed, 'managed, mutable>
 
@@ -813,7 +813,7 @@ entry(v0: ref<uninit<test.main.Base<T>>, borrowed, 'managed, mutable>, v1: T):
     return
 }
 
-function test.main.Base.get<T: Copy>(v0: ref<test.main.Base<T>, managed, mutable, local>): T {
+export function test.main.Base.get<T: Copy>(v0: ref<test.main.Base<T>, managed, mutable, local>): T {
     local l0: ref<test.main.Base<T>, managed, mutable, local>
 
 entry(v0: ref<test.main.Base<T>, managed, mutable, local>):
@@ -823,7 +823,7 @@ entry(v0: ref<test.main.Base<T>, managed, mutable, local>):
     return v2
 }
 
-constructor test.main.Derived.constructor<T: Copy>(v0: ref<uninit<test.main.Derived<T>>, borrowed, 'managed, mutable>, v1: T): void {
+export constructor test.main.Derived.constructor<T: Copy>(v0: ref<uninit<test.main.Derived<T>>, borrowed, 'managed, mutable>, v1: T): void {
     local l0: T
     local l1: ref<uninit<test.main.Derived<T>>, borrowed, 'managed, mutable>
 
@@ -838,9 +838,7 @@ entry(v0: ref<uninit<test.main.Derived<T>>, borrowed, 'managed, mutable>, v1: T)
     return
 }
 
-shared function test.main.Base.get<int32>(v0: ref<test.main.Base<int32>, managed, mutable, local>): int32;
-
-export function test.main.@init(): void {
+export park function test.main.@init(): void {
 entry:
     v0: int32 = 1
     v1: ref<test.main.Derived<int32>, managed, mutable, local> = new.zeroed test.main.Derived<int32>, local
@@ -852,6 +850,10 @@ entry:
 
 shared constructor test.main.Derived.constructor<int32>(v0: ref<uninit<test.main.Derived<int32>>, borrowed, 'managed, mutable>, v1: int32): void;
 
+shared function test.main.Base.get<int32>(v0: ref<test.main.Base<int32>, managed, mutable, local>): int32;
+
+/// @layout.struct name=Clone size=0 align=1
+/// @layout.struct name=type@5 size=0 align=1
 /// @layout.struct name=test.main.Derived<int32> size=4 align=4
 /// @layout.field owner=test.main.Derived<int32> index=0 name=value offset=0 size=4 align=4
 /// @layout.struct name=test.main.Base<int32> size=4 align=4

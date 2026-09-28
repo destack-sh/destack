@@ -1492,3 +1492,64 @@ for more information about an error, run `tspp explain invalidation-of-borrowed-
 "#,
     );
 }
+
+/// Readonly element borrows coexist, and writes through an element borrow it at the use's access.
+#[test]
+fn test_borrow_array_elements_at_the_access_each_use_requires() {
+    let session = TestSession::single(
+        r#"
+struct Point {
+    x: int32;
+
+    shift(&exclusive this, delta: int32): void {
+        this.x = this.x + delta;
+    }
+}
+
+export function sum(points: &exclusive Array<Point>): int32 {
+    const first = &readonly points[0];
+    const second = &readonly points[1];
+    const third = points[2].x;
+    first.x + second.x + third
+}
+
+export function update(points: &exclusive Array<Point>): void {
+    points[0].x = 3;
+    points[1].shift(2);
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics(
+        "main.tspp",
+        r#"
+"#,
+    );
+}
+
+/// An exclusive element borrow excludes every other use of its collection.
+#[test]
+fn test_reject_reading_an_array_while_an_element_is_borrowed_exclusively() {
+    let session = TestSession::single(
+        r#"
+struct Point {
+    x: int32;
+}
+
+export function sum(points: &exclusive Array<Point>): int32 {
+    const first = &exclusive points[0];
+    const second = points[1].x;
+    first.x + second
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics(
+        "main.tspp",
+        r#"
+/// @diagnostic.error id=borrow-conflict message="borrow conflicts with active borrow"
+/// @diagnostic.label line=8 column=20 span="points[1]" line_source="const second = points[1].x;"
+/// @diagnostic.related line=7 column=30 span="points" line_source="const first = &exclusive points[0];" message="borrow starts here"
+"#,
+    );
+}

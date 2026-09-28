@@ -77,7 +77,10 @@ impl FunctionChecker<'_, '_> {
                 self.check_issued_loans(*destination, anchor);
                 Vec::new()
             }
-            Instruction::Call { call, .. } => self.check_call_borrows(call, anchor),
+            Instruction::Call { call, .. } => {
+                self.check_call_narrowings(call, anchor);
+                self.check_call_borrows(call, anchor)
+            }
             _ => Vec::new(),
         };
         let effects = self.effects.clone();
@@ -119,6 +122,7 @@ impl FunctionChecker<'_, '_> {
         // check every access against the loans live here
         let authorized = match terminator {
             Terminator::Invoke { call, .. } | Terminator::TailCall { call } => {
+                self.check_call_narrowings(call, anchor);
                 self.check_call_borrows(call, anchor)
             }
             _ => Vec::new(),
@@ -260,6 +264,51 @@ impl FunctionChecker<'_, '_> {
         loans.extend_parents(&mut authorized, &mut self.authorized_loans);
 
         authorized
+    }
+
+    /// Check one call against the live narrowings it may change.
+    fn check_call_narrowings(&mut self, call: &Call, anchor: LocalNodeIdAny) {
+        // collect the places writable reference arguments reach
+        let mut written = Vec::new();
+        for &argument in self.tree.get_values(call.arguments) {
+            let is_writable = self
+                .value_type(argument)
+                .reference_access()
+                .is_some_and(Access::can_write);
+            if is_writable {
+                written.extend(self.argument_places(argument));
+            }
+        }
+
+        // break the narrowings of aliasable or reached places
+        let loans = self.origin.loans();
+        let broken = self
+            .active_loans
+            .iter()
+            .copied()
+            .filter(|&loan_id| {
+                let loan = loans.get(loan_id);
+                let Some(borrowed) = loan.place().filter(|_| loan.is_shallow) else {
+                    return false;
+                };
+
+                borrowed.is_aliasable(self.function_id, self.tree)
+                    || written.iter().any(|place| {
+                        loan.forbids(
+                            &AccessTarget::Place(place.clone()),
+                            Access::Mutable,
+                            anchor,
+                            &self.constants,
+                            &self.places,
+                            self.function_id,
+                            self.tree,
+                        )
+                    })
+            })
+            .collect::<SmallVec<[LoanId; 2]>>();
+        for loan in broken {
+            self.report_conflict(AccessKind::Write, loan, anchor);
+        }
     }
 
     /// Revoke the loans one operation authorized.
@@ -440,8 +489,21 @@ impl FunctionChecker<'_, '_> {
         if !self.reports(loan, anchor) {
             return;
         }
-        let borrowed_at = self.anchor(self.origin.loans().get(loan).issued_at);
+        let loan = self.origin.loans().get(loan).clone();
+        let borrowed_at = self.anchor(loan.issued_at);
         let anchor = self.anchor(anchor);
+
+        // report a stale narrowing
+        if loan.is_shallow {
+            let error = VerifyError::StaleNarrowing {
+                anchor,
+                narrowed_at: borrowed_at.clone(),
+            };
+            self.verification
+                .emit_error(error.label(borrowed_at, "narrowed here"));
+
+            return;
+        }
 
         let error = match kind {
             AccessKind::Borrow => VerifyError::BorrowConflict {

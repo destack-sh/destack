@@ -8,6 +8,7 @@ mod initialization;
 mod library;
 mod lifetime;
 mod r#move;
+mod narrowing;
 mod origin;
 mod park;
 mod program;

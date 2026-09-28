@@ -312,6 +312,29 @@ pub enum VerifyError {
         borrowed_at: DiagnosticAnchor,
     },
 
+    /// A narrowed place may change before a read that relies on its narrowing.
+    ///
+    /// ```mir
+    /// function test(v0: ref<Slot, borrowed, 'a, mutable>): int32 {
+    /// entry(v0: ref<Slot, borrowed, 'a, mutable>):
+    ///     v1: ref<variant<uint1> { 0uint1 = int32; 1uint1 = void; }, borrowed, 'a, readonly> = fake.borrow (*v0).0
+    ///     call reset(v0)
+    ///     fake.read v1
+    ///     v2: int32 = load ((*v0).0 as 0)
+    ///     return v2
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "stale-narrowing",
+        message = "cannot change a place while a narrowing of it is used"
+    )]
+    StaleNarrowing {
+        /// The changing operation.
+        anchor: DiagnosticAnchor,
+        /// The test that narrowed the place.
+        narrowed_at: DiagnosticAnchor,
+    },
+
     /// A place cannot be read through another reference during a mutable borrow of it.
     ///
     /// ```mir

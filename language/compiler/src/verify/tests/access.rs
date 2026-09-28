@@ -642,7 +642,7 @@ type literal.string.Beta { }
 
 type test.main.Failure = newtype<variant<uint1> { 0uint1 = ref<test.main.Alpha, managed, mutable, local>; 1uint1 = ref<test.main.Beta, managed, mutable, local>; }>;
 
-function test.main.Failure.display<'a>(v0: ref<test.main.Failure, borrowed, 'a, immutable>): String {
+export function test.main.Failure.display<'a>(v0: ref<test.main.Failure, borrowed, 'a, immutable>): String {
     local l0: ref<test.main.Failure, borrowed, 'a, immutable>
     local l1: ref<ref<String, managed, mutable, local>, borrowed, 'a, immutable>, readonly
 

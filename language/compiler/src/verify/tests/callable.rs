@@ -125,3 +125,51 @@ function keep<T>(predicate: (value: T) => boolean): ((value: &immutable T) => bo
 "#,
     );
 }
+
+/// Hold a closure's borrowed captures until its last call, releasing them after.
+#[test]
+fn test_hold_borrowed_captures_until_the_closure_last_call() {
+    let session = TestSession::single(
+        r#"
+function conflicting(): int32 {
+    let count: int32 = 1;
+    @capture({ default: "borrow" })
+    const read = (): int32 => count;
+    count = 2;
+    return read();
+}
+
+function released(): int32 {
+    let count: int32 = 1;
+    @capture({ default: "borrow" })
+    const read = (): int32 => count;
+    const seen = read();
+    count = 2;
+    return seen + count;
+}
+
+function excluded(): int32 {
+    let count: int32 = 1;
+    @capture({ default: "borrow" })
+    const bump = (): void => {
+        count = count + 1;
+    };
+    const seen = count;
+    bump();
+    return seen;
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics(
+        "main.tspp",
+        r#"
+/// @diagnostic.error id=invalidation-of-borrowed-place message="cannot invalidate borrowed place"
+/// @diagnostic.label line=6 column=5 span="count = 2" line_source="count = 2;"
+/// @diagnostic.related line=5 column=18 span="(): int32 => count" line_source="const read = (): int32 => count;" message="borrow starts here"
+/// @diagnostic.error id=use-of-exclusively-borrowed-place message="cannot use exclusively borrowed place"
+/// @diagnostic.label line=25 column=18 span="count" line_source="const seen = count;"
+/// @diagnostic.related line=22 column=18 span="(): void => {\n        count = count + 1;\n    }" line_source="const bump = (): void => {" message="borrow starts here"
+"#,
+    );
+}
