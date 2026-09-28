@@ -223,12 +223,16 @@ impl NativeTable {
             .virtual_tables(program.sections())
             .iter()
             .map(|table| {
-                program
+                let methods = program
                     .dispatch()
                     .virtual_methods(program.sections(), table)
                     .iter()
-                    .map(|function| function.0)
-                    .collect::<Box<_>>()
+                    .map(|function| function.0);
+                let mut row = Vec::with_capacity(methods.len() + 1);
+                row.push(table.concrete.0);
+                row.extend(methods);
+
+                row.into_boxed_slice()
             })
             .collect::<Box<_>>();
         let dynamic_tables = program
