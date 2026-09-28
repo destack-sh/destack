@@ -50,7 +50,6 @@ import {
     "www.destack.studio"    = "51436dfbd876db6e208b9fbd0ec61b22/2df5a8e0526cd6c5ea0509933b438466"
     "destack.tech"          = "82d23228972334b526961ae3bc9e2263/dc0de58235fa9013108543ef5c7c4305"
     "www.destack.tech"      = "82d23228972334b526961ae3bc9e2263/7f21f820f9446eb068305f1ecfdb86cc"
-    "symbol.industries"     = "643d8f0f0ea084d0c31c40098d7faec6/a4e33c4686147d6a9e58c4dcda7267e8"
     "www.symbol.industries" = "643d8f0f0ea084d0c31c40098d7faec6/28ae49274e5893d824163f1ccb2acbf9"
   }
   to = cloudflare_dns_record.redirects[each.key]

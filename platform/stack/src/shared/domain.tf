@@ -76,8 +76,8 @@ locals {
       hosts  = ["destack.tech", "www.destack.tech"]
     }
     "symbol.industries" = {
-      target = "destack.sh"
-      hosts  = ["symbol.industries", "www.symbol.industries"]
+      target = "symbol.industries"
+      hosts  = ["www.symbol.industries"]
     }
   }
 }
@@ -98,7 +98,7 @@ locals {
     for name, zone in local.redirects : {
       for host in zone.hosts : host => merge(
         { zone_id = cloudflare_zone.domains[name].id },
-        lookup(local.redirect_dns, host, { type = "AAAA", content = "100::" }),
+        { type = "AAAA", content = "100::" },
       )
     }
   ]...)
@@ -135,11 +135,4 @@ resource "cloudflare_ruleset" "redirects" {
       }
     }
   }]
-}
-
-locals {
-  redirect_dns = {
-    "symbol.industries"     = { type = "A", content = "192.64.119.178" }
-    "www.symbol.industries" = { type = "CNAME", content = "parkingpage.namecheap.com" }
-  }
 }
