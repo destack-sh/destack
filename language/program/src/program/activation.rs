@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{Binding, Context, Event, EventSet, FiberId, Memory, Value, Word};
+use crate::{Binding, Context, Event, EventSet, FiberId, Memory, Word};
 
 /// Action returned by one runtime poll.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -43,19 +43,16 @@ pub trait Runtime {
         binding: &Binding,
         arguments: &[Word],
         result: &mut [Word],
-    ) -> Result<(), Self::Error>;
-
-    /// Park one logical fiber, or take an already delivered wake value.
-    fn park(&mut self, fiber_id: FiberId) -> Result<Park, Self::Error>;
+    ) -> Result<BindingExit, Self::Error>;
 }
 
-/// Decision returned by one fiber park request.
-#[derive(Debug, PartialEq, Eq)]
-pub enum Park {
-    /// The logical fiber is parked and returns control to its worker.
+/// How one binding call leaves its calling fiber.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BindingExit {
+    /// The binding returned its results.
+    Returned,
+    /// The binding parked the fiber, which a later wake resumes with the results.
     Parked,
-    /// The wake already settled; execution continues immediately.
-    Ready(Value),
 }
 
 /// One active program execution.
