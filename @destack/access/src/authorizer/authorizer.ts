@@ -482,21 +482,6 @@ export class Authorizer {
         return rows.map((row) => Relationship.decode(row as RelationshipRow));
     }
 
-    /** Report whether relationships name an identifier of an object type in any scope, as they may after the object was deleted. */
-    async isRelated(snapshot: Snapshot, policy: Policy, id: string): Promise<boolean> {
-        const [row] = await snapshot.ordered(accessRelationship, {
-            where: Condition.all(
-                Condition.eq("packageId", policy.definition.packageId),
-                Condition.eq("type", policy.definition.name),
-                Condition.eq("objectId", id),
-            ),
-            order: [{ column: "id", direction: "asc" }],
-            count: 1,
-        });
-
-        return row !== undefined;
-    }
-
     /** Require a relationship to name exactly one relation or role, a subject the relation or role accepts, and a future expiry. */
     validate(
         request: {
@@ -604,17 +589,14 @@ export class Authorizer {
     ): Promise<Decision> {
         // decide a missing object, which nobody holds a permission on
         const mapping = this.mapping(target);
-        const row = await this.#read(snapshot, target);
+        const reading = reader ?? this.reader(snapshot, access.scopes);
+        const row = await reading.row(mapping, target);
         if (row === undefined) {
             return { isAllowed: false };
         }
 
         // read the tree the permission reaches on the object, whose grants bound when the decision next changes by time
-        const [tree] = await (reader ?? this.reader(snapshot, access.scopes)).trees(
-            permission,
-            [row],
-            mapping,
-        );
+        const [tree] = await reading.trees(permission, [row], mapping);
         const until = earliest([access.until, grantsUntil(GrantTree.flatten(tree!), access)]);
 
         // admit the caller when every authority holds the permission, past its gate for one object
@@ -701,16 +683,15 @@ export class Authorizer {
     /** Decide whether the caller owns one object, every authority holding a role that grants everything on or above it. */
     async owns(snapshot: Snapshot, target: ObjectReference, access: Access): Promise<boolean> {
         // own no missing object
-        const row = await this.#read(snapshot, target);
+        const mapping = this.mapping(target);
+        const reader = this.reader(snapshot, access.scopes);
+        const row = await reader.row(mapping, target);
         if (row === undefined) {
             return false;
         }
 
         // read the bindings on or above the object, which admit an authority through a role granting everything
-        const tree = await this.reader(snapshot, access.scopes).ownership(
-            row,
-            this.mapping(target),
-        );
+        const tree = await reader.ownership(row, mapping);
 
         return access.authorities.every((authority) => GrantTree.holds(tree, authority, access));
     }
@@ -762,14 +743,16 @@ export class Authorizer {
                 "explain a permission of the object's own type",
             );
         }
-        const found = await this.#read(snapshot, target);
+        const mapping = this.mapping(target);
+        const reader = this.reader(snapshot, access.scopes);
+        const found = await reader.row(mapping, target);
         if (found === undefined) {
             throw new AccessError("NOT_FOUND", `no ${target.type} ${target.id}`);
         }
 
         // decide each authority by the permission's tree, and each grant it reaches alone
-        const blocked = this.#gate(permission, this.mapping(target), found, access, "object");
-        const [tree] = await this.reader(snapshot, access.scopes).trees(permission, [found]);
+        const blocked = this.#gate(permission, mapping, found, access, "object");
+        const [tree] = await reader.trees(permission, [found]);
         const grants = GrantTree.flatten(tree!);
         const decided = access.authorities.map((authority) => ({
             ...(authority.delegator === undefined
@@ -852,18 +835,6 @@ export class Authorizer {
                 (row.packageId !== definition.packageId || row.type !== definition.name))
             ? "outside"
             : undefined;
-    }
-
-    /** Read one object as a row of its type, as it is or as a snapshot shows it. */
-    async #read(
-        snapshot: Snapshot,
-        target: ObjectReference,
-    ): Promise<Record<string, unknown> | undefined> {
-        const [found] = await TableMapping.read(snapshot, this.mapping(target), target.scope, [
-            target.id,
-        ]);
-
-        return found;
     }
 
     /** Require a mapping to supply what its policy's expressions compile against: trees for transitive arrows, columns for referenced objects. */

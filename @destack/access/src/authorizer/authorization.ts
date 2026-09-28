@@ -126,11 +126,20 @@ export class Authorization {
         await this.authorizer.require(snapshot, permissions, scope, access);
     }
 
-    /** Decide whether the caller holds a permission on one object, and until when that holds by time alone. */
-    async check(permission: PermissionReference, target: ObjectReference): Promise<Decision> {
+    /** Decide whether the caller holds a permission on one object, and until when that holds by time alone, through grants a reader shares. */
+    async check(
+        permission: PermissionReference,
+        target: ObjectReference,
+        reader?: GrantReader,
+    ): Promise<Decision> {
         const access = await this.in(this.authorizer.governingScope(target));
 
-        return this.authorizer.check(this.snapshot, permission, target, access);
+        return this.authorizer.check(this.snapshot, permission, target, access, reader);
+    }
+
+    /** Start reading grants for decisions in a scope, which checks made before the call writes may share. */
+    async reader(scope: string): Promise<GrantReader> {
+        return this.authorizer.reader(this.snapshot, (await this.in(scope)).scopes);
     }
 
     /** Require the caller to hold a permission on one object. */

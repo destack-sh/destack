@@ -94,12 +94,29 @@ export class GrantReader {
     readonly #read = new Map<string, Promise<RelationshipRow[]>>();
     /** The proper ancestors of each node read so far, by tree, scope and node. */
     readonly #ancestry = new Map<string, Promise<string[]>>();
+    /** The rows read so far, absent where none exists, by type, scope and identifier. */
+    readonly #loaded = new Map<string, Promise<Record<string, unknown> | undefined>>();
 
     /** Read grants from a snapshot of a database for rows within a scope chain. */
     constructor(authorizer: Authorizer, snapshot: Snapshot, scopes: readonly ObjectReference[]) {
         this.#authorizer = authorizer;
         this.#snapshot = snapshot;
         this.#scopes = scopes;
+    }
+
+    /** Note an object a call creates, which holds no relationships before its creation writes them. */
+    creating(object: ObjectReference): void {
+        this.#read.set(objectKey(object), Promise.resolve([]));
+    }
+
+    /** Read one object as a row of its type, absent where none exists. */
+    async row(
+        mapping: TableMapping,
+        target: ObjectReference,
+    ): Promise<Record<string, unknown> | undefined> {
+        const [found] = await this.#rows(mapping, target.scope, [target.id]);
+
+        return found;
     }
 
     /** Collect the tree of the role bindings granting everything on or above a row, which its owners hold. */
@@ -563,15 +580,26 @@ export class GrantReader {
             return [];
         }
 
-        // read the rows in the scope, keeping the order of the identifiers, nearest ancestors first
-        const rows = await TableMapping.read(this.#snapshot, mapping, scope, ids);
-        const byId = new Map(rows.map((row) => [String(row[mapping.id]), row]));
+        // read the rows not read before in one query, noting the ones none exists for
+        const { packageId, name } = mapping.policy.definition;
+        const key = (id: string) => JSON.stringify([packageId, name, scope, id]);
+        const missing = ids.filter((id) => !this.#loaded.has(key(id)));
+        if (missing.length > 0) {
+            const read = TableMapping.read(this.#snapshot, mapping, scope, missing).then(
+                (rows) => new Map(rows.map((row) => [String(row[mapping.id]), row])),
+            );
+            for (const id of missing) {
+                this.#loaded.set(
+                    key(id),
+                    read.then((byId) => byId.get(id)),
+                );
+            }
+        }
 
-        return ids.flatMap((id): Record<string, unknown>[] => {
-            const row = byId.get(id);
+        // keep the order of the identifiers, nearest ancestors first
+        const rows = await Promise.all(ids.map((id) => this.#loaded.get(key(id))!));
 
-            return row === undefined ? [] : [row];
-        });
+        return rows.flatMap((row) => (row === undefined ? [] : [row]));
     }
 
     /** Read the identifiers of a row's proper ancestors through a tree. */
