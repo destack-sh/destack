@@ -16,17 +16,17 @@ Instead, you SHOULD correct an unintended body or combine the patterns when thei
             reported: r#"
 function describe(value: int32): string {
     return match (value) {
-        0 => "small"
-        1 => "small"
-        _ => "large"
+        0 => "small",
+        1 => "small",
+        _ => "large",
     };
 }
 "#,
             accepted: r#"
 function describe(value: int32): string {
     return match (value) {
-        0 | 1 => "small"
-        _ => "large"
+        0 | 1 => "small",
+        _ => "large",
     };
 }
 "#,
@@ -109,7 +109,7 @@ function describe(value: (int32, int32)): string {
             const added = right + 1;
             return `value: ${added}`;
         }
-        _ => "missing"
+        _ => "missing",
     };
 }
 "#,
@@ -138,7 +138,7 @@ warning[no-duplicate-match-arms]: match arm repeats an earlier body
    │             ^^^^^^^^^^^^^^^^^^^^^^^^^
 10 │         }
    │         ^
-11 │         _ => "missing"
+11 │         _ => "missing",
 12 │     };
    │
 "#,
@@ -153,8 +153,8 @@ warning[no-duplicate-match-arms]: match arm repeats an earlier body
             r#"
 function choose(value: boolean, left: int32, right: int32): int32 {
     return match (value) {
-        true => left + 1
-        false => right + 1
+        true => left + 1,
+        false => right + 1,
     };
 }
 "#,
@@ -171,9 +171,9 @@ function choose(value: boolean, left: int32, right: int32): int32 {
             r#"
 function classify(value: int32): int32 {
     return match (value) {
-        current if (current > 0) => 1
-        current if (current < 0) => 1
-        _ => 0
+        current if (current > 0) => 1,
+        current if (current < 0) => 1,
+        _ => 0,
     };
 }
 "#,
@@ -191,8 +191,8 @@ function classify(value: int32): int32 {
 declare function record(value: int32): int32;
 function choose(value: boolean): int32 {
     return match (value) {
-        true => record(1)
-        false => record(1)
+        true => record(1),
+        false => record(1),
     };
 }
 "#,
@@ -205,9 +205,9 @@ warning[no-duplicate-match-arms]: match arm repeats an earlier body
   │
 2 │ function choose(value: boolean): int32 {
 3 │     return match (value) {
-4 │         true => record(1)
+4 │         true => record(1),
   │                 --------- earlier body
-5 │         false => record(1)
+5 │         false => record(1),
   │                  ^^^^^^^^^ repeated body
 6 │     };
 7 │ }
@@ -224,8 +224,8 @@ warning[no-duplicate-match-arms]: match arm repeats an earlier body
             r#"
 function choose(value: boolean, text: string, values: int32[]): isize {
     return match (value) {
-        true => text.length
-        false => values.length
+        true => text.length,
+        false => values.length,
     };
 }
 "#,

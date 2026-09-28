@@ -18,9 +18,9 @@ Instead, you SHOULD use the scrutinee directly.
             reported: r#"
 function preserve(value: int32): int32 {
     return match (value) {
-        0 => 0
-        1 => 1
-        value => value
+        0 => 0,
+        1 => 1,
+        value => value,
     };
 }
 "#,
@@ -188,8 +188,8 @@ mod tests {
             r#"
 function preserve(result: Result<int32, string>): Result<int32, string> {
     return match (result) {
-        Ok { value } => Result.ok(value)
-        Err { error } => Result.err(error)
+        Ok { value } => Result.ok(value),
+        Err { error } => Result.err(error),
     };
 }
 "#,
@@ -212,8 +212,8 @@ function preserve(result: Result<int32, string>): Result<int32, string> {
             r#"
 function increment(result: Result<int32, string>): Result<int32, string> {
     return match (result) {
-        Ok { value } => Result.ok(value + 1)
-        Err { error } => Result.err(error)
+        Ok { value } => Result.ok(value + 1),
+        Err { error } => Result.err(error),
     };
 }
 "#,
@@ -230,8 +230,8 @@ function increment(result: Result<int32, string>): Result<int32, string> {
             r#"
 function preserve(value: int32): int32 {
     return match (value) {
-        matched if (matched > 0) => matched
-        matched => matched
+        matched if (matched > 0) => matched,
+        matched => matched,
     };
 }
 "#,
@@ -263,16 +263,16 @@ newtype interface RangeBounds<T> {
         value: &immutable U,
     ): boolean where T: Compare<U> {
         let isAfterStart = match (this.startBound()) {
-            { kind: "included", value: bound } => *bound <= *value
-            { kind: "excluded", value: bound } => *bound < *value
-            { kind: "unbounded" } => true
+            { kind: "included", value: bound } => *bound <= *value,
+            { kind: "excluded", value: bound } => *bound < *value,
+            { kind: "unbounded" } => true,
         };
 
         isAfterStart
             && (match (this.endBound()) {
-                { kind: "included", value: bound } => *value <= *bound
-                { kind: "excluded", value: bound } => *value < *bound
-                { kind: "unbounded" } => true
+                { kind: "included", value: bound } => *value <= *bound,
+                { kind: "excluded", value: bound } => *value < *bound,
+                { kind: "unbounded" } => true,
             })
     }
 }

@@ -18,8 +18,8 @@ Instead, you SHOULD use the maybe operator to propagate absence or failure.
             reported: r#"
 function value(result: Result<int32, string>): Result<int32, string> {
     const value = match (result) {
-        Ok { value } => value
-        Err { error } => return Result.err(error)
+        Ok { value } => value,
+        Err { error } => return Result.err(error),
     };
     return Result.ok(value);
 }
@@ -386,8 +386,8 @@ mod tests {
             r#"
 function value(result: Result<int32, string>): Result<int32, string> {
     const value = match (result) {
-        Err { error } => return Result.err(error)
-        Ok { value } => value
+        Err { error } => return Result.err(error),
+        Ok { value } => value,
     };
     return Result.ok(value);
 }
@@ -412,7 +412,7 @@ function value(result: Result<int32, string>): Result<int32, string> {
             r#"
 function value(result: Result<int32, string>): Result<int32, string> {
     const value = match (result) {
-        Ok { value } => value
+        Ok { value } => value,
         Err { error } => {
             return Result.err(error);
         }
@@ -465,8 +465,8 @@ function consume(result: Result<int32, string>): Result<int32, string> {
             r#"
 function value(maybe: int32 | undefined): int32 | undefined {
     const value = match (maybe) {
-        undefined => return undefined
-        value => value
+        undefined => return undefined,
+        value => value,
     };
     return value;
 }
@@ -516,8 +516,8 @@ function value(maybe: int32 | undefined): int32 | undefined {
             r#"
 function value(maybe: int32 | null): int32 | null {
     const value = match (maybe) {
-        null => return null
-        value => value
+        null => return null,
+        value => value,
     };
     return value;
 }
@@ -560,8 +560,8 @@ function consume(result: Result<int32, string>): Result<int32, string> {
             r#"
 function value(result: Result<int32, string>): Result<int32, string> {
     const value = match (result) {
-        Ok { value } => value
-        Err { error } => return Result.err(`invalid: ${error}`)
+        Ok { value } => value,
+        Err { error } => return Result.err(`invalid: ${error}`),
     };
     return Result.ok(value);
 }
@@ -579,8 +579,8 @@ function value(result: Result<int32, string>): Result<int32, string> {
             r#"
 function value(result: Result<int32 | undefined, string>): Result<int32 | undefined, string> {
     const value = match (result) {
-        Ok { value } => value
-        Err { error } => return Result.err(error)
+        Ok { value } => value,
+        Err { error } => return Result.err(error),
     };
     return Result.ok(value);
 }
@@ -639,8 +639,8 @@ function value(
     try {
         fallback?;
         const value = match (result) {
-            Ok { value } => value
-            Err { error } => return Result.err(error)
+            Ok { value } => value,
+            Err { error } => return Result.err(error),
         };
         return Result.ok(value);
     } catch (error) {
@@ -661,8 +661,8 @@ function value(
             r#"
 function value(result: Ok<int32> | Err<string>): Result<int32, string> {
     const value = match (result) {
-        Ok { value } => value
-        Err { error } => return Result.err(error)
+        Ok { value } => value,
+        Err { error } => return Result.err(error),
     };
     return Result.ok(value);
 }
@@ -680,8 +680,8 @@ function value(result: Ok<int32> | Err<string>): Result<int32, string> {
             r#"
 function value(result: &readonly Result<int32, int32>): Result<int32, int32> {
     const value = match (result) {
-        Ok { value } => value
-        Err { error } => return Result.err(error)
+        Ok { value } => value,
+        Err { error } => return Result.err(error),
     };
     return Result.ok(value);
 }
@@ -699,8 +699,8 @@ function value(result: &readonly Result<int32, int32>): Result<int32, int32> {
             r#"
 function value(result: Result<int32, string>): Result<int32, string> | undefined {
     const value = match (result) {
-        Ok { value } => value
-        Err { error } => return Result.err(error)
+        Ok { value } => value,
+        Err { error } => return Result.err(error),
     };
     return Result.ok(value);
 }

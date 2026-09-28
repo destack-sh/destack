@@ -200,7 +200,7 @@ function visit(values: int32[]): void {
 function visit(values: int32[]): void {
     for (const value of values) {
         match (value) {
-            _ => continue
+            _ => continue,
         }
     }
 }
@@ -212,7 +212,7 @@ function visit(values: int32[]): void {
 function visit(values: int32[]): void {
     for (const value of values) {
         match (value) {
-            _ => { /* intentionally empty */ }
+            _ => { /* intentionally empty */ },
         }
     }
 }

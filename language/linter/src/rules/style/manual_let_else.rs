@@ -18,8 +18,8 @@ Instead, you SHOULD use a let-else binding to state both directly.
             reported: r#"
 function value(result: Result<int32, string>): Result<int32, string> {
     const value = match (result) {
-        Ok { value } => value
-        _ => return Result.err("missing value")
+        Ok { value } => value,
+        _ => return Result.err("missing value"),
     };
     return Result.ok(value);
 }
@@ -328,8 +328,8 @@ mod tests {
             r#"
 function value(result: Result<int32, string>): Result<int32, string> {
     const value = match (result) {
-        Err { error: _ } => return Result.err("missing value")
-        Ok { value } => value
+        Err { error: _ } => return Result.err("missing value"),
+        Ok { value } => value,
     };
     return Result.ok(value);
 }
@@ -385,7 +385,7 @@ function value(result: Result<int32, string>): Result<int32, string> {
             r#"
 function value(result: Result<int32, string>): Result<int32, string> {
     const value = match (result) {
-        Ok { value } => value
+        Ok { value } => value,
         _ => {
             "missing value";
             return Result.err("missing value");
@@ -417,8 +417,8 @@ function value(result: Result<int32, string>): Result<int32, string> {
             r#"
 function value(result: Result<int32, string>): int32 {
     const value = match (result) {
-        Ok { value } => value
-        _ => 0
+        Ok { value } => value,
+        _ => 0,
     };
     return value;
 }
@@ -436,8 +436,8 @@ function value(result: Result<int32, string>): int32 {
             r#"
 function value(result: Result<int32, string>): Result<int32, string> {
     const value = match (result) {
-        Ok { value } => value
-        Err { error } => return Result.err(error)
+        Ok { value } => value,
+        Err { error } => return Result.err(error),
     };
     return Result.ok(value);
 }

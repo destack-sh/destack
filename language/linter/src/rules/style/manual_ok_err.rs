@@ -18,8 +18,8 @@ Instead, you SHOULD use `ok` or `err` to project the selected payload.
             reported: r#"
 function value(result: Result<int32, string>): int32 | undefined {
     return match (result) {
-        Ok { value } => value
-        _ => undefined
+        Ok { value } => value,
+        _ => undefined,
     };
 }
 "#,
@@ -221,8 +221,8 @@ mod tests {
             r#"
 function error(result: Result<int32, string>): string | undefined {
     return match (result) {
-        Ok { value: _ } => undefined
-        Err { error } => error
+        Ok { value: _ } => undefined,
+        Err { error } => error,
     };
 }
 "#,
@@ -245,8 +245,8 @@ function error(result: Result<int32, string>): string | undefined {
             r#"
 function value(result: Result<int32, string>): int32 | undefined {
     return match (result) {
-        Ok { value } => value
-        Err { error: _ } => undefined
+        Ok { value } => value,
+        Err { error: _ } => undefined,
     };
 }
 "#,
@@ -294,8 +294,8 @@ function value(result: Result<int32, string>): int32 | undefined {
             r#"
 function increment(result: Result<int32, string>): int32 | undefined {
     return match (result) {
-        Ok { value } => value + 1
-        _ => undefined
+        Ok { value } => value + 1,
+        _ => undefined,
     };
 }
 "#,
@@ -312,8 +312,8 @@ function increment(result: Result<int32, string>): int32 | undefined {
             r#"
 function value(result: Result<int32, string>): int32 {
     return match (result) {
-        Ok { value } => value
-        _ => 0
+        Ok { value } => value,
+        _ => 0,
     };
 }
 "#,
@@ -330,8 +330,8 @@ function value(result: Result<int32, string>): int32 {
             r#"
 function value(result: Ok<int32> | Err<string>): int32 | undefined {
     return match (result) {
-        Ok { value } => value
-        Err { error: _ } => undefined
+        Ok { value } => value,
+        Err { error: _ } => undefined,
     };
 }
 "#,
@@ -348,8 +348,8 @@ function value(result: Ok<int32> | Err<string>): int32 | undefined {
             r#"
 function value<'a>(result: &'a readonly Result<int32, string>): int32 | undefined {
     return match (result) {
-        Ok { value } => value
-        Err { error: _ } => undefined
+        Ok { value } => value,
+        Err { error: _ } => undefined,
     };
 }
 "#,

@@ -18,8 +18,8 @@ Instead, you SHOULD use `unwrapOr` for eager values or `unwrapOrElse` for comput
             reported: r#"
 function value(result: Result<int32, string>): int32 {
     return match (result) {
-        Ok { value } => value
-        Err { error: _ } => 0
+        Ok { value } => value,
+        Err { error: _ } => 0,
     };
 }
 "#,
@@ -357,8 +357,8 @@ mod tests {
             r#"
 function value<T: Default>(result: Result<T, string>): T {
     return match (result) {
-        Ok { value } => value
-        Err { error: _ } => T.default()
+        Ok { value } => value,
+        Err { error: _ } => T.default(),
     };
 }
 "#,
@@ -375,8 +375,8 @@ function value<T: Default>(result: Result<T, string>): T {
             r#"
 function length(result: Result<isize, string>): isize {
     return match (result) {
-        Ok { value } => value
-        Err { error } => error.length
+        Ok { value } => value,
+        Err { error } => error.length,
     };
 }
 "#,
@@ -401,8 +401,8 @@ declare function fallback(): int32;
 
 function value(result: Result<int32, string>): int32 {
     return match (result) {
-        Ok { value } => value
-        Err { error: _ } => fallback()
+        Ok { value } => value,
+        Err { error: _ } => fallback(),
     };
 }
 "#,
@@ -431,8 +431,8 @@ struct Label {
 
 function value(result: Result<Label, string>, fallback: Label): Label {
     return match (result) {
-        Ok { value } => value
-        Err { error: _ } => fallback
+        Ok { value } => value,
+        Err { error: _ } => fallback,
     };
 }
 "#,
@@ -461,7 +461,7 @@ declare function observe(): void;
 
 function value(result: Result<int32, string>): int32 {
     return match (result) {
-        Ok { value } => value
+        Ok { value } => value,
         Err { error: _ } => {
             observe();
             0
@@ -518,8 +518,8 @@ function value(result: Result<int32, string>): int32 {
             r#"
 function value(result: Result<int32, string>): int32 {
     return match (result) {
-        Ok { value } => value
-        _ => 0
+        Ok { value } => value,
+        _ => 0,
     };
 }
 "#,
@@ -542,8 +542,8 @@ function value(result: Result<int32, string>): int32 {
             r#"
 function value(result: Result<int32, string>): int32 {
     const selected = match (result) {
-        Ok { value } => value
-        Err { error: _ } => return 0
+        Ok { value } => value,
+        Err { error: _ } => return 0,
     };
 
     return selected;
@@ -562,8 +562,8 @@ function value(result: Result<int32, string>): int32 {
             r#"
 function increment(result: Result<int32, string>): int32 {
     return match (result) {
-        Ok { value } => value + 1
-        Err { error: _ } => 0
+        Ok { value } => value + 1,
+        Err { error: _ } => 0,
     };
 }
 "#,
@@ -580,8 +580,8 @@ function increment(result: Result<int32, string>): int32 {
             r#"
 function value(result: Ok<int32> | Err<string>): int32 {
     return match (result) {
-        Ok { value } => value
-        Err { error: _ } => 0
+        Ok { value } => value,
+        Err { error: _ } => 0,
     };
 }
 "#,
@@ -598,8 +598,8 @@ function value(result: Ok<int32> | Err<string>): int32 {
             r#"
 function value(result: &readonly Result<int32, int32>): int32 {
     return match (result) {
-        Ok { value } => value
-        Err { error: _ } => 0
+        Ok { value } => value,
+        Err { error: _ } => 0,
     };
 }
 "#,
@@ -616,8 +616,8 @@ function value(result: &readonly Result<int32, int32>): int32 {
             r#"
 function value<'a, const A: Access>(result: Borrowed<Result<int32, int32>, 'a, A>): int32 {
     return match (result) {
-        Ok { value } => value
-        Err { error: _ } => 0
+        Ok { value } => value,
+        Err { error: _ } => 0,
     };
 }
 "#,
@@ -634,8 +634,8 @@ function value<'a, const A: Access>(result: Borrowed<Result<int32, int32>, 'a, A
             r#"
 function value(result: Result<int32, string>): int32 | float64 {
     return match (result) {
-        Ok { value } => value
-        Err { error: _ } => 0.0
+        Ok { value } => value,
+        Err { error: _ } => 0.0,
     };
 }
 "#,

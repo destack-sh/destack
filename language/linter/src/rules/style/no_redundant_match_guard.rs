@@ -18,16 +18,16 @@ Instead, you SHOULD match the compared literal in the arm pattern.
             reported: r#"
 function classify(value: int32): string {
     return match (value) {
-        matched if (matched === 0) => "zero"
-        _ => "other"
+        matched if (matched === 0) => "zero",
+        _ => "other",
     };
 }
 "#,
             accepted: r#"
 function classify(value: int32): string {
     return match (value) {
-        0 => "zero"
-        _ => "other"
+        0 => "zero",
+        _ => "other",
     };
 }
 "#,
@@ -147,8 +147,8 @@ mod tests {
             r#"
 function classify(value: int32): string {
     return match (value) {
-        matched if (1 === matched) => "one"
-        _ => "other"
+        matched if (1 === matched) => "one",
+        _ => "other",
     };
 }
 "#,
@@ -161,9 +161,9 @@ warning[no-redundant-match-guard]: equality guard can be expressed by the patter
   │
 1 │ function classify(value: int32): string {
 2 │     return match (value) {
-3 │         matched if (1 === matched) => "one"
+3 │         matched if (1 === matched) => "one",
   │                     ^^^^^^^^^^^^^
-4 │         _ => "other"
+4 │         _ => "other",
 5 │     };
   │
 
@@ -172,17 +172,17 @@ warning[no-redundant-match-guard]: equality guard can be expressed by the patter
 +++ b/main.tspp
 
     2│     return match (value) {
--   3│         matched if (1 === matched) => "one"
-+   3│         1 => "one"
-    4│         _ => "other"
+-   3│         matched if (1 === matched) => "one",
++   3│         1 => "one",
+    4│         _ => "other",
 "#,
         );
         session.assert_fixes(
             r#"
 function classify(value: int32): string {
     return match (value) {
-        1 => "one"
-        _ => "other"
+        1 => "one",
+        _ => "other",
     };
 }
 "#,
@@ -197,8 +197,8 @@ function classify(value: int32): string {
             r#"
 function classify(value: int32): int32 {
     return match (value) {
-        matched if (matched == 0) => matched
-        _ => value
+        matched if (matched == 0) => matched,
+        _ => value,
     };
 }
 "#,
@@ -215,8 +215,8 @@ function classify(value: int32): int32 {
             r#"
 function equals(value: int32, expected: int32): boolean {
     return match (value) {
-        matched if (matched == expected) => true
-        _ => false
+        matched if (matched == expected) => true,
+        _ => false,
     };
 }
 "#,
@@ -233,8 +233,8 @@ function equals(value: int32, expected: int32): boolean {
             r#"
 function classify(value: int32 | null | undefined): string {
     return match (value) {
-        matched if (matched == null) => "missing"
-        _ => "present"
+        matched if (matched == null) => "missing",
+        _ => "present",
     };
 }
 "#,
@@ -251,8 +251,8 @@ function classify(value: int32 | null | undefined): string {
             r#"
 function classify(value: (int32, boolean) | null): int32 {
     return match (value) {
-        pair if (let (number, ready) = pair && ready) => number
-        _ => 0
+        pair if (let (number, ready) = pair && ready) => number,
+        _ => 0,
     };
 }
 "#,

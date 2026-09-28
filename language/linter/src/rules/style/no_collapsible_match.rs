@@ -19,18 +19,18 @@ Instead, you SHOULD place the nested pattern at the binding site when both fallb
 function describe(result: Result<int32, string>): string {
     return match (result) {
         Ok { value } => match (value) {
-            0 => "zero"
-            _ => "other"
+            0 => "zero",
+            _ => "other",
         }
-        _ => "other"
+        _ => "other",
     };
 }
 "#,
             accepted: r#"
 function describe(result: Result<int32, string>): string {
     return match (result) {
-        Ok { value: 0 } => "zero"
-        _ => "other"
+        Ok { value: 0 } => "zero",
+        _ => "other",
     };
 }
 "#,
@@ -134,12 +134,14 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             "nested match can be folded into its enclosing pattern",
             extent,
         );
+        let is_arm_body = matches!(view.get(*selected), dir::MatchArm::Expression { .. });
         if let Some(suggestion) = suggestion(
             module,
             lint,
             extent,
             binding_extent,
             is_shorthand,
+            is_arm_body,
             nested_pattern,
             nested_body,
         )? {
@@ -210,9 +212,11 @@ fn suggestion(
     extent: Span,
     binding_extent: Span,
     is_shorthand: bool,
+    is_arm_body: bool,
     pattern: dir::LocalNodeId<dir::Pattern>,
     body: dir::LocalNodeId<dir::Expression>,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
+    let is_block_like = module.view().get(body).is_block_like();
     let pattern = module.source_extent(pattern.into_any())?;
     let body = module.source_extent(body.into_any())?;
     if module.has_unretained_comment(extent, &[pattern, body])? {
@@ -227,7 +231,18 @@ fn suggestion(
     } else {
         pattern_source.to_string()
     };
-    let body_source = module.source(body)?;
+    // separate an arm with a comma once a value body replaces its block-like match
+    let next = Span {
+        end: extent.end + 1,
+        start: extent.end,
+        ..extent
+    };
+    let is_separated = module.source(next)? == ",";
+    let body_source = if is_arm_body && !is_block_like && !is_separated {
+        format!("{},", module.source(body)?)
+    } else {
+        module.source(body)?.to_string()
+    };
     let mut patch = FilePatch::new(extent.file);
     patch.replace(binding_extent, replacement);
     patch.replace(extent, body_source);
@@ -251,11 +266,11 @@ function describe(result: Result<int32, string>): string {
     return match (result) {
         Ok { value } => {
             match (value) {
-                0 => { "zero" }
-                _ => { "other" }
+                0 => { "zero" },
+                _ => { "other" },
             }
         }
-        _ => { "other" }
+        _ => { "other" },
     };
 }
 "#,
@@ -268,7 +283,7 @@ function describe(result: Result<int32, string>): string {
         Ok { value: 0 } => {
             "zero"
         }
-        _ => { "other" }
+        _ => { "other" },
     };
 }
 "#,
@@ -284,13 +299,13 @@ function describe(result: Result<int32, string>): string {
 function describe(result: Result<int32, string>): string {
     return match (result) {
         Ok { value } => match (value) {
-            0 => "zero"
+            0 => "zero",
             _ => match ((1, "other")) {
-                (nested, value) => value
+                (nested, value) => value,
             }
         }
         _ => match ((1, "other")) {
-            (enclosing, value) => value
+            (enclosing, value) => value,
         }
     };
 }
@@ -301,9 +316,9 @@ function describe(result: Result<int32, string>): string {
             r#"
 function describe(result: Result<int32, string>): string {
     return match (result) {
-        Ok { value: 0 } => "zero"
+        Ok { value: 0 } => "zero",
         _ => match ((1, "other")) {
-            (enclosing, value) => value
+            (enclosing, value) => value,
         }
     };
 }
@@ -320,10 +335,10 @@ function describe(result: Result<int32, string>): string {
 function describe(result: Result<int32, string>): string {
     return match (result) {
         Ok { value } => match (value) {
-            0 => "zero"
-            _ => "positive"
+            0 => "zero",
+            _ => "positive",
         }
-        _ => "error"
+        _ => "error",
     };
 }
 "#,
@@ -341,10 +356,10 @@ function describe(result: Result<int32, string>): string {
 function describe(result: Result<int32, string>): string {
     return match (result) {
         Ok { value } => match (value) {
-            0 => `${value}`
-            _ => "other"
+            0 => `${value}`,
+            _ => "other",
         }
-        _ => "other"
+        _ => "other",
     };
 }
 "#,

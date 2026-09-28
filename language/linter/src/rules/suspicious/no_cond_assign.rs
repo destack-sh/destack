@@ -222,8 +222,8 @@ warning[no-cond-assign]: assignment is evaluated as a condition
 function select(value: int32, next: boolean): boolean {
     let active = false;
     return match (value) {
-        _ if ((active = next)) => active
-        _ => false
+        _ if ((active = next)) => active,
+        _ => false,
     };
 }
 "#,
@@ -236,9 +236,9 @@ warning[no-cond-assign]: assignment is evaluated as a condition
   │
 2 │     let active = false;
 3 │     return match (value) {
-4 │         _ if ((active = next)) => active
+4 │         _ if ((active = next)) => active,
   │               ^^^^^^^^^^^^^^^
-5 │         _ => false
+5 │         _ => false,
 6 │     };
   │
 
@@ -256,8 +256,8 @@ warning[no-cond-assign]: assignment is evaluated as a condition
 function select(value: (int32, boolean) | null, next: boolean): boolean {
     let active = false;
     return match (value) {
-        pair if (let (number, ready) = pair && (active = next)) => ready
-        _ => false
+        pair if (let (number, ready) = pair && (active = next)) => ready,
+        _ => false,
     };
 }
 "#,
@@ -270,9 +270,9 @@ warning[no-cond-assign]: assignment is evaluated as a condition
   │
 2 │     let active = false;
 3 │     return match (value) {
-4 │         pair if (let (number, ready) = pair && (active = next)) => ready
+4 │         pair if (let (number, ready) = pair && (active = next)) => ready,
   │                                                ^^^^^^^^^^^^^^^
-5 │         _ => false
+5 │         _ => false,
 6 │     };
   │
 

@@ -281,8 +281,8 @@ warning[prefer-expression-initialization]: binding is assigned immediately after
 function describe(value: int32): string {
     let result: string;
     match (value) {
-        0 => result = "zero"
-        _ => result = "other"
+        0 => result = "zero",
+        _ => result = "other",
     }
 
     return result;
@@ -300,10 +300,10 @@ warning[prefer-expression-initialization]: binding is assigned immediately after
   │     ^^^^^^^^^^^^^^^^^^^
 3 │     match (value) {
   │     ^^^^^^^^^^^^^^^
-4 │         0 => result = "zero"
-  │         ^^^^^^^^^^^^^^^^^^^^
-5 │         _ => result = "other"
+4 │         0 => result = "zero",
   │         ^^^^^^^^^^^^^^^^^^^^^
+5 │         _ => result = "other",
+  │         ^^^^^^^^^^^^^^^^^^^^^^
 6 │     }
   │     ^
 7 │

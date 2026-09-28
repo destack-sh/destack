@@ -18,8 +18,8 @@ Instead, you SHOULD call `isOk()` or `isErr()` on the result.
             reported: r#"
 function succeeded(result: Result<int32, string>): boolean {
     return match (result) {
-        Ok { value: _ } => true
-        Err { error: _ } => false
+        Ok { value: _ } => true,
+        Err { error: _ } => false,
     };
 }
 "#,
@@ -149,8 +149,8 @@ mod tests {
             r#"
 function failed(result: Result<int32, string>): boolean {
     return match (result) {
-        Ok { value: _ } => false
-        Err { error: _ } => true
+        Ok { value: _ } => false,
+        Err { error: _ } => true,
     };
 }
 "#,
@@ -173,8 +173,8 @@ function failed(result: Result<int32, string>): boolean {
             r#"
 function value(result: Result<int32, string>): int32 {
     return match (result) {
-        Ok { value } => value
-        Err { error: _ } => 0
+        Ok { value } => value,
+        Err { error: _ } => 0,
     };
 }
 "#,
@@ -191,9 +191,9 @@ function value(result: Result<int32, string>): int32 {
             r#"
 function succeeded(result: Result<int32, string>): boolean {
     return match (result) {
-        Ok { value } if (value > 0) => true
-        Ok { value: _ } => false
-        Err { error: _ } => false
+        Ok { value } if (value > 0) => true,
+        Ok { value: _ } => false,
+        Err { error: _ } => false,
     };
 }
 "#,

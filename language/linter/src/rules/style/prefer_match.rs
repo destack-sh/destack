@@ -30,10 +30,10 @@ function describe(value: int32): string {
             accepted: r#"
 function describe(value: int32): string {
     return match (value) {
-        0 => "zero"
-        1 => "one"
-        2 => "two"
-        _ => "many"
+        0 => "zero",
+        1 => "one",
+        2 => "two",
+        _ => "many",
     };
 }
 "#,

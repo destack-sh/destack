@@ -313,7 +313,7 @@ warning[no-block-in-condition]: control-flow input is a block expression
             r#"
 function choose(value: int32): int32 {
     return match (do { value }) {
-        selected => selected
+        selected => selected,
     };
 }
 "#,
@@ -327,7 +327,7 @@ warning[no-block-in-condition]: control-flow input is a block expression
 1 │ function choose(value: int32): int32 {
 2 │     return match (do { value }) {
   │                   ^^^^^^^^^^^^
-3 │         selected => selected
+3 │         selected => selected,
 4 │     };
   │
 
@@ -338,14 +338,14 @@ warning[no-block-in-condition]: control-flow input is a block expression
     1│ function choose(value: int32): int32 {
 -   2│     return match (do { value }) {
 +   2│     return match (value) {
-    3│         selected => selected
+    3│         selected => selected,
 "#,
         );
         session.assert_fixes(
             r#"
 function choose(value: int32): int32 {
     return match (value) {
-        selected => selected
+        selected => selected,
     };
 }
 "#,
@@ -539,8 +539,8 @@ function count(): void {
             r#"
 function positive(value: int32): int32 {
     return match (value) {
-        value if (do { value > 0 }) => value
-        _ => 0
+        value if (do { value > 0 }) => value,
+        _ => 0,
     };
 }
 "#,
@@ -553,9 +553,9 @@ warning[no-block-in-condition]: control-flow input is a block expression
   │
 1 │ function positive(value: int32): int32 {
 2 │     return match (value) {
-3 │         value if (do { value > 0 }) => value
+3 │         value if (do { value > 0 }) => value,
   │                   ^^^^^^^^^^^^^^^^
-4 │         _ => 0
+4 │         _ => 0,
 5 │     };
   │
 
@@ -564,17 +564,17 @@ warning[no-block-in-condition]: control-flow input is a block expression
 +++ b/main.tspp
 
     2│     return match (value) {
--   3│         value if (do { value > 0 }) => value
-+   3│         value if (value > 0) => value
-    4│         _ => 0
+-   3│         value if (do { value > 0 }) => value,
++   3│         value if (value > 0) => value,
+    4│         _ => 0,
 "#,
         );
         session.assert_fixes(
             r#"
 function positive(value: int32): int32 {
     return match (value) {
-        value if (value > 0) => value
-        _ => 0
+        value if (value > 0) => value,
+        _ => 0,
     };
 }
 "#,
@@ -589,8 +589,8 @@ function positive(value: int32): int32 {
             r#"
 function positive(value: (int32, boolean) | null): int32 {
     return match (value) {
-        pair if (let (number, ready) = pair && do { ready }) => number
-        _ => 0
+        pair if (let (number, ready) = pair && do { ready }) => number,
+        _ => 0,
     };
 }
 "#,
@@ -603,9 +603,9 @@ warning[no-block-in-condition]: control-flow input is a block expression
   │
 1 │ function positive(value: (int32, boolean) | null): int32 {
 2 │     return match (value) {
-3 │         pair if (let (number, ready) = pair && do { ready }) => number
+3 │         pair if (let (number, ready) = pair && do { ready }) => number,
   │                                                ^^^^^^^^^^^^
-4 │         _ => 0
+4 │         _ => 0,
 5 │     };
   │
 
@@ -614,17 +614,17 @@ warning[no-block-in-condition]: control-flow input is a block expression
 +++ b/main.tspp
 
     2│     return match (value) {
--   3│         pair if (let (number, ready) = pair && do { ready }) => number
-+   3│         pair if (let (number, ready) = pair && ready) => number
-    4│         _ => 0
+-   3│         pair if (let (number, ready) = pair && do { ready }) => number,
++   3│         pair if (let (number, ready) = pair && ready) => number,
+    4│         _ => 0,
 "#,
         );
         session.assert_fixes(
             r#"
 function positive(value: (int32, boolean) | null): int32 {
     return match (value) {
-        pair if (let (number, ready) = pair && ready) => number
-        _ => 0
+        pair if (let (number, ready) = pair && ready) => number,
+        _ => 0,
     };
 }
 "#,

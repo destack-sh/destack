@@ -202,14 +202,14 @@ switch (1) {
             &NO_DEBUGGER,
             r#"
 match (undefined) {
-    _ => debugger
+    _ => debugger,
 }
 "#,
         );
 
         session.assert_fixes(
             r#"match (undefined) {
-    _ => { /* intentionally empty */ }
+    _ => { /* intentionally empty */ },
 }
 "#,
         );

@@ -26,7 +26,7 @@ function consume(): void {
             Ok { value } => {
                 value;
             }
-            Err { error: _ } => break
+            Err { error: _ } => break,
         }
     }
 }
@@ -411,8 +411,8 @@ declare function next(): Result<int32, void>;
 function consume(): void {
     loop {
         match (next()) {
-            Err { error: _ } => break
-            Ok { value } => value;
+            Err { error: _ } => break,
+            Ok { value } => value,
         }
     }
 }
@@ -508,8 +508,8 @@ declare function next(): Result<int32, void>;
 function consume(): void {
     loop {
         const value = match (next()) {
-            Ok { value } => value
-            Err { error: _ } => break
+            Ok { value } => value,
+            Err { error: _ } => break,
         };
         value;
     }
@@ -541,8 +541,8 @@ declare function next(): Result<int32, void>;
 function consume(): void {
     loop {
         const value = match (next()) {
-            Err { error: _ } => break
-            Ok { value } => value
+            Err { error: _ } => break,
+            Ok { value } => value,
         };
         value;
     }
@@ -608,8 +608,8 @@ declare function next(): Result<int32, void>;
 function consume(): void {
     loop {
         match (next()) {
-            Ok { value } => value;
-            Err { error: _ } => break
+            Ok { value } => value,
+            Err { error: _ } => break,
         }
         "after";
     }
@@ -631,8 +631,8 @@ declare function next(): Result<int32, string>;
 function consume(): string {
     return loop {
         match (next()) {
-            Ok { value } => value;
-            Err { error } => break (error)
+            Ok { value } => value,
+            Err { error } => break (error),
         }
     };
 }

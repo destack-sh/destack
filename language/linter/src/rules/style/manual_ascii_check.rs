@@ -575,12 +575,12 @@ function classes(character: char): boolean {
             r#"
 function classes(character: char): boolean {
     const alphabetic = match (character) {
-        'a'..='z' | 'A'..='Z' => true
-        _ => false
+        'a'..='z' | 'A'..='Z' => true,
+        _ => false,
     };
     const digit = match (character) {
-        '0'..='9' => false
-        _ => true
+        '0'..='9' => false,
+        _ => true,
     };
 
     return alphabetic || digit;

@@ -131,8 +131,8 @@ mod tests {
             r#"
 function isEmpty(values: int32[]): boolean {
     return match (values) {
-        [] => true
-        _ => false
+        [] => true,
+        _ => false,
     };
 }
 "#,
@@ -184,8 +184,8 @@ function waitUntilEmpty(values: int32[]): void {
             r#"
 function isEmpty(value: () | null): boolean {
     return match (value) {
-        tuple if (let () = tuple) => true
-        _ => false
+        tuple if (let () = tuple) => true,
+        _ => false,
     };
 }
 "#,

@@ -20,16 +20,16 @@ Instead, you SHOULD write one inclusive range pattern.
             reported: r#"
 function digit(value: char): boolean {
     return match (value) {
-        '0' | '1' | '2' | '3' => true
-        _ => false
+        '0' | '1' | '2' | '3' => true,
+        _ => false,
     };
 }
 "#,
             accepted: r#"
 function digit(value: char): boolean {
     return match (value) {
-        '0'..='3' => true
-        _ => false
+        '0'..='3' => true,
+        _ => false,
     };
 }
 "#,
@@ -157,8 +157,8 @@ mod tests {
             r#"
 function small(value: int32): boolean {
     return match (value) {
-        1 | 2 | 3 => true
-        _ => false
+        1 | 2 | 3 => true,
+        _ => false,
     };
 }
 "#,
@@ -168,8 +168,8 @@ function small(value: int32): boolean {
             r#"
 function small(value: int32): boolean {
     return match (value) {
-        1..=3 => true
-        _ => false
+        1..=3 => true,
+        _ => false,
     };
 }
 "#,
@@ -184,8 +184,8 @@ function small(value: int32): boolean {
             r#"
 function digit(value: char): boolean {
     return match (value) {
-        '3' | '0' | '2' | '1' => true
-        _ => false
+        '3' | '0' | '2' | '1' => true,
+        _ => false,
     };
 }
 "#,
@@ -195,8 +195,8 @@ function digit(value: char): boolean {
             r#"
 function digit(value: char): boolean {
     return match (value) {
-        '0'..='3' => true
-        _ => false
+        '0'..='3' => true,
+        _ => false,
     };
 }
 "#,
@@ -211,8 +211,8 @@ function digit(value: char): boolean {
             r#"
 function sparse(value: int32): boolean {
     return match (value) {
-        1 | 3 | 5 => true
-        _ => false
+        1 | 3 | 5 => true,
+        _ => false,
     };
 }
 "#,

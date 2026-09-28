@@ -18,7 +18,7 @@ Instead, you SHOULD bind the value directly in a `do` expression.
             reported: r#"
 function double(value: int32): int32 {
     return match (value) {
-        matched => matched * 2
+        matched => matched * 2,
     };
 }
 "#,
@@ -151,7 +151,7 @@ declare function observe(): int32;
 
 function answer(): int32 {
     return match (observe()) {
-        _ => 42
+        _ => 42,
     };
 }
 "#,
@@ -179,7 +179,7 @@ function answer(): int32 {
             r#"
 function answer(): int32 {
     return match ({ value: 1 }) {
-        _ => 42
+        _ => 42,
     };
 }
 "#,
@@ -205,7 +205,7 @@ function answer(): int32 {
             r#"
 function sum(value: (int32, int32)): int32 {
     return match (value) {
-        (left, right) => left + right
+        (left, right) => left + right,
     };
 }
 "#,
@@ -231,7 +231,7 @@ function sum(value: (int32, int32)): int32 {
             r#"
 function zero(value: 0): int32 {
     return match (value) {
-        0 => 0
+        0 => 0,
     };
 }
 "#,

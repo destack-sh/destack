@@ -18,8 +18,8 @@ Instead, you SHOULD use `unwrapOrDefault` to state the defaulting operation dire
             reported: r#"
 function value<T: Default>(result: Result<T, string>): T {
     return match (result) {
-        Ok { value } => value
-        Err { error: _ } => T.default()
+        Ok { value } => value,
+        Err { error: _ } => T.default(),
     };
 }
 "#,
@@ -239,8 +239,8 @@ mod tests {
             r#"
 function value<T: Default>(result: Result<T, string>): T {
     return match (result) {
-        Err { error: _ } => T.default()
-        Ok { value } => value
+        Err { error: _ } => T.default(),
+        Ok { value } => value,
     };
 }
 "#,
@@ -288,8 +288,8 @@ function value<T: Default>(result: Result<T, string>): T {
             r#"
 function value<T: Default>(result: Result<T, string>): T {
     return match (result) {
-        Ok { value } => value
-        _ => T.default()
+        Ok { value } => value,
+        _ => T.default(),
     };
 }
 "#,
@@ -312,8 +312,8 @@ function value<T: Default>(result: Result<T, string>): T {
             r#"
 function value(result: Result<int32, string>): int32 {
     return match (result) {
-        Ok { value } => value
-        Err { error: _ } => 0
+        Ok { value } => value,
+        Err { error: _ } => 0,
     };
 }
 "#,
@@ -330,8 +330,8 @@ function value(result: Result<int32, string>): int32 {
             r#"
 function value<T: Default, U: Default>(result: Result<T | U, void>): T | U {
     return match (result) {
-        Ok { value } => value
-        Err { error: _ } => T.default()
+        Ok { value } => value,
+        Err { error: _ } => T.default(),
     };
 }
 "#,
@@ -348,8 +348,8 @@ function value<T: Default, U: Default>(result: Result<T | U, void>): T | U {
             r#"
 function value<T: Default>(result: Ok<T> | Err<string>): T {
     return match (result) {
-        Ok { value } => value
-        Err { error: _ } => T.default()
+        Ok { value } => value,
+        Err { error: _ } => T.default(),
     };
 }
 "#,
@@ -366,8 +366,8 @@ function value<T: Default>(result: Ok<T> | Err<string>): T {
             r#"
 function value<T: Default & Copy>(result: &readonly Result<T, string>): T {
     return match (result) {
-        Ok { value } => value
-        Err { error: _ } => T.default()
+        Ok { value } => value,
+        Err { error: _ } => T.default(),
     };
 }
 "#,

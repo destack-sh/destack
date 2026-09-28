@@ -232,7 +232,7 @@ function record(values: int32[]): void {
             r#"
 function stop(): int32 {
     match (return 1) {
-        _ => 0
+        _ => 0,
     }
 }
 "#,
@@ -249,7 +249,7 @@ function stop(): int32 {
             r#"
 function stop(value: int32): void {
     match (value) {
-        _ => return
+        _ => return,
     }
 }
 "#,
@@ -259,7 +259,7 @@ function stop(value: int32): void {
             r#"
 function stop(value: int32): void {
     match (value) {
-        _ => { /* intentionally empty */ }
+        _ => { /* intentionally empty */ },
     }
 }
 "#,

@@ -18,16 +18,16 @@ Instead, you SHOULD place the alternatives in the shared field pattern.
             reported: r#"
 function isSmall(result: Result<int32, string>): boolean {
     return match (result) {
-        Ok { value: 0 } | Ok { value: 1 } => true
-        _ => false
+        Ok { value: 0 } | Ok { value: 1 } => true,
+        _ => false,
     };
 }
 "#,
             accepted: r#"
 function isSmall(result: Result<int32, string>): boolean {
     return match (result) {
-        Ok { value: 0 | 1 } => true
-        _ => false
+        Ok { value: 0 | 1 } => true,
+        _ => false,
     };
 }
 "#,
@@ -198,8 +198,8 @@ newtype Count = (int32,);
 
 function isSmall(count: Count): boolean {
     return match (count) {
-        Count(0) | Count(1) => true
-        _ => false
+        Count(0) | Count(1) => true,
+        _ => false,
     };
 }
 "#,
@@ -211,8 +211,8 @@ newtype Count = (int32,);
 
 function isSmall(count: Count): boolean {
     return match (count) {
-        Count(0 | 1) => true
-        _ => false
+        Count(0 | 1) => true,
+        _ => false,
     };
 }
 "#,
@@ -227,8 +227,8 @@ function isSmall(count: Count): boolean {
             r#"
 function isComplete(result: Result<int32, string>): boolean {
     return match (result) {
-        Ok { value: 0 } | Err { error: "done" } => true
-        _ => false
+        Ok { value: 0 } | Err { error: "done" } => true,
+        _ => false,
     };
 }
 "#,
@@ -250,8 +250,8 @@ struct Point {
 
 function liesOnAxis(point: Point): boolean {
     return match (point) {
-        Point { x: 0, y } | Point { x, y: 0 } => true
-        _ => false
+        Point { x: 0, y } | Point { x, y: 0 } => true,
+        _ => false,
     };
 }
 "#,

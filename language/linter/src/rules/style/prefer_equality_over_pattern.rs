@@ -18,8 +18,8 @@ Instead, you SHOULD compare the scrutinee with the constant directly.
             reported: r#"
 function isZero(value: int32): boolean {
     return match (value) {
-        0 => true
-        _ => false
+        0 => true,
+        _ => false,
     };
 }
 "#,
@@ -164,8 +164,8 @@ mod tests {
             r#"
 function isNonZero(value: int32): boolean {
     return match (value) {
-        0 => false
-        _ => true
+        0 => false,
+        _ => true,
     };
 }
 "#,
@@ -188,8 +188,8 @@ function isNonZero(value: int32): boolean {
             r#"
 function isNegativeOne(value: int32): boolean {
     return match (value) {
-        -1 => true
-        _ => false
+        -1 => true,
+        _ => false,
     };
 }
 "#,
@@ -240,8 +240,8 @@ function isZero(value: int32): boolean {
             r#"
 function describe(value: int32): string {
     return match (value) {
-        0 => "zero"
-        _ => "other"
+        0 => "zero",
+        _ => "other",
     };
 }
 "#,
@@ -258,9 +258,9 @@ function describe(value: int32): string {
             r#"
 function classify(value: int32): boolean {
     return match (value) {
-        0 => true
-        1 => false
-        _ => false
+        0 => true,
+        1 => false,
+        _ => false,
     };
 }
 "#,

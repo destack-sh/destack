@@ -21,8 +21,8 @@ enum Mode {
 
 function describe(mode: Mode): string {
     return match (mode) {
-        Mode.Read => "read"
-        _ => "other"
+        Mode.Read => "read",
+        _ => "other",
     };
 }
 "#,
@@ -34,8 +34,8 @@ enum Mode {
 
 function describe(mode: Mode): string {
     return match (mode) {
-        Mode.Read => "read"
-        Mode.Write => "write"
+        Mode.Read => "read",
+        Mode.Write => "write",
     };
 }
 "#,
@@ -122,8 +122,8 @@ enum Mode {
 
 function describe(mode: Mode): string {
     return match (mode) {
-        Mode.Read => "read"
-        _ => "other"
+        Mode.Read => "read",
+        _ => "other",
     };
 }
 "#,
@@ -135,8 +135,8 @@ warning[wildcard-enum-match-arm]: wildcard arm hides future enum variants
   ──▶ main.tspp:9:9
    │
  7 │     return match (mode) {
- 8 │         Mode.Read => "read"
- 9 │         _ => "other"
+ 8 │         Mode.Read => "read",
+ 9 │         _ => "other",
    │         ^
 10 │     };
 11 │ }
@@ -158,8 +158,8 @@ enum Mode {
 
 function describe(mode: &readonly Mode): string {
     return match (mode) {
-        Mode.Read => "read"
-        _ => "other"
+        Mode.Read => "read",
+        _ => "other",
     };
 }
 "#,
@@ -171,8 +171,8 @@ warning[wildcard-enum-match-arm]: wildcard arm hides future enum variants
   ──▶ main.tspp:9:9
    │
  7 │     return match (mode) {
- 8 │         Mode.Read => "read"
- 9 │         _ => "other"
+ 8 │         Mode.Read => "read",
+ 9 │         _ => "other",
    │         ^
 10 │     };
 11 │ }
@@ -194,7 +194,7 @@ enum Mode {
 
 function describe(mode: Mode): string {
     return match (mode) {
-        Mode.Read | _ => "selected"
+        Mode.Read | _ => "selected",
     };
 }
 "#,
@@ -207,7 +207,7 @@ warning[wildcard-enum-match-arm]: wildcard arm hides future enum variants
    │
  6 │ function describe(mode: Mode): string {
  7 │     return match (mode) {
- 8 │         Mode.Read | _ => "selected"
+ 8 │         Mode.Read | _ => "selected",
    │                     ^
  9 │     };
 10 │ }
@@ -229,8 +229,8 @@ enum Mode {
 
 function describe(mode: Mode): string {
     return match (mode) {
-        Mode.Read => "read"
-        Mode.Write => "write"
+        Mode.Read => "read",
+        Mode.Write => "write",
     };
 }
 "#,
@@ -247,8 +247,8 @@ function describe(mode: Mode): string {
             r#"
 function describe(value: int32): string {
     return match (value) {
-        0 => "zero"
-        _ => "other"
+        0 => "zero",
+        _ => "other",
     };
 }
 "#,
@@ -270,9 +270,9 @@ enum Mode {
 
 function describe(mode: Mode, isFallback: boolean): string {
     return match (mode) {
-        _ if (isFallback) => "fallback"
-        Mode.Read => "read"
-        Mode.Write => "write"
+        _ if (isFallback) => "fallback",
+        Mode.Read => "read",
+        Mode.Write => "write",
     };
 }
 "#,
