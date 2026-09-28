@@ -132,7 +132,7 @@ export class Dataflow implements Arrangement {
             }
         }
 
-        // build each node's pipeline: a copy mirrors its source's aggregates and follows its relations
+        // build each node's pipeline: a copy mirrors measured aggregates and follows its relations
         const hasTreeIndex = upstream === undefined;
         for (const node of this.nodes) {
             const pipeline =
@@ -141,7 +141,7 @@ export class Dataflow implements Arrangement {
                         ? new Relation(node, this.#context, hasTreeIndex)
                         : undefined
                     : node.aggregate !== undefined
-                      ? upstream === undefined
+                      ? upstream === undefined || upstream.isMeasured?.(node) === false
                           ? new Aggregation(node, this.#context, hasTreeIndex)
                           : new Mirror(node, this.#context, hasTreeIndex)
                       : node.isHolding

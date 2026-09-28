@@ -20,6 +20,8 @@ export interface Upstream {
     groupOf(
         change: Change,
     ): { readonly query: string; readonly group: Readonly<Record<string, Scalar>> } | undefined;
+    /** Report whether the source measured an aggregate node; the copy measures the others itself. */
+    readonly isMeasured?: (node: Node) => boolean;
 }
 
 /**
