@@ -1,0 +1,13 @@
+{
+    "id": "package-01a0e73c-8fd4-7078-80d0-29050c8963c2",
+    "language": "typescript",
+    "targets": [
+        "browser",
+        "server"
+    ],
+    "runtimes": [
+        "browser",
+        "bun",
+        "workerd"
+    ]
+}
