@@ -8,13 +8,13 @@ import { SandboxError } from "../error/index.ts";
 import { RUNTIME_PATHS } from "../launcher/launcher.ts";
 
 /** Maximum time to prepare OS restrictions and launch a process, in milliseconds. */
-const START_TIMEOUT_MS = 10000;
+const START_TIMEOUT_MILLISECONDS = 10000;
 /** Maximum time to release a launcher after failed startup, in milliseconds. */
-const CLEANUP_TIMEOUT_MS = 1000;
+const CLEANUP_TIMEOUT_MILLISECONDS = 1000;
 /** Default graceful workload shutdown duration, in milliseconds. */
-const STOP_TIMEOUT_MS = 5000;
+const STOP_TIMEOUT_MILLISECONDS = 5000;
 /** The longest graceful shutdown a caller may request, five minutes, in milliseconds. */
-const MAX_STOP_TIMEOUT_MS = 300000;
+const MAX_STOP_TIMEOUT_MILLISECONDS = 300000;
 
 /** A process running under independent filesystem and network restrictions. */
 export class Sandbox implements AsyncDisposable {
@@ -131,7 +131,7 @@ export class Sandbox implements AsyncDisposable {
         // bound startup and terminate failed launchers before returning the error
         const timeout = setTimeout(
             () => ready.reject(new SandboxError("START_FAILED", "sandbox startup timed out")),
-            START_TIMEOUT_MS,
+            START_TIMEOUT_MILLISECONDS,
         );
         try {
             launcher.send({ type: "start", options }, (error) => {
@@ -159,7 +159,7 @@ export class Sandbox implements AsyncDisposable {
             if (launcher.connected) {
                 launcher.disconnect();
             }
-            const timeout = setTimeout(() => launcher.kill("SIGKILL"), CLEANUP_TIMEOUT_MS);
+            const timeout = setTimeout(() => launcher.kill("SIGKILL"), CLEANUP_TIMEOUT_MILLISECONDS);
             try {
                 await closed.promise;
             } finally {
@@ -172,15 +172,15 @@ export class Sandbox implements AsyncDisposable {
     }
 
     /** Stop the workload's process group and release its proxies; detached children may survive. */
-    stop(gracePeriodMs = STOP_TIMEOUT_MS): Promise<SandboxExit> {
+    stop(gracePeriodMs = STOP_TIMEOUT_MILLISECONDS): Promise<SandboxExit> {
         // require a bounded grace period
         if (
             !Number.isSafeInteger(gracePeriodMs) ||
             gracePeriodMs < 0 ||
-            gracePeriodMs > MAX_STOP_TIMEOUT_MS
+            gracePeriodMs > MAX_STOP_TIMEOUT_MILLISECONDS
         ) {
             throw new RangeError(
-                `grace period must be between 0 and ${MAX_STOP_TIMEOUT_MS} milliseconds`,
+                `grace period must be between 0 and ${MAX_STOP_TIMEOUT_MILLISECONDS} milliseconds`,
             );
         }
 
