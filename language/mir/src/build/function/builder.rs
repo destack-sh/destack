@@ -3,9 +3,8 @@ use tspp_source::{ModuleId, Span};
 
 use crate::build::{BuildError, BuildResult, FunctionHeader, Variable};
 use crate::{
-    AllocationMode, Block, EffectTable, Function, FunctionBehavior, FunctionBody,
-    FunctionParameter, Instruction, Linkage, Local, LocalNodeId, MemoryEffect, Node, Terminator,
-    Tree, TreeMut, TypeId, Value,
+    AllocationMode, Block, Function, FunctionBody, FunctionParameter, Instruction, Linkage, Local,
+    LocalNodeId, Node, Terminator, Tree, TreeMut, TypeId, Value,
 };
 
 /// The builder for one MIR function, constructing SSA as it goes.
@@ -16,8 +15,6 @@ pub struct FunctionBuilder<'a> {
     pub(super) module: ModuleId,
     /// The tree this function is being built in.
     pub(super) tree: &'a mut Tree,
-    /// The effect table for the call and function metadata this builder emits.
-    pub(super) effects: &'a mut EffectTable,
     /// The pointer width in bits.
     pub(super) pointer_bits: u16,
     /// The source assigned to the emitted nodes.
@@ -48,18 +45,15 @@ pub struct FunctionBuilder<'a> {
     pub(super) variable_types: IndexMap<Variable, TypeId>,
     /// The blocks in creation order.
     pub(super) blocks: Vec<LocalNodeId<Block>>,
+    /// The cleanup block calls and panics unwind into.
+    pub(super) unwind: Option<LocalNodeId<Block>>,
 }
 
 // allow the builder methods with many parameters
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
     /// Create one function builder.
-    pub fn new(
-        tree: &'a mut Tree,
-        effects: &'a mut EffectTable,
-        pointer_bits: u16,
-        header: FunctionHeader,
-    ) -> Self {
+    pub fn new(tree: &'a mut Tree, pointer_bits: u16, header: FunctionHeader) -> Self {
         let FunctionHeader {
             name,
             generics,
@@ -68,6 +62,7 @@ impl<'a> FunctionBuilder<'a> {
             lifetimes,
             parameters,
             result,
+            park,
             kind,
         } = header;
         let module = symbol.declaring_module();
@@ -89,6 +84,7 @@ impl<'a> FunctionBuilder<'a> {
             parameters,
             lifetimes,
             return_type: result,
+            park,
             environment: None,
             binding: None,
             body: None,
@@ -98,7 +94,6 @@ impl<'a> FunctionBuilder<'a> {
         Self {
             module,
             tree,
-            effects,
             pointer_bits,
             source: None,
             function_id,
@@ -109,6 +104,7 @@ impl<'a> FunctionBuilder<'a> {
             next_variable_id: 0,
             variable_definitions: IndexMap::new(),
             sealed_blocks: IndexSet::new(),
+            unwind: None,
             predecessors: IndexMap::new(),
             incomplete_phis: IndexMap::new(),
             variable_types: IndexMap::new(),
@@ -120,7 +116,6 @@ impl<'a> FunctionBuilder<'a> {
     pub fn from_declared(
         module: ModuleId,
         tree: &'a mut Tree,
-        effects: &'a mut EffectTable,
         pointer_bits: u16,
         function_id: LocalNodeId<Function>,
     ) -> BuildResult<Self> {
@@ -138,7 +133,6 @@ impl<'a> FunctionBuilder<'a> {
         Ok(Self {
             module,
             tree,
-            effects,
             pointer_bits,
             source: None,
             function_id,
@@ -149,21 +143,12 @@ impl<'a> FunctionBuilder<'a> {
             next_variable_id: 0,
             variable_definitions: IndexMap::new(),
             sealed_blocks: IndexSet::new(),
+            unwind: None,
             predecessors: IndexMap::new(),
             incomplete_phis: IndexMap::new(),
             variable_types: IndexMap::new(),
             blocks: Vec::new(),
         })
-    }
-
-    /// Set the memory effect of the function.
-    pub fn set_memory_effect(&mut self, effect: MemoryEffect) {
-        self.effects.upsert_function(self.function_id).memory = effect;
-    }
-
-    /// Set the behavioral effects of the function.
-    pub fn set_function_behavior(&mut self, behavior: FunctionBehavior) {
-        self.effects.upsert_function(self.function_id).behavior = behavior;
     }
 
     /// Set the allocation mode of the function.
@@ -200,16 +185,6 @@ impl<'a> FunctionBuilder<'a> {
     /// Return the pointer width in bytes.
     pub fn pointer_bytes(&self) -> u8 {
         (self.pointer_bits / 8) as u8
-    }
-
-    /// Return the mutable effect table.
-    pub fn effects_mut(&mut self) -> &mut EffectTable {
-        self.effects
-    }
-
-    /// Return the mutable tree and effect table together.
-    pub fn tree_and_effects_mut(&mut self) -> (&mut Tree, &mut EffectTable) {
-        (self.tree, self.effects)
     }
 
     /// Return the mutable tree.

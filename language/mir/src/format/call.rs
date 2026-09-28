@@ -126,9 +126,10 @@ fn format_call_signature_suffix<'a>(
         lifetimes,
         parameters,
         result,
+        park,
     } = formatter.context().tree.get(*signature)
     {
-        format_function_signature(lifetimes, parameters, *result, formatter)
+        format_function_signature(lifetimes, parameters, *result, *park, formatter)
     } else {
         format_type_id(*signature, formatter)
     }

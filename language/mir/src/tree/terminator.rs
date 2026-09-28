@@ -4,7 +4,7 @@ use tspp_serde::Reflect;
 
 use crate::{
     BinaryOperator, Block, BlockId, BlockParameter, Call, CallDispatch, Edge, FunctionId,
-    LocalNodeId, Node, NodeType, Space, Successor, Tree, Type, TypeId, Value, ValueSlice,
+    LocalNodeId, Node, NodeType, Space, Successor, Tree, TypeId, Value, ValueSlice,
 };
 
 /// One control-flow edge target.
@@ -359,6 +359,8 @@ pub enum Terminator {
     Panic {
         /// Optional panic payload.
         payload: Option<Value>,
+        /// The cleanup this frame enters first, if any.
+        unwind: Option<BlockTarget>,
     },
     /// Continue the active unwind after a cleanup block.
     UnwindResume,
@@ -483,8 +485,11 @@ impl Terminator {
                     unwind.edge(source, Successor::InvokeUnwind),
                 ]
             }
+            Terminator::Panic { unwind, .. } => unwind
+                .iter()
+                .map(|unwind| unwind.edge(source, Successor::PanicUnwind))
+                .collect(),
             Terminator::Return { .. }
-            | Terminator::Panic { .. }
             | Terminator::UnwindResume
             | Terminator::Abort { .. }
             | Terminator::Unreachable
@@ -526,6 +531,10 @@ impl Terminator {
             ]
             .get(index)
             .copied(),
+            Self::Panic { unwind, .. } => unwind
+                .as_ref()
+                .filter(|_| index == 0)
+                .map(|unwind| (Successor::PanicUnwind, unwind)),
             Self::NewZeroedTry {
                 success, failure, ..
             }
@@ -571,7 +580,6 @@ impl Terminator {
             // return no target for terminal and recovered operations
             Self::Error
             | Self::Return { .. }
-            | Self::Panic { .. }
             | Self::UnwindResume
             | Self::Abort { .. }
             | Self::Unreachable
@@ -598,11 +606,11 @@ impl Terminator {
     /// Return the number of values produced directly on one exact edge.
     pub fn target_result_count(&self, tree: &Tree, successor: Successor) -> usize {
         match (self, successor) {
-            (Self::Invoke { call, .. }, Successor::InvokeNormal) => tree
-                .get(call.signature)
-                .function_signature_parts()
-                .is_some_and(|(_, _, result)| !matches!(tree.get(result), Type::Void))
-                .into(),
+            // take the result when the target declares one more parameter than the edge passes
+            (Self::Invoke { target, .. }, Successor::InvokeNormal) => {
+                let parameters = tree.get(target.block).parameters.len();
+                usize::from(parameters > usize::from(target.arguments.count))
+            }
             (
                 Self::NewZeroedTry { .. }
                 | Self::NewUninitTry { .. }
@@ -726,6 +734,17 @@ impl Terminator {
                 true
             }
             (
+                Self::Panic {
+                    unwind: Some(current),
+                    ..
+                },
+                Successor::PanicUnwind,
+            ) => {
+                *current = target;
+
+                true
+            }
+            (
                 Self::Switch { cases, .. } | Self::VariantSwitch { cases, .. },
                 Successor::SwitchCase { value },
             ) => cases.replace_target(value, target, tree),
@@ -794,9 +813,11 @@ impl Terminator {
 
                 target_changed || unwind_changed
             }
+            Self::Panic { unwind, .. } => unwind
+                .as_mut()
+                .is_some_and(|unwind| unwind.rewrite(successor, &mut rewrite, tree)),
             Self::Error
             | Self::Return { .. }
-            | Self::Panic { .. }
             | Self::UnwindResume
             | Self::Abort { .. }
             | Self::Unreachable
@@ -856,7 +877,7 @@ impl Terminator {
             | Terminator::NewSliceUninitTry {
                 success, failure, ..
             } => smallvec![success.block, failure.block],
-            Terminator::Panic { .. } => smallvec![],
+            Terminator::Panic { unwind, .. } => unwind.iter().map(|unwind| unwind.block).collect(),
             Terminator::UnwindResume => smallvec![],
             Terminator::Abort { .. } => smallvec![],
             Terminator::Unreachable => smallvec![],
@@ -967,7 +988,14 @@ impl Terminator {
 
                 uses
             }
-            Terminator::Panic { payload } => payload.iter().copied().collect(),
+            Terminator::Panic { payload, unwind } => {
+                let mut uses: SmallVec<[Value; 8]> = payload.iter().copied().collect();
+                if let Some(unwind) = unwind {
+                    uses.extend(unwind.arguments(tree).iter().copied());
+                }
+
+                uses
+            }
             Terminator::UnwindResume => smallvec![],
             Terminator::Abort { payload } => payload.iter().copied().collect(),
             Terminator::Unreachable => smallvec![],
@@ -985,7 +1013,7 @@ impl Terminator {
             | Terminator::UnwindResume
             | Terminator::Unreachable => smallvec![],
             Terminator::Return { value }
-            | Terminator::Panic { payload: value }
+            | Terminator::Panic { payload: value, .. }
             | Terminator::Abort { payload: value } => value.iter().copied().collect(),
             Terminator::Branch { condition, .. } => smallvec![*condition],
             Terminator::Check { constraint, .. } => constraint
@@ -1007,6 +1035,7 @@ impl Terminator {
             Terminator::Return { value: Some(value) }
             | Terminator::Panic {
                 payload: Some(value),
+                ..
             }
             | Terminator::Abort {
                 payload: Some(value),

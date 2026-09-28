@@ -4,8 +4,8 @@ use tspp_serde::Reflect;
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    Block, DispatchSlot, FunctionId, GenericArgument, Instruction, LocalNodeId, Tree, TypeId,
-    Value, ValueSlice,
+    Block, DispatchSlot, FunctionId, GenericArgument, Instruction, LocalNodeId, ParkBehavior, Tree,
+    Type, TypeId, Value, ValueSlice,
 };
 
 /// One program point inside a function body: an instruction or a block terminator.
@@ -166,6 +166,14 @@ pub struct Call {
 }
 
 impl Call {
+    /// Return whether this call's signature may park the calling fiber.
+    pub fn park(&self, tree: &Tree) -> ParkBehavior {
+        match tree.get(self.signature) {
+            Type::FunctionSignature { park, .. } => *park,
+            _ => unreachable!("a call signature is a function signature"),
+        }
+    }
+
     /// Create one call.
     pub fn new(callee: Callee, arguments: ValueSlice, signature: TypeId) -> Self {
         Self {

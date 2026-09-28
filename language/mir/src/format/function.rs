@@ -107,8 +107,11 @@ pub(super) fn format_lifetime_where<'a>(
     Ok(())
 }
 
-/// Format the function keyword.
+/// Format the function keyword with its park modifier.
 fn format_function_keyword<'a>(function: &Function, f: &mut Writer<'a, '_>) -> FormatResult<()> {
+    if function.park.may_park() {
+        write!(f, [token("park"), space()])?;
+    }
     match function.kind {
         FunctionKind::Function => write!(f, [token("function")]),
         FunctionKind::Constructor => write!(f, [token("constructor")]),

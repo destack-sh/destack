@@ -542,7 +542,7 @@ entry(v0: ref<int32, borrowed, 'a, readonly>):
         let block = program.tree.get(function_id).block(0);
         let instruction = program.tree.get(block).instructions[0];
         let mut analyses = FunctionCache::new();
-        let effects = analyses.memory_effect(function_id, &program.tree, &program.effects);
+        let effects = analyses.memory_effect(function_id, &program.tree, &program.effects());
         let mut expected = effects
             .instruction_effects(instruction)
             .cloned()
@@ -563,7 +563,7 @@ entry(v0: ref<int32, borrowed, 'a, readonly>):
         access.ordering = mir::MemoryOrdering::Relaxed;
         expected[0].order = mir::MemoryAccessOrder::Atomic(*access);
         analyses.invalidate(Mutation::MEMORY);
-        let updated = analyses.memory_effect(function_id, &program.tree, &program.effects);
+        let updated = analyses.memory_effect(function_id, &program.tree, &program.effects());
         let actual = updated
             .instruction_effects(instruction)
             .cloned()

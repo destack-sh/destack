@@ -10,7 +10,7 @@ pub struct EffectTable {
     /// Function effects sorted by function id.
     functions: Vec<(LocalNodeId<Function>, FunctionEffect)>,
     /// Call effects sorted by callsite.
-    calls: Vec<(Point, CallEffect)>,
+    calls: Vec<(Point, FunctionEffect)>,
 }
 
 impl EffectTable {
@@ -41,8 +41,8 @@ impl EffectTable {
         &mut self.functions[index].1
     }
 
-    /// Return call effects when present.
-    pub fn call(&self, callsite: Point) -> Option<&CallEffect> {
+    /// Return the effects of one callsite when present.
+    pub fn call(&self, callsite: Point) -> Option<&FunctionEffect> {
         let index = self
             .calls
             .binary_search_by_key(&callsite, |(callsite, _)| *callsite)
@@ -51,30 +51,15 @@ impl EffectTable {
         Some(&self.calls[index].1)
     }
 
-    /// Return mutable call effects when present.
-    pub fn call_mut(&mut self, callsite: Point) -> Option<&mut CallEffect> {
-        let index = self
-            .calls
-            .binary_search_by_key(&callsite, |(callsite, _)| *callsite)
-            .ok()?;
-
-        Some(&mut self.calls[index].1)
-    }
-
-    /// Return mutable call effects, inserting unknown effects when absent.
-    pub fn upsert_call(&mut self, callsite: Point) -> &mut CallEffect {
+    /// Insert or replace the effects of one callsite.
+    pub fn insert_call(&mut self, callsite: Point, effect: FunctionEffect) {
         let index = self
             .calls
             .binary_search_by_key(&callsite, |(callsite, _)| *callsite);
-        let index = match index {
-            Ok(index) => index,
-            Err(index) => {
-                self.calls.insert(index, (callsite, CallEffect::default()));
-                index
-            }
-        };
-
-        &mut self.calls[index].1
+        match index {
+            Ok(index) => self.calls[index].1 = effect,
+            Err(index) => self.calls.insert(index, (callsite, effect)),
+        }
     }
 
     /// Iterate function effects in function id order.
@@ -145,52 +130,6 @@ impl FunctionEffect {
             behavior: FunctionBehavior::binding(binding),
         }
     }
-}
-
-/// Effects for one callsite.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct CallEffect {
-    /// Explicit or inferred memory effects, when available.
-    pub memory: Option<MemoryEffect>,
-    /// Additional or inferred behavioral effects, when available.
-    pub behavior: Option<FunctionBehavior>,
-    /// Argument memory behavior when known.
-    pub arguments: Vec<CallArgumentEffect>,
-}
-
-/// Behavior of one argument passed to a bodyless call.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Reflect)]
-pub struct CallArgumentEffect {
-    /// Access mode for this argument.
-    pub access: ArgumentAccess,
-    /// Escape behavior for this argument.
-    pub escape: ArgumentEscape,
-}
-
-/// Access mode for a bodyless call pointer argument.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
-pub enum ArgumentAccess {
-    /// The argument is not accessed.
-    None,
-    /// The argument is only read.
-    Read,
-    /// The argument is only written.
-    Write,
-    /// The argument is read and written.
-    #[default]
-    ReadWrite,
-}
-
-/// Escape behavior for a bodyless call argument.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
-pub enum ArgumentEscape {
-    /// The argument does not escape the callee.
-    None,
-    /// The argument only escapes through the return value.
-    Return,
-    /// The argument may escape in an unknown way.
-    #[default]
-    Escape,
 }
 
 /// Memory access effect for a call or operation.
@@ -376,10 +315,25 @@ pub enum ParkBehavior {
     MayPark,
 }
 
+impl From<bool> for ParkBehavior {
+    /// Convert whether an operation may park the current fiber.
+    fn from(may_park: bool) -> Self {
+        match may_park {
+            true => Self::MayPark,
+            false => Self::CannotPark,
+        }
+    }
+}
+
 impl ParkBehavior {
     /// Return true when the operation may park the current fiber.
     pub fn may_park(self) -> bool {
         matches!(self, Self::MayPark)
+    }
+
+    /// Combine alternative parking behaviors.
+    pub fn union(self, other: Self) -> Self {
+        Self::from(self.may_park() || other.may_park())
     }
 }
 
@@ -416,11 +370,7 @@ impl FunctionBehavior {
             } else {
                 PanicBehavior::CannotPanic
             },
-            park: if self.park.may_park() || other.park.may_park() {
-                ParkBehavior::MayPark
-            } else {
-                ParkBehavior::CannotPark
-            },
+            park: self.park.union(other.park),
             return_behavior: if self.return_behavior == other.return_behavior {
                 self.return_behavior
             } else {
@@ -458,7 +408,7 @@ impl FunctionBehavior {
         }
     }
 
-    /// Create the behavior one runtime binding declares through its effect class and park option.
+    /// Create the behavior one runtime binding declares through its effect class.
     pub fn binding(binding: &Binding) -> Self {
         let is_external = binding.effect == BindingEffect::External;
 
@@ -469,10 +419,7 @@ impl FunctionBehavior {
             },
             panic: PanicBehavior::MayPanic,
             return_behavior: ReturnBehavior::MayReturn,
-            park: match binding.is_park {
-                true => ParkBehavior::MayPark,
-                false => ParkBehavior::CannotPark,
-            },
+            park: ParkBehavior::CannotPark,
             must_preserve_execution: is_external,
             allocates: true,
             frees: is_external,

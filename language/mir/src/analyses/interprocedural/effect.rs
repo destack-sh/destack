@@ -25,10 +25,8 @@ pub struct EffectCall {
     pub is_open: bool,
     /// Whether a normal callee return returns from this function.
     pub is_tail: bool,
-    /// Explicit memory effects for this call, when provided.
-    pub memory: Option<mir::MemoryEffect>,
-    /// Explicit behavioral effects for this call, when provided.
-    pub behavior: Option<mir::FunctionBehavior>,
+    /// Whether the call's signature may park the calling fiber.
+    pub park: mir::ParkBehavior,
 }
 
 impl EffectBody {
@@ -37,19 +35,17 @@ impl EffectBody {
         function: mir::FunctionId,
         graph: &mir::ControlTable,
         resolution: &mir::ResolutionTable,
-        effects: &mir::EffectTable,
         tree: &mir::Tree,
     ) -> Self {
-        // use declared effects for functions without bodies
+        // declare the effects of a function without a body by its binding and park
         let declaration = tree.get(function);
         if !declaration.is_defined() {
-            let local = effects.function(function).cloned().unwrap_or_else(|| {
-                declaration
-                    .binding
-                    .as_ref()
-                    .map(|binding| mir::FunctionEffect::binding(binding))
-                    .unwrap_or_else(mir::FunctionEffect::external)
-            });
+            let mut local = declaration
+                .binding
+                .as_ref()
+                .map(|binding| mir::FunctionEffect::binding(binding))
+                .unwrap_or_else(mir::FunctionEffect::external);
+            local.behavior.park = declaration.park;
 
             return Self {
                 will_return: local.behavior.return_behavior.is_will_return(),
@@ -62,11 +58,13 @@ impl EffectBody {
         let mut builder = FunctionEffectBuilder {
             tree,
             function,
-            effects,
             resolution,
             definitions: mir::DefinitionTable::analyse(declaration, tree),
             memory: mir::MemoryEffect::none(),
-            behavior: mir::FunctionBehavior::none(),
+            behavior: mir::FunctionBehavior {
+                park: declaration.park,
+                ..mir::FunctionBehavior::none()
+            },
             has_return: false,
             calls: Vec::new(),
         };
@@ -167,14 +165,10 @@ impl EffectCall {
         let mut has_return = false;
         let mut will_return = !self.is_open && !self.targets.is_empty();
 
-        // include unknown internal callees, which may park the current fiber
+        // include unknown internal callees
         if self.is_open {
-            let effect = mir::FunctionEffect {
-                memory: mir::MemoryEffect::unknown(),
-                behavior: mir::FunctionBehavior::external().with_park(),
-            };
-            memory = memory.union(&effect.memory);
-            behavior = behavior.union(&effect.behavior);
+            memory = memory.union(&mir::MemoryEffect::unknown());
+            behavior = behavior.union(&mir::FunctionBehavior::external());
             has_return = true;
         }
 
@@ -189,10 +183,8 @@ impl EffectCall {
             will_return &= effect.behavior.return_behavior.is_will_return();
         }
 
-        // combine declared behavior with inferred callee behavior
-        if let Some(declared) = &self.behavior {
-            behavior = behavior.union(declared);
-        }
+        // park as the signature declares
+        behavior.park = behavior.park.union(self.park);
 
         // publish guaranteed return only after every callee establishes it
         behavior.return_behavior = if has_return {
@@ -204,10 +196,7 @@ impl EffectCall {
             behavior.return_behavior = mir::ReturnBehavior::WillReturn;
         }
 
-        mir::FunctionEffect {
-            memory: self.memory.clone().unwrap_or(memory),
-            behavior,
-        }
+        mir::FunctionEffect { memory, behavior }
     }
 }
 
@@ -216,13 +205,12 @@ impl mir::EffectTable {
     pub fn analyse(
         resolution: &mir::ResolutionTable,
         calls: &mir::CallTable,
-        declared: &mir::EffectTable,
         tree: &mir::Tree,
     ) -> Self {
         let mut bodies = FxIndexMap::default();
         let mut effects = FxIndexMap::default();
 
-        // seed defined functions with their local effects and declarations with explicit effects
+        // seed defined functions with their local effects and declarations with their bindings
         let functions = tree
             .iter_nodes::<mir::Function>()
             .map(|(id, _)| id)
@@ -231,7 +219,7 @@ impl mir::EffectTable {
             let declaration = tree.get(function);
             let symbol = declaration.symbol;
             let graph = mir::ControlTable::analyse(declaration, tree);
-            let body = EffectBody::analyse(function, &graph, resolution, declared, tree);
+            let body = EffectBody::analyse(function, &graph, resolution, tree);
             effects.insert(symbol, body.local.clone());
             bodies.insert(function, body);
         }
@@ -255,8 +243,8 @@ impl mir::EffectTable {
             }
         }
 
-        // retain explicit call arguments and publish inferred effects at every callsite
-        let mut result = declared.clone();
+        // publish inferred effects for every function and callsite
+        let mut result = Self::default();
         result.replace_functions(
             tree.iter_nodes::<mir::Function>()
                 .map(|(function, declaration)| (function, effects[&declaration.symbol].clone())),
@@ -268,63 +256,31 @@ impl mir::EffectTable {
             for &block_id in function.blocks() {
                 let block = tree.get(block_id);
                 for &instruction in &block.instructions {
-                    if let mir::Instruction::Call { .. } = tree.get(instruction) {
-                        Self::record_call(
-                            mir::Point::Instruction(instruction),
-                            resolution,
-                            declared,
-                            &effects,
-                            tree,
-                            &mut result,
-                        );
+                    if let Some(call) = tree.get(instruction).call() {
+                        let point = mir::Point::Instruction(instruction);
+                        let call = EffectCall::new(point, call, false, resolution, tree);
+                        result.insert_call(point, call.analyse(&effects));
                     }
                 }
-                if matches!(
-                    tree.get(block.terminator),
-                    mir::Terminator::Invoke { .. } | mir::Terminator::TailCall { .. }
-                ) {
-                    Self::record_call(
-                        mir::Point::Terminator(block_id),
-                        resolution,
-                        declared,
-                        &effects,
-                        tree,
-                        &mut result,
-                    );
+                if let Some(call) = tree.get(block.terminator).call() {
+                    let point = mir::Point::Terminator(block_id);
+                    let call = EffectCall::new(point, call, false, resolution, tree);
+                    result.insert_call(point, call.analyse(&effects));
                 }
             }
         }
 
         result
     }
-
-    /// Publish one call's inferred effects while retaining its argument declarations.
-    fn record_call(
-        point: mir::Point,
-        resolution: &mir::ResolutionTable,
-        declared: &Self,
-        effects: &FxIndexMap<mir::Symbol, mir::FunctionEffect>,
-        tree: &mir::Tree,
-        result: &mut Self,
-    ) {
-        // derive this call's effects from its possible callees
-        let call = EffectCall::new(point, false, resolution, declared, tree);
-        let effect = call.analyse(effects);
-
-        // update memory and behavior while retaining argument effects
-        let entry = result.upsert_call(point);
-        entry.memory = Some(effect.memory);
-        entry.behavior = Some(effect.behavior);
-    }
 }
 
 impl EffectCall {
-    /// Extract the callee symbols and explicit effects of one callsite.
+    /// Extract the callee symbols and signature park of one callsite.
     fn new(
         point: mir::Point,
+        call: &mir::Call,
         is_tail: bool,
         resolution: &mir::ResolutionTable,
-        effects: &mir::EffectTable,
         tree: &mir::Tree,
     ) -> Self {
         // translate the known targets into persistent symbols
@@ -336,22 +292,18 @@ impl EffectCall {
             .collect::<Vec<_>>();
         targets.sort_unstable();
         targets.dedup();
-        let declared = effects.call(point);
 
         Self {
             targets,
             is_open: resolution.is_open,
             is_tail,
-            memory: declared.and_then(|effect| effect.memory.clone()),
-            behavior: declared.and_then(|effect| effect.behavior.clone()),
+            park: call.park(tree),
         }
     }
 }
 
 impl Analysis for mir::EffectTable {
-    const INVALIDATED_BY: Mutation = mir::CallTable::INVALIDATED_BY
-        .union(Mutation::MEMORY)
-        .union(Mutation::EFFECT);
+    const INVALIDATED_BY: Mutation = mir::CallTable::INVALIDATED_BY.union(Mutation::MEMORY);
 }
 
 /// Extract operation effects and call dependencies from one function body.
@@ -361,8 +313,6 @@ struct FunctionEffectBuilder<'a> {
     /// The function being analysed.
     function: mir::FunctionId,
 
-    /// Explicit function and call effects.
-    effects: &'a mir::EffectTable,
     /// Possible callees at each callsite.
     resolution: &'a mir::ResolutionTable,
     /// The definition of each SSA value.
@@ -384,12 +334,12 @@ impl FunctionEffectBuilder<'_> {
         let block = self.tree.get(block_id).clone();
         for &instruction in &block.instructions {
             let operation = &self.tree.get(instruction).clone();
-            if matches!(operation, mir::Instruction::Call { .. }) {
+            if let Some(call) = operation.call() {
                 self.calls.push(EffectCall::new(
                     mir::Point::Instruction(instruction),
+                    call,
                     false,
                     self.resolution,
-                    self.effects,
                     self.tree,
                 ));
             } else {
@@ -403,13 +353,13 @@ impl FunctionEffectBuilder<'_> {
         let terminator = self.tree.get(block.terminator);
         match terminator {
             mir::Terminator::Return { .. } => self.has_return = true,
-            mir::Terminator::Invoke { .. } | mir::Terminator::TailCall { .. } => {
+            mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => {
                 let is_tail = matches!(terminator, mir::Terminator::TailCall { .. });
                 self.calls.push(EffectCall::new(
                     mir::Point::Terminator(block_id),
+                    call,
                     is_tail,
                     self.resolution,
-                    self.effects,
                     self.tree,
                 ));
             }
@@ -669,7 +619,7 @@ entry(v0: int32):
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(&program.tree, &program.effects, &program.dispatch);
+        let effects = analyses.effect(&program.tree, &program.dispatch);
         let function = program.function_id_by_name("pure");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -694,7 +644,7 @@ entry:
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(&program.tree, &program.effects, &program.dispatch);
+        let effects = analyses.effect(&program.tree, &program.dispatch);
         let function = program.function_id_by_name("fence");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -720,7 +670,7 @@ entry:
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(&program.tree, &program.effects, &program.dispatch);
+        let effects = analyses.effect(&program.tree, &program.dispatch);
         let function = program.function_id_by_name("allocate");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -758,7 +708,7 @@ entry:
 "#,
         );
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(&program.tree, &program.effects, &program.dispatch);
+        let effects = analyses.effect(&program.tree, &program.dispatch);
         let expected = mir::FunctionEffect {
             memory: mir::MemoryEffect::none(),
             behavior: mir::FunctionBehavior::none().with_preserved_execution(),
@@ -792,7 +742,7 @@ entry:
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(&program.tree, &program.effects, &program.dispatch);
+        let effects = analyses.effect(&program.tree, &program.dispatch);
         let function = program.function_id_by_name("root");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -832,7 +782,7 @@ entry(v0: int32):
         });
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(&program.tree, &program.effects, &program.dispatch);
+        let effects = analyses.effect(&program.tree, &program.dispatch);
         let effect = effects.function(root).expect("missing function effect");
 
         assert_eq!(
@@ -844,11 +794,12 @@ entry(v0: int32):
         );
     }
 
-    /// Direct calls propagate declared effects from bodyless functions.
+    /// Direct calls propagate the effects a bodyless function's binding declares.
     #[test]
     fn test_propagate_declared_calls() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
+@binding("test.allocate", { provider: "runtime", effect: "deterministic" })
 external function allocate(): void
 
 function root(): void {
@@ -858,22 +809,26 @@ entry:
 }
 "#,
         );
-        let allocate = program.function_id_by_name("allocate");
-        *program.effects.upsert_function(allocate) = mir::FunctionEffect {
-            memory: mir::MemoryEffect::unknown(),
-            behavior: mir::FunctionBehavior::none().with_allocates(),
-        };
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(&program.tree, &program.effects, &program.dispatch);
+        let effects = analyses.effect(&program.tree, &program.dispatch);
         let root = program.function_id_by_name("root");
         let effect = effects.function(root).expect("missing function effect");
 
+        // inherit the deterministic binding's allocation and possible panic
         assert_eq!(
             *effect,
             mir::FunctionEffect {
                 memory: mir::MemoryEffect::unknown(),
-                behavior: mir::FunctionBehavior::none().with_allocates(),
+                behavior: mir::FunctionBehavior {
+                    determinism: mir::Determinism::Deterministic,
+                    panic: mir::PanicBehavior::MayPanic,
+                    return_behavior: mir::ReturnBehavior::MayReturn,
+                    park: mir::ParkBehavior::CannotPark,
+                    must_preserve_execution: false,
+                    allocates: true,
+                    frees: false,
+                },
             }
         );
     }
@@ -881,60 +836,64 @@ entry:
     /// Direct calls propagate parking behavior from bodyless functions.
     #[test]
     fn test_propagate_parking() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
-external function park(): void
+external park function park(): void
 
 function root(): void {
 entry:
-    call park(): () => void
+    call park(): park () => void
     return
 }
 "#,
         );
-        let park = program.function_id_by_name("park");
-        *program.effects.upsert_function(park) = mir::FunctionEffect {
-            memory: mir::MemoryEffect::none(),
-            behavior: mir::FunctionBehavior::none().with_park(),
-        };
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(&program.tree, &program.effects, &program.dispatch);
+        let effects = analyses.effect(&program.tree, &program.dispatch);
         let root = program.function_id_by_name("root");
         let effect = effects.function(root).expect("missing function effect");
 
+        // inherit the external callee's effects and its declared park
         assert_eq!(
             *effect,
             mir::FunctionEffect {
-                memory: mir::MemoryEffect::none(),
-                behavior: mir::FunctionBehavior::none().with_park(),
+                memory: mir::MemoryEffect::unknown(),
+                behavior: mir::FunctionBehavior::external().with_park(),
             }
         );
     }
 
-    /// Preserve possible parking when a call can select an unknown internal function.
+    /// Park an unknown callee exactly as its signature declares.
     #[test]
-    fn test_preserve_unknown_callee_parking() {
+    fn test_park_unknown_callee_by_signature() {
         let program = TestModule::new(
             r#"
-function test(v0: fn(int32) => int32, v1: int32): int32 {
+function run(v0: fn(int32) => int32, v1: int32): int32 {
 entry(v0: fn(int32) => int32, v1: int32):
     v2: int32 = call.indirect v0(v1): (int32) => int32
+    return v2
+}
+
+park function wait(v0: fn park (int32) => int32, v1: int32): int32 {
+entry(v0: fn park (int32) => int32, v1: int32):
+    v2: int32 = call.indirect v0(v1): park (int32) => int32
     return v2
 }
 "#,
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(&program.tree, &program.effects, &program.dispatch);
-        let function = program.function_id_by_name("test");
-        let effect = effects.function(function).expect("missing function effect");
+        let effects = analyses.effect(&program.tree, &program.dispatch);
+        let run = program.function_id_by_name("run");
+        let run = effects.function(run).expect("missing function effect");
+        let wait = program.function_id_by_name("wait");
+        let wait = effects.function(wait).expect("missing function effect");
 
-        assert_eq!(effect.memory, mir::MemoryEffect::unknown());
-        assert_eq!(
-            effect.behavior,
-            mir::FunctionBehavior::external().with_park()
-        );
+        // keep the external effects of an unknown callee, parking only through a parking signature
+        assert_eq!(run.memory, mir::MemoryEffect::unknown());
+        assert_eq!(run.behavior, mir::FunctionBehavior::external());
+        assert_eq!(wait.memory, mir::MemoryEffect::unknown());
+        assert_eq!(wait.behavior, mir::FunctionBehavior::external().with_park());
     }
 
     /// Panic terminators are may-panic and no-return.
@@ -950,7 +909,7 @@ entry(v0: ref<int32, managed, readonly, local>):
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(&program.tree, &program.effects, &program.dispatch);
+        let effects = analyses.effect(&program.tree, &program.dispatch);
         let function = program.function_id_by_name("fail");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -1008,7 +967,7 @@ entry:
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.effect(&program.tree, &program.effects, &program.dispatch);
+        let table = analyses.effect(&program.tree, &program.dispatch);
         let returns = ["leaf", "caller", "tail", "recursive", "cycle", "endless"].map(|name| {
             table
                 .function(program.function_id_by_name(name))
@@ -1060,7 +1019,7 @@ entry(v0: ref<int32, borrowed, 'a, readonly>):
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.effect(&program.tree, &program.effects, &program.dispatch);
+        let table = analyses.effect(&program.tree, &program.dispatch);
         let actual = ["read", "write", "synchronize"].map(|name| {
             table
                 .function(program.function_id_by_name(name))

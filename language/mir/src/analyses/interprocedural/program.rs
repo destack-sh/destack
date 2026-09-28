@@ -6,8 +6,8 @@ use tspp_core::{FxIndexMap, StableHasher};
 use tspp_serde::{Error, Reflect, hash_into};
 
 use crate::{
-    CallComponentTable, ControlTable, EffectBody, EffectTable, EscapeBody, EscapeEffect,
-    FunctionEffect, FunctionId, Linkage, ResolutionTable, Symbol, Tree,
+    CallComponentTable, ControlTable, EffectBody, EscapeBody, EscapeEffect, FunctionEffect,
+    FunctionId, Linkage, ResolutionTable, Symbol, Tree,
 };
 
 /// Local effects and pointer flows extracted from one function.
@@ -101,7 +101,6 @@ impl FunctionEffectBody {
     pub fn analyse(
         function: FunctionId,
         resolution: &ResolutionTable,
-        effects: &EffectTable,
         tree: &Tree,
     ) -> Result<Self, Error> {
         // extract both analyses using the same control flow graph
@@ -109,8 +108,8 @@ impl FunctionEffectBody {
         let graph = Arc::new(ControlTable::analyse(declaration, tree));
         let is_defined = declaration.is_defined();
         let is_shared = declaration.linkage == Linkage::Shared;
-        let effect = EffectBody::analyse(function, &graph, resolution, effects, tree);
-        let escape = EscapeBody::analyse(function, graph, resolution, effects, tree);
+        let effect = EffectBody::analyse(function, &graph, resolution, tree);
+        let escape = EscapeBody::analyse(function, graph, resolution, tree);
 
         // fingerprint the extracted inputs and linkage
         let mut hasher = StableHasher::new();

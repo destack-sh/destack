@@ -6,8 +6,8 @@ use tspp_serde::Reflect;
 
 use crate as mir;
 use crate::{
-    Analysis, ArgumentEscape, CallTable, ControlTable, EffectTable, Function, Mutation, NodeTable,
-    Point, ResolutionTable, Symbol, Tree, Value,
+    Analysis, CallTable, ControlTable, Function, Mutation, NodeTable, Point, ResolutionTable,
+    Symbol, Tree, Value,
 };
 
 /// Allocation visibility and pointer escape results for one function.
@@ -107,8 +107,6 @@ struct EscapeCall {
     environment: Option<u32>,
     /// Caller location receiving the result, absent for a discarded result.
     result: Option<u32>,
-    /// Explicit argument escape declarations, when present.
-    arguments_declared: Vec<mir::CallArgumentEffect>,
 }
 
 /// One pointer flow with its load count, or minus one for an address operation.
@@ -128,8 +126,6 @@ struct EscapeBuilder<'a> {
     tree: &'a mir::Tree,
     /// Callees at each callsite.
     resolution: &'a mir::ResolutionTable,
-    /// Explicit call argument effects.
-    effects: &'a mir::EffectTable,
     /// Canonical addresses in this function.
     places: mir::PlaceTable,
     /// Storage locations for function locals.
@@ -168,7 +164,6 @@ impl EscapeBody {
     pub(crate) fn analyse_module(
         resolution: &ResolutionTable,
         calls: &CallTable,
-        declared: &EffectTable,
         tree: &Tree,
     ) -> NodeTable<Function, Arc<EscapeTable>> {
         let mut bodies = FxIndexMap::default();
@@ -183,7 +178,7 @@ impl EscapeBody {
         for id in functions {
             let symbol = tree.get(id).symbol;
             let graph = Arc::new(ControlTable::analyse(tree.get(id), tree));
-            let body = EscapeBody::analyse(id, graph, resolution, declared, tree);
+            let body = EscapeBody::analyse(id, graph, resolution, tree);
             effects.insert(symbol, body.initial_effect());
             bodies.insert(id, body);
         }
@@ -220,23 +215,7 @@ impl EscapeBody {
 }
 
 impl Analysis for EscapeTable {
-    const INVALIDATED_BY: Mutation = ResolutionTable::INVALIDATED_BY.union(Mutation::EFFECT);
-}
-
-impl From<ArgumentEscape> for ParameterEscape {
-    fn from(escape: ArgumentEscape) -> Self {
-        match escape {
-            ArgumentEscape::None => Self::default(),
-            ArgumentEscape::Return => Self {
-                retained: None,
-                returned: Some(0),
-            },
-            ArgumentEscape::Escape => Self {
-                retained: Some(0),
-                returned: Some(0),
-            },
-        }
-    }
+    const INVALIDATED_BY: Mutation = ResolutionTable::INVALIDATED_BY;
 }
 
 impl EscapeTable {
@@ -262,7 +241,6 @@ impl EscapeBody {
         function: mir::FunctionId,
         graph: Arc<mir::ControlTable>,
         resolution: &mir::ResolutionTable,
-        effects: &mir::EffectTable,
         tree: &mir::Tree,
     ) -> Self {
         // describe externally defined functions through their declarations
@@ -381,7 +359,6 @@ impl EscapeBody {
         let mut builder = EscapeBuilder {
             tree,
             resolution,
-            effects,
             places,
             locals,
             body,
@@ -785,12 +762,7 @@ impl EscapeCall {
             let effect = effects
                 .get(target)
                 .unwrap_or_else(|| unreachable!("callee outside escape graph: {target:?}"));
-            for (index, &argument) in self.arguments.iter().enumerate() {
-                let parameter = self
-                    .arguments_declared
-                    .get(index)
-                    .map(|argument| ParameterEscape::from(argument.escape));
-                let parameter = parameter.as_ref().unwrap_or(&effect.parameters[index]);
+            for (&argument, parameter) in self.arguments.iter().zip(&effect.parameters) {
                 self.connect_parameter(argument, parameter, body, flows);
             }
             if let Some(environment) = &effect.environment {
@@ -807,20 +779,18 @@ impl EscapeCall {
         }
     }
 
-    /// Connect explicit argument declarations or conservative unknown call effects.
+    /// Connect the effects of an unknown callee, which retains and returns every argument.
     fn connect_unknown(
         &self,
         body: &EscapeBody,
         flows: &mut Vec<EscapeFlow>,
         external: &mut [Option<i32>],
     ) {
-        for (index, &argument) in self.arguments.iter().enumerate() {
-            let escape = self
-                .arguments_declared
-                .get(index)
-                .map(|argument| argument.escape)
-                .unwrap_or(ArgumentEscape::Escape);
-            let parameter = ParameterEscape::from(escape);
+        let parameter = ParameterEscape {
+            retained: Some(0),
+            returned: Some(0),
+        };
+        for &argument in &self.arguments {
             self.connect_parameter(argument, &parameter, body, flows);
         }
         if let Some(environment) = self.environment {
@@ -886,7 +856,7 @@ impl EscapeBuilder<'_> {
                     self.flow(value.id(), self.body.result, 0);
                 }
             }
-            mir::Terminator::Panic { payload } => {
+            mir::Terminator::Panic { payload, .. } => {
                 if let Some(payload) = payload {
                     self.flow(payload.id(), self.body.retained, 0);
                 }
@@ -1304,18 +1274,6 @@ impl EscapeBuilder<'_> {
             _ => None,
         };
 
-        // apply explicit capture declarations to bodyless callees
-        let is_bodyless = resolution
-            .functions
-            .iter()
-            .all(|&function| !self.tree.get(function).is_defined());
-        let arguments_declared = self
-            .effects
-            .call(point)
-            .filter(|_| is_bodyless)
-            .map(|call| call.arguments.clone())
-            .unwrap_or_default();
-
         // retain the arguments and destinations used when solving callees
         self.body.calls.push(EscapeCall {
             targets,
@@ -1328,7 +1286,6 @@ impl EscapeBuilder<'_> {
                 .collect(),
             environment,
             result,
-            arguments_declared,
         });
     }
 
@@ -1374,7 +1331,7 @@ failure:
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
+        let escape = analyses.escape(function, &program.tree, &program.dispatch);
         let blocks = program.tree.get(function).blocks();
         let expected = AllocationEscape {
             is_returned: true,
@@ -1422,7 +1379,7 @@ exit:
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
+        let escape = analyses.escape(function, &program.tree, &program.dispatch);
         let block = program.tree.get(function).blocks()[1];
 
         assert_eq!(
@@ -1455,7 +1412,7 @@ exit:
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
+        let escape = analyses.escape(function, &program.tree, &program.dispatch);
         let block = program.tree.get(function).blocks()[1];
 
         assert_eq!(
@@ -1503,7 +1460,7 @@ exit:
 
         assert_eq!(
             analyses
-                .escape(function, &program.tree, &program.effects, &program.dispatch)
+                .escape(function, &program.tree, &program.dispatch)
                 .allocation(Point::Instruction(program.tree.get(block).instructions[1])),
             Some(&AllocationEscape {
                 is_returned: false,
@@ -1542,7 +1499,7 @@ exit:
 
         assert_eq!(
             analyses
-                .escape(function, &program.tree, &program.effects, &program.dispatch)
+                .escape(function, &program.tree, &program.dispatch)
                 .allocation(Point::Instruction(program.tree.get(block).instructions[0])),
             Some(&AllocationEscape::default()),
         );
@@ -1567,7 +1524,7 @@ entry:
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
+        let escape = analyses.escape(function, &program.tree, &program.dispatch);
         let entry = program.tree.get(program.entry_block_id(function));
 
         assert_eq!(
@@ -1596,7 +1553,6 @@ entry(v0: ref<ref<int32, borrowed, 'static, readonly>, borrowed, 'static, readon
         let escape = analyses.escape(
             program.entry_function_id(),
             &program.tree,
-            &program.effects,
             &program.dispatch,
         );
 
@@ -1633,7 +1589,6 @@ entry(v0: ref<ref<int32, borrowed, 'static, readonly>, unique, readonly>):
         let escape = analyses.escape(
             program.entry_function_id(),
             &program.tree,
-            &program.effects,
             &program.dispatch,
         );
 
@@ -1659,7 +1614,7 @@ entry(v0: ref<ref<int32, unique, mutable>, borrowed, 'static, mutable>):
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
+        let escape = analyses.escape(function, &program.tree, &program.dispatch);
         let entry = program.tree.get(program.entry_block_id(function));
 
         assert_eq!(
@@ -1691,7 +1646,7 @@ entry:
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
+        let escape = analyses.escape(function, &program.tree, &program.dispatch);
         let entry = program.tree.get(program.entry_block_id(function));
 
         assert_eq!(
@@ -1725,7 +1680,7 @@ entry:
 
         assert_eq!(
             analyses
-                .escape(function, &program.tree, &program.effects, &program.dispatch)
+                .escape(function, &program.tree, &program.dispatch)
                 .allocation(Point::Instruction(program.tree.get(block).instructions[0])),
             Some(&AllocationEscape {
                 is_returned: true,
@@ -1753,7 +1708,7 @@ join(v3: ref<int32, unique, mutable>):
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
+        let escape = analyses.escape(function, &program.tree, &program.dispatch);
         let entry = program.tree.get(program.entry_block_id(function));
         let expected = AllocationEscape {
             is_returned: true,
@@ -1792,7 +1747,7 @@ entry:
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
+        let escape = analyses.escape(function, &program.tree, &program.dispatch);
         let entry = program.tree.get(program.entry_block_id(function));
 
         assert_eq!(
@@ -1824,11 +1779,10 @@ entry:
         let identity = analyses.escape(
             program.function_id_by_name("identity"),
             &program.tree,
-            &program.effects,
             &program.dispatch,
         );
         let function = program.entry_function_id();
-        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
+        let escape = analyses.escape(function, &program.tree, &program.dispatch);
         let entry = program.tree.get(program.entry_block_id(function));
 
         assert_eq!(
@@ -1874,7 +1828,6 @@ entry(v0: ref<int32, unique, mutable>, v1: boolean):
             let escape = analyses.escape(
                 program.function_id_by_name(name),
                 &program.tree,
-                &program.effects,
                 &program.dispatch,
             );
 
@@ -1918,7 +1871,7 @@ entry:
 
         assert_eq!(
             analyses
-                .escape(function, &program.tree, &program.effects, &program.dispatch)
+                .escape(function, &program.tree, &program.dispatch)
                 .allocation(Point::Instruction(program.tree.get(block).instructions[0])),
             Some(&AllocationEscape {
                 is_returned: true,
@@ -1931,7 +1884,6 @@ entry:
                 .escape(
                     program.function_id_by_name("captured"),
                     &program.tree,
-                    &program.effects,
                     &program.dispatch
                 )
                 .effect
@@ -1969,7 +1921,7 @@ entry:
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
+        let escape = analyses.escape(function, &program.tree, &program.dispatch);
         let entry = program.tree.get(program.entry_block_id(function));
 
         assert_eq!(
@@ -2000,7 +1952,6 @@ entry:
         let borrowed = analyses.escape(
             program.function_id_by_name("receive"),
             &program.tree,
-            &program.effects,
             &program.dispatch,
         );
         assert_eq!(

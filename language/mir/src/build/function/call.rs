@@ -1,7 +1,9 @@
+use std::mem::replace;
+
 use crate::build::{BuildError, FunctionBuilder};
 use crate::{
-    Call, Callee, Function, FunctionBehavior, GenericArgument, Instruction, LocalNodeId, Point,
-    SignatureParameter, Substitution, Type, TypeId, Value,
+    Block, Call, Callee, Function, GenericArgument, Instruction, LocalNodeId, Substitution, Type,
+    TypeId, Value,
 };
 
 impl<'a> FunctionBuilder<'a> {
@@ -13,9 +15,28 @@ impl<'a> FunctionBuilder<'a> {
         argument_values: Vec<Value>,
         result_type: TypeId,
     ) -> Option<Value> {
-        // omit SSA storage for void calls
+        // invoke the target with the cleanup it unwinds into, continuing in a fresh block
         let result = Substitution::resolve(result_type, self.tree);
-        let destination = if matches!(self.tree.get(result), Type::Void) {
+        let is_void = matches!(self.tree.get(result), Type::Void);
+        if let Some(unwind) = self.unwind {
+            let normal = self.block();
+            let destination = (!is_void).then(|| self.add_block_parameter(normal, result_type));
+            self.invoke(
+                callee,
+                signature,
+                argument_values,
+                normal,
+                Vec::new(),
+                unwind,
+                Vec::new(),
+            );
+            self.switch_to_block(normal);
+
+            return destination;
+        }
+
+        // omit SSA storage for void calls
+        let destination = if is_void {
             None
         } else {
             Some(self.allocate_value())
@@ -36,26 +57,21 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    /// Set the cleanup block calls and panics unwind into, returning the previous one.
+    pub fn set_unwind(&mut self, unwind: Option<LocalNodeId<Block>>) -> Option<LocalNodeId<Block>> {
+        replace(&mut self.unwind, unwind)
+    }
+
     /// Call one declared function directly, deriving its signature from the header.
     pub fn call_function(
         &mut self,
         function: LocalNodeId<Function>,
         arguments: Vec<Value>,
     ) -> Option<Value> {
-        // rebuild the signature type from the declared parameters and result
+        // intern the declared signature
         let declared = self.tree.get(function);
-        let parameters = declared
-            .parameters
-            .iter()
-            .map(|parameter| SignatureParameter { ty: parameter.ty })
-            .collect();
         let result = declared.return_type;
-        let lifetimes = declared.lifetimes.clone();
-        let signature = self.tree.intern_type(Type::FunctionSignature {
-            lifetimes,
-            parameters,
-            result,
-        });
+        let signature = self.tree.intern_type(declared.signature());
 
         self.call(
             Callee::Direct {
@@ -159,18 +175,5 @@ impl<'a> FunctionBuilder<'a> {
             }
             _ => Err(BuildError::MissingFunctionSignature { ty: signature }),
         }
-    }
-
-    /// Mark the call inserted last as parking the current fiber.
-    pub fn mark_park(&mut self) {
-        let block = self.current_block();
-        let instruction = *self
-            .tree
-            .get(block)
-            .instructions
-            .last()
-            .unwrap_or_else(|| unreachable!("a park mark before any instruction"));
-        let call = self.effects.upsert_call(Point::Instruction(instruction));
-        call.behavior = Some(FunctionBehavior::none().with_park());
     }
 }

@@ -70,9 +70,8 @@ impl TestProgram {
                 .map(|(id, function)| (id, function.symbol))
                 .collect::<Vec<_>>();
             for (id, symbol) in ids {
-                let analysis =
-                    FunctionEffectBody::analyse(id, &resolution, &module.effects, &module.tree)
-                        .expect("MIR effects should be serializable");
+                let analysis = FunctionEffectBody::analyse(id, &resolution, &module.tree)
+                    .expect("MIR effects should be serializable");
 
                 functions.push((symbol, Arc::new(analysis)));
             }

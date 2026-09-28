@@ -5,8 +5,8 @@ use tspp_source::ModuleId;
 
 use crate::{
     Binding, Block, FunctionId, FunctionParameter, GenericArgument, GenericParameter, Instruction,
-    LifetimeParameter, Linkage, Local, LocalNodeId, Node, NodeType, Symbol, Tree, Type, TypeId,
-    Value,
+    LifetimeParameter, Linkage, Local, LocalNodeId, Node, NodeType, ParkBehavior, Symbol, Tree,
+    Type, TypeId, Value,
 };
 
 /// One MIR function declaration or definition.
@@ -34,6 +34,8 @@ pub struct Function {
     pub lifetimes: Vec<LifetimeParameter>,
     /// The return type.
     pub return_type: TypeId,
+    /// Whether calls to this function may park the calling fiber.
+    pub park: ParkBehavior,
     /// The hidden environment type for this function when present.
     pub environment: Option<TypeId>,
     /// Runtime binding declaration when this function has a binding identity.
@@ -476,6 +478,7 @@ impl Function {
             lifetimes: self.lifetimes.clone(),
             parameters,
             result: self.return_type,
+            park: self.park,
         }
     }
 
@@ -539,6 +542,7 @@ impl Function {
             parameters,
             lifetimes,
             return_type,
+            park: ParkBehavior::CannotPark,
             environment: None,
             binding: None,
             body,
@@ -633,6 +637,13 @@ impl Function {
     /// Set the function's role.
     pub fn with_kind(mut self, kind: FunctionKind) -> Self {
         self.kind = kind;
+
+        self
+    }
+
+    /// Set whether calls to this function may park and return self.
+    pub fn with_park(mut self, park: ParkBehavior) -> Self {
+        self.park = park;
 
         self
     }

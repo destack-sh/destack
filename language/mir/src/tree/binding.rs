@@ -15,8 +15,6 @@ pub struct Binding {
     pub replay: BindingReplay,
     /// Required execution context.
     pub affinity: BindingAffinity,
-    /// Whether calls through this binding park the calling fiber.
-    pub is_park: bool,
     /// Required runtime actions.
     pub requires: Vec<StringId>,
     /// Supported platforms.
@@ -36,7 +34,6 @@ impl Binding {
             effect,
             replay: BindingReplay::Recordable,
             affinity: BindingAffinity::None,
-            is_park: false,
             requires: Vec::new(),
             platforms: Vec::new(),
             families: Vec::new(),

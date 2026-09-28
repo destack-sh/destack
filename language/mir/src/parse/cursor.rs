@@ -1,5 +1,6 @@
 use tspp_source::Span;
 
+use crate::ParkBehavior;
 use crate::source::{Token, TokenType};
 
 use super::error::{ParseError, ParseResult};
@@ -122,6 +123,29 @@ impl Parser {
         while self.pos < tokens.len() && tokens[self.pos].is_trivia() {
             self.pos += 1;
         }
+    }
+
+    /// Return whether a `park` modifier precedes a token of one of the given types.
+    pub(super) fn peek_is_park(&self, before: &[TokenType]) -> bool {
+        let is_park = self.peek().is_some_and(|token| {
+            self.token_type(token) == TokenType::Identifier
+                && self.tree.source_text(token.span) == "park"
+        });
+
+        is_park
+            && self
+                .peek_nth_token(1)
+                .is_some_and(|token| before.contains(&self.token_type(token)))
+    }
+
+    /// Consume an optional `park` modifier ahead of a token of one of the given types.
+    pub(super) fn eat_park(&mut self, before: &[TokenType]) -> ParkBehavior {
+        if !self.peek_is_park(before) {
+            return ParkBehavior::CannotPark;
+        }
+        self.bump();
+
+        ParkBehavior::MayPark
     }
 
     /// Return whether the current source token matches one token type.

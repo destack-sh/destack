@@ -4,9 +4,13 @@ use tspp_source::Span;
 
 use crate::{
     Access, Extent, Field, FieldSpan, GenericArgument, GenericParameterDomain, Lifetime,
-    LifetimeParameter, Multiplicity, Reference, SignatureParameter, Space, Static, StaticId, Type,
-    TypeDeclarationSpans, TypeId, VariantCase,
+    LifetimeParameter, Multiplicity, ParkBehavior, Reference, SignatureParameter, Space, Static,
+    StaticId, Type, TypeDeclarationSpans, TypeId, VariantCase,
 };
+
+/// The tokens that open a signature after its `park` modifier.
+pub(super) const SIGNATURE_START: [TokenType; 2] =
+    [TokenType::OpenParenthesis, TokenType::LessThan];
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
@@ -327,6 +331,13 @@ impl Parser {
                 self.bump();
                 Type::Boolean
             }
+            TokenType::Identifier if self.peek_is_park(&SIGNATURE_START) => {
+                self.bump();
+
+                return self.parse_lifetime_scope(|parser, lifetimes| {
+                    parser.parse_signature(lifetimes, ParkBehavior::MayPark)
+                });
+            }
             TokenType::Identifier | TokenType::TypeName => {
                 return self.parse_named_type(&token_text, token_start);
             }
@@ -492,7 +503,8 @@ impl Parser {
     /// Parse a function pointer type.
     fn parse_function_pointer_type(&mut self) -> ParseResult<Type> {
         self.bump();
-        let signature = self.parse_signature(Vec::new())?;
+        let park = self.eat_park(&SIGNATURE_START);
+        let signature = self.parse_signature(Vec::new(), park)?;
 
         Ok(Type::FunctionPointer { signature })
     }
@@ -549,7 +561,8 @@ impl Parser {
     fn parse_function_type(&mut self) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let signature = self.parse_signature(Vec::new())?;
+        let park = self.eat_park(&SIGNATURE_START);
+        let signature = self.parse_signature(Vec::new(), park)?;
         self.eat_token(TokenType::Comma)?;
         let multiplicity_token = self.eat_token(TokenType::Identifier)?;
         let multiplicity_start = multiplicity_token.start();
@@ -623,6 +636,7 @@ impl Parser {
                 lifetimes,
                 parameters,
                 result,
+                park: ParkBehavior::CannotPark,
             });
         }
 
@@ -636,7 +650,9 @@ impl Parser {
 
     /// Parse an explicitly lifetime-polymorphic function signature type.
     fn parse_lifetime_signature_type(&mut self) -> ParseResult<TypeId> {
-        self.parse_lifetime_scope(|parser, lifetimes| parser.parse_signature(lifetimes))
+        self.parse_lifetime_scope(|parser, lifetimes| {
+            parser.parse_signature(lifetimes, ParkBehavior::CannotPark)
+        })
     }
 
     /// Parse type parameters enclosed in parentheses.
@@ -663,26 +679,19 @@ impl Parser {
     /// Parse a function signature type.
     pub(super) fn parse_signature(
         &mut self,
-        lifetimes: Vec<LifetimeParameter>,
+        mut lifetimes: Vec<LifetimeParameter>,
+        park: ParkBehavior,
     ) -> ParseResult<TypeId> {
         let parameters = self.parse_parenthesized_type_parameters()?;
         self.eat_token(TokenType::FatArrow)?;
-
-        self.parse_signature_result(lifetimes, parameters)
-    }
-
-    /// Parse a function signature result after its parameter types.
-    fn parse_signature_result(
-        &mut self,
-        mut lifetimes: Vec<LifetimeParameter>,
-        parameters: Vec<SignatureParameter>,
-    ) -> ParseResult<TypeId> {
         let (result, _) = self.parse_type_use_part()?;
         self.parse_lifetime_where(&mut lifetimes)?;
+
         self.intern_type(Type::FunctionSignature {
             lifetimes,
             parameters,
             result,
+            park,
         })
     }
 

@@ -367,9 +367,13 @@ pub fn terminator_remap(
             remap_target(unwind);
             unwind.arguments = remap_value_slice(tree, unwind.arguments, value_map);
         }
-        mir::Terminator::Panic { payload } => {
+        mir::Terminator::Panic { payload, unwind } => {
             if let Some(payload) = payload {
                 remap_value(payload);
+            }
+            if let Some(unwind) = unwind {
+                remap_target(unwind);
+                unwind.arguments = remap_value_slice(tree, unwind.arguments, value_map);
             }
         }
         mir::Terminator::UnwindResume => {}

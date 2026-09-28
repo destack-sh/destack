@@ -3,8 +3,8 @@ use tspp_source::ModuleId;
 
 use crate::build::FunctionHeaderBuilder;
 use crate::{
-    DispatchTable, DropTable, EffectTable, Layout, LayoutId, LayoutTable, ProfileTable,
-    TargetLayout, Tree, Type, TypeId, WitnessTable,
+    DispatchTable, DropTable, Layout, LayoutId, LayoutTable, ProfileTable, TargetLayout, Tree,
+    Type, TypeId, WitnessTable,
 };
 
 /// The builder for one MIR module.
@@ -25,8 +25,6 @@ pub struct ModuleBuilder {
     /// The canonical MIR witness table.
     pub(super) witnesses: WitnessTable,
 
-    /// The function and call effect table.
-    pub(super) effects: EffectTable,
     /// The static profile counter table.
     pub(super) profile: ProfileTable,
     /// The string pool holding the names.
@@ -44,7 +42,6 @@ impl ModuleBuilder {
             dispatch: DispatchTable::default(),
             drops: DropTable::default(),
             witnesses: WitnessTable::default(),
-            effects: EffectTable::default(),
             profile: ProfileTable::default(),
             strings: StringPool::new(),
         }
@@ -95,16 +92,6 @@ impl ModuleBuilder {
         &mut self.witnesses
     }
 
-    /// Return the effect table.
-    pub fn effects(&self) -> &EffectTable {
-        &self.effects
-    }
-
-    /// Return the mutable effect table.
-    pub fn effects_mut(&mut self) -> &mut EffectTable {
-        &mut self.effects
-    }
-
     /// Return the profile table.
     pub fn profile(&self) -> &ProfileTable {
         &self.profile
@@ -145,11 +132,6 @@ impl ModuleBuilder {
         self.tree.intern_type(ty)
     }
 
-    /// Return the mutable tree and effect table together.
-    pub fn tree_and_effects_mut(&mut self) -> (&mut Tree, &mut EffectTable) {
-        (&mut self.tree, &mut self.effects)
-    }
-
     /// Return the mutable tree and layout table together.
     pub fn tree_and_layouts_mut(&mut self) -> (&mut Tree, &mut LayoutTable) {
         (&mut self.tree, &mut self.layouts)
@@ -178,7 +160,6 @@ impl ModuleBuilder {
         DispatchTable,
         DropTable,
         WitnessTable,
-        EffectTable,
         ProfileTable,
         StringPool,
     ) {
@@ -189,7 +170,6 @@ impl ModuleBuilder {
             self.dispatch,
             self.drops,
             self.witnesses,
-            self.effects,
             self.profile,
             self.strings,
         )

@@ -6,10 +6,10 @@ use tspp_source::{
 
 use crate::source::{Lexer, Token, TokenType};
 use crate::{
-    Access, Block, DispatchTable, DropTable, EffectTable, Extent, Function, GenericArgument,
-    GenericParameter, GenericParameterDomain, Global, LayoutTable, Lifetime, LifetimeParameter,
-    Local, LocalNodeId, Node, ProfileTable, RegionBound, Static, TargetLayout, Tree, Type,
-    TypeDeclaration, TypeId, Value,
+    Access, Block, DispatchTable, DropTable, Extent, Function, GenericArgument, GenericParameter,
+    GenericParameterDomain, Global, LayoutTable, Lifetime, LifetimeParameter, Local, LocalNodeId,
+    Node, ProfileTable, RegionBound, Static, TargetLayout, Tree, Type, TypeDeclaration, TypeId,
+    Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -28,8 +28,6 @@ pub struct ParsedMir {
     /// Canonical MIR drop table.
     pub drops: DropTable,
 
-    /// Function and call effect table.
-    pub effects: EffectTable,
     /// Static profile counter table.
     pub profile: ProfileTable,
     /// The parsed string pool.
@@ -48,7 +46,6 @@ impl ParsedMir {
         LayoutTable,
         DispatchTable,
         DropTable,
-        EffectTable,
         ProfileTable,
         StringPool,
         DiagnosticCollection,
@@ -59,7 +56,6 @@ impl ParsedMir {
             self.layouts,
             self.dispatch,
             self.drops,
-            self.effects,
             self.profile,
             self.strings,
             self.diagnostics,
@@ -74,7 +70,6 @@ impl ParsedMir {
             layouts: _,
             dispatch: _,
             drops: _,
-            effects: _,
             profile: _,
             strings,
             diagnostics,
@@ -123,8 +118,6 @@ pub struct Parser {
     /// Canonical MIR drop table.
     pub(super) drops: DropTable,
 
-    /// Function and call effect table.
-    pub(super) effects: EffectTable,
     /// Static profile counter table.
     pub(super) profile: ProfileTable,
     /// The string pool.
@@ -187,7 +180,6 @@ impl Parser {
             layouts: LayoutTable::default(),
             dispatch: DispatchTable::default(),
             drops: DropTable::default(),
-            effects: EffectTable::default(),
             profile: ProfileTable::default(),
             strings: StringPool::new(),
             file_id: file.id,
@@ -226,7 +218,6 @@ impl Parser {
             layouts: parser.layouts,
             dispatch: parser.dispatch,
             drops: parser.drops,
-            effects: parser.effects,
             profile: parser.profile,
             strings: parser.strings,
             diagnostics: parser.diagnostics.take_collection(),

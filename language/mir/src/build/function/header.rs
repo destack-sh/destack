@@ -3,7 +3,7 @@ use tspp_source::ModuleId;
 
 use crate::{
     Function, FunctionKind, FunctionParameter, GenericArgument, GenericParameter, Lifetime,
-    LifetimeParameter, Symbol, TypeId, Value,
+    LifetimeParameter, ParkBehavior, Symbol, TypeId, Value,
 };
 
 /// Header used to declare or build one MIR function.
@@ -23,6 +23,8 @@ pub struct FunctionHeader {
     pub parameters: Vec<TypeId>,
     /// The return type.
     pub result: TypeId,
+    /// Whether calls to the function may park the calling fiber.
+    pub park: ParkBehavior,
     /// The role of the function.
     pub kind: FunctionKind,
 }
@@ -44,6 +46,8 @@ pub struct FunctionHeaderBuilder<'a> {
     lifetimes: Vec<LifetimeParameter>,
     /// Parameter types in SSA parameter order.
     parameters: Vec<TypeId>,
+    /// Whether calls to the function may park the calling fiber.
+    park: ParkBehavior,
     /// The role of the function.
     kind: FunctionKind,
 }
@@ -61,8 +65,16 @@ impl<'a> FunctionHeaderBuilder<'a> {
             symbol: Symbol::named(module, name),
             lifetimes: Vec::new(),
             parameters: Vec::new(),
+            park: ParkBehavior::CannotPark,
             kind: FunctionKind::Function,
         }
+    }
+
+    /// Set whether calls to the function may park the calling fiber.
+    pub fn park(mut self, park: ParkBehavior) -> Self {
+        self.park = park;
+
+        self
     }
 
     /// Set the role of the function.
@@ -144,6 +156,7 @@ impl<'a> FunctionHeaderBuilder<'a> {
             lifetimes: self.lifetimes,
             parameters: self.parameters,
             result,
+            park: self.park,
             kind: self.kind,
         }
     }
@@ -156,6 +169,7 @@ impl FunctionHeader {
         let module = self.symbol.declaring_module();
 
         Function::declare(module, self.name, self.lifetimes, parameters, self.result)
+            .with_park(self.park)
             .with_kind(self.kind)
             .with_generics(self.generics)
             .with_arguments(self.arguments)
@@ -168,6 +182,7 @@ impl FunctionHeader {
         let module = self.symbol.declaring_module();
 
         Function::import(module, self.name, self.lifetimes, parameters, self.result)
+            .with_park(self.park)
             .with_kind(self.kind)
             .with_generics(self.generics)
             .with_arguments(self.arguments)

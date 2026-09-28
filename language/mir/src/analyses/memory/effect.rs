@@ -118,10 +118,10 @@ impl MemoryEffectTable {
 }
 
 impl Analysis for MemoryEffectTable {
-    const INVALIDATED_BY: Mutation = Mutation::CONTROL
+    const INVALIDATED_BY: Mutation = mir::EffectTable::INVALIDATED_BY
+        .union(Mutation::CONTROL)
         .union(Mutation::VALUE)
         .union(Mutation::MEMORY)
-        .union(Mutation::EFFECT)
         .union(Mutation::LAYOUT);
 }
 
@@ -425,7 +425,9 @@ impl<'a> MemoryEffectBuilder<'a> {
                     MemoryAccessOrder::Plain
                 )]
             }
-            mir::Instruction::Call { .. } => self.call_effects(instruction_id, instruction),
+            mir::Instruction::Call { .. } => {
+                self.callsite_effects(mir::Point::Instruction(instruction_id))
+            }
             mir::Instruction::ContextCurrent { .. }
             | mir::Instruction::ContextReplace { .. }
             | mir::Instruction::ContextBind { .. }
@@ -459,11 +461,9 @@ impl<'a> MemoryEffectBuilder<'a> {
         terminator: &mir::Terminator,
     ) -> SmallVec<[MemoryAccessEffect; 2]> {
         match terminator {
-            mir::Terminator::Invoke { .. } | mir::Terminator::TailCall { .. } => self
-                .callsite_effects(
-                    mir::Point::Terminator(block_id),
-                    terminator.call_direct_target(),
-                ),
+            mir::Terminator::Invoke { .. } | mir::Terminator::TailCall { .. } => {
+                self.callsite_effects(mir::Point::Terminator(block_id))
+            }
 
             mir::Terminator::NewZeroedTry { .. }
             | mir::Terminator::NewUninitTry { .. }
@@ -582,45 +582,19 @@ impl<'a> MemoryEffectBuilder<'a> {
             .unwrap_or(mir::StorageSet::ANY)
     }
 
-    /// Return memory effects for one call instruction.
-    fn call_effects(
-        &mut self,
-        instruction_id: mir::LocalNodeId<mir::Instruction>,
-        instruction: &mir::Instruction,
-    ) -> SmallVec<[MemoryAccessEffect; 2]> {
-        self.callsite_effects(
-            mir::Point::Instruction(instruction_id),
-            instruction.call_direct_target(),
-        )
-    }
-
     /// Return memory effects for one callsite.
-    fn callsite_effects(
-        &self,
-        callsite: mir::Point,
-        direct_target: Option<mir::LocalNodeId<mir::Function>>,
-    ) -> SmallVec<[MemoryAccessEffect; 2]> {
-        // use callsite or callee tables for memory effects
-        let call_entries = self.effect_table.call(callsite);
-        let memory_effects = call_entries
-            .and_then(|tables| tables.memory.clone())
-            .or_else(|| self.callee_memory_effects(direct_target));
-
-        // treat missing tables as fully unknown
-        let Some(effects) = memory_effects else {
-            return smallvec![MemoryAccessEffect::new(
-                MemoryRegion::any_spaces(mir::StorageSet::ANY),
-                mir::MemoryOperation::ReadWrite,
-                MemoryAccessOrder::Plain
-            )];
+    fn callsite_effects(&self, callsite: mir::Point) -> SmallVec<[MemoryAccessEffect; 2]> {
+        let Some(effect) = self.effect_table.call(callsite) else {
+            unreachable!("an analysed callsite has inferred effects");
         };
+        let effects = &effect.memory;
 
         // skip calls with no memory effects
         if !effects.reads() && !effects.writes() && !effects.is_barrier() {
             return SmallVec::new();
         }
 
-        self.effects_from_call_effect(&effects)
+        self.effects_from_call_effect(effects)
     }
 
     /// Convert call memory effects to MemorySsaTable effects.
@@ -662,18 +636,6 @@ impl<'a> MemoryEffectBuilder<'a> {
         }
 
         accesses
-    }
-
-    /// Read memory effects from a direct callee when available.
-    fn callee_memory_effects(
-        &self,
-        function: Option<mir::LocalNodeId<mir::Function>>,
-    ) -> Option<mir::MemoryEffect> {
-        // only direct calls have callee tables
-        let function = function?;
-        self.effect_table
-            .function(function)
-            .map(|tables| tables.memory.clone())
     }
 
     /// Return memory effects for one intrinsic.
@@ -912,7 +874,7 @@ entry:
         let alias = analyses
             .alias(function_id, program.layouts.clone(), &program.tree)
             .unwrap();
-        let effects = analyses.memory_effect(function_id, &program.tree, &program.effects);
+        let effects = analyses.memory_effect(function_id, &program.tree, &program.effects());
         let instructions = program.entry_instructions(function_id);
         let first = effects.instruction_effects(instructions[1]).next().unwrap();
         let second = effects.instruction_effects(instructions[2]).next().unwrap();
@@ -958,8 +920,11 @@ entry:
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let effects =
-            analyses.memory_effect(program.entry_function_id(), &program.tree, &program.effects);
+        let effects = analyses.memory_effect(
+            program.entry_function_id(),
+            &program.tree,
+            &program.effects(),
+        );
         let instructions = &program
             .tree
             .get(program.tree.get(function).block(0))
@@ -1000,8 +965,11 @@ entry(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'a, mutabl
         let int32 = program.tree.intern_type(mir::Type::INT32);
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let effects =
-            analyses.memory_effect(program.entry_function_id(), &program.tree, &program.effects);
+        let effects = analyses.memory_effect(
+            program.entry_function_id(),
+            &program.tree,
+            &program.effects(),
+        );
         let instructions = &program
             .tree
             .get(program.tree.get(function).block(0))
@@ -1059,7 +1027,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'a, mutabl
         let volatile_store = test.tree.get(block).instructions[1];
 
         let mut analyses = test.function_analyses();
-        let effects = analyses.memory_effect(function_id, &test.tree, &test.effects);
+        let effects = analyses.memory_effect(function_id, &test.tree, &test.effects());
         let plain_load = test.tree.get(block).instructions[2];
         for (instruction, address, reads, writes, order, size) in [
             (
@@ -1131,8 +1099,11 @@ entry(v0: ref<int32, borrowed, 'a, readonly>, v1: ref<uint64, unique, mutable>, 
         let uint64 = program.tree.intern_type(mir::Type::UINT64);
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let effects =
-            analyses.memory_effect(program.entry_function_id(), &program.tree, &program.effects);
+        let effects = analyses.memory_effect(
+            program.entry_function_id(),
+            &program.tree,
+            &program.effects(),
+        );
         let instructions = &program
             .tree
             .get(program.tree.get(function).block(0))
@@ -1240,8 +1211,11 @@ entry(v0: ref<uint32, borrowed, 'a, mutable>, v1: ref<uint32, borrowed, 'a, muta
         let uint32 = program.tree.intern_type(mir::Type::UINT32);
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let effects =
-            analyses.memory_effect(program.entry_function_id(), &program.tree, &program.effects);
+        let effects = analyses.memory_effect(
+            program.entry_function_id(),
+            &program.tree,
+            &program.effects(),
+        );
         let instructions = &program
             .tree
             .get(program.tree.get(function).block(0))
@@ -1301,8 +1275,11 @@ entry:
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let effects =
-            analyses.memory_effect(program.entry_function_id(), &program.tree, &program.effects);
+        let effects = analyses.memory_effect(
+            program.entry_function_id(),
+            &program.tree,
+            &program.effects(),
+        );
         let instructions = &program
             .tree
             .get(program.tree.get(function).block(0))
@@ -1327,10 +1304,10 @@ entry:
         assert_eq!(actual, [expected]);
     }
 
-    /// Retain unknown call effects until the callee declares no memory accesses.
+    /// Keep unknown call effects until the callsite effect accesses no memory.
     #[test]
-    fn test_restrict_call_effects_to_declared_memory() {
-        let mut test = TestModule::new(
+    fn test_restrict_call_effects_to_callsite_memory() {
+        let test = TestModule::new(
             r#"
 external function imported<'a>(ref<int32, borrowed, 'a, mutable>): void
 
@@ -1347,28 +1324,44 @@ entry(v0: ref<int32, borrowed, 'a, mutable>):
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
         let callsite = mir::Point::Instruction(call_inst);
         let mut analyses = test.function_analyses();
-        let effects = analyses.memory_effect(function_id, &test.tree, &test.effects);
+        let effects = analyses.memory_effect(function_id, &test.tree, &test.effects());
         let actual = effects
             .instruction_effects(call_inst)
             .cloned()
             .collect::<Vec<_>>();
+        // order and access every space for an external callee
         assert_eq!(
             actual,
-            [MemoryAccessEffect {
-                reads: true,
-                writes: true,
-                order: MemoryAccessOrder::Plain,
-                is_barrier: false,
-                region: MemoryRegion::Any {
-                    spaces: mir::StorageSet::ANY
+            [
+                MemoryAccessEffect {
+                    reads: false,
+                    writes: false,
+                    order: MemoryAccessOrder::Plain,
+                    is_barrier: true,
+                    region: MemoryRegion::Any {
+                        spaces: mir::StorageSet::ANY
+                    },
                 },
-            }]
+                MemoryAccessEffect {
+                    reads: true,
+                    writes: true,
+                    order: MemoryAccessOrder::Plain,
+                    is_barrier: false,
+                    region: MemoryRegion::Any {
+                        spaces: mir::StorageSet::ANY
+                    },
+                },
+            ]
         );
 
-        // apply the callee's explicit declaration of no memory effects
-        test.effects.upsert_call(callsite).memory = Some(mir::MemoryEffect::none());
+        // apply a callsite effect of no memory access
+        let mut call_effects = mir::EffectTable::default();
+        call_effects.insert_call(
+            callsite,
+            mir::FunctionEffect::memory(mir::MemoryEffect::none()),
+        );
         let mut analyses = test.function_analyses();
-        let effects = analyses.memory_effect(function_id, &test.tree, &test.effects);
+        let effects = analyses.memory_effect(function_id, &test.tree, &call_effects);
         let actual = effects.instruction_effects(call_inst).collect::<Vec<_>>();
 
         assert_eq!(actual, Vec::<&MemoryAccessEffect>::new());
@@ -1377,7 +1370,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable>):
     /// A callee declared as a barrier orders the call without a read or write access.
     #[test]
     fn test_order_call_effects_declared_as_barrier() {
-        let mut test = TestModule::new(
+        let test = TestModule::new(
             r#"
 external function fence(): void
 
@@ -1393,10 +1386,11 @@ entry:
         let function_id = test.entry_function_id();
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
         let callsite = mir::Point::Instruction(call_inst);
-        test.effects.upsert_call(callsite).memory =
-            Some(mir::MemoryEffect::barrier(mir::StorageSet::SHARED));
+        let mut call_effects = mir::EffectTable::default();
+        let barrier = mir::MemoryEffect::barrier(mir::StorageSet::SHARED);
+        call_effects.insert_call(callsite, mir::FunctionEffect::memory(barrier));
         let mut analyses = test.function_analyses();
-        let effects = analyses.memory_effect(function_id, &test.tree, &test.effects);
+        let effects = analyses.memory_effect(function_id, &test.tree, &call_effects);
         let actual = effects
             .instruction_effects(call_inst)
             .cloned()
@@ -1440,7 +1434,7 @@ entry(v0: dynamic<Writer, managed, readonly, local>):
         let function_id = test.entry_function_id();
         let block = test.tree.get(function_id).block(0);
         let mut analyses = test.function_analyses();
-        let effects = analyses.memory_effect(function_id, &test.tree, &test.effects);
+        let effects = analyses.memory_effect(function_id, &test.tree, &test.effects());
 
         for (slot, ty) in [(0, int32), (1, float64)] {
             let expected = MemoryAccessEffect {
@@ -1485,8 +1479,11 @@ entry(v0: ptr<int32, mutable>, v1: ptr<int32, readonly>, v2: usize):
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let effects =
-            analyses.memory_effect(program.entry_function_id(), &program.tree, &program.effects);
+        let effects = analyses.memory_effect(
+            program.entry_function_id(),
+            &program.tree,
+            &program.effects(),
+        );
         let instruction = program
             .tree
             .get(program.tree.get(function).block(0))

@@ -8,7 +8,7 @@ use crate::{
 };
 
 use super::error::{ParseError, ParseResult};
-use super::function::FunctionHeaderMode;
+use super::function::{FUNCTION_START, FunctionHeaderMode};
 use super::parser::Parser;
 
 impl Parser {
@@ -235,6 +235,7 @@ impl Parser {
                 self.bump();
             }
             if self.peek_is_function() {
+                self.eat_park(&FUNCTION_START);
                 self.bump();
 
                 let lifetime_scope_count = self.lifetime_scopes.len();
@@ -316,6 +317,7 @@ impl Parser {
         function.parameters = header.parameters;
         function.lifetimes = header.lifetimes;
         function.return_type = header.return_type;
+        function.park = header.park;
         self.pop_lifetime_scope();
 
         // imports stop at the signature

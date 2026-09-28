@@ -58,12 +58,7 @@ impl ModuleBuilder {
 
     /// Start building one new function.
     pub fn function(&mut self, header: FunctionHeader) -> FunctionBuilder<'_> {
-        FunctionBuilder::new(
-            &mut self.tree,
-            &mut self.effects,
-            self.target_layout.pointer_bits(),
-            header,
-        )
+        FunctionBuilder::new(&mut self.tree, self.target_layout.pointer_bits(), header)
     }
 
     /// Start building the body of one declared function.
@@ -74,7 +69,6 @@ impl ModuleBuilder {
         FunctionBuilder::from_declared(
             self.module,
             &mut self.tree,
-            &mut self.effects,
             self.target_layout.pointer_bits(),
             function_id,
         )

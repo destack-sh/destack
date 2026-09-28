@@ -452,7 +452,11 @@ entry:
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(program.entry_function_id(), &program.tree, &program.effects);
+        let memory = analyses.ssa(
+            program.entry_function_id(),
+            &program.tree,
+            &program.effects(),
+        );
         let alias = analyses
             .alias(
                 program.entry_function_id(),
@@ -505,7 +509,11 @@ join:
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(program.entry_function_id(), &program.tree, &program.effects);
+        let memory = analyses.ssa(
+            program.entry_function_id(),
+            &program.tree,
+            &program.effects(),
+        );
         let alias = analyses
             .alias(
                 program.entry_function_id(),
@@ -584,7 +592,11 @@ exit:
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(program.entry_function_id(), &program.tree, &program.effects);
+        let memory = analyses.ssa(
+            program.entry_function_id(),
+            &program.tree,
+            &program.effects(),
+        );
         let alias = analyses
             .alias(
                 program.entry_function_id(),
@@ -631,7 +643,11 @@ exit:
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(program.entry_function_id(), &program.tree, &program.effects);
+        let memory = analyses.ssa(
+            program.entry_function_id(),
+            &program.tree,
+            &program.effects(),
+        );
         let alias = analyses
             .alias(
                 program.entry_function_id(),
@@ -685,7 +701,11 @@ exit:
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(program.entry_function_id(), &program.tree, &program.effects);
+        let memory = analyses.ssa(
+            program.entry_function_id(),
+            &program.tree,
+            &program.effects(),
+        );
         let alias = analyses
             .alias(
                 program.entry_function_id(),
@@ -730,7 +750,11 @@ entry(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'a, mutabl
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(program.entry_function_id(), &program.tree, &program.effects);
+        let memory = analyses.ssa(
+            program.entry_function_id(),
+            &program.tree,
+            &program.effects(),
+        );
         let instructions = &program
             .tree
             .get(program.tree.get(function).block(0))
@@ -764,7 +788,11 @@ entry(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'a, readon
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(program.entry_function_id(), &program.tree, &program.effects);
+        let memory = analyses.ssa(
+            program.entry_function_id(),
+            &program.tree,
+            &program.effects(),
+        );
         let alias = analyses
             .alias(
                 program.entry_function_id(),
@@ -825,7 +853,11 @@ exit:
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(program.entry_function_id(), &program.tree, &program.effects);
+        let memory = analyses.ssa(
+            program.entry_function_id(),
+            &program.tree,
+            &program.effects(),
+        );
         let alias = analyses
             .alias(
                 program.entry_function_id(),
@@ -873,7 +905,11 @@ unused:
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(program.entry_function_id(), &program.tree, &program.effects);
+        let memory = analyses.ssa(
+            program.entry_function_id(),
+            &program.tree,
+            &program.effects(),
+        );
         let invoke = memory
             .terminator_access(program.tree.get(function).block(0))
             .unwrap();

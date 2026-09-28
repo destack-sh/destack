@@ -27,6 +27,8 @@ pub enum Successor {
     InvokeNormal,
     /// The unwind continuation of an invoke.
     InvokeUnwind,
+    /// The cleanup a panic enters inside its own frame.
+    PanicUnwind,
     /// The success target of a fallible allocation.
     NewSuccess,
     /// The failure target of a fallible allocation.

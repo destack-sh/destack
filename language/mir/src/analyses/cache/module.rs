@@ -112,12 +112,7 @@ impl ModuleCache {
     }
 
     /// Return function effects, analysing them when required.
-    pub fn effect(
-        &mut self,
-        tree: &mir::Tree,
-        effects: &mir::EffectTable,
-        dispatch: &mir::DispatchTable,
-    ) -> Arc<EffectTable> {
+    pub fn effect(&mut self, tree: &mir::Tree, dispatch: &mir::DispatchTable) -> Arc<EffectTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.effect {
             return result.clone();
@@ -128,7 +123,7 @@ impl ModuleCache {
         let calls = self.call(tree, dispatch);
 
         // analyse and cache the result
-        let result = Arc::new(EffectTable::analyse(&resolution, &calls, effects, tree));
+        let result = Arc::new(EffectTable::analyse(&resolution, &calls, tree));
         self.effect = Some(result.clone());
 
         result
@@ -138,7 +133,6 @@ impl ModuleCache {
     pub fn link(
         &mut self,
         tree: &mir::Tree,
-        effects: &mir::EffectTable,
         dispatch: &mir::DispatchTable,
         drops: &mir::DropTable,
     ) -> Arc<LinkTable> {
@@ -151,7 +145,7 @@ impl ModuleCache {
         let calls = self.call(tree, dispatch);
 
         // analyse and cache the result
-        let result = Arc::new(LinkTable::analyse(&calls, effects, drops, tree));
+        let result = Arc::new(LinkTable::analyse(&calls, drops, tree));
         self.link = Some(result.clone());
 
         result
@@ -161,7 +155,6 @@ impl ModuleCache {
     pub fn globals(
         &mut self,
         tree: &mir::Tree,
-        effects: &mir::EffectTable,
         dispatch: &mir::DispatchTable,
     ) -> Arc<GlobalAccessTable> {
         // reuse the result while its inputs remain unchanged
@@ -171,7 +164,7 @@ impl ModuleCache {
 
         // compute the call graph and function effects
         let calls = self.call(tree, dispatch);
-        let effects = self.effect(tree, effects, dispatch);
+        let effects = self.effect(tree, dispatch);
 
         // analyse and cache the global accesses
         let result = Arc::new(GlobalAccessTable::analyse(&calls, &effects, tree));
@@ -229,7 +222,6 @@ impl ModuleCache {
         &mut self,
         function: mir::FunctionId,
         tree: &mir::Tree,
-        effects: &mir::EffectTable,
         dispatch: &mir::DispatchTable,
     ) -> Arc<EscapeTable> {
         // reuse results while the function bodies remain unchanged
@@ -240,12 +232,7 @@ impl ModuleCache {
         // solve the module's recursive calls before selecting the function result
         let resolution = self.resolution(tree, dispatch);
         let calls = self.call(tree, dispatch);
-        let results = Arc::new(mir::EscapeBody::analyse_module(
-            &resolution,
-            &calls,
-            effects,
-            tree,
-        ));
+        let results = Arc::new(mir::EscapeBody::analyse_module(&resolution, &calls, tree));
         let result = results.get(function).clone();
         self.escape = Some(results);
 
@@ -326,7 +313,6 @@ impl ModuleCache {
         self.invalidate_module(mutation);
         let shared = mutation.intersection(
             Mutation::MEMORY
-                .union(Mutation::EFFECT)
                 .union(Mutation::LAYOUT)
                 .union(Mutation::SYMBOL)
                 .union(Mutation::DISPATCH)
@@ -450,7 +436,7 @@ entry:
         let second_control = cache.control(functions[1], &test.tree);
         let first_constant = cache.constant(functions[0], &test.tree);
         let second_constant = cache.constant(functions[1], &test.tree);
-        let effects = cache.effect(&test.tree, &test.effects, &test.dispatch);
+        let effects = cache.effect(&test.tree, &test.dispatch);
         let second_memory = cache.ssa(functions[1], &test.tree, &effects);
 
         // replace the first function's constant before invalidating its cached answer
@@ -493,7 +479,7 @@ entry:
         );
 
         // invalidate shared effects and dependent memory analyses after an operand change
-        let new_effects = cache.effect(&test.tree, &test.effects, &test.dispatch);
+        let new_effects = cache.effect(&test.tree, &test.dispatch);
         assert!(!Arc::ptr_eq(&effects, &new_effects));
         assert!(!Arc::ptr_eq(
             &second_memory,
@@ -544,7 +530,7 @@ entry:
         let resolution = cache.resolution(&test.tree, &test.dispatch);
         let origin = cache.origin(function, &test.tree);
         let calls = cache.call(&test.tree, &test.dispatch);
-        let effects = cache.effect(&test.tree, &test.effects, &test.dispatch);
+        let effects = cache.effect(&test.tree, &test.dispatch);
 
         // invalidate the dispatch table and its dependent analyses
         cache.invalidate(Mutation::DISPATCH);
@@ -557,7 +543,7 @@ entry:
         ));
         assert!(!Arc::ptr_eq(
             &effects,
-            &cache.effect(&test.tree, &test.effects, &test.dispatch)
+            &cache.effect(&test.tree, &test.dispatch)
         ));
 
         // check that dispatch changes preserve the control graph

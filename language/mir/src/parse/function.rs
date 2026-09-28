@@ -6,17 +6,22 @@ use crate::{
     Binding, Block, BlockParameter, BlockTarget, Call, Callee, CheckConstraint, Function,
     FunctionBody, FunctionHeaderSpans, FunctionKind, FunctionParameter, GenericArgument,
     GenericParameter, Instruction, LifetimeParameter, Linkage, Local, LocalNodeId, Mutability,
-    SwitchCase, Terminator, TypeId, TypedValueSpan, Value,
+    ParkBehavior, SwitchCase, Terminator, TypeId, TypedValueSpan, Value,
 };
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
+
+/// The keywords that open a function after its `park` modifier.
+pub(super) const FUNCTION_START: [TokenType; 2] = [TokenType::Function, TokenType::Constructor];
 
 /// Parsed function header.
 #[derive(Debug)]
 pub(super) struct ParsedFunctionHeader {
     /// The resolved function id.
     pub(super) function_id: LocalNodeId<Function>,
+    /// Whether calls to the function may park the calling fiber.
+    pub(super) park: ParkBehavior,
     /// The role the keyword declares.
     pub(super) kind: FunctionKind,
     /// The function keyword span.
@@ -72,7 +77,9 @@ pub(super) enum FunctionHeaderMode {
 impl Parser {
     /// Return whether the next token opens a function or constructor.
     pub(super) fn peek_is_function(&self) -> bool {
-        self.peek_is(TokenType::Function) || self.peek_is(TokenType::Constructor)
+        self.peek_is(TokenType::Function)
+            || self.peek_is(TokenType::Constructor)
+            || self.peek_is_park(&FUNCTION_START)
     }
 
     /// Extract first-class function fields from parsed attributes.
@@ -145,7 +152,8 @@ impl Parser {
         linkage: Linkage,
         mode: FunctionHeaderMode,
     ) -> ParseResult<ParsedFunctionHeader> {
-        // keyword and name
+        // modifier, keyword and name
+        let park = self.eat_park(&FUNCTION_START);
         let kind = match self.peek_is(TokenType::Constructor) {
             true => FunctionKind::Constructor,
             false => FunctionKind::Function,
@@ -190,6 +198,7 @@ impl Parser {
 
         Ok(ParsedFunctionHeader {
             function_id,
+            park,
             kind,
             keyword_span,
             name,
@@ -248,6 +257,7 @@ impl Parser {
             .with_symbol(symbol)
             .with_kind(header.kind);
             function.generics = header.generics.clone();
+            function.park = header.park;
             function.environment = function_attributes.environment_type;
             function.binding = function_attributes.binding.map(Box::new);
             function.allocation = AllocationMode::Any; // #Incomplete: set proper MIR allocation mode?
@@ -323,6 +333,7 @@ impl Parser {
         function.parameters = parameters;
         function.lifetimes = header.lifetimes;
         function.return_type = header.return_type;
+        function.park = header.park;
         function.linkage = linkage;
         function.environment = function_attributes.environment_type;
         function.binding = function_attributes.binding.map(Box::new);
@@ -1045,7 +1056,12 @@ impl Parser {
                     } else {
                         None
                     };
-                Ok(Terminator::Panic { payload })
+                let unwind = if self.eat_token_if(TokenType::Pipe) {
+                    Some(self.parse_block_target()?)
+                } else {
+                    None
+                };
+                Ok(Terminator::Panic { payload, unwind })
             }
             TokenType::UnwindResume => {
                 self.bump();

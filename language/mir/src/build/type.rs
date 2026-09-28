@@ -2,7 +2,7 @@ use tspp_core::StringId;
 
 use crate::build::ModuleBuilder;
 use crate::{
-    Access, Constant, Field, FieldId, FloatType, Lifetime, Multiplicity, Reference,
+    Access, Constant, Field, FieldId, FloatType, Lifetime, Multiplicity, ParkBehavior, Reference,
     SignatureParameter, Static, Type, TypeId, VariantCase,
 };
 
@@ -143,6 +143,7 @@ impl ModuleBuilder {
             lifetimes: Vec::new(),
             parameters,
             result,
+            park: ParkBehavior::CannotPark,
         })
     }
 

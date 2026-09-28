@@ -16,9 +16,6 @@ pub(crate) struct TestModule {
     pub(crate) layouts: Arc<LayoutTable>,
     /// Canonical MIR dispatch table.
     pub(crate) dispatch: DispatchTable,
-
-    /// Function and call effect table.
-    pub(crate) effects: EffectTable,
     /// String pool for identifiers (immutable, from parser).
     strings: StringPool,
 }
@@ -38,17 +35,8 @@ impl TestModule {
             ..ParseOptions::default()
         };
         let parsed = Parser::parse(&file, options).expect("MIR parser requires text content");
-        let (
-            tree,
-            target_layout,
-            mut layouts,
-            dispatch,
-            _drops,
-            effects,
-            _profile,
-            strings,
-            diagnostics,
-        ) = parsed.into_parts();
+        let (tree, target_layout, mut layouts, dispatch, _drops, _profile, strings, diagnostics) =
+            parsed.into_parts();
 
         // reject malformed fixtures
         if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
@@ -64,7 +52,6 @@ impl TestModule {
             tree,
             layouts: Arc::new(layouts),
             dispatch,
-            effects,
             strings,
         }
     }
@@ -90,6 +77,11 @@ impl TestModule {
     /// Create analyses for this module.
     pub(crate) fn module_analyses(&self) -> ModuleCache {
         ModuleCache::new()
+    }
+
+    /// Return the effects the module analysis infers for this module.
+    pub(crate) fn effects(&self) -> Arc<EffectTable> {
+        self.module_analyses().effect(&self.tree, &self.dispatch)
     }
 
     /// Return the defined function named `test`.

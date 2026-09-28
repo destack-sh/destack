@@ -78,17 +78,8 @@ impl<'a> TestParser<'a> {
         let file = test_file(self.source);
         let parsed = Parser::parse(&file, ParseOptions::default())
             .expect("MIR parser requires text content");
-        let (
-            tree,
-            _target_layout,
-            _layouts,
-            _dispatch,
-            _drops,
-            _effects,
-            _profile,
-            _strings,
-            diagnostics,
-        ) = parsed.into_parts();
+        let (tree, _target_layout, _layouts, _dispatch, _drops, _profile, _strings, diagnostics) =
+            parsed.into_parts();
 
         (tree, diagnostics)
     }
@@ -104,17 +95,8 @@ impl<'a> TestParser<'a> {
         let file = test_file(self.source);
         let parsed = Parser::parse(&file, ParseOptions::default())
             .expect("MIR parser requires text content");
-        let (
-            tree,
-            target_layout,
-            _layouts,
-            _dispatch,
-            _drops,
-            _effects,
-            _profile,
-            strings,
-            diagnostics,
-        ) = parsed.into_parts();
+        let (tree, target_layout, _layouts, _dispatch, _drops, _profile, strings, diagnostics) =
+            parsed.into_parts();
         assert!(
             !diagnostics.has_diagnostics_of_severity(tspp_source::DiagnosticSeverity::Error),
             "parse failed"

@@ -10,7 +10,7 @@ use super::value::{format_function_id, format_type_id};
 use crate::{
     Access, Attribute, Extent, Field, FieldId, FieldSpan, FormatNode, Formatter, FunctionId,
     GenericArgument, GenericParameter, GenericParameterDomain, Lifetime, LifetimeParameter,
-    LocalNodeId, Reference, RegionBound, SignatureParameter, Type, TypeDeclaration,
+    LocalNodeId, ParkBehavior, Reference, RegionBound, SignatureParameter, Type, TypeDeclaration,
     TypeDeclarationSpans, TypeHeritage, TypeId, Writer, write_comments_before,
 };
 
@@ -474,7 +474,8 @@ pub(super) fn format_type_expanded<'a>(
             lifetimes,
             parameters,
             result,
-        } => format_function_signature(lifetimes, parameters, *result, f),
+            park,
+        } => format_function_signature(lifetimes, parameters, *result, *park, f),
         Type::Witness {
             receiver,
             interface,
@@ -486,6 +487,7 @@ pub(super) fn format_type_expanded<'a>(
                 lifetimes,
                 parameters,
                 result,
+                park,
             } = signature_type
             else {
                 return Err(FormatError::SyntaxError {
@@ -494,7 +496,10 @@ pub(super) fn format_type_expanded<'a>(
             };
 
             write!(f, [token("fn")])?;
-            format_function_signature(lifetimes, parameters, *result, f)
+            if park.may_park() {
+                write!(f, [space()])?;
+            }
+            format_function_signature(lifetimes, parameters, *result, *park, f)
         }
         Type::Function {
             multiplicity,
@@ -634,8 +639,12 @@ pub(super) fn format_function_signature<'a>(
     lifetimes: &[LifetimeParameter],
     parameters: &[SignatureParameter],
     result: TypeId,
+    park: ParkBehavior,
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
+    if park.may_park() {
+        write!(f, [token("park"), space()])?;
+    }
     f.context_mut().push_lifetimes(lifetimes.to_vec());
     format_lifetimes(lifetimes, f)?;
 

@@ -5,8 +5,8 @@ use tspp_core::{FloatFormat, SectionEntry, StringId};
 
 use crate::{
     Attribute, Constant, Discriminant, Extent, FieldId, Lifetime, LifetimeParameter, LocalNodeId,
-    Node, NodeType, SignatureParameter, Static, StaticId, StorageSet, Substitution, Symbol, Tree,
-    TypeId,
+    Node, NodeType, ParkBehavior, SignatureParameter, Static, StaticId, StorageSet, Substitution,
+    Symbol, Tree, TypeId,
 };
 
 /// Mutability of a storage binding.
@@ -497,6 +497,8 @@ pub enum Type {
         parameters: Vec<SignatureParameter>,
         /// The result type of the function.
         result: TypeId,
+        /// Whether calls through this signature may park the calling fiber.
+        park: ParkBehavior,
     },
     /// Function value type.
     Function {

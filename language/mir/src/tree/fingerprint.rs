@@ -347,6 +347,7 @@ impl TypeHasher {
                 lifetimes,
                 parameters,
                 result,
+                park,
             } => {
                 self.hasher.write_u8(25);
                 self.hash_lifetime_parameters(lifetimes);
@@ -355,6 +356,7 @@ impl TypeHasher {
                     self.hash_parameter(parameter, tree);
                 }
                 self.hash_type(*result, tree);
+                self.hasher.write_u8(u8::from(park.may_park()));
             }
             Type::Function {
                 signature,

@@ -4,9 +4,8 @@ use serde::{Deserialize, Serialize};
 use tspp_core::FxIndexMap;
 
 use crate::{
-    Analysis, CallTable, DropTable, EffectTable, Function, FunctionBehavior, FunctionId, Global,
-    GlobalInitializer, Instruction, Linkage, MemoryEffect, Mutation, PlaceOrigin, Storage, Symbol,
-    Terminator, Tree, TypeId,
+    Analysis, CallTable, DropTable, Function, FunctionId, Global, GlobalInitializer, Instruction,
+    Linkage, Mutation, PlaceOrigin, Storage, Symbol, Terminator, Tree, TypeId,
 };
 
 /// Symbol references for one module.
@@ -51,14 +50,6 @@ pub enum LinkNode {
     Function {
         /// Visibility and definition location.
         linkage: Linkage,
-        /// Memory effect.
-        memory: MemoryEffect,
-        /// Behavioral effects (unwind, determinism, allocation, and so on).
-        behavior: FunctionBehavior,
-        /// Estimated inline cost.
-        inline_cost: u32,
-        /// Whether the function contains calls without a closed target.
-        has_open_calls: bool,
     },
     /// A defined global.
     Global {
@@ -185,16 +176,6 @@ impl LinkTable {
         }
     }
 
-    /// Approximate a function's inline cost as its instruction count.
-    fn function_inline_cost(function: &Function, tree: &Tree) -> u32 {
-        let mut count = 0usize;
-        for &block_id in function.blocks() {
-            count += tree.get(block_id).instructions.len();
-        }
-
-        count.min(u32::MAX as usize) as u32
-    }
-
     /// Return the symbol reference made by one instruction.
     fn instruction_edge(
         instruction: &Instruction,
@@ -286,19 +267,12 @@ impl LinkTable {
 }
 
 impl Analysis for LinkTable {
-    const INVALIDATED_BY: Mutation = CallTable::INVALIDATED_BY
-        .union(Mutation::EFFECT)
-        .union(Mutation::DROP);
+    const INVALIDATED_BY: Mutation = CallTable::INVALIDATED_BY.union(Mutation::DROP);
 }
 
 impl LinkTable {
     /// Build the link graph for one module from its call graph and tree.
-    pub fn analyse(
-        call_table: &CallTable,
-        effects: &EffectTable,
-        drops: &DropTable,
-        tree: &Tree,
-    ) -> Self {
+    pub fn analyse(call_table: &CallTable, drops: &DropTable, tree: &Tree) -> Self {
         let mut nodes = Vec::new();
         let mut edges = Vec::new();
 
@@ -315,17 +289,10 @@ impl LinkTable {
             }
 
             let symbol = function.symbol;
-            let tables = effects.function(function_id);
-            let memory = tables.map(|m| m.memory.clone()).unwrap_or_default();
-            let behavior = tables.map(|m| m.behavior.clone()).unwrap_or_default();
             nodes.push((
                 symbol,
                 LinkNode::Function {
                     linkage: function.linkage,
-                    memory,
-                    behavior,
-                    inline_cost: Self::function_inline_cost(function, tree),
-                    has_open_calls: !call_table.open_callsites(function_id).is_empty(),
                 },
             ));
 

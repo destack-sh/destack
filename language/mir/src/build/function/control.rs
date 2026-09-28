@@ -165,14 +165,19 @@ impl<'a> FunctionBuilder<'a> {
         *terminator = Terminator::Abort { payload };
     }
 
-    /// Panic with a language payload.
+    /// Panic with a language payload, entering the active cleanup first.
     pub fn panic(&mut self, payload: Option<Value>) {
         let block = self.current_block();
         let terminator_id = self.tree.get(block).terminator;
         self.stamp_terminator(terminator_id);
+        let unwind = self.unwind.map(|unwind| {
+            self.add_predecessor(block, unwind);
+
+            BlockTarget::new(unwind, self.tree.add_values(&[]))
+        });
         let terminator = self.tree.get_mut(terminator_id);
 
-        *terminator = Terminator::Panic { payload };
+        *terminator = Terminator::Panic { payload, unwind };
     }
 
     /// Mark the current block's end as unreachable.
@@ -214,6 +219,7 @@ impl<'a> FunctionBuilder<'a> {
         let unwind_arguments = self.tree.add_values(&unwind_arguments);
 
         let terminator_id = self.tree.get(block_id).terminator;
+        self.stamp_terminator(terminator_id);
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Invoke {

@@ -298,11 +298,16 @@ fn format_terminator<'a>(term: &Terminator, f: &mut Writer<'a, '_>) -> FormatRes
             format_allocation_continuation(success, failure, f)
         }
 
-        Terminator::Panic { payload } => {
+        Terminator::Panic { payload, unwind } => {
             write!(f, [token("panic")])?;
             if let Some(payload) = payload {
                 write!(f, [space(), payload])?;
             }
+            if let Some(unwind) = unwind {
+                write!(f, [space(), token("|"), space()])?;
+                format_block_target(unwind, f)?;
+            }
+
             Ok(())
         }
 

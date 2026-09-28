@@ -26,6 +26,13 @@ impl<'a> FunctionBuilder<'a> {
         self.current_block = Some(block);
     }
 
+    /// Remove one block no edge enters and no instruction fills.
+    pub fn discard_block(&mut self, block: LocalNodeId<Block>) {
+        debug_assert!(!self.is_entered(block) && self.tree.get(block).instructions.is_empty());
+        self.blocks.retain(|known| *known != block);
+        self.predecessors.shift_remove(&block);
+    }
+
     /// Return whether any edge enters one block.
     pub fn is_entered(&self, block: LocalNodeId<Block>) -> bool {
         self.predecessors

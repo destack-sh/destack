@@ -10,6 +10,7 @@ use crate::{
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
+use super::r#type::SIGNATURE_START;
 
 #[allow(clippy::type_complexity)]
 impl Parser {
@@ -1076,9 +1077,10 @@ impl Parser {
     ) -> ParseResult<TypeId> {
         let signature_start = self.pos();
         self.eat_token(TokenType::Colon)?;
+        let park = self.eat_park(&SIGNATURE_START);
 
         self.parse_lifetime_scope(|parser, lifetimes| {
-            let signature = parser.parse_signature(lifetimes)?;
+            let signature = parser.parse_signature(lifetimes, park)?;
             let signature_span = parser.span_from_parse_start(signature_start);
             segment_spans.push(signature_span);
 

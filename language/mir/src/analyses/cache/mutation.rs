@@ -11,16 +11,14 @@ impl Mutation {
     pub const VALUE: Self = Self(1 << 1);
     /// Memory access metadata changed.
     pub const MEMORY: Self = Self(1 << 2);
-    /// Effect tables changed.
-    pub const EFFECT: Self = Self(1 << 3);
     /// Type definitions, recorded value types, or physical layouts changed.
-    pub const LAYOUT: Self = Self(1 << 4);
+    pub const LAYOUT: Self = Self(1 << 3);
     /// Symbol visibility or linkage changed.
-    pub const SYMBOL: Self = Self(1 << 5);
+    pub const SYMBOL: Self = Self(1 << 4);
     /// Dispatch targets or witness implementations changed.
-    pub const DISPATCH: Self = Self(1 << 6);
+    pub const DISPATCH: Self = Self(1 << 5);
     /// Destruction requirements or referenced destructors changed.
-    pub const DROP: Self = Self(1 << 7);
+    pub const DROP: Self = Self(1 << 6);
     /// Everything changed; every analysis is invalidated.
     pub const ALL: Self = Self(u8::MAX);
 
