@@ -9,7 +9,7 @@ export interface Declaration {
     readonly name: string;
 }
 
-/** The state a resource declaration requires of its resource, as data providers plan from. */
+/** The state a resource declaration requires of its resource. */
 export type ResourceState = Readonly<Record<string, schema.Infer<ReturnType<typeof schema.json>>>>;
 
 /** A resource declaration, which describes the state it requires. */

@@ -43,7 +43,7 @@ export function modulePlugin(): Plugin {
                 // require variants to re-export their base, then stamp declarations
                 requireBase(code, path);
 
-                return transformModule(code, path, owner.metadata);
+                return transformModule(code, path, owner);
             },
         },
     };

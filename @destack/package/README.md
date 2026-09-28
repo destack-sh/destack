@@ -1,30 +1,54 @@
+# @destack/package
+
 Define Destack packages, transform their modules, and read their built manifests.
 
-## Definition
+## Definitions
 
-A package's `destack.json` holds what its code cannot declare.
+A package's `destack.json` names its identity, targets, runtimes and the declaration constructors it exports.
 
 ```json
 {
-    "id": "package-01996ab0-0000-7000-8000-000000000001",
+    "id": "package-01a0e95b-c8db-7258-a257-e7661dbc93c3",
     "language": "typescript",
     "targets": ["browser", "server"],
+    "runtimes": ["browser", "bun", "workerd"],
     "declarations": {
-        "defineDatabase": { "module": 1, "inspect": { "kind": "resource", "describe": "./inspect#describeDatabase" } },
-        "defineTable": { "module": 3 }
+        "defineNotification": { "module": 1, "inspect": { "kind": "notification", "describe": "./inspect#describeNotification" } }
     }
 }
 ```
 
+## Packages
+
+`definePackage` declares the resources and secrets a stack binds when it installs the package.
+
+```ts
+import { definePackage } from "@destack/package/declare";
+
+export default definePackage({ resources: { main: notesDatabase }, secrets: { "github-webhook": webhookSecret } });
+```
+
 ## Modules
 
-The transform gives each module its package metadata and stamps declaration constructor calls with it.
+The module transform gives each module its package metadata and stamps declaration constructor calls with it.
 
 ```ts
 const { id, name, version } = import.meta.destack.package;
 ```
 
-A module can have a variant per target, named after it, which replaces the module for that target.
+## Transforms
+
+Each entry point installs the module transform in one toolchain.
+
+| Entry point | Installs |
+|---|---|
+| `@destack/package/transform/vite` | `modulePlugin()` for Vite and Vitest |
+| `@destack/package/transform/bun` | `modulePlugin` for `Bun.build` and `Bun.plugin` |
+| `@destack/package/transform/preload` | The Bun plugin for every module a process loads |
+
+## Variants
+
+A module named after a target replaces its base module in that target's builds.
 
 ```text
 src/page/page.ts           shared by every target
@@ -32,20 +56,14 @@ src/page/page.server.ts    replaces page.ts in server builds, Bun processes and 
 src/page/page.browser.ts   replaces page.ts in browser builds
 ```
 
-- A variant starts with `export * from "./page.ts"` and may add or replace exports.
-- Importing another target's variant explicitly fails the build.
-- Declarations belong in the base module, since inspection loads bases only.
-
 ## Manifests
 
-A build describes a package's files, outputs and declarations in its manifest.
+A `PackageReader` reads a built package's files and the descriptions its declarations produced.
 
 ```ts
 import { openPackage } from "@destack/package/manifest";
 
 const reader = await openPackage(location, { fetch });
 const files = await reader.files();
-const services = await reader.domain("service", schema.array(DeclarationDescription));
+const settings = await reader.declared(import.meta.destack.package.id, "setting", SettingDescription);
 ```
-
-Manifests describe the declarations the package owns, and refers to its dependencies' declarations by package and name.

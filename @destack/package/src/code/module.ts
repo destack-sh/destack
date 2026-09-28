@@ -1,8 +1,7 @@
 import { defineSchema, schema } from "@destack/schema";
-import { PackagePath } from "../file/file.ts";
 import { SymbolReference } from "./reference.ts";
 import { SymbolDescription } from "./symbol.ts";
-import { PackageFile } from "../file/file.ts";
+import { PackageFile, PackagePath } from "../file/file.ts";
 import { SourceRange } from "../source/location.ts";
 import { ErrorDescription } from "./error.ts";
 

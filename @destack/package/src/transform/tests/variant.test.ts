@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { greeting, loaded } from "./fixture/greeting.ts";
-import { requireBase, resolveVariant } from "../variant.ts";
+import { importVariants, requireBase, resolveVariant } from "../variant.ts";
 
 /** Report the paths a test filesystem holds. */
 function files(...paths: string[]) {
@@ -32,6 +32,37 @@ test("resolve relative imports to the target's variant only where one exists", (
     ).toThrow(
         "browser module /package/src/view.ts imports server variant /package/src/page.server.ts",
     );
+});
+
+test("name the target's variants in a module's relative imports and re-exports", () => {
+    const exists = files("/package/src/page.server.ts");
+    const code = [
+        'import { page } from "./page.ts";',
+        'export * from "./page.ts";',
+        'import { note } from "./note.ts";',
+        'import { sql } from "@destack/db";',
+    ].join("\n");
+
+    // rewrite the imports of modules with a variant, and leave modules without one
+    expect([
+        importVariants(code, "/package/src/index.ts", "server", exists),
+        importVariants(code, "/package/src/index.ts", "browser", exists),
+        importVariants(
+            'export * from "./page.ts";',
+            "/package/src/page.server.ts",
+            "server",
+            exists,
+        ),
+    ]).toEqual([
+        [
+            'import { page } from "./page.server.ts";',
+            'export * from "./page.server.ts";',
+            'import { note } from "./note.ts";',
+            'import { sql } from "@destack/db";',
+        ].join("\n"),
+        undefined,
+        undefined,
+    ]);
 });
 
 test("require a variant to re-export its base", () => {

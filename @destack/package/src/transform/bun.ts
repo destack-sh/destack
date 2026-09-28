@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { readFile } from "node:fs/promises";
 import { PackageLocator, transformModule } from "./transform.ts";
-import { requireBase, resolveVariant } from "./variant.ts";
+import { importVariants, requireBase, resolveVariant } from "./variant.ts";
 
 /** Package lookups shared by every load in this process. */
 const packages = new PackageLocator();
@@ -27,14 +27,17 @@ export const modulePlugin: Bun.BunPlugin = {
                 requireBase(code, path);
             }
 
+            // name server variants in runtime sources
+            const loaded = (!isBundling && importVariants(code, path, "server")) || code;
+
             // pass unchanged sources on to later bundler plugins
-            const result = owner && transformModule(code, path, owner.metadata);
+            const result = owner && transformModule(loaded, path, owner);
             if (!result && isBundling) {
                 return undefined;
             }
             const contents = result
                 ? `${result.code}\n//# sourceMappingURL=${result.map.toUrl()}`
-                : code;
+                : loaded;
 
             return { contents, loader: /\.[cm]?tsx$/.test(path) ? "tsx" : "ts" };
         });

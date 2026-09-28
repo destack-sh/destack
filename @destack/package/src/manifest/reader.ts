@@ -4,6 +4,8 @@ import { DependencyResolution } from "../definition/dependency.ts";
 import { SourceMapReference } from "../source/map.ts";
 import { ModuleDescription } from "../code/module.ts";
 import { PackageError } from "../error/index.ts";
+import type { DeclarationName, PackageId } from "../definition/package.ts";
+import { DeclarationDescription } from "../inspect/declaration.ts";
 import { ManifestFile, type PackageManifest } from "./manifest.ts";
 
 /** A readable package distribution supplied by local or remote storage. */
@@ -84,6 +86,28 @@ export class PackageReader {
         }
 
         return this.read(collection.file, definition);
+    }
+
+    /** Read the descriptions of one kind of declaration a package's constructors make. */
+    async declared<Item extends schema.Schema>(
+        owner: PackageId,
+        kind: DeclarationName,
+        item: Item,
+    ): Promise<schema.Output<Item>[]> {
+        // read the owner's collection of each version the build holds
+        const collections = Object.values(this.manifest.descriptions).filter(
+            (collection) => collection.package.id === owner,
+        );
+        const declarations = await Promise.all(
+            collections.map((collection) =>
+                this.read(collection.file, schema.array(DeclarationDescription)),
+            ),
+        );
+
+        return declarations
+            .flat()
+            .filter((declaration) => declaration.kind === kind)
+            .map((declaration) => item.parse(declaration.description));
     }
 
     /** Verify a selected file before decoding its declared description type. */

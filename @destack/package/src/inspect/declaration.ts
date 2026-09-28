@@ -1,8 +1,7 @@
 import { defineSchema, schema } from "@destack/schema";
-import { DeclarationName } from "../definition/package.ts";
 import { SourceLocation } from "../source/location.ts";
 import { DependencySymbol } from "../code/reference.ts";
-import { Package } from "../definition/package.ts";
+import { DeclarationName, Package } from "../definition/package.ts";
 
 /** A declaration described by its domain inspector. */
 export const DeclarationDescription = defineSchema(

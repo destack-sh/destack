@@ -1,5 +1,6 @@
 import { statSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
+import MagicString from "magic-string";
 import { parseAst } from "rolldown/parseAst";
 import type { Target } from "../definition/target.ts";
 
@@ -32,6 +33,40 @@ export function resolveVariant(
     }
 
     return exists(variant) ? variant : undefined;
+}
+
+/** Point a module's relative imports and re-exports at the target's variants. */
+export function importVariants(
+    code: string,
+    path: string,
+    target: Target,
+    exists: (path: string) => boolean = isFile,
+): string | undefined {
+    // skip modules without relative imports
+    if (!/from\s*["']\./.test(code)) {
+        return undefined;
+    }
+
+    // name each variant in its import specifier
+    const program = parseAst(code, { lang: /\.[cm]?tsx$/.test(path) ? "tsx" : "ts" }, path);
+    const source = new MagicString(code);
+    let isChanged = false;
+    for (const statement of program.body) {
+        const specifier =
+            (statement.type === "ImportDeclaration" ||
+                statement.type === "ExportAllDeclaration" ||
+                statement.type === "ExportNamedDeclaration") &&
+            statement.source !== null
+                ? statement.source
+                : undefined;
+        if (specifier !== undefined && resolveVariant(specifier.value, path, target, exists)) {
+            const variant = specifier.value.replace(/(\.[cm]?tsx?)$/, `.${target}$1`);
+            source.overwrite(specifier.start, specifier.end, JSON.stringify(variant));
+            isChanged = true;
+        }
+    }
+
+    return isChanged ? source.toString() : undefined;
 }
 
 /** Require a variant module to re-export every export of the base it replaces. */

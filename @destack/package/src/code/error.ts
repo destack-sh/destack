@@ -19,7 +19,7 @@ export const ErrorDescription = defineSchema(
                 catches: schema.array(SourceRange),
             }),
         ),
-        /** Calls whose failures may propagate; a target does not prove its failure behavior. */
+        /** Calls whose failures may propagate. */
         calls: schema.array(
             schema.object({
                 /** The call expression. */
@@ -32,9 +32,9 @@ export const ErrorDescription = defineSchema(
                 catches: schema.array(SourceRange),
             }),
         ),
-        /** Catch bodies, including their explicit rethrows and translated errors. */
+        /** Catch bodies. */
         catches: schema.array(SourceRange),
-        /** Finally bodies, whose failures or returns can replace an earlier outcome. */
+        /** Finally bodies. */
         finally: schema.array(SourceRange),
         /** Unresolved behavior that prevents a complete escaping-error calculation. */
         unknowns: schema.array(

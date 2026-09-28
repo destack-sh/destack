@@ -21,10 +21,10 @@ export const ComputeDefinition = defineSchema(
         requests: ComputeCapacity.optional(),
         /** Maximum capacity allowed for an instance. */
         limits: ComputeCapacity.optional(),
-        /** Scaling bounds, including whether idle execution may stop. */
+        /** Instance scaling bounds. */
         scaling: schema
             .object({
-                /** Minimum warm instances; zero permits stopping all idle instances. */
+                /** Minimum warm instances, zero to stop every idle instance. */
                 minInstances: schema.number().int().nonnegative().optional(),
                 /** Maximum simultaneous instances. */
                 maxInstances: schema.number().int().positive().optional(),
