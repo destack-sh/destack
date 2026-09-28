@@ -120,6 +120,28 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
+    /// Report a boolean parameter of an ambient function from its declared signature.
+    #[test]
+    fn test_reports_ambient_function_parameter() {
+        let session = TestSession::dir(
+            &BOOLEAN_PREFIX,
+            r#"
+declare function send(ready: boolean): void;
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[boolean-prefix]: boolean value `ready` needs a predicate prefix
+ ──▶ main.tspp:1:23
+  │
+1 │ declare function send(ready: boolean): void;
+  │                       ^^^^^
+  │
+"#,
+        );
+    }
+
     /// Report a boolean field without a predicate prefix.
     #[test]
     fn test_reports_boolean_field() {

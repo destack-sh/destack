@@ -333,6 +333,14 @@ impl DirModule<'_> {
 
                     current = parent;
                 }
+                // stop at decorator applications
+                dir::NodeType::Expression
+                    if view
+                        .get_parent_any(parent)
+                        .is_some_and(|owner| owner.ty == dir::NodeType::Decorator) =>
+                {
+                    return None;
+                }
                 // stop at branch bodies, otherwise return the value parent
                 dir::NodeType::Expression => {
                     let parent = dir::LocalNodeId::<dir::Expression>::new(parent.id);
@@ -361,11 +369,12 @@ impl DirModule<'_> {
 
                     return Some(parent);
                 }
-                // stop at bindings and control branches
+                // stop at bindings, control branches and decorators
                 dir::NodeType::Declarator
                 | dir::NodeType::MatchArm
                 | dir::NodeType::Catch
-                | dir::NodeType::SwitchCase => return None,
+                | dir::NodeType::SwitchCase
+                | dir::NodeType::Decorator => return None,
                 _ => {
                     // stop at callable ownership
                     if current

@@ -99,6 +99,33 @@ impl<'a> MirModule<'a> {
         Ok((selected == Some(member)).then_some(call))
     }
 
+    /// Return one call instruction when its source call targets one language item.
+    pub fn language_item_call(
+        &self,
+        instruction: mir::LocalNodeId<mir::Instruction>,
+        item: dir::LanguageItem,
+    ) -> Result<Option<&mir::Call>, ProviderError> {
+        let mir::Instruction::Call { call, .. } = self.lowered.tree.get(instruction) else {
+            return Ok(None);
+        };
+        let Some(dir) = &self.dir else {
+            return Ok(None);
+        };
+        let Some(source) = self.lowered.tree.get_source(instruction.id) else {
+            return Ok(None);
+        };
+
+        // read the item the lowered call targets
+        let module = dir.module(self.id)?;
+        let node = dir::LocalNodeIdAny::new(source, module.view().get_node_type(source));
+        let Ok(expression) = node.try_into_typed::<dir::Expression>() else {
+            return Ok(None);
+        };
+        let targeted = module.language_item(expression)?;
+
+        Ok((targeted == Some(item)).then_some(call))
+    }
+
     /// Return the required source span for one MIR node.
     pub fn span(&self, node: mir::LocalNodeIdAny) -> Result<Span, ProviderError> {
         self.lowered

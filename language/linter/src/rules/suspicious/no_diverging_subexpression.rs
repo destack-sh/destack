@@ -102,6 +102,46 @@ warning[no-diverging-subexpression]: diverging operand prevents later evaluation
         );
     }
 
+    /// Accept decorator applications.
+    #[test]
+    fn test_accepts_decorated_declarations() {
+        let session = TestSession::dir(
+            &NO_DIVERGING_SUBEXPRESSION,
+            r#"
+@derive(Clone)
+struct Header {
+    tag: uint8;
+}
+
+@repr("C")
+struct Wire {
+    tag: uint8;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept branches that each return from their function.
+    #[test]
+    fn test_accepts_returning_branches() {
+        let session = TestSession::dir(
+            &NO_DIVERGING_SUBEXPRESSION,
+            r#"
+function width(flag: boolean): int32 {
+    if (flag) {
+        return 100;
+    } else {
+        return 1;
+    }
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
     /// Accept divergence used as a complete statement.
     #[test]
     fn test_accepts_diverging_statement() {
@@ -129,8 +169,8 @@ declare function stop(): never;
 
 function select(active: boolean): int32 {
     return match (active) {
-        true => 1
-        false => stop()
+        true => 1,
+        false => stop(),
     };
 }
 "#,
@@ -149,8 +189,8 @@ declare function stop(): never;
 
 function require(active: boolean): boolean {
     return active || match (active) {
-        true => stop()
-        false => stop()
+        true => stop(),
+        false => stop(),
     };
 }
 "#,
@@ -165,10 +205,10 @@ warning[no-diverging-subexpression]: diverging operand prevents later evaluation
 3 │ function require(active: boolean): boolean {
 4 │     return active || match (active) {
   │                      ^^^^^^^^^^^^^^^^
-5 │         true => stop()
-  │         ^^^^^^^^^^^^^^
-6 │         false => stop()
+5 │         true => stop(),
   │         ^^^^^^^^^^^^^^^
+6 │         false => stop(),
+  │         ^^^^^^^^^^^^^^^^
 7 │     };
   │     ^
 8 │ }

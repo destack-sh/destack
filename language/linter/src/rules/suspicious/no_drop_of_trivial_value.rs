@@ -1,5 +1,6 @@
 use crate::rules::declare_lint;
 use crate::{Lint, LintOutput, LintResult, MirModule};
+use tspp_dir as dir;
 use tspp_mir as mir;
 
 declare_lint! {
@@ -44,7 +45,7 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
     let tree = &module.lowered.tree;
     let mut output = LintOutput::default();
 
-    // inspect explicit drop instructions in every defined function
+    // inspect calls to the drop function in every defined function
     for (_, function) in tree.iter_nodes::<mir::Function>() {
         let Some(body) = function.body() else {
             continue;
@@ -52,7 +53,12 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
 
         for block in body.blocks().iter().copied() {
             for instruction in tree.get(block).instructions.iter().copied() {
-                let mir::Instruction::Drop { value } = tree.get(instruction) else {
+                let Some(call) =
+                    module.language_item_call(instruction, dir::LanguageItem::MemoryDrop)?
+                else {
+                    continue;
+                };
+                let Some(value) = tree.get_values(call.arguments).first() else {
                     continue;
                 };
 
@@ -106,7 +112,8 @@ mod tests {
         );
 
         session.assert_diagnostics(
-            r#"warning[no-drop-of-trivial-value]: value requires no destruction
+            r#"
+warning[no-drop-of-trivial-value]: value requires no destruction
  ──▶ main.tspp:4:5
   │
 2 │
@@ -122,12 +129,13 @@ mod tests {
     /// Report an explicit drop of a Copy value.
     #[test]
     fn test_reports_copy_value() {
-        let session = TestSession::mir(
+        let session = TestSession::dir(
             &NO_DROP_OF_TRIVIAL_VALUE,
-            r#"function discard(v0: boolean): void {
-entry(v0: boolean):
-    drop v0
-    return
+            r#"
+import { drop } from "tspp:memory";
+
+function discard(value: boolean): void {
+    drop(value);
 }
 "#,
         );
@@ -135,13 +143,12 @@ entry(v0: boolean):
         session.assert_diagnostics(
             r#"
 warning[no-drop-of-trivial-value]: value requires no destruction
- ──▶ main.mir:3:5
+ ──▶ main.tspp:4:5
   │
-1 │ function discard(v0: boolean): void {
-2 │ entry(v0: boolean):
-3 │     drop v0
-  │     ^^^^^^^
-4 │     return
+2 │
+3 │ function discard(value: boolean): void {
+4 │     drop(value);
+  │     ^^^^^^^^^^^
 5 │ }
   │
 "#,
@@ -151,12 +158,13 @@ warning[no-drop-of-trivial-value]: value requires no destruction
     /// Report an explicit drop of a borrowed reference.
     #[test]
     fn test_reports_borrowed_reference() {
-        let session = TestSession::mir(
+        let session = TestSession::dir(
             &NO_DROP_OF_TRIVIAL_VALUE,
-            r#"function discard<'a>(v0: ref<int32, borrowed, 'a, readonly>): void {
-entry(v0: ref<int32, borrowed, 'a, readonly>):
-    drop v0
-    return
+            r#"
+import { drop } from "tspp:memory";
+
+function discard(value: &readonly int32): void {
+    drop(value);
 }
 "#,
         );
@@ -164,13 +172,12 @@ entry(v0: ref<int32, borrowed, 'a, readonly>):
         session.assert_diagnostics(
             r#"
 warning[no-drop-of-trivial-value]: value requires no destruction
- ──▶ main.mir:3:5
+ ──▶ main.tspp:4:5
   │
-1 │ function discard<'a>(v0: ref<int32, borrowed, 'a, readonly>): void {
-2 │ entry(v0: ref<int32, borrowed, 'a, readonly>):
-3 │     drop v0
-  │     ^^^^^^^
-4 │     return
+2 │
+3 │ function discard(value: &readonly int32): void {
+4 │     drop(value);
+  │     ^^^^^^^^^^^
 5 │ }
   │
 "#,
@@ -197,7 +204,8 @@ function discard(value: Point): void {
         );
 
         session.assert_diagnostics(
-            r#"warning[no-drop-of-trivial-value]: value requires no destruction
+            r#"
+warning[no-drop-of-trivial-value]: value requires no destruction
   ──▶ main.tspp:9:5
    │
  7 │

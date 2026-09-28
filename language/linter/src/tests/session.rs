@@ -207,24 +207,10 @@ impl TestSession {
         }
 
         // build the MIR module consumed by the lint
-        let (tree, target, mut layouts, dispatch, drops, effects, profile, strings, _) =
-            parsed.into_parts();
-        let mut builder = mir::LayoutBuilder::new(&tree, &mut layouts, target);
-        builder
+        let (tree, target, mut layouts, dispatch, drops, profile, strings, _) = parsed.into_parts();
+        mir::LayoutBuilder::new(&tree, &mut layouts, target)
             .layout_reachable_types()
             .expect("lint MIR layouts should build");
-
-        // lay out every concrete type declaration for the declaration lints
-        let declared = tree
-            .iter_nodes::<mir::TypeDeclaration>()
-            .filter(|(_, declaration)| declaration.generics.is_empty())
-            .filter_map(|(_, declaration)| declaration.definition)
-            .collect::<Vec<_>>();
-        for ty in declared {
-            builder
-                .layout_type(ty)
-                .expect("lint MIR declaration layouts should build");
-        }
         let lowered = MirLowered {
             tree: Arc::new(tree),
             target,
@@ -232,7 +218,6 @@ impl TestSession {
             dispatch,
             drops,
             witnesses: mir::WitnessTable::default(),
-            effects,
             profile,
             initializer: None,
         };

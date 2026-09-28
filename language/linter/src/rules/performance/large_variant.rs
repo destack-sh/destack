@@ -48,8 +48,11 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
     let tree = &module.lowered.tree;
     let mut output = LintOutput::default();
 
-    // inspect every declared variant representation
+    // inspect every variant representation this module declares
     for (declaration_id, declaration) in tree.iter_nodes::<mir::TypeDeclaration>() {
+        if declaration.symbol.module() != Some(module.id) {
+            continue;
+        }
         // open templates have no single storage size
         if !declaration.generics.is_empty() {
             continue;
@@ -172,6 +175,51 @@ warning[large-variant]: largest variant exceeds the next-largest by 252 bytes
  = help: place the large payload behind Box when smaller variants are common
 "#,
         );
+    }
+
+    /// Report a large variant a source module declares without using it.
+    #[test]
+    fn test_reports_unused_declared_variant() {
+        let session = TestSession::dir(
+            &LARGE_VARIANT,
+            r#"
+struct Packet {
+    bytes: [uint8; 256];
+}
+
+newtype Message = int32 | Packet;
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[large-variant]: largest variant exceeds the next-largest by 252 bytes
+ ──▶ main.tspp:5:1
+  │
+3 │ }
+4 │
+5 │ newtype Message = int32 | Packet;
+  │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  │
+
+ = help: place the large payload behind Box when smaller variants are common
+"#,
+        );
+    }
+
+    /// Leave the variants of imported declarations to their declaring modules.
+    #[test]
+    fn test_accepts_imported_variants() {
+        let session = TestSession::dir(
+            &LARGE_VARIANT,
+            r#"
+import { log } from "tspp:console";
+
+log("hello");
+"#,
+        );
+
+        session.assert_no_diagnostics();
     }
 
     /// Accept variant cases whose representation sizes remain close.

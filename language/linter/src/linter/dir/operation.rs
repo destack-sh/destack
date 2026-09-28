@@ -724,6 +724,18 @@ impl DirModule<'_> {
                 return Ok(None);
             }
 
+            // select no member for a type-level projection inside a type
+            let view = self.view();
+            let mut parent = view.get_parent_any(node.into_any());
+            while let Some(ancestor) = parent
+                && ancestor.ty == dir::NodeType::Expression
+            {
+                parent = view.get_parent_any(ancestor);
+            }
+            if parent.is_some_and(|ancestor| ancestor.ty == dir::NodeType::TypeExpression) {
+                return Ok(None);
+            }
+
             return Err(ProviderError::internal(format!(
                 "member expression {} in module {:?} has no member resolution",
                 node.id, self.id
