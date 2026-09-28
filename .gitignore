@@ -78,6 +78,7 @@ coverage
 .parcel-cache
 .next
 .output/
+.wrangler/
 .vinxi/
 out
 .nuxt
