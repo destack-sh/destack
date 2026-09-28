@@ -61,8 +61,8 @@ fn test_binding_call(
     _declaration: &program::Binding,
     _arguments: &[program::Word],
     _result: &mut [program::Word],
-) -> RuntimeResult<()> {
-    Ok(())
+) -> RuntimeResult<program::BindingExit> {
+    Ok(program::BindingExit::Returned)
 }
 
 /// Recordable binding calls replay in order.

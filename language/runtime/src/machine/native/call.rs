@@ -306,12 +306,17 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
 
         // the native tier carries no detach boundaries; the mounted fiber is current
         let fiber_id = call.activation.runtime.fiber_id();
-        if let Err(error) = call
+        let exit = call
             .activation
             .runtime
-            .call_binding(memory, context, fiber_id, binding, arguments, result)
-        {
-            call.fail_boxed(error);
+            .call_binding(memory, context, fiber_id, binding, arguments, result);
+        match exit {
+            Ok(program::BindingExit::Returned) => {}
+            // reject a park, which native frames cannot retain yet
+            Ok(program::BindingExit::Parked) => call.fail(RuntimeError::Internal {
+                message: "native code cannot park its fiber".to_string(),
+            }),
+            Err(error) => call.fail_boxed(error),
         }
     }
 

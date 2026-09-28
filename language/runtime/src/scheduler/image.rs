@@ -24,6 +24,8 @@ pub struct EventLoopImage {
 pub struct EventLoopActiveImage {
     /// Captured pending tasks.
     pub tasks: Vec<Runnable>,
+    /// Captured runnable a resume transfer handed the worker to.
+    pub next: Option<Runnable>,
     /// Captured pending microtasks.
     pub microtasks: Vec<Runnable>,
     /// Captured pending wakes.
@@ -53,6 +55,7 @@ impl EventLoopActiveImage {
     fn inherit(&self) -> Self {
         Self {
             tasks: self.tasks.iter().map(Runnable::inherit).collect(),
+            next: self.next.as_ref().map(Runnable::inherit),
             microtasks: self.microtasks.iter().map(Runnable::inherit).collect(),
             wakes: self.wakes.clone(),
             timers: self.timers.clone(),
@@ -79,6 +82,7 @@ impl EventLoop {
 
         Ok(Self {
             tasks: self.tasks.iter().map(Runnable::inherit).collect(),
+            next: self.next.as_ref().map(Runnable::inherit),
             microtasks: self.microtasks.iter().map(Runnable::inherit).collect(),
             timers,
             wakes: self.wakes.clone(),
@@ -113,6 +117,7 @@ impl EventLoop {
         let timers = self.timers.image();
 
         if tasks.is_empty()
+            && self.next.is_none()
             && microtasks.is_empty()
             && self.wakes.is_empty()
             && timers.is_empty()
@@ -130,6 +135,7 @@ impl EventLoop {
             next_runnable_id: self.next_runnable_id,
             active: Some(Box::new(EventLoopActiveImage {
                 tasks,
+                next: self.next.as_ref().map(Runnable::inherit),
                 microtasks,
                 wakes: self.wakes.iter().cloned().collect(),
                 timers,
@@ -173,6 +179,7 @@ impl EventLoop {
         // restore scheduler state without further failure points
         self.next_runnable_id = next_runnable_id;
         self.tasks.extend(tasks);
+        self.next = image.next.as_ref().map(Runnable::inherit);
         self.microtasks.extend(microtasks);
         self.wakes.extend(image.wakes.iter().cloned());
         self.timers = timers;
@@ -242,7 +249,10 @@ impl EventLoopImage {
             return false;
         };
 
-        !image.tasks.is_empty() || !image.microtasks.is_empty() || !image.wakes.is_empty()
+        !image.tasks.is_empty()
+            || image.next.is_some()
+            || !image.microtasks.is_empty()
+            || !image.wakes.is_empty()
     }
 
     /// Return whether any event-loop work remains in this image.

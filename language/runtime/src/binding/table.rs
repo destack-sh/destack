@@ -49,7 +49,7 @@ pub type BindingFn = fn(
     declaration: &program::Binding,
     arguments: &[Word],
     result: &mut [Word],
-) -> RuntimeResult<()>;
+) -> RuntimeResult<program::BindingExit>;
 
 impl BindingTable {
     /// Create one empty binding table.
@@ -71,7 +71,7 @@ impl BindingTable {
         fiber_id: Option<program::FiberId>,
         arguments: &[Word],
         result: &mut [Word],
-    ) -> RuntimeResult<()> {
+    ) -> RuntimeResult<program::BindingExit> {
         let id = declaration.id;
         let Some(index) = self.indices.get(&id).copied() else {
             return Err(RuntimeError::binding_not_found(format!("{id:?}")).boxed());
@@ -92,14 +92,21 @@ impl BindingTable {
     /// Ensure every binding required by one program is registered.
     pub fn require(&self, program: &Program) -> RuntimeResult<()> {
         for binding in program.bindings() {
-            // program-defined bindings execute through their linked implementation
+            // skip program-defined bindings
             if !binding.is_imported() {
                 continue;
             }
 
             // external bindings require one registered runtime implementation
             if !self.indices.contains_key(&binding.id) {
-                return Err(RuntimeError::binding_not_found(format!("{:?}", binding.id)).boxed());
+                let name = program.string(binding.name).ok_or_else(|| {
+                    RuntimeError::Internal {
+                        message: format!("binding {:?} has no name", binding.id),
+                    }
+                    .boxed()
+                })?;
+
+                return Err(RuntimeError::binding_not_found(name).boxed());
             }
         }
 
@@ -165,7 +172,7 @@ impl Binding {
         fiber_id: Option<program::FiberId>,
         arguments: &[Word],
         result: &mut [Word],
-    ) -> RuntimeResult<()> {
+    ) -> RuntimeResult<program::BindingExit> {
         activation.on_before_binding(declaration)?;
 
         (self.invoke)(

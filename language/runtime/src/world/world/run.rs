@@ -170,21 +170,28 @@ impl World {
     /// Drain event-loop work until this World becomes idle or stops.
     pub fn drain(&mut self) -> RuntimeResult<RunOutcome> {
         loop {
-            // drain the microtask checkpoint before selecting another task
-            let outcome = self.run(Run::MicrotaskCheckpoint)?;
-            let outcome = if outcome == RunOutcome::Idle {
-                self.run(Run::Task)?
-            } else {
-                outcome
-            };
-
-            // keep progressing until the World stops or becomes idle
-            match outcome {
-                RunOutcome::Background => thread::yield_now(),
-                RunOutcome::Idle | RunOutcome::Stopped { .. } => return Ok(outcome),
-                RunOutcome::Progressed | RunOutcome::AdvancedTime => {}
+            let outcome = self.tick()?;
+            if matches!(outcome, RunOutcome::Idle | RunOutcome::Stopped { .. }) {
+                return Ok(outcome);
             }
         }
+    }
+
+    /// Run one event-loop turn: the microtask checkpoint, else one task.
+    pub(crate) fn tick(&mut self) -> RuntimeResult<RunOutcome> {
+        // drain the microtask checkpoint before selecting another task
+        let outcome = self.run(Run::MicrotaskCheckpoint)?;
+        let outcome = match outcome {
+            RunOutcome::Idle => self.run(Run::Task)?,
+            outcome => outcome,
+        };
+
+        // wait for work active outside this caller
+        if outcome == RunOutcome::Background {
+            thread::yield_now();
+        }
+
+        Ok(outcome)
     }
 
     /// Run one pending microtask across the stored runtimes.

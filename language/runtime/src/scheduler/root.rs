@@ -16,8 +16,8 @@ impl EventLoop {
             runnable.visit_root_slots(program, visit)?;
         }
 
-        // queued microtasks
-        for runnable in &mut self.microtasks {
+        // the handed-off runnable and queued microtasks
+        for runnable in self.next.iter_mut().chain(&mut self.microtasks) {
             runnable.visit_root_slots(program, visit)?;
         }
 

@@ -10,7 +10,7 @@ use crate::host::{
     Host, HostError, HostQueue, family_name, host_name, monotonic_now_ns, platform_name,
 };
 use crate::runtime::RuntimeId;
-use crate::scheduler::{Call, EventLoop, Invocation, RunnableId};
+use crate::scheduler::{Call, EventLoop, Invocation, Resumer, RunnableId};
 use crate::world::random::RandomStreamId;
 use crate::world::time::ClockSource;
 use crate::world::trace::{EntropySubject, TraceLog};
@@ -98,18 +98,10 @@ impl program::Runtime for Activation<'_> {
         binding: &program::Binding,
         arguments: &[program::Word],
         result: &mut [program::Word],
-    ) -> RuntimeResult<()> {
+    ) -> RuntimeResult<program::BindingExit> {
         let table = self.binding_table;
 
         table.call(binding, self, memory, context, fiber_id, arguments, result)
-    }
-
-    /// Park one logical fiber unless a wake already settled.
-    fn park(&mut self, fiber_id: program::FiberId) -> RuntimeResult<program::Park> {
-        match self.event_loop.take_pending_wake(fiber_id)? {
-            Some(value) => Ok(program::Park::Ready(value)),
-            None => Ok(program::Park::Parked),
-        }
     }
 }
 
@@ -239,6 +231,49 @@ impl<'a> Activation<'a> {
         value: program::Value,
     ) -> RuntimeResult<()> {
         self.event_loop.wake_fiber(fiber_id, value)
+    }
+
+    /// Park one fiber, else return a wake it already received as the results.
+    pub fn park_fiber(
+        &mut self,
+        fiber_id: program::FiberId,
+        result: &mut [program::Word],
+    ) -> RuntimeResult<program::BindingExit> {
+        // return an already delivered wake in place
+        let Some(value) = self.event_loop.take_pending_wake(fiber_id)? else {
+            return Ok(program::BindingExit::Parked);
+        };
+        let words = value.words();
+        if words.len() != result.len() {
+            return Err(RuntimeError::Internal {
+                message: "a wake value disagrees with its park's results".to_string(),
+            }
+            .boxed());
+        }
+        result.copy_from_slice(words);
+
+        Ok(program::BindingExit::Returned)
+    }
+
+    /// Create one fiber that runs a body once first woken.
+    pub fn create_fiber(&mut self, body: Call) -> program::FiberId {
+        self.event_loop.create_fiber(body, false)
+    }
+
+    /// Hand the worker to one fiber until it parks or finishes, then back to the resumer.
+    pub fn resume_fiber(
+        &mut self,
+        fiber_id: program::FiberId,
+        resumer: program::FiberId,
+        value: program::Value,
+        resumer_value: program::Value,
+    ) -> RuntimeResult<()> {
+        let resumer = Resumer {
+            fiber_id: resumer,
+            value: resumer_value,
+        };
+
+        self.event_loop.resume(fiber_id, resumer, value)
     }
 
     /// Queue one callback to run before the next task.

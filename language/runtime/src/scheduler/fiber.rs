@@ -6,6 +6,7 @@ use tspp_memory::MemoryMap;
 use tspp_program as program;
 use tspp_vm as vm;
 
+use super::Call;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 
 /// Fibers indexed by stable generation-checked identities.
@@ -26,13 +27,39 @@ struct FiberSlot {
     generation: u32,
     /// Live scheduling state when this slot is occupied.
     state: Option<FiberState>,
+    /// The fiber that resumed this one and waits for its next park or completion.
+    resumer: Option<Resumer>,
+    /// Whether the slot keeps the fiber's result until the creator takes it.
+    is_joined: bool,
+    /// Whether the next park hands the worker to a resumed fiber, keeping the resumer waiting.
+    is_resuming: bool,
+}
+
+/// The fiber waiting for a resumed fiber's next park or completion.
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub(crate) struct Resumer {
+    /// The waiting fiber.
+    pub(crate) fiber_id: program::FiberId,
+    /// The value its resume call receives.
+    pub(crate) value: program::Value,
+}
+
+impl Resumer {
+    /// Fork this resumer for one forked World.
+    fn fork(&self) -> Self {
+        Self {
+            fiber_id: self.fiber_id,
+            value: self.value.fork(),
+        }
+    }
 }
 
 /// One fiber's scheduling state.
 #[derive(Debug)]
 pub(crate) enum FiberState {
-    /// Executing on the worker or split off awaiting retention; the table
-    /// holds no execution and wakes buffer until the fiber parks.
+    /// Created with its call, awaiting the first wake that starts it.
+    Created(Call),
+    /// Executing or awaiting retention, buffering one wake until it parks.
     Running {
         /// One wake delivered before the fiber parked.
         pending: Option<program::Value>,
@@ -41,11 +68,23 @@ pub(crate) enum FiberState {
     Parked(vm::Fiber),
     /// Woken with its wake runnable queued and holding the execution.
     Ready(vm::Fiber),
+    /// Completed with the result a joined fiber keeps until taken.
+    Finished(program::Value),
 }
 
 impl FiberTable {
     /// Insert one running fiber and return its identity.
     pub(crate) fn insert(&mut self) -> program::FiberId {
+        self.insert_state(FiberState::Running { pending: None }, false)
+    }
+
+    /// Insert one created fiber holding its call.
+    pub(crate) fn create(&mut self, call: Call, is_joined: bool) -> program::FiberId {
+        self.insert_state(FiberState::Created(call), is_joined)
+    }
+
+    /// Insert one fiber in its initial state and return its identity.
+    fn insert_state(&mut self, state: FiberState, is_joined: bool) -> program::FiberId {
         let index = if let Some(index) = self.vacant.pop() {
             index
         } else {
@@ -53,21 +92,127 @@ impl FiberTable {
             self.slots.push(FiberSlot {
                 generation: 1,
                 state: None,
+                resumer: None,
+                is_joined: false,
+                is_resuming: false,
             });
 
             index
         };
         let slot = &mut self.slots[index as usize];
-        slot.state = Some(FiberState::Running { pending: None });
+        slot.state = Some(state);
+        slot.is_joined = is_joined;
+        slot.is_resuming = false;
         self.len += 1;
 
         program::FiberId::new(index, slot.generation)
     }
 
-    /// Park one running fiber with its retained execution.
-    ///
-    /// A wake delivered between the park decision and this retention settles
-    /// the fiber immediately; the returned value must queue its wake runnable.
+    /// Start one created fiber and take its call.
+    pub(crate) fn start(&mut self, fiber_id: program::FiberId) -> RuntimeResult<Option<Call>> {
+        let slot = self.slot_mut(fiber_id)?;
+        match slot.state.take() {
+            Some(FiberState::Created(call)) => {
+                slot.state = Some(FiberState::Running { pending: None });
+
+                Ok(Some(call))
+            }
+            state => {
+                slot.state = state;
+
+                Ok(None)
+            }
+        }
+    }
+
+    /// Link the fiber waiting for one resumed fiber's next park or completion.
+    pub(crate) fn set_resumer(
+        &mut self,
+        fiber_id: program::FiberId,
+        resumer: Resumer,
+    ) -> RuntimeResult<()> {
+        let slot = self.slot_mut(fiber_id)?;
+        if slot.resumer.is_some() {
+            return Err(Box::<RuntimeError>::from(
+                program::Error::InvalidFiberState { fiber_id },
+            ));
+        }
+        slot.resumer = Some(resumer);
+
+        Ok(())
+    }
+
+    /// Keep one joined fiber's result, else return it.
+    pub(crate) fn finish(
+        &mut self,
+        fiber_id: program::FiberId,
+        value: program::Value,
+    ) -> RuntimeResult<Option<program::Value>> {
+        let slot = self.slot_mut(fiber_id)?;
+        if !slot.is_joined {
+            return Ok(Some(value));
+        }
+        match slot.state.take() {
+            Some(FiberState::Running { pending: None }) => {
+                slot.state = Some(FiberState::Finished(value));
+
+                Ok(None)
+            }
+            state => {
+                slot.state = state;
+
+                Err(Box::<RuntimeError>::from(
+                    program::Error::InvalidFiberState { fiber_id },
+                ))
+            }
+        }
+    }
+
+    /// Take one joined fiber's result once it finished, retiring the fiber.
+    pub(crate) fn take_finished(
+        &mut self,
+        fiber_id: program::FiberId,
+    ) -> RuntimeResult<Option<program::Value>> {
+        let slot = self.slot_mut(fiber_id)?;
+        let value = match slot.state.take() {
+            Some(FiberState::Finished(value)) => value,
+            state => {
+                slot.state = state;
+
+                return Ok(None);
+            }
+        };
+        slot.generation = slot.generation.wrapping_add(1).max(1);
+        slot.is_joined = false;
+        self.vacant.push(fiber_id.index());
+        self.len -= 1;
+
+        Ok(Some(value))
+    }
+
+    /// Take the fiber waiting for one fiber's next park or completion.
+    pub(crate) fn take_resumer(
+        &mut self,
+        fiber_id: program::FiberId,
+    ) -> RuntimeResult<Option<Resumer>> {
+        Ok(self.slot_mut(fiber_id)?.resumer.take())
+    }
+
+    /// Mark one running fiber as handing its next park to a fiber it resumes.
+    pub(crate) fn mark_resuming(&mut self, fiber_id: program::FiberId) -> RuntimeResult<()> {
+        self.slot_mut(fiber_id)?.is_resuming = true;
+
+        Ok(())
+    }
+
+    /// Take whether one fiber's park hands the worker to a fiber it resumed.
+    pub(crate) fn take_resuming(&mut self, fiber_id: program::FiberId) -> RuntimeResult<bool> {
+        let slot = self.slot_mut(fiber_id)?;
+
+        Ok(std::mem::take(&mut slot.is_resuming))
+    }
+
+    /// Park one running fiber, returning a wake it buffered while running.
     pub(crate) fn park(
         &mut self,
         fiber_id: program::FiberId,
@@ -176,7 +321,10 @@ impl FiberTable {
         // reject retiring a fiber that still holds an execution
         let pending = match state {
             FiberState::Running { pending } => pending,
-            state @ (FiberState::Parked(_) | FiberState::Ready(_)) => {
+            state @ (FiberState::Created(_)
+            | FiberState::Parked(_)
+            | FiberState::Ready(_)
+            | FiberState::Finished(_)) => {
                 slot.state = Some(state);
 
                 return Err(Box::<RuntimeError>::from(
@@ -204,7 +352,10 @@ impl FiberTable {
                 Some(FiberState::Parked(execution) | FiberState::Ready(execution)) => {
                     Some(execution)
                 }
-                Some(FiberState::Running { .. }) | None => None,
+                Some(
+                    FiberState::Created(_) | FiberState::Running { .. } | FiberState::Finished(_),
+                )
+                | None => None,
             })
     }
 
@@ -215,15 +366,28 @@ impl FiberTable {
         visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
     ) -> RuntimeResult<()> {
         for slot in &mut self.slots {
-            let Some(FiberState::Running {
-                pending: Some(value),
-            }) = &mut slot.state
-            else {
-                continue;
-            };
-            program
-                .visit_value_root_slots(value, visit)
-                .map_err(Box::<RuntimeError>::from)?;
+            // visit the waiting resumer's value
+            if let Some(resumer) = &mut slot.resumer {
+                program
+                    .visit_value_root_slots(&mut resumer.value, visit)
+                    .map_err(Box::<RuntimeError>::from)?;
+            }
+
+            // visit a created call, a buffered wake, or a kept result
+            match &mut slot.state {
+                Some(FiberState::Created(call)) => call.visit_root_slots(program, visit)?,
+                Some(
+                    FiberState::Running {
+                        pending: Some(value),
+                    }
+                    | FiberState::Finished(value),
+                ) => {
+                    program
+                        .visit_value_root_slots(value, visit)
+                        .map_err(Box::<RuntimeError>::from)?;
+                }
+                _ => {}
+            }
         }
 
         Ok(())
@@ -238,6 +402,9 @@ impl FiberTable {
                 .map(|slot| FiberSlotImage {
                     generation: slot.generation,
                     state: slot.state.as_ref().map(FiberState::image),
+                    resumer: slot.resumer.as_ref().map(Resumer::fork),
+                    is_joined: slot.is_joined,
+                    is_resuming: slot.is_resuming,
                 })
                 .collect(),
             vacant: self.vacant.clone(),
@@ -258,6 +425,9 @@ impl FiberTable {
             slots.push(FiberSlot {
                 generation: slot.generation,
                 state,
+                resumer: slot.resumer.as_ref().map(Resumer::fork),
+                is_joined: slot.is_joined,
+                is_resuming: slot.is_resuming,
             });
         }
 
@@ -277,6 +447,9 @@ impl FiberTable {
                 .map(|slot| FiberSlot {
                     generation: slot.generation,
                     state: slot.state.as_ref().map(|state| state.fork(memory)),
+                    resumer: slot.resumer.as_ref().map(Resumer::fork),
+                    is_joined: slot.is_joined,
+                    is_resuming: slot.is_resuming,
                 })
                 .collect(),
             vacant: self.vacant.clone(),
@@ -298,6 +471,8 @@ impl FiberState {
     /// Capture one durable image of this scheduling state.
     fn image(&self) -> FiberStateImage {
         match self {
+            Self::Created(call) => FiberStateImage::Created(call.fork()),
+            Self::Finished(value) => FiberStateImage::Finished(value.fork()),
             Self::Running { pending } => FiberStateImage::Running {
                 pending: pending.as_ref().map(program::Value::fork),
             },
@@ -309,6 +484,8 @@ impl FiberState {
     /// Fork this scheduling state over one already-forked world memory map.
     fn fork(&self, memory: &Arc<MemoryMap>) -> Self {
         match self {
+            Self::Created(call) => Self::Created(call.fork()),
+            Self::Finished(value) => Self::Finished(value.fork()),
             Self::Running { pending } => Self::Running {
                 pending: pending.as_ref().map(program::Value::fork),
             },
@@ -334,11 +511,21 @@ struct FiberSlotImage {
     generation: u32,
     /// Captured scheduling state when the slot is occupied.
     state: Option<FiberStateImage>,
+    /// Captured fiber waiting for this fiber's next park or completion.
+    resumer: Option<Resumer>,
+    /// Whether the slot keeps the fiber's result until the creator takes it.
+    is_joined: bool,
+    /// Whether the next park hands the worker to a resumed fiber, keeping the resumer waiting.
+    is_resuming: bool,
 }
 
 /// Durable image of one fiber's scheduling state.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 enum FiberStateImage {
+    /// Created with its call, awaiting the first wake that starts it.
+    Created(Call),
+    /// Completed with the result a joined fiber keeps until taken.
+    Finished(program::Value),
     /// Mounted on the worker with the execution retained by the machine.
     Running {
         /// One wake delivered before the fiber parked.
@@ -378,6 +565,9 @@ impl FiberTableImage {
                 .map(|slot| FiberSlotImage {
                     generation: slot.generation,
                     state: slot.state.as_ref().map(FiberStateImage::inherit),
+                    resumer: slot.resumer.as_ref().map(Resumer::fork),
+                    is_joined: slot.is_joined,
+                    is_resuming: slot.is_resuming,
                 })
                 .collect(),
             vacant: self.vacant.clone(),
@@ -389,6 +579,8 @@ impl FiberStateImage {
     /// Fork this state image through explicit COW value sharing.
     fn inherit(&self) -> Self {
         match self {
+            Self::Created(call) => Self::Created(call.fork()),
+            Self::Finished(value) => Self::Finished(value.fork()),
             Self::Running { pending } => Self::Running {
                 pending: pending.as_ref().map(program::Value::fork),
             },
@@ -400,6 +592,8 @@ impl FiberStateImage {
     /// Restore one scheduling state over restored world memory.
     fn restore(&self, memory: &Arc<MemoryMap>) -> RuntimeResult<FiberState> {
         match self {
+            Self::Created(call) => Ok(FiberState::Created(call.fork())),
+            Self::Finished(value) => Ok(FiberState::Finished(value.fork())),
             Self::Running { pending } => Ok(FiberState::Running {
                 pending: pending.as_ref().map(program::Value::fork),
             }),

@@ -10,11 +10,12 @@ use crate::binding::BindingTable;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::machine::{Engine, Entry};
 use crate::runtime::{Runtime, RuntimeId, RuntimeImage};
+use crate::scheduler::Call;
 use crate::worker::{WorkerId, WorkerImage, WorkerOptions};
 use crate::world::observation::Observation;
 use crate::world::trace::EntrypointCall;
 
-use super::{Entity, Mutation, RestoreContext, SpawnedWorker, World};
+use super::{Entity, Mutation, RestoreContext, RunOutcome, SpawnedWorker, World};
 
 impl World {
     /// Spawn one live runtime owned by this world and return its identifier.
@@ -198,15 +199,45 @@ impl World {
             .iter()
             .map(|initializer| initializer.function())
             .collect();
-        for initializer in initializers {
-            runtime.run_function(
-                &mut self.state,
-                self.host.as_ref(),
-                &self.host_queue,
-                worker_id,
-                initializer,
-                &[],
-            )?;
+        for function in initializers {
+            // start the initializer on a joined fiber of the default worker
+            let fiber_id = {
+                let runtime = self.runtime_mut(runtime_id)?;
+                let worker = runtime
+                    .worker_mut(worker_id)
+                    .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())?;
+                let call = Call::new(function, [], program::Context::empty());
+                let fiber_id = worker.event_loop.create_fiber(call, true);
+                worker.event_loop.start_fiber(fiber_id)?;
+
+                fiber_id
+            };
+
+            // run the world until the initializer finishes
+            loop {
+                let runtime = self.runtime_mut(runtime_id)?;
+                let worker = runtime
+                    .worker_mut(worker_id)
+                    .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())?;
+                if worker.event_loop.join(fiber_id)? {
+                    break;
+                }
+
+                // advance the event loop, failing when it can no longer finish the initializer
+                match self.tick()? {
+                    RunOutcome::Idle => {
+                        return Err(RuntimeError::Internal {
+                            message: "a module initializer waits for work that never arrives"
+                                .to_string(),
+                        }
+                        .boxed());
+                    }
+                    RunOutcome::Stopped { .. } => {
+                        return Err(RuntimeError::execution_stopped().boxed());
+                    }
+                    RunOutcome::Progressed | RunOutcome::AdvancedTime | RunOutcome::Background => {}
+                }
+            }
         }
 
         Ok(())

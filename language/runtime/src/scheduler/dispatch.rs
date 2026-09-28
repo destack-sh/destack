@@ -84,7 +84,10 @@ impl EventLoop {
 
     /// Report whether one runnable item is already ready without advancing time.
     pub(crate) fn has_ready_work(&self) -> bool {
-        !self.tasks.is_empty() || !self.microtasks.is_empty() || !self.wakes.is_empty()
+        !self.tasks.is_empty()
+            || self.next.is_some()
+            || !self.microtasks.is_empty()
+            || !self.wakes.is_empty()
     }
 
     /// Report whether any work remains in the event loop, including future wakes.

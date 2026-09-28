@@ -7,6 +7,7 @@ mod runnable;
 mod timer;
 mod wake;
 
+pub(crate) use fiber::Resumer;
 pub use image::*;
 pub(crate) use r#loop::*;
 pub use runnable::*;

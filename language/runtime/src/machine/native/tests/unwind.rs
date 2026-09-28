@@ -83,7 +83,7 @@ fn fail(
     _declaration: &program::Binding,
     _arguments: &[program::Word],
     _results: &mut [program::Word],
-) -> RuntimeResult<()> {
+) -> RuntimeResult<program::BindingExit> {
     Err(RuntimeError::Internal {
         message: "native unwind tracer".to_string(),
     }
@@ -99,8 +99,8 @@ fn cleanup(
     _declaration: &program::Binding,
     _arguments: &[program::Word],
     _results: &mut [program::Word],
-) -> RuntimeResult<()> {
+) -> RuntimeResult<program::BindingExit> {
     CLEANUPS.fetch_add(1, Ordering::SeqCst);
 
-    Ok(())
+    Ok(program::BindingExit::Returned)
 }

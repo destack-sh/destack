@@ -120,7 +120,7 @@ fn touch(
     _declaration: &program::Binding,
     arguments: &[program::Word],
     result: &mut [program::Word],
-) -> RuntimeResult<()> {
+) -> RuntimeResult<program::BindingExit> {
     assert_eq!(arguments.len(), 1);
     assert_eq!(result.len(), 1);
 
@@ -133,7 +133,7 @@ fn touch(
     }
     result[0] = program::Word::int32(42);
 
-    Ok(())
+    Ok(program::BindingExit::Returned)
 }
 
 /// Build the runtime binding table used by binding integration tests.

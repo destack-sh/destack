@@ -27,6 +27,13 @@ pub enum Invocation {
         /// Value delivered to the parked call.
         value: program::Value,
     },
+    /// Start one created fiber's call on its own identity.
+    Start {
+        /// Fiber identity to start.
+        fiber_id: program::FiberId,
+        /// Call the fiber runs.
+        call: Call,
+    },
 }
 
 /// One function call with its environment, arguments, and captured context.
@@ -88,7 +95,7 @@ impl Runnable {
     pub(crate) fn release(self) -> Option<program::Value> {
         match self.invocation {
             Invocation::Wake { value, .. } => Some(value),
-            Invocation::Function(_) => None,
+            Invocation::Function(_) | Invocation::Start { .. } => None,
         }
     }
 }
@@ -116,13 +123,17 @@ impl Invocation {
                 fiber_id: *fiber_id,
                 value: value.fork(),
             },
+            Self::Start { fiber_id, call } => Self::Start {
+                fiber_id: *fiber_id,
+                call: call.fork(),
+            },
         }
     }
 
     /// Return the dynamically scoped context carried by fresh invocations.
     pub const fn context(&self) -> Option<program::Context> {
         match self {
-            Self::Function(call) => Some(call.context),
+            Self::Function(call) | Self::Start { call, .. } => Some(call.context),
             Self::Wake { .. } => None,
         }
     }
@@ -134,8 +145,10 @@ impl Invocation {
         visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
     ) -> RuntimeResult<()> {
         match self {
-            // function calls
-            Self::Function(call) => call.visit_root_slots(program, visit)?,
+            // calls of fresh and starting fibers
+            Self::Function(call) | Self::Start { call, .. } => {
+                call.visit_root_slots(program, visit)?
+            }
             // wake value delivered to one parked fiber
             Self::Wake { value, .. } => {
                 program

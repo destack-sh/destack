@@ -59,15 +59,22 @@ enum RunQueue {
     Microtask,
 }
 
-/// What one worker run starts from.
-enum EntryTarget<'a> {
-    /// An entrypoint named by the caller.
-    Entry(&'a Entry),
-    /// A linked function selected by id.
-    Function(program::FunctionId),
-}
-
 impl Worker {
+    /// Reserve and mount one physical execution for a fiber, retiring the fiber on failure.
+    fn mount_execution(&mut self, fiber_id: program::FiberId) -> RuntimeResult<vm::Fiber> {
+        let mut execution = match self.machine.reserve_fiber() {
+            Ok(execution) => execution,
+            Err(error) => {
+                self.event_loop.retire_fiber(fiber_id)?;
+
+                return Err(error);
+            }
+        };
+        execution.mount(fiber_id);
+
+        Ok(execution)
+    }
+
     /// Refresh derived debug sets when debugger configuration changed.
     fn refresh_debugger(&mut self, world: &WorldState) {
         let generation = world.debugger.generation();
@@ -99,36 +106,12 @@ impl Worker {
             constant_space,
             host,
             host_queue,
-            EntryTarget::Entry(entry),
+            entry,
             args,
         )
     }
 
-    /// Run one linked function through this worker event loop.
-    pub(crate) fn run_function(
-        &mut self,
-        world: &mut WorldState,
-        collection: &Arc<SharedCollectionState>,
-        shared_static: &mut program::StaticSpace,
-        constant_space: &program::StaticSpace,
-        host: &dyn Host,
-        host_queue: &HostQueue,
-        function: program::FunctionId,
-        args: &[program::Value],
-    ) -> RuntimeResult<program::Value> {
-        self.run_target(
-            world,
-            collection,
-            shared_static,
-            constant_space,
-            host,
-            host_queue,
-            EntryTarget::Function(function),
-            args,
-        )
-    }
-
-    /// Run one entry target on a fresh fiber through this worker event loop.
+    /// Run one entrypoint on a fresh fiber through this worker event loop.
     #[allow(clippy::too_many_arguments)]
     fn run_target(
         &mut self,
@@ -138,7 +121,7 @@ impl Worker {
         constant_space: &program::StaticSpace,
         host: &dyn Host,
         host_queue: &HostQueue,
-        target: EntryTarget<'_>,
+        entry: &Entry,
         args: &[program::Value],
     ) -> RuntimeResult<program::Value> {
         self.refresh_debugger(world);
@@ -156,7 +139,7 @@ impl Worker {
             host_queue,
             fiber_id,
             execution,
-            target,
+            entry,
             args,
         );
         let retired = self.event_loop.retire_fiber(fiber_id);
@@ -178,7 +161,7 @@ impl Worker {
         host_queue: &HostQueue,
         fiber_id: program::FiberId,
         mut execution: vm::Fiber,
-        target: EntryTarget<'_>,
+        entry: &Entry,
         args: &[program::Value],
     ) -> RuntimeResult<program::Value> {
         let mut context = program::Context::empty();
@@ -214,27 +197,15 @@ impl Worker {
                 handshake: self.handshake.as_ref(),
             },
         };
-        let outcome = match target {
-            EntryTarget::Entry(entry) => self.machine.run(
-                &mut execution,
-                activation,
-                entry,
-                args,
-                Some(&self.stop_points),
-                Some(&self.watch_points),
-                self.profile.as_mut(),
-            ),
-            EntryTarget::Function(function) => self.machine.run_function(
-                &mut execution,
-                activation,
-                function,
-                None,
-                args,
-                Some(&self.stop_points),
-                Some(&self.watch_points),
-                self.profile.as_mut(),
-            ),
-        };
+        let outcome = self.machine.run(
+            &mut execution,
+            activation,
+            entry,
+            args,
+            Some(&self.stop_points),
+            Some(&self.watch_points),
+            self.profile.as_mut(),
+        );
         let mut outcome = outcome?;
 
         // service polls without interleaving another runnable
@@ -1069,8 +1040,7 @@ impl Worker {
 
         match outcome {
             Outcome::Completed { value } => {
-                self.event_loop.retire_fiber(fiber_id)?;
-                self.event_loop.release(value);
+                self.event_loop.finish_fiber(fiber_id, value)?;
 
                 self.runnable_progress(scope)
             }
@@ -1120,20 +1090,15 @@ impl Worker {
 
         // mount one fiber and its physical execution for the invocation
         let (fiber_id, mut execution) = match &invocation {
-            Invocation::Function { .. } => {
+            // run a fresh call on a new fiber
+            Invocation::Function(_) => {
                 let fiber_id = self.event_loop.insert_fiber();
-                let mut execution = match self.machine.reserve_fiber() {
-                    Ok(execution) => execution,
-                    Err(error) => {
-                        self.event_loop.retire_fiber(fiber_id)?;
 
-                        return Err(error);
-                    }
-                };
-                execution.mount(fiber_id);
-
-                (fiber_id, execution)
+                (fiber_id, self.mount_execution(fiber_id)?)
             }
+            // run a created fiber's call on its own identity
+            Invocation::Start { fiber_id, .. } => (*fiber_id, self.mount_execution(*fiber_id)?),
+            // resume a woken fiber's parked execution
             Invocation::Wake { fiber_id, .. } => {
                 let execution = match self.event_loop.resume_fiber(*fiber_id) {
                     Ok(execution) => execution,
@@ -1185,21 +1150,18 @@ impl Worker {
         };
 
         let outcome = match invocation {
-            Invocation::Function {
-                function,
-                environment,
-                arguments,
-                ..
-            } => self.machine.run_function(
-                &mut execution,
-                activation,
-                function,
-                environment.as_ref(),
-                &arguments,
-                Some(&self.stop_points),
-                Some(&self.watch_points),
-                self.profile.as_mut(),
-            ),
+            Invocation::Function(call) | Invocation::Start { call, .. } => {
+                self.machine.run_function(
+                    &mut execution,
+                    activation,
+                    call.function,
+                    call.environment.as_ref(),
+                    &call.arguments,
+                    Some(&self.stop_points),
+                    Some(&self.watch_points),
+                    self.profile.as_mut(),
+                )
+            }
             Invocation::Wake { value, .. } => self.machine.resume(
                 &mut execution,
                 activation,
