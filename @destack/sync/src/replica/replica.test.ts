@@ -8,7 +8,7 @@ import type { Query } from "../query/query.ts";
 import type { QueryPage } from "../query/page.ts";
 
 test.for(TEST_DIALECTS)(
-    "follow a scope of another database into a local copy on %s",
+    "follow a scope of another database into a local copy, then own it once promoted, on %s",
     async (dialect) => {
         const source = await open(dialect);
         const copy = await openCopy(dialect);
@@ -37,6 +37,13 @@ test.for(TEST_DIALECTS)(
             ["a", "Renamed"],
         ]);
         expect(await notes.position(copy)).toEqual(await source.log.position());
+
+        // keep the rows once promoted
+        await notes.promote(copy);
+        expect([
+            await Replica.isCopied(copy, "inbox"),
+            (await copy.select().from(note)).map((row) => row.id),
+        ]).toEqual([false, ["a"]]);
     },
 );
 

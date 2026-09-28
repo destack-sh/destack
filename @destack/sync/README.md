@@ -138,6 +138,7 @@ const projects = await copy.rows(database, "board", board, outbox);
 | `results` | Read an aggregate query's groups with local predictions added |
 | `upstream` | Measure relations and aggregates through the source's groups, for a dataflow over the copy |
 | `inspect` | Describe the position, the origin, whether the tables keep the copied shape, and what the copy holds and stages |
+| `promote` | Keep the copied rows as the database's own |
 
 A copy records the shape of its tables' logged columns; once a migration changes them, it snapshots again.
 A database relaying its copies serves each copy's record with the rows, so its followers record the home position they reflect as their `origin`.

@@ -11,7 +11,6 @@ import {
 } from "@destack/db";
 import { CHAIN_TERMS } from "@destack/db/query";
 import type { Relay } from "@destack/db/relay";
-import { upsert } from "../replica/upsert.ts";
 
 /**
  * How often an instance announces that it is alive, in milliseconds.
@@ -298,7 +297,7 @@ export class Tracker {
                         .delete(table)
                         .where(Key.match(table, Key.parse(table, tracked.key)));
                 } else {
-                    await upsert(transaction, table, [decodeRow(table, tracked.row)]);
+                    await transaction.upsert(table, [decodeRow(table, tracked.row)]);
                 }
             }
         });

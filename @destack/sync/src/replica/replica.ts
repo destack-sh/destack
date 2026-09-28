@@ -13,13 +13,12 @@ import {
     primaryKey,
     text,
     TABLE,
-    or,
     type DatabaseConnection,
     type SQL,
     type Table,
     decodeRow,
 } from "@destack/db";
-import { Condition, Order, Scalar, CHAIN_TERMS } from "@destack/db/query";
+import { Condition, Order, Scalar } from "@destack/db/query";
 import { DatabaseError } from "@destack/db/error";
 import { SyncError } from "../error/error.ts";
 import { schema } from "@destack/schema";
@@ -36,7 +35,6 @@ import { Filter } from "../dataflow/filter.ts";
 import { Run } from "../dataflow/run.ts";
 import { Trace, type Group, type Upstream } from "../dataflow/upstream.ts";
 import { View } from "../dataflow/view.ts";
-import { upsert } from "./upsert.ts";
 
 /** The staged pages a run's completion reads at once. */
 const STAGED_BATCH = 16;
@@ -151,6 +149,8 @@ export class Replica {
     readonly tables: readonly Table[];
     /** The rows the copy holds of each table within the scope, every row of a table without a condition. */
     readonly where: ReadonlyMap<Table, Condition>;
+    /** The scope of each table whose rows live outside the copy's scope. */
+    readonly scopes: ReadonlyMap<Table, string>;
     /** The copied tables, by SQL name. */
     readonly #copied: ReadonlyMap<string, Table>;
     /** The shape of the copied tables' logged columns, which a copy of another shape snapshots again to hold. */
@@ -162,12 +162,14 @@ export class Replica {
         readonly scope: string;
         readonly tables: readonly Table[];
         readonly where?: ReadonlyMap<Table, Condition>;
+        readonly scopes?: ReadonlyMap<Table, string>;
     }) {
         // retain the copy's identity and require its tables to carry whole rows in their log
         this.name = definition.name;
         this.scope = definition.scope;
         this.tables = definition.tables;
         this.where = definition.where ?? new Map();
+        this.scopes = definition.scopes ?? new Map();
         for (const table of this.tables) {
             requireCopyable(table);
         }
@@ -196,7 +198,11 @@ export class Replica {
 
                 return [
                     table[TABLE].sqlName,
-                    { table, scopes: [this.scope], ...(where === undefined ? {} : { where }) },
+                    {
+                        table,
+                        scopes: [this.scopes.get(table) ?? this.scope],
+                        ...(where === undefined ? {} : { where }),
+                    },
                 ];
             }),
             [
@@ -517,6 +523,23 @@ export class Replica {
             .where(and(eq(replica.name, this.name), eq(replica.scope, this.scope)));
     }
 
+    /** Keep the copied rows as the database's own, refusing a copy without a complete snapshot. */
+    async promote(database: DatabaseConnection): Promise<void> {
+        await database.transaction(async (transaction) => {
+            // require a complete copy
+            if ((await this.position(transaction)) === undefined) {
+                throw new SyncError("STALE", `copy of ${this.scope} holds no position yet`);
+            }
+
+            // drop the copy's record, staged pages and groups
+            const own = (table: typeof replica | typeof replicaPage | typeof replicaResult) =>
+                and(eq(table.name, this.name), eq(table.scope, this.scope));
+            await transaction.delete(replicaPage).where(own(replicaPage));
+            await transaction.delete(replicaResult).where(own(replicaResult));
+            await transaction.delete(replica).where(own(replica));
+        });
+    }
+
     /** Record the copy before its first snapshot, so the database knows it copies the scope. */
     async register(database: DatabaseConnection): Promise<void> {
         await database
@@ -746,8 +769,8 @@ export class Replica {
             }
         }
         for (const [table, batch] of batches) {
-            await remove(transaction, table, batch.removed);
-            await upsert(transaction, table, batch.held);
+            await transaction.remove(table, batch.removed);
+            await transaction.upsert(table, batch.held);
         }
 
         // hold the aggregate groups
@@ -825,7 +848,7 @@ export class Replica {
                     and(
                         Condition.render(
                             Condition.all(
-                                Node.scoped([this.scope]),
+                                Node.scoped([this.scopes.get(table) ?? this.scope]),
                                 this.where.get(table) ?? Condition.all(),
                             ),
                             Condition.bind(table),
@@ -838,8 +861,7 @@ export class Replica {
             last = held.at(-1);
 
             // delete the batch's stale rows
-            await remove(
-                database,
+            await database.remove(
                 table,
                 held.filter((row) => !delivered.has(Key.name(table, row))),
             );
@@ -913,19 +935,6 @@ function add(sum: Scalar, value: Scalar, sign: 1 | -1): Scalar {
     return typeof sum === "string" || typeof value === "string"
         ? String(BigInt(sum ?? 0) + BigInt(sign) * BigInt(value ?? 0))
         : Number(sum ?? 0) + sign * Number(value);
-}
-
-/** Remove rows from a copied table by key, a batch of keys per statement. */
-async function remove(
-    database: DatabaseConnection,
-    table: Table,
-    rows: readonly Row[],
-): Promise<void> {
-    const size = CHAIN_TERMS;
-    for (let start = 0; start < rows.length; start += size) {
-        const matches = rows.slice(start, start + size).map((row) => Key.match(table, row));
-        await database.delete(table).where(or(...matches)!);
-    }
 }
 
 /** Require a table to be copyable: its log carries every column an insert requires. */
