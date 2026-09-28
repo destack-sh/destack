@@ -478,12 +478,12 @@ opcodes! {
     // panic and unwind
     PANIC = 0x00c1 {
         text: "panic",
-        signature: "() => never",
+        signature: "() => void",
         operands: [],
     }
     PANIC_VALUE = 0x00c2 {
         text: "panic",
-        signature: "(value: value) => never",
+        signature: "(value: value) => void",
         operands: [Type, RegisterSpan],
     }
     UNWIND_RESUME = 0x00c3 {
@@ -1279,51 +1279,6 @@ impl Opcode {
     /// Return whether this opcode is assigned by the bytecode ISA.
     pub fn is_defined(self) -> bool {
         self.layout().is_some()
-    }
-
-    /// Return whether this instruction ends control flow without a successor.
-    pub const fn is_terminal(self) -> bool {
-        matches!(
-            self,
-            Self::TAIL_CALL
-                | Self::TAIL_CALL_INDIRECT
-                | Self::TAIL_CALL_VIRTUAL
-                | Self::TAIL_CALL_DYNAMIC
-                | Self::RETURN
-                | Self::TRAP
-                | Self::UNREACHABLE
-                | Self::PANIC
-                | Self::PANIC_VALUE
-                | Self::UNWIND_RESUME
-        )
-    }
-
-    /// Return whether execution may continue at the next encoded instruction.
-    pub fn falls_through(self) -> bool {
-        if self.is_terminal() {
-            return false;
-        }
-
-        if matches!(
-            self,
-            Self::JUMP
-                | Self::BRANCH
-                | Self::SWITCH
-                | Self::INVOKE
-                | Self::INVOKE_INDIRECT
-                | Self::INVOKE_VIRTUAL
-                | Self::INVOKE_DYNAMIC
-        ) {
-            return false;
-        }
-
-        if self.comparison().is_some() {
-            return false;
-        }
-
-        !self
-            .new_operation()
-            .is_some_and(|operation| operation.is_fallible)
     }
 
     /// Return the branch that receives one result operand.
