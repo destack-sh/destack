@@ -8,7 +8,7 @@ import type {
     OperationDefinition,
 } from "./operation.ts";
 import { reportError } from "../server/error.ts";
-import { MAX_TIMER_DELAY } from "../server/server.ts";
+import { MAX_TIMER_DELAY } from "../timer/index.ts";
 
 /** Authorized, bounded operation state retained until expiry or service shutdown. */
 export class OperationStore<Result, Progress> implements AsyncDisposable {
