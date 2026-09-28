@@ -24,11 +24,6 @@ pub(crate) enum RuntimeCall {
         /// Flattened binding arguments.
         arguments: Vec<program::Word>,
     },
-    /// Park one logical fiber.
-    Park {
-        /// The parked fiber identity.
-        fiber_id: program::FiberId,
-    },
 }
 
 /// Strict runtime used by bytecode execution tests.
@@ -36,8 +31,6 @@ pub(crate) enum RuntimeCall {
 pub(crate) struct TestRuntime {
     /// Binding implementations keyed by stable identity.
     bindings: HashMap<program::BindingId, TestBinding>,
-    /// Wake values delivered to the next parks.
-    wakes: Vec<program::Value>,
     /// Action returned by the next requested poll.
     poll: Option<program::Poll>,
     /// Runtime calls in execution order.
@@ -119,7 +112,7 @@ impl program::Runtime for TestRuntime {
         binding: &program::Binding,
         arguments: &[program::Word],
         result: &mut [program::Word],
-    ) -> Result<()> {
+    ) -> Result<program::BindingExit> {
         let Some(invoke) = self.bindings.get(&binding.id).copied() else {
             return Err(Error::invalid_instruction());
         };
@@ -128,18 +121,8 @@ impl program::Runtime for TestRuntime {
             arguments: arguments.to_vec(),
         });
 
-        invoke(memory, arguments, result)
-    }
+        invoke(memory, arguments, result)?;
 
-    /// Park one logical fiber or deliver one queued wake.
-    fn park(&mut self, fiber_id: program::FiberId) -> Result<program::Park> {
-        self.calls.push(RuntimeCall::Park { fiber_id });
-
-        // deliver one queued wake immediately when present
-        if self.wakes.is_empty() {
-            Ok(program::Park::Parked)
-        } else {
-            Ok(program::Park::Ready(self.wakes.remove(0)))
-        }
+        Ok(program::BindingExit::Returned)
     }
 }

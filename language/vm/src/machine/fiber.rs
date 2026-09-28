@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use tspp_bytecode::RegisterSpan;
+use tspp_bytecode::{CodeOffset, RegisterSpan};
 use tspp_memory::{MemoryMap, MemoryRange};
 use tspp_program as program;
 use tspp_program::{Context, Word};
@@ -21,8 +21,8 @@ pub struct Fiber {
     pub(crate) frames: Vec<Frame>,
     /// The dynamically scoped context carried by this fiber.
     pub(crate) context: Context,
-    /// The parked call's result registers awaiting one wake value.
-    pub(crate) wake_to: Option<RegisterSpan>,
+    /// The parked call awaiting one wake or a cancellation.
+    pub(crate) park: Option<ParkPoint>,
     /// The logical fiber carrying this execution.
     pub(crate) fiber_id: Option<program::FiberId>,
 }
@@ -37,7 +37,7 @@ impl Fiber {
             native_stack: None,
             frames: Vec::new(),
             context: Context::default(),
-            wake_to: None,
+            park: None,
             fiber_id: None,
         })
     }
@@ -52,7 +52,7 @@ impl Fiber {
             stack: self.stack.fork(memory),
             frames: self.frames.clone(),
             context: self.context,
-            wake_to: self.wake_to,
+            park: self.park,
             fiber_id: self.fiber_id,
         }
     }
@@ -81,7 +81,7 @@ impl Fiber {
     pub fn clear(&mut self) {
         self.frames.clear();
         self.stack.clear();
-        self.wake_to = None;
+        self.park = None;
         self.fiber_id = None;
     }
 
@@ -113,7 +113,7 @@ impl Fiber {
             stack_byte_len: self.stack.byte_len(),
             frames: self.frames.clone(),
             context: self.context,
-            wake_to: self.wake_to,
+            park: self.park,
             fiber_id: self.fiber_id,
         }
     }
@@ -133,9 +133,9 @@ impl Fiber {
                 return Err(Error::invalid_image());
             }
         }
-        match (image.wake_to, image.frames.last()) {
-            (Some(wake_to), Some(frame)) => {
-                let end = wake_to.start.0 as usize + wake_to.word_count as usize;
+        match (image.park, image.frames.last()) {
+            (Some(park), Some(frame)) => {
+                let end = park.registers.start.0 as usize + park.registers.word_count as usize;
                 if end > frame.register_count as usize {
                     return Err(Error::invalid_image());
                 }
@@ -153,10 +153,19 @@ impl Fiber {
             native_stack,
             frames: image.frames.clone(),
             context: image.context,
-            wake_to: image.wake_to,
+            park: image.park,
             fiber_id: image.fiber_id,
         })
     }
+}
+
+/// One parked binding call awaiting a wake or a cancellation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ParkPoint {
+    /// The call's result registers receiving the wake value.
+    pub(crate) registers: RegisterSpan,
+    /// The call's unwind edge entered on cancellation.
+    pub(crate) unwind: Option<CodeOffset>,
 }
 
 /// Durable image of one fiber's execution state; stack contents live in world memory.
@@ -172,8 +181,8 @@ pub struct FiberImage {
     pub(crate) frames: Vec<Frame>,
     /// The dynamically scoped context carried by the fiber.
     pub(crate) context: Context,
-    /// The parked call's result registers awaiting one wake value.
-    pub(crate) wake_to: Option<RegisterSpan>,
+    /// The parked call awaiting one wake or a cancellation.
+    pub(crate) park: Option<ParkPoint>,
     /// The logical fiber executing here.
     pub(crate) fiber_id: Option<program::FiberId>,
 }

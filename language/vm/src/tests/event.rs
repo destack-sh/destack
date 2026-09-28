@@ -297,6 +297,7 @@ fn test_observe_panic_and_unwind() {
         r#"
 function f0 {
     panic r0, t0
+    unwind.resume
 }
 
 function f1 {

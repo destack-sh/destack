@@ -12,7 +12,7 @@ use crate::diagnostic::{
     DiagnosticAnchor, Error, ErrorReason, ExecutionError, ExecutionResult, Result, StackTraceFrame,
 };
 
-use super::{Callee, Cursor, Fiber, Frame, Machine, Return};
+use super::{Callee, Cursor, Fiber, Frame, Machine, ParkPoint, Return};
 
 /// One active execution over one machine and one fiber.
 pub(crate) struct Activation<'machine, 'run, R>
@@ -41,8 +41,17 @@ where
     pub(crate) profile: Option<&'run mut Profile>,
     /// One retained stop skipped on continued execution.
     pub(crate) resume_skip: Option<ResumeSkip>,
-    /// The located panic currently unwinding this activation.
-    pub(crate) panic: Option<Error>,
+    /// The panic or cancellation currently unwinding this activation.
+    pub(crate) unwinding: Option<Unwinding>,
+}
+
+/// The reason one activation unwinds its frames.
+#[derive(Debug)]
+pub(crate) enum Unwinding {
+    /// A located language panic, reported at the host boundary.
+    Panic(Error),
+    /// A cancellation delivered at a park, completing the fiber as cancelled.
+    Cancel,
 }
 
 impl<'machine, 'run, R> Activation<'machine, 'run, R>
@@ -69,7 +78,7 @@ where
             events,
             profile: None,
             resume_skip: None,
-            panic: None,
+            unwinding: None,
         }
     }
 
@@ -116,11 +125,6 @@ where
             Callee::resolve(&self.machine.program, self.machine.bytecode, function)?
         {
             let binding = *binding;
-
-            // park points require an active frame to receive the wake value
-            if binding.is_park() {
-                return Err(Error::invalid_instruction().into());
-            }
             let result_count = self.binding_result_word_count(function)?;
             let mut result = vec![Word::ZERO; result_count];
             self.observe(program::Event::Binding {
@@ -128,7 +132,8 @@ where
                 binding_id: binding.id,
             })?;
             let memory = self.activation.memory.reborrow();
-            self.activation
+            let exit = self
+                .activation
                 .runtime
                 .call_binding(
                     memory,
@@ -139,6 +144,11 @@ where
                     &mut result,
                 )
                 .map_err(ExecutionError::runtime)?;
+
+            // require an active frame to receive a parked binding's wake
+            if exit == program::BindingExit::Parked {
+                return Err(Error::invalid_instruction().into());
+            }
             self.observe(program::Event::Binding {
                 event: program::BindingEvent::Exit,
                 binding_id: binding.id,
@@ -286,23 +296,22 @@ where
 
             // boundaries and destructors enter bodies, never bindings
             let Return::Call {
-                registers, normal, ..
+                registers,
+                normal,
+                unwind,
+                ..
             } = return_to
             else {
                 return Err(self.invalid_instruction().into());
             };
 
-            // park points suspend this fiber instead of entering a host call
-            if binding.is_park() {
-                return self.park(registers, normal);
-            }
             let result_count = registers.word_count as usize;
             let frame = self.frame();
             self.observe(program::Event::Binding {
                 event: program::BindingEvent::Enter,
                 binding_id: binding.id,
             })?;
-            Self::call_binding(
+            let exit = Self::call_binding(
                 frame,
                 &self.fiber.stack,
                 &mut self.machine.binding_buffer,
@@ -317,6 +326,18 @@ where
                 event: program::BindingEvent::Exit,
                 binding_id: binding.id,
             })?;
+
+            // retain the continuation of a parked binding until a wake delivers its results
+            if exit == program::BindingExit::Parked {
+                if let Some(normal) = normal {
+                    self.jump(normal);
+                }
+                self.save_position();
+                self.fiber.context = *self.activation.context;
+                self.fiber.park = Some(ParkPoint { registers, unwind });
+
+                return Ok(Some(Outcome::Parked));
+            }
 
             // publish binding results directly into the caller frame
             for index in 0..result_count {
@@ -353,49 +374,6 @@ where
         })?;
 
         Ok(None)
-    }
-
-    /// Ask the runtime to park the running fiber at one binding call.
-    fn park(
-        &mut self,
-        registers: RegisterSpan,
-        normal: Option<CodeOffset>,
-    ) -> ExecutionResult<Option<Outcome<Vec<Word>>>, R::Error> {
-        let fiber_id = self.fiber_id()?;
-        let park = self
-            .activation
-            .runtime
-            .park(fiber_id)
-            .map_err(ExecutionError::runtime)?;
-        match park {
-            // deliver an already settled wake like ordinary binding results
-            program::Park::Ready(value) => {
-                let words = value.words();
-                if words.len() != registers.word_count as usize {
-                    return Err(self.invalid_instruction().into());
-                }
-                for (index, word) in words.iter().copied().enumerate() {
-                    self.write(registers.start.0 + index as u16, word);
-                }
-                if let Some(normal) = normal {
-                    self.jump(normal);
-                }
-
-                Ok(None)
-            }
-            // retain the post-call continuation and await one wake delivery
-            program::Park::Parked => {
-                if let Some(normal) = normal {
-                    self.jump(normal);
-                }
-                self.save_position();
-                self.fiber.context = *self.activation.context;
-
-                self.fiber.wake_to = Some(registers);
-
-                Ok(Some(Outcome::Parked))
-            }
-        }
     }
 
     /// Call one destructor with a mutable reference to caller storage.
@@ -437,17 +415,12 @@ where
         let callee = Callee::resolve(&self.machine.program, self.machine.bytecode, function)?;
         if let Callee::Binding(binding) = callee {
             let binding = *binding;
-
-            // park points are never emitted in tail position
-            if binding.is_park() {
-                return Err(self.invalid_instruction().into());
-            }
             let result_count = self.binding_result_word_count(function)?;
             self.observe(program::Event::Binding {
                 event: program::BindingEvent::Enter,
                 binding_id: binding.id,
             })?;
-            Self::call_binding(
+            let exit = Self::call_binding(
                 current,
                 &self.fiber.stack,
                 &mut self.machine.binding_buffer,
@@ -458,6 +431,11 @@ where
                 arguments,
                 result_count,
             )?;
+
+            // reject a park in tail position, which leaves no frame to resume
+            if exit == program::BindingExit::Parked {
+                return Err(self.invalid_instruction().into());
+            }
             self.observe(program::Event::Binding {
                 event: program::BindingEvent::Exit,
                 binding_id: binding.id,
@@ -547,7 +525,7 @@ where
         environment: Option<Word>,
         arguments: RegisterSpan,
         result_count: usize,
-    ) -> ExecutionResult<(), R::Error> {
+    ) -> ExecutionResult<program::BindingExit, R::Error> {
         let argument_start = frame.range(arguments);
         let environment_count = usize::from(environment.is_some());
         let argument_count = environment_count + arguments.word_count as usize;
@@ -562,7 +540,7 @@ where
         // invoke through the exact runtime error boundary
         let (arguments, result) = words.split_at_mut(argument_count);
         let memory = activation.memory.reborrow();
-        activation
+        let exit = activation
             .runtime
             .call_binding(
                 memory,
@@ -578,7 +556,7 @@ where
         words.copy_within(argument_count.., 0);
         words.truncate(result_count);
 
-        Ok(())
+        Ok(exit)
     }
 
     /// Return the exact result word count for one bound function.
@@ -711,13 +689,6 @@ where
     #[inline(always)]
     pub(crate) fn frame(&self) -> Frame {
         self.cursor.frame()
-    }
-
-    /// Return the mounted logical fiber identity.
-    pub(crate) fn fiber_id(&self) -> Result<program::FiberId> {
-        self.fiber
-            .fiber_id
-            .ok_or_else(|| self.invalid_instruction())
     }
 
     /// Save the live instruction offset in the active canonical frame.

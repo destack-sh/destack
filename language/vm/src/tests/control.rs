@@ -110,6 +110,7 @@ fn test_execute_panic_unwind() {
         r#"
 function f0 {
     panic r0, t0
+    unwind.resume
 }
 
 function f1 {
@@ -143,6 +144,7 @@ fn test_abort_double_panic() {
         r#"
 function f0 {
     panic r0, t0
+    unwind.resume
 }
 
 function f1 {
@@ -153,6 +155,7 @@ b0:
 
 b1:
     panic r0, t0
+    unwind.resume
 }
 "#,
         TestProgram::words(),

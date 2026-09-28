@@ -135,16 +135,57 @@ impl Machine {
         self.validate_frames(fiber)?;
 
         // deliver the wake value into the parked call's result registers
-        let Some(wake_to) = fiber.wake_to.take() else {
+        let Some(park) = fiber.park.take() else {
             return Err(Error::execution_not_stopped().into());
         };
-        self.deliver_wake(fiber, wake_to, value)?;
+        self.deliver_wake(fiber, park.registers, value)?;
 
         // continue the retained physical frame stack
         let outcome = Activation::new(self, fiber, activation)
             .instrument(stop_points, watch_points, profile, None)
             .execute()
             .map_err(ExecutionError::into_error);
+
+        self.settle(fiber, function, outcome)
+    }
+
+    /// Cancel one parked fiber, unwinding its cleanups from the parked call.
+    pub fn cancel<'run, R>(
+        &mut self,
+        fiber: &mut Fiber,
+        activation: program::Activation<'run, 'run, R>,
+        stop_points: Option<&'run StopSet>,
+        watch_points: Option<&'run WatchSet>,
+        profile: Option<&'run mut Profile>,
+    ) -> std::result::Result<Outcome<Value>, R::Error>
+    where
+        R: Runtime + ?Sized,
+        R::Error: From<Error>,
+    {
+        let Some(frame) = fiber.frames.first().copied() else {
+            return Err(Error::execution_not_stopped().into());
+        };
+        let function = frame.function;
+        self.validate_frames(fiber)?;
+        let Some(park) = fiber.park.take() else {
+            return Err(Error::execution_not_stopped().into());
+        };
+
+        // unwind from the parked call, running cleanups until the entry frame leaves
+        let outcome = {
+            let mut activation = Activation::new(self, fiber, activation).instrument(
+                stop_points,
+                watch_points,
+                profile,
+                None,
+            );
+            match activation.cancel(park.unwind) {
+                Ok(Some(outcome)) => Ok(outcome),
+                Ok(None) => activation.execute(),
+                Err(error) => Err(error),
+            }
+        }
+        .map_err(ExecutionError::into_error);
 
         self.settle(fiber, function, outcome)
     }

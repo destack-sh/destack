@@ -1,39 +1,40 @@
-use tspp_bytecode::{Instruction, Opcode, Scalar};
-use tspp_program::{Event, FrameEvent, LayoutShape, Runtime, TypeId, Word};
+use tspp_bytecode::{CodeOffset, Instruction, Opcode, Scalar};
+use tspp_program::{Event, FrameEvent, LayoutShape, Outcome, Runtime, TypeId, Word};
 
 use crate::diagnostic::{Error, ExecutionResult, Panic, Result, Trap};
-use crate::machine::{Activation, Return};
+use crate::machine::{Activation, Return, Unwinding};
 
 impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
-    /// Begin unwinding one language panic.
+    /// Record one language panic as the active unwind.
     pub(crate) fn execute_panic(
         &mut self,
         instruction: Instruction<'_>,
     ) -> ExecutionResult<(), R::Error> {
-        if self.panic.is_some() {
+        if self.unwinding.is_some() {
             return Err(Error::trap(Trap::Abort).into());
         }
-        let (panic, ty) = match instruction.opcode() {
-            Opcode::PANIC => (Panic::empty(), None),
-            Opcode::PANIC_VALUE => {
-                let mut operands = self.operands(instruction);
-                let ty = TypeId(operands.u32()?);
-                let range = operands.span()?;
-                let start = self.frame().range(range);
-                let words = self.fiber.stack.words(start, range.word_count as usize);
-                let message = self.panic_message(ty, &words)?;
 
-                (Panic::new(ty, words).message(message), Some(ty))
-            }
-            _ => unreachable!("panic dispatch selects one panic opcode"),
+        // read the payload and render its message
+        let (panic, ty) = if instruction.opcode() == Opcode::PANIC_VALUE {
+            let mut operands = self.operands(instruction);
+            let ty = TypeId(operands.u32()?);
+            let range = operands.span()?;
+            let start = self.frame().range(range);
+            let words = self.fiber.stack.words(start, range.word_count as usize);
+            let message = self.panic_message(ty, &words)?;
+
+            (Panic::new(ty, words).message(message), Some(ty))
+        } else {
+            (Panic::empty(), None)
         };
+
+        // observe the panic before its cleanups run
         let point = self.point(self.frame(), self.pc)?;
         self.observe(Event::Panic { point, ty })?;
-
         let panic = self.locate(Error::panic(panic));
-        self.panic = Some(panic);
+        self.unwinding = Some(Unwinding::Panic(panic));
 
-        self.unwind()
+        Ok(())
     }
 
     /// Render the text of a string payload before unwinding.
@@ -71,17 +72,46 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         Ok(Some(message))
     }
 
-    /// Continue one pending panic beyond the active cleanup frame.
-    pub(crate) fn execute_unwind_resume(&mut self) -> ExecutionResult<(), R::Error> {
-        if self.panic.is_none() {
+    /// Continue one pending panic or cancellation beyond the active cleanup frame.
+    pub(crate) fn execute_unwind_resume(
+        &mut self,
+    ) -> ExecutionResult<Option<Outcome<Vec<Word>>>, R::Error> {
+        if self.unwinding.is_none() {
             return Err(self.invalid_instruction().into());
         }
 
         self.unwind()
     }
 
+    /// Unwind a cancellation from one parked call, entering its own cleanup first.
+    pub(crate) fn cancel(
+        &mut self,
+        unwind: Option<CodeOffset>,
+    ) -> ExecutionResult<Option<Outcome<Vec<Word>>>, R::Error> {
+        self.unwinding = Some(Unwinding::Cancel);
+
+        // enter the park call's cleanup, else unwind its frame
+        self.activate();
+        match unwind {
+            Some(unwind) => {
+                self.jump(unwind);
+                self.save_position();
+
+                Ok(None)
+            }
+            None => {
+                let outcome = self.unwind()?;
+                if outcome.is_none() {
+                    self.save_position();
+                }
+
+                Ok(outcome)
+            }
+        }
+    }
+
     /// Unwind frames until cleanup or the host boundary is reached.
-    fn unwind(&mut self) -> ExecutionResult<(), R::Error> {
+    fn unwind(&mut self) -> ExecutionResult<Option<Outcome<Vec<Word>>>, R::Error> {
         loop {
             let Some(frame) = self.fiber.frames.pop() else {
                 unreachable!("panic unwinding requires an active frame");
@@ -92,13 +122,13 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                 function: frame.function,
             })?;
 
-            // report the panic after the entry frame leaves the machine
+            // report a panic or complete a cancellation after the entry frame leaves
             let Some(_caller) = self.fiber.frames.last().copied() else {
-                let Some(error) = self.panic.take() else {
-                    unreachable!("panic unwinding requires a retained payload");
+                return match self.unwinding.take() {
+                    Some(Unwinding::Panic(error)) => Err(error.into()),
+                    Some(Unwinding::Cancel) => Ok(Some(Outcome::Cancelled)),
+                    None => unreachable!("unwinding requires a retained reason"),
                 };
-
-                return Err(error.into());
             };
             self.activate();
 
@@ -110,7 +140,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             if let Some(unwind) = unwind {
                 self.jump(unwind);
 
-                return Ok(());
+                return Ok(None);
             }
         }
     }

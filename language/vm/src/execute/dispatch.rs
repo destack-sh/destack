@@ -299,11 +299,12 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     Opcode::PANIC | Opcode::PANIC_VALUE => {
                         self.cursor.set_position(position);
                         self.execute_panic(instruction)?;
-                        position = self.cursor.position();
                     }
                     Opcode::UNWIND_RESUME => {
                         self.cursor.set_position(position);
-                        self.execute_unwind_resume()?;
+                        if let Some(outcome) = self.execute_unwind_resume()? {
+                            return Ok(outcome);
+                        }
                         position = self.cursor.position();
                     }
 
