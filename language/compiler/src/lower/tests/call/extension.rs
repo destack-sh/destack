@@ -30,17 +30,15 @@ type test.main.Point {
     x: int32;
 }
 
-function test.main.Point.double<'a>(v0: ref<test.main.Point, borrowed, 'a, readonly>): int32 {
+export function test.main.Point.double<'a>(v0: ref<test.main.Point, borrowed, 'a, readonly>): int32 {
     local l0: ref<test.main.Point, borrowed, 'a, readonly>
 
 entry(v0: ref<test.main.Point, borrowed, 'a, readonly>):
     store l0, v0
-    v1: ref<test.main.Point, borrowed, 'a, readonly> = load l0
-    v2: int32 = load (*v1).0
-    v3: ref<test.main.Point, borrowed, 'a, readonly> = load l0
-    v4: int32 = load (*v3).0
-    v5: int32 = add v2, v4
-    return v5
+    v1: int32 = load (*l0).0
+    v2: int32 = load (*l0).0
+    v3: int32 = add v1, v2
+    return v3
 }
 
 /// @layout.struct name=test.main.Point size=4 align=4
@@ -53,7 +51,7 @@ type test.main.Point {
     x: int32;
 }
 
-function test.main.measure(): int32 {
+export function test.main.measure(): int32 {
     local l0: test.main.Point
 
 entry:
@@ -99,7 +97,7 @@ type test.main.Box<T> {
     value: T;
 }
 
-function test.main.build(v0: int32): test.main.Box<int32> {
+export function test.main.build(v0: int32): test.main.Box<int32> {
     local l0: int32
 
 entry(v0: int32):
@@ -159,7 +157,7 @@ type test.main.Box<T> {
     value: T;
 }
 
-function test.main.build(): test.main.Box<int32> {
+export function test.main.build(): test.main.Box<int32> {
 entry:
     v0: int32 = 3
     v1: test.main.Box<int32> = call test.main.Box.of<int32>(v0): (int32) => test.main.Box<int32>
@@ -208,7 +206,7 @@ function greatest(): int32 {
         "main.tspp",
         "test.main.Number.top",
         r#"
-function test.main.Number.top(): int32 {
+export function test.main.Number.top(): int32 {
 entry:
     v0: int32 = 5
     return v0
@@ -220,7 +218,7 @@ entry:
         "main.tspp",
         "test.main.greatest",
         r#"
-function test.main.greatest(): int32 {
+export function test.main.greatest(): int32 {
 entry:
     v0: int32 = call test.main.Number.top(): () => int32
     return v0

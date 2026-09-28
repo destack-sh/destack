@@ -24,7 +24,7 @@ type test.main.Point {
     y: int32;
 }
 
-function test.main.diagonal(v0: int32, v1: int32): test.main.Point {
+export function test.main.diagonal(v0: int32, v1: int32): test.main.Point {
     local l0: int32
     local l1: int32
 
@@ -70,7 +70,7 @@ type test.main.Sample {
     count: int32;
 }
 
-function test.main.sample(v0: boolean, v1: float64, v2: int32): test.main.Sample {
+export function test.main.sample(v0: boolean, v1: float64, v2: int32): test.main.Sample {
     local l0: boolean
     local l1: float64
     local l2: int32
@@ -112,7 +112,7 @@ function identity(value: int32): int32 {
         "main.tspp",
         "test.main.identity",
         r#"
-function test.main.identity(v0: int32): int32 {
+export function test.main.identity(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):

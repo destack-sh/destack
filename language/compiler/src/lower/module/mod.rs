@@ -24,6 +24,9 @@ mod r#type;
 pub(crate) use lower::*;
 pub(crate) use state::*;
 
-pub(in crate::lower) use callable::Receiver;
+pub(in crate::lower) use callable::{ParameterBinding, Receiver};
 pub(in crate::lower) use decorator::CallableImplementation;
-pub(in crate::lower) use instance::{FunctionDeclaration, GenericInstanceKey, Instance};
+pub(in crate::lower) use r#enum::EnumCase;
+pub(in crate::lower) use instance::{
+    FunctionDeclaration, GenericInstanceKey, Instance, InstanceForm,
+};

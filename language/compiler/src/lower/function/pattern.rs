@@ -110,6 +110,69 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
+    /// Collect the symbols one pattern binds.
+    pub(in crate::lower) fn pattern_symbols(
+        &mut self,
+        pattern: dir::LocalNodeId<dir::Pattern>,
+        symbols: &mut Vec<dir::LocalSymbolId>,
+    ) -> CompilerResult<()> {
+        // read the nested patterns
+        let nested = match self.pattern_decision(pattern)? {
+            dir::PatternDecision::Bind(binding) => {
+                symbols.extend(binding.symbol.map(|symbol| symbol.local_id));
+
+                binding.pattern.into_iter().collect()
+            }
+            dir::PatternDecision::Destructure(resolution) => {
+                let (fields, rest) = match &*resolution {
+                    dir::PatternDestructureResolution::Nominal(nominal) => {
+                        (&nominal.fields, nominal.rest.as_deref())
+                    }
+                    dir::PatternDestructureResolution::Object(object) => {
+                        (&object.fields, object.rest.as_deref())
+                    }
+                    dir::PatternDestructureResolution::Tuple(tuple) => (&tuple.fields, None),
+                    dir::PatternDestructureResolution::Sequence(sequence) => {
+                        (&sequence.fields, sequence.rest.as_deref())
+                    }
+                };
+                let mut nested = Vec::with_capacity(fields.len());
+                for field in fields.iter().chain(rest) {
+                    // take a bare field's symbol
+                    match field.pattern {
+                        Some(pattern) => nested.push(pattern),
+                        None => {
+                            let Some(symbol) = self.lower.symbol_declared_at(field.source)? else {
+                                return Err(CompilerError::Internal {
+                                    message: "a missing symbol for one destructured field"
+                                        .to_string(),
+                                });
+                            };
+                            symbols.push(symbol.local_id);
+                        }
+                    }
+                }
+
+                nested
+            }
+            dir::PatternDecision::Project(resolution) => resolution.pattern.into_iter().collect(),
+            dir::PatternDecision::Default(resolution) => vec![resolution.pattern],
+            dir::PatternDecision::Must(resolution) => vec![resolution.pattern],
+            dir::PatternDecision::Ignore
+            | dir::PatternDecision::Variant(_)
+            | dir::PatternDecision::Test(_)
+            | dir::PatternDecision::Or(_) => Vec::new(),
+        };
+
+        // collect the nested patterns
+        for pattern in nested {
+            let pattern = self.pattern_node(pattern)?;
+            self.pattern_symbols(pattern, symbols)?;
+        }
+
+        Ok(())
+    }
+
     /// Bind one destructured field through its selected projection.
     fn lower_destructured_field(
         &mut self,
@@ -150,6 +213,9 @@ impl FunctionLowerer<'_, '_, '_> {
         match projection {
             // select the layout field
             dir::Projection::Field(field) => self.project_pattern_field(place, field),
+
+            // select the payload of one union arm
+            dir::Projection::Arm { union, ty } => self.downcast_place(place.clone(), *union, *ty),
 
             // select the single newtype payload
             dir::Projection::NewtypePayload { .. } => {
@@ -273,8 +339,8 @@ impl FunctionLowerer<'_, '_, '_> {
         place: &Place,
         field: &dir::FieldResolution,
     ) -> CompilerResult<Place> {
-        let index = self.member_field_index(field)?;
         let ty = self.lower_type(field.ty)?;
+        let projection = self.member_projection(field, ty)?;
 
         // apply the receiver adjustments selected for the field
         let dir::MemberReceiver::Direct(receiver) = &field.receiver else {
@@ -282,7 +348,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
         let place = self.project_place_adjustments(place.clone(), &receiver.adjustments)?;
         let mut place = self.through_handle(place)?;
-        place.path.push(PlaceProjection::Field { field: index, ty });
+        place.path.push(projection);
 
         Ok(place)
     }
@@ -302,7 +368,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .try_into_typed::<dir::Expression>()
             .map_err(|message| CompilerError::Internal { message })?;
         let value = self.read_place(place)?;
-        let value = self.lower_absent_fallback(value, source, target, |lower| {
+        let value = self.lower_absent_fallback(value, source, target, None, |lower| {
             lower.lower_value(default).map(Some)
         })?;
 
@@ -318,7 +384,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Place> {
         let target = self.node_type_id(nested)?;
         let value = self.read_place(place)?;
-        let value = self.lower_absent_fallback(value, source, target, |lower| {
+        let value = self.lower_absent_fallback(value, source, target, None, |lower| {
             lower.builder.unreachable();
 
             Ok(None)
@@ -333,6 +399,7 @@ impl FunctionLowerer<'_, '_, '_> {
         value: mir::Value,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
+        present: Option<&dir::Coercion>,
         fallback: impl FnOnce(&mut Self) -> CompilerResult<Option<mir::Value>>,
     ) -> CompilerResult<mir::Value> {
         // retain an exact input that cannot be absent
@@ -384,14 +451,26 @@ impl FunctionLowerer<'_, '_, '_> {
                 let value = if representation == exact {
                     value
                 } else {
-                    let mut present = Vec::new();
+                    let mut members = Vec::new();
                     for member in self.lower.union_members(source)? {
                         if !matches!(self.lower.ty(member)?, dir::Type::Undefined) {
-                            present.push(member);
+                            members.push(member);
                         }
                     }
 
-                    self.narrow(value, source, &present, target)?
+                    let narrowed = present.map_or(target, |coercion| coercion.source);
+
+                    self.narrow(value, source, &members, narrowed)?
+                };
+
+                // convert the present payload
+                let value = match present {
+                    Some(coercion) => {
+                        let converted = self.convert(Operand::Value(value), coercion, None)?;
+
+                        self.as_value(converted, target)?
+                    }
+                    None => value,
                 };
                 self.builder.local_set(slot, value);
                 self.builder.jump(join);

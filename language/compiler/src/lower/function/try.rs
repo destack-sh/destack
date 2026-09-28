@@ -94,7 +94,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // run the finally on every way out of the try
         let depth = self.open_disposals();
         if let Some(finally) = finally {
-            self.disposals.push(Disposal::Finally(finally));
+            self.push_disposal(Disposal::Finally(finally));
         }
 
         // run an uncaught body as it stands

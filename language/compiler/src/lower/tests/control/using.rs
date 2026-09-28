@@ -28,7 +28,7 @@ type test.main.File {
     handle: int32;
 }
 
-function test.main.File.dispose<'a>(v0: ref<test.main.File, borrowed, 'a, mutable>): void {
+export function test.main.File.dispose<'a>(v0: ref<test.main.File, borrowed, 'a, mutable>): void {
     local l0: ref<test.main.File, borrowed, 'a, mutable>
 
 entry(v0: ref<test.main.File, borrowed, 'a, mutable>):
@@ -49,7 +49,7 @@ type test.main.File {
     handle: int32;
 }
 
-function test.main.run(): void {
+export function test.main.run(): void {
     local l0: test.main.File
     local l1: test.main.File
 
@@ -61,9 +61,76 @@ entry:
     v3: test.main.File = aggregate (v2)
     store l1, v3
     v4: ref<test.main.File, borrowed, 'frame, mutable> = address l1
-    call test.main.File.dispose(v4): (ref<test.main.File, borrowed, 'frame, mutable>) => void
+    invoke test.main.File.dispose(v4): (ref<test.main.File, borrowed, 'frame, mutable>) => void => b2 | b1
+
+b1:
+    v6: ref<test.main.File, borrowed, 'frame, mutable> = address l0
+    call test.main.File.dispose(v6): (ref<test.main.File, borrowed, 'frame, mutable>) => void
+    unwind.resume
+
+b2:
     v5: ref<test.main.File, borrowed, 'frame, mutable> = address l0
     call test.main.File.dispose(v5): (ref<test.main.File, borrowed, 'frame, mutable>) => void
+    return
+}
+
+/// @layout.struct name=test.main.File size=4 align=4
+/// @layout.field owner=test.main.File index=0 name=handle offset=0 size=4 align=4
+"#,
+    );
+}
+
+/// A panic disposes the live using resource before unwinding further.
+#[test]
+fn test_dispose_a_using_resource_when_a_panic_unwinds() {
+    let session = TestSession::single(
+        r#"
+import { Dispose } from "tspp:memory";
+
+struct File implements Dispose {
+    handle: int32;
+
+    dispose(&this): void {}
+}
+
+function run(): void {
+    using file = File { handle: 1 };
+    panic("stopped");
+}
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.tspp",
+        "test.main.run",
+        r#"
+type test.main.File {
+    handle: int32;
+}
+
+@nocopy
+@languageItem("string.String")
+type String;
+
+export function test.main.run(): void {
+    local l0: test.main.File
+
+entry:
+    v0: int32 = 1
+    v1: test.main.File = aggregate (v0)
+    store l0, v1
+    v2: ref<String, managed, mutable, local> = address @string.0
+    v3: ref<String, borrowed, 'managed, readonly> = cast.bit v2 -> ref<String, borrowed, 'managed, readonly>
+    panic v3 | b1
+
+b1:
+    v5: ref<test.main.File, borrowed, 'frame, mutable> = address l0
+    call test.main.File.dispose(v5): (ref<test.main.File, borrowed, 'frame, mutable>) => void
+    unwind.resume
+
+b2:
+    v4: ref<test.main.File, borrowed, 'frame, mutable> = address l0
+    call test.main.File.dispose(v4): (ref<test.main.File, borrowed, 'frame, mutable>) => void
     return
 }
 
@@ -104,7 +171,7 @@ type test.main.File {
     handle: int32;
 }
 
-function test.main.File.dispose<'a>(v0: ref<test.main.File, borrowed, 'a, mutable>): void {
+export function test.main.File.dispose<'a>(v0: ref<test.main.File, borrowed, 'a, mutable>): void {
     local l0: ref<test.main.File, borrowed, 'a, mutable>
 
 entry(v0: ref<test.main.File, borrowed, 'a, mutable>):
@@ -125,7 +192,7 @@ type test.main.File {
     handle: int32;
 }
 
-function test.main.run(v0: boolean): int32 {
+export function test.main.run(v0: boolean): int32 {
     local l0: boolean
     local l1: test.main.File
 
@@ -186,7 +253,7 @@ type test.main.File {
     handle: int32;
 }
 
-function test.main.File.dispose<'a>(v0: ref<test.main.File, borrowed, 'a, mutable>): void {
+export function test.main.File.dispose<'a>(v0: ref<test.main.File, borrowed, 'a, mutable>): void {
     local l0: ref<test.main.File, borrowed, 'a, mutable>
 
 entry(v0: ref<test.main.File, borrowed, 'a, mutable>):
@@ -207,7 +274,7 @@ type test.main.File {
     handle: int32;
 }
 
-function test.main.run(v0: variant<uint1> { 0uint1 = test.main.File; 1uint1 = void; }): void {
+export function test.main.run(v0: variant<uint1> { 0uint1 = test.main.File; 1uint1 = void; }): void {
     local l0: variant<uint1> { 0uint1 = test.main.File; 1uint1 = void; }
     local l1: variant<uint1> { 0uint1 = test.main.File; 1uint1 = void; }
 
@@ -278,7 +345,7 @@ type test.main.File {
     handle: int32;
 }
 
-function test.main.File.dispose<'a>(v0: ref<test.main.File, borrowed, 'a, mutable>): void {
+export function test.main.File.dispose<'a>(v0: ref<test.main.File, borrowed, 'a, mutable>): void {
     local l0: ref<test.main.File, borrowed, 'a, mutable>
 
 entry(v0: ref<test.main.File, borrowed, 'a, mutable>):
@@ -313,7 +380,7 @@ type IteratorYield<Y>;
 @languageItem("iter.IteratorReturn")
 type IteratorReturn<R>;
 
-function test.main.total(v0: ref<Array<test.main.File>, managed, mutable, local>): int32 {
+export function test.main.total(v0: ref<Array<test.main.File>, managed, mutable, local>): int32 {
     local l0: ref<Array<test.main.File>, managed, mutable, local>
     local l1: int32
     local l2: dynamic<Iterator<test.main.File>, managed, mutable, local>
@@ -357,10 +424,10 @@ b3:
 
 /// @layout.struct name=test.main.File size=4 align=4
 /// @layout.field owner=test.main.File index=0 name=handle offset=0 size=4 align=4
-/// @layout.variant name=type@122 size=8 align=4
-/// @layout.discriminant owner=type@122 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@122 index=0 discriminant=0 payload_offset=4
-/// @layout.case owner=type@122 index=1 discriminant=1 payload_offset=4
+/// @layout.variant name=type@124 size=8 align=4
+/// @layout.discriminant owner=type@124 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@124 index=0 discriminant=0 payload_offset=4
+/// @layout.case owner=type@124 index=1 discriminant=1 payload_offset=4
 "#);
 }
 
@@ -393,23 +460,25 @@ type test.main.Connection {
 @languageItem("async.Promise")
 type Promise<T: Copy>;
 
-function test.main.Connection.asyncDispose<'a>(v0: ref<test.main.Connection, borrowed, 'a, mutable>): ref<Promise<void>, managed, mutable, local> {
+export function test.main.Connection.asyncDispose<'a>(v0: ref<test.main.Connection, borrowed, 'a, mutable>): ref<Promise<void>, managed, mutable, local> {
     local l0: ref<test.main.Connection, borrowed, 'a, mutable>
 
 entry(v0: ref<test.main.Connection, borrowed, 'a, mutable>):
     store l0, v0
     v1: ref<test.main.Connection, borrowed, 'a, mutable> = load l0
     v2: { ref<test.main.Connection, borrowed, 'a, mutable> } = aggregate (v1)
-    v3: ref<{ ref<test.main.Connection, borrowed, 'a, mutable> }, unique, mutable> = new.complete v2
-    v4: function<() => void, once, unique, mutable> = function.bind test.main.Connection.asyncDispose.body, v3
-    v5: ref<Promise<void>, managed, mutable, local> = call Promise.create<void>(v4): (function<() => void, once, unique, mutable>) => ref<Promise<void>, managed, mutable, local>
-    return v5
+    v3: uninit<ref<{ ref<test.main.Connection, borrowed, 'a, mutable> }, unique, mutable>> = new.uninit { ref<test.main.Connection, borrowed, 'a, mutable> }, local
+    store (*v3), v2
+    v4: ref<{ ref<test.main.Connection, borrowed, 'a, mutable> }, unique, mutable> = new.complete v3
+    v5: function<() => void, once, unique, mutable> = function.bind test.main.Connection.asyncDispose.body, v4
+    v6: ref<Promise<void>, managed, mutable, local> = call Promise.create<void>(v5): (function<() => void, once, unique, mutable>) => ref<Promise<void>, managed, mutable, local>
+    return v6
 }
 
 /// @layout.struct name=test.main.Connection size=4 align=4
 /// @layout.field owner=test.main.Connection index=0 name=handle offset=0 size=4 align=4
-/// @layout.struct name=type@53 size=8 align=8
-/// @layout.field owner=type@53 index=0 offset=0 size=8 align=8
+/// @layout.struct name=type@56 size=8 align=8
+/// @layout.field owner=type@56 index=0 offset=0 size=8 align=8
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.Connection.asyncDispose.body", r#"
@@ -418,7 +487,7 @@ type test.main.Connection {
 }
 
 @environment(ref<{ ref<test.main.Connection, borrowed, 'a, mutable> }, unique, mutable>)
-function test.main.Connection.asyncDispose.body<'a>(): void {
+park function test.main.Connection.asyncDispose.body<'a>(): void {
     local l0: ref<test.main.Connection, borrowed, 'a, mutable>
 
 entry:
@@ -433,8 +502,8 @@ entry:
 
 /// @layout.struct name=test.main.Connection size=4 align=4
 /// @layout.field owner=test.main.Connection index=0 name=handle offset=0 size=4 align=4
-/// @layout.struct name=type@53 size=8 align=8
-/// @layout.field owner=type@53 index=0 offset=0 size=8 align=8
+/// @layout.struct name=type@56 size=8 align=8
+/// @layout.field owner=type@56 index=0 offset=0 size=8 align=8
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.run", r#"
@@ -442,13 +511,15 @@ entry:
 @languageItem("async.Promise")
 type Promise<T: Copy>;
 
-function test.main.run(): ref<Promise<void>, managed, mutable, local> {
+export function test.main.run(): ref<Promise<void>, managed, mutable, local> {
 entry:
     v0: {  } = aggregate ()
-    v1: ref<{  }, unique, mutable> = new.complete v0
-    v2: function<() => void, once, unique, mutable> = function.bind test.main.run.body, v1
-    v3: ref<Promise<void>, managed, mutable, local> = call Promise.create<void>(v2): (function<() => void, once, unique, mutable>) => ref<Promise<void>, managed, mutable, local>
-    return v3
+    v1: uninit<ref<{  }, unique, mutable>> = new.uninit {  }, local
+    store (*v1), v0
+    v2: ref<{  }, unique, mutable> = new.complete v1
+    v3: function<() => void, once, unique, mutable> = function.bind test.main.run.body, v2
+    v4: ref<Promise<void>, managed, mutable, local> = call Promise.create<void>(v3): (function<() => void, once, unique, mutable>) => ref<Promise<void>, managed, mutable, local>
+    return v4
 }
 
 /// @layout.struct name=type@9 size=0 align=1
@@ -464,7 +535,7 @@ type test.main.Connection {
 type Promise<T: Copy>;
 
 @environment(ref<{  }, unique, mutable>)
-function test.main.run.body(): void {
+park function test.main.run.body(): void {
     local l0: test.main.Connection
 
 entry:
@@ -477,7 +548,7 @@ entry:
     store l0, v4
     v5: ref<test.main.Connection, borrowed, 'frame, mutable> = address l0
     v6: ref<Promise<void>, managed, mutable, local> = call test.main.Connection.asyncDispose(v5): (ref<test.main.Connection, borrowed, 'frame, mutable>) => ref<Promise<void>, managed, mutable, local>
-    call Promise.park<void, void>(v6): (ref<Promise<void>, managed, mutable, local>) => void
+    call Promise.park<void>(v6): park (ref<Promise<void>, managed, mutable, local>) => void
     return
 }
 

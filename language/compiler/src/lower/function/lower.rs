@@ -9,7 +9,7 @@ use crate::lower::function::disposal::Disposal;
 use crate::lower::function::place::Place;
 use crate::lower::{
     DirModule, GenericInstanceKey, GenericScope, Memo, ModuleInitializer, ModuleLowerer,
-    NominalInstance,
+    NominalInstance, ParameterBinding,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -44,12 +44,17 @@ pub(in crate::lower) struct FunctionLowerer<'lower, 'builder, 'module> {
     pub(in crate::lower) profile: mir::FunctionProfileTable,
     /// The enclosing control statements, innermost last.
     pub(in crate::lower) controls: Vec<ControlFrame>,
-    /// The using resources awaiting disposal, outermost first.
-    pub(in crate::lower) disposals: Vec<Disposal>,
+    /// The pending disposals with their cleanup blocks, outermost first.
+    pub(in crate::lower) disposals: Vec<(Disposal, mir::LocalNodeId<mir::Block>)>,
     /// The enclosing optional chains, innermost last.
     pub(in crate::lower) chains: Vec<ChainFrame>,
     /// The enclosing try expressions catching residuals, innermost last.
     pub(in crate::lower) tries: Vec<TryFrame>,
+    /// The fake borrows each narrowing test issued, latest last.
+    pub(in crate::lower) tested: Vec<(
+        dir::GlobalNodeIdAny,
+        Vec<(Option<dir::AccessPath>, mir::Value)>,
+    )>,
 }
 
 /// One active try expression catching the residuals its body propagates.
@@ -77,15 +82,35 @@ pub(in crate::lower) struct ChainFrame {
 pub(in crate::lower) enum Binding {
     /// A frame local.
     Local(mir::LocalNodeId<mir::Local>),
-    /// A field of a managed capture frame.
-    Captured {
-        /// The frame reference holding the binding.
-        frame: mir::Value,
-        /// The field index within the frame.
-        field: u32,
-        /// The stored field type.
+    /// The place behind one reference.
+    Behind {
+        /// The reference.
+        reference: mir::Value,
+        /// The access the reference grants.
+        access: mir::Access,
+        /// The frame field, if any.
+        field: Option<u32>,
+        /// The stored type.
         ty: mir::TypeId,
     },
+}
+
+impl Binding {
+    /// Return the MIR place of one binding.
+    pub(in crate::lower) fn mir_place(self) -> mir::Place {
+        match self {
+            Self::Local(local) => mir::Place::local(local),
+            Self::Behind {
+                reference, field, ..
+            } => {
+                let place = mir::Place::value(reference).with_projection(mir::Projection::Deref);
+                match field {
+                    Some(index) => place.with_projection(mir::Projection::Field { index }),
+                    None => place,
+                }
+            }
+        }
+    }
 }
 
 /// One enclosing control statement's break and continue targets.
@@ -110,8 +135,8 @@ pub(in crate::lower) struct FunctionDefinition {
     pub(in crate::lower) symbol: dir::GlobalSymbolId,
     /// Whether the function receives this as its leading parameter.
     pub(in crate::lower) has_this: bool,
-    /// The parameter symbols in order.
-    pub(in crate::lower) parameters: Vec<dir::LocalSymbolId>,
+    /// The parameter bindings in order.
+    pub(in crate::lower) parameters: Vec<ParameterBinding>,
     /// The polymorphic lifetime parameters of this definition.
     pub(in crate::lower) scope: GenericScope,
     /// The module declaring this body.
@@ -138,8 +163,11 @@ pub(in crate::lower) enum Body {
     },
     /// The extracted coroutine body, its parameters rebound from the environment.
     Coroutine(dir::LocalNodeId<dir::Expression>),
-    /// The synthesized default constructor storing a class's field initializers.
-    DefaultConstructor,
+    /// The implicit constructor.
+    ImplicitConstructor {
+        /// The written constructor it forwards to.
+        forwards: Option<dir::GlobalSymbolId>,
+    },
     /// The allocating entry of a first-class constructor.
     Constructor(Box<dir::ConstructDecision>),
 }
@@ -173,6 +201,7 @@ impl<'lower, 'builder, 'module> FunctionLowerer<'lower, 'builder, 'module> {
             disposals: Vec::new(),
             chains: Vec::new(),
             tries: Vec::new(),
+            tested: Vec::new(),
         }
     }
 
@@ -208,9 +237,11 @@ impl<'lower, 'builder, 'module> FunctionLowerer<'lower, 'builder, 'module> {
 
         // home the parameters in header order past any receiver, an extracted body's from its environment
         let shift = has_this as usize;
+        let mut slots = Vec::with_capacity(parameters.len());
         match body {
             Body::Coroutine(_) => {
-                function.bind_coroutine_parameters(symbol, &parameters)?;
+                let bound = function.bound_parameter_symbols(&parameters)?;
+                function.bind_coroutine_parameters(symbol, &bound)?;
 
                 // home the producer a generator body receives as its leading parameter
                 if !function.function_parameters(function_id).is_empty() {
@@ -219,10 +250,13 @@ impl<'lower, 'builder, 'module> FunctionLowerer<'lower, 'builder, 'module> {
                 }
             }
             _ => {
-                for (index, symbol) in parameters.iter().enumerate() {
+                for (index, binding) in parameters.iter().enumerate() {
                     let value = function.builder.function_parameter(index + shift);
                     let local = function.home(value);
-                    function.values.insert(*symbol, Binding::Local(local));
+                    if let ParameterBinding::Named(symbol) = binding {
+                        function.values.insert(*symbol, Binding::Local(local));
+                    }
+                    slots.push(local);
                 }
             }
         }
@@ -243,20 +277,24 @@ impl<'lower, 'builder, 'module> FunctionLowerer<'lower, 'builder, 'module> {
             Body::Constructor(construction) => {
                 function.lower_constructor_body(&construction)?;
             }
-            Body::DefaultConstructor => {
-                function.lower_field_initializers(symbol)?;
+            Body::ImplicitConstructor { forwards } => {
+                function.lower_implicit_constructor(symbol, forwards)?;
                 function.return_value(None)?;
             }
             Body::Plain(expression)
             | Body::CoroutineEntry { expression, .. }
             | Body::Coroutine(expression) => {
-                // bind captures before evaluating parameter defaults
+                // bind captures and parameters
                 let is_entry = matches!(body, Body::CoroutineEntry { .. });
                 function.bind_captures(symbol, is_entry)?;
                 function.lower_parameter_defaults(&parameters, &defaults)?;
+                if !matches!(body, Body::Coroutine(_)) {
+                    function.lower_parameter_patterns(&parameters, &slots)?;
+                }
 
                 // lift the parameters captured by nested functions
-                for symbol in &parameters {
+                let bound = function.bound_parameter_symbols(&parameters)?;
+                for symbol in &bound {
                     let global = symbol.into_global(source);
                     if let Some(Binding::Local(local)) = function.values.get(symbol).copied()
                         && function.is_lifted(global)
@@ -284,7 +322,7 @@ impl<'lower, 'builder, 'module> FunctionLowerer<'lower, 'builder, 'module> {
                 // emit the coroutine entry or declared expression
                 match body {
                     Body::CoroutineEntry { body, .. } => {
-                        function.lower_coroutine_entry(symbol, &parameters, body)?;
+                        function.lower_coroutine_entry(symbol, &bound, body)?;
                     }
                     _ => function.lower_body(expression)?,
                 }
@@ -444,14 +482,26 @@ impl<'lower, 'builder, 'module> FunctionLowerer<'lower, 'builder, 'module> {
         Ok(())
     }
 
-    /// Lower one generic argument under the enclosing template.
+    /// Lower one generic argument in its domain.
     pub(in crate::lower) fn lower_generic_argument(
         &mut self,
         argument: dir::GlobalTypeId,
+        kind: Option<dir::MemoryParameter>,
+        is_const: bool,
     ) -> CompilerResult<mir::GenericArgument> {
         self.lower
             .type_lowerer(self.builder.tree_mut(), &self.scope)
-            .lower_generic_argument(argument)
+            .lower_generic_argument(argument, kind, is_const)
+    }
+
+    /// Lower one bound argument.
+    pub(in crate::lower) fn lower_bound_argument(
+        &mut self,
+        binding: dir::GenericArgumentBinding,
+    ) -> CompilerResult<mir::GenericArgument> {
+        self.lower
+            .type_lowerer(self.builder.tree_mut(), &self.scope)
+            .lower_bound_argument(binding)
     }
 
     /// Return the heap of one allocation: a managed result's space, else the receiver's space.
@@ -468,6 +518,7 @@ impl<'lower, 'builder, 'module> FunctionLowerer<'lower, 'builder, 'module> {
     }
 
     /// Return the declared space of the receiver's type, local outside placed type members.
+    // TODO #Broken: take the space of owned storage
     fn owned_space(&mut self) -> CompilerResult<mir::Space> {
         let Some(mut ty) = self.scope.this_parameter else {
             return Ok(mir::Space::Local);
@@ -524,11 +575,11 @@ impl<'lower, 'builder, 'module> FunctionLowerer<'lower, 'builder, 'module> {
         &mut self,
         symbol: dir::GlobalSymbolId,
         receiver: Option<dir::GlobalTypeId>,
-        types: &[dir::GlobalTypeId],
+        bindings: &[dir::GenericArgumentBinding],
     ) -> CompilerResult<GenericInstanceKey> {
         self.lower
             .type_lowerer(self.builder.tree_mut(), &self.scope)
-            .generic_instance_key(symbol, receiver, types)
+            .generic_instance_key(symbol, receiver, bindings)
     }
 
     /// Return the nominal instance beneath one value type, lowering it at first read.
@@ -671,14 +722,17 @@ impl FunctionLowerer<'_, '_, '_> {
                         target: dir::OperatorTarget::Builtin(operands),
                         ..
                     } => match operator {
-                        dir::BinaryOperator::EqualStrict | dir::BinaryOperator::NotEqualStrict => {
-                            self.lower_strict_equality(left, operator, right, &operands)
-                        }
                         dir::BinaryOperator::And | dir::BinaryOperator::Or => {
                             self.lower_logical(expression, left, operator, right)
                         }
                         dir::BinaryOperator::Coalesce => {
                             self.lower_coalesce(expression, left, right)
+                        }
+                        _ if self.is_singleton_result(expression)? => {
+                            self.lower_singleton_result(expression, &[left, right])
+                        }
+                        dir::BinaryOperator::EqualStrict | dir::BinaryOperator::NotEqualStrict => {
+                            self.lower_strict_equality(left, operator, right, &operands)
                         }
                         operator => self.lower_binary(left, operator, right, &operands),
                     },
@@ -731,6 +785,12 @@ impl FunctionLowerer<'_, '_, '_> {
                             mir::Place::value(reference).with_projection(mir::Projection::Deref),
                             pointee,
                         ))
+                    }
+                    dir::OperatorApplication::Unary {
+                        target: dir::OperatorTarget::Builtin(_),
+                        ..
+                    } if self.is_singleton_result(expression)? => {
+                        self.lower_singleton_result(expression, &[right])
                     }
                     dir::OperatorApplication::Unary {
                         operator,
@@ -818,10 +878,11 @@ impl FunctionLowerer<'_, '_, '_> {
                         message: "a this outside a method body".to_string(),
                     });
                 };
-                let value = self.read_binding(binding)?;
-                let value = self.constructed_this(expression, value)?;
+                self.lower_narrowing(expression, |lower| {
+                    let value = lower.read_binding(binding)?;
 
-                self.lower_narrowing(expression, value)
+                    lower.constructed_this(expression, value)
+                })
             }
 
             // read the receiver at the base its heritage prefixes

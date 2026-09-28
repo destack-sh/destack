@@ -20,7 +20,7 @@ function sum(n: int32): int32 {
         "main.tspp",
         "test.main.sum",
         r#"
-function test.main.sum(v0: int32): int32 {
+export function test.main.sum(v0: int32): int32 {
     local l0: int32
     local l1: int32
     local l2: int32
@@ -79,7 +79,7 @@ function firstOver(limit: int32): int32 {
         "main.tspp",
         "test.main.firstOver",
         r#"
-function test.main.firstOver(v0: int32): int32 {
+export function test.main.firstOver(v0: int32): int32 {
     local l0: int32
     local l1: int32
 
@@ -137,7 +137,7 @@ function sum(n: int32): int32 {
         "main.tspp",
         "test.main.sum",
         r#"
-function test.main.sum(v0: int32): int32 {
+export function test.main.sum(v0: int32): int32 {
     local l0: int32
     local l1: int32
     local l2: int32
@@ -196,7 +196,7 @@ function drain(n: int64): int64 {
         "main.tspp",
         "test.main.drain",
         r#"
-function test.main.drain(v0: int64): int64 {
+export function test.main.drain(v0: int64): int64 {
     local l0: int64
     local l1: int64
 
@@ -248,7 +248,7 @@ function next(seed: int32): int32 {
         "main.tspp",
         "test.main.next",
         r#"
-function test.main.next(v0: int32): int32 {
+export function test.main.next(v0: int32): int32 {
     local l0: int32
     local l1: int32
 
@@ -305,7 +305,7 @@ function find(limit: int32): int32 {
         "main.tspp",
         "test.main.find",
         r#"
-function test.main.find(v0: int32): int32 {
+export function test.main.find(v0: int32): int32 {
     local l0: int32
     local l1: int32
     local l2: int32
@@ -412,7 +412,7 @@ type IteratorYield<Y>;
 @languageItem("iter.IteratorReturn")
 type IteratorReturn<R>;
 
-function test.main.sum(v0: ref<Array<int32>, managed, mutable, local>): int32 {
+export function test.main.sum(v0: ref<Array<int32>, managed, mutable, local>): int32 {
     local l0: ref<Array<int32>, managed, mutable, local>
     local l1: int32
     local l2: dynamic<Iterator<int32>, managed, mutable, local>
@@ -476,15 +476,13 @@ function split(values: int32[]): int32 {
 @languageItem("collections.Array")
 type Array<T>;
 
-function test.main.split(v0: ref<Array<int32>, managed, mutable, local>): int32 {
+export function test.main.split(v0: ref<Array<int32>, managed, mutable, local>): int32 {
     local l0: ref<Array<int32>, managed, mutable, local>
     local l1: ref<Array<int32>, managed, mutable, local>
     local l2: int32
     local l3: int32
-    local l4: int32
-    local l5: int32
-    local l6: Array<int32>
-    local l7: Array<int32>
+    local l4: Array<int32>
+    local l5: Array<int32>
 
 entry(v0: ref<Array<int32>, managed, mutable, local>):
     store l0, v0
@@ -493,35 +491,33 @@ entry(v0: ref<Array<int32>, managed, mutable, local>):
     v2: ref<Array<int32>, managed, mutable, local> = load l1
     v3: ref<Array<int32>, borrowed, 'managed, readonly> = cast.bit v2 -> ref<Array<int32>, borrowed, 'managed, readonly>
     v4: isize = 0
-    v5: int32 = call Array.Index.index<int32>(v3, v4): (ref<Array<int32>, borrowed, 'managed, readonly>, isize) => int32
-    store l2, v5
-    v6: int32 = load l2
-    store l3, v6
+    v5: ref<int32, borrowed, 'managed, readonly> = call Array.Index.index<int32, readonly>(v3, v4): (ref<Array<int32>, borrowed, 'managed, readonly>, isize) => ref<int32, borrowed, 'managed, readonly>
+    v6: int32 = load (*v5)
+    store l2, v6
     v7: ref<Array<int32>, managed, mutable, local> = load l1
     v8: ref<Array<int32>, borrowed, 'managed, readonly> = cast.bit v7 -> ref<Array<int32>, borrowed, 'managed, readonly>
     v9: isize = 1
-    v10: int32 = call Array.Index.index<int32>(v8, v9): (ref<Array<int32>, borrowed, 'managed, readonly>, isize) => int32
-    store l4, v10
-    v11: int32 = load l4
-    store l5, v11
+    v10: ref<int32, borrowed, 'managed, readonly> = call Array.Index.index<int32, readonly>(v8, v9): (ref<Array<int32>, borrowed, 'managed, readonly>, isize) => ref<int32, borrowed, 'managed, readonly>
+    v11: int32 = load (*v10)
+    store l3, v11
     v12: ref<Array<int32>, managed, mutable, local> = load l1
     v13: ref<Array<int32>, borrowed, 'managed, readonly> = cast.bit v12 -> ref<Array<int32>, borrowed, 'managed, readonly>
     v14: isize = 2
     v15: variant<uint1> { 0uint1 = isize; 1uint1 = void; } = variant.new 1
     v16: Array<int32> = call Array.Sequence.rest<int32>(v13, v14, v15): (ref<Array<int32>, borrowed, 'managed, readonly>, isize, variant<uint1> { 0uint1 = isize; 1uint1 = void; }) => Array<int32>
-    store l6, v16
-    v17: Array<int32> = load l6
-    store l7, v17
-    v18: int32 = load l3
-    v19: int32 = load l5
+    store l4, v16
+    v17: Array<int32> = load l4
+    store l5, v17
+    v18: int32 = load l2
+    v19: int32 = load l3
     v20: int32 = add v18, v19
     return v20
 }
 
-/// @layout.variant name=type@34 size=16 align=8
-/// @layout.discriminant owner=type@34 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@34 index=0 discriminant=0 payload_offset=8
-/// @layout.case owner=type@34 index=1 discriminant=1 payload_offset=8
+/// @layout.variant name=type@37 size=16 align=8
+/// @layout.discriminant owner=type@37 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@37 index=0 discriminant=0 payload_offset=8
+/// @layout.case owner=type@37 index=1 discriminant=1 payload_offset=8
 "#);
 }
 
@@ -548,7 +544,7 @@ function first(count: int32): int32 {
         "main.tspp",
         "test.main.first",
         r#"
-function test.main.first(v0: int32): int32 {
+export function test.main.first(v0: int32): int32 {
     local l0: int32
     local l1: int32
     local l2: int32
@@ -621,7 +617,7 @@ type IteratorYield<Y>;
 @languageItem("iter.IteratorReturn")
 type IteratorReturn<R>;
 
-function test.main.total(v0: Array<int64>): int64 {
+export function test.main.total(v0: Array<int64>): int64 {
     local l0: Array<int64>
     local l1: int64
     local l2: ArrayValueIterator<int64, 'frame>

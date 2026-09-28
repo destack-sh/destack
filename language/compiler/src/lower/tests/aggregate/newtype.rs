@@ -18,7 +18,7 @@ function span(distance: Meters): Meters {
         r#"
 type test.main.Meters = newtype<int32>;
 
-function test.main.span(v0: test.main.Meters): test.main.Meters {
+export function test.main.span(v0: test.main.Meters): test.main.Meters {
     local l0: test.main.Meters
 
 entry(v0: test.main.Meters):
@@ -48,7 +48,7 @@ function total(base: int32): Meters {
         r#"
 type test.main.Meters = newtype<int32>;
 
-function test.main.total(v0: int32): test.main.Meters {
+export function test.main.total(v0: int32): test.main.Meters {
     local l0: int32
 
 entry(v0: int32):
@@ -84,7 +84,7 @@ type test.main.UserId = newtype<int32>;
 
 type test.main.OrganisationId = newtype<int32>;
 
-function test.main.organisation(v0: test.main.UserId): test.main.OrganisationId {
+export function test.main.organisation(v0: test.main.UserId): test.main.OrganisationId {
     local l0: test.main.UserId
 
 entry(v0: test.main.UserId):

@@ -1,6 +1,8 @@
 use tspp_dir as dir;
+use tspp_mir as mir;
 
-use crate::lower::{Binding, FunctionLowerer};
+use crate::lower::function::place::{Place, PlaceRoot};
+use crate::lower::{Binding, FunctionLowerer, ParameterBinding};
 use crate::{CompilerError, CompilerResult};
 
 impl FunctionLowerer<'_, '_, '_> {
@@ -87,13 +89,6 @@ impl FunctionLowerer<'_, '_, '_> {
                     finally,
                 } => Ok(!lower.lower_try(statement, body, catch, finally, None)?),
 
-                // run an optional chain for its effects
-                dir::Expression::Chain { .. } => {
-                    lower.lower_value(statement)?;
-
-                    Ok(false)
-                }
-
                 // loop while the condition holds
                 dir::Expression::While {
                     label,
@@ -152,8 +147,12 @@ impl FunctionLowerer<'_, '_, '_> {
                     Ok(false)
                 }
 
-                // reject every other statement
-                other => Err(lower.unsupported(format!("'{}' statements", other.variant_name()))),
+                // evaluate every other expression
+                _ => {
+                    lower.lower_value(statement)?;
+
+                    Ok(false)
+                }
             }
         })
     }
@@ -199,16 +198,18 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Resolve the defaulted parameters at the head of one declared body.
     pub(in crate::lower) fn lower_parameter_defaults(
         &mut self,
-        parameters: &[dir::LocalSymbolId],
+        parameters: &[ParameterBinding],
         defaults: &[Option<dir::LocalNodeId<dir::Expression>>],
     ) -> CompilerResult<()> {
         for (index, default) in defaults.iter().enumerate() {
             let Some(default) = *default else {
                 continue;
             };
+            let ParameterBinding::Named(symbol) = parameters[index] else {
+                return Err(self.unsupported("a defaulted pattern parameter"));
+            };
 
             // read the value bound for the parameter on entry
-            let symbol = parameters[index];
             let Some(Binding::Local(home)) = self.values.get(&symbol).copied() else {
                 return Err(CompilerError::Internal {
                     message: "a defaulted parameter without its home".to_string(),
@@ -229,7 +230,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 .declaration_node(symbol.into_global(self.source))?
                 .ok_or_else(|| self.internal("a defaulted parameter without its declaration"))?;
             let source = self.node_type_id(declaration.local_id)?;
-            let resolved = self.lower_absent_fallback(incoming, source, ty, |lower| {
+            let resolved = self.lower_absent_fallback(incoming, source, ty, None, |lower| {
                 lower.lower_value(default).map(Some)
             })?;
             let local = self.home(resolved);
@@ -237,5 +238,42 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         Ok(())
+    }
+
+    /// Destructure each pattern parameter.
+    pub(in crate::lower) fn lower_parameter_patterns(
+        &mut self,
+        parameters: &[ParameterBinding],
+        slots: &[mir::LocalNodeId<mir::Local>],
+    ) -> CompilerResult<()> {
+        for (binding, slot) in parameters.iter().zip(slots) {
+            if let ParameterBinding::Pattern(pattern) = binding {
+                let place = Place {
+                    root: PlaceRoot::Local(*slot),
+                    path: Vec::new(),
+                };
+                self.lower_pattern_bindings(*pattern, &place)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Return the symbols the parameters bind.
+    pub(in crate::lower) fn bound_parameter_symbols(
+        &mut self,
+        parameters: &[ParameterBinding],
+    ) -> CompilerResult<Vec<dir::LocalSymbolId>> {
+        let mut symbols = Vec::with_capacity(parameters.len());
+        for binding in parameters {
+            match binding {
+                ParameterBinding::Named(symbol) => symbols.push(*symbol),
+                ParameterBinding::Pattern(pattern) => {
+                    self.pattern_symbols(*pattern, &mut symbols)?
+                }
+            }
+        }
+
+        Ok(symbols)
     }
 }

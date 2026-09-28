@@ -34,23 +34,21 @@ type test.main.Vector {
     y: int32;
 }
 
-function test.main.Vector.add<'a>(v0: ref<test.main.Vector, borrowed, 'a, readonly>, v1: test.main.Vector): test.main.Vector {
+export function test.main.Vector.add<'a>(v0: ref<test.main.Vector, borrowed, 'a, readonly>, v1: test.main.Vector): test.main.Vector {
     local l0: test.main.Vector
     local l1: ref<test.main.Vector, borrowed, 'a, readonly>
 
 entry(v0: ref<test.main.Vector, borrowed, 'a, readonly>, v1: test.main.Vector):
     store l0, v1
     store l1, v0
-    v2: ref<test.main.Vector, borrowed, 'a, readonly> = load l1
-    v3: int32 = load (*v2).0
-    v4: int32 = load (l0).0
-    v5: int32 = add v3, v4
-    v6: ref<test.main.Vector, borrowed, 'a, readonly> = load l1
-    v7: int32 = load (*v6).1
-    v8: int32 = load (l0).1
-    v9: int32 = add v7, v8
-    v10: test.main.Vector = aggregate (v5, v9)
-    return v10
+    v2: int32 = load (*l1).0
+    v3: int32 = load (l0).0
+    v4: int32 = add v2, v3
+    v5: int32 = load (*l1).1
+    v6: int32 = load (l0).1
+    v7: int32 = add v5, v6
+    v8: test.main.Vector = aggregate (v4, v7)
+    return v8
 }
 
 /// @layout.struct name=test.main.Vector size=8 align=4
@@ -64,7 +62,7 @@ type test.main.Vector {
     y: int32;
 }
 
-function test.main.combine(): int32 {
+export function test.main.combine(): int32 {
     local l0: test.main.Vector
     local l1: test.main.Vector
     local l2: test.main.Vector
@@ -123,16 +121,15 @@ type test.main.Charge {
     amount: int32;
 }
 
-function test.main.Charge.negate<'a>(v0: ref<test.main.Charge, borrowed, 'a, readonly>): test.main.Charge {
+export function test.main.Charge.negate<'a>(v0: ref<test.main.Charge, borrowed, 'a, readonly>): test.main.Charge {
     local l0: ref<test.main.Charge, borrowed, 'a, readonly>
 
 entry(v0: ref<test.main.Charge, borrowed, 'a, readonly>):
     store l0, v0
-    v1: ref<test.main.Charge, borrowed, 'a, readonly> = load l0
-    v2: int32 = load (*v1).0
-    v3: int32 = negate v2
-    v4: test.main.Charge = aggregate (v3)
-    return v4
+    v1: int32 = load (*l0).0
+    v2: int32 = negate v1
+    v3: test.main.Charge = aggregate (v2)
+    return v3
 }
 
 /// @layout.struct name=test.main.Charge size=4 align=4
@@ -145,7 +142,7 @@ type test.main.Charge {
     amount: int32;
 }
 
-function test.main.invert(): int32 {
+export function test.main.invert(): int32 {
     local l0: test.main.Charge
     local l1: test.main.Charge
 
@@ -190,22 +187,20 @@ type Ordering;
 @languageItem("ops.Compare")
 type Compare<T>;
 
-function test.main.isAtMost<T: Compare<T>, 'a, 'b>(v0: ref<?T, borrowed, 'a, immutable>, v1: ref<?T, borrowed, 'b, immutable>): boolean {
+export function test.main.isAtMost<T: Compare<T>, 'a, 'b>(v0: ref<?T, borrowed, 'a, immutable>, v1: ref<?T, borrowed, 'b, immutable>): boolean {
     local l0: ref<?T, borrowed, 'a, immutable>
     local l1: ref<?T, borrowed, 'b, immutable>
 
 entry(v0: ref<?T, borrowed, 'a, immutable>, v1: ref<?T, borrowed, 'b, immutable>):
     store l0, v0
     store l1, v1
-    v2: ref<?T, borrowed, 'a, immutable> = load l0
-    v3: ref<?T, borrowed, 'b, immutable> = load l1
-    v4: ref<?T, borrowed, 'b, immutable> = address (*v3)
-    v5: ref<?T, borrowed, 'a, immutable> = address (*v2)
-    v6: Ordering = call.witness T, Compare<T>, Compare.compare(v5, v4): (ref<?T, borrowed, 'a, immutable>, ref<?T, borrowed, 'b, immutable>) => Ordering
-    v7: int8 = variant.tag v6
-    v8: int8 = 1
-    v9: boolean = ne v7, v8
-    return v9
+    v2: ref<?T, borrowed, 'b, immutable> = address (*l1)
+    v3: ref<?T, borrowed, 'a, immutable> = address (*l0)
+    v4: Ordering = call.witness T, Compare<T>, Compare.compare(v3, v2): (ref<?T, borrowed, 'a, immutable>, ref<?T, borrowed, 'b, immutable>) => Ordering
+    v5: int8 = variant.tag v4
+    v6: int8 = 1
+    v7: boolean = ne v5, v6
+    return v7
 }
 "#);
 
@@ -220,7 +215,7 @@ type PartialCompare<T>;
 @languageItem("ops.Ordering")
 type Ordering;
 
-function test.main.isBefore<T: PartialCompare<T>, 'a, 'b>(v0: ref<?T, borrowed, 'a, immutable>, v1: ref<?T, borrowed, 'b, immutable>): boolean {
+export function test.main.isBefore<T: PartialCompare<T>, 'a, 'b>(v0: ref<?T, borrowed, 'a, immutable>, v1: ref<?T, borrowed, 'b, immutable>): boolean {
     local l0: ref<?T, borrowed, 'a, immutable>
     local l1: ref<?T, borrowed, 'b, immutable>
     local l2: boolean, readonly
@@ -229,31 +224,29 @@ function test.main.isBefore<T: PartialCompare<T>, 'a, 'b>(v0: ref<?T, borrowed, 
 entry(v0: ref<?T, borrowed, 'a, immutable>, v1: ref<?T, borrowed, 'b, immutable>):
     store l0, v0
     store l1, v1
-    v2: ref<?T, borrowed, 'a, immutable> = load l0
-    v3: ref<?T, borrowed, 'b, immutable> = load l1
-    v4: ref<?T, borrowed, 'b, immutable> = address (*v3)
-    v5: ref<?T, borrowed, 'a, immutable> = address (*v2)
-    v6: variant<uint1> { 0uint1 = Ordering; 1uint1 = null; } = call.witness T, PartialCompare<T>, PartialCompare.partialCompare(v5, v4): (ref<?T, borrowed, 'a, immutable>, ref<?T, borrowed, 'b, immutable>) => variant<uint1> { 0uint1 = Ordering; 1uint1 = null; }
-    store l3, v6
-    v7: uint1 = variant.tag.load l3
-    switch v7, b2, 0 => b1
+    v2: ref<?T, borrowed, 'b, immutable> = address (*l1)
+    v3: ref<?T, borrowed, 'a, immutable> = address (*l0)
+    v4: variant<uint1> { 0uint1 = Ordering; 1uint1 = null; } = call.witness T, PartialCompare<T>, PartialCompare.partialCompare(v3, v2): (ref<?T, borrowed, 'a, immutable>, ref<?T, borrowed, 'b, immutable>) => variant<uint1> { 0uint1 = Ordering; 1uint1 = null; }
+    store l3, v4
+    v5: uint1 = variant.tag.load l3
+    switch v5, b2, 0 => b1
 
 b1:
-    v8: Ordering = variant.payload v6, 0
-    v9: int8 = variant.tag v8
-    v10: int8 = -1
-    v11: boolean = eq v9, v10
-    store l2, v11
+    v6: Ordering = variant.payload v4, 0
+    v7: int8 = variant.tag v6
+    v8: int8 = -1
+    v9: boolean = eq v7, v8
+    store l2, v9
     jump b3
 
 b2:
-    v12: boolean = false
-    store l2, v12
+    v10: boolean = false
+    store l2, v10
     jump b3
 
 b3:
-    v13: boolean = load l2
-    return v13
+    v11: boolean = load l2
+    return v11
 }
 "#,
     );

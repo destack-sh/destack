@@ -2,7 +2,6 @@ use tspp_dir as dir;
 use tspp_mir as mir;
 
 use crate::lower::FunctionLowerer;
-use crate::lower::function::lower::Binding;
 use crate::{CompilerError, CompilerResult};
 
 impl FunctionLowerer<'_, '_, '_> {
@@ -59,13 +58,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // borrow the producer at the receiver representation the yield method declares
         let arguments = self.lower_call_arguments(&call.arguments, parameters, &[])?;
-        let place = match producer {
-            Binding::Local(local) => mir::Place::local(local),
-            Binding::Captured { frame, field, .. } => mir::Place::value(frame)
-                .with_projection(mir::Projection::Deref)
-                .with_projection(mir::Projection::Field { index: field }),
-        };
-        let receiver = self.builder.address(place, target);
+        let receiver = self.builder.address(producer.mir_place(), target);
 
         // call the producer with the yielded value
         let mut values = vec![receiver];

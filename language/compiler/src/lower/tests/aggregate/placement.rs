@@ -21,7 +21,7 @@ type test.main.Counter {
     value: int32;
 }
 
-constructor test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>): void {
+export constructor test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>
 
 entry(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>):
@@ -42,7 +42,7 @@ type test.main.Counter {
     value: int32;
 }
 
-function test.main.make(): ref<test.main.Counter, managed, mutable, shared> {
+export function test.main.make(): ref<test.main.Counter, managed, mutable, shared> {
 entry:
     v0: ref<test.main.Counter, managed, mutable, shared> = new.zeroed test.main.Counter, shared
     v1: ref<uninit<test.main.Counter>, borrowed, 'managed, exclusive> = cast.bit v0 -> ref<uninit<test.main.Counter>, borrowed, 'managed, exclusive>
@@ -84,6 +84,13 @@ type test.main.Cache {
     localUser: ref<test.main.User, managed, mutable, local>;
     sharedUser: ref<test.main.SharedUser, managed, mutable, shared>;
 }
+
+/// @layout.struct name=test.main.User size=0 align=1
+/// @layout.struct name=test.main.SharedUser size=0 align=1
+/// @layout.struct name=type@2 size=0 align=1
+/// @layout.struct name=type@6 size=16 align=8
+/// @layout.field owner=type@6 index=0 name=localUser offset=0 size=8 align=8
+/// @layout.field owner=type@6 index=1 name=sharedUser offset=8 size=8 align=8
 "#,
     );
 }
@@ -109,7 +116,7 @@ type test.main.Counter {
     value: int32;
 }
 
-constructor test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>): void {
+export constructor test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>
 
 entry(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>):
@@ -133,7 +140,7 @@ type test.main.Counter {
     value: int32;
 }
 
-function test.main.Counter.bump(v0: ref<test.main.Counter, managed, mutable, shared>): int32 {
+export function test.main.Counter.bump(v0: ref<test.main.Counter, managed, mutable, shared>): int32 {
     local l0: ref<test.main.Counter, managed, mutable, shared>
 
 entry(v0: ref<test.main.Counter, managed, mutable, shared>):
@@ -186,7 +193,7 @@ type test.state.Holder;
 @nocopy
 type test.state.User;
 
-function test.main.read(v0: test.state.Holder): void {
+export function test.main.read(v0: test.state.Holder): void {
     local l0: test.state.Holder
     local l1: ref<test.state.User, managed, mutable, shared>
 
@@ -219,7 +226,7 @@ function grow(items: &int64[]): void {
 @languageItem("collections.Array")
 type Array<T>;
 
-function test.main.grow<'a>(v0: ref<Array<int64>, borrowed, 'a, mutable>): void {
+export function test.main.grow<'a>(v0: ref<Array<int64>, borrowed, 'a, mutable>): void {
     local l0: ref<Array<int64>, borrowed, 'a, mutable>
 
 entry(v0: ref<Array<int64>, borrowed, 'a, mutable>):
@@ -232,8 +239,10 @@ entry(v0: ref<Array<int64>, borrowed, 'a, mutable>):
     store (*v4)[v5], v2
     v6: slice<int64, unique, mutable> = new.complete v4
     v7: Array<int64> = call arrayFromOwnedSlice<int64>(v6): (slice<int64, unique, mutable>) => Array<int64>
-    v8: ref<Array<int64>, managed, mutable, local> = new.complete v7
-    v9: isize = call Array.push<int64>(v1, v8): (ref<Array<int64>, borrowed, 'a, mutable>, ref<Array<int64>, managed, mutable, local>) => isize
+    v8: uninit<ref<Array<int64>, managed, mutable, local>> = new.uninit Array<int64>, local
+    store (*v8), v7
+    v9: ref<Array<int64>, managed, mutable, local> = new.complete v8
+    v10: isize = call Array.push<int64>(v1, v9): (ref<Array<int64>, borrowed, 'a, mutable>, ref<Array<int64>, managed, mutable, local>) => isize
     return
 }
 "#,
@@ -261,7 +270,7 @@ function duplicate<T: Clone>(value: &immutable T): T {
 @languageItem("memory.Clone")
 type Clone;
 
-function test.main.duplicate<T: Clone, 'a>(v0: ref<?T, borrowed, 'a, immutable>): T {
+export function test.main.duplicate<T: Clone, 'a>(v0: ref<?T, borrowed, 'a, immutable>): T {
     local l0: ref<?T, borrowed, 'a, immutable>
 
 entry(v0: ref<?T, borrowed, 'a, immutable>):

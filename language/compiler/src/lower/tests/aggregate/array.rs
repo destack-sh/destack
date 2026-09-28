@@ -29,7 +29,7 @@ type IteratorYield<Y>;
 @languageItem("iter.IteratorReturn")
 type IteratorReturn<R>;
 
-function test.main.build(v0: ref<Array<ref<Array<int32>, managed, mutable, local>>, managed, mutable, local>): ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, managed, mutable, local> {
+export function test.main.build(v0: ref<Array<ref<Array<int32>, managed, mutable, local>>, managed, mutable, local>): ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, managed, mutable, local> {
     local l0: ref<Array<ref<Array<int32>, managed, mutable, local>>, managed, mutable, local>
     local l1: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, unique, mutable>
     local l2: usize
@@ -124,8 +124,10 @@ b10:
     v46: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, unique, mutable> = load l1
     v47: slice<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }, unique, mutable> = new.complete v46
     v48: Array<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }> = call arrayFromOwnedSlice<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>(v47): (slice<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }, unique, mutable>) => Array<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>
-    v49: ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, managed, mutable, local> = new.complete v48
-    return v49
+    v49: uninit<ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, managed, mutable, local>> = new.uninit Array<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, local
+    store (*v49), v48
+    v50: ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, managed, mutable, local> = new.complete v49
+    return v50
 
 b11:
     v41: usize = load l5
@@ -150,10 +152,10 @@ b13:
 /// @layout.discriminant owner=type@15 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@15 index=0 discriminant=0 payload_offset=8
 /// @layout.case owner=type@15 index=1 discriminant=1 payload_offset=8
-/// @layout.variant name=type@143 size=16 align=8
-/// @layout.discriminant owner=type@143 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@143 index=0 discriminant=0 payload_offset=8
-/// @layout.case owner=type@143 index=1 discriminant=1 payload_offset=8
+/// @layout.variant name=type@143 size=8 align=8
+/// @layout.discriminant owner=type@143 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@143 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@143 index=1 discriminant=1 payload_offset=0
 "#);
 }
 
@@ -173,7 +175,7 @@ function build(): ^(int32 | undefined)[] {
 @languageItem("collections.Array")
 type Array<T>;
 
-function test.main.build(): Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }> {
+export function test.main.build(): Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }> {
 entry:
     v0: int32 = 1
     v1: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = variant.new 0, v0
@@ -215,7 +217,7 @@ function build(): ^int32[] {
 @languageItem("collections.Array")
 type Array<T>;
 
-function test.main.build(): Array<int32> {
+export function test.main.build(): Array<int32> {
 entry:
     v0: int32 = 1
     v1: int32 = 2
@@ -256,7 +258,7 @@ function fill(): int32 {
 @languageItem("collections.Array")
 type Array<T>;
 
-function test.main.fill(): int32 {
+export function test.main.fill(): int32 {
     local l0: Array<int32>
     local l1: int32, readonly
 
@@ -270,32 +272,34 @@ entry:
     store (*v3)[v4], v1
     v5: slice<int32, unique, mutable> = new.complete v3
     v6: Array<int32> = call arrayFromOwnedSlice<int32>(v5): (slice<int32, unique, mutable>) => Array<int32>
-    v7: ref<Array<int32>, managed, mutable, local> = new.complete v6
-    v8: ref<Array<int32>, borrowed, 'frame, mutable> = address l0
-    v9: isize = call Array.push<int32>(v8, v7): (ref<Array<int32>, borrowed, 'frame, mutable>, ref<Array<int32>, managed, mutable, local>) => isize
-    v10: ref<Array<int32>, borrowed, 'frame, mutable> = address l0
-    v11: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = call Array.pop<int32>(v10): (ref<Array<int32>, borrowed, 'frame, mutable>) => variant<uint1> { 0uint1 = int32; 1uint1 = void; }
-    variant.switch v11, 1 => b2, else b1
+    v7: uninit<ref<Array<int32>, managed, mutable, local>> = new.uninit Array<int32>, local
+    store (*v7), v6
+    v8: ref<Array<int32>, managed, mutable, local> = new.complete v7
+    v9: ref<Array<int32>, borrowed, 'frame, mutable> = address l0
+    v10: isize = call Array.push<int32>(v9, v8): (ref<Array<int32>, borrowed, 'frame, mutable>, ref<Array<int32>, managed, mutable, local>) => isize
+    v11: ref<Array<int32>, borrowed, 'frame, mutable> = address l0
+    v12: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = call Array.pop<int32>(v11): (ref<Array<int32>, borrowed, 'frame, mutable>) => variant<uint1> { 0uint1 = int32; 1uint1 = void; }
+    variant.switch v12, 1 => b2, else b1
 
 b1:
-    v12: int32 = variant.payload v11, 0
-    store l1, v12
-    jump b3
-
-b2:
-    v13: int32 = 0
+    v13: int32 = variant.payload v12, 0
     store l1, v13
     jump b3
 
+b2:
+    v14: int32 = 0
+    store l1, v14
+    jump b3
+
 b3:
-    v14: int32 = load l1
-    return v14
+    v15: int32 = load l1
+    return v15
 }
 
-/// @layout.variant name=type@35 size=8 align=4
-/// @layout.discriminant owner=type@35 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@35 index=0 discriminant=0 payload_offset=4
-/// @layout.case owner=type@35 index=1 discriminant=1 payload_offset=4
+/// @layout.variant name=type@36 size=8 align=4
+/// @layout.discriminant owner=type@36 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@36 index=0 discriminant=0 payload_offset=4
+/// @layout.case owner=type@36 index=1 discriminant=1 payload_offset=4
 "#);
 }
 
@@ -313,7 +317,7 @@ function zeros(): [int32; 4] {
         "main.tspp",
         "test.main.zeros",
         r#"
-function test.main.zeros(): [int32; 4] {
+export function test.main.zeros(): [int32; 4] {
 entry:
     v0: int32 = 0
     v1: [int32; 4] = aggregate (v0, v0, v0, v0)
@@ -342,7 +346,7 @@ function span(start: isize, end: isize): Range<isize> {
 @languageItem("range.Range")
 type Range<T>;
 
-function test.main.span(v0: isize, v1: isize): Range<isize> {
+export function test.main.span(v0: isize, v1: isize): Range<isize> {
     local l0: isize
     local l1: isize
 
@@ -384,7 +388,7 @@ type test.main.Path {
 @languageItem("collections.Array")
 type Array<T>;
 
-function test.main.main(): test.main.Path {
+export function test.main.main(): test.main.Path {
     local l0: test.main.Path
 
 entry:

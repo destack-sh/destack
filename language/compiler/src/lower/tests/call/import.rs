@@ -27,7 +27,7 @@ function total(base: int32): int32 {
         "main.tspp",
         "test.main.total",
         r#"
-function test.main.total(v0: int32): int32 {
+export function test.main.total(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
@@ -76,7 +76,7 @@ function stretch(by: int32): int32 {
         r#"
 type test.point.Point;
 
-function test.main.stretch(v0: int32): int32 {
+export function test.main.stretch(v0: int32): int32 {
     local l0: int32
     local l1: test.point.Point
 
@@ -127,7 +127,7 @@ function measure(by: int32): int32 {
     session.assert_mir_function("main.tspp", "test.main.measure", r#"
 type test.point.Point;
 
-function test.main.measure(v0: int32): int32 {
+export function test.main.measure(v0: int32): int32 {
     local l0: int32
     local l1: test.point.Point
 
@@ -180,7 +180,7 @@ function open(): int32 {
 @nocopy
 type test.box.Box;
 
-function test.main.open(): int32 {
+export function test.main.open(): int32 {
     local l0: ref<test.box.Box, managed, mutable, local>
 
 entry:
@@ -229,7 +229,7 @@ function duplicate(value: int32): int32 {
         "main.tspp",
         "test.main.duplicate",
         r#"
-function test.main.duplicate(v0: int32): int32 {
+export function test.main.duplicate(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
@@ -279,7 +279,7 @@ function go(): int32 {
 @nocopy
 type test.box.Holder<T: Copy>;
 
-function test.main.go(): int32 {
+export function test.main.go(): int32 {
 entry:
     v0: int64 = 1
     v1: ref<test.box.Holder<int64>, managed, mutable, local> = call test.box.hold<int64>(v0): (int64) => ref<test.box.Holder<int64>, managed, mutable, local>
@@ -335,7 +335,7 @@ function go(): int32 {
 @nocopy
 type test.box.Holder<T: Copy>;
 
-function test.main.go(): int32 {
+export function test.main.go(): int32 {
 entry:
     v0: int64 = 1
     v1: ref<test.box.Holder<int64>, managed, mutable, local> = call test.box.hold<int64>(v0): (int64) => ref<test.box.Holder<int64>, managed, mutable, local>
@@ -373,13 +373,15 @@ async function double(): Promise<int32> {
 @languageItem("async.Promise")
 type Promise<T: Copy>;
 
-function test.main.fetchCount(): ref<Promise<int32>, managed, mutable, local> {
+export function test.main.fetchCount(): ref<Promise<int32>, managed, mutable, local> {
 entry:
     v0: {  } = aggregate ()
-    v1: ref<{  }, unique, mutable> = new.complete v0
-    v2: function<() => int32, once, unique, mutable> = function.bind test.main.fetchCount.body, v1
-    v3: ref<Promise<int32>, managed, mutable, local> = call Promise.create<int32>(v2): (function<() => int32, once, unique, mutable>) => ref<Promise<int32>, managed, mutable, local>
-    return v3
+    v1: uninit<ref<{  }, unique, mutable>> = new.uninit {  }, local
+    store (*v1), v0
+    v2: ref<{  }, unique, mutable> = new.complete v1
+    v3: function<() => int32, once, unique, mutable> = function.bind test.main.fetchCount.body, v2
+    v4: ref<Promise<int32>, managed, mutable, local> = call Promise.create<int32>(v3): (function<() => int32, once, unique, mutable>) => ref<Promise<int32>, managed, mutable, local>
+    return v4
 }
 
 /// @layout.struct name=type@6 size=0 align=1
@@ -390,7 +392,7 @@ entry:
         "test.main.fetchCount.body",
         r#"
 @environment(ref<{  }, unique, mutable>)
-function test.main.fetchCount.body(): int32 {
+park function test.main.fetchCount.body(): int32 {
 entry:
     v0: ref<{  }, unique, mutable> = function.environment.current
     v1: {  } = load (*v0)
@@ -409,13 +411,15 @@ entry:
 @languageItem("async.Promise")
 type Promise<T: Copy>;
 
-function test.main.double(): ref<Promise<int32>, managed, mutable, local> {
+export function test.main.double(): ref<Promise<int32>, managed, mutable, local> {
 entry:
     v0: {  } = aggregate ()
-    v1: ref<{  }, unique, mutable> = new.complete v0
-    v2: function<() => int32, once, unique, mutable> = function.bind test.main.double.body, v1
-    v3: ref<Promise<int32>, managed, mutable, local> = call Promise.create<int32>(v2): (function<() => int32, once, unique, mutable>) => ref<Promise<int32>, managed, mutable, local>
-    return v3
+    v1: uninit<ref<{  }, unique, mutable>> = new.uninit {  }, local
+    store (*v1), v0
+    v2: ref<{  }, unique, mutable> = new.complete v1
+    v3: function<() => int32, once, unique, mutable> = function.bind test.main.double.body, v2
+    v4: ref<Promise<int32>, managed, mutable, local> = call Promise.create<int32>(v3): (function<() => int32, once, unique, mutable>) => ref<Promise<int32>, managed, mutable, local>
+    return v4
 }
 
 /// @layout.struct name=type@6 size=0 align=1
@@ -427,7 +431,7 @@ entry:
 type Promise<T: Copy>;
 
 @environment(ref<{  }, unique, mutable>)
-function test.main.double.body(): int32 {
+park function test.main.double.body(): int32 {
     local l0: int32
 
 entry:
@@ -436,7 +440,7 @@ entry:
     v2: ref<uninit<{  }>, unique, mutable> = cast.bit v0 -> ref<uninit<{  }>, unique, mutable>
     release v2
     v3: ref<Promise<int32>, managed, mutable, local> = call test.main.fetchCount(): () => ref<Promise<int32>, managed, mutable, local>
-    v4: int32 = call Promise.park<int32, int32>(v3): (ref<Promise<int32>, managed, mutable, local>) => int32
+    v4: int32 = call Promise.park<int32>(v3): park (ref<Promise<int32>, managed, mutable, local>) => int32
     store l0, v4
     v5: int32 = load l0
     v6: int32 = load l0
@@ -467,7 +471,7 @@ function run(): void {
 @languageItem("async.Promise")
 type Promise<T: Copy>;
 
-function test.main.run(): void {
+export function test.main.run(): void {
 entry:
     v0: int64 = 7
     v1: ref<Promise<int64>, managed, mutable, local> = call test.main.pass<int64>(v0): (int64) => ref<Promise<int64>, managed, mutable, local>
@@ -514,17 +518,19 @@ type Generator<Y, R, N>;
 
 type GeneratorProducer<Y, R, N>;
 
-function test.main.count(v0: int32): ref<Generator<int32, void, void>, managed, mutable, local> {
+export function test.main.count(v0: int32): ref<Generator<int32, void, void>, managed, mutable, local> {
     local l0: int32
 
 entry(v0: int32):
     store l0, v0
     v1: int32 = load l0
     v2: { int32 } = aggregate (v1)
-    v3: ref<{ int32 }, unique, mutable> = new.complete v2
-    v4: function<(GeneratorProducer<int32, void, void>) => void, once, unique, mutable> = function.bind test.main.count.body, v3
-    v5: ref<Generator<int32, void, void>, managed, mutable, local> = call Generator.create<int32, void, void>(v4): (function<(GeneratorProducer<int32, void, void>) => void, once, unique, mutable>) => ref<Generator<int32, void, void>, managed, mutable, local>
-    return v5
+    v3: uninit<ref<{ int32 }, unique, mutable>> = new.uninit { int32 }, local
+    store (*v3), v2
+    v4: ref<{ int32 }, unique, mutable> = new.complete v3
+    v5: function<(GeneratorProducer<int32, void, void>) => void, once, unique, mutable> = function.bind test.main.count.body, v4
+    v6: ref<Generator<int32, void, void>, managed, mutable, local> = call Generator.create<int32, void, void>(v5): (function<(GeneratorProducer<int32, void, void>) => void, once, unique, mutable>) => ref<Generator<int32, void, void>, managed, mutable, local>
+    return v6
 }
 
 /// @layout.struct name=type@72 size=4 align=4
@@ -541,7 +547,7 @@ type GeneratorReturn<R>;
 type GeneratorProducer<Y, R, N>;
 
 @environment(ref<{ int32 }, unique, mutable>)
-function test.main.count.body(v0: GeneratorProducer<int32, void, void>): void {
+park function test.main.count.body(v0: GeneratorProducer<int32, void, void>): void {
     local l0: int32
     local l1: GeneratorProducer<int32, void, void>
     local l2: int32
@@ -567,7 +573,7 @@ b1:
 b2:
     v9: int32 = load l2
     v10: ref<GeneratorProducer<int32, void, void>, borrowed, 'l0, mutable> = address l1
-    v11: variant<uint1> { 0uint1 = GeneratorNext<void>; 1uint1 = GeneratorReturn<void>; } = call GeneratorProducer.yield<int32, void, void>(v10, v9): <'a>(ref<GeneratorProducer<int32, void, void>, borrowed, 'a, mutable>, int32) => variant<uint1> { 0uint1 = GeneratorNext<void>; 1uint1 = GeneratorReturn<void>; }
+    v11: variant<uint1> { 0uint1 = GeneratorNext<void>; 1uint1 = GeneratorReturn<void>; } = call GeneratorProducer.yield<int32, void, void>(v10, v9): park <'a>(ref<GeneratorProducer<int32, void, void>, borrowed, 'a, mutable>, int32) => variant<uint1> { 0uint1 = GeneratorNext<void>; 1uint1 = GeneratorReturn<void>; }
     variant.switch v11, 0 => b5, 1 => b6
 
 b3:
@@ -582,7 +588,7 @@ b4:
 
 b5:
     v14: GeneratorNext<void> = variant.payload v11, 0
-    v15: variant<uint1> { 0uint1 = void; 1uint1 = void; } = field.get v14, 1
+    v15: void = field.get v14, 1
     jump b7
 
 b6:
@@ -596,14 +602,10 @@ b7:
 
 /// @layout.struct name=type@72 size=4 align=4
 /// @layout.field owner=type@72 index=0 offset=0 size=4 align=4
-/// @layout.variant name=type@92 size=1 align=1
-/// @layout.discriminant owner=type@92 kind=niche offset=0 byte_len=1 bit_offset=0 bit_len=8 untagged=0 niche_start=2
-/// @layout.case owner=type@92 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@92 index=1 discriminant=1 payload_offset=0
-/// @layout.variant name=type@95 size=1 align=1
-/// @layout.discriminant owner=type@95 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@95 index=0 discriminant=0 payload_offset=1
-/// @layout.case owner=type@95 index=1 discriminant=1 payload_offset=1
+/// @layout.variant name=type@94 size=1 align=1
+/// @layout.discriminant owner=type@94 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@94 index=0 discriminant=0 payload_offset=1
+/// @layout.case owner=type@94 index=1 discriminant=1 payload_offset=1
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.tally", r#"
@@ -613,13 +615,15 @@ type Generator<Y, R, N>;
 
 type GeneratorProducer<Y, R, N>;
 
-function test.main.tally(): ref<Generator<int32, int32, int32>, managed, mutable, local> {
+export function test.main.tally(): ref<Generator<int32, int32, int32>, managed, mutable, local> {
 entry:
     v0: {  } = aggregate ()
-    v1: ref<{  }, unique, mutable> = new.complete v0
-    v2: function<(GeneratorProducer<int32, int32, int32>) => int32, once, unique, mutable> = function.bind test.main.tally.body, v1
-    v3: ref<Generator<int32, int32, int32>, managed, mutable, local> = call Generator.create<int32, int32, int32>(v2): (function<(GeneratorProducer<int32, int32, int32>) => int32, once, unique, mutable>) => ref<Generator<int32, int32, int32>, managed, mutable, local>
-    return v3
+    v1: uninit<ref<{  }, unique, mutable>> = new.uninit {  }, local
+    store (*v1), v0
+    v2: ref<{  }, unique, mutable> = new.complete v1
+    v3: function<(GeneratorProducer<int32, int32, int32>) => int32, once, unique, mutable> = function.bind test.main.tally.body, v2
+    v4: ref<Generator<int32, int32, int32>, managed, mutable, local> = call Generator.create<int32, int32, int32>(v3): (function<(GeneratorProducer<int32, int32, int32>) => int32, once, unique, mutable>) => ref<Generator<int32, int32, int32>, managed, mutable, local>
+    return v4
 }
 
 /// @layout.struct name=type@11 size=0 align=1
@@ -635,7 +639,7 @@ type GeneratorReturn<R>;
 type GeneratorProducer<Y, R, N>;
 
 @environment(ref<{  }, unique, mutable>)
-function test.main.tally.body(v0: GeneratorProducer<int32, int32, int32>): int32 {
+park function test.main.tally.body(v0: GeneratorProducer<int32, int32, int32>): int32 {
     local l0: GeneratorProducer<int32, int32, int32>
     local l1: int32, readonly
     local l2: int32
@@ -650,7 +654,7 @@ entry(v0: GeneratorProducer<int32, int32, int32>):
     store l0, v0
     v4: int32 = 1
     v5: ref<GeneratorProducer<int32, int32, int32>, borrowed, 'l0, mutable> = address l0
-    v6: variant<uint1> { 0uint1 = GeneratorNext<int32>; 1uint1 = GeneratorReturn<int32>; } = call GeneratorProducer.yield<int32, int32, int32>(v5, v4): <'a>(ref<GeneratorProducer<int32, int32, int32>, borrowed, 'a, mutable>, int32) => variant<uint1> { 0uint1 = GeneratorNext<int32>; 1uint1 = GeneratorReturn<int32>; }
+    v6: variant<uint1> { 0uint1 = GeneratorNext<int32>; 1uint1 = GeneratorReturn<int32>; } = call GeneratorProducer.yield<int32, int32, int32>(v5, v4): park <'a>(ref<GeneratorProducer<int32, int32, int32>, borrowed, 'a, mutable>, int32) => variant<uint1> { 0uint1 = GeneratorNext<int32>; 1uint1 = GeneratorReturn<int32>; }
     variant.switch v6, 0 => b1, 1 => b2
 
 b1:
@@ -669,7 +673,7 @@ b3:
     store l2, v11
     v12: int32 = load l2
     v13: ref<GeneratorProducer<int32, int32, int32>, borrowed, 'l0, mutable> = address l0
-    v14: variant<uint1> { 0uint1 = GeneratorNext<int32>; 1uint1 = GeneratorReturn<int32>; } = call GeneratorProducer.yield<int32, int32, int32>(v13, v12): <'a>(ref<GeneratorProducer<int32, int32, int32>, borrowed, 'a, mutable>, int32) => variant<uint1> { 0uint1 = GeneratorNext<int32>; 1uint1 = GeneratorReturn<int32>; }
+    v14: variant<uint1> { 0uint1 = GeneratorNext<int32>; 1uint1 = GeneratorReturn<int32>; } = call GeneratorProducer.yield<int32, int32, int32>(v13, v12): park <'a>(ref<GeneratorProducer<int32, int32, int32>, borrowed, 'a, mutable>, int32) => variant<uint1> { 0uint1 = GeneratorNext<int32>; 1uint1 = GeneratorReturn<int32>; }
     variant.switch v14, 0 => b4, 1 => b5
 
 b4:
@@ -693,14 +697,14 @@ b6:
 }
 
 /// @layout.struct name=type@11 size=0 align=1
-/// @layout.variant name=type@102 size=12 align=4
-/// @layout.discriminant owner=type@102 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@102 index=0 discriminant=0 payload_offset=4
-/// @layout.case owner=type@102 index=1 discriminant=1 payload_offset=4
-/// @layout.variant name=type@105 size=8 align=4
-/// @layout.discriminant owner=type@105 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@105 index=0 discriminant=0 payload_offset=4
-/// @layout.case owner=type@105 index=1 discriminant=1 payload_offset=4
+/// @layout.variant name=type@103 size=12 align=4
+/// @layout.discriminant owner=type@103 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@103 index=0 discriminant=0 payload_offset=4
+/// @layout.case owner=type@103 index=1 discriminant=1 payload_offset=4
+/// @layout.variant name=type@106 size=8 align=4
+/// @layout.discriminant owner=type@106 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@106 index=0 discriminant=0 payload_offset=4
+/// @layout.case owner=type@106 index=1 discriminant=1 payload_offset=4
 "#);
 }
 
@@ -730,13 +734,15 @@ function makeAdder(base: int32): ^Function<(), Promise<int32>, "once"> {
 @languageItem("async.Promise")
 type Promise<T: Copy>;
 
-function test.main.fetchCount(): ref<Promise<int32>, managed, mutable, local> {
+export function test.main.fetchCount(): ref<Promise<int32>, managed, mutable, local> {
 entry:
     v0: {  } = aggregate ()
-    v1: ref<{  }, unique, mutable> = new.complete v0
-    v2: function<() => int32, once, unique, mutable> = function.bind test.main.fetchCount.body, v1
-    v3: ref<Promise<int32>, managed, mutable, local> = call Promise.create<int32>(v2): (function<() => int32, once, unique, mutable>) => ref<Promise<int32>, managed, mutable, local>
-    return v3
+    v1: uninit<ref<{  }, unique, mutable>> = new.uninit {  }, local
+    store (*v1), v0
+    v2: ref<{  }, unique, mutable> = new.complete v1
+    v3: function<() => int32, once, unique, mutable> = function.bind test.main.fetchCount.body, v2
+    v4: ref<Promise<int32>, managed, mutable, local> = call Promise.create<int32>(v3): (function<() => int32, once, unique, mutable>) => ref<Promise<int32>, managed, mutable, local>
+    return v4
 }
 
 /// @layout.struct name=type@6 size=0 align=1
@@ -747,7 +753,7 @@ entry:
         "test.main.fetchCount.body",
         r#"
 @environment(ref<{  }, unique, mutable>)
-function test.main.fetchCount.body(): int32 {
+park function test.main.fetchCount.body(): int32 {
 entry:
     v0: ref<{  }, unique, mutable> = function.environment.current
     v1: {  } = load (*v0)
@@ -766,7 +772,7 @@ entry:
 @languageItem("async.Promise")
 type Promise<T: Copy>;
 
-function test.main.makeAdder(v0: int32): function<() => ref<Promise<int32>, managed, mutable, local>, once, unique, mutable> {
+export function test.main.makeAdder(v0: int32): function<() => ref<Promise<int32>, managed, mutable, local>, once, unique, mutable> {
     local l0: int32
     local l1: function<() => ref<Promise<int32>, managed, mutable, local>, once, unique, mutable>
 
@@ -774,15 +780,17 @@ entry(v0: int32):
     store l0, v0
     v1: int32 = load l0
     v2: { int32 } = aggregate (v1)
-    v3: ref<{ int32 }, unique, mutable> = new.complete v2
-    v4: function<() => ref<Promise<int32>, managed, mutable, local>, repeatable, unique, mutable> = function.bind test.main.makeAdder.closure#0, v3
-    store l1, v4
-    v5: function<() => ref<Promise<int32>, managed, mutable, local>, once, unique, mutable> = load l1
-    return v5
+    v3: uninit<ref<{ int32 }, unique, mutable>> = new.uninit { int32 }, local
+    store (*v3), v2
+    v4: ref<{ int32 }, unique, mutable> = new.complete v3
+    v5: function<() => ref<Promise<int32>, managed, mutable, local>, repeatable, unique, mutable> = function.bind test.main.makeAdder.closure#0, v4
+    store l1, v5
+    v6: function<() => ref<Promise<int32>, managed, mutable, local>, once, unique, mutable> = load l1
+    return v6
 }
 
-/// @layout.struct name=type@56 size=4 align=4
-/// @layout.field owner=type@56 index=0 offset=0 size=4 align=4
+/// @layout.struct name=type@57 size=4 align=4
+/// @layout.field owner=type@57 index=0 offset=0 size=4 align=4
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.makeAdder.closure#0", r#"
@@ -791,21 +799,23 @@ entry(v0: int32):
 type Promise<T: Copy>;
 
 @environment(ref<{ int32 }, unique, mutable>)
-function test.main.makeAdder.closure#0(): ref<Promise<int32>, managed, mutable, local> {
+export function test.main.makeAdder.closure#0(): ref<Promise<int32>, managed, mutable, local> {
 entry:
     v0: ref<{ int32 }, unique, mutable> = function.environment.current
     v1: ref<{ int32 }, unique, mutable> = function.environment.current
     v2: { ref<{ int32 }, unique, mutable> } = aggregate (v1)
-    v3: ref<{ ref<{ int32 }, unique, mutable> }, unique, mutable> = new.complete v2
-    v4: function<() => int32, once, unique, mutable> = function.bind test.main.makeAdder.closure#0.body, v3
-    v5: ref<Promise<int32>, managed, mutable, local> = call Promise.create<int32>(v4): (function<() => int32, once, unique, mutable>) => ref<Promise<int32>, managed, mutable, local>
-    return v5
+    v3: uninit<ref<{ ref<{ int32 }, unique, mutable> }, unique, mutable>> = new.uninit { ref<{ int32 }, unique, mutable> }, local
+    store (*v3), v2
+    v4: ref<{ ref<{ int32 }, unique, mutable> }, unique, mutable> = new.complete v3
+    v5: function<() => int32, once, unique, mutable> = function.bind test.main.makeAdder.closure#0.body, v4
+    v6: ref<Promise<int32>, managed, mutable, local> = call Promise.create<int32>(v5): (function<() => int32, once, unique, mutable>) => ref<Promise<int32>, managed, mutable, local>
+    return v6
 }
 
-/// @layout.struct name=type@56 size=4 align=4
-/// @layout.field owner=type@56 index=0 offset=0 size=4 align=4
-/// @layout.struct name=type@61 size=8 align=8
-/// @layout.field owner=type@61 index=0 offset=0 size=8 align=8
+/// @layout.struct name=type@57 size=4 align=4
+/// @layout.field owner=type@57 index=0 offset=0 size=4 align=4
+/// @layout.struct name=type@63 size=8 align=8
+/// @layout.field owner=type@63 index=0 offset=0 size=8 align=8
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.makeAdder.closure#0.body", r#"
@@ -814,7 +824,7 @@ entry:
 type Promise<T: Copy>;
 
 @environment(ref<{ ref<{ int32 }, unique, mutable> }, unique, mutable>)
-function test.main.makeAdder.closure#0.body(): int32 {
+park function test.main.makeAdder.closure#0.body(): int32 {
     local l0: int32
     local l1: int32
 
@@ -830,7 +840,7 @@ entry:
     v6: int32 = field.get v4, 0
     store l0, v6
     v7: ref<Promise<int32>, managed, mutable, local> = call test.main.fetchCount(): () => ref<Promise<int32>, managed, mutable, local>
-    v8: int32 = call Promise.park<int32, int32>(v7): (ref<Promise<int32>, managed, mutable, local>) => int32
+    v8: int32 = call Promise.park<int32>(v7): park (ref<Promise<int32>, managed, mutable, local>) => int32
     store l1, v8
     v9: int32 = load l0
     v10: int32 = load l1
@@ -838,9 +848,9 @@ entry:
     return v11
 }
 
-/// @layout.struct name=type@56 size=4 align=4
-/// @layout.field owner=type@56 index=0 offset=0 size=4 align=4
-/// @layout.struct name=type@61 size=8 align=8
-/// @layout.field owner=type@61 index=0 offset=0 size=8 align=8
+/// @layout.struct name=type@57 size=4 align=4
+/// @layout.field owner=type@57 index=0 offset=0 size=4 align=4
+/// @layout.struct name=type@63 size=8 align=8
+/// @layout.field owner=type@63 index=0 offset=0 size=8 align=8
 "#);
 }

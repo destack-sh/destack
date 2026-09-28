@@ -24,7 +24,7 @@ function shrink(kept: int32, tail: int32): Compact {
         r#"
 type test.main.Compact = newtype<{ kept: int32, tail: int32 }>;
 
-function test.main.shrink(v0: int32, v1: int32): ref<test.main.Compact, managed, mutable, local> {
+export function test.main.shrink(v0: int32, v1: int32): ref<test.main.Compact, managed, mutable, local> {
     local l0: int32
     local l1: int32
 
@@ -34,9 +34,11 @@ entry(v0: int32, v1: int32):
     v2: int32 = load l0
     v3: int32 = load l1
     v4: { kept: int32, tail: int32 } = aggregate (v2, v3)
-    v5: ref<{ kept: int32, tail: int32 }, managed, mutable, local> = new.complete v4
-    v6: ref<test.main.Compact, managed, mutable, local> = cast.bit v5 -> ref<test.main.Compact, managed, mutable, local>
-    return v6
+    v5: uninit<ref<{ kept: int32, tail: int32 }, managed, mutable, local>> = new.uninit { kept: int32, tail: int32 }, local
+    store (*v5), v4
+    v6: ref<{ kept: int32, tail: int32 }, managed, mutable, local> = new.complete v5
+    v7: ref<test.main.Compact, managed, mutable, local> = cast.bit v6 -> ref<test.main.Compact, managed, mutable, local>
+    return v7
 }
 
 /// @layout.struct name=type@6 size=8 align=4
@@ -75,7 +77,7 @@ type test.main.Holder {
     slice: ref<{ kept: int32 }, managed, mutable, local>;
 }
 
-function test.main.read(v0: test.main.Holder): int32 {
+export function test.main.read(v0: test.main.Holder): int32 {
     local l0: test.main.Holder
 
 entry(v0: test.main.Holder):
@@ -111,7 +113,7 @@ function diagonal(value: int32): Pair {
         r#"
 type test.main.Pair = newtype<{ x: int32, y: int32 }>;
 
-function test.main.diagonal(v0: int32): ref<test.main.Pair, managed, mutable, local> {
+export function test.main.diagonal(v0: int32): ref<test.main.Pair, managed, mutable, local> {
     local l0: int32
 
 entry(v0: int32):
@@ -119,9 +121,11 @@ entry(v0: int32):
     v1: int32 = load l0
     v2: int32 = load l0
     v3: { x: int32, y: int32 } = aggregate (v1, v2)
-    v4: ref<{ x: int32, y: int32 }, managed, mutable, local> = new.complete v3
-    v5: ref<test.main.Pair, managed, mutable, local> = cast.bit v4 -> ref<test.main.Pair, managed, mutable, local>
-    return v5
+    v4: uninit<ref<{ x: int32, y: int32 }, managed, mutable, local>> = new.uninit { x: int32, y: int32 }, local
+    store (*v4), v3
+    v5: ref<{ x: int32, y: int32 }, managed, mutable, local> = new.complete v4
+    v6: ref<test.main.Pair, managed, mutable, local> = cast.bit v5 -> ref<test.main.Pair, managed, mutable, local>
+    return v6
 }
 
 /// @layout.struct name=type@3 size=8 align=4
@@ -168,14 +172,13 @@ type test.main.Cell {
     value: int32;
 }
 
-function test.main.Cell.Greet.greet<'a>(v0: ref<test.main.Cell, borrowed, 'a, readonly>): int32 {
+export function test.main.Cell.Greet.greet<'a>(v0: ref<test.main.Cell, borrowed, 'a, readonly>): int32 {
     local l0: ref<test.main.Cell, borrowed, 'a, readonly>
 
 entry(v0: ref<test.main.Cell, borrowed, 'a, readonly>):
     store l0, v0
-    v1: ref<test.main.Cell, borrowed, 'a, readonly> = load l0
-    v2: int32 = load (*v1).0
-    return v2
+    v1: int32 = load (*l0).0
+    return v1
 }
 
 /// @layout.struct name=test.main.Cell size=4 align=4
@@ -188,7 +191,7 @@ type test.main.Cell {
     value: int32;
 }
 
-function test.main.run(): int32 {
+export function test.main.run(): int32 {
     local l0: test.main.Cell
 
 entry:

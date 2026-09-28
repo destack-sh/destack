@@ -31,7 +31,7 @@ function stretch(by: int32): int32 {
         r#"
 type test.point.Point;
 
-function test.main.stretch(v0: int32): int32 {
+export function test.main.stretch(v0: int32): int32 {
     local l0: int32
     local l1: test.point.Point
 

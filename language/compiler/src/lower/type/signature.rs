@@ -126,6 +126,7 @@ impl TypeLowerer<'_, '_> {
             lifetimes,
             parameters,
             result,
+            park: signature.parks.into(),
         }))
     }
 }

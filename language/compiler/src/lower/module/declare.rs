@@ -21,7 +21,7 @@ impl ModuleLowerer<'_> {
         self.lower_nominal_declarations(tree, &mut errors)?;
 
         // define the synthesized constructors beside their class declarations
-        self.declare_default_constructors(tree, &mut errors)?;
+        self.declare_implicit_constructors(tree, &mut errors)?;
 
         // declare every callable header ahead of the bodies
         let mut bodies = Vec::new();
@@ -40,7 +40,7 @@ impl ModuleLowerer<'_> {
                     ..
                 } => {
                     let declarators = declarators.clone();
-                    match self.declare_module_constants(tree, mutability, &declarators) {
+                    match self.declare_module_bindings(tree, mutability, &declarators) {
                         Ok(()) => {}
                         Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
                         Err(error) => return Err(error),

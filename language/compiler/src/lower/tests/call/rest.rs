@@ -33,7 +33,7 @@ type IteratorYield<Y>;
 @languageItem("iter.IteratorReturn")
 type IteratorReturn<R>;
 
-function test.main.forward(v0: ref<Array<int32>, managed, mutable, local>): void {
+export function test.main.forward(v0: ref<Array<int32>, managed, mutable, local>): void {
     local l0: ref<Array<int32>, managed, mutable, local>
     local l1: slice<uninit<int32>, unique, mutable>
     local l2: usize
@@ -295,7 +295,7 @@ type IteratorYield<Y>;
 @languageItem("iter.IteratorReturn")
 type IteratorReturn<R>;
 
-function test.main.forward(v0: slice<int32, unique, mutable>): isize {
+export function test.main.forward(v0: slice<int32, unique, mutable>): isize {
     local l0: slice<int32, unique, mutable>
     local l1: slice<uninit<int32>, unique, mutable>
     local l2: usize
@@ -438,7 +438,7 @@ function main(): isize {
         "main.tspp",
         "test.main.main",
         r#"
-function test.main.main(): isize {
+export function test.main.main(): isize {
 entry:
     v0: int32 = 1
     v1: int32 = 2
@@ -478,7 +478,7 @@ function main(): isize {
         "main.tspp",
         "test.main.main",
         r#"
-function test.main.main(): isize {
+export function test.main.main(): isize {
     local l0: [int32; 3], readonly
 
 entry:
@@ -517,7 +517,7 @@ function main(): isize {
 @languageItem("collections.Array")
 type Array<T>;
 
-function test.main.total(v0: ref<Array<int32>, managed, mutable, local>): isize {
+export function test.main.total(v0: ref<Array<int32>, managed, mutable, local>): isize {
     local l0: ref<Array<int32>, managed, mutable, local>
 
 entry(v0: ref<Array<int32>, managed, mutable, local>):
@@ -534,7 +534,7 @@ entry(v0: ref<Array<int32>, managed, mutable, local>):
 @languageItem("collections.Array")
 type Array<T>;
 
-function test.main.main(): isize {
+export function test.main.main(): isize {
 entry:
     v0: int32 = 1
     v1: int32 = 2
@@ -549,9 +549,11 @@ entry:
     store (*v4)[v7], v2
     v8: slice<int32, unique, mutable> = new.complete v4
     v9: Array<int32> = call arrayFromOwnedSlice<int32>(v8): (slice<int32, unique, mutable>) => Array<int32>
-    v10: ref<Array<int32>, managed, mutable, local> = new.complete v9
-    v11: isize = call test.main.total(v10): (ref<Array<int32>, managed, mutable, local>) => isize
-    return v11
+    v10: uninit<ref<Array<int32>, managed, mutable, local>> = new.uninit Array<int32>, local
+    store (*v10), v9
+    v11: ref<Array<int32>, managed, mutable, local> = new.complete v10
+    v12: isize = call test.main.total(v11): (ref<Array<int32>, managed, mutable, local>) => isize
+    return v12
 }
 "#);
 }
@@ -576,7 +578,7 @@ function forward(values: int32[]): isize {
 @languageItem("collections.Array")
 type Array<T>;
 
-function test.main.sum(v0: ref<Array<int32>, managed, mutable, local>): isize {
+export function test.main.sum(v0: ref<Array<int32>, managed, mutable, local>): isize {
     local l0: ref<Array<int32>, managed, mutable, local>
 
 entry(v0: ref<Array<int32>, managed, mutable, local>):
@@ -609,7 +611,7 @@ type IteratorYield<Y>;
 @languageItem("iter.IteratorReturn")
 type IteratorReturn<R>;
 
-function test.main.forward(v0: ref<Array<int32>, managed, mutable, local>): isize {
+export function test.main.forward(v0: ref<Array<int32>, managed, mutable, local>): isize {
     local l0: ref<Array<int32>, managed, mutable, local>
     local l1: slice<uninit<int32>, unique, mutable>
     local l2: usize
@@ -699,9 +701,11 @@ b10:
     v42: slice<uninit<int32>, unique, mutable> = load l1
     v43: slice<int32, unique, mutable> = new.complete v42
     v44: Array<int32> = call arrayFromOwnedSlice<int32>(v43): (slice<int32, unique, mutable>) => Array<int32>
-    v45: ref<Array<int32>, managed, mutable, local> = new.complete v44
-    v46: isize = call test.main.sum(v45): (ref<Array<int32>, managed, mutable, local>) => isize
-    return v46
+    v45: uninit<ref<Array<int32>, managed, mutable, local>> = new.uninit Array<int32>, local
+    store (*v45), v44
+    v46: ref<Array<int32>, managed, mutable, local> = new.complete v45
+    v47: isize = call test.main.sum(v46): (ref<Array<int32>, managed, mutable, local>) => isize
+    return v47
 
 b11:
     v37: usize = load l5

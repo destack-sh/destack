@@ -26,7 +26,7 @@ type test.main.Point {
     y: int32;
 }
 
-function test.main.shift(v0: test.main.Point, v1: int32): test.main.Point {
+export function test.main.shift(v0: test.main.Point, v1: int32): test.main.Point {
     local l0: test.main.Point
     local l1: int32
     local l2: test.main.Point
@@ -82,7 +82,7 @@ type test.main.Frame {
     size: test.main.Size;
 }
 
-function test.main.widen(v0: test.main.Frame, v1: int32): test.main.Frame {
+export function test.main.widen(v0: test.main.Frame, v1: int32): test.main.Frame {
     local l0: test.main.Frame
     local l1: int32
     local l2: test.main.Frame
@@ -131,7 +131,7 @@ type test.main.Counter {
     hits: int32;
 }
 
-function test.main.tick(v0: test.main.Counter): test.main.Counter {
+export function test.main.tick(v0: test.main.Counter): test.main.Counter {
     local l0: test.main.Counter
     local l1: test.main.Counter
 

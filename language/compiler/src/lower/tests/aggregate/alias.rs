@@ -24,7 +24,7 @@ type test.main.Rule {
     accept: function<<'a>(ref<int32, borrowed, 'a, readonly>) => boolean, repeatable, managed, mutable, local>;
 }
 
-function test.main.test<'a>(v0: ref<test.main.Rule, borrowed, 'a, readonly>): int32 {
+export function test.main.test<'a>(v0: ref<test.main.Rule, borrowed, 'a, readonly>): int32 {
     local l0: ref<test.main.Rule, borrowed, 'a, readonly>
 
 entry(v0: ref<test.main.Rule, borrowed, 'a, readonly>):
@@ -57,7 +57,7 @@ function total(options: Options): int32 {
         "main.tspp",
         "test.main.total",
         r#"
-function test.main.total(v0: ref<{ overflow: int32, offset: int32 }, managed, mutable, local>): int32 {
+export function test.main.total(v0: ref<{ overflow: int32, offset: int32 }, managed, mutable, local>): int32 {
     local l0: ref<{ overflow: int32, offset: int32 }, managed, mutable, local>
 
 entry(v0: ref<{ overflow: int32, offset: int32 }, managed, mutable, local>):
@@ -93,7 +93,7 @@ function run(reaction: Reaction): void {
         "main.tspp",
         "test.main.run",
         r#"
-function test.main.run(v0: function<(int32) => void, repeatable, managed, mutable, local>): void {
+export function test.main.run(v0: function<(int32) => void, repeatable, managed, mutable, local>): void {
     local l0: function<(int32) => void, repeatable, managed, mutable, local>
 
 entry(v0: function<(int32) => void, repeatable, managed, mutable, local>):
@@ -140,7 +140,7 @@ type literal.integer.1 { }
 @languageItem("string.String")
 type String;
 
-function test.main.pick(v0: ref<{ digits: variant<uint2> { 0uint2 = literal.string.auto; 1uint2 = literal.integer.0; 2uint2 = literal.integer.1; 3uint2 = void; }, unit: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }, zone: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>): void {
+export function test.main.pick(v0: ref<{ digits: variant<uint2> { 0uint2 = literal.string.auto; 1uint2 = literal.integer.0; 2uint2 = literal.integer.1; 3uint2 = void; }, unit: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }, zone: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>): void {
     local l0: ref<{ digits: variant<uint2> { 0uint2 = literal.string.auto; 1uint2 = literal.integer.0; 2uint2 = literal.integer.1; 3uint2 = void; }, unit: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }, zone: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>
 
 entry(v0: ref<{ digits: variant<uint2> { 0uint2 = literal.string.auto; 1uint2 = literal.integer.0; 2uint2 = literal.integer.1; 3uint2 = void; }, unit: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }, zone: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>):
@@ -189,7 +189,7 @@ function render(options: Formatting & { zone?: string }): void {}
 @languageItem("string.String")
 type String;
 
-function test.main.render(v0: ref<{ style: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }, zone: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>): void {
+export function test.main.render(v0: ref<{ style: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }, zone: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>): void {
     local l0: ref<{ style: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }, zone: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>
 
 entry(v0: ref<{ style: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }, zone: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>):
@@ -242,7 +242,7 @@ function read(input: Input): void {}
 @languageItem("string.String")
 type String;
 
-function test.main.read(v0: ref<{ year: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, month: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, offset: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>): void {
+export function test.main.read(v0: ref<{ year: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, month: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, offset: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>): void {
     local l0: ref<{ year: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, month: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, offset: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>
 
 entry(v0: ref<{ year: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, month: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, offset: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>):
@@ -300,7 +300,7 @@ function read(input: Input): void {}
 @languageItem("string.String")
 type String;
 
-function test.main.read(v0: ref<{ year: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, month: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, offset: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>): void {
+export function test.main.read(v0: ref<{ year: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, month: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, offset: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>): void {
     local l0: ref<{ year: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, month: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, offset: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>
 
 entry(v0: ref<{ year: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, month: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, offset: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>):
@@ -349,7 +349,7 @@ type Cow<'a, T: ToOwned, P0>;
 @languageItem("string.String")
 type String;
 
-function test.main.keep<'a>(v0: Cow<'a, StringSlice, String>): void {
+export function test.main.keep<'a>(v0: Cow<'a, StringSlice, String>): void {
     local l0: Cow<'a, StringSlice, String>
 
 entry(v0: Cow<'a, StringSlice, String>):
@@ -397,7 +397,7 @@ type Error;
 @languageItem("error.Result")
 type Result<T, E>;
 
-function test.main.keep(): void {
+export function test.main.keep(): void {
 entry:
     v0: Result<Cow<'managed, StringSlice, String>, dynamic<Error, managed, mutable, local>> = call test.main.read(): () => Result<Cow<'managed, StringSlice, String>, dynamic<Error, managed, mutable, local>>
     return

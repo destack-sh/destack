@@ -17,7 +17,7 @@ function create(constructor: typeof Counter): Counter {
 @nocopy
 type test.main.Counter { }
 
-function test.main.create(v0: function<() => ref<test.main.Counter, managed, mutable, local>, repeatable, managed, mutable, local>): ref<test.main.Counter, managed, mutable, local> {
+export function test.main.create(v0: function<() => ref<test.main.Counter, managed, mutable, local>, repeatable, managed, mutable, local>): ref<test.main.Counter, managed, mutable, local> {
     local l0: function<() => ref<test.main.Counter, managed, mutable, local>, repeatable, managed, mutable, local>
 
 entry(v0: function<() => ref<test.main.Counter, managed, mutable, local>, repeatable, managed, mutable, local>):
@@ -51,7 +51,7 @@ function create(): new (...values: &readonly [int32]) => Counter {
 @nocopy
 type test.main.Counter { }
 
-constructor test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: slice<int32, borrowed, 'a, readonly>): void {
+export constructor test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: slice<int32, borrowed, 'a, readonly>): void {
     local l0: slice<int32, borrowed, 'a, readonly>
     local l1: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>
 
@@ -61,7 +61,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: slice
     return
 }
 
-function test.main.create(): function<<'a>(slice<int32, borrowed, 'a, readonly>) => ref<test.main.Counter, managed, mutable, local>, repeatable, managed, mutable, local> {
+export function test.main.create(): function<<'a>(slice<int32, borrowed, 'a, readonly>) => ref<test.main.Counter, managed, mutable, local>, repeatable, managed, mutable, local> {
 entry:
     v0: ptr<void, readonly> = null
     v1: function<<'a>(slice<int32, borrowed, 'a, readonly>) => ref<test.main.Counter, managed, mutable, local>, repeatable, managed, mutable, local> = function.bind test.main.Counter.constructor.new, v0
@@ -100,7 +100,7 @@ function create(): new (start: int32, ...values: ^[int32]) => Counter {
 @nocopy
 type test.main.Counter { }
 
-constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, v2: slice<int32, unique, mutable>): void {
+export constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, v2: slice<int32, unique, mutable>): void {
     local l0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }
     local l1: slice<int32, unique, mutable>
     local l2: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>
@@ -130,7 +130,7 @@ b3:
     return
 }
 
-function test.main.create(): function<(int32, slice<int32, unique, mutable>) => ref<test.main.Counter, managed, mutable, local>, repeatable, managed, mutable, local> {
+export function test.main.create(): function<(int32, slice<int32, unique, mutable>) => ref<test.main.Counter, managed, mutable, local>, repeatable, managed, mutable, local> {
 entry:
     v0: ptr<void, readonly> = null
     v1: function<(int32, slice<int32, unique, mutable>) => ref<test.main.Counter, managed, mutable, local>, repeatable, managed, mutable, local> = function.bind test.main.Counter.constructor.new, v0
@@ -176,7 +176,7 @@ function create(value: &readonly int32): Counter {
 @nocopy
 type test.main.Counter { }
 
-constructor test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: ref<int32, borrowed, 'a, readonly>): void {
+export constructor test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: ref<int32, borrowed, 'a, readonly>): void {
     local l0: ref<int32, borrowed, 'a, readonly>
     local l1: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>
 
@@ -186,7 +186,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: ref<i
     return
 }
 
-function test.main.create<'a>(v0: ref<int32, borrowed, 'a, readonly>): ref<test.main.Counter, managed, mutable, local> {
+export function test.main.create<'a>(v0: ref<int32, borrowed, 'a, readonly>): ref<test.main.Counter, managed, mutable, local> {
     local l0: ref<int32, borrowed, 'a, readonly>
     local l1: function<<'a_1>(ref<int32, borrowed, 'a_1, readonly>) => ref<test.main.Counter, managed, mutable, local>, repeatable, managed, mutable, local>
 
@@ -256,28 +256,28 @@ type test.main.Value<T> {
     value: T;
 }
 
-function test.main.first<T>(): function<(T) => ref<test.main.Box<T>, managed, mutable, local>, repeatable, managed, mutable, local> {
+export function test.main.first<T>(): function<(T) => ref<test.main.Box<T>, managed, mutable, local>, repeatable, managed, mutable, local> {
 entry:
     v0: ptr<void, readonly> = null
     v1: function<(T) => ref<test.main.Box<T>, managed, mutable, local>, repeatable, managed, mutable, local> = function.bind test.main.Box.constructor.new<T>, v0
     return v1
 }
 
-function test.main.second<T, U>(): function<(U) => ref<test.main.Box<U>, managed, mutable, local>, repeatable, managed, mutable, local> {
+export function test.main.second<T, U>(): function<(U) => ref<test.main.Box<U>, managed, mutable, local>, repeatable, managed, mutable, local> {
 entry:
     v0: ptr<void, readonly> = null
     v1: function<(U) => ref<test.main.Box<U>, managed, mutable, local>, repeatable, managed, mutable, local> = function.bind test.main.Box.constructor.new<U>, v0
     return v1
 }
 
-function test.main.constrained<T: test.main.Value<U>, U>(): function<(T) => ref<test.main.Box<T>, managed, mutable, local>, repeatable, managed, mutable, local> {
+export function test.main.constrained<T: test.main.Value<U>, U>(): function<(T) => ref<test.main.Box<T>, managed, mutable, local>, repeatable, managed, mutable, local> {
 entry:
     v0: ptr<void, readonly> = null
     v1: function<(T) => ref<test.main.Box<T>, managed, mutable, local>, repeatable, managed, mutable, local> = function.bind test.main.Box.constructor.new<T, U>, v0
     return v1
 }
 
-constructor test.main.Box.constructor<T>(v0: ref<uninit<test.main.Box<T>>, borrowed, 'managed, mutable>, v1: T): void {
+export constructor test.main.Box.constructor<T>(v0: ref<uninit<test.main.Box<T>>, borrowed, 'managed, mutable>, v1: T): void {
     local l0: T
     local l1: ref<uninit<test.main.Box<T>>, borrowed, 'managed, mutable>
 
@@ -343,21 +343,21 @@ function third<T, U>(): new () => User {
 @nocopy
 type test.main.User { }
 
-function test.main.second(): function<() => ref<test.main.User, managed, mutable, local>, repeatable, managed, mutable, local> {
+export function test.main.second(): function<() => ref<test.main.User, managed, mutable, local>, repeatable, managed, mutable, local> {
 entry:
     v0: ptr<void, readonly> = null
     v1: function<() => ref<test.main.User, managed, mutable, local>, repeatable, managed, mutable, local> = function.bind test.main.User.new, v0
     return v1
 }
 
-function test.main.first<T>(): function<() => ref<test.main.User, managed, mutable, local>, repeatable, managed, mutable, local> {
+export function test.main.first<T>(): function<() => ref<test.main.User, managed, mutable, local>, repeatable, managed, mutable, local> {
 entry:
     v0: ptr<void, readonly> = null
     v1: function<() => ref<test.main.User, managed, mutable, local>, repeatable, managed, mutable, local> = function.bind test.main.User.new, v0
     return v1
 }
 
-function test.main.third<T, U>(): function<() => ref<test.main.User, managed, mutable, local>, repeatable, managed, mutable, local> {
+export function test.main.third<T, U>(): function<() => ref<test.main.User, managed, mutable, local>, repeatable, managed, mutable, local> {
 entry:
     v0: ptr<void, readonly> = null
     v1: function<() => ref<test.main.User, managed, mutable, local>, repeatable, managed, mutable, local> = function.bind test.main.User.new, v0
@@ -396,7 +396,7 @@ function pair(first: int32, second: int32): Counter {
 @nocopy
 type test.main.Counter { }
 
-function test.main.pair(v0: int32, v1: int32): ref<test.main.Counter, managed, mutable, local> {
+export function test.main.pair(v0: int32, v1: int32): ref<test.main.Counter, managed, mutable, local> {
     local l0: int32
     local l1: int32
     local l2: function<(int32, int32) => ref<test.main.Counter, managed, mutable, local>, repeatable, managed, mutable, local>
@@ -437,11 +437,13 @@ entry(v0: int32, v1: int32):
     store (*v5)[v7], v3
     v8: slice<variant<uint1> { 0uint1 = int32; 1uint1 = void; }, unique, mutable> = new.complete v5
     v9: Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }> = call arrayFromOwnedSlice<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>(v8): (slice<variant<uint1> { 0uint1 = int32; 1uint1 = void; }, unique, mutable>) => Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>
-    v10: ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local> = new.complete v9
-    v11: ref<test.main.Counter, managed, mutable, local> = new.zeroed test.main.Counter, local
-    v12: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable> = cast.bit v11 -> ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>
-    call test.main.Counter.constructor(v12, v10): (ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local>) => void
-    return v11
+    v10: uninit<ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local>> = new.uninit Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, local
+    store (*v10), v9
+    v11: ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local> = new.complete v10
+    v12: ref<test.main.Counter, managed, mutable, local> = new.zeroed test.main.Counter, local
+    v13: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable> = cast.bit v12 -> ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>
+    call test.main.Counter.constructor(v13, v11): (ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local>) => void
+    return v12
 }
 
 /// @layout.struct name=test.main.Counter size=0 align=1
@@ -475,7 +477,7 @@ type test.main.Counter { }
 @languageItem("collections.Array")
 type Array<T>;
 
-function test.main.direct(v0: int32, v1: int32): ref<test.main.Counter, managed, mutable, local> {
+export function test.main.direct(v0: int32, v1: int32): ref<test.main.Counter, managed, mutable, local> {
     local l0: int32
     local l1: int32
 
@@ -494,11 +496,13 @@ entry(v0: int32, v1: int32):
     store (*v7)[v9], v5
     v10: slice<variant<uint1> { 0uint1 = int32; 1uint1 = void; }, unique, mutable> = new.complete v7
     v11: Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }> = call arrayFromOwnedSlice<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>(v10): (slice<variant<uint1> { 0uint1 = int32; 1uint1 = void; }, unique, mutable>) => Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>
-    v12: ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local> = new.complete v11
-    v13: ref<test.main.Counter, managed, mutable, local> = new.zeroed test.main.Counter, local
-    v14: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable> = cast.bit v13 -> ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>
-    call test.main.Counter.constructor(v14, v12): (ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local>) => void
-    return v13
+    v12: uninit<ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local>> = new.uninit Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, local
+    store (*v12), v11
+    v13: ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local> = new.complete v12
+    v14: ref<test.main.Counter, managed, mutable, local> = new.zeroed test.main.Counter, local
+    v15: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable> = cast.bit v14 -> ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>
+    call test.main.Counter.constructor(v15, v13): (ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local>) => void
+    return v14
 }
 
 /// @layout.struct name=test.main.Counter size=0 align=1
@@ -547,7 +551,7 @@ type IteratorYield<Y>;
 @languageItem("iter.IteratorReturn")
 type IteratorReturn<R>;
 
-function test.main.spread(v0: ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local>): ref<test.main.Counter, managed, mutable, local> {
+export function test.main.spread(v0: ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local>): ref<test.main.Counter, managed, mutable, local> {
     local l0: ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local>
     local l1: function<(ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local>) => ref<test.main.Counter, managed, mutable, local>, repeatable, managed, mutable, local>
     local l2: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, unique, mutable>
@@ -642,9 +646,11 @@ b10:
     v45: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, unique, mutable> = load l2
     v46: slice<variant<uint1> { 0uint1 = int32; 1uint1 = void; }, unique, mutable> = new.complete v45
     v47: Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }> = call arrayFromOwnedSlice<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>(v46): (slice<variant<uint1> { 0uint1 = int32; 1uint1 = void; }, unique, mutable>) => Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>
-    v48: ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local> = new.complete v47
-    v49: ref<test.main.Counter, managed, mutable, local> = call.indirect v3(v48): (ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local>) => ref<test.main.Counter, managed, mutable, local>
-    return v49
+    v48: uninit<ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local>> = new.uninit Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, local
+    store (*v48), v47
+    v49: ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local> = new.complete v48
+    v50: ref<test.main.Counter, managed, mutable, local> = call.indirect v3(v49): (ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local>) => ref<test.main.Counter, managed, mutable, local>
+    return v50
 
 b11:
     v40: usize = load l6
@@ -670,10 +676,10 @@ b13:
 /// @layout.discriminant owner=type@6 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@6 index=0 discriminant=0 payload_offset=4
 /// @layout.case owner=type@6 index=1 discriminant=1 payload_offset=4
-/// @layout.variant name=type@133 size=12 align=4
-/// @layout.discriminant owner=type@133 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@133 index=0 discriminant=0 payload_offset=4
-/// @layout.case owner=type@133 index=1 discriminant=1 payload_offset=4
+/// @layout.variant name=type@133 size=8 align=4
+/// @layout.discriminant owner=type@133 kind=niche offset=0 byte_len=1 bit_offset=0 bit_len=8 untagged=0 niche_start=2
+/// @layout.case owner=type@133 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@133 index=1 discriminant=1 payload_offset=0
 "#);
 }
 
@@ -711,7 +717,7 @@ type test.counter.Counter<T> {
     value: T;
 }
 
-function test.main.create(v0: int32): ref<test.counter.Counter<int32>, managed, mutable, local> {
+export function test.main.create(v0: int32): ref<test.counter.Counter<int32>, managed, mutable, local> {
     local l0: int32
 
 entry(v0: int32):
@@ -762,7 +768,7 @@ type test.main.Counter {
     count: int32;
 }
 
-constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32): void {
+export constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32): void {
     local l0: int32
     local l1: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>
 
@@ -775,7 +781,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32
     return
 }
 
-function test.main.read(v0: int32): int32 {
+export function test.main.read(v0: int32): int32 {
     local l0: int32
     local l1: function<(int32) => ref<test.main.Counter, managed, mutable, local>, repeatable, managed, mutable, local>
     local l2: ref<test.main.Counter, managed, mutable, local>
@@ -839,7 +845,7 @@ type test.main.Counter {
     count: int32;
 }
 
-function test.main.create(): ref<test.main.Counter, managed, mutable, local> {
+export function test.main.create(): ref<test.main.Counter, managed, mutable, local> {
 entry:
     v0: function<(int32) => ref<test.main.Counter, managed, mutable, local>, repeatable, managed, mutable, local> = call test.main.choose(): () => function<(int32) => ref<test.main.Counter, managed, mutable, local>, repeatable, managed, mutable, local>
     v1: int32 = call test.main.count(): () => int32
@@ -880,7 +886,7 @@ type test.main.Counter {
     count: int32;
 }
 
-constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: variant<uint1> { 0uint1 = int32; 1uint1 = void; }): void {
+export constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: variant<uint1> { 0uint1 = int32; 1uint1 = void; }): void {
     local l0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }
     local l1: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>
     local l2: int32, readonly
@@ -911,7 +917,7 @@ b3:
     return
 }
 
-function test.main.create(): ref<test.main.Counter, managed, mutable, local> {
+export function test.main.create(): ref<test.main.Counter, managed, mutable, local> {
     local l0: function<() => ref<test.main.Counter, managed, mutable, local>, repeatable, managed, mutable, local>
 
 entry:
@@ -970,7 +976,7 @@ type test.main.Box<T> {
     value: T;
 }
 
-function test.main.create<T>(v0: T): ref<test.main.Box<T>, managed, mutable, local> {
+export function test.main.create<T>(v0: T): ref<test.main.Box<T>, managed, mutable, local> {
     local l0: T
     local l1: function<(T) => ref<test.main.Box<T>, managed, mutable, local>, repeatable, managed, mutable, local>
 
@@ -985,7 +991,7 @@ entry(v0: T):
     return v5
 }
 
-constructor test.main.Box.constructor<T>(v0: ref<uninit<test.main.Box<T>>, borrowed, 'managed, mutable>, v1: T): void {
+export constructor test.main.Box.constructor<T>(v0: ref<uninit<test.main.Box<T>>, borrowed, 'managed, mutable>, v1: T): void {
     local l0: T
     local l1: ref<uninit<test.main.Box<T>>, borrowed, 'managed, mutable>
 
@@ -1035,7 +1041,7 @@ type test.main.Counter {
     count: int32;
 }
 
-constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: variant<uint1> { 0uint1 = int32; 1uint1 = void; }): void {
+export constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: variant<uint1> { 0uint1 = int32; 1uint1 = void; }): void {
     local l0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }
     local l1: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>
     local l2: int32, readonly
@@ -1066,7 +1072,7 @@ b3:
     return
 }
 
-function test.main.create(v0: int32): ref<test.main.Counter, managed, mutable, local> {
+export function test.main.create(v0: int32): ref<test.main.Counter, managed, mutable, local> {
     local l0: int32
     local l1: function<(int32) => ref<test.main.Counter, managed, mutable, local>, repeatable, managed, mutable, local>
 
@@ -1128,7 +1134,7 @@ type test.main.Counter {
     count: int32;
 }
 
-constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32): void {
+export constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32): void {
     local l0: int32
     local l1: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>
 
@@ -1141,7 +1147,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32
     return
 }
 
-function test.main.create(v0: int32): variant<uint1> { 0uint1 = ref<test.main.Counter, managed, mutable, local>; 1uint1 = void; } {
+export function test.main.create(v0: int32): variant<uint1> { 0uint1 = ref<test.main.Counter, managed, mutable, local>; 1uint1 = void; } {
     local l0: int32
     local l1: function<(int32) => variant<uint1> { 0uint1 = ref<test.main.Counter, managed, mutable, local>; 1uint1 = void; }, repeatable, managed, mutable, local>
 

@@ -22,6 +22,9 @@ type test.main.Reading = newtype<dynamic<test.main.Meter, managed, mutable, loca
 @nocopy
 type test.main.Meter { }
 
+/// @layout.struct name=test.main.Meter size=0 align=1
+/// @layout.struct name=type@5 size=0 align=1
+
 /// @dispatch.shape constraint=type@1 function=read
 "#,
     );
@@ -67,6 +70,16 @@ type Clone { }
 @languageItem("memory.SharedSafe")
 type SharedSafe { }
 
+/// @layout.struct name=Concrete size=0 align=1
+/// @layout.struct name=Copy size=0 align=1
+/// @layout.struct name=Clone size=0 align=1
+/// @layout.struct name=SharedSafe size=0 align=1
+/// @layout.struct name=type@6 size=0 align=1
+/// @layout.struct name=Atomic<int32> size=4 align=4
+/// @layout.field owner=Atomic<int32> index=0 name=storage offset=0 size=4 align=4
+/// @layout.struct name=type@19 size=4 align=4
+/// @layout.field owner=type@19 index=0 name=storage offset=0 size=4 align=4
+
 /// @dispatch.shape constraint=type@9 function=clone function=cloneFrom
 "#,
     );
@@ -106,7 +119,7 @@ export function accept(descriptor: Type<int32>): Type<int32> {
         "main.tspp",
         "test.main.accept",
         r#"
-function test.main.accept(v0: typeId): typeId {
+export function test.main.accept(v0: typeId): typeId {
     local l0: typeId
 
 entry(v0: typeId):

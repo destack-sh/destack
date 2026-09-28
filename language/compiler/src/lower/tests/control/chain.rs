@@ -19,7 +19,7 @@ type test.main.Options {
     retries: int32;
 }
 
-function test.main.read(v0: variant<uint1> { 0uint1 = test.main.Options; 1uint1 = void; }): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
+export function test.main.read(v0: variant<uint1> { 0uint1 = test.main.Options; 1uint1 = void; }): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
     local l0: variant<uint1> { 0uint1 = test.main.Options; 1uint1 = void; }
     local l1: variant<uint1> { 0uint1 = int32; 1uint1 = void; }
 
@@ -74,7 +74,7 @@ type test.main.Counter {
     value: int32;
 }
 
-function test.main.Counter.total(v0: test.main.Counter): int32 {
+export function test.main.Counter.total(v0: test.main.Counter): int32 {
     local l0: test.main.Counter
 
 entry(v0: test.main.Counter):
@@ -93,7 +93,7 @@ type test.main.Counter {
     value: int32;
 }
 
-function test.main.read(v0: variant<uint1> { 0uint1 = test.main.Counter; 1uint1 = void; }): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
+export function test.main.read(v0: variant<uint1> { 0uint1 = test.main.Counter; 1uint1 = void; }): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
     local l0: variant<uint1> { 0uint1 = test.main.Counter; 1uint1 = void; }
     local l1: variant<uint1> { 0uint1 = int32; 1uint1 = void; }
 
@@ -153,7 +153,7 @@ function evaluate(message: Message | undefined): string | undefined {
 @languageItem("string.String")
 type String;
 
-function test.main.evaluate(v0: variant<uint2> { 0uint2 = ref<String, managed, mutable, local>; 1uint2 = function<() => ref<String, managed, mutable, local>, once, unique, mutable>; 2uint2 = void; }): variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } {
+export function test.main.evaluate(v0: variant<uint2> { 0uint2 = ref<String, managed, mutable, local>; 1uint2 = function<() => ref<String, managed, mutable, local>, once, unique, mutable>; 2uint2 = void; }): variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } {
     local l0: variant<uint2> { 0uint2 = ref<String, managed, mutable, local>; 1uint2 = function<() => ref<String, managed, mutable, local>, once, unique, mutable>; 2uint2 = void; }
     local l1: boolean, readonly
     local l2: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }
@@ -170,6 +170,7 @@ b1:
 
 b2:
     v4: boolean = load l1
+    v5: ref<variant<uint2> { 0uint2 = ref<String, managed, mutable, local>; 1uint2 = function<() => ref<String, managed, mutable, local>, once, unique, mutable>; 2uint2 = void; }, borrowed, 'frame, readonly> = fake.borrow l0
     branch v4 => b4 | b5
 
 b3:
@@ -178,31 +179,33 @@ b3:
     jump b2
 
 b4:
-    v5: function<() => ref<String, managed, mutable, local>, once, unique, mutable> = load (l0 as 1)
-    v6: ref<String, managed, mutable, local> = call.indirect v5(): () => ref<String, managed, mutable, local>
-    v7: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = variant.new 0, v6
-    return v7
+    fake.read v5
+    v6: function<() => ref<String, managed, mutable, local>, once, unique, mutable> = load (l0 as 1)
+    v7: ref<String, managed, mutable, local> = call.indirect v6(): () => ref<String, managed, mutable, local>
+    v8: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = variant.new 0, v7
+    return v8
 
 b5:
-    v8: variant<uint2> { 0uint2 = ref<String, managed, mutable, local>; 1uint2 = function<() => ref<String, managed, mutable, local>, once, unique, mutable>; 2uint2 = void; } = load l0
-    variant.switch v8, 0 => b8, 2 => b9, else b7
+    fake.read v5
+    v9: variant<uint2> { 0uint2 = ref<String, managed, mutable, local>; 1uint2 = function<() => ref<String, managed, mutable, local>, once, unique, mutable>; 2uint2 = void; } = load l0
+    variant.switch v9, 0 => b8, 2 => b9, else b7
 
 b6:
-    v12: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = load l2
-    return v12
+    v13: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = load l2
+    return v13
 
 b7:
     panic
 
 b8:
-    v9: ref<String, managed, mutable, local> = variant.payload v8, 0
-    v10: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = variant.new 0, v9
-    store l2, v10
+    v10: ref<String, managed, mutable, local> = variant.payload v9, 0
+    v11: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = variant.new 0, v10
+    store l2, v11
     jump b6
 
 b9:
-    v11: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = variant.new 1
-    store l2, v11
+    v12: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = variant.new 1
+    store l2, v12
     jump b6
 }
 
@@ -244,7 +247,7 @@ type String;
 @languageItem("error.Result")
 type Result<T, E>;
 
-function test.main.read(): Result<int32, ref<String, managed, mutable, local>> {
+export function test.main.read(): Result<int32, ref<String, managed, mutable, local>> {
 entry:
     v0: int32 = 1
     v1: Result<int32, ref<String, managed, mutable, local>> = call Result.ok<int32, ref<String, managed, mutable, local>>(v0): (int32) => Result<int32, ref<String, managed, mutable, local>>
@@ -269,7 +272,7 @@ type Break<B>;
 @languageItem("ops.Continue")
 type Continue<C>;
 
-function test.main.twice(): Result<int32, ref<String, managed, mutable, local>> {
+export function test.main.twice(): Result<int32, ref<String, managed, mutable, local>> {
     local l0: int32
 
 entry:

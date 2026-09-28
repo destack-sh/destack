@@ -81,7 +81,7 @@ impl FunctionLowerer<'_, '_, '_> {
             return self.lower_operation_intrinsic(operation, call);
         }
         if let Some(instruction) = IntrinsicInstruction::from_name(name) {
-            return self.lower_instruction_intrinsic(expression, instruction, call);
+            return self.lower_instruction_intrinsic(instruction, call);
         }
         if let Some(terminator) = IntrinsicTerminator::from_name(name) {
             return self.lower_terminator_intrinsic(terminator, call);
@@ -225,7 +225,6 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one instruction intrinsic.
     fn lower_instruction_intrinsic(
         &mut self,
-        expression: dir::LocalNodeId<dir::Expression>,
         instruction: IntrinsicInstruction,
         call: IntrinsicCall<'_>,
     ) -> CompilerResult<Option<mir::Value>> {
@@ -249,20 +248,6 @@ impl FunctionLowerer<'_, '_, '_> {
             IntrinsicInstruction::PointerReplace => self.lower_pointer_replace(call),
             IntrinsicInstruction::PointerSwap => self.lower_pointer_swap(call),
             IntrinsicInstruction::PointerDropInPlace => self.lower_pointer_drop_in_place(call),
-            IntrinsicInstruction::Drop => {
-                let value = self.argument_value(call, 0)?;
-                let dropped = self.builder.drop_value(value);
-
-                // anchor the authored drop call at its written extent
-                let Some(span) = self.source().tree().get_source_extent(expression) else {
-                    return Err(CompilerError::Internal {
-                        message: "a drop call without a source extent".to_string(),
-                    });
-                };
-                self.builder.tree_mut().set_span(dropped, span);
-
-                Ok(None)
-            }
             IntrinsicInstruction::InitUninit => {
                 self.lower_storage_constant(mir::Constant::Uninit, call)
             }
@@ -301,7 +286,7 @@ impl FunctionLowerer<'_, '_, '_> {
             IntrinsicInstruction::DynamicType => {
                 let dynamic = self.argument_value(call, 0)?;
 
-                Ok(Some(self.builder.dynamic_type(dynamic)))
+                Ok(Some(self.builder.type_of(dynamic)))
             }
             IntrinsicInstruction::DynamicPayload => {
                 let dynamic = self.argument_pointee_value(call, 0)?;

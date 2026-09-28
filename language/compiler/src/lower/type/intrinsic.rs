@@ -124,12 +124,13 @@ impl TypeLowerer<'_, '_> {
                     lowered.push(mir::SignatureParameter::new(self.lower(element)?));
                 }
 
-                // intern the signature the callable answers at
+                // intern the signature
                 let result = self.lower(*result)?;
                 let signature = self.tree.intern_type(mir::Type::FunctionSignature {
                     lifetimes: Vec::new(),
                     parameters: lowered,
                     result,
+                    park: mir::ParkBehavior::CannotPark,
                 });
 
                 // read the invocation count off the receiver mode
@@ -163,8 +164,7 @@ impl TypeLowerer<'_, '_> {
                     });
                 };
                 let element = self.lower(*element)?;
-                let mir::GenericArgument::Value(lanes) = self.lower_generic_argument(*lanes)?
-                else {
+                let mir::GenericArgument::Value(lanes) = self.lower_value_argument(*lanes)? else {
                     return Err(CompilerError::Internal {
                         message: "a vector lane count outside the value domain".to_string(),
                     });

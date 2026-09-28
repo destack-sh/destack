@@ -29,17 +29,15 @@ type test.main.Point {
     y: int32;
 }
 
-function test.main.Point.length<'a>(v0: ref<test.main.Point, borrowed, 'a, readonly>): int32 {
+export function test.main.Point.length<'a>(v0: ref<test.main.Point, borrowed, 'a, readonly>): int32 {
     local l0: ref<test.main.Point, borrowed, 'a, readonly>
 
 entry(v0: ref<test.main.Point, borrowed, 'a, readonly>):
     store l0, v0
-    v1: ref<test.main.Point, borrowed, 'a, readonly> = load l0
-    v2: int32 = load (*v1).0
-    v3: ref<test.main.Point, borrowed, 'a, readonly> = load l0
-    v4: int32 = load (*v3).1
-    v5: int32 = add v2, v4
-    return v5
+    v1: int32 = load (*l0).0
+    v2: int32 = load (*l0).1
+    v3: int32 = add v1, v2
+    return v3
 }
 
 /// @layout.struct name=test.main.Point size=8 align=4
@@ -54,7 +52,7 @@ type test.main.Point {
     y: int32;
 }
 
-function test.main.measure(): int32 {
+export function test.main.measure(): int32 {
     local l0: test.main.Point
 
 entry:
@@ -98,18 +96,17 @@ type test.main.Counter {
     count: int32;
 }
 
-function test.main.Counter.bump<'a>(v0: ref<test.main.Counter, borrowed, 'a, mutable>, v1: int32): void {
+export function test.main.Counter.bump<'a>(v0: ref<test.main.Counter, borrowed, 'a, mutable>, v1: int32): void {
     local l0: int32
     local l1: ref<test.main.Counter, borrowed, 'a, mutable>
 
 entry(v0: ref<test.main.Counter, borrowed, 'a, mutable>, v1: int32):
     store l0, v1
     store l1, v0
-    v2: ref<test.main.Counter, borrowed, 'a, mutable> = load l1
-    v3: int32 = load (*v2).0
-    v4: int32 = load l0
-    v5: int32 = add v3, v4
-    store (*v2).0, v5
+    v2: int32 = load (*l1).0
+    v3: int32 = load l0
+    v4: int32 = add v2, v3
+    store (*l1).0, v4
     return
 }
 
@@ -122,7 +119,7 @@ type test.main.Counter {
     count: int32;
 }
 
-function test.main.tally(): int32 {
+export function test.main.tally(): int32 {
     local l0: test.main.Counter
 
 entry:
@@ -168,7 +165,7 @@ type test.main.User {
     id: int32;
 }
 
-constructor test.main.User.constructor<'a>(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>): void {
+export constructor test.main.User.constructor<'a>(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>
 
 entry(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>):
@@ -193,7 +190,7 @@ type test.main.User {
     id: int32;
 }
 
-function test.main.User.identity(v0: ref<test.main.User, managed, mutable, local>): ref<test.main.User, managed, mutable, local> {
+export function test.main.User.identity(v0: ref<test.main.User, managed, mutable, local>): ref<test.main.User, managed, mutable, local> {
     local l0: ref<test.main.User, managed, mutable, local>
 
 entry(v0: ref<test.main.User, managed, mutable, local>):
@@ -213,7 +210,7 @@ type test.main.User {
     id: int32;
 }
 
-function test.main.keep(v0: ref<test.main.User, managed, mutable, local>): ref<test.main.User, managed, mutable, local> {
+export function test.main.keep(v0: ref<test.main.User, managed, mutable, local>): ref<test.main.User, managed, mutable, local> {
     local l0: ref<test.main.User, managed, mutable, local>
 
 entry(v0: ref<test.main.User, managed, mutable, local>):
@@ -253,7 +250,7 @@ function probe(status: Status): boolean {
         r#"
 type test.main.Status = variant<uint8> { 1uint8 = void; 2uint8 = void; };
 
-function test.main.Status.isActive<'a>(v0: ref<test.main.Status, borrowed, 'a, readonly>): boolean {
+export function test.main.Status.isActive<'a>(v0: ref<test.main.Status, borrowed, 'a, readonly>): boolean {
     local l0: ref<test.main.Status, borrowed, 'a, readonly>
 
 entry(v0: ref<test.main.Status, borrowed, 'a, readonly>):
@@ -277,7 +274,7 @@ entry(v0: ref<test.main.Status, borrowed, 'a, readonly>):
     session.assert_mir_function("main.tspp", "test.main.probe", r#"
 type test.main.Status = variant<uint8> { 1uint8 = void; 2uint8 = void; };
 
-function test.main.probe(v0: test.main.Status): boolean {
+export function test.main.probe(v0: test.main.Status): boolean {
     local l0: test.main.Status
 
 entry(v0: test.main.Status):
@@ -323,7 +320,7 @@ type test.main.Box {
     weight: int32;
 }
 
-constructor test.main.Box.constructor<'a>(v0: ref<uninit<test.main.Box>, borrowed, 'a, exclusive>, v1: int32): void {
+export constructor test.main.Box.constructor<'a>(v0: ref<uninit<test.main.Box>, borrowed, 'a, exclusive>, v1: int32): void {
     local l0: int32
     local l1: ref<uninit<test.main.Box>, borrowed, 'a, exclusive>
 
@@ -349,7 +346,7 @@ type test.main.Box {
     weight: int32;
 }
 
-function test.main.Box.unwrap(v0: test.main.Box): int32 {
+export function test.main.Box.unwrap(v0: test.main.Box): int32 {
     local l0: test.main.Box
 
 entry(v0: test.main.Box):
@@ -372,7 +369,7 @@ type test.main.Box {
     weight: int32;
 }
 
-function test.main.open(): int32 {
+export function test.main.open(): int32 {
     local l0: test.main.Box
     local l1: test.main.Box
 
@@ -416,7 +413,7 @@ function measure(): int32 {
         "main.tspp",
         "test.main.Point.origin",
         r#"
-function test.main.Point.origin(): int32 {
+export function test.main.Point.origin(): int32 {
 entry:
     v0: int32 = 0
     return v0
@@ -428,7 +425,7 @@ entry:
         "main.tspp",
         "test.main.measure",
         r#"
-function test.main.measure(): int32 {
+export function test.main.measure(): int32 {
 entry:
     v0: int32 = call test.main.Point.origin(): () => int32
     return v0
@@ -469,17 +466,15 @@ type test.main.Circle {
     radius: int32;
 }
 
-function test.main.Circle.diameter.get<'a>(v0: ref<test.main.Circle, borrowed, 'a, readonly>): int32 {
+export function test.main.Circle.diameter.get<'a>(v0: ref<test.main.Circle, borrowed, 'a, readonly>): int32 {
     local l0: ref<test.main.Circle, borrowed, 'a, readonly>
 
 entry(v0: ref<test.main.Circle, borrowed, 'a, readonly>):
     store l0, v0
-    v1: ref<test.main.Circle, borrowed, 'a, readonly> = load l0
-    v2: int32 = load (*v1).0
-    v3: ref<test.main.Circle, borrowed, 'a, readonly> = load l0
-    v4: int32 = load (*v3).0
-    v5: int32 = add v2, v4
-    return v5
+    v1: int32 = load (*l0).0
+    v2: int32 = load (*l0).0
+    v3: int32 = add v1, v2
+    return v3
 }
 
 /// @layout.struct name=test.main.Circle size=4 align=4
@@ -492,16 +487,15 @@ type test.main.Circle {
     radius: int32;
 }
 
-function test.main.Circle.diameter.set<'a>(v0: ref<test.main.Circle, borrowed, 'a, mutable>, v1: int32): void {
+export function test.main.Circle.diameter.set<'a>(v0: ref<test.main.Circle, borrowed, 'a, mutable>, v1: int32): void {
     local l0: int32
     local l1: ref<test.main.Circle, borrowed, 'a, mutable>
 
 entry(v0: ref<test.main.Circle, borrowed, 'a, mutable>, v1: int32):
     store l0, v1
     store l1, v0
-    v2: ref<test.main.Circle, borrowed, 'a, mutable> = load l1
-    v3: int32 = load l0
-    store (*v2).0, v3
+    v2: int32 = load l0
+    store (*l1).0, v2
     return
 }
 
@@ -514,7 +508,7 @@ type test.main.Circle {
     radius: int32;
 }
 
-function test.main.resize(): int32 {
+export function test.main.resize(): int32 {
     local l0: test.main.Circle
 
 entry:
@@ -564,7 +558,7 @@ type test.main.Counter {
     value: int32;
 }
 
-function test.main.read(v0: ref<test.main.Counter, managed, mutable, local>): int32 {
+export function test.main.read(v0: ref<test.main.Counter, managed, mutable, local>): int32 {
     local l0: ref<test.main.Counter, managed, mutable, local>
     local l1: ref<test.main.Counter, borrowed, 'managed, mutable>
 
@@ -604,7 +598,7 @@ function view(text: string): void {
 @languageItem("string.String")
 type String;
 
-function test.main.view(v0: ref<String, managed, mutable, local>): void {
+export function test.main.view(v0: ref<String, managed, mutable, local>): void {
     local l0: ref<String, managed, mutable, local>
     local l1: slice<uint16, borrowed, 'managed, mutable>
 

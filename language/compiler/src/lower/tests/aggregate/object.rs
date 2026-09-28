@@ -22,7 +22,7 @@ function build(): int32 {
         "main.tspp",
         "test.main.read",
         r#"
-function test.main.read(v0: ref<{ x: int32 }, managed, mutable, local>): int32 {
+export function test.main.read(v0: ref<{ x: int32 }, managed, mutable, local>): int32 {
     local l0: ref<{ x: int32 }, managed, mutable, local>
 
 entry(v0: ref<{ x: int32 }, managed, mutable, local>):
@@ -41,17 +41,19 @@ entry(v0: ref<{ x: int32 }, managed, mutable, local>):
         "main.tspp",
         "test.main.build",
         r#"
-function test.main.build(): int32 {
+export function test.main.build(): int32 {
     local l0: ref<{ x: int32 }, managed, mutable, local>
 
 entry:
     v0: int32 = 7
     v1: { x: int32 } = aggregate (v0)
-    v2: ref<{ x: int32 }, managed, mutable, local> = new.complete v1
-    store l0, v2
-    v3: ref<{ x: int32 }, managed, mutable, local> = load l0
-    v4: int32 = call test.main.read(v3): (ref<{ x: int32 }, managed, mutable, local>) => int32
-    return v4
+    v2: uninit<ref<{ x: int32 }, managed, mutable, local>> = new.uninit { x: int32 }, local
+    store (*v2), v1
+    v3: ref<{ x: int32 }, managed, mutable, local> = new.complete v2
+    store l0, v3
+    v4: ref<{ x: int32 }, managed, mutable, local> = load l0
+    v5: int32 = call test.main.read(v4): (ref<{ x: int32 }, managed, mutable, local>) => int32
+    return v5
 }
 
 /// @layout.struct name=type@1 size=4 align=4
@@ -84,7 +86,7 @@ function build(): int32 {
         "main.tspp",
         "test.main.pick",
         r#"
-function test.main.pick(v0: ref<{ depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested: variant<uint1> { 0uint1 = type@4; 1uint1 = void; } }, managed, mutable, local>): int32 {
+export function test.main.pick(v0: ref<{ depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested: variant<uint1> { 0uint1 = type@4; 1uint1 = void; } }, managed, mutable, local>): int32 {
     local l0: ref<{ depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested: variant<uint1> { 0uint1 = type@4; 1uint1 = void; } }, managed, mutable, local>
 
 entry(v0: ref<{ depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested: variant<uint1> { 0uint1 = type@4; 1uint1 = void; } }, managed, mutable, local>):
@@ -99,15 +101,17 @@ entry(v0: ref<{ depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested
         "main.tspp",
         "test.main.build",
         r#"
-function test.main.build(): int32 {
+export function test.main.build(): int32 {
 entry:
     v0: int32 = 3
     v1: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = variant.new 0, v0
     v2: variant<uint1> { 0uint1 = ref<{ depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested: type@5 }, managed, mutable, local>; 1uint1 = void; } = variant.new 1
     v3: { depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested: variant<uint1> { 0uint1 = ref<type@6, managed, mutable, local>; 1uint1 = void; } } = aggregate (v1, v2)
-    v4: ref<{ depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested: variant<uint1> { 0uint1 = type@4; 1uint1 = void; } }, managed, mutable, local> = new.complete v3
-    v5: int32 = call test.main.pick(v4): (ref<{ depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested: variant<uint1> { 0uint1 = type@4; 1uint1 = void; } }, managed, mutable, local>) => int32
-    return v5
+    v4: uninit<ref<{ depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested: variant<uint1> { 0uint1 = type@4; 1uint1 = void; } }, managed, mutable, local>> = new.uninit { depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested: variant<uint1> { 0uint1 = ref<type@6, managed, mutable, local>; 1uint1 = void; } }, local
+    store (*v4), v3
+    v5: ref<{ depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested: variant<uint1> { 0uint1 = type@4; 1uint1 = void; } }, managed, mutable, local> = new.complete v4
+    v6: int32 = call test.main.pick(v5): (ref<{ depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested: variant<uint1> { 0uint1 = type@4; 1uint1 = void; } }, managed, mutable, local>) => int32
+    return v6
 }
 
 /// @layout.variant name=type@3 size=8 align=4
@@ -141,7 +145,7 @@ function build(): int32 {
         "main.tspp",
         "test.main.build",
         r#"
-function test.main.build(): int32 {
+export function test.main.build(): int32 {
     local l0: { x: int32 }
 
 entry:
@@ -185,7 +189,7 @@ export function trace(name: &readonly string, fields?: Fields): void {
 @languageItem("string.String")
 type String;
 
-function test.main.trace<'a>(v0: ref<String, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }): void {
+export function test.main.trace<'a>(v0: ref<String, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }): void {
     local l0: ref<String, borrowed, 'a, readonly>
     local l1: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }
 
@@ -196,9 +200,11 @@ entry(v0: ref<String, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = dyn
     v3: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; } = load l1
     v4: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } = variant.new 1
     v5: { fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } } = aggregate (v3, v4)
-    v6: ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, managed, mutable, local> = new.complete v5
-    v7: variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; } = variant.new 0, v6
-    call test.main.log(v2, v7): (ref<String, borrowed, 'a, readonly>, variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; }) => void
+    v6: uninit<ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, managed, mutable, local>> = new.uninit { fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, local
+    store (*v6), v5
+    v7: ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, managed, mutable, local> = new.complete v6
+    v8: variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; } = variant.new 0, v7
+    call test.main.log(v2, v8): (ref<String, borrowed, 'a, readonly>, variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; }) => void
     return
 }
 
@@ -225,7 +231,7 @@ entry(v0: ref<String, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = dyn
 @languageItem("string.String")
 type String;
 
-function test.main.log<'a, 'b>(v0: ref<String, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'b, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; }): void {
+export function test.main.log<'a, 'b>(v0: ref<String, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'b, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; }): void {
     local l0: ref<String, borrowed, 'a, readonly>
     local l1: variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'b, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; }
 
@@ -258,7 +264,7 @@ entry(v0: ref<String, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = ref
 @languageItem("string.String")
 type String;
 
-function test.main.trace<'a>(v0: ref<String, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }): void {
+export function test.main.trace<'a>(v0: ref<String, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }): void {
     local l0: ref<String, borrowed, 'a, readonly>
     local l1: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }
 
@@ -269,9 +275,11 @@ entry(v0: ref<String, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = dyn
     v3: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; } = load l1
     v4: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } = variant.new 1
     v5: { fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } } = aggregate (v3, v4)
-    v6: ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, managed, mutable, local> = new.complete v5
-    v7: variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; } = variant.new 0, v6
-    call test.main.log(v2, v7): (ref<String, borrowed, 'a, readonly>, variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; }) => void
+    v6: uninit<ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, managed, mutable, local>> = new.uninit { fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, local
+    store (*v6), v5
+    v7: ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, managed, mutable, local> = new.complete v6
+    v8: variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; } = variant.new 0, v7
+    call test.main.log(v2, v8): (ref<String, borrowed, 'a, readonly>, variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; }) => void
     return
 }
 
@@ -345,7 +353,7 @@ type test.main.LogEntry<'a, 'b> {
     message: variant<uint1> { 0uint1 = ref<String, borrowed, 'b, readonly>; 1uint1 = void; };
 }
 
-function test.main.Logger.log<'a, 'b>(v0: ref<test.main.Logger, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = ref<{ message: variant<uint1> { 0uint1 = ref<String, borrowed, 'b, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; }): void {
+export function test.main.Logger.log<'a, 'b>(v0: ref<test.main.Logger, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = ref<{ message: variant<uint1> { 0uint1 = ref<String, borrowed, 'b, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; }): void {
     local l0: variant<uint1> { 0uint1 = ref<{ message: variant<uint1> { 0uint1 = ref<String, borrowed, 'b, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; }
     local l1: ref<test.main.Logger, borrowed, 'a, readonly>
     local l2: variant<uint1> { 0uint1 = ref<String, borrowed, 'b, readonly>; 1uint1 = void; }
@@ -418,7 +426,7 @@ type test.main.Counter {
     count: int32;
 }
 
-constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32): void {
+export constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32): void {
     local l0: int32
     local l1: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>
     local l2: function<() => int32, repeatable, managed, mutable, local>
@@ -436,12 +444,14 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32
     v7: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable> = load l1
     v8: ref<test.main.Counter, borrowed, 'managed, mutable> = cast.bit v7 -> ref<test.main.Counter, borrowed, 'managed, mutable>
     v9: { ref<test.main.Counter, borrowed, 'managed, mutable> } = aggregate (v8)
-    v10: ref<{ ref<test.main.Counter, borrowed, 'managed, mutable> }, managed, mutable, local> = new.complete v9
-    v11: function<() => int32, repeatable, managed, mutable, local> = function.bind test.main.Counter.constructor.closure#0, v10
-    store l2, v11
-    v12: function<() => int32, repeatable, managed, mutable, local> = load l2
-    v13: function<() => int32, repeatable, borrowed, 'managed, readonly> = cast.bit v12 -> function<() => int32, repeatable, borrowed, 'managed, readonly>
-    v14: int32 = call.indirect v13(): () => int32
+    v10: uninit<ref<{ ref<test.main.Counter, borrowed, 'managed, mutable> }, managed, mutable, local>> = new.uninit { ref<test.main.Counter, borrowed, 'managed, mutable> }, local
+    store (*v10), v9
+    v11: ref<{ ref<test.main.Counter, borrowed, 'managed, mutable> }, managed, mutable, local> = new.complete v10
+    v12: function<() => int32, repeatable, managed, mutable, local> = function.bind test.main.Counter.constructor.closure#0, v11
+    store l2, v12
+    v13: function<() => int32, repeatable, managed, mutable, local> = load l2
+    v14: function<() => int32, repeatable, borrowed, 'managed, readonly> = cast.bit v13 -> function<() => int32, repeatable, borrowed, 'managed, readonly>
+    v15: int32 = call.indirect v14(): () => int32
     return
 }
 
@@ -450,4 +460,50 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32
 /// @layout.struct name=type@9 size=8 align=8
 /// @layout.field owner=type@9 index=0 offset=0 size=8 align=8
 "#);
+}
+
+/// Build an object literal in source order, a spread supplying the keys later properties leave.
+#[test]
+fn test_spread_an_object_into_a_literal_in_source_order() {
+    let session = TestSession::single(
+        r#"
+type Point = { x: float64; y: float64 };
+
+function offset(): float64 {
+    1.0
+}
+
+function moved(origin: Point): Point {
+    { ...origin, x: offset() }
+}
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.tspp",
+        "test.main.moved",
+        r#"
+export function test.main.moved(v0: ref<{ x: float64, y: float64 }, managed, mutable, local>): ref<{ x: float64, y: float64 }, managed, mutable, local> {
+    local l0: ref<{ x: float64, y: float64 }, managed, mutable, local>
+
+entry(v0: ref<{ x: float64, y: float64 }, managed, mutable, local>):
+    store l0, v0
+    v1: ref<{ x: float64, y: float64 }, managed, mutable, local> = load l0
+    v2: ref<float64, borrowed, 'managed, mutable> = address (*v1).0
+    v3: float64 = load (*v2)
+    v4: ref<float64, borrowed, 'managed, mutable> = address (*v1).1
+    v5: float64 = load (*v4)
+    v6: float64 = call test.main.offset(): () => float64
+    v7: { x: float64, y: float64 } = aggregate (v6, v5)
+    v8: uninit<ref<{ x: float64, y: float64 }, managed, mutable, local>> = new.uninit { x: float64, y: float64 }, local
+    store (*v8), v7
+    v9: ref<{ x: float64, y: float64 }, managed, mutable, local> = new.complete v8
+    return v9
+}
+
+/// @layout.struct name=type@1 size=16 align=8
+/// @layout.field owner=type@1 index=0 name=x offset=0 size=8 align=8
+/// @layout.field owner=type@1 index=1 name=y offset=8 size=8 align=8
+"#,
+    );
 }

@@ -14,7 +14,7 @@ function swap(pair: (int32, float64)): (float64, int32) {
         "main.tspp",
         "test.main.swap",
         r#"
-function test.main.swap(v0: (int32, float64)): (float64, int32) {
+export function test.main.swap(v0: (int32, float64)): (float64, int32) {
     local l0: (int32, float64)
 
 entry(v0: (int32, float64)):
@@ -61,7 +61,7 @@ type test.main.Point {
     y: int32;
 }
 
-function test.main.corners(v0: test.main.Point, v1: test.main.Point): (test.main.Point, test.main.Point) {
+export function test.main.corners(v0: test.main.Point, v1: test.main.Point): (test.main.Point, test.main.Point) {
     local l0: test.main.Point
     local l1: test.main.Point
 

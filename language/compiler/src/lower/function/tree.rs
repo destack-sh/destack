@@ -2,6 +2,7 @@ use tspp_dir as dir;
 use tspp_mir as mir;
 
 use crate::lower::FunctionLowerer;
+use crate::lower::function::aggregate::ConstructArguments;
 use crate::{CompilerError, CompilerResult};
 
 impl FunctionLowerer<'_, '_, '_> {
@@ -243,12 +244,7 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::TreeDecision,
     ) -> CompilerResult<mir::Value> {
         // require a class target with a single props argument
-        let dir::ConstructTarget::Class {
-            constructor,
-            arguments,
-            ..
-        } = &construct.target
-        else {
+        let dir::ConstructTarget::Class { .. } = &construct.target else {
             return Err(CompilerError::Internal {
                 message: "a non-class tree component target".to_string(),
             });
@@ -263,10 +259,9 @@ impl FunctionLowerer<'_, '_, '_> {
 
         self.lower_class_instance(
             construct.return_type,
-            constructor,
-            arguments,
+            &construct.target,
             &construct.regions,
-            vec![props],
+            ConstructArguments::Values(vec![props]),
         )
     }
 }

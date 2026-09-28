@@ -49,6 +49,20 @@ pub(in crate::lower) struct GenericInstanceKey {
     pub(in crate::lower) receiver: Option<mir::GenericArgument>,
     /// The concrete generic arguments.
     pub(in crate::lower) arguments: Vec<mir::GenericArgument>,
+    /// The function of the declaration this instance is.
+    pub(in crate::lower) form: InstanceForm,
+}
+
+/// The function one instance of a declaration is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(in crate::lower) enum InstanceForm {
+    /// The declared callable.
+    Declaration,
+    /// The implicit constructor of a class, forwarding to a written constructor if any.
+    ImplicitConstructor {
+        /// The written constructor it forwards to.
+        forwards: Option<dir::GlobalSymbolId>,
+    },
 }
 
 impl GenericInstanceKey {
@@ -58,6 +72,7 @@ impl GenericInstanceKey {
             symbol,
             receiver: None,
             arguments: Vec::new(),
+            form: InstanceForm::Declaration,
         }
     }
 }
@@ -193,13 +208,14 @@ impl ModuleLowerer<'_> {
             arguments.push(argument);
         }
 
-        // lower the arguments in the enclosing parameter space, noting open ones
+        // lower the arguments, noting open ones
+        let domains = chain.index_domains(self, 0)?;
         let mut lower = self.type_lowerer(tree, enclosing);
         let mut lowered = Vec::with_capacity(arguments.len());
         let mut is_open = false;
-        for argument in arguments {
+        for (argument, (kind, is_const)) in arguments.into_iter().zip(domains) {
             is_open |= lower.lower.is_open_argument(argument)?;
-            lowered.push(lower.lower_generic_argument(argument)?);
+            lowered.push(lower.lower_generic_argument(argument, kind, is_const)?);
         }
 
         // apply the template in place when an argument stays open in the enclosing template
@@ -210,7 +226,7 @@ impl ModuleLowerer<'_> {
             });
         }
 
-        self.declare_specialization(tree, key, symbol, template, lowered, &chain)
+        self.declare_specialization(tree, key, template, lowered, &chain)
             .map(Instance::Declared)
     }
 
@@ -321,7 +337,6 @@ impl ModuleLowerer<'_> {
         &mut self,
         tree: &mut mir::Tree,
         key: &GenericInstanceKey,
-        symbol: dir::GlobalSymbolId,
         template: mir::FunctionId,
         lowered: Vec<mir::GenericArgument>,
         chain: &GenericScope,
@@ -330,15 +345,15 @@ impl ModuleLowerer<'_> {
             return Ok(*function);
         }
 
-        // declare the specialization with the template's header at the arguments
+        // declare the closed specialization
         let declared = tree.get(template).clone();
         let parameters: Vec<_> = declared
             .parameters
             .iter()
-            .map(|parameter| substitute_type(tree, parameter.ty, &lowered))
+            .map(|parameter| self.closed_type(tree, parameter.ty, &lowered))
             .collect();
-        let result = substitute_type(tree, declared.return_type, &lowered);
-        let name = self.callable_path(symbol)?;
+        let result = self.closed_type(tree, declared.return_type, &lowered);
+        let name = self.strings.get(declared.name).to_string();
 
         // declare a binder for every position the arguments erase a region to
         let mut chain = chain.clone();
@@ -360,14 +375,33 @@ impl ModuleLowerer<'_> {
             &name,
             parameters,
             result,
+            declared.park,
             &chain,
             mir::Linkage::Shared,
             None,
             declared.kind,
         )?;
-        tree.get_mut(function).template = Some(template);
+        // take the template's environment
+        let environment = declared
+            .environment
+            .map(|environment| self.closed_type(tree, environment, &lowered));
+        let specialization = tree.get_mut(function);
+        specialization.template = Some(template);
+        specialization.environment = environment;
 
         Ok(function)
+    }
+
+    /// Return one template type at closed arguments.
+    fn closed_type(
+        &self,
+        tree: &mir::Tree,
+        ty: mir::TypeId,
+        arguments: &[mir::GenericArgument],
+    ) -> mir::TypeId {
+        let ty = substitute_type(tree, ty, arguments);
+
+        mir::resolve_witness_types(tree, &self.witnesses, ty)
     }
 
     /// Return whether one class declares instance fields with initializers.
@@ -442,45 +476,41 @@ impl ModuleLowerer<'_> {
         })
     }
 
-    /// Declare the synthesized constructors of this module's own classes.
-    pub(in crate::lower) fn declare_default_constructors(
+    /// Declare the implicit constructors of this module's classes.
+    pub(in crate::lower) fn declare_implicit_constructors(
         &mut self,
         tree: &mut mir::Tree,
         errors: &mut Vec<Box<dyn DiagnosticLike>>,
     ) -> CompilerResult<()> {
-        // collect the classes this module declares without a constructor
-        let mut classes = Vec::new();
+        // collect the implicit constructors
+        let mut implicit = Vec::new();
         for (symbol, definition) in self.local().definitions.iter_definitions() {
-            let dir::Definition::Class(class) = definition else {
+            if symbol.module_id != self.module || !matches!(definition, dir::Definition::Class(_)) {
                 continue;
+            }
+            let Some(candidates) = self.local().members.class_constructors(symbol) else {
+                return Err(CompilerError::Internal {
+                    message: format!("class {symbol:?} without derived constructors"),
+                });
             };
-            if symbol.module_id != self.module {
-                continue;
+            for candidate in candidates {
+                if let dir::ClassConstructor::Implicit { forwards } = candidate.constructor {
+                    implicit.push((symbol, forwards));
+                }
             }
-            let declares_constructor = class.members.iter().any(|member| {
-                matches!(
-                    member,
-                    dir::DefinitionMember::Method(method)
-                        if method.role == Some(dir::FunctionRole::Constructor)
-                )
-            });
-            if declares_constructor {
-                continue;
-            }
-
-            classes.push(symbol);
         }
 
         // define each constructor beside its class declaration
-        for symbol in classes {
-            if !self.class_has_field_initializers(symbol)? {
+        for (class, forwards) in implicit {
+            if !self.implicit_constructor_runs(class, forwards)? {
                 continue;
             }
 
             // collect a declaration diagnostic and keep declaring the rest
-            let declared = self.declare_default_constructor(
+            let declared = self.declare_implicit_constructor(
                 tree,
-                symbol,
+                class,
+                forwards,
                 &[],
                 &GenericScope::default().erased(),
             );
@@ -494,19 +524,63 @@ impl ModuleLowerer<'_> {
         Ok(())
     }
 
-    /// Declare one class's synthesized constructor, a generic class's at its template.
-    pub(in crate::lower) fn declare_default_constructor(
+    /// Return one implicit constructor candidate.
+    pub(in crate::lower) fn implicit_constructor(
+        &mut self,
+        class: dir::GlobalSymbolId,
+        forwards: Option<dir::GlobalSymbolId>,
+    ) -> CompilerResult<dir::ClassConstructorDefinition> {
+        let constructor = dir::ClassConstructor::Implicit { forwards };
+        self.state(class.module_id)?
+            .members
+            .class_constructors(class)
+            .and_then(|candidates| {
+                candidates
+                    .iter()
+                    .find(|candidate| candidate.constructor == constructor)
+            })
+            .cloned()
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("class {class:?} derives no implicit constructor {forwards:?}"),
+            })
+    }
+
+    /// Return whether one implicit constructor runs anything.
+    pub(in crate::lower) fn implicit_constructor_runs(
+        &mut self,
+        class: dir::GlobalSymbolId,
+        forwards: Option<dir::GlobalSymbolId>,
+    ) -> CompilerResult<bool> {
+        if forwards.is_some() || self.class_has_field_initializers(class)? {
+            return Ok(true);
+        }
+
+        // follow the base constructor
+        let candidate = self.implicit_constructor(class, forwards)?;
+        match candidate.base {
+            Some(dir::ConstructTarget::Class {
+                key, constructor, ..
+            }) => self.implicit_constructor_runs(key.symbol, constructor.written()),
+            _ => Ok(false),
+        }
+    }
+
+    /// Declare one class's implicit constructor, a generic class's at its template.
+    pub(in crate::lower) fn declare_implicit_constructor(
         &mut self,
         tree: &mut mir::Tree,
         class: dir::GlobalSymbolId,
+        forwards: Option<dir::GlobalSymbolId>,
         bindings: &[dir::GenericArgumentBinding],
         enclosing: &GenericScope,
     ) -> CompilerResult<Instance> {
-        // key the constructor by the class's runtime representation in the enclosing space
-        let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
-        let key = self
+        // key the constructor
+        let source = self.symbol_type(class)?;
+        let scope = self.implicit_constructor_scope(class, forwards)?;
+        let mut key = self
             .type_lowerer(tree, enclosing)
-            .generic_instance_key(class, None, &arguments)?;
+            .generic_instance_key(class, None, bindings)?;
+        key.form = InstanceForm::ImplicitConstructor { forwards };
         if let Some(FunctionDeclaration::Declared(function)) = self.functions.get(&key) {
             return Ok(Instance::Declared(*function));
         }
@@ -520,16 +594,22 @@ impl ModuleLowerer<'_> {
         let name = format!("{}.constructor", self.symbol_path(class)?);
 
         // apply a generic class's constructor template at the arguments
-        if template.is_some() && !arguments.is_empty() {
+        if template.is_some() && !bindings.is_empty() {
             let constructor = self
-                .declare_default_constructor(tree, class, &[], &GenericScope::default().erased())?
+                .declare_implicit_constructor(
+                    tree,
+                    class,
+                    forwards,
+                    &[],
+                    &GenericScope::default().erased(),
+                )?
                 .function()?;
             let mut lower = self.type_lowerer(tree, enclosing);
-            let mut lowered = Vec::with_capacity(arguments.len());
+            let mut lowered = Vec::with_capacity(bindings.len());
             let mut is_open = false;
-            for argument in &arguments {
-                is_open |= lower.lower.is_open_argument(*argument)?;
-                lowered.push(lower.lower_generic_argument(*argument)?);
+            for binding in bindings {
+                is_open |= lower.lower.is_open_argument(binding.argument)?;
+                lowered.push(lower.lower_bound_argument(*binding)?);
             }
             // apply the template in place when an argument stays open in the enclosing template
             if is_open {
@@ -546,46 +626,74 @@ impl ModuleLowerer<'_> {
                 .collect();
             let parameters: Vec<_> = parameters
                 .into_iter()
-                .map(|parameter| substitute_type(tree, parameter, &lowered))
+                .map(|parameter| self.closed_type(tree, parameter, &lowered))
                 .collect();
-            let scope = self.class_constructor_scope(class)?;
             let function = self.insert_header(
                 tree,
                 &key,
                 &name,
                 parameters,
                 void,
+                mir::ParkBehavior::CannotPark,
                 &scope,
                 mir::Linkage::Shared,
                 None,
                 mir::FunctionKind::Constructor,
             )?;
+            tree.get_mut(function).template = Some(constructor);
 
             return Ok(Instance::Declared(function));
         }
 
-        // receive an exclusive borrow of the constructed storage at the receiver slot
-        let scope = self.class_constructor_scope(class)?;
-        let Some(slot) = scope.receiver_slot else {
-            unreachable!("a constructor scope without its receiver slot");
-        };
-        let source = self.symbol_type(class)?;
-        let nominal = self.type_lowerer(tree, &scope).lower_nominal(source)?;
-        let this =
-            constructor_receiver_type(tree, nominal.storage, mir::Lifetime::bound(slot.index));
-
-        // import a foreign class's constructor, define an own class's and queue its prologue
+        // import a foreign class's constructor
         if class.module_id != self.module {
             return Ok(Instance::Declared(self.import_header(tree, &key, &name)?));
         }
+
+        // read the receiver lifetime and access
+        let candidate = self.implicit_constructor(class, forwards)?;
+        let (signature, module) = self.signature(candidate.ty)?;
+        let (lifetime, access) = match self.types(module)?.signature(signature).this_parameter {
+            Some(this) => {
+                let this = self.type_lowerer(tree, &scope).lower(this)?;
+                let mir::Type::Reference {
+                    lifetime, access, ..
+                } = tree.type_definition(this).clone()
+                else {
+                    return Err(CompilerError::Internal {
+                        message: "a forwarded constructor receiver outside a borrow".to_string(),
+                    });
+                };
+
+                (lifetime, access)
+            }
+            None => {
+                let Some(slot) = scope.receiver_slot else {
+                    return Err(CompilerError::Internal {
+                        message: "an implicit constructor scope without its receiver".to_string(),
+                    });
+                };
+
+                (mir::Lifetime::bound(slot.index), mir::Access::Exclusive)
+            }
+        };
+        let nominal = self.type_lowerer(tree, &scope).lower_nominal(source)?;
+        let receiver = constructor_receiver_type(tree, nominal.storage, lifetime, access);
+
+        // take the forwarded parameters
+        let (mut parameters, _) = self.lower_signature(tree, candidate.ty, &scope)?;
+        parameters.insert(0, receiver);
+
+        // define the constructor and queue its body
         let function = self.insert_header(
             tree,
             &key,
             &name,
-            vec![this],
+            parameters,
             void,
+            mir::ParkBehavior::CannotPark,
             &scope,
-            mir::Linkage::Local,
+            mir::Linkage::Export,
             None,
             mir::FunctionKind::Constructor,
         )?;
@@ -598,25 +706,26 @@ impl ModuleLowerer<'_> {
             source: class.module_id,
             constructs: None,
             defaults: Vec::new(),
-            body: Body::DefaultConstructor,
+            body: Body::ImplicitConstructor { forwards },
         });
 
         Ok(Instance::Declared(function))
     }
 }
 
-/// Intern one constructor receiver: an exclusive borrow of the uninitialized constructed storage.
+/// Intern one constructor receiver.
 fn constructor_receiver_type(
     tree: &mut mir::Tree,
     storage: mir::TypeId,
     lifetime: mir::Lifetime,
+    access: mir::Access,
 ) -> mir::TypeId {
     let pointee = tree.intern_type(mir::Type::Uninit { value: storage });
 
     tree.intern_type(mir::Type::Reference {
         kind: mir::Reference::Borrowed,
         lifetime,
-        access: mir::Access::Exclusive,
+        access,
         pointee,
     })
 }

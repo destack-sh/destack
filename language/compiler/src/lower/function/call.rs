@@ -44,7 +44,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // lower by the callable the resolution selected
-        match &call.target {
+        let value = match &call.target {
             // call a directly dispatched symbol
             dir::CallableTarget::Symbol {
                 function,
@@ -105,7 +105,19 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             // reject virtual calls
             dir::CallableTarget::Symbol { .. } => Err(self.unsupported("a virtual call")),
+        }?;
+
+        // end the block after a diverging call
+        let ty = self.node_type_id(expression)?;
+        if value.is_some() && matches!(self.lower.ty(ty)?, dir::Type::Never) {
+            self.builder.unreachable();
+            let dead = self.builder.block();
+            self.builder.switch_to_block(dead);
+
+            return Ok(None);
         }
+
+        Ok(value)
     }
 
     /// Return the declared parameter representations of one function.
@@ -301,19 +313,26 @@ impl FunctionLowerer<'_, '_, '_> {
                 error => error,
             })?;
 
-        // intern the signature the call binds at its instantiated regions
+        // intern the instantiated signature
+        let tree = self.builder.tree_mut();
+        let park = match tree.get(*signature) {
+            mir::Type::FunctionSignature { park, .. } => *park,
+            _ => {
+                return Err(CompilerError::Internal {
+                    message: format!("a callee of '{path}' without its signature"),
+                });
+            }
+        };
         let parameters = parameters
             .iter()
             .map(|ty| mir::SignatureParameter::new(*ty))
             .collect();
-        *signature = self
-            .builder
-            .tree_mut()
-            .intern_type(mir::Type::FunctionSignature {
-                lifetimes: Vec::new(),
-                parameters,
-                result: *result,
-            });
+        *signature = tree.intern_type(mir::Type::FunctionSignature {
+            lifetimes: Vec::new(),
+            parameters,
+            result: *result,
+            park,
+        });
 
         Ok(())
     }
@@ -364,16 +383,12 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // substitute the arguments under the signature's region binder
-        let signature = tree.intern_type(mir::Type::FunctionSignature {
-            lifetimes: declared.lifetimes,
-            parameters: declared
-                .parameters
-                .iter()
-                .map(|parameter| mir::SignatureParameter::new(parameter.ty))
-                .collect(),
-            result: declared.return_type,
-        });
+        let signature = tree.intern_type(declared.signature());
         let signature = substitute_type(tree, signature, arguments);
+
+        // resolve closed projections
+        let signature =
+            mir::resolve_witness_types(self.builder.tree(), &self.lower.witnesses, signature);
         let parameters = self.signature_parameters(signature)?;
         let result = self.builder.signature_result(signature);
 
@@ -440,7 +455,6 @@ impl FunctionLowerer<'_, '_, '_> {
         };
         values.extend(self.lower_call_arguments(&call.arguments, parameters, &[])?);
         let result = self.call(&callee, values);
-        self.mark_park(call)?;
 
         Ok(result)
     }
@@ -503,15 +517,41 @@ impl FunctionLowerer<'_, '_, '_> {
         let mut selected = self.resolve_callee(&key)?;
         self.instantiate_symbol_callee(&mut selected, &key, resolution)?;
         let parameters = selected.parameters.clone();
-        let Some((_, parameters)) = parameters.split_first() else {
+        let Some((this, parameters)) = parameters.split_first() else {
             return Err(CompilerError::Internal {
                 message: "a method call without a declared receiver".to_string(),
             });
         };
 
-        // evaluate the receiver, then the arguments, then borrow the receiver at the call
-        let (source, borrow, rest) =
-            self.receiver_source(receiver, adjusted, is_optional, ReceiverUse::Value)?;
+        // compare the held and declared receiver access
+        let held = self.representation_type_id(receiver)?;
+        let held = self.lower_type(held)?;
+        let tree = self.builder.tree();
+        let is_reborrowed = match (tree.type_definition(held), tree.type_definition(*this)) {
+            (
+                mir::Type::Reference { access: held, .. },
+                mir::Type::Reference {
+                    access: declared, ..
+                },
+            ) => held != declared,
+            _ => false,
+        };
+
+        // borrow a place receiver directly
+        let is_borrowed_place = adjusted.adjustments.is_empty()
+            && !is_optional
+            && is_reborrowed
+            && self.is_place_expression(receiver);
+        let (source, borrow, rest) = match is_borrowed_place {
+            true => (
+                Operand::Place(self.borrowed_place(receiver, *this)?),
+                Some(*this),
+                &[][..],
+            ),
+            false => self.receiver_source(receiver, adjusted, is_optional, ReceiverUse::Value)?,
+        };
+
+        // evaluate the arguments, then finish the receiver
         let supplied = write.map(Argument::Expression);
         let arguments =
             self.lower_call_arguments(&resolution.arguments, parameters, supplied.as_slice())?;
@@ -519,7 +559,6 @@ impl FunctionLowerer<'_, '_, '_> {
         let mut values = vec![receiver];
         values.extend(arguments);
         let result = self.call(&selected, values);
-        self.mark_park(resolution)?;
 
         Ok(result)
     }
@@ -619,15 +658,6 @@ impl FunctionLowerer<'_, '_, '_> {
         self.lower_dynamic_slot_call(receiver, name, dispatch, call)
     }
 
-    /// Mark the call inserted last when the selected signature parks the current fiber.
-    pub(in crate::lower) fn mark_park(&mut self, resolution: &dir::Call) -> CompilerResult<()> {
-        if self.lower.signature_parks(resolution.callable_type)? {
-            self.builder.mark_park();
-        }
-
-        Ok(())
-    }
-
     /// Resolve one recorded selection to the callee its receiver names.
     pub(in crate::lower) fn resolve_callee(
         &mut self,
@@ -673,6 +703,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // build the signature the witness call takes under the requirement's region binders
         let lifetimes = chain.declarations(self.lower.strings);
+        let park = self.lower.signature_parks(declared)?.into();
         let signature = self
             .builder
             .tree_mut()
@@ -683,6 +714,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     .map(|parameter| mir::SignatureParameter::new(*parameter))
                     .collect(),
                 result,
+                park,
             });
 
         // close the template at the selection's arguments and the receiver, under the binders
@@ -749,6 +781,7 @@ impl FunctionLowerer<'_, '_, '_> {
         chain: &GenericScope,
     ) -> CompilerResult<Vec<mir::GenericArgument>> {
         // place each parameter's argument at its index, the receiver binding the receiver parameter
+        let this = self.lower_type(receiver)?;
         let mut arguments = vec![None; chain.count() as usize];
         for (parameter, index) in chain.parameters.clone() {
             let is_receiver = chain.receiver == Some(index);
@@ -766,7 +799,19 @@ impl FunctionLowerer<'_, '_, '_> {
                     ),
                 });
             };
-            arguments[index as usize] = Some(self.lower_generic_argument(argument)?);
+            let binding = dir::GenericArgumentBinding {
+                parameter,
+                argument,
+            };
+
+            // read this as the receiver
+            let mut lowerer = self
+                .lower
+                .type_lowerer(self.builder.tree_mut(), &self.scope);
+            if index < chain.owner_count {
+                lowerer.this_type = Some(this);
+            }
+            arguments[index as usize] = Some(lowerer.lower_bound_argument(binding)?);
         }
 
         // place each dependent's evaluated value, the owners' first
@@ -780,7 +825,8 @@ impl FunctionLowerer<'_, '_, '_> {
                     ),
                 });
             };
-            arguments[dependent.index as usize] = Some(self.lower_generic_argument(value)?);
+            arguments[dependent.index as usize] =
+                Some(self.lower_generic_argument(value, dependent.kind, dependent.is_const())?);
         }
 
         arguments
@@ -801,8 +847,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Instance> {
         // call a symbol without template parameters as its declared function
         let bindings = self.lower.selection_bindings(selection)?;
-        let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
-        let key = self.generic_instance_key(symbol, selection.receiver, &arguments)?;
+        let key = self.generic_instance_key(symbol, selection.receiver, &bindings)?;
         let slots = self.lower.symbol_scope(symbol)?.count();
         if slots == 0 {
             return self.function(&key).map(Instance::Declared);
@@ -1077,9 +1122,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "a this outside a method body".to_string(),
             });
         };
-        let value = self.read_binding(binding)?;
-
-        self.lower_narrowing(expression, value)
+        self.lower_narrowing(expression, |lower| lower.read_binding(binding))
     }
 
     /// Evaluate one receiver expression up to the borrow its adjustments lead with.
@@ -1225,6 +1268,10 @@ impl FunctionLowerer<'_, '_, '_> {
                     let target = self.lower_type(*ty)?;
 
                     self.builder.cast(mir::CastOperator::Bitcast, value, target)
+                }
+                // materialize the singleton
+                dir::ReceiverAdjustment::Materialize { singleton, ty } => {
+                    self.materialize_singleton(*singleton, *ty)?
                 }
             };
         }

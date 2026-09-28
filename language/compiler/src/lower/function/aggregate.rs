@@ -14,6 +14,19 @@ struct ConstructionField {
     is_optional: bool,
 }
 
+/// The arguments one class construction passes its constructor.
+pub(in crate::lower) enum ConstructArguments<'a> {
+    /// The written arguments.
+    Written {
+        /// The argument bindings.
+        arguments: &'a [dir::ArgumentBinding],
+        /// The supplied values.
+        supplied: &'a [Argument],
+    },
+    /// The lowered values.
+    Values(Vec<mir::Value>),
+}
+
 impl FunctionLowerer<'_, '_, '_> {
     /// Lower one construct call through its construct resolution.
     pub(in crate::lower) fn lower_construct(
@@ -59,18 +72,6 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         resolution: &dir::ConstructDecision,
     ) -> CompilerResult<mir::Value> {
-        // require a class construct target
-        let dir::ConstructTarget::Class {
-            key: selection,
-            constructor,
-            arguments,
-        } = &resolution.target
-        else {
-            return Err(CompilerError::Internal {
-                message: "a super call outside a class constructor target".to_string(),
-            });
-        };
-
         // read the receiver the base constructor initializes
         let Some(this) = self.this else {
             return Err(CompilerError::Internal {
@@ -80,79 +81,13 @@ impl FunctionLowerer<'_, '_, '_> {
         let place = self.binding_home(this)?;
         let this = self.place_reborrow(&place)?;
 
-        // resolve the base constructor behind the selection
-        let symbol = match constructor {
-            dir::ClassConstructor::Declared { symbol } => Some(*symbol),
-            dir::ClassConstructor::Default => None,
-            other => {
-                return Err(self.internal(format!("a {} super constructor", other.name())));
-            }
-        };
-
-        // run the synthesized constructor of a defaulted base that stores initializers
-        let target = match symbol {
-            Some(symbol) => Some(symbol),
-            None if self.lower.class_has_field_initializers(selection.symbol)? => {
-                Some(selection.symbol)
-            }
-            None => None,
-        };
-
-        // resolve the target constructor at the selected instance
-        let resolved = match target {
-            Some(symbol) => {
-                // declare the synthesized constructor a defaulted base stands in for
-                let constructor = if symbol == selection.symbol {
-                    self.ensure_default_constructor(selection.symbol, &selection.arguments)?;
-
-                    selection.clone()
-                } else {
-                    dir::InstanceKey::new(symbol, arguments.clone())
-                };
-                let constructor =
-                    self.with_type_lifetimes(symbol, &constructor, &resolution.regions)?;
-
-                let function = self.resolve_callee_of(symbol, &constructor)?;
-
-                Some((symbol, function, constructor))
-            }
-            None => None,
-        };
-
-        // call the base constructor over the narrowed receiver at the base's bindings
-        if let Some((symbol, mut function, constructor)) = resolved {
-            let region = self.reborrow_lifetime(this);
-            let (scope, regions) = if symbol == selection.symbol {
-                (
-                    self.lower.class_constructor_scope(symbol)?,
-                    selection.arguments.as_slice(),
-                )
-            } else {
-                (
-                    self.lower.symbol_scope(symbol)?,
-                    resolution.regions.as_slice(),
-                )
-            };
-            let positions = self.erased_region_positions(&constructor)?;
-            self.instantiate_signature(
-                &mut function.parameters,
-                &mut function.result,
-                &scope,
-                regions,
-                &positions,
-                Some(region),
-            )?;
-            let parameters = function.parameters.clone();
-            let Some((receiver, parameters)) = parameters.split_first() else {
-                return Err(CompilerError::Internal {
-                    message: "a base constructor without a declared receiver".to_string(),
-                });
-            };
-            let receiver = self
-                .builder
-                .cast(mir::CastOperator::Bitcast, this, *receiver);
-            let mut values = vec![receiver];
-            values.extend(self.lower_call_arguments(&resolution.arguments, parameters, &[])?);
+        // call the base constructor
+        let (target, regions) = (&resolution.target, resolution.regions.as_slice());
+        if let Some(mut function) = self.class_constructor(target, regions)? {
+            self.bind_class_constructor(target, regions, &mut function, this)?;
+            let parameters = function.parameters[1..].to_vec();
+            let mut values = vec![self.constructed_receiver(this, &function)?];
+            values.extend(self.lower_call_arguments(&resolution.arguments, &parameters, &[])?);
             self.call(&function, values);
         }
 
@@ -167,65 +102,178 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.constant(mir::Constant::Zeroed, void))
     }
 
+    /// Lower one implicit constructor body.
+    pub(in crate::lower) fn lower_implicit_constructor(
+        &mut self,
+        class: dir::GlobalSymbolId,
+        forwards: Option<dir::GlobalSymbolId>,
+    ) -> CompilerResult<()> {
+        // read the receiver and base construction
+        let Some(this) = self.this else {
+            return Err(self.internal("an implicit constructor without a receiver"));
+        };
+        let candidate = self.lower.implicit_constructor(class, forwards)?;
+
+        // run the base constructor
+        if let Some(base) = &candidate.base {
+            let place = self.binding_home(this)?;
+            let this = self.place_reborrow(&place)?;
+            if let Some(mut function) = self.class_constructor(base, &[])? {
+                self.bind_class_constructor(base, &[], &mut function, this)?;
+                let count = self.function_parameters(self.builder.function_id()).len();
+                let mut values = vec![self.constructed_receiver(this, &function)?];
+                values.extend((1..count).map(|index| self.builder.function_parameter(index)));
+                self.call(&function, values);
+            }
+        }
+
+        self.lower_field_initializers(class)
+    }
+
+    /// Resolve the constructor one class construction runs.
+    fn class_constructor(
+        &mut self,
+        target: &dir::ConstructTarget,
+        regions: &[dir::GenericArgumentBinding],
+    ) -> CompilerResult<Option<Callee>> {
+        let dir::ConstructTarget::Class {
+            key,
+            constructor,
+            arguments,
+        } = target
+        else {
+            return Err(self.internal("a class construction without its selected class"));
+        };
+
+        // resolve the written or implicit constructor
+        match *constructor {
+            dir::ClassConstructor::Declared { symbol } => {
+                let selection = self.written_selection(symbol, arguments, regions)?;
+
+                Ok(Some(self.resolve_callee_of(symbol, &selection)?))
+            }
+            dir::ClassConstructor::Implicit { forwards } => {
+                if !self.lower.implicit_constructor_runs(key.symbol, forwards)? {
+                    return Ok(None);
+                }
+                let bindings = self.lower.instance_bindings(arguments)?;
+                let instance = self.lower.declare_implicit_constructor(
+                    self.builder.tree_mut(),
+                    key.symbol,
+                    forwards,
+                    &bindings,
+                    &self.scope,
+                )?;
+
+                Ok(Some(self.callee_of(instance)?))
+            }
+        }
+    }
+
+    /// Bind the regions of one class constructor.
+    fn bind_class_constructor(
+        &mut self,
+        target: &dir::ConstructTarget,
+        regions: &[dir::GenericArgumentBinding],
+        function: &mut Callee,
+        storage: mir::Value,
+    ) -> CompilerResult<()> {
+        let dir::ConstructTarget::Class {
+            key,
+            constructor,
+            arguments,
+        } = target
+        else {
+            return Err(self.internal("a class construction without its selected class"));
+        };
+
+        // read the scope and bindings
+        let (scope, positions, bindings) = match *constructor {
+            dir::ClassConstructor::Declared { symbol } => {
+                let selection = self.written_selection(symbol, arguments, regions)?;
+                let positions = self.erased_region_positions(&selection)?;
+
+                (
+                    self.lower.symbol_scope(symbol)?,
+                    positions,
+                    regions.to_vec(),
+                )
+            }
+            dir::ClassConstructor::Implicit { forwards } => {
+                let scope = self
+                    .lower
+                    .implicit_constructor_scope(key.symbol, forwards)?;
+                let bindings = arguments.iter().chain(regions).copied().collect();
+
+                (scope, Vec::new(), bindings)
+            }
+        };
+
+        let region = self.reborrow_lifetime(storage);
+
+        self.instantiate_signature(
+            &mut function.parameters,
+            &mut function.result,
+            &scope,
+            &bindings,
+            &positions,
+            Some(region),
+        )
+    }
+
+    /// Return the instance one written constructor runs at.
+    fn written_selection(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        arguments: &[dir::GenericArgumentBinding],
+        regions: &[dir::GenericArgumentBinding],
+    ) -> CompilerResult<dir::InstanceKey> {
+        let bindings = self.lower.instance_bindings(arguments)?;
+        let selection = dir::InstanceKey::new(symbol, bindings);
+
+        self.with_type_lifetimes(symbol, &selection, regions)
+    }
+
     /// Lower one class construction to an allocation and its constructor call.
     fn lower_class_construct(
         &mut self,
         resolution: &dir::ConstructDecision,
         supplied: &[Argument],
     ) -> CompilerResult<mir::Value> {
-        // read the selected class and its initializer
-        let dir::ConstructTarget::Class {
-            constructor,
-            arguments,
-            ..
-        } = &resolution.target
-        else {
-            return Err(self.internal("a class construction without its selected class"));
-        };
-
-        // adapt the arguments against the declared constructor header
-        let values = match constructor {
-            // bind the written arguments to the declared parameters after the receiver
-            dir::ClassConstructor::Declared { symbol } => {
-                let selection = dir::InstanceKey::new(*symbol, arguments.clone());
-                let selection =
-                    self.with_type_lifetimes(*symbol, &selection, &resolution.regions)?;
-                let function = self.resolve_callee_of(*symbol, &selection)?;
-                let parameters = self.signature_parameters(function.signature)?;
-                let Some((_, parameters)) = parameters.split_first() else {
-                    return Err(CompilerError::Internal {
-                        message: "a constructor without a declared receiver".to_string(),
-                    });
-                };
-
-                self.lower_call_arguments(&resolution.arguments, parameters, supplied)?
-            }
-            // pass nothing to a defaulted constructor
-            dir::ClassConstructor::Default => Vec::new(),
-            // reject every remaining constructor kind
-            other => {
-                return Err(self.internal(format!("a {other:?} constructor")));
-            }
-        };
-
+        // allocate and construct the instance
         self.lower_class_instance(
             resolution.return_type,
-            constructor,
-            arguments,
+            &resolution.target,
             &resolution.regions,
-            values,
+            ConstructArguments::Written {
+                arguments: &resolution.arguments,
+                supplied,
+            },
         )
     }
 
-    /// Lower class construction with evaluated arguments and instantiated constructor regions.
+    /// Lower one class construction.
     pub(in crate::lower) fn lower_class_instance(
         &mut self,
         return_type: dir::GlobalTypeId,
-        constructor: &dir::ClassConstructor,
-        generic_arguments: &[dir::GenericArgumentBinding],
+        target: &dir::ConstructTarget,
         regions: &[dir::GenericArgumentBinding],
-        arguments: Vec<mir::Value>,
+        arguments: ConstructArguments<'_>,
     ) -> CompilerResult<mir::Value> {
+        // evaluate the arguments
+        let constructor = self.class_constructor(target, regions)?;
+        let parameters = match &constructor {
+            Some(function) => self.signature_parameters(function.signature)?[1..].to_vec(),
+            None => Vec::new(),
+        };
+        let values = match arguments {
+            ConstructArguments::Written {
+                arguments,
+                supplied,
+            } => self.lower_call_arguments(arguments, &parameters, supplied)?,
+            ConstructArguments::Values(values) => values,
+        };
+
         // lower the return form and its class representation
         let representation = self.lower_type(return_type)?;
         let nominal = self.lower_nominal(return_type)?;
@@ -261,77 +309,15 @@ impl FunctionLowerer<'_, '_, '_> {
             (address, Some(slot))
         };
 
-        // initialize the selected storage
-        match constructor {
-            // call the constructor the class declares
-            dir::ClassConstructor::Declared { symbol } => {
-                // select the declared instance from the substituted class arguments
-                let bindings = self.lower.instance_bindings(generic_arguments)?;
-                let selection = dir::InstanceKey::new(*symbol, bindings);
-                let selection = self.with_type_lifetimes(*symbol, &selection, regions)?;
-                let mut function = self.resolve_callee_of(*symbol, &selection)?;
-                let region = self.reborrow_lifetime(storage);
-                let scope = self.lower.symbol_scope(*symbol)?;
-                let positions = self.erased_region_positions(&selection)?;
-                self.instantiate_signature(
-                    &mut function.parameters,
-                    &mut function.result,
-                    &scope,
-                    regions,
-                    &positions,
-                    Some(region),
-                )?;
-
-                // bind the constructor arguments after the receiver
-                let receiver = self.constructed_receiver(storage, &function)?;
-                let mut values = Vec::with_capacity(arguments.len() + 1);
-                values.push(receiver);
-                values.extend(arguments);
-                self.call(&function, values);
-            }
-            // call the synthesized constructor a defaulted class stands in for
-            dir::ClassConstructor::Default => {
-                // peel the return form down to the constructed class
-                let stored = match self.lower.indirection(return_type, &self.scope)? {
-                    Some(reference) => reference.stored,
-                    None => self.lower.stored(return_type)?,
-                };
-                let dir::Type::Application(application) = self.lower.ty(stored)? else {
-                    return Err(CompilerError::Internal {
-                        message: "a class construction outside an application type".to_string(),
-                    });
-                };
-
-                // synthesize the call only where the class stores initializers
-                let class = application.symbol;
-                if self.lower.class_has_field_initializers(class)? {
-                    let bindings = self.lower.instance_bindings(generic_arguments)?;
-                    let constructor = self.lower.declare_default_constructor(
-                        self.builder.tree_mut(),
-                        class,
-                        &bindings,
-                        &self.scope,
-                    )?;
-                    let mut selected = self.callee_of(constructor)?;
-                    let region = self.reborrow_lifetime(storage);
-                    let scope = self.lower.class_constructor_scope(class)?;
-                    self.instantiate_signature(
-                        &mut selected.parameters,
-                        &mut selected.result,
-                        &scope,
-                        generic_arguments,
-                        &[],
-                        Some(region),
-                    )?;
-                    let receiver = self.constructed_receiver(storage, &selected)?;
-                    self.call(&selected, vec![receiver]);
-                }
-            }
-            // reject every remaining constructor kind
-            other => {
-                return Err(self.internal(format!("a {other:?} constructor")));
-            }
-        };
+        // run the constructor over the storage
+        if let Some(mut function) = constructor {
+            self.bind_class_constructor(target, regions, &mut function, storage)?;
+            let receiver = self.constructed_receiver(storage, &function)?;
+            let mut arguments = Vec::with_capacity(values.len() + 1);
+            arguments.push(receiver);
+            arguments.extend(values);
+            self.call(&function, arguments);
+        }
 
         // move completed local storage directly, retaining allocated reference results
         let object = match local {
@@ -555,24 +541,6 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.aggregate(ty, values))
     }
 
-    /// Declare the synthesized default constructor one construction calls.
-    fn ensure_default_constructor(
-        &mut self,
-        class: dir::GlobalSymbolId,
-        generic_arguments: &[dir::GenericArgumentBinding],
-    ) -> CompilerResult<()> {
-        let bindings = self.lower.instance_bindings(generic_arguments)?;
-
-        self.lower.declare_default_constructor(
-            self.builder.tree_mut(),
-            class,
-            &bindings,
-            &self.scope,
-        )?;
-
-        Ok(())
-    }
-
     /// Store the declared field initializers through one constructor receiver.
     pub(in crate::lower) fn lower_field_initializers(
         &mut self,
@@ -670,6 +638,14 @@ impl FunctionLowerer<'_, '_, '_> {
             if is_void {
                 continue;
             }
+
+            // materialize a singleton initializer
+            let value = match self.node_type(expression)? {
+                dir::Type::Literal(literal) if self.coercion(expression).is_none() => {
+                    self.lower_constant(literal, representation)?
+                }
+                _ => value,
+            };
 
             // store the settled value at its declared representation through the receiver
             let this = self.place_reborrow(&place)?;
@@ -808,15 +784,21 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // ground the declaration's parameters at the application's arguments
         for (parameter, argument) in parameters.into_iter().zip(arguments) {
+            let parameter = parameter.into_global(module);
+            let binding = dir::GenericArgumentBinding {
+                parameter,
+                argument,
+            };
             let argument = self
                 .lower
                 .type_lowerer(tree, &self.scope)
-                .lower_generic_argument(argument)?;
-            let index = scope
-                .parameter_index(parameter.into_global(module))
-                .ok_or_else(|| CompilerError::Internal {
-                    message: "a declaration parameter outside its grounded scope".to_string(),
-                })?;
+                .lower_bound_argument(binding)?;
+            let index =
+                scope
+                    .parameter_index(parameter)
+                    .ok_or_else(|| CompilerError::Internal {
+                        message: "a declaration parameter outside its grounded scope".to_string(),
+                    })?;
             scope.grounding[index as usize] = argument;
         }
 
@@ -905,14 +887,23 @@ impl FunctionLowerer<'_, '_, '_> {
             return Err(self.unsupported("an object literal outside its concrete class"));
         };
 
-        // gather each written value under its property name
+        // evaluate the properties in source order
         let mut written = Vec::with_capacity(properties.len());
         for property in properties {
-            let dir::Property::Field { name, value, .. } = self.source().tree().get(*property)
-            else {
-                return Err(self.unsupported("a method or spread object property"));
-            };
-            written.push((dir::StaticKey::from(*name), *value));
+            match self.source().tree().get(*property).clone() {
+                dir::Property::Field { name, value, .. } => {
+                    let value = self.lower_value(value)?;
+                    written.push((dir::StaticKey::from(name), value));
+                }
+                dir::Property::Spread { value } => {
+                    let source = self.lower_value(value)?;
+                    for (key, field) in self.spread_fields(*property)? {
+                        let value = self.read_field(source, &field)?;
+                        written.push((key, value));
+                    }
+                }
+                _ => return Err(self.unsupported("a method object property")),
+            }
         }
 
         // lower the declared representation and the struct storage construction fills
@@ -929,31 +920,12 @@ impl FunctionLowerer<'_, '_, '_> {
             }
         };
 
-        // build the concrete instance in declaration order
+        // build the instance in declaration order
         let mut values = Vec::with_capacity(declared.len());
         for (index, field) in declared.iter().enumerate() {
-            match written.iter().find(|(key, _)| *key == field.key) {
-                Some((_, value)) => {
-                    // skip singleton literal properties storing no runtime value
-                    let representation = self.property_representation(concrete, index)?;
-                    let is_void = matches!(
-                        self.builder.tree().type_definition(representation),
-                        mir::Type::Void
-                    );
-                    let is_literal = matches!(
-                        self.source().tree().get(*value),
-                        dir::Expression::Literal(_)
-                    );
-                    if is_void && is_literal {
-                        values.push(self.builder.constant(mir::Constant::Zeroed, representation));
-
-                        continue;
-                    }
-
-                    // store the value at the property's storage
-                    let value = self.lower_value(*value)?;
-                    values.push(value);
-                }
+            match written.iter().rev().find(|(key, _)| *key == field.key) {
+                // store a supplied value
+                Some((_, value)) => values.push(*value),
                 // store the undefined case for absent optional properties
                 None if field.is_optional => {
                     values.push(self.lower_absent_property(concrete, index)?);
@@ -972,10 +944,49 @@ impl FunctionLowerer<'_, '_, '_> {
 
         Ok(match reference {
             // allocate managed destinations on the heap
-            Some(reference) => self.builder.new_complete(aggregate, reference),
+            Some(reference) => self.box_value(aggregate, reference)?,
             // hold owned destinations in place
             None => aggregate,
         })
+    }
+
+    /// Return the fields one spread property supplies.
+    fn spread_fields(
+        &mut self,
+        property: dir::LocalNodeId<dir::Property>,
+    ) -> CompilerResult<Vec<(dir::StaticKey, dir::FieldResolution)>> {
+        // read the spread subject
+        let site = dir::MemberSite::Node(property.into_global_any(self.source));
+        let Some((subject, _)) = self.source().members.subject(site) else {
+            return Err(self.internal("a spread property without its member subject"));
+        };
+        let dir::Type::Object(shape) = self.lower.ty(subject.key_source)? else {
+            return Err(self.internal("a spread subject keyed outside an object type"));
+        };
+        let properties = self
+            .lower
+            .types(subject.key_source.module_id)?
+            .properties(shape.properties)
+            .to_vec();
+
+        // read each key structurally
+        let mut fields = Vec::with_capacity(properties.len());
+        for property in properties {
+            let Some(ty) = property.access.read() else {
+                continue;
+            };
+            let field = dir::FieldResolution {
+                receiver: dir::MemberReceiver::direct(subject.receiver),
+                target: dir::FieldTarget::Structural {
+                    owner: subject.receiver,
+                    key: property.key,
+                },
+                ty,
+            };
+            fields.push((property.key, field));
+        }
+
+        Ok(fields)
     }
 
     /// Return the construction fields one committed object type declares.

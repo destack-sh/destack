@@ -10,7 +10,8 @@ use tspp_source::{ModuleId, TargetId};
 
 use crate::lower::{
     DeclaredModule, DirModule, FunctionDeclaration, FunctionDefinition, FunctionLowerer,
-    GenericInstanceKey, GenericScope, LowerPhase, NominalInstance, NominalState,
+    GenericInstanceKey, GenericScope, InstanceForm, LowerPhase, NominalInstance, NominalState,
+    literal_static,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -90,6 +91,8 @@ pub(crate) struct ModuleLowerer<'a> {
     /// The witnesses this module records, keyed by the lowered, lifetime-erased type answering.
     pub(in crate::lower) lowered_witnesses:
         FxIndexMap<mir::TypeId, Vec<(dir::GlobalTypeId, dir::Witness)>>,
+    /// The witness table this module closes.
+    pub(in crate::lower) witnesses: mir::WitnessTable,
 
     // queues
     /// The bodies declared while lowering, awaiting their own lowering.
@@ -155,6 +158,7 @@ impl<'a> ModuleLowerer<'a> {
             modules: FxIndexMap::default(),
             declared: FxIndexMap::default(),
             lowered_witnesses: FxIndexMap::default(),
+            witnesses: mir::WitnessTable::default(),
 
             // queues
             pending: Vec::new(),
@@ -278,58 +282,6 @@ impl<'a> ModuleLowerer<'a> {
         }
     }
 
-    /// Return whether one type denotes a lifetime.
-    pub(in crate::lower) fn type_is_lifetime(
-        &mut self,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        self.type_is_lifetime_guarded(ty, &mut Vec::new())
-    }
-
-    /// Return whether one type denotes a lifetime, tracking the visited unions.
-    fn type_is_lifetime_guarded(
-        &mut self,
-        ty: dir::GlobalTypeId,
-        visiting: &mut Vec<dir::GlobalTypeId>,
-    ) -> CompilerResult<bool> {
-        Ok(match self.ty(ty)? {
-            // region terms name lifetimes directly
-            dir::Type::Region(_) => true,
-            // memory literals name lifetimes as strings
-            dir::Type::Literal(dir::Literal::String(name)) => {
-                dir::Lifetime::parse(self.strings.get(name)).is_some()
-            }
-            // region parameters name lifetimes through their binding
-            dir::Type::Parameter(parameter) => {
-                let binding = self
-                    .state(parameter.module_id)?
-                    .generics
-                    .get_parameter(parameter.local_id);
-
-                binding.memory_parameter() == Some(dir::MemoryParameter::Region)
-            }
-            // a union names a lifetime once every element does
-            dir::Type::Union(union) => {
-                if visiting.contains(&ty) {
-                    return Ok(false);
-                }
-
-                visiting.push(ty);
-
-                let elements = self.types(ty.module_id)?.type_ids(union.elements).to_vec();
-                for element in elements {
-                    if !self.type_is_lifetime_guarded(element, visiting)? {
-                        return Ok(false);
-                    }
-                }
-
-                !union.elements.is_empty()
-            }
-            // every other head denotes a value
-            _ => false,
-        })
-    }
-
     /// Return whether one nominal type's declaration derives Copy.
     pub(in crate::lower) fn nominal_copies(
         &mut self,
@@ -428,12 +380,12 @@ impl<'a> ModuleLowerer<'a> {
                     symbol: hook.symbol,
                     receiver: None,
                     arguments: arguments.clone(),
+                    form: InstanceForm::Declaration,
                 };
                 let chain = self.symbol_scope(hook.symbol)?;
                 self.declare_specialization(
                     builder.tree_mut(),
                     &key,
-                    hook.symbol,
                     entry.function,
                     arguments,
                     &chain,
@@ -452,12 +404,11 @@ impl<'a> ModuleLowerer<'a> {
         key: &dir::InstanceKey,
     ) -> CompilerResult<WitnessEntry> {
         let bindings = self.instance_bindings(&key.arguments)?;
-        let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
         let caller = GenericScope::default().erased();
         let instance_key = self.type_lowerer(tree, &caller).generic_instance_key(
             key.symbol,
             key.receiver,
-            &arguments,
+            &bindings,
         )?;
 
         // declare a closed callable as the function itself
@@ -506,12 +457,13 @@ impl<'a> ModuleLowerer<'a> {
             }
         }
 
-        // lower the placed arguments, then keep the template while one stays open
+        // lower the placed arguments
+        let domains = chain.index_domains(self, 0)?;
         let mut lower = self.type_lowerer(tree, &caller);
         let mut lowered = Vec::with_capacity(placed.len());
-        for argument in placed {
+        for (argument, (kind, is_const)) in placed.into_iter().zip(domains) {
             lowered.push(match argument {
-                Some(argument) => Some(lower.lower_generic_argument(argument)?),
+                Some(argument) => Some(lower.lower_generic_argument(argument, kind, is_const)?),
                 None => None,
             });
         }
@@ -522,14 +474,8 @@ impl<'a> ModuleLowerer<'a> {
             });
         }
         let arguments = lowered.into_iter().flatten().collect();
-        let function = self.declare_specialization(
-            tree,
-            &instance_key,
-            key.symbol,
-            template,
-            arguments,
-            &chain,
-        )?;
+        let function =
+            self.declare_specialization(tree, &instance_key, template, arguments, &chain)?;
 
         Ok(WitnessEntry {
             function,
@@ -630,7 +576,17 @@ impl<'a> ModuleLowerer<'a> {
                         ),
                     });
                 };
-                constants.push(mir::WitnessConst { member, global });
+                let value = match self.module_constant(constant.value)? {
+                    Some(dir::StaticTerm::Literal { value }) => {
+                        Some(tree.intern_static(literal_static(value)))
+                    }
+                    _ => None,
+                };
+                constants.push(mir::WitnessConst {
+                    member,
+                    global,
+                    value,
+                });
             }
 
             table.insert(mir::Witness {
@@ -678,8 +634,17 @@ impl<'a> ModuleLowerer<'a> {
         // declare identities: types, callable headers, globals, imports, instances
         let (bodies, mut errors) = self.declare_module(builder.tree_mut())?;
 
-        // record the witnesses this module closes, declaring the implementers they name
+        // record the witnesses
         let witnesses = self.lower_witness_table(builder.tree_mut())?;
+        self.witnesses = witnesses.clone();
+
+        // lower the module initializer
+        let mut initializer = None;
+        match self.lower_module_initializer(&mut builder) {
+            Ok(function) => initializer = function,
+            Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
+            Err(error) => return Err(error),
+        }
 
         // lower every declared body
         let mut queue = VecDeque::from(bodies);
@@ -705,14 +670,6 @@ impl<'a> ModuleLowerer<'a> {
             Err(error) => return Err(error),
         }
 
-        // store the runtime bindings from the module initializer
-        let mut initializer = None;
-        match self.lower_module_initializer(&mut builder) {
-            Ok(function) => initializer = function,
-            Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
-            Err(error) => return Err(error),
-        }
-
         // lay out every represented type, reporting a layout diagnostic beside the lowering errors
         let target = builder.target_layout();
         let (tree, layouts) = builder.tree_and_layouts_mut();
@@ -733,7 +690,7 @@ impl<'a> ModuleLowerer<'a> {
         self.publish_dispatch_shapes(&mut builder);
 
         // publish the lowered names into the shared pool
-        let (tree, target, layouts, dispatch, drops, witnesses, effects, profile, strings) =
+        let (tree, target, layouts, dispatch, drops, witnesses, profile, strings) =
             builder.finish();
         self.strings.ensure_all_from(&strings);
 
@@ -745,7 +702,6 @@ impl<'a> ModuleLowerer<'a> {
             dispatch,
             drops,
             witnesses,
-            effects,
             profile,
             initializer,
         };

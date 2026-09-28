@@ -24,7 +24,7 @@ type test.main.Point {
     y: int32;
 }
 
-function test.main.sum(v0: test.main.Point): int32 {
+export function test.main.sum(v0: test.main.Point): int32 {
     local l0: test.main.Point
 
 entry(v0: test.main.Point):
@@ -71,7 +71,7 @@ type test.main.Frame {
     size: test.main.Size;
 }
 
-function test.main.area(v0: test.main.Frame): int32 {
+export function test.main.area(v0: test.main.Frame): int32 {
     local l0: test.main.Frame
 
 entry(v0: test.main.Frame):
@@ -112,7 +112,7 @@ type test.main.Meter {
 @languageItem("string.String")
 type String;
 
-function test.main.read<'a>(v0: ref<test.main.Meter, borrowed, 'a, readonly>): ref<String, borrowed, 'a, readonly> {
+export function test.main.read<'a>(v0: ref<test.main.Meter, borrowed, 'a, readonly>): ref<String, borrowed, 'a, readonly> {
     local l0: ref<test.main.Meter, borrowed, 'a, readonly>
 
 entry(v0: ref<test.main.Meter, borrowed, 'a, readonly>):
@@ -161,56 +161,54 @@ type String {
     codeUnits: slice<uint16, unique, mutable>;
 }
 
-constant string.0: String = "x"
+shared constant string.0: String = "x"
 
-function test.main.Box.implicit<'a>(v0: ref<test.main.Box, borrowed, 'a, readonly>): ref<String, borrowed, 'a, readonly> {
+export function test.main.Box.implicit<'a>(v0: ref<test.main.Box, borrowed, 'a, readonly>): ref<String, borrowed, 'a, readonly> {
     local l0: ref<test.main.Box, borrowed, 'a, readonly>
     local l1: ref<String, borrowed, 'a, readonly>, readonly
 
 entry(v0: ref<test.main.Box, borrowed, 'a, readonly>):
     store l0, v0
-    v1: ref<test.main.Box, borrowed, 'a, readonly> = load l0
-    v2: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = load (*v1).0
-    variant.switch v2, 1 => b2, else b1
+    v1: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = load (*l0).0
+    variant.switch v1, 1 => b2, else b1
 
 b1:
-    v3: ref<String, managed, mutable, local> = variant.payload v2, 0
-    store l1, v3
+    v2: ref<String, managed, mutable, local> = variant.payload v1, 0
+    store l1, v2
     jump b3
 
 b2:
-    v4: ref<String, managed, mutable, local> = address @string.0
-    store l1, v4
+    v3: ref<String, managed, mutable, local> = address @string.0
+    store l1, v3
     jump b3
 
 b3:
-    v5: ref<String, borrowed, 'a, readonly> = load l1
-    return v5
+    v4: ref<String, borrowed, 'a, readonly> = load l1
+    return v4
 }
 
-function test.main.Box.explicit<'a>(v0: ref<test.main.Box, borrowed, 'a, readonly>): ref<String, borrowed, 'a, readonly> {
+export function test.main.Box.explicit<'a>(v0: ref<test.main.Box, borrowed, 'a, readonly>): ref<String, borrowed, 'a, readonly> {
     local l0: ref<test.main.Box, borrowed, 'a, readonly>
     local l1: ref<String, borrowed, 'a, readonly>, readonly
 
 entry(v0: ref<test.main.Box, borrowed, 'a, readonly>):
     store l0, v0
-    v1: ref<test.main.Box, borrowed, 'a, readonly> = load l0
-    v2: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = load (*v1).0
-    variant.switch v2, 1 => b2, else b1
+    v1: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = load (*l0).0
+    variant.switch v1, 1 => b2, else b1
 
 b1:
-    v3: ref<String, managed, mutable, local> = variant.payload v2, 0
-    store l1, v3
+    v2: ref<String, managed, mutable, local> = variant.payload v1, 0
+    store l1, v2
     jump b3
 
 b2:
-    v4: ref<String, managed, mutable, local> = address @string.0
-    store l1, v4
+    v3: ref<String, managed, mutable, local> = address @string.0
+    store l1, v3
     jump b3
 
 b3:
-    v5: ref<String, borrowed, 'a, readonly> = load l1
-    return v5
+    v4: ref<String, borrowed, 'a, readonly> = load l1
+    return v4
 }
 
 /// @layout.struct name=test.main.Box size=8 align=8
@@ -236,29 +234,28 @@ type test.main.Box {
 @languageItem("string.String")
 type String;
 
-function test.main.Box.implicit<'a>(v0: ref<test.main.Box, borrowed, 'a, readonly>): ref<String, borrowed, 'a, readonly> {
+export function test.main.Box.implicit<'a>(v0: ref<test.main.Box, borrowed, 'a, readonly>): ref<String, borrowed, 'a, readonly> {
     local l0: ref<test.main.Box, borrowed, 'a, readonly>
     local l1: ref<String, borrowed, 'a, readonly>, readonly
 
 entry(v0: ref<test.main.Box, borrowed, 'a, readonly>):
     store l0, v0
-    v1: ref<test.main.Box, borrowed, 'a, readonly> = load l0
-    v2: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = load (*v1).0
-    variant.switch v2, 1 => b2, else b1
+    v1: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = load (*l0).0
+    variant.switch v1, 1 => b2, else b1
 
 b1:
-    v3: ref<String, managed, mutable, local> = variant.payload v2, 0
-    store l1, v3
+    v2: ref<String, managed, mutable, local> = variant.payload v1, 0
+    store l1, v2
     jump b3
 
 b2:
-    v4: ref<String, managed, mutable, local> = address @string.0
-    store l1, v4
+    v3: ref<String, managed, mutable, local> = address @string.0
+    store l1, v3
     jump b3
 
 b3:
-    v5: ref<String, borrowed, 'a, readonly> = load l1
-    return v5
+    v4: ref<String, borrowed, 'a, readonly> = load l1
+    return v4
 }
 
 /// @layout.struct name=test.main.Box size=8 align=8
@@ -278,29 +275,28 @@ type test.main.Box {
 @languageItem("string.String")
 type String;
 
-function test.main.Box.explicit<'a>(v0: ref<test.main.Box, borrowed, 'a, readonly>): ref<String, borrowed, 'a, readonly> {
+export function test.main.Box.explicit<'a>(v0: ref<test.main.Box, borrowed, 'a, readonly>): ref<String, borrowed, 'a, readonly> {
     local l0: ref<test.main.Box, borrowed, 'a, readonly>
     local l1: ref<String, borrowed, 'a, readonly>, readonly
 
 entry(v0: ref<test.main.Box, borrowed, 'a, readonly>):
     store l0, v0
-    v1: ref<test.main.Box, borrowed, 'a, readonly> = load l0
-    v2: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = load (*v1).0
-    variant.switch v2, 1 => b2, else b1
+    v1: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = load (*l0).0
+    variant.switch v1, 1 => b2, else b1
 
 b1:
-    v3: ref<String, managed, mutable, local> = variant.payload v2, 0
-    store l1, v3
+    v2: ref<String, managed, mutable, local> = variant.payload v1, 0
+    store l1, v2
     jump b3
 
 b2:
-    v4: ref<String, managed, mutable, local> = address @string.0
-    store l1, v4
+    v3: ref<String, managed, mutable, local> = address @string.0
+    store l1, v3
     jump b3
 
 b3:
-    v5: ref<String, borrowed, 'a, readonly> = load l1
-    return v5
+    v4: ref<String, borrowed, 'a, readonly> = load l1
+    return v4
 }
 
 /// @layout.struct name=test.main.Box size=8 align=8

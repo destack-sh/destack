@@ -28,10 +28,10 @@ type String {
     codeUnits: slice<uint16, unique, mutable>;
 }
 
-constant string.0: String = "big"
-constant string.1: String = "little"
+shared constant string.0: String = "big"
+shared constant string.1: String = "little"
 
-function test.main.order(v0: variant<uint2> { 0uint2 = literal.string.big; 1uint2 = literal.string.little; 2uint2 = void; }): ref<String, managed, mutable, local> {
+export function test.main.order(v0: variant<uint2> { 0uint2 = literal.string.big; 1uint2 = literal.string.little; 2uint2 = void; }): ref<String, managed, mutable, local> {
     local l0: variant<uint2> { 0uint2 = literal.string.big; 1uint2 = literal.string.little; 2uint2 = void; }
     local l1: ref<String, managed, mutable, local>, readonly
     local l2: ref<String, managed, mutable, local>
@@ -75,7 +75,7 @@ b7:
     jump b4
 }
 
-function test.main.read(): ref<String, managed, mutable, local> {
+export function test.main.read(): ref<String, managed, mutable, local> {
 entry:
     v0: literal.string.little = zeroed
     v1: variant<uint2> { 0uint2 = literal.string.big; 1uint2 = literal.string.little; 2uint2 = void; } = variant.new 1
@@ -116,7 +116,7 @@ function main(): int32 {
         "main.tspp",
         "test.main.greet",
         r#"
-function test.main.greet(v0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }): int32 {
+export function test.main.greet(v0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }): int32 {
     local l0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }
     local l1: int32, readonly
     local l2: int32
@@ -151,7 +151,7 @@ b3:
     );
 
     session.assert_mir_function("main.tspp", "test.main.main", r#"
-function test.main.main(): int32 {
+export function test.main.main(): int32 {
 entry:
     v0: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = variant.new 1
     v1: int32 = call test.main.greet(v0): (variant<uint1> { 0uint1 = int32; 1uint1 = void; }) => int32
@@ -183,7 +183,7 @@ function main(): int32 {
         "main.tspp",
         "test.main.greet",
         r#"
-function test.main.greet(v0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }): int32 {
+export function test.main.greet(v0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }): int32 {
     local l0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }
     local l1: int32, readonly
     local l2: int32
@@ -218,7 +218,7 @@ b3:
     );
 
     session.assert_mir_function("main.tspp", "test.main.main", r#"
-function test.main.main(): int32 {
+export function test.main.main(): int32 {
 entry:
     v0: int32 = 7
     v1: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = variant.new 0, v0
@@ -251,7 +251,7 @@ function main(): int32 {
         "main.tspp",
         "test.main.greet",
         r#"
-function test.main.greet(v0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }): int32 {
+export function test.main.greet(v0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }): int32 {
     local l0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }
     local l1: int32, readonly
     local l2: int32
@@ -286,7 +286,7 @@ b3:
     );
 
     session.assert_mir_function("main.tspp", "test.main.main", r#"
-function test.main.main(): int32 {
+export function test.main.main(): int32 {
 entry:
     v0: void = zeroed
     v1: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = variant.new 1

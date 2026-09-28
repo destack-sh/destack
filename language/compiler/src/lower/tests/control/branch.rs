@@ -17,7 +17,7 @@ function max(a: int32, b: int32): int32 {
         "main.tspp",
         "test.main.max",
         r#"
-function test.main.max(v0: int32, v1: int32): int32 {
+export function test.main.max(v0: int32, v1: int32): int32 {
     local l0: int32
     local l1: int32
 
@@ -59,7 +59,7 @@ function pick(flag: boolean, a: int32, b: int32): int32 {
         "main.tspp",
         "test.main.pick",
         r#"
-function test.main.pick(v0: boolean, v1: int32, v2: int32): int32 {
+export function test.main.pick(v0: boolean, v1: int32, v2: int32): int32 {
     local l0: boolean
     local l1: int32
     local l2: int32
@@ -100,7 +100,7 @@ function clamp(value: float32, limit: float32): float32 {
         "main.tspp",
         "test.main.clamp",
         r#"
-function test.main.clamp(v0: float32, v1: float32): float32 {
+export function test.main.clamp(v0: float32, v1: float32): float32 {
     local l0: float32
     local l1: float32
     local l2: float32
@@ -147,7 +147,7 @@ function clamp(count: isize): isize {
         "main.tspp",
         "test.main.clamp",
         r#"
-function test.main.clamp(v0: isize): isize {
+export function test.main.clamp(v0: isize): isize {
     local l0: isize
     local l1: isize
     local l2: isize
@@ -195,7 +195,7 @@ function checked(count: isize): isize {
         "main.tspp",
         "test.main.checked",
         r#"
-function test.main.checked(v0: isize): isize {
+export function test.main.checked(v0: isize): isize {
     local l0: isize
     local l1: isize
     local l2: isize
@@ -242,7 +242,7 @@ function pick(flag: boolean): isize {
         "main.tspp",
         "test.main.pick",
         r#"
-function test.main.pick(v0: boolean): isize {
+export function test.main.pick(v0: boolean): isize {
     local l0: boolean
     local l1: never
     local l2: never
@@ -269,6 +269,61 @@ b4:
     v5: never = load l2
     unreachable
 }
+"#,
+    );
+}
+
+/// Evaluate expression statements for their effects, dropping the values they discard.
+#[test]
+fn test_evaluate_expression_statements_for_their_effects() {
+    let session = TestSession::single(
+        r#"
+struct Point {
+    x: int32;
+}
+
+class Box {
+    value: int32 = 0;
+}
+
+function run(point: Point): void {
+    point.x;
+    point satisfies Point;
+    new Box();
+}
+"#,
+    );
+
+    session.assert_mir_elaborated_function(
+        "main.tspp",
+        "test.main.run",
+        r#"
+type test.main.Point {
+    x: int32;
+}
+
+@nocopy
+type test.main.Box {
+    value: int32;
+}
+
+export function test.main.run(v0: test.main.Point): void {
+    local l0: test.main.Point
+
+entry(v0: test.main.Point):
+    store l0, v0
+    v1: int32 = load (l0).0
+    v2: test.main.Point = load l0
+    v3: ref<test.main.Box, managed, mutable, local> = new.zeroed test.main.Box, local
+    v4: ref<uninit<test.main.Box>, borrowed, 'managed, exclusive> = cast.bit v3 -> ref<uninit<test.main.Box>, borrowed, 'managed, exclusive>
+    call test.main.Box.constructor(v4): <'a>(ref<uninit<test.main.Box>, borrowed, 'a, exclusive>) => void
+    return
+}
+
+/// @layout.struct name=test.main.Point size=4 align=4
+/// @layout.field owner=test.main.Point index=0 name=x offset=0 size=4 align=4
+/// @layout.struct name=test.main.Box size=4 align=4
+/// @layout.field owner=test.main.Box index=0 name=value offset=0 size=4 align=4
 "#,
     );
 }

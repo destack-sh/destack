@@ -119,7 +119,32 @@ impl ModuleLowerer<'_> {
             .with_parameters_of(interface, self, tree)
     }
 
-    /// Return the scope one class's synthesized constructor lowers under.
+    /// Return the scope of one implicit constructor.
+    pub(in crate::lower) fn implicit_constructor_scope(
+        &mut self,
+        class: dir::GlobalSymbolId,
+        forwards: Option<dir::GlobalSymbolId>,
+    ) -> CompilerResult<GenericScope> {
+        // read the forwarded receiver
+        let candidate = self.implicit_constructor(class, forwards)?;
+        let (signature, module) = self.signature(candidate.ty)?;
+        let signature = *self.types(module)?.signature(signature);
+        let Some(this) = signature.this_parameter else {
+            return self.class_constructor_scope(class);
+        };
+
+        // index the class and signature parameters
+        let template = self
+            .definition(class)?
+            .and_then(|definition| definition.template())
+            .map(|template| template.into_global(class.module_id));
+        let mut scope = GenericScope::from_templates(self, template, signature.template)?;
+        scope.this_parameter = Some(this);
+
+        Ok(scope)
+    }
+
+    /// Return the scope of one root implicit constructor.
     pub(in crate::lower) fn class_constructor_scope(
         &mut self,
         class: dir::GlobalSymbolId,

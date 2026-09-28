@@ -26,7 +26,7 @@ function sample(): float64 {
         "main.tspp",
         "test.main.sample",
         r#"
-function test.main.sample(): float64 {
+export function test.main.sample(): float64 {
 entry:
     v0: float64 = call tspp.clock.now(): () => float64
     return v0
@@ -65,7 +65,7 @@ type test.main.User {
     id: int32;
 }
 
-constructor test.main.User.constructor<'a>(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>): void {
+export constructor test.main.User.constructor<'a>(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>
 
 entry(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>):
@@ -90,7 +90,7 @@ type test.main.User {
     id: int32;
 }
 
-function test.main.read<'a>(v0: ref<test.main.User, borrowed, 'a, readonly>): int32 {
+export function test.main.read<'a>(v0: ref<test.main.User, borrowed, 'a, readonly>): int32 {
     local l0: ref<test.main.User, borrowed, 'a, readonly>
 
 entry(v0: ref<test.main.User, borrowed, 'a, readonly>):
@@ -119,7 +119,7 @@ function run(): void {
     );
 
     session.assert_mir_function("main.tspp", "test.main.greet", r#"
-function test.main.greet(v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }): void {
+export function test.main.greet(v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }): void {
     local l0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }
 
 entry(v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }):
@@ -134,7 +134,7 @@ entry(v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }):
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.run", r#"
-function test.main.run(): void {
+export function test.main.run(): void {
 entry:
     v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; } = variant.new 1
     call test.main.greet(v0): (variant<uint1> { 0uint1 = boolean; 1uint1 = void; }) => void

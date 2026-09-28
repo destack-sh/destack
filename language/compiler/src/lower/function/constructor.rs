@@ -4,7 +4,7 @@ use tspp_mir as mir;
 
 use crate::lower::function::argument::Argument;
 use crate::lower::{
-    Body, BoundReceiver, FunctionDefinition, FunctionLowerer, GenericScope, Instance, ModuleLowerer,
+    Body, FunctionDefinition, FunctionLowerer, GenericScope, Instance, ModuleLowerer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -24,11 +24,10 @@ impl FunctionLowerer<'_, '_, '_> {
         else {
             return Err(self.internal("a constructor function outside class construction"));
         };
-        let (symbol, bindings) = match constructor.call_symbol() {
-            Some(symbol) => (symbol, bindings),
-            None => (key.symbol, &key.arguments),
+        let (symbol, bindings) = match *constructor {
+            dir::ClassConstructor::Declared { symbol } => (symbol, bindings),
+            dir::ClassConstructor::Implicit { .. } => (key.symbol, &key.arguments),
         };
-        let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
 
         // capture the generic parameters used by the signature and construction
         let (signature, owner) = self.lower.signature(target)?;
@@ -45,7 +44,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let instance = self
             .lower
             .type_lowerer(self.builder.tree_mut(), &scope)
-            .generic_instance_key(symbol, Some(construction.return_type), &arguments)?;
+            .generic_instance_key(symbol, Some(construction.return_type), bindings)?;
         let signature_type = self
             .lower
             .type_lowerer(self.builder.tree_mut(), &self.scope)
@@ -53,9 +52,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // identify the complete generated declaration, including its parameter domains
         let tree = self.builder.tree_mut();
-        let generics = self
-            .lower
-            .generic_parameters(tree, &scope, BoundReceiver::None)?;
+        let generics = self.lower.generic_parameters(tree, &scope, None)?;
         let name = format!("{}.new", self.lower.symbol_path(symbol)?);
         let base = mir::Symbol::declared(
             self.lower.module,
@@ -79,7 +76,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 .iter()
                 .find(|binding| binding.parameter == *parameter)
                 .map(|binding| binding.argument);
-            let ty = match bound {
+            let argument = match bound {
                 Some(argument) => argument,
                 None => {
                     self.lower
@@ -89,10 +86,18 @@ impl FunctionLowerer<'_, '_, '_> {
                         .ty
                 }
             };
-            arguments[*index as usize] = Some(self.lower_generic_argument(ty)?);
+            let binding = dir::GenericArgumentBinding {
+                parameter: *parameter,
+                argument,
+            };
+            arguments[*index as usize] = Some(self.lower_bound_argument(binding)?);
         }
         for dependent in scope.dependents.values() {
-            arguments[dependent.index as usize] = Some(self.lower_generic_argument(dependent.ty)?);
+            arguments[dependent.index as usize] = Some(self.lower_generic_argument(
+                dependent.ty,
+                dependent.kind,
+                dependent.is_const(),
+            )?);
         }
         let arguments = arguments
             .into_iter()
@@ -118,7 +123,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     .generics(generics);
             let header = scope.declare(header).parameters(parameters).result(result);
             let function = tree.insert(header.declared());
-            self.lower.anchor_function(tree, function, symbol)?;
+            self.lower.anchor_declaration(tree, function, symbol)?;
 
             // register the entry before scheduling its construction body
             self.lower.constructors.insert(identity, function);

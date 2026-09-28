@@ -25,7 +25,7 @@ type test.main.Point {
     y: int32;
 }
 
-function test.main.origin(): test.main.Point {
+export function test.main.origin(): test.main.Point {
 entry:
     v0: int32 = 0
     v1: int32 = 0
@@ -65,7 +65,7 @@ type test.main.Point {
     y: int32;
 }
 
-function test.main.abscissa(v0: test.main.Point): int32 {
+export function test.main.abscissa(v0: test.main.Point): int32 {
     local l0: test.main.Point
 
 entry(v0: test.main.Point):
@@ -116,7 +116,7 @@ type test.main.Segment {
     end: test.main.Point;
 }
 
-function test.main.diagonal(v0: int32): test.main.Segment {
+export function test.main.diagonal(v0: int32): test.main.Segment {
     local l0: int32
 
 entry(v0: int32):
@@ -164,7 +164,7 @@ type test.main.Entry<'a> {
     name: slice<uint8, borrowed, 'a, mutable>;
 }
 
-function test.main.make<'a>(v0: slice<uint8, borrowed, 'a, mutable>): void {
+export function test.main.make<'a>(v0: slice<uint8, borrowed, 'a, mutable>): void {
     local l0: slice<uint8, borrowed, 'a, mutable>
     local l1: test.main.Entry<'a>
 
@@ -210,7 +210,7 @@ type test.main.Counter {
     total: int32;
 }
 
-constructor test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>): void {
+export constructor test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>
 
 entry(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>):
@@ -235,14 +235,13 @@ type test.main.Counter {
     total: int32;
 }
 
-function test.main.Counter.read<'a>(v0: ref<test.main.Counter, borrowed, 'a, readonly>): int32 {
+export function test.main.Counter.read<'a>(v0: ref<test.main.Counter, borrowed, 'a, readonly>): int32 {
     local l0: ref<test.main.Counter, borrowed, 'a, readonly>
 
 entry(v0: ref<test.main.Counter, borrowed, 'a, readonly>):
     store l0, v0
-    v1: ref<test.main.Counter, borrowed, 'a, readonly> = load l0
-    v2: int32 = load (*v1).0
-    return v2
+    v1: int32 = load (*l0).0
+    return v1
 }
 
 /// @layout.struct name=test.main.Counter size=4 align=4
@@ -259,7 +258,7 @@ type test.main.Counter {
     total: int32;
 }
 
-function test.main.Counter.double<'a>(v0: ref<test.main.Counter, borrowed, 'a, readonly>): int32 {
+export function test.main.Counter.double<'a>(v0: ref<test.main.Counter, borrowed, 'a, readonly>): int32 {
     local l0: ref<test.main.Counter, borrowed, 'a, readonly>
 
 entry(v0: ref<test.main.Counter, borrowed, 'a, readonly>):
@@ -302,7 +301,7 @@ type test.main.Options {
     limit: variant<uint1> { 0uint1 = int32; 1uint1 = void; };
 }
 
-function test.main.make(): test.main.Options {
+export function test.main.make(): test.main.Options {
 entry:
     v0: int32 = 1
     v1: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = variant.new 1
@@ -346,7 +345,7 @@ type test.main.Counter {
     label: int32;
 }
 
-function test.main.make(): test.main.Counter {
+export function test.main.make(): test.main.Counter {
 entry:
     v0: int32 = 3
     v1: int32 = 7
@@ -392,7 +391,7 @@ function make(): Counter {
         r#"
 type test.counter.Counter;
 
-function test.main.make(): test.counter.Counter {
+export function test.main.make(): test.counter.Counter {
 entry:
     v0: int32 = 3
     v1: int32 = 7
@@ -428,7 +427,7 @@ type test.main.Slot<T> {
     index: isize;
 }
 
-function test.main.fill(): test.main.Slot<int32> {
+export function test.main.fill(): test.main.Slot<int32> {
 entry:
     v0: int32 = 9
     v1: isize = 0
@@ -493,7 +492,7 @@ type test.main.Entry<'a> {
     unit: variant<uint1> { 0uint1 = ref<String, borrowed, 'a, readonly>; 1uint1 = void; };
 }
 
-function test.main.Counter.add<'a>(v0: ref<test.main.Counter, borrowed, 'a, readonly>): void {
+export function test.main.Counter.add<'a>(v0: ref<test.main.Counter, borrowed, 'a, readonly>): void {
     local l0: ref<test.main.Counter, borrowed, 'a, readonly>
     local l1: variant<uint1> { 0uint1 = ref<String, borrowed, 'a, readonly>; 1uint1 = void; }
     local l2: test.main.Entry<'a>
@@ -504,11 +503,11 @@ entry(v0: ref<test.main.Counter, borrowed, 'a, readonly>):
     v2: ref<ref<String, managed, mutable, local>, borrowed, 'a, readonly> = address (*v1).0
     v3: ref<String, managed, mutable, local> = load (*v2)
     v4: ref<String, borrowed, 'a, readonly> = cast.bit v3 -> ref<String, borrowed, 'a, readonly>
-    v5: ref<test.main.Counter, borrowed, 'a, readonly> = load l0
-    v6: uint1 = variant.tag.load (*v5).1
-    v7: uint1 = 1
-    v8: boolean = eq v6, v7
-    branch v8 => b1 | b2
+    v5: uint1 = variant.tag.load (*l0).1
+    v6: uint1 = 1
+    v7: boolean = eq v5, v6
+    v8: ref<variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }, borrowed, 'frame, readonly> = fake.borrow (*l0).1
+    branch v7 => b1 | b2
 
 b1:
     v9: void = zeroed
@@ -517,25 +516,29 @@ b1:
     jump b3
 
 b2:
-    v11: ref<test.main.Counter, borrowed, 'a, readonly> = load l0
-    v12: ref<String, managed, mutable, local> = load ((*v11).1 as 0)
-    v13: ref<String, borrowed, 'a, readonly> = cast.bit v12 -> ref<String, borrowed, 'a, readonly>
-    v14: variant<uint1> { 0uint1 = ref<String, borrowed, 'a, readonly>; 1uint1 = void; } = variant.new 0, v13
-    store l1, v14
+    fake.read v8
+    v11: ref<String, managed, mutable, local> = load ((*l0).1 as 0)
+    v12: ref<String, borrowed, 'a, readonly> = cast.bit v11 -> ref<String, borrowed, 'a, readonly>
+    v13: variant<uint1> { 0uint1 = ref<String, borrowed, 'a, readonly>; 1uint1 = void; } = variant.new 0, v12
+    store l1, v13
     jump b3
 
 b3:
-    v15: variant<uint1> { 0uint1 = ref<String, borrowed, 'a, readonly>; 1uint1 = void; } = load l1
-    v16: test.main.Entry<'a> = aggregate (v4, v15)
-    store l2, v16
-    v17: ref<test.main.Entry<'a>, borrowed, 'frame, readonly> = address l2
-    call test.main.write(v17): (ref<test.main.Entry<'a>, borrowed, 'frame, readonly>) => void
+    v14: variant<uint1> { 0uint1 = ref<String, borrowed, 'a, readonly>; 1uint1 = void; } = load l1
+    v15: test.main.Entry<'a> = aggregate (v4, v14)
+    store l2, v15
+    v16: ref<test.main.Entry<'a>, borrowed, 'frame, readonly> = address l2
+    call test.main.write(v16): (ref<test.main.Entry<'a>, borrowed, 'frame, readonly>) => void
     return
 }
 
 /// @layout.struct name=test.main.Counter size=16 align=8
 /// @layout.field owner=test.main.Counter index=0 name=name offset=0 size=8 align=8
 /// @layout.field owner=test.main.Counter index=1 name=unit offset=8 size=8 align=8
+/// @layout.variant name=type@9 size=8 align=8
+/// @layout.discriminant owner=type@9 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@9 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@9 index=1 discriminant=1 payload_offset=0
 /// @layout.struct name=test.main.Entry<'a> size=16 align=8
 /// @layout.field owner=test.main.Entry<'a> index=0 name=name offset=0 size=8 align=8
 /// @layout.field owner=test.main.Entry<'a> index=1 name=unit offset=8 size=8 align=8
@@ -554,7 +557,7 @@ type test.main.Entry<'a> {
     unit: variant<uint1> { 0uint1 = ref<String, borrowed, 'a, readonly>; 1uint1 = void; };
 }
 
-function test.main.write<'a, 'b>(v0: ref<test.main.Entry<'a>, borrowed, 'b, readonly>): void {
+export function test.main.write<'a, 'b>(v0: ref<test.main.Entry<'a>, borrowed, 'b, readonly>): void {
     local l0: ref<test.main.Entry<'a>, borrowed, 'b, readonly>
 
 entry(v0: ref<test.main.Entry<'a>, borrowed, 'b, readonly>):
@@ -579,7 +582,7 @@ type test.main.Counter {
 @languageItem("string.String")
 type String;
 
-constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: ref<String, managed, mutable, local>, v2: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }): void {
+export constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: ref<String, managed, mutable, local>, v2: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }): void {
     local l0: ref<String, managed, mutable, local>
     local l1: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }
     local l2: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>
@@ -622,7 +625,7 @@ type test.main.Entry<'a> {
     unit: variant<uint1> { 0uint1 = ref<String, borrowed, 'a, readonly>; 1uint1 = void; };
 }
 
-function test.main.Counter.add<'a>(v0: ref<test.main.Counter, borrowed, 'a, readonly>): void {
+export function test.main.Counter.add<'a>(v0: ref<test.main.Counter, borrowed, 'a, readonly>): void {
     local l0: ref<test.main.Counter, borrowed, 'a, readonly>
     local l1: variant<uint1> { 0uint1 = ref<String, borrowed, 'a, readonly>; 1uint1 = void; }
     local l2: test.main.Entry<'a>
@@ -633,11 +636,11 @@ entry(v0: ref<test.main.Counter, borrowed, 'a, readonly>):
     v2: ref<ref<String, managed, mutable, local>, borrowed, 'a, readonly> = address (*v1).0
     v3: ref<String, managed, mutable, local> = load (*v2)
     v4: ref<String, borrowed, 'a, readonly> = cast.bit v3 -> ref<String, borrowed, 'a, readonly>
-    v5: ref<test.main.Counter, borrowed, 'a, readonly> = load l0
-    v6: uint1 = variant.tag.load (*v5).1
-    v7: uint1 = 1
-    v8: boolean = eq v6, v7
-    branch v8 => b1 | b2
+    v5: uint1 = variant.tag.load (*l0).1
+    v6: uint1 = 1
+    v7: boolean = eq v5, v6
+    v8: ref<variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }, borrowed, 'frame, readonly> = fake.borrow (*l0).1
+    branch v7 => b1 | b2
 
 b1:
     v9: void = zeroed
@@ -646,25 +649,29 @@ b1:
     jump b3
 
 b2:
-    v11: ref<test.main.Counter, borrowed, 'a, readonly> = load l0
-    v12: ref<String, managed, mutable, local> = load ((*v11).1 as 0)
-    v13: ref<String, borrowed, 'a, readonly> = cast.bit v12 -> ref<String, borrowed, 'a, readonly>
-    v14: variant<uint1> { 0uint1 = ref<String, borrowed, 'a, readonly>; 1uint1 = void; } = variant.new 0, v13
-    store l1, v14
+    fake.read v8
+    v11: ref<String, managed, mutable, local> = load ((*l0).1 as 0)
+    v12: ref<String, borrowed, 'a, readonly> = cast.bit v11 -> ref<String, borrowed, 'a, readonly>
+    v13: variant<uint1> { 0uint1 = ref<String, borrowed, 'a, readonly>; 1uint1 = void; } = variant.new 0, v12
+    store l1, v13
     jump b3
 
 b3:
-    v15: variant<uint1> { 0uint1 = ref<String, borrowed, 'a, readonly>; 1uint1 = void; } = load l1
-    v16: test.main.Entry<'a> = aggregate (v4, v15)
-    store l2, v16
-    v17: ref<test.main.Entry<'a>, borrowed, 'frame, readonly> = address l2
-    call test.main.write(v17): (ref<test.main.Entry<'a>, borrowed, 'frame, readonly>) => void
+    v14: variant<uint1> { 0uint1 = ref<String, borrowed, 'a, readonly>; 1uint1 = void; } = load l1
+    v15: test.main.Entry<'a> = aggregate (v4, v14)
+    store l2, v15
+    v16: ref<test.main.Entry<'a>, borrowed, 'frame, readonly> = address l2
+    call test.main.write(v16): (ref<test.main.Entry<'a>, borrowed, 'frame, readonly>) => void
     return
 }
 
 /// @layout.struct name=test.main.Counter size=16 align=8
 /// @layout.field owner=test.main.Counter index=0 name=name offset=0 size=8 align=8
 /// @layout.field owner=test.main.Counter index=1 name=unit offset=8 size=8 align=8
+/// @layout.variant name=type@9 size=8 align=8
+/// @layout.discriminant owner=type@9 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@9 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@9 index=1 discriminant=1 payload_offset=0
 /// @layout.struct name=test.main.Entry<'a> size=16 align=8
 /// @layout.field owner=test.main.Entry<'a> index=0 name=name offset=0 size=8 align=8
 /// @layout.field owner=test.main.Entry<'a> index=1 name=unit offset=8 size=8 align=8
@@ -702,14 +709,13 @@ type test.main.Meter {
     value: int32;
 }
 
-function test.main.read<'a>(v0: ref<test.main.Meter, borrowed, 'a, readonly>): int32 {
+export function test.main.read<'a>(v0: ref<test.main.Meter, borrowed, 'a, readonly>): int32 {
     local l0: ref<test.main.Meter, borrowed, 'a, readonly>
 
 entry(v0: ref<test.main.Meter, borrowed, 'a, readonly>):
     store l0, v0
-    v1: ref<test.main.Meter, borrowed, 'a, readonly> = load l0
-    v2: int32 = load (*v1).0
-    return v2
+    v1: int32 = load (*l0).0
+    return v1
 }
 
 /// @layout.struct name=test.main.Meter size=4 align=4
@@ -725,7 +731,7 @@ type test.main.Meter {
     value: int32;
 }
 
-function test.main.main(v0: boolean, v1: test.main.Meter): int32 {
+export function test.main.main(v0: boolean, v1: test.main.Meter): int32 {
     local l0: boolean
     local l1: test.main.Meter
     local l2: int32
@@ -791,7 +797,7 @@ type test.main.Equality<T> {
     phantom: void;
 }
 
-function test.main.Equality.Default.default<T>(): test.main.Equality<T> {
+export function test.main.Equality.Default.default<T>(): test.main.Equality<T> {
 entry:
     call Phantom.new<T>(): () => void
     v0: void = zeroed
@@ -835,7 +841,7 @@ type test.main.Entry {
     depth: int32;
 }
 
-function test.main.at(v0: test.main.Handle): test.main.Entry {
+export function test.main.at(v0: test.main.Handle): test.main.Entry {
     local l0: test.main.Handle
 
 entry(v0: test.main.Handle):
@@ -887,7 +893,7 @@ type test.main.Entry {
     depth: int32;
 }
 
-function test.main.at(v0: dynamic<{  }, managed, mutable, local>): test.main.Entry {
+export function test.main.at(v0: dynamic<{  }, managed, mutable, local>): test.main.Entry {
     local l0: dynamic<{  }, managed, mutable, local>
 
 entry(v0: dynamic<{  }, managed, mutable, local>):
@@ -936,17 +942,16 @@ type test.main.Entry {
     depth: int32;
 }
 
-function test.main.bound<'a>(v0: ref<test.main.Entry, borrowed, 'a, mutable>, v1: int32): void {
+export function test.main.bound<'a>(v0: ref<test.main.Entry, borrowed, 'a, mutable>, v1: int32): void {
     local l0: ref<test.main.Entry, borrowed, 'a, mutable>
     local l1: int32
 
 entry(v0: ref<test.main.Entry, borrowed, 'a, mutable>, v1: int32):
     store l0, v0
     store l1, v1
-    v2: ref<test.main.Entry, borrowed, 'a, mutable> = load l0
-    v3: int32 = load l1
-    v4: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = variant.new 0, v3
-    store (*v2).0, v4
+    v2: int32 = load l1
+    v3: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = variant.new 0, v2
+    store (*l0).0, v3
     return
 }
 

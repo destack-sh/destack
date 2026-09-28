@@ -1,29 +1,42 @@
 use tspp_dir as dir;
 use tspp_mir as mir;
 
-use crate::lower::FunctionLowerer;
 use crate::lower::function::lower::Binding;
+use crate::lower::{FunctionLowerer, ModuleLowerer};
 use crate::{CompilerError, CompilerResult};
 
 /// One entry stored in a synthesized closure environment.
 enum EnvironmentEntry {
-    /// A captured binding stored by value.
-    Direct {
-        /// The captured symbol.
-        symbol: dir::GlobalSymbolId,
-        /// The captured symbol's declared type.
+    /// A captured binding held by value.
+    Value {
+        /// The binding the entry holds.
+        holder: CaptureHolder,
+        /// The binding's checked type.
         ty: dir::GlobalTypeId,
     },
-    /// The captured receiver stored by value.
-    This {
-        /// The receiver's declared type.
+    /// A captured binding held by reference.
+    Borrow {
+        /// The binding the entry lends.
+        holder: CaptureHolder,
+        /// The binding's checked type.
         ty: dir::GlobalTypeId,
+        /// The access the body takes.
+        access: dir::Access,
     },
-    /// A lifted managed frame stored by reference.
+    /// A lifted managed frame held by reference.
     Frame {
         /// The lifted frame the closure reads through.
         frame: dir::LocalCaptureFrameId,
     },
+}
+
+/// The binding one environment entry holds.
+#[derive(Clone, Copy)]
+enum CaptureHolder {
+    /// A captured lexical binding.
+    Symbol(dir::GlobalSymbolId),
+    /// The captured receiver.
+    Receiver,
 }
 
 impl FunctionLowerer<'_, '_, '_> {
@@ -55,8 +68,8 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // receive the environment at the kind the callable owns it in
         let capture = capture.clone();
-        let entries = self.environment_entries(&capture)?;
-        let kind = self.environment_kind(&capture);
+        let entries = self.environment_entries(&capture);
+        let kind = environment_kind(&capture);
         let (pointee, reference) = self.environment_types(&entries, kind)?;
         let environment = self.received_environment(reference);
 
@@ -72,38 +85,44 @@ impl FunctionLowerer<'_, '_, '_> {
             _ => None,
         };
 
-        // unpack values, the receiver, and frame references from the environment
+        // unpack the environment
         for (index, entry) in entries.iter().enumerate() {
             let index = index as u32;
-            match entry {
-                EnvironmentEntry::Direct { symbol, ty } => {
-                    let ty = self.lower_type(*ty)?;
-                    let binding = match taken {
-                        // home a taken value in the frame
-                        Some(taken) => {
-                            let value = self.builder.field_get(taken, index);
-                            let local = self.builder.local(ty, mir::Mutability::Mutable);
-                            self.builder.local_set(local, value);
+            match *entry {
+                EnvironmentEntry::Value { holder, ty } => {
+                    let ty = self.lower_type(ty)?;
+                    let binding = match (taken, holder) {
+                        // home a taken value or the receiver
+                        (Some(_), _) | (None, CaptureHolder::Receiver) => {
+                            let value = self.environment_field(taken, environment, index, ty)?;
 
-                            Binding::Local(local)
+                            Binding::Local(self.home(value))
                         }
                         // read a shared value through its environment field
-                        None => Binding::Captured {
-                            frame: environment,
-                            field: index,
+                        (None, CaptureHolder::Symbol(_)) => Binding::Behind {
+                            reference: environment,
+                            access: mir::Access::Mutable,
+                            field: Some(index),
                             ty,
                         },
                     };
-                    self.values.insert(symbol.local_id, binding);
+                    self.bind_holder(holder, binding);
                 }
-                EnvironmentEntry::This { ty } => {
-                    let ty = self.lower_type(*ty)?;
-                    let value = self.environment_field(taken, environment, index, ty)?;
-                    let local = self.home(value);
-                    self.this = Some(Binding::Local(local));
+                EnvironmentEntry::Borrow { holder, ty, access } => {
+                    let ty = self.lower_type(ty)?;
+                    let access = ModuleLowerer::mir_access(access);
+                    let lent = self.lent_type(ty, access);
+                    let reference = self.environment_field(taken, environment, index, lent)?;
+                    let binding = Binding::Behind {
+                        reference,
+                        access,
+                        field: None,
+                        ty,
+                    };
+                    self.bind_holder(holder, binding);
                 }
                 EnvironmentEntry::Frame { frame } => {
-                    let frame = self.source().captures.get_frame(*frame).clone();
+                    let frame = self.source().captures.get_frame(frame).clone();
                     let frame_type = self.lower_type(frame.ty)?;
                     let loaded = self.environment_field(taken, environment, index, frame_type)?;
                     self.frames.insert(frame.scope, loaded);
@@ -113,6 +132,16 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         Ok(())
+    }
+
+    /// Bind one holder to its home.
+    fn bind_holder(&mut self, holder: CaptureHolder, binding: Binding) {
+        match holder {
+            CaptureHolder::Symbol(symbol) => {
+                self.values.insert(symbol.local_id, binding);
+            }
+            CaptureHolder::Receiver => self.this = Some(binding),
+        }
     }
 
     /// Read one environment field, off the taken value or through the environment reference.
@@ -125,20 +154,18 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         Ok(match taken {
             Some(taken) => self.builder.field_get(taken, index),
-            None => self.read_binding(Binding::Captured {
-                frame: environment,
-                field: index,
+            None => self.read_binding(Binding::Behind {
+                reference: environment,
+                access: mir::Access::Mutable,
+                field: Some(index),
                 ty,
             })?,
         })
     }
 
-    /// Return the kind one closure owns its environment in, as its capture record decides.
-    fn environment_kind(&self, capture: &dir::Capture) -> mir::Reference {
-        match capture.ownership {
-            dir::Ownership::Owned => mir::Reference::Unique,
-            _ => mir::Reference::Managed(mir::Space::Local),
-        }
+    /// Return the reference type one borrowing capture stores.
+    fn lent_type(&mut self, ty: mir::TypeId, access: mir::Access) -> mir::TypeId {
+        self.insert_reference(mir::Reference::Borrowed, mir::Lifetime::frame(), access, ty)
     }
 
     /// Bind the fields of one lifted frame the closure captures through it.
@@ -160,9 +187,10 @@ impl FunctionLowerer<'_, '_, '_> {
             let ty = self.frame_field_type(frame_type, field)?;
             self.values.insert(
                 entry.symbol.local_id,
-                Binding::Captured {
-                    frame: environment,
-                    field,
+                Binding::Behind {
+                    reference: environment,
+                    access: mir::Access::Mutable,
+                    field: Some(field),
                     ty,
                 },
             );
@@ -183,8 +211,8 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(None);
         }
         let capture = capture.clone();
-        let entries = self.environment_entries(&capture)?;
-        let kind = self.environment_kind(&capture);
+        let entries = self.environment_entries(&capture);
+        let kind = environment_kind(&capture);
 
         Ok(Some(self.environment_types(&entries, kind)?.1))
     }
@@ -201,33 +229,30 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(None);
         }
 
-        // aggregate values, the receiver, and frame references on the heap
+        // gather the entries
         let capture = capture.clone();
-        let entries = self.environment_entries(&capture)?;
+        let entries = self.environment_entries(&capture);
         let mut values = Vec::with_capacity(entries.len());
         for entry in &entries {
-            let value = match entry {
-                EnvironmentEntry::Direct { symbol, .. } => {
-                    let Some(binding) = self.values.get(&symbol.local_id).copied() else {
-                        return Err(CompilerError::Internal {
-                            message: "a captured binding without a home".to_string(),
-                        });
-                    };
-
-                    self.read_binding(binding)?
-                }
-                EnvironmentEntry::This { ty } => {
-                    let Some(binding) = self.this else {
-                        return Err(CompilerError::Internal {
-                            message: "a captured receiver outside a method".to_string(),
-                        });
-                    };
+            let value = match *entry {
+                EnvironmentEntry::Value { holder, ty } => {
+                    let binding = self.holder_binding(holder)?;
                     let value = self.read_binding(binding)?;
+                    match holder {
+                        CaptureHolder::Receiver => self.constructed_this_at(ty, value)?,
+                        CaptureHolder::Symbol(_) => value,
+                    }
+                }
+                EnvironmentEntry::Borrow { holder, ty, access } => {
+                    let binding = self.holder_binding(holder)?;
+                    let place = self.binding_home(binding)?;
+                    let ty = self.lower_type(ty)?;
+                    let lent = self.lent_type(ty, ModuleLowerer::mir_access(access));
 
-                    self.constructed_this_at(*ty, value)?
+                    self.borrow_place(&place, lent)?
                 }
                 EnvironmentEntry::Frame { frame } => {
-                    let frame = self.source().captures.get_frame(*frame).clone();
+                    let frame = self.source().captures.get_frame(frame).clone();
 
                     self.allocate_frame_maybe(frame.scope, frame.ty)?
                 }
@@ -235,12 +260,32 @@ impl FunctionLowerer<'_, '_, '_> {
             values.push(value);
         }
 
-        // build the environment the body reads its captures out of
-        let kind = self.environment_kind(&capture);
+        // build the environment
+        let kind = environment_kind(&capture);
         let (pointee, reference) = self.environment_types(&entries, kind)?;
         let aggregate = self.builder.aggregate(pointee, values);
+        if kind == mir::Reference::Borrowed {
+            let slot = self.builder.local(pointee, mir::Mutability::Mutable);
+            self.builder.local_set(slot, aggregate);
 
-        Ok(Some(self.builder.new_complete(aggregate, reference)))
+            return Ok(Some(
+                self.builder.address(mir::Place::local(slot), reference),
+            ));
+        }
+
+        Ok(Some(self.box_value(aggregate, reference)?))
+    }
+
+    /// Return the home of one holder.
+    fn holder_binding(&self, holder: CaptureHolder) -> CompilerResult<Binding> {
+        let binding = match holder {
+            CaptureHolder::Symbol(symbol) => self.values.get(&symbol.local_id).copied(),
+            CaptureHolder::Receiver => self.this,
+        };
+
+        binding.ok_or_else(|| CompilerError::Internal {
+            message: "a captured binding without a home".to_string(),
+        })
     }
 
     /// Return the capture environment this body receives, either forwarded or read from the frame.
@@ -252,33 +297,26 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return the entries one environment stores: the captures, the receiver, then each frame.
-    fn environment_entries(
-        &mut self,
-        capture: &dir::Capture,
-    ) -> CompilerResult<Vec<EnvironmentEntry>> {
+    fn environment_entries(&self, capture: &dir::Capture) -> Vec<EnvironmentEntry> {
+        let bindings = capture
+            .captures
+            .iter()
+            .map(|captured| (CaptureHolder::Symbol(captured.symbol()), captured))
+            .chain(
+                capture
+                    .this
+                    .iter()
+                    .map(|receiver| (CaptureHolder::Receiver, receiver)),
+            );
         let mut entries = Vec::new();
-        for captured in &capture.captures {
-            match captured {
+        for (holder, captured) in bindings {
+            match *captured {
                 dir::CapturedBinding::Manage { .. } => {}
-                dir::CapturedBinding::Copy { symbol, ty }
-                | dir::CapturedBinding::Move { symbol, ty } => {
-                    entries.push(EnvironmentEntry::Direct {
-                        symbol: *symbol,
-                        ty: *ty,
-                    });
+                dir::CapturedBinding::Copy { ty, .. } | dir::CapturedBinding::Move { ty, .. } => {
+                    entries.push(EnvironmentEntry::Value { holder, ty });
                 }
-                dir::CapturedBinding::Borrow { .. } => {
-                    return Err(self.unsupported("a 'borrow' closure capture"));
-                }
-            }
-        }
-        if let Some(receiver) = &capture.this {
-            match receiver.mode {
-                dir::CaptureMode::Copy | dir::CaptureMode::Move | dir::CaptureMode::Manage => {
-                    entries.push(EnvironmentEntry::This { ty: receiver.ty });
-                }
-                dir::CaptureMode::Borrow => {
-                    return Err(self.unsupported("a 'borrow' receiver capture"));
+                dir::CapturedBinding::Borrow { ty, access, .. } => {
+                    entries.push(EnvironmentEntry::Borrow { holder, ty, access });
                 }
             }
         }
@@ -286,7 +324,7 @@ impl FunctionLowerer<'_, '_, '_> {
             entries.push(EnvironmentEntry::Frame { frame: *frame });
         }
 
-        Ok(entries)
+        entries
     }
 
     /// Intern the struct and reference types of one synthesized environment.
@@ -297,12 +335,15 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<(mir::TypeId, mir::TypeId)> {
         let mut slots = Vec::with_capacity(entries.len());
         for entry in entries {
-            let ty = match entry {
-                EnvironmentEntry::Direct { ty, .. } | EnvironmentEntry::This { ty } => {
-                    self.lower_type(*ty)?
+            let ty = match *entry {
+                EnvironmentEntry::Value { ty, .. } => self.lower_type(ty)?,
+                EnvironmentEntry::Borrow { ty, access, .. } => {
+                    let ty = self.lower_type(ty)?;
+
+                    self.lent_type(ty, ModuleLowerer::mir_access(access))
                 }
                 EnvironmentEntry::Frame { frame } => {
-                    let frame = self.source().captures.get_frame(*frame).clone();
+                    let frame = self.source().captures.get_frame(frame).clone();
 
                     self.lower_type(frame.ty)?
                 }
@@ -310,7 +351,22 @@ impl FunctionLowerer<'_, '_, '_> {
             slots.push(ty);
         }
 
-        Ok(self.environment_reference_types(&slots, kind))
+        // take the strongest access
+        let is_exclusive = entries.iter().any(|entry| {
+            matches!(
+                entry,
+                EnvironmentEntry::Borrow {
+                    access: dir::Access::Exclusive,
+                    ..
+                }
+            )
+        });
+        let access = match is_exclusive {
+            true => mir::Access::Exclusive,
+            false => mir::Access::Mutable,
+        };
+
+        Ok(self.environment_reference_types(&slots, kind, access))
     }
 
     /// Intern the struct holding one environment's slots and the reference addressing it.
@@ -318,6 +374,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         slots: &[mir::TypeId],
         kind: mir::Reference,
+        access: mir::Access,
     ) -> (mir::TypeId, mir::TypeId) {
         let fields = slots
             .iter()
@@ -340,7 +397,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let reference = self.builder.tree_mut().intern_type(mir::Type::Reference {
             kind,
             lifetime,
-            access: mir::Access::Mutable,
+            access,
             pointee,
         });
 
@@ -365,8 +422,15 @@ impl FunctionLowerer<'_, '_, '_> {
             .with_projection(mir::Projection::Deref)
             .with_projection(mir::Projection::Field { index: field });
         self.builder.store(place, value);
-        self.values
-            .insert(symbol.local_id, Binding::Captured { frame, field, ty });
+        self.values.insert(
+            symbol.local_id,
+            Binding::Behind {
+                reference: frame,
+                access: mir::Access::Mutable,
+                field: Some(field),
+                ty,
+            },
+        );
 
         Ok(true)
     }
@@ -434,5 +498,14 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         Ok(tree.get(fields[field as usize]).ty)
+    }
+}
+
+/// Return the reference kind of one closure environment.
+fn environment_kind(capture: &dir::Capture) -> mir::Reference {
+    match capture.ownership {
+        dir::Ownership::Owned => mir::Reference::Unique,
+        dir::Ownership::Borrowed => mir::Reference::Borrowed,
+        _ => mir::Reference::Managed(mir::Space::Local),
     }
 }

@@ -95,10 +95,22 @@ impl FunctionLowerer<'_, '_, '_> {
         home: Binding,
         decision: dir::DisposalDecision,
     ) {
-        self.disposals.push(Disposal::Resource {
+        self.push_disposal(Disposal::Resource {
             home,
             decision: Box::new(decision),
         });
+    }
+
+    /// Push one disposal and its cleanup block.
+    pub(in crate::lower) fn push_disposal(&mut self, disposal: Disposal) {
+        let cleanup = self.builder.block();
+        self.disposals.push((disposal, cleanup));
+        self.builder.set_unwind(Some(cleanup));
+    }
+
+    /// Return the cleanup block below one depth.
+    fn unwind_target(&self, depth: usize) -> Option<mir::LocalNodeId<mir::Block>> {
+        depth.checked_sub(1).map(|index| self.disposals[index].1)
     }
 
     /// Return the disposal depth one scope opens at.
@@ -117,19 +129,54 @@ impl FunctionLowerer<'_, '_, '_> {
             self.dispose_down_to(depth)?;
         }
 
+        // fill the reached cleanups
+        for index in (depth..self.disposals.len()).rev() {
+            self.lower_cleanup(index)?;
+        }
+
         // forget the scope's resources on every path out of it
         self.disposals.truncate(depth);
+        self.builder.set_unwind(self.unwind_target(depth));
 
         Ok(())
     }
 
     /// Dispose every resource above one depth in reverse order, the queue kept for other paths.
     pub(in crate::lower) fn dispose_down_to(&mut self, depth: usize) -> CompilerResult<()> {
-        // dispose in reverse order of acquisition
-        let pending: Vec<Disposal> = self.disposals[depth..].iter().rev().cloned().collect();
-        for disposal in pending {
+        // dispose in reverse order
+        for index in (depth..self.disposals.len()).rev() {
+            let disposal = self.disposals[index].0.clone();
+            let unwind = self.builder.set_unwind(self.unwind_target(index));
             self.lower_disposal(&disposal)?;
+            self.builder.set_unwind(unwind);
         }
+
+        Ok(())
+    }
+
+    /// Lower one cleanup block.
+    fn lower_cleanup(&mut self, index: usize) -> CompilerResult<()> {
+        let (disposal, cleanup) = self.disposals[index].clone();
+        if !self.builder.is_entered(cleanup) {
+            self.builder.discard_block(cleanup);
+
+            return Ok(());
+        }
+
+        // run the disposal
+        let current = self.builder.current_block();
+        let outer = self.unwind_target(index);
+        let unwind = self.builder.set_unwind(outer);
+        self.builder.switch_to_block(cleanup);
+        self.lower_disposal(&disposal)?;
+
+        // continue unwinding
+        match outer {
+            Some(outer) => self.builder.jump(outer),
+            None => self.builder.resume_unwind(),
+        }
+        self.builder.set_unwind(unwind);
+        self.builder.switch_to_block(current);
 
         Ok(())
     }
@@ -240,7 +287,7 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn binding_representation(&self, home: Binding) -> mir::TypeId {
         match home {
             Binding::Local(local) => self.builder.tree().get(local).ty,
-            Binding::Captured { ty, .. } => ty,
+            Binding::Behind { ty, .. } => ty,
         }
     }
 

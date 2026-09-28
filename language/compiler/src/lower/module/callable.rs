@@ -2,8 +2,8 @@ use tspp_dir as dir;
 use tspp_mir as mir;
 
 use crate::lower::{
-    Body, BoundReceiver, CallableImplementation, FunctionDeclaration, FunctionDefinition,
-    GenericInstanceKey, GenericScope, ModuleLowerer,
+    Body, CallableImplementation, FunctionDeclaration, FunctionDefinition, GenericInstanceKey,
+    GenericScope, ModuleLowerer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -20,6 +20,15 @@ pub(in crate::lower) enum Receiver {
     Constructs(dir::GlobalTypeId),
 }
 
+/// How one parameter binds its argument.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::lower) enum ParameterBinding {
+    /// Bind the parameter's symbol.
+    Named(dir::LocalSymbolId),
+    /// Destructure a pattern.
+    Pattern(dir::LocalNodeId<dir::Pattern>),
+}
+
 /// One callable as its declaration writes it.
 pub(in crate::lower) struct CallableHeader {
     /// The nominal owning a member callable.
@@ -28,8 +37,8 @@ pub(in crate::lower) struct CallableHeader {
     pub(in crate::lower) role: Option<dir::FunctionRole>,
     /// The receiver the callable leads with.
     pub(in crate::lower) receiver: Receiver,
-    /// The parameter symbols in header order.
-    pub(in crate::lower) parameters: Vec<dir::LocalSymbolId>,
+    /// The parameter bindings in header order.
+    pub(in crate::lower) parameters: Vec<ParameterBinding>,
     /// The declared default expression of each parameter, in header order.
     pub(in crate::lower) defaults: Vec<Option<dir::LocalNodeId<dir::Expression>>>,
     /// The body, absent on an ambient signature or a requirement.
@@ -107,20 +116,33 @@ impl ModuleLowerer<'_> {
                 });
             };
 
-        // collect each parameter's symbol and default
-        let mut symbols = Vec::with_capacity(parameters.len());
+        // collect the bindings and defaults
         let defaults: Vec<_> = parameters
             .iter()
             .map(|parameter| tree.get(*parameter).default_value())
             .collect();
-        for parameter in parameters {
-            let node = parameter.into_global_any(symbol.module_id);
-            let Some(parameter) = self.symbol_declared_at(node)? else {
-                return Err(CompilerError::Internal {
-                    message: "a missing symbol for one parameter".to_string(),
-                });
-            };
-            symbols.push(parameter.local_id);
+        let patterns = parameters
+            .iter()
+            .map(|parameter| match tree.get(*parameter) {
+                dir::Parameter::Pattern { pattern, .. }
+                | dir::Parameter::VariadicPattern { pattern, .. } => Some(*pattern),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let mut bindings = Vec::with_capacity(parameters.len());
+        for (parameter, pattern) in parameters.into_iter().zip(patterns) {
+            // bind a pattern or a symbol
+            if let Some(pattern) = pattern {
+                bindings.push(ParameterBinding::Pattern(pattern));
+            } else {
+                let node = parameter.into_global_any(symbol.module_id);
+                let Some(parameter) = self.symbol_declared_at(node)? else {
+                    return Err(CompilerError::Internal {
+                        message: "a missing symbol for one parameter".to_string(),
+                    });
+                };
+                bindings.push(ParameterBinding::Named(parameter.local_id));
+            }
         }
 
         // classify the receiver the callable leads with
@@ -159,7 +181,7 @@ impl ModuleLowerer<'_> {
             owner,
             role,
             receiver,
-            parameters: symbols,
+            parameters: bindings,
             defaults,
             body,
         })
@@ -232,7 +254,7 @@ impl ModuleLowerer<'_> {
         // name the header by the binding's extern name, else the callable's canonical path
         let name = match &binding {
             Some(binding) => self.strings.get(binding.name).to_string(),
-            None => self.callable_path(symbol)?,
+            None => self.canonical_path(symbol)?,
         };
 
         // import a foreign callable's header under its instance key
@@ -242,7 +264,9 @@ impl ModuleLowerer<'_> {
             return Ok(None);
         }
         let (mut parameters, mut result) = self.lower_signature(tree, declared, scope)?;
-        if parameters.len() != header.parameters.len() {
+        let own_type = self.symbol_type(symbol)?;
+        let park = self.signature_parks(own_type)?.into();
+        if parameters.len() < header.parameters.len() {
             return Err(CompilerError::Internal {
                 message: format!(
                     "the parameters of '{}' disagree with its declared signature",
@@ -259,9 +283,10 @@ impl ModuleLowerer<'_> {
             result = tree.intern_type(mir::Type::Void);
         }
 
+        // export defined callables
         let is_defined = header.body.is_some() && symbol.module_id == self.module;
         let linkage = if is_defined {
-            mir::Linkage::Local
+            mir::Linkage::Export
         } else {
             mir::Linkage::Import
         };
@@ -270,7 +295,7 @@ impl ModuleLowerer<'_> {
             _ => mir::FunctionKind::Function,
         };
         let function = self.insert_header(
-            tree, key, &name, parameters, result, scope, linkage, binding, kind,
+            tree, key, &name, parameters, result, park, scope, linkage, binding, kind,
         )?;
 
         // queue the body this module defines
@@ -325,6 +350,7 @@ impl ModuleLowerer<'_> {
         name: &str,
         parameters: Vec<mir::TypeId>,
         result: mir::TypeId,
+        park: mir::ParkBehavior,
         scope: &GenericScope,
         linkage: mir::Linkage,
         binding: Option<mir::Binding>,
@@ -334,14 +360,10 @@ impl ModuleLowerer<'_> {
         let display = Self::key_display(key);
 
         // keep a template polymorphic over its type parameters, a specialization closed
-        let receiver = if self.definition(symbol)?.is_none() {
-            BoundReceiver::OfCallable(symbol)
-        } else {
-            BoundReceiver::None
-        };
+        let callable = self.definition(symbol)?.is_none().then_some(symbol);
         let generics = match linkage {
             mir::Linkage::Shared => Vec::new(),
-            _ => self.generic_parameters(tree, scope, receiver)?,
+            _ => self.generic_parameters(tree, scope, callable)?,
         };
 
         // declare the header under its declared or instantiated symbol
@@ -352,6 +374,7 @@ impl ModuleLowerer<'_> {
             base.instantiate(&display, tree)
         };
         let header = mir::FunctionHeaderBuilder::new(self.strings, self.module, name)
+            .park(park)
             .kind(kind)
             .generics(generics)
             .arguments(display)
@@ -361,10 +384,10 @@ impl ModuleLowerer<'_> {
         let function = match (linkage, binding) {
             (_, Some(binding)) => header.imported().with_binding(binding),
             (mir::Linkage::Import, None) => header.imported(),
-            (mir::Linkage::Local | mir::Linkage::Export, None) => header.declared(),
-            (mir::Linkage::Shared, None) => {
+            // define the header
+            (mir::Linkage::Local | mir::Linkage::Export | mir::Linkage::Shared, None) => {
                 let mut declared = header.declared();
-                declared.linkage = mir::Linkage::Shared;
+                declared.linkage = linkage;
 
                 declared
             }
@@ -401,7 +424,7 @@ impl ModuleLowerer<'_> {
         key: &GenericInstanceKey,
         function: mir::FunctionId,
     ) -> CompilerResult<()> {
-        self.anchor_function(tree, function, key.symbol)?;
+        self.anchor_declaration(tree, function, key.symbol)?;
         self.index_language_declaration(tree, function, key.symbol);
         self.functions
             .insert(key.clone(), FunctionDeclaration::Declared(function));
@@ -464,43 +487,43 @@ impl ModuleLowerer<'_> {
         let parameters: Vec<_> = parameters.iter().map(|parameter| parameter.ty).collect();
         let result = *result;
 
-        // declare the body beside the entry under its own key
+        // declare the parking body beside the entry
         let name = format!("{}.body", self.symbol_path(symbol)?);
-        let body_key = GenericInstanceKey {
-            symbol,
-            receiver: None,
-            arguments: key.map(|key| key.arguments.clone()).unwrap_or_default(),
-        };
         let base = self.declared_symbol(symbol, &name);
-        let mut header =
-            mir::FunctionHeaderBuilder::new(self.strings, self.module, &name).symbol(base);
-        if !body_key.arguments.is_empty() {
-            let display = body_key.arguments.clone();
+        let mut header = mir::FunctionHeaderBuilder::new(self.strings, self.module, &name)
+            .symbol(base)
+            .park(mir::ParkBehavior::MayPark);
+        if let Some(key) = key.filter(|key| !key.arguments.is_empty()) {
+            let display = key.arguments.clone();
             let instantiated = base.instantiate(&display, tree);
             header = header.arguments(display).symbol(instantiated);
         }
-        let generics = self.generic_parameters(tree, scope, BoundReceiver::OfCallable(symbol))?;
+        let generics = self.generic_parameters(tree, scope, Some(symbol))?;
         let header = scope.declare(header);
         let header = header
             .generics(generics)
             .parameters(parameters)
             .result(result);
         let function = tree.insert(header.declared());
-        self.anchor_function(tree, function, symbol)?;
+        self.anchor_declaration(tree, function, symbol)?;
 
         Ok(function)
     }
 
-    /// Anchor one function at its symbol's declaration extent.
-    pub(in crate::lower) fn anchor_function(
+    /// Anchor one own declaration at its symbol's declaration extent.
+    pub(in crate::lower) fn anchor_declaration<T: mir::Node>(
         &mut self,
         tree: &mut mir::Tree,
-        function: mir::FunctionId,
+        declaration: mir::LocalNodeId<T>,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<()> {
+        // skip foreign declarations
+        if symbol.module_id != self.module {
+            return Ok(());
+        }
         if let Some((node, span)) = self.declaration_anchor(symbol)? {
-            tree.set_source(function.id, node);
-            tree.set_span(function, span);
+            tree.set_source(declaration.id, node);
+            tree.set_span(declaration, span);
         }
 
         Ok(())
@@ -750,7 +773,7 @@ impl ModuleLowerer<'_> {
             None if role == Some(dir::FunctionRole::Constructor) => "constructor".to_string(),
             None => {
                 return Err(CompilerError::Internal {
-                    message: "a method without a name".to_string(),
+                    message: "a member without a name".to_string(),
                 });
             }
         };

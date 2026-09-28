@@ -23,7 +23,7 @@ function run(): int32 {
         "main.tspp",
         "test.main.double",
         r#"
-function test.main.double(v0: int32): int32 {
+export function test.main.double(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
@@ -37,7 +37,7 @@ entry(v0: int32):
     );
 
     session.assert_mir_function("main.tspp", "test.main.apply", r#"
-function test.main.apply(v0: function<(int32) => int32, repeatable, managed, mutable, local>, v1: int32): int32 {
+export function test.main.apply(v0: function<(int32) => int32, repeatable, managed, mutable, local>, v1: int32): int32 {
     local l0: function<(int32) => int32, repeatable, managed, mutable, local>
     local l1: int32
 
@@ -53,7 +53,7 @@ entry(v0: function<(int32) => int32, repeatable, managed, mutable, local>, v1: i
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.run", r#"
-function test.main.run(): int32 {
+export function test.main.run(): int32 {
 entry:
     v0: ptr<void, readonly> = null
     v1: function<(int32) => int32, repeatable, managed, mutable, local> = function.bind test.main.double, v0

@@ -17,7 +17,7 @@ function weigh(value: int32): int32 {
         "main.tspp",
         "test.main.weigh",
         r#"
-function test.main.weigh(v0: int32): int32 {
+export function test.main.weigh(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
@@ -69,7 +69,7 @@ function halt(): int32 {
         "main.tspp",
         "test.main.halt",
         r#"
-function test.main.halt(): int32 {
+export function test.main.halt(): int32 {
 entry:
     abort
 
@@ -98,7 +98,7 @@ function pause(value: int32): int32 {
         "main.tspp",
         "test.main.pause",
         r#"
-function test.main.pause(v0: int32): int32 {
+export function test.main.pause(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
@@ -128,7 +128,7 @@ function wait(): void {
         "main.tspp",
         "test.main.wait",
         r#"
-function test.main.wait(): void {
+export function test.main.wait(): void {
 entry:
     intrinsic.hint.spinLoop()
     return
@@ -197,7 +197,7 @@ function publish(): void {
         "main.tspp",
         "test.main.publish",
         r#"
-function test.main.publish(): void {
+export function test.main.publish(): void {
 entry:
     atomic.fence release
     return
@@ -223,7 +223,7 @@ function clamp(value: int32): int8 {
         "main.tspp",
         "test.main.clamp",
         r#"
-function test.main.clamp(v0: int32): int8 {
+export function test.main.clamp(v0: int32): int8 {
     local l0: int32
 
 entry(v0: int32):
@@ -296,7 +296,7 @@ function acquireAll(): void {
         "main.tspp",
         "test.main.acquireAll",
         r#"
-function test.main.acquireAll(): void {
+export function test.main.acquireAll(): void {
 entry:
     atomic.fence acquire
     return
@@ -325,7 +325,7 @@ function bump(pointer: *int32): void {
         "main.tspp",
         "test.main.bump",
         r#"
-function test.main.bump(v0: ptr<int32, mutable>): void {
+export function test.main.bump(v0: ptr<int32, mutable>): void {
     local l0: ptr<int32, mutable>
 
 entry(v0: ptr<int32, mutable>):
@@ -360,7 +360,7 @@ function mirror(pointer: *int32): void {
         "main.tspp",
         "test.main.mirror",
         r#"
-function test.main.mirror(v0: ptr<int32, mutable>): void {
+export function test.main.mirror(v0: ptr<int32, mutable>): void {
     local l0: ptr<int32, mutable>
 
 entry(v0: ptr<int32, mutable>):
@@ -392,7 +392,7 @@ function exchange(pointer: *int32, value: int32): int32 {
         "main.tspp",
         "test.main.exchange",
         r#"
-function test.main.exchange(v0: ptr<int32, mutable>, v1: int32): int32 {
+export function test.main.exchange(v0: ptr<int32, mutable>, v1: int32): int32 {
     local l0: ptr<int32, mutable>
     local l1: int32
 
@@ -426,7 +426,7 @@ function flip(first: *int32, second: *int32): void {
         "main.tspp",
         "test.main.flip",
         r#"
-function test.main.flip(v0: ptr<int32, mutable>, v1: ptr<int32, mutable>): void {
+export function test.main.flip(v0: ptr<int32, mutable>, v1: ptr<int32, mutable>): void {
     local l0: ptr<int32, mutable>
     local l1: ptr<int32, mutable>
 
@@ -462,7 +462,7 @@ function destroy(pointer: *int32): void {
         "main.tspp",
         "test.main.destroy",
         r#"
-function test.main.destroy(v0: ptr<int32, mutable>): void {
+export function test.main.destroy(v0: ptr<int32, mutable>): void {
     local l0: ptr<int32, mutable>
 
 entry(v0: ptr<int32, mutable>):
@@ -509,7 +509,7 @@ type test.main.Pair {
     high: int64;
 }
 
-function test.main.measure(): usize {
+export function test.main.measure(): usize {
 entry:
     v0: usize = size.of test.main.Pair
     v1: usize = align.of test.main.Pair
@@ -543,7 +543,7 @@ function locate(value: &readonly int64): *int64 {
         "main.tspp",
         "test.main.locate",
         r#"
-function test.main.locate<'a>(v0: ref<int64, borrowed, 'a, readonly>): ptr<int64, mutable> {
+export function test.main.locate<'a>(v0: ref<int64, borrowed, 'a, readonly>): ptr<int64, mutable> {
     local l0: ref<int64, borrowed, 'a, readonly>
 
 entry(v0: ref<int64, borrowed, 'a, readonly>):
@@ -573,7 +573,7 @@ function empty(): *int64 {
         "main.tspp",
         "test.main.empty",
         r#"
-function test.main.empty(): ptr<int64, mutable> {
+export function test.main.empty(): ptr<int64, mutable> {
 entry:
     v0: ptr<int64, mutable> = align.of int64
     v1: ptr<int64, mutable> = intrinsic.memory.raw.transmute(v0)
@@ -603,7 +603,7 @@ function distance(pointer: *int32, origin: *int32): int {
         "main.tspp",
         "test.main.distance",
         r#"
-function test.main.distance(v0: ptr<int32, mutable>, v1: ptr<int32, mutable>): int64 {
+export function test.main.distance(v0: ptr<int32, mutable>, v1: ptr<int32, mutable>): int64 {
     local l0: ptr<int32, mutable>
     local l1: ptr<int32, mutable>
 
@@ -653,7 +653,7 @@ function build(): int64 {
         "main.tspp",
         "test.main.build",
         r#"
-function test.main.build(): int64 {
+export function test.main.build(): int64 {
 entry:
     v0: uninit<int64> = uninit
     v1: uninit<int64> = zeroed
@@ -686,7 +686,7 @@ function wrap(value: int64): int64 {
         "main.tspp",
         "test.main.wrap",
         r#"
-function test.main.wrap(v0: int64): int64 {
+export function test.main.wrap(v0: int64): int64 {
     local l0: int64
 
 entry(v0: int64):
@@ -737,7 +737,7 @@ type test.main.Context { }
 @nocopy
 type test.main.Variable { }
 
-function test.main.scope(v0: ref<test.main.Variable, managed, mutable, local>, v1: int32): int32 {
+export function test.main.scope(v0: ref<test.main.Variable, managed, mutable, local>, v1: int32): int32 {
     local l0: ref<test.main.Variable, managed, mutable, local>
     local l1: int32
     local l2: ref<test.main.Context, managed, mutable, local>
@@ -796,7 +796,7 @@ function observe(elapsed: number): void {
         "main.tspp",
         "test.main.observe",
         r#"
-function test.main.observe(v0: float64): void {
+export function test.main.observe(v0: float64): void {
     local l0: float64
 
 entry(v0: float64):
@@ -818,7 +818,7 @@ type literal.string.requests { }
 
 type literal.string.latency { }
 
-export function test.main.@init(): void {
+export park function test.main.@init(): void {
 entry:
     v0: literal.string.requests = zeroed
     v1: void = zeroed
@@ -851,7 +851,7 @@ function reserve(count: usize): ^[MaybeUninit<int32>] {
     );
 
     session.assert_mir_function("main.tspp", "test.main.reserve", r#"
-function test.main.reserve(v0: usize): slice<uninit<int32>, unique, mutable> {
+export function test.main.reserve(v0: usize): slice<uninit<int32>, unique, mutable> {
     local l0: usize
     local l1: slice<uninit<int32>, unique, mutable>
 
@@ -884,7 +884,7 @@ const second = tick();
         "main.tspp",
         "test.main.tick",
         r#"
-function test.main.tick(): int32 {
+export function test.main.tick(): int32 {
 entry:
     v0: int32 = 1
     return v0
@@ -896,7 +896,7 @@ entry:
         "main.tspp",
         "test.main.@init",
         r#"
-export function test.main.@init(): void {
+export park function test.main.@init(): void {
 entry:
     v0: int32 = call test.main.tick(): () => int32
     store @test.main.first, v0
@@ -939,7 +939,7 @@ type test.main.Point {
     x: int32;
 }
 
-function test.main.wrap(v0: test.main.Point): manual<test.main.Point> {
+export function test.main.wrap(v0: test.main.Point): manual<test.main.Point> {
     local l0: test.main.Point
 
 entry(v0: test.main.Point):
@@ -957,7 +957,7 @@ type test.main.Point {
     x: int32;
 }
 
-function test.main.unwrap(v0: manual<test.main.Point>): test.main.Point {
+export function test.main.unwrap(v0: manual<test.main.Point>): test.main.Point {
     local l0: manual<test.main.Point>
 
 entry(v0: manual<test.main.Point>):
@@ -974,7 +974,7 @@ entry(v0: manual<test.main.Point>):
         "main.tspp",
         "test.main.marker",
         r#"
-function test.main.marker(): void {
+export function test.main.marker(): void {
 entry:
     call Phantom.new<test.main.Point>(): () => void
     v0: void = zeroed
@@ -1019,7 +1019,7 @@ function total(a: Vector<int32, 4>): int32 {
         "main.tspp",
         "test.main.lanes",
         r#"
-function test.main.lanes(v0: int32, v1: uint32): int32 {
+export function test.main.lanes(v0: int32, v1: uint32): int32 {
     local l0: int32
     local l1: uint32
     local l2: vector<int32, 4>
@@ -1044,7 +1044,7 @@ entry(v0: int32, v1: uint32):
 "#,
     );
     session.assert_mir_function("main.tspp", "test.main.pick", r#"
-function test.main.pick(v0: vector<boolean, 4>, v1: vector<int32, 4>, v2: vector<int32, 4>): vector<int32, 4> {
+export function test.main.pick(v0: vector<boolean, 4>, v1: vector<int32, 4>, v2: vector<int32, 4>): vector<int32, 4> {
     local l0: vector<boolean, 4>
     local l1: vector<int32, 4>
     local l2: vector<int32, 4>
@@ -1064,7 +1064,7 @@ entry(v0: vector<boolean, 4>, v1: vector<int32, 4>, v2: vector<int32, 4>):
         "main.tspp",
         "test.main.widen",
         r#"
-function test.main.widen(v0: vector<int32, 4>): vector<int64, 4> {
+export function test.main.widen(v0: vector<int32, 4>): vector<int64, 4> {
     local l0: vector<int32, 4>
 
 entry(v0: vector<int32, 4>):
@@ -1079,7 +1079,7 @@ entry(v0: vector<int32, 4>):
         "main.tspp",
         "test.main.below",
         r#"
-function test.main.below(v0: vector<int32, 4>, v1: vector<int32, 4>): vector<boolean, 4> {
+export function test.main.below(v0: vector<int32, 4>, v1: vector<int32, 4>): vector<boolean, 4> {
     local l0: vector<int32, 4>
     local l1: vector<int32, 4>
 
@@ -1097,7 +1097,7 @@ entry(v0: vector<int32, 4>, v1: vector<int32, 4>):
         "main.tspp",
         "test.main.total",
         r#"
-function test.main.total(v0: vector<int32, 4>): int32 {
+export function test.main.total(v0: vector<int32, 4>): int32 {
     local l0: vector<int32, 4>
 
 entry(v0: vector<int32, 4>):
@@ -1140,7 +1140,7 @@ type MemoryOrdering = variant<uint8> { 0uint8 = void; 1uint8 = void; 2uint8 = vo
 @languageItem("memory.Clone")
 type Clone { }
 
-function test.main.load<const Order: MemoryOrdering>(v0: ptr<int32, mutable>, v1: variant<uint1> { 0uint1 = MemoryOrdering; 1uint1 = void; }): int32 {
+export function test.main.load<const Order: MemoryOrdering>(v0: ptr<int32, mutable>, v1: variant<uint1> { 0uint1 = MemoryOrdering; 1uint1 = void; }): int32 {
     local l0: ptr<int32, mutable>
     local l1: variant<uint1> { 0uint1 = MemoryOrdering; 1uint1 = void; }
 
@@ -1151,6 +1151,15 @@ entry(v0: ptr<int32, mutable>, v1: variant<uint1> { 0uint1 = MemoryOrdering; 1ui
     v3: int32 = atomic.load (*v2), Order, scope(device)
     return v3
 }
+
+/// @layout.variant name=type@5 size=1 align=1
+/// @layout.discriminant owner=type@5 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@5 index=0 discriminant=0 payload_offset=1
+/// @layout.case owner=type@5 index=1 discriminant=1 payload_offset=1
+/// @layout.case owner=type@5 index=2 discriminant=2 payload_offset=1
+/// @layout.case owner=type@5 index=3 discriminant=3 payload_offset=1
+/// @layout.case owner=type@5 index=4 discriminant=4 payload_offset=1
+/// @layout.struct name=type@10 size=0 align=1
 
 /// @dispatch.shape constraint=type@8 function=clone function=cloneFrom
 "#,

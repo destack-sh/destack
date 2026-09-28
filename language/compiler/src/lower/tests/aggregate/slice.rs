@@ -15,7 +15,7 @@ function measure(values: &readonly [int32]): int32 {
         "main.tspp",
         "test.main.measure",
         r#"
-function test.main.measure<'a>(v0: slice<int32, borrowed, 'a, readonly>): int32 {
+export function test.main.measure<'a>(v0: slice<int32, borrowed, 'a, readonly>): int32 {
     local l0: slice<int32, borrowed, 'a, readonly>
 
 entry(v0: slice<int32, borrowed, 'a, readonly>):
@@ -43,7 +43,7 @@ function keep(name: string): string {
 @languageItem("string.String")
 type String;
 
-function test.main.keep(v0: ref<String, managed, mutable, local>): ref<String, managed, mutable, local> {
+export function test.main.keep(v0: ref<String, managed, mutable, local>): ref<String, managed, mutable, local> {
     local l0: ref<String, managed, mutable, local>
 
 entry(v0: ref<String, managed, mutable, local>):
@@ -71,7 +71,7 @@ function measure(view: &readonly Bytes): int32 {
         "main.tspp",
         "test.main.measure",
         r#"
-function test.main.measure<'a>(v0: slice<uint8, borrowed, 'a, readonly>): int32 {
+export function test.main.measure<'a>(v0: slice<uint8, borrowed, 'a, readonly>): int32 {
     local l0: slice<uint8, borrowed, 'a, readonly>
 
 entry(v0: slice<uint8, borrowed, 'a, readonly>):
@@ -101,7 +101,7 @@ function measure(view: &readonly Frame<uint8>): int32 {
         "main.tspp",
         "test.main.measure",
         r#"
-function test.main.measure<'a>(v0: slice<uint8, borrowed, 'a, readonly>): int32 {
+export function test.main.measure<'a>(v0: slice<uint8, borrowed, 'a, readonly>): int32 {
     local l0: slice<uint8, borrowed, 'a, readonly>
 
 entry(v0: slice<uint8, borrowed, 'a, readonly>):
@@ -125,7 +125,7 @@ function fill(values: &[int32], value: int32): void {
     );
 
     session.assert_mir_function("main.tspp", "test.main.fill", r#"
-function test.main.fill<'a>(v0: slice<int32, borrowed, 'a, mutable>, v1: int32): void {
+export function test.main.fill<'a>(v0: slice<int32, borrowed, 'a, mutable>, v1: int32): void {
     local l0: slice<int32, borrowed, 'a, mutable>
     local l1: int32
 

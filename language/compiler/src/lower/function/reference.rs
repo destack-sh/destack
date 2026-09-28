@@ -52,7 +52,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         // select the instance by the coercion's arguments, a body-local closure by its declaration
         let instance = if self.is_body_local_closure(expression, symbol) {
-            Instance::Declared(self.function(&GenericInstanceKey::non_generic(symbol))?)
+            self.body_local_closure_instance(symbol)?
         } else {
             let bindings = self.lower.instance_bindings(arguments)?;
             self.instance_of(symbol, &dir::InstanceKey::new(symbol, bindings))?
@@ -68,6 +68,24 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
+    /// Return one body-local closure instance.
+    fn body_local_closure_instance(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Instance> {
+        let template = self.function(&GenericInstanceKey::non_generic(symbol))?;
+        let tree = self.builder.tree_mut();
+        if tree.get(template).generics.is_empty() {
+            return Ok(Instance::Declared(template));
+        }
+        let arguments = self.scope.identity_arguments(self.lower, tree, 0)?;
+
+        Ok(Instance::Applied {
+            template,
+            arguments,
+        })
+    }
+
     /// Return the instance selected by one callable reference.
     fn function_reference_instance(
         &mut self,
@@ -76,9 +94,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Instance> {
         // declare a body-local closure once, polymorphic over the enclosing template
         if self.is_body_local_closure(expression, symbol) {
-            let key = GenericInstanceKey::non_generic(symbol);
-
-            return self.function(&key).map(Instance::Declared);
+            return self.body_local_closure_instance(symbol);
         }
 
         // read the instance selected at this reference
@@ -197,14 +213,8 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 self.load_place(mir::Place::local(local), ty)
             }
-            // load captured bindings through their frame field
-            Binding::Captured { frame, field, ty } => {
-                let place = mir::Place::value(frame)
-                    .with_projection(mir::Projection::Deref)
-                    .with_projection(mir::Projection::Field { index: field });
-
-                self.load_place(place, ty)
-            }
+            // load captured bindings behind their reference
+            Binding::Behind { ty, .. } => self.load_place(binding.mir_place(), ty),
         })
     }
 
@@ -221,12 +231,8 @@ impl FunctionLowerer<'_, '_, '_> {
             None
         };
         match binding {
-            Some(binding) => {
-                let value = self.read_binding(binding)?;
-
-                // project a flow-narrowed read onto its recorded narrowing
-                self.lower_narrowing(expression, value)
-            }
+            // read narrowed
+            Some(binding) => self.lower_narrowing(expression, |lower| lower.read_binding(binding)),
             // load module constants through their globals
             None => {
                 if let Some(global) = self.constant_global(symbol)? {

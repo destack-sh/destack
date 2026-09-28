@@ -15,7 +15,7 @@ function twice(x: float64): float64 {
         "main.tspp",
         "test.main.twice",
         r#"
-function test.main.twice(v0: float64): float64 {
+export function test.main.twice(v0: float64): float64 {
     local l0: float64
     local l1: float64
 
@@ -48,7 +48,7 @@ function bump(x: int32): int32 {
         "main.tspp",
         "test.main.bump",
         r#"
-function test.main.bump(v0: int32): int32 {
+export function test.main.bump(v0: int32): int32 {
     local l0: int32
     local l1: int32
 
@@ -93,7 +93,7 @@ type test.main.Point {
     y: int32;
 }
 
-function test.main.relay(): int32 {
+export function test.main.relay(): int32 {
     local l0: test.main.Point
     local l1: test.main.Point
 
@@ -140,7 +140,7 @@ type test.main.Point {
     y: int32;
 }
 
-function test.main.span(v0: test.main.Point): int32 {
+export function test.main.span(v0: test.main.Point): int32 {
     local l0: test.main.Point
     local l1: int32
     local l2: int32
@@ -155,6 +155,59 @@ entry(v0: test.main.Point):
     v4: int32 = load l2
     v5: int32 = add v3, v4
     return v5
+}
+
+/// @layout.struct name=test.main.Point size=8 align=4
+/// @layout.field owner=test.main.Point index=0 name=x offset=0 size=4 align=4
+/// @layout.field owner=test.main.Point index=1 name=y offset=4 size=4 align=4
+"#,
+    );
+}
+
+/// Destructure a pattern parameter from its argument slot.
+#[test]
+fn test_bind_the_projected_fields_of_a_destructured_parameter() {
+    let session = TestSession::single(
+        r#"
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+function span(scale: int32, { x, y }: Point): int32 {
+    return scale * (x + y);
+}
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.tspp",
+        "test.main.span",
+        r#"
+type test.main.Point {
+    x: int32;
+    y: int32;
+}
+
+export function test.main.span(v0: int32, v1: test.main.Point): int32 {
+    local l0: int32
+    local l1: test.main.Point
+    local l2: int32
+    local l3: int32
+
+entry(v0: int32, v1: test.main.Point):
+    store l0, v0
+    store l1, v1
+    v2: int32 = load (l1).0
+    store l2, v2
+    v3: int32 = load (l1).1
+    store l3, v3
+    v4: int32 = load l0
+    v5: int32 = load l2
+    v6: int32 = load l3
+    v7: int32 = add v5, v6
+    v8: int32 = mul v4, v7
+    return v8
 }
 
 /// @layout.struct name=test.main.Point size=8 align=4
@@ -183,7 +236,7 @@ function read(length: int32): int32 {
         "main.tspp",
         "test.main.parse",
         r#"
-function test.main.parse(v0: int32): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
+export function test.main.parse(v0: int32): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
     local l0: int32
     local l1: variant<uint1> { 0uint1 = int32; 1uint1 = void; }
 
@@ -219,7 +272,7 @@ b3:
     );
 
     session.assert_mir_function("main.tspp", "test.main.read", r#"
-function test.main.read(v0: int32): int32 {
+export function test.main.read(v0: int32): int32 {
     local l0: int32
     local l1: variant<uint1> { 0uint1 = int32; 1uint1 = void; }
     local l2: int32, readonly
@@ -256,4 +309,65 @@ b3:
 /// @layout.case owner=type@3 index=0 discriminant=0 payload_offset=4
 /// @layout.case owner=type@3 index=1 discriminant=1 payload_offset=4
 "#);
+}
+
+/// Read and write the referent of a held exclusive reference in place, reborrowing it at calls.
+#[test]
+fn test_write_the_referent_of_a_held_reference_after_reading_it() {
+    let session = TestSession::single(
+        r#"
+function add(counter: &exclusive int32): void {
+    *counter = *counter + 1;
+}
+
+function run(): int32 {
+    let count: int32 = 1;
+    const counter = &exclusive count;
+    add(counter);
+    add(counter);
+    return count;
+}
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.tspp",
+        "test.main.add",
+        r#"
+export function test.main.add<'a>(v0: ref<int32, borrowed, 'a, exclusive>): void {
+    local l0: ref<int32, borrowed, 'a, exclusive>
+
+entry(v0: ref<int32, borrowed, 'a, exclusive>):
+    store l0, v0
+    v1: int32 = load (*l0)
+    v2: int32 = 1
+    v3: int32 = add v1, v2
+    store (*l0), v3
+    return
+}
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.tspp",
+        "test.main.run",
+        r#"
+export function test.main.run(): int32 {
+    local l0: int32
+    local l1: ref<int32, borrowed, 'frame, exclusive>
+
+entry:
+    v0: int32 = 1
+    store l0, v0
+    v1: ref<int32, borrowed, 'frame, exclusive> = address l0
+    store l1, v1
+    v2: ref<int32, borrowed, 'frame, exclusive> = address (*l1)
+    call test.main.add(v2): (ref<int32, borrowed, 'frame, exclusive>) => void
+    v3: ref<int32, borrowed, 'frame, exclusive> = address (*l1)
+    call test.main.add(v3): (ref<int32, borrowed, 'frame, exclusive>) => void
+    v4: int32 = load l0
+    return v4
+}
+"#,
+    );
 }

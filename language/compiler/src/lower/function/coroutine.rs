@@ -53,7 +53,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // build the environment the extracted body unpacks
         let aggregate = self.builder.aggregate(pointee, values);
-        let environment = self.builder.new_complete(aggregate, reference);
+        let environment = self.box_value(aggregate, reference)?;
 
         // find the closure argument the creation call expects
         let Some(binding) = create
@@ -147,7 +147,7 @@ impl FunctionLowerer<'_, '_, '_> {
             slots.push(self.lower_type(declared)?);
         }
 
-        Ok(self.environment_reference_types(&slots, mir::Reference::Unique))
+        Ok(self.environment_reference_types(&slots, mir::Reference::Unique, mir::Access::Mutable))
     }
 
     /// Return the lowered receiver representation the coroutine's signature declares.
