@@ -12,7 +12,7 @@ import { AuditHistory } from "../history/history.ts";
 import { AuditRecorder } from "../record/index.ts";
 import { AuditError } from "../error/index.ts";
 import { auditService, AuditScope } from "../service/index.ts";
-import { Authorizer, GLOBAL_SCOPE } from "@destack/access";
+import { GLOBAL_SCOPE, Scope } from "@destack/access";
 
 /** Verified request authority supplied by a local or regional host. */
 export interface AuditRequestContext {
@@ -39,7 +39,7 @@ export function implementService(
                         scope: AuditScope,
                     ) => {
                         // require the permission on the scope object, denying an unknown scope
-                        const [link] = await Authorizer.chain(
+                        const [link] = await Scope.chain(
                             Snapshot.live(options.access.database),
                             scope,
                         );
