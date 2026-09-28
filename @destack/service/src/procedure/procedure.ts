@@ -28,6 +28,7 @@ export function defineProcedure(
         CONFLICT: { status: 409 },
         PRECONDITION_FAILED: { status: 412 },
         MANAGED: { status: 409 },
+        MOVED: { status: 421 },
         UNSUPPORTED: { status: 422 },
         RATE_LIMITED: { status: 429 },
         UNAVAILABLE: { status: 503 },
