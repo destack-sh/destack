@@ -1,6 +1,0 @@
-set shell := ["bash", "-cu"]
-
-# check
-check:
-    bun run --cwd stack check
-    bun run --cwd blank check

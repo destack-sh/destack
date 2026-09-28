@@ -11,7 +11,7 @@ Select the shared stack when copying the template.
 {
     name: "@florian/notes",
     dependencies: {
-        "@destack/template-stack": { name: "@florian/stack", version: "2026.9.0" },
+        "@template/stack": { name: "@florian/stack", version: "2026.9.0" },
     },
 }
 ```

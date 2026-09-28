@@ -1,5 +1,5 @@
 {
-    "name": "@destack/template-stack",
+    "name": "@template/stack",
     "version": "2026.9.0",
     "private": true,
     "license": "MIT",
@@ -28,6 +28,6 @@
         "@destack/db": "2026.9.0",
         "@destack/bucket": "2026.9.0",
         "@destack/vault": "2026.9.0",
-        "@destack/account": "workspace:*"
+        "@destack/account": "2026.9.0"
     }
 }

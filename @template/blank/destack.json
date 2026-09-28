@@ -13,7 +13,7 @@
             ".oxlintrc.json",
             ".oxfmtrc.json"
         ],
-        "dependencies": ["@destack/template-stack"]
+        "dependencies": ["@template/stack"]
     },
     "targets": ["browser", "server"]
 }

@@ -15,12 +15,13 @@ package/
 ├─ src/
 │  ├─ package.ts           export default definePackage({ resources, secrets })
 │  ├─ index.ts             re-exports only
+│  ├─ object/              defineObject(...): data, access and methods, client-safe
 │  ├─ stack/               db.ts · bucket.ts · vault.ts: resource and secret declarations
 │  ├─ service/             defineService(...): procedures, client-safe
 │  ├─ connection/          defineServiceConnection(...): consumed services, client-safe
 │  ├─ server/              implementService(...): server-only
 │  ├─ workload/            defineWorkload({ name, compute, start })
-│  ├─ settings/ audit/ access/   defineSetting · defineAuditAction · defineObject
+│  ├─ settings/ audit/ notification/   defineSetting · defineAuditAction · defineNotification
 │  ├─ app/                 view startup and composition
 │  └─ <noun>/              domain modules, one noun each
 └─ tests/                  *.test.ts

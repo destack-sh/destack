@@ -7,5 +7,5 @@ import { readLanguage } from "./index.ts";
 
 const context = new ClientContext(configuration, transport);
 context.bind(settings);
-const language = await readLanguage(target, context.resources);
+const language = await readLanguage(selection, context.resources);
 ```
