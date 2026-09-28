@@ -1,3 +1,4 @@
+use std::ops::Range;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -97,13 +98,13 @@ impl ExampleRunner {
                                 .map_or("no type".to_string(), |actual| format!("`{actual}`"));
                             failures.push(format!(
                                 "{}: expected type `{expected}`, found {actual}",
-                                location(module.file, probe.range.start)
+                                location(module.file, probe.range.clone())
                             ));
                         }
                     }
                     Expectation::Value(_) => failures.push(format!(
                         "{}: value probes are not implemented",
-                        location(module.file, probe.range.start)
+                        location(module.file, probe.range.clone())
                     )),
                     Expectation::Diagnostic { .. } => {}
                 }
@@ -282,9 +283,9 @@ fn compare_diagnostics(
 
     // match each reported diagnostic against one expectation
     for diagnostic in diagnostics.iter() {
-        let span = match diagnostic.primary.target {
-            DiagnosticTarget::Span(span) => Some(span),
-            DiagnosticTarget::File(_) => None,
+        let (file_id, span) = match diagnostic.primary.target {
+            DiagnosticTarget::Span(span) => (span.file, Some(span)),
+            DiagnosticTarget::File(file_id) => (file_id, None),
         };
         let position = expected.iter().position(|(module, probe)| {
             span.is_some_and(|span| expects(module, probe, diagnostic, span))
@@ -296,13 +297,12 @@ fn compare_diagnostics(
         }
         // report an unexpected error inside or outside the example
         else if diagnostic.severity == DiagnosticSeverity::Error {
-            let place = span
-                .and_then(|span| {
-                    let module = modules.iter().find(|module| module.file_id == span.file)?;
-
-                    Some(location(module.file, span.start))
-                })
-                .unwrap_or_else(|| "outside the example".to_string());
+            let module = modules.iter().find(|module| module.file_id == file_id);
+            let place = match (module, span) {
+                (Some(module), Some(span)) => location(module.file, span.start..span.end),
+                (Some(module), None) => module.file.path.clone(),
+                (None, _) => "outside the example".to_string(),
+            };
             failures.push(format!(
                 "{place}: unexpected error[{}]: {}",
                 diagnostic.id, diagnostic.message
@@ -320,7 +320,7 @@ fn compare_diagnostics(
         {
             failures.push(format!(
                 "{}: expected {}[{code}]: {message}",
-                location(module.file, probe.range.start),
+                location(module.file, probe.range.clone()),
                 severity.family_name()
             ));
         }
@@ -347,11 +347,30 @@ fn expects(module: &ExampleModule<'_>, probe: &Probe, diagnostic: &Diagnostic, s
         && *message == diagnostic.message
 }
 
-/// Return `path:line:column` for one offset in an example file.
-fn location(file: &ExampleFile, offset: u32) -> String {
+/// Return `path:line:column` for one range in an example file, with its end when it spans text.
+fn location(file: &ExampleFile, range: Range<u32>) -> String {
+    let (line, column) = position(file, range.start);
+    let (end_line, end_column) = position(file, range.end);
+
+    // name an empty range by its start
+    if range.is_empty() {
+        format!("{}:{line}:{column}", file.path)
+    }
+    // name the end column of a range on one line
+    else if end_line == line {
+        format!("{}:{line}:{column}-{end_column}", file.path)
+    }
+    // name the end line and column of a range across lines
+    else {
+        format!("{}:{line}:{column}-{end_line}:{end_column}", file.path)
+    }
+}
+
+/// Return the one-based line and column of one offset in an example file.
+fn position(file: &ExampleFile, offset: u32) -> (usize, usize) {
     let before = &file.source[..offset as usize];
     let line = before.matches('\n').count() + 1;
     let column = before.len() - before.rfind('\n').map_or(0, |index| index + 1) + 1;
 
-    format!("{}:{line}:{column}", file.path)
+    (line, column)
 }
