@@ -1,8 +1,9 @@
 import { test, expect } from "@destack/test";
 import { AuditError } from "../src/error/index.ts";
 import { AuditStorage, renameDocument, rename } from "./storage.ts";
+import { defineAuditAction } from "../src/index.ts";
 import { document } from "./stack/index.ts";
-import { identifier } from "@destack/schema";
+import { identifier, schema } from "@destack/schema";
 import { AuditRecorder } from "../src/record/recorder.ts";
 
 test("keep each event in the history of its scope", async () => {
@@ -117,6 +118,51 @@ test("name in a result what only the action's value tells, beside the attempt's 
                 ["attempt", { name: "renamed" }],
                 ["result", { name: "chosen" }],
             ],
+        ]);
+    } finally {
+        await storage.close();
+    }
+});
+
+test("leave sensitive values out of attempt and result details", async () => {
+    const storage = await AuditStorage.open();
+    try {
+        // declare a sign-in whose code is sensitive, and whose result names the account without its secret
+        const signIn = defineAuditAction(
+            {
+                name: "Account.signIn",
+                version: 1,
+                targets: renameDocument.targets,
+                details: schema.object({
+                    method: schema.string(),
+                    code: schema.sensitive(schema.string()).optional(),
+                    account: schema
+                        .object({ id: schema.string(), secret: schema.sensitive(schema.string()) })
+                        .optional(),
+                }),
+            },
+            { package: renameDocument.package },
+        );
+
+        // keep the method, and not the code, in the attempt's details
+        const targets = rename.targets;
+        const attempt = storage.recorder.begin(signIn, {
+            targets,
+            details: { method: "code", code: "123456" },
+        });
+        expect(attempt.details).toEqual({ method: "code" });
+
+        // keep the account's identifier, and not its secret, in the details the result derives
+        const attempted = await storage.recorder.attempt(
+            signIn,
+            { targets, details: { method: "code" } },
+            async () => ({ id: "account-2", secret: "hunter3" }),
+            (account) => ({ method: "code", account }),
+        );
+        const events = await storage.outbox.read();
+        expect([attempted, events.map((event) => event.details)]).toEqual([
+            { id: "account-2", secret: "hunter3" },
+            [{ method: "code" }, { method: "code", account: { id: "account-2" } }],
         ]);
     } finally {
         await storage.close();

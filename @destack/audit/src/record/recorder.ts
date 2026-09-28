@@ -201,7 +201,9 @@ export class AuditRecorder<Transaction = never> {
         const details =
             detail === undefined
                 ? undefined
-                : (action.details.parse(detail(value)) as Readonly<Record<string, unknown>>);
+                : (schema.redact(action.details, action.details.parse(detail(value))) as Readonly<
+                      Record<string, unknown>
+                  >);
         await this.#conclude(attempt, { outcome: "success" }, undefined, details);
 
         return value;
@@ -264,7 +266,7 @@ export class AuditRecorder<Transaction = never> {
         }
     }
 
-    /** Validate declared fields and assign immutable event identity. */
+    /** Validate declared fields, leaving out the details' sensitive values, and assign immutable event identity. */
     #event<Targets extends schema.Schema, Details extends schema.Schema>(
         action: AuditAction<Targets, Details>,
         values: { targets: schema.Input<Targets>; details: schema.Input<Details> },
@@ -276,7 +278,7 @@ export class AuditRecorder<Transaction = never> {
             occurredAt: Date.now(),
             context: this.#context,
             targets: action.targets.parse(values.targets),
-            details: action.details.parse(values.details),
+            details: schema.redact(action.details, action.details.parse(values.details)),
             result,
         });
     }

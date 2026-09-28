@@ -4,7 +4,7 @@ Declare audit actions, record them durably, and query authorized history.
 
 ## Actions
 
-An action names a Noun.verb, the objects it affects and the details it records.
+An action names a Noun.verb, the objects it affects and the details it records, leaving out values its schema marks sensitive.
 
 ```ts
 import { defineAuditAction } from "@destack/audit";
