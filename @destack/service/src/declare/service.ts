@@ -57,10 +57,19 @@ export function defineService<const Input extends ServiceInput>(
     // route each declaration under its own name, and their shared procedures once
     const { objects = {}, ...router } = input as ServiceInput;
     const derived: Record<string, unknown> = { ...router };
+    const shared: Record<string, unknown> = {};
     for (const [key, routed] of Object.entries(objects)) {
         derived[key] = routed.procedures;
-        Object.assign(derived, routed.shared);
+        Object.assign(shared, routed.shared);
     }
+
+    // refuse a name that two of the procedures, the declarations and the shared procedures take
+    const taken = [...Object.keys(router), ...Object.keys(objects), ...Object.keys(shared)];
+    const collision = taken.find((key, position) => taken.indexOf(key) !== position);
+    if (collision !== undefined) {
+        throw new TypeError(`service ${name} routes two procedures under ${collision}`);
+    }
+    Object.assign(derived, shared);
 
     return Object.freeze({
         package: owner,
