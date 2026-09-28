@@ -4,7 +4,7 @@ import type { SchemaCompiler } from "../dialect/compiler.ts";
 import type { DrizzleDatabase } from "../dialect/drizzle.ts";
 import type { Table } from "../table/table.ts";
 import { SelectBuilder, type SelectedSubquery, type SelectQuery } from "../query/select.ts";
-import { sql, type SQL, type WithSubquery } from "drizzle-orm";
+import { or, sql, type SQL, type WithSubquery } from "drizzle-orm";
 import { MutationQuery } from "../query/mutation.ts";
 import type { ResourceState } from "@destack/package/declare";
 import {
@@ -22,7 +22,11 @@ import { closeTransaction, openTransaction } from "../log/transaction.ts";
 import { Log } from "../log/log.ts";
 import type { CommitNotifier } from "../log/notifier.ts";
 import { CommitWatch } from "../log/watch.ts";
-import type { Dialect } from "../dialect/dialect.ts";
+import { PARAMETER_BUDGET, type Dialect } from "../dialect/dialect.ts";
+import { Key } from "../query/key.ts";
+import { CHAIN_TERMS } from "../query/predicate.ts";
+import type { Row } from "../table/row.ts";
+import { TABLE } from "../table/table.ts";
 import { Session } from "../sqlite/session.ts";
 import type { PostgresJsSession } from "drizzle-orm/postgres-js";
 import type { EmptyRelations } from "drizzle-orm/relations";
@@ -120,6 +124,51 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
     /** Delete application records. */
     delete<Definition extends Table>(table: Definition): MutationQuery<Definition, void, "delete"> {
         return new MutationQuery(this.driver, this.compiler, table, "delete");
+    }
+
+    /**
+     * Write rows to a table as they are, inserting new keys and updating held ones, a batch of rows per statement.
+     *
+     * An upsert fires the log's update trigger on held rows and its insert trigger on new ones.
+     */
+    async upsert(table: Table, rows: readonly Row[]): Promise<void> {
+        // update every written column but the key from the proposed row
+        const key = table[TABLE].key;
+        const columns = table[TABLE].columns;
+        const written = [...new Set(rows.flatMap((row) => Object.keys(row)))];
+        const set = Object.fromEntries(
+            written
+                .filter((name) => !key.includes(name))
+                .map((name) => [
+                    name,
+                    sql`excluded.${sql.identifier(columns[name]!.definition.name)}`,
+                ]),
+        );
+
+        // write rows with every written column, a batch within the parameter budget
+        const size = Math.max(1, Math.floor(PARAMETER_BUDGET / Math.max(written.length, 1)));
+        for (let start = 0; start < rows.length; start += size) {
+            const batch = rows
+                .slice(start, start + size)
+                .map((row) => Object.fromEntries(written.map((name) => [name, row[name] ?? null])));
+            const insert = this.insert(table).values(batch as never);
+            await (Object.keys(set).length === 0
+                ? insert.onConflictDoNothing()
+                : insert.onConflictDoUpdate({
+                      target: key.map((name) => columns[name]!) as never,
+                      set: set as never,
+                  }));
+        }
+    }
+
+    /** Delete a table's rows by key, a chain of keys per statement. */
+    async remove(table: Table, rows: readonly Row[]): Promise<void> {
+        for (let start = 0; start < rows.length; start += CHAIN_TERMS) {
+            const matches = rows
+                .slice(start, start + CHAIN_TERMS)
+                .map((row) => Key.match(table, row));
+            await this.delete(table).where(or(...matches)!);
+        }
     }
 
     /** Execute a script of SQL statements in one round trip, without returning rows. */

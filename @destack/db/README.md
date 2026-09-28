@@ -58,6 +58,13 @@ const notes = new Statement((value) => sql`SELECT ${note.id} AS id FROM ${jsonEl
 await notes.all(database, { ids: JSON.stringify(ids.map((id) => [id])) });
 ```
 
+A connection writes and deletes whole rows by key.
+
+```ts
+await database.upsert(note, rows); // inserts new keys, updates held ones, firing the log's triggers
+await database.remove(note, keys); // deletes by key
+```
+
 ## Conditions
 
 `@destack/db/query` holds conditions and expressions that SQL and memory decide alike.
