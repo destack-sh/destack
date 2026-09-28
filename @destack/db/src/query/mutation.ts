@@ -1,4 +1,5 @@
-import { type Placeholder, type Query, SQL } from "drizzle-orm";
+import { is, Placeholder, type Query, SQL, sql } from "drizzle-orm";
+import { and, eq, inArray, or } from "./predicate.ts";
 import type { DatabaseDriver, NativeDatabase } from "../database/driver.ts";
 import type { SchemaCompiler } from "../dialect/compiler.ts";
 import type { DrizzleDatabase, DrizzleMutation } from "../dialect/drizzle.ts";
@@ -7,6 +8,7 @@ import { type Insert, type Select, TABLE, type Table } from "../table/table.ts";
 import { selectFields, type SelectionResult } from "./selection.ts";
 import type { PreparedQuery } from "./select.ts";
 import { assertNever } from "../error/error.ts";
+import type { SelectedFields, SQLiteTable } from "drizzle-orm/sqlite-core";
 
 /** Values supplied to an insert or update. */
 export type MutationRow<Definition extends Table> = {
@@ -144,9 +146,13 @@ export class MutationQuery<
         return this as unknown as MutationQuery<Definition, unknown[], Operation>;
     }
 
-    /** Execute the mutation. */
+    /** Execute the mutation, reading changed rows back by key on SQLite instead of through RETURNING. */
     async execute(): Promise<Result> {
-        const result = await this.driver.write((native) => this.#compile(native));
+        const result = await this.driver.write((native) =>
+            native.dialect === "sqlite" && this.fields !== undefined && this.#isReadBack()
+                ? this.#writeThenRead(native)
+                : this.#compile(native),
+        );
 
         return (this.fields ? result : undefined) as Result;
     }
@@ -179,21 +185,134 @@ export class MutationQuery<
         };
     }
 
-    /** Build the native mutation with its parameter encoders and result decoder. */
-    #compile(native: NativeDatabase): DrizzleMutation {
+    /**
+     * Decide whether SQLite reads changed rows back by key instead of through RETURNING, which Turso charges about 0.15 ms per statement.
+     *
+     * Updates and deletions read back by rowid; insertions need every record's key as a plain value, and upserts must conflict on the key and update every conflicting row.
+     */
+    #isReadBack(): boolean {
+        // read updates and deletions back by rowid
+        if (this.operation !== "insert") {
+            return true;
+        }
+
+        // read insertions back by key, when every record names its key and an upsert conflicts on it
+        const key = this.table[TABLE].key;
+        const columns = this.table[TABLE].columns;
+        const isKeyed =
+            key.length > 0 &&
+            this.records.length > 0 &&
+            this.records.every((record) =>
+                key.every((property) => {
+                    const value = (record as Record<string, unknown>)[property];
+
+                    return (
+                        value !== undefined && !(value instanceof SQL) && !is(value, Placeholder)
+                    );
+                }),
+            );
+        const isKeyConflict =
+            this.conflict?.action !== "update" ||
+            (this.conflict.setWhere === undefined &&
+                this.conflict.target.length === key.length &&
+                this.conflict.target.every((column, index) => column === columns[key[index]!]));
+
+        return isKeyed && isKeyConflict;
+    }
+
+    /** Write without RETURNING, then read the changed rows back within the write's transaction, which holds the write lock. */
+    async #writeThenRead(
+        native: Extract<NativeDatabase, { dialect: "sqlite" }>,
+    ): Promise<unknown[]> {
+        // read through the write's transaction, rows by rowid
+        const database = native.database;
+        const table = this.compiler.table(this.table) as SQLiteTable;
+        const fields = selectFields(this.fields!, this.compiler) as SelectedFields;
+        const rowid = sql`rowid`;
+        const read = (where: SQL | undefined) =>
+            database.select(fields).from(table).where(where) as unknown as Promise<unknown[]>;
+
+        // read insertions back by key, skipping rows a conflict left in place, in insertion order
+        if (this.operation === "insert") {
+            const key = this.table[TABLE].key;
+            const columns = this.table[TABLE].columns;
+            const match = this.compiler.expression(
+                or(
+                    ...this.records.map((record) =>
+                        and(
+                            ...key.map((property) =>
+                                eq(
+                                    columns[property]!,
+                                    (record as Record<string, unknown>)[property],
+                                ),
+                            ),
+                        ),
+                    ),
+                )!,
+            );
+            const rowids = async () =>
+                (
+                    (await database.select({ rowid }).from(table).where(match)) as {
+                        rowid: bigint;
+                    }[]
+                ).map((row) => row.rowid);
+            const existing =
+                this.conflict?.action === "nothing" ? new Set(await rowids()) : new Set();
+            await this.#compile(native, false);
+            const inserted = (await rowids())
+                .filter((id) => !existing.has(id))
+                .sort((left, right) => (left < right ? -1 : left > right ? 1 : 0));
+
+            return inserted.length === 0 ? [] : read(inArray(rowid, inserted));
+        }
+
+        // select the rows the predicate matches, then write and read them by rowid
+        const predicate = this.predicate && this.compiler.expression(this.predicate);
+        const matched = (await database.select({ rowid }).from(table).where(predicate)) as {
+            rowid: bigint;
+        }[];
+        if (matched.length === 0) {
+            return [];
+        }
+        const selected = inArray(
+            rowid,
+            matched.map((row) => row.rowid),
+        );
+
+        // read deleted rows before they go, and updated rows after they change
+        if (this.operation === "delete") {
+            const deleted = await read(selected);
+            await database.delete(table).where(selected);
+
+            return deleted;
+        }
+        await database
+            .update(table)
+            .set(this.#values(this.changes) as never)
+            .where(selected);
+
+        return read(selected);
+    }
+
+    /** Translate expressions in a record while retaining column encoders on the native table. */
+    #values(record: object): Record<string, unknown> {
+        return Object.fromEntries(
+            Object.entries(record).map(([property, value]) => [
+                property,
+                value instanceof SQL ? this.compiler.expression(value) : value,
+            ]),
+        );
+    }
+
+    /** Build the native mutation with its parameter encoders and result decoder, returning its fields unless told not to. */
+    #compile(native: NativeDatabase, isReturning = true): DrizzleMutation {
         // reject use after the enclosing transaction finishes
         this.driver.transaction?.assertActive();
 
         // translate expressions while retaining column encoders on the native table
-        const values = (record: object): Record<string, unknown> =>
-            Object.fromEntries(
-                Object.entries(record).map(([property, value]) => [
-                    property,
-                    value instanceof SQL ? this.compiler.expression(value) : value,
-                ]),
-            );
+        const values = (record: object): Record<string, unknown> => this.#values(record);
         const predicate = this.predicate && this.compiler.expression(this.predicate);
-        const fields = this.fields && selectFields(this.fields, this.compiler);
+        const fields = isReturning && this.fields && selectFields(this.fields, this.compiler);
         const conflict = this.conflict;
 
         // select the native builders once, then apply the common Drizzle operations
