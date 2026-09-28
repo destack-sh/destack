@@ -380,8 +380,8 @@ impl Machine {
                     .map_err(Error::program)?;
                 words.extend_from_slice(environment_words);
             }
-            (None, None) => {}
-            (Some(_), None) | (None, Some(_)) => {
+            (None, _) => {}
+            (Some(_), None) => {
                 return Err(Error::invalid_instruction());
             }
         }

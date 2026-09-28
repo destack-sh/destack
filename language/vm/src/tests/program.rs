@@ -22,6 +22,8 @@ pub(crate) struct TestProgram {
     pub(super) signatures: Vec<Option<Signature>>,
     /// Signature used by explicitly word-only fixtures.
     pub(super) default_signature: Option<Signature>,
+    /// Closure environment types keyed by bytecode function id.
+    pub(super) environments: HashMap<u32, TypeId>,
     /// Program global locations in dense global id order.
     pub(super) globals: Vec<program::GlobalLocation>,
     /// Program sites under test.
@@ -236,6 +238,7 @@ impl TestProgram {
             bindings: HashMap::new(),
             signatures: Vec::new(),
             default_signature: None,
+            environments: HashMap::new(),
             globals: Vec::new(),
             sites: SiteTableBuilder::new(),
             virtual_tables: Vec::new(),
@@ -258,6 +261,13 @@ impl TestProgram {
             parameters: parameters.into_iter().map(TypeId).collect(),
             result: TypeId(result),
         });
+
+        self
+    }
+
+    /// Declare one bytecode function's closure environment type.
+    pub(crate) fn environment(mut self, function: u32, ty: u32) -> Self {
+        self.environments.insert(function, TypeId(ty));
 
         self
     }

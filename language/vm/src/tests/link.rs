@@ -261,7 +261,10 @@ impl TestProgram {
         for (index, _) in object.functions().iter().enumerate() {
             let name = strings.intern(&format!("f{index}"));
             let signature = SignatureId(index as u32);
-            let entry = FunctionBuilder::new(name, signature);
+            let mut entry = FunctionBuilder::new(name, signature);
+            if let Some(environment) = self.environments.get(&(index as u32)) {
+                entry = entry.environment(*environment);
+            }
             if let Some(binding) = self.bindings.get(&(index as u32)) {
                 let binding_name = strings.intern(binding);
                 names.push(binding_name);

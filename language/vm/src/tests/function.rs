@@ -36,7 +36,7 @@ function f3 {
     return r8:r13
 }
 "#,
-        TestProgram::words(),
+        TestProgram::words().environment(0, 0).environment(2, 0),
     );
 
     let environment = Word::from_bits(0x1200);

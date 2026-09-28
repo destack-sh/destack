@@ -89,14 +89,22 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             // indirect function value or pointer
             Opcode::CALL_INDIRECT | Opcode::INVOKE_INDIRECT | Opcode::TAIL_CALL_INDIRECT => {
                 let value = operands.span()?;
-                let environment = match value.word_count {
-                    1 => None,
-                    2 => Some(self.read(value.start.0 + 1)),
+                let function = self.function_id(self.read(value.start.0))?;
+                let entry = self
+                    .machine
+                    .program
+                    .function(function)
+                    .ok_or_else(|| self.invalid_instruction())?;
+
+                // pass the environment to a callee that declares one
+                let environment = match (value.word_count, entry.environment()) {
+                    (1, _) | (2, None) => None,
+                    (2, Some(_)) => Some(self.read(value.start.0 + 1)),
                     _ => return Err(self.invalid_instruction()),
                 };
 
                 Ok(Callee {
-                    function: self.function_id(self.read(value.start.0))?,
+                    function,
                     environment,
                 })
             }
