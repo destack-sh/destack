@@ -27,6 +27,8 @@ pub(in crate::sema) enum ComponentProjection {
     },
     /// The value itself, a newtype's backing.
     Backing,
+    /// The declared value of an enum case.
+    Value,
     /// The value at the base its heritage extends.
     Base,
     /// The value narrowed to one union member.
@@ -42,6 +44,8 @@ pub(in crate::sema) enum Composite {
     Tuple,
     /// A newtype wrapping its backing value.
     Newtype(dir::GlobalSymbolId),
+    /// An enum standing for its declared value.
+    Enum,
     /// A union dispatched member by member.
     Union,
     /// A class rendered field by field.
@@ -404,6 +408,9 @@ impl CheckState<'_> {
                     state.build_equal_body(&mut frame, &components)?
                 }
                 (_, dir::AutoInterface::Hash) => state.build_hash_body(&mut frame, &components)?,
+                (Composite::Enum, dir::AutoInterface::Debug | dir::AutoInterface::Display) => {
+                    state.build_value_text_body(&mut frame, &components)?
+                }
                 (_, dir::AutoInterface::Debug | dir::AutoInterface::Display) => {
                     state.build_text_body(&mut frame, shape, &components, origin, return_type)?
                 }
@@ -450,9 +457,7 @@ impl CheckState<'_> {
             return Ok(None);
         };
         let Some(interface) = dir::AutoInterface::all()
-            .filter(|interface| {
-                interface.is_auto_derivable() || *interface == dir::AutoInterface::Default
-            })
+            .filter(|interface| interface.derived_member().is_some())
             .find(|interface| dir::LanguageItem::from(*interface) == item)
         else {
             return Ok(None);

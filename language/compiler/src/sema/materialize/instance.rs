@@ -18,6 +18,8 @@ pub(in crate::sema) struct InstanceWorklist {
     overflowed: bool,
     /// The types whose graphs this pass walked.
     pub(super) walked: FxHashSet<dir::GlobalTypeId>,
+    /// The queued conformances of closed own declarations.
+    pub(super) conformances: Vec<(dir::GlobalTypeId, dir::GlobalTypeId, dir::GlobalNodeIdAny)>,
 }
 
 impl InstanceWorklist {

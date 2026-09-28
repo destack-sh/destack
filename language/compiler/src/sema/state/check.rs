@@ -1392,6 +1392,25 @@ impl<'a> CheckState<'a> {
             .map(|(owner, _, _)| owner))
     }
 
+    /// Return the base constructions one class's implicit constructors run.
+    pub(in crate::sema) fn class_base_constructions(
+        &self,
+        class: dir::GlobalSymbolId,
+    ) -> CompilerResult<Vec<dir::ConstructTarget>> {
+        let constructors = match self.is_own_module(class.module_id) {
+            true => self.module.class_constructors(class),
+            false => self
+                .external(class.module_id)?
+                .and_then(|external| external.members().class_constructors(class)),
+        };
+
+        Ok(constructors
+            .unwrap_or_default()
+            .iter()
+            .filter_map(|constructor| constructor.base.clone())
+            .collect())
+    }
+
     /// Return the members selected to satisfy one `implements` clause.
     pub(in crate::sema) fn conformance_members(
         &self,

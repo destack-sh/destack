@@ -547,9 +547,10 @@ const first = shapes[0];
 /// @resolution.name source=shapes target=shapes
 /// @resolution.place source=shapes placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=shapes root=shapes
-/// @resolution.subscript source=shapes[0] type=Shape kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=Shape, regions=(\"managed\" & \"local\"))"
-/// @generic.instantiation id="index#2<Shape, \"managed\" & \"local\">" template=index#2 arguments=(Shape, "managed" & "local")
-/// @generic.instance id="index#2<Shape, \"bound0\" & \"local\">" template=index#2 arguments=(Shape, "bound0" & "local")
+/// @resolution.access source=shapes[0] root=shapes keys=[0]
+/// @resolution.subscript source=shapes[0] type=Shape kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=&'managed readonly Shape, regions=(\"managed\" & \"local\"))"
+/// @generic.instantiation id="index#2<Shape, \"readonly\", \"managed\" & \"local\">" template=index#2 arguments=(Shape, "readonly", "managed" & "local")
+/// @generic.instance id="index#2<Shape, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=(Shape, "readonly", "bound0" & "local")
 
 first satisfies Shape;
 /// @resolution.name source=first target=first

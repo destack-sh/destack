@@ -234,8 +234,9 @@ impl CheckState<'_> {
         self.module_mut(frame.module).decisions_tail.set_narrowing(
             node.into_global_any(frame.module),
             dir::Narrowing {
-                union: frame.receiver,
+                declared: frame.receiver,
                 arms: vec![member],
+                tests: Vec::new(),
             },
         );
     }

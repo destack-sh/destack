@@ -108,7 +108,10 @@ impl CheckState<'_> {
     }
 
     /// Return the discriminant carried by one case-specific type.
-    fn variant_discriminant(&mut self, variant: &dir::VariantType) -> CompilerResult<dir::Literal> {
+    pub(in crate::sema) fn variant_discriminant(
+        &mut self,
+        variant: &dir::VariantType,
+    ) -> CompilerResult<dir::Literal> {
         // read the enum owning the case
         let owner = self.variant_owner(variant)?;
 

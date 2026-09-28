@@ -166,7 +166,7 @@ const ok: Value = new User();
 /// @type.symbol symbol=ok source=ok type=Value
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Value target=Value
-/// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=default
+/// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=implicit
 /// @resolution.name source=User target=User
 
 ok.name satisfies string;

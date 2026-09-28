@@ -586,7 +586,7 @@ const session = requireEqual(new Session());
 /// @generic.instantiation id=requireEqual<Session> template=requireEqual arguments=(Session)
 /// @generic.instance id=PartialEqual.equal<Session> template=PartialEqual.equal arguments=()
 /// @generic.instance id=requireEqual<Session> template=requireEqual arguments=(Session)
-/// @resolution.construct source="new Session()" parameters=() return=Session kind=class target=Session constructor=default
+/// @resolution.construct source="new Session()" parameters=() return=Session kind=class target=Session constructor=implicit
 /// @resolution.name source=Session target=Session
 
 const hashed = requireHash(new Session());
@@ -597,7 +597,7 @@ const hashed = requireHash(new Session());
 /// @generic.instantiation id=requireHash<Session> template=requireHash arguments=(Session)
 /// @generic.instance id=Hash.hash<Session> template=Hash.hash arguments=()
 /// @generic.instance id=requireHash<Session> template=requireHash arguments=(Session)
-/// @resolution.construct source="new Session()" parameters=() return=Session kind=class target=Session constructor=default
+/// @resolution.construct source="new Session()" parameters=() return=Session kind=class target=Session constructor=implicit
 /// @resolution.name source=Session target=Session
 
 /// @generic.template symbol=Hash.hash parameters=('a, 'b)
@@ -1070,13 +1070,13 @@ same satisfies boolean;
 const s1 = new Session();
 /// @type.symbol symbol=s1 source=s1 type=Session
 /// @resolution.pattern source=s1 kind=binding target=s1
-/// @resolution.construct source="new Session()" parameters=() return=Session kind=class target=Session constructor=default
+/// @resolution.construct source="new Session()" parameters=() return=Session kind=class target=Session constructor=implicit
 /// @resolution.name source=Session target=Session
 
 const s2 = new Session();
 /// @type.symbol symbol=s2 source=s2 type=Session
 /// @resolution.pattern source=s2 kind=binding target=s2
-/// @resolution.construct source="new Session()" parameters=() return=Session kind=class target=Session constructor=default
+/// @resolution.construct source="new Session()" parameters=() return=Session kind=class target=Session constructor=implicit
 /// @resolution.name source=Session target=Session
 
 const csame = s1 == s2;

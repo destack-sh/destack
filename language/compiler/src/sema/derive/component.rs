@@ -25,6 +25,11 @@ impl CheckState<'_> {
             };
         }
 
+        // derive a case through its enum
+        if let dir::Type::Variant(case) = kind {
+            return self.derived_family(origin, case.owner);
+        }
+
         // read the components the receiver stores, in storage order
         let (shape, components) = match kind {
             dir::Type::Tuple(tuple) => {
@@ -75,6 +80,14 @@ impl CheckState<'_> {
                         Composite::Newtype(application.symbol),
                         vec![(ComponentProjection::Backing, definition.backing)],
                     ),
+                    dir::Definition::Enum(definition) => {
+                        let value = dir::Type::Primitive(definition.backing.primitive());
+
+                        (
+                            Composite::Enum,
+                            vec![(ComponentProjection::Value, self.intern_type(value)?)],
+                        )
+                    }
                     _ => return Ok(None),
                 };
                 for component in &mut components {

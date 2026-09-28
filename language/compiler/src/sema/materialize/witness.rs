@@ -1,3 +1,5 @@
+use std::mem::take;
+
 use tspp_core::FxIndexMap;
 use tspp_dir as dir;
 
@@ -44,45 +46,64 @@ impl CheckState<'_> {
         }))
     }
 
-    /// Record the Drop witness of every own nominal declaration that conforms to Drop.
-    pub(in crate::sema) fn walk_nominal_witnesses(
+    /// Queue the declared conformances of one declaration.
+    pub(super) fn queue_declared_conformances(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        definition: &dir::Definition,
+        worklist: &mut InstanceWorklist,
+    ) -> CompilerResult<()> {
+        // read the conforming type
+        let ty = match definition {
+            dir::Definition::Extension(dir::ExtensionDefinition {
+                target: dir::ExtensionTarget::Rooted { ty, .. },
+                ..
+            }) => *ty,
+            dir::Definition::Struct(_)
+            | dir::Definition::Class(_)
+            | dir::Definition::Enum(_)
+            | dir::Definition::Newtype(_) => {
+                let application = self.declaration_instance(symbol)?;
+                self.intern_type(dir::Type::Application(application))?
+            }
+            _ => return Ok(()),
+        };
+
+        // skip templates
+        if let Some(template) = definition.template()
+            && !self
+                .generic_template_parameters(template.into_global(self.module_id))?
+                .is_empty()
+        {
+            return Ok(());
+        }
+
+        // queue each implemented interface
+        for conformance in definition.implementations() {
+            worklist
+                .conformances
+                .push((ty, conformance.interface, conformance.source));
+        }
+
+        // queue Drop for a nominal with a drop hook
+        if !matches!(definition, dir::Definition::Extension(_))
+            && self.drop_hook_member(symbol)?.is_some()
+        {
+            let source = self.committed_definition_source(symbol)?;
+            let drop = self.language_type(dir::LanguageItem::Drop, &[])?;
+            worklist.conformances.push((ty, drop, source));
+        }
+
+        Ok(())
+    }
+
+    /// Record the witnesses of the queued conformances.
+    pub(in crate::sema) fn record_declared_witnesses(
         &mut self,
         worklist: &mut InstanceWorklist,
     ) -> CompilerResult<()> {
-        // list the own nominal declarations with the template each writes
-        let nominals: Vec<_> = self
-            .module
-            .iter_definitions()
-            .filter(|(_, definition)| {
-                matches!(
-                    definition,
-                    dir::Definition::Struct(_)
-                        | dir::Definition::Class(_)
-                        | dir::Definition::Enum(_)
-                        | dir::Definition::Newtype(_)
-                )
-            })
-            .map(|(symbol, definition)| (symbol, definition.template()))
-            .collect();
-        for (symbol, template) in nominals {
-            // skip templates, their instances recording their own witnesses
-            let is_open = match template {
-                Some(template) => !self
-                    .generic_template_parameters(template.into_global(self.module_id))?
-                    .is_empty(),
-                None => false,
-            };
-            if is_open {
-                continue;
-            }
-            if self.drop_hook_member(symbol)?.is_none() {
-                continue;
-            }
-            let source = self.committed_definition_source(symbol)?;
-            let application = self.declaration_instance(symbol)?;
-            let ty = self.intern_type(dir::Type::Application(application))?;
-            let drop = self.language_type(dir::LanguageItem::Drop, &[])?;
-            self.write_witness(ty, drop, source, worklist)?;
+        for (ty, interface, source) in take(&mut worklist.conformances) {
+            self.write_witness(ty, interface, source, worklist)?;
         }
 
         Ok(())

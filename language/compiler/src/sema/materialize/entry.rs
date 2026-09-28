@@ -24,8 +24,12 @@ pub(super) enum Entry {
     ),
     /// One node's type.
     Node(dir::GlobalNodeIdAny, dir::GlobalTypeId),
-    /// One definition with its source.
-    Definition(dir::GlobalNodeIdAny, Box<dir::Definition>),
+    /// One definition with its symbol and source.
+    Definition(
+        dir::GlobalSymbolId,
+        dir::GlobalNodeIdAny,
+        Box<dir::Definition>,
+    ),
     /// One node's decision.
     Decision(dir::GlobalNodeIdAny, Box<dir::Decision>),
     /// One node's place resolution.
@@ -72,12 +76,13 @@ impl CheckState<'_> {
             .filter_map(|(symbol, definition)| {
                 let source = self.module.definition_source_maybe(symbol)?;
 
-                Some((source, definition.clone()))
+                Some((symbol, source, definition.clone()))
             })
             .collect();
-        for (source, definition) in definitions {
-            entries.push(Entry::Definition(source, Box::new(definition)));
+        for (symbol, source, definition) in definitions {
+            entries.push(Entry::Definition(symbol, source, Box::new(definition)));
         }
+
         // the symbol types at their declarations
         let module = &self.module;
         let bindings = module.binding_table();
@@ -141,6 +146,7 @@ impl CheckState<'_> {
 
             let source = self.committed_definition_source(template)?;
             entries.push(Entry::Definition(
+                template,
                 source,
                 Box::new(dir::Definition::clone(&definition)),
             ));
@@ -282,17 +288,24 @@ impl CheckState<'_> {
 
                 Ok(())
             }
-            Entry::Definition(source, definition) => {
+            Entry::Definition(symbol, source, definition) => {
                 let anchor = materialization.anchor.unwrap_or(source);
 
-                // lowering reads the module's own definitions unreduced, keyed at their heads
+                // walk own definitions and queue their conformances
                 if materialization.substitution.is_none() {
                     dir::TypeVisit::visit_types(&*definition, &mut |ty| {
                         self.walk_type_graph(ty, anchor, worklist)
                     })?;
+                    self.queue_declared_conformances(symbol, &definition, worklist)?;
                 }
-
                 self.materialize_payload(materialization, anchor, *definition, worklist)?;
+
+                // intern the base constructions of implicit constructors
+                for base in self.class_base_constructions(symbol)? {
+                    let moved =
+                        self.materialize_payload(materialization, anchor, base.clone(), worklist)?;
+                    self.intern_selections(moved.as_ref().unwrap_or(&base), anchor, worklist)?;
+                }
 
                 Ok(())
             }
@@ -400,15 +413,15 @@ impl CheckState<'_> {
         Ok(resolved)
     }
 
-    /// Intern the instance behind every selection one decision carries, recorded beside it.
+    /// Intern the instances one payload selects.
     fn intern_selections(
         &mut self,
-        decision: &dir::Decision,
+        payload: &dyn dir::InstanceKeyVisit,
         anchor: dir::GlobalNodeIdAny,
         worklist: &mut InstanceWorklist,
     ) -> CompilerResult<()> {
         let mut written = Vec::new();
-        dir::InstanceKeyVisit::visit_instance_keys(decision, &mut |key| {
+        dir::InstanceKeyVisit::visit_instance_keys(payload, &mut |key| {
             if !key.arguments.is_empty() || key.receiver.is_some() {
                 written.push(key.clone());
             }

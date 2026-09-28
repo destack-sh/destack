@@ -120,6 +120,8 @@ impl CheckState<'_> {
             ComponentProjection::Field { key, symbol } => (key, symbol),
             // a newtype backing reads as the value itself, the call unwrapping it
             ComponentProjection::Backing => return Ok(value),
+            // read the declared value of a case
+            ComponentProjection::Value => return self.build_enum_value(frame, value, component.ty),
             // the base reads as the receiver at its heritage
             ComponentProjection::Base => {
                 return self.build_expression(frame, dir::Expression::Super, component.ty);
@@ -169,6 +171,38 @@ impl CheckState<'_> {
         )?;
 
         Ok(node)
+    }
+
+    /// Build `value as V`.
+    fn build_enum_value(
+        &mut self,
+        frame: &mut Derivation,
+        value: dir::LocalNodeId<dir::Expression>,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::LocalNodeId<dir::Expression>> {
+        // project the case to its declared value
+        let source = self.require_node_type(value.into_global_any(frame.module))?;
+        let mut adjustments = Vec::with_capacity(2);
+        if let dir::Type::Form(form) = self.ty(source)?
+            && matches!(form.form, dir::Form::Borrowed(_))
+        {
+            adjustments.push(dir::CoercionAdjustment::Read { target: form.value });
+        }
+        adjustments.push(dir::CoercionAdjustment::EnumValue { target });
+        let coercion = dir::Coercion::new(source, adjustments, dir::CastOrigin::Explicit);
+        self.commit_coercion(value.into_global_any(frame.module), coercion)?;
+
+        // build the cast to the value type
+        let target_type = self.build_type_expression(frame, target, target)?;
+
+        self.build_expression(
+            frame,
+            dir::Expression::As {
+                expression: value,
+                target_type,
+            },
+            target,
+        )
     }
 
     /// Build one component's protocol call over its read, passing the supplied arguments.

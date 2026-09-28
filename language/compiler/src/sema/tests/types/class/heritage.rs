@@ -237,10 +237,10 @@ interface Printable {
 /// @type.symbol symbol=Printable type=Printable
 /// @definition.interface symbol=Printable template=(this: Printable)
 /// @definition.where symbol=Printable relation=satisfies left=this right=Printable
-/// @definition.method symbol=Printable.print source="print(): void" slot=print type=() => void
+/// @definition.method symbol=Printable.print source="print(): void" slot=print type=(this: this) => void
 
     print(): void;
-    /// @type.symbol symbol=Printable.print source="print(): void" type=() => void
+    /// @type.symbol symbol=Printable.print source="print(): void" type=(this: this) => void
 
 }
 
@@ -357,10 +357,10 @@ interface Printable {
 /// @type.symbol symbol=Printable type=Printable
 /// @definition.interface symbol=Printable template=(this: Printable)
 /// @definition.where symbol=Printable relation=satisfies left=this right=Printable
-/// @definition.method symbol=Printable.print source="print(): void" slot=print type=() => void
+/// @definition.method symbol=Printable.print source="print(): void" slot=print type=(this: this) => void
 
     print(): void;
-    /// @type.symbol symbol=Printable.print source="print(): void" type=() => void
+    /// @type.symbol symbol=Printable.print source="print(): void" type=(this: this) => void
 
 }
 type Alias = Printable;
@@ -420,10 +420,10 @@ interface Drawable {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable template=(this: Drawable)
 /// @definition.where symbol=Drawable relation=satisfies left=this right=Drawable
-/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=() => void
+/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
 
     draw(): void;
-    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=() => void
+    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: this) => void
 
 }
 
@@ -488,10 +488,10 @@ interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named template=(this: Named)
 /// @definition.where symbol=Named relation=satisfies left=this right=Named
-/// @definition.method symbol=Named.name source="name(): string" slot=name type=() => string
+/// @definition.method symbol=Named.name source="name(): string" slot=name type=(this: this) => string
 
     name(): string;
-    /// @type.symbol symbol=Named.name source="name(): string" type=() => string
+    /// @type.symbol symbol=Named.name source="name(): string" type=(this: this) => string
 
 }
 
@@ -501,11 +501,11 @@ interface Drawable extends Named {
 /// @definition.interface symbol=Drawable template=(this: Drawable)
 /// @definition.where symbol=Drawable relation=satisfies left=this right=Drawable
 /// @definition.extends symbol=Drawable source=Named target=Named
-/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=() => void
+/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
 /// @resolution.name source=Named target=Named
 
     draw(): void;
-    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=() => void
+    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: this) => void
 
 }
 
@@ -1206,7 +1206,7 @@ class Dog extends Animal {
         /// @resolution.pattern source=inherited kind=binding target=Dog.speak.inherited
         /// @type.symbol symbol=Dog.speak.symbol7 source=() => super.speak() type=Function<(), string, "readonly">
         /// @capture.function function=Dog.speak.symbol7 bindings=0
-        /// @capture.receiver function=Dog.speak.symbol7 symbol=this#2 mode=manage type=Dog
+        /// @capture.receiver function=Dog.speak.symbol7 symbol=this#2 mode=copy type=Dog
         /// @resolution.member source=super.speak receiver=Animal type=(this: Animal) => string kind=symbol target_receiver=Animal target=Animal.speak
         /// @resolution.call source=super.speak() parameters=() return=string kind=symbol target=Animal.speak receiver=Animal
         /// @resolution.receiver source=super kind=super declaration=Dog type=Animal

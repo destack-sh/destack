@@ -124,7 +124,7 @@ extension of Foo implements Add<&readonly Foo>, Hash {
     /// @resolution.name source=Foo target=Foo
 
         return new Foo();
-        /// @resolution.construct source="new Foo()" parameters=() return=Foo kind=class target=Foo constructor=default
+        /// @resolution.construct source="new Foo()" parameters=() return=Foo kind=class target=Foo constructor=implicit
         /// @resolution.name source=Foo target=Foo
 
     }
@@ -207,6 +207,7 @@ declare function requireHash<T: Hash>(value: T): T;
 /// @type.symbol symbol=requireHash source="declare function requireHash<T: Hash>(value: T): T" type=<T: Hash>(T) => T
 /// @type.symbol symbol=requireHash.T source="T: Hash" type=T
 /// @resolution.name source=Hash target=Hash
+/// @type.symbol symbol=requireHash.value source="value: T" type=T
 /// @resolution.name source=T target=requireHash.T
 /// @resolution.name source=T target=requireHash.T
 
@@ -221,7 +222,7 @@ const direct = requireHash(new Foo());
 /// @resolution.name source=requireHash target=requireHash
 /// @resolution.call source="requireHash(new Foo())" parameters=(Foo) arguments=(provided(new Foo()) as Foo) return=Foo kind=symbol target=requireHash instance=requireHash<Foo>
 /// @generic.instantiation id=requireHash<Foo> template=requireHash arguments=(Foo)
-/// @resolution.construct source="new Foo()" parameters=() return=Foo kind=class target=Foo constructor=default
+/// @resolution.construct source="new Foo()" parameters=() return=Foo kind=class target=Foo constructor=implicit
 /// @resolution.name source=Foo target=Foo
 
 const named = requireHash(name);
@@ -241,7 +242,7 @@ const derived = requireHash(Key { foo: new Foo(), name });
 /// @resolution.call source="requireHash(Key { foo: new Foo(), name })" parameters=(Key) arguments=(provided(Key { foo: new Foo(), name }) as Key) return=Key kind=symbol target=requireHash instance=requireHash<Key>
 /// @generic.instantiation id=requireHash<Key> template=requireHash arguments=(Key)
 /// @resolution.name source=Key target=Key
-/// @resolution.construct source="new Foo()" parameters=() return=Foo kind=class target=Foo constructor=default
+/// @resolution.construct source="new Foo()" parameters=() return=Foo kind=class target=Foo constructor=implicit
 /// @resolution.name source=Foo target=Foo
 /// @resolution.name source=name target=name
 /// @resolution.place source=name placement="local" lifetime="static" access="immutable"

@@ -18,18 +18,8 @@ impl CheckState<'_> {
         let module = node.module_id;
         let value_node = value.into_global_any(module);
 
-        // select declaration-backed variants from the matched input
-        if let Some(case) = self.variant_expression_case(module, value)? {
-            // decide bound qualifier segments before reading their references
-            if let dir::Expression::Member { left, .. } = self.module(module).view().get(value) {
-                let left = *left;
-                self.decide_qualifier_segments(module, left)?;
-            }
-
-            return self.select_variant_pattern(node, origin, case, &[]);
-        }
-
-        // infer ordinary closed pattern expressions
+        // infer the pattern value
+        let case = self.variant_expression_case(module, value)?;
         let ty = self.infer_node_type(
             FlowSite {
                 node: value_node,
@@ -38,6 +28,11 @@ impl CheckState<'_> {
             },
             PlaceUse::Read,
         )?;
+
+        // select declaration-backed variants from the matched input
+        if let Some(case) = case {
+            return self.select_variant_pattern(node, origin, case, &[]);
+        }
 
         // closed literal values select literal predicates
         let written = self.shallow_resolve(ty)?;

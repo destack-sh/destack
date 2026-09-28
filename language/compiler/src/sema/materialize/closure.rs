@@ -60,8 +60,13 @@ impl CheckState<'_> {
             match entry {
                 // the body's types close at instantiation, the instantiate pass substituting them
                 Entry::Symbol(..) | Entry::Node(..) => {}
-                Entry::Definition(_, definition) => {
+                Entry::Definition(symbol, _, definition) => {
                     self.materialize_payload(&materialization, source, *definition, worklist)?;
+
+                    // intern the base constructions of implicit constructors
+                    for base in self.class_base_constructions(symbol)? {
+                        self.intern_selected_instances(&materialization, source, &base, worklist)?;
+                    }
                 }
                 // reach the instances a body decision selects
                 Entry::Decision(_, decision) => {
@@ -139,16 +144,16 @@ impl CheckState<'_> {
             .unwrap_or_default())
     }
 
-    /// Intern the instances one body decision selects under the substitution.
+    /// Intern the instances one payload selects under the substitution.
     fn intern_selected_instances(
         &mut self,
         materialization: &Materialization<'_>,
         source: dir::GlobalNodeIdAny,
-        decision: &dir::Decision,
+        payload: &dyn dir::InstanceKeyVisit,
         worklist: &mut InstanceWorklist,
     ) -> CompilerResult<()> {
         let mut written = Vec::new();
-        dir::InstanceKeyVisit::visit_instance_keys(decision, &mut |key| {
+        dir::InstanceKeyVisit::visit_instance_keys(payload, &mut |key| {
             if !key.arguments.is_empty() || key.receiver.is_some() {
                 written.push(key.clone());
             }

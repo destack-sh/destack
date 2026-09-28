@@ -113,11 +113,8 @@ impl CheckState<'_> {
                     backed = Verdict::Fails;
                     break;
                 };
-                let primitive = match definition.backing {
-                    dir::EnumBackingType::Integer(integer) => dir::PrimitiveType::Integer(integer),
-                    dir::EnumBackingType::String => dir::PrimitiveType::String,
-                };
-                let backing = self.intern_type(dir::Type::Primitive(primitive))?;
+                let backing = definition.backing.primitive();
+                let backing = self.intern_type(dir::Type::Primitive(backing))?;
                 let projected = self.relate_castable(origin, cause, backing, target)?;
                 if projected == Verdict::Fails {
                     backed = Verdict::Fails;

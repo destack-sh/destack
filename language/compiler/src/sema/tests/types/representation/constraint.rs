@@ -33,10 +33,10 @@ interface Drawable {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable template=(this: Drawable)
 /// @definition.where symbol=Drawable relation=satisfies left=this right=Drawable
-/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=() => void
+/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
 
     draw(): void;
-    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=() => void
+    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: this) => void
 
 }
 
@@ -47,7 +47,7 @@ function paint(item: Drawable): void {
 
     item.draw();
     /// @resolution.name source=item target=paint.item
-    /// @resolution.member source=item.draw receiver=Drawable type=() => void kind=symbol target_receiver=Drawable dispatch=dynamic constraint=Drawable target=Drawable.draw
+    /// @resolution.member source=item.draw receiver=Drawable type=(this: Drawable) => void kind=symbol target_receiver=Drawable dispatch=dynamic constraint=Drawable target=Drawable.draw
     /// @resolution.call source=item.draw() parameters=() return=void kind=dynamic target=Drawable.draw receiver=Drawable constraint=Drawable
     /// @resolution.place source=item placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=item root=paint.item

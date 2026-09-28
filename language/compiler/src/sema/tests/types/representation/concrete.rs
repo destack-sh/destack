@@ -188,10 +188,10 @@ interface Writer {
 /// @type.symbol symbol=Writer type=Writer
 /// @definition.interface symbol=Writer template=(this: Writer)
 /// @definition.where symbol=Writer relation=satisfies left=this right=Writer
-/// @definition.method symbol=Writer.write source="write(bytes: readonly uint8[]): uint" slot=write type=(readonly uint8[]) => uint64
+/// @definition.method symbol=Writer.write source="write(bytes: readonly uint8[]): uint" slot=write type=(this: this, readonly uint8[]) => uint64
 
     write(bytes: readonly uint8[]): uint;
-    /// @type.symbol symbol=Writer.write source="write(bytes: readonly uint8[]): uint" type=(readonly uint8[]) => uint64
+    /// @type.symbol symbol=Writer.write source="write(bytes: readonly uint8[]): uint" type=(this: this, readonly uint8[]) => uint64
     /// @generic.instance id=Array<uint8> template=Array arguments=(uint8)
     /// @generic.instance id=sliceAssumeInit<MaybeUninit<uint8>> template=sliceAssumeInit arguments=(MaybeUninit<uint8>)
     /// @generic.instance id=sliceUninit<MaybeUninit<uint8>> template=sliceUninit arguments=(MaybeUninit<uint8>)

@@ -323,10 +323,12 @@ const user = new constructors[0]();
 /// @resolution.name source=constructors target=constructors
 /// @resolution.place source=constructors placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=constructors root=constructors
-/// @resolution.subscript source=constructors[0] type=Function<(), User, "readonly"> kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=Function<(), User, \"readonly\">, regions=(\"managed\" & \"local\"))"
-/// @generic.instantiation id="index#2<Function<(), User, \"readonly\">, \"managed\" & \"local\">" template=index#2 arguments=(Function<(), User, "readonly">, "managed" & "local")
+/// @resolution.place source=constructors[0] placement="local" lifetime="managed" access="mutable"
+/// @resolution.access source=constructors[0] root=constructors keys=[0]
+/// @resolution.subscript source=constructors[0] type=Function<(), User, "readonly"> kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=&'managed readonly Function<(), User, \"readonly\">, regions=(\"managed\" & \"local\"))"
+/// @generic.instantiation id="index#2<Function<(), User, \"readonly\">, \"readonly\", \"managed\" & \"local\">" template=index#2 arguments=(Function<(), User, "readonly">, "readonly", "managed" & "local")
 /// @generic.instance id="Slice<Function<(), User, \"readonly\">>" template=Slice arguments=(Function<(), User, "readonly">)
-/// @generic.instance id="index#2<Function<(), User, \"readonly\">, \"bound0\" & \"local\">" template=index#2 arguments=(Function<(), User, "readonly">, "bound0" & "local")
+/// @generic.instance id="index#2<Function<(), User, \"readonly\">, \"readonly\", \"bound0\" & \"local\">" template=index#2 arguments=(Function<(), User, "readonly">, "readonly", "bound0" & "local")
 "#,
     );
 }
@@ -506,8 +508,10 @@ const stringBox = constructors[0]<string>;
 /// @resolution.function source=constructors[0]<string> type=Function<(), Box<string>, "readonly">
 /// @resolution.place source=constructors placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=constructors root=constructors
-/// @resolution.subscript source=constructors[0] type=Function<(), Box<T>, "readonly"> kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=Function<(), Box<T>, \"readonly\">, regions=(\"managed\" & \"local\"))"
-/// @generic.instantiation id="index#2<Function<(), Box<T>, \"readonly\">, \"managed\" & \"local\">" template=index#2 arguments=(Function<(), Box<T>, "readonly">, "managed" & "local")
+/// @resolution.place source=constructors[0] placement="local" lifetime="managed" access="mutable"
+/// @resolution.access source=constructors[0] root=constructors keys=[0]
+/// @resolution.subscript source=constructors[0] type=Function<(), Box<T>, "readonly"> kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=&'managed readonly Function<(), Box<T>, \"readonly\">, regions=(\"managed\" & \"local\"))"
+/// @generic.instantiation id="index#2<Function<(), Box<T>, \"readonly\">, \"readonly\", \"managed\" & \"local\">" template=index#2 arguments=(Function<(), Box<T>, "readonly">, "readonly", "managed" & "local")
 
 const first = new integerBox();
 /// @type.symbol symbol=first source=first type=Box<int32>
@@ -874,7 +878,7 @@ const counter = new Counter();
 /// @type.symbol symbol=counter source=counter type=Counter
 /// @resolution.pattern source=counter kind=binding target=counter
 /// @type.node source="new Counter()" type=Counter
-/// @resolution.construct source="new Counter()" parameters=() return=Counter kind=class target=Counter constructor=default
+/// @resolution.construct source="new Counter()" parameters=() return=Counter kind=class target=Counter constructor=implicit
 /// @type.node source=Counter type=typeof Counter
 /// @resolution.name source=Counter target=Counter
 "#,
@@ -960,7 +964,7 @@ const derived = new Derived(1);
 /// @type.symbol symbol=derived source=derived type=Derived
 /// @resolution.pattern source=derived kind=binding target=derived
 /// @type.node source="new Derived(1)" type=Derived
-/// @resolution.construct source="new Derived(1)" parameters=(int32) arguments=(provided(1) as int32) return=Derived kind=class target=Derived constructor=forwarded:Base.constructor
+/// @resolution.construct source="new Derived(1)" parameters=(int32) arguments=(provided(1) as int32) return=Derived kind=class target=Derived constructor=implicit:Base.constructor
 /// @type.node source=Derived type=typeof Derived
 /// @resolution.name source=Derived target=Derived
 /// @type.node source=1 type=1
@@ -1537,6 +1541,7 @@ import { Animal } from "./base.tspp";
 
 class Dog extends Animal<string> {}
 /// @type.symbol symbol=Dog source="class Dog extends Animal<string> {}" type=typeof Dog
+/// @generic.instance id=base.Animal.symbol5<string> template=base.Animal.symbol5 arguments=(string)
 /// @generic.instance id=base.Animal<string> template=base.Animal arguments=(string)
 /// @definition.class symbol=Dog source="class Dog extends Animal<string> {}"
 /// @definition.extends symbol=Dog source=Animal<string> target=base.Animal<string>
@@ -1545,7 +1550,7 @@ class Dog extends Animal<string> {}
 const dog = new Dog("rex");
 /// @type.symbol symbol=dog source=dog type=Dog
 /// @resolution.pattern source=dog kind=binding target=dog
-/// @resolution.construct source="new Dog(\"rex\")" parameters=(string) arguments=(provided("rex") as string) return=Dog kind=class target=Dog constructor=forwarded:base.Animal.symbol5
+/// @resolution.construct source="new Dog(\"rex\")" parameters=(string) arguments=(provided("rex") as string) return=Dog kind=class target=Dog constructor=implicit:base.Animal.symbol5
 /// @resolution.name source=Dog target=Dog
 "#,
     );
@@ -1617,6 +1622,7 @@ class Counter {
 
 declare function build(value: int32): Counter;
 /// @type.symbol symbol=build source="declare function build(value: int32): Counter" type=(int32) => Counter
+/// @type.symbol symbol=build.value source="value: int32" type=int32
 /// @resolution.name source=Counter target=Counter
 
 const make: new (value: int32) => Counter = Counter;
@@ -2056,10 +2062,10 @@ interface Greet {
 /// @type.symbol symbol=Greet type=Greet
 /// @definition.interface symbol=Greet template=(this: Greet)
 /// @definition.where symbol=Greet relation=satisfies left=this right=Greet
-/// @definition.method symbol=Greet.greet source="greet(): int32" slot=greet type=() => int32
+/// @definition.method symbol=Greet.greet source="greet(): int32" slot=greet type=(this: this) => int32
 
     greet(): int32;
-    /// @type.symbol symbol=Greet.greet source="greet(): int32" type=() => int32
+    /// @type.symbol symbol=Greet.greet source="greet(): int32" type=(this: this) => int32
 
 }
 type Pair = { left: int32; right: int32 };
@@ -2203,10 +2209,10 @@ interface Greet {
 /// @type.symbol symbol=Greet type=Greet
 /// @definition.interface symbol=Greet template=(this: Greet)
 /// @definition.where symbol=Greet relation=satisfies left=this right=Greet
-/// @definition.method symbol=Greet.greet source="greet(): int32" slot=greet type=() => int32
+/// @definition.method symbol=Greet.greet source="greet(): int32" slot=greet type=(this: this) => int32
 
     greet(): int32;
-    /// @type.symbol symbol=Greet.greet source="greet(): int32" type=() => int32
+    /// @type.symbol symbol=Greet.greet source="greet(): int32" type=(this: this) => int32
 
 }
 

@@ -79,6 +79,7 @@ declare function requireClone<T: Clone>(value: T): T;
 /// @type.symbol symbol=requireClone source="declare function requireClone<T: Clone>(value: T): T" type=<T#1: Clone>(T#1) => T#1
 /// @type.symbol symbol=requireClone.T source="T: Clone" type=T#1
 /// @resolution.name source=Clone target=Clone
+/// @type.symbol symbol=requireClone.value source="value: T" type=T#1
 /// @resolution.name source=T target=requireClone.T
 /// @resolution.name source=T target=requireClone.T
 
@@ -94,6 +95,7 @@ declare function requireHash<T: Hash>(value: T): T;
 /// @type.symbol symbol=requireHash source="declare function requireHash<T: Hash>(value: T): T" type=<T#3: Hash>(T#3) => T#3
 /// @type.symbol symbol=requireHash.T source="T: Hash" type=T#3
 /// @resolution.name source=Hash target=Hash
+/// @type.symbol symbol=requireHash.value source="value: T" type=T#3
 /// @resolution.name source=T target=requireHash.T
 /// @resolution.name source=T target=requireHash.T
 
@@ -103,6 +105,7 @@ declare function requireEqual<T: Equal<T>>(value: T): T;
 /// @type.symbol symbol=requireEqual.T source="T: Equal<T>" type=T#4
 /// @resolution.name source=Equal target=Equal
 /// @resolution.name source=T target=requireEqual.T
+/// @type.symbol symbol=requireEqual.value source="value: T" type=T#4
 /// @resolution.name source=T target=requireEqual.T
 /// @resolution.name source=T target=requireEqual.T
 
@@ -296,6 +299,7 @@ declare function requireUnpin<T: Unpin>(value: T): T;
 /// @type.symbol symbol=requireUnpin source="declare function requireUnpin<T: Unpin>(value: T): T" type=<T#2: Unpin>(T#2) => T#2
 /// @type.symbol symbol=requireUnpin.T source="T: Unpin" type=T#2
 /// @resolution.name source=Unpin target=Unpin
+/// @type.symbol symbol=requireUnpin.value source="value: T" type=T#2
 /// @resolution.name source=T target=requireUnpin.T
 /// @resolution.name source=T target=requireUnpin.T
 
@@ -379,6 +383,7 @@ declare function requireClone<T: Clone>(value: T): T;
 /// @type.symbol symbol=requireClone source="declare function requireClone<T: Clone>(value: T): T" type=<T: Clone>(T) => T
 /// @type.symbol symbol=requireClone.T source="T: Clone" type=T
 /// @resolution.name source=Clone target=Clone
+/// @type.symbol symbol=requireClone.value source="value: T" type=T
 /// @resolution.name source=T target=requireClone.T
 /// @resolution.name source=T target=requireClone.T
 
@@ -391,7 +396,7 @@ const clonedNumber = number.clone();
 /// @resolution.pattern source=clonedNumber kind=binding target=clonedNumber
 /// @resolution.name source=number target=number
 /// @resolution.member source=number.clone receiver=1 type=<clone.'a>(this: &clone.'a immutable int64) => ^int64 kind=symbol target_receiver=1 target=clone
-/// @resolution.call source=number.clone() parameters=() return=^int64 regions=("static" & "local") kind=symbol target=clone receiver=1 adjustments=(borrow(&'static immutable 1)) instance="int64.<extension#1>.clone<\"static\" & \"local\">"
+/// @resolution.call source=number.clone() parameters=() return=^int64 regions=("static" & "local") kind=symbol target=clone receiver=1 adjustments=(materialize(1, int64), borrow(&'static immutable int64)) instance="int64.<extension#1>.clone<\"static\" & \"local\">"
 /// @resolution.place source=number placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=number root=number
 /// @generic.instantiation id="clone<int64, \"static\" & \"local\">" template=clone arguments=(int64, "static" & "local")

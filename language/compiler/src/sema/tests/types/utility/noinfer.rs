@@ -33,7 +33,9 @@ declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<C>> template=sliceAssumeInit arguments=(MaybeUninit<C>)
 /// @generic.instance id=sliceUninit<MaybeUninit<C>> template=sliceUninit arguments=(MaybeUninit<C>)
 /// @type.symbol symbol=choose.C source="C: string" type=C
+/// @type.symbol symbol=choose.values source="values: C[]" type=C[]
 /// @resolution.name source=C target=choose.C
+/// @type.symbol symbol=choose.fallback source="fallback?: NoInfer<C>" type=NoInfer<C> | undefined
 /// @resolution.name source=NoInfer target=NoInfer
 /// @resolution.name source=C target=choose.C
 /// @resolution.name source=C target=choose.C
@@ -91,7 +93,9 @@ declare function choose<C: string>(values: C[], fallback: NoInfer<C>): C;
 /// @generic.template symbol=choose parameters=(C: string)
 /// @type.symbol symbol=choose source="declare function choose<C: string>(values: C[], fallback: NoInfer<C>): C" type=<C: string>(C[], NoInfer<C>) => C
 /// @type.symbol symbol=choose.C source="C: string" type=C
+/// @type.symbol symbol=choose.values source="values: C[]" type=C[]
 /// @resolution.name source=C target=choose.C
+/// @type.symbol symbol=choose.fallback source="fallback: NoInfer<C>" type=NoInfer<C>
 /// @resolution.name source=NoInfer target=NoInfer
 /// @resolution.name source=C target=choose.C
 /// @resolution.name source=C target=choose.C
@@ -165,7 +169,9 @@ declare function keep<C: string>(values: C[], extras: NoInfer<C[]>): C;
 /// @generic.template symbol=keep parameters=(C: string)
 /// @type.symbol symbol=keep source="declare function keep<C: string>(values: C[], extras: NoInfer<C[]>): C" type=<C: string>(C[], NoInfer<C[]>) => C
 /// @type.symbol symbol=keep.C source="C: string" type=C
+/// @type.symbol symbol=keep.values source="values: C[]" type=C[]
 /// @resolution.name source=C target=keep.C
+/// @type.symbol symbol=keep.extras source="extras: NoInfer<C[]>" type=NoInfer<C[]>
 /// @resolution.name source=NoInfer target=NoInfer
 /// @resolution.name source=C target=keep.C
 /// @resolution.name source=C target=keep.C
@@ -237,6 +243,7 @@ declare function first<T, U = string>(value: (T, NoInfer<U>)): T;
 /// @type.symbol symbol=first source="declare function first<T, U = string>(value: (T, NoInfer<U>)): T" type=<T, U = string>((T, NoInfer<U>)) => T
 /// @type.symbol symbol=first.T source=T type=T
 /// @type.symbol symbol=first.U source="U = string" type=U
+/// @type.symbol symbol=first.value source="value: (T, NoInfer<U>)" type=(T, NoInfer<U>)
 /// @resolution.name source=T target=first.T
 /// @resolution.name source=NoInfer target=NoInfer
 /// @resolution.name source=U target=first.U
@@ -286,7 +293,9 @@ declare function on<T>(seeds: T[], callback: NoInfer<(value: T) => void>): void;
 /// @generic.template symbol=on parameters=(T#1)
 /// @type.symbol symbol=on source="declare function on<T>(seeds: T[], callback: NoInfer<(value: T) => void>): void" type=<T#1>(T#1[], NoInfer<(T#1) => void>) => void
 /// @type.symbol symbol=on.T source=T type=T#1
+/// @type.symbol symbol=on.seeds source="seeds: T[]" type=T#1[]
 /// @resolution.name source=T target=on.T
+/// @type.symbol symbol=on.callback source="callback: NoInfer<(value: T) => void>" type=NoInfer<(T#1) => void>
 /// @resolution.name source=NoInfer target=NoInfer
 /// @type.symbol symbol=on.value source="value: T" type=T#1
 /// @resolution.name source=T target=on.T
@@ -352,7 +361,9 @@ declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 /// @generic.template symbol=choose parameters=(C: string)
 /// @type.symbol symbol=choose source="declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C" type=<C: string>(C[], NoInfer<C> | undefined?) => C
 /// @type.symbol symbol=choose.C source="C: string" type=C
+/// @type.symbol symbol=choose.values source="values: C[]" type=C[]
 /// @resolution.name source=C target=choose.C
+/// @type.symbol symbol=choose.fallback source="fallback?: NoInfer<C>" type=NoInfer<C> | undefined
 /// @resolution.name source=NoInfer target=NoInfer
 /// @resolution.name source=C target=choose.C
 /// @resolution.name source=C target=choose.C

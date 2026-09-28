@@ -137,12 +137,12 @@ interface Iterator {
 /// @definition.interface symbol=Iterator template=(this: Iterator)
 /// @definition.where symbol=Iterator relation=satisfies left=this right=Iterator
 /// @definition.associated.type symbol=Iterator.Item source="type Item" key=Item
-/// @definition.method symbol=Iterator.next source="next(): this.Item" slot=next type=() => this.Item
+/// @definition.method symbol=Iterator.next source="next(): this.Item" slot=next type=(this: this) => this.Item
 
     type Item;
 
     next(): this.Item;
-    /// @type.symbol symbol=Iterator.next source="next(): this.Item" type=() => this.Item
+    /// @type.symbol symbol=Iterator.next source="next(): this.Item" type=(this: this) => this.Item
     /// @resolution.name source=this.Item target=Iterator.Item
 
 }
@@ -158,10 +158,12 @@ function nextByte<I: Iterator<type Item = uint8>>(iter: I): uint8 {
 
     return iter.next();
     /// @resolution.name source=iter target=nextByte.iter
-    /// @resolution.member source=iter.next receiver=I type=() => uint8 kind=symbol target_receiver=I target=Iterator.next
+    /// @resolution.member source=iter.next receiver=I type=(this: I) => uint8 kind=symbol target_receiver=I target=Iterator.next
     /// @resolution.call source=iter.next() parameters=() return=uint8 kind=symbol target=Iterator.next receiver=I
     /// @resolution.place source=iter placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=iter root=nextByte.iter
+    /// @generic.instantiation id=Iterator.next<I> template=Iterator.next arguments=() owner=nextByte
+    /// @generic.instance id=Iterator.next<I> template=Iterator.next arguments=()
 
 }
 "#,
@@ -222,12 +224,12 @@ interface Producing {
 /// @definition.interface symbol=Producing template=(this: Producing)
 /// @definition.where symbol=Producing relation=satisfies left=this right=Producing
 /// @definition.associated.type symbol=Producing.Output source="type Output" key=Output
-/// @definition.method symbol=Producing.produce source="produce(): this.Output" slot=produce type=() => this.Output
+/// @definition.method symbol=Producing.produce source="produce(): this.Output" slot=produce type=(this: this) => this.Output
 
     type Output;
 
     produce(): this.Output;
-    /// @type.symbol symbol=Producing.produce source="produce(): this.Output" type=() => this.Output
+    /// @type.symbol symbol=Producing.produce source="produce(): this.Output" type=(this: this) => this.Output
     /// @resolution.name source=this.Output target=Producing.Output
 
 }
@@ -313,13 +315,13 @@ interface Iterator {
 /// @definition.interface symbol=Iterator template=(this: Iterator)
 /// @definition.where symbol=Iterator relation=satisfies left=this right=Iterator
 /// @definition.associated.type symbol=Iterator.Item source="type Item = uint8" key=Item value=uint8
-/// @definition.method symbol=Iterator.next source="next(): this.Item" slot=next type=() => this.Item
+/// @definition.method symbol=Iterator.next source="next(): this.Item" slot=next type=(this: this) => this.Item
 
     type Item = uint8;
     /// @type.symbol symbol=Iterator.Item source="type Item = uint8" type=uint8
 
     next(): this.Item;
-    /// @type.symbol symbol=Iterator.next source="next(): this.Item" type=() => this.Item
+    /// @type.symbol symbol=Iterator.next source="next(): this.Item" type=(this: this) => this.Item
     /// @resolution.name source=this.Item target=Iterator.Item
 
 }
@@ -334,10 +336,11 @@ function nextDefault<I: Iterator>(iter: I): uint8 {
 
     return iter.next();
     /// @resolution.name source=iter target=nextDefault.iter
-    /// @resolution.member source=iter.next receiver=I type=() => I.Item kind=symbol target_receiver=I target=Iterator.next
+    /// @resolution.member source=iter.next receiver=I type=(this: I) => I.Item kind=symbol target_receiver=I target=Iterator.next
     /// @resolution.call source=iter.next() parameters=() return=I.Item kind=symbol target=Iterator.next receiver=I
     /// @resolution.place source=iter placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=iter root=nextDefault.iter
+    /// @generic.instantiation id=Iterator.next<I> template=Iterator.next arguments=() owner=nextDefault
 
 }
 "#,
@@ -580,12 +583,12 @@ interface Producing {
 /// @definition.interface symbol=Producing template=(this: Producing)
 /// @definition.where symbol=Producing relation=satisfies left=this right=Producing
 /// @definition.associated.type symbol=Producing.Output source="type Output" key=Output
-/// @definition.method symbol=Producing.produce source="produce(): this.Output" slot=produce type=() => this.Output
+/// @definition.method symbol=Producing.produce source="produce(): this.Output" slot=produce type=(this: this) => this.Output
 
     type Output;
 
     produce(): this.Output;
-    /// @type.symbol symbol=Producing.produce source="produce(): this.Output" type=() => this.Output
+    /// @type.symbol symbol=Producing.produce source="produce(): this.Output" type=(this: this) => this.Output
     /// @resolution.name source=this.Output target=Producing.Output
 
 }
@@ -640,7 +643,7 @@ const taken = take(0, new Factory());
 /// @resolution.call source="take(0, new Factory())" parameters=(int32, Factory) arguments=(provided(0) as int32, provided(new Factory()) as Factory) return=int32 kind=symbol target=take instance=take<Factory>
 /// @generic.instantiation id=take<Factory> template=take arguments=(Factory)
 /// @generic.instance id=take<Factory> template=take arguments=(Factory)
-/// @resolution.construct source="new Factory()" parameters=() return=Factory kind=class target=Factory constructor=default
+/// @resolution.construct source="new Factory()" parameters=() return=Factory kind=class target=Factory constructor=implicit
 /// @resolution.name source=Factory target=Factory
 "#,
     );

@@ -26,9 +26,9 @@ impl CheckState<'_> {
                 (format!("{}(", self.symbol_name(symbol)?), ")".to_string())
             }
             Composite::Tuple => ("(".to_string(), ")".to_string()),
-            Composite::Union => {
+            Composite::Union | Composite::Enum => {
                 return Err(CompilerError::Internal {
-                    message: "a union rendered outside its member dispatch".to_owned(),
+                    message: "a value rendered through a composite frame".to_owned(),
                 });
             }
         };
@@ -138,7 +138,28 @@ impl CheckState<'_> {
         self.build_block(frame, Vec::new(), Some(owned), result)
     }
 
-    /// Build the owned wrapping one rendered string takes at the formatting result.
+    /// Build `(this as V).display()`.
+    pub(super) fn build_value_text_body(
+        &mut self,
+        frame: &mut Derivation,
+        components: &[Component],
+    ) -> CompilerResult<dir::LocalNodeId<dir::Expression>> {
+        let [component] = components else {
+            return Err(CompilerError::Internal {
+                message: "an enum rendered without its one declared value".to_owned(),
+            });
+        };
+
+        // render the declared value
+        let this = self.build_this(frame)?;
+        let read = self.build_component_read(frame, this, frame.receiver, component)?;
+        let rendered = self.build_component_call(frame, read, component, Vec::new())?;
+        let result = self.require_node_type(rendered.into_global_any(frame.module))?;
+
+        self.build_block(frame, Vec::new(), Some(rendered), result)
+    }
+
+    /// Clone one rendered string.
     pub(super) fn build_owned_text(
         &mut self,
         frame: &mut Derivation,
@@ -147,35 +168,30 @@ impl CheckState<'_> {
         string: dir::GlobalTypeId,
         result: dir::GlobalTypeId,
     ) -> CompilerResult<dir::LocalNodeId<dir::Expression>> {
-        // select the owned constructor the formatting result declares
-        let key = dir::LanguageItem::Cow.member("owned").key;
-        let receiver = Value {
-            ty: result,
-            node: None,
+        // select the clone of the text
+        let value = Value {
+            ty: string,
+            node: Some(text.into_global_any(frame.module)),
             place: None,
-            is_fresh: false,
+            is_fresh: true,
         };
-        let Some((_, call)) = self.select_language_protocol_call(
-            origin,
-            receiver,
-            result,
-            dir::MemberSpace::Static,
-            key,
-            dir::LanguageItem::Cow,
-            &[],
-            &[],
-            &[dir::ArgumentSource::Static(string)],
-        )?
-        else {
+        let Some(adjustment) = self.clone_into_owned(origin, value, result)? else {
             return Err(CompilerError::Internal {
-                message: "a formatting result without its owned constructor".to_owned(),
+                message: "a formatting result without its owning clone".to_owned(),
             });
         };
+        let dir::CoercionAdjustment::Clone { call, .. } = &adjustment else {
+            return Err(CompilerError::Internal {
+                message: "a formatting result owned without a clone".to_owned(),
+            });
+        };
+        frame.calls.push((**call).clone());
 
-        // call that constructor on the result type over the rendered text
-        let receiver = self.build_type_value(frame, result)?;
+        // record the clone on the text
+        let coercion = dir::Coercion::new(string, vec![adjustment], dir::CastOrigin::Implicit);
+        self.commit_coercion(text.into_global_any(frame.module), coercion)?;
 
-        self.build_call(frame, receiver, key, &call, vec![text])
+        Ok(text)
     }
 
     /// Return the declared name of one symbol, empty when anonymous.

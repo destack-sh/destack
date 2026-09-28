@@ -181,6 +181,7 @@ switch (mode) {
         /// @resolution.pattern source=selected kind=binding target=selected
         /// @type.node source=mode type=Mode.Read
         /// @resolution.name source=mode target=mode
+        /// @resolution.narrowing source=mode declared=Mode arms=
         /// @resolution.access source=mode root=mode
 
         break;
@@ -193,6 +194,7 @@ switch (mode) {
         /// @resolution.pattern source=remaining kind=binding target=remaining
         /// @type.node source=mode type=Mode.Write
         /// @resolution.name source=mode target=mode
+        /// @resolution.narrowing source=mode declared=Mode arms=
         /// @resolution.access source=mode root=mode
 
 }

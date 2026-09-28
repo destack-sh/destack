@@ -29,7 +29,7 @@ impl CheckState<'_> {
                 state.fill_parameter_bounds()
             })?;
             ArtifactAttemptRecorder::breakdown_maybe(recorder, "materialize.witnesses", || {
-                state.walk_nominal_witnesses(&mut worklist)
+                state.record_declared_witnesses(&mut worklist)
             })?;
             ArtifactAttemptRecorder::breakdown_maybe(recorder, "materialize.instances", || {
                 state.materialize_instances(&mut worklist)

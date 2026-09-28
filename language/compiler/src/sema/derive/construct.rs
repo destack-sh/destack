@@ -182,6 +182,10 @@ impl CheckState<'_> {
             Composite::Union => Err(CompilerError::Internal {
                 message: "a union constructed from components".to_owned(),
             }),
+            // reject an enum
+            Composite::Enum => Err(CompilerError::Internal {
+                message: "an enum constructed from components".to_owned(),
+            }),
         }
     }
 }

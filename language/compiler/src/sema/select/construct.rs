@@ -283,7 +283,7 @@ impl CheckState<'_> {
                     return Ok(Err(failure));
                 }
             }
-            if let Some(symbol) = constructor.constructor.call_symbol() {
+            if let Some(symbol) = constructor.constructor.written() {
                 self.check_symbol_access(origin, symbol, "constructor")?;
             }
             let target =
@@ -718,7 +718,7 @@ impl CheckState<'_> {
                 signature,
                 ..
             } => {
-                if let Some(symbol) = constructor.constructor.call_symbol() {
+                if let Some(symbol) = constructor.constructor.written() {
                     self.check_symbol_access(origin, symbol, "constructor")?;
                 }
 
@@ -726,7 +726,7 @@ impl CheckState<'_> {
                     node,
                     target.module_id,
                     &instance,
-                    constructor.constructor.clone(),
+                    constructor.constructor,
                     signature,
                     &forms,
                 )?;
@@ -825,6 +825,7 @@ impl CheckState<'_> {
                     symbol: method.symbol,
                 },
                 ty: self.symbol_type(method.symbol)?,
+                base: None,
             });
         }
         if !declared.is_empty() {
@@ -856,8 +857,9 @@ impl CheckState<'_> {
         })?;
 
         Ok(dir::ClassConstructorDefinition {
-            constructor: dir::ClassConstructor::Default,
+            constructor: dir::ClassConstructor::Implicit { forwards: None },
             ty,
+            base: None,
         })
     }
 
@@ -878,8 +880,8 @@ impl CheckState<'_> {
 
         // apply the written heritage arguments to the base instance
         let module = origin.module();
-        let arguments: SmallVec<[_; 8]> = self.type_ids(extends_module, instance.arguments)?.into();
-        let arguments = self.intern_type_ids(&arguments)?;
+        let written: SmallVec<[_; 8]> = self.type_ids(extends_module, instance.arguments)?.into();
+        let arguments = self.intern_type_ids(&written)?;
         let instance = dir::GenericApplication {
             arguments,
             ..instance
@@ -891,17 +893,26 @@ impl CheckState<'_> {
             self.class_constructors(origin, base_receiver, &instance, active)?;
         active.pop();
 
-        // forward each base constructor onto the derived receiver
+        // forward each base constructor to the derived receiver
         let substitution = self
             .instance_substitution(module, &instance)?
             .with_receiver(receiver);
+        let bindings = self.symbol_generic_argument_bindings(instance.symbol, &written)?;
         let mut constructors = Vec::with_capacity(base_constructors.len());
         for base_constructor in base_constructors {
-            let constructor = base_constructor.constructor.forwarded(instance.symbol);
             let ty = self.substitute_type(base_constructor.ty, &substitution)?;
             let ty = self.class_constructor_returning(ty, receiver)?;
+            let base = self.class_construct_target(
+                instance.symbol,
+                base_constructor.constructor,
+                bindings.clone(),
+            )?;
 
-            constructors.push(dir::ClassConstructorDefinition { constructor, ty });
+            constructors.push(dir::ClassConstructorDefinition {
+                constructor: base_constructor.constructor.forwarded(),
+                ty,
+                base: Some(base),
+            });
         }
 
         Ok(constructors)
@@ -918,6 +929,14 @@ impl CheckState<'_> {
                 message: format!("class constructor type {ty:?} is not a function signature"),
             });
         };
+
+        // copy a foreign signature's lists into this module
+        let arguments: SmallVec<[_; 4]> = self.type_ids(ty.module_id, function.arguments)?.into();
+        let parameters: SmallVec<[_; 4]> = self
+            .signature_parameters(ty.module_id, function.parameters)?
+            .into();
+        function.arguments = self.intern_type_ids(&arguments)?;
+        function.parameters = self.intern_parameters(&parameters)?;
         function.return_type = Some(receiver);
 
         self.intern_signature(function)
@@ -1315,7 +1334,7 @@ impl CheckState<'_> {
                 node,
                 base_module,
                 &instance,
-                constructor.constructor.clone(),
+                constructor.constructor,
                 signature,
             ),
             // commit the rejection a sole candidate already reported

@@ -58,11 +58,11 @@ interface Doubles {
 /// @definition.interface symbol=Doubles template=(this: Doubles)
 /// @definition.where symbol=Doubles relation=satisfies left=this right=Doubles
 /// @definition.associated.type symbol=Doubles.Output source="type Output" key=Output
-/// @definition.method symbol=Doubles.double source="double(): this.Output" slot=double type=() => this.Output
+/// @definition.method symbol=Doubles.double source="double(): this.Output" slot=double type=(this: this) => this.Output
 
     type Output;
     double(): this.Output;
-    /// @type.symbol symbol=Doubles.double source="double(): this.Output" type=() => this.Output
+    /// @type.symbol symbol=Doubles.double source="double(): this.Output" type=(this: this) => this.Output
     /// @resolution.name source=this.Output target=Doubles.Output
 
 }

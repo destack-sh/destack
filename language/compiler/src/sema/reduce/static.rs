@@ -204,6 +204,15 @@ impl CheckState<'_> {
             dir::Expression::Identifier { .. } => {
                 self.evaluate_static_identifier(module, expression)
             }
+            // evaluate an enum case to its value
+            dir::Expression::Member { .. }
+                if let Some(ty) = self.committed_node_type(expression.into_global_any(module))
+                    && let dir::Type::Variant(case) = self.ty(ty)? =>
+            {
+                let value = self.variant_discriminant(&case)?;
+
+                Ok(Ok(dir::StaticTerm::Literal { value }))
+            }
             _ => Ok(self.evaluate_static_subset(module, expression)),
         }
     }
