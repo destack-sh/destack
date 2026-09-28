@@ -139,3 +139,35 @@ test.for(TEST_DIALECTS)(
         });
     },
 );
+
+test.for(TEST_DIALECTS)(
+    "read the latest commit and the rows at it inside a writing transaction on %s",
+    async (dialect) => {
+        const test = await TestDatabase.create(dialect, [item], { isMigrated: true });
+        onTestFinished(() => test.close());
+        const database = test.database;
+        await database.insert(item).values({ id: "i1", scope: "inbox", rank: 1, label: "x" });
+        const committed = await database.log.position();
+
+        // change, add and delete rows inside a transaction, then read the head and a snapshot at it
+        const [position, rows, row] = await database.transaction(async (transaction) => {
+            await transaction.update(item).set({ rank: 5 }).where(eq(item.id, "i1"));
+            await transaction.insert(item).values({ id: "i2", scope: "inbox", rank: 2 });
+            const position = await transaction.log.position();
+            const snapshot = transaction.log.at(position);
+
+            return [
+                position,
+                await snapshot.rows(item, Condition.eq("scope", "inbox")),
+                await snapshot.row(item, { id: "i2" }),
+            ] as const;
+        });
+
+        // show the latest commit, with the transaction's own writes undone
+        expect([position, rows, row]).toEqual([
+            committed,
+            [{ id: "i1", scope: "inbox", rank: 1, label: "x" }],
+            undefined,
+        ]);
+    },
+);

@@ -181,9 +181,31 @@ export class Log {
             epoch: string;
             logged: number | string | null;
             horizon: number | string | null;
-        }>(selectHead());
+        }>(selectHead(this.database.dialect));
 
         return { epoch: position!.epoch, sequence: latestOf(position!.logged, position!.horizon) };
+    }
+
+    /**
+     * Read the position the open transaction's reads reach: the latest commit, and on SQLite the transaction's own entries.
+     *
+     * SQLite numbers a transaction's entries as it writes them, and PostgreSQL only at commit.
+     */
+    async reached(): Promise<LogPosition> {
+        // reach the latest commit outside a transaction and on PostgreSQL
+        const committed = await this.position();
+        if (this.database.dialect !== "sqlite" || !this.database.driver.transaction) {
+            return committed;
+        }
+
+        // reach past the entries the open SQLite transaction numbered
+        const [own] = await this.database.execute<{ sequence: number | string | null }>(sql`
+            SELECT max(sequence) AS sequence FROM ${sql.identifier(LOG)}
+            WHERE "transaction" = (SELECT id FROM ${sql.identifier(LOG_TRANSACTION)} WHERE slot = 1)
+        `);
+        const sequence = own?.sequence === null || own === undefined ? 0 : Number(own.sequence);
+
+        return { epoch: committed.epoch, sequence: Math.max(committed.sequence, sequence) };
     }
 
     /** Read the latest committed sequence; read it before listing rows, then follow after it. */
@@ -191,7 +213,7 @@ export class Log {
         return (await this.position()).sequence;
     }
 
-    /** Read the identifier the log records on the open transaction's changes, absent without a log. */
+    /** Read the identifier the log records on the open transaction's changes, absent until the transaction writes. */
     async currentTransaction(): Promise<string | undefined> {
         // require an open transaction, whose identity the log's triggers read
         if (!this.database.driver.transaction) {
@@ -212,10 +234,10 @@ export class Log {
         // read PostgreSQL's identifier of the transaction
         else if (dialect === "postgresql") {
             const [current] = await this.database.execute<{ id: string }>(
-                sql`SELECT pg_current_xact_id()::TEXT AS id`,
+                sql`SELECT pg_current_xact_id_if_assigned()::TEXT AS id`,
             );
 
-            return current!.id;
+            return current!.id ?? undefined;
         }
         // reject other dialects
         else {
@@ -312,10 +334,13 @@ export class Log {
     async written<Definition extends Table>(
         tables: readonly Definition[],
     ): Promise<Omit<Change<Definition>, "sequence">[]> {
-        // read the open transaction's identity
+        // require a log, then read the open transaction's identity, which a transaction that wrote nothing lacks
+        if (this.database.dialect === "sqlite" && !this.database.state.isLogged) {
+            throw new TypeError("read written changes of a logged database");
+        }
         const transaction = await this.currentTransaction();
         if (transaction === undefined) {
-            throw new TypeError("read written changes of a logged database");
+            return [];
         }
 
         // read its entries of the tables in the order it wrote them, through PostgreSQL's index of unstamped entries

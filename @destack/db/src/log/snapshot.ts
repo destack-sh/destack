@@ -11,6 +11,7 @@ import { latestOf, selectHead, type LogPosition } from "./position.ts";
 import { fromDriver, type Row } from "../table/row.ts";
 import { jsonElements, Statement } from "../query/statement.ts";
 import { DatabaseError } from "../error/error.ts";
+import type { Dialect } from "../dialect/dialect.ts";
 
 /** The log head's columns a tuple read selects before each row's own, so the rows and their position come from one statement. */
 const HEAD_COLUMNS = ["epoch", "logged", "horizon"] as const;
@@ -107,7 +108,7 @@ export class Snapshot {
         if (tuples.length === 0) {
             return [];
         }
-        const read = await tupleRead(table, columns).values(this.database, {
+        const read = await tupleRead(table, columns, this.database.dialect).values(this.database, {
             tuples: JSON.stringify(tuples),
         });
         const [epoch, latest, horizon] = read[0]!;
@@ -298,11 +299,29 @@ export class Snapshot {
         return this.#require(latest.epoch, latest.sequence);
     }
 
-    /** Read the images rows changed after the position up to a sequence had, none for the live database. */
-    #since(table: Table, sequence: number): Promise<ReadonlyMap<string, Row | null>> {
-        return this.position === undefined
-            ? Promise.resolve(new Map())
-            : this.#rewind(table, this.position.sequence, sequence);
+    /** Read the images rows had at the position, none for the live database. */
+    async #since(table: Table, sequence: number): Promise<ReadonlyMap<string, Row | null>> {
+        // show the live database as it is
+        if (this.position === undefined) {
+            return new Map();
+        }
+
+        // undo the committed changes after the position, and outside a transaction nothing more
+        const images = await this.#rewind(table, this.position.sequence, sequence);
+        if (!this.database.driver.transaction) {
+            return images;
+        }
+
+        // undo the transaction's own writes to rows no committed change imaged
+        const undone = new Map(images);
+        for (const change of await this.database.log.written([table])) {
+            const name = Key.name(table, change.key);
+            if (!undone.has(name)) {
+                undone.set(name, (change.before as Row | undefined) ?? null);
+            }
+        }
+
+        return undone;
     }
 
     /** Require a head of the position's history, which a restore replaces with a new epoch, returning its sequence. */
@@ -373,8 +392,8 @@ async function decides(
 }
 
 /** Read the prepared statement selecting the log's head with a table's logged columns of the rows whose text columns hold a listed tuple, once per table and columns. */
-function tupleRead(table: Table, columns: readonly string[]): Statement {
-    return table.statement(`tuple:${columns.join(",")}`, () => {
+function tupleRead(table: Table, columns: readonly string[], dialect: Dialect): Statement {
+    return table.statement(`tuple:${dialect}:${columns.join(",")}`, () => {
         // join each listed tuple to its rows, keeping a row of the head for a tuple naming none
         const logged = Object.values(table[TABLE].logged);
         const definitions = table[TABLE].columns;
@@ -385,7 +404,7 @@ function tupleRead(table: Table, columns: readonly string[]): Statement {
 
         return new Statement(
             (value) => sql`SELECT ${head}, ${sql.join(logged, sql`, `)}
-                FROM (${selectHead()}) AS head
+                FROM (${selectHead(dialect)}) AS head
                 CROSS JOIN ${jsonElements(value("tuples"), "wanted")}
                 LEFT JOIN ${table} ON ${sql.join(
                     columns.map(
