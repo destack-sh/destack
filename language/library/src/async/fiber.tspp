@@ -26,10 +26,9 @@ export struct Fiber implements Copy, !SharedSafe {
         wakeFiber(this);
     }
 
-    /// Resume this fiber until it parks, yields, or returns.
+    /// Run this fiber until it parks, yields, or returns.
     resume(this): void {
         resumeFiber(this);
-        parkFiber();
     }
 
     /// Yield execution to the fiber that resumed this one.
@@ -90,7 +89,7 @@ declare function parkFiber(): void;
 })
 declare function wakeFiber(fiber: Fiber): void;
 
-/// Link the current fiber as one fiber's resumer and wake that fiber.
+/// Run one fiber until it parks, yields, or returns, then continue the current fiber.
 @languageItem("async.Fiber.resume")
 @binding("tspp.fiber.resume", {
     provider: "runtime",
