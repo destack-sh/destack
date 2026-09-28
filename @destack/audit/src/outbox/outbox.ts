@@ -1,6 +1,7 @@
 import { v7 } from "uuid";
 import { asc, eq, type DatabaseConnection } from "@destack/db";
 import { canonicalize } from "@destack/schema/json";
+import { wait } from "@destack/service/timer";
 import { AuditEvent } from "../event/index.ts";
 import { encodeEvent } from "../event/encode.ts";
 import type { AuditWriter } from "../record/index.ts";
@@ -234,7 +235,12 @@ export class AuditOutbox implements AuditWriter<DatabaseConnection> {
 
                 // report the failure and back off, retaining every unacknowledged event
                 options.report(error);
-                await sleep(delay, options.signal);
+                await wait(delay, { signal: options.signal }).catch((error: unknown) => {
+                    // stop retrying once the signal aborts
+                    if (!options.signal.aborted) {
+                        throw error;
+                    }
+                });
                 delay = Math.min(delay * 2, MAX_RETRY_DELAY_MS);
             }
         }
@@ -278,21 +284,4 @@ export class AuditOutbox implements AuditWriter<DatabaseConnection> {
             throw new AuditError("CONFLICT", "audit event identifier has conflicting contents");
         }
     }
-}
-
-/** Wait for a delay, ending early when the signal aborts. */
-function sleep(delay: number, signal: AbortSignal): Promise<void> {
-    return new Promise((resolve) => {
-        // resolve once on timeout or abort
-        const finish = () => {
-            clearTimeout(timer);
-            signal.removeEventListener("abort", finish);
-            resolve();
-        };
-        const timer = setTimeout(finish, delay);
-        signal.addEventListener("abort", finish, { once: true });
-        if (signal.aborted) {
-            finish();
-        }
-    });
 }

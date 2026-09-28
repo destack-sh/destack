@@ -99,3 +99,26 @@ test("persist prepared attempts and outcomes without recreating events on retry"
         await storage.close();
     }
 });
+
+test("name in a result what only the action's value tells, beside the attempt's details", async () => {
+    const storage = await AuditStorage.open();
+    try {
+        // attempt a rename, naming the new name its value tells
+        const value = await storage.recorder.attempt(
+            renameDocument,
+            rename,
+            async () => ({ name: "chosen" }),
+            (renamed) => ({ name: renamed.name }),
+        );
+        const events = await storage.outbox.read();
+        expect([value, events.map((event) => [event.result.stage, event.details])]).toEqual([
+            { name: "chosen" },
+            [
+                ["attempt", { name: "renamed" }],
+                ["result", { name: "chosen" }],
+            ],
+        ]);
+    } finally {
+        await storage.close();
+    }
+});

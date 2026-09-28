@@ -45,6 +45,11 @@ await database.transaction(async (transaction) => {
 // record an external effect as an attempt and its result
 await audit.attempt(sendInvitation, { targets, details: {} }, () => invitations.send(id));
 
+// name in the result what only the result knows, such as the version a read disclosed
+await audit.attempt(readSecret, { targets, details: {} }, () => secrets.read(id), (read) => ({
+    version: read.version,
+}));
+
 // record every procedure call of a server
 Server.start({ ...options, audit: AuditRecorder.procedure(({ context }) => recorder(context)) });
 ```

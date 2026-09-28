@@ -149,8 +149,12 @@ export class AuditRecorder<Transaction = never> {
         return this.#event(action, values, { stage: "attempt" });
     }
 
-    /** Prepare the observed result once, then append the same event on every persistence retry. */
-    complete(attempt: AuditEvent, result: AuditResult): AuditEvent {
+    /** Prepare the observed result once, naming what only the result knows beside the attempt's details, then append the same event on every persistence retry. */
+    complete(
+        attempt: AuditEvent,
+        result: AuditResult,
+        details?: Readonly<Record<string, unknown>>,
+    ): AuditEvent {
         // require an actual attempt from this recorder's authority
         attempt = AuditEvent.parse(attempt);
         if (
@@ -168,6 +172,9 @@ export class AuditRecorder<Transaction = never> {
             id: `audit-event-${v7()}`,
             attemptId: attempt.id,
             occurredAt: Date.now(),
+            ...(details === undefined
+                ? {}
+                : { details: { ...(attempt.details as Record<string, unknown>), ...details } }),
             result: { stage: "result", ...AuditResult.parse(result) },
         });
     }
@@ -177,6 +184,7 @@ export class AuditRecorder<Transaction = never> {
         action: AuditAction<Targets, Details>,
         values: { targets: schema.Input<Targets>; details: schema.Input<Details> },
         execute: () => Promise<Value>,
+        detail?: (value: Value) => schema.Input<Details>,
     ): Promise<Value> {
         // persist the attempt before executing
         const attempt = this.begin(action, values);
@@ -190,7 +198,11 @@ export class AuditRecorder<Transaction = never> {
             await this.#conclude(attempt, resultOf(error), error);
             throw error;
         }
-        await this.#conclude(attempt, { outcome: "success" });
+        const details =
+            detail === undefined
+                ? undefined
+                : (action.details.parse(detail(value)) as Readonly<Record<string, unknown>>);
+        await this.#conclude(attempt, { outcome: "success" }, undefined, details);
 
         return value;
     }
@@ -232,10 +244,15 @@ export class AuditRecorder<Transaction = never> {
     }
 
     /** Persist an attempt's result, keeping the action's failure when persisting fails too. */
-    async #conclude(attempt: AuditEvent, result: AuditResult, cause?: unknown): Promise<void> {
+    async #conclude(
+        attempt: AuditEvent,
+        result: AuditResult,
+        cause?: unknown,
+        details?: Readonly<Record<string, unknown>>,
+    ): Promise<void> {
         // append the result, keeping the action's failure beside a recording failure
         try {
-            await this.append(this.complete(attempt, result));
+            await this.append(this.complete(attempt, result, details));
         } catch (error) {
             if (cause !== undefined) {
                 throw new AggregateError(
