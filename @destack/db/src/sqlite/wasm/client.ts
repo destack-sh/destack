@@ -1,35 +1,35 @@
 import init, { type Database, type SqlValue } from "@sqlite.org/sqlite-wasm";
 import { WorkQueue, type ConnectionClient, type QueryClient, type Statement } from "../client.ts";
 
-/** The result of running a statement: the rows it changed and the last inserted row. */
+/** The result of running a statement. */
 export interface RunResult {
     /** The number of rows changed. */
     readonly changes: number;
-    /** The row identifier of the last insertion. */
+    /** The last inserted row identifier. */
     readonly lastInsertRowid: number | bigint;
 }
 
-/** Statements over one SQLite WebAssembly database, queued behind the connection's earlier work outside a transaction. */
+/** Statements over one SQLite WebAssembly database. */
 export class WasmQuery implements QueryClient<RunResult> {
     /** The database. */
     readonly database: Database;
-    /** The queue of work waiting for the connection, absent within the transaction holding it. */
+    /** The work queue, absent within a transaction. */
     readonly queue: WorkQueue | undefined;
 
-    /** Run statements on a database, queued when a queue is given. */
+    /** Create the client. */
     constructor(database: Database, queue?: WorkQueue) {
         this.database = database;
         this.queue = queue;
     }
 
-    /** Prepare a statement keeping its row mode; integers come back exact, as numbers or big integers. */
+    /** Prepare a statement with its row mode. */
     async prepare(sql: string): Promise<Statement<RunResult>> {
-        // track the row mode the statement runs in
+        // track the row mode
         let isRaw = false;
         const run = (method: "run" | "all" | "get", parameters: readonly unknown[]) =>
             this.#schedule(async () => execute(this.database, sql, method, parameters, isRaw));
 
-        // change the row mode in place, as other statements do
+        // set the row mode on each run
         const statement: Statement<RunResult> = {
             safeIntegers: () => statement,
             raw: (enabled) => {
@@ -65,27 +65,27 @@ export class WasmQuery implements QueryClient<RunResult> {
         return this.#schedule(async () => this.database.exec(script));
     }
 
-    /** Run work behind the queue, or at once within the transaction holding the connection. */
+    /** Run work behind the queue, or at once within a transaction. */
     #schedule<Value>(work: () => Promise<Value>): Promise<Value> {
         return this.queue === undefined ? work() : this.queue.run(work);
     }
 }
 
-/** A connection client over one SQLite WebAssembly database, running one transaction at a time. */
+/** A connection client over one SQLite WebAssembly database, one transaction at a time. */
 export class WasmClient extends WasmQuery implements ConnectionClient<RunResult> {
-    /** The queue of work waiting for the connection. */
+    /** The work queue. */
     readonly #queue: WorkQueue;
 
-    /** Serve one database, queuing its work. */
+    /** Create the client. */
     constructor(database: Database) {
         const queue = new WorkQueue();
         super(database, queue);
         this.#queue = queue;
     }
 
-    /** Open an in-memory database, for tests and short-lived work. */
+    /** Open an in-memory database. */
     static async memory(): Promise<WasmClient> {
-        // open the database, enforcing foreign keys as every connection does
+        // open with foreign keys enforced
         const sqlite = await init();
         const database = new sqlite.oo1.DB(":memory:");
         database.exec("PRAGMA foreign_keys = ON;");
@@ -93,16 +93,16 @@ export class WasmClient extends WasmQuery implements ConnectionClient<RunResult>
         return new WasmClient(database);
     }
 
-    /** Close the database once its work finished. */
+    /** Close the database after its work. */
     async close(): Promise<void> {
         await this.#queue.run(async () => this.database.close());
     }
 
-    /** Run a callback in a transaction holding the connection until it ends. */
+    /** Run a callback in a transaction. */
     transactionAsync<Value>(operation: (client: QueryClient<RunResult>) => Promise<Value>) {
         const begin = (mode: "DEFERRED" | "IMMEDIATE" | "EXCLUSIVE") =>
             this.#queue.run(async () => {
-                // run the callback against the connection itself, committing or rolling back by its outcome
+                // commit or roll back by the callback's outcome
                 this.database.exec(`BEGIN ${mode}`);
                 try {
                     const value = await operation(new WasmQuery(this.database));
@@ -123,7 +123,7 @@ export class WasmClient extends WasmQuery implements ConnectionClient<RunResult>
     }
 }
 
-/** Execute one statement, returning its change count, its rows or its first row. */
+/** Execute one statement. */
 function execute(
     database: Database,
     sql: string,
@@ -131,7 +131,7 @@ function execute(
     parameters: readonly unknown[],
     isRaw: boolean,
 ): unknown {
-    // run a changing statement, reporting what it changed
+    // run a changing statement
     const bind = parameters.length === 0 ? undefined : (parameters as SqlValue[]);
     if (method === "run") {
         database.exec({ sql, ...(bind === undefined ? {} : { bind }) });
@@ -142,7 +142,7 @@ function execute(
         };
     }
 
-    // read the rows as arrays or objects
+    // read rows as arrays or objects
     const rows = isRaw ? database.selectArrays(sql, bind) : database.selectObjects(sql, bind);
 
     return method === "all" ? rows : rows[0];

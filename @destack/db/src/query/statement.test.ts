@@ -5,7 +5,7 @@ import { defineTable } from "../table/table.ts";
 import { integer, text } from "../table/column.ts";
 import { jsonElements, Statement } from "./statement.ts";
 
-/** Items a statement reads by a list of identifiers. */
+/** Items read by a list of identifiers. */
 const item = defineTable("statement_item", {
     /** The item's identifier. */
     id: text("id").primaryKey(),
@@ -13,7 +13,7 @@ const item = defineTable("statement_item", {
     rank: integer("rank").notNull(),
 });
 
-/** Items whose identifiers a JSON list names, ranked at least a minimum. */
+/** Listed items at a minimum rank. */
 const listed = new Statement<{ id: string; rank: number | string }>(
     (value) => sql`SELECT ${item.id} AS id, ${item.rank} AS rank
         FROM ${item} JOIN ${jsonElements(value("ids"), "listed")} ON ${item.id} = listed.value ->> 0
@@ -32,7 +32,7 @@ test.for(TEST_DIALECTS)(
             { id: "c", rank: 3 },
         ]);
 
-        // read with different values through the same statement, inside and outside a transaction, as driver rows
+        // read through one statement with different values
         const ids = (values: readonly string[]) => JSON.stringify(values.map((id) => [id]));
         const ranked = (rows: readonly { id: string; rank: number | string }[]) =>
             rows.map((row) => ({ id: row.id, rank: Number(row.rank) }));

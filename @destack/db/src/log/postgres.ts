@@ -2,18 +2,17 @@ import type { ChangeDescription } from "../inspect/log.ts";
 import { literal, quote } from "../dialect/quote.ts";
 import { createEpoch, LOG, LOG_CHANNEL, LOG_HORIZON, type LogDialect } from "./schema.ts";
 
-/** The transaction-local setting naming the PostgreSQL transaction whose changes are stamped already. */
+/** The transaction-local setting naming the already stamped transaction. */
 const STAMPED_SETTING = "destack.stamped";
 
 /**
- * The advisory lock key serialising PostgreSQL commit stamping, an arbitrary key no other lock uses.
+ * The advisory lock key serialising PostgreSQL commit stamping.
  *
- * NOTE #Architecture: one lock per database orders every logging commit, so a database commits about one logging transaction per commit latency, 500 to 1000 a second on local disks.
- * Readers that follow only transactions below the snapshot's xmin, as PgQ does, would drop the lock at the cost of lagging behind the oldest open transaction.
+ * NOTE #Architecture: one lock per database caps logging commits at about 500 to 1000 a second; following only transactions below the snapshot's xmin, as PgQ does, would drop it.
  */
 const COMMIT_LOCK = 4_710_263_811;
 
-/** The PostgreSQL log: its tables, the functions stamping and recording changes, and a table's trigger calling them. */
+/** The PostgreSQL log: its tables, functions and triggers. */
 export const postgresLog: LogDialect = {
     create: () => createPostgresLog(),
     install: (description) => postgresLogTriggers(description),
@@ -22,11 +21,11 @@ export const postgresLog: LogDialect = {
     ],
 };
 
-/** Create the PostgreSQL log, its horizon and the functions stamping and recording changes. */
+/** Create the PostgreSQL log, its horizon and its functions. */
 function createPostgresLog(): readonly string[] {
     const log = quote(LOG);
 
-    // stamp a transaction's sequences once at its commit under one lock, so sequence order is commit order
+    // stamp sequences at commit under one lock, in commit order
     return [
         `CREATE TABLE IF NOT EXISTS ${log} (
             id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -144,14 +143,14 @@ function createPostgresLog(): readonly string[] {
     ];
 }
 
-/** Pass the key, recorded and exact columns and the scope column to the shared PostgreSQL function. */
+/** Generate a table's trigger calling the shared PostgreSQL function. */
 function postgresLogTriggers(description: ChangeDescription): string[] {
-    // write the column lists as PostgreSQL array literals
+    // write the column lists as array literals
     const table = quote(description.table);
     const array = (names: readonly string[]) =>
         `{${names.map((name) => `"${name.replaceAll('"', '\\"')}"`).join(",")}}`;
 
-    // pass the tier, key, recorded and exact columns, and the scope column
+    // pass the tier, columns and scope column
     const parameters = [
         literal(description.tier),
         literal(array(description.key)),

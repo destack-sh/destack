@@ -4,7 +4,7 @@ import type { Column, ReferenceAction } from "./column.ts";
 /** A table constraint or index. */
 export type TableConstraint = Check | Index | PrimaryKey | Unique | ForeignKey;
 
-/** A named SQL predicate required for every row. */
+/** A named row predicate. */
 export interface Check {
     /** The constraint category. */
     readonly kind: "check";
@@ -14,7 +14,7 @@ export interface Check {
     readonly expression: SQL;
 }
 
-/** A named ordered index, optionally restricted to selected rows. */
+/** A named ordered index, optionally partial. */
 export class Index {
     /** The constraint category. */
     readonly kind = "index";
@@ -34,7 +34,7 @@ export class Index {
         columns: readonly (Column | SQL)[] = [],
         predicate?: SQL,
     ) {
-        // retain the index definition
+        // keep the index definition
         this.name = name;
         this.isUnique = isUnique;
         this.columns = columns;
@@ -62,7 +62,7 @@ export interface PrimaryKey {
     readonly columns: readonly [Column, ...Column[]];
 }
 
-/** A group of columns whose non-null values must be distinct. */
+/** Columns whose non-null values are distinct together. */
 export class Unique {
     /** The constraint category. */
     readonly kind = "unique";
@@ -83,7 +83,7 @@ export class Unique {
     }
 }
 
-/** A reference from one group of columns to another. */
+/** A reference from some columns to others. */
 export class ForeignKey {
     /** The constraint category. */
     readonly kind = "foreignKey";
@@ -105,19 +105,19 @@ export class ForeignKey {
         },
         actions: ReferenceAction = {},
     ) {
-        // retain the reference columns and actions
+        // keep the columns and actions
         this.name = definition.name;
         this.columns = definition.columns;
         this.foreignColumns = definition.foreignColumns;
         this.actions = actions;
     }
 
-    /** Select the action for referenced row deletion. */
+    /** Select the action on referenced row deletion. */
     onDelete(action: NonNullable<ReferenceAction["onDelete"]>): ForeignKey {
         return new ForeignKey(this, { ...this.actions, onDelete: action });
     }
 
-    /** Select the action for referenced key updates. */
+    /** Select the action on referenced key updates. */
     onUpdate(action: NonNullable<ReferenceAction["onUpdate"]>): ForeignKey {
         return new ForeignKey(this, { ...this.actions, onUpdate: action });
     }

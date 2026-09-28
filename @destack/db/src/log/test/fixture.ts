@@ -11,7 +11,7 @@ export const note = defineTable(
         id: text("id").primaryKey(),
         /** The title. */
         title: text("title").notNull(),
-        /** The folder the note lives in, which its changes are filed under. */
+        /** The folder the note lives in. */
         scope: text("scope").notNull(),
         /** An optional summary. */
         summary: text("summary"),
@@ -46,11 +46,11 @@ export const revision = defineTable(
     },
 );
 
-/** Short-lived locks whose changes are not logged. */
+/** Unlogged locks. */
 export const lease = defineTable("lease", {
     /** The locked name. */
     name: text("name").primaryKey(),
-    /** The expiry in UTC epoch milliseconds. */
+    /** The expiry, in UTC epoch milliseconds. */
     expiresAt: integer("expires_at").notNull(),
 });
 

@@ -1,23 +1,22 @@
 import type { CommitNotifier } from "./notifier.ts";
-import type { Log } from "./log.ts";
 
-/** The commits one physical connection watches for: its readers wait for the next, which its own writes and the notifier announce. */
+/** The commits one physical connection's readers wait for. */
 export class CommitWatch {
     /** The notifications exchanged with the other writers. */
     readonly #notifier: CommitNotifier;
     /** The readers waiting for the next commit. */
     readonly #waiting = new Set<(failure?: unknown) => void>();
-    /** Stop listening for other writers' commits, once listening started. */
+    /** Stop listening for other writers' commits. */
     #stop?: () => Promise<void>;
-    /** The failure that ended listening, which every later wait reports. */
+    /** The failure that ended listening. */
     #failure?: { readonly error: unknown };
 
-    /** Watch commits, listening for other writers' once a reader waits. */
+    /** Create the watch. */
     constructor(notifier: CommitNotifier) {
         this.#notifier = notifier;
     }
 
-    /** Whether readers wait for a commit, which polling notifiers check before reading. */
+    /** Whether readers wait for a commit. */
     get isWaiting(): boolean {
         return this.#waiting.size > 0;
     }
@@ -31,15 +30,15 @@ export class CommitWatch {
         }
     }
 
-    /** Announce a commit this connection made: wake its own readers and notify the other writers. */
+    /** Wake this connection's readers and notify the other writers. */
     notify(): void {
         this.wake();
         this.#notifier.notify();
     }
 
-    /** Fail every waiting and later reader, since no notification reaches them any more. */
+    /** Fail every waiting and later reader. */
     fail(error: unknown): void {
-        // record the failure and wake the waiting readers with it
+        // record the failure and wake the readers
         this.#failure = { error };
         const waiting = [...this.#waiting];
         this.#waiting.clear();
@@ -48,14 +47,14 @@ export class CommitWatch {
         }
     }
 
-    /** Wait until a check of the log holds, checking again after each commit; false once the signal aborts. */
-    async until(log: Log, check: () => Promise<boolean>, signal: AbortSignal): Promise<boolean> {
+    /** Wait until a check holds after a commit, returning false once the signal aborts. */
+    async until(check: () => Promise<boolean>, signal: AbortSignal): Promise<boolean> {
         while (!signal.aborted) {
-            // register for the next commit before checking, so no commit goes unnoticed
+            // register before checking
             const checked = new AbortController();
-            const next = this.#next(log, AbortSignal.any([signal, checked.signal]));
+            const next = this.#next(AbortSignal.any([signal, checked.signal]));
             const isHeld = await check().catch(async (error: unknown) => {
-                // settle the registered wait before reporting the failed check
+                // settle the registered wait
                 checked.abort();
                 await Promise.allSettled([next]);
                 throw error;
@@ -78,13 +77,13 @@ export class CommitWatch {
         await this.#stop?.();
     }
 
-    /** Wait for the next commit to a log, or until the signal aborts. */
-    #next(log: Log, signal: AbortSignal): Promise<void> {
-        // report a failed notifier, and listen for other writers from the first wait on
+    /** Wait for the next commit or the abort. */
+    #next(signal: AbortSignal): Promise<void> {
+        // report a failure and start listening
         if (this.#failure) {
             return Promise.reject(this.#failure.error);
         }
-        this.#stop ??= this.#notifier.listen(this, log);
+        this.#stop ??= this.#notifier.listen(this);
 
         return new Promise((resolve, reject) => {
             // end at once when already aborted
@@ -94,7 +93,7 @@ export class CommitWatch {
                 return;
             }
 
-            // end at the next commit, the notifier's failure or the abort, whichever comes first
+            // end at the next commit, failure or abort
             const wake = (failure?: unknown) => {
                 signal.removeEventListener("abort", abort);
                 if (failure === undefined) {

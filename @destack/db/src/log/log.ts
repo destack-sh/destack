@@ -1,4 +1,6 @@
-import { type SQL, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
+import { dialectSQL } from "../dialect/expression.ts";
+import { Statement } from "../query/statement.ts";
 import { v7 } from "uuid";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { TABLE, type Select, type Table } from "../table/table.ts";
@@ -10,16 +12,15 @@ import { Snapshot, type Rewind } from "./snapshot.ts";
 import type { Row } from "../table/row.ts";
 import type { Column } from "../table/column.ts";
 import { Key } from "../query/key.ts";
-import { CHAIN_TERMS } from "../query/predicate.ts";
 
 /**
- * The most changes one read returns by default before completing its last transaction.
+ * The default page size of a log read, in changes.
  *
- * A change row is about 0.5 to 2 KB of JSON, so a page is about 1 MB and reads in milliseconds.
+ * At 0.5 to 2 KB a change, a page is about 1 MB.
  */
 const PAGE_LIMIT = 1000;
 
-/** A logged row, binary and sensitive columns left out, for each table of a union. */
+/** A logged row, without binary and sensitive columns. */
 export type ChangeRow<Definition extends Table> = Definition extends Table
     ? {
           [
@@ -34,7 +35,7 @@ export type ChangeRow<Definition extends Table> = Definition extends Table
 export interface Change<Definition extends Table = Table> {
     /** The change's position in commit order. */
     readonly sequence: number;
-    /** The committing transaction, absent for SQLite scripts run outside a transaction. */
+    /** The committing transaction, absent for SQLite scripts outside a transaction. */
     readonly transaction: string | null;
     /** The changed table. */
     readonly table: Definition;
@@ -48,11 +49,11 @@ export interface Change<Definition extends Table = Table> {
     readonly after?: ChangeRow<Definition>;
     /** The scope the changed row lives in. */
     readonly scope: string;
-    /** The change time in UTC epoch milliseconds. */
+    /** The change time, in UTC epoch milliseconds. */
     readonly changedAt: number;
 }
 
-/** The transaction that wrote changes: the positions around its changes, and when it started and committed. */
+/** The positions and times of a transaction's changes. */
 export interface TransactionBounds {
     /** The position before its first change. */
     readonly before: number;
@@ -64,7 +65,7 @@ export interface TransactionBounds {
     readonly committedAt: number;
 }
 
-/** Changes read after a sequence, and the sequence the next read continues after. */
+/** Changes read after a sequence. */
 export interface ChangePage<Definition extends Table = Table> {
     /** The changes in commit order. */
     readonly changes: readonly Change<Definition>[];
@@ -76,21 +77,21 @@ export interface ChangePage<Definition extends Table = Table> {
 export interface ChangeSelection<Definition extends Table> {
     /** The logged tables to read. */
     readonly tables: readonly Definition[];
-    /** The sequence already consumed, zero for the beginning of the log. */
+    /** The consumed sequence, zero for the start. */
     readonly after: number;
     /** The most changes a page holds before completing its last transaction. */
     readonly limit?: number;
-    /** Read only changes of rows living in these scopes, through the scope index. */
+    /** The scopes to read. */
     readonly scopes?: readonly string[];
 }
 
 /** A raw log entry. */
 interface ChangeEntry extends Record<string, unknown> {
-    /** The newest sequence the log holds, null while it holds none. */
+    /** The newest logged sequence. */
     logged: number | string | null;
-    /** The highest compacted sequence, null before the first compaction. */
+    /** The highest compacted sequence. */
     horizon: number | string | null;
-    /** The entry's sequence, absent when no entry matched. */
+    /** The entry's sequence. */
     sequence: number | string | null;
     /** The committing transaction. */
     transaction: string | null;
@@ -102,39 +103,35 @@ interface ChangeEntry extends Record<string, unknown> {
     operation: "insert" | "update" | "delete" | null;
     /** The encoded row. */
     row: string | Record<string, unknown> | null;
-    /** The encoded values an update changed, before it. */
+    /** The values an update changed, before it. */
     previous: string | Record<string, unknown> | null;
-    /** The scope the changed row lives in, absent when no entry matched. */
+    /** The changed row's scope. */
     scope: string | null;
     /** The change time. */
     changed_at: number | string | null;
 }
 
-/** The log of one database: its committed changes in commit order. */
+/** The committed changes of one database, in commit order. */
 export class Log {
     /** The database holding the log. */
     readonly database: DatabaseConnection;
 
-    /** Read the log of a database. */
+    /** Create the log of a database. */
     constructor(database: DatabaseConnection) {
         this.database = database;
     }
 
-    /**
-     * Read the images a table's rows had before their first change after one sequence, up to another, by key.
-     *
-     * A row inserted after the sequence has a null image.
-     */
+    /** Read the images a table's rows had before their first change between two sequences, by key. */
     async images(table: Table, after: number, upto: number): Promise<Map<string, Row | null>> {
         return imagesOf(table, await this.#changes(table, after, upto));
     }
 
-    /** Read images through one memory of each table's changes, which snapshots of nearby positions share. */
+    /** Read images through one shared memory of each table's changes. */
     rewind(): Rewind {
         const known = new Map<Table, { after: number; upto: number; changes: Change[] }>();
 
         return async (table, after, upto) => {
-            // read the changes before and beyond those read so far
+            // read the missing changes
             const read = known.get(table) ?? { after, upto: after, changes: [] };
             const earlier = after < read.after ? await this.#changes(table, after, read.after) : [];
             const later = upto > read.upto ? await this.#changes(table, read.upto, upto) : [];
@@ -145,7 +142,7 @@ export class Log {
                 changes,
             });
 
-            // keep the image of each row before its first change in the range
+            // keep each row's image before its first change
             const range = changes.filter(
                 (change) => change.sequence > after && change.sequence <= upto,
             );
@@ -154,9 +151,9 @@ export class Log {
         };
     }
 
-    /** Read a table's changes after one sequence, up to another, in commit order. */
+    /** Read a table's changes between two sequences. */
     async #changes(table: Table, after: number, upto: number): Promise<Change[]> {
-        // read page by page until the pages reach the upper sequence
+        // read page by page
         const changes: Change[] = [];
         for (let reached = after; reached < upto;) {
             const read = await this.read({ tables: [table], after: reached });
@@ -170,12 +167,12 @@ export class Log {
         return changes;
     }
 
-    /** Show the database as it was at a position: its logged columns, as the log restores them. */
+    /** Show the database's logged columns as they were at a position. */
     at(position: LogPosition, rewind?: Rewind): Snapshot {
         return new Snapshot(this.database, position, rewind);
     }
 
-    /** Read the position of the latest commit: the log's epoch and its latest sequence. */
+    /** Read the position of the latest commit. */
     async position(): Promise<LogPosition> {
         const [position] = await this.database.execute<{
             epoch: string;
@@ -187,18 +184,18 @@ export class Log {
     }
 
     /**
-     * Read the position the open transaction's reads reach: the latest commit, and on SQLite the transaction's own entries.
+     * Read the position the open transaction's reads reach.
      *
      * SQLite numbers a transaction's entries as it writes them, and PostgreSQL only at commit.
      */
     async reached(): Promise<LogPosition> {
-        // reach the latest commit outside a transaction and on PostgreSQL
+        // reach the latest commit
         const committed = await this.position();
         if (this.database.dialect !== "sqlite" || !this.database.driver.transaction) {
             return committed;
         }
 
-        // reach past the entries the open SQLite transaction numbered
+        // reach past the open SQLite transaction's entries
         const [own] = await this.database.execute<{ sequence: number | string | null }>(sql`
             SELECT max(sequence) AS sequence FROM ${sql.identifier(LOG)}
             WHERE "transaction" = (SELECT id FROM ${sql.identifier(LOG_TRANSACTION)} WHERE slot = 1)
@@ -208,36 +205,23 @@ export class Log {
         return { epoch: committed.epoch, sequence: Math.max(committed.sequence, sequence) };
     }
 
-    /** Read the latest committed sequence; read it before listing rows, then follow after it. */
-    async latest(): Promise<number> {
-        return (await this.position()).sequence;
-    }
-
-    /** Read the identifier the log records on the open transaction's changes, absent until the transaction writes. */
-    async currentTransaction(): Promise<string | undefined> {
-        // require an open transaction, whose identity the log's triggers read
+    /** Name the open transaction's log identifier as an SQL expression. */
+    stamp(): SQL {
+        // require an open transaction
         if (!this.database.driver.transaction) {
             throw new TypeError("read the transaction identity inside a transaction");
         }
 
-        // read the identity SQLite transactions stamp once the database holds a log, or PostgreSQL's transaction identifier
+        // name the SQLite transaction stamp
         const dialect = this.database.dialect;
         if (dialect === "sqlite") {
-            const [marked] = this.database.state.isLogged
-                ? await this.database.execute<{ id: string }>(
-                      sql`SELECT id FROM ${sql.identifier(LOG_TRANSACTION)} WHERE slot = 1`,
-                  )
-                : [];
-
-            return marked?.id;
+            return this.database.state.isLogged
+                ? sql`(SELECT id FROM ${sql.identifier(LOG_TRANSACTION)} WHERE slot = 1)`
+                : sql`NULL`;
         }
-        // read PostgreSQL's identifier of the transaction
+        // name PostgreSQL's transaction identifier
         else if (dialect === "postgresql") {
-            const [current] = await this.database.execute<{ id: string }>(
-                sql`SELECT pg_current_xact_id_if_assigned()::TEXT AS id`,
-            );
-
-            return current!.id ?? undefined;
+            return sql`pg_current_xact_id_if_assigned()::TEXT`;
         }
         // reject other dialects
         else {
@@ -245,9 +229,9 @@ export class Log {
         }
     }
 
-    /** Write rows a source already derived, keeping this database's aggregates from deriving them again. */
+    /** Write rows a source already derived, without deriving aggregates again. */
     async copying<Value>(run: () => Promise<Value>): Promise<Value> {
-        // mark the open transaction while the rows are written
+        // mark the open transaction
         if (!this.database.driver.transaction) {
             throw new TypeError("copy rows inside a transaction");
         }
@@ -259,7 +243,7 @@ export class Log {
         return result;
     }
 
-    /** Read the log's epoch, which names the history its sequences count within. */
+    /** Read the log's epoch. */
     async epoch(): Promise<string> {
         const [row] = await this.database.execute<{ epoch: string }>(
             sql`SELECT epoch FROM ${sql.identifier(LOG_EPOCH)} WHERE slot = 1`,
@@ -268,7 +252,7 @@ export class Log {
         return row!.epoch;
     }
 
-    /** Start a new epoch after restoring the database, so readers of the old history start over. */
+    /** Start a new epoch after a restore. */
     async renew(): Promise<string> {
         const epoch = v7();
         await this.database.execute(
@@ -278,21 +262,16 @@ export class Log {
         return epoch;
     }
 
-    /** Read committed changes of the given tables after a sequence, ending each page with a whole transaction. */
+    /** Read committed changes after a sequence, ending each page with a whole transaction. */
     async read<Definition extends Table>(
         selection: ChangeSelection<Definition>,
     ): Promise<ChangePage<Definition>> {
-        // read the entries, the latest sequence and the horizon in one statement snapshot
+        // read the entries and bounds in one statement
         const limit = selection.limit ?? PAGE_LIMIT;
         const tables = new Map(selection.tables.map((table) => [table[TABLE].sqlName, table]));
-        const rows = await this.#entries(
-            selection,
-            tables,
-            sql`sequence > ${selection.after}`,
-            limit,
-        );
+        const rows = await this.#entries(selection, tables, selection.after, { limit });
 
-        // require the sequence to be within the retained log, for tables whose changes compaction removes
+        // require a retained sequence
         const bounds = rows[0]!;
         const horizon = bounds.horizon === null ? 0 : Number(bounds.horizon);
         const isCompacted = selection.tables.some((table) => table[TABLE].tier === "window");
@@ -307,22 +286,20 @@ export class Log {
         let entries = rows.filter((entry) => entry.sequence !== null);
         const last = entries.at(-1);
         if (entries.length === limit && last !== undefined && last.transaction !== null) {
-            const rest = await this.#entries(
-                selection,
-                tables,
-                sql`sequence > ${last.sequence} AND "transaction" = ${last.transaction}`,
-            );
+            const rest = await this.#entries(selection, tables, Number(last.sequence), {
+                transaction: last.transaction,
+            });
             entries = [...entries, ...rest.filter((entry) => entry.sequence !== null)];
         }
 
-        // decode each entry through its table's columns
+        // decode each entry
         const dialect = this.database.dialect;
         const changes = entries.map((entry) => ({
             sequence: Number(entry.sequence),
             ...decodeChange(entry, tables.get(entry.table!)!, dialect),
         }));
 
-        // skip past other tables' changes unless the page stopped at the limit
+        // skip other tables' changes unless the page is full
         const end = changes.length > 0 ? changes.at(-1)!.sequence : selection.after;
         const sequence =
             changes.length >= limit ? end : Math.max(end, latestOf(bounds.logged, bounds.horizon));
@@ -330,20 +307,23 @@ export class Log {
         return { changes, sequence };
     }
 
-    /** Read the changes the open transaction wrote to the given tables, in order, before its commit numbers them. */
+    /** Read the open transaction's changes before commit. */
     async written<Definition extends Table>(
         tables: readonly Definition[],
     ): Promise<Omit<Change<Definition>, "sequence">[]> {
-        // require a log, then read the open transaction's identity, which a transaction that wrote nothing lacks
+        // require a log and a writing transaction
         if (this.database.dialect === "sqlite" && !this.database.state.isLogged) {
             throw new TypeError("read written changes of a logged database");
         }
-        const transaction = await this.currentTransaction();
-        if (transaction === undefined) {
+        const [current] = await this.database.execute<{ id: string | null }>(
+            sql`SELECT ${this.stamp()} AS id`,
+        );
+        const transaction = current?.id ?? null;
+        if (transaction === null) {
             return [];
         }
 
-        // read its entries of the tables in the order it wrote them, through PostgreSQL's index of unstamped entries
+        // read its entries in write order
         const byName = new Map(tables.map((table) => [table[TABLE].sqlName, table]));
         const names = sql.join(
             [...byName.keys()].map((name) => sql`${name}`),
@@ -364,27 +344,27 @@ export class Log {
         );
     }
 
-    /** Wait until the log holds a sequence, returning false when the signal aborts first. */
+    /** Wait until the log holds a sequence, returning false once the signal aborts. */
     async wait(sequence: number, signal: AbortSignal): Promise<boolean> {
-        // wait on the connection, since a transaction sees no later commits
+        // wait on the connection
         if (this.database.driver.transaction) {
             throw new TypeError("wait for changes outside a transaction");
         }
 
-        return this.until(async () => (await this.latest()) >= sequence, signal);
+        return this.until(async () => (await this.position()).sequence >= sequence, signal);
     }
 
-    /** Wait until a check of the log holds, checking again after each commit; false once the signal aborts. */
+    /** Wait until a check holds after a commit, returning false once the signal aborts. */
     until(check: () => Promise<boolean>, signal: AbortSignal): Promise<boolean> {
-        return this.database.state.commits.until(this, check, signal);
+        return this.database.state.commits.until(check, signal);
     }
 
-    /** Yield committed changes of the given tables after a sequence until the signal aborts. */
+    /** Yield committed changes after a sequence until the signal aborts. */
     async *follow<Definition extends Table>(
         selection: ChangeSelection<Definition>,
         signal: AbortSignal,
     ): AsyncGenerator<ChangePage<Definition>> {
-        // read until caught up, then wait for the next commit
+        // read until caught up, then wait
         let after = selection.after;
         while (!signal.aborted) {
             const page = await this.read({ ...selection, after });
@@ -397,7 +377,7 @@ export class Log {
         }
     }
 
-    /** Keep the changes after a position for a consumer until a time, replacing the consumer's earlier hold. */
+    /** Keep the changes after a position for a consumer until a time. */
     async hold(name: string, sequence: number, expiresAt: number): Promise<void> {
         const hold = sql.identifier(LOG_HOLD);
         await this.database.execute(sql`
@@ -414,10 +394,10 @@ export class Log {
         );
     }
 
-    /** Delete the windowed changes older than a time that no consumer's hold keeps, and advance the horizon past them. */
+    /** Delete old windowed changes no hold keeps, and advance the horizon. */
     async compact(before: number, now = Date.now()): Promise<void> {
         await this.database.transaction(async (transaction) => {
-            // find the newest windowed change to remove
+            // find the newest removable change
             const log = sql.identifier(LOG);
             const [newest] = await transaction.execute<{ sequence: number | string | null }>(sql`
                 SELECT max(sequence) AS sequence
@@ -430,7 +410,7 @@ export class Log {
                 return;
             }
 
-            // keep the changes after the earliest position a consumer holds until its hold expires, and those compaction kept already
+            // keep the held changes
             const [held] = await transaction.execute<{
                 sequence: number | string | null;
                 horizon: number | string | null;
@@ -447,7 +427,7 @@ export class Log {
                 return;
             }
 
-            // stop before the transaction of the change at that position when it wrote later changes too
+            // stop before a split transaction
             const [split] = await transaction.execute<{ first: number | string | null }>(sql`
                 SELECT min(earlier.sequence) AS first
                 FROM ${log} change
@@ -458,7 +438,7 @@ export class Log {
             const sequence =
                 split?.first === null || split?.first === undefined ? cap : Number(split.first) - 1;
 
-            // remove the windowed changes of whole transactions and require readers behind them to list again
+            // remove the windowed changes of whole transactions
             await transaction.execute(sql`
                 DELETE FROM ${log}
                 WHERE tier = 'window'
@@ -480,9 +460,9 @@ export class Log {
         });
     }
 
-    /** Read the transaction that wrote a change: the positions before its first change and after its last, and when they happened. */
+    /** Read the positions and times of a change's transaction. */
     async bounds(sequence: number): Promise<TransactionBounds> {
-        // read the first and last change of the change's transaction, the change alone without one
+        // read the transaction's first and last change
         const log = sql.identifier(LOG);
         const [bounds] = await this.database.execute<{
             first: number | string | null;
@@ -508,36 +488,52 @@ export class Log {
         };
     }
 
-    /** Read log entries of the selected tables and scopes with the latest sequence and horizon. */
+    /** Read log entries after a sequence, or one transaction's rest, with the bounds. */
     async #entries(
         selection: ChangeSelection<Table>,
         tables: ReadonlyMap<string, Table>,
-        position: SQL,
-        limit?: number,
+        after: number,
+        options: { readonly limit?: number; readonly transaction?: string },
     ): Promise<ChangeEntry[]> {
-        // select the tables and scopes, through a flat chain for a few scopes, which Turso plans far faster than a list
-        const log = sql.identifier(LOG);
-        const names = sql.join(
-            [...tables.keys()].map((name) => sql`${name}`),
-            sql`, `,
+        // read through the statement of the selection's shape
+        const statement = entryRead(
+            selection.scopes !== undefined,
+            options.transaction !== undefined,
         );
-        const scopes = selection.scopes;
-        const scoped =
-            scopes === undefined
-                ? sql``
-                : scopes.length === 0
-                  ? sql`AND false`
-                  : scopes.length <= CHAIN_TERMS
-                    ? sql`AND (${sql.join(
-                          scopes.map((scope) => sql`scope = ${scope}`),
-                          sql` OR `,
-                      )})`
-                    : sql`AND scope IN (${sql.join(
-                          scopes.map((scope) => sql`${scope}`),
-                          sql`, `,
-                      )})`;
 
-        return await this.database.execute<ChangeEntry>(sql`
+        return statement.all(this.database, {
+            after,
+            tables: JSON.stringify([...tables.keys()]),
+            scopes: JSON.stringify(selection.scopes ?? []),
+            limit: options.limit ?? null,
+            transaction: options.transaction ?? null,
+        }) as Promise<ChangeEntry[]>;
+    }
+}
+
+/** The entry statements by shape. */
+const ENTRY_READS = new Map<string, Statement>();
+
+/** Build the statement reading log entries after a sequence. */
+function entryRead(isScoped: boolean, isRest: boolean): Statement {
+    // reuse the statement of the same shape
+    const key = `${isScoped}:${isRest}`;
+    const known = ENTRY_READS.get(key);
+    if (known !== undefined) {
+        return known;
+    }
+
+    // match a column against a JSON array
+    const listed = (column: SQL, array: SQLWrapper) =>
+        dialectSQL({
+            sqlite: sql`${column} IN (SELECT value FROM json_each(${array}))`,
+            postgresql: sql`${column} IN (SELECT jsonb_array_elements_text(${array}::jsonb))`,
+        });
+
+    // select the bounds and entries
+    const log = sql.identifier(LOG);
+    const statement = new Statement(
+        (value) => sql`
             WITH bounds AS (
                 SELECT
                     (SELECT max(sequence) FROM ${log}) AS logged,
@@ -545,27 +541,31 @@ export class Log {
             ), entries AS (
                 SELECT sequence, "transaction", "table", key, operation, "row", previous, scope, changed_at
                 FROM ${log}
-                WHERE ${position}
-                    AND "table" IN (${names})
-                    ${scoped}
+                WHERE sequence > ${value("after")}
+                    ${isRest ? sql`AND "transaction" = ${value("transaction")}` : sql``}
+                    AND ${listed(sql`"table"`, value("tables"))}
+                    ${isScoped ? sql`AND ${listed(sql`scope`, value("scopes"))}` : sql``}
                 ORDER BY sequence
-                ${limit === undefined ? sql`` : sql`LIMIT ${limit}`}
+                ${isRest ? sql`` : sql`LIMIT ${value("limit")}`}
             )
             SELECT bounds.logged, bounds.horizon, entries.*
             FROM bounds
             LEFT JOIN entries ON 1 = 1
             ORDER BY entries.sequence
-        `);
-    }
+        `,
+    );
+    ENTRY_READS.set(key, statement);
+
+    return statement;
 }
 
-/** Decode a log entry through its table's columns, apart from the sequence its commit numbers. */
+/** Decode a log entry. */
 function decodeChange<Definition extends Table>(
     entry: ChangeEntry,
     table: Definition,
     dialect: Dialect,
 ): Omit<Change<Definition>, "sequence"> {
-    // read JSON text from SQLite and parsed JSON from PostgreSQL
+    // parse SQLite JSON text
     const key = (typeof entry.key === "string" ? JSON.parse(entry.key) : entry.key) as unknown[];
     const row = (typeof entry.row === "string" ? JSON.parse(entry.row) : entry.row) as Record<
         string,
@@ -575,12 +575,12 @@ function decodeChange<Definition extends Table>(
         typeof entry.previous === "string" ? JSON.parse(entry.previous) : entry.previous
     ) as Record<string, unknown> | null;
 
-    // decode each value through its column, keeping missing values as null
+    // decode each value through its column
     const { columns, entries, key: keyProperties, logged: recorded } = table[TABLE];
     const decode = (column: Column, value: unknown) =>
         value === null || value === undefined ? null : column.definition.decode(value, dialect);
 
-    // restore the row before an update from the values it changed
+    // restore the row before an update
     const logged: Record<string, unknown> = {};
     const changed: Record<string, unknown> = {};
     for (const [property, column] of entries) {
@@ -616,7 +616,7 @@ function decodeChange<Definition extends Table>(
     };
 }
 
-/** Keep the image each row had before its first change among some changes, by key, null for a row they insert. */
+/** Keep each row's image before its first change, null for an insert. */
 function imagesOf(table: Table, changes: readonly Change[]): Map<string, Row | null> {
     const images = new Map<string, Row | null>();
     for (const change of changes) {

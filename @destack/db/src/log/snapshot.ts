@@ -13,74 +13,65 @@ import { jsonElements, Statement } from "../query/statement.ts";
 import { DatabaseError } from "../error/error.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 
-/** The log head's columns a tuple read selects before each row's own, so the rows and their position come from one statement. */
+/** The head columns a tuple read selects before each row's own. */
 const HEAD_COLUMNS = ["epoch", "logged", "horizon"] as const;
 
-/** The keys one read of rows by key names: one flat chain, which SQLite plans as index lookups where nested chains scan. */
+/** The keys one read by key names. */
 const KEYS_PER_READ = CHAIN_TERMS;
 
-/**
- * Read the images a table's rows had before their first change after one sequence, up to another, by key.
- *
- * A row inserted after the sequence has a null image.
- */
+/** Read the images a table's rows had before their first change between two sequences, by key. */
 export type Rewind = (
     table: Table,
     after: number,
     upto: number,
 ) => Promise<ReadonlyMap<string, Row | null>>;
 
-/** What an ordered read admits beyond a condition: SQL over current rows, and the same decision on earlier images. */
+/** What an ordered read admits beyond a condition. */
 export interface Admission {
-    /** Match the current rows admitted, absent to decide every row in memory through `image`. */
+    /** Match the admitted current rows, absent to decide in memory. */
     readonly current?: SQL;
-    /** Decide whether a row image is admitted: an earlier image, or any current row without `current`. */
+    /** Decide whether a row image is admitted. */
     readonly image: (row: Row) => Promise<boolean>;
 }
 
-/** How a snapshot follows a table's relations in memory as of its position, which its namespace follows in SQL over current rows. */
+/** How a snapshot follows a table's relations in memory. */
 export interface RelationView {
-    /** Decide whether a related row met a condition for a row, as of the snapshot's position. */
+    /** Decide whether a related row met a condition, as of the position. */
     decide(via: string, where: Condition | undefined, row: Row): Promise<boolean>;
-    /** Read the keys of the rows whose related rows changed after one sequence, up to another. */
+    /** Read the keys of rows whose related rows changed between two sequences. */
     touched(after: number, upto: number): Promise<readonly Row[]>;
-    /** Resolve the related values a row's lookups read, as of the snapshot's position. */
+    /** Resolve a row's lookups, as of the position. */
     resolve(row: Row): Promise<Related>;
 }
 
-/**
- * The database as it was at a log position: current rows, with the images later changes replaced.
- *
- * It reads logged columns, which the log records the images of, exactly as they were at the position.
- * It reaches back to the log's horizon for tables whose changes compaction removes, and through all history otherwise.
- */
+/** The database's logged columns as they were at a log position. */
 export class Snapshot {
     /** The database read. */
     readonly database: DatabaseConnection;
-    /** The position shown, absent for the database as each read finds it. */
+    /** The position, absent for the live database. */
     readonly position: LogPosition | undefined;
-    /** Where the earlier images of changed rows come from. */
+    /** The source of earlier row images. */
     readonly #rewind: Rewind;
 
-    /** Show a database as of a position, reading the images of later changes once from the log unless given another source. */
+    /** Show a database as of a position. */
     constructor(database: DatabaseConnection, position: LogPosition | undefined, rewind?: Rewind) {
         this.database = database;
         this.position = position;
         this.#rewind = rewind ?? database.log.rewind();
     }
 
-    /** Show a database as each read finds it, with its transaction's own writes, as decisions made now read it. */
+    /** Show the live database with its transaction's writes. */
     static live(database: DatabaseConnection): Snapshot {
         return new Snapshot(database, undefined);
     }
 
-    /** Read a table's rows a condition over its columns matches. */
+    /** Read a table's rows matching a condition. */
     async rows(table: Table, where: Condition): Promise<Row[]> {
-        // read the current rows, and the images of rows changed since the position
-        const { rows, sequence } = await this.#read(table, render(where, table));
-        const images = await this.#since(table, sequence);
+        // read the current rows and the changed rows' images
+        const rows = await this.#read(table, render(where, table));
+        const images = await this.#since(table);
 
-        // keep unchanged rows, and the earlier images the condition matches
+        // keep unchanged rows and matching images
         const match = Condition.compile(where, table);
         const kept =
             images.size === 0 ? rows : rows.filter((row) => !images.has(Key.name(table, row)));
@@ -93,18 +84,13 @@ export class Snapshot {
         return kept;
     }
 
-    /**
-     * Read a table's rows whose text columns hold one of some tuples of values in their JSON form, as of the position.
-     *
-     * One prepared statement per table and columns reads the log's head with the rows, and the tuples drive the table's index one at a time.
-     * The images of rows changed since the position count where they hold one of the tuples.
-     */
+    /** Read a table's rows whose text columns hold one of some tuples, as of the position. */
     async select(
         table: Table,
         columns: readonly string[],
         tuples: readonly (readonly unknown[])[],
     ): Promise<Row[]> {
-        // read the head, then the current rows each tuple names, in one statement
+        // read the head and each tuple's rows in one statement
         if (tuples.length === 0) {
             return [];
         }
@@ -114,7 +100,7 @@ export class Snapshot {
         const [epoch, latest, horizon] = read[0]!;
         const sequence = this.#require(epoch as string, latestOf(latest, horizon));
 
-        // decode the rows, skipping the tuples that named none
+        // decode the rows
         const dialect = this.database.driver.native.dialect;
         const selected = Object.entries(table[TABLE].logged);
         const key =
@@ -125,7 +111,7 @@ export class Snapshot {
             .map((values) => fromDriver(selected, values.slice(HEAD_COLUMNS.length), dialect));
         const images = await this.#since(table, sequence);
 
-        // keep unchanged rows, and the earlier images holding one of the tuples
+        // keep unchanged rows and matching images
         const wanted = new Set(tuples.map((tuple) => JSON.stringify(tuple)));
         const match = (row: Row) =>
             wanted.has(JSON.stringify(columns.map((column) => toJson(table, column, row))));
@@ -142,15 +128,15 @@ export class Snapshot {
 
     /** Read one row by its key, absent when it did not exist at the position. */
     async row(table: Table, key: Row): Promise<Row | undefined> {
-        // read the row now, and its earlier image when it changed since the position
-        const { rows, sequence } = await this.#read(table, Key.match(table, key));
-        const images = await this.#since(table, sequence);
+        // read the row and its earlier image
+        const rows = await this.#read(table, Key.match(table, key));
+        const images = await this.#since(table);
         const name = Key.name(table, key);
 
         return images.has(name) ? (images.get(name) ?? undefined) : rows[0];
     }
 
-    /** Read up to a count of a table's rows a condition matches, in an order after a row, among the rows an admission admits. */
+    /** Read up to a count of admitted matching rows in an order after a row. */
     async ordered(
         table: Table,
         query: {
@@ -163,7 +149,7 @@ export class Snapshot {
             readonly relations?: RelationView;
         },
     ): Promise<Row[]> {
-        // read enough current rows to outnumber the count by every row changed, or whose relations changed, since the position; every row when admitted in memory
+        // read enough current rows to cover every changed row
         const admits = query.admits;
         const isAdmittedInMemory = admits !== undefined && admits.current === undefined;
         const order = Order.complete(query.order, table);
@@ -183,37 +169,37 @@ export class Snapshot {
                     ? undefined
                     : Order.after(order, table, query.after, namespace),
             )!;
-            const read = await this.#read(
+            rows = await this.#read(
                 table,
                 selection,
                 order,
                 isAdmittedInMemory ? undefined : query.count + changed,
                 namespace,
             );
-            rows = read.rows;
 
-            // take the rows as they are for the live database
+            // take the rows as they are when live
             if (reached === undefined) {
                 break;
             }
 
-            // extend the images by the first changes of rows beyond the sequence read before
-            for (const [name, image] of await this.#rewind(table, reached, read.sequence)) {
+            // extend the images past the earlier read
+            const sequence = await this.#latest();
+            for (const [name, image] of await this.#rewind(table, reached, sequence)) {
                 if (!images.has(name)) {
                     images.set(name, image);
                 }
             }
-            reached = Math.max(reached, read.sequence);
+            reached = Math.max(reached, sequence);
             unsettled = new Map(images);
             const touched = (
-                (await relations?.touched(this.position!.sequence, read.sequence)) ?? []
+                (await relations?.touched(this.position!.sequence, sequence)) ?? []
             ).filter((key) => !unsettled.has(Key.name(table, key)));
             for (const [name, row] of await this.#rowsOf(table, touched)) {
                 unsettled.set(name, row);
             }
         }
 
-        // overlay the rows as they were of changed rows and of rows whose relations changed, which the condition and the admission admit
+        // overlay the matching admitted images
         const match = Condition.compile(query.where, table);
         const current =
             unsettled.size === 0
@@ -241,12 +227,12 @@ export class Snapshot {
         return kept.sort((left, right) => Order.rows(order, left, right)).slice(0, query.count);
     }
 
-    /** Read rows by their keys as of the position, a chunk of keys per read, null for keys no row held. */
+    /** Read rows by key as of the position, null for missing keys. */
     async #rowsOf(table: Table, keys: readonly Row[]): Promise<Map<string, Row | null>> {
-        // name every key missing until a read finds its row
+        // start every key as missing
         const found = new Map<string, Row | null>(keys.map((key) => [Key.name(table, key), null]));
         for (let start = 0; start < keys.length; start += KEYS_PER_READ) {
-            // match the chunk's keys by their JSON values
+            // match the chunk's keys
             const matches = Key.any(table, keys.slice(start, start + KEYS_PER_READ));
             for (const row of await this.rows(table, matches)) {
                 found.set(Key.name(table, row), row);
@@ -256,19 +242,15 @@ export class Snapshot {
         return found;
     }
 
-    /**
-     * Read a table's logged columns of the rows a selection admits, and a log sequence the rows are at or before, within the position's epoch.
-     *
-     * Reading the sequence after the rows suffices: rows changed since the position read as their earlier images.
-     */
+    /** Read a table's logged columns of the admitted rows, as of the position. */
     async #read(
         table: Table,
         selection: SQL,
         order?: Order,
         limit?: number,
         namespace: Namespace = { computed: {} },
-    ): Promise<{ readonly rows: Row[]; readonly sequence: number }> {
-        // read the rows with their computed values, then the latest position, which is at or after the rows' state
+    ): Promise<Row[]> {
+        // read the rows with their computed values
         const computed = Object.fromEntries(
             Object.entries(namespace.computed).map(([name, expression]) => {
                 const value = Expression.render(expression, table, namespace);
@@ -289,30 +271,33 @@ export class Snapshot {
             order === undefined ? query : query.orderBy(...Order.render(order, table, namespace));
         const rows = (await (limit === undefined ? ordered : ordered.limit(limit))) as Row[];
 
-        return { rows, sequence: await this.#latest() };
+        return rows;
     }
 
-    /** Read the log's latest sequence, which reads made before it are at or before, within the position's epoch. */
+    /** Read the log's latest sequence within the position's epoch. */
     async #latest(): Promise<number> {
         const latest = await this.database.log.position();
 
         return this.#require(latest.epoch, latest.sequence);
     }
 
-    /** Read the images rows had at the position, none for the live database. */
-    async #since(table: Table, sequence: number): Promise<ReadonlyMap<string, Row | null>> {
+    /** Read the rows' images at the position, none when live. */
+    async #since(table: Table, read?: number): Promise<ReadonlyMap<string, Row | null>> {
         // show the live database as it is
         if (this.position === undefined) {
             return new Map();
         }
 
-        // undo the committed changes after the position, and outside a transaction nothing more
+        // take the sequence of the read
+        const sequence = read ?? (await this.#latest());
+
+        // undo the committed changes after the position
         const images = await this.#rewind(table, this.position.sequence, sequence);
         if (!this.database.driver.transaction) {
             return images;
         }
 
-        // undo the transaction's own writes to rows no committed change imaged
+        // undo the transaction's own writes
         const undone = new Map(images);
         for (const change of await this.database.log.written([table])) {
             const name = Key.name(table, change.key);
@@ -324,7 +309,7 @@ export class Snapshot {
         return undone;
     }
 
-    /** Require a head of the position's history, which a restore replaces with a new epoch, returning its sequence. */
+    /** Require a head of the position's epoch, returning its sequence. */
     #require(epoch: string, sequence: number): number {
         if (this.position !== undefined && epoch !== this.position.epoch) {
             throw new DatabaseError(
@@ -337,12 +322,12 @@ export class Snapshot {
     }
 }
 
-/** Render a condition over a table's columns and namespace. */
+/** Render a condition over a table. */
 function render(where: Condition, table: Table, namespace: Namespace = { computed: {} }): SQL {
     return Condition.render(where, Condition.bind(table, {}, namespace));
 }
 
-/** Add a row's computed values to it, reading related rows through the host. */
+/** Add a row's computed values. */
 function augment(row: Row, computed: Computed, related?: Related): Row {
     const names = Object.keys(computed);
 
@@ -356,14 +341,14 @@ function augment(row: Row, computed: Computed, related?: Related): Row {
           };
 }
 
-/** Decide a compiled condition on a row as of the position, reading its relations only when the columns leave it unknown. */
+/** Decide a condition on a row, reading relations only when needed. */
 async function decides(
     match: Match,
     where: Condition,
     row: Row,
     relations: RelationView | undefined,
 ): Promise<boolean> {
-    // decide by the columns alone, leaving relations unknown
+    // decide by the columns alone
     const binding = {
         column: (name: string) => row[name],
         parameter: () => null,
@@ -374,7 +359,7 @@ async function decides(
         return decided === true;
     }
 
-    // read each relation's answer, then decide again
+    // read each relation's answer and decide again
     const answers = new Map<string, boolean>();
     for (const { via, where: related } of Condition.relations(where)) {
         answers.set(
@@ -391,10 +376,10 @@ async function decides(
     );
 }
 
-/** Read the prepared statement selecting the log's head with a table's logged columns of the rows whose text columns hold a listed tuple, once per table and columns. */
+/** Build the statement reading the head and the rows holding listed tuples. */
 function tupleRead(table: Table, columns: readonly string[], dialect: Dialect): Statement {
     return table.statement(`tuple:${dialect}:${columns.join(",")}`, () => {
-        // join each listed tuple to its rows, keeping a row of the head for a tuple naming none
+        // join each tuple to its rows, keeping a head row for an empty tuple
         const logged = Object.values(table[TABLE].logged);
         const definitions = table[TABLE].columns;
         const head = sql.join(
@@ -417,7 +402,7 @@ function tupleRead(table: Table, columns: readonly string[], dialect: Dialect): 
     });
 }
 
-/** Write a row's column value in the JSON form tuples hold it in. */
+/** Write a row's column value in JSON form. */
 function toJson(table: Table, column: string, row: Row): unknown {
     return table[TABLE].columns[column]!.definition.toJson(row[column]);
 }

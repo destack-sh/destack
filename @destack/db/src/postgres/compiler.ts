@@ -8,7 +8,7 @@ import { constraintName } from "../table/namespace.ts";
 import type { Package } from "@destack/package";
 import type { PostgresColumnType } from "drizzle-orm/pg-core/codecs";
 
-/** Native PostgreSQL codecs used for ordinary and relational selections. */
+/** The PostgreSQL codec of each column kind. */
 const POSTGRES_CODECS: Record<ColumnDefinition["kind"], PostgresColumnType> = {
     text: "text",
     integer: "bigint:number",
@@ -21,19 +21,19 @@ const POSTGRES_CODECS: Record<ColumnDefinition["kind"], PostgresColumnType> = {
     timestamp: "timestamptz",
 };
 
-/** Compile portable declarations into Postgres Drizzle tables. */
+/** Compile declarations into PostgreSQL Drizzle tables. */
 export class PostgresSchemaCompiler extends SchemaCompiler<"postgresql"> {
-    /** Compile the declared tables for Postgres. */
+    /** Compile the declared tables. */
     constructor(declarations: readonly Table[]) {
         super("postgresql", declarations);
     }
 
-    /** Materialize PostgreSQL columns and defer table constraints. */
+    /** Compile one PostgreSQL table. */
     protected compileTable(declaration: Table): postgres.PgTable {
         const definition = declaration[TABLE];
         const columns = Object.fromEntries(
             Object.entries(definition.columns).map(([property, column]) => {
-                // build a custom column from the definition's codec
+                // build a column from its codec
                 const definition = column.definition;
                 const builder = postgres.customType<{ data: unknown; driverData: unknown }>({
                     dataType: () => definition.types.postgresql,
@@ -70,7 +70,7 @@ export class PostgresSchemaCompiler extends SchemaCompiler<"postgresql"> {
         constraint: TableConstraint,
         owner: Package,
     ): postgres.PgTableExtraConfigValue {
-        // materialized columns belong to the selected dialect
+        // map the columns
         const columns = (values: readonly Column[]) =>
             values.map((column) => this.column(column) as postgres.PgColumn);
 

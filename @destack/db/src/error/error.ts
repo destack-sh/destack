@@ -1,4 +1,4 @@
-/** Failures reported by database preparation and connection lifetimes. */
+/** The database failure codes. */
 export type DatabaseErrorCode =
     | "INVALID_MIGRATION"
     | "MIGRATION_FAILED"
@@ -30,14 +30,14 @@ export class DatabaseError extends Error {
     }
 }
 
-/** Reject an unhandled variant and require exhaustive branching at compile time. */
+/** Reject an unhandled variant. */
 export function assertNever(value: never): never {
     throw new TypeError(`unhandled database variant: ${String(value)}`);
 }
 
-/** Classify a failed statement: a transaction that lost to a concurrent one, a row duplicating a unique key, a change breaking a reference, or a row failing a check. */
+/** Classify a failed statement as a conflict, duplicate, broken reference or failed check. */
 export function classifyError(error: unknown): unknown {
-    // keep a classified cause, else classify by the PostgreSQL state or SQLite message among the causes
+    // classify by PostgreSQL state or SQLite message
     for (let cause = error; cause instanceof Error; cause = cause.cause) {
         if (cause instanceof DatabaseError) {
             return cause;
@@ -53,7 +53,11 @@ export function classifyError(error: unknown): unknown {
             return new DatabaseError("DUPLICATE", "a record with the same unique key exists", {
                 cause: error,
             });
-        } else if (code === "23503" || cause.message.includes("FOREIGN KEY constraint failed")) {
+        } else if (
+            code === "23503" ||
+            code === "23001" ||
+            cause.message.includes("FOREIGN KEY constraint failed")
+        ) {
             return new DatabaseError(
                 "BROKEN_REFERENCE",
                 "the change would leave a reference to a missing record",
@@ -69,7 +73,7 @@ export function classifyError(error: unknown): unknown {
     return error;
 }
 
-/** Report whether an error is a failure or wraps it among its causes. */
+/** Report whether an error is or wraps a failure. */
 export function wraps(error: unknown, failure: unknown): boolean {
     for (let current = error; current !== undefined;) {
         if (current === failure) {

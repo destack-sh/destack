@@ -12,16 +12,16 @@ import * as declaration from "../declare/database.ts";
 import type { Table } from "../table/table.ts";
 import type { SQL } from "drizzle-orm";
 
-/** Portable queries with an owned SQLite connection: embedded or hosted Turso, WebAssembly or shared. */
+/** A SQLite database with its own connection. */
 export class SqliteDatabase<
     Client extends ConnectionClient<unknown> = ConnectionClient<unknown>,
 > extends DatabaseConnection<"sqlite"> {
-    /** The underlying SQLite connection client. */
+    /** The SQLite connection client. */
     readonly $client: Client;
-    /** The explicit native SQL API. */
+    /** The native SQL API. */
     readonly native: SqliteNative<Client>;
 
-    /** Bind logical tables to a SQLite connection running somewhere, exchanging commit notifications with other writers. */
+    /** Bind tables to a SQLite connection. */
     constructor(
         client: Client,
         tables: declaration.Database | readonly Table[],
@@ -29,7 +29,7 @@ export class SqliteDatabase<
         notifier: CommitNotifier,
         options: Omit<DrizzleSQLiteConfig<EmptyRelations>, "relations"> = {},
     ) {
-        // compile a database's tables, or the given tables with their trees' tables
+        // compile the tables with their tree tables
         const compiler = new SqliteSchemaCompiler(
             tables instanceof declaration.Database ? tables.tables : expandTrees(tables),
         );
@@ -45,7 +45,7 @@ export class SqliteDatabase<
         this.native = native;
     }
 
-    /** Execute an explicit SQL statement. */
+    /** Execute an SQL statement. */
     async run(statement: SQL): Promise<RunResult<Client>> {
         return (await this.driver.write((native) =>
             (native.database as SQLiteAsyncDatabase<"async", unknown>).run(

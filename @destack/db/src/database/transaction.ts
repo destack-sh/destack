@@ -1,32 +1,32 @@
 import { DatabaseError, wraps } from "../error/index.ts";
 
-/** The lifetime of a transaction callback and its retained queries. */
+/** The lifetime of a transaction callback and its queries. */
 export class TransactionState {
     /** Whether the callback can still submit queries. */
     #isActive = true;
-    /** Queries submitted before the callback finished. */
+    /** The queries submitted before the callback finished. */
     readonly #pending = new Set<Promise<unknown>>();
-    /** Failed queries that require rollback. */
+    /** The failed queries. */
     readonly #failures: unknown[] = [];
-    /** Cancellation requested by the caller. */
+    /** The caller's cancellation signal. */
     readonly signal?: AbortSignal;
 
-    /** Retain cancellation without interrupting a shared physical connection. */
+    /** Create the state. */
     constructor(signal?: AbortSignal) {
         this.signal = signal;
     }
 
-    /** Run a callback and settle its queries before returning to the native transaction. */
+    /** Run a callback and settle its queries. */
     async execute<Value>(operation: () => Promise<Value>): Promise<Value> {
         // reject work after the callback finishes
         this.assertActive();
 
-        // drain work even when application code exits with an error
+        // drain work even after an error
         let result: Value;
         try {
             result = await operation();
         } catch (error) {
-            // settle the queries, keeping failures the callback's error does not already report
+            // settle the queries, keeping unreported failures
             this.close();
             await Promise.all(this.#pending);
             const unreported = this.#failures.filter((failure) => !wraps(error, failure));
@@ -45,7 +45,7 @@ export class TransactionState {
         return result;
     }
 
-    /** Reject queries after the callback has finished. */
+    /** Reject queries after the callback finished. */
     assertActive(): void {
         this.signal?.throwIfAborted();
         if (!this.#isActive) {
@@ -53,7 +53,7 @@ export class TransactionState {
         }
     }
 
-    /** Track submitted work until it settles, including work the callback did not await; a failure rolls the transaction back unless a nested transaction reports it itself. */
+    /** Track submitted work until it settles. */
     run<Value>(
         operation: () => PromiseLike<Value>,
         failure: "rollback" | "report" = "rollback",
@@ -61,7 +61,7 @@ export class TransactionState {
         // reject work after the callback finishes
         this.assertActive();
 
-        // start the query before the callback can close its submission period
+        // start the query
         let result: Promise<Value>;
         try {
             result = Promise.resolve(operation());
@@ -84,13 +84,13 @@ export class TransactionState {
         return result;
     }
 
-    /** Drain submitted queries before allowing commit or rollback. */
+    /** Drain submitted queries. */
     async finish(): Promise<void> {
-        // close submissions and wait for pending queries
+        // close submissions and wait
         this.close();
         await Promise.all(this.#pending);
 
-        // report failed statements before checking cancellation at commit
+        // report failures before checking cancellation
         if (this.#failures.length === 1) {
             throw this.#failures[0];
         }
@@ -100,20 +100,20 @@ export class TransactionState {
         this.signal?.throwIfAborted();
     }
 
-    /** End access when the callback completes or fails. */
+    /** End submissions. */
     close(): void {
         this.#isActive = false;
     }
 }
 
-/** How a transaction runs: its isolation, cancellation, access and constraint checks. */
+/** The options of a transaction. */
 export interface TransactionOptions {
-    /** The minimum isolation; SQLite transactions provide serializable isolation. */
+    /** The minimum isolation; SQLite is serializable. */
     readonly isolationLevel?: "read committed" | "repeatable read" | "serializable";
-    /** Cancel submissions and roll back after already submitted work settles. */
+    /** Cancel submissions and roll back. */
     readonly signal?: AbortSignal;
-    /** Whether the transaction only reads, which lets SQLite read without taking the write lock. */
+    /** Whether the transaction only reads. */
     readonly isReadOnly?: boolean;
-    /** Check foreign keys per statement, or at commit as copies applying rows in commit order need. */
+    /** Check foreign keys per statement or at commit. */
     readonly constraints?: "immediate" | "deferred";
 }

@@ -2,23 +2,23 @@ import { canonicalize } from "@destack/schema/json";
 import type { TableDescription } from "../inspect/table.ts";
 import { logOf, type TableState } from "./state.ts";
 
-/** The table states several declarations require of one database, and the tables they disagree on. */
+/** The merged table states of several declarations, and their conflicts. */
 export interface MergedState {
-    /** One state per table: the union of every declaration's columns and constraints. */
+    /** The union of each table's declared states. */
     readonly declared: readonly TableState[];
-    /** Tables whose declarations disagree, with the reason, which block the plan. */
+    /** The conflicting tables with their reasons. */
     readonly conflicts: readonly { readonly table: string; readonly reason: string }[];
 }
 
-/** Merge the table states several declarations require, keeping what older releases still use. */
+/** Merge the table states of several declarations. */
 export function mergeStates(declarations: readonly (readonly TableState[])[]): MergedState {
-    // group each table's states across declarations
+    // group each table's states
     const groups = new Map<string, TableState[]>();
     for (const state of declarations.flat()) {
         groups.set(state.table.name, [...(groups.get(state.table.name) ?? []), state]);
     }
 
-    // merge each table's distinct states
+    // merge each table's states
     const declared: TableState[] = [];
     const conflicts: { table: string; reason: string }[] = [];
     for (const [name, states] of groups) {
@@ -30,7 +30,7 @@ export function mergeStates(declarations: readonly (readonly TableState[])[]): M
         }
     }
 
-    // block renaming a table another declaration still uses under its previous name
+    // block renaming a table still used under its old name
     for (const state of declared) {
         const previous = state.moved?.table;
         if (previous !== undefined && groups.has(previous)) {
@@ -44,12 +44,12 @@ export function mergeStates(declarations: readonly (readonly TableState[])[]): M
     return { declared, conflicts };
 }
 
-/** Merge different declarations of one table into the newest, keeping older columns and parts. */
+/** Merge one table's states into the newest, keeping older columns. */
 function mergeTable(states: readonly TableState[]): {
     readonly state: TableState;
     readonly reason?: string;
 } {
-    // start from the newest release: the highest version, then the one renaming another's columns
+    // start from the newest release
     const newest = [...states].sort(
         (left, right) =>
             right.version - left.version ||
@@ -60,7 +60,7 @@ function mergeTable(states: readonly TableState[]): {
     const declaresColumn = (name: string) =>
         others.some((state) => state.table.columns.some((column) => column.name === name));
 
-    // bridge renamed columns whose previous name a running release still uses
+    // bridge renamed columns still in use
     const moves = { ...newest.moved?.columns };
     const bridges = [...(newest.bridges ?? [])];
     for (const [column, previous] of Object.entries(moves)) {
@@ -77,7 +77,7 @@ function mergeTable(states: readonly TableState[]): {
     );
     const byName = new Map(columns.map((column) => [column.name, column]));
 
-    // keep columns that only older releases declare
+    // keep older columns
     for (const state of others) {
         for (const column of state.table.columns) {
             const existing = byName.get(column.name);
@@ -118,7 +118,7 @@ function mergeTable(states: readonly TableState[]): {
         indexes: indexes.entries,
     };
 
-    // require the declarations to agree on the log and tree
+    // require agreement on the log and tree
     const logs = new Set(states.map((state) => logOf(state)));
     const trees = new Set(states.map((state) => canonicalize(state.tree ?? null)));
     if (logs.size > 1 || trees.size > 1) {
@@ -144,14 +144,14 @@ function mergeTable(states: readonly TableState[]): {
     };
 }
 
-/** Make a required column without a default nullable, so writers omitting it keep working. */
+/** Make a required column without a default nullable. */
 function relax(column: TableDescription["columns"][number]): TableDescription["columns"][number] {
     return column.nullable || column.default !== undefined || column.generated
         ? column
         : { ...column, nullable: true };
 }
 
-/** Unite named entries, keeping first appearances in order, or name the first entry declared differently. */
+/** Unite named entries, or name the first differing entry. */
 function unite<Entry extends { readonly name: string }>(
     lists: readonly (readonly Entry[])[],
 ): { entries: Entry[]; conflict?: string } {
@@ -167,12 +167,12 @@ function unite<Entry extends { readonly name: string }>(
     return { entries: [...united.values()] };
 }
 
-/** Unite name lists, keeping first appearances in order. */
+/** Unite name lists in order. */
 function union(lists: readonly (readonly string[])[]): string[] {
     return [...new Set(lists.flat())];
 }
 
-/** Report whether a release renames a column another release still declares under its previous name. */
+/** Report whether a release renames a column another release still declares. */
 function renames(state: TableState, states: readonly TableState[]): boolean {
     return Object.values(state.moved?.columns ?? {}).some((previous) =>
         states.some(

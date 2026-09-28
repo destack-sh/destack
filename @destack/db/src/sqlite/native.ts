@@ -4,19 +4,19 @@ import type { EmptyRelations } from "drizzle-orm/relations";
 import type { ConnectionClient } from "./client.ts";
 import { ConnectionSession } from "./session.ts";
 
-/** Native Drizzle queries over a SQLite connection client. */
+/** Native Drizzle queries over a SQLite client. */
 export class SqliteNative<
     Client extends ConnectionClient<unknown> = ConnectionClient<unknown>,
 > extends SQLiteAsyncDatabase<"async", RunResult<Client>, EmptyRelations> {
-    /** The underlying SQLite connection client. */
+    /** The SQLite connection client. */
     readonly $client: Client;
 
-    /** Connect native query builders to the physical database. */
+    /** Create the native database. */
     constructor(
         client: Client,
         options: Omit<DrizzleSQLiteConfig<EmptyRelations>, "relations"> = {},
     ) {
-        // open a session over the client without relational queries
+        // open a session without relational queries
         const relations = {} as EmptyRelations;
         const session = new ConnectionSession<RunResult<Client>, EmptyRelations>(
             client as ConnectionClient<RunResult<Client>>,
@@ -28,7 +28,7 @@ export class SqliteNative<
     }
 }
 
-/** The result of executing a statement on a client. */
+/** The result of running a statement. */
 export type RunResult<Client extends ConnectionClient<unknown>> = Awaited<
     ReturnType<Client["run"]>
 >;

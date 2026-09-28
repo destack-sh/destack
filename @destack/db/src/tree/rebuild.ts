@@ -4,26 +4,26 @@ import { PARAMETER_BUDGET } from "../dialect/dialect.ts";
 import { DatabaseError } from "../error/error.ts";
 import type { TreeDescription } from "../inspect/tree.ts";
 
-/** The bound parameters of one ancestor record: scope, ancestor, descendant and depth. */
+/** The bound parameters of one ancestor record. */
 const RECORD_PARAMETERS = 4;
 
 /** The most ancestor records one statement writes. */
 const BATCH_SIZE = Math.floor(PARAMETER_BUDGET / RECORD_PARAMETERS);
 
-/** The temporary table staging a rebuilt index's paths, dropped before the rebuild returns. */
+/** The temporary staging table of a rebuild. */
 const STAGED = "destack_tree_rebuild";
 
-/** Rebuild a historical tree index inside the caller's write transaction. */
+/** Rebuild a tree index in the caller's write transaction. */
 export async function rebuildTree(
     database: DatabaseConnection,
     tree: TreeDescription,
 ): Promise<void> {
-    // require atomic replacement of the derived index
+    // require a transaction
     if (!database.driver.transaction) {
         throw new DatabaseError("TRANSACTION_REQUIRED", "tree rebuild requires a transaction");
     }
 
-    // protect the source against concurrent parent changes during reconstruction
+    // lock the source against parent changes
     if (database.dialect === "postgresql") {
         await database.execute(
             sql`LOCK TABLE ${sql.identifier(tree.table)} IN SHARE ROW EXCLUSIVE MODE`,
@@ -36,7 +36,7 @@ export async function rebuildTree(
             ${sql.identifier(tree.parent)} AS parent FROM ${sql.identifier(tree.table)}`,
     );
 
-    // retain parent records by scope so identical local IDs cannot cross scopes
+    // group parents by scope
     const scopes = new Map<string, Map<string, string | null>>();
     for (const row of rows) {
         let parents = scopes.get(row.scope);
@@ -50,7 +50,7 @@ export async function rebuildTree(
         parents.set(row.id, row.parent);
     }
 
-    // validate every parent chain before replacing the derived index
+    // validate every parent chain
     for (const parents of scopes.values()) {
         const complete = new Set<string>();
         for (const id of parents.keys()) {
@@ -72,7 +72,7 @@ export async function rebuildTree(
         }
     }
 
-    // stage the paths in bounded batches, unlogged, without retaining the quadratic output in memory
+    // stage the paths in bounded batches
     const staged = sql.identifier(STAGED);
     await database.execute(sql`CREATE TEMPORARY TABLE ${staged}
         (scope text NOT NULL, ancestor text NOT NULL, descendant text NOT NULL, depth integer NOT NULL)`);
@@ -97,12 +97,12 @@ export async function rebuildTree(
         }
     }
 
-    // stage the last partial batch
+    // stage the last batch
     if (batch.length > 0) {
         await flush(batch);
     }
 
-    // log only the paths that differ: remove the stale ones, then add the missing ones
+    // remove stale paths and add missing ones
     const ancestors = sql.identifier(tree.ancestors);
     const same = (left: typeof staged, right: typeof staged) => sql`${left}.scope = ${right}.scope
         AND ${left}.ancestor = ${right}.ancestor

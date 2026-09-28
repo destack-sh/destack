@@ -2,7 +2,7 @@ import { and, eq, isNull, type SQL } from "drizzle-orm";
 import { TABLE, type Table } from "../table/table.ts";
 import { Condition, type Scalar } from "./condition.ts";
 
-/** A table's primary key: the properties holding it, and matching and naming rows by it. */
+/** A table's primary key. */
 export const Key = {
     /** Match the row holding a row's key. */
     match(table: Table, row: Readonly<Record<string, unknown>>): SQL {
@@ -17,7 +17,7 @@ export const Key = {
         )!;
     },
 
-    /** Match the rows holding any of some keys by their JSON values; callers chunk keys by CHAIN_TERMS. */
+    /** Match the rows holding any of some keys, chunked by CHAIN_TERMS. */
     any(table: Table, keys: readonly Readonly<Record<string, unknown>>[]): Condition {
         const columns = table[TABLE].columns;
 
@@ -35,9 +35,9 @@ export const Key = {
         );
     },
 
-    /** Name a row by its table and the JSON form of its key, the same in every dialect. */
+    /** Name a row by its table and key, alike in every dialect. */
     name(table: Table, row: Readonly<Record<string, unknown>>): string {
-        // write the JSON array of the table's name and key values, without building the array
+        // write the JSON array of the table name and key values
         const definition = table[TABLE];
         let name = `[${JSON.stringify(definition.sqlName)}`;
         for (const property of definition.key) {
@@ -52,7 +52,7 @@ export const Key = {
         return `${name}]`;
     },
 
-    /** Read a row's key back from its name. */
+    /** Read a row's key from its name. */
     parse(table: Table, name: string): Record<string, unknown> {
         const columns = table[TABLE].columns;
         const [, ...values] = JSON.parse(name) as unknown[];

@@ -5,12 +5,12 @@ import { condition, literal, quote } from "../dialect/quote.ts";
 import type { DependentDescription } from "../inspect/dependent.ts";
 import { LOG_COPYING } from "../log/schema.ts";
 
-/** The message refusing a deletion, which classifies as a broken reference in either dialect. */
+/** The message refusing a deletion, classified as a broken reference. */
 const RESTRICTED = "FOREIGN KEY constraint failed";
 
-/** Generate the trigger deleting a row's dependents with it, or refusing its deletion while it has any. */
+/** Generate the trigger cascading or refusing a row's deletion for its dependents. */
 function install(dependent: DependentDescription, dialect: Dialect): string[] {
-    // name the trigger after both tables, and skip rows a replica copies
+    // name the trigger and skip replica copies
     const name = quote(`${dependent.table}__${dependent.source}_${dependent.key}`);
     const idle = `NOT EXISTS (SELECT 1 FROM ${quote(LOG_COPYING)})`;
     const source = quote(dependent.source);
@@ -33,7 +33,7 @@ function install(dependent: DependentDescription, dialect: Dialect): string[] {
                     BEGIN SELECT RAISE(ABORT, ${literal(message)}); END`,
         ];
     }
-    // delete or refuse through one PostgreSQL function, raising a foreign key violation
+    // delete or refuse through one PostgreSQL function
     else if (dialect === "postgresql") {
         const effect =
             dependent.onDelete === "cascade"
@@ -76,7 +76,7 @@ function remove(dependent: DependentDescription, dialect: Dialect): string[] {
     }
 }
 
-/** The triggers deleting or keeping the rows a table's dependents reference. */
+/** The triggers keeping dependents consistent. */
 export const dependentTriggers: Triggers = {
     install: (state, dialect) =>
         (state.dependents ?? []).flatMap((dependent) => install(dependent, dialect)),

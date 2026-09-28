@@ -3,12 +3,12 @@ import type { Relay } from "../../relay/relay.ts";
 import { serveDatabase, type Message } from "../shared/shared.ts";
 import { WasmClient } from "./client.ts";
 
-/** Open a database file in the origin's private file system, and serve it to every party of a relay until the returned stop runs. */
+/** Open an OPFS database file and serve it to a relay's parties until stopped. */
 export async function serveBrowserDatabase(
     name: string,
     relay: Relay<Message>,
 ): Promise<() => Promise<void>> {
-    // open the file through the origin private file system's synchronous access handles
+    // open the file through synchronous access handles
     const sqlite = await init();
     const pool = await sqlite.installOpfsSAHPoolVfs({ name: "destack" });
     const database = new pool.OpfsSAHPoolDb(`/${name}`);

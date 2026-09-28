@@ -15,16 +15,19 @@ export class DatabaseDriver {
     /** The active transaction state, when present. */
     readonly transaction?: TransactionState;
 
-    /** Retain the native database, connection state, and optional transaction state. */
+    /** Create the driver. */
     constructor(native: NativeDatabase, state: ConnectionState, transaction?: TransactionState) {
         this.native = native;
         this.state = state;
         this.transaction = transaction;
     }
 
-    /** Submit work through the active transaction or connection. */
+    /** Submit work through the transaction or connection. */
     run<Value>(operation: () => PromiseLike<Value>): Promise<Value> {
-        // report concurrent updates before the transaction records the failure
+        // count the statement
+        this.state.statements += 1;
+
+        // report concurrent updates first
         const reported = async () => {
             try {
                 return await operation();
@@ -37,10 +40,9 @@ export class DatabaseDriver {
     }
 
     /**
-     * Submit a write on the native database it must run on, notifying readers and other writers once it commits outside a transaction.
+     * Submit a write and notify readers and writers once it commits outside a transaction.
      *
-     * Outside a transaction on SQLite, the write runs as one transaction the log identifies, so that its changes commit as one.
-     * A write that manages its own transaction, such as a transaction or a script, runs as it is.
+     * On SQLite, a write outside a transaction runs as one identified transaction.
      */
     async write<Value>(
         operation: (native: NativeDatabase) => PromiseLike<Value>,
@@ -56,19 +58,19 @@ export class DatabaseDriver {
         return result;
     }
 
-    /** Run a SQLite write outside a transaction as one transaction the log's triggers identify, and others as they are. */
+    /** Run a SQLite write outside a transaction as one identified transaction. */
     async #identified<Value>(
         operation: (native: NativeDatabase) => PromiseLike<Value>,
     ): Promise<Value> {
-        // run writes inside transactions, and PostgreSQL writes, as they are
+        // run other writes as they are
         if (this.native.dialect !== "sqlite" || this.transaction !== undefined) {
             return await operation(this.native);
         }
 
-        // run the write on the transaction holding the connection
+        // run the write in a transaction
         return await this.native.database.transaction(
             async (transaction) => {
-                // mark the transaction for the log, write, then clear the mark before it commits
+                // mark, write and unmark the transaction
                 const isMarked = await openTransaction(transaction, this.state);
                 const result = await operation({ dialect: "sqlite", database: transaction });
                 if (isMarked) {
@@ -81,17 +83,17 @@ export class DatabaseDriver {
         );
     }
 
-    /** Render a native statement to its text and parameters in the connection's dialect. */
+    /** Render a statement to its text and parameters. */
     render(statement: SQL): Query {
         return (this.native.database as unknown as NativeInternals<never>).dialect.sqlToQuery(
             statement,
         );
     }
 
-    /** Read every row of rendered text with its parameters on the native connection or transaction, as driver rows. */
+    /** Read every row of a rendered query. */
     all<Row>(query: Query): Promise<Row[]> {
         return this.run(async () => {
-            // read through the SQLite session's client, which reuses its prepared statement for the text
+            // read through the SQLite client's prepared statement
             if (this.native.dialect === "sqlite") {
                 const { client } = (
                     this.native.database as unknown as NativeInternals<SqliteClient>
@@ -99,7 +101,7 @@ export class DatabaseDriver {
 
                 return (await client.all(query.sql, ...query.params)) as Row[];
             }
-            // read through the PostgreSQL session's client, prepared once per connection
+            // read through the PostgreSQL client
             else if (this.native.dialect === "postgresql") {
                 const { client } = (
                     this.native.database as unknown as NativeInternals<PostgresClient>
@@ -116,10 +118,10 @@ export class DatabaseDriver {
         });
     }
 
-    /** Read every row of rendered text with its parameters on the native connection or transaction, as arrays of values in selected order. */
+    /** Read every row of a rendered query as value arrays. */
     values(query: Query): Promise<unknown[][]> {
         return this.run(async () => {
-            // read positional rows with exact integers through the SQLite session's client, which reuses its prepared statement for the text and mode
+            // read positional rows with exact integers through SQLite
             if (this.native.dialect === "sqlite") {
                 const { client } = (
                     this.native.database as unknown as NativeInternals<SqliteClient>
@@ -131,7 +133,7 @@ export class DatabaseDriver {
                     .raw(true)
                     .all(...query.params)) as unknown[][];
             }
-            // read positional rows through the PostgreSQL session's client, prepared once per connection
+            // read positional rows through PostgreSQL
             else if (this.native.dialect === "postgresql") {
                 const { client } = (
                     this.native.database as unknown as NativeInternals<PostgresClient>
@@ -149,19 +151,19 @@ export class DatabaseDriver {
     }
 }
 
-/** A Drizzle database or transaction: its dialect renders statements and its session's client runs them. */
+/** A Drizzle database or transaction's internals. */
 interface NativeInternals<Client> {
-    /** The dialect rendering statements to text and parameters. */
+    /** The dialect rendering statements. */
     readonly dialect: { sqlToQuery(statement: SQL): Query };
-    /** The session running the database's statements. */
+    /** The session running statements. */
     readonly session: { readonly client: Client };
 }
 
-/** A SQLite session client reading the rows of a statement text. */
+/** A SQLite session client. */
 interface SqliteClient {
-    /** Read every row of a statement text with its parameters. */
+    /** Read every row of a statement. */
     all(sql: string, ...parameters: unknown[]): Promise<unknown[]>;
-    /** Prepare a statement text, whose row mode selects named or positional rows. */
+    /** Prepare a statement. */
     prepare(sql: string): Promise<{
         safeIntegers(enabled: boolean): {
             raw(enabled: boolean): { all(...parameters: unknown[]): Promise<unknown[]> };
@@ -169,29 +171,29 @@ interface SqliteClient {
     }>;
 }
 
-/** A PostgreSQL session client running a statement text. */
+/** A PostgreSQL session client. */
 interface PostgresClient {
-    /** Run a statement text with its parameters, prepared once per connection. */
+    /** Run a statement, prepared once per connection. */
     unsafe(
         sql: string,
         parameters: unknown[],
         options: { readonly prepare: boolean },
     ): Promise<Iterable<unknown>> & {
-        /** Read the rows as arrays of values in selected order. */
+        /** Read the rows as value arrays. */
         values(): Promise<Iterable<unknown[]>>;
     };
 }
 
-/** The selected dialect and its native Drizzle database. */
+/** The dialect and its native Drizzle database. */
 export type NativeDatabase =
     | {
-          /** SQLite queries through embedded or hosted Turso. */
+          /** SQLite on a file, in memory, in a browser or in a Durable Object. */
           readonly dialect: "sqlite";
           /** The native query connection. */
           readonly database: SQLiteAsyncDatabase<"async", unknown>;
       }
     | {
-          /** PostgreSQL queries through a connection pool. */
+          /** PostgreSQL through a connection pool. */
           readonly dialect: "postgresql";
           /** The native query connection. */
           readonly database: PostgresJsDatabase;

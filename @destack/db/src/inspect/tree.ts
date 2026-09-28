@@ -1,6 +1,6 @@
 import { defineSchema, schema } from "@destack/schema";
 
-/** A scoped parent relationship and its engine-maintained ancestor index. */
+/** A scoped parent relationship and its ancestor index. */
 export const TreeDescription = defineSchema(
     schema.object({
         /** The tree's declaration name. */
@@ -19,5 +19,5 @@ export const TreeDescription = defineSchema(
         revision: schema.string().min(1),
     }),
 );
-/** A scoped parent relationship and its engine-maintained ancestor index. */
+/** A scoped parent relationship and its ancestor index. */
 export type TreeDescription = schema.Infer<typeof TreeDescription>;

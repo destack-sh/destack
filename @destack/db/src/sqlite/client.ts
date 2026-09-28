@@ -1,4 +1,4 @@
-/** Query operations shared by SQLite connections and transaction handles. */
+/** The query operations of SQLite connections and transactions. */
 export interface QueryClient<Result> {
     /** Prepare a statement on this connection or transaction. */
     prepare(statement: string): Promise<Statement<Result>>;
@@ -12,11 +12,11 @@ export interface QueryClient<Result> {
     exec(script: string): Promise<unknown>;
 }
 
-/** A SQLite connection that provides dedicated transaction handles. */
+/** A SQLite connection with dedicated transactions. */
 export interface ConnectionClient<Result> extends QueryClient<Result> {
     /** Close the physical connection. */
     close(): Promise<void>;
-    /** Execute a callback with exclusive transaction access. */
+    /** Run a callback with exclusive transaction access. */
     transactionAsync<Value>(operation: (client: QueryClient<Result>) => Promise<Value>): {
         /** Begin a deferred transaction. */
         deferred(): Promise<Value>;
@@ -27,11 +27,11 @@ export interface ConnectionClient<Result> extends QueryClient<Result> {
     };
 }
 
-/** A prepared statement scoped to its creating client. */
+/** A prepared statement of its creating client. */
 export interface Statement<Result> {
-    /** Preserve integer precision until the column decoder selects its application type. */
+    /** Read integers exactly. */
     safeIntegers(enabled: boolean): Statement<Result>;
-    /** Select positional or named result rows. */
+    /** Select positional or named rows. */
     raw(enabled: boolean): Statement<Result>;
     /** Execute the prepared statement. */
     run(...parameters: unknown[]): Promise<Result>;
@@ -41,12 +41,12 @@ export interface Statement<Result> {
     get(...parameters: unknown[]): Promise<unknown>;
 }
 
-/** Work run one piece at a time, in the order it arrived. */
+/** Work run one piece at a time, in arrival order. */
 export class WorkQueue {
     /** The tail of the waiting work. */
     #tail: Promise<unknown> = Promise.resolve();
 
-    /** Run work once the earlier work finished. */
+    /** Run work after the earlier work. */
     run<Value>(work: () => Promise<Value>): Promise<Value> {
         const result = this.#tail.then(work);
         this.#tail = result.catch(() => undefined);

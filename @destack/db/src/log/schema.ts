@@ -11,19 +11,19 @@ export const LOG = "__destack_log";
 /** The SQL name of the highest compacted change sequence. */
 export const LOG_HORIZON = "__destack_log_horizon";
 
-/** The SQL name of the positions consumers hold, which compaction keeps the changes after until they expire. */
+/** The SQL name of the consumers' held positions. */
 export const LOG_HOLD = "__destack_log_hold";
 
-/** The SQL name of the log's epoch, which a restore renews since sequences restart with it. */
+/** The SQL name of the log's epoch. */
 export const LOG_EPOCH = "__destack_log_epoch";
 
-/** The SQL name of the marker a transaction holds while it writes rows a source already derived. */
+/** The SQL name of the marker of a transaction writing derived rows. */
 export const LOG_COPYING = "__destack_log_copying";
 
 /** The SQL name of the open SQLite transaction's identity. */
 export const LOG_TRANSACTION = "__destack_log_transaction";
 
-/** The PostgreSQL notification channel announcing commits that changed the log. */
+/** The PostgreSQL notification channel of logged commits. */
 export const LOG_CHANNEL = "destack_log";
 
 /** Describe the columns a table's change triggers record, absent for unlogged tables. */
@@ -34,7 +34,7 @@ export function describeLog(table: Table): ChangeDescription | undefined {
         return undefined;
     }
 
-    // file every change under the scope the row lives in
+    // file each change under the row's scope
     const scope = definition.columns.scope;
     if (scope === undefined || scope.definition.nullable) {
         throw new DatabaseError(
@@ -43,7 +43,7 @@ export function describeLog(table: Table): ChangeDescription | undefined {
         );
     }
 
-    // record every column except binary and sensitive ones, which the key names rows without
+    // record every column but binary and sensitive ones
     const columns = Object.values(definition.columns).map((column) => column.definition);
     const logged = table[TABLE].logged;
     const recorded = Object.values(logged).map((column) => column.definition);
@@ -70,7 +70,7 @@ export function describeLog(table: Table): ChangeDescription | undefined {
 
 /** Read a logged table's primary key columns in key order. */
 export function primaryKey(table: Table): readonly Column[] {
-    // require a key, since log entries name rows by it
+    // require a key
     const columns = table[TABLE].key.map((property) => table[TABLE].columns[property]!);
     if (columns.length === 0) {
         throw new DatabaseError(
@@ -82,7 +82,7 @@ export function primaryKey(table: Table): readonly Column[] {
     return columns;
 }
 
-/** Create the log's epoch once, keeping the epoch an earlier creation minted, the copying marker and the consumers' holds. */
+/** Create the log's epoch once, keeping existing state. */
 export function createEpoch(): readonly string[] {
     return [
         `CREATE TABLE IF NOT EXISTS ${quote(LOG_HOLD)} (
@@ -100,11 +100,11 @@ export function createEpoch(): readonly string[] {
     ];
 }
 
-/** The log of one dialect: its own tables, and the triggers recording a table's changes into it. */
+/** The log of one dialect: its tables and change triggers. */
 export interface LogDialect {
-    /** Create the log, its horizon and its commit ordering once per database. */
+    /** Create the log once per database. */
     create(): readonly string[];
-    /** Generate the triggers recording one table's committed changes. */
+    /** Generate the triggers recording one table's changes. */
     install(description: ChangeDescription): string[];
     /** Remove the triggers recording one table's changes. */
     remove(description: ChangeDescription): string[];

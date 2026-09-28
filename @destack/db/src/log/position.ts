@@ -3,19 +3,19 @@ import { defineSchema, schema } from "@destack/schema";
 import type { Dialect } from "../dialect/dialect.ts";
 import { LOG, LOG_EPOCH, LOG_HORIZON, LOG_TRANSACTION } from "./schema.ts";
 
-/** A position in the log: an epoch and a sequence within it, where a reader or copy continues. */
+/** A position in the log: an epoch and a sequence within it. */
 export const LogPosition = defineSchema(
     schema.object({
-        /** The log's epoch, a time-ordered identifier renewed when the database is restored. */
+        /** The log's epoch, renewed when the database is restored. */
         epoch: schema.string().min(1),
         /** The log sequence within the epoch. */
         sequence: schema.number().int().nonnegative(),
     }),
 );
-/** A position in the log: an epoch and a sequence within it, where a reader or copy continues. */
+/** A position in the log: an epoch and a sequence within it. */
 export type LogPosition = schema.Infer<typeof LogPosition>;
 
-/** Report whether a position is later than another: a newer epoch, or a higher sequence within one. */
+/** Report whether a position is later than another. */
 export function isAfter(position: LogPosition, other: LogPosition): boolean {
     return position.epoch === other.epoch
         ? position.sequence > other.sequence
@@ -23,12 +23,12 @@ export function isAfter(position: LogPosition, other: LogPosition): boolean {
 }
 
 /**
- * Select the log's head in one row: its epoch, its latest committed sequence, and its horizon.
+ * Select the log's head in one row: its epoch, latest sequence and horizon.
  *
- * Inside a transaction the head leaves out the transaction's own entries, which PostgreSQL numbers only at commit.
+ * Inside a transaction the head leaves out the transaction's own entries.
  */
 export function selectHead(dialect: Dialect): SQL {
-    // read SQLite's latest entry outside the open transaction, walking back past its own
+    // read SQLite's latest entry outside the open transaction
     const log = sql.identifier(LOG);
     const logged =
         dialect === "sqlite"
@@ -43,7 +43,7 @@ export function selectHead(dialect: Dialect): SQL {
         FROM ${sql.identifier(LOG_EPOCH)} WHERE slot = 1`;
 }
 
-/** Read the latest sequence of a head: the latest logged one, or the horizon once compaction removed every later entry. */
+/** Read a head's latest sequence: the latest logged one, or the horizon. */
 export function latestOf(logged: unknown, horizon: unknown): number {
     const sequences = [logged, horizon].filter((sequence) => sequence !== null).map(Number);
 

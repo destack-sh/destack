@@ -54,7 +54,7 @@ const taskOne = defineTable(
     { log: {} },
 );
 
-/** Tasks after renaming name to title, dropping the note, adding a due time and an index. */
+/** Tasks after renaming name to title, dropping the note and adding a due time and index. */
 const taskTwo = defineTable(
     "task",
     {
@@ -102,7 +102,7 @@ const taskText = defineTable("task", {
     note: text("note"),
 });
 
-/** Tasks with a required column no existing row can fill. */
+/** Tasks with an unfillable required column. */
 const taskUnfilled = defineTable("task", {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
@@ -111,7 +111,7 @@ const taskUnfilled = defineTable("task", {
     owner: text("owner").notNull(),
 });
 
-/** Open an empty test database in a dialect. */
+/** Open an empty test database. */
 async function open(dialect: Dialect, tables: readonly Table[]) {
     const test = await TestDatabase.create(dialect, tables);
     onTestFinished(() => test.close());
@@ -119,7 +119,7 @@ async function open(dialect: Dialect, tables: readonly Table[]) {
     return test.database;
 }
 
-/** Summarize a plan's steps as reviewers see them. */
+/** Summarize a plan's steps. */
 function review(plan: TablePlan) {
     return plan.steps.map((step) => `${step.risk} ${step.kind} ${step.target}: ${step.detail}`);
 }
@@ -129,7 +129,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const database = await open(dialect, [taskOne]);
 
-        // create the table with its log and state, then find the database current
+        // create the table, then find the database current
         const plan = await database.migrate([taskOne]);
         expect(review(plan)).toEqual([`safe createTable ${table(taskOne)}: create table`]);
         expect(review(await planMigration(database, declareState([taskOne], dialect)))).toEqual([]);
@@ -145,7 +145,7 @@ test.for(TEST_DIALECTS)(
             sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent, note) VALUES ('a', 'inbox', 'Plan', 1, 'old')`,
         );
 
-        // classify the rename as backward-incompatible, the addition as safe and the dropped note as destructive
+        // classify the rename, addition and dropped note
         const plan = await planMigration(database, declareState([taskTwo], dialect));
         expect(review(plan)).toEqual(
             dialect === "sqlite"
@@ -161,7 +161,7 @@ test.for(TEST_DIALECTS)(
                   ],
         );
 
-        // keep the row under its renamed column and find the database current
+        // keep the row under the renamed column
         await applyPlan(database, plan);
         expect(await database.select().from(taskTwo)).toEqual([
             { id: "a", scope: "inbox", title: "Plan", urgent: 1, dueAt: null },
@@ -178,9 +178,9 @@ test.for(TEST_DIALECTS)(
         await database.execute(
             sql`INSERT INTO ${sql.identifier(table(taskTwo))} (id, scope, title, urgent, due_at) VALUES ('a', 'inbox', 'Plan', 1, NULL), ('b', 'inbox', 'Ship', 0, 5)`,
         );
-        const before = await database.log.latest();
+        const before = (await database.log.position()).sequence;
 
-        // add the priority column, then convert every row through version two
+        // convert every row through version two
         const plan = await database.migrate([taskThree]);
         expect(review(plan)).toEqual([
             `safe addColumn ${table(taskThree)}: add column priority`,
@@ -191,7 +191,7 @@ test.for(TEST_DIALECTS)(
             { id: "b", scope: "inbox", title: "Ship", urgent: 0, priority: "normal", dueAt: 5 },
         ]);
 
-        // record the conversion's update in the log like any other write
+        // log the conversion's update
         const changes = await database.log.read({ tables: [taskThree], after: before });
         expect(
             changes.changes.map((change) => [
@@ -211,7 +211,7 @@ test.for(TEST_DIALECTS)(
         await database.migrate([taskOne]);
         await database.execute(sql`CREATE TABLE ${sql.identifier(table(labelPlain))} (id TEXT)`);
 
-        // name the unfillable column and the table created outside any plan, all at once
+        // name the unfillable column and the unmanaged table
         await expect(
             planMigration(database, declareState([taskUnfilled, labelPlain], dialect)),
         ).rejects.toMatchObject({
@@ -249,7 +249,7 @@ test.for(TEST_DIALECTS)(
             sql`INSERT INTO ${sql.identifier(table(document))} (id, folder_id) VALUES ('d', 'f')`,
         );
 
-        // drop the referenced table's column and keep the referencing row valid
+        // drop the referenced column and keep the reference valid
         await database.migrate([folderTwo, document]);
         expect(
             await database.execute(
@@ -270,7 +270,7 @@ test.for(TEST_DIALECTS)(
         const name = sql.identifier(table(labelPlain));
         await database.execute(sql`INSERT INTO ${name} (id, code) VALUES ('a', 'x'), ('b', 'x')`);
 
-        // fail to make duplicated codes unique, keeping the rows and the applied state
+        // fail to make duplicate codes unique and keep the state
         await expect(database.migrate([labelUnique])).rejects.toMatchObject({
             code: "MIGRATION_FAILED",
         });
@@ -285,7 +285,7 @@ test.for(TEST_DIALECTS)("make a column unique and enforce it on %s", async (dial
     const database = await open(dialect, [labelPlain]);
     await database.migrate([labelPlain]);
 
-    // add the column's unique constraint, which depends on the existing rows
+    // add the unique constraint
     const plan = await planMigration(database, declareState([labelUnique], dialect));
     expect(review(plan)).toEqual(
         dialect === "sqlite"
@@ -296,7 +296,7 @@ test.for(TEST_DIALECTS)("make a column unique and enforce it on %s", async (dial
     );
     await applyPlan(database, plan);
 
-    // hold nothing more to apply, and keep one row per code
+    // plan nothing more
     expect(review(await planMigration(database, declareState([labelUnique], dialect)))).toEqual([]);
     const name = sql.identifier(table(labelUnique));
     await database.execute(
@@ -314,12 +314,12 @@ test.for(TEST_DIALECTS)(
         const state = (tables: readonly Table[]) =>
             defineDatabase({ name: "main", tables }).state();
 
-        // create a shared table once when two declarations require it identically
+        // create a shared table once
         const plan = await planStates(database, [state([taskOne]), state([taskOne])]);
         expect(review(plan)).toEqual([`safe createTable ${table(taskOne)}: create table`]);
         await applyPlan(database, plan);
 
-        // refuse a table two releases declare with different column types, naming the column
+        // refuse conflicting column types
         await expect(
             planStates(database, [state([taskOne]), state([taskText])]),
         ).rejects.toMatchObject({
@@ -343,7 +343,7 @@ test.for(TEST_DIALECTS)(
             sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent, note) VALUES ('a', 'inbox', 'Plan', 1, 'old')`,
         );
 
-        // add the new release's columns beside the old release's, relax the old title it omits, and bridge them
+        // expand the table for both releases and bridge the renamed column
         const expand = await planStates(database, [state([taskOne]), state([taskTwo])]);
         expect(review(expand)).toEqual(
             dialect === "sqlite"
@@ -364,12 +364,12 @@ test.for(TEST_DIALECTS)(
         );
         await applyPlan(database, expand);
 
-        // let both releases connect to the expanded table
+        // connect both releases
         const release = (tables: readonly Table[]) => defineDatabase({ name: "main", tables });
         expect(await release([taskOne]).check(database)).toEqual([]);
         expect(await release([taskTwo]).check(database)).toEqual([]);
 
-        // keep both names equal for writes from either release
+        // keep both names equal
         const name = sql.identifier(table(taskOne));
         await database.execute(
             sql`INSERT INTO ${name} (id, scope, name, urgent) VALUES ('b', 'inbox', 'Old', 0)`,
@@ -386,7 +386,7 @@ test.for(TEST_DIALECTS)(
             { id: "c", name: "New", title: "New" },
         ]);
 
-        // drop the old release's columns once only the new release runs
+        // drop the old release's columns
         const contract = await planStates(database, [state([taskTwo])]);
         expect(review(contract)).toEqual(
             dialect === "sqlite"
@@ -419,7 +419,7 @@ test.for(TEST_DIALECTS)(
             tables: [taskOne],
         });
 
-        // report the missing table, then nothing once applied
+        // report the missing table until applied
         expect(await declared.check(database)).toEqual([table(taskOne)]);
         await database.migrate([taskOne]);
         expect(await declared.check(database)).toEqual([]);

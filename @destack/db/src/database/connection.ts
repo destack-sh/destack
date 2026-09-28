@@ -32,16 +32,16 @@ import type { PostgresJsSession } from "drizzle-orm/postgres-js";
 import type { EmptyRelations } from "drizzle-orm/relations";
 import type { Sql } from "postgres";
 
-/** Portable queries over one database connection, or one transaction on it. */
+/** Queries over one database connection or transaction. */
 export class DatabaseConnection<Driver extends Dialect = Dialect> {
-    /** The native Drizzle database and its query lifetime. */
+    /** The native Drizzle database. */
     readonly driver: DatabaseDriver;
-    /** The compiler binding logical tables to the native dialect. */
+    /** The table compiler. */
     readonly compiler: SchemaCompiler<Driver>;
-    /** The physical connection's submission and shutdown state. */
+    /** The physical connection state. */
     readonly state: ConnectionState;
 
-    /** Bind logical tables to a physical connection. */
+    /** Bind a driver and compiler. */
     constructor(driver: DatabaseDriver, compiler: SchemaCompiler<Driver>) {
         this.state = driver.state;
         this.driver = driver;
@@ -74,7 +74,7 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         });
     }
 
-    /** Declare a named common table expression using Drizzle's query description. */
+    /** Declare a named common table expression. */
     $with<const Alias extends string>(alias: Alias) {
         return {
             as: <
@@ -85,7 +85,7 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
             >(
                 query: SelectQuery<Result, Fields, Nullable, Automatic>,
             ): SelectedSubquery<Result, Alias> => {
-                // name the query through the connection's native CTE constructor
+                // build the CTE on the native database
                 const database = this.driver.native.database as unknown as DrizzleDatabase;
 
                 return database.$with(alias).as(query) as unknown as SelectedSubquery<
@@ -96,7 +96,7 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         };
     }
 
-    /** Include named common table expressions in the next selection. */
+    /** Include common table expressions in the next selection. */
     with(...queries: WithSubquery[]) {
         return {
             select: <Fields extends Selection | undefined = undefined>(fields?: Fields) =>
@@ -126,13 +126,9 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         return new MutationQuery(this.driver, this.compiler, table, "delete");
     }
 
-    /**
-     * Write rows to a table as they are, inserting new keys and updating held ones, a batch of rows per statement.
-     *
-     * An upsert fires the log's update trigger on held rows and its insert trigger on new ones.
-     */
+    /** Upsert rows, a batch per statement. */
     async upsert(table: Table, rows: readonly Row[]): Promise<void> {
-        // update every written column but the key from the proposed row
+        // update every written column but the key
         const key = table[TABLE].key;
         const columns = table[TABLE].columns;
         const written = [...new Set(rows.flatMap((row) => Object.keys(row)))];
@@ -145,7 +141,7 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
                 ]),
         );
 
-        // write rows with every written column, a batch within the parameter budget
+        // write batches within the parameter budget
         const size = Math.max(1, Math.floor(PARAMETER_BUDGET / Math.max(written.length, 1)));
         for (let start = 0; start < rows.length; start += size) {
             const batch = rows
@@ -161,7 +157,7 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         }
     }
 
-    /** Delete a table's rows by key, a chain of keys per statement. */
+    /** Delete rows by key, a chain of keys per statement. */
     async remove(table: Table, rows: readonly Row[]): Promise<void> {
         for (let start = 0; start < rows.length; start += CHAIN_TERMS) {
             const matches = rows
@@ -171,7 +167,7 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         }
     }
 
-    /** Execute a script of SQL statements in one round trip, without returning rows. */
+    /** Execute a SQL script in one round trip. */
     async executeScript(script: string): Promise<void> {
         await this.driver.write(
             async (native) => {
@@ -186,7 +182,7 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
                         .unsafe(script)
                         .simple();
                 }
-                // refuse sessions without a script path
+                // refuse other sessions
                 else {
                     throw new TypeError(`${native.dialect} session cannot run scripts`);
                 }
@@ -195,14 +191,14 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         );
     }
 
-    /** Execute explicit SQL and return its driver rows. */
+    /** Execute SQL and return its rows. */
     execute<Row extends Record<string, unknown> = Record<string, unknown>>(
         statement: SQL,
     ): Promise<Row[]> {
         return this.driver.all<Row>(this.driver.render(this.compiler.expression(statement)));
     }
 
-    /** Plan and apply tables at once, for replicas, local stores and tests that own their database. */
+    /** Plan and apply tables at once. */
     async migrate(tables: readonly Table[], options: DeclareOptions = {}): Promise<TablePlan> {
         const plan = await planMigration(this, declareState(tables, this.dialect, options));
         await this.apply(plan);
@@ -210,12 +206,12 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         return plan;
     }
 
-    /** Name the tables whose applied state does not hold their declaration, none once a migration applied them. */
+    /** Name the tables whose declaration is not applied. */
     async unapplied(tables: readonly Table[], options: DeclareOptions = {}): Promise<string[]> {
         return unappliedTables(await readState(this), declareState(tables, this.dialect, options));
     }
 
-    /** Plan the union of the desired states of every declaration bound to this database. */
+    /** Plan the union of the desired states. */
     plan(desired: readonly ResourceState[]): Promise<TablePlan> {
         return planStates(this, desired);
     }
@@ -225,36 +221,36 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         return applyPlan(this, plan);
     }
 
-    /** Commit a callback once, or roll back all its changes on failure. */
+    /** Commit a callback, or roll back on failure. */
     async transaction<Value>(
         operation: (transaction: DatabaseConnection) => Promise<Value>,
         options: TransactionOptions = {},
     ): Promise<Value> {
-        // reject use after the enclosing transaction finishes
+        // reject use after the enclosing transaction
         this.driver.transaction?.assertActive();
 
-        // propagate cancellation from both the caller and an enclosing transaction
+        // combine the caller's and the enclosing signal
         const signals = [this.driver.transaction?.signal, options.signal].filter(
             (signal): signal is AbortSignal => signal !== undefined,
         );
         const signal = signals.length ? AbortSignal.any(signals) : undefined;
         signal?.throwIfAborted();
 
-        // open the native transaction in the connection's dialect
+        // open the native transaction
         const execute = async () => {
-            // run a SQLite transaction, or a savepoint within an enclosing one
+            // run a SQLite transaction or savepoint
             if (this.driver.native.dialect === "sqlite") {
                 const root = this.driver.native.database;
                 const isNested = this.driver.transaction !== undefined;
 
                 return await root.transaction(
                     async (transaction) => {
-                        // check foreign keys at commit when asked to
+                        // defer foreign keys when asked
                         if (options.constraints === "deferred") {
                             await transaction.run(sql`PRAGMA defer_foreign_keys = ON`);
                         }
 
-                        // identify the outermost writing transaction to change triggers until just before commit
+                        // mark the outermost writing transaction for the log
                         const isMarked =
                             !isNested &&
                             !options.isReadOnly &&
@@ -273,11 +269,11 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
                     { behavior: options.isReadOnly ? "deferred" : "immediate" },
                 );
             }
-            // run a PostgreSQL transaction at the requested isolation
+            // run a PostgreSQL transaction
             else if (this.driver.native.dialect === "postgresql") {
                 return await this.driver.native.database.transaction(
                     async (transaction) => {
-                        // check deferrable constraints at commit when asked to
+                        // defer constraints when asked
                         if (options.constraints === "deferred") {
                             await transaction.execute(sql`SET CONSTRAINTS ALL DEFERRED`);
                         }
@@ -300,7 +296,7 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
             }
         };
 
-        // report a commit that lost to a concurrent transaction as a concurrent update
+        // report a lost commit as a concurrent update
         try {
             return this.driver.transaction
                 ? await this.driver.transaction.run(execute, "report")
@@ -310,7 +306,7 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         }
     }
 
-    /** Bind a transaction session and drain its submitted queries before completion. */
+    /** Bind a transaction session and drain its queries. */
     #transact<Value>(
         connection: NativeDatabase,
         operation: (transaction: DatabaseConnection) => Promise<Value>,
@@ -326,42 +322,40 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
     }
 }
 
-/**
- * Where a connection's database runs: in the process, where small queries cost microseconds, or across a network, where each round trip costs more than the query.
- *
- * Callers choose many small queries on an embedded database and one statement on a networked one.
- */
+/** Where a connection's database runs: in the process, or across a network. */
 export type Locality = "embedded" | "networked";
 
-/** Submitted operations and shutdown of one physical connection, and the commits it watches for. */
+/** The operations, shutdown and commit watch of one physical connection. */
 export class ConnectionState {
     /** Where the connection's database runs. */
     readonly locality: Locality;
     /** The commits this connection's readers wait for. */
     readonly commits: CommitWatch;
-    /** Whether the database holds a log, which once created never goes away. */
+    /** Whether the database holds a log. */
     isLogged = false;
-    /** The operations submitted so far: statements and transactions, which measure a workload's round trips. */
+    /** The submitted statements and transactions. */
     operations = 0;
-    /** Operations that must finish before the client closes. */
+    /** The run statements and transactions, including nested ones. */
+    statements = 0;
+    /** The operations to finish before close. */
     readonly #pending = new Set<Promise<void>>();
-    /** The shared shutdown operation once closure starts. */
+    /** The shutdown. */
     #closing?: Promise<void>;
 
-    /** Track the work of a new connection to a database running somewhere, exchanging commit notifications with other writers. */
+    /** Create the state of a new connection. */
     constructor(locality: Locality, notifier: CommitNotifier) {
         this.locality = locality;
         this.commits = new CommitWatch(notifier);
     }
 
-    /** Submit an operation while this connection accepts work. */
+    /** Submit an operation. */
     run<Value>(operation: () => PromiseLike<Value>): Promise<Value> {
-        // reject work once closing starts
+        // reject work once closing
         if (this.#closing) {
             throw new DatabaseError("CONNECTION_CLOSED", "the connection is closing or closed");
         }
 
-        // count the operation, and retain its settlement separately from the result returned to the caller
+        // count and track the operation
         this.operations += 1;
         const result = Promise.resolve().then(operation);
         const settled = result.then(
@@ -377,7 +371,7 @@ export class ConnectionState {
         return result;
     }
 
-    /** Stop submissions, drain pending work, stop watching commits, and close the client once. */
+    /** Stop submissions, drain work, and close the client once. */
     close(operation: () => Promise<void>): Promise<void> {
         this.#closing ??= Promise.all(this.#pending)
             .then(() => this.commits.stop())

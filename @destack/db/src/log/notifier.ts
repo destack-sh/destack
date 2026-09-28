@@ -1,55 +1,25 @@
 import type { CommitWatch } from "./watch.ts";
-import type { Log } from "./log.ts";
 import type { Relay } from "../relay/relay.ts";
 
-/** Carries commit notifications between the writers of one database, such as processes, tabs or servers. */
+/** A channel of commit notifications between the writers of one database. */
 export interface CommitNotifier {
-    /** Wake the watching readers on every commit another writer makes, until the returned stop runs. */
-    listen(commits: CommitWatch, log: Log): () => Promise<void>;
-    /** Notify the other writers of a commit this connection made. */
+    /** Wake the readers on other writers' commits, until stopped. */
+    listen(commits: CommitWatch): () => Promise<void>;
+    /** Notify the other writers of a commit. */
     notify(): void;
 }
 
-/** Notice other writers' commits by reading the latest sequence at an interval while readers wait. */
-export function pollNotifier(interval: number): CommitNotifier {
-    return {
-        listen(commits, log) {
-            // read the latest sequence only while readers wait
-            let seen: number | undefined;
-            let isReading = false;
-            const timer = setInterval(async () => {
-                if (!commits.isWaiting || isReading) {
-                    return;
-                }
-                isReading = true;
-                try {
-                    // wake the readers when the sequence moves, the first read included
-                    const latest = await log.latest();
-                    if (latest !== seen) {
-                        commits.wake();
-                    }
-                    seen = latest;
-                } catch {
-                    // wake the readers, whose own reads report the failure
-                    commits.wake();
-                } finally {
-                    isReading = false;
-                }
-            }, interval);
+/** A notifier for a database only its own connection writes. */
+export const soleWriter: CommitNotifier = {
+    listen: () => async () => {},
+    notify: () => {},
+};
 
-            return async () => clearInterval(timer);
-        },
-        notify() {
-            // leave the commit to the other writers' next poll
-        },
-    };
-}
-
-/** Notify the other parties of a relay of this party's commits, and listen for theirs. */
+/** Exchange commit notifications through a relay. */
 export function relayNotifier(relay: Relay<{ readonly kind: string }>): CommitNotifier {
     return {
         listen(commits) {
-            // wake readers on each commit, and whenever delivery resumes, since commits before it went unannounced
+            // wake readers on each commit and on each resumed delivery
             const stop = relay.listen(
                 (message) => {
                     if (message.kind === "commit") {

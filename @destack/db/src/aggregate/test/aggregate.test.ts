@@ -36,7 +36,7 @@ test.for(TEST_DIALECTS)(
             ["b", 0, 0, 0, null],
         ]);
 
-        // count and sum inserted items, and those matching a value
+        // count and sum items
         await database.insert(item).values([
             { id: "1", listId: "a", points: 3, isDone: true },
             { id: "2", listId: "a", points: 5, isDone: false },
@@ -47,7 +47,7 @@ test.for(TEST_DIALECTS)(
             ["b", 1, 1, 2, 2],
         ]);
 
-        // move an item between lists, change its values, and delete one
+        // move, change and delete items
         await database.update(item).set({ listId: "b", points: 7 }).where(eq(item.id, "2"));
         await database.update(item).set({ isDone: false }).where(eq(item.id, "3"));
         await database.delete(item).where(eq(item.id, "1"));
@@ -56,7 +56,7 @@ test.for(TEST_DIALECTS)(
             ["b", 2, 0, 9, 7],
         ]);
 
-        // leave aggregates alone while copying rows a source derived
+        // leave aggregates alone while copying derived rows
         await database.transaction(async (transaction) => {
             await transaction.log.copying(async () => {
                 await transaction
@@ -74,7 +74,7 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "compute declared aggregates afresh over the rows present on %s",
     async (dialect) => {
-        // hold items before the lists keep any aggregate
+        // hold items before any aggregate
         const test = await TestDatabase.create(dialect, [plainItem, list], { isMigrated: true });
         onTestFinished(() => test.close());
         await test.database.insert(list).values([{ id: "a" }]);
@@ -83,7 +83,7 @@ test.for(TEST_DIALECTS)(
             { id: "2", listId: "a", points: 5, isDone: false },
         ]);
 
-        // compute each aggregate once declared, then keep it current
+        // compute each declared aggregate, then keep it current
         const database = await test.connect(lists);
         onTestFinished(() => database.close());
         await database.migrate(lists);
@@ -112,7 +112,7 @@ test.for(TEST_DIALECTS)(
                 row.done,
             ]);
 
-        // count the done items of each archive's list as they change
+        // count each archive's done items
         await database.insert(archive).values([{ id: "a" }, { id: "b" }]);
         await database.insert(plainItem).values([
             { id: "1", listId: "a", points: 3, isDone: true },

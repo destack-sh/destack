@@ -10,23 +10,23 @@ import { compileExpression } from "./expression.ts";
 import { constraintName } from "../table/namespace.ts";
 import type { NativeTable } from "./table.ts";
 
-/** Compile portable declarations into native Drizzle tables, columns, and relations. */
+/** Compile declarations into native Drizzle tables and columns. */
 export abstract class SchemaCompiler<Driver extends Dialect = Dialect> {
     /** The selected SQL dialect. */
     readonly dialect: Driver;
-    /** Physical tables indexed by their declared SQL names. */
+    /** The physical tables by SQL name. */
     readonly tables = new Map<string, sqlite.SQLiteTable | postgres.PgTable>();
-    /** Physical columns indexed by their logical declarations. */
+    /** The physical columns by declaration. */
     readonly columns = new WeakMap<Column, drizzle.Column>();
-    /** Physical tables indexed by exact logical declaration. */
+    /** The physical tables by declaration. */
     readonly declarations = new WeakMap<Table, sqlite.SQLiteTable | postgres.PgTable>();
 
-    /** Materialize each declared table once for this dialect. */
+    /** Compile each declared table once. */
     constructor(dialect: Driver, declarations: readonly Table[]) {
         // select the dialect
         this.dialect = dialect;
 
-        // build tables before evaluating foreign keys and other deferred constraints
+        // build tables before deferred constraints
         for (const declaration of declarations) {
             const definition = declaration[TABLE];
             if (definition.source) {
@@ -39,14 +39,14 @@ export abstract class SchemaCompiler<Driver extends Dialect = Dialect> {
             this.tables.set(definition.sqlName, physical);
             this.declarations.set(declaration, physical);
 
-            // retain exact column associations for expression and foreign-key translation
+            // map the declared columns to physical ones
             const columns = getTableColumns(physical);
             for (const [property, column] of Object.entries(definition.columns)) {
                 this.columns.set(column, columns[property]);
             }
         }
 
-        // reject relation names shared by tables and indexes, which both dialects keep unique
+        // reject names shared by tables and indexes
         const relations = new Set(this.tables.keys());
         for (const declaration of declarations) {
             for (const constraint of declaration.constraints(dialect)) {
@@ -65,9 +65,9 @@ export abstract class SchemaCompiler<Driver extends Dialect = Dialect> {
         }
     }
 
-    /** Translate a logical expression to physical columns. */
+    /** Translate an expression to physical columns. */
     expression<Value>(expression: SQL<Value>): SQL<Value> {
-        // register nested table aliases before resolving columns that precede their FROM clause
+        // register nested aliases first
         compileExpression(expression, this.dialect, (chunk) => {
             if (chunk instanceof Table) {
                 this.table(chunk);
@@ -79,7 +79,7 @@ export abstract class SchemaCompiler<Driver extends Dialect = Dialect> {
         return compileExpression(expression, this.dialect, (chunk) => this.#chunk(chunk));
     }
 
-    /** Find the physical column belonging to a logical declaration. */
+    /** Find the physical column of a declaration. */
     column(column: Column): drizzle.Column {
         const physical = this.columns.get(column);
         if (!physical) {
@@ -89,13 +89,13 @@ export abstract class SchemaCompiler<Driver extends Dialect = Dialect> {
         return physical;
     }
 
-    /** Find the physical table belonging to a declaration. */
+    /** Find the physical table of a declaration. */
     table<Definition extends Table>(declaration: Definition): NativeTable<Driver, Definition> {
-        // find the compiled table or its source alias
+        // find the table or its source alias
         let physical = this.declarations.get(declaration);
         const source = declaration[TABLE].source;
 
-        // register query aliases without retaining them in the persisted schema
+        // register query aliases outside the schema
         if (!physical && source) {
             const original = this.table(source);
             if (this.dialect === "sqlite") {
@@ -118,7 +118,7 @@ export abstract class SchemaCompiler<Driver extends Dialect = Dialect> {
         return physical as NativeTable<Driver, Definition>;
     }
 
-    /** Compile one table using the selected engine's Drizzle builders. */
+    /** Compile one table. */
     protected abstract compileTable(declaration: Table): sqlite.SQLiteTable | postgres.PgTable;
 
     /** Translate nested declaration expressions. */
@@ -148,7 +148,7 @@ type CustomColumnConfiguration = {
     driverParam: unknown;
 };
 
-/** Apply shared column constraints through Drizzle's column builder API. */
+/** Apply column constraints through Drizzle's builder. */
 export function applyColumn(
     builder:
         | sqlite.SQLiteCustomColumnBuilder<CustomColumnConfiguration>
@@ -156,7 +156,7 @@ export function applyColumn(
     column: Column,
     dialect: Dialect,
 ): void {
-    // retain database defaults and application defaults separately
+    // apply database and application defaults
     const definition = column.definition;
     if (!definition.nullable) {
         builder.notNull();
@@ -175,7 +175,7 @@ export function applyColumn(
         builder.default(value);
     }
 
-    // select dialect SQL each time an application default is evaluated
+    // render the application default per evaluation
     const runtimeDefault = definition.runtimeDefault;
     if (runtimeDefault) {
         builder.$defaultFn(() => {
@@ -185,7 +185,7 @@ export function applyColumn(
         });
     }
 
-    // select dialect SQL each time an application update value is evaluated
+    // render the application update value per evaluation
     const runtimeUpdate = definition.runtimeUpdate;
     if (runtimeUpdate) {
         builder.$onUpdateFn(() => {

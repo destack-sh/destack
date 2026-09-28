@@ -4,7 +4,7 @@ import { TEST_DIALECTS, TestDatabase } from "../../test/database.ts";
 import { eq } from "../../index.ts";
 import { changeTables, lease, note, revision } from "./fixture.ts";
 
-/** Open a migrated test database of the change example schema. */
+/** Open a migrated test database. */
 async function open(dialect: (typeof TEST_DIALECTS)[number], storage?: "memory" | "file") {
     const test = await TestDatabase.create(dialect, changeTables, { storage });
     onTestFinished(() => test.close());
@@ -28,9 +28,9 @@ const first = {
 test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", async (dialect) => {
     const { database } = await open(dialect);
     const tables = [note, revision, lease];
-    expect(await database.log.latest()).toBe(0);
+    expect((await database.log.position()).sequence).toBe(0);
 
-    // record an insert with its transaction, exact values and no binary column
+    // record an insert with exact values and no binary column
     await database.transaction(async (transaction) => {
         await transaction.insert(note).values(first);
         await transaction
@@ -66,7 +66,7 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
     ]);
     expect(created.changes[0]!.transaction).toBe(created.changes[1]!.transaction);
 
-    // skip updates that change nothing and record ones that change a binary column only
+    // skip empty updates and record binary-only ones
     await database.update(note).set({ title: "First" }).where(eq(note.id, "a"));
     await database
         .update(note)
@@ -101,9 +101,9 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
         .values({ scope: "inbox", noteId: "b", number: 2, title: "Second" });
     const filtered = await database.log.read({ tables: [note], after: moved.sequence });
     expect(filtered.changes).toEqual([]);
-    expect(filtered.sequence).toBe(await database.log.latest());
+    expect(filtered.sequence).toBe((await database.log.position()).sequence);
 
-    // compact windowed changes, keep history, and require stale readers to list again
+    // compact windowed changes, keep history, and fail stale readers
     await database.log.compact(Date.now() + 1);
     await expect(database.log.read({ tables, after: 0 })).rejects.toMatchObject({
         code: "CHANGES_COMPACTED",
@@ -116,10 +116,10 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
         "destack__db__revision",
     ]);
 
-    // follow from the latest sequence and receive the next change
+    // follow from the latest sequence
     const controller = new AbortController();
     const following = database.log.follow(
-        { tables: [note], after: await database.log.latest() },
+        { tables: [note], after: (await database.log.position()).sequence },
         controller.signal,
     );
     const next = following.next();
@@ -138,7 +138,7 @@ test.for(TEST_DIALECTS)(
         const { database } = await open(dialect);
         await database.insert(note).values(first);
 
-        // read this transaction's own changes of the given tables, in order, without another transaction's
+        // read this transaction's own changes in order
         const written = await database.transaction(async (transaction) => {
             await transaction.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
             await transaction
@@ -163,12 +163,12 @@ test.for(TEST_DIALECTS)(
         const { database } = await open(dialect);
         await database.insert(note).values(first);
         await database.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
-        const latest = await database.log.latest();
+        const latest = (await database.log.position()).sequence;
 
-        // compact every windowed change, leaving the log empty at the same position
+        // compact every windowed change
         await database.log.compact(Date.now() + 1);
         expect([
-            await database.log.latest(),
+            (await database.log.position()).sequence,
             (await database.log.position()).sequence,
             (await database.log.read({ tables: [note], after: latest })).sequence,
         ]).toEqual([latest, latest, latest]);
@@ -210,7 +210,7 @@ test.for(TEST_DIALECTS)(
             ["update", ["Titled", "Short"], ["Titled", null]],
         ]);
 
-        // log a scope change as a deletion from the old scope and an insertion into the new one
+        // log a scope change as a deletion and an insertion
         await database.update(note).set({ scope: "archive" }).where(eq(note.id, "a"));
         const moved = await database.log.read({ tables: [note], after: updated.sequence });
         expect(moved.changes.map((change) => [change.operation, change.scope])).toEqual([
@@ -237,7 +237,7 @@ test.for(TEST_DIALECTS)(
         const other = await test.connect(changeTables);
         onTestFinished(() => other.close());
         await database.insert(note).values(first);
-        const position = await database.log.latest();
+        const position = (await database.log.position()).sequence;
 
         // return at once for a position the log holds
         const signal = AbortSignal.timeout(5000);
@@ -253,7 +253,7 @@ test.for(TEST_DIALECTS)(
         await other.insert(note).values({ ...first, id: "c" });
         expect(await foreign).toBe(true);
 
-        // give up once the signal aborts before the log reaches the position
+        // give up once the signal aborts
         expect(await database.log.wait(position + 10, AbortSignal.timeout(20))).toBe(false);
     },
 );
@@ -261,7 +261,7 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)("end each page with a whole transaction on %s", async (dialect) => {
     const { database } = await open(dialect);
 
-    // write three notes in one transaction, one alone, and three in one statement, then read pages of two
+    // write in a transaction, alone and in one statement, then read pages of two
     await database.transaction(async (transaction) => {
         for (const id of ["a", "b", "c"]) {
             await transaction.insert(note).values({ ...first, id });
@@ -272,7 +272,7 @@ test.for(TEST_DIALECTS)("end each page with a whole transaction on %s", async (d
     const page = await database.log.read({ tables: [note], after: 0, limit: 2 });
     const next = await database.log.read({ tables: [note], after: page.sequence, limit: 2 });
 
-    // complete the statement's changes as one transaction, as the explicit one
+    // complete the statement's changes as one transaction
     expect([page, next].map(({ changes }) => changes.map((change) => change.key.id))).toEqual([
         ["a", "b", "c"],
         ["d", "e", "f", "g"],
@@ -313,7 +313,7 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
         const { database } = await open("postgresql");
         await database.insert(note).values(first);
 
-        // read the row in two transactions and commit one update before the other writes
+        // commit one of two concurrent updates
         let release!: () => void;
         const held = new Promise<void>((resolve) => (release = resolve));
         let read!: () => void;
@@ -336,7 +336,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const { database } = await open(dialect);
         await database.insert(note).values(first);
-        const held = await database.log.latest();
+        const held = (await database.log.position()).sequence;
         await database.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
 
         // keep the changes after the hold while it lasts
@@ -349,7 +349,7 @@ test.for(TEST_DIALECTS)(
             ),
         ).toEqual(["update"]);
 
-        // compact past an expired hold, failing its consumer loudly, and past a released one
+        // compact past an expired and a released hold
         await database.log.compact(now + 1, now + 120_000);
         await expect(database.log.read({ tables: [note], after: held })).rejects.toMatchObject({
             code: "CHANGES_COMPACTED",
@@ -368,13 +368,13 @@ test.for(TEST_DIALECTS)(
 
         // write two changes in one transaction
         await database.insert(note).values(first);
-        const before = await database.log.latest();
+        const before = (await database.log.position()).sequence;
         await database.transaction(async (transaction) => {
             await transaction.update(note).set({ summary: "u" }).where(eq(note.id, "a"));
             await transaction.update(note).set({ title: "v" }).where(eq(note.id, "a"));
         });
 
-        // read the positions before its first change and after its last, and its times in order
+        // read the transaction's positions and times
         const bounds = await database.log.bounds(before + 1);
         expect([bounds.before, bounds.after, bounds.startedAt <= bounds.committedAt]).toEqual([
             before,

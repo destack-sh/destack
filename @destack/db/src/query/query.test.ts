@@ -72,7 +72,7 @@ const row = {
     note: null,
 };
 
-/** Open a migrated test database of samples and tags. */
+/** Open a migrated test database. */
 async function open(dialect: (typeof TEST_DIALECTS)[number]) {
     const test = await TestDatabase.create(dialect, [sample, tag], { isMigrated: true });
     onTestFinished(() => test.close());

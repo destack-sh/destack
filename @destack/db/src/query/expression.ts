@@ -6,16 +6,16 @@ import { TABLE, type Table } from "../table/table.ts";
 import { Condition, Scalar } from "./condition.ts";
 import type { Namespace } from "./namespace.ts";
 
-/** The column kinds arithmetic reads, exact in JavaScript numbers and both dialects. */
+/** The column kinds arithmetic reads. */
 const NUMERIC_KINDS: ReadonlySet<string> = new Set(["integer", "real"]);
 
-/** The most terms one expression holds, bounding what clients compute per row. */
+/** The most terms one expression holds. */
 const EXPRESSION_TERMS = 64;
 
 /**
- * A value computed from one row's columns, which SQL and memory compute alike.
+ * A value computed from one row, alike in SQL and memory.
  *
- * Arithmetic reads numbers and yields a missing value from a missing one; division is real division, missing on zero.
+ * Arithmetic yields a missing value from a missing operand and from division by zero.
  */
 export type Expression =
     | { readonly kind: "column"; readonly name: string }
@@ -35,12 +35,12 @@ export type Expression =
           readonly where?: Condition;
       };
 
-/** How a rollup measures the related rows: their count, or the sum, least or greatest of a column. */
+/** How a rollup measures related rows. */
 export type Rollup = "count" | "sum" | "min" | "max";
 
-/** How an expression reads related rows: the one row a lookup relates, and the rows a rollup measures. */
+/** The related rows an expression reads. */
 export interface Related {
-    /** Read a column of the one related row, missing without one. */
+    /** Read a column of the related row. */
     lookup(via: string, column: string): Scalar;
     /** Measure the related rows meeting a condition. */
     rollup(
@@ -89,7 +89,7 @@ const expressionSchema: schema.Schema<Expression> = schema.lazy(() =>
             column: schema.string().min(1),
         }),
         schema.object({
-            /** Measure the rows a relation relates. */
+            /** Measure a relation's rows. */
             kind: schema.literal("rollup"),
             /** The measure. */
             function: schema.enum(["count", "sum", "min", "max"]),
@@ -103,7 +103,7 @@ const expressionSchema: schema.Schema<Expression> = schema.lazy(() =>
     ]),
 );
 
-/** A value computed from one row's columns, which SQL and memory compute alike. */
+/** A value computed from one row, alike in SQL and memory. */
 export const Expression = {
     /** The schema of an expression. */
     schema: expressionSchema,
@@ -141,9 +141,9 @@ export const Expression = {
         kind: "coalesce",
         values,
     }),
-    /** Read a column of the one row a relation relates, missing without one. */
+    /** Read a column of the related row. */
     lookup: (via: string, column: string): Expression => ({ kind: "lookup", via, column }),
-    /** Measure the rows a relation relates that meet a condition: count them, or sum, or take the least or greatest of a column. */
+    /** Measure a relation's rows meeting a condition. */
     rollup: (measure: Rollup, via: string, column?: string, where?: Condition): Expression => ({
         kind: "rollup",
         function: measure,
@@ -152,9 +152,9 @@ export const Expression = {
         ...(where === undefined ? {} : { where }),
     }),
 
-    /** Require an expression of bounded size over numeric or text columns of a table and its relations, arithmetic over numbers. */
+    /** Require a bounded expression over numeric or text columns. */
     require(expression: Expression, table: Table, namespace: Namespace = { computed: {} }): void {
-        // bound the expression, which clients choose
+        // bound the size
         if (terms(expression) > EXPRESSION_TERMS) {
             throw new DatabaseError(
                 "INVALID_QUERY",
@@ -169,13 +169,13 @@ export const Expression = {
         }
     },
 
-    /** Read the kind of value a required expression yields: an integer, a real number or text. */
+    /** Read the kind an expression yields. */
     kind(
         expression: Expression,
         table: Table,
         namespace: Namespace = { computed: {} },
     ): "integer" | "real" | "text" {
-        // read an expression yielding only null as real, since it holds no value to compare
+        // read an all-null expression as real
         const kind = kindOf(expression, table, namespace);
         if (kind === undefined) {
             throw new DatabaseError("INVALID_QUERY", "expression mixes numbers with other values");
@@ -184,7 +184,7 @@ export const Expression = {
         return kind === "null" ? "real" : kind;
     },
 
-    /** List the relations an expression looks up, each with the column it reads. */
+    /** List the lookups of an expression. */
     lookups(expression: Expression): { readonly via: string; readonly column: string }[] {
         const found: { readonly via: string; readonly column: string }[] = [];
         visit(expression, (entry) => {
@@ -196,7 +196,7 @@ export const Expression = {
         return found;
     },
 
-    /** List the rollups an expression holds, each measuring a relation's rows that meet its condition. */
+    /** List the rollups of an expression. */
     rollups(expression: Expression): Extract<Expression, { readonly kind: "rollup" }>[] {
         const found: Extract<Expression, { readonly kind: "rollup" }>[] = [];
         visit(expression, (entry) => {
@@ -220,7 +220,7 @@ export const Expression = {
         return names;
     },
 
-    /** Render an expression as SQL over a table's columns, numbers as 64-bit floats. */
+    /** Render an expression as SQL, numbers as 64-bit floats. */
     render(expression: Expression, table: Table, namespace: Namespace = { computed: {} }): SQL {
         return renderAs(
             expression,
@@ -230,7 +230,7 @@ export const Expression = {
         );
     },
 
-    /** Compute an expression over a row of application values as SQL does, reading related rows through the host. */
+    /** Compute an expression over a row as SQL does. */
     evaluate(
         expression: Expression,
         row: Readonly<Record<string, unknown>>,
@@ -248,7 +248,7 @@ export const Expression = {
             case "subtract":
             case "multiply":
             case "divide": {
-                // yield a missing value from a missing operand, and from division by zero
+                // yield a missing value from a missing operand or division by zero
                 const left = Expression.evaluate(expression.left, row, related);
                 const right = Expression.evaluate(expression.right, row, related);
                 if (left === null || right === null) {
@@ -274,7 +274,7 @@ export const Expression = {
                 );
             case "lookup":
             case "rollup":
-                // read the related rows the host resolved
+                // read the resolved related rows
                 if (related === undefined) {
                     throw new TypeError(`expression reads ${expression.via} without related rows`);
                 }
@@ -291,7 +291,7 @@ export const Expression = {
     },
 };
 
-/** Render an expression as SQL yielding a kind, numbers as 64-bit floats. */
+/** Render an expression as SQL of a kind. */
 function renderAs(
     expression: Expression,
     kind: "integer" | "real" | "text",
@@ -300,13 +300,13 @@ function renderAs(
 ): SQL {
     switch (expression.kind) {
         case "column": {
-            // read numbers as floats, as JavaScript holds them
+            // read numbers as floats
             const column = table[TABLE].columns[expression.name]!;
 
             return kind === "text" ? sql`${column}` : float(sql`${column}`);
         }
         case "literal":
-            // type literals by the kind they yield
+            // type literals by kind
             return kind === "text"
                 ? sql`CAST(${expression.value} AS TEXT)`
                 : float(sql`${expression.value}`);
@@ -332,13 +332,13 @@ function renderAs(
                 sql`, `,
             )})`;
         case "lookup": {
-            // read the related row's value, numbers as floats
+            // read the related value
             const value = sql`${namespace.lookup!(expression.via, expression.column).value}`;
 
             return kind === "text" ? value : float(value);
         }
         case "rollup": {
-            // measure the related rows, numbers as floats
+            // measure the related rows
             const value = sql`${
                 namespace.rollup!(
                     expression.function,
@@ -353,7 +353,7 @@ function renderAs(
     }
 }
 
-/** Read the kind of value an expression yields, absent when it mixes numbers with other values or reads other columns. */
+/** Read the kind an expression yields, absent when kinds mix or columns are unknown. */
 function kindOf(
     expression: Expression,
     table: Table,
@@ -387,7 +387,7 @@ function kindOf(
         case "subtract":
         case "multiply":
         case "divide": {
-            // yield integers from integers, except by division, and reals from any other numbers
+            // yield integers from integers except by division, and reals otherwise
             const kinds = new Set([
                 kindOf(expression.left, table, namespace),
                 kindOf(expression.right, table, namespace),
@@ -401,7 +401,7 @@ function kindOf(
                   : "integer";
         }
         case "coalesce": {
-            // take the one kind the present values share, reals over integers
+            // take the shared kind, reals over integers
             const kinds = new Set(
                 expression.values.map((value) => kindOf(value, table, namespace)),
             );
@@ -413,7 +413,7 @@ function kindOf(
             return kinds.has(undefined) || kinds.size > 1 ? undefined : ([...kinds][0] ?? "null");
         }
         case "rollup": {
-            // count to an integer, sum integers, and take the least or greatest of numbers or text
+            // read the kind of a rollup
             if (namespace.rollup === undefined) {
                 throw new DatabaseError(
                     "INVALID_QUERY",
@@ -430,14 +430,14 @@ function kindOf(
             if (expression.function === "count") {
                 return "integer";
             }
-            // measure a column otherwise
+            // read the measured column
             else if (definition === undefined) {
                 throw new DatabaseError(
                     "INVALID_QUERY",
                     `rollup ${expression.function} of ${expression.via} measures a column`,
                 );
             }
-            // sum integers only, which tallies add and remove exactly
+            // sum integers only
             else if (expression.function === "sum") {
                 if (definition.kind !== "integer") {
                     throw new DatabaseError(
@@ -454,7 +454,7 @@ function kindOf(
                 : undefined;
         }
         case "lookup": {
-            // read the related column's kind, which the host declares
+            // read the related column's kind
             if (namespace.lookup === undefined) {
                 throw new DatabaseError(
                     "INVALID_QUERY",
@@ -470,7 +470,7 @@ function kindOf(
     }
 }
 
-/** Cast a number to a 64-bit float in every dialect. */
+/** Cast a number to a 64-bit float. */
 function float(value: SQL): SQL {
     return dialectSQL({
         sqlite: sql`CAST(${value} AS REAL)`,
@@ -488,7 +488,7 @@ function terms(expression: Expression): number {
     return count;
 }
 
-/** Visit an expression and every expression within it. */
+/** Visit an expression and its subexpressions. */
 function visit(expression: Expression, visitor: (entry: Expression) => void): void {
     visitor(expression);
     if (

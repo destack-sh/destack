@@ -3,7 +3,7 @@ import { alias, defineTable, TABLE } from "./table.ts";
 import { text } from "./column.ts";
 import { primaryKey } from "./constraint.ts";
 
-/** A table keyed by a compound key constraint. */
+/** A table with a compound key. */
 const membership = defineTable(
     "table_membership",
     {
@@ -20,7 +20,7 @@ const membership = defineTable(
 );
 
 test("key an alias by the properties of its source's compound key", () => {
-    // read the key of the table and of an alias of it
+    // read the key of the table and an alias
     const aliased = alias(membership, "table_membership_other");
 
     expect([membership[TABLE].key, aliased[TABLE].key]).toEqual([

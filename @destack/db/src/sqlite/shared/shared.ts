@@ -9,28 +9,28 @@ import { DatabaseError } from "../../error/error.ts";
 import type { ConnectionClient, QueryClient, Statement } from "../client.ts";
 
 /**
- * How long an owner keeps a party's transaction open without a statement, in milliseconds.
+ * The idle timeout of a party's transaction at the owner, in milliseconds.
  *
- * A transaction holds the owner's only connection, so this bounds how long a frozen or closed tab blocks the others.
+ * A transaction holds the owner's only connection, so this bounds how long a frozen tab blocks the others.
  */
 const IDLE_TRANSACTION_MILLISECONDS = 30_000;
 
 /** A message between the parties of a shared database. */
 export type Message =
     | {
-          /** A statement or transaction step a party asks the owner to run. */
+          /** A statement or transaction step for the owner. */
           readonly kind: "request";
           /** The asking party. */
           readonly from: string;
-          /** The owner asked to run it, which alone answers. */
+          /** The owner that answers. */
           readonly to: string;
-          /** The request, answered once. */
+          /** The request number. */
           readonly id: number;
           /** What to run. */
           readonly step: Step;
       }
     | {
-          /** The owner's answer to one request. */
+          /** The owner's answer. */
           readonly kind: "answer";
           /** The asking party. */
           readonly to: string;
@@ -46,24 +46,24 @@ export type Message =
           };
       }
     | {
-          /** A party committed changes every party may read. */
+          /** A commit every party may read. */
           readonly kind: "commit";
       }
     | {
-          /** An owner serves, answering the requests addressed to it from now on. */
+          /** An owner serving from now on. */
           readonly kind: "serving";
           /** The owner, new each time a party starts serving. */
           readonly owner: string;
       }
     | {
-          /** A party joined and asks which owner serves. */
+          /** A party asking which owner serves. */
           readonly kind: "join";
       };
 
 /** One statement or transaction step. */
 export type Step =
     | {
-          /** Run a statement, within a transaction when named. */
+          /** Run a statement, in a transaction when named. */
           readonly type: "statement";
           /** How to run it. */
           readonly method: "run" | "all" | "get" | "exec";
@@ -91,19 +91,19 @@ export type Step =
           readonly transaction: number;
       };
 
-/** Serve a connection to the other parties of a relay until the returned stop runs, each party announcing its own commits. */
+/** Serve a connection to a relay's other parties until stopped. */
 export function serveDatabase<Result>(
     client: ConnectionClient<Result>,
     relay: Relay<Message>,
 ): () => void {
-    // name this owner, and hold each party transaction open until its party ends it or falls silent
+    // name this owner and hold party transactions open
     const owner = crypto.randomUUID();
     const transactions = new Map<number, HeldTransaction>();
     let next = 0;
 
-    // run one step, answering its party
+    // run one step
     const run = async (step: Step): Promise<unknown> => {
-        // run a statement on the connection or in a transaction
+        // run a statement
         if (step.type === "statement") {
             const open =
                 step.transaction === undefined ? undefined : transactions.get(step.transaction);
@@ -121,7 +121,7 @@ export function serveDatabase<Result>(
 
             return await statement[step.method](...step.parameters);
         }
-        // begin a transaction whose statements arrive as later steps
+        // begin a transaction
         else if (step.type === "begin") {
             const id = next++;
             const opened = await HeldTransaction.begin(client, step.mode, () =>
@@ -131,7 +131,7 @@ export function serveDatabase<Result>(
 
             return id;
         }
-        // end a transaction, answering once it committed or rolled back
+        // end a transaction
         else {
             const open = transactions.get(step.transaction);
             if (open === undefined) {
@@ -148,7 +148,7 @@ export function serveDatabase<Result>(
         if (message.kind === "join") {
             relay.post({ kind: "serving", owner });
         }
-        // answer each request addressed to this owner
+        // answer each request to this owner
         else if (message.kind === "request" && message.to === owner) {
             run(message.step).then(
                 (value) => relay.post({ kind: "answer", to: message.from, id: message.id, value }),
@@ -163,10 +163,10 @@ export function serveDatabase<Result>(
         }
     });
 
-    // tell the parties this owner serves, so they send what they held
+    // announce this owner
     relay.post({ kind: "serving", owner });
 
-    // roll back every open transaction once serving stops
+    // roll back open transactions on stop
     return () => {
         stop();
         for (const open of transactions.values()) {
@@ -175,27 +175,27 @@ export function serveDatabase<Result>(
     };
 }
 
-/** A transaction the owner holds open for a party, rolled back once the party falls silent. */
+/** A transaction the owner holds for a party. */
 class HeldTransaction {
     /** The transaction's client. */
     readonly client: QueryClient<unknown>;
-    /** Settles once the transaction committed, rejecting once it rolled back. */
+    /** Resolve on commit and reject on rollback. */
     readonly done: Promise<void>;
-    /** End the callback holding the transaction open. */
+    /** End the holding callback. */
     readonly #finish: (commit: boolean) => void;
-    /** Forget the transaction once it ended. */
+    /** Forget the transaction. */
     readonly #forget: () => void;
-    /** Roll back once the party stays silent. */
+    /** The idle rollback timer. */
     #idle?: ReturnType<typeof setTimeout>;
 
-    /** Retain an open transaction. */
+    /** Create the transaction. */
     private constructor(
         client: QueryClient<unknown>,
         done: Promise<void>,
         finish: (commit: boolean) => void,
         forget: () => void,
     ) {
-        // keep the client and how the transaction ends
+        // keep the client and its end
         this.client = client;
         this.done = done;
         this.#finish = finish;
@@ -203,14 +203,14 @@ class HeldTransaction {
         this.touch();
     }
 
-    /** Begin a transaction on a connection and hold it open until it ends. */
+    /** Begin and hold a transaction. */
     static begin(
         connection: ConnectionClient<unknown>,
         mode: "deferred" | "immediate" | "exclusive",
         forget: () => void,
     ): Promise<HeldTransaction> {
         return new Promise((resolve, reject) => {
-            // hold the transaction's callback open until the party ends it
+            // hold the callback open until the party ends it
             let opened: HeldTransaction | undefined;
             const done = connection
                 .transactionAsync(
@@ -226,7 +226,7 @@ class HeldTransaction {
                 )
                 [mode]();
 
-            // report a failure to begin, and forget the transaction once it ends
+            // report a failed begin and forget the transaction
             done.catch((error: unknown) => {
                 if (opened === undefined) {
                     reject(error);
@@ -236,7 +236,7 @@ class HeldTransaction {
         });
     }
 
-    /** Keep the transaction open while its party keeps using it. */
+    /** Reset the idle timer. */
     touch(): void {
         clearTimeout(this.#idle);
         this.#idle = setTimeout(
@@ -245,9 +245,9 @@ class HeldTransaction {
         );
     }
 
-    /** Commit or roll back, settling once the connection finished. */
+    /** Commit or roll back. */
     async end(commit: boolean): Promise<void> {
-        // stop the idle timer and end the callback holding the transaction
+        // stop the timer and end the callback
         clearTimeout(this.#idle);
         this.#forget();
         this.#finish(commit);
@@ -259,7 +259,7 @@ class HeldTransaction {
     }
 }
 
-/** Open a database whose statements the relay's owner runs, notified of the owner's commits. */
+/** Open a database whose statements the relay's owner runs. */
 export function connectShared(
     relay: Relay<Message>,
     party: string,
@@ -271,28 +271,28 @@ export function connectShared(
     return new SqliteDatabase(client, tables, "embedded", relayNotifier(relay), options);
 }
 
-/** Statements a relay's owner runs, on its connection or within one of its transactions. */
+/** Statements the relay's owner runs. */
 export class SharedQuery implements QueryClient<unknown> {
     /** The party asking the owner. */
     readonly party: Party;
-    /** The owner's transaction, absent outside one. */
+    /** The owner's transaction. */
     readonly transaction: SharedTransaction | undefined;
 
-    /** Ask the owner through a party, within a transaction when named. */
+    /** Create the client. */
     constructor(party: Party, transaction?: SharedTransaction) {
         this.party = party;
         this.transaction = transaction;
     }
 
-    /** Prepare a statement the owner runs in the statement's current row and integer modes. */
+    /** Prepare a statement the owner runs. */
     async prepare(sql: string): Promise<Statement<unknown>> {
-        // track the modes the statement runs in
+        // track the statement's modes
         let isRaw = false;
         let isSafe = false;
         const run = (method: "run" | "all" | "get", parameters: readonly unknown[]) =>
             this.#statement({ method, sql, parameters, isRaw, isSafe });
 
-        // change modes in place, as local statements do
+        // set the modes on each run
         const statement: Statement<unknown> = {
             safeIntegers: (enabled) => {
                 isSafe = enabled;
@@ -338,7 +338,7 @@ export class SharedQuery implements QueryClient<unknown> {
         });
     }
 
-    /** Ask the owner to run a statement, at the owner holding the transaction when within one. */
+    /** Ask the owner to run a statement. */
     #statement(
         statement: Omit<Extract<Step, { readonly type: "statement" }>, "type" | "transaction">,
     ): Promise<unknown> {
@@ -353,9 +353,9 @@ export class SharedQuery implements QueryClient<unknown> {
     }
 }
 
-/** A connection client whose statements and transactions a relay's owner runs. */
+/** A connection client whose work the relay's owner runs. */
 export class SharedClient extends SharedQuery implements ConnectionClient<unknown> {
-    /** Reach a relay's owner as one party. */
+    /** Join the relay as one party. */
     constructor(relay: Relay<Message>, name: string) {
         super(new Party(relay, name));
     }
@@ -365,14 +365,14 @@ export class SharedClient extends SharedQuery implements ConnectionClient<unknow
         this.party.close();
     }
 
-    /** Run a callback in a transaction the owner holds open. */
+    /** Run a callback in a transaction the owner holds. */
     transactionAsync<Value>(operation: (client: QueryClient<unknown>) => Promise<Value>) {
         const begin = async (mode: "deferred" | "immediate" | "exclusive") => {
-            // begin at the owner and run the callback within it
+            // begin at the owner and run the callback
             const transaction = await this.party.begin(mode);
             const scoped = new SharedQuery(this.party, transaction);
 
-            // end the transaction by the callback's outcome, at the owner holding it
+            // end the transaction by the callback's outcome
             const { owner, id } = transaction;
             try {
                 const value = await operation(scoped);
@@ -395,24 +395,24 @@ export class SharedClient extends SharedQuery implements ConnectionClient<unknow
     }
 }
 
-/** One party of a relay, asking its owner to run steps and settling each on the owner's answer. */
+/** One party of a relay, asking its owner to run steps. */
 export class Party {
     /** The relay reaching the owner. */
     readonly #relay: Relay<Message>;
     /** This party's name on the relay. */
     readonly #name: string;
-    /** The unanswered requests by number, with the owner each went to, absent while held. */
+    /** The unanswered requests by number. */
     readonly #pending = new Map<number, Request>();
     /** The next request number. */
     #next = 0;
-    /** The owner serving the relay, absent until one announces itself. */
+    /** The serving owner. */
     #owner: string | undefined;
     /** Stop receiving answers. */
     readonly #stop: () => void;
 
-    /** Join a relay under a name, and ask which owner serves it. */
+    /** Join a relay and ask which owner serves. */
     constructor(relay: Relay<Message>, name: string) {
-        // listen for the owner's answers, then ask which owner serves
+        // listen for answers and ask for the owner
         this.#relay = relay;
         this.#name = name;
         this.#stop = relay.listen((message) => this.#receive(message));
@@ -420,15 +420,15 @@ export class Party {
     }
 
     /**
-     * Send one step to the owner and wait for its answer, held until an owner serves.
+     * Send one step to the owner and wait for its answer.
      *
-     * A step of a transaction goes only to the owner holding it, and fails once another owner serves.
+     * A transaction step goes only to its owner and fails once another owner serves.
      */
     async request(step: Step, owner?: string): Promise<unknown> {
         return (await this.#ask(step, owner)).value;
     }
 
-    /** Begin a transaction at the serving owner, which holds it. */
+    /** Begin a transaction at the serving owner. */
     async begin(mode: "deferred" | "immediate" | "exclusive"): Promise<SharedTransaction> {
         const { value, owner } = await this.#ask({ type: "begin", mode }, undefined);
 
@@ -444,9 +444,9 @@ export class Party {
         this.#pending.clear();
     }
 
-    /** Follow the serving owner, and settle the requests it answers. */
+    /** Follow the serving owner and settle its answers. */
     #receive(message: Message): void {
-        // send held requests to a new owner, and fail those the previous owner may have run
+        // resend held requests and fail those the previous owner may have run
         if (message.kind === "serving" && message.owner !== this.#owner) {
             this.#owner = message.owner;
             for (const [id, pending] of this.#pending) {
@@ -472,19 +472,19 @@ export class Party {
         }
     }
 
-    /** Send one step, held until an owner serves, pinned to an owner when given, and settle with the answering owner. */
+    /** Send one step, held until an owner serves. */
     #ask(
         step: Step,
         pinned: string | undefined,
     ): Promise<{ readonly value: unknown; readonly owner: string }> {
-        // refuse a step whose owner no longer serves
+        // refuse a step of a stopped owner
         if (pinned !== undefined && pinned !== this.#owner) {
             return Promise.reject(
                 new DatabaseError("OWNER_CHANGED", "the owner holding the transaction changed"),
             );
         }
 
-        // send to the serving owner, or hold until one serves
+        // send to the owner or hold
         const id = this.#next++;
 
         return new Promise((resolve, reject) => {
@@ -509,7 +509,7 @@ export class Party {
     }
 }
 
-/** A transaction one owner holds for a party, by the owner's number for it. */
+/** A transaction an owner holds for a party. */
 export interface SharedTransaction {
     /** The owner holding the transaction. */
     readonly owner: string;
@@ -517,19 +517,19 @@ export interface SharedTransaction {
     readonly id: number;
 }
 
-/** A request a party awaits an answer to. */
+/** A pending request. */
 interface Request {
     /** What to run. */
     readonly step: Step;
     /** The owner the request went to, absent while held. */
     owner: string | undefined;
-    /** Settle with the owner's result and the owner that answered. */
+    /** Settle with the owner's result. */
     readonly resolve: (answer: { readonly value: unknown; readonly owner: string }) => void;
     /** Settle with the owner's failure. */
     readonly reject: (error: unknown) => void;
 }
 
-/** Describe a failure so it crosses the relay. */
+/** Describe a failure for the relay. */
 function describeError(error: unknown): { name: string; message: string; code?: string } {
     const failure = error instanceof Error ? error : new Error(String(error));
     const code = (failure as { code?: unknown }).code;

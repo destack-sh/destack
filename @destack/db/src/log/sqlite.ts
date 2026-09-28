@@ -2,13 +2,13 @@ import type { ChangeDescription } from "../inspect/log.ts";
 import { literal, quote } from "../dialect/quote.ts";
 import { createEpoch, LOG, LOG_HORIZON, LOG_TRANSACTION, type LogDialect } from "./schema.ts";
 
-/** The most arguments one SQLite function call takes, SQLITE_MAX_FUNCTION_ARG since SQLite 3.48. */
+/** The most arguments of one SQLite function call, SQLITE_MAX_FUNCTION_ARG since SQLite 3.48. */
 const FUNCTION_ARGUMENT_LIMIT = 1000;
 
-/** The most key and value pairs one JSON function call takes after its target argument. */
+/** The most key and value pairs of one JSON function call. */
 const JSON_PAIR_LIMIT = Math.floor((FUNCTION_ARGUMENT_LIMIT - 1) / 2);
 
-/** The SQLite log: its tables and a table's insert, update, move and delete triggers. */
+/** The SQLite log: its tables and a table's change triggers. */
 export const sqliteLog: LogDialect = {
     create: () => createSQLiteLog(),
     install: (description) => sqliteLogTriggers(description),
@@ -18,7 +18,7 @@ export const sqliteLog: LogDialect = {
         ),
 };
 
-/** Create the SQLite log, its horizon and the open transaction's identity. */
+/** Create the SQLite log, its horizon and the transaction identity. */
 function createSQLiteLog(): readonly string[] {
     return [
         `CREATE TABLE IF NOT EXISTS ${quote(LOG)} (
@@ -48,9 +48,9 @@ function createSQLiteLog(): readonly string[] {
     ];
 }
 
-/** Generate the SQLite triggers recording one table's changes as JSON. */
+/** Generate the SQLite triggers recording one table's changes. */
 function sqliteLogTriggers(description: ChangeDescription): string[] {
-    // encode keys and recorded columns as JSON, keeping exact numbers as text
+    // encode keys and columns as JSON, exact numbers as text
     const table = quote(description.table);
     const value = (row: "NEW" | "OLD", name: string) =>
         description.exact.includes(name)
@@ -74,7 +74,7 @@ function sqliteLogTriggers(description: ChangeDescription): string[] {
     const now = "CAST(unixepoch('subsec') * 1000 AS INTEGER)";
     const scope = (source: "NEW" | "OLD") => `CAST(${source}.${quote(description.scope)} AS TEXT)`;
 
-    // insert each changed column's old value, null included, and drop the unchanged ones
+    // record each changed column's old value
     const previous = `json_remove(${chunks(
         description.columns.map(
             (name) =>
@@ -106,7 +106,7 @@ function sqliteLogTriggers(description: ChangeDescription): string[] {
         .join(" OR ");
     const prefix = `${description.table}__change`;
 
-    // record a key or scope change as the old row's deletion and the new row's insertion, in its own trigger so that updates evaluate one entry
+    // record a key or scope change as a deletion and an insertion
     return [
         `CREATE TRIGGER ${quote(`${prefix}_insert`)} AFTER INSERT ON ${table} BEGIN
             ${entry("'insert'", "NEW")}
@@ -124,7 +124,7 @@ function sqliteLogTriggers(description: ChangeDescription): string[] {
     ];
 }
 
-/** Split values into groups within a SQL function's argument limit. */
+/** Split values into groups within the argument limit. */
 function chunks<Value>(values: readonly Value[], size: number): Value[][] {
     const groups: Value[][] = [];
     for (let start = 0; start < values.length; start += size) {

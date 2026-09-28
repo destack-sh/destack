@@ -5,10 +5,10 @@ import { defineTable } from "../table/table.ts";
 import { integer, real, text } from "../table/column.ts";
 import { Expression } from "./expression.ts";
 
-/** The random expressions each dialect computes in SQL and memory. */
+/** The random expressions per dialect. */
 const EXPRESSIONS = 300;
 
-/** Rows with a nullable column of each kind expressions read. */
+/** Rows with a nullable column of each expression kind. */
 const sample = defineTable("expression_sample", {
     /** The row's key. */
     id: integer("id").primaryKey(),
@@ -20,14 +20,14 @@ const sample = defineTable("expression_sample", {
     name: text("name"),
 });
 
-/** The values each column takes, null among them. */
+/** The values of each column. */
 const VALUES = {
     count: [-3, 0, 1, 7, 1_000_003, null],
     ratio: [-0.5, 0, 0.1, 3.25, null],
     name: ["a", "é", "", null],
 } as const;
 
-/** Draw a pseudo-random number from a seed, the same sequence every run. */
+/** Draw a seeded pseudo-random number. */
 function random(seed: { value: number }): number {
     seed.value = (seed.value * 1_103_515_245 + 12_345) % 2_147_483_648;
 
@@ -39,9 +39,9 @@ function pick<Value>(values: readonly Value[], seed: { value: number }): Value {
     return values[Math.floor(random(seed) * values.length)]!;
 }
 
-/** Build a random numeric expression, nested up to a depth. */
+/** Build a random nested numeric expression. */
 function draw(seed: { value: number }, depth: number): Expression {
-    // read a column or a literal, or combine
+    // read or combine
     const choice = depth === 0 ? Math.floor(random(seed) * 2) : Math.floor(random(seed) * 7);
     if (choice === 0) {
         return Expression.column(pick(["count", "ratio"], seed));
@@ -66,7 +66,7 @@ test.for(TEST_DIALECTS)(
         const test = await TestDatabase.create(dialect, [sample], { isMigrated: true });
         onTestFinished(() => test.close());
 
-        // hold rows of random values
+        // hold random rows
         const seed = { value: 11 };
         const rows = Array.from({ length: 30 }, (_, id) => ({
             id,
@@ -76,7 +76,7 @@ test.for(TEST_DIALECTS)(
         }));
         await test.database.insert(sample).values(rows);
 
-        // compute each expression per row in SQL and in memory, expecting the same floats
+        // compute each expression in SQL and memory alike
         for (let index = 0; index < EXPRESSIONS; index += 1) {
             const drawn = draw(seed, 3);
             Expression.require(drawn, sample);
@@ -98,7 +98,7 @@ test.for(TEST_DIALECTS)("take the first present text on %s", async (dialect) => 
         { id: 2, name: null },
     ]);
 
-    // fall back to a literal where the column is missing
+    // fall back to a literal
     const expression = Expression.coalesce(Expression.column("name"), Expression.literal("none"));
     Expression.require(expression, sample);
     const selected = await test.database

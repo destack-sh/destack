@@ -5,7 +5,7 @@ export const ChangeTier = defineSchema(schema.enum(["none", "window", "history"]
 /** How long a table's committed changes stay in the log. */
 export type ChangeTier = schema.Infer<typeof ChangeTier>;
 
-/** The physical columns a table's generated change triggers record. */
+/** The columns a table's change triggers record. */
 export const ChangeDescription = defineSchema(
     schema.object({
         /** The table's SQL name. */
@@ -14,15 +14,15 @@ export const ChangeDescription = defineSchema(
         tier: schema.enum(["window", "history"]),
         /** The primary key's SQL column names in key order. */
         key: schema.array(schema.string().min(1)).min(1),
-        /** The recorded SQL column names, binary and sensitive columns left out. */
+        /** The recorded SQL column names, without binary and sensitive columns. */
         columns: schema.array(schema.string().min(1)),
-        /** The recorded columns converted to text to keep integer and numeric precision. */
+        /** The recorded columns converted to text for exact precision. */
         exact: schema.array(schema.string().min(1)),
-        /** Every SQL column name, compared to skip updates that change nothing. */
+        /** Every SQL column name, to skip updates that change nothing. */
         compared: schema.array(schema.string().min(1)),
-        /** The SQL column holding the scope each row lives in, which each change is read by. */
+        /** The SQL column holding each row's scope. */
         scope: schema.string().min(1),
     }),
 );
-/** The physical columns a table's generated change triggers record. */
+/** The columns a table's change triggers record. */
 export type ChangeDescription = schema.Infer<typeof ChangeDescription>;

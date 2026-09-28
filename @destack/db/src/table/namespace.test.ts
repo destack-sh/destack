@@ -6,12 +6,12 @@ test("fit derived names within the identifier limit and keep them distinct", () 
     const first = boundedName(`${prefix}_id_fk`);
     const second = boundedName(`${prefix}_key_fk`);
 
-    // keep short names and shorten long ones to exactly the limit, deterministically
+    // keep short names and shorten long ones to the limit
     expect(boundedName("note_pk")).toBe("note_pk");
     expect([first.length, second.length]).toEqual([63, 63]);
     expect(boundedName(`${prefix}_id_fk`)).toBe(first);
 
-    // tell names apart that share the kept prefix
+    // distinguish names sharing the kept prefix
     expect(first.slice(0, 54)).toBe(second.slice(0, 54));
     expect(first).not.toBe(second);
 });

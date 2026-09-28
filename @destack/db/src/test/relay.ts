@@ -1,6 +1,6 @@
 import type { Relay } from "../relay/relay.ts";
 
-/** Connect parties to one in-process hub, delivering each message to every other party after the current task, as a broadcast relay does. */
+/** Connect parties to an in-process hub, delivering each message after the current task. */
 export function relayHub<Payload>(): () => Relay<Payload> {
     const listeners = new Set<(message: Payload) => void>();
 
@@ -9,7 +9,7 @@ export function relayHub<Payload>(): () => Relay<Payload> {
 
         return {
             post: (message) => {
-                // deliver a copy to every other party's listeners
+                // deliver to every other party
                 for (const listener of listeners) {
                     if (!own.has(listener)) {
                         queueMicrotask(() => listener(structuredClone(message)));
@@ -17,7 +17,7 @@ export function relayHub<Payload>(): () => Relay<Payload> {
                 }
             },
             listen: (receive, resume) => {
-                // deliver each later message, starting now
+                // deliver each later message
                 listeners.add(receive);
                 own.add(receive);
                 resume?.();

@@ -1,10 +1,10 @@
 import * as schema from "@destack/schema/validate";
 import { type Insert, type Select, TABLE, type Table } from "./table.ts";
 
-/** Validation fields matching an application record. */
+/** The field validators of a record. */
 type Shape<Value> = { [Property in keyof Value]-?: schema.Schema<Value[Property]> };
 
-/** Validate every selected field, as the application holds it or in its JSON form. */
+/** Validate a selected record, in application or JSON form. */
 export function createSelectSchema<Definition extends Table>(
     table: Definition,
     form: "application" | "json" = "application",
@@ -12,7 +12,7 @@ export function createSelectSchema<Definition extends Table>(
     return createSchema(table, "select", form) as schema.Object<Shape<Select<Definition>>>;
 }
 
-/** Validate inserted fields, including nullable columns and defaults, as the application holds them or in their JSON form. */
+/** Validate an inserted record, in application or JSON form. */
 export function createInsertSchema<Definition extends Table>(
     table: Definition,
     form: "application" | "json" = "application",
@@ -20,14 +20,14 @@ export function createInsertSchema<Definition extends Table>(
     return createSchema(table, "insert", form) as schema.Object<Shape<Insert<Definition>>>;
 }
 
-/** Validate a partial application record update. */
+/** Validate a partial update. */
 export function createUpdateSchema<Definition extends Table>(
     table: Definition,
 ): schema.Object<Shape<Partial<Insert<Definition>>>> {
     return createSchema(table, "update") as schema.Object<Shape<Partial<Insert<Definition>>>>;
 }
 
-/** Apply insertion and nullability rules to the declared field validators. */
+/** Build a record validator. */
 function createSchema(
     table: Table,
     operation: "select" | "insert" | "update",
@@ -35,7 +35,7 @@ function createSchema(
 ) {
     const fields: Record<string, schema.Schema> = {};
 
-    // derive API values directly from logical columns without loading a database driver
+    // derive validators from the columns
     for (const [property, column] of Object.entries(table[TABLE].columns)) {
         const definition = column.definition;
         if (operation !== "select" && definition.generated) {

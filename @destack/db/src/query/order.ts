@@ -9,7 +9,7 @@ import { Expression } from "./expression.ts";
 import type { Namespace } from "./namespace.ts";
 import { DatabaseError } from "../error/error.ts";
 
-/** The column kinds that order and compare alike in SQLite, PostgreSQL and memory. */
+/** The column kinds that order alike in SQLite, PostgreSQL and memory. */
 const ORDERED_KINDS: ReadonlySet<string> = new Set([
     "text",
     "integer",
@@ -19,32 +19,32 @@ const ORDERED_KINDS: ReadonlySet<string> = new Set([
     "timestamp",
 ]);
 
-/** The most keys one order holds, well beyond the columns an index serves. */
+/** The most keys one order holds. */
 const ORDER_KEYS = 16;
 
-/** One key of an order: a column by property and its direction. */
+/** One key of an order. */
 export const OrderKey = defineSchema(
     schema.object({
         /** The column's property. */
         column: schema.string().min(1),
-        /** Whether values ascend or descend; missing values sort lowest either way. */
+        /** The direction; missing values sort lowest either way. */
         direction: schema.enum(["asc", "desc"]),
     }),
 );
-/** One key of an order: a column by property and its direction. */
+/** One key of an order. */
 export type OrderKey = schema.Infer<typeof OrderKey>;
 
-/** How rows sort: keys in precedence, missing values lowest, text by UTF-8 bytes in every dialect. */
+/** How rows sort: missing values lowest, text by UTF-8 bytes. */
 export type Order = readonly OrderKey[];
 
-/** How rows sort: keys in precedence, missing values lowest, text by UTF-8 bytes in every dialect. */
+/** How rows sort: missing values lowest, text by UTF-8 bytes. */
 export const Order = {
     /** The schema of an order. */
     schema: defineSchema(schema.array(OrderKey)),
 
-    /** Require an order of distinct keys, at most a bounded number, over a table's orderable columns and computed values. */
+    /** Require a bounded order of distinct orderable keys. */
     require(order: Order, table: Table, namespace: Namespace = { computed: {} }): void {
-        // bound the order, which clients choose
+        // bound the order
         const columns = new Set(order.map((key) => key.column));
         if (order.length > ORDER_KEYS || columns.size < order.length) {
             throw new DatabaseError(
@@ -53,7 +53,7 @@ export const Order = {
             );
         }
 
-        // require orderable columns, or computed values
+        // require orderable columns or computed values
         for (const key of order) {
             if (!Object.hasOwn(namespace.computed, key.column)) {
                 Order.column(table, key.column);
@@ -61,7 +61,7 @@ export const Order = {
         }
     },
 
-    /** Read an orderable column of a table by property. */
+    /** Read an orderable column. */
     column(table: Table, name: string): Column {
         const found = table[TABLE].columns[name];
         if (found === undefined) {
@@ -76,14 +76,14 @@ export const Order = {
         return found;
     },
 
-    /** Extend an order with the table's primary key, so that it orders every row apart. */
+    /** Complete an order with the primary key. */
     complete(order: Order, table: Table): Order {
         const keys = table[TABLE].key.filter((name) => !order.some((key) => key.column === name));
 
         return [...order, ...keys.map((name) => ({ column: name, direction: "asc" as const }))];
     },
 
-    /** Render an order as ORDER BY expressions, missing values lowest and text by byte. */
+    /** Render an order as ORDER BY expressions. */
     render(order: Order, table: Table, namespace: Namespace = { computed: {} }): SQL[] {
         return order.map((key) => {
             const expression = Order.expression(table, key.column, namespace);
@@ -94,14 +94,14 @@ export const Order = {
         });
     },
 
-    /** Select the rows an order places after a row, whose computed values it holds. */
+    /** Select the rows after a row in an order. */
     after(
         order: Order,
         table: Table,
         row: Readonly<Record<string, unknown>>,
         namespace: Namespace = { computed: {} },
     ): SQL {
-        // tie on the leading keys and follow on the next, for each key in turn
+        // tie on the leading keys and follow on the next
         const alternatives = order.map((key, position) =>
             and(
                 ...order.slice(0, position).map((leading) => tie(table, leading, row, namespace)),
@@ -128,11 +128,7 @@ export const Order = {
         return 0;
     },
 
-    /**
-     * Merge ordered rows of several tables into the first of their shared order, each with its list's name.
-     *
-     * Rows tie by their list's name, then by key, so that every reader merges alike.
-     */
+    /** Merge ordered rows of several tables, each with its list's name. */
     merge(
         order: Order,
         lists: readonly {
@@ -142,12 +138,12 @@ export const Order = {
         }[],
         limit: number,
     ): { readonly name: string; readonly row: Row }[] {
-        // take every row with its list's name and key
+        // take every row with its list name and key
         const entries = lists.flatMap(({ name, table, rows }) =>
             rows.map((row) => ({ name, row, key: Key.name(table, row) })),
         );
 
-        // sort by the order, then by name and key, and keep the first
+        // sort and keep the first
         entries.sort(
             (left, right) =>
                 Order.rows(order, left.row, right.row) ||
@@ -158,9 +154,9 @@ export const Order = {
         return entries.slice(0, limit).map(({ name, row }) => ({ name, row }));
     },
 
-    /** Compare two values with missing values lowest, as the rendered order does. */
+    /** Compare two values with missing values lowest. */
     missingFirst(left: unknown, right: unknown): number {
-        // place missing values before present ones
+        // place missing values first
         const isLeftMissing = left === null || left === undefined;
         const isRightMissing = right === null || right === undefined;
         if (isLeftMissing || isRightMissing) {
@@ -170,14 +166,14 @@ export const Order = {
         return Order.values(left, right)!;
     },
 
-    /** Compare two present values as SQL does, absent when either is missing or their types differ. */
+    /** Compare two present values as SQL does, absent for missing or mixed values. */
     values(left: unknown, right: unknown): number | undefined {
         // leave missing values unordered
         if (left === null || left === undefined || right === null || right === undefined) {
             return undefined;
         }
 
-        // order instants by time, text by code point, and other scalars by value
+        // order instants by time, text by code point, and scalars by value
         const first = left instanceof Date ? left.getTime() : left;
         const second = right instanceof Date ? right.getTime() : right;
         if (typeof first === "string" && typeof second === "string") {
@@ -194,9 +190,9 @@ export const Order = {
         return undefined;
     },
 
-    /** Compare text by code point, the byte order of UTF-8 that SQLite and the C collation use. */
+    /** Compare text by code point, the UTF-8 byte order. */
     codePoints(left: string, right: string): number {
-        // find the first differing UTF-16 unit, which orders the strings unless a surrogate pair begins there
+        // find the first differing UTF-16 unit
         const length = Math.min(left.length, right.length);
         let index = 0;
         while (index < length && left.charCodeAt(index) === right.charCodeAt(index)) {
@@ -211,7 +207,7 @@ export const Order = {
             return first < second ? -1 : 1;
         }
 
-        // compare the code points around a surrogate, since UTF-16 units order astral characters below some others
+        // compare the code points around a surrogate
         const start =
             index > 0 && (isLowSurrogate(first) || isLowSurrogate(second)) ? index - 1 : index;
         const leftPoint = left.codePointAt(start)!;
@@ -223,9 +219,9 @@ export const Order = {
         return leftPoint < rightPoint ? -1 : 1;
     },
 
-    /** Render a column or computed value to sort and compare by, text by byte in every dialect. */
+    /** Render a column or computed value to sort by, text by byte. */
     expression(table: Table, name: string, namespace: Namespace = { computed: {} }): SQLWrapper {
-        // render a column collated as text, or a computed value, collating computed text alike
+        // render a column or computed value, collating text by byte
         const expression = namespace.computed[name];
         if (expression === undefined) {
             return Order.text(Order.column(table, name));
@@ -237,7 +233,7 @@ export const Order = {
             : rendered;
     },
 
-    /** Collate a text column by byte in every dialect, leaving other columns as they are. */
+    /** Collate a text column by byte. */
     text(expression: Column): SQLWrapper {
         return expression.definition.kind === "text"
             ? dialectSQL({
@@ -248,14 +244,14 @@ export const Order = {
     },
 };
 
-/** Match rows holding a row's value of one key. */
+/** Match rows tying a row's value of one key. */
 function tie(
     table: Table,
     key: OrderKey,
     row: Readonly<Record<string, unknown>>,
     namespace: Namespace,
 ): SQL {
-    // compare a column as bound through its column, and a computed value as it is
+    // bind a column value through its column
     const value = row[key.column];
     const isComputed = Object.hasOwn(namespace.computed, key.column);
     const expression = isComputed
@@ -267,14 +263,14 @@ function tie(
         : sql`${expression} = ${isComputed ? sql`${value}` : sql.param(value, expression as Column)}`;
 }
 
-/** Match rows placed after a row's value of one key, missing values lowest. */
+/** Match rows after a row's value of one key. */
 function follow(
     table: Table,
     key: OrderKey,
     row: Readonly<Record<string, unknown>>,
     namespace: Namespace,
 ): SQL {
-    // follow a missing value by every present one when ascending, and by none when descending
+    // follow a missing value by every present one when ascending
     const isComputed = Object.hasOwn(namespace.computed, key.column);
     const expression = isComputed
         ? Expression.render(namespace.computed[key.column]!, table, namespace)
@@ -285,7 +281,7 @@ function follow(
         return key.direction === "asc" ? sql`${expression} IS NOT NULL` : sql`false`;
     }
 
-    // follow a present value by greater ones, or by smaller and missing ones when descending
+    // follow a present value by greater ones, or smaller and missing ones when descending
     const bound = isComputed ? sql`${value}` : sql.param(value, expression as Column);
 
     return key.direction === "asc"

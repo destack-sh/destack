@@ -4,7 +4,7 @@ import { assertNever } from "../error/error.ts";
 import { quote } from "../dialect/quote.ts";
 import { hashName } from "../table/namespace.ts";
 
-/** A renamed column kept equal to its previous column while an older release still writes that one. */
+/** A renamed column kept equal to its previous column. */
 export interface Bridge {
     /** The previous column. */
     readonly from: string;
@@ -12,15 +12,15 @@ export interface Bridge {
     readonly to: string;
 }
 
-/** Create the triggers copying each write of one bridged column into the other. */
+/** Create the triggers copying writes between bridged columns. */
 function install(table: string, bridge: Bridge, dialect: Dialect): string[] {
-    // name the triggers by a short digest
+    // name the triggers by a digest
     const name = bridgeName(table, bridge);
     const target = quote(table);
     const from = quote(bridge.from);
     const to = quote(bridge.to);
 
-    // fill the omitted column and follow a change of either column with SQLite triggers
+    // fill and follow either column with SQLite triggers
     if (dialect === "sqlite") {
         return [
             `CREATE TRIGGER ${quote(`${name}_insert`)} AFTER INSERT ON ${target} BEGIN
@@ -37,7 +37,7 @@ function install(table: string, bridge: Bridge, dialect: Dialect): string[] {
             END`,
         ];
     }
-    // do the same in one PostgreSQL row trigger
+    // do the same in one PostgreSQL trigger
     else if (dialect === "postgresql") {
         return [
             `CREATE FUNCTION ${quote(name)}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
@@ -71,7 +71,7 @@ function remove(table: string, bridge: Bridge, dialect: Dialect): string[] {
             (suffix) => `DROP TRIGGER IF EXISTS ${quote(`${name}_${suffix}`)}`,
         );
     }
-    // drop the PostgreSQL trigger function with its trigger
+    // drop the PostgreSQL function with its trigger
     else if (dialect === "postgresql") {
         return [`DROP FUNCTION IF EXISTS ${quote(name)}() CASCADE`];
     }
@@ -81,12 +81,12 @@ function remove(table: string, bridge: Bridge, dialect: Dialect): string[] {
     }
 }
 
-/** Name one bridge's triggers by a digest of its table and columns. */
+/** Name a bridge's triggers by a digest. */
 function bridgeName(table: string, bridge: Bridge): string {
     return `destack_bridge_${hashName(`${table}\0${bridge.from}\0${bridge.to}`)}`;
 }
 
-/** The triggers keeping renamed columns equal to their previous names while an older release writes those. */
+/** The triggers keeping renamed columns equal to their previous names. */
 export const bridgeTriggers: Triggers = {
     install: (state, dialect) =>
         (state.bridges ?? []).flatMap((bridge) => install(state.table.name, bridge, dialect)),

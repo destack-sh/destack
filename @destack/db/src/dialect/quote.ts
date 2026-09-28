@@ -1,6 +1,6 @@
 import type { Dialect } from "./dialect.ts";
 
-/** Quote a declared SQL identifier without accepting executable SQL. */
+/** Quote an SQL identifier. */
 export function quote(name: string): string {
     return `"${name.replaceAll('"', '""')}"`;
 }
@@ -10,7 +10,7 @@ export function literal(value: string): string {
     return `'${value.replaceAll("'", "''")}'`;
 }
 
-/** Compare a column with a value in a dialect, null matching null. */
+/** Compare a column with a value, null matching null. */
 export function condition(value: string | number | boolean | null, dialect: Dialect): string {
     // match null by identity
     if (value === null) {
@@ -20,7 +20,7 @@ export function condition(value: string | number | boolean | null, dialect: Dial
     else if (typeof value === "string") {
         return `= ${literal(value)}`;
     }
-    // write booleans as each dialect stores them
+    // write booleans in each dialect's form
     else if (typeof value === "boolean") {
         return dialect === "sqlite" ? `= ${value ? 1 : 0}` : `= ${value}`;
     }

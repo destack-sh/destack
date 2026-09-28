@@ -4,9 +4,9 @@ import { assertNever } from "../error/error.ts";
 import type { TreeDescription } from "../inspect/tree.ts";
 import { quote } from "../dialect/quote.ts";
 
-/** Generate indexes and triggers for a described tree. */
+/** Generate a tree's indexes and triggers. */
 function install(tree: TreeDescription, dialect: Dialect): readonly string[] {
-    // derive every identifier from the described table and column names
+    // derive the identifiers
     const source = quote(tree.table);
     const closure = quote(tree.ancestors);
     const id = quote(tree.id);
@@ -14,12 +14,12 @@ function install(tree: TreeDescription, dialect: Dialect): readonly string[] {
     const parent = quote(tree.parent);
     const prefix = tree.ancestors;
 
-    // index direct children for parent validation and deletion checks
+    // index direct children
     const prepare = [
         `CREATE INDEX ${quote(`${prefix}_parent`)} ON ${source} (${scope}, ${parent})`,
     ];
 
-    // retain paths within the moved subtree and replace only external ancestor paths
+    // keep paths within the moved subtree and replace external ones
     const insert = `
         INSERT INTO ${closure} (scope, ancestor, descendant, depth)
         VALUES (NEW.${scope}, NEW.${id}, NEW.${id}, 0);
@@ -115,7 +115,7 @@ function install(tree: TreeDescription, dialect: Dialect): readonly string[] {
         return assertNever(dialect);
     }
 
-    // serialize hierarchy mutations before reading ancestry; stale serializable writers abort
+    // serialize hierarchy writes before reading ancestry
     const lock = quote(tree.revision);
     const before = quote(`${prefix}_before`);
     const after = quote(`${prefix}_after`);
@@ -157,7 +157,7 @@ function install(tree: TreeDescription, dialect: Dialect): readonly string[] {
     ];
 }
 
-/** Remove generated triggers, functions and the parent index while retaining records and index tables. */
+/** Remove a tree's triggers, functions and parent index. */
 function remove(tree: TreeDescription, dialect: Dialect): string[] {
     const statements = [`DROP INDEX IF EXISTS ${quote(`${tree.ancestors}_parent`)}`];
 
@@ -189,7 +189,7 @@ function remove(tree: TreeDescription, dialect: Dialect): string[] {
     return statements;
 }
 
-/** The triggers keeping a tree table's ancestor index. */
+/** The triggers keeping tree indexes. */
 export const treeTriggers: Triggers = {
     install: (state, dialect) => (state.tree ? install(state.tree, dialect) : []),
     remove: (state, dialect) => (state.tree ? remove(state.tree, dialect) : []),

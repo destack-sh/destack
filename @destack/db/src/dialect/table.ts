@@ -5,7 +5,7 @@ import type { Dialect } from "./dialect.ts";
 import type { Column } from "../table/column.ts";
 import type { TABLE, Table } from "../table/table.ts";
 
-/** A concrete Drizzle table retaining its logical application types. */
+/** A Drizzle table with its logical types. */
 export type NativeTable<Driver extends Dialect, Definition extends Table> = {
     sqlite: SQLiteTableWithColumns<{
         name: Definition[typeof TABLE]["name"];
@@ -21,7 +21,7 @@ export type NativeTable<Driver extends Dialect, Definition extends Table> = {
     }>;
 }[Driver];
 
-/** Concrete columns indexed by application property name. */
+/** The physical columns by property. */
 type NativeColumns<Driver extends Dialect, Definition extends Table> = {
     [Property in keyof Definition[typeof TABLE]["columns"]]: {
         sqlite: SQLiteColumn<NativeColumn<Definition[typeof TABLE]["columns"][Property]>>;
@@ -29,7 +29,7 @@ type NativeColumns<Driver extends Dialect, Definition extends Table> = {
     }[Driver];
 };
 
-/** Drizzle inference fields supplied by one logical column. */
+/** The Drizzle inference fields of one column. */
 type NativeColumn<Definition extends Column> = Omit<
     ColumnBaseConfig<"custom">,
     "data" | "notNull" | "hasDefault" | "tableName" | "generated" | "identity"

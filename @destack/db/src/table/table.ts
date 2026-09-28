@@ -7,56 +7,56 @@ import { qualify } from "./namespace.ts";
 import type { ChangeTier } from "../inspect/log.ts";
 import { Tree } from "../tree/tree.ts";
 
-/** The table declaration, separate from user-defined column properties. */
+/** The key of a table's declaration. */
 export const TABLE = Symbol("destack.table");
 
-/** The declaration and columns of one logical SQL table. */
+/** One logical SQL table. */
 export class Table<
     Name extends string = string,
     Columns extends ColumnMap = ColumnMap,
 > implements SQLWrapper {
     /** The table's identity, columns and declaration. */
     readonly [TABLE]: TableDeclaration & {
-        /** The package declaring the table, supplied by the module transform. */
+        /** The declaring package. */
         readonly package: Package;
         /** The table name within its package. */
         readonly name: Name;
-        /** The SQL identifier, qualified by the package namespace or naming a query alias. */
+        /** The SQL identifier. */
         readonly sqlName: string;
-        /** Columns indexed by application property name. */
+        /** The columns by property. */
         readonly columns: Columns;
-        /** The ancestor index maintained over the table's parent column. */
+        /** The ancestor index over the parent column. */
         readonly tree?: Tree;
-        /** The original table when this declaration is a query alias. */
+        /** The source table of a query alias. */
         readonly source?: Table;
-        /** The properties holding the primary key in key order, none for a table without one. */
+        /** The primary key properties in key order. */
         readonly key: readonly string[];
-        /** The columns by property in declaration order, which row codecs walk. */
+        /** The columns in declaration order. */
         readonly entries: readonly (readonly [string, Column])[];
-        /** The columns the log records, by property: every column except binary and sensitive ones. */
+        /** The logged columns: every column but binary and sensitive ones. */
         readonly logged: Readonly<Record<string, Column>>;
     };
-    /** The primary key's properties, read once the constraints can be evaluated. */
+    /** The cached primary key properties. */
     #key: readonly string[] | undefined;
-    /** The columns by property in declaration order, read once. */
+    /** The cached columns in declaration order. */
     #entries: readonly (readonly [string, Column])[] | undefined;
-    /** The logged columns by property, read once. */
+    /** The cached logged columns. */
     #logged: Readonly<Record<string, Column>> | undefined;
-    /** The statements over the table, built once each, by name. */
+    /** The built statements by name. */
     readonly #statements = new Map<string, unknown>();
     /** The selected application record type. */
     declare readonly $inferSelect: Select<Table<Name, Columns>>;
     /** The inserted application record type. */
     declare readonly $inferInsert: Insert<Table<Name, Columns>>;
 
-    /** Retain the table's identity, columns and declaration, building its tree over its own columns. */
+    /** Create the table. */
     constructor(
         identity: { readonly package: Package; readonly name: Name; readonly sqlName: string },
         columns: Columns,
         declaration: TableDeclaration,
         options: { readonly tree?: TreeColumns; readonly source?: Table } = {},
     ) {
-        // declare the table, reading its key once its constraints can be evaluated, or an alias's from its source
+        // declare the table and its key
         const { constraints, tier, version, moved, convert, aggregates, dependents } = declaration;
         const declared = {
             ...identity,
@@ -108,7 +108,7 @@ export class Table<
 
     /** Read a statement over the table, building it once per name. */
     statement<Value>(name: string, build: () => Value): Value {
-        // reuse the statement of the same name
+        // reuse the built statement
         const known = this.#statements.get(name) as Value | undefined;
         if (known !== undefined) {
             return known;
@@ -131,11 +131,11 @@ export class Table<
         return true;
     }
 
-    /** Collect declared constraints and column references for a dialect. */
+    /** Collect the constraints for a dialect. */
     constraints(dialect: Dialect): readonly TableConstraint[] {
         const constraints = [...this[TABLE].constraints()];
 
-        // preserve primary-key checks required by SQLite migration output
+        // keep primary key checks
         for (const column of Object.values(this[TABLE].columns)) {
             const definition = column.definition;
             if (
@@ -151,7 +151,7 @@ export class Table<
                 );
             }
 
-            // expand references after all table declarations have been evaluated
+            // expand references once every table is declared
             const reference = definition.reference;
             if (reference) {
                 constraints.push(
@@ -170,7 +170,7 @@ export class Table<
     }
 }
 
-/** Compute new column values from a row's previous values, as SQL over the table's columns. */
+/** Compute new column values from a row's previous values, as SQL. */
 export type RowConversion<Columns = ColumnMap> = (columns: Columns) => {
     readonly [Property in keyof Columns]?: SQL;
 };
@@ -179,11 +179,11 @@ export type RowConversion<Columns = ColumnMap> = (columns: Columns) => {
 export interface TableMove {
     /** The table's previous name within its package. */
     readonly table?: string;
-    /** Previous SQL column names indexed by current application property. */
+    /** The previous SQL column names by property. */
     readonly columns?: Readonly<Record<string, string>>;
 }
 
-/** The properties of a single-parent tree maintained within each scope. */
+/** The properties of a single-parent tree per scope. */
 interface TreeColumns<Property extends string = string> {
     /** The property holding the node identity. */
     readonly id: Property;
@@ -193,100 +193,100 @@ interface TreeColumns<Property extends string = string> {
     readonly parent: Property;
 }
 
-/** A table's declaration beyond its identity and columns, with defaults applied. */
+/** A table's declaration with defaults applied. */
 interface TableDeclaration {
-    /** Evaluate constraints after referenced tables have been declared. */
+    /** Evaluate the constraints. */
     readonly constraints: () => readonly TableConstraint[];
-    /** How long committed changes stay in the log, none for unlogged tables. */
+    /** The log retention tier. */
     readonly tier: ChangeTier;
     /** The version of the row shape. */
     readonly version: number;
     /** The table's previous names. */
     readonly moved: TableMove;
-    /** Row conversions indexed by the version each converts to. */
+    /** The row conversions by target version. */
     readonly convert: Readonly<Record<number, RowConversion>>;
     /** The aggregates this table's rows feed or hold. */
     readonly aggregates: readonly Aggregate[];
-    /** The rows of other tables referencing this table's rows under a condition, which delete with them or keep them. */
+    /** The rows of other tables referencing this table's rows. */
     readonly dependents: readonly Dependent[];
 }
 
-/** An aggregate of one table's rows another table's rows hold, over the rows referencing each: a count, sum, minimum or maximum. */
+/** An aggregate of one table's rows held by the rows they reference. */
 export type Aggregate = AggregateOptions &
     (
         | {
-              /** The table holding the aggregate of this table's rows. */
+              /** The holding table. */
               readonly into: () => Table;
           }
         | {
-              /** The table whose rows this table holds the aggregate of. */
+              /** The aggregated table. */
               readonly from: () => Table;
           }
     );
 
-/** What an aggregate holds, whichever of its two tables declares it. */
+/** The options of an aggregate. */
 interface AggregateOptions {
-    /** The holding table's property keeping the aggregate. */
+    /** The holding property. */
     readonly column: string;
     /** The aggregated table's property referencing the holding rows. */
     readonly key: string;
     /** The aggregate function. */
     readonly function: "count" | "sum" | "min" | "max";
-    /** The aggregated property, for sums, minimums and maximums. */
+    /** The aggregated property, for sums and extremes. */
     readonly value?: string;
-    /** The values the aggregated rows' properties hold. */
+    /** The values the aggregated rows hold. */
     readonly where?: Readonly<Record<string, string | number | boolean | null>>;
 }
 
-/** Rows of another table referencing this table's rows by a key, among rows holding fixed values, as a polymorphic reference does. */
+/** Rows of another table referencing this table's rows, as a polymorphic reference does. */
 export interface Dependent {
     /** The table holding the dependent rows. */
     readonly from: () => Table;
     /** The dependent table's property referencing this table's rows. */
     readonly key: string;
-    /** The values the dependent rows' other properties hold, such as the type they reference. */
+    /** The values the dependent rows hold, such as the referenced type. */
     readonly where?: Readonly<Record<string, string | number | boolean | null>>;
-    /** Delete the dependent rows with the row they reference, or refuse deleting a referenced row. */
+    /** Cascade or restrict the deletion. */
     readonly onDelete: "cascade" | "restrict";
 }
 
-/** How a table is declared beyond its name and columns. */
+/** The options of a table. */
 export interface TableOptions<Columns> {
-    /** Constraints and indexes, evaluated after referenced tables are declared. */
+    /** The constraints and indexes. */
     readonly constraints?: (columns: Columns) => readonly TableConstraint[];
-    /** Log committed changes, filed under the scope column each row lives in, which a logged table requires. */
+    /** Log committed changes under the scope column. */
     readonly log?: "scope" extends keyof Columns
         ? {
               /** The retention tier, the window by default. */
               readonly tier?: Exclude<ChangeTier, "none">;
           }
         : never;
-    /** The properties of a single-parent tree maintained within each scope. */
+    /** The properties of a single-parent tree per scope. */
     readonly tree?: TreeColumns<keyof Columns & string>;
-    /** The version of the row shape, one by default, raised with each conversion. */
+    /** The row shape version, one by default. */
     readonly version?: number;
-    /** The table's previous name and its columns' previous SQL names. */
+    /** The previous names of the table and its columns. */
     readonly moved?: {
         /** The table's previous name within its package. */
         readonly table?: string;
-        /** Previous SQL column names indexed by current property. */
+        /** The previous SQL column names by property. */
         readonly columns?: { readonly [Property in keyof Columns]?: string };
     };
-    /** Row conversions indexed by the version each converts to. */
+    /** The row conversions by target version. */
     readonly convert?: Readonly<Record<number, RowConversion<Columns>>>;
-    /** The aggregates this table's rows feed or hold, kept current as the aggregated rows change. */
+    /** The aggregates this table's rows feed or hold. */
     readonly aggregates?: readonly Aggregate[];
-    /** The rows of other tables referencing this table's rows under a condition, which delete with them or keep them. */
+    /** The rows of other tables referencing this table's rows. */
     readonly dependents?: readonly Dependent[];
 }
 
-/** Columns indexed by application property name. */
+/** The columns by property. */
 export type ColumnMap = Record<string, Column>;
 
-/** Column builders indexed by application property name. */
+/** The column builders by property. */
 export type ColumnBuilderMap = Record<string, ColumnBuilder<unknown, boolean, boolean, boolean>>;
 
-/** Attach each column's application type and insertion flags. */
+/** Attach each column's type and flags. */
 export type TableColumnMap<Builders extends ColumnBuilderMap, Name extends string = string> = {
     [Property in keyof Builders]: Column<
         Builders[Property]["_"]["value"],
@@ -306,7 +306,7 @@ export type Select<Definition extends Table> = {
         : Definition[typeof TABLE]["columns"][Property]["_"]["value"] | null;
 };
 
-/** Properties that an insert must supply. */
+/** The properties an insert must supply. */
 type RequiredColumns<Definition extends Table> = {
     [
         Property in keyof Definition[typeof TABLE]["columns"]
@@ -315,7 +315,7 @@ type RequiredColumns<Definition extends Table> = {
         : never;
 }[keyof Definition[typeof TABLE]["columns"]];
 
-/** Properties computed by SQL and excluded from writes. */
+/** The generated properties. */
 type GeneratedColumns<Definition extends Table> = {
     [
         Property in keyof Definition[typeof TABLE]["columns"]
@@ -324,25 +324,25 @@ type GeneratedColumns<Definition extends Table> = {
         : never;
 }[keyof Definition[typeof TABLE]["columns"]];
 
-/** The application values accepted by an insert. */
+/** The values of an insert. */
 export type Insert<Definition extends Table> = Pick<
     Select<Definition>,
     Exclude<RequiredColumns<Definition>, GeneratedColumns<Definition>>
 > &
     Partial<Omit<Select<Definition>, RequiredColumns<Definition> | GeneratedColumns<Definition>>>;
 
-/** Declare a table with typed columns, constraints, log retention, tree and shape history. */
+/** Declare a table. */
 export function defineTable<Name extends string, Builders extends ColumnBuilderMap>(
     name: Name,
     builders: Builders & { [Property in Extract<keyof Table, string>]?: never },
     options: TableOptions<TableColumnMap<Builders, Name>> = {},
     module?: ModuleMetadata,
 ): Table<Name, TableColumnMap<Builders, Name>> & TableColumnMap<Builders, Name> {
-    // qualify the table by its stamped package
+    // qualify the table by its package
     const owner = declaringModule(module, "defineTable").package;
     const sqlName = qualify(owner, name);
 
-    // reject generated columns with defaults and duplicate persisted column names
+    // reject generated defaults and duplicate names
     const names = new Set<string>();
     for (const builder of Object.values(builders)) {
         const definition = builder.definition;
@@ -360,7 +360,7 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
         names.add(definition.name);
     }
 
-    // require one conversion for each version above the first
+    // require a conversion per version
     const version = options.version ?? 1;
     for (let target = 2; target <= version; target++) {
         if (!options.convert?.[target]) {
@@ -368,7 +368,7 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
         }
     }
 
-    // attach fresh columns while preserving their declared property order
+    // attach the columns in order
     const columns = Object.fromEntries(
         Object.entries(builders).map(([property, builder]) => [
             property,
@@ -393,7 +393,7 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
     return Object.assign(definition, columns);
 }
 
-/** Columns qualified by a query alias. */
+/** The columns of a query alias. */
 export type AliasedColumnMap<Definition extends Table, Name extends string> = {
     [Property in keyof Definition[typeof TABLE]["columns"]]: Column<
         Definition[typeof TABLE]["columns"][Property]["_"]["value"],
@@ -404,12 +404,12 @@ export type AliasedColumnMap<Definition extends Table, Name extends string> = {
     >;
 };
 
-/** Reference the same table under a distinct query name. */
+/** Reference a table under another query name. */
 export function alias<Definition extends Table, Name extends string>(
     source: Definition,
     name: Name,
 ): Table<Name, AliasedColumnMap<Definition, Name>> & AliasedColumnMap<Definition, Name> {
-    // retain column types while giving each reference its own SQL qualifier
+    // qualify each column by the alias
     const columns = Object.fromEntries(
         Object.entries(source[TABLE].columns).map(([property, column]) => [
             property,
@@ -426,9 +426,9 @@ export function alias<Definition extends Table, Name extends string>(
     return Object.assign(definition, columns);
 }
 
-/** Read a table's primary key properties: a compound key constraint's, else the key columns'. */
+/** Read a table's primary key properties. */
 function keyOf(table: Table): readonly string[] {
-    // prefer a compound key constraint over column-level keys
+    // prefer a compound key constraint
     const columns = table[TABLE].columns;
     const declared = table
         .constraints("sqlite")

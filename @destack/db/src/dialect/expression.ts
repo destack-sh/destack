@@ -1,30 +1,30 @@
 import { SQL, sql, type SQLChunk, type SQLWrapper } from "drizzle-orm";
 import type { Dialect } from "./dialect.ts";
 
-/** SQL expressions implementing the same operation in each dialect. */
+/** An expression with SQL for each dialect. */
 class DialectExpression implements SQLWrapper {
-    /** The SQL expression for each supported dialect. */
+    /** The SQL for each dialect. */
     readonly expressions: Readonly<Record<Dialect, SQL>>;
 
-    /** Retain both dialect implementations. */
+    /** Create the expression. */
     constructor(expressions: Readonly<Record<Dialect, SQL>>) {
         this.expressions = expressions;
     }
 
-    /** Reject compilation without a selected database dialect. */
+    /** Reject compilation without a dialect. */
     getSQL(): SQL {
         throw new TypeError("select a database dialect before compiling this expression");
     }
 }
 
-/** Declare an expression with explicit SQL implementations for both dialects. */
+/** Declare an expression with SQL for each dialect. */
 export function dialectSQL<Value = unknown>(
     expressions: Readonly<Record<Dialect, SQL>>,
 ): SQL<Value> {
     return sql<Value>`${new DialectExpression(expressions)}`;
 }
 
-/** Select dialect expressions while retaining SQL decoders and aliases. */
+/** Select the dialect's expressions in an expression. */
 export function compileExpression<Value>(
     expression: SQL<Value>,
     dialect: Dialect,

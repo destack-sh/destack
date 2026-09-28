@@ -7,17 +7,9 @@
             "targets": ["server"],
             "runtimes": ["bun", "workerd"]
         },
-        "./migration": {
+        "./bun": {
             "targets": ["server"],
             "runtimes": ["bun"]
-        },
-        "./turso": {
-            "targets": ["server"],
-            "runtimes": ["bun"]
-        },
-        "./turso/serverless": {
-            "targets": ["server"],
-            "runtimes": ["bun", "workerd"]
         },
         "./test": {
             "targets": ["server"],

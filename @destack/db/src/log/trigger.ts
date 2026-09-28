@@ -7,7 +7,7 @@ import { postgresLog } from "./postgres.ts";
 /** The log of each dialect. */
 const LOGS: Readonly<Record<Dialect, LogDialect>> = { sqlite: sqliteLog, postgresql: postgresLog };
 
-/** Create the log, its horizon and commit ordering once per database. */
+/** Create the log once per database. */
 export function createLog(dialect: Dialect): readonly string[] {
     return LOGS[dialect].create();
 }

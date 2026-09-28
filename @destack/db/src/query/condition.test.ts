@@ -7,7 +7,7 @@ import { asc } from "drizzle-orm";
 import { Condition, type Scalar } from "./condition.ts";
 import { Order } from "./order.ts";
 
-/** The random conditions each dialect decides in SQL and memory. */
+/** The random conditions per dialect. */
 const CONDITIONS = 400;
 
 /** Rows with a nullable column of each comparable kind. */
@@ -28,7 +28,7 @@ const sample = defineTable("condition_sample", {
     editedAt: timestamp("edited_at"),
 });
 
-/** The JSON values each column's literals take, null among them. */
+/** The literal values of each column. */
 const VALUES: Readonly<Record<string, readonly Scalar[]>> = {
     name: ["a", "B", "b", "é", "z", "😀", "￿", "", null],
     count: [-2, 0, 1, 7, null],
@@ -38,7 +38,7 @@ const VALUES: Readonly<Record<string, readonly Scalar[]>> = {
     editedAt: [0, 1790244000123, 1790244000124, null],
 };
 
-/** Draw a pseudo-random number from a seed, the same sequence every run. */
+/** Draw a seeded pseudo-random number. */
 function random(seed: { value: number }): number {
     seed.value = (seed.value * 1_103_515_245 + 12_345) % 2_147_483_648;
 
@@ -50,9 +50,9 @@ function pick<Value>(values: readonly Value[], seed: { value: number }): Value {
     return values[Math.floor(random(seed) * values.length)]!;
 }
 
-/** Build a random condition over the sample's columns, nested up to a depth. */
+/** Build a random nested condition. */
 function draw(seed: { value: number }, depth: number): Condition {
-    // compare a column with a literal, test membership or absence, or combine
+    // compare, test or combine
     const name = pick(Object.keys(VALUES), seed);
     const choice = depth === 0 ? Math.floor(random(seed) * 3) : Math.floor(random(seed) * 6);
     if (choice === 0) {
@@ -84,7 +84,7 @@ test.for(TEST_DIALECTS)(
         const database = test.database;
         const columns = sample[TABLE].columns as Readonly<Record<string, Column>>;
 
-        // hold every combination of a few values per column, decoded as the application holds them
+        // hold every combination of a few values
         const seed = { value: 7 };
         const rows = Array.from({ length: 60 }, (_, id) =>
             Object.fromEntries([
@@ -101,7 +101,7 @@ test.for(TEST_DIALECTS)(
         );
         await database.insert(sample).values(rows as never);
 
-        // select each condition's rows in SQL and filter them in memory, expecting the same keys
+        // match each condition in SQL and memory alike
         for (let index = 0; index < CONDITIONS; index += 1) {
             const drawn = draw(seed, 3);
             const selected = await database
@@ -144,7 +144,7 @@ test("order text by code point, as UTF-8 bytes order it", () => {
 });
 
 test("refuse conditions beyond a thousand terms", () => {
-    // accept a thousand listed values, and refuse one more term
+    // accept a thousand values and refuse one more
     const values = Array.from({ length: 1000 }, (_, index) => index);
     Condition.require(Condition.oneOf("count", values), sample);
     expect(() =>
@@ -163,7 +163,7 @@ test.for(TEST_DIALECTS)("match a thousand listed values in SQL on %s", async (di
         { id: 2, count: 1000 },
     ]);
 
-    // render a thousand values as a balanced tree, within the parser's expression depth
+    // render a thousand values as a balanced tree
     const values = Array.from({ length: 1000 }, (_, index) => index);
     const rows = await test.database
         .select()
@@ -173,7 +173,7 @@ test.for(TEST_DIALECTS)("match a thousand listed values in SQL on %s", async (di
 });
 
 test("decide relations through the binding, unknown until the relation is read", () => {
-    // decide each answer of a relation, alone and under combinations
+    // decide each relation answer
     const condition = Condition.any(
         Condition.not(Condition.exists("marks", Condition.eq("name", "a"))),
         Condition.eq("count", 1),
@@ -185,14 +185,14 @@ test("decide relations through the binding, unknown until the relation is read",
         [true, undefined, false, true],
     );
 
-    // refuse relations a table's binding does not declare
+    // refuse undeclared relations
     expect(() => Condition.render(condition, Condition.bind(sample))).toThrow(
         "condition follows relation marks, which condition_sample does not declare",
     );
 });
 
 test("merge ordered rows of two tables into the first of their order, tying by list and key", () => {
-    // order two lists by a shared column, newest first, with a tie across them
+    // order two lists by a shared column
     const marks = defineTable("condition_mark", {
         /** The mark's key. */
         id: text("id").primaryKey(),

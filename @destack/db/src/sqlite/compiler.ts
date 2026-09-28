@@ -7,19 +7,19 @@ import type { TableConstraint } from "../table/constraint.ts";
 import { constraintName } from "../table/namespace.ts";
 import type { Package } from "@destack/package";
 
-/** Compile portable declarations into SQLite Drizzle tables. */
+/** Compile declarations into SQLite Drizzle tables. */
 export class SqliteSchemaCompiler extends SchemaCompiler<"sqlite"> {
-    /** Compile the declared tables for SQLite. */
+    /** Compile the declared tables. */
     constructor(declarations: readonly Table[]) {
         super("sqlite", declarations);
     }
 
-    /** Materialize SQLite columns and defer table constraints. */
+    /** Compile one SQLite table. */
     protected compileTable(declaration: Table): sqlite.SQLiteTable {
         const definition = declaration[TABLE];
         const columns = Object.fromEntries(
             Object.entries(definition.columns).map(([property, column]) => {
-                // build a custom column from the definition's codec
+                // build a column from its codec
                 const definition = column.definition;
                 const builder = sqlite.customType<{ data: unknown; driverData: unknown }>({
                     dataType: () => definition.types.sqlite,
@@ -65,7 +65,7 @@ export class SqliteSchemaCompiler extends SchemaCompiler<"sqlite"> {
         constraint: TableConstraint,
         owner: Package,
     ): sqlite.SQLiteTableExtraConfigValue {
-        // materialized columns belong to the selected dialect
+        // map the columns
         const columns = (values: readonly Column[]) =>
             values.map((column) => this.column(column) as sqlite.SQLiteColumn);
 

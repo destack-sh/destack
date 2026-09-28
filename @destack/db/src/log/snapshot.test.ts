@@ -7,10 +7,10 @@ import { Order } from "../query/order.ts";
 import { eq } from "../query/predicate.ts";
 import type { LogPosition } from "./position.ts";
 
-/** The writes each dialect snapshots the database after. */
+/** The writes before each snapshot. */
 const WRITES = 120;
 
-/** Items living in folders, ranked, whose earlier rows the log restores. */
+/** Ranked items in folders. */
 const item = defineTable(
     "snapshot_item",
     {
@@ -26,7 +26,7 @@ const item = defineTable(
     { log: {} },
 );
 
-/** Revisions of items, whose changes the log keeps through compaction. */
+/** Revisions whose changes survive compaction. */
 const revision = defineTable(
     "snapshot_revision",
     {
@@ -40,7 +40,7 @@ const revision = defineTable(
     { log: { tier: "history" } },
 );
 
-/** Draw a pseudo-random number from a seed, the same sequence every run. */
+/** Draw a seeded pseudo-random number. */
 function random(seed: { value: number }): number {
     seed.value = (seed.value * 1_103_515_245 + 12_345) % 2_147_483_648;
 
@@ -57,7 +57,7 @@ test.for(TEST_DIALECTS)(
         const where = Condition.all(Condition.eq("scope", "inbox"), Condition.gte("rank", 2));
         const order = [{ column: "rank", direction: "desc" as const }];
 
-        // write at random, capturing the matching rows at each position
+        // write at random and capture the rows at each position
         const captured: { readonly position: LogPosition; readonly rows: unknown[] }[] = [];
         for (let index = 0; index < WRITES; index += 1) {
             const id = `i${Math.floor(random(seed) * 12)}`;
@@ -79,7 +79,7 @@ test.for(TEST_DIALECTS)(
             captured.push({ position: await database.log.position(), rows });
         }
 
-        // read each position's snapshot: matching rows, one row by key, and the first rows of an order
+        // read each position's snapshot
         for (const { position, rows } of captured) {
             const snapshot = database.log.at(position);
             const matching = (rows as { id: string; scope: string; rank: number }[]).filter(
@@ -115,7 +115,7 @@ test.for(TEST_DIALECTS)(
         const database = test.database;
         const everything = Condition.all();
 
-        // write both tables, take a position, then change both and compact the window
+        // write, take a position, change and compact
         await database.insert(item).values({ id: "a", scope: "inbox", rank: 1, label: null });
         await database.insert(revision).values({ id: "r", scope: "inbox", title: "First" });
         const position = await database.log.position();
@@ -124,7 +124,7 @@ test.for(TEST_DIALECTS)(
         await database.log.compact(Date.now() + 1);
         const snapshot = database.log.at(position);
 
-        // restore the history table, and refuse the window table whose changes are gone
+        // restore the history table and refuse the window table
         expect(await snapshot.rows(revision, everything)).toEqual([
             { id: "r", scope: "inbox", title: "First" },
         ]);
@@ -132,7 +132,7 @@ test.for(TEST_DIALECTS)(
             code: "CHANGES_COMPACTED",
         });
 
-        // refuse any read once a restore starts a new epoch
+        // refuse reads after a new epoch
         await database.log.renew();
         await expect(snapshot.rows(revision, everything)).rejects.toMatchObject({
             code: "STALE_EPOCH",
@@ -149,7 +149,7 @@ test.for(TEST_DIALECTS)(
         await database.insert(item).values({ id: "i1", scope: "inbox", rank: 1, label: "x" });
         const committed = await database.log.position();
 
-        // change, add and delete rows inside a transaction, then read the head and a snapshot at it
+        // write inside a transaction and read the head and a snapshot
         const [position, rows, row] = await database.transaction(async (transaction) => {
             await transaction.update(item).set({ rank: 5 }).where(eq(item.id, "i1"));
             await transaction.insert(item).values({ id: "i2", scope: "inbox", rank: 2 });
@@ -163,7 +163,7 @@ test.for(TEST_DIALECTS)(
             ] as const;
         });
 
-        // show the latest commit, with the transaction's own writes undone
+        // show the latest commit without the transaction's writes
         expect([position, rows, row]).toEqual([
             committed,
             [{ id: "i1", scope: "inbox", rank: 1, label: "x" }],

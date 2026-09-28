@@ -1,11 +1,11 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { asc, defineTable, eq, integer, text } from "../../index.ts";
-import { connect } from "../turso/connection.ts";
+import { connect } from "../bun/connection.ts";
 import { relayHub } from "../../test/relay.ts";
 import { relayNotifier } from "../../log/notifier.ts";
 import { connectShared, Party, serveDatabase, type Message } from "./shared.ts";
 
-/** Notes a party writes through the owner. */
+/** Notes a party writes. */
 const note = defineTable("shared_note", {
     /** The note's identifier. */
     id: text("id").primaryKey(),
@@ -24,7 +24,7 @@ test("run a party's statements and transactions on the owner's connection, notif
     const party = connectShared(join(), "tab-2", [note]);
     onTestFinished(() => party.close());
 
-    // write and read through the owner, and see the owner's own writes
+    // write and read through the owner
     await party.insert(note).values({ id: "a", rank: 1 });
     await owner.insert(note).values({ id: "b", rank: 2 });
     const ranks = async () =>
@@ -34,7 +34,7 @@ test("run a party's statements and transactions on the owner's connection, notif
         ["b", 2],
     ]);
 
-    // commit a transaction as a whole, and roll back one that fails
+    // commit a transaction and roll back a failing one
     await party.transaction(async (transaction) => {
         await transaction.update(note).set({ rank: 3 }).where(eq(note.id, "a"));
         await transaction.insert(note).values({ id: "c", rank: 4 });
@@ -51,7 +51,7 @@ test("run a party's statements and transactions on the owner's connection, notif
         ["c", 4],
     ]);
 
-    // wake the party's readers when the owner commits
+    // wake the party on the owner's commit
     const waiting = party.log.until(
         async () => (await party.select().from(note)).length === 4,
         AbortSignal.timeout(2000),
@@ -61,7 +61,7 @@ test("run a party's statements and transactions on the owner's connection, notif
 });
 
 test("hold requests until an owner serves, and fail requests a replaced owner left unanswered", async () => {
-    // ask before any owner serves, and answer once one does
+    // ask before an owner serves
     const join = relayHub<Message>();
     const first = await connect(":memory:", [note]);
     onTestFinished(() => first.close());
@@ -73,7 +73,7 @@ test("hold requests until an owner serves, and fail requests a replaced owner le
     const transaction = await held;
     expect(transaction.id).toBe(0);
 
-    // fail a request the first owner received but never answered, once a second owner serves
+    // fail an unanswered request once a second owner serves
     stopFirst();
     const unanswered = party.request({
         type: "statement",
@@ -88,7 +88,7 @@ test("hold requests until an owner serves, and fail requests a replaced owner le
     onTestFinished(serveDatabase(second.$client, join()));
     await expect(unanswered).rejects.toMatchObject({ code: "OWNER_CHANGED" });
 
-    // fail a step of the first owner's transaction, which the second owner's own transaction 0 never receives
+    // fail a step of the first owner's transaction
     const replaced = party.begin("deferred");
     const stale = party.request(
         {

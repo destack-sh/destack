@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { Plan, type Provider, type ResourceRecord } from "@destack/resource";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { Database } from "../declare/database.ts";
-import { connect } from "./turso/connection.ts";
+import { connect } from "./bun/connection.ts";
 import type { SqliteDatabase } from "./database.ts";
 import type { Table } from "../table/table.ts";
 import { DatabaseError } from "../error/error.ts";

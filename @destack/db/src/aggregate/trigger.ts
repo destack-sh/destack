@@ -5,13 +5,13 @@ import { condition, quote } from "../dialect/quote.ts";
 import type { AggregateDescription } from "../inspect/aggregate.ts";
 import { LOG_COPYING } from "../log/schema.ts";
 
-/** Generate the triggers keeping an aggregate current as the aggregated rows change. */
+/** Generate the triggers keeping an aggregate current. */
 function install(aggregate: AggregateDescription, dialect: Dialect): string[] {
-    // name the triggers after the holding column, and skip rows a replica copies
+    // name the triggers and skip replica copies
     const prefix = triggerPrefix(aggregate);
     const idle = `NOT EXISTS (SELECT 1 FROM ${quote(LOG_COPYING)})`;
 
-    // keep counts and sums by their difference, and recompute minimums and maximums
+    // adjust counts and sums by difference, and recompute extremes
     if (dialect === "sqlite") {
         return [
             `CREATE TRIGGER ${quote(`${prefix}_insert`)} AFTER INSERT ON ${quote(aggregate.source)}
@@ -66,19 +66,19 @@ function remove(aggregate: AggregateDescription, dialect: Dialect): string[] {
     }
 }
 
-/** Compute an aggregate afresh for every holding row, as adding it or changing it requires. */
+/** Compute an aggregate for every holding row. */
 export function recomputeAggregate(aggregate: AggregateDescription, dialect: Dialect): string {
     return `UPDATE ${quote(aggregate.table)} SET ${quote(aggregate.column)} = (${computed(aggregate, dialect)})`;
 }
 
-/** Adjust the aggregate of the row a changed row references, by its difference or afresh. */
+/** Adjust the aggregate of the row a changed row references. */
 function adjust(
     aggregate: AggregateDescription,
     row: "OLD" | "NEW",
     sign: 1 | -1,
     dialect: Dialect,
 ): string {
-    // adjust only rows the aggregated row counts toward
+    // adjust only the referenced row
     const holding = `${quote(aggregate.table)}.${quote(aggregate.id)} = ${row}.${quote(aggregate.key)}`;
     const matching = aggregate.where
         .map((entry) => `${row}.${quote(entry.column)} ${condition(entry.value, dialect)}`)
@@ -94,13 +94,13 @@ function adjust(
         return `UPDATE ${quote(aggregate.table)} SET ${column} = ${column} ${sign > 0 ? "+" : "-"} ${amount} WHERE ${holding}${guard};`;
     }
 
-    // recompute minimums and maximums of the referenced row
+    // recompute extremes
     return `UPDATE ${quote(aggregate.table)} SET ${column} = (${computed(aggregate, dialect)}) WHERE ${holding};`;
 }
 
 /** Select an aggregate of the rows referencing a holding row. */
 function computed(aggregate: AggregateDescription, dialect: Dialect): string {
-    // aggregate the matching rows referencing the holder
+    // aggregate the matching referencing rows
     const source = quote(aggregate.source);
     const expression =
         aggregate.function === "count"
@@ -115,12 +115,12 @@ function computed(aggregate: AggregateDescription, dialect: Dialect): string {
     return `SELECT ${expression} FROM ${source} WHERE ${source}.${quote(aggregate.key)} = ${quote(aggregate.table)}.${quote(aggregate.id)}${matching.join("")}`;
 }
 
-/** Name an aggregate's triggers after its source and holding column. */
+/** Name an aggregate's triggers. */
 function triggerPrefix(aggregate: AggregateDescription): string {
     return `${aggregate.source}__${aggregate.table}_${aggregate.column}`;
 }
 
-/** Test whether an update changed a column the aggregate reads, comparing with a dialect's null-safe operator. */
+/** Test whether an update changed a column the aggregate reads. */
 function changed(aggregate: AggregateDescription, operator: "IS NOT" | "IS DISTINCT FROM"): string {
     return [
         aggregate.key,
@@ -131,7 +131,7 @@ function changed(aggregate: AggregateDescription, operator: "IS NOT" | "IS DISTI
         .join(" OR ");
 }
 
-/** The triggers keeping the aggregates a table's rows feed. */
+/** The triggers keeping aggregates current. */
 export const aggregateTriggers: Triggers = {
     install: (state, dialect) =>
         (state.aggregates ?? []).flatMap((aggregate) => install(aggregate, dialect)),

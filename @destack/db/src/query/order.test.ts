@@ -4,10 +4,10 @@ import { defineTable } from "../table/table.ts";
 import { boolean, integer, text, timestamp } from "../table/column.ts";
 import { Order, type OrderKey } from "./order.ts";
 
-/** The random orders each dialect sorts in SQL and memory. */
+/** The random orders per dialect. */
 const ORDERS = 100;
 
-/** Rows with nullable columns of several orderable kinds and many ties. */
+/** Rows with nullable orderable columns and many ties. */
 const sample = defineTable("order_sample", {
     /** The row's key. */
     id: integer("id").primaryKey(),
@@ -21,7 +21,7 @@ const sample = defineTable("order_sample", {
     dueAt: timestamp("due_at"),
 });
 
-/** The values each column takes, missing ones among them. */
+/** The values of each column. */
 const VALUES: Readonly<Record<string, readonly unknown[]>> = {
     name: ["a", "B", "é", "😀", "￿", "", null],
     rank: [-1, 0, 3, null],
@@ -29,7 +29,7 @@ const VALUES: Readonly<Record<string, readonly unknown[]>> = {
     dueAt: [new Date(0), new Date(1790244000123), null],
 };
 
-/** Draw a pseudo-random number from a seed, the same sequence every run. */
+/** Draw a seeded pseudo-random number. */
 function random(seed: { value: number }): number {
     seed.value = (seed.value * 1_103_515_245 + 12_345) % 2_147_483_648;
 
@@ -46,7 +46,7 @@ test.for(TEST_DIALECTS)("sort and page rows alike in SQL and in memory on %s", a
     onTestFinished(() => test.close());
     const database = test.database;
 
-    // hold rows of few values per column, so that orders tie often
+    // hold rows that tie often
     const seed = { value: 11 };
     const rows = Array.from({ length: 50 }, (_, id) =>
         Object.fromEntries([
@@ -56,7 +56,7 @@ test.for(TEST_DIALECTS)("sort and page rows alike in SQL and in memory on %s", a
     );
     await database.insert(sample).values(rows as never);
 
-    // sort by random keys completed with the primary key, and page after a random row
+    // sort by random keys and page after a random row
     for (let index = 0; index < ORDERS; index += 1) {
         const keys: OrderKey[] = Array.from({ length: 1 + Math.floor(random(seed) * 3) }, () => ({
             column: pick(Object.keys(VALUES), seed),
@@ -66,7 +66,7 @@ test.for(TEST_DIALECTS)("sort and page rows alike in SQL and in memory on %s", a
         const sorted = [...rows].sort((left, right) => Order.rows(order, left, right));
         const boundary = pick(sorted, seed);
 
-        // expect the same sequence from SQL, and the same rows after the boundary
+        // match the SQL order and page
         const selected = await database
             .select({ id: sample.id })
             .from(sample)
@@ -86,7 +86,7 @@ test.for(TEST_DIALECTS)("sort and page rows alike in SQL and in memory on %s", a
 });
 
 test("refuse orders naming a column twice or more than sixteen keys", () => {
-    // refuse a repeated column, and more keys than any index serves
+    // refuse a repeated column and too many keys
     const key = { column: "id", direction: "asc" as const };
     expect(() => Order.require([key, key], sample)).toThrow(
         "order holds more than 16 keys, or one column twice",

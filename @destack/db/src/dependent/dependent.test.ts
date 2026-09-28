@@ -17,7 +17,7 @@ test.for(TEST_DIALECTS)(
                 (row) => row.id,
             );
 
-        // remark on two posts, a section of the first, and a photo sharing the first post's identifier
+        // remark on two posts, a section and a photo
         await database.insert(post).values([{ id: "a" }, { id: "b" }]);
         await database.insert(section).values([{ id: "s", postId: "a" }]);
         await database.insert(photo).values([{ id: "a" }]);
@@ -28,11 +28,11 @@ test.for(TEST_DIALECTS)(
             { id: "4", subjectType: "photo", subjectId: "a" },
         ]);
 
-        // delete the first post's remarks and its section's, never the photo's of the same identifier
+        // delete the first post's and its section's remarks
         await database.delete(post).where(eq(post.id, "a"));
         expect(await read()).toEqual(["2", "4"]);
 
-        // refuse deleting the remarked photo, keeping it and its remark
+        // refuse deleting the remarked photo
         await expect(database.delete(photo).where(eq(photo.id, "a"))).rejects.toThrow(
             new DatabaseError(
                 "BROKEN_REFERENCE",

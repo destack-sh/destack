@@ -7,21 +7,21 @@ import type { DatabaseConnection } from "../database/connection.ts";
 import type { Snapshot } from "../log/snapshot.ts";
 import { sql, type SQL } from "drizzle-orm";
 
-/** A scoped parent relationship with a transactionally maintained ancestor index. */
+/** A scoped parent relationship with an ancestor index. */
 export class Tree {
-    /** The immutable column selection that migrations and inspection use. */
+    /** The tree's columns. */
     readonly definition: TreeDefinition;
-    /** The ancestor index table, including each node at depth zero. */
+    /** The ancestor index table, each node at depth zero included. */
     readonly ancestors;
-    /** The revision table serializing concurrent hierarchy writes within one scope. */
+    /** The revision table serializing hierarchy writes per scope. */
     readonly revision;
 
-    /** Describe an existing application table's tree columns. */
+    /** Create the tree of a table's columns. */
     constructor(definition: TreeDefinition) {
-        // retain the selected columns independently of the caller's declaration object
+        // copy the columns
         this.definition = Object.freeze({ ...definition });
 
-        // require text identities and an optional parent in an existing application table
+        // require text identities and an optional parent
         for (const name of [definition.id, definition.scope, definition.parent]) {
             const column = definition.table[TABLE].columns[name];
             if (
@@ -38,7 +38,7 @@ export class Tree {
             }
         }
 
-        // index both ancestor membership and descendant lookup within each scope
+        // index ancestors and descendants per scope
         const name = `${definition.table[TABLE].name}_${definition.name}_ancestor`;
         const owner = { package: definition.table[TABLE].package };
         this.ancestors = defineTable(
@@ -57,13 +57,13 @@ export class Tree {
                     }),
                     index(`${name}_descendant`).on(path.scope, path.descendant, path.ancestor),
                 ],
-                // log each path under its scope, so that feeds read the tree as of a position and follow its moves
+                // log each path under its scope
                 log: { tier: "window" },
             },
             owner,
         );
 
-        // retain the lock row in the ordinary schema and migration snapshots
+        // declare the revision table
         this.revision = defineTable(
             `${name}_revision`,
             { scope: text("scope").primaryKey(), revision: integer("revision").notNull() },
@@ -72,7 +72,7 @@ export class Tree {
         );
     }
 
-    /** Read the proper ancestors of some nodes of a scope through the index, nearest first, as a snapshot shows them. */
+    /** Read some nodes' proper ancestors through the index, nearest first. */
     async ancestry(
         snapshot: Snapshot,
         scope: string,
@@ -93,7 +93,7 @@ export class Tree {
             }));
     }
 
-    /** Describe the physical columns used by generated maintenance SQL. */
+    /** Describe the tree's physical columns. */
     describe(): TreeDescription {
         const { table, name, id, scope, parent } = this.definition;
         const columns = table[TABLE].columns;
@@ -147,14 +147,14 @@ export class Tree {
         )`;
     }
 
-    /** Move a subtree, or make it a root, with engine-enforced cycle protection. */
+    /** Move a subtree or make it a root, refusing cycles. */
     async move(
         scope: string,
         id: string,
         parent: string | null,
         database: DatabaseConnection,
     ): Promise<void> {
-        // update the parent and require the node to exist
+        // update the parent of an existing node
         const tree = this.describe();
         const rows = await database.execute(sql`UPDATE ${sql.identifier(tree.table)}
             SET ${sql.identifier(tree.parent)} = ${parent}
@@ -165,7 +165,7 @@ export class Tree {
         }
     }
 
-    /** Remove a node with an explicit policy for its children. */
+    /** Remove a node with a policy for its children. */
     async remove(
         scope: string,
         id: string,
@@ -175,7 +175,7 @@ export class Tree {
         const tree = this.describe();
         await database.transaction(
             async (transaction) => {
-                // retain the parent's identity before reparenting children or deleting descendants
+                // read the parent first
                 const rows = await transaction.execute<{ parent: string | null }>(sql`
                 SELECT ${sql.identifier(tree.parent)} AS parent FROM ${sql.identifier(tree.table)}
                 WHERE ${sql.identifier(tree.scope)} = ${scope} AND ${sql.identifier(tree.id)} = ${id}`);
@@ -183,13 +183,13 @@ export class Tree {
                     throw new DatabaseError("TREE_NOT_FOUND", "tree node not found");
                 }
 
-                // move direct children to the deleted node's parent
+                // move the children to the parent
                 if (children === "reparent") {
                     await transaction.execute(sql`UPDATE ${sql.identifier(tree.table)}
                     SET ${sql.identifier(tree.parent)} = ${rows[0].parent}
                     WHERE ${sql.identifier(tree.scope)} = ${scope} AND ${sql.identifier(tree.parent)} = ${id}`);
                 }
-                // delete the strict descendants in one statement, which checks the parent invariant at its end
+                // delete the strict descendants in one statement
                 else if (children === "subtree") {
                     await transaction.execute(sql`DELETE FROM ${sql.identifier(tree.table)}
                     WHERE ${sql.identifier(tree.scope)} = ${scope} AND ${sql.identifier(tree.id)} IN (
@@ -197,7 +197,7 @@ export class Tree {
                         WHERE scope = ${scope} AND ancestor = ${id} AND depth > 0
                     )`);
                 }
-                // leave child rejection to the same constraint that protects ordinary SQL writes
+                // leave rejection to the constraint
                 else if (children !== "restrict") {
                     assertNever(children);
                 }
@@ -211,24 +211,24 @@ export class Tree {
     }
 }
 
-/** The treatment of children when removing a tree node. */
+/** How a removal treats the node's children. */
 export type TreeDeletion = "restrict" | "subtree" | "reparent";
 
-/** Columns defining one single-parent tree within each scope. */
+/** The columns of one single-parent tree per scope. */
 export interface TreeDefinition {
-    /** The stable declaration name used in generated SQL identifiers. */
+    /** The declaration name. */
     readonly name: string;
-    /** The existing application table. */
+    /** The application table. */
     readonly table: Table;
-    /** The application property containing the node identity. */
+    /** The node identity property. */
     readonly id: string;
-    /** The application property containing the tree scope. */
+    /** The tree scope property. */
     readonly scope: string;
-    /** The application property containing the nullable parent identity. */
+    /** The nullable parent property. */
     readonly parent: string;
 }
 
-/** Include each tree's ancestor and revision tables beside its source table, once. */
+/** Add each tree's ancestor and revision tables beside its table. */
 export function expandTrees(tables: readonly Table[]): Table[] {
     return [
         ...new Set(

@@ -14,20 +14,20 @@ import { DefaultLogger, type Logger, NoopLogger } from "drizzle-orm/logger";
 import type { DrizzleSQLiteConfig } from "drizzle-orm/sqlite-core/utils";
 import type { ConnectionClient, QueryClient, Statement } from "./client.ts";
 
-/** Execute Drizzle queries through a SQLite connection or transaction handle. */
+/** Run Drizzle queries through a SQLite connection or transaction. */
 export abstract class Session<Result, Relations extends AnyRelations> extends SQLiteAsyncSession<
     "async",
     Result,
     Relations
 > {
-    /** The connection or transaction that executes statements. */
+    /** The executing connection or transaction. */
     readonly client: QueryClient<Result>;
-    /** Query logging, cache, and relation options. */
+    /** The Drizzle options. */
     readonly options: DrizzleSQLiteConfig<Relations>;
-    /** The query logger shared by this session's statements. */
+    /** The query logger. */
     readonly logger: Logger;
 
-    /** Retain the query client and compiler options. */
+    /** Create the session. */
     constructor(client: QueryClient<Result>, options: DrizzleSQLiteConfig<Relations>) {
         // configure the dialect, client and logger
         super(new SQLiteDialect({ useJitMappers: options.jit ?? false }), "async");
@@ -37,12 +37,12 @@ export abstract class Session<Result, Relations extends AnyRelations> extends SQ
             options.logger === true ? new DefaultLogger() : options.logger || new NoopLogger();
     }
 
-    /** Execute a script of statements in one call to the client. */
+    /** Execute a script in one call. */
     async exec(script: string): Promise<void> {
         await this.client.exec(script);
     }
 
-    /** Compile query execution while retaining Drizzle's result mapping. */
+    /** Prepare a query with Drizzle's result mapping. */
     prepareQuery(
         ...arguments_: Parameters<SQLiteAsyncSession<"async", Result, Relations>["prepareQuery"]>
     ) {
@@ -51,7 +51,7 @@ export abstract class Session<Result, Relations extends AnyRelations> extends SQ
         const client = this.client;
         let statement: Promise<Statement<Result>> | undefined;
 
-        // retain prepared statements only when requested by the query builder
+        // keep prepared statements only when asked
         return new SQLiteAsyncPreparedQuery<
             SQLiteAsyncPreparedQueryConfig & { type: "async"; run: Result }
         >(
@@ -105,17 +105,17 @@ export abstract class Session<Result, Relations extends AnyRelations> extends SQ
     }
 }
 
-/** A query session that starts transactions through SQLite. */
+/** A session that starts SQLite transactions. */
 export class ConnectionSession<Result, Relations extends AnyRelations> extends Session<
     Result,
     Relations
 > {
-    /** The physical connection used to create transaction handles. */
+    /** The physical connection. */
     readonly connection: ConnectionClient<Result>;
-    /** The relations shared by queries and transactions. */
+    /** The relations of queries and transactions. */
     readonly relations: Relations;
 
-    /** Retain the physical connection and relation definitions. */
+    /** Create the session. */
     constructor(
         client: ConnectionClient<Result>,
         relations: Relations,
@@ -126,7 +126,7 @@ export class ConnectionSession<Result, Relations extends AnyRelations> extends S
         this.relations = relations;
     }
 
-    /** Commit or roll back a callback on a dedicated transaction handle. */
+    /** Commit or roll back a callback in a transaction. */
     transaction<Value>(
         operation: (transaction: Transaction<Result, Relations>) => Promise<Value>,
         configuration?: SQLiteTransactionConfig,
@@ -143,24 +143,24 @@ export class ConnectionSession<Result, Relations extends AnyRelations> extends S
     }
 }
 
-/** Drizzle queries scoped to one transaction or savepoint. */
+/** Drizzle queries in one transaction or savepoint. */
 export class Transaction<Result, Relations extends AnyRelations> extends SQLiteAsyncTransaction<
     "async",
     Result,
     Relations
 > {}
 
-/** Queries and savepoints within one SQLite transaction. */
+/** Queries and savepoints in one SQLite transaction. */
 export class TransactionSession<Result, Relations extends AnyRelations> extends Session<
     Result,
     Relations
 > {
-    /** The relation definitions available to nested transactions. */
+    /** The relations of nested transactions. */
     readonly relations: Relations;
     /** The current savepoint depth. */
     readonly depth: number;
 
-    /** Retain the scoped transaction handle. */
+    /** Create the session. */
     constructor(
         client: QueryClient<Result>,
         relations: Relations,
@@ -172,7 +172,7 @@ export class TransactionSession<Result, Relations extends AnyRelations> extends 
         this.depth = depth;
     }
 
-    /** Execute a nested transaction using a savepoint. */
+    /** Run a nested transaction in a savepoint. */
     async transaction<Value>(
         operation: (transaction: Transaction<Result, Relations>) => Promise<Value>,
     ): Promise<Value> {
@@ -192,7 +192,7 @@ export class TransactionSession<Result, Relations extends AnyRelations> extends 
 
             return result;
         } catch (error) {
-            // preserve both failures when the savepoint cannot be restored
+            // keep both failures when the savepoint cannot be restored
             try {
                 await this.run(sql`ROLLBACK TO SAVEPOINT ${name}`);
                 await this.run(sql`RELEASE SAVEPOINT ${name}`);

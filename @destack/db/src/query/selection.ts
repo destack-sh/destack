@@ -5,16 +5,16 @@ import { type Select, TABLE, Table } from "../table/table.ts";
 import type { SchemaCompiler } from "../dialect/compiler.ts";
 import type { DrizzleSelection } from "../dialect/drizzle.ts";
 
-/** The source qualifier retained by inferred subquery fields. */
+/** The source qualifier of subquery fields. */
 export declare const SOURCE: unique symbol;
 
-/** Fields selected from tables, expressions, or nested groups. */
+/** The fields of a selection. */
 export interface Selection {
     /** A selected field or nested group. */
     readonly [property: string]: Column | drizzle.Column | SQL | SQL.Aliased | Table | Selection;
 }
 
-/** The application record produced by a selection. */
+/** The record a selection produces. */
 export type SelectionResult<Fields extends Selection, NullableTables extends string = never> = {
     [Property in keyof Fields]: Fields[Property] extends Column<
         infer Value,
@@ -46,7 +46,7 @@ export type SelectionResult<Fields extends Selection, NullableTables extends str
                 : never;
 };
 
-/** Tables referenced directly by a nested selection. */
+/** The tables a nested selection references. */
 type SelectionTables<Fields extends Selection> = {
     [Property in keyof Fields]: Fields[Property] extends Column<
         unknown,
@@ -60,7 +60,7 @@ type SelectionTables<Fields extends Selection> = {
           : never;
 }[keyof Fields];
 
-/** A nested selection becomes NULL only when it belongs to one nullable joined table. */
+/** A nested selection of one nullable joined table. */
 type NullableSelection<
     Fields extends Selection,
     NullableTables extends string,
@@ -68,11 +68,11 @@ type NullableSelection<
     Name = Names,
 > = Name extends NullableTables ? ([Names] extends [Name] ? null : never) : never;
 
-/** Translate selected declarations while retaining property names and nesting. */
+/** Translate selected fields. */
 export function selectFields(fields: Selection, compiler: SchemaCompiler): DrizzleSelection {
     const selection: DrizzleSelection = {};
 
-    // preserve SQL objects so their result decoders and aliases remain intact
+    // keep SQL objects intact
     for (const [property, field] of Object.entries(fields)) {
         // translate a logical column
         if (field instanceof Column) {

@@ -7,7 +7,7 @@ import { changeTables, note } from "../../log/test/fixture.ts";
 import { relayHub } from "../../test/relay.ts";
 
 test("declare, log and query tables on SQLite WebAssembly through a relay, as a browser tab does", async () => {
-    // serve an in-memory WebAssembly database to a party
+    // serve an in-memory database to a party
     const sqlite = await init();
     const client = new WasmClient(new sqlite.oo1.DB(":memory:"));
     const join = relayHub<Message>();
@@ -19,7 +19,7 @@ test("declare, log and query tables on SQLite WebAssembly through a relay, as a 
     const database = connectShared(join(), "tab-1", changeTables);
     onTestFinished(() => database.close());
 
-    // declare the tables with their log triggers, and log a write
+    // migrate the tables and log a write
     await database.migrate(changeTables);
     const values = {
         id: "a",
@@ -32,13 +32,13 @@ test("declare, log and query tables on SQLite WebAssembly through a relay, as a 
         attachment: new Uint8Array([1, 2, 3]),
     };
     await database.insert(note).values(values);
-    expect(await database.log.latest()).toBe(1);
+    expect((await database.log.position()).sequence).toBe(1);
 
-    // read exact integers, dates and binary values back
+    // read exact values back
     const [row] = await database.select().from(note).orderBy(asc(note.id));
     expect(row).toEqual(values);
 
-    // roll back a failing transaction as a whole
+    // roll back a failing transaction
     await expect(
         database.transaction(async (transaction) => {
             await transaction.update(note).set({ title: "Changed" }).where(eq(note.id, "a"));

@@ -5,7 +5,7 @@ import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 import type { PreparedQuery } from "../query/select.ts";
 import type { Selection } from "../query/selection.ts";
 
-/** A Drizzle database, as SQLite and PostgreSQL build queries on it alike. */
+/** A Drizzle database of either dialect. */
 export interface DrizzleDatabase {
     /** Name a query for later selections. */
     $with(alias: string): { as(query: unknown): unknown };
@@ -17,15 +17,15 @@ export interface DrizzleDatabase {
     delete(table: unknown): DrizzleMutation;
 }
 
-/** A Drizzle insertion before it becomes dynamic. */
+/** A Drizzle insertion. */
 export interface DrizzleInsert {
-    /** Allow chaining conflict handling and returned fields. */
+    /** Make the insertion dynamic. */
     $dynamic(): DrizzleMutation;
 }
 
-/** A Drizzle mutation, as SQLite and PostgreSQL build it alike. */
+/** A Drizzle mutation of either dialect. */
 export interface DrizzleMutation extends PromiseLike<unknown> {
-    /** Describe SQL and positional parameters. */
+    /** Render the SQL and parameters. */
     toSQL(): Query;
     /** Prepare a reusable mutation. */
     prepare(): { execute(parameters?: Record<string, unknown>): Promise<unknown> };
@@ -53,15 +53,15 @@ export interface DrizzleMutation extends PromiseLike<unknown> {
     returning(fields: object): DrizzleMutation;
 }
 
-/** A Drizzle selection, as SQLite and PostgreSQL build it alike. */
+/** A Drizzle selection of either dialect. */
 export interface DrizzleSelect extends PromiseLike<unknown[]>, SQLWrapper {
-    /** Describe SQL and positional parameters. */
+    /** Render the SQL and parameters. */
     toSQL(): Query;
     /** Prepare a reusable selection. */
     prepare(): PreparedQuery<unknown[]>;
     /** Name this selection. */
     as(alias: string): Subquery;
-    /** Read selected fields and their native decoders. */
+    /** Read the selected fields. */
     getSelectedFields(): Selection;
     /** Join matching rows. */
     innerJoin(table: SQLiteTable | PgTable | Subquery, on?: SQL): DrizzleSelect;

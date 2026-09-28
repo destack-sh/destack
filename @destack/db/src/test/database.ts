@@ -8,45 +8,49 @@ import type { Dialect } from "../dialect/dialect.ts";
 import type { Table } from "../table/table.ts";
 import type * as declaration from "../declare/database.ts";
 import { declareState } from "../migration/state.ts";
-import * as turso from "../sqlite/turso/connection.ts";
+import * as sqlite from "../sqlite/bun/connection.ts";
 import * as postgresql from "../postgres/connection.ts";
 import { LOG_EPOCH } from "../log/schema.ts";
+import { relayNotifier } from "../log/notifier.ts";
+import { relayHub } from "./relay.ts";
 import { planMigration } from "../migration/database.ts";
 import { readState, STATE, type TableState } from "../migration/state.ts";
 
-/** The dialects tests run on: SQLite, and PostgreSQL when DESTACK_TEST_POSTGRES names a server. */
+/** The test dialects: SQLite, and PostgreSQL when DESTACK_TEST_POSTGRES names a server. */
 export const TEST_DIALECTS: readonly Dialect[] = [
     "sqlite",
     ...(process.env.DESTACK_TEST_POSTGRES ? (["postgresql"] as const) : []),
 ];
 
-/** The migrated SQLite templates of this process, by declared state. */
+/** The migrated SQLite templates, by declared state. */
 const templates = new Map<string, Promise<string>>();
 
-/** How long an unclaimed migrated test schema stays for reuse, in milliseconds: a day, past which its declared state has likely changed. */
+/**
+ * How long an unclaimed test schema stays for reuse, in milliseconds.
+ *
+ * Past a day its declared state has likely changed.
+ */
 const SCHEMA_RETENTION_MILLISECONDS = 24 * 60 * 60 * 1000;
 
-/** The server connection creating, resetting and dropping test schemas, opened once per process. */
+/** The server connection managing test schemas. */
 let administration: Promise<postgres.Sql> | undefined;
 
 /**
- * An isolated database for one test: in memory or a temporary file for SQLite, a schema for PostgreSQL.
+ * An isolated database for one test: a SQLite memory or file database, or a PostgreSQL schema.
  *
- * A schema takes milliseconds where a database takes a hundred, and copying a migrated template takes a millisecond where migrating takes tens.
- * Migrating a PostgreSQL schema runs about a hundred DDL statements at nearly a millisecond each, so migrated schemas stay on the server, named by their declared state.
- * A test claims one through an advisory lock a claim connection holds until the test database closes or its process ends, and resets it to what migrating left.
+ * Migrated PostgreSQL schemas stay on the server by declared state, claimed through advisory locks and reset per test.
  */
 export class TestDatabase {
-    /** The first connection, bound to the tables given at creation. */
+    /** The first connection. */
     readonly database: DatabaseConnection & { close(): Promise<void> };
-    /** Open another connection to the same database, absent for SQLite in memory. */
+    /** Open another connection, absent for SQLite in memory. */
     readonly #open: TestConnector | undefined;
-    /** Remove the database once its connections closed. */
+    /** Remove the database. */
     readonly #remove: () => Promise<void>;
-    /** The further connections still open, which closing the database closes first. */
+    /** The other open connections. */
     readonly #connections = new Set<TestConnection>();
 
-    /** Retain the first connection, how to reach the database again, and how to remove it. */
+    /** Create the test database. */
     private constructor(
         database: TestDatabase["database"],
         open: TestConnector | undefined,
@@ -57,7 +61,7 @@ export class TestDatabase {
         this.#remove = remove;
     }
 
-    /** Create an isolated database of a dialect, empty or migrated to its tables, in a file when further connections need it. */
+    /** Create an isolated database, empty or migrated. */
     static async create(
         dialect: Dialect,
         tables: declaration.Database | readonly Table[],
@@ -65,7 +69,7 @@ export class TestDatabase {
     ): Promise<TestDatabase> {
         const declared = "tables" in tables ? tables.tables : tables;
 
-        // claim or create a schema on the test server
+        // claim or create a PostgreSQL schema
         if (dialect === "postgresql") {
             const address = process.env.DESTACK_TEST_POSTGRES;
             if (!address) {
@@ -83,7 +87,7 @@ export class TestDatabase {
                         connected,
                     );
 
-            // claim a migrated schema of the same declared state, else migrate a new one kept for later tests
+            // claim a migrated schema or migrate a new one
             if (options.isMigrated) {
                 const state = declareState(declared, "postgresql", {
                     isReplica: options.isReplica ?? false,
@@ -95,7 +99,7 @@ export class TestDatabase {
                 );
             }
 
-            // create an empty schema, dropped with the test
+            // create an empty schema
             const schema = `test_${crypto.randomUUID().replaceAll("-", "")}`;
             await server.unsafe(`CREATE SCHEMA "${schema}"`);
 
@@ -110,12 +114,12 @@ export class TestDatabase {
         // keep empty SQLite in memory
         else if (!options.isMigrated && (options.storage ?? "memory") === "memory") {
             return new TestDatabase(
-                await turso.connect(":memory:", tables),
+                await sqlite.connect(":memory:", tables),
                 undefined,
                 async () => {},
             );
         }
-        // keep SQLite in a temporary file, copied from the process's migrated template when asked
+        // copy SQLite from the migrated template into a temporary file
         else {
             const directory = await mkdtemp(join(tmpdir(), "destack-test-"));
             const file = join(directory, "test.db");
@@ -123,10 +127,13 @@ export class TestDatabase {
                 await copyFile(await sqliteTemplate(declared, options.isReplica ?? false), file);
             }
 
-            return new TestDatabase(
-                await turso.connect(file, tables),
-                (connected) => turso.connect(file, connected),
-                () => rm(directory, { recursive: true }),
+            // share commits through one relay
+            const relay = relayHub<{ readonly kind: string }>();
+            const open = (connected: declaration.Database | readonly Table[]) =>
+                sqlite.connect(file, connected, { notifier: relayNotifier(relay()) });
+
+            return new TestDatabase(await open(tables), open, () =>
+                rm(directory, { recursive: true }),
             );
         }
     }
@@ -135,12 +142,12 @@ export class TestDatabase {
     async connect(
         tables: declaration.Database | readonly Table[],
     ): Promise<DatabaseConnection & { close(): Promise<void> }> {
-        // require a database other connections can reach
+        // require a reachable database
         if (this.#open === undefined) {
             throw new TypeError("an in-memory SQLite database has no further connections");
         }
 
-        // track the connection until it closes, closing it once however often it is closed
+        // track the connection until it closes once
         const connection = await this.#open(tables);
         const closed = connection.close.bind(connection);
         let closing: Promise<void> | undefined;
@@ -154,7 +161,7 @@ export class TestDatabase {
         return connection;
     }
 
-    /** Close the further connections still open, then the first, and remove the database, whose claim ends with the first. */
+    /** Close every connection and remove the database. */
     async close(): Promise<void> {
         await Promise.all([...this.#connections].map((connection) => connection.close()));
         await this.database.close();
@@ -162,31 +169,31 @@ export class TestDatabase {
     }
 }
 
-/** How to create a test database. */
+/** The options of a test database. */
 export interface TestDatabaseOptions {
-    /** Where empty SQLite lives: in memory, or in a file further connections reach; migrated SQLite lives in a file. */
+    /** Where empty SQLite lives. */
     readonly storage?: "memory" | "file";
     /** Whether the database starts migrated to its tables. */
     readonly isMigrated?: boolean;
-    /** Whether it migrates as a copy of another database's tables: without their trees and references. */
+    /** Whether it migrates as a copy, without trees and references. */
     readonly isReplica?: boolean;
 }
 
-/** Migrate a SQLite template file of some tables once per process, as a source or a copy, and return its path. */
+/** Migrate a SQLite template once per process and return its path. */
 function sqliteTemplate(tables: readonly Table[], isReplica: boolean): Promise<string> {
-    // reuse the template of the same declared state
+    // reuse the template of the same state
     const key = JSON.stringify(declareState(tables, "sqlite", { isReplica }));
     const known = templates.get(key);
     if (known) {
         return known;
     }
 
-    // migrate a new file and fold its write-ahead log in, so copying the file copies everything
+    // migrate a file and checkpoint its WAL
     const created = (async () => {
-        // migrate the template in its own directory
+        // migrate in its own directory
         const directory = await mkdtemp(join(tmpdir(), "destack-template-"));
         const file = join(directory, "template.db");
-        const database = await turso.connect(file, tables);
+        const database = await sqlite.connect(file, tables);
         await database.migrate(tables, { isReplica });
         await database.executeScript("PRAGMA wal_checkpoint(TRUNCATE)");
         await database.close();
@@ -198,10 +205,10 @@ function sqliteTemplate(tables: readonly Table[], isReplica: boolean): Promise<s
     return created;
 }
 
-/** Open the process's administration connection, first dropping the migrated test schemas nobody claimed for a day. */
+/** Open the administration connection, dropping stale unclaimed schemas. */
 function administer(address: string): Promise<postgres.Sql> {
     administration ??= (async () => {
-        // drop each unclaimed schema past its retention, skipping the ones a test holds
+        // drop unclaimed schemas past retention
         const server = postgres(address, { max: 1, onnotice: () => {} });
         const expired = Date.now() - SCHEMA_RETENTION_MILLISECONDS;
         const schemas = await server<{ name: string }[]>`
@@ -222,7 +229,7 @@ function administer(address: string): Promise<postgres.Sql> {
     return administration;
 }
 
-/** Claim a migrated schema of a declared state, reset to what migrating left, else migrate a new one, under a claim connection the caller ends last. */
+/** Claim and reset a migrated schema, or migrate a new one. */
 async function claim(
     address: string,
     server: postgres.Sql,
@@ -234,17 +241,17 @@ async function claim(
     readonly database: TestConnection;
     readonly claim: postgres.Sql;
 }> {
-    // name the schemas of the declared state by its digest
+    // name the schemas by the state's digest
     const digest = new Uint8Array(
         await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(state))),
     );
     const prefix = `test_s${digest.subarray(0, 8).toHex()}_`;
 
-    // claim the first schema no other test holds, reusing it once reset
+    // claim the first free schema
     const schemas = await server<{ name: string }[]>`
         SELECT nspname AS name FROM pg_namespace WHERE starts_with(nspname, ${prefix})`;
     for (const { name } of schemas) {
-        // hold the schema on a connection of its own, which outlives every connection the test opens
+        // hold the claim on its own connection
         const held = postgres(address, { max: 1, onnotice: () => {} });
         if (await hold(held, name)) {
             const database = await connector(name)(tables);
@@ -256,12 +263,12 @@ async function claim(
         await held.end();
     }
 
-    // claim the new schema's name before it exists, so that no other test claims it half migrated
+    // name the new schema before it exists
     const schema = `${prefix}${crypto.randomUUID().replaceAll("-", "")}`;
     const held = postgres(address, { max: 1, onnotice: () => {} });
     await hold(held, schema);
 
-    // create it with its claim time in one statement, so that no cleanup finds it unclaimed, then migrate it
+    // create it with its claim time, then migrate it
     await server.unsafe(
         `CREATE SCHEMA "${schema}"; COMMENT ON SCHEMA "${schema}" IS '${Date.now()}';`,
     );
@@ -271,7 +278,7 @@ async function claim(
     return { schema, database, claim: held };
 }
 
-/** Take a schema's advisory lock on a claim connection, which holds it until the connection ends, reporting whether it was free. */
+/** Take a schema's advisory lock, reporting whether it was free. */
 async function hold(claim: postgres.Sql, schema: string): Promise<boolean> {
     const [held] = await claim<{ isHeld: boolean }[]>`
         SELECT pg_try_advisory_lock(hashtext(${schema})) AS "isHeld"`;
@@ -280,9 +287,9 @@ async function hold(claim: postgres.Sql, schema: string): Promise<boolean> {
 }
 
 /**
- * Reset a claimed schema to what migrating left, reporting false for one a test changed, which is dropped instead.
+ * Reset a claimed schema to its migrated state, returning false for a changed one.
  *
- * It deletes every row but the applied state with triggers off, restarts the sequences, starts a new log epoch, and requires the migration engine to find nothing to apply.
+ * The reset deletes rows, restarts sequences, starts a new epoch, and checks the plan is empty.
  */
 async function reset(
     server: postgres.Sql,
@@ -290,7 +297,7 @@ async function reset(
     schema: string,
     state: readonly TableState[],
 ): Promise<boolean> {
-    // refuse a schema holding tables beside its managed ones and the log's
+    // refuse a schema with foreign tables
     const managed = new Set((await readState(database)).map((applied) => applied.table.name));
     const tables = await server<{ name: string }[]>`
         SELECT tablename AS name FROM pg_tables WHERE schemaname = ${schema}`;
@@ -300,7 +307,7 @@ async function reset(
     const sequences = await server<{ name: string }[]>`
         SELECT sequencename AS name FROM pg_sequences WHERE schemaname = ${schema}`;
 
-    // delete every row but the applied state and the epoch, restart the sequences and start a new epoch
+    // delete the rows, restart the sequences and start a new epoch
     const quoted = (name: string) => `"${schema}"."${name}"`;
     const emptied = tables.filter((table) => table.name !== STATE && table.name !== LOG_EPOCH);
     if (!isForeign) {
@@ -313,7 +320,7 @@ async function reset(
         );
     }
 
-    // reuse the schema only when the migration engine finds nothing to apply
+    // reuse the schema only with an empty plan
     const isReset = !isForeign && (await planMigration(database, state)).steps.length === 0;
     if (!isReset) {
         await server.unsafe(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
@@ -325,5 +332,5 @@ async function reset(
 /** A connection to a test database. */
 type TestConnection = DatabaseConnection & { close(): Promise<void> };
 
-/** Open a connection to a test database with the tables its queries use. */
+/** Open a connection to a test database. */
 type TestConnector = (tables: declaration.Database | readonly Table[]) => Promise<TestConnection>;

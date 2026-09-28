@@ -1,6 +1,6 @@
 import { defineSchema, schema } from "@destack/schema";
 
-/** A column holding an aggregate of another table's rows that reference each row, as data. */
+/** A column holding an aggregate of the rows referencing each row. */
 export const AggregateDescription = defineSchema(
     schema.object({
         /** The SQL name of the table holding the aggregate. */
@@ -15,9 +15,9 @@ export const AggregateDescription = defineSchema(
         key: schema.string().min(1),
         /** The aggregate function. */
         function: schema.enum(["count", "sum", "min", "max"]),
-        /** The aggregated SQL column, for sums, minimums and maximums. */
+        /** The aggregated column, for sums and extremes. */
         value: schema.string().min(1).optional(),
-        /** The values the aggregated rows' SQL columns hold. */
+        /** The values the aggregated rows hold. */
         where: schema.array(
             schema.object({
                 /** The SQL column. */
@@ -33,5 +33,5 @@ export const AggregateDescription = defineSchema(
         ),
     }),
 );
-/** A column holding an aggregate of another table's rows that reference each row, as data. */
+/** A column holding an aggregate of the rows referencing each row. */
 export type AggregateDescription = schema.Infer<typeof AggregateDescription>;

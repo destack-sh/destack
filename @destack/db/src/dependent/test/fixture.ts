@@ -1,6 +1,6 @@
 import { defineTable, text } from "../../index.ts";
 
-/** Remarks on a post, a section of one, or a photo, naming their subject's type and identifier. */
+/** Remarks naming their subject's type and identifier. */
 export const remark = defineTable("dependent_remark", {
     /** The remark's identifier. */
     id: text("id").primaryKey(),
@@ -10,7 +10,7 @@ export const remark = defineTable("dependent_remark", {
     subjectId: text("subject_id").notNull(),
 });
 
-/** Posts whose remarks delete with them. */
+/** Posts deleting their remarks. */
 export const post = defineTable(
     "dependent_post",
     {
@@ -29,7 +29,7 @@ export const post = defineTable(
     },
 );
 
-/** Sections deleting with their post, and their remarks with them. */
+/** Sections deleting with their post. */
 export const section = defineTable(
     "dependent_section",
     {

@@ -11,20 +11,20 @@ import { expandTrees } from "../tree/tree.ts";
 import * as declaration from "../declare/database.ts";
 import type { Table } from "../table/table.ts";
 
-/** Portable queries with an owned PostgreSQL connection pool. */
+/** A PostgreSQL database with its own pool. */
 export class PostgresDatabase extends DatabaseConnection<"postgresql"> {
     /** The PostgreSQL connection pool. */
     readonly $client: postgres.Sql;
-    /** The explicit native SQL API. */
+    /** The native SQL API. */
     readonly native: PostgresJsDatabase;
 
-    /** Bind logical tables to a PostgreSQL connection pool. */
+    /** Bind tables to a connection pool. */
     constructor(
         client: postgres.Sql,
         tables: declaration.Database | readonly Table[],
         options: Omit<DrizzlePgConfig<EmptyRelations>, "relations"> = {},
     ) {
-        // compile a database's tables, or the given tables with their trees' tables
+        // compile the tables with their tree tables
         const compiler = new PostgresSchemaCompiler(
             tables instanceof declaration.Database ? tables.tables : expandTrees(tables),
         );
@@ -40,34 +40,34 @@ export class PostgresDatabase extends DatabaseConnection<"postgresql"> {
         this.native = native;
     }
 
-    /** Close the connection pool after pending queries complete. */
+    /** Close the pool after pending queries. */
     async close(): Promise<void> {
         await this.state.close(() => this.$client.end());
     }
 }
 
-/** Listen for every commit that changed the log on its notification channel. */
+/** Listen for logged commits on the notification channel. */
 function postgresNotifier(client: postgres.Sql): CommitNotifier {
     return {
         listen(commits) {
-            // wake readers once listening, since commits before it went unannounced
+            // wake readers once listening
             const listening = client.listen(
                 LOG_CHANNEL,
                 () => commits.wake(),
                 () => commits.wake(),
             );
 
-            // fail the readers when listening fails, since no commit would wake them
+            // fail the readers when listening fails
             listening.catch((error: unknown) => commits.fail(error));
 
-            // stop listening, when listening started
+            // stop listening
             return async () => {
                 const listener = await listening.catch(() => undefined);
                 await listener?.unlisten();
             };
         },
         notify() {
-            // leave the commit to the change trigger, which notifies every listener
+            // leave notification to the change trigger
         },
     };
 }

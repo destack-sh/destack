@@ -1,8 +1,10 @@
+# @destack/db
+
 Declare, query, log and migrate SQL tables on SQLite and PostgreSQL.
 
 ## Tables
 
-A logged table files each change under its `scope` column.
+`defineTable` declares a table's columns, constraints, log tier and row versions.
 
 ```ts
 export const note = defineTable(
@@ -15,7 +17,6 @@ export const note = defineTable(
     {
         constraints: (note) => [index("note_scope").on(note.scope)],
         log: { tier: "history" },
-        moved: { columns: { title: "name" } },
         version: 2,
         convert: { 2: (note) => ({ title: sql`trim(${note.title})` }) },
     },
@@ -24,13 +25,12 @@ export const note = defineTable(
 
 ## Databases
 
-A database names its tables.
+`defineDatabase` declares a package's database and the tables it holds.
 
 ```ts
 export const main = defineDatabase({ name: "main", tables: [note] });
 
 const database = main.get(context);
-await database.transaction(async (transaction) => transaction.update(note).set({ title: "Changed" }));
 const unapplied = await main.check(database);
 ```
 
@@ -40,13 +40,25 @@ Each entry point opens one kind of database.
 
 | Entry point | Opens |
 |---|---|
-| `@destack/db/turso` | An embedded SQLite file or memory database |
-| `@destack/db/turso/serverless` | A hosted Turso database |
-| `@destack/db/postgres` | A PostgreSQL server |
-| `@destack/db/wasm` | A browser SQLite database |
-| `@destack/db/shared` | A database another party owns |
-| `@destack/db/relay` | The transport of shared databases and commit notifications |
-| `@destack/db/sqlite` | SQLite files as provisioned resources |
+| `@destack/db/bun` | `connect`: a SQLite file or memory database on Bun |
+| `@destack/db/postgres` | `connect`: a PostgreSQL pool or URL |
+| `@destack/db/wasm` | `serveBrowserDatabase`: an OPFS SQLite database served to a relay |
+| `@destack/db/shared` | `connectShared`: a database another party serves |
+| `@destack/db/relay` | `broadcastRelay`: the channel between parties and the owner |
+| `@destack/db/test` | `TestDatabase`: an isolated database per dialect |
+
+## Writes
+
+A connection runs Drizzle queries in transactions and writes whole rows by key.
+
+```ts
+const database = await connect("notes.db", main);
+await database.transaction(async (transaction) =>
+    transaction.update(note).set({ title: "Changed" }).where(eq(note.id, id)),
+);
+await database.upsert(note, rows);
+await database.remove(note, keys);
+```
 
 ## Statements
 
@@ -58,16 +70,9 @@ const notes = new Statement((value) => sql`SELECT ${note.id} AS id FROM ${jsonEl
 await notes.all(database, { ids: JSON.stringify(ids.map((id) => [id])) });
 ```
 
-A connection writes and deletes whole rows by key.
-
-```ts
-await database.upsert(note, rows); // inserts new keys, updates held ones, firing the log's triggers
-await database.remove(note, keys); // deletes by key
-```
-
 ## Conditions
 
-`@destack/db/query` holds conditions and expressions that SQL and memory decide alike.
+A `Condition` from `@destack/db/query` renders to SQL and matches rows in memory alike.
 
 ```ts
 const where = Condition.all(Condition.eq("scope", spaceId), Condition.gte("rank", 2));
@@ -75,48 +80,34 @@ await database.select().from(note).where(Condition.render(where, Condition.bind(
 Condition.matches(Condition.compile(where, note), row);
 ```
 
-| Noun | Verbs |
-|---|---|
-| `Condition` | `eq`, `ne`, `lt`, `lte`, `gt`, `gte`, `oneOf`, `missing`, `all`, `any`, `not`, `exists`, `render`, `compile`, `matches`, `columns`, `require` |
-| `Expression` | `column`, `literal`, `add`, `subtract`, `multiply`, `divide`, `coalesce`, `lookup`, `rollup`, `render`, `kind`, `require` |
-| `Order` | `complete`, `render`, `after`, `rows` |
-| `Key` | `match`, `any`, `name`, `parse` |
-| `Row` | `encodeRow`, `decodeRow` |
+## Migrations
 
-## Plans
-
-The connection plans and applies migrations.
+A connection plans and applies the changes from its tables to the declared ones.
 
 ```ts
 await database.migrate([note]);
-await replica.migrate([note], { isReplica: true });
 
 const plan = await database.plan(desiredStates);
 await database.apply(plan);
 ```
 
-| Step risk | Example |
-|---|---|
-| `safe` | Add a nullable column |
-| `data-dependent` | Add a unique index |
-| `backward-incompatible` | Rename a table or column |
-| `destructive` | Drop a table |
-
 ## Log
 
-Readers follow committed changes by `LogPosition`.
+`database.log` reads committed changes of logged tables in commit order.
 
 ```ts
 const position = await database.log.position();
-for await (const page of database.log.follow({ tables: [note], scopes: [spaceId], after: position.sequence }, signal)) {
+const selection = { tables: [note], scopes: [spaceId], after: position.sequence };
+for await (const page of database.log.follow(selection, signal)) {
     apply(page.changes);
 }
-await database.log.wait(sequence, signal);
-await database.log.renew();
-await database.transaction(async (transaction) => transaction.log.copying(() => copy(transaction)));
+await database.log.hold("notes/published", consumed, Date.now() + maxLag);
+await database.log.release("notes/published");
 ```
 
-A `Snapshot` reads the database as it was at a position.
+## Snapshots
+
+A `Snapshot` reads the logged columns as they were at a log position.
 
 ```ts
 const snapshot = database.log.at(position);
@@ -124,68 +115,65 @@ await snapshot.rows(note, Condition.eq("scope", spaceId));
 await snapshot.ordered(note, { where, order: [{ column: "title", direction: "asc" }], count: 20 });
 ```
 
-A snapshot reads only what the log can restore.
+## Commit notifiers
 
-| Rule | Reason |
+A `CommitNotifier` wakes log readers when another writer commits.
+
+| Notifier | Use |
 |---|---|
-| changed rows read as their image in the log | reads stay on current indexes |
-| only logged columns exist | the log holds no images of the others |
-| a position before the horizon of a windowed table fails with `CHANGES_COMPACTED` | its changes are gone |
-
-A transaction's bounds name the positions and times around it, and a consumer's hold keeps the changes after its position until the hold expires.
-
-```ts
-const { before, after, startedAt, committedAt } = await database.log.bounds(sequence);
-await database.log.hold("notes/published", consumed, Date.now() + maxLag);
-await database.log.release("notes/published");
-```
-
-Readers wake on commits through a `CommitNotifier`.
-
-| Notifier | Listens | Notifies |
-|---|---|---|
-| PostgreSQL | `LISTEN` on the change channel | `pg_notify` in the change trigger |
-| `relayNotifier(relay)` | Commit messages | Posts a commit message |
-| `pollNotifier(interval)` | The latest sequence | The next poll |
+| `soleWriter` | A database with one writing process, the SQLite default |
+| `relayNotifier(relay)` | Writers sharing a relay |
+| PostgreSQL | Built in, through `LISTEN` and `pg_notify` |
 
 ## Aggregates
 
-A child table declares the aggregates its parents hold with `into`, or a parent declares them with `from` when the children do not know it.
+A table keeps counts, sums and extremes of the rows referencing it.
 
 ```ts
 aggregates: [
     { into: () => folder, column: "noteCount", key: "folderId", function: "count", where: { archived: false } },
     { into: () => folder, column: "lastEditedAt", key: "folderId", function: "max", value: "editedAt" },
 ],
-
-// on the parent, counting only the rows naming its type
-aggregates: [{ from: () => comment, column: "commentCount", key: "parentId", function: "count", where: { parentType: "note" } }],
 ```
 
 ## Dependents
 
-A table declares the rows of another table referencing it under a condition, which delete with it or keep it from deletion with `BROKEN_REFERENCE`, as a polymorphic reference needs.
+A table cascades or restricts its deletion to rows referencing it under a condition.
 
 ```ts
 dependents: [{ from: () => comment, key: "parentId", where: { parentType: "note" }, onDelete: "cascade" }],
 ```
 
-## Shared databases
+## Trees
 
-Parties reach a database through the owner serving a `Channel`.
+A table with a `tree` option keeps an ancestor index of its single-parent hierarchy per scope.
 
 ```ts
-const stop = await serveBrowserDatabase("notes", channel);
-const database = connectShared(channel, origin, tables);
+export const folder = defineTable("folder", columns, {
+    tree: { id: "id", scope: "scope", parent: "parentId" },
+});
 ```
 
-| Message | From | Meaning |
-|---|---|---|
-| `join` | Party | Ask which owner serves |
-| `serving` | Owner | Name the owner answering from now on |
-| `request` | Party | Run a step on the named owner |
-| `answer` | Owner | Settle one request |
-| `commit` | Any | Wake readers |
+## Replication
+
+`Replication` copies a database's tables into another database as chunks, exactly across dialects.
+
+```ts
+const replication = Replication.of(desiredStates, source.dialect);
+for await (const chunk of replication.export(source, name, "live", cursor, signal)) {
+    await replication.import(target, chunk);
+}
+```
+
+## Shared databases
+
+A browser tab serves its SQLite database to other parties over a relay.
+
+```ts
+const relay = broadcastRelay("notes");
+const stop = await serveBrowserDatabase("notes", relay);
+const database = connectShared(relay, party, main);
+```
 
 ## Tests
 

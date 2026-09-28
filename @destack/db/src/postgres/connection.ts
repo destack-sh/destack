@@ -5,7 +5,7 @@ import type * as declaration from "../declare/database.ts";
 import type { Table } from "../table/table.ts";
 import { PostgresDatabase } from "./database.ts";
 
-/** Connect PostgreSQL queries to an existing pool or connection URL. */
+/** Connect to a PostgreSQL pool or URL. */
 export async function connect(
     connection: string | postgres.Sql,
     tables: declaration.Database | readonly Table[] = [],
@@ -16,7 +16,7 @@ export async function connect(
     try {
         return new PostgresDatabase(client, tables, options);
     } catch (error) {
-        // release only pools allocated by this call
+        // release only pools this call created
         if (typeof connection === "string") {
             try {
                 await client.end();

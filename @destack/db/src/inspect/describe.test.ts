@@ -6,15 +6,15 @@ import { schema } from "@destack/schema";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
 import { DatabaseError } from "../error/error.ts";
 
-/** Lamps whose state is one of a fixed set. */
+/** Lamps with an enumerated state. */
 const lamp = defineTable("describe_lamp", {
     /** The lamp's identifier. */
     id: text("id").primaryKey(),
-    /** Whether the lamp shines, absent before it is wired. */
+    /** The state, absent before wiring. */
     state: text("state", { enum: ["on", "off"] }),
 });
 
-/** Shelves whose labels and layout start empty. */
+/** Shelves with empty defaults. */
 const shelf = defineTable("describe_shelf", {
     /** The shelf's identifier. */
     id: text("id").primaryKey(),
@@ -28,7 +28,7 @@ test.for(TEST_DIALECTS)("fill JSON columns with their declared defaults on %s", 
     const storage = await TestDatabase.create(dialect, [shelf], { isMigrated: true });
     onTestFinished(() => storage.close());
 
-    // insert through raw SQL, which leaves both columns to their database defaults
+    // insert through raw SQL to use the database defaults
     await storage.database.execute(
         sql`INSERT INTO ${sql.identifier(shelf[TABLE].sqlName)} (id) VALUES ('a')`,
     );
@@ -43,7 +43,7 @@ test.for(TEST_DIALECTS)(
         const storage = await TestDatabase.create(dialect, [lamp], { isMigrated: true });
         onTestFinished(() => storage.close());
 
-        // accept each declared value and none, bypassing validation with raw SQL for the rest
+        // accept each declared value and none
         await storage.database.insert(lamp).values([
             { id: "a", state: "on" },
             { id: "b", state: null },

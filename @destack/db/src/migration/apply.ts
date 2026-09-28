@@ -5,7 +5,7 @@ import { DatabaseError } from "../error/error.ts";
 import { STATE, writeState } from "./state.ts";
 import type { TablePlan, TableStep } from "./plan.ts";
 
-/** Step kinds applied after triggers are installed, so their row writes reach the log. */
+/** The step kinds applied after the triggers, so the log records their writes. */
 const LOGGED_KINDS: ReadonlySet<TableStep["kind"]> = new Set([
     "convertRows",
     "bridgeColumn",
@@ -19,7 +19,7 @@ export async function applyPlan(database: DatabaseConnection, plan: TablePlan): 
         return;
     }
 
-    // serialise appliers, defer foreign keys, and change tables between trigger reinstalls
+    // serialise appliers, defer foreign keys, and hold the triggers
     const lock =
         plan.dialect === "postgresql"
             ? `SELECT pg_advisory_xact_lock(hashtextextended('${STATE}', 0))`
@@ -33,26 +33,26 @@ export async function applyPlan(database: DatabaseConnection, plan: TablePlan): 
         ...plan.after,
     ];
 
-    // rebuild SQLite tables with foreign keys off, which only takes effect outside a transaction
+    // turn foreign keys off to rebuild SQLite tables
     const isRebuilt =
         plan.dialect === "sqlite" && plan.steps.some((step) => step.kind === "rebuildTable");
     if (isRebuilt) {
         await database.executeScript("PRAGMA foreign_keys = OFF");
     }
 
-    // apply every phase and record the state in one transaction
+    // apply every phase and record the state
     const appliedAt = Date.now();
     try {
         await applySteps(database, plan, changes, appliedAt, isRebuilt);
     } finally {
-        // restore foreign key enforcement after rebuilding
+        // restore foreign keys
         if (isRebuilt) {
             await database.executeScript("PRAGMA foreign_keys = ON");
         }
     }
 }
 
-/** Apply a plan's phases and record its state in one transaction. */
+/** Apply a plan's phases and record its state. */
 async function applySteps(
     database: DatabaseConnection,
     plan: TablePlan,
@@ -64,10 +64,10 @@ async function applySteps(
         // change the tables in one script
         await runScript(transaction, changes);
 
-        // convert rows and rebuild trees once the triggers are back, batching statements between trees
+        // convert rows and rebuild trees after the triggers
         let pending: string[] = [];
         for (const step of plan.steps.filter((entry) => LOGGED_KINDS.has(entry.kind))) {
-            // flush the batch, then rebuild the tree through its own queries
+            // flush the batch and rebuild the tree
             if (step.tree) {
                 await runScript(transaction, pending);
                 pending = [];
@@ -87,13 +87,13 @@ async function applySteps(
             }
         }
 
-        // record the declared state with the remaining statements
+        // record the declared state
         await runScript(transaction, [
             ...pending,
             ...plan.state.map((state) => writeState(state, appliedAt)),
         ]);
 
-        // require rebuilt tables to leave every reference valid before committing
+        // require valid references after a rebuild
         if (isRebuilt) {
             const violations = await transaction.execute<{ table: string }>(
                 sql`PRAGMA foreign_key_check`,
@@ -109,7 +109,7 @@ async function applySteps(
     });
 }
 
-/** Run statements as one script, reporting the database's failure as a failed migration. */
+/** Run statements as one script. */
 async function runScript(
     database: DatabaseConnection,
     statements: readonly string[],
@@ -119,7 +119,7 @@ async function runScript(
         return;
     }
 
-    // name the database's failure in the migration error
+    // name the failure in the migration error
     try {
         await database.executeScript(statements.map((statement) => `${statement};`).join("\n"));
     } catch (cause) {

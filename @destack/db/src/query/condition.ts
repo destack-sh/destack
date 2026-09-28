@@ -8,9 +8,9 @@ import { DatabaseError } from "../error/error.ts";
 import { combine, inArray } from "./predicate.ts";
 
 /**
- * The most terms one condition holds, counting groups and each listed value.
+ * The most terms one condition holds.
  *
- * At about 40 bytes of SQL a term, a condition renders at most about 40 KB, which Turso prepares in about 4 ms.
+ * At about 40 bytes a term, a condition renders at most about 40 KB of SQL.
  */
 const CONDITION_TERMS = 1000;
 
@@ -29,7 +29,7 @@ export const Operator = defineSchema(schema.enum(["eq", "ne", "lt", "lte", "gt",
 /** A comparison operator. */
 export type Operator = schema.Infer<typeof Operator>;
 
-/** One side of a comparison: a column by property, a literal, or a parameter bound per evaluation. */
+/** One side of a comparison: a column, a literal or a parameter. */
 export const Operand = defineSchema(
     schema.discriminatedUnion("kind", [
         schema.object({
@@ -41,7 +41,7 @@ export const Operand = defineSchema(
         schema.object({
             /** Embed a value. */
             kind: schema.literal("literal"),
-            /** The value, in the JSON form of the column it meets. */
+            /** The value, in its column's JSON form. */
             value: Scalar,
         }),
         schema.object({
@@ -52,20 +52,20 @@ export const Operand = defineSchema(
         }),
     ]),
 );
-/** One side of a comparison: a column by property, a literal, or a parameter bound per evaluation. */
+/** One side of a comparison: a column, a literal or a parameter. */
 export type Operand = schema.Infer<typeof Operand>;
 
-/** How a condition's names resolve: columns by property, parameters by name, and relations by the name the host declares. */
+/** How a condition's names resolve. */
 export interface Binding<Value> {
-    /** Resolve a column by property: SQL when rendering, the row's value when matching. */
+    /** Resolve a column. */
     column(name: string): Value;
     /** Resolve a parameter's value. */
     parameter(name: string): Scalar;
-    /** Resolve whether a related row meets a condition: SQL when rendering, the answer when matching. */
+    /** Resolve whether a related row meets a condition. */
     exists(via: string, where: Condition | undefined): Value;
 }
 
-/** A predicate over a row's columns, which SQL and memory decide alike in three-valued logic. */
+/** A predicate over a row, decided alike in SQL and memory. */
 export type Condition =
     | {
           readonly kind: "compare";
@@ -125,17 +125,17 @@ const conditionSchema: schema.Schema<Condition> = schema.lazy(() =>
             condition: conditionSchema,
         }),
         schema.object({
-            /** Match rows a related row meets a condition for. */
+            /** Match rows with a related row meeting a condition. */
             kind: schema.literal("exists"),
-            /** The relation, by the name its host declares. */
+            /** The relation name. */
             via: schema.string().min(1),
-            /** The condition the related row meets, over its table's columns. */
+            /** The related row's condition. */
             where: conditionSchema.optional(),
         }),
     ]),
 );
 
-/** A predicate over a row's columns, which SQL and memory decide alike in three-valued logic. */
+/** A predicate over a row, decided alike in SQL and memory. */
 export const Condition = {
     /** The schema of a condition. */
     schema: conditionSchema,
@@ -171,7 +171,7 @@ export const Condition = {
     matches,
 };
 
-/** Decide a compiled condition over columns on a row, as SQL does, leaving relations unknown. */
+/** Decide a compiled condition on a row, leaving relations unknown. */
 function matches(match: Match, row: Readonly<Record<string, unknown>>): boolean {
     return (
         match({ column: (name) => row[name], parameter: () => null, exists: () => undefined }) ===
@@ -179,10 +179,10 @@ function matches(match: Match, row: Readonly<Record<string, unknown>>): boolean 
     );
 }
 
-/** A condition compiled over a table: it decides a row as SQL does, in three-valued logic. */
+/** A compiled condition, deciding a row in three-valued logic. */
 export type Match = (binding: Binding<unknown>) => boolean | undefined;
 
-/** Compare a column with a value or another operand. */
+/** Compare a column with an operand. */
 function compare(operator: Operator, left: Operand | string, right: Operand | Scalar): Condition {
     return {
         kind: "compare",
@@ -224,7 +224,7 @@ function not(condition: Condition): Condition {
     return { kind: "not", condition };
 }
 
-/** Match rows a related row meets a condition for. */
+/** Match rows with a related row meeting a condition. */
 function exists(via: string, where?: Condition): Condition {
     return where === undefined ? { kind: "exists", via } : { kind: "exists", via, where };
 }
@@ -244,12 +244,12 @@ function parameter(name: string): Operand {
     return { kind: "parameter", name };
 }
 
-/** Rename a condition's column operands, leaving relations to their host. */
+/** Rename a condition's column operands. */
 function rename(condition: Condition, name: (column: string) => string): Condition {
     const operand = (value: Operand): Operand =>
         value.kind === "column" ? { kind: "column", name: name(value.name) } : value;
 
-    // rename a comparison's or test's operands
+    // rename the operands
     if (condition.kind === "compare") {
         return { ...condition, left: operand(condition.left), right: operand(condition.right) };
     } else if (condition.kind === "in" || condition.kind === "null") {
@@ -264,7 +264,7 @@ function rename(condition: Condition, name: (column: string) => string): Conditi
             conditions: condition.conditions.map((entry) => rename(entry, name)),
         };
     }
-    // leave a relation's condition, over its own table's columns
+    // leave relations alone
     else {
         return condition;
     }
@@ -272,7 +272,7 @@ function rename(condition: Condition, name: (column: string) => string): Conditi
 
 /** List the columns a condition reads, by property. */
 function columns(condition: Condition, names = new Set<string>()): Set<string> {
-    // collect the column operands of a comparison or test
+    // collect the column operands
     if (condition.kind === "compare" || condition.kind === "in" || condition.kind === "null") {
         const operands =
             condition.kind === "compare" ? [condition.left, condition.right] : [condition.operand];
@@ -282,7 +282,7 @@ function columns(condition: Condition, names = new Set<string>()): Set<string> {
             }
         }
     }
-    // collect through combinations, leaving relations to their host
+    // collect through combinations
     else if (condition.kind !== "exists") {
         const nested = condition.kind === "not" ? [condition.condition] : condition.conditions;
         for (const entry of nested) {
@@ -293,12 +293,12 @@ function columns(condition: Condition, names = new Set<string>()): Set<string> {
     return names;
 }
 
-/** List the relations a condition follows, each with the condition its related rows meet. */
+/** List the relations a condition follows, with their conditions. */
 function relations(
     condition: Condition,
     found: { readonly via: string; readonly where: Condition | undefined }[] = [],
 ): { readonly via: string; readonly where: Condition | undefined }[] {
-    // collect a relation, and the relations of combinations
+    // collect relations through combinations
     if (condition.kind === "exists") {
         found.push({ via: condition.via, where: condition.where });
     } else if (condition.kind === "all" || condition.kind === "any") {
@@ -312,13 +312,13 @@ function relations(
     return found;
 }
 
-/** Require a condition of bounded size over a table's comparable columns and computed values. */
+/** Require a bounded condition over comparable columns and computed values. */
 function requireComparable(
     condition: Condition,
     table: Table,
     namespace: Namespace = { computed: {} },
 ): void {
-    // bound the condition's size, which clients choose
+    // bound the size
     const size = terms(condition);
     if (size > CONDITION_TERMS) {
         throw new DatabaseError(
@@ -327,7 +327,7 @@ function requireComparable(
         );
     }
 
-    // require comparable columns, or computed values
+    // require comparable columns or computed values
     for (const name of columns(condition)) {
         if (!Object.hasOwn(namespace.computed, name)) {
             Order.column(table, name);
@@ -335,7 +335,7 @@ function requireComparable(
     }
 }
 
-/** Count a condition's terms: each comparison, missing check and group, and each listed value. */
+/** Count a condition's terms. */
 function terms(condition: Condition): number {
     switch (condition.kind) {
         case "compare":
@@ -353,7 +353,7 @@ function terms(condition: Condition): number {
     }
 }
 
-/** Bind a condition's columns to a table and its namespace, and its parameters to values. */
+/** Bind a condition to a table, its namespace and parameters. */
 function bind(
     table: Table,
     parameters: Readonly<Record<string, Scalar>> = {},
@@ -384,7 +384,7 @@ function bind(
     };
 }
 
-/** Render a condition as SQL, binding literals through the columns they meet. */
+/** Render a condition as SQL. */
 function renderCondition(condition: Condition, binding: Binding<SQLWrapper>): SQL {
     switch (condition.kind) {
         case "compare": {
@@ -395,7 +395,7 @@ function renderCondition(condition: Condition, binding: Binding<SQLWrapper>): SQ
             return sql`(${left} ${sql.raw(OPERATORS[condition.operator])} ${right})`;
         }
         case "in": {
-            // match a flat OR chain, which SQLite plans faster than an IN list, and an IN list beyond a chain's limit
+            // match an OR chain, or an IN list beyond the chain limit
             const operand = render(condition.operand, undefined, binding, false);
             const values = condition.values.map((value) =>
                 render(literal(value), condition.operand, binding, false),
@@ -407,7 +407,7 @@ function renderCondition(condition: Condition, binding: Binding<SQLWrapper>): SQ
             return sql`(${render(condition.operand, undefined, binding, false)} IS NULL)`;
         case "all":
         case "any": {
-            // render an empty conjunction true and an empty disjunction false
+            // render empty conjunctions true and disjunctions false
             if (condition.conditions.length === 0) {
                 return condition.kind === "all" ? sql`true` : sql`false`;
             }
@@ -422,7 +422,7 @@ function renderCondition(condition: Condition, binding: Binding<SQLWrapper>): SQ
     }
 }
 
-/** Compile a condition over a table, decoding its literals as their columns hold them once. */
+/** Compile a condition over a table. */
 function compile(condition: Condition, table: Table): Match {
     switch (condition.kind) {
         case "compare": {
@@ -437,7 +437,7 @@ function compile(condition: Condition, table: Table): Match {
             };
         }
         case "in": {
-            // match nothing in an empty list, and stay unknown for a missing operand
+            // match nothing for an empty list and unknown for a missing operand
             const operand = operandOf(condition.operand, undefined, table);
             const column = condition.operand.kind === "column" ? condition.operand.name : undefined;
             const values =
@@ -467,7 +467,7 @@ function compile(condition: Condition, table: Table): Match {
         }
         case "all":
         case "any": {
-            // settle on the deciding value, and stay unknown when any condition is
+            // settle on the deciding value
             const isDecidedBy = condition.kind === "any";
             const compiled = condition.conditions.map((entry) => compile(entry, table));
 
@@ -485,7 +485,7 @@ function compile(condition: Condition, table: Table): Match {
             };
         }
         case "exists": {
-            // ask the binding, which answers true, false or unknown until the relation is read
+            // ask the binding
             const { via, where } = condition;
 
             return (binding) => binding.exists(via, where) as boolean | undefined;
@@ -502,21 +502,21 @@ function compile(condition: Condition, table: Table): Match {
     }
 }
 
-/** Render one operand, binding a literal through the column the other side names. */
+/** Render one operand. */
 function render(
     operand: Operand,
     other: Operand | undefined,
     binding: Binding<SQLWrapper>,
     isOrdered: boolean,
 ): SQLWrapper {
-    // read a column, ordering text by byte, and comparing it for equality through its index
+    // read a column, ordering text by byte
     if (operand.kind === "column") {
         const resolved = binding.column(operand.name);
 
         return isOrdered && resolved instanceof Column ? Order.text(resolved) : resolved;
     }
 
-    // bind a parameter or literal as the other side's column encodes it
+    // bind a value through the other side's column
     const scalar = operand.kind === "parameter" ? binding.parameter(operand.name) : operand.value;
     const target = other?.kind === "column" ? binding.column(other.name) : undefined;
 
@@ -525,7 +525,7 @@ function render(
         : sql`${scalar}`;
 }
 
-/** Compile an operand's value: a column's, or a parameter or literal decoded as the other side's column holds it. */
+/** Compile an operand's value. */
 function operandOf(
     operand: Operand,
     other: Operand | undefined,
@@ -538,7 +538,7 @@ function operandOf(
         return (binding) => binding.column(name);
     }
 
-    // decode a parameter each time, as the other side's column holds it
+    // decode a parameter on each evaluation
     const column = other?.kind === "column" ? other.name : undefined;
     if (operand.kind === "parameter") {
         const name = operand.name;
@@ -559,7 +559,7 @@ function operandOf(
     return () => value;
 }
 
-/** Decode a scalar as a table's column holds it, and as it is for a computed value. */
+/** Decode a scalar as a column holds it. */
 function decode(table: Table, column: string, scalar: Scalar): unknown {
     const definition = table[TABLE].columns[column]?.definition;
 

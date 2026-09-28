@@ -29,7 +29,7 @@ const itemColumns = {
     isDone: boolean("is_done").notNull(),
 };
 
-/** Items of a list, counted, summed and bounded by the list. */
+/** Items of a list. */
 export const item = defineTable("aggregate_item", itemColumns, {
     aggregates: [
         { into: () => list, column: "items", key: "listId", function: "count" },
@@ -45,17 +45,17 @@ export const item = defineTable("aggregate_item", itemColumns, {
     ],
 });
 
-/** The same items before the lists keep any aggregate of them. */
+/** The same items without aggregates. */
 export const plainItem = defineTable("aggregate_item", itemColumns);
 
 /** The tables of the aggregate example. */
 export const lists = [item, list];
 
-/** Archives counting the done items of the list sharing their identifier, declared from the holding side. */
+/** Archives counting the done items of their list, declared from the holding side. */
 export const archive = defineTable(
     "aggregate_archive",
     {
-        /** The identifier of the list whose done items the archive counts. */
+        /** The identifier of the counted list. */
         id: text("id").primaryKey(),
         /** How many of the list's items are done. */
         done: integer("done").notNull().default(0),

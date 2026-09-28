@@ -1,6 +1,6 @@
 import { defineSchema, schema } from "@destack/schema";
 
-/** Rows of another table referencing each row of a table under a condition, deleted with it or keeping it, as data. */
+/** Rows referencing each row of a table, cascading or restricting its deletion. */
 export const DependentDescription = defineSchema(
     schema.object({
         /** The SQL name of the referenced table. */
@@ -11,7 +11,7 @@ export const DependentDescription = defineSchema(
         source: schema.string().min(1),
         /** The dependent table's SQL column referencing the rows. */
         key: schema.string().min(1),
-        /** The values the dependent rows' SQL columns hold. */
+        /** The values the dependent rows hold. */
         where: schema.array(
             schema.object({
                 /** The SQL column. */
@@ -25,9 +25,9 @@ export const DependentDescription = defineSchema(
                 ]),
             }),
         ),
-        /** Delete the dependent rows with the referenced row, or refuse deleting it. */
+        /** Cascade or restrict the deletion. */
         onDelete: schema.enum(["cascade", "restrict"]),
     }),
 );
-/** Rows of another table referencing each row of a table under a condition, deleted with it or keeping it, as data. */
+/** Rows referencing each row of a table, cascading or restricting its deletion. */
 export type DependentDescription = schema.Infer<typeof DependentDescription>;

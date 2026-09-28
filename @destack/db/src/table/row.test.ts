@@ -53,7 +53,7 @@ test("roundtrip every column kind through its JSON form as text", () => {
         editedAt: new Date("2026-09-26T10:00:00.123Z"),
     };
 
-    // write each value in its JSON form, and read it back after it travels as text
+    // round-trip each value through its JSON form
     const encoded = encodeRow(sample, { ...row, missing: 1 });
     expect(encoded).toEqual({
         id: "a",
@@ -69,7 +69,7 @@ test("roundtrip every column kind through its JSON form as text", () => {
     });
     expect(decodeRow(sample, JSON.parse(JSON.stringify(encoded)))).toEqual(row);
 
-    // keep null values as null in both directions
+    // keep null values as null
     expect(encodeRow(sample, { id: "b", views: null })).toEqual({ id: "b", views: null });
     expect(decodeRow(sample, { id: "b", views: null })).toEqual({ id: "b", views: null });
 });

@@ -4,22 +4,22 @@ import type { SchemaCompiler } from "../dialect/compiler.ts";
 import { dialectSQL } from "../dialect/expression.ts";
 
 /**
- * A statement built and rendered once per database, then run with named values.
+ * A statement rendered once per database and run with named values.
  *
- * Its text stays the same across runs, so SQLite connections reuse its prepared statement and PostgreSQL its plan.
+ * Its constant text lets SQLite reuse its prepared statement and PostgreSQL its plan.
  */
 export class Statement<Row extends Record<string, unknown> = Record<string, unknown>> {
-    /** Build the statement, naming each value it takes. */
+    /** Build the statement from named values. */
     readonly #build: (value: (name: string) => SQLWrapper) => SQL;
-    /** The rendered text and parameters, by the compiler of the database it rendered for. */
+    /** The rendered query of each compiler. */
     readonly #rendered = new WeakMap<SchemaCompiler, Query>();
 
-    /** Keep how to build the statement, which runs once per database. */
+    /** Create the statement. */
     constructor(build: (value: (name: string) => SQLWrapper) => SQL) {
         this.#build = build;
     }
 
-    /** Read every row of the statement with its values as driver rows, on a connection or within a transaction. */
+    /** Read every row with the values. */
     all(
         database: DatabaseConnection,
         values: Readonly<Record<string, unknown>> = {},
@@ -32,7 +32,7 @@ export class Statement<Row extends Record<string, unknown> = Record<string, unkn
         });
     }
 
-    /** Read every row of the statement with its values as arrays of values in selected order, which skip naming each row's columns. */
+    /** Read every row as value arrays. */
     values(
         database: DatabaseConnection,
         values: Readonly<Record<string, unknown>> = {},
@@ -45,15 +45,15 @@ export class Statement<Row extends Record<string, unknown> = Record<string, unkn
         });
     }
 
-    /** Render the statement once for a database's compiler. */
+    /** Render the statement once per compiler. */
     #render(database: DatabaseConnection): Query {
-        // reuse the text rendered for the same compiler
+        // reuse the rendered query
         const known = this.#rendered.get(database.compiler);
         if (known !== undefined) {
             return known;
         }
 
-        // compile the logical statement and render it in the connection's dialect
+        // compile and render the statement
         const compiled = database.compiler.expression(this.#build((name) => sql.placeholder(name)));
         const query = database.driver.render(compiled);
         this.#rendered.set(database.compiler, query);
@@ -62,7 +62,7 @@ export class Statement<Row extends Record<string, unknown> = Record<string, unkn
     }
 }
 
-/** Select the elements of a JSON array value as rows of one `value` column under a name, whose fields `->>` reads. */
+/** Select a JSON array's elements as rows of one `value` column. */
 export function jsonElements(array: SQLWrapper, name: string): SQL {
     return dialectSQL({
         sqlite: sql`json_each(${array}) AS ${sql.raw(name)}`,

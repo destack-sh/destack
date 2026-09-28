@@ -6,7 +6,7 @@ import { integer, text } from "../table/column.ts";
 import { primaryKey } from "../table/constraint.ts";
 import { defineTable } from "../table/table.ts";
 
-/** Counters keyed by owner and name, logged whole. */
+/** Counters by owner and name. */
 const counter = defineTable(
     "write_counter",
     {
@@ -41,7 +41,7 @@ test.for(TEST_DIALECTS)(
         const read = () =>
             database.select().from(counter).orderBy(asc(counter.owner), asc(counter.name));
 
-        // insert more rows than one chain of keys holds, then update them, logging inserts then updates
+        // insert and update more rows than one key chain holds
         const count = 2 * CHAIN_TERMS + 1;
         await database.upsert(counter, rows(count, 1));
         const inserted = await database.log.position();
@@ -55,7 +55,7 @@ test.for(TEST_DIALECTS)(
             [...rows(count, 2).map(() => "update"), "insert"].sort(),
         ]);
 
-        // remove every row but one by key, across several chains
+        // remove every row but one across several chains
         await database.remove(counter, rows(count, 0));
         expect(await read()).toEqual([{ scope: "s", owner: "bob", name: "c0000", value: 7 }]);
     },

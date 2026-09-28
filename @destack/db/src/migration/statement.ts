@@ -8,9 +8,9 @@ import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever } from "../error/error.ts";
 import { quote } from "../dialect/quote.ts";
 
-/** Create a table with its columns and constraints; PostgreSQL adds foreign keys separately. */
+/** Create a table; PostgreSQL adds foreign keys separately. */
 export function createTable(table: TableDescription, name = table.name): string {
-    // write the columns and constraints, keeping foreign keys inline only in SQLite
+    // write the columns and constraints, with inline foreign keys only in SQLite
     const definitions = [
         ...table.columns.map((column) => columnDefinition(column, table.dialect)),
         ...table.constraints
@@ -56,7 +56,7 @@ export function renameColumn(table: string, from: string, to: string): string {
     return `ALTER TABLE ${quote(table)} RENAME COLUMN ${quote(from)} TO ${quote(to)}`;
 }
 
-/** Change a PostgreSQL column's type, nullability and default in place. */
+/** Change a PostgreSQL column in place. */
 export function alterColumn(
     table: string,
     from: ColumnDescription,
@@ -89,7 +89,7 @@ export function alterColumn(
 
 /** Create an index. */
 export function createIndex(table: string, index: IndexDescription): string {
-    // write the indexed columns and the partial predicate
+    // write the columns and predicate
     const columns = index.columns
         .map((entry) => ("column" in entry ? quote(entry.column) : `(${entry.expression})`))
         .join(", ");
@@ -103,12 +103,12 @@ export function dropIndex(name: string): string {
     return `DROP INDEX ${quote(name)}`;
 }
 
-/** Rebuild a SQLite table into a new definition, copying the columns both share. */
+/** Rebuild a SQLite table, copying the shared columns. */
 export function rebuildTable(
     table: TableDescription,
     copied: ReadonlyMap<string, string>,
 ): string[] {
-    // create the new definition beside the old table and copy shared columns
+    // create the new table and copy shared columns
     const staging = `${table.name}__rebuild`;
     const targets = [...copied.keys()].map(quote).join(", ");
     const sources = [...copied.values()].map(quote).join(", ");
@@ -140,7 +140,7 @@ function columnDefinition(column: ColumnDescription, dialect: Dialect): string {
     return parts.join(" ");
 }
 
-/** Write a generated column's storage, where PostgreSQL stores every generated column. */
+/** Write a generated column's storage. */
 function storage(column: ColumnDescription, dialect: Dialect): string {
     // store every PostgreSQL generated column
     if (dialect === "postgresql") {
@@ -164,7 +164,7 @@ function constraintDefinition(constraint: ConstraintDescription): string {
     if (constraint.kind === "check") {
         return `${name} CHECK (${constraint.expression})`;
     }
-    // write a foreign key with the referential actions it declares, checked per statement unless a transaction defers it
+    // write a foreign key with its actions
     else if (constraint.kind === "foreignKey") {
         const onDelete = constraint.onDelete?.toUpperCase();
         const onUpdate = constraint.onUpdate?.toUpperCase();

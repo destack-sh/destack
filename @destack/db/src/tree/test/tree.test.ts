@@ -3,13 +3,13 @@ import { sql } from "../../index.ts";
 import { TEST_DIALECTS, TestDatabase } from "../../test/database.ts";
 import { baseNode, tree, node } from "./fixture.ts";
 
-/** Preserve existing forests while introducing and maintaining an ancestor index. */
+/** Keep existing forests while adding and maintaining an ancestor index. */
 test.for(TEST_DIALECTS)("migrate, query, move and remove scoped trees on %s", async (dialect) => {
     const test = await TestDatabase.create(dialect, [node]);
     onTestFinished(() => test.close());
     const { database } = test;
 
-    // populate ordinary parent records before the tree declaration exists
+    // insert parent records before the tree exists
     await database.migrate([baseNode]);
     await database.insert(node).values([
         { id: "a", scope: "one", parent: null },
@@ -19,7 +19,7 @@ test.for(TEST_DIALECTS)("migrate, query, move and remove scoped trees on %s", as
         { id: "e", scope: "two", parent: null },
     ]);
 
-    // reject a missing parent without retaining the new index or migration history
+    // reject a missing parent without applying the migration
     await database.execute(sql`UPDATE ${node} SET parent = 'missing' WHERE id = 'b'`);
     await expect(database.migrate([node])).rejects.toMatchObject({
         code: "MIGRATION_FAILED",
@@ -33,7 +33,7 @@ test.for(TEST_DIALECTS)("migrate, query, move and remove scoped trees on %s", as
         { id: "e", scope: "two", parent: null },
     ]);
 
-    // reject a cycle and then apply the same history after repairing the source
+    // reject a cycle, then apply after the repair
     await database.execute(sql`UPDATE ${node} SET parent = 'c' WHERE id = 'b'`);
     await expect(database.migrate([node])).rejects.toMatchObject({
         code: "MIGRATION_FAILED",
@@ -43,7 +43,7 @@ test.for(TEST_DIALECTS)("migrate, query, move and remove scoped trees on %s", as
     await database.migrate([node]);
     await database.migrate([node]);
 
-    // compare the complete generated ancestry, including self paths
+    // compare the complete ancestry
     expect(
         await database
             .select()
@@ -73,7 +73,7 @@ test.for(TEST_DIALECTS)("migrate, query, move and remove scoped trees on %s", as
             .orderBy(node.id),
     ).toEqual([{ id: "a" }, { id: "b" }]);
 
-    // retain inherited paths after a move and reparenting deletion
+    // keep inherited paths after a move and a reparenting deletion
     await tree.move("one", "b", "d", database);
     expect(
         await database
@@ -90,7 +90,7 @@ test.for(TEST_DIALECTS)("migrate, query, move and remove scoped trees on %s", as
         { id: "e", scope: "two", parent: null },
     ]);
 
-    // delete a complete subtree without touching another scope
+    // delete a subtree without touching another scope
     await tree.remove("one", "d", "subtree", database);
     await tree.remove("one", "a", "restrict", database);
     expect(await database.select().from(node)).toEqual([{ id: "e", scope: "two", parent: null }]);

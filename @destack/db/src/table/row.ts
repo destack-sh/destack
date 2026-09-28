@@ -2,15 +2,15 @@ import { TABLE, type Table } from "./table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import type { Column, JsonValue } from "./column.ts";
 
-/** A row as the application holds it, by column property. */
+/** A row by column property. */
 export type Row = Readonly<Record<string, unknown>>;
 
-/** Write a row's own columns in their JSON form, by property, writing undefined and null values as null. */
+/** Write a row's own columns in JSON form, nulls for missing values. */
 export function encodeRow(table: Table, row: Row): Record<string, JsonValue> {
     return encodeColumns(table[TABLE].entries, row, []);
 }
 
-/** Write a row's own values in some columns in their JSON form, by property, writing undefined and null values as null, and leaving out some. */
+/** Write a row's own values in some columns in JSON form, leaving out some. */
 export function encodeColumns(
     columns: readonly (readonly [string, Column])[],
     row: Row,
@@ -18,7 +18,7 @@ export function encodeColumns(
 ): Record<string, JsonValue> {
     const encoded: Record<string, JsonValue> = {};
     for (const [property, column] of columns) {
-        // write the row's own columns the caller keeps
+        // write the kept columns
         if (Object.hasOwn(row, property) && !omitted.includes(property)) {
             const value = row[property];
             encoded[property] =
@@ -29,7 +29,7 @@ export function encodeColumns(
     return encoded;
 }
 
-/** Read a row's own columns from their JSON form, by property, keeping undefined and null values as null. */
+/** Read a row's own columns from JSON form. */
 export function decodeRow(table: Table, row: Row): Record<string, unknown> {
     const decoded: Record<string, unknown> = {};
     for (const [property, column] of table[TABLE].entries) {
@@ -44,7 +44,7 @@ export function decodeRow(table: Table, row: Row): Record<string, unknown> {
     return decoded;
 }
 
-/** Read a row a driver returned as values in the order of some columns, decoding each value for a dialect, by property. */
+/** Read a driver row of positional values by property. */
 export function fromDriver(
     columns: readonly (readonly [string, Column])[],
     values: readonly unknown[],

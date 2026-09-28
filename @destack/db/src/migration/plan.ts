@@ -15,7 +15,7 @@ import { canonicalize } from "@destack/schema/json";
 import type { Plan, Risk, Step } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
 
-/** The generated triggers every plan removes before its steps and installs again after them. */
+/** The generated triggers every plan removes and reinstalls. */
 const TRIGGERS: readonly Triggers[] = [
     logTriggers,
     treeTriggers,
@@ -50,46 +50,46 @@ export type TableStepKind =
 export interface TableStep extends Step {
     /** What the step changes. */
     readonly kind: TableStepKind;
-    /** The SQL the step runs, empty for tree rebuilds and log updates. */
+    /** The step's SQL, empty for tree rebuilds and log updates. */
     readonly statements: readonly string[];
-    /** The tree whose ancestor index a rebuild step reconstructs. */
+    /** The tree a rebuild step reconstructs. */
     readonly tree?: TreeDescription;
 }
 
-/** The steps taking a database from its applied state to its declared tables. */
+/** The steps from a database's applied state to its declared tables. */
 export interface TablePlan extends Plan<TableStep> {
     /** The database's dialect. */
     readonly dialect: Dialect;
-    /** Remove generated triggers before the steps change their tables. */
+    /** Remove generated triggers before the steps. */
     readonly before: readonly string[];
-    /** Create the log and state tables and install generated triggers after the steps. */
+    /** Create the log and state tables and install triggers after the steps. */
     readonly after: readonly string[];
     /** The state recorded once the plan applied. */
     readonly state: readonly TableState[];
-    /** The applied tables the plan drops, whose state is forgotten. */
+    /** The applied tables the plan drops. */
     readonly dropped: readonly string[];
 }
 
-/** Something the declarations must change before a plan exists. */
+/** A problem the declarations must fix. */
 type Problem = PlanError["problems"][number];
 
 /** The inputs of a plan. */
 export interface PlanInput {
-    /** The state the database applied, empty before the first plan. */
+    /** The applied state, empty before the first plan. */
     readonly applied: readonly TableState[];
-    /** The tables present in the database's catalog. */
+    /** The tables in the database's catalog. */
     readonly existing: readonly string[];
-    /** The declared tables, as a release's manifest records them. */
+    /** The declared tables. */
     readonly declared: readonly TableState[];
-    /** Tables whose bound declarations disagree, with the reason, which fail the plan. */
+    /** The conflicting tables with their reasons. */
     readonly conflicts?: MergedState["conflicts"];
     /** The database's dialect. */
     readonly dialect: Dialect;
 }
 
-/** Plan the steps from a database's applied state to its declared tables, or name every problem the declarations must fix. */
+/** Plan a database's migration, or name every problem to fix. */
 export function planTables(input: PlanInput): TablePlan {
-    // index applied tables by SQL name and collect what no step can do
+    // index applied tables and collect problems
     const { applied, existing, declared, dialect } = input;
     const remaining = new Map(applied.map((state) => [state.table.name, state]));
     const problems: Problem[] = (input.conflicts ?? []).map((conflict) => ({
@@ -99,7 +99,7 @@ export function planTables(input: PlanInput): TablePlan {
     const steps: TableStep[] = [];
     const created: TableDescription[] = [];
 
-    // plan each declared table whose declarations agree
+    // plan each agreeing table
     const conflicting = new Set((input.conflicts ?? []).map((conflict) => conflict.table));
     for (const state of declared) {
         const name = state.table.name;
@@ -112,7 +112,7 @@ export function planTables(input: PlanInput): TablePlan {
             (state.moved?.table === undefined ? undefined : remaining.get(state.moved.table));
         remaining.delete(previous?.table.name ?? name);
 
-        // create each missing table unless an unmanaged table holds its name
+        // create each missing table unless an unmanaged one holds its name
         if (!previous) {
             if (existing.includes(name)) {
                 problems.push({ target: name, detail: "table exists without applied state" });
@@ -155,7 +155,7 @@ export function planTables(input: PlanInput): TablePlan {
             changes.push(...convertRows(state, version, problems));
         }
 
-        // backfill each renamed column newly bridged to the column an older release writes
+        // backfill newly bridged columns
         const bridged = new Set((previous.bridges ?? []).map((bridge) => bridge.to));
         for (const bridge of state.bridges ?? []) {
             if (!bridged.has(bridge.to)) {
@@ -171,7 +171,7 @@ export function planTables(input: PlanInput): TablePlan {
             }
         }
 
-        // rebuild a changed tree's ancestor index
+        // rebuild a changed tree's index
         if (state.tree && canonicalize(state.tree) !== canonicalize(previous.tree ?? null)) {
             changes.push({
                 ...step("rebuildTree", "safe", name, "rebuild the ancestor index", []),
@@ -179,7 +179,7 @@ export function planTables(input: PlanInput): TablePlan {
             });
         }
 
-        // reinstall log triggers when nothing else changed the table
+        // reinstall log triggers when nothing else changed
         if (
             changes.length === 0 &&
             canonicalize(state.log ?? null) !== canonicalize(previous.log ?? null)
@@ -197,7 +197,7 @@ export function planTables(input: PlanInput): TablePlan {
         steps.push(...changes);
     }
 
-    // compute new or changed aggregates afresh once every table exists
+    // compute new or changed aggregates
     for (const state of declared) {
         const previous = applied.find((entry) => entry.table.name === state.table.name);
         for (const aggregate of state.aggregates ?? []) {
@@ -218,7 +218,7 @@ export function planTables(input: PlanInput): TablePlan {
         }
     }
 
-    // stop keeping aggregates no declaration holds any more, whose triggers the plan removes
+    // stop keeping removed aggregates
     for (const previous of applied) {
         const state = declared.find((entry) => entry.table.name === previous.table.name);
         for (const aggregate of previous.aggregates ?? []) {
@@ -239,7 +239,7 @@ export function planTables(input: PlanInput): TablePlan {
         }
     }
 
-    // start and stop keeping dependents, whose triggers the plan installs and removes
+    // start and stop keeping dependents
     for (const state of declared) {
         const previous = applied.find((entry) => entry.table.name === state.table.name);
         for (const dependent of state.dependents ?? []) {
@@ -279,7 +279,7 @@ export function planTables(input: PlanInput): TablePlan {
         }
     }
 
-    // add PostgreSQL foreign keys once every created table exists
+    // add PostgreSQL foreign keys after every table exists
     if (dialect === "postgresql") {
         for (const table of created) {
             const keys = table.constraints.filter((constraint) => constraint.kind === "foreignKey");
@@ -338,14 +338,14 @@ export function planTables(input: PlanInput): TablePlan {
     };
 }
 
-/** Plan the changes of one table kept under its current name, given previous column names. */
+/** Plan the changes of one table kept under its name. */
 function changeTable(
     previous: TableDescription,
     next: TableDescription,
     moved: Readonly<Record<string, string>>,
     problems: Problem[],
 ): TableStep[] {
-    // rename moved columns before comparing columns
+    // rename moved columns first
     const steps: TableStep[] = [];
     const columns = new Map(previous.columns.map((column) => [column.name, column]));
     for (const column of next.columns) {
@@ -398,7 +398,7 @@ function changeTable(
     ];
 }
 
-/** Lower table changes to SQLite, rebuilding the table for anything beyond additions and indexes. */
+/** Lower table changes to SQLite, rebuilding for anything beyond additions and indexes. */
 function changeSQLiteTable(
     previous: TableDescription,
     next: TableDescription,
@@ -406,7 +406,7 @@ function changeSQLiteTable(
     removed: readonly TableDescription["columns"][number][],
     changed: readonly TableDescription["columns"][number][],
 ): TableStep[] {
-    // rebuild the table for changes beyond simple additions and indexes
+    // rebuild for changes beyond additions and indexes
     const isRebuilt =
         removed.length > 0 ||
         changed.length > 0 ||
@@ -457,7 +457,7 @@ function changeSQLiteTable(
         ];
     }
 
-    // add columns and replace changed indexes in place
+    // add columns and replace changed indexes
     return [
         ...added.map((column) =>
             step("addColumn", "safe", next.name, `add column ${column.name}`, [
@@ -521,7 +521,7 @@ function changePostgresTable(
     return [...steps, ...changeConstraints(previous, next), ...changeIndexes(previous, next)];
 }
 
-/** Replace PostgreSQL constraints that differ, where added constraints depend on existing rows. */
+/** Replace differing PostgreSQL constraints. */
 function changeConstraints(previous: TableDescription, next: TableDescription): TableStep[] {
     // compare constraints by name and definition
     const before = new Map(previous.constraints.map((entry) => [entry.name, canonicalize(entry)]));
@@ -549,7 +549,7 @@ function changeConstraints(previous: TableDescription, next: TableDescription): 
     ];
 }
 
-/** Drop removed or changed indexes and create new or changed ones. */
+/** Replace removed, new or changed indexes. */
 function changeIndexes(previous: TableDescription, next: TableDescription): TableStep[] {
     // compare indexes by name and definition
     const before = new Map(previous.indexes.map((index) => [index.name, canonicalize(index)]));
@@ -577,7 +577,7 @@ function changeIndexes(previous: TableDescription, next: TableDescription): Tabl
     ];
 }
 
-/** Create a table and its indexes; PostgreSQL foreign keys follow once every table exists. */
+/** Create a table and its indexes. */
 function createStatements(table: TableDescription): string[] {
     return [
         statement.createTable(table),
@@ -585,9 +585,9 @@ function createStatements(table: TableDescription): string[] {
     ];
 }
 
-/** Convert every row of a table to one version through its declared column assignments. */
+/** Convert every row of a table to one version. */
 function convertRows(state: TableState, version: number, problems: Problem[]): TableStep[] {
-    // require the release to carry the conversion as SQL
+    // require the conversion as SQL
     const name = state.table.name;
     const assignments = state.conversions?.[String(version)];
     if (!assignments || Object.keys(assignments).length === 0) {
@@ -596,7 +596,7 @@ function convertRows(state: TableState, version: number, problems: Problem[]): T
         return [];
     }
 
-    // assign every converted column in one statement over the whole table
+    // assign every converted column in one statement
     const set = Object.entries(assignments)
         .map(([column, expression]) => `${quote(column)} = ${expression}`)
         .join(", ");
