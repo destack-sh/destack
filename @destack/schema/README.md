@@ -25,6 +25,15 @@ const id = SpaceId.parse("space-01995f12-3456-7890-8abc-123456789abc");
 identifierTime(id); // the Unix milliseconds of the UUIDv7
 ```
 
+## Sensitivity
+
+A sensitive schema's values stay in their own column: nothing derived from a request or record, such as a log entry or a journal fingerprint, keeps them.
+
+```ts
+const Credential = schema.object({ name: schema.string(), token: schema.sensitive(schema.string()) });
+schema.isSensitive(Credential.shape.token); // true
+```
+
 ## Digests
 
 ```ts

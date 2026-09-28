@@ -72,3 +72,4 @@ export type {
 } from "zod";
 export type { infer as Infer, ZodIssue as Issue } from "zod";
 export { flattenError, prettifyError, treeifyError } from "zod";
+export { isSensitive, redact, sensitive } from "./sensitive.ts";
