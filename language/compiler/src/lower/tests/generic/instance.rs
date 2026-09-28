@@ -22,7 +22,7 @@ function choose(low: int32, high: int32, flag: boolean): float64 {
         "main.tspp",
         "test.main.choose",
         r#"
-function test.main.choose(v0: int32, v1: int32, v2: boolean): float64 {
+export function test.main.choose(v0: int32, v1: int32, v2: boolean): float64 {
     local l0: int32
     local l1: int32
     local l2: boolean
@@ -93,7 +93,7 @@ function keep(value: (int32, boolean)): (int32, boolean) {
     );
 
     session.assert_mir_function("main.tspp", "test.main.keep", r#"
-function test.main.keep(v0: (int32, boolean)): (int32, boolean) {
+export function test.main.keep(v0: (int32, boolean)): (int32, boolean) {
     local l0: (int32, boolean)
 
 entry(v0: (int32, boolean)):
@@ -147,7 +147,7 @@ type test.main.Box<T> {
     value: ?T;
 }
 
-function test.main.readInt(v0: test.main.Box<int32>): int32 {
+export function test.main.readInt(v0: test.main.Box<int32>): int32 {
     local l0: test.main.Box<int32>
 
 entry(v0: test.main.Box<int32>):
@@ -169,7 +169,7 @@ type test.main.Box<T> {
     value: ?T;
 }
 
-function test.main.readFloat(v0: test.main.Box<float64>): float64 {
+export function test.main.readFloat(v0: test.main.Box<float64>): float64 {
     local l0: test.main.Box<float64>
 
 entry(v0: test.main.Box<float64>):
@@ -242,7 +242,7 @@ function wide(flag: boolean): float64 {
         "main.tspp",
         "test.main.narrow",
         r#"
-function test.main.narrow(v0: boolean): float64 {
+export function test.main.narrow(v0: boolean): float64 {
     local l0: boolean
 
 entry(v0: boolean):
@@ -260,7 +260,7 @@ entry(v0: boolean):
         "main.tspp",
         "test.main.wide",
         r#"
-function test.main.wide(v0: boolean): float64 {
+export function test.main.wide(v0: boolean): float64 {
     local l0: boolean
 
 entry(v0: boolean):
@@ -308,7 +308,7 @@ function settle(count: int32, limit: int32, flag: boolean): int32 {
         "main.tspp",
         "test.main.settle",
         r#"
-function test.main.settle(v0: int32, v1: int32, v2: boolean): int32 {
+export function test.main.settle(v0: int32, v1: int32, v2: boolean): int32 {
     local l0: int32
     local l1: int32
     local l2: boolean
@@ -365,7 +365,7 @@ function choose(low: int32, high: int32, flag: boolean): int32 {
         "main.tspp",
         "test.main.choose",
         r#"
-function test.main.choose(v0: int32, v1: int32, v2: boolean): int32 {
+export function test.main.choose(v0: int32, v1: int32, v2: boolean): int32 {
     local l0: int32
     local l1: int32
     local l2: boolean
@@ -386,7 +386,7 @@ entry(v0: int32, v1: int32, v2: boolean):
     session.assert_mir_lowered(
         "lib.tspp",
         r#"
-function test.lib.pick<T>(v0: T, v1: T, v2: boolean): T {
+export function test.lib.pick<T>(v0: T, v1: T, v2: boolean): T {
     local l0: T
     local l1: T
     local l2: boolean
@@ -444,7 +444,7 @@ function settle(count: int32, limit: int32, flag: boolean): int32 {
         "main.tspp",
         "test.main.settle",
         r#"
-function test.main.settle(v0: int32, v1: int32, v2: boolean): int32 {
+export function test.main.settle(v0: int32, v1: int32, v2: boolean): int32 {
     local l0: int32
     local l1: int32
     local l2: boolean
@@ -501,7 +501,7 @@ function choose(low: int32, high: int32, flag: boolean): int32 {
     session.assert_mir_lowered(
         "main.tspp",
         r#"
-function app.main.choose(v0: int32, v1: int32, v2: boolean): int32 {
+export function app.main.choose(v0: int32, v1: int32, v2: boolean): int32 {
     local l0: int32
     local l1: int32
     local l2: boolean
@@ -517,7 +517,7 @@ entry(v0: int32, v1: int32, v2: boolean):
     return v6
 }
 
-function app.main.pick<T>(v0: T, v1: T, v2: boolean): T {
+export function app.main.pick<T>(v0: T, v1: T, v2: boolean): T {
     local l0: T
     local l1: T
     local l2: boolean
@@ -562,7 +562,7 @@ function run(): int32 {
     );
 
     session.assert_mir_function("main.tspp", "test.main.apply", r#"
-function test.main.apply(v0: function<(int32) => int32, repeatable, managed, mutable, local>, v1: int32): int32 {
+export function test.main.apply(v0: function<(int32) => int32, repeatable, managed, mutable, local>, v1: int32): int32 {
     local l0: function<(int32) => int32, repeatable, managed, mutable, local>
     local l1: int32
 
@@ -578,7 +578,7 @@ entry(v0: function<(int32) => int32, repeatable, managed, mutable, local>, v1: i
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.run", r#"
-function test.main.run(): int32 {
+export function test.main.run(): int32 {
 entry:
     v0: ptr<void, readonly> = null
     v1: function<(int32) => int32, repeatable, managed, mutable, local> = function.bind test.main.identity<int32>, v0
@@ -626,7 +626,7 @@ function notify(channel: Channel): void {
 @nocopy
 type test.lib.Channel;
 
-function test.main.notify(v0: ref<test.lib.Channel, managed, mutable, local>): void {
+export function test.main.notify(v0: ref<test.lib.Channel, managed, mutable, local>): void {
     local l0: ref<test.lib.Channel, managed, mutable, local>
 
 entry(v0: ref<test.lib.Channel, managed, mutable, local>):
@@ -681,7 +681,7 @@ function unwrap(box: Box<int32>): int32 {
 @nocopy
 type test.lib.Box<T>;
 
-function test.main.unwrap(v0: ref<test.lib.Box<int32>, managed, mutable, local>): int32 {
+export function test.main.unwrap(v0: ref<test.lib.Box<int32>, managed, mutable, local>): int32 {
     local l0: ref<test.lib.Box<int32>, managed, mutable, local>
 
 entry(v0: ref<test.lib.Box<int32>, managed, mutable, local>):
@@ -748,7 +748,7 @@ type test.lib.Tap<T>;
 @nocopy
 type test.lib.Source<T>;
 
-function test.main.drain(v0: ref<test.lib.Tap<int32>, managed, mutable, local>): int32 {
+export function test.main.drain(v0: ref<test.lib.Tap<int32>, managed, mutable, local>): int32 {
     local l0: ref<test.lib.Tap<int32>, managed, mutable, local>
 
 entry(v0: ref<test.lib.Tap<int32>, managed, mutable, local>):
@@ -813,7 +813,7 @@ type test.lib.BRef;
 
 type test.lib.BId;
 
-function test.main.run(): int32 {
+export function test.main.run(): int32 {
     local l0: test.lib.Pair<test.lib.ARef>
     local l1: test.lib.Pair<test.lib.BRef>
 
@@ -892,7 +892,7 @@ function build(message: &readonly int32): Wrap<int32> {
     session.assert_mir_function("main.tspp", "test.main.build", r#"
 type test.lib.Wrap<'a, T>;
 
-function test.main.build<'a>(v0: ref<int32, borrowed, 'a, readonly>): test.lib.Wrap<'a, int32> {
+export function test.main.build<'a>(v0: ref<int32, borrowed, 'a, readonly>): test.lib.Wrap<'a, int32> {
     local l0: ref<int32, borrowed, 'a, readonly>
 
 entry(v0: ref<int32, borrowed, 'a, readonly>):
@@ -953,7 +953,7 @@ type test.main.Task<T> {
     value: T;
 }
 
-function test.main.take(v0: dynamic<test.main.Reader, managed, mutable, local>): void {
+export function test.main.take(v0: dynamic<test.main.Reader, managed, mutable, local>): void {
     local l0: dynamic<test.main.Reader, managed, mutable, local>
     local l1: test.main.Task<Result<usize, IoError>>
     local l2: Result<usize, IoError>
@@ -1002,7 +1002,7 @@ type test.main.Cell<T> {
     value: T;
 }
 
-function test.main.Cell.index<T, A: Access, 'a>(v0: ref<test.main.Cell<T>, borrowed, 'a, A>): variant<uint1> { 0uint1 = ref<?T, borrowed, 'a, A>; 1uint1 = void; } {
+export function test.main.Cell.index<T, A: Access, 'a>(v0: ref<test.main.Cell<T>, borrowed, 'a, A>): variant<uint1> { 0uint1 = ref<?T, borrowed, 'a, A>; 1uint1 = void; } {
     local l0: ref<test.main.Cell<T>, borrowed, 'a, A>
 
 entry(v0: ref<test.main.Cell<T>, borrowed, 'a, A>):
@@ -1043,7 +1043,7 @@ type test.main.Cell<T> {
     value: T;
 }
 
-function test.main.Cell.index<T, A: Access, 'a>(v0: ref<test.main.Cell<T>, borrowed, 'a, A>): variant<uint1> { 0uint1 = ref<?T, borrowed, 'a, A>; 1uint1 = void; } {
+export function test.main.Cell.index<T, A: Access, 'a>(v0: ref<test.main.Cell<T>, borrowed, 'a, A>): variant<uint1> { 0uint1 = ref<?T, borrowed, 'a, A>; 1uint1 = void; } {
     local l0: ref<test.main.Cell<T>, borrowed, 'a, A>
 
 entry(v0: ref<test.main.Cell<T>, borrowed, 'a, A>):
@@ -1100,24 +1100,30 @@ type Zero { }
 @languageItem("math.One")
 type One { }
 
-function test.main.twice<T: Integer, 'a>(v0: ref<?T, borrowed, 'a, mutable>): T {
+export function test.main.twice<T: Integer, 'a>(v0: ref<?T, borrowed, 'a, mutable>): T {
     local l0: ref<?T, borrowed, 'a, mutable>
     local l1: T
     local l2: T
 
 entry(v0: ref<?T, borrowed, 'a, mutable>):
     store l0, v0
-    v1: ref<?T, borrowed, 'a, mutable> = load l0
-    v2: ?T = load (*v1)
-    v3: T = new.complete v2
-    store l1, v3
-    v4: ref<?T, borrowed, 'a, mutable> = load l0
-    v5: ?T = load (*v4)
-    v6: T = new.complete v5
-    store l2, v6
-    v7: T = load l1
-    return v7
+    v1: ?T = load (*l0)
+    v2: T = new.complete v1
+    store l1, v2
+    v3: ?T = load (*l0)
+    v4: T = new.complete v3
+    store l2, v4
+    v5: T = load l1
+    return v5
 }
+
+/// @layout.struct name=Concrete size=0 align=1
+/// @layout.struct name=Copy size=0 align=1
+/// @layout.struct name=Clone size=0 align=1
+/// @layout.struct name=IntegerDomain size=0 align=1
+/// @layout.struct name=Zero size=0 align=1
+/// @layout.struct name=One size=0 align=1
+/// @layout.struct name=type@5 size=0 align=1
 
 /// @dispatch.shape constraint=type@3 function=clone function=cloneFrom function=zero function=one
 "#,
@@ -1143,17 +1149,16 @@ newtype interface Dup {
 @nocopy
 type test.main.Dup { }
 
-function test.main.Dup.dupFrom<this: test.main.Dup, 'a, 'b>(v0: ref<?this, borrowed, 'a, mutable>, v1: ref<?this, borrowed, 'b, readonly>): void {
+export function test.main.Dup.dupFrom<this: test.main.Dup, 'a, 'b>(v0: ref<?this, borrowed, 'a, mutable>, v1: ref<?this, borrowed, 'b, readonly>): void {
     local l0: ref<?this, borrowed, 'b, readonly>
     local l1: ref<?this, borrowed, 'a, mutable>
 
 entry(v0: ref<?this, borrowed, 'a, mutable>, v1: ref<?this, borrowed, 'b, readonly>):
     store l0, v1
     store l1, v0
-    v2: ref<?this, borrowed, 'a, mutable> = load l1
-    v3: ref<?this, borrowed, 'b, readonly> = load l0
-    v4: ?this = call.witness this, test.main.Dup, test.main.Dup.dup(v3): (ref<?this, borrowed, 'b, readonly>) => ?this
-    store (*v2), v4
+    v2: ref<?this, borrowed, 'b, readonly> = load l0
+    v3: ?this = call.witness this, test.main.Dup, test.main.Dup.dup(v2): (ref<?this, borrowed, 'b, readonly>) => ?this
+    store (*l1), v3
     return
 }
 "#,
@@ -1189,7 +1194,7 @@ type test.main.Cell<T> {
     value: T;
 }
 
-function test.main.Cell.set<T, 'a>(v0: ref<test.main.Cell<T>, borrowed, 'a, exclusive>, v1: T): void {
+export function test.main.Cell.set<T, 'a>(v0: ref<test.main.Cell<T>, borrowed, 'a, exclusive>, v1: T): void {
     local l0: T
     local l1: ref<test.main.Cell<T>, borrowed, 'a, exclusive>
 
@@ -1231,7 +1236,7 @@ extension<T> of Slice<T> {
         "main.tspp",
         "test.main.Slice.unsafeGet2",
         r#"
-function test.main.Slice.unsafeGet2<T: Copy, 'a>(v0: slice<T, borrowed, 'a, readonly>, v1: usize): T {
+export function test.main.Slice.unsafeGet2<T: Copy, 'a>(v0: slice<T, borrowed, 'a, readonly>, v1: usize): T {
     local l0: usize
     local l1: slice<T, borrowed, 'a, readonly>
 
@@ -1279,7 +1284,7 @@ type test.main.Slot<T> {
 @languageItem("memory.Default")
 type Default;
 
-function test.main.fill<T: Default>(): test.main.Slot<T> {
+export function test.main.fill<T: Default>(): test.main.Slot<T> {
 entry:
     v0: ?T = call.witness T, Default, Default.default(): () => ?T
     v1: T = new.complete v0
@@ -1314,7 +1319,7 @@ type test.main.Holder<'a, T> {
     value: ref<?T, borrowed, 'a, immutable>;
 }
 
-function test.main.Holder.same<'a, T: StrictEqual<T>, 'a>(v0: test.main.Holder<'a, T>, v1: ref<?T, borrowed, 'a, immutable>): boolean {
+export function test.main.Holder.same<'a, T: StrictEqual<T>, 'a>(v0: test.main.Holder<'a, T>, v1: ref<?T, borrowed, 'a, immutable>): boolean {
     local l0: ref<?T, borrowed, 'a, immutable>
     local l1: test.main.Holder<'a, T>
 
@@ -1323,11 +1328,167 @@ entry(v0: test.main.Holder<'a, T>, v1: ref<?T, borrowed, 'a, immutable>):
     store l1, v0
     v2: ref<?T, borrowed, 'a, immutable> = load (l1).0
     v3: ?T = load (*v2)
-    v4: ref<?T, borrowed, 'a, immutable> = load l0
-    v5: ?T = load (*v4)
-    v6: boolean = eq v3, v5
-    return v6
+    v4: ?T = load (*l0)
+    v5: boolean = eq v3, v4
+    return v5
 }
+"#,
+    );
+}
+
+/// Declare a specialization header with the associated type its arguments close.
+#[test]
+fn test_declare_a_specialization_with_the_associated_type_its_arguments_close() {
+    let session = TestSession::single(
+        r#"
+interface Maker {
+    type Out;
+    make(): this.Out;
+}
+
+struct Small {
+    make(): int32 {
+        return 7;
+    }
+}
+
+extension of Small implements Maker {
+    type Out = int32;
+}
+
+function build<T: Maker>(maker: T): T.Out {
+    return maker.make();
+}
+
+const made: int32 = build(Small {});
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.tspp",
+        r#"
+type test.main.Small { }
+
+@nocopy
+type test.main.Maker { }
+
+export global test.main.made: int32 = zeroinit
+
+export function test.main.Small.make<'a>(v0: ref<test.main.Small, borrowed, 'a, readonly>): int32 {
+    local l0: ref<test.main.Small, borrowed, 'a, readonly>
+
+entry(v0: ref<test.main.Small, borrowed, 'a, readonly>):
+    store l0, v0
+    v1: int32 = 7
+    return v1
+}
+
+export function test.main.build<T: test.main.Maker>(v0: T): witness<T, test.main.Maker, Out> {
+    local l0: T
+
+entry(v0: T):
+    store l0, v0
+    v1: T = load l0
+    v2: witness<T, test.main.Maker, Out> = call.witness T, test.main.Maker, test.main.Maker.make(v1): (T) => witness<T, test.main.Maker, Out>
+    return v2
+}
+
+external function test.main.Maker.make<this: test.main.Maker>(this): witness<this, test.main.Maker, Out>
+
+export park function test.main.@init(): void {
+entry:
+    v0: test.main.Small = aggregate ()
+    v1: int32 = call test.main.build<test.main.Small>(v0): (test.main.Small) => int32
+    store @test.main.made, v1
+    return
+}
+
+shared function test.main.build<test.main.Small>(v0: test.main.Small): int32;
+
+/// @layout.struct name=test.main.Small size=0 align=1
+/// @layout.struct name=type@1 size=0 align=1
+
+/// @dispatch.shape constraint=type@5 function=make
+"#,
+    );
+}
+
+/// Declare a specialization header with the associated const its arguments close in a type.
+#[test]
+fn test_declare_a_specialization_with_the_associated_const_its_arguments_close() {
+    let session = TestSession::single(
+        r#"
+interface Sized {
+    const Width: uint;
+}
+
+struct Pixel {
+    value: uint8;
+}
+
+extension of Pixel implements Sized {
+    const Width: uint = 4;
+}
+
+function width<T: Sized>(value: T, bytes: &readonly [uint8; T.Width]): uint {
+    return T.Width;
+}
+
+const bytes: [uint8; 4] = [1, 2, 3, 4];
+const counted = width(Pixel { value: 1 }, &readonly bytes);
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.tspp",
+        r#"
+type test.main.Pixel {
+    value: uint8;
+}
+
+@nocopy
+type test.main.Sized { }
+
+export constant test.main.Pixel.Sized.Width: uint64 = 4
+export global test.main.bytes: [uint8; 4] = zeroinit
+export global test.main.counted: uint64 = zeroinit
+
+export function test.main.width<T: test.main.Sized, 'a>(v0: T, v1: ref<[uint8; witness<T, test.main.Sized, Width>], borrowed, 'a, readonly>): uint64 {
+    local l0: T
+    local l1: ref<[uint8; witness<T, test.main.Sized, Width>], borrowed, 'a, readonly>
+
+entry(v0: T, v1: ref<[uint8; witness<T, test.main.Sized, Width>], borrowed, 'a, readonly>):
+    store l0, v0
+    store l1, v1
+    v2: uint64 = witness T, test.main.Sized, Width
+    return v2
+}
+
+export park function test.main.@init(): void {
+entry:
+    v0: uint8 = 1
+    v1: uint8 = 2
+    v2: uint8 = 3
+    v3: uint8 = 4
+    v4: [uint8; 4] = aggregate (v0, v1, v2, v3)
+    store @test.main.bytes, v4
+    v5: uint8 = 1
+    v6: test.main.Pixel = aggregate (v5)
+    v7: ref<[uint8; 4], borrowed, 'static, readonly> = address @test.main.bytes
+    v8: uint64 = call test.main.width<test.main.Pixel>(v6, v7): (test.main.Pixel, ref<[uint8; 4], borrowed, 'static, readonly>) => uint64
+    store @test.main.counted, v8
+    return
+}
+
+shared function test.main.width<test.main.Pixel, 'a>(v0: test.main.Pixel, v1: ref<[uint8; 4], borrowed, 'a, readonly>): uint64;
+
+/// @layout.struct name=test.main.Pixel size=1 align=1
+/// @layout.field owner=test.main.Pixel index=0 name=value offset=0 size=1 align=1
+/// @layout.struct name=type@2 size=1 align=1
+/// @layout.field owner=type@2 index=0 name=value offset=0 size=1 align=1
+/// @layout.struct name=type@8 size=0 align=1
+
+/// @dispatch.shape constraint=type@6
 "#,
     );
 }

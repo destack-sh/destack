@@ -1,26 +1,20 @@
+use std::sync::Arc;
+
+use tspp_artifact::DiagnosticLike;
 use tspp_dir as dir;
 use tspp_mir as mir;
 
-use crate::lower::{FunctionLowerer, GenericScope, ModuleInitializer, ModuleLowerer};
+use crate::lower::{EnumCase, FunctionLowerer, GenericScope, ModuleInitializer, ModuleLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl ModuleLowerer<'_> {
-    /// Declare one global for each binding of one module-level let.
-    pub(in crate::lower) fn declare_module_constants(
+    /// Declare one global per module binding.
+    pub(in crate::lower) fn declare_module_bindings(
         &mut self,
         tree: &mut mir::Tree,
         mutability: dir::Mutability,
         declarators: &[dir::LocalNodeId<dir::Declarator>],
     ) -> CompilerResult<()> {
-        // require an immutable module binding
-        if mutability != dir::Mutability::Immutable {
-            return Err(LowerError::Unsupported {
-                anchor: self.module.into(),
-                construct: "a mutable module binding".to_string(),
-            }
-            .into());
-        }
-
         // declare one global per bound name, in declaration order
         for declarator in declarators {
             // resolve the symbol the declarator binds
@@ -34,7 +28,18 @@ impl ModuleLowerer<'_> {
                 .into());
             };
             let value = self.local().tree().get(*declarator).value;
-            self.declare_constant(tree, symbol, value)?;
+
+            // record a failed declaration
+            match self.declare_binding(tree, symbol, value, mutability) {
+                Ok(()) => {}
+                Err(CompilerError::Diagnostic(diagnostic)) => {
+                    let diagnostic: Arc<dyn DiagnosticLike> = Arc::from(diagnostic);
+                    self.globals.insert(symbol, Err(diagnostic.clone()));
+
+                    return Err(CompilerError::Diagnostic(Box::new(diagnostic)));
+                }
+                Err(error) => return Err(error),
+            }
         }
 
         Ok(())
@@ -70,30 +75,36 @@ impl ModuleLowerer<'_> {
         self.declare_constant_global(tree, symbol, &term)
     }
 
-    /// Declare the global behind one constant binding.
-    fn declare_constant(
+    /// Declare the global behind one module binding.
+    fn declare_binding(
         &mut self,
         tree: &mut mir::Tree,
         symbol: dir::GlobalSymbolId,
         value: Option<dir::LocalNodeId<dir::Expression>>,
+        mutability: dir::Mutability,
     ) -> CompilerResult<()> {
-        // declare the constant when its value evaluates
-        if let Some(term) = self.module_constant(symbol)?.filter(Self::is_constant_term) {
+        // declare a static constant
+        let declared = self.symbol_type(symbol)?;
+        if mutability == dir::Mutability::Immutable
+            && let Some(term) = self.module_constant(symbol)?
+            && Self::is_constant_term(&term)
+        {
             return self.declare_constant_global(tree, symbol, &term);
         }
 
         // declare a mutable global for a binding the module initializer stores
-        let declared = self.symbol_type(symbol)?;
         let ty = self.constant_type(tree, declared)?;
-        let name = self.symbol_path(symbol)?;
+        let name = self.canonical_path(symbol)?;
         let name = self.strings.intern(&name);
-        let global = tree.insert(mir::Global::new(
+        let mut global = mir::Global::new(
             self.module,
             name,
             ty,
             mir::Mutability::Mutable,
             mir::GlobalInitializer::zero(),
-        ));
+        );
+        global.linkage = mir::Linkage::Export;
+        let global = tree.insert(global);
         self.index_language_declaration(tree, global, symbol);
         self.globals.insert(symbol, Ok(global));
 
@@ -116,9 +127,11 @@ impl ModuleLowerer<'_> {
         let declared = self.symbol_type(symbol)?;
         let initializer = self.constant_initializer(tree, term, declared)?;
         let ty = self.constant_type(tree, declared)?;
-        let name = self.symbol_path(symbol)?;
+        let name = self.canonical_path(symbol)?;
         let name = self.strings.intern(&name);
-        let global = tree.insert(mir::Global::constant(self.module, name, ty, initializer));
+        let mut global = mir::Global::constant(self.module, name, ty, initializer);
+        global.linkage = mir::Linkage::Export;
+        let global = tree.insert(global);
         self.index_language_declaration(tree, global, symbol);
         self.globals.insert(symbol, Ok(global));
 
@@ -136,7 +149,7 @@ impl ModuleLowerer<'_> {
             if symbol.module_id == self.module || !self.is_constant_binding(symbol)? {
                 return Ok(None);
             }
-            let name = self.symbol_path(symbol)?;
+            let name = self.canonical_path(symbol)?;
             let name = self.strings.intern(&name);
             let Some(global) = self.import_global(
                 tree,
@@ -175,12 +188,15 @@ impl ModuleLowerer<'_> {
             return Ok(None);
         }
 
-        // declare the initializer under its module-qualified name
+        // declare the initializer parking
         let initializers = std::mem::take(&mut self.initializers);
         let void = builder.tree_mut().intern_type(mir::Type::Void);
         let path = &self.state(self.module)?.path;
         let name = format!("{path}.@init");
-        let header = builder.function_header(&name).result(void);
+        let header = builder
+            .function_header(&name)
+            .park(mir::ParkBehavior::MayPark)
+            .result(void);
         let function = builder.declare_function(header);
         builder.tree_mut().get_mut(function).linkage = mir::Linkage::Export;
 
@@ -207,7 +223,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Return the evaluated constant behind one module binding, when one exists.
-    fn module_constant(
+    pub(in crate::lower) fn module_constant(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
@@ -224,11 +240,27 @@ impl ModuleLowerer<'_> {
     fn is_constant_term(term: &dir::StaticTerm) -> bool {
         // accept literal, newtype, and tuple terms
         match term {
-            dir::StaticTerm::Literal { .. } => true,
+            dir::StaticTerm::Literal { value } => {
+                !matches!(value, dir::Literal::RegexString { .. })
+            }
             dir::StaticTerm::Newtype { value, .. } => Self::is_constant_term(value),
             dir::StaticTerm::Tuple { elements } => elements.iter().all(Self::is_constant_term),
             _ => false,
         }
+    }
+
+    /// Return whether one constant's representation is a reference.
+    fn is_reference_constant(
+        &mut self,
+        tree: &mut mir::Tree,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let representation = self.constant_type(tree, ty)?;
+
+        Ok(matches!(
+            tree.get(representation),
+            mir::Type::Reference { .. }
+        ))
     }
 
     /// Build the initializer of one constant from its evaluated term.
@@ -238,7 +270,58 @@ impl ModuleLowerer<'_> {
         term: &dir::StaticTerm,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<mir::GlobalInitializer> {
+        // hold no bytes for a singleton literal
+        if let dir::StaticTerm::Literal { .. } = term
+            && let dir::Type::Literal(_) = self.ty(ty)?
+        {
+            return Ok(mir::GlobalInitializer::zero());
+        }
+
+        // encode an enum case
+        if let dir::StaticTerm::Literal { value } = term
+            && let Some(owner) = self.enum_owner(ty)?
+        {
+            return match self.enum_case_of_value(owner, *value)? {
+                EnumCase::Tag(case) => Ok(mir::GlobalInitializer::Variant {
+                    case,
+                    payload: None,
+                }),
+                EnumCase::String(string) => {
+                    self.declare_string_literals(tree, [string])?;
+                    let object = Self::literal_object(self.string_literals.get(&string))?;
+
+                    Ok(mir::GlobalInitializer::Aggregate(vec![
+                        mir::GlobalInitializer::GlobalAddress(object),
+                    ]))
+                }
+            };
+        }
+
         match term {
+            // address a string object
+            dir::StaticTerm::Literal {
+                value: dir::Literal::String(string),
+            } => {
+                if !self.is_reference_constant(tree, ty)? {
+                    return Ok(mir::GlobalInitializer::String(*string));
+                }
+                self.declare_string_literals(tree, [*string])?;
+                let object = Self::literal_object(self.string_literals.get(string))?;
+
+                Ok(mir::GlobalInitializer::GlobalAddress(object))
+            }
+            dir::StaticTerm::Literal {
+                value: dir::Literal::Bigint(bigint),
+            } => {
+                if !self.is_reference_constant(tree, ty)? {
+                    return Ok(mir::GlobalInitializer::BigInt(*bigint));
+                }
+                self.declare_bigint_literals(tree, [*bigint])?;
+                let object = Self::literal_object(self.bigint_literals.get(bigint))?;
+
+                Ok(mir::GlobalInitializer::GlobalAddress(object))
+            }
+
             // initialize scalars at their lowered representation, a singleton holding no bytes
             dir::StaticTerm::Literal { value } => {
                 let representation = self.constant_type(tree, ty)?;
@@ -286,7 +369,12 @@ impl ModuleLowerer<'_> {
                         message: "a tuple constant at a non-tuple type".to_string(),
                     });
                 };
-                let element_types = self.types(ty.module_id)?.type_ids(tuple.elements).to_vec();
+                let element_types = self
+                    .types(ty.module_id)?
+                    .elements(tuple.elements)
+                    .iter()
+                    .map(|element| element.ty)
+                    .collect::<Vec<_>>();
                 if element_types.len() != elements.len() {
                     return Err(CompilerError::Internal {
                         message: "a tuple constant with a mismatched arity".to_string(),
@@ -303,6 +391,19 @@ impl ModuleLowerer<'_> {
             // reject the terms the module initializer stores
             _ => Err(CompilerError::Internal {
                 message: "a non-constant term behind one module constant".to_string(),
+            }),
+        }
+    }
+
+    /// Return the constant object one literal declaration produced.
+    fn literal_object(
+        declared: Option<&Result<(mir::GlobalId, mir::TypeId), Arc<dyn DiagnosticLike>>>,
+    ) -> CompilerResult<mir::GlobalId> {
+        match declared {
+            Some(Ok((object, _))) => Ok(*object),
+            Some(Err(diagnostic)) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
+            None => Err(CompilerError::Internal {
+                message: "a literal constant without its declared object".to_string(),
             }),
         }
     }
@@ -365,6 +466,28 @@ impl ModuleLowerer<'_> {
             (dir::Literal::Float(value), mir::Type::Float(format)) => mir::Constant::Float {
                 bits: tspp_core::float_to_bits(format.format(), value),
                 format: *format,
+            },
+            // store characters as unicode scalar values
+            (
+                dir::Literal::Character(value),
+                mir::Type::Int {
+                    width,
+                    is_signed: false,
+                },
+            ) => mir::Constant::UInt {
+                value: u128::from(value as u32),
+                width: *width,
+            },
+            (
+                dir::Literal::Character(value),
+                mir::Type::Int {
+                    width,
+                    is_signed: true,
+                },
+            ) => mir::Constant::Int {
+                value: i128::from(value as u32),
+                width: *width,
+                is_signed: true,
             },
             // reject a literal outside its lowered representation
             (_, representation) => {

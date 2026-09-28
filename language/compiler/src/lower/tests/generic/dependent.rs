@@ -21,7 +21,7 @@ function hasPrevious<T>(previous: Unwrap<T> | undefined): boolean {
         "main.tspp",
         "test.main.hasPrevious",
         r#"
-function test.main.hasPrevious<T, P0>(v0: variant<uint1> { 0uint1 = P0; 1uint1 = void; }): boolean {
+export function test.main.hasPrevious<T, P0>(v0: variant<uint1> { 0uint1 = P0; 1uint1 = void; }): boolean {
     local l0: variant<uint1> { 0uint1 = P0; 1uint1 = void; }
 
 entry(v0: variant<uint1> { 0uint1 = P0; 1uint1 = void; }):
@@ -38,7 +38,7 @@ entry(v0: variant<uint1> { 0uint1 = P0; 1uint1 = void; }):
         "main.tspp",
         "test.main.hasPrevious",
         r#"
-function test.main.hasPrevious<T, P0>(v0: variant<uint1> { 0uint1 = P0; 1uint1 = void; }): boolean {
+export function test.main.hasPrevious<T, P0>(v0: variant<uint1> { 0uint1 = P0; 1uint1 = void; }): boolean {
     local l0: variant<uint1> { 0uint1 = P0; 1uint1 = void; }
 
 entry(v0: variant<uint1> { 0uint1 = P0; 1uint1 = void; }):
@@ -74,7 +74,7 @@ function keep<A, B>(value: Merged<A, B>): Merged<A, B> {
         "main.tspp",
         "test.main.keep",
         r#"
-function test.main.keep<A, B, P0>(v0: P0): P0 {
+export function test.main.keep<A, B, P0>(v0: P0): P0 {
     local l0: P0
 
 entry(v0: P0):
@@ -88,7 +88,7 @@ entry(v0: P0):
         "main.tspp",
         "test.main.keep",
         r#"
-function test.main.keep<A, B, P0>(v0: P0): P0 {
+export function test.main.keep<A, B, P0>(v0: P0): P0 {
     local l0: P0
 
 entry(v0: P0):
@@ -130,7 +130,7 @@ function read<P: Dereference<"readonly", type Target = int32, const OutputAccess
 @nocopy
 type test.main.Dereference<A: Access> { }
 
-function test.main.read<P, 'a>(v0: ref<?P, borrowed, 'a, readonly>): int32 {
+export function test.main.read<P, 'a>(v0: ref<?P, borrowed, 'a, readonly>): int32 {
     local l0: ref<?P, borrowed, 'a, readonly>
 
 entry(v0: ref<?P, borrowed, 'a, readonly>):

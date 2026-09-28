@@ -31,7 +31,7 @@ type Set<T, E>;
 @languageItem("iter.Iterable")
 type Iterable<T>;
 
-function test.main.collect(v0: ref<Array<int32>, managed, mutable, local>): ref<Set<int32, Equality<int32>>, managed, mutable, local> {
+export function test.main.collect(v0: ref<Array<int32>, managed, mutable, local>): ref<Set<int32, Equality<int32>>, managed, mutable, local> {
     local l0: ref<Array<int32>, managed, mutable, local>
 
 entry(v0: ref<Array<int32>, managed, mutable, local>):
@@ -39,8 +39,10 @@ entry(v0: ref<Array<int32>, managed, mutable, local>):
     v1: ref<Array<int32>, managed, mutable, local> = load l0
     v2: dynamic<Iterable<int32>, managed, mutable, local> = dynamic.bind v1, ref<Array<int32>, managed, mutable, local>
     v3: Set<int32, Equality<int32>> = call Set.from<int32, Equality<int32>>(v2): (dynamic<Iterable<int32>, managed, mutable, local>) => Set<int32, Equality<int32>>
-    v4: ref<Set<int32, Equality<int32>>, managed, mutable, local> = new.complete v3
-    return v4
+    v4: uninit<ref<Set<int32, Equality<int32>>, managed, mutable, local>> = new.uninit Set<int32, Equality<int32>>, local
+    store (*v4), v3
+    v5: ref<Set<int32, Equality<int32>>, managed, mutable, local> = new.complete v4
+    return v5
 }
 "#,
     );
@@ -69,7 +71,7 @@ type Equality<T>;
 @languageItem("collections.Set")
 type Set<T, E>;
 
-function test.main.has(v0: ref<Set<int32, Equality<int32>>, managed, mutable, local>, v1: int32): boolean {
+export function test.main.has(v0: ref<Set<int32, Equality<int32>>, managed, mutable, local>, v1: int32): boolean {
     local l0: ref<Set<int32, Equality<int32>>, managed, mutable, local>
     local l1: int32
 
@@ -105,7 +107,7 @@ function order(values: float64[]): void {
 @languageItem("collections.Array")
 type Array<T>;
 
-function test.main.order(v0: ref<Array<float64>, managed, mutable, local>): void {
+export function test.main.order(v0: ref<Array<float64>, managed, mutable, local>): void {
     local l0: ref<Array<float64>, managed, mutable, local>
 
 entry(v0: ref<Array<float64>, managed, mutable, local>):
@@ -163,7 +165,7 @@ type IteratorYield<Y>;
 @languageItem("iter.IteratorReturn")
 type IteratorReturn<R>;
 
-function test.main.count<'a>(v0: ref<Array<test.main.Label>, borrowed, 'a, immutable>): isize {
+export function test.main.count<'a>(v0: ref<Array<test.main.Label>, borrowed, 'a, immutable>): isize {
     local l0: ref<Array<test.main.Label>, borrowed, 'a, immutable>
     local l1: isize
     local l2: ArrayIterator<test.main.Label, 'a, immutable>
@@ -192,24 +194,23 @@ b2:
     v9: ref<test.main.Label, borrowed, 'frame, immutable> = load l3
     store l4, v9
     v10: isize = load l1
-    v11: ref<test.main.Label, borrowed, 'a, immutable> = load l4
-    v12: ref<Array<int32>, borrowed, 'a, readonly> = address (*v11).0
-    v13: isize = call Array.length.get<int32>(v12): (ref<Array<int32>, borrowed, 'a, readonly>) => isize
-    v14: isize = add v10, v13
-    store l1, v14
+    v11: ref<Array<int32>, borrowed, 'a, readonly> = address (*l4).0
+    v12: isize = call Array.length.get<int32>(v11): (ref<Array<int32>, borrowed, 'a, readonly>) => isize
+    v13: isize = add v10, v12
+    store l1, v13
     jump b1
 
 b3:
-    v15: isize = load l1
-    return v15
+    v14: isize = load l1
+    return v14
 }
 
 /// @layout.struct name=test.main.Label size=32 align=8
 /// @layout.field owner=test.main.Label index=0 name=values offset=0 size=32 align=8
-/// @layout.variant name=type@68 size=16 align=8
-/// @layout.discriminant owner=type@68 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@68 index=0 discriminant=0 payload_offset=8
-/// @layout.case owner=type@68 index=1 discriminant=1 payload_offset=8
+/// @layout.variant name=type@68 size=8 align=8
+/// @layout.discriminant owner=type@68 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@68 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@68 index=1 discriminant=1 payload_offset=0
 "#,
     );
 }

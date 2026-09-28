@@ -49,7 +49,7 @@ type test.main.Badge {
     label: int32;
 }
 
-function test.main.render(): test.main.Panel {
+export function test.main.render(): test.main.Panel {
     local l0: test.main.Panel
 
 entry:
@@ -66,8 +66,8 @@ entry:
 /// @layout.field owner=test.main.Panel index=0 name=width offset=0 size=4 align=4
 /// @layout.struct name=test.main.Badge size=4 align=4
 /// @layout.field owner=test.main.Badge index=0 name=label offset=0 size=4 align=4
-/// @layout.tuple name=type@28 size=4 align=4
-/// @layout.element owner=type@28 index=0 offset=0 size=4 align=4
+/// @layout.tuple name=type@32 size=4 align=4
+/// @layout.element owner=type@32 index=0 offset=0 size=4 align=4
 "#,
     );
 
@@ -89,8 +89,8 @@ shared function test.main.Panel.TreeBuilder.fragment<(test.main.Badge)>(v0: (tes
 /// @layout.field owner=test.main.Panel index=0 name=width offset=0 size=4 align=4
 /// @layout.struct name=test.main.Badge size=4 align=4
 /// @layout.field owner=test.main.Badge index=0 name=label offset=0 size=4 align=4
-/// @layout.tuple name=type@28 size=4 align=4
-/// @layout.element owner=type@28 index=0 offset=0 size=4 align=4
+/// @layout.tuple name=type@32 size=4 align=4
+/// @layout.element owner=type@32 index=0 offset=0 size=4 align=4
 "#,
     );
 }

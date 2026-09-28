@@ -18,6 +18,7 @@ mod literal;
 mod lower;
 mod r#match;
 mod member;
+mod narrowing;
 mod operand;
 mod operator;
 mod pattern;

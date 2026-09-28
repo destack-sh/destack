@@ -28,7 +28,7 @@ type test.main.Point {
     y: int32;
 }
 
-function test.main.compare<'a, 'b>(v0: ref<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = int32; }, borrowed, 'a, immutable>, v1: ref<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = int32; }, borrowed, 'b, immutable>): boolean {
+export function test.main.compare<'a, 'b>(v0: ref<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = int32; }, borrowed, 'a, immutable>, v1: ref<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = int32; }, borrowed, 'b, immutable>): boolean {
     local l0: ref<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = int32; }, borrowed, 'a, immutable>
     local l1: ref<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = int32; }, borrowed, 'b, immutable>
 
@@ -58,7 +58,7 @@ entry(v0: ref<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = int32; }, borr
 @languageItem("ops.PartialEqual")
 type PartialEqual<T>;
 
-function test.main.same<T: PartialEqual<T>, 'a, 'b>(v0: ref<?T, borrowed, 'a, immutable>, v1: ref<?T, borrowed, 'b, immutable>): boolean {
+export function test.main.same<T: PartialEqual<T>, 'a, 'b>(v0: ref<?T, borrowed, 'a, immutable>, v1: ref<?T, borrowed, 'b, immutable>): boolean {
     local l0: ref<?T, borrowed, 'a, immutable>
     local l1: ref<?T, borrowed, 'b, immutable>
 
@@ -86,7 +86,7 @@ type test.main.Point {
 @languageItem("ops.PartialEqual")
 type PartialEqual<T>;
 
-function test.main.PartialEqual.equal<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = int32; }, 'a, 'b>(v0: ref<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = int32; }, borrowed, 'a, immutable>, v1: ref<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = int32; }, borrowed, 'b, immutable>): boolean {
+export function test.main.PartialEqual.equal<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = int32; }, 'a, 'b>(v0: ref<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = int32; }, borrowed, 'a, immutable>, v1: ref<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = int32; }, borrowed, 'b, immutable>): boolean {
     local l0: ref<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = int32; }, borrowed, 'b, immutable>
     local l1: ref<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = int32; }, borrowed, 'a, immutable>
     local l2: boolean
@@ -212,7 +212,7 @@ type test.main.Point {
     y: int32;
 }
 
-function test.main.PartialEqual.equal<test.main.Point, 'a, 'b>(v0: ref<test.main.Point, borrowed, 'a, immutable>, v1: ref<test.main.Point, borrowed, 'b, immutable>): boolean {
+export function test.main.PartialEqual.equal<test.main.Point, 'a, 'b>(v0: ref<test.main.Point, borrowed, 'a, immutable>, v1: ref<test.main.Point, borrowed, 'b, immutable>): boolean {
     local l0: ref<test.main.Point, borrowed, 'b, immutable>
     local l1: ref<test.main.Point, borrowed, 'a, immutable>
     local l2: boolean
@@ -220,26 +220,22 @@ function test.main.PartialEqual.equal<test.main.Point, 'a, 'b>(v0: ref<test.main
 entry(v0: ref<test.main.Point, borrowed, 'a, immutable>, v1: ref<test.main.Point, borrowed, 'b, immutable>):
     store l0, v1
     store l1, v0
-    v2: ref<test.main.Point, borrowed, 'a, immutable> = load l1
-    v3: ref<test.main.Point, borrowed, 'b, immutable> = load l0
-    v4: ref<int32, borrowed, 'b, immutable> = address (*v3).0
-    v5: ref<int32, borrowed, 'a, immutable> = address (*v2).0
-    v6: boolean = call Integer.PartialEqual.equal<int32>(v5, v4): (ref<int32, borrowed, 'a, immutable>, ref<int32, borrowed, 'b, immutable>) => boolean
-    store l2, v6
-    branch v6 => b1 | b2
+    v2: ref<int32, borrowed, 'b, immutable> = address (*l0).0
+    v3: ref<int32, borrowed, 'a, immutable> = address (*l1).0
+    v4: boolean = call Integer.PartialEqual.equal<int32>(v3, v2): (ref<int32, borrowed, 'a, immutable>, ref<int32, borrowed, 'b, immutable>) => boolean
+    store l2, v4
+    branch v4 => b1 | b2
 
 b1:
-    v7: ref<test.main.Point, borrowed, 'a, immutable> = load l1
-    v8: ref<test.main.Point, borrowed, 'b, immutable> = load l0
-    v9: ref<int32, borrowed, 'b, immutable> = address (*v8).1
-    v10: ref<int32, borrowed, 'a, immutable> = address (*v7).1
-    v11: boolean = call Integer.PartialEqual.equal<int32>(v10, v9): (ref<int32, borrowed, 'a, immutable>, ref<int32, borrowed, 'b, immutable>) => boolean
-    store l2, v11
+    v5: ref<int32, borrowed, 'b, immutable> = address (*l0).1
+    v6: ref<int32, borrowed, 'a, immutable> = address (*l1).1
+    v7: boolean = call Integer.PartialEqual.equal<int32>(v6, v5): (ref<int32, borrowed, 'a, immutable>, ref<int32, borrowed, 'b, immutable>) => boolean
+    store l2, v7
     jump b2
 
 b2:
-    v12: boolean = load l2
-    return v12
+    v8: boolean = load l2
+    return v8
 }
 
 /// @layout.struct name=test.main.Point size=8 align=4
@@ -280,7 +276,7 @@ type test.main.Point {
 @languageItem("ops.Hasher")
 type Hasher;
 
-function test.main.feed<'a, 'b>(v0: ref<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = null; }, borrowed, 'a, immutable>, v1: dynamic<Hasher, borrowed, 'b, mutable>): void {
+export function test.main.feed<'a, 'b>(v0: ref<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = null; }, borrowed, 'a, immutable>, v1: dynamic<Hasher, borrowed, 'b, mutable>): void {
     local l0: ref<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = null; }, borrowed, 'a, immutable>
     local l1: dynamic<Hasher, borrowed, 'b, mutable>
 
@@ -314,7 +310,7 @@ type Hasher;
 @languageItem("ops.Hash")
 type Hash;
 
-function test.main.digest<T: Hash, 'a, 'b>(v0: ref<?T, borrowed, 'a, immutable>, v1: dynamic<Hasher, borrowed, 'b, mutable>): void {
+export function test.main.digest<T: Hash, 'a, 'b>(v0: ref<?T, borrowed, 'a, immutable>, v1: dynamic<Hasher, borrowed, 'b, mutable>): void {
     local l0: ref<?T, borrowed, 'a, immutable>
     local l1: dynamic<Hasher, borrowed, 'b, mutable>
 
@@ -346,7 +342,7 @@ type Hasher;
 @languageItem("ops.Hash")
 type Hash;
 
-function test.main.Hash.hash<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = null; }, 'a, 'b>(v0: ref<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = null; }, borrowed, 'a, immutable>, v1: dynamic<Hasher, borrowed, 'b, mutable>): void {
+export function test.main.Hash.hash<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = null; }, 'a, 'b>(v0: ref<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = null; }, borrowed, 'a, immutable>, v1: dynamic<Hasher, borrowed, 'b, mutable>): void {
     local l0: dynamic<Hasher, borrowed, 'b, mutable>
     local l1: ref<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = null; }, borrowed, 'a, immutable>
     local l2: boolean, readonly
@@ -419,21 +415,19 @@ type test.main.Point {
 @languageItem("ops.Hasher")
 type Hasher;
 
-function test.main.Hash.hash<test.main.Point, 'a, 'b>(v0: ref<test.main.Point, borrowed, 'a, immutable>, v1: dynamic<Hasher, borrowed, 'b, mutable>): void {
+export function test.main.Hash.hash<test.main.Point, 'a, 'b>(v0: ref<test.main.Point, borrowed, 'a, immutable>, v1: dynamic<Hasher, borrowed, 'b, mutable>): void {
     local l0: dynamic<Hasher, borrowed, 'b, mutable>
     local l1: ref<test.main.Point, borrowed, 'a, immutable>
 
 entry(v0: ref<test.main.Point, borrowed, 'a, immutable>, v1: dynamic<Hasher, borrowed, 'b, mutable>):
     store l0, v1
     store l1, v0
-    v2: ref<test.main.Point, borrowed, 'a, immutable> = load l1
-    v3: dynamic<Hasher, borrowed, 'b, mutable> = load l0
-    v4: ref<int32, borrowed, 'a, immutable> = address (*v2).0
-    call Integer.Hash.hash<int32>(v4, v3): (ref<int32, borrowed, 'a, immutable>, dynamic<Hasher, borrowed, 'b, mutable>) => void
-    v5: ref<test.main.Point, borrowed, 'a, immutable> = load l1
-    v6: dynamic<Hasher, borrowed, 'b, mutable> = load l0
-    v7: ref<int32, borrowed, 'a, immutable> = address (*v5).1
-    call Integer.Hash.hash<int32>(v7, v6): (ref<int32, borrowed, 'a, immutable>, dynamic<Hasher, borrowed, 'b, mutable>) => void
+    v2: dynamic<Hasher, borrowed, 'b, mutable> = load l0
+    v3: ref<int32, borrowed, 'a, immutable> = address (*l1).0
+    call Integer.Hash.hash<int32>(v3, v2): (ref<int32, borrowed, 'a, immutable>, dynamic<Hasher, borrowed, 'b, mutable>) => void
+    v4: dynamic<Hasher, borrowed, 'b, mutable> = load l0
+    v5: ref<int32, borrowed, 'a, immutable> = address (*l1).1
+    call Integer.Hash.hash<int32>(v5, v4): (ref<int32, borrowed, 'a, immutable>, dynamic<Hasher, borrowed, 'b, mutable>) => void
     return
 }
 
@@ -467,7 +461,7 @@ type test.main.Path {
     steps: Array<int32>;
 }
 
-function test.main.copy<'a>(v0: ref<variant<uint1> { 0uint1 = test.main.Path; 1uint1 = int32; }, borrowed, 'a, immutable>): variant<uint1> { 0uint1 = test.main.Path; 1uint1 = int32; } {
+export function test.main.copy<'a>(v0: ref<variant<uint1> { 0uint1 = test.main.Path; 1uint1 = int32; }, borrowed, 'a, immutable>): variant<uint1> { 0uint1 = test.main.Path; 1uint1 = int32; } {
     local l0: ref<variant<uint1> { 0uint1 = test.main.Path; 1uint1 = int32; }, borrowed, 'a, immutable>
 
 entry(v0: ref<variant<uint1> { 0uint1 = test.main.Path; 1uint1 = int32; }, borrowed, 'a, immutable>):
@@ -497,7 +491,7 @@ type test.main.Path {
 @languageItem("memory.Clone")
 type Clone;
 
-function test.main.Clone.clone<variant<uint1> { 0uint1 = test.main.Path; 1uint1 = int32; }, 'a>(v0: ref<variant<uint1> { 0uint1 = test.main.Path; 1uint1 = int32; }, borrowed, 'a, immutable>): variant<uint1> { 0uint1 = test.main.Path; 1uint1 = int32; } {
+export function test.main.Clone.clone<variant<uint1> { 0uint1 = test.main.Path; 1uint1 = int32; }, 'a>(v0: ref<variant<uint1> { 0uint1 = test.main.Path; 1uint1 = int32; }, borrowed, 'a, immutable>): variant<uint1> { 0uint1 = test.main.Path; 1uint1 = int32; } {
     local l0: ref<variant<uint1> { 0uint1 = test.main.Path; 1uint1 = int32; }, borrowed, 'a, immutable>
     local l1: variant<uint1> { 0uint1 = test.main.Path; 1uint1 = int32; }
     local l2: boolean, readonly

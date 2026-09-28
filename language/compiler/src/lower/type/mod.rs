@@ -9,6 +9,6 @@ mod scalar;
 mod signature;
 mod template;
 
-pub(in crate::lower) use lower::TypeLowerer;
+pub(in crate::lower) use lower::{TypeLowerer, literal_static};
 pub(in crate::lower) use nominal::*;
-pub(in crate::lower) use template::{BoundReceiver, GenericScope};
+pub(in crate::lower) use template::{DependentKey, GenericScope};

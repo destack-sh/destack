@@ -5,17 +5,6 @@ use tspp_mir as mir;
 use crate::lower::ModuleLowerer;
 use crate::{CompilerError, CompilerResult};
 
-/// What `this` names inside the bounds of one template's parameters.
-#[derive(Clone, Copy)]
-pub(in crate::lower) enum BoundReceiver {
-    /// No receiver.
-    None,
-    /// The receiver one callable declares.
-    OfCallable(dir::GlobalSymbolId),
-    /// One lowered receiver type.
-    Lowered(mir::TypeId),
-}
-
 /// One dependent's index and domain in the parameter space of a definition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::lower) struct Dependent {
@@ -23,8 +12,17 @@ pub(in crate::lower) struct Dependent {
     pub(in crate::lower) ty: dir::GlobalTypeId,
     /// The generic index the dependent takes.
     pub(in crate::lower) index: u32,
-    /// The memory kind the dependent qualifies, none for a type dependent.
+    /// The memory kind the dependent qualifies.
     pub(in crate::lower) kind: Option<dir::MemoryParameter>,
+    /// The value type of a const dependent.
+    pub(in crate::lower) value_type: Option<dir::GlobalTypeId>,
+}
+
+impl Dependent {
+    /// Return whether the dependent ranges over values.
+    pub(in crate::lower) fn is_const(&self) -> bool {
+        self.value_type.is_some()
+    }
 }
 
 /// The identity one dependent is recorded under: a projection by its owner and key, else its type.
@@ -112,7 +110,8 @@ impl GenericScope {
         // read each dependent's memory kind
         for dependent in self.dependents.values() {
             if dependent.index >= first {
-                domains[(dependent.index - first) as usize] = Some((dependent.kind, false));
+                domains[(dependent.index - first) as usize] =
+                    Some((dependent.kind, dependent.is_const()));
             }
         }
 
@@ -150,7 +149,7 @@ impl GenericScope {
                 self.dependents.entry(key).or_insert(Dependent {
                     ty: id,
                     index,
-                    kind: enclosed.kind,
+                    ..*enclosed
                 });
 
                 continue;
@@ -334,7 +333,12 @@ impl GenericScope {
             });
         };
         for dependent in dependents {
-            let kind = lower.dependent_memory_kind(symbol, dependent)?;
+            let constant = lower.dependent_constant_type(symbol, dependent)?;
+            let kind = match constant {
+                Some(constant) => lower.argument_memory_kind(constant)?,
+                None => None,
+            };
+            let value_type = constant.filter(|_| kind.is_none());
             let key = DependentKey::of(lower, dependent)?;
             match self.dependents.get_mut(&key) {
                 Some(recorded) => {
@@ -359,6 +363,7 @@ impl GenericScope {
                             ty: dependent,
                             index,
                             kind,
+                            value_type,
                         },
                     );
                 }
@@ -816,16 +821,9 @@ impl ModuleLowerer<'_> {
         &mut self,
         tree: &mut mir::Tree,
         scope: &GenericScope,
-        receiver: BoundReceiver,
+        callable: Option<dir::GlobalSymbolId>,
     ) -> CompilerResult<Vec<mir::GenericParameter>> {
         // open one lowered parameter per collected index
-        let (callable, this, lowered_this) = match receiver {
-            BoundReceiver::None => (None, None, None),
-            BoundReceiver::OfCallable(callable) => {
-                (Some(callable), self.bound_this(callable)?, None)
-            }
-            BoundReceiver::Lowered(this) => (None, None, Some(this)),
-        };
         let mut generics: Vec<Option<mir::GenericParameter>> = vec![None; scope.count() as usize];
 
         // lower each collected parameter at its index
@@ -882,21 +880,17 @@ impl ModuleLowerer<'_> {
                             }
                         }
                     }
-                    let mut mentions_this = false;
-                    for bound in &bounds {
-                        let flags = self.types(bound.module_id)?.get_type_flags(bound.local_id);
-                        mentions_this |= flags.has_this();
-                    }
+                    // read this as the bounded parameter
                     let mut lowered_bounds = Vec::new();
                     for bound in bounds {
+                        let flags = self.types(bound.module_id)?.get_type_flags(bound.local_id);
                         let mut lowerer = self.type_lowerer(tree, scope);
-                        lowerer.this_type = match lowered_this {
-                            Some(this) => Some(this),
-                            None => this
-                                .filter(|_| mentions_this)
-                                .map(|this| lowerer.lower(this))
-                                .transpose()?,
-                        };
+                        lowerer.this_type = flags.has_this().then(|| {
+                            lowerer.tree.intern_type(mir::Type::Parameter {
+                                index,
+                                referent: false,
+                            })
+                        });
                         lowered_bounds.extend(lowerer.lower_bounds(bound)?);
                     }
 
@@ -912,12 +906,15 @@ impl ModuleLowerer<'_> {
         // name each dependent by its position, an unbounded value of its kind the instance closes
         for (position, dependent) in scope.dependents.values().enumerate() {
             let name = self.strings.intern(&format!("P{position}"));
-            let domain = match dependent.kind {
-                Some(dir::MemoryParameter::Access) => mir::GenericParameterDomain::Access,
-                Some(dir::MemoryParameter::Region) => mir::GenericParameterDomain::Region {
+            let domain = match (dependent.kind, dependent.value_type) {
+                (Some(dir::MemoryParameter::Access), _) => mir::GenericParameterDomain::Access,
+                (Some(dir::MemoryParameter::Region), _) => mir::GenericParameterDomain::Region {
                     outlives: Vec::new(),
                 },
-                None => mir::GenericParameterDomain::Type { bounds: Vec::new() },
+                (None, Some(value)) => mir::GenericParameterDomain::Value {
+                    ty: self.type_lowerer(tree, scope).lower(value)?,
+                },
+                (None, None) => mir::GenericParameterDomain::Type { bounds: Vec::new() },
             };
             generics[dependent.index as usize] = Some(mir::GenericParameter { name, domain });
         }

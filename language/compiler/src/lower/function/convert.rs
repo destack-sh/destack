@@ -109,6 +109,27 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 Ok(Operand::Value(self.builder.cast(operator, value, target)))
             }
+            // read an enum case's value
+            dir::CoercionAdjustment::EnumValue { target } => {
+                let value = self.as_value(operand, source)?;
+                let held = self.value_representation(value)?;
+                let value = match self.builder.tree().type_definition(held) {
+                    mir::Type::Variant { .. } => self.builder.variant_tag(value),
+                    mir::Type::Newtype { .. } => self.builder.field_get(value, 0),
+                    _ => return Err(self.internal("an enum value outside its representation")),
+                };
+                let from = self.value_representation(value)?;
+                let target = self.lower_type(*target)?;
+                if from == target {
+                    return Ok(Operand::Value(value));
+                }
+                let operator = self.cast_operator(
+                    self.builder.tree().get(from),
+                    self.builder.tree().get(target),
+                )?;
+
+                Ok(Operand::Value(self.builder.cast(operator, value, target)))
+            }
             // wrap or unwrap a newtype layer, reinterpreting a pointer in place
             dir::CoercionAdjustment::Newtype { target } => {
                 let value = self.as_value(operand, source)?;
@@ -188,10 +209,17 @@ impl FunctionLowerer<'_, '_, '_> {
                 ..
             }
         );
+        let is_pointer_target = matches!(tree.get(resolved_target), mir::Type::Pointer { .. });
         match (is_received_reference, is_target_reference) {
             (true, true) => self.reborrow_or_reinterpret(value, target),
+            // cast a borrow to a raw pointer
+            (true, false) if is_pointer_target => {
+                Ok(self
+                    .builder
+                    .cast(mir::CastOperator::ReferenceToPointer, value, target))
+            }
             // complete a held value into a managed allocation, or into an open form at instantiation
-            (false, true) => Ok(self.builder.new_complete(value, target)),
+            (false, true) => self.box_value(value, target),
             (false, false) if is_open_target => Ok(self.builder.new_complete(value, target)),
             _ => Err(CompilerError::Internal {
                 message: format!(
@@ -322,18 +350,41 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.local_get(destination))
     }
 
-    /// Project one read onto the cases its recorded narrowing keeps live.
+    /// Read one value under its narrowing.
     pub(in crate::lower) fn lower_narrowing(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
-        value: mir::Value,
+        read: impl FnOnce(&mut Self) -> CompilerResult<mir::Value>,
     ) -> CompilerResult<mir::Value> {
+        self.read_narrowing_tests(expression)?;
+        let value = read(self)?;
         let Some(narrowing) = self.representation_narrowing(expression)? else {
             return Ok(value);
         };
         let target = self.node_type_id(expression)?;
 
-        self.narrow(value, narrowing.union, &narrowing.arms, target)
+        self.narrow(value, narrowing.declared, &narrowing.arms, target)
+    }
+
+    /// Return the subclass handle type a narrowing proves.
+    pub(in crate::lower) fn subclass_handle(
+        &mut self,
+        held: mir::TypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<mir::TypeId>> {
+        let target = self.lower_type(target)?;
+        let tree = self.builder.tree();
+        let is_handle = |ty: mir::TypeId| {
+            matches!(
+                tree.type_definition(ty),
+                mir::Type::Reference {
+                    kind: mir::Reference::Managed(_),
+                    ..
+                }
+            )
+        };
+
+        Ok((held != target && is_handle(held) && is_handle(target)).then_some(target))
     }
 
     /// Return the narrowing one read converts through.
@@ -346,7 +397,7 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(None);
         };
         let target = self.node_type_id(expression)?;
-        let union = self.lower_type(narrowing.union)?;
+        let union = self.lower_type(narrowing.declared)?;
         let narrowed = self.lower_type(target)?;
 
         Ok((union != narrowed).then_some(narrowing))
@@ -368,7 +419,7 @@ impl FunctionLowerer<'_, '_, '_> {
         self.convert(operand, &coercion, None)
     }
 
-    /// Narrow one union value onto the members a narrowing keeps live, trapping on the others.
+    /// Narrow one value onto its live members.
     pub(in crate::lower) fn narrow(
         &mut self,
         value: mir::Value,
@@ -380,8 +431,14 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(value);
         }
 
-        // lower the recorded live members
-        let members = self.lower.union_members(union)?;
+        // cast an object to its subclass
+        let Some(members) = self.lower.union_members_maybe(union)? else {
+            let narrowed = self.lower_type(target)?;
+
+            return Ok(self
+                .builder
+                .cast(mir::CastOperator::Bitcast, value, narrowed));
+        };
         let narrowed = match live {
             [member] => self.lower_type(*member)?,
             _ => self.lower_type(target)?,
@@ -422,13 +479,21 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(value);
         }
 
-        // read the single live payload as the value
+        // read the single live payload
         if let [member] = live {
             let case = self.case(&members, *member)?;
-
-            return Ok(match self.is_singleton_representation(narrowed) {
+            let payload = match self.is_singleton_representation(narrowed) {
                 true => self.builder.constant(mir::Constant::Zeroed, narrowed),
                 false => self.builder.variant_payload(value, case),
+            };
+
+            let held = self.value_representation(payload)?;
+
+            return Ok(match self.subclass_handle(held, target)? {
+                Some(handle) => self
+                    .builder
+                    .cast(mir::CastOperator::Bitcast, payload, handle),
+                None => payload,
             });
         }
 

@@ -14,7 +14,7 @@ function choose(value: int32 | undefined): int32 | undefined {
     );
 
     session.assert_mir_lowered("main.tspp", r#"
-function test.main.choose(v0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
+export function test.main.choose(v0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
     local l0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }
     local l1: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, readonly
 
@@ -57,7 +57,7 @@ function keep(value: int32 | boolean | float64): int32 | boolean | float64 {
     );
 
     session.assert_mir_function("main.tspp", "test.main.keep", r#"
-function test.main.keep(v0: variant<uint2> { 0uint2 = int32; 1uint2 = boolean; 2uint2 = float64; }): variant<uint2> { 0uint2 = int32; 1uint2 = boolean; 2uint2 = float64; } {
+export function test.main.keep(v0: variant<uint2> { 0uint2 = int32; 1uint2 = boolean; 2uint2 = float64; }): variant<uint2> { 0uint2 = int32; 1uint2 = boolean; 2uint2 = float64; } {
     local l0: variant<uint2> { 0uint2 = int32; 1uint2 = boolean; 2uint2 = float64; }
 
 entry(v0: variant<uint2> { 0uint2 = int32; 1uint2 = boolean; 2uint2 = float64; }):
@@ -102,7 +102,7 @@ function keep(shape: Shape): Shape {
         r#"
 type test.main.Shape = newtype<variant<uint1> { 0uint1 = test.main.Circle; 1uint1 = test.main.Square; }>;
 
-function test.main.keep(v0: test.main.Shape): test.main.Shape {
+export function test.main.keep(v0: test.main.Shape): test.main.Shape {
     local l0: test.main.Shape
 
 entry(v0: test.main.Shape):
@@ -129,7 +129,7 @@ function forget(): boolean | undefined {
     );
 
     session.assert_mir_function("main.tspp", "test.main.keep", r#"
-function test.main.keep(v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }): variant<uint1> { 0uint1 = boolean; 1uint1 = void; } {
+export function test.main.keep(v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }): variant<uint1> { 0uint1 = boolean; 1uint1 = void; } {
     local l0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }
 
 entry(v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }):
@@ -145,7 +145,7 @@ entry(v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }):
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.forget", r#"
-function test.main.forget(): variant<uint1> { 0uint1 = boolean; 1uint1 = void; } {
+export function test.main.forget(): variant<uint1> { 0uint1 = boolean; 1uint1 = void; } {
 entry:
     v0: void = zeroed
     v1: variant<uint1> { 0uint1 = boolean; 1uint1 = void; } = variant.new 1
@@ -199,7 +199,7 @@ type test.main.Square {
 
 type test.main.Shape = newtype<variant<uint1> { 0uint1 = test.main.Circle; 1uint1 = test.main.Square; }>;
 
-function test.main.make(v0: float64): test.main.Shape {
+export function test.main.make(v0: float64): test.main.Shape {
     local l0: float64
 
 entry(v0: float64):
@@ -263,7 +263,7 @@ type literal.string.pending { }
 
 type test.main.Status = newtype<variant<uint1> { 0uint1 = test.main.Ready; 1uint1 = test.main.Pending; }>;
 
-function test.main.pending(): test.main.Status {
+export function test.main.pending(): test.main.Status {
 entry:
     v0: literal.string.pending = zeroed
     v1: test.main.Pending = aggregate (v0)
@@ -310,7 +310,7 @@ type literal.string.value { }
 
 type literal.string.flag { }
 
-function test.main.value(v0: int32): variant<uint1> { 0uint1 = ref<{ kind: literal.string.value, value: int32 }, managed, mutable, local>; 1uint1 = ref<{ kind: literal.string.flag, flag: boolean }, managed, mutable, local>; } {
+export function test.main.value(v0: int32): variant<uint1> { 0uint1 = ref<{ kind: literal.string.value, value: int32 }, managed, mutable, local>; 1uint1 = ref<{ kind: literal.string.flag, flag: boolean }, managed, mutable, local>; } {
     local l0: int32
 
 entry(v0: int32):
@@ -318,9 +318,11 @@ entry(v0: int32):
     v1: literal.string.value = zeroed
     v2: int32 = load l0
     v3: { kind: literal.string.value, value: int32 } = aggregate (v1, v2)
-    v4: ref<{ kind: literal.string.value, value: int32 }, managed, mutable, local> = new.complete v3
-    v5: variant<uint1> { 0uint1 = ref<{ kind: literal.string.value, value: int32 }, managed, mutable, local>; 1uint1 = ref<{ kind: literal.string.flag, flag: boolean }, managed, mutable, local>; } = variant.new 0, v4
-    return v5
+    v4: uninit<ref<{ kind: literal.string.value, value: int32 }, managed, mutable, local>> = new.uninit { kind: literal.string.value, value: int32 }, local
+    store (*v4), v3
+    v5: ref<{ kind: literal.string.value, value: int32 }, managed, mutable, local> = new.complete v4
+    v6: variant<uint1> { 0uint1 = ref<{ kind: literal.string.value, value: int32 }, managed, mutable, local>; 1uint1 = ref<{ kind: literal.string.flag, flag: boolean }, managed, mutable, local>; } = variant.new 0, v5
+    return v6
 }
 
 /// @layout.struct name=literal.string.value size=0 align=1
@@ -360,7 +362,7 @@ type test.main.Listener {
     value: int32;
 }
 
-constructor test.main.Listener.constructor<'a>(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>): void {
+export constructor test.main.Listener.constructor<'a>(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>
 
 entry(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>):
@@ -381,7 +383,7 @@ type test.main.Listener {
     value: int32;
 }
 
-function test.main.keep(v0: ref<test.main.Listener, managed, mutable, local>): variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; } {
+export function test.main.keep(v0: ref<test.main.Listener, managed, mutable, local>): variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; } {
     local l0: ref<test.main.Listener, managed, mutable, local>
     local l1: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; }
 
@@ -427,7 +429,7 @@ type test.main.Listener {
     value: int32;
 }
 
-constructor test.main.Listener.constructor<'a>(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>): void {
+export constructor test.main.Listener.constructor<'a>(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>
 
 entry(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>):
@@ -451,7 +453,7 @@ type test.main.Listener {
     value: int32;
 }
 
-function test.main.accept(v0: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; }): boolean {
+export function test.main.accept(v0: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; }): boolean {
     local l0: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; }
 
 entry(v0: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; }):
@@ -481,7 +483,7 @@ type test.main.Listener {
     value: int32;
 }
 
-function test.main.forward(v0: ref<test.main.Listener, managed, mutable, local>): boolean {
+export function test.main.forward(v0: ref<test.main.Listener, managed, mutable, local>): boolean {
     local l0: ref<test.main.Listener, managed, mutable, local>
 
 entry(v0: ref<test.main.Listener, managed, mutable, local>):
@@ -522,7 +524,7 @@ type test.main.Listener {
     value: int32;
 }
 
-constructor test.main.Listener.constructor<'a>(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>): void {
+export constructor test.main.Listener.constructor<'a>(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>
 
 entry(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>):
@@ -543,7 +545,7 @@ type test.main.Listener {
     value: int32;
 }
 
-function test.main.keep(v0: ref<test.main.Listener, managed, mutable, local>): variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; } {
+export function test.main.keep(v0: ref<test.main.Listener, managed, mutable, local>): variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; } {
     local l0: ref<test.main.Listener, managed, mutable, local>
 
 entry(v0: ref<test.main.Listener, managed, mutable, local>):
@@ -586,7 +588,7 @@ type test.main.Listener {
     value: int32;
 }
 
-constructor test.main.Listener.constructor<'a>(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>): void {
+export constructor test.main.Listener.constructor<'a>(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>
 
 entry(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>):
@@ -610,7 +612,7 @@ type test.main.Listener {
     value: int32;
 }
 
-function test.main.read(v0: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; }): int32 {
+export function test.main.read(v0: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; }): int32 {
     local l0: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; }
 
 entry(v0: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; }):
@@ -619,16 +621,18 @@ entry(v0: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, lo
     v2: uint1 = 1
     v3: boolean = eq v1, v2
     v4: boolean = not v3
+    v5: ref<variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; }, borrowed, 'frame, readonly> = fake.borrow l0
     branch v4 => b1 | b2
 
 b1:
-    v5: ref<test.main.Listener, borrowed, 'managed, mutable> = address (*(l0 as 0))
-    v6: int32 = load (*v5).0
-    return v6
+    fake.read v5
+    v6: ref<test.main.Listener, borrowed, 'managed, mutable> = address (*(l0 as 0))
+    v7: int32 = load (*v6).0
+    return v7
 
 b2:
-    v7: int32 = 0
-    return v7
+    v8: int32 = 0
+    return v8
 }
 
 /// @layout.struct name=test.main.Listener size=4 align=4
@@ -654,7 +658,7 @@ function keep(flag: boolean): boolean | undefined {
     );
 
     session.assert_mir_function("main.tspp", "test.main.keep", r#"
-function test.main.keep(v0: boolean): variant<uint1> { 0uint1 = boolean; 1uint1 = void; } {
+export function test.main.keep(v0: boolean): variant<uint1> { 0uint1 = boolean; 1uint1 = void; } {
     local l0: boolean
     local l1: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }
 
@@ -701,7 +705,7 @@ function keep(circle: Circle): Drawable | undefined {
 @nocopy
 type test.main.Circle { }
 
-function test.main.Circle.draw(v0: ref<test.main.Circle, managed, mutable, local>): void {
+export function test.main.Circle.draw(v0: ref<test.main.Circle, managed, mutable, local>): void {
     local l0: ref<test.main.Circle, managed, mutable, local>
 
 entry(v0: ref<test.main.Circle, managed, mutable, local>):
@@ -720,7 +724,7 @@ type test.main.Circle { }
 @nocopy
 type test.main.Drawable { }
 
-function test.main.keep(v0: ref<test.main.Circle, managed, mutable, local>): variant<uint1> { 0uint1 = dynamic<test.main.Drawable, managed, mutable, local>; 1uint1 = void; } {
+export function test.main.keep(v0: ref<test.main.Circle, managed, mutable, local>): variant<uint1> { 0uint1 = dynamic<test.main.Drawable, managed, mutable, local>; 1uint1 = void; } {
     local l0: ref<test.main.Circle, managed, mutable, local>
     local l1: variant<uint1> { 0uint1 = dynamic<test.main.Drawable, managed, mutable, local>; 1uint1 = void; }
 
@@ -763,7 +767,7 @@ type test.main.Listener {
     value: int32;
 }
 
-constructor test.main.Listener.constructor<'a>(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>): void {
+export constructor test.main.Listener.constructor<'a>(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>
 
 entry(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>):
@@ -784,7 +788,7 @@ type test.main.Listener {
     value: int32;
 }
 
-function test.main.isHead(v0: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; }, v1: ref<test.main.Listener, managed, mutable, local>): boolean {
+export function test.main.isHead(v0: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; }, v1: ref<test.main.Listener, managed, mutable, local>): boolean {
     local l0: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; }
     local l1: ref<test.main.Listener, managed, mutable, local>
     local l2: boolean, readonly
@@ -863,14 +867,13 @@ type test.main.Meter {
 @languageItem("string.String")
 type String;
 
-function test.main.read<'a>(v0: ref<test.main.Meter, borrowed, 'a, readonly>): variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } {
+export function test.main.read<'a>(v0: ref<test.main.Meter, borrowed, 'a, readonly>): variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } {
     local l0: ref<test.main.Meter, borrowed, 'a, readonly>
 
 entry(v0: ref<test.main.Meter, borrowed, 'a, readonly>):
     store l0, v0
-    v1: ref<test.main.Meter, borrowed, 'a, readonly> = load l0
-    v2: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = load (*v1).0
-    return v2
+    v1: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = load (*l0).0
+    return v1
 }
 
 /// @layout.struct name=test.main.Meter size=8 align=8
@@ -935,7 +938,7 @@ function differs(shape: Shape): boolean {
         r#"
 type literal.string.circle { }
 
-function test.main.circle(): literal.string.circle {
+export function test.main.circle(): literal.string.circle {
 entry:
     v0: literal.string.circle = zeroed
     return v0
@@ -951,7 +954,7 @@ entry:
         r#"
 type literal.string.kind { }
 
-function test.main.key(): literal.string.kind {
+export function test.main.key(): literal.string.kind {
 entry:
     v0: literal.string.kind = zeroed
     return v0
@@ -981,7 +984,7 @@ type test.main.Shape = newtype<variant<uint1> { 0uint1 = test.main.Circle; 1uint
 @languageItem("string.String")
 type String;
 
-function test.main.kind(v0: test.main.Shape): ref<String, managed, mutable, local> {
+export function test.main.kind(v0: test.main.Shape): ref<String, managed, mutable, local> {
     local l0: test.main.Shape
     local l1: ref<String, managed, mutable, local>, readonly
 
@@ -1045,7 +1048,7 @@ type literal.string.kind { }
 @languageItem("string.String")
 type String;
 
-function test.main.computedKind(v0: test.main.Shape): ref<String, managed, mutable, local> {
+export function test.main.computedKind(v0: test.main.Shape): ref<String, managed, mutable, local> {
     local l0: test.main.Shape
     local l1: ref<String, managed, mutable, local>, readonly
 
@@ -1109,7 +1112,7 @@ type test.main.Shape = newtype<variant<uint1> { 0uint1 = test.main.Circle; 1uint
 @languageItem("string.String")
 type String;
 
-function test.main.label(v0: test.main.Shape): ref<String, managed, mutable, local> {
+export function test.main.label(v0: test.main.Shape): ref<String, managed, mutable, local> {
     local l0: test.main.Shape
     local l1: ref<String, managed, mutable, local>, readonly
 
@@ -1169,7 +1172,7 @@ type test.main.Square {
 
 type test.main.Shape = newtype<variant<uint1> { 0uint1 = test.main.Circle; 1uint1 = test.main.Square; }>;
 
-function test.main.matches(v0: test.main.Shape): boolean {
+export function test.main.matches(v0: test.main.Shape): boolean {
     local l0: test.main.Shape
 
 entry(v0: test.main.Shape):
@@ -1220,7 +1223,7 @@ type test.main.Shape = newtype<variant<uint1> { 0uint1 = test.main.Circle; 1uint
 @languageItem("string.String")
 type String;
 
-function test.main.differs(v0: test.main.Shape): boolean {
+export function test.main.differs(v0: test.main.Shape): boolean {
     local l0: test.main.Shape
 
 entry(v0: test.main.Shape):
@@ -1294,7 +1297,7 @@ type test.main.Shape = newtype<variant<uint1> { 0uint1 = test.main.Circle; 1uint
 @languageItem("string.String")
 type String;
 
-function test.main.radius<'a>(v0: ref<test.main.Shape, borrowed, 'a, readonly>): float64 {
+export function test.main.radius<'a>(v0: ref<test.main.Shape, borrowed, 'a, readonly>): float64 {
     local l0: ref<test.main.Shape, borrowed, 'a, readonly>
 
 entry(v0: ref<test.main.Shape, borrowed, 'a, readonly>):
@@ -1313,9 +1316,8 @@ b1:
     return v8
 
 b2:
-    v9: ref<test.main.Shape, borrowed, 'a, readonly> = load l0
-    v10: float64 = load ((*v9).0 as 0).1
-    return v10
+    v9: float64 = load ((*l0).0 as 0).1
+    return v9
 }
 
 /// @layout.struct name=test.main.Circle size=8 align=8
@@ -1350,8 +1352,8 @@ type Outer<T: Copy> = Inner<T> | undefined;
 
 function read(state: Outer<int32>): int32 {
     match (state) {
-        Ready { value } => value
-        _ => -1
+        Ready { value } => value,
+        _ => -1,
     }
 }
 "#,
@@ -1370,7 +1372,7 @@ type test.main.Ready<T: Copy> {
     value: T;
 }
 
-function test.main.read(v0: variant<uint2> { 0uint2 = test.main.Ready<int32>; 1uint2 = test.main.Waiting; 2uint2 = void; }): int32 {
+export function test.main.read(v0: variant<uint2> { 0uint2 = test.main.Ready<int32>; 1uint2 = test.main.Waiting; 2uint2 = void; }): int32 {
     local l0: variant<uint2> { 0uint2 = test.main.Ready<int32>; 1uint2 = test.main.Waiting; 2uint2 = void; }
     local l1: int32
     local l2: int32
@@ -1441,7 +1443,7 @@ type test.main.Options {
     parent: variant<uint1> { 0uint1 = test.main.Context; 1uint1 = void; };
 }
 
-function test.main.pick(v0: variant<uint1> { 0uint1 = test.main.Options; 1uint1 = void; }): variant<uint1> { 0uint1 = test.main.Context; 1uint1 = void; } {
+export function test.main.pick(v0: variant<uint1> { 0uint1 = test.main.Options; 1uint1 = void; }): variant<uint1> { 0uint1 = test.main.Context; 1uint1 = void; } {
     local l0: variant<uint1> { 0uint1 = test.main.Options; 1uint1 = void; }
     local l1: variant<uint1> { 0uint1 = test.main.Context; 1uint1 = void; }
 
@@ -1498,7 +1500,7 @@ type test.main.Options {
     parent: variant<uint1> { 0uint1 = test.main.Context; 1uint1 = void; };
 }
 
-function test.main.pick(v0: variant<uint1> { 0uint1 = test.main.Options; 1uint1 = void; }): variant<uint1> { 0uint1 = test.main.Context; 1uint1 = void; } {
+export function test.main.pick(v0: variant<uint1> { 0uint1 = test.main.Options; 1uint1 = void; }): variant<uint1> { 0uint1 = test.main.Context; 1uint1 = void; } {
     local l0: variant<uint1> { 0uint1 = test.main.Options; 1uint1 = void; }
     local l1: variant<uint1> { 0uint1 = test.main.Context; 1uint1 = void; }
 
@@ -1558,7 +1560,7 @@ type test.main.Options {
     parent: variant<uint1> { 0uint1 = test.main.Context; 1uint1 = void; };
 }
 
-function test.main.pick(v0: test.main.Options): variant<uint1> { 0uint1 = test.main.Context; 1uint1 = void; } {
+export function test.main.pick(v0: test.main.Options): variant<uint1> { 0uint1 = test.main.Context; 1uint1 = void; } {
     local l0: test.main.Options
 
 entry(v0: test.main.Options):
@@ -1620,7 +1622,7 @@ type literal.string.Right { }
 
 type test.main.Either = newtype<variant<uint1> { 0uint1 = ref<test.main.Left, managed, mutable, local>; 1uint1 = ref<test.main.Right, managed, mutable, local>; }>;
 
-function test.main.Either.text<'a>(v0: ref<test.main.Either, borrowed, 'a, readonly>): ref<String, borrowed, 'a, readonly> {
+export function test.main.Either.text<'a>(v0: ref<test.main.Either, borrowed, 'a, readonly>): ref<String, borrowed, 'a, readonly> {
     local l0: ref<test.main.Either, borrowed, 'a, readonly>
     local l1: ref<ref<String, managed, mutable, local>, borrowed, 'a, readonly>, readonly
 
@@ -1695,8 +1697,8 @@ newtype Either = Left | Right;
 export extension of Either {
     text(&readonly this): &readonly string {
         match (this) {
-            Left { message } => message ?? "left"
-            Right { message } => message ?? "right"
+            Left { message } => message ?? "left",
+            Right { message } => message ?? "right",
         }
     }
 }
@@ -1713,7 +1715,7 @@ type String;
 
 type test.main.Either = newtype<variant<uint1> { 0uint1 = test.main.Left; 1uint1 = test.main.Right; }>;
 
-function test.main.Either.text<'a>(v0: ref<test.main.Either, borrowed, 'a, readonly>): ref<String, borrowed, 'a, readonly> {
+export function test.main.Either.text<'a>(v0: ref<test.main.Either, borrowed, 'a, readonly>): ref<String, borrowed, 'a, readonly> {
     local l0: ref<test.main.Either, borrowed, 'a, readonly>
     local l1: ref<String, borrowed, 'a, readonly>
     local l2: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }
@@ -1790,7 +1792,7 @@ type String;
 
 type test.main.Either = newtype<variant<uint1> { 0uint1 = test.main.Left; 1uint1 = test.main.Right; }>;
 
-function test.main.Either.text<'a>(v0: ref<test.main.Either, borrowed, 'a, readonly>): ref<String, borrowed, 'a, readonly> {
+export function test.main.Either.text<'a>(v0: ref<test.main.Either, borrowed, 'a, readonly>): ref<String, borrowed, 'a, readonly> {
     local l0: ref<test.main.Either, borrowed, 'a, readonly>
     local l1: ref<String, borrowed, 'a, readonly>
     local l2: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }
@@ -1881,7 +1883,7 @@ function keep(target: Target): Target {
         r#"
 type test.main.Target = newtype<variant<uint1> { 0uint1 = ref<{ kind: literal.string.any }, managed, mutable, local>; 1uint1 = ref<{ kind: literal.string.entity, selector: variant<uint1> { 0uint1 = ref<{ kind: literal.string.all }, managed, mutable, local>; 1uint1 = ref<{ kind: literal.string.nested, inner: variant<uint2> { 0uint2 = ref<{ kind: literal.string.all }, managed, mutable, local>; 1uint2 = type@15; 2uint2 = void; } }, managed, mutable, local>; } }, managed, mutable, local>; }>;
 
-function test.main.keep(v0: test.main.Target): test.main.Target {
+export function test.main.keep(v0: test.main.Target): test.main.Target {
     local l0: test.main.Target
 
 entry(v0: test.main.Target):
@@ -1919,7 +1921,7 @@ function orElse(value: Json | undefined, fallback: Json): Json {
         r#"
 type test.main.Json = newtype<variant<uint2> { 0uint2 = ref<{ kind: literal.string.null }, managed, mutable, local>; 1uint2 = ref<{ kind: literal.string.boolean, value: boolean }, managed, mutable, local>; 2uint2 = ref<{ kind: literal.string.array, value: ref<Array<test.main.Json>, managed, readonly, local> }, managed, mutable, local>; 3uint2 = ref<{ kind: literal.string.object, value: dynamic<{  }, managed, mutable, local> }, managed, mutable, local>; }>;
 
-function test.main.orElse(v0: variant<uint1> { 0uint1 = test.main.Json; 1uint1 = void; }, v1: test.main.Json): test.main.Json {
+export function test.main.orElse(v0: variant<uint1> { 0uint1 = test.main.Json; 1uint1 = void; }, v1: test.main.Json): test.main.Json {
     local l0: variant<uint1> { 0uint1 = test.main.Json; 1uint1 = void; }
     local l1: test.main.Json
     local l2: test.main.Json, readonly
@@ -1985,17 +1987,16 @@ type test.main.Slot {
     value: variant<uint1> { 0uint1 = Array<int32>; 1uint1 = void; };
 }
 
-function test.main.hasStored<'a>(v0: ref<test.main.Slot, borrowed, 'a, readonly>): boolean {
+export function test.main.hasStored<'a>(v0: ref<test.main.Slot, borrowed, 'a, readonly>): boolean {
     local l0: ref<test.main.Slot, borrowed, 'a, readonly>
 
 entry(v0: ref<test.main.Slot, borrowed, 'a, readonly>):
     store l0, v0
-    v1: ref<test.main.Slot, borrowed, 'a, readonly> = load l0
-    v2: uint1 = variant.tag.load (*v1).0
-    v3: uint1 = 1
-    v4: boolean = eq v2, v3
-    v5: boolean = not v4
-    return v5
+    v1: uint1 = variant.tag.load (*l0).0
+    v2: uint1 = 1
+    v3: boolean = eq v1, v2
+    v4: boolean = not v3
+    return v4
 }
 
 /// @layout.struct name=test.main.Slot size=32 align=8
@@ -2008,7 +2009,7 @@ entry(v0: ref<test.main.Slot, borrowed, 'a, readonly>):
 @languageItem("collections.Array")
 type Array<T>;
 
-function test.main.hasLocal(): boolean {
+export function test.main.hasLocal(): boolean {
     local l0: variant<uint1> { 0uint1 = Array<int32>; 1uint1 = void; }
 
 entry:
@@ -2070,7 +2071,7 @@ type test.main.Ready<T: Copy> {
     value: T;
 }
 
-function test.main.settle(v0: variant<uint2> { 0uint2 = test.main.Ready<int32>; 1uint2 = test.main.Waiting; 2uint2 = void; }): variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; } {
+export function test.main.settle(v0: variant<uint2> { 0uint2 = test.main.Ready<int32>; 1uint2 = test.main.Waiting; 2uint2 = void; }): variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; } {
     local l0: variant<uint2> { 0uint2 = test.main.Ready<int32>; 1uint2 = test.main.Waiting; 2uint2 = void; }
     local l1: variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; }
 
@@ -2079,35 +2080,37 @@ entry(v0: variant<uint2> { 0uint2 = test.main.Ready<int32>; 1uint2 = test.main.W
     v1: uint2 = variant.tag.load l0
     v2: uint2 = 2
     v3: boolean = eq v1, v2
+    v4: ref<variant<uint2> { 0uint2 = test.main.Ready<int32>; 1uint2 = test.main.Waiting; 2uint2 = void; }, borrowed, 'frame, readonly> = fake.borrow l0
     branch v3 => b1 | b2
 
 b1:
-    v4: literal.string.waiting = zeroed
-    v5: test.main.Waiting = aggregate (v4)
-    v6: variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; } = variant.new 1, v5
-    return v6
+    v5: literal.string.waiting = zeroed
+    v6: test.main.Waiting = aggregate (v5)
+    v7: variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; } = variant.new 1, v6
+    return v7
 
 b2:
-    v7: variant<uint2> { 0uint2 = test.main.Ready<int32>; 1uint2 = test.main.Waiting; 2uint2 = void; } = load l0
-    variant.switch v7, 0 => b5, 1 => b6, else b4
+    fake.read v4
+    v8: variant<uint2> { 0uint2 = test.main.Ready<int32>; 1uint2 = test.main.Waiting; 2uint2 = void; } = load l0
+    variant.switch v8, 0 => b5, 1 => b6, else b4
 
 b3:
-    v12: variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; } = load l1
-    return v12
+    v13: variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; } = load l1
+    return v13
 
 b4:
     panic
 
 b5:
-    v8: test.main.Ready<int32> = variant.payload v7, 0
-    v9: variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; } = variant.new 0, v8
-    store l1, v9
+    v9: test.main.Ready<int32> = variant.payload v8, 0
+    v10: variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; } = variant.new 0, v9
+    store l1, v10
     jump b3
 
 b6:
-    v10: test.main.Waiting = variant.payload v7, 1
-    v11: variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; } = variant.new 1, v10
-    store l1, v11
+    v11: test.main.Waiting = variant.payload v8, 1
+    v12: variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; } = variant.new 1, v11
+    store l1, v12
     jump b3
 }
 
@@ -2143,7 +2146,7 @@ type test.main.Ready<T: Copy> {
     value: T;
 }
 
-function test.main.settle(v0: variant<uint2> { 0uint2 = test.main.Ready<int32>; 1uint2 = test.main.Waiting; 2uint2 = void; }): variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; } {
+export function test.main.settle(v0: variant<uint2> { 0uint2 = test.main.Ready<int32>; 1uint2 = test.main.Waiting; 2uint2 = void; }): variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; } {
     local l0: variant<uint2> { 0uint2 = test.main.Ready<int32>; 1uint2 = test.main.Waiting; 2uint2 = void; }
     local l1: variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; }
 
@@ -2152,35 +2155,37 @@ entry(v0: variant<uint2> { 0uint2 = test.main.Ready<int32>; 1uint2 = test.main.W
     v1: uint2 = variant.tag.load l0
     v2: uint2 = 2
     v3: boolean = eq v1, v2
+    v4: ref<variant<uint2> { 0uint2 = test.main.Ready<int32>; 1uint2 = test.main.Waiting; 2uint2 = void; }, borrowed, 'frame, readonly> = fake.borrow l0
     branch v3 => b1 | b2
 
 b1:
-    v4: literal.string.waiting = zeroed
-    v5: test.main.Waiting = aggregate (v4)
-    v6: variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; } = variant.new 1, v5
-    return v6
+    v5: literal.string.waiting = zeroed
+    v6: test.main.Waiting = aggregate (v5)
+    v7: variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; } = variant.new 1, v6
+    return v7
 
 b2:
-    v7: variant<uint2> { 0uint2 = test.main.Ready<int32>; 1uint2 = test.main.Waiting; 2uint2 = void; } = load l0
-    variant.switch v7, 0 => b5, 1 => b6, else b4
+    fake.read v4
+    v8: variant<uint2> { 0uint2 = test.main.Ready<int32>; 1uint2 = test.main.Waiting; 2uint2 = void; } = load l0
+    variant.switch v8, 0 => b5, 1 => b6, else b4
 
 b3:
-    v12: variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; } = load l1
-    return v12
+    v13: variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; } = load l1
+    return v13
 
 b4:
     panic
 
 b5:
-    v8: test.main.Ready<int32> = variant.payload v7, 0
-    v9: variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; } = variant.new 0, v8
-    store l1, v9
+    v9: test.main.Ready<int32> = variant.payload v8, 0
+    v10: variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; } = variant.new 0, v9
+    store l1, v10
     jump b3
 
 b6:
-    v10: test.main.Waiting = variant.payload v7, 1
-    v11: variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; } = variant.new 1, v10
-    store l1, v11
+    v11: test.main.Waiting = variant.payload v8, 1
+    v12: variant<uint1> { 0uint1 = test.main.Ready<int32>; 1uint1 = test.main.Waiting; } = variant.new 1, v11
+    store l1, v12
     jump b3
 }
 
@@ -2199,6 +2204,60 @@ b6:
 /// @layout.discriminant owner=type@21 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@21 index=0 discriminant=0 payload_offset=4
 /// @layout.case owner=type@21 index=1 discriminant=1 payload_offset=4
+"#,
+    );
+}
+
+/// Borrow a narrowed optional string parameter through its managed payload.
+#[test]
+fn test_borrow_a_narrowed_optional_string_parameter() {
+    let session = TestSession::single(
+        r#"
+function measure(value: &readonly string): void {}
+
+function report(message?: string): void {
+    if (message !== undefined) {
+        measure(message);
+    }
+}
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.tspp",
+        "test.main.report",
+        r#"
+@nocopy
+@languageItem("string.String")
+type String;
+
+export function test.main.report(v0: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }): void {
+    local l0: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }
+
+entry(v0: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }):
+    store l0, v0
+    v1: uint1 = variant.tag.load l0
+    v2: uint1 = 1
+    v3: boolean = eq v1, v2
+    v4: boolean = not v3
+    v5: ref<variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }, borrowed, 'frame, readonly> = fake.borrow l0
+    branch v4 => b1 | b2
+
+b1:
+    fake.read v5
+    v6: ref<String, managed, mutable, local> = load (l0 as 0)
+    v7: ref<String, borrowed, 'managed, readonly> = cast.bit v6 -> ref<String, borrowed, 'managed, readonly>
+    call test.main.measure(v7): (ref<String, borrowed, 'managed, readonly>) => void
+    jump b2
+
+b2:
+    return
+}
+
+/// @layout.variant name=type@8 size=8 align=8
+/// @layout.discriminant owner=type@8 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@8 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@8 index=1 discriminant=1 payload_offset=0
 "#,
     );
 }

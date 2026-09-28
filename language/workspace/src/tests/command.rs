@@ -2,7 +2,7 @@ use futures::executor::block_on;
 use tspp_repository::TraceView;
 use tspp_source::{DiagnosticTarget, FileId, Span};
 
-use crate::command::{CheckInput, CommandInput, CommandOptions, CommandRevision};
+use crate::command::{BuildInput, CheckInput, CommandInput, CommandOptions, CommandRevision};
 use crate::tests::harness::TestWorkspace;
 
 #[test]
@@ -32,6 +32,46 @@ const wrong: string = 1;
         ids.contains(&"not-assignable"),
         "check errors never reached the command diagnostics: {ids:?}"
     );
+}
+
+#[test]
+fn test_report_the_errors_of_every_program_module_on_build() {
+    let test = TestWorkspace::new("build-command-every-module");
+    let manifest = r#"{
+  "name": "every",
+  "targets": { "default": { "output": "program", "include": ["**/*.tspp"] } },
+  "defaultTarget": "default"
+}
+"#;
+    test.write_text("package.json", manifest);
+    let checked_source = r#"
+const wrong: int32 = "a";
+"#;
+    let checked = test.write_text("checked.tspp", checked_source);
+    test.apply_text(&checked, checked_source);
+    let parsed_source = r#"
+const missing: int32 = ;
+"#;
+    let parsed = test.write_text("parsed.tspp", parsed_source);
+    test.apply_text(&parsed, parsed_source);
+
+    let input = BuildInput::from((
+        CommandRevision::Current,
+        CommandOptions {
+            inputs: vec![CommandInput::File { path: parsed }],
+            ..CommandOptions::default()
+        },
+    ));
+    let output = block_on(test.workspace.build(input, None)).expect("build command failed");
+
+    // report the parse error of the named module beside the check error of its sibling
+    let mut ids: Vec<&str> = output
+        .diagnostics
+        .iter()
+        .map(|diagnostic| diagnostic.id.as_str())
+        .collect();
+    ids.sort_unstable();
+    assert_eq!(ids, ["expected-declarator", "not-assignable"]);
 }
 
 #[test]

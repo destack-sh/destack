@@ -20,7 +20,7 @@ type test.main.User {
     id: int32;
 }
 
-function test.main.identity<'a>(v0: ref<test.main.User, borrowed, 'a, readonly>): ref<test.main.User, borrowed, 'a, readonly> {
+export function test.main.identity<'a>(v0: ref<test.main.User, borrowed, 'a, readonly>): ref<test.main.User, borrowed, 'a, readonly> {
     local l0: ref<test.main.User, borrowed, 'a, readonly>
 
 entry(v0: ref<test.main.User, borrowed, 'a, readonly>):
@@ -56,7 +56,7 @@ type test.main.User {
     id: int32;
 }
 
-function test.main.identity<'a>(v0: ref<test.main.User, borrowed, 'a, readonly>): ref<test.main.User, borrowed, 'a, readonly> {
+export function test.main.identity<'a>(v0: ref<test.main.User, borrowed, 'a, readonly>): ref<test.main.User, borrowed, 'a, readonly> {
     local l0: ref<test.main.User, borrowed, 'a, readonly>
 
 entry(v0: ref<test.main.User, borrowed, 'a, readonly>):
@@ -92,7 +92,7 @@ type test.main.User {
     id: int32;
 }
 
-function test.main.identity<'a, 'b>(v0: ref<test.main.User, borrowed, 'a | 'b, readonly>): ref<test.main.User, borrowed, 'a | 'b, readonly> {
+export function test.main.identity<'a, 'b>(v0: ref<test.main.User, borrowed, 'a | 'b, readonly>): ref<test.main.User, borrowed, 'a | 'b, readonly> {
     local l0: ref<test.main.User, borrowed, 'a | 'b, readonly>
 
 entry(v0: ref<test.main.User, borrowed, 'a | 'b, readonly>):
@@ -120,7 +120,7 @@ function identity<'a, 'b>(
     );
 
     session.assert_mir_function("main.tspp", "test.main.identity", r#"
-function test.main.identity<'a, 'b>(v0: ref<int32, borrowed, 'a | 'b, readonly>): ref<int32, borrowed, 'a | 'b, readonly> {
+export function test.main.identity<'a, 'b>(v0: ref<int32, borrowed, 'a | 'b, readonly>): ref<int32, borrowed, 'a | 'b, readonly> {
     local l0: ref<int32, borrowed, 'a | 'b, readonly>
 
 entry(v0: ref<int32, borrowed, 'a | 'b, readonly>):
@@ -166,7 +166,7 @@ type test.main.View<'a> {
     user: ref<test.main.User, borrowed, 'a, readonly>;
 }
 
-function test.main.retain<'a>(v0: test.main.View<'a>): test.main.View<'a> {
+export function test.main.retain<'a>(v0: test.main.View<'a>): test.main.View<'a> {
     local l0: test.main.View<'a>
 
 entry(v0: test.main.View<'a>):
@@ -192,7 +192,7 @@ type test.main.View<'a> {
     user: ref<test.main.User, borrowed, 'a, readonly>;
 }
 
-function test.main.get<'a>(v0: test.main.View<'a>): ref<test.main.User, borrowed, 'a, readonly> {
+export function test.main.get<'a>(v0: test.main.View<'a>): ref<test.main.User, borrowed, 'a, readonly> {
     local l0: test.main.View<'a>
 
 entry(v0: test.main.View<'a>):
@@ -216,7 +216,7 @@ type test.main.View<'a> {
     user: ref<test.main.User, borrowed, 'a, readonly>;
 }
 
-function test.main.retainStatic(v0: test.main.View<'static>): test.main.View<'static> {
+export function test.main.retainStatic(v0: test.main.View<'static>): test.main.View<'static> {
     local l0: test.main.View<'static>
 
 entry(v0: test.main.View<'static>):
@@ -262,7 +262,7 @@ type test.main.Holder<'a> {
     view: test.main.View<'a>;
 }
 
-function test.main.retain<'a>(v0: test.main.Holder<'a>): test.main.Holder<'a> {
+export function test.main.retain<'a>(v0: test.main.Holder<'a>): test.main.Holder<'a> {
     local l0: test.main.Holder<'a>
 
 entry(v0: test.main.Holder<'a>):
@@ -309,7 +309,7 @@ type test.main.User {
     id: int32;
 }
 
-constructor test.main.User.constructor<'a>(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>): void {
+export constructor test.main.User.constructor<'a>(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>
 
 entry(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>):
@@ -334,7 +334,7 @@ type test.main.User {
     id: int32;
 }
 
-function test.main.inspectBorrowed<'a>(v0: int32, v1: ref<test.main.User, borrowed, 'a, readonly>): int32 {
+export function test.main.inspectBorrowed<'a>(v0: int32, v1: ref<test.main.User, borrowed, 'a, readonly>): int32 {
     local l0: int32
     local l1: ref<test.main.User, borrowed, 'a, readonly>
 
@@ -358,7 +358,7 @@ type test.main.User {
     id: int32;
 }
 
-function test.main.inspectManaged(v0: int32, v1: ref<test.main.User, managed, mutable, local>): int32 {
+export function test.main.inspectManaged(v0: int32, v1: ref<test.main.User, managed, mutable, local>): int32 {
     local l0: int32
     local l1: ref<test.main.User, managed, mutable, local>
 
@@ -411,7 +411,7 @@ type test.main.User {
     id: int32;
 }
 
-function test.main.identity<'a, 'b>(v0: ref<test.main.User, borrowed, 'a | 'b, readonly>): ref<test.main.User, borrowed, 'a | 'b, readonly> {
+export function test.main.identity<'a, 'b>(v0: ref<test.main.User, borrowed, 'a | 'b, readonly>): ref<test.main.User, borrowed, 'a | 'b, readonly> {
     local l0: ref<test.main.User, borrowed, 'a | 'b, readonly>
 
 entry(v0: ref<test.main.User, borrowed, 'a | 'b, readonly>):
@@ -446,20 +446,16 @@ type StringSlice;
 type Cow<'a, T: ToOwned, P0>;
 
 @nocopy
-@languageItem("convert.ToOwned")
-type ToOwned;
-
-@nocopy
 @languageItem("string.String")
 type String;
 
-function test.main.wrap<'a>(v0: slice<uint16, borrowed, 'a, immutable>): Cow<'a, StringSlice, String> {
+export function test.main.wrap<'a>(v0: slice<uint16, borrowed, 'a, immutable>): Cow<'a, StringSlice, String> {
     local l0: slice<uint16, borrowed, 'a, immutable>
 
 entry(v0: slice<uint16, borrowed, 'a, immutable>):
     store l0, v0
     v1: slice<uint16, borrowed, 'a, immutable> = load l0
-    v2: Cow<'a, StringSlice, witness<StringSlice, ToOwned, Owned>> = call Cow.borrowed<'a, StringSlice>(v1): (ref<StringSlice, borrowed, 'a, immutable>) => Cow<'a, StringSlice, witness<StringSlice, ToOwned, Owned>>
+    v2: Cow<'a, StringSlice, String> = call Cow.borrowed<'a, StringSlice>(v1): (ref<StringSlice, borrowed, 'a, immutable>) => Cow<'a, StringSlice, String>
     return v2
 }
 "#);
@@ -504,7 +500,7 @@ type test.main.ParseError {
 @languageItem("string.String")
 type String;
 
-function test.main.ParseError.Error.display<'a>(v0: ref<test.main.ParseError, borrowed, 'a, immutable>): String {
+export function test.main.ParseError.Error.display<'a>(v0: ref<test.main.ParseError, borrowed, 'a, immutable>): String {
     local l0: ref<test.main.ParseError, borrowed, 'a, immutable>
 
 entry(v0: ref<test.main.ParseError, borrowed, 'a, immutable>):
@@ -534,7 +530,7 @@ type test.main.ParseError {
 @languageItem("string.String")
 type String;
 
-function test.main.ParseError.Error.display<'a>(v0: ref<test.main.ParseError, borrowed, 'a, immutable>): String {
+export function test.main.ParseError.Error.display<'a>(v0: ref<test.main.ParseError, borrowed, 'a, immutable>): String {
     local l0: ref<test.main.ParseError, borrowed, 'a, immutable>
 
 entry(v0: ref<test.main.ParseError, borrowed, 'a, immutable>):
@@ -602,7 +598,7 @@ type test.main.Label {
 @languageItem("string.String")
 type String;
 
-function test.main.label<'a>(v0: ref<String, borrowed, 'a, readonly>): ref<test.main.Label, managed, mutable, local> {
+export function test.main.label<'a>(v0: ref<String, borrowed, 'a, readonly>): ref<test.main.Label, managed, mutable, local> {
     local l0: ref<String, borrowed, 'a, readonly>
 
 entry(v0: ref<String, borrowed, 'a, readonly>):
@@ -623,7 +619,7 @@ type test.main.Holder<'a> {
     value: ref<int32, borrowed, 'a, readonly>;
 }
 
-function test.main.hold<'a>(v0: ref<int32, borrowed, 'a, readonly>): ref<test.main.Holder<'a>, managed, mutable, local> {
+export function test.main.hold<'a>(v0: ref<int32, borrowed, 'a, readonly>): ref<test.main.Holder<'a>, managed, mutable, local> {
     local l0: ref<int32, borrowed, 'a, readonly>
 
 entry(v0: ref<int32, borrowed, 'a, readonly>):
@@ -644,7 +640,7 @@ type test.main.Holder<'a> {
     value: ref<int32, borrowed, 'a, readonly>;
 }
 
-function test.main.read<'a, 'b>(v0: ref<test.main.Holder<'a>, borrowed, 'b, readonly>): ref<int32, borrowed, 'a, readonly> {
+export function test.main.read<'a, 'b>(v0: ref<test.main.Holder<'a>, borrowed, 'b, readonly>): ref<int32, borrowed, 'a, readonly> {
     local l0: ref<test.main.Holder<'a>, borrowed, 'b, readonly>
 
 entry(v0: ref<test.main.Holder<'a>, borrowed, 'b, readonly>):
@@ -709,18 +705,17 @@ type Copy extends Clone { }
 @languageItem("memory.Clone")
 type Clone { }
 
-function test.main.Pair.startBound<T: Copy, 'a>(v0: ref<test.main.Pair<T>, borrowed, 'a, immutable>): test.main.Bound<ref<?T, borrowed, 'a, immutable>> {
+export function test.main.Pair.startBound<T: Copy, 'a>(v0: ref<test.main.Pair<T>, borrowed, 'a, immutable>): test.main.Bound<ref<?T, borrowed, 'a, immutable>> {
     local l0: ref<test.main.Pair<T>, borrowed, 'a, immutable>
 
 entry(v0: ref<test.main.Pair<T>, borrowed, 'a, immutable>):
     store l0, v0
-    v1: ref<test.main.Pair<T>, borrowed, 'a, immutable> = load l0
-    v2: ref<?T, borrowed, 'a, immutable> = address (*v1).0
-    v3: test.main.Bound<ref<?T, borrowed, 'a, immutable>> = call test.main.Bound.included<ref<?T, borrowed, 'a, immutable>>(v2): (ref<?T, borrowed, 'a, immutable>) => test.main.Bound<ref<?T, borrowed, 'a, immutable>>
-    return v3
+    v1: ref<?T, borrowed, 'a, immutable> = address (*l0).0
+    v2: test.main.Bound<ref<?T, borrowed, 'a, immutable>> = call test.main.Bound.included<ref<?T, borrowed, 'a, immutable>>(v1): (ref<?T, borrowed, 'a, immutable>) => test.main.Bound<ref<?T, borrowed, 'a, immutable>>
+    return v2
 }
 
-function test.main.Bound.included<T>(v0: T): test.main.Bound<T> {
+export function test.main.Bound.included<T>(v0: T): test.main.Bound<T> {
     local l0: T
 
 entry(v0: T):
@@ -728,11 +723,16 @@ entry(v0: T):
     v1: literal.string.included = zeroed
     v2: T = load l0
     v3: { kind: literal.string.included, value: T } = aggregate (v1, v2)
-    v4: ref<{ kind: literal.string.included, value: T }, managed, mutable, local> = new.complete v3
-    v5: variant<uint1> { 0uint1 = ref<{ kind: literal.string.included, value: T }, managed, mutable, local>; 1uint1 = ref<{ kind: literal.string.unbounded }, managed, mutable, local>; } = variant.new 0, v4
-    v6: test.main.Bound<T> = aggregate (v5)
-    return v6
+    v4: uninit<ref<{ kind: literal.string.included, value: T }, managed, mutable, local>> = new.uninit { kind: literal.string.included, value: T }, local
+    store (*v4), v3
+    v5: ref<{ kind: literal.string.included, value: T }, managed, mutable, local> = new.complete v4
+    v6: variant<uint1> { 0uint1 = ref<{ kind: literal.string.included, value: T }, managed, mutable, local>; 1uint1 = ref<{ kind: literal.string.unbounded }, managed, mutable, local>; } = variant.new 0, v5
+    v7: test.main.Bound<T> = aggregate (v6)
+    return v7
 }
+
+/// @layout.struct name=Clone size=0 align=1
+/// @layout.struct name=type@5 size=0 align=1
 
 /// @dispatch.shape constraint=type@19 function=clone function=cloneFrom
 "#);
@@ -785,20 +785,20 @@ type Clone { }
 @nocopy
 type test.main.Iterator<T> { }
 
-function test.main.CopyIterator.Iterator.next<T: Copy, 'a, A: Access, I: test.main.Iterator<ref<?T, borrowed, 'a, A>>, 'a>(v0: ref<test.main.CopyIterator<I, T>, borrowed, 'a, mutable>): variant<uint1> { 0uint1 = T; 1uint1 = void; } {
+export function test.main.CopyIterator.Iterator.next<T: Copy, 'a, A: Access, I: test.main.Iterator<ref<?T, borrowed, 'a, A>>, 'a>(v0: ref<test.main.CopyIterator<I, T>, borrowed, 'a, mutable>): variant<uint1> { 0uint1 = T; 1uint1 = void; } {
     local l0: ref<test.main.CopyIterator<I, T>, borrowed, 'a, mutable>
     local l1: variant<uint1> { 0uint1 = ref<?T, borrowed, 'a, A>; 1uint1 = void; }
 
 entry(v0: ref<test.main.CopyIterator<I, T>, borrowed, 'a, mutable>):
     store l0, v0
-    v1: ref<test.main.CopyIterator<I, T>, borrowed, 'a, mutable> = load l0
-    v2: ref<?I, borrowed, 'a, mutable> = address (*v1).0
-    v3: variant<uint1> { 0uint1 = ref<?T, borrowed, 'a, A>; 1uint1 = void; } = call.witness I, test.main.Iterator<ref<?T, borrowed, '_, A>>, test.main.Iterator.next(v2): (ref<?I, borrowed, 'a, mutable>) => variant<uint1> { 0uint1 = ref<?T, borrowed, 'a, A>; 1uint1 = void; }
-    store l1, v3
-    v4: uint1 = variant.tag.load l1
-    v5: uint1 = 1
-    v6: boolean = eq v4, v5
-    branch v6 => b1 | b2
+    v1: ref<?I, borrowed, 'a, mutable> = address (*l0).0
+    v2: variant<uint1> { 0uint1 = ref<?T, borrowed, 'a, A>; 1uint1 = void; } = call.witness I, test.main.Iterator<ref<?T, borrowed, '_, A>>, test.main.Iterator.next(v1): (ref<?I, borrowed, 'a, mutable>) => variant<uint1> { 0uint1 = ref<?T, borrowed, 'a, A>; 1uint1 = void; }
+    store l1, v2
+    v3: uint1 = variant.tag.load l1
+    v4: uint1 = 1
+    v5: boolean = eq v3, v4
+    v6: ref<variant<uint1> { 0uint1 = ref<?T, borrowed, 'a, A>; 1uint1 = void; }, borrowed, 'frame, readonly> = fake.borrow l1
+    branch v5 => b1 | b2
 
 b1:
     v7: void = zeroed
@@ -806,6 +806,7 @@ b1:
     return v8
 
 b2:
+    fake.read v6
     v9: ref<?T, borrowed, 'a, A> = address (*(l1 as 0))
     v10: ?T = load (*v9)
     v11: T = new.complete v10
@@ -814,6 +815,9 @@ b2:
 }
 
 external function test.main.Iterator.next<T, this: test.main.Iterator<T>, 'a>(ref<?this, borrowed, 'a, mutable>): variant<uint1> { 0uint1 = T; 1uint1 = void; }
+
+/// @layout.struct name=Clone size=0 align=1
+/// @layout.struct name=type@11 size=0 align=1
 
 /// @dispatch.shape constraint=type@9 function=clone function=cloneFrom
 /// @dispatch.shape constraint=type@19 function=next
@@ -842,7 +846,7 @@ type test.main.Expectation<'a, T> {
     value: ref<?T, borrowed, 'a, immutable>;
 }
 
-function test.main.Expectation.isPositive<'a, T>(v0: test.main.Expectation<'a, int32>): boolean {
+export function test.main.Expectation.isPositive<'a, T>(v0: test.main.Expectation<'a, int32>): boolean {
     local l0: test.main.Expectation<'a, int32>
 
 entry(v0: test.main.Expectation<'a, int32>):

@@ -16,7 +16,7 @@ function same(left: &immutable (int32, boolean), right: &immutable (int32, boole
 @languageItem("ops.PartialEqual")
 type PartialEqual<T>;
 
-function test.main.same<'a, 'b>(v0: ref<(int32, boolean), borrowed, 'a, immutable>, v1: ref<(int32, boolean), borrowed, 'b, immutable>): boolean {
+export function test.main.same<'a, 'b>(v0: ref<(int32, boolean), borrowed, 'a, immutable>, v1: ref<(int32, boolean), borrowed, 'b, immutable>): boolean {
     local l0: ref<(int32, boolean), borrowed, 'a, immutable>
     local l1: ref<(int32, boolean), borrowed, 'b, immutable>
 
@@ -38,7 +38,7 @@ entry(v0: ref<(int32, boolean), borrowed, 'a, immutable>, v1: ref<(int32, boolea
         "main.tspp",
         "test.main.PartialEqual.equal<(int32, boolean)>",
         r#"
-function test.main.PartialEqual.equal<(int32, boolean), 'a, 'b>(v0: ref<(int32, boolean), borrowed, 'a, immutable>, v1: ref<(int32, boolean), borrowed, 'b, immutable>): boolean {
+export function test.main.PartialEqual.equal<(int32, boolean), 'a, 'b>(v0: ref<(int32, boolean), borrowed, 'a, immutable>, v1: ref<(int32, boolean), borrowed, 'b, immutable>): boolean {
     local l0: ref<(int32, boolean), borrowed, 'b, immutable>
     local l1: ref<(int32, boolean), borrowed, 'a, immutable>
     local l2: boolean
@@ -46,26 +46,22 @@ function test.main.PartialEqual.equal<(int32, boolean), 'a, 'b>(v0: ref<(int32, 
 entry(v0: ref<(int32, boolean), borrowed, 'a, immutable>, v1: ref<(int32, boolean), borrowed, 'b, immutable>):
     store l0, v1
     store l1, v0
-    v2: ref<(int32, boolean), borrowed, 'a, immutable> = load l1
-    v3: ref<(int32, boolean), borrowed, 'b, immutable> = load l0
-    v4: ref<int32, borrowed, 'b, immutable> = address (*v3).0
-    v5: ref<int32, borrowed, 'a, immutable> = address (*v2).0
-    v6: boolean = call Integer.PartialEqual.equal<int32>(v5, v4): (ref<int32, borrowed, 'a, immutable>, ref<int32, borrowed, 'b, immutable>) => boolean
-    store l2, v6
-    branch v6 => b1 | b2
+    v2: ref<int32, borrowed, 'b, immutable> = address (*l0).0
+    v3: ref<int32, borrowed, 'a, immutable> = address (*l1).0
+    v4: boolean = call Integer.PartialEqual.equal<int32>(v3, v2): (ref<int32, borrowed, 'a, immutable>, ref<int32, borrowed, 'b, immutable>) => boolean
+    store l2, v4
+    branch v4 => b1 | b2
 
 b1:
-    v7: ref<(int32, boolean), borrowed, 'a, immutable> = load l1
-    v8: ref<(int32, boolean), borrowed, 'b, immutable> = load l0
-    v9: ref<boolean, borrowed, 'b, immutable> = address (*v8).1
-    v10: ref<boolean, borrowed, 'a, immutable> = address (*v7).1
-    v11: boolean = call Boolean.PartialEqual.equal(v10, v9): (ref<boolean, borrowed, 'a, immutable>, ref<boolean, borrowed, 'b, immutable>) => boolean
-    store l2, v11
+    v5: ref<boolean, borrowed, 'b, immutable> = address (*l0).1
+    v6: ref<boolean, borrowed, 'a, immutable> = address (*l1).1
+    v7: boolean = call Boolean.PartialEqual.equal(v6, v5): (ref<boolean, borrowed, 'a, immutable>, ref<boolean, borrowed, 'b, immutable>) => boolean
+    store l2, v7
     jump b2
 
 b2:
-    v12: boolean = load l2
-    return v12
+    v8: boolean = load l2
+    return v8
 }
 
 /// @layout.tuple name=type@2 size=8 align=4

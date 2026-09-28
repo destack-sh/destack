@@ -3,7 +3,7 @@ use tspp_mir as mir;
 
 use crate::lower::FunctionLowerer;
 use crate::lower::function::lower::Binding;
-use crate::lower::function::member::FieldStorage;
+use crate::lower::function::operand::Operand;
 use crate::{CompilerError, CompilerResult};
 
 /// One resolved place base.
@@ -17,6 +17,13 @@ pub(in crate::lower) enum PlaceRoot {
     Reference {
         /// The reference value.
         value: mir::Value,
+        /// The access exposed through the reference.
+        access: mir::Access,
+    },
+    /// The referent of a local reference.
+    Referent {
+        /// The local holding the reference.
+        local: mir::LocalNodeId<mir::Local>,
         /// The access exposed through the reference.
         access: mir::Access,
     },
@@ -39,6 +46,31 @@ pub(in crate::lower) enum PlaceProjection {
         /// The case payload type.
         ty: mir::TypeId,
     },
+    /// One field of a type parameter.
+    Member {
+        /// The field name.
+        name: dir::StringId,
+        /// The projected value type.
+        ty: mir::TypeId,
+    },
+}
+
+impl PlaceProjection {
+    /// Return the MIR projection.
+    pub(in crate::lower) fn projection(&self) -> mir::Projection {
+        match *self {
+            Self::Field { field, .. } => mir::Projection::Field { index: field },
+            Self::Downcast { case, .. } => mir::Projection::Variant { case },
+            Self::Member { name, ty } => mir::Projection::Member { name, ty },
+        }
+    }
+
+    /// Return the projected value type.
+    pub(in crate::lower) fn ty(&self) -> mir::TypeId {
+        match *self {
+            Self::Field { ty, .. } | Self::Downcast { ty, .. } | Self::Member { ty, .. } => ty,
+        }
+    }
 }
 
 /// One resolved place: a base with its projection path.
@@ -69,7 +101,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         match &assignment.write {
             // write a plain binding
-            dir::WriteResolution::Binding { symbol, .. } => self.binding_place(symbol.local_id),
+            dir::WriteResolution::Binding { symbol, .. } => self.binding_place(*symbol),
             // write a field of the receiver's place
             dir::WriteResolution::Member(resolution) => {
                 // require a direct, unadjusted field member
@@ -84,8 +116,8 @@ impl FunctionLowerer<'_, '_, '_> {
                 };
 
                 // lower the storage selection
-                let index = self.member_field_index(field)?;
                 let ty = self.lower_type(field.ty)?;
+                let projection = self.member_projection(field, ty)?;
 
                 // read the receiver chain through its member resolutions
                 let dir::Expression::Member { left, .. } = *self.source().tree().get(source) else {
@@ -97,7 +129,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 // project the written field onto the receiver's adjusted place
                 let place = self.receiver_place(left)?;
                 let mut place = self.project_place_adjustments(place, &receiver.adjustments)?;
-                place.path.push(PlaceProjection::Field { field: index, ty });
+                place.path.push(projection);
 
                 Ok(place)
             }
@@ -110,18 +142,8 @@ impl FunctionLowerer<'_, '_, '_> {
                         message: "a dereference write on a non-unary place".to_string(),
                     });
                 };
-                let value = self.lower_value(right)?;
-                let received = self.value_representation(value)?;
-                let Some(access) = self.rooted_access(received) else {
-                    return Err(CompilerError::Internal {
-                        message: "a dereference write through a non-reference value".to_string(),
-                    });
-                };
 
-                Ok(Place {
-                    root: PlaceRoot::Reference { value, access },
-                    path: Vec::new(),
-                })
+                self.reference_place(right)
             }
             // reject every other write target
             other => Err(self.unsupported(format!("a write through {} storage", other.name()))),
@@ -158,12 +180,12 @@ impl FunctionLowerer<'_, '_, '_> {
         self.node_type_id(expression)
     }
 
-    /// Return whether one expression's storage holds a reference, a binding judged by its home.
-    pub(in crate::lower) fn indirect_storage(
+    /// Return the binding one expression reads.
+    fn expression_binding(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<bool> {
-        let binding = match *self.source().tree().get(expression) {
+    ) -> CompilerResult<Option<Binding>> {
+        Ok(match *self.source().tree().get(expression) {
             dir::Expression::This => self.this,
             dir::Expression::Identifier { .. } => {
                 let node = expression.into_global_any(self.source);
@@ -172,8 +194,15 @@ impl FunctionLowerer<'_, '_, '_> {
                 self.values.get(&symbol.local_id).copied()
             }
             _ => None,
-        };
-        if let Some(binding) = binding {
+        })
+    }
+
+    /// Return whether one expression's storage holds a reference.
+    pub(in crate::lower) fn indirect_storage(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<bool> {
+        if let Some(binding) = self.expression_binding(expression)? {
             let held = self.binding_representation(binding);
 
             return Ok(self.is_reference_local(held));
@@ -207,7 +236,7 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return the place one expression's own storage occupies.
-    fn storage_place(
+    pub(in crate::lower) fn storage_place(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Place> {
@@ -232,12 +261,12 @@ impl FunctionLowerer<'_, '_, '_> {
                 };
 
                 // project this field onto the receiver's adjusted place, behind a held handle
-                let index = self.member_field_index(field)?;
                 let ty = self.lower_type(field.ty)?;
+                let projection = self.member_projection(field, ty)?;
                 let place = self.receiver_place(left)?;
                 let place = self.project_place_adjustments(place, &receiver.adjustments)?;
                 let mut place = self.through_handle(place)?;
-                place.path.push(PlaceProjection::Field { field: index, ty });
+                place.path.push(projection);
 
                 self.narrowed_place(expression, place)
             }
@@ -252,11 +281,30 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 self.narrowed_place(expression, place)
             }
+            // address the Index element
+            dir::Expression::Index {
+                left, is_optional, ..
+            } => {
+                let dir::OperationResolution::One(subscript) =
+                    self.subscript_decision(expression)?
+                else {
+                    return Err(self.unsupported("a place through a union subscript"));
+                };
+                let dir::SubscriptTarget::Index(read) = subscript.target else {
+                    return Err(self.internal("a place through a non-Index subscript"));
+                };
+                if read.dereference.is_none() {
+                    return Err(self.internal("a place through an Index read returning a value"));
+                }
+                let address = self.lower_index_address(left, read, is_optional)?;
+
+                self.place_behind(address)
+            }
             // bind the place base at the identifier, narrowed to the case a read proves
             dir::Expression::Identifier { .. } => {
                 let node = expression.into_global_any(self.source);
                 let symbol = self.lower.resolved_symbol(node)?;
-                let place = self.binding_place(symbol.local_id)?;
+                let place = self.binding_place(symbol)?;
 
                 self.narrowed_place(expression, place)
             }
@@ -284,13 +332,27 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         place: Place,
     ) -> CompilerResult<Place> {
+        self.read_narrowing_tests(expression)?;
         let Some(narrowing) = self.representation_narrowing(expression)? else {
             return Ok(place);
         };
-        match narrowing.arms.as_slice() {
-            [member] => self.downcast_place(place, narrowing.union, *member),
-            _ => Ok(place),
-        }
+        let [member] = narrowing.arms.as_slice() else {
+            return Ok(place);
+        };
+
+        // project the proven case
+        let place = self.downcast_place(place, narrowing.declared, *member)?;
+        let held = self.place_type(&place)?;
+        let target = self.node_type_id(expression)?;
+        let Some(handle_type) = self.subclass_handle(held, target)? else {
+            return Ok(place);
+        };
+        let handle = self.read_place(&place)?;
+        let handle = self
+            .builder
+            .cast(mir::CastOperator::Bitcast, handle, handle_type);
+
+        Ok(Place::local(self.home(handle)))
     }
 
     /// Root one place holding a reference at the storage the reference addresses.
@@ -325,11 +387,17 @@ impl FunctionLowerer<'_, '_, '_> {
         // find the binding the expression roots at
         let binding = match *self.source().tree().get(expression) {
             dir::Expression::This => self.this,
+            // name a module global
             dir::Expression::Identifier { .. } => {
-                let node = expression.into_global_any(self.source);
-                let symbol = self.lower.resolved_symbol(node)?;
+                let binding = self.expression_binding(expression)?;
+                if binding.is_none() {
+                    let node = expression.into_global_any(self.source);
+                    let symbol = self.lower.resolved_symbol(node)?;
 
-                self.values.get(&symbol.local_id).copied()
+                    return Ok(self.constant_global(symbol)?.is_some());
+                }
+
+                binding
             }
             // a field chain names the storage its receiver does
             dir::Expression::Member { left, .. } => {
@@ -369,8 +437,34 @@ impl FunctionLowerer<'_, '_, '_> {
 
         Ok(matches!(
             binding,
-            Some(Binding::Local(_) | Binding::Captured { .. })
+            Some(Binding::Local(_) | Binding::Behind { .. })
         ))
+    }
+
+    /// Box one value in heap storage.
+    pub(in crate::lower) fn box_value(
+        &mut self,
+        value: mir::Value,
+        reference: mir::TypeId,
+    ) -> CompilerResult<mir::Value> {
+        let mir::Type::Reference { pointee, .. } = *self.builder.tree().type_definition(reference)
+        else {
+            return Err(self.internal("a boxed value outside a reference"));
+        };
+
+        // allocate the storage
+        let token_type = self
+            .builder
+            .tree_mut()
+            .intern_type(mir::Type::Uninit { value: reference });
+        let space = self.allocation_space(reference)?;
+        let token = self.builder.new_uninit(pointee, token_type, space);
+
+        // store the value and complete
+        let place = mir::Place::value(token).with_projection(mir::Projection::Deref);
+        self.builder.store(place, value);
+
+        Ok(self.builder.new_complete(token, reference))
     }
 
     /// Home one value in a fresh local.
@@ -415,10 +509,13 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return the place behind one binding symbol.
-    fn binding_place(&mut self, symbol: dir::LocalSymbolId) -> CompilerResult<Place> {
-        let global = dir::GlobalSymbolId::new(self.source, symbol);
+    fn binding_place(&mut self, global: dir::GlobalSymbolId) -> CompilerResult<Place> {
+        let local = match global.module_id == self.source {
+            true => self.values.get(&global.local_id).copied(),
+            false => None,
+        };
 
-        match self.values.get(&symbol).copied() {
+        match local {
             // a homed binding roots its own place
             Some(binding) => self.binding_home(binding),
             // root module constants at their globals
@@ -440,13 +537,21 @@ impl FunctionLowerer<'_, '_, '_> {
                 root: PlaceRoot::Local(local),
                 path: Vec::new(),
             }),
-            // captured bindings live behind their frame reference
-            Binding::Captured { frame, field, ty } => Ok(Place {
+            // captured bindings live behind their reference
+            Binding::Behind {
+                reference,
+                access,
+                field,
+                ty,
+            } => Ok(Place {
                 root: PlaceRoot::Reference {
-                    value: frame,
-                    access: mir::Access::Mutable,
+                    value: reference,
+                    access,
                 },
-                path: vec![PlaceProjection::Field { field, ty }],
+                path: field
+                    .map(|field| PlaceProjection::Field { field, ty })
+                    .into_iter()
+                    .collect(),
             }),
         }
     }
@@ -512,6 +617,11 @@ impl FunctionLowerer<'_, '_, '_> {
                     };
                     place.path.push(PlaceProjection::Downcast { case, ty });
                 }
+                // home the singleton
+                dir::ReceiverAdjustment::Materialize { singleton, ty } => {
+                    let value = self.materialize_singleton(*singleton, *ty)?;
+                    place = self.as_place(Operand::Value(value), *ty)?;
+                }
                 // report a call adjustment inside a place path
                 dir::ReceiverAdjustment::Borrow { .. } | dir::ReceiverAdjustment::Upcast { .. } => {
                     return Err(CompilerError::Internal {
@@ -528,7 +638,7 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn field_address(
         &mut self,
         reference: mir::Value,
-        index: u32,
+        projection: mir::Projection,
         field: mir::TypeId,
         access: mir::Access,
     ) -> CompilerResult<mir::Value> {
@@ -561,7 +671,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         let place = mir::Place::value(reference)
             .with_projection(mir::Projection::Deref)
-            .with_projection(mir::Projection::Field { index });
+            .with_projection(projection);
 
         Ok(self.builder.address(place, address))
     }
@@ -630,7 +740,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // grant at most the access the root lends
         let through = match place.root {
-            PlaceRoot::Reference { access, .. } => access,
+            PlaceRoot::Reference { access, .. } | PlaceRoot::Referent { access, .. } => access,
             PlaceRoot::Local(_) => mir::Access::Exclusive,
             PlaceRoot::Global(global) => self.global_access(global),
         };
@@ -766,6 +876,25 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Place> {
+        // name a local's referent
+        if let Some(Binding::Local(local)) = self.expression_binding(expression)?
+            && self.coercion(expression).is_none()
+        {
+            let held = self.builder.tree().get(local).ty;
+            let held = self.resolved_type(held);
+            if let mir::Type::Reference {
+                kind: mir::Reference::Borrowed | mir::Reference::Unique,
+                access,
+                ..
+            } = *self.builder.tree().get(held)
+            {
+                return Ok(Place {
+                    root: PlaceRoot::Referent { local, access },
+                    path: Vec::new(),
+                });
+            }
+        }
+
         let declared = self.storage_type(expression)?;
         let value = self.lower_value(expression)?;
         let Some((value, _)) = self.innermost_reference(value, Some(declared))? else {
@@ -807,14 +936,28 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Return the type one place holds.
     pub(in crate::lower) fn place_type(&mut self, place: &Place) -> CompilerResult<mir::TypeId> {
         match place.path.last() {
-            Some(PlaceProjection::Field { ty, .. } | PlaceProjection::Downcast { ty, .. }) => {
-                Ok(*ty)
-            }
+            Some(projection) => Ok(projection.ty()),
             None => match place.root {
                 PlaceRoot::Local(local) => Ok(self.builder.tree().get(local).ty),
                 PlaceRoot::Global(global) => Ok(self.builder.tree().get(global).ty),
                 PlaceRoot::Reference { value, .. } => self.reference_pointee(value),
+                PlaceRoot::Referent { local, .. } => self.local_referent(local),
             },
+        }
+    }
+
+    /// Return the referent type of one local.
+    fn local_referent(
+        &mut self,
+        local: mir::LocalNodeId<mir::Local>,
+    ) -> CompilerResult<mir::TypeId> {
+        let held = self.builder.tree().get(local).ty;
+        let held = self.resolved_type(held);
+        match self.builder.tree().get(held) {
+            mir::Type::Reference { pointee, .. } => Ok(*pointee),
+            _ => Err(CompilerError::Internal {
+                message: "a referent place rooted outside a reference local".to_string(),
+            }),
         }
     }
 
@@ -950,21 +1093,20 @@ impl FunctionLowerer<'_, '_, '_> {
         place: &Place,
         target: mir::TypeId,
     ) -> CompilerResult<mir::Value> {
-        // reborrow a whole root through the reference it holds,
-        //  a local only when the target borrows its referent
-        if place.path.is_empty() {
-            let reference = match place.root {
-                PlaceRoot::Reference { value, .. } => Some(value),
-                PlaceRoot::Local(local) => {
-                    let held = self.builder.tree().get(local).ty;
-                    self.borrows_referent(held, target)
-                        .then(|| self.load_place(mir::Place::local(local), held))
-                }
-                PlaceRoot::Global(_) => None,
-            };
-            if let Some(reference) = reference {
-                return self.reborrow_or_reinterpret(reference, target);
-            }
+        // reborrow a reference root
+        if place.path.is_empty()
+            && let PlaceRoot::Reference { value, .. } = place.root
+        {
+            return self.reborrow_or_reinterpret(value, target);
+        }
+
+        // reborrow a held reference
+        let held = self.place_type(place)?;
+        if self.borrows_referent(held, target) {
+            let slot = place.lower(self)?;
+            let reference = self.load_place(slot, held);
+
+            return self.reborrow_or_reinterpret(reference, target);
         }
 
         // read a fat owner's descriptor at the borrowed form its target names
@@ -976,7 +1118,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // address a frame or global place, a rooted reference through its path
         match place.root {
-            PlaceRoot::Local(_) | PlaceRoot::Global(_) => {
+            PlaceRoot::Local(_) | PlaceRoot::Global(_) | PlaceRoot::Referent { .. } => {
                 let projected = place.lower(self)?;
 
                 Ok(self.builder.address(projected, target))
@@ -1029,7 +1171,21 @@ impl FunctionLowerer<'_, '_, '_> {
         let source = self.node_type_id(expression)?;
         let held = self.lower_type(source)?;
         if !self.addresses_value(target, held) && self.reborrows_through(held) {
-            let value = self.lower_value(expression)?;
+            let is_held =
+                self.is_place_expression(expression) && self.coercion(expression).is_none();
+            let value = if is_held && self.rooted_access(held) == Some(mir::Access::Exclusive) {
+                let storage = self.storage_place(expression)?;
+                let referent = storage.lower(self)?.with_projection(mir::Projection::Deref);
+
+                // address the referent
+                let borrowed = match self.borrows_referent(held, target) {
+                    true => target,
+                    false => held,
+                };
+                self.builder.address(referent, borrowed)
+            } else {
+                self.lower_value(expression)?
+            };
 
             return self.place_behind(value);
         }
@@ -1108,17 +1264,17 @@ impl FunctionLowerer<'_, '_, '_> {
         for (index, projection) in path.iter().enumerate() {
             let leaf = (index == last).then_some(leaf).flatten();
             current = match *projection {
-                PlaceProjection::Field { field, ty } => {
+                PlaceProjection::Field { ty, .. } | PlaceProjection::Member { ty, .. } => {
                     let current = self.innermost_address(current)?;
                     match leaf {
                         Some(result_type) => {
                             let place = mir::Place::value(current)
                                 .with_projection(mir::Projection::Deref)
-                                .with_projection(mir::Projection::Field { index: field });
+                                .with_projection(projection.projection());
 
                             self.builder.address(place, result_type)
                         }
-                        None => self.field_address(current, field, ty, access)?,
+                        None => self.field_address(current, projection.projection(), ty, access)?,
                     }
                 }
                 // address the case selected by the narrowing
@@ -1214,7 +1370,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         value: mir::Value,
         receiver: dir::GlobalTypeId,
-        storage: &FieldStorage,
+        storage: &PlaceProjection,
     ) -> CompilerResult<Option<mir::Value>> {
         let Some((reference, access)) = self.innermost_reference(value, Some(receiver))? else {
             return Ok(None);
@@ -1222,8 +1378,8 @@ impl FunctionLowerer<'_, '_, '_> {
 
         Ok(Some(self.field_address(
             reference,
-            storage.index,
-            storage.read,
+            storage.projection(),
+            storage.ty(),
             access,
         )?))
     }
@@ -1248,6 +1404,10 @@ impl Place {
                 mir::Place::value(value).with_projection(mir::Projection::Deref),
                 lower.reference_pointee(value)?,
             ),
+            PlaceRoot::Referent { local, .. } => (
+                mir::Place::local(local).with_projection(mir::Projection::Deref),
+                lower.local_referent(local)?,
+            ),
         };
 
         // traverse stored references before selecting each aggregate member
@@ -1264,14 +1424,8 @@ impl Place {
             }
 
             // retain the field or case and its type
-            let (projection, selected) = match *projection {
-                PlaceProjection::Field { field, ty } => {
-                    (mir::Projection::Field { index: field }, ty)
-                }
-                PlaceProjection::Downcast { case, ty } => (mir::Projection::Variant { case }, ty),
-            };
-            place.push(projection);
-            ty = selected;
+            place.push(projection.projection());
+            ty = projection.ty();
         }
 
         Ok(place)

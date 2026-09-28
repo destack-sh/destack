@@ -36,6 +36,62 @@ impl TypeLowerer<'_, '_> {
         }))
     }
 
+    /// Lower one associated const projection to its witness value.
+    pub(in crate::lower) fn lower_associated_value(
+        &mut self,
+        argument: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<mir::StaticId>> {
+        // require a named projection
+        let dir::Type::Member(member) = self.lower.ty(argument)? else {
+            return Ok(None);
+        };
+        let member = *self.lower.types(argument.module_id)?.member(member);
+        let dir::StaticKey::Name(name) = member.key else {
+            return Ok(None);
+        };
+
+        // read the interface of a this projection
+        let qualifier = match member.qualifier {
+            Some(qualifier) => qualifier,
+            None => {
+                let (dir::Type::This, Some(receiver)) =
+                    (self.lower.ty(member.owner)?, self.scope.receiver)
+                else {
+                    return Ok(None);
+                };
+                let Some(parameter) = self
+                    .scope
+                    .parameters
+                    .iter()
+                    .find_map(|(parameter, index)| (*index == receiver).then_some(*parameter))
+                else {
+                    return Err(CompilerError::Internal {
+                        message: "an interface receiver index without its parameter".to_string(),
+                    });
+                };
+                let generics = &self.lower.state(parameter.module_id)?.generics;
+                let Some(constraint) = generics.get_parameter(parameter.local_id).constraint else {
+                    return Err(CompilerError::Internal {
+                        message: "an interface receiver without its interface".to_string(),
+                    });
+                };
+
+                constraint
+            }
+        };
+
+        // name the witness const
+        let interface = self.lower_nominal(qualifier)?.storage;
+        let receiver = self.lower(member.owner)?;
+        let value = mir::Static::Witness {
+            receiver,
+            interface,
+            member: name,
+        };
+
+        Ok(Some(self.tree.intern_static(value)))
+    }
+
     /// Lower the value one interface declares for an associated type.
     fn declared_associated_value(
         &mut self,

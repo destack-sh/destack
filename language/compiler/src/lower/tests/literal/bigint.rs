@@ -19,7 +19,7 @@ function big(): bigint {
 @languageItem("math.BigInt")
 type BigInt;
 
-function test.main.big(): ref<BigInt, managed, mutable, local> {
+export function test.main.big(): ref<BigInt, managed, mutable, local> {
 entry:
     v0: ref<BigInt, managed, mutable, local> = address @bigint.0
     return v0

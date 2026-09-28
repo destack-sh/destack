@@ -196,15 +196,20 @@ impl FunctionLowerer<'_, '_, '_> {
         if matches!(
             self.builder.tree().type_definition(representation),
             mir::Type::Variant { .. }
-        ) {
-            let value = self.lower_value(left)?;
-            if self.absent_case(representation).is_none() {
-                return self.adopt(value, result);
-            }
+        ) && self.absent_case(representation).is_some()
+        {
+            // split the absent case
+            let coercion = self.coercion(left);
+            let operand = self.lower_anchored(left, |lower| lower.lower_source(left))?;
+            let value = self.as_value(operand, source)?;
 
-            return self.lower_absent_fallback(value, source, result_ty, |lower| {
-                lower.lower_coalesce_fallback(right, result_ty)
-            });
+            return self.lower_absent_fallback(
+                value,
+                source,
+                result_ty,
+                coercion.as_ref(),
+                |lower| lower.lower_coalesce_fallback(right, result_ty),
+            );
         }
 
         // keep the value of an operand no variant stores absent
@@ -413,6 +418,29 @@ pub(in crate::lower) enum LoweredOperand {
 }
 
 impl FunctionLowerer<'_, '_, '_> {
+    /// Return whether one builtin operation produces a singleton literal.
+    pub(in crate::lower) fn is_singleton_result(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<bool> {
+        Ok(matches!(self.node_type(expression)?, dir::Type::Literal(_)))
+    }
+
+    /// Lower one builtin operation with a singleton result.
+    pub(in crate::lower) fn lower_singleton_result(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        operands: &[dir::LocalNodeId<dir::Expression>],
+    ) -> CompilerResult<mir::Value> {
+        // evaluate each operand for its effects
+        for operand in operands {
+            self.lower_value(*operand)?;
+        }
+        let singleton = self.lower_type(self.node_type_id(expression)?)?;
+
+        Ok(self.builder.constant(mir::Constant::Zeroed, singleton))
+    }
+
     /// Lower one binary operation over the operand representation.
     pub(in crate::lower) fn lower_binary(
         &mut self,
@@ -725,9 +753,26 @@ impl FunctionLowerer<'_, '_, '_> {
             _ => {}
         }
 
-        // evaluate the operand at its own representation
+        // evaluate the operand
         let lowered = self.lower_operand(expression)?;
-        let mut value = self.as_value(lowered, representation)?;
+        if let dir::Type::Literal(literal) = self.lower.ty(representation)? {
+            let ty = self.lower_type(representation)?;
+
+            return Ok(LoweredOperand::Singleton {
+                ty,
+                literal: Some(literal),
+            });
+        }
+
+        // materialize a singleton operand
+        let mut value = match self.node_type(expression)? {
+            dir::Type::Literal(literal) if self.coercion(expression).is_none() => {
+                let target = self.lower_type(representation)?;
+
+                self.lower_constant(literal, target)?
+            }
+            _ => self.as_value(lowered, representation)?,
+        };
 
         // read inline values through their indirect representations
         if let Some(layer) = self.lower.indirection(representation, &self.scope)?
@@ -813,6 +858,10 @@ impl FunctionLowerer<'_, '_, '_> {
             match family {
                 dir::ScalarFamily::Domain(domain) => {
                     return Ok(LoweredOperand::Scalar { value, domain });
+                }
+                // compare string cases by identity
+                dir::ScalarFamily::Enum(_) if matches!(ty, mir::Type::Newtype { .. }) => {
+                    return Ok(LoweredOperand::Address(self.builder.field_get(value, 0)));
                 }
                 dir::ScalarFamily::Enum(_) => {
                     return Err(CompilerError::Internal {
@@ -950,9 +999,41 @@ impl FunctionLowerer<'_, '_, '_> {
                 ),
             });
         }
+
+        // compare carried values by content
+        if let Some(item) = left_domain.equality_item() {
+            let equal = self.lower_carried_equality(item, left_value, right_value)?;
+
+            return match operator {
+                dir::BinaryOperator::Equal => Ok(equal),
+                dir::BinaryOperator::NotEqual => {
+                    Ok(self.builder.unary(mir::UnaryOperator::Not, equal))
+                }
+                _ => Err(CompilerError::Internal {
+                    message: format!(
+                        "a builtin '{}' over carried {left_domain:?} values",
+                        operator.text()
+                    ),
+                }),
+            };
+        }
         let operator = self.binary_operator(operator)?;
 
         Ok(self.builder.binary(operator, left_value, right_value))
+    }
+
+    /// Compare two carried values by content.
+    pub(in crate::lower) fn lower_carried_equality(
+        &mut self,
+        item: dir::LanguageItem,
+        left: mir::Value,
+        right: mir::Value,
+    ) -> CompilerResult<mir::Value> {
+        let symbol = self.lower.language_item_symbol(item)?;
+        let callee = self.resolve_callee(&dir::InstanceKey::new(symbol, Vec::new()))?;
+
+        self.call(&callee, vec![left, right])
+            .ok_or_else(|| self.internal("a carried equality function without a result"))
     }
 
     /// Lower equality over one common representation.
@@ -1211,12 +1292,9 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         }
 
-        // reject string and bigint value equality
-        if matches!(
-            left_domain,
-            dir::ScalarDomain::String | dir::ScalarDomain::Bigint
-        ) {
-            return Err(self.unsupported(format!("{left_domain:?} value equality")));
+        // compare carried values by content
+        if let Some(item) = left_domain.equality_item() {
+            return self.lower_carried_equality(item, left_value, right_value);
         }
         let operator = self.binary_operator(dir::BinaryOperator::EqualStrict)?;
 

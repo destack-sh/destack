@@ -35,7 +35,7 @@ function origin<T: Numeric>(): T {
         "main.tspp",
         "test.main.identical",
         r#"
-function test.main.identical<T: StrictEqual<T>>(v0: T, v1: T): boolean {
+export function test.main.identical<T: StrictEqual<T>>(v0: T, v1: T): boolean {
     local l0: T
     local l1: T
 
@@ -53,7 +53,7 @@ entry(v0: T, v1: T):
         "main.tspp",
         "test.main.widen",
         r#"
-function test.main.widen<T: Copy>(v0: T, v1: T): T {
+export function test.main.widen<T: Copy>(v0: T, v1: T): T {
     local l0: T
     local l1: T
 
@@ -71,7 +71,7 @@ entry(v0: T, v1: T):
         "main.tspp",
         "test.main.nearly",
         r#"
-function test.main.nearly<T: Float>(v0: T, v1: T): boolean {
+export function test.main.nearly<T: Float>(v0: T, v1: T): boolean {
     local l0: T
     local l1: T
 
@@ -93,7 +93,7 @@ entry(v0: T, v1: T):
 @languageItem("math.Zero")
 type Zero;
 
-function test.main.origin<T: Concrete & Copy & Clone & Zero & One>(): T {
+export function test.main.origin<T: Concrete & Copy & Clone & Zero & One>(): T {
 entry:
     v0: T = call.witness T, Zero, Zero.zero(): () => T
     return v0
@@ -104,7 +104,7 @@ entry:
         "main.tspp",
         "test.main.scaled",
         r#"
-function test.main.scaled<T: Float>(v0: T, v1: T): T {
+export function test.main.scaled<T: Float>(v0: T, v1: T): T {
     local l0: T
     local l1: T
 

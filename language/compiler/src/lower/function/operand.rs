@@ -46,6 +46,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Operand> {
         self.lower_anchored(expression, |lower| {
             let operand = lower.lower_source(expression)?;
+            lower.borrow_tested_operands(expression)?;
             match lower.coercion(expression) {
                 Some(coercion) => lower.convert(operand, &coercion, Some(expression)),
                 None => Ok(operand),
@@ -104,8 +105,11 @@ impl FunctionLowerer<'_, '_, '_> {
             }
         }
 
-        // every other expression writes its value
+        // write every other value
         let value = self.lower_value(expression)?;
+        if matches!(self.node_type(expression)?, dir::Type::Never) {
+            return Ok(false);
+        }
         self.write_place(destination, value)?;
 
         Ok(true)
@@ -311,7 +315,7 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Lower one expression's own syntax to an operand, without its coercion.
-    fn lower_source(
+    pub(in crate::lower) fn lower_source(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Operand> {

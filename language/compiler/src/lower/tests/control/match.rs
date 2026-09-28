@@ -18,8 +18,8 @@ newtype State = Off | On;
 
 function read(state: State): int32 {
     match (state) {
-        Off { code } => code
-        On { level } => level
+        Off { code } => code,
+        On { level } => level,
     }
 }
 "#,
@@ -31,7 +31,7 @@ function read(state: State): int32 {
         r#"
 type test.main.State = newtype<variant<uint1> { 0uint1 = test.main.Off; 1uint1 = test.main.On; }>;
 
-function test.main.read(v0: test.main.State): int32 {
+export function test.main.read(v0: test.main.State): int32 {
     local l0: test.main.State
     local l1: int32
     local l2: int32
@@ -103,7 +103,7 @@ function classify(state: State): int32 {
         r#"
 type test.main.State = newtype<variant<uint1> { 0uint1 = test.main.Off; 1uint1 = test.main.On; }>;
 
-function test.main.classify(v0: test.main.State): int32 {
+export function test.main.classify(v0: test.main.State): int32 {
     local l0: test.main.State
     local l1: int32
     local l2: int32
@@ -158,8 +158,8 @@ newtype State = Off | On;
 
 function observe(state: State, sink: (value: int32) => void): void {
     match (state) {
-        Off { code } => sink(code)
-        On { level } => sink(level)
+        Off { code } => sink(code),
+        On { level } => sink(level),
     }
 }
 "#,
@@ -168,7 +168,7 @@ function observe(state: State, sink: (value: int32) => void): void {
     session.assert_mir_function("main.tspp", "test.main.observe", r#"
 type test.main.State = newtype<variant<uint1> { 0uint1 = test.main.Off; 1uint1 = test.main.On; }>;
 
-function test.main.observe(v0: test.main.State, v1: function<(int32) => void, repeatable, managed, mutable, local>): void {
+export function test.main.observe(v0: test.main.State, v1: function<(int32) => void, repeatable, managed, mutable, local>): void {
     local l0: test.main.State
     local l1: function<(int32) => void, repeatable, managed, mutable, local>
     local l2: int32
@@ -225,9 +225,9 @@ newtype Phase = Pending | Done;
 
 function classify(phase: Phase): int32 {
     match (phase) {
-        Pending { attempts: 0 } => -1
-        Pending { attempts } => attempts
-        Done { code } => code
+        Pending { attempts: 0 } => -1,
+        Pending { attempts } => attempts,
+        Done { code } => code,
     }
 }
 "#,
@@ -239,7 +239,7 @@ function classify(phase: Phase): int32 {
         r#"
 type test.main.Phase = newtype<variant<uint1> { 0uint1 = test.main.Pending; 1uint1 = test.main.Done; }>;
 
-function test.main.classify(v0: test.main.Phase): int32 {
+export function test.main.classify(v0: test.main.Phase): int32 {
     local l0: test.main.Phase
     local l1: int32
     local l2: int32
@@ -304,9 +304,9 @@ newtype State = Off | On;
 
 function read(state: State): int32 {
     match (state) {
-        On { level } if (level > 10) => level
-        On {} => 0
-        Off { code } => code
+        On { level } if (level > 10) => level,
+        On {} => 0,
+        Off { code } => code,
     }
 }
 "#,
@@ -318,7 +318,7 @@ function read(state: State): int32 {
         r#"
 type test.main.State = newtype<variant<uint1> { 0uint1 = test.main.Off; 1uint1 = test.main.On; }>;
 
-function test.main.read(v0: test.main.State): int32 {
+export function test.main.read(v0: test.main.State): int32 {
     local l0: test.main.State
     local l1: int32
     local l2: int32
@@ -371,10 +371,10 @@ fn test_lower_scalar_literal_arms_to_a_test_chain() {
         r#"
 function grade(score: int32): int32 {
     match (score) {
-        0 => -1
-        1 | 2 => 0
-        3..=5 => 1
-        other => other
+        0 => -1,
+        1 | 2 => 0,
+        3..=5 => 1,
+        other => other,
     }
 }
 "#,
@@ -384,7 +384,7 @@ function grade(score: int32): int32 {
         "main.tspp",
         "test.main.grade",
         r#"
-function test.main.grade(v0: int32): int32 {
+export function test.main.grade(v0: int32): int32 {
     local l0: int32
     local l1: int32
     local l2: int32
@@ -479,9 +479,9 @@ newtype State = Off | On;
 
 function read(state: State, all: boolean): int32 {
     match (state) {
-        _ if (all) => 100
-        On { level } => level
-        Off { code } => code
+        _ if (all) => 100,
+        On { level } => level,
+        Off { code } => code,
     }
 }
 "#,
@@ -493,7 +493,7 @@ function read(state: State, all: boolean): int32 {
         r#"
 type test.main.State = newtype<variant<uint1> { 0uint1 = test.main.Off; 1uint1 = test.main.On; }>;
 
-function test.main.read(v0: test.main.State, v1: boolean): int32 {
+export function test.main.read(v0: test.main.State, v1: boolean): int32 {
     local l0: test.main.State
     local l1: boolean
     local l2: int32
@@ -565,14 +565,14 @@ function same<T: Equal<T>, E: Equal<E>>(left: &immutable Outcome<T, E>, right: &
     match (left) {
         Ok { value: a } => {
             match (right) {
-                Ok { value: b } => a.equal(b)
-                Err { error: _ } => false
+                Ok { value: b } => a.equal(b),
+                Err { error: _ } => false,
             }
         }
         Err { error: a } => {
             match (right) {
-                Err { error: b } => a.equal(b)
-                Ok { value: _ } => false
+                Err { error: b } => a.equal(b),
+                Ok { value: _ } => false,
             }
         }
     }
@@ -587,7 +587,7 @@ type test.main.Outcome<T, E> = newtype<variant<uint1> { 0uint1 = test.main.Ok<T>
 @languageItem("ops.PartialEqual")
 type PartialEqual<T>;
 
-function test.main.same<T: Equal<T>, E: Equal<E>, 'a, 'b>(v0: ref<test.main.Outcome<T, E>, borrowed, 'a, immutable>, v1: ref<test.main.Outcome<T, E>, borrowed, 'b, immutable>): boolean {
+export function test.main.same<T: Equal<T>, E: Equal<E>, 'a, 'b>(v0: ref<test.main.Outcome<T, E>, borrowed, 'a, immutable>, v1: ref<test.main.Outcome<T, E>, borrowed, 'b, immutable>): boolean {
     local l0: ref<test.main.Outcome<T, E>, borrowed, 'a, immutable>
     local l1: ref<test.main.Outcome<T, E>, borrowed, 'b, immutable>
     local l2: boolean

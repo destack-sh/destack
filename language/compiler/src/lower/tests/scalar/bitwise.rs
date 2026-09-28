@@ -14,7 +14,7 @@ function nudge(x: int32): int32 {
         "main.tspp",
         "test.main.nudge",
         r#"
-function test.main.nudge(v0: int32): int32 {
+export function test.main.nudge(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
@@ -42,7 +42,7 @@ function mask(x: uint32, m: uint32): uint32 {
         "main.tspp",
         "test.main.mask",
         r#"
-function test.main.mask(v0: uint32, v1: uint32): uint32 {
+export function test.main.mask(v0: uint32, v1: uint32): uint32 {
     local l0: uint32
     local l1: uint32
 

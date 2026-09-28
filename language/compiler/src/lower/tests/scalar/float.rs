@@ -14,7 +14,7 @@ function scale(x: float64, factor: float64): float64 {
         "main.tspp",
         "test.main.scale",
         r#"
-function test.main.scale(v0: float64, v1: float64): float64 {
+export function test.main.scale(v0: float64, v1: float64): float64 {
     local l0: float64
     local l1: float64
 
@@ -48,7 +48,7 @@ function hotter(x: float32, limit: float32): boolean {
         "main.tspp",
         "test.main.hotter",
         r#"
-function test.main.hotter(v0: float32, v1: float32): boolean {
+export function test.main.hotter(v0: float32, v1: float32): boolean {
     local l0: float32
     local l1: float32
 

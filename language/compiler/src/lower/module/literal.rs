@@ -86,6 +86,7 @@ impl ModuleLowerer<'_> {
             mir::GlobalInitializer::String(string),
         );
         global.symbol = mir::Symbol::language(symbol);
+        global.linkage = mir::Linkage::Shared;
         let object = tree.insert(global);
 
         Ok((object, nominal.value))
@@ -115,6 +116,7 @@ impl ModuleLowerer<'_> {
             mir::GlobalInitializer::BigInt(bigint),
         );
         global.symbol = mir::Symbol::language(symbol);
+        global.linkage = mir::Linkage::Shared;
         let object = tree.insert(global);
 
         Ok((object, nominal.value))
@@ -208,7 +210,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower the nominal representation named by one literal language item.
-    fn lower_literal_nominal(
+    pub(in crate::lower) fn lower_literal_nominal(
         &mut self,
         tree: &mut mir::Tree,
         item: dir::LanguageItem,

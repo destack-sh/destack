@@ -62,17 +62,22 @@ impl TypeLowerer<'_, '_> {
             }
 
             // fuse raw fat references into one raw layer
-            dir::Form::Raw if self.lower.is_reference_representation(form.value)? => self
-                .lower_reference(
+            dir::Form::Raw if self.lower.is_reference_representation(form.value)? => {
+                let access = self.raw_access(form.value, access)?;
+
+                self.lower_reference(
                     mir::Reference::Raw,
                     mir::Lifetime::empty(),
-                    access.unwrap_or(mir::Access::Mutable),
+                    access,
                     form.value,
-                ),
+                )
+            }
 
             // produce process-local machine pointers for raw layers
             dir::Form::Raw => {
-                self.lower_pointer(form.value, access.unwrap_or(mir::Access::Mutable))
+                let access = self.raw_access(form.value, access)?;
+
+                self.lower_pointer(form.value, access)
             }
 
             // fuse owned fat references into one unique layer
@@ -274,6 +279,26 @@ impl TypeLowerer<'_, '_> {
             access,
             pointee,
         }))
+    }
+
+    /// Return the access one raw layer grants.
+    fn raw_access(
+        &mut self,
+        payload: dir::GlobalTypeId,
+        access: Option<mir::Access>,
+    ) -> CompilerResult<mir::Access> {
+        let is_readonly = matches!(
+            self.lower.ty(payload)?,
+            dir::Type::Form(dir::FormType {
+                form: dir::Form::Readonly,
+                ..
+            })
+        );
+
+        Ok(match is_readonly {
+            true => mir::Access::Readonly,
+            false => access.unwrap_or(mir::Access::Mutable),
+        })
     }
 
     /// Lower one raw form into a process-local machine pointer.

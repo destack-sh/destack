@@ -30,7 +30,7 @@ type test.main.Node {
     value: int32;
 }
 
-constructor test.main.Node.constructor<'a>(v0: ref<uninit<test.main.Node>, borrowed, 'a, exclusive>): void {
+export constructor test.main.Node.constructor<'a>(v0: ref<uninit<test.main.Node>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Node>, borrowed, 'a, exclusive>
 
 entry(v0: ref<uninit<test.main.Node>, borrowed, 'a, exclusive>):
@@ -52,7 +52,7 @@ type test.main.Node {
     value: int32;
 }
 
-function test.main.compare<'a, 'b>(v0: ref<test.main.Node, borrowed, 'a, immutable>, v1: ref<test.main.Node, borrowed, 'b, immutable>): boolean {
+export function test.main.compare<'a, 'b>(v0: ref<test.main.Node, borrowed, 'a, immutable>, v1: ref<test.main.Node, borrowed, 'b, immutable>): boolean {
     local l0: ref<test.main.Node, borrowed, 'a, immutable>
     local l1: ref<test.main.Node, borrowed, 'b, immutable>
 
@@ -74,7 +74,7 @@ entry(v0: ref<test.main.Node, borrowed, 'a, immutable>, v1: ref<test.main.Node, 
 @languageItem("ops.PartialEqual")
 type PartialEqual<T>;
 
-function test.main.same<T: PartialEqual<T>, 'a, 'b>(v0: ref<?T, borrowed, 'a, immutable>, v1: ref<?T, borrowed, 'b, immutable>): boolean {
+export function test.main.same<T: PartialEqual<T>, 'a, 'b>(v0: ref<?T, borrowed, 'a, immutable>, v1: ref<?T, borrowed, 'b, immutable>): boolean {
     local l0: ref<?T, borrowed, 'a, immutable>
     local l1: ref<?T, borrowed, 'b, immutable>
 
@@ -97,19 +97,17 @@ type test.main.Node {
     value: int32;
 }
 
-function test.main.PartialEqual.equal<ref<test.main.Node, managed, mutable, local>, 'a, 'b>(v0: ref<test.main.Node, borrowed, 'a, immutable>, v1: ref<test.main.Node, borrowed, 'b, immutable>): boolean {
+export function test.main.PartialEqual.equal<ref<test.main.Node, managed, mutable, local>, 'a, 'b>(v0: ref<test.main.Node, borrowed, 'a, immutable>, v1: ref<test.main.Node, borrowed, 'b, immutable>): boolean {
     local l0: ref<test.main.Node, borrowed, 'b, immutable>
     local l1: ref<test.main.Node, borrowed, 'a, immutable>
 
 entry(v0: ref<test.main.Node, borrowed, 'a, immutable>, v1: ref<test.main.Node, borrowed, 'b, immutable>):
     store l0, v1
     store l1, v0
-    v2: ref<test.main.Node, borrowed, 'a, immutable> = load l1
-    v3: ref<test.main.Node, borrowed, 'b, immutable> = load l0
-    v4: ref<int32, borrowed, 'b, immutable> = address (*v3).0
-    v5: ref<int32, borrowed, 'a, immutable> = address (*v2).0
-    v6: boolean = call Integer.PartialEqual.equal<int32>(v5, v4): (ref<int32, borrowed, 'a, immutable>, ref<int32, borrowed, 'b, immutable>) => boolean
-    return v6
+    v2: ref<int32, borrowed, 'b, immutable> = address (*l0).0
+    v3: ref<int32, borrowed, 'a, immutable> = address (*l1).0
+    v4: boolean = call Integer.PartialEqual.equal<int32>(v3, v2): (ref<int32, borrowed, 'a, immutable>, ref<int32, borrowed, 'b, immutable>) => boolean
+    return v4
 }
 
 /// @layout.struct name=test.main.Node size=4 align=4
@@ -149,7 +147,7 @@ type test.main.Node {
     value: int32;
 }
 
-function test.main.copy<'a>(v0: ref<test.main.Node, borrowed, 'a, immutable>): test.main.Node {
+export function test.main.copy<'a>(v0: ref<test.main.Node, borrowed, 'a, immutable>): test.main.Node {
     local l0: ref<test.main.Node, borrowed, 'a, immutable>
 
 entry(v0: ref<test.main.Node, borrowed, 'a, immutable>):
@@ -173,19 +171,17 @@ type test.main.Node {
     value: int32;
 }
 
-function test.main.Clone.clone<ref<test.main.Node, managed, mutable, local>, 'a>(v0: ref<test.main.Node, borrowed, 'a, immutable>): test.main.Node {
+export function test.main.Clone.clone<ref<test.main.Node, managed, mutable, local>, 'a>(v0: ref<test.main.Node, borrowed, 'a, immutable>): test.main.Node {
     local l0: ref<test.main.Node, borrowed, 'a, immutable>
 
 entry(v0: ref<test.main.Node, borrowed, 'a, immutable>):
     store l0, v0
-    v1: ref<test.main.Node, borrowed, 'a, immutable> = load l0
-    v2: ref<int32, borrowed, 'a, immutable> = address (*v1).0
-    v3: int32 = call Integer.Clone.clone<int32>(v2): (ref<int32, borrowed, 'a, immutable>) => int32
-    v4: ref<test.main.Node, borrowed, 'a, immutable> = load l0
-    v5: ref<int32, borrowed, 'a, immutable> = address (*v4).1
-    v6: int32 = call Integer.Clone.clone<int32>(v5): (ref<int32, borrowed, 'a, immutable>) => int32
-    v7: test.main.Node = aggregate (v3, v6)
-    return v7
+    v1: ref<int32, borrowed, 'a, immutable> = address (*l0).0
+    v2: int32 = call Integer.Clone.clone<int32>(v1): (ref<int32, borrowed, 'a, immutable>) => int32
+    v3: ref<int32, borrowed, 'a, immutable> = address (*l0).1
+    v4: int32 = call Integer.Clone.clone<int32>(v3): (ref<int32, borrowed, 'a, immutable>) => int32
+    v5: test.main.Node = aggregate (v2, v4)
+    return v5
 }
 
 /// @layout.struct name=test.main.Node size=8 align=4
@@ -228,7 +224,7 @@ type Hasher;
 @languageItem("ops.Hash")
 type Hash;
 
-function test.main.digest<'a, 'b>(v0: ref<test.main.Point, borrowed, 'a, immutable>, v1: dynamic<Hasher, borrowed, 'b, mutable>): void {
+export function test.main.digest<'a, 'b>(v0: ref<test.main.Point, borrowed, 'a, immutable>, v1: dynamic<Hasher, borrowed, 'b, mutable>): void {
     local l0: ref<test.main.Point, borrowed, 'a, immutable>
     local l1: dynamic<Hasher, borrowed, 'b, mutable>
 

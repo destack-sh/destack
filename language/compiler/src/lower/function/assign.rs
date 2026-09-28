@@ -160,12 +160,9 @@ impl FunctionLowerer<'_, '_, '_> {
             let dir::MemberTarget::Field(field) = &arm.target else {
                 return Err(self.unsupported("a union member write outside field storage"));
             };
-            let index = self.member_field_index(field)?;
             let field_type = self.lower_type(field.ty)?;
-            arm_place.path.push(PlaceProjection::Field {
-                field: index,
-                ty: field_type,
-            });
+            let projection = self.member_projection(field, field_type)?;
+            arm_place.path.push(projection);
 
             // combine with the current value for compound and update stores
             let stored = match store {

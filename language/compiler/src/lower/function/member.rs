@@ -4,7 +4,7 @@ use tspp_mir as mir;
 use crate::lower::function::call::ReceiverUse;
 use crate::lower::function::place::PlaceProjection;
 use crate::lower::function::union::UnionDispatch;
-use crate::lower::{FunctionLowerer, GenericScope};
+use crate::lower::{EnumCase, FunctionLowerer, GenericScope};
 use crate::{CompilerError, CompilerResult};
 
 impl FunctionLowerer<'_, '_, '_> {
@@ -349,20 +349,22 @@ impl FunctionLowerer<'_, '_, '_> {
         held: dir::GlobalTypeId,
     ) -> CompilerResult<mir::Value> {
         // resolve the field's stored representation off the held concrete type
-        let storage = self.field_storage(field)?;
-        let receiver = self.lower_type(held)?;
-        let concrete = mir::Substitution::resolve(receiver, self.builder.tree_mut());
-        let stored = self.property_representation(concrete, storage.index as usize)?;
+        let projection = match self.field_storage(field)? {
+            PlaceProjection::Field { field, .. } => {
+                let receiver = self.lower_type(held)?;
+                let concrete = mir::Substitution::resolve(receiver, self.builder.tree_mut());
+                let ty = self.property_representation(concrete, field as usize)?;
+
+                PlaceProjection::Field { field, ty }
+            }
+            projection => projection,
+        };
 
         // load the field through the projected place
         let mut place = self.receiver_place(left)?;
-        place.path.push(PlaceProjection::Field {
-            field: storage.index,
-            ty: stored,
-        });
-        let value = self.read_place(&place)?;
+        place.path.push(projection);
 
-        self.lower_narrowing(expression, value)
+        self.lower_narrowing(expression, |lower| lower.read_place(&place))
     }
 
     /// Return whether one expression names owned storage holding a value directly.
@@ -379,10 +381,19 @@ impl FunctionLowerer<'_, '_, '_> {
         self.names_storage(expression)
     }
 
-    /// Lower one field read from its already adjusted receiver value.
+    /// Lower one narrowed field read.
     fn lower_field_value(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
+        value: mir::Value,
+        field: &dir::FieldResolution,
+    ) -> CompilerResult<mir::Value> {
+        self.lower_narrowing(expression, |lower| lower.read_field(value, field))
+    }
+
+    /// Read one field from its adjusted receiver.
+    pub(in crate::lower) fn read_field(
+        &mut self,
         value: mir::Value,
         field: &dir::FieldResolution,
     ) -> CompilerResult<mir::Value> {
@@ -403,28 +414,38 @@ impl FunctionLowerer<'_, '_, '_> {
         let storage = self.field_storage(field)?;
 
         // load fields through addresses for reference receivers
-        let value = match self.innermost_field_address(value, receiver, &storage)? {
-            Some(address) => {
+        match (
+            self.innermost_field_address(value, receiver, &storage)?,
+            storage,
+        ) {
+            (Some(address), _) => {
                 let place = mir::Place::value(address).with_projection(mir::Projection::Deref);
 
-                self.load_place(place, storage.read)
+                Ok(self.load_place(place, storage.ty()))
             }
-            None => self.builder.field_get(value, storage.index),
-        };
+            (None, PlaceProjection::Field { field, .. }) => {
+                Ok(self.builder.field_get(value, field))
+            }
+            // read a type parameter's member
+            (None, projection) => {
+                let held = self.value_representation(value)?;
+                let local = self.builder.local(held, mir::Mutability::Immutable);
+                self.builder.local_set(local, value);
+                let place = mir::Place::local(local).with_projection(projection.projection());
 
-        self.lower_narrowing(expression, value)
+                Ok(self.load_place(place, projection.ty()))
+            }
+        }
     }
 
-    /// Resolve one field's storage index and representation off its receiver representation.
-    fn field_storage(&mut self, field: &dir::FieldResolution) -> CompilerResult<FieldStorage> {
-        let index = self.member_field_index(field)?;
-        let read = field.ty;
-        let read = self.lower_type(read)?;
+    /// Resolve one field's projection.
+    fn field_storage(&mut self, field: &dir::FieldResolution) -> CompilerResult<PlaceProjection> {
+        let read = self.lower_type(field.ty)?;
 
-        Ok(FieldStorage { index, read })
+        self.member_projection(field, read)
     }
 
-    /// Lower one payload-free variant member to its case construction.
+    /// Lower one payload-free variant member to its case value.
     fn lower_variant_member(&mut self, variant: &dir::VariantType) -> CompilerResult<mir::Value> {
         // materialize the owner representation and select the declared case
         let dir::Type::Application(owner) = self.lower.ty(variant.owner)? else {
@@ -433,9 +454,16 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         };
         let ty = self.lower_type(variant.owner)?;
-        let case = self.lower.variant_position(owner.symbol, variant.variant)?;
 
-        Ok(self.builder.variant_new(ty, case, None))
+        // build the enum case
+        match self.lower.enum_case(owner.symbol, variant.variant)? {
+            EnumCase::Tag(case) => Ok(self.builder.variant_new(ty, case, None)),
+            EnumCase::String(string) => {
+                let string = self.lower_string_literal(string)?;
+
+                Ok(self.builder.aggregate(ty, vec![string]))
+            }
+        }
     }
 
     /// Lower one compiler-defined member projection.
@@ -546,11 +574,12 @@ impl FunctionLowerer<'_, '_, '_> {
         self.lower_adjusted_receiver(expression, receiver, is_optional, ReceiverUse::Storage)
     }
 
-    /// Return the storage index selected by one field resolution.
-    pub(in crate::lower) fn member_field_index(
+    /// Return the projection of one field.
+    pub(in crate::lower) fn member_projection(
         &mut self,
         field: &dir::FieldResolution,
-    ) -> CompilerResult<u32> {
+        ty: mir::TypeId,
+    ) -> CompilerResult<PlaceProjection> {
         // locate storage beneath every reference layer of the selected receiver
         let mut stored = field.receiver.ty();
         while let Some(layer) = self.lower.indirection(stored, &self.scope)? {
@@ -572,6 +601,15 @@ impl FunctionLowerer<'_, '_, '_> {
             };
 
             stored = self.lower.stored(defined)?;
+        }
+
+        // select a type parameter's field by name
+        if let dir::Type::Parameter(_) = self.lower.ty(stored)? {
+            let dir::StaticKey::Name(name) = field.target.key() else {
+                return Err(self.unsupported("an indexed member of a type parameter"));
+            };
+
+            return Ok(PlaceProjection::Member { name, ty });
         }
 
         // find the field's position in the storage the receiver declares
@@ -607,11 +645,14 @@ impl FunctionLowerer<'_, '_, '_> {
             }
         };
 
-        index
-            .map(|index| index as u32)
-            .ok_or_else(|| CompilerError::Internal {
-                message: "a field absent from its lowered receiver".to_string(),
-            })
+        let field = index.ok_or_else(|| CompilerError::Internal {
+            message: "a field absent from its lowered receiver".to_string(),
+        })?;
+
+        Ok(PlaceProjection::Field {
+            field: field as u32,
+            ty,
+        })
     }
 
     /// Dispatch one member read over the union arms its resolution recorded.
@@ -716,7 +757,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn union_field_storage(
         &mut self,
         arms: &[dir::MemberAccess],
-    ) -> CompilerResult<Option<Vec<FieldStorage>>> {
+    ) -> CompilerResult<Option<Vec<PlaceProjection>>> {
         let mut storages = Vec::with_capacity(arms.len());
         for arm in arms {
             let dir::MemberTarget::Field(field) = &arm.target else {
@@ -735,7 +776,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // require one read representation across the arms
         let shared = storages
             .iter()
-            .all(|storage| storage.read == storages[0].read);
+            .all(|storage| storage.ty() == storages[0].ty());
 
         Ok(shared.then_some(storages))
     }
@@ -747,7 +788,7 @@ impl FunctionLowerer<'_, '_, '_> {
         dispatch: mir::Value,
         arms: &[dir::MemberAccess],
         routes: &UnionDispatch,
-        storages: &[FieldStorage],
+        storages: &[PlaceProjection],
     ) -> CompilerResult<mir::Value> {
         let prefix = routes.prefix;
         let exit = self.builder.block();
@@ -799,16 +840,8 @@ impl FunctionLowerer<'_, '_, '_> {
         self.builder.switch_to_block(exit);
         let address = self.builder.local_get(slot);
         let place = mir::Place::value(address).with_projection(mir::Projection::Deref);
-        let value = self.load_place(place, storages[0].read);
+        let ty = storages[0].ty();
 
-        self.lower_narrowing(expression, value)
+        self.lower_narrowing(expression, |lower| Ok(lower.load_place(place, ty)))
     }
-}
-
-/// One field's storage index and read representation within its receiver.
-pub(in crate::lower) struct FieldStorage {
-    /// The field's index within the receiver's aggregate.
-    pub(in crate::lower) index: u32,
-    /// The representation the read produces.
-    pub(in crate::lower) read: mir::TypeId,
 }

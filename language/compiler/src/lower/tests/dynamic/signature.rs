@@ -18,7 +18,7 @@ export function pick(counts: Counts, key: string): int32 | undefined {
 @languageItem("string.String")
 type String;
 
-function test.main.pick(v0: dynamic<{  }, managed, mutable, local>, v1: ref<String, managed, mutable, local>): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
+export function test.main.pick(v0: dynamic<{  }, managed, mutable, local>, v1: ref<String, managed, mutable, local>): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
     local l0: dynamic<{  }, managed, mutable, local>
     local l1: ref<String, managed, mutable, local>
 
@@ -57,7 +57,7 @@ export function pick(counts: Counts, key: string): int32 | undefined {
 @languageItem("string.String")
 type String;
 
-function test.main.pick(v0: dynamic<{  }, managed, mutable, local>, v1: ref<String, managed, mutable, local>): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
+export function test.main.pick(v0: dynamic<{  }, managed, mutable, local>, v1: ref<String, managed, mutable, local>): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
     local l0: dynamic<{  }, managed, mutable, local>
     local l1: ref<String, managed, mutable, local>
 

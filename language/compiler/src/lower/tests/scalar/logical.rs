@@ -14,7 +14,7 @@ function both(a: boolean, b: boolean): boolean {
         "main.tspp",
         "test.main.both",
         r#"
-function test.main.both(v0: boolean, v1: boolean): boolean {
+export function test.main.both(v0: boolean, v1: boolean): boolean {
     local l0: boolean
     local l1: boolean
     local l2: boolean
@@ -53,7 +53,7 @@ function either(a: boolean, b: boolean): boolean {
         "main.tspp",
         "test.main.either",
         r#"
-function test.main.either(v0: boolean, v1: boolean): boolean {
+export function test.main.either(v0: boolean, v1: boolean): boolean {
     local l0: boolean
     local l1: boolean
     local l2: boolean
@@ -93,7 +93,7 @@ function label(name: string | undefined): string | undefined {
 @languageItem("string.String")
 type String;
 
-function test.main.label(v0: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }): variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } {
+export function test.main.label(v0: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }): variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } {
     local l0: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }
     local l1: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }, readonly
 
@@ -121,4 +121,60 @@ b3:
 /// @layout.case owner=type@7 index=0 discriminant=0 payload_offset=0
 /// @layout.case owner=type@7 index=1 discriminant=1 payload_offset=0
 "#);
+}
+
+/// Borrow the present arm of a coalesce, converting it after the absent case splits off.
+#[test]
+fn test_lower_a_coalesce_borrowed_by_its_parameter() {
+    let session = TestSession::single(
+        r#"
+declare function show(message: &readonly string): void;
+
+export function run(message?: string): void {
+    show(message ?? "fallback");
+}
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.tspp",
+        "test.main.run",
+        r#"
+@nocopy
+@languageItem("string.String")
+type String;
+
+export function test.main.run(v0: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }): void {
+    local l0: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }
+    local l1: ref<String, borrowed, 'managed, readonly>, readonly
+
+entry(v0: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }):
+    store l0, v0
+    v1: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = load l0
+    variant.switch v1, 1 => b2, else b1
+
+b1:
+    v2: ref<String, managed, mutable, local> = variant.payload v1, 0
+    v3: ref<String, borrowed, 'managed, readonly> = cast.bit v2 -> ref<String, borrowed, 'managed, readonly>
+    store l1, v3
+    jump b3
+
+b2:
+    v4: ref<String, managed, mutable, local> = address @string.0
+    v5: ref<String, borrowed, 'managed, readonly> = cast.bit v4 -> ref<String, borrowed, 'managed, readonly>
+    store l1, v5
+    jump b3
+
+b3:
+    v6: ref<String, borrowed, 'managed, readonly> = load l1
+    call test.main.show(v6): (ref<String, borrowed, 'managed, readonly>) => void
+    return
+}
+
+/// @layout.variant name=type@7 size=8 align=8
+/// @layout.discriminant owner=type@7 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@7 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@7 index=1 discriminant=1 payload_offset=0
+"#,
+    );
 }

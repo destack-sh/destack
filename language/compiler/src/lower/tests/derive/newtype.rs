@@ -20,7 +20,7 @@ type test.main.Steps = newtype<Array<int32>>;
 @languageItem("memory.Clone")
 type Clone;
 
-function test.main.duplicate<'a>(v0: ref<test.main.Steps, borrowed, 'a, immutable>): test.main.Steps {
+export function test.main.duplicate<'a>(v0: ref<test.main.Steps, borrowed, 'a, immutable>): test.main.Steps {
     local l0: ref<test.main.Steps, borrowed, 'a, immutable>
 
 entry(v0: ref<test.main.Steps, borrowed, 'a, immutable>):
@@ -38,7 +38,7 @@ type test.main.Steps = newtype<Array<int32>>;
 @languageItem("collections.Array")
 type Array<T>;
 
-function test.main.Clone.clone<test.main.Steps, 'a>(v0: ref<test.main.Steps, borrowed, 'a, immutable>): test.main.Steps {
+export function test.main.Clone.clone<test.main.Steps, 'a>(v0: ref<test.main.Steps, borrowed, 'a, immutable>): test.main.Steps {
     local l0: ref<test.main.Steps, borrowed, 'a, immutable>
 
 entry(v0: ref<test.main.Steps, borrowed, 'a, immutable>):

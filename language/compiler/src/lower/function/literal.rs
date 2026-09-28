@@ -27,6 +27,20 @@ impl FunctionLowerer<'_, '_, '_> {
         self.lower_constant(literal, representation)
     }
 
+    /// Materialize one singleton at its carrier.
+    pub(in crate::lower) fn materialize_singleton(
+        &mut self,
+        singleton: dir::GlobalTypeId,
+        carrier: dir::GlobalTypeId,
+    ) -> CompilerResult<mir::Value> {
+        let dir::Type::Literal(literal) = self.lower.ty(singleton)? else {
+            return Err(self.internal("a materialized singleton outside the literal types"));
+        };
+        let representation = self.lower_type(carrier)?;
+
+        self.lower_constant(literal, representation)
+    }
+
     /// Lower one literal to a constant at one representation.
     pub(in crate::lower) fn lower_constant(
         &mut self,

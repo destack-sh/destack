@@ -1,4 +1,4 @@
-use tspp_core::{FxIndexMap, StringId};
+use tspp_core::{FxIndexMap, FxIndexSet, StringId};
 use tspp_dir as dir;
 use tspp_mir as mir;
 use tspp_mir::substitute_type;
@@ -129,6 +129,30 @@ impl TypeLowerer<'_, '_> {
             });
     }
 
+    /// Return whether one member type projects an associated const.
+    fn projects_constant(
+        &mut self,
+        member: dir::GlobalSymbolId,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let mut pending = vec![ty];
+        let mut visited = FxIndexSet::default();
+        while let Some(id) = pending.pop() {
+            if !visited.insert(id) {
+                continue;
+            }
+            if self.lower.dependent_constant_type(member, id)?.is_some() {
+                return Ok(true);
+            }
+            let kind = self.lower.ty(id)?;
+            self.lower
+                .types(id.module_id)?
+                .for_each_child(&kind, |child| pending.push(child));
+        }
+
+        Ok(false)
+    }
+
     /// Collect one interface's members into a flattened list keyed by name.
     fn collect_interface_members(
         &mut self,
@@ -162,10 +186,6 @@ impl TypeLowerer<'_, '_> {
                 .types(base.module_id)?
                 .type_ids(application.arguments)
                 .to_vec();
-            let mut lowered = Vec::with_capacity(arguments.len());
-            for argument in &arguments {
-                lowered.push(self.lower_generic_argument(*argument)?);
-            }
             let base_parameters = match base_definition.template {
                 Some(template) => GenericScope::for_declaration(
                     self.lower,
@@ -173,6 +193,17 @@ impl TypeLowerer<'_, '_> {
                 )?,
                 None => GenericScope::default(),
             };
+            let domains = base_parameters.index_domains(self.lower, 0)?;
+            if domains.len() != arguments.len() {
+                return Err(CompilerError::Internal {
+                    message: "an interface heritage applying a different number of arguments"
+                        .to_string(),
+                });
+            }
+            let mut lowered = Vec::with_capacity(arguments.len());
+            for (argument, (kind, is_const)) in arguments.into_iter().zip(domains) {
+                lowered.push(self.lower_generic_argument(argument, kind, is_const)?);
+            }
             let mut base_entries = FxIndexMap::default();
             self.under(&base_parameters)
                 .collect_interface_members(&base_definition, &mut base_entries)?;
@@ -299,6 +330,11 @@ impl TypeLowerer<'_, '_> {
                 if is_generic {
                     continue;
                 }
+            }
+
+            // skip const-projecting methods
+            if self.projects_constant(method.symbol, declared)? {
+                continue;
             }
 
             // lower the bare signature under the method's template

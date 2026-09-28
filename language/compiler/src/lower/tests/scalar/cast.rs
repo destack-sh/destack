@@ -14,7 +14,7 @@ function widen(a: int32, b: uint32): int64 {
         "main.tspp",
         "test.main.widen",
         r#"
-function test.main.widen(v0: int32, v1: uint32): int64 {
+export function test.main.widen(v0: int32, v1: uint32): int64 {
     local l0: int32
     local l1: uint32
 
@@ -49,7 +49,7 @@ function narrow(value: int64): int8 {
         "main.tspp",
         "test.main.narrow",
         r#"
-function test.main.narrow(v0: int64): int8 {
+export function test.main.narrow(v0: int64): int8 {
     local l0: int64
 
 entry(v0: int64):
@@ -79,7 +79,7 @@ function reinterpret(value: usize): isize {
         "main.tspp",
         "test.main.reinterpret",
         r#"
-function test.main.reinterpret(v0: usize): isize {
+export function test.main.reinterpret(v0: usize): isize {
     local l0: usize
 
 entry(v0: usize):
@@ -106,7 +106,7 @@ function ratio(hits: uint32, total: int32): float64 {
         "main.tspp",
         "test.main.ratio",
         r#"
-function test.main.ratio(v0: uint32, v1: int32): float64 {
+export function test.main.ratio(v0: uint32, v1: int32): float64 {
     local l0: uint32
     local l1: int32
 
@@ -141,7 +141,7 @@ function whole(value: float64): int32 {
         "main.tspp",
         "test.main.whole",
         r#"
-function test.main.whole(v0: float64): int32 {
+export function test.main.whole(v0: float64): int32 {
     local l0: float64
 
 entry(v0: float64):
@@ -168,7 +168,7 @@ function big(): int64 {
         "main.tspp",
         "test.main.big",
         r#"
-function test.main.big(): int64 {
+export function test.main.big(): int64 {
 entry:
     v0: int64 = 1
     return v0
@@ -197,7 +197,7 @@ function narrow<T: Integer>(value: T): int8 {
         "main.tspp",
         "test.main.narrow",
         r#"
-function test.main.narrow<T: Integer>(v0: T): int8 {
+export function test.main.narrow<T: Integer>(v0: T): int8 {
     local l0: T
 
 entry(v0: T):
@@ -229,13 +229,41 @@ function unwrap(id: *UserId): *int32 {
         r#"
 type test.main.UserId = newtype<int32>;
 
-function test.main.unwrap(v0: ptr<test.main.UserId, mutable>): ptr<int32, mutable> {
+export function test.main.unwrap(v0: ptr<test.main.UserId, mutable>): ptr<int32, mutable> {
     local l0: ptr<test.main.UserId, mutable>
 
 entry(v0: ptr<test.main.UserId, mutable>):
     store l0, v0
     v1: ptr<test.main.UserId, mutable> = load l0
     v2: ptr<int32, mutable> = cast.bit v1 -> ptr<int32, mutable>
+    return v2
+}
+"#,
+    );
+}
+
+/// A borrow stored into a raw pointer slot keeps its address as an inert pointer.
+#[test]
+fn test_lower_a_borrow_coerced_to_a_raw_pointer() {
+    let session = TestSession::single(
+        r#"
+function address(value: &readonly int32): *readonly int32 {
+    return value;
+}
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.tspp",
+        "test.main.address",
+        r#"
+export function test.main.address<'a>(v0: ref<int32, borrowed, 'a, readonly>): ptr<int32, readonly> {
+    local l0: ref<int32, borrowed, 'a, readonly>
+
+entry(v0: ref<int32, borrowed, 'a, readonly>):
+    store l0, v0
+    v1: ref<int32, borrowed, 'a, readonly> = load l0
+    v2: ptr<int32, readonly> = cast.referenceToPointer v1 -> ptr<int32, readonly>
     return v2
 }
 "#,

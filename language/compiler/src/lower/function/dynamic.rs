@@ -17,7 +17,8 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         // reject narrowing back out of an erased representation
         let dynamic = self.lower_type(target)?;
-        let mir::Type::Dynamic { .. } = *self.builder.tree().get(dynamic) else {
+        let mir::Type::Dynamic { kind, lifetime, .. } = self.builder.tree().get(dynamic).clone()
+        else {
             return Err(self.unsupported("narrowing an erased value to its payload"));
         };
 
@@ -30,7 +31,31 @@ impl FunctionLowerer<'_, '_, '_> {
         let concrete = self.lower_type(source)?;
         let concrete = mir::erase_lifetimes(self.builder.tree_mut(), concrete);
 
-        Ok(self.builder.dynamic_bind(dynamic, value, concrete))
+        // box a value payload
+        let payload = match self.builder.tree().type_definition(concrete) {
+            // NOTE #Incomplete: box a parameter payload
+            mir::Type::Reference { .. } | mir::Type::Parameter { .. } => value,
+            _ => {
+                let reference = self.builder.tree_mut().intern_type(mir::Type::Reference {
+                    kind,
+                    lifetime,
+                    access: mir::Access::Mutable,
+                    pointee: concrete,
+                });
+                match kind {
+                    mir::Reference::Managed(_) | mir::Reference::Unique => {
+                        self.box_value(value, reference)?
+                    }
+                    mir::Reference::Borrowed | mir::Reference::Raw => {
+                        let local = self.home(value);
+
+                        self.builder.address(mir::Place::local(local), reference)
+                    }
+                }
+            }
+        };
+
+        Ok(self.builder.dynamic_bind(dynamic, payload, concrete))
     }
 
     /// Lower one method call dispatched through an erased receiver.
@@ -187,7 +212,7 @@ impl FunctionLowerer<'_, '_, '_> {
             };
             let argument = &mut arguments[*index as usize];
             if argument.is_none() {
-                *argument = Some(self.lower_generic_argument(binding.argument)?);
+                *argument = Some(self.lower_bound_argument(*binding)?);
             }
         }
 
@@ -196,7 +221,11 @@ impl FunctionLowerer<'_, '_, '_> {
             let tree = self.builder.tree_mut();
             let mut types = self.lower.type_lowerer(tree, &self.scope);
             types.this_type = Some(erased);
-            arguments[dependent.index as usize] = Some(types.lower_generic_argument(dependent.ty)?);
+            arguments[dependent.index as usize] = Some(types.lower_generic_argument(
+                dependent.ty,
+                dependent.kind,
+                dependent.is_const(),
+            )?);
         }
 
         // require an argument at every index

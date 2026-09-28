@@ -4,7 +4,7 @@ use tspp_mir as mir;
 
 use tspp_source::ModuleId;
 
-use crate::lower::{GenericInstanceKey, GenericScope, ModuleLowerer};
+use crate::lower::{DependentKey, GenericInstanceKey, GenericScope, InstanceForm, ModuleLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// Recursive type lowering into one tree.
@@ -305,8 +305,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             // lower fixed arrays to their inline element storage at a literal or parameter length
             dir::Type::FixedArray(fixed) => {
                 let element = self.lower(fixed.element)?;
-                let mir::GenericArgument::Value(length) =
-                    self.lower_generic_argument(fixed.count)?
+                let mir::GenericArgument::Value(length) = self.lower_value_argument(fixed.count)?
                 else {
                     return Err(CompilerError::Internal {
                         message: "a fixed array length outside the value domain".to_string(),
@@ -436,7 +435,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             payloads.push(self.lower(element)?);
         }
 
-        Ok(self.insert_union_variant(payloads))
+        Ok(self.tree.union_type(&payloads))
     }
 
     /// Build one function instance key with the regions of its arguments erased.
@@ -444,7 +443,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         &mut self,
         symbol: dir::GlobalSymbolId,
         receiver: Option<dir::GlobalTypeId>,
-        types: &[dir::GlobalTypeId],
+        bindings: &[dir::GenericArgumentBinding],
     ) -> CompilerResult<GenericInstanceKey> {
         // lower the receiver into a region-erased type argument
         let receiver = match receiver {
@@ -455,7 +454,10 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             }
             None => None,
         };
-        let mut arguments = self.generic_arguments(types)?;
+        let mut arguments = Vec::with_capacity(bindings.len());
+        for binding in bindings {
+            arguments.push(self.lower_bound_argument(*binding)?);
+        }
         let mut regions = 0;
         for argument in &mut arguments {
             match argument {
@@ -476,20 +478,37 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             symbol,
             receiver,
             arguments,
+            form: InstanceForm::Declaration,
         })
     }
 
-    /// Lower each argument in its parameter's domain, regions among them.
-    pub(in crate::lower) fn generic_arguments(
+    /// Lower one generic argument in its domain.
+    pub(in crate::lower) fn lower_generic_argument(
         &mut self,
-        types: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Vec<mir::GenericArgument>> {
-        let mut arguments = Vec::with_capacity(types.len());
-        for ty in types {
-            arguments.push(self.lower_generic_argument(*ty)?);
-        }
+        argument: dir::GlobalTypeId,
+        kind: Option<dir::MemoryParameter>,
+        is_const: bool,
+    ) -> CompilerResult<mir::GenericArgument> {
+        let argument = self.lower_generic_argument_terms(argument, kind, is_const)?;
 
-        Ok(arguments)
+        Ok(self.grounded(argument, |substitution, argument| {
+            substitution.argument(argument)
+        }))
+    }
+
+    /// Lower one bound argument in its parameter's domain.
+    pub(in crate::lower) fn lower_bound_argument(
+        &mut self,
+        binding: dir::GenericArgumentBinding,
+    ) -> CompilerResult<mir::GenericArgument> {
+        let parameter = self
+            .lower
+            .state(binding.parameter.module_id)?
+            .generics
+            .get_parameter(binding.parameter.local_id);
+        let (kind, is_const) = (parameter.memory_parameter(), parameter.is_const);
+
+        self.lower_generic_argument(binding.argument, kind, is_const)
     }
 
     /// Lower one region argument, the lifetime of a borrow.
@@ -502,32 +521,44 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         Ok(mir::GenericArgument::Region(lifetime))
     }
 
-    /// Lower one generic argument into its parameter's domain.
-    pub(in crate::lower) fn lower_generic_argument(
-        &mut self,
-        argument: dir::GlobalTypeId,
-    ) -> CompilerResult<mir::GenericArgument> {
-        let argument = self.lower_generic_argument_terms(argument)?;
-
-        Ok(self.grounded(argument, |substitution, argument| {
-            substitution.argument(argument)
-        }))
-    }
-
     /// Lower one generic argument's terms.
     fn lower_generic_argument_terms(
         &mut self,
         argument: dir::GlobalTypeId,
+        kind: Option<dir::MemoryParameter>,
+        is_const: bool,
     ) -> CompilerResult<mir::GenericArgument> {
-        if self.lower.type_is_lifetime(argument)? {
-            return self.lower_region_argument(argument);
+        // name an enclosing parameter by its index
+        if let dir::Type::Parameter(parameter) = self.lower.ty(argument)?
+            && let Some(index) = self.scope.parameter_index(parameter)
+        {
+            return self.lower.index_argument(self.tree, index, kind, is_const);
         }
-        match self.lower.ty(argument)? {
-            dir::Type::Literal(dir::Literal::Integer(value)) => {
-                let value = self.tree.intern_static(mir::Static::Integer(value));
 
-                Ok(mir::GenericArgument::Value(value))
-            }
+        match kind {
+            // lower a region to its lifetime
+            Some(dir::MemoryParameter::Region) => self.lower_region_argument(argument),
+            // lower an access to its access
+            Some(dir::MemoryParameter::Access) => Ok(mir::GenericArgument::Access(
+                self.lower.borrow_access(argument)?,
+            )),
+            // lower a const argument to its value
+            None if is_const => self.lower_value_argument(argument),
+            // lower a type argument to its representation
+            None => Ok(mir::GenericArgument::Type(self.lower(argument)?)),
+        }
+    }
+
+    /// Lower one literal argument to the value it denotes.
+    pub(in crate::lower) fn lower_value_argument(
+        &mut self,
+        argument: dir::GlobalTypeId,
+    ) -> CompilerResult<mir::GenericArgument> {
+        match self.lower.ty(argument)? {
+            // take a literal as the value it spells
+            dir::Type::Literal(literal) => Ok(mir::GenericArgument::Value(
+                self.tree.intern_static(literal_static(literal)),
+            )),
             // take an enum case by its declaration order
             dir::Type::Variant(member) => {
                 let dir::Type::Application(owner) = self.lower.ty(member.owner)? else {
@@ -542,29 +573,27 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
 
                 Ok(mir::GenericArgument::Value(value))
             }
-            dir::Type::Literal(dir::Literal::String(value))
-                if dir::Access::from_text(self.lower.strings.get(value)).is_some() =>
-            {
-                Ok(mir::GenericArgument::Access(
-                    self.lower.borrow_access(argument)?,
-                ))
-            }
+            // name an enclosing const parameter by its index
             dir::Type::Parameter(parameter)
                 if let Some(index) = self.scope.parameter_index(parameter) =>
             {
-                let binding = self
-                    .lower
-                    .state(parameter.module_id)?
-                    .generics
-                    .get_parameter(parameter.local_id);
-                let (kind, is_const) = (binding.memory_parameter(), binding.is_const);
-
-                self.lower.index_argument(self.tree, index, kind, is_const)
+                self.lower.index_argument(self.tree, index, None, true)
             }
-            _ => {
-                let ty = self.lower(argument)?;
-
-                Ok(mir::GenericArgument::Type(ty))
+            // name an enclosing const dependent by its index
+            other => {
+                let key = DependentKey::of(self.lower, argument)?;
+                match self.scope.dependents.get(&key) {
+                    Some(dependent) if dependent.is_const() => {
+                        self.lower
+                            .index_argument(self.tree, dependent.index, None, true)
+                    }
+                    _ => match self.lower_associated_value(argument)? {
+                        Some(value) => Ok(mir::GenericArgument::Value(value)),
+                        None => Err(CompilerError::Internal {
+                            message: format!("a const argument {other:?} outside the value domain"),
+                        }),
+                    },
+                }
             }
         }
     }
@@ -664,32 +693,6 @@ impl ModuleLowerer<'_> {
 }
 
 impl TypeLowerer<'_, '_> {
-    /// Intern the union cases in their order.
-    pub(in crate::lower) fn insert_union_variant(
-        &mut self,
-        payloads: Vec<mir::TypeId>,
-    ) -> mir::TypeId {
-        // select enough discriminant bits for the declared cases
-        let width = payloads.len().next_power_of_two().ilog2().max(1) as u16;
-        let discriminant = self.tree.int_type(width, false);
-        let cases = payloads
-            .into_iter()
-            .enumerate()
-            .map(|(index, ty)| mir::VariantCase {
-                discriminant: mir::Constant::UInt {
-                    value: index as u128,
-                    width,
-                },
-                ty,
-            })
-            .collect();
-
-        self.tree.intern_type(mir::Type::Variant {
-            discriminant,
-            cases,
-        })
-    }
-
     /// Intern one tuple in element order.
     fn insert_tuple(&mut self, elements: Vec<mir::TypeId>) -> mir::TypeId {
         self.tree.intern_type(mir::Type::Tuple {
@@ -788,6 +791,17 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         ty: &dir::Type,
     ) -> CompilerResult<mir::TypeId> {
+        // store a range or key at its carrier
+        if matches!(ty, dir::Type::Range(_) | dir::Type::Key(_)) {
+            let Some(carrier) = ty.scalar_representation() else {
+                return Err(CompilerError::Internal {
+                    message: format!("a '{}' type without a carrier", ty.variant_name()),
+                });
+            };
+
+            return self.lower_value_representation(&carrier);
+        }
+
         // lower reference primitives through their representation classes
         if let Some(item) = ModuleLowerer::representation_item(ty) {
             let symbol = self.lower.language_item_symbol(item)?;
@@ -828,5 +842,20 @@ impl TypeLowerer<'_, '_> {
             == dir::SymbolKind::Enum;
 
         Ok(is_enum.then_some(member.owner))
+    }
+}
+
+/// Return the compile-time value one literal spells.
+pub(in crate::lower) fn literal_static(literal: dir::Literal) -> mir::Static {
+    match literal {
+        dir::Literal::Null => mir::Static::Null,
+        dir::Literal::Undefined => mir::Static::Undefined,
+        dir::Literal::Boolean(value) => mir::Static::Boolean(value),
+        dir::Literal::Integer(value) => mir::Static::Integer(value),
+        dir::Literal::Bigint(value) => mir::Static::Bigint(value),
+        dir::Literal::Float(value) => mir::Static::Float(value.to_bits()),
+        dir::Literal::Character(value) => mir::Static::Character(value),
+        dir::Literal::String(value) => mir::Static::String(value),
+        dir::Literal::RegexString { content, flags } => mir::Static::Regex { content, flags },
     }
 }

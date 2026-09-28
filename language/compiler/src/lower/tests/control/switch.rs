@@ -27,7 +27,7 @@ function classify(value: int32): int32 {
         "main.tspp",
         "test.main.classify",
         r#"
-function test.main.classify(v0: int32): int32 {
+export function test.main.classify(v0: int32): int32 {
     local l0: int32
     local l1: int32
 
@@ -92,7 +92,7 @@ function select(value: int32, first: int32, second: int32): int32 {
         "main.tspp",
         "test.main.select",
         r#"
-function test.main.select(v0: int32, v1: int32, v2: int32): int32 {
+export function test.main.select(v0: int32, v1: int32, v2: int32): int32 {
     local l0: int32
     local l1: int32
     local l2: int32
@@ -156,7 +156,7 @@ function isTwo(value: Meters): boolean {
         r#"
 type test.main.Meters = newtype<int32>;
 
-function test.main.isTwo(v0: test.main.Meters): boolean {
+export function test.main.isTwo(v0: test.main.Meters): boolean {
     local l0: test.main.Meters
 
 entry(v0: test.main.Meters):
@@ -206,7 +206,7 @@ function isTwo(value: 1 | 2): boolean {
         "main.tspp",
         "test.main.isTwo",
         r#"
-function test.main.isTwo(v0: int64): boolean {
+export function test.main.isTwo(v0: int64): boolean {
     local l0: int64
 
 entry(v0: int64):
@@ -262,7 +262,7 @@ type literal.boolean.true { }
 
 type test.main.Pending = newtype<literal.boolean.false>;
 
-function test.main.isReady(v0: variant<uint1> { 0uint1 = test.main.Ready; 1uint1 = test.main.Pending; }): boolean {
+export function test.main.isReady(v0: variant<uint1> { 0uint1 = test.main.Ready; 1uint1 = test.main.Pending; }): boolean {
     local l0: variant<uint1> { 0uint1 = test.main.Ready; 1uint1 = test.main.Pending; }
 
 entry(v0: variant<uint1> { 0uint1 = test.main.Ready; 1uint1 = test.main.Pending; }):

@@ -21,7 +21,7 @@ function pick(): Flags {
         r#"
 type test.main.Flags = newtype<uint32>;
 
-function test.main.pick(): test.main.Flags {
+export function test.main.pick(): test.main.Flags {
 entry:
     v0: test.main.Flags = load @test.main.READ
     return v0
@@ -51,7 +51,7 @@ function run(): int32 {
         "main.tspp",
         "test.main.seed",
         r#"
-function test.main.seed(): int32 {
+export function test.main.seed(): int32 {
 entry:
     v0: int32 = 41
     return v0
@@ -63,7 +63,7 @@ entry:
         "main.tspp",
         "test.main.run",
         r#"
-function test.main.run(): int32 {
+export function test.main.run(): int32 {
 entry:
     v0: int32 = load @test.main.start
     return v0
@@ -75,7 +75,7 @@ entry:
         "main.tspp",
         "test.main.@init",
         r#"
-export function test.main.@init(): void {
+export park function test.main.@init(): void {
 entry:
     v0: int32 = call test.main.seed(): () => int32
     v1: int32 = 1
@@ -112,7 +112,7 @@ type test.main.Point {
     x: int32;
 }
 
-function test.main.pick(): test.main.Point {
+export function test.main.pick(): test.main.Point {
 entry:
     v0: test.main.Point = load @test.main.ORIGIN
     return v0
@@ -131,7 +131,7 @@ type test.main.Point {
     x: int32;
 }
 
-export function test.main.@init(): void {
+export park function test.main.@init(): void {
 entry:
     v0: int32 = 1
     v1: test.main.Point = aggregate (v0)
@@ -141,6 +141,45 @@ entry:
 
 /// @layout.struct name=test.main.Point size=4 align=4
 /// @layout.field owner=test.main.Point index=0 name=x offset=0 size=4 align=4
+"#,
+    );
+}
+
+/// Initialize a string constant with the address of its constant String object.
+#[test]
+fn test_lower_a_string_constant_to_the_address_of_its_object() {
+    let session = TestSession::single(
+        r#"
+const NAME: string = "tspp";
+
+function pick(): string {
+    return NAME;
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.tspp",
+        r#"
+@nocopy
+@languageItem("string.String")
+type String {
+    codeUnits: slice<uint16, unique, mutable>;
+}
+
+shared constant string.0: String = "tspp"
+export constant test.main.NAME: ref<String, managed, mutable, local> = globalAddress string.0
+
+export function test.main.pick(): ref<String, managed, mutable, local> {
+entry:
+    v0: ref<String, managed, mutable, local> = load @test.main.NAME
+    return v0
+}
+
+/// @layout.struct name=String size=16 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.struct name=type@4 size=16 align=8
+/// @layout.field owner=type@4 index=0 name=codeUnits offset=0 size=16 align=8
 "#,
     );
 }
@@ -175,13 +214,13 @@ type test.main.Guard<T> {
     value: T;
 }
 
-function test.main.consume(v0: test.main.Guard<int32>): void {
+export function test.main.consume(v0: test.main.Guard<int32>): void {
     local l0: test.main.Guard<int32>
 
 entry(v0: test.main.Guard<int32>):
     store l0, v0
     v1: test.main.Guard<int32> = load l0
-    drop v1
+    call drop<test.main.Guard<int32>>(v1): (test.main.Guard<int32>) => void
     return
 }
 
@@ -199,7 +238,7 @@ type test.main.Guard<T> {
     value: T;
 }
 
-function test.main.Guard.Drop.drop<T, 'a>(v0: ref<test.main.Guard<T>, borrowed, 'a, mutable>): void {
+export function test.main.Guard.Drop.drop<T, 'a>(v0: ref<test.main.Guard<T>, borrowed, 'a, mutable>): void {
     local l0: ref<test.main.Guard<T>, borrowed, 'a, mutable>
 
 entry(v0: ref<test.main.Guard<T>, borrowed, 'a, mutable>):
@@ -250,27 +289,25 @@ type test.main.Cell {
 @nocopy
 type test.main.Greet { }
 
-function test.main.Cell.Greet.greet<'a>(v0: ref<test.main.Cell, borrowed, 'a, readonly>): int32 {
+export function test.main.Cell.Greet.greet<'a>(v0: ref<test.main.Cell, borrowed, 'a, readonly>): int32 {
     local l0: ref<test.main.Cell, borrowed, 'a, readonly>
 
 entry(v0: ref<test.main.Cell, borrowed, 'a, readonly>):
     store l0, v0
-    v1: ref<test.main.Cell, borrowed, 'a, readonly> = load l0
-    v2: int32 = load (*v1).0
-    return v2
+    v1: int32 = load (*l0).0
+    return v1
 }
 
-function test.main.Cell.peek<'a>(v0: ref<test.main.Cell, borrowed, 'a, readonly>): int32 {
+export function test.main.Cell.peek<'a>(v0: ref<test.main.Cell, borrowed, 'a, readonly>): int32 {
     local l0: ref<test.main.Cell, borrowed, 'a, readonly>
 
 entry(v0: ref<test.main.Cell, borrowed, 'a, readonly>):
     store l0, v0
-    v1: ref<test.main.Cell, borrowed, 'a, readonly> = load l0
-    v2: int32 = load (*v1).0
-    return v2
+    v1: int32 = load (*l0).0
+    return v1
 }
 
-function test.main.Greet.twice<T: test.main.Greet, 'a>(v0: ref<?T, borrowed, 'a, readonly>): int32 {
+export function test.main.Greet.twice<T: test.main.Greet, 'a>(v0: ref<?T, borrowed, 'a, readonly>): int32 {
     local l0: ref<?T, borrowed, 'a, readonly>
 
 entry(v0: ref<?T, borrowed, 'a, readonly>):
@@ -289,8 +326,206 @@ external function test.main.Greet.greet<this: test.main.Greet, 'a>(ref<?this, bo
 /// @layout.field owner=test.main.Cell index=0 name=value offset=0 size=4 align=4
 /// @layout.struct name=type@2 size=4 align=4
 /// @layout.field owner=type@2 index=0 name=value offset=0 size=4 align=4
+/// @layout.struct name=type@10 size=0 align=1
 
 /// @dispatch.shape constraint=type@7 function=greet
+"#,
+    );
+}
+
+/// Store a module-level let in a mutable global the module initializer writes and functions update.
+#[test]
+fn test_update_a_module_let_from_a_function_and_the_module_body() {
+    let session = TestSession::single(
+        r#"
+let count: int32 = 0;
+
+function bump(): void {
+    count = count + 1;
+}
+
+bump();
+count = count * 2;
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.tspp",
+        r#"
+export global test.main.count: int32 = zeroinit
+
+export function test.main.bump(): void {
+entry:
+    v0: int32 = load @test.main.count
+    v1: int32 = 1
+    v2: int32 = add v0, v1
+    store @test.main.count, v2
+    return
+}
+
+export park function test.main.@init(): void {
+entry:
+    v0: int32 = 0
+    store @test.main.count, v0
+    call test.main.bump(): () => void
+    v1: int32 = load @test.main.count
+    v2: int32 = 2
+    v3: int32 = mul v1, v2
+    store @test.main.count, v3
+    return
+}
+"#,
+    );
+}
+
+/// Store a function value into a module binding and call it through the binding.
+#[test]
+fn test_call_a_function_value_stored_in_a_module_binding() {
+    let session = TestSession::single(
+        r#"
+function double(value: int32): int32 {
+    value * 2
+}
+
+const scale: (value: int32) => int32 = double;
+
+const scaled: int32 = scale(21);
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.tspp",
+        r#"
+export global test.main.scale: function<(int32) => int32, repeatable, managed, mutable, local> = zeroinit
+export global test.main.scaled: int32 = zeroinit
+
+export function test.main.double(v0: int32): int32 {
+    local l0: int32
+
+entry(v0: int32):
+    store l0, v0
+    v1: int32 = load l0
+    v2: int32 = 2
+    v3: int32 = mul v1, v2
+    return v3
+}
+
+export park function test.main.@init(): void {
+entry:
+    v0: ptr<void, readonly> = null
+    v1: function<(int32) => int32, repeatable, managed, mutable, local> = function.bind test.main.double, v0
+    store @test.main.scale, v1
+    v2: function<(int32) => int32, repeatable, managed, mutable, local> = load @test.main.scale
+    v3: int32 = 21
+    v4: function<(int32) => int32, repeatable, borrowed, 'managed, mutable> = cast.bit v2 -> function<(int32) => int32, repeatable, borrowed, 'managed, mutable>
+    v5: int32 = call.indirect v4(v3): (int32) => int32
+    store @test.main.scaled, v5
+    return
+}
+"#,
+    );
+}
+
+/// Bind a generic function as a value at its specialization.
+#[test]
+fn test_bind_a_generic_function_value_to_its_specialization() {
+    let session = TestSession::single(
+        r#"
+function same<T>(value: T): T {
+    value
+}
+
+function apply(f: (value: int32) => int32): int32 {
+    f(9)
+}
+
+const nine: int32 = apply(same);
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.tspp",
+        r#"
+export global test.main.nine: int32 = zeroinit
+
+export function test.main.apply(v0: function<(int32) => int32, repeatable, managed, mutable, local>): int32 {
+    local l0: function<(int32) => int32, repeatable, managed, mutable, local>
+
+entry(v0: function<(int32) => int32, repeatable, managed, mutable, local>):
+    store l0, v0
+    v1: function<(int32) => int32, repeatable, managed, mutable, local> = load l0
+    v2: int32 = 9
+    v3: function<(int32) => int32, repeatable, borrowed, 'managed, mutable> = cast.bit v1 -> function<(int32) => int32, repeatable, borrowed, 'managed, mutable>
+    v4: int32 = call.indirect v3(v2): (int32) => int32
+    return v4
+}
+
+export function test.main.same<T>(v0: T): T {
+    local l0: T
+
+entry(v0: T):
+    store l0, v0
+    v1: T = load l0
+    return v1
+}
+
+export park function test.main.@init(): void {
+entry:
+    v0: ptr<void, readonly> = null
+    v1: function<(int32) => int32, repeatable, managed, mutable, local> = function.bind test.main.same<int32>, v0
+    v2: int32 = call test.main.apply(v1): (function<(int32) => int32, repeatable, managed, mutable, local>) => int32
+    store @test.main.nine, v2
+    return
+}
+
+shared function test.main.same<int32>(v0: int32): int32;
+"#,
+    );
+}
+
+/// Borrow a computed module string into a readonly parameter without moving it.
+#[test]
+fn test_borrow_a_computed_module_string_into_a_readonly_parameter() {
+    let session = TestSession::single(
+        r#"
+function measure(value: &readonly string): void {}
+
+const name = "wor" + "ld";
+
+measure(name);
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.tspp",
+        r#"
+@nocopy
+@languageItem("string.String")
+type String {
+    codeUnits: slice<uint16, unique, mutable>;
+}
+
+export constant test.main.name: String = "world"
+
+export function test.main.measure<'a>(v0: ref<String, borrowed, 'a, readonly>): void {
+    local l0: ref<String, borrowed, 'a, readonly>
+
+entry(v0: ref<String, borrowed, 'a, readonly>):
+    store l0, v0
+    return
+}
+
+export park function test.main.@init(): void {
+entry:
+    v0: ref<String, borrowed, 'static, readonly> = address @test.main.name
+    call test.main.measure(v0): (ref<String, borrowed, 'static, readonly>) => void
+    return
+}
+
+/// @layout.struct name=String size=16 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.struct name=type@4 size=16 align=8
+/// @layout.field owner=type@4 index=0 name=codeUnits offset=0 size=16 align=8
 "#,
     );
 }

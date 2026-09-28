@@ -4,7 +4,7 @@ use tspp_mir as mir;
 use tspp_mir::substitute_type;
 
 use crate::lower::{
-    BoundReceiver, GenericInstanceKey, GenericScope, LowerPhase, ModuleLowerer, TypeLowerer,
+    GenericInstanceKey, GenericScope, InstanceForm, LowerPhase, ModuleLowerer, TypeLowerer,
 };
 use crate::{CompilerError, CompilerResult, LowerError};
 
@@ -89,8 +89,18 @@ struct NominalArguments {
     key: GenericInstanceKey,
     /// The lifetime slots declared by the nominal representation.
     scope: GenericScope,
-    /// The resolved arguments in declaration order.
-    type_arguments: Vec<dir::GlobalTypeId>,
+    /// The argument bindings in declaration order.
+    bindings: Vec<dir::GenericArgumentBinding>,
+}
+
+impl NominalArguments {
+    /// Return the argument types in declaration order.
+    fn types(&self) -> Vec<dir::GlobalTypeId> {
+        self.bindings
+            .iter()
+            .map(|binding| binding.argument)
+            .collect()
+    }
 }
 
 impl ModuleLowerer<'_> {
@@ -245,9 +255,9 @@ impl TypeLowerer<'_, '_> {
                 }
                 None => self.lower(value)?,
             };
-            let mut type_arguments = Vec::with_capacity(arguments.type_arguments.len());
-            for argument in &arguments.type_arguments {
-                type_arguments.push(self.lower_generic_argument(*argument)?);
+            let mut type_arguments = Vec::with_capacity(arguments.bindings.len());
+            for binding in &arguments.bindings {
+                type_arguments.push(self.lower_bound_argument(*binding)?);
             }
             let named = substitute_type(self.tree, lowered, &type_arguments);
 
@@ -267,7 +277,8 @@ impl TypeLowerer<'_, '_> {
         if let Some(body) = intrinsic
             && matches!(self.lower.ty(body)?, dir::Type::Intrinsic)
         {
-            let representation = self.lower_intrinsic(symbol, &arguments.type_arguments)?;
+            let types = arguments.types();
+            let representation = self.lower_intrinsic(symbol, &types)?;
 
             return Ok(NominalInstance {
                 key: arguments.key,
@@ -277,9 +288,9 @@ impl TypeLowerer<'_, '_> {
         }
 
         // lower the type arguments in this body's parameter space
-        let mut type_arguments = Vec::with_capacity(arguments.type_arguments.len());
-        for argument in &arguments.type_arguments {
-            type_arguments.push(self.lower_generic_argument(*argument)?);
+        let mut type_arguments = Vec::with_capacity(arguments.bindings.len());
+        for binding in &arguments.bindings {
+            type_arguments.push(self.lower_bound_argument(*binding)?);
         }
 
         // apply a generic nominal's polymorphic declaration to its arguments
@@ -301,8 +312,19 @@ impl TypeLowerer<'_, '_> {
         let template = self.lower_template_nominal(source, symbol)?;
 
         // close the template's dependent parameters at the values this application binds
-        for argument in self.lower.dependent_arguments(source, symbol)? {
-            type_arguments.push(self.lower_generic_argument(argument)?);
+        let values = self.lower.dependent_arguments(source, symbol)?;
+        let dependents: Vec<_> = arguments.scope.dependents.values().cloned().collect();
+        if values.len() != dependents.len() {
+            return Err(CompilerError::Internal {
+                message: "an application closing a different number of dependents".to_string(),
+            });
+        }
+        for (value, dependent) in values.into_iter().zip(dependents) {
+            type_arguments.push(self.lower_generic_argument(
+                value,
+                dependent.kind,
+                dependent.is_const(),
+            )?);
         }
         let applied = self.tree.intern_type(mir::Type::Application {
             base: template.storage,
@@ -375,19 +397,22 @@ impl TypeLowerer<'_, '_> {
 
         // apply the template to its own representation parameters
         let generics_table = &self.lower.state(template.module_id)?.generics;
-        let mut type_arguments = Vec::new();
+        let mut bindings = Vec::new();
         for parameter in &generics_table.get_template(template.local_id).parameters {
             let binding = generics_table.get_parameter(*parameter);
             if binding.is_representation_parameter()
                 && binding.origin != dir::GenericParameterOrigin::Receiver
             {
-                type_arguments.push(binding.ty);
+                bindings.push(dir::GenericArgumentBinding {
+                    parameter: parameter.into_global(template.module_id),
+                    argument: binding.ty,
+                });
             }
         }
         let arguments = NominalArguments {
             key,
             scope,
-            type_arguments,
+            bindings,
         };
 
         self.declare_nominal(source, symbol, definition, arguments, true)
@@ -416,6 +441,8 @@ impl TypeLowerer<'_, '_> {
             base.instantiate(&arguments.key.arguments, self.tree)
         };
         let declaration = self.tree.reserve_type(instance);
+        self.lower
+            .anchor_declaration(self.tree, declaration, symbol)?;
         let ty = self
             .tree
             .intern_type(mir::Type::Declaration { declaration });
@@ -497,18 +524,12 @@ impl TypeLowerer<'_, '_> {
             });
         }
 
-        // lower a template's parameters, an interface's `this` its own erased value
-        let generics = match (&definition, is_template) {
-            (dir::Definition::Interface(_), true) => self.lower.generic_parameters(
-                self.tree,
-                &arguments.scope,
-                BoundReceiver::Lowered(value),
-            )?,
-            (_, true) => {
-                self.lower
-                    .generic_parameters(self.tree, &arguments.scope, BoundReceiver::None)?
-            }
-            _ => Vec::new(),
+        // lower a template's parameters
+        let generics = match is_template {
+            true => self
+                .lower
+                .generic_parameters(self.tree, &arguments.scope, None)?,
+            false => Vec::new(),
         };
 
         // stamp the copy policy sema committed for this declaration
@@ -526,7 +547,7 @@ impl TypeLowerer<'_, '_> {
                     types.lower_struct(symbol, definition, declaration)
                 }
                 dir::Definition::Newtype(definition) => {
-                    types.lower_newtype(symbol, definition, declaration, &arguments.type_arguments)
+                    types.lower_newtype(symbol, definition, declaration, &arguments.types())
                 }
                 dir::Definition::Enum(definition) => {
                     types.lower_enum(symbol, definition, declaration)
@@ -616,7 +637,7 @@ impl TypeLowerer<'_, '_> {
             return Ok(NominalArguments {
                 key: GenericInstanceKey::non_generic(symbol),
                 scope: GenericScope::default(),
-                type_arguments: Vec::new(),
+                bindings: Vec::new(),
             });
         };
 
@@ -642,7 +663,7 @@ impl TypeLowerer<'_, '_> {
 
         // take each argument at the next parameter of its kind, positionally
         let is_complete = arguments.len() == parameters.len();
-        let mut type_arguments = Vec::new();
+        let mut bindings = Vec::new();
         let mut cursor = 0usize;
         for (parameter, kind, is_induced) in parameters {
             // bind the next written argument to the next slot of its kind
@@ -656,7 +677,10 @@ impl TypeLowerer<'_, '_> {
             };
             if let (Some(argument), true) = (next, fills) {
                 cursor += 1;
-                type_arguments.push(argument);
+                bindings.push(dir::GenericArgumentBinding {
+                    parameter,
+                    argument,
+                });
 
                 continue;
             }
@@ -688,7 +712,10 @@ impl TypeLowerer<'_, '_> {
                 }
                 .into());
             };
-            type_arguments.push(argument);
+            bindings.push(dir::GenericArgumentBinding {
+                parameter,
+                argument,
+            });
         }
         if cursor != arguments.len() {
             return Err(CompilerError::Internal {
@@ -699,16 +726,21 @@ impl TypeLowerer<'_, '_> {
         // key the instance on its arguments as written, regions among them
         let template = template_id.into_global(template_module);
         let scope = GenericScope::for_declaration(self.lower, template)?;
+        let mut lowered = Vec::with_capacity(bindings.len());
+        for binding in &bindings {
+            lowered.push(self.lower_bound_argument(*binding)?);
+        }
         let key = GenericInstanceKey {
             symbol,
             receiver: None,
-            arguments: self.generic_arguments(&type_arguments)?,
+            arguments: lowered,
+            form: InstanceForm::Declaration,
         };
 
         Ok(NominalArguments {
             key,
             scope,
-            type_arguments,
+            bindings,
         })
     }
 }

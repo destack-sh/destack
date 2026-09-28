@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
-use tspp_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, EnvironmentBound};
+use tspp_artifact::{
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey, EnvironmentBound,
+    ModuleGraph,
+};
 use tspp_mir as mir;
-use tspp_repository::{ProfileId, ProviderContext};
+use tspp_repository::{ProfileId, ProviderContext, ProviderError};
 use tspp_source::{ModuleId, TargetId};
 
 use crate::lower::{LowerPhase, ModuleLowerer};
@@ -20,6 +23,11 @@ impl Compiler {
         let mut dependencies = self.dir_stage_dependencies(module, profile);
         self.observe_package_config(context, target.package_id(), &mut dependencies)?;
 
+        // require the import declarations
+        for import in self.imported_modules(module, profile, context, &mut dependencies)? {
+            dependencies.require(ArtifactKey::dir_declared(import, profile));
+        }
+
         Ok(dependencies)
     }
 
@@ -34,7 +42,53 @@ impl Compiler {
         let mut dependencies = self.dir_stage_dependencies(module, profile);
         dependencies.require(ArtifactKey::mir_declared(module, profile, target));
         self.observe_package_config(context, target.package_id(), &mut dependencies)?;
+
+        // require the import MIR declarations
+        for import in self.imported_modules(module, profile, context, &mut dependencies)? {
+            dependencies.require(ArtifactKey::mir_declared(import, profile, target));
+        }
+
         Ok(dependencies)
+    }
+
+    /// Return the modules one module imports.
+    fn imported_modules(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+        context: &dyn ProviderContext,
+        dependencies: &mut ArtifactDependencySet,
+    ) -> CompilerResult<Vec<ModuleId>> {
+        let graph = ArtifactKey::module_graph(module.package_id, profile);
+        let edges = ArtifactProjectionKey::ModuleGraphEdges(module);
+        dependencies.require_projection(graph, edges);
+        let artifacts = self.artifact_reader(context);
+        let edges = artifacts.project::<ModuleGraph, _, _>((module.package_id, profile), |graph| {
+            (graph.edges(module), [edges])
+        });
+        match edges {
+            // keep the code modules
+            Ok(Some(edges)) => {
+                let mut imports = Vec::with_capacity(edges.len());
+                for import in edges.iter().copied() {
+                    let loaded = self.repository.module(context.revision(), import)?;
+                    if loaded.is_some_and(|loaded| loaded.is_code()) {
+                        imports.push(import);
+                    }
+                }
+
+                Ok(imports)
+            }
+            Ok(None) => Err(CompilerError::Internal {
+                message: format!("no module graph holds module '{module}'"),
+            }),
+            Err(ProviderError::Blocked { .. }) => {
+                dependencies.mark_partial();
+
+                Ok(Vec::new())
+            }
+            Err(error) => Err(error.into()),
+        }
     }
 
     /// Return the requirements on one module's own DIR stages.

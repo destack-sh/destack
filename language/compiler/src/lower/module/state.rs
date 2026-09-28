@@ -45,22 +45,24 @@ pub(crate) struct DirModule {
     pub(in crate::lower) representations: dir::RepresentationTable<'static>,
     /// The member selections.
     pub(in crate::lower) members: dir::MemberTable<'static>,
+    /// The tests some narrowed read sees.
+    pub(in crate::lower) narrowing_tests: FxIndexSet<dir::GlobalNodeIdAny>,
     /// The symbol each declaration node declares.
     declared_symbols: FxIndexMap<dir::GlobalNodeIdAny, dir::LocalSymbolId>,
-    /// The definition declaring each method symbol.
-    declared_methods: FxIndexMap<dir::GlobalSymbolId, DeclaredMethod>,
+    /// The definition declaring each member.
+    declared_members: FxIndexMap<dir::GlobalSymbolId, DeclaredMember>,
     /// The canonical symbol path of the module.
     pub(in crate::lower) path: String,
 }
 
-/// One method as its definition declares it.
+/// One declared method or associated const.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct DeclaredMethod {
-    /// The definition declaring the method.
+pub(crate) struct DeclaredMember {
+    /// The definition declaring the member.
     pub(crate) owner: dir::GlobalSymbolId,
-    /// The role the method plays.
+    /// The role the member plays.
     pub(crate) role: Option<dir::FunctionRole>,
-    /// Whether the method lives in the static space.
+    /// Whether the member lives in the static space.
     pub(crate) is_static: bool,
 }
 
@@ -107,20 +109,30 @@ impl DirModule {
             }
         }
 
-        // index the definition declaring each method
-        let mut declared_methods = FxIndexMap::default();
+        // index the declared members
+        let mut declared_members = FxIndexMap::default();
         for (owner, definition) in definitions.iter_definitions() {
             for member in definition.members() {
-                if let dir::DefinitionMember::Method(method) = member {
-                    declared_methods.insert(
+                let (symbol, declared) = match member {
+                    dir::DefinitionMember::Method(method) => (
                         method.symbol,
-                        DeclaredMethod {
+                        DeclaredMember {
                             owner,
                             role: method.role,
                             is_static: method.space == dir::MemberSpace::Static,
                         },
-                    );
-                }
+                    ),
+                    dir::DefinitionMember::AssociatedConst(constant) => (
+                        constant.symbol,
+                        DeclaredMember {
+                            owner,
+                            role: None,
+                            is_static: true,
+                        },
+                    ),
+                    _ => continue,
+                };
+                declared_members.insert(symbol, declared);
             }
         }
 
@@ -129,6 +141,11 @@ impl DirModule {
             types: view.types().clone(),
             resolutions: view.resolutions().clone(),
             decisions: view.decisions().clone(),
+            narrowing_tests: view
+                .decisions()
+                .narrowing_entries()
+                .flat_map(|(_, narrowing)| narrowing.tests.iter().copied())
+                .collect(),
             bindings,
             coercions: view.coercions().clone(),
             definitions,
@@ -147,7 +164,7 @@ impl DirModule {
             members: view.members().clone(),
             path,
             declared_symbols,
-            declared_methods,
+            declared_members,
             stages: view,
         }
     }
@@ -161,11 +178,11 @@ impl DirModule {
     }
 
     /// Return the definition declaring one method symbol.
-    pub(in crate::lower) fn declared_method(
+    pub(in crate::lower) fn declared_member(
         &self,
         symbol: dir::GlobalSymbolId,
-    ) -> Option<DeclaredMethod> {
-        self.declared_methods.get(&symbol).copied()
+    ) -> Option<DeclaredMember> {
+        self.declared_members.get(&symbol).copied()
     }
 
     /// Return the expression tree with every patch over it.

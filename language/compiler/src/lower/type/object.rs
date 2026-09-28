@@ -92,6 +92,6 @@ impl TypeLowerer<'_, '_> {
         let mut payloads = if cases.is_empty() { vec![value] } else { cases };
         payloads.push(self.tree.intern_type(mir::Type::Void));
 
-        Ok(self.insert_union_variant(payloads))
+        Ok(self.tree.union_type(&payloads))
     }
 }

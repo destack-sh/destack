@@ -35,9 +35,9 @@ type test.main.Point {
 @nocopy
 type test.main.Tagged { }
 
-constant test.main.Point.Tag: int32 = 7
+export constant test.main.Point.Tag: int32 = 7
 
-function test.main.main(): int32 {
+export function test.main.main(): int32 {
 entry:
     v0: int32 = call test.main.tagOf<test.main.Point>(): () => int32
     v1: int32 = load @test.main.Point.Tag
@@ -45,7 +45,7 @@ entry:
     return v2
 }
 
-function test.main.tagOf<T: test.main.Tagged>(): int32 {
+export function test.main.tagOf<T: test.main.Tagged>(): int32 {
 entry:
     v0: int32 = witness T, test.main.Tagged, Tag
     return v0
@@ -57,6 +57,7 @@ shared function test.main.tagOf<test.main.Point>(): int32;
 /// @layout.field owner=test.main.Point index=0 name=x offset=0 size=4 align=4
 /// @layout.struct name=type@2 size=4 align=4
 /// @layout.field owner=type@2 index=0 name=x offset=0 size=4 align=4
+/// @layout.struct name=type@5 size=0 align=1
 
 /// @dispatch.shape constraint=type@3
 "#,
@@ -68,7 +69,7 @@ shared function test.main.tagOf<test.main.Point>(): int32;
 @nocopy
 type test.main.Tagged { }
 
-function test.main.tagOf<T: test.main.Tagged>(): int32 {
+export function test.main.tagOf<T: test.main.Tagged>(): int32 {
 entry:
     v0: int32 = witness T, test.main.Tagged, Tag
     return v0
@@ -79,7 +80,7 @@ entry:
         "main.tspp",
         "test.main.main",
         r#"
-function test.main.main(): int32 {
+export function test.main.main(): int32 {
 entry:
     v0: int32 = call test.main.tagOf<test.main.Point>(): () => int32
     v1: int32 = load @test.main.Point.Tag

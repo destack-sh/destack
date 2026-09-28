@@ -14,7 +14,7 @@ function less(a: int32, b: int32): boolean {
         "main.tspp",
         "test.main.less",
         r#"
-function test.main.less(v0: int32, v1: int32): boolean {
+export function test.main.less(v0: int32, v1: int32): boolean {
     local l0: int32
     local l1: int32
 
@@ -44,7 +44,7 @@ function above(a: uint32, b: uint32): boolean {
         "main.tspp",
         "test.main.above",
         r#"
-function test.main.above(v0: uint32, v1: uint32): boolean {
+export function test.main.above(v0: uint32, v1: uint32): boolean {
     local l0: uint32
     local l1: uint32
 
@@ -74,7 +74,7 @@ function same(a: int64, b: int64): boolean {
         "main.tspp",
         "test.main.same",
         r#"
-function test.main.same(v0: int64, v1: int64): boolean {
+export function test.main.same(v0: int64, v1: int64): boolean {
     local l0: int64
     local l1: int64
 
@@ -104,12 +104,61 @@ function yes(): boolean {
         "main.tspp",
         "test.main.yes",
         r#"
-function test.main.yes(): boolean {
+export function test.main.yes(): boolean {
 entry:
     v0: int64 = 1
     v1: int64 = 2
     v2: boolean = lt v0, v1
     return v2
+}
+"#,
+    );
+}
+
+/// Compare strings by content through the language equality function.
+#[test]
+fn test_lower_string_equality_to_content_comparison() {
+    let session = TestSession::single(
+        r#"
+function same(left: string, right: string): boolean {
+    left === right || left != right
+}
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.tspp",
+        "test.main.same",
+        r#"
+@nocopy
+@languageItem("string.String")
+type String;
+
+export function test.main.same(v0: ref<String, managed, mutable, local>, v1: ref<String, managed, mutable, local>): boolean {
+    local l0: ref<String, managed, mutable, local>
+    local l1: ref<String, managed, mutable, local>
+    local l2: boolean
+
+entry(v0: ref<String, managed, mutable, local>, v1: ref<String, managed, mutable, local>):
+    store l0, v0
+    store l1, v1
+    v2: ref<String, managed, mutable, local> = load l0
+    v3: ref<String, managed, mutable, local> = load l1
+    v4: boolean = call stringEqual(v2, v3): (ref<String, managed, mutable, local>, ref<String, managed, mutable, local>) => boolean
+    store l2, v4
+    branch v4 => b2 | b1
+
+b1:
+    v5: ref<String, managed, mutable, local> = load l0
+    v6: ref<String, managed, mutable, local> = load l1
+    v7: boolean = call stringEqual(v5, v6): (ref<String, managed, mutable, local>, ref<String, managed, mutable, local>) => boolean
+    v8: boolean = not v7
+    store l2, v8
+    jump b2
+
+b2:
+    v9: boolean = load l2
+    return v9
 }
 "#,
     );

@@ -32,7 +32,7 @@ function run(): int32 {
 @nocopy
 type test.main.Console { }
 
-function test.main.Console.greet(v0: ref<test.main.Console, managed, mutable, local>): int32 {
+export function test.main.Console.greet(v0: ref<test.main.Console, managed, mutable, local>): int32 {
     local l0: ref<test.main.Console, managed, mutable, local>
 
 entry(v0: ref<test.main.Console, managed, mutable, local>):
@@ -52,7 +52,7 @@ entry(v0: ref<test.main.Console, managed, mutable, local>):
 @nocopy
 type test.main.Greeter { }
 
-function test.main.talk(v0: dynamic<test.main.Greeter, managed, mutable, local>): int32 {
+export function test.main.talk(v0: dynamic<test.main.Greeter, managed, mutable, local>): int32 {
     local l0: dynamic<test.main.Greeter, managed, mutable, local>
 
 entry(v0: dynamic<test.main.Greeter, managed, mutable, local>):
@@ -76,7 +76,7 @@ type test.main.Console { }
 @nocopy
 type test.main.Greeter { }
 
-function test.main.run(): int32 {
+export function test.main.run(): int32 {
     local l0: ref<test.main.Console, managed, mutable, local>
 
 entry:
@@ -120,7 +120,7 @@ function write(sink: Sink | undefined): int32 {
 @nocopy
 type test.main.Sink { }
 
-function test.main.write(v0: variant<uint1> { 0uint1 = dynamic<test.main.Sink, managed, mutable, local>; 1uint1 = void; }): int32 {
+export function test.main.write(v0: variant<uint1> { 0uint1 = dynamic<test.main.Sink, managed, mutable, local>; 1uint1 = void; }): int32 {
     local l0: variant<uint1> { 0uint1 = dynamic<test.main.Sink, managed, mutable, local>; 1uint1 = void; }
 
 entry(v0: variant<uint1> { 0uint1 = dynamic<test.main.Sink, managed, mutable, local>; 1uint1 = void; }):
@@ -128,17 +128,19 @@ entry(v0: variant<uint1> { 0uint1 = dynamic<test.main.Sink, managed, mutable, lo
     v1: uint1 = variant.tag.load l0
     v2: uint1 = 1
     v3: boolean = eq v1, v2
+    v4: ref<variant<uint1> { 0uint1 = dynamic<test.main.Sink, managed, mutable, local>; 1uint1 = void; }, borrowed, 'frame, readonly> = fake.borrow l0
     branch v3 => b1 | b2
 
 b1:
-    v4: int32 = 0
-    return v4
+    v5: int32 = 0
+    return v5
 
 b2:
-    v5: dynamic<test.main.Sink, managed, mutable, local> = load (l0 as 0)
-    v6: int32 = 1
-    v7: int32 = call.dynamic v5, test.main.Sink, 0(v6): (int32) => int32
-    return v7
+    fake.read v4
+    v6: dynamic<test.main.Sink, managed, mutable, local> = load (l0 as 0)
+    v7: int32 = 1
+    v8: int32 = call.dynamic v6, test.main.Sink, 0(v7): (int32) => int32
+    return v8
 }
 
 /// @layout.struct name=test.main.Sink size=0 align=1
@@ -190,7 +192,7 @@ function run(): int32 {
 @nocopy
 type test.main.Register { }
 
-function test.main.Register.name(v0: ref<test.main.Register, managed, mutable, local>): int32 {
+export function test.main.Register.name(v0: ref<test.main.Register, managed, mutable, local>): int32 {
     local l0: ref<test.main.Register, managed, mutable, local>
 
 entry(v0: ref<test.main.Register, managed, mutable, local>):
@@ -210,7 +212,7 @@ entry(v0: ref<test.main.Register, managed, mutable, local>):
 @nocopy
 type test.main.Register { }
 
-function test.main.Register.count(v0: ref<test.main.Register, managed, mutable, local>): int32 {
+export function test.main.Register.count(v0: ref<test.main.Register, managed, mutable, local>): int32 {
     local l0: ref<test.main.Register, managed, mutable, local>
 
 entry(v0: ref<test.main.Register, managed, mutable, local>):
@@ -230,7 +232,7 @@ entry(v0: ref<test.main.Register, managed, mutable, local>):
 @nocopy
 type test.main.Counted extends test.main.Named { }
 
-function test.main.read(v0: dynamic<test.main.Counted, managed, mutable, local>): int32 {
+export function test.main.read(v0: dynamic<test.main.Counted, managed, mutable, local>): int32 {
     local l0: dynamic<test.main.Counted, managed, mutable, local>
 
 entry(v0: dynamic<test.main.Counted, managed, mutable, local>):
@@ -257,7 +259,7 @@ type test.main.Register { }
 @nocopy
 type test.main.Counted extends test.main.Named { }
 
-function test.main.run(): int32 {
+export function test.main.run(): int32 {
     local l0: ref<test.main.Register, managed, mutable, local>
 
 entry:
@@ -297,7 +299,7 @@ function erase<T: Greeter>(value: T): Greeter {
 @nocopy
 type test.main.Greeter { }
 
-function test.main.erase<T: test.main.Greeter>(v0: T): dynamic<test.main.Greeter, managed, mutable, local> {
+export function test.main.erase<T: test.main.Greeter>(v0: T): dynamic<test.main.Greeter, managed, mutable, local> {
     local l0: T
 
 entry(v0: T):

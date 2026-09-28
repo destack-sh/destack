@@ -1,9 +1,10 @@
+use tspp_core::StringId;
 use tspp_dir as dir;
 use tspp_mir as mir;
 
-use crate::lower::FunctionLowerer;
 use crate::lower::function::operator::LoweredOperand;
 use crate::lower::function::place::{Place, PlaceProjection, PlaceRoot};
+use crate::lower::{EnumCase, FunctionLowerer};
 use crate::{CompilerError, CompilerResult};
 
 /// One match arm tested as a candidate in source order.
@@ -242,6 +243,13 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         }
 
+        // fake-borrow the scrutinee
+        let patterns: Vec<_> = candidates
+            .iter()
+            .map(|candidate| candidate.pattern.into_global_any(self.source))
+            .collect();
+        self.borrow_tested_place(&patterns, &matched)?;
+
         // route values every candidate rejects to the exhaust block
         let exhaust = self.builder.block();
 
@@ -292,8 +300,12 @@ impl FunctionLowerer<'_, '_, '_> {
                 None => self.match_continuation(&dispatch, &candidates, position, exhaust)?,
             };
 
+            // scope the arm's test borrows
+            let depth = self.tested.len();
+
             // test the fields beneath a dispatched case
             if candidate.case.is_some() {
+                self.borrow_tested_pattern(candidate.pattern, &matched)?;
                 self.lower_pattern_field_tests(&candidate.decision, &matched, fail)?;
             }
             // otherwise test every refutable leg of the pattern
@@ -324,6 +336,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
                 (ArmBody::Block(body), None) => !self.lower_block(body)?,
             };
+            self.tested.truncate(depth);
             if !falls_through {
                 continue;
             }
@@ -403,6 +416,9 @@ impl FunctionLowerer<'_, '_, '_> {
         place: &Place,
         fail: mir::LocalNodeId<mir::Block>,
     ) -> CompilerResult<()> {
+        let test = pattern.into_global_any(self.source);
+        self.borrow_tested_place(&[test], place)?;
+
         let decision = self.pattern_decision(pattern)?;
         match &decision {
             // accept a wildcard as it stands
@@ -428,11 +444,19 @@ impl FunctionLowerer<'_, '_, '_> {
                 self.lower_predicate_test(&predicate, place, fail)
             }
 
-            // test the selected variant's predicate over the input
+            // test the enum case
             dir::PatternDecision::Variant(resolution) => {
-                let predicate = resolution.predicate.clone();
+                match self
+                    .lower
+                    .enum_case(resolution.case.owner, resolution.case.variant)?
+                {
+                    EnumCase::Tag(_) => {
+                        let predicate = resolution.predicate.clone();
 
-                self.lower_predicate_test(&predicate, place, fail)
+                        self.lower_predicate_test(&predicate, place, fail)
+                    }
+                    EnumCase::String(string) => self.lower_string_case_test(string, place, fail),
+                }
             }
 
             // project the input once, then test the nested pattern
@@ -612,11 +636,17 @@ impl FunctionLowerer<'_, '_, '_> {
                         Ok(())
                     }
 
-                    // reject a runtime type test until the dynamic representation exists
-                    dir::PredicateCondition::Primitive(_)
-                    | dir::PredicateCondition::Type(_)
-                    | dir::PredicateCondition::Subtype(_) => {
-                        Err(self.unsupported("a runtime type test pattern"))
+                    // test the runtime type
+                    dir::PredicateCondition::Type(target)
+                    | dir::PredicateCondition::Subtype(target) => {
+                        let is_exact = matches!(test.condition, dir::PredicateCondition::Type(_));
+
+                        self.lower_type_test(input, *target, is_exact, fail)
+                    }
+
+                    // reject a primitive test
+                    dir::PredicateCondition::Primitive(_) => {
+                        Err(self.unsupported("a runtime primitive test outside a union"))
                     }
                 }
             }
@@ -642,6 +672,15 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 // continue at the accepted block
                 self.builder.switch_to_block(accepted);
+
+                Ok(())
+            }
+
+            // test every part
+            dir::PredicateTest::All(parts) => {
+                for part in parts {
+                    self.lower_predicate_test(part, place, fail)?;
+                }
 
                 Ok(())
             }
@@ -697,6 +736,72 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.local_get(verdict))
     }
 
+    /// Branch on the runtime type of one object or dynamic input.
+    fn lower_type_test(
+        &mut self,
+        input: Place,
+        target: dir::GlobalTypeId,
+        is_exact: bool,
+        fail: mir::LocalNodeId<mir::Block>,
+    ) -> CompilerResult<()> {
+        // read a dynamic value, else borrow the object
+        let stored = self.place_type(&input)?;
+        let value = match self.builder.tree().type_definition(stored) {
+            mir::Type::Dynamic { .. } => self.read_place(&input)?,
+            _ => {
+                let input = self.through_handle(input)?;
+                let held = self.place_type(&input)?;
+                let access = mir::Access::Readonly;
+                let borrow = self.insert_reference(
+                    mir::Reference::Borrowed,
+                    mir::Lifetime::frame(),
+                    access,
+                    held,
+                );
+
+                self.borrow_place(&input, borrow)?
+            }
+        };
+
+        // check the value's type against the target's storage
+        let value = self.builder.type_of(value);
+        let expected = self.lower_type(target)?;
+        let expected = match self.builder.tree().type_definition(expected) {
+            mir::Type::Reference { pointee, .. } => *pointee,
+            _ => expected,
+        };
+        let constraint = match is_exact {
+            true => mir::CheckConstraint::IsType { value, expected },
+            false => mir::CheckConstraint::IsSubtype { value, expected },
+        };
+        let pass = self.builder.block();
+        self.builder.check(constraint, pass, fail);
+        self.builder.switch_to_block(pass);
+
+        Ok(())
+    }
+
+    /// Test one string enum case.
+    fn lower_string_case_test(
+        &mut self,
+        string: StringId,
+        input: &Place,
+        fail: mir::LocalNodeId<mir::Block>,
+    ) -> CompilerResult<()> {
+        // compare by identity
+        let input = self.read_place(input)?;
+        let input = self.builder.field_get(input, 0);
+        let expected = self.lower_string_literal(string)?;
+        let equal = self
+            .builder
+            .binary(mir::BinaryOperator::Equal, input, expected);
+        let accepted = self.builder.block();
+        self.builder.branch(equal, accepted, fail);
+        self.builder.switch_to_block(accepted);
+
+        Ok(())
+    }
+
     /// Branch one literal comparison over its input, rejecting to the fail block.
     fn lower_literal_test(
         &mut self,
@@ -728,9 +833,15 @@ impl FunctionLowerer<'_, '_, '_> {
         // compare every other input against the literal constant
         let input = self.read_place(input)?;
         let expected = self.lower_constant(literal, representation)?;
-        let equal = self
-            .builder
-            .binary(mir::BinaryOperator::Equal, input, expected);
+        let equal = match literal
+            .scalar_domain()
+            .and_then(dir::ScalarDomain::equality_item)
+        {
+            Some(item) => self.lower_carried_equality(item, input, expected)?,
+            None => self
+                .builder
+                .binary(mir::BinaryOperator::Equal, input, expected),
+        };
         let accepted = self.builder.block();
         self.builder.branch(equal, accepted, fail);
         self.builder.switch_to_block(accepted);
@@ -785,6 +896,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 None
             }
         };
+        self.borrow_tested_scrutinee(cases, value)?;
 
         // allocate every case body before building selection edges
         let exit = self.builder.block();
@@ -925,13 +1037,15 @@ impl FunctionLowerer<'_, '_, '_> {
                 Ok(None)
             }
 
-            // select the declared representation position of enum variants
+            // select a tagged case
             dir::PatternDecision::Variant(resolution) => {
-                let index = self
+                match self
                     .lower
-                    .variant_position(resolution.case.owner, resolution.case.variant)?;
-
-                Ok(Some(index))
+                    .enum_case(resolution.case.owner, resolution.case.variant)?
+                {
+                    EnumCase::Tag(index) => Ok(Some(index)),
+                    EnumCase::String(_) => Ok(None),
+                }
             }
 
             // select the union case the destructure projects the scrutinee onto

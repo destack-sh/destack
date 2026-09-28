@@ -1,11 +1,11 @@
 use tspp_dir as dir;
 
 use crate::CompilerResult;
-use crate::lower::{DeclaredMethod, ModuleLowerer};
+use crate::lower::{DeclaredMember, ModuleLowerer};
 
 impl ModuleLowerer<'_> {
-    /// Return the canonical name of one callable, a member's after its owner.
-    pub(in crate::lower) fn callable_path(
+    /// Return the canonical name of one declaration.
+    pub(in crate::lower) fn canonical_path(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<String> {
@@ -49,7 +49,7 @@ impl ModuleLowerer<'_> {
     pub(in crate::lower) fn imported_member(
         &mut self,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<DeclaredMethod>> {
-        Ok(self.state(symbol.module_id)?.declared_method(symbol))
+    ) -> CompilerResult<Option<DeclaredMember>> {
+        Ok(self.state(symbol.module_id)?.declared_member(symbol))
     }
 }

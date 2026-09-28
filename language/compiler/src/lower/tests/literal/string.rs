@@ -19,7 +19,7 @@ function greet(): string {
 @languageItem("string.String")
 type String;
 
-function test.main.greet(): ref<String, managed, mutable, local> {
+export function test.main.greet(): ref<String, managed, mutable, local> {
 entry:
     v0: ref<String, managed, mutable, local> = address @string.0
     return v0
@@ -48,7 +48,7 @@ function pair(): string {
 @languageItem("string.String")
 type String;
 
-function test.main.pair(): ref<String, managed, mutable, local> {
+export function test.main.pair(): ref<String, managed, mutable, local> {
     local l0: ref<String, managed, mutable, local>
 
 entry:
@@ -92,7 +92,7 @@ type test.main.Point {
 @languageItem("string.String")
 type String;
 
-function test.main.Point.Display.display<'a>(v0: ref<test.main.Point, borrowed, 'a, immutable>): String {
+export function test.main.Point.Display.display<'a>(v0: ref<test.main.Point, borrowed, 'a, immutable>): String {
     local l0: ref<test.main.Point, borrowed, 'a, immutable>
 
 entry(v0: ref<test.main.Point, borrowed, 'a, immutable>):
@@ -116,7 +116,7 @@ type test.main.Point {
 @languageItem("string.String")
 type String;
 
-function test.main.label(v0: test.main.Point): ref<String, managed, mutable, local> {
+export function test.main.label(v0: test.main.Point): ref<String, managed, mutable, local> {
     local l0: test.main.Point
     local l1: test.main.Point
     local l2: [ref<String, managed, mutable, local>; 2], readonly
@@ -136,16 +136,20 @@ entry(v0: test.main.Point):
     v8: usize = 2
     v9: slice<ref<String, managed, mutable, local>, borrowed, 'frame, readonly> = address l2[v7; v8]
     v10: slice<ref<String, managed, mutable, local>, borrowed, 'l0, readonly> = address (*v9)
-    v11: ref<String, managed, mutable, local> = new.complete v3
-    v12: [ref<String, managed, mutable, local>; 1] = aggregate (v11)
-    store l3, v12
-    v13: usize = 0
-    v14: usize = 1
-    v15: slice<ref<String, managed, mutable, local>, borrowed, 'frame, readonly> = address l3[v13; v14]
-    v16: slice<ref<String, managed, mutable, local>, borrowed, 'l1, readonly> = address (*v15)
-    v17: String = call stringFromTemplate(v10, v16): <'a, 'b>(slice<ref<String, managed, mutable, local>, borrowed, 'a, readonly>, slice<ref<String, managed, mutable, local>, borrowed, 'b, readonly>) => String
-    v18: ref<String, managed, mutable, local> = new.complete v17
-    return v18
+    v11: uninit<ref<String, managed, mutable, local>> = new.uninit String, local
+    store (*v11), v3
+    v12: ref<String, managed, mutable, local> = new.complete v11
+    v13: [ref<String, managed, mutable, local>; 1] = aggregate (v12)
+    store l3, v13
+    v14: usize = 0
+    v15: usize = 1
+    v16: slice<ref<String, managed, mutable, local>, borrowed, 'frame, readonly> = address l3[v14; v15]
+    v17: slice<ref<String, managed, mutable, local>, borrowed, 'l1, readonly> = address (*v16)
+    v18: String = call stringFromTemplate(v10, v17): <'a, 'b>(slice<ref<String, managed, mutable, local>, borrowed, 'a, readonly>, slice<ref<String, managed, mutable, local>, borrowed, 'b, readonly>) => String
+    v19: uninit<ref<String, managed, mutable, local>> = new.uninit String, local
+    store (*v19), v18
+    v20: ref<String, managed, mutable, local> = new.complete v19
+    return v20
 }
 
 /// @layout.struct name=test.main.Point size=4 align=4
@@ -172,7 +176,7 @@ function name(): ^string {
 @languageItem("string.String")
 type String;
 
-function test.main.name(): String {
+export function test.main.name(): String {
 entry:
     v0: ref<String, managed, mutable, local> = address @string.0
     v1: ref<String, borrowed, 'managed, immutable> = cast.bit v0 -> ref<String, borrowed, 'managed, immutable>

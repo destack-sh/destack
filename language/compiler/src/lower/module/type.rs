@@ -124,12 +124,12 @@ impl ModuleLowerer<'_> {
         Ok(Some((member, qualifier)))
     }
 
-    /// Return the memory kind of the associated const one dependent projects.
-    pub(in crate::lower) fn dependent_memory_kind(
+    /// Return the declared type of the associated const one dependent projects.
+    pub(in crate::lower) fn dependent_constant_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
         dependent: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::MemoryParameter>> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let Some((member, qualifier)) = self.member_projection(dependent)? else {
             return Ok(None);
         };
@@ -158,9 +158,8 @@ impl ModuleLowerer<'_> {
         let Some(constant) = constant else {
             return Ok(None);
         };
-        let ty = self.symbol_type(constant)?;
 
-        self.argument_memory_kind(ty)
+        self.symbol_type(constant).map(Some)
     }
 
     /// Return the memory kind one argument term inhabits, none for a value type.
@@ -315,29 +314,5 @@ impl ModuleLowerer<'_> {
             dir::Type::Primitive(dir::PrimitiveType::Bigint) => Some(dir::LanguageItem::BigInt),
             _ => None,
         }
-    }
-
-    /// Return one enum variant's declaration position.
-    pub(in crate::lower) fn variant_position(
-        &mut self,
-        owner: dir::GlobalSymbolId,
-        variant: dir::GlobalSymbolId,
-    ) -> CompilerResult<u32> {
-        // resolve the enum owning this variant
-        let Some(dir::Definition::Enum(definition)) = self.definition(owner)?.cloned() else {
-            return Err(CompilerError::Internal {
-                message: "a variant owner without an enum definition".to_string(),
-            });
-        };
-
-        // select the variant's declaration order in its enum
-        let index = definition.variant_position(variant);
-        let Some(index) = index else {
-            return Err(CompilerError::Internal {
-                message: "a variant missing from its owner definition".to_string(),
-            });
-        };
-
-        Ok(index as u32)
     }
 }
