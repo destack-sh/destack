@@ -8,7 +8,7 @@ import { defineJournal, Journal } from "./journal.ts";
 /** The journal the test records requests in. */
 const journal = defineJournal("journal");
 
-/** A request naming a login and its password, which nothing the journal keeps derives from. */
+/** A login request with a password. */
 const Login = schema.object({
     name: schema.string(),
     password: schema.sensitive(schema.string()),
@@ -30,7 +30,7 @@ test("journal requests by a digest of their input without its sensitive values",
             },
         );
 
-    // keep the digest of the input with its password and codes left out
+    // digest the input without its sensitive values
     const input = { name: "ada", password: "hunter2", factors: [{ code: "123456" }] };
     expect(await run(input)).toBe("done");
     const [stored] = await database.select().from(journal);
@@ -39,7 +39,7 @@ test("journal requests by a digest of their input without its sensitive values",
         new Uint8Array(await crypto.subtle.digest("SHA-256", redacted)).toHex(),
     );
 
-    // replay a retry whatever its sensitive values, and refuse other input under the same identifier
+    // replay a retry and refuse other input
     expect(await run({ ...input, password: "other" })).toBe("done");
     await expect(run({ ...input, name: "bob" })).rejects.toMatchObject({
         code: "CONFLICT",

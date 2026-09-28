@@ -1,16 +1,16 @@
 import { schema } from "@destack/schema";
 
-/** A current operation value, including its terminal outcome when complete. */
+/** A long-running operation. */
 export type Operation<Result, Progress> = {
-    /** Operation identifier. */
+    /** The operation identifier. */
     id: string;
-    /** Creation time in UTC milliseconds. */
+    /** The creation time, in UTC milliseconds. */
     createdAt: number;
-    /** Last change time in UTC milliseconds. */
+    /** The last change time, in UTC milliseconds. */
     updatedAt: number;
-    /** Whether the runner received a cancellation request. */
+    /** Whether cancellation was requested. */
     cancellationRequested: boolean;
-    /** Latest progress. */
+    /** The latest progress. */
     progress: Progress;
 } & (
     | { state: "running" }
@@ -19,51 +19,51 @@ export type Operation<Result, Progress> = {
     | { state: "cancelled"; completedAt: number }
 );
 
-/** A public operation failure, excluding internal exception details. */
+/** A public operation failure. */
 export const OperationError = schema.object({
-    /** Stable failure code. */
+    /** The failure code. */
     code: schema.string().min(1),
-    /** Public explanation. */
+    /** The message. */
     message: schema.string(),
 });
 
 /** A public operation failure. */
 export type OperationError = schema.Infer<typeof OperationError>;
 
-/** Controls supplied to one operation runner. */
+/** The controls of an operation runner. */
 export interface OperationContext<Progress> {
-    /** Cancellation and deadline notification. */
+    /** The cancellation and deadline signal. */
     signal: AbortSignal;
-    /** Publish the latest validated progress. */
+    /** Report progress. */
     report(progress: Progress): void;
 }
 
-/** Schemas shared by an operation's procedures and runner. */
+/** The schemas of an operation. */
 export interface OperationDefinition<Result, Progress> {
     /** The completed result. */
     result: schema.Schema<Result>;
     /** The latest progress. */
     progress: schema.Schema<Progress>;
-    /** The observable operation state. */
+    /** The operation state. */
     operation: schema.Schema<Operation<Result, Progress>>;
 }
 
-/** Define a long-running operation with typed progress and result values. */
+/** Define an operation. */
 export function defineOperation<Result, Progress>(
     result: schema.Schema<Result>,
     progress: schema.Schema<Progress>,
 ): OperationDefinition<Result, Progress> {
-    // describe fields shared by running and completed operations
+    // describe the common fields
     const common = schema.object({
         /** The operation identifier. */
         id: schema.uuid(),
-        /** Creation time in UTC milliseconds. */
+        /** The creation time, in UTC milliseconds. */
         createdAt: schema.number().int(),
-        /** Last change time in UTC milliseconds. */
+        /** The last change time, in UTC milliseconds. */
         updatedAt: schema.number().int(),
-        /** Whether cancellation has been requested. */
+        /** Whether cancellation was requested. */
         cancellationRequested: schema.boolean(),
-        /** Latest domain-specific progress. */
+        /** The latest progress. */
         progress: progress.nonoptional(),
     });
 

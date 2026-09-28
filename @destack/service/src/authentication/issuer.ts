@@ -1,32 +1,32 @@
 import type { JWTPayload } from "jose";
-import { Caller, CALLER_LIFETIME_MS } from "./caller.ts";
+import { Caller, CALLER_LIFETIME_MILLISECONDS } from "./caller.ts";
 import { TokenAuthentication, type TokenIssuerAuthority } from "./token.ts";
 import { ServiceError } from "../error/index.ts";
 
-/** Issue bounded access tokens from authority-verified caller records. */
+/** Issue access tokens for verified callers. */
 export class TokenIssuer {
-    /** Trusted signing configuration, supplied only by the hosting authority. */
+    /** The signing configuration. */
     readonly options: TokenIssuerOptions;
 
-    /** Attach the authority's signer and permitted identity scope. */
+    /** Create the issuer. */
     constructor(options: TokenIssuerOptions) {
         this.options = options;
     }
 
-    /** Sign an authenticated caller without extending its identity or delegation lifetime. */
+    /** Sign an access token for a caller within its verified lifetime. */
     async issue(caller: Caller<{ kind: string; id: string }>, now = Date.now()) {
-        // retain the original verification deadline through repeated exchanges
+        // keep the original verification deadline
         const current = caller.authentication;
         caller.requireCurrent(current.audience, now, current.scope);
         const expiresAt = Math.floor(
-            Math.min(current.expiresAt, current.verifiedAt + CALLER_LIFETIME_MS) / 1000,
+            Math.min(current.expiresAt, current.verifiedAt + CALLER_LIFETIME_MILLISECONDS) / 1000,
         );
         const issuedAt = Math.floor(current.verifiedAt / 1000);
         if (expiresAt * 1000 <= now || expiresAt <= issuedAt) {
             throw new ServiceError("UNAUTHORIZED");
         }
 
-        // encode only the verified identity fields supported by receiving services
+        // encode the verified identity fields
         const claims = TokenAuthentication.parse({
             spaceId: current.scope,
             credential: current.credential,
@@ -41,7 +41,7 @@ export class TokenIssuer {
         });
         caller.requireAuthority(this.options.authority);
 
-        // sign registered token claims together with the authenticated caller
+        // sign the registered claims with the caller
         const accessToken = await this.options.sign({
             iss: this.options.issuer,
             sub: current.subject.id,
@@ -57,12 +57,12 @@ export class TokenIssuer {
     }
 }
 
-/** Server-only signing configuration; private keys remain with the authority. */
+/** The configuration of a token issuer. */
 export interface TokenIssuerOptions {
-    /** Exact issuer configured at receiving services. */
+    /** The issuer URL. */
     readonly issuer: string;
-    /** Explicit identity authority assigned to this signer. */
+    /** The identity authority of this signer. */
     readonly authority: TokenIssuerAuthority;
-    /** Sign with the authority's active ES256 key and include its key identifier. */
+    /** Sign with the authority's active ES256 key. */
     readonly sign: (payload: JWTPayload) => Promise<string>;
 }

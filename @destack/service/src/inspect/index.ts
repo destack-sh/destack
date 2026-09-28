@@ -5,6 +5,6 @@ export { ScheduleDescription } from "../schedule/index.ts";
 export * from "./schedule.ts";
 export { WebhookDescription } from "../webhook/index.ts";
 export * from "./webhook.ts";
-export { SubscriptionDescription } from "../subscription/index.ts";
-export * from "./subscription.ts";
+export { WatchDescription } from "../watch/index.ts";
+export * from "./watch.ts";
 export * from "./workload.ts";

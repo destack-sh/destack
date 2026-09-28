@@ -7,7 +7,7 @@ import { delegationChain, principal, Restriction, type Subject } from "@destack/
 import { PackageId } from "@destack/package";
 import { identifier } from "@destack/schema";
 
-/** Verify signed identity while rejecting cross-service, cross-space and stale authority. */
+/** Verify signed identity and reject cross-service, cross-space and stale authority. */
 test("verify scoped tokens and reject invalid claims and signatures", async () => {
     const keys = await generateKeyPair("ES256");
     const publicKey = { ...(await exportJWK(keys.publicKey)), kid: "current", alg: "ES256" };
@@ -49,7 +49,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         "caller authentication is expired or has a different audience or scope",
     );
 
-    // accept an administrator impersonating the user, and reject impersonating oneself or as software
+    // accept an administrator impersonating a user and reject other impersonations
     const administrator: Subject = principal.user.reference("global", "user-administrator");
     const impersonate = async (impersonator: Subject) =>
         verifier.authenticate(
@@ -85,7 +85,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         await expect(impersonate(impersonator)).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     }
 
-    // reject attacker-controlled claim substitutions even when signed by a trusted key
+    // reject changed claims signed by a trusted key
     for (const changed of [
         { iss: "https://other.example" },
         { aud: "another-package" },
@@ -114,7 +114,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     }
 
-    // reject a correctly structured token signed by an untrusted key
+    // reject a token signed by an untrusted key
     const attacker = await generateKeyPair("ES256");
     const forged = await new SignJWT(claims)
         .setProtectedHeader({ alg: "ES256", kid: "current" })
@@ -129,7 +129,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         verifier.authenticate(request, spaceId, (issuedAt + 60) * 1000),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
 
-    // retain cached public keys during an outage without extending token expiry
+    // keep cached public keys during an outage
     let isAvailable = true;
     let reads = 0;
     const remote = new TokenVerifier({
@@ -153,7 +153,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         remote.authenticate(request, spaceId, (issuedAt + 60) * 1000),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
 
-    // require successful discovery when the receiving host has no cached public keys
+    // require discovery without cached public keys
     const disconnected = new TokenVerifier({
         authority: { kind: "global" },
         issuer,
@@ -165,7 +165,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         disconnected.authenticate(request, spaceId, issuedAt * 1000),
     ).rejects.toMatchObject({ code: "UNAVAILABLE" });
 
-    // preserve workload identity and the delegate chain across real signing and verification
+    // keep workload identity and delegates through signing and verification
     const actor: Subject = principal.installation.reference(spaceId, "software-example");
     const deploymentId = identifier("deployment").parse(
         "deployment-019f7480-0000-7000-8000-000000000004",
@@ -211,7 +211,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         Restriction.allows({ ...read, name: "write" }, { scope: spaceId, id: "note-one" }, access),
     ).toBe(false);
 
-    // retain an independent deployment for every workload in a delegation chain
+    // keep a deployment for each workload in a delegation chain
     const secondActor = { ...actor, id: "second-software" };
     const secondDeployment = identifier("deployment").parse(
         "deployment-019f7480-0000-7000-8000-000000000005",
@@ -250,7 +250,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         ),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
 
-    // reject malformed chains even when a signing authority bypasses TokenIssuer
+    // reject malformed chains signed outside TokenIssuer
     for (const delegates of [
         [],
         [actor, actor],
@@ -279,7 +279,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     }
 
-    // reject space authorities attempting to delegate for global users
+    // reject space authorities delegating for global users
     const local = new TokenIssuer({ ...signing, authority: { kind: "space", spaceId } });
     await expect(local.issue(delegated, issuedAt * 1000)).rejects.toMatchObject({
         code: "UNAUTHORIZED",
@@ -294,7 +294,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         localVerifier.authenticate(request, spaceId, issuedAt * 1000),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
 
-    // accept only the space's own deployment-bound software through its signing authority
+    // accept only the space's own deployed software
     const workload = new Caller({
         ...caller.authentication,
         credential: { kind: "workload", id: "credential-example" },

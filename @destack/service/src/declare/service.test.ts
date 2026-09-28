@@ -5,7 +5,7 @@ import { defineService, type Routed } from "./service.ts";
 /** A procedure every declaration of a kind shares. */
 const push = defineProcedure({ authentication: "identity", permission: null, audit: false });
 
-/** A declaration routing its own procedures and sharing the push procedure under `replica`. */
+/** A declaration sharing the push procedure under `replica`. */
 const routed: Routed = { procedures: {}, shared: { replica: { push } } };
 
 test("refuse routing a declaration or a procedure under the name of shared procedures", () => {
@@ -19,7 +19,7 @@ test("refuse routing a declaration or a procedure under the name of shared proce
         new TypeError("service notes routes two procedures under replica"),
     );
 
-    // route distinct names once each, the shared procedures once for every declaration
+    // route each name once
     expect(
         Object.keys(defineService("notes", { objects: { note: routed, notebook: routed } }).router),
     ).toEqual(["note", "notebook", "replica"]);

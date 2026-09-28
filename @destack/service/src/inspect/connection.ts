@@ -1,6 +1,6 @@
 import { ServiceConnectionDescription, type ServiceConnection } from "../declare/connection.ts";
 
-/** Describe a service dependency without serializing its executable router. */
+/** Describe a service connection. */
 export function describeServiceConnection(
     connection: ServiceConnection,
 ): ServiceConnectionDescription {

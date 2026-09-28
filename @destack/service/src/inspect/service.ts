@@ -4,19 +4,19 @@ import { describeProcedures, ProcedureDescription } from "./procedure.ts";
 import type { Service } from "../declare/service.ts";
 import { DeclarationName } from "@destack/package";
 
-/** Routes, payloads and errors declared by a named service. */
+/** The procedures of a service. */
 export const RouterDescription = defineSchema(
     schema.object({
         /** The package-local service name. */
         name: schema.string().min(1),
-        /** Procedure addresses, declared payloads, and errors. */
+        /** The procedures. */
         procedures: schema.array(ProcedureDescription),
     }),
 );
-/** Routes, payloads and errors declared by a named service. */
+/** The procedures of a service. */
 export type RouterDescription = schema.Infer<typeof RouterDescription>;
 
-/** A declared service and its inspected API. */
+/** A declared service. */
 export const ServiceDescription = defineSchema(
     schema.object({
         /** The package-local service name. */
@@ -25,14 +25,14 @@ export const ServiceDescription = defineSchema(
         version: schema.literal(1),
         /** The service transport. */
         protocol: schema.literal("http"),
-        /** Procedures declared by the service's router. */
+        /** The service's procedures. */
         api: RouterDescription,
     }),
 );
-/** A declared service and its inspected API. */
+/** A declared service. */
 export type ServiceDescription = schema.Infer<typeof ServiceDescription>;
 
-/** Describe a declared service and its procedures. */
+/** Describe a service. */
 export function describeService(service: Service): ServiceDescription {
     return ServiceDescription.parse({
         name: service.name,
@@ -42,9 +42,9 @@ export function describeService(service: Service): ServiceDescription {
     });
 }
 
-/** Describe service routes and application schemas. */
+/** Describe a router. */
 export function describeRouter(name: string, service: ServiceRouter): RouterDescription {
-    // retain application schemas and declared errors
+    // describe the procedures
     const procedures = describeProcedures(service);
 
     return RouterDescription.parse({ name, procedures });

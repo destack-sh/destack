@@ -6,13 +6,13 @@ import { createClient } from "../client/index.ts";
 import { eventIterator, defineProcedure } from "../service/index.ts";
 import { implement, Server, type ServerOptions } from "./index.ts";
 import { hosting } from "./tests/fixture.ts";
-import { Watch } from "../watch/index.ts";
+import { Observable } from "../observable/index.ts";
 import { ServiceError } from "../error/index.ts";
 import type { ServiceContext } from "./context.ts";
 import { Bookmark, Watermark } from "../bookmark/index.ts";
 
 test("reauthenticate completed snapshot subscriptions and report revoked access", async () => {
-    // expose a finite snapshot subscription through the real service transport
+    // serve a finite snapshot subscription
     let requests = 0;
     const service = {
         watch: defineProcedure({ authentication: "identity", permission: null, audit: false })
@@ -50,12 +50,12 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
             headers: { authorization: "alice" },
             fetch: (request) => server.fetch(request),
         });
-        const stream = Watch.observe(
+        const stream = Observable.observe(
             (signal) => client.watch(undefined, { signal }),
             controller.signal,
         );
 
-        // renew successful subscriptions without retrying an authorization failure
+        // renew subscriptions but not after an authorization failure
         expect(await stream.next()).toEqual({ done: false, value: 1 });
         expect(await stream.next()).toEqual({ done: false, value: 2 });
         await expect(stream.next()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
@@ -67,7 +67,7 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
 });
 
 test("drain complete HTTP response streams before reporting the server stopped", async () => {
-    // declare health and a stream whose completion the caller controls
+    // declare health and a held stream
     const release = Promise.withResolvers<void>();
     const readiness = new Health("reader");
     const service = {
@@ -77,7 +77,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
             .output(eventIterator(schema.string())),
     };
 
-    // hold the response open until the caller releases the final event
+    // hold the response until released
     const implementation = implement(service);
     const router = implementation.router({
         health: implementHealth(readiness),
@@ -117,7 +117,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
         drainTimeout: 1000,
     });
 
-    // serve a protocol's public endpoint without invoking application credential verification
+    // serve a public protocol endpoint
     const keys = await server.fetch(new Request("https://test.local/auth/keys"));
     expect([keys.status, keys.headers.get("Cache-Control"), await keys.json()]).toEqual([
         200,
@@ -125,7 +125,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
         { keys: [] },
     ]);
 
-    // retain redirect status and location while applying the deployment's response policy
+    // keep the redirect status and location
     const redirect = await server.fetch(new Request("https://test.local/auth/redirect"));
     expect([
         redirect.status,
@@ -133,7 +133,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
         redirect.headers.get("Cache-Control"),
     ]).toEqual([303, "https://identity.local/sign-in", "no-store"]);
 
-    // begin consuming the application stream before shutdown
+    // start a stream before shutdown
     const client = createClient(service, {
         url: "https://test.local",
         headers: { authorization: "alice" },
@@ -142,14 +142,14 @@ test("drain complete HTTP response streams before reporting the server stopped",
     const stream = await client.read();
     expect(await stream.next()).toEqual({ done: false, value: "first" });
 
-    // observe readiness through a second response stream
+    // watch health
     const healthStream = await client.health.watch();
     expect(await healthStream.next()).toEqual({
         done: false,
         value: { name: "reader", status: "serving" },
     });
 
-    // end health subscriptions when draining begins
+    // end health subscriptions on drain
     const closing = server.close();
     expect(await healthStream.next()).toEqual({
         done: false,
@@ -157,7 +157,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
     });
     expect(await healthStream.next()).toEqual({ done: true, value: undefined });
 
-    // refuse new work while retaining resources for the open application stream
+    // refuse new work while the stream stays open
     expect(server.close()).toBe(closing);
     expect((await server.fetch(new Request("https://test.local/readyz"))).status).toBe(503);
     expect((await server.fetch(new Request("https://test.local/livez"))).status).toBe(200);
@@ -165,7 +165,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
     expect((await server.fetch(new Request("https://test.local/auth/keys"))).status).toBe(503);
     expect(server.health.status).toBe("draining");
 
-    // finish the response before reporting the server stopped
+    // finish the response before stopping
     release.resolve();
     expect(await stream.next()).toEqual({ done: false, value: "last" });
     expect(await stream.next()).toEqual({ done: true, value: undefined });
@@ -174,7 +174,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
 });
 
 test("serialize authentication failures and preserve drain timeout causes", async () => {
-    // hold an authenticated request past the drain deadline
+    // hold a request past the drain deadline
     const waiting = Promise.withResolvers<void>();
     const entered = Promise.withResolvers<void>();
     const service = {
@@ -183,7 +183,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
             .output(schema.string()),
     };
 
-    // keep the handler active until it can acknowledge cancellation
+    // hold the handler until cancellation
     const implementation = implement(service);
     const router = implementation.router({
         get: implementation.get.handler(async ({ signal }) => {
@@ -195,7 +195,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
         }),
     });
 
-    // observe stopping independently of the caller's shutdown deadline
+    // observe stopping
     let isStopped = false;
     const server = Server.start({
         ...hosting,
@@ -207,35 +207,35 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
         isStopped = true;
     });
 
-    // reject unauthenticated requests through the typed HTTP client
+    // reject unauthenticated requests
     const client = createClient(service, {
         url: "https://test.local",
         fetch: (request) => server.fetch(request),
     });
     await expect(client.get()).rejects.toMatchObject({ code: "UNAUTHORIZED", status: 401 });
 
-    // release requests that fail construction before authentication or handler dispatch
+    // release requests that fail before dispatch
     const consumed = new Request("https://test.local/work", { method: "POST", body: "used" });
     await consumed.text();
     const failure = await server.fetch(consumed);
     expect(failure.status).toBe(500);
     await failure.arrayBuffer();
 
-    // admit an authenticated request and retain its cancellation failure
+    // admit an authenticated request
     const authorized = createClient(service, {
         url: "https://test.local",
         headers: { authorization: "alice" },
         fetch: (request) => server.fetch(request),
     });
 
-    // assert the transport preserves the server's drain timeout cause
+    // keep the drain timeout cause
     const pending = authorized.get();
     const rejected = expect(pending).rejects.toMatchObject({
         message: "Cannot parse response body, please check the response body and content-type.",
         cause: { name: "TimeoutError", message: "service drain deadline exceeded" },
     });
 
-    // keep resources alive until overdue work acknowledges cancellation
+    // keep resources until cancellation is acknowledged
     await entered.promise;
     try {
         await expect(server.close()).rejects.toMatchObject({ name: "TimeoutError" });
@@ -245,7 +245,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
         waiting.resolve();
     }
 
-    // finish cleanup after the request releases its resources
+    // finish cleanup
     await rejected;
     await server.stopped;
     expect(isStopped).toBe(true);
@@ -253,7 +253,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
 });
 
 test("return observed watermarks and require them on the client's later requests", async () => {
-    // observe a watermark on writes and report the watermarks reads require
+    // observe write watermarks and require read watermarks
     const service = {
         write: defineProcedure({ authentication: "identity", permission: null, audit: false })
             .route({ method: "POST", path: "/write" })
@@ -297,7 +297,7 @@ test("return observed watermarks and require them on the client's later requests
 test.for(["before the call", "during the call", "between events"] as const)(
     "end a server stream once its caller aborts %s",
     async (moment) => {
-        // wait between events on the context's signal, counting the generators running
+        // count the running generators
         let running = 0;
         const service = {
             follow: defineProcedure({ authentication: "identity", permission: null, audit: false })
@@ -358,14 +358,14 @@ test.for(["before the call", "during the call", "between events"] as const)(
             () => "aborted",
         );
 
-        // end every generator the calls started, leaving nothing for shutdown to drain
+        // end every generator
         const started = performance.now();
         await server.close();
         expect([outcome, running, performance.now() - started < 100]).toEqual(["aborted", 0, true]);
     },
 );
 
-/** Collect garbage until weakly held objects are gone, as a busy process eventually does. */
+/** Collect garbage until weakly held objects are gone. */
 async function collectGarbage(): Promise<void> {
     for (let round = 0; round < 3; round++) {
         (globalThis as unknown as { gc: () => void }).gc();

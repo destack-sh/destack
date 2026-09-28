@@ -15,7 +15,7 @@
         "./authentication": "./src/authentication/index.ts",
         "./request": "./src/request/index.ts",
         "./database": "./src/database/index.ts",
-        "./watch": "./src/watch/index.ts",
+        "./observable": "./src/observable/index.ts",
         "./declare": "./src/declare/index.ts",
         "./operation": "./src/operation/index.ts",
         "./procedure": "./src/procedure/index.ts",
@@ -29,9 +29,11 @@
         "./inspect": "./src/inspect/index.ts",
         "./schedule": "./src/schedule/index.ts",
         "./webhook": "./src/webhook/index.ts",
-        "./subscription": "./src/subscription/index.ts",
+        "./watch": "./src/watch/index.ts",
         "./trigger": "./src/trigger/index.ts",
         "./timer": "./src/timer/index.ts",
+        "./control": "./src/control/index.ts",
+        "./outbox": "./src/outbox/index.ts",
         "./bun": "./src/server/bun.ts"
     },
     "devDependencies": {

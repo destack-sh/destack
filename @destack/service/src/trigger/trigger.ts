@@ -1,35 +1,36 @@
 import type { Schedule, ScheduleOccurrence } from "../schedule/schedule.ts";
-import type { Webhook, WebhookDelivery } from "../webhook/webhook.ts";
-import type { Subscription, SubscriptionChange } from "../subscription/subscription.ts";
+import type { Webhook, WebhookHandler } from "../webhook/webhook.ts";
+import type { WebhookDelivery } from "../webhook/delivery.ts";
+import type { Watch, ObjectChange } from "../watch/watch.ts";
 
-/** The kinds of event sources a host delivers to workloads. */
-export const TRIGGER_KINDS = ["schedule", "webhook", "subscription"] as const;
+/** The trigger kinds. */
+export const TRIGGER_KINDS = ["schedule", "webhook", "watch"] as const;
 
-/** A declared event source the host delivers to the workload implementing it. */
-export type Trigger = Schedule | Webhook | Subscription<any>;
+/** A declared event source. */
+export type Trigger = Schedule | Webhook | Watch<any>;
 
 /** The declared triggers of one kind. */
 export type TriggerOf<Kind extends Trigger["kind"]> = Extract<Trigger, { readonly kind: Kind }>;
 
-/** The event one delivery of a trigger carries. */
+/** The event of one trigger delivery. */
 export type TriggerEvent<Declared> =
-    Declared extends Subscription<infer Target>
-        ? SubscriptionChange<Target>
+    Declared extends Watch<infer Target>
+        ? ObjectChange<Target>
         : Declared extends { readonly kind: "schedule" }
           ? ScheduleOccurrence
           : Declared extends { readonly kind: "webhook" }
             ? WebhookDelivery
             : never;
 
-/** A declared trigger that pairs itself with its workload's handler. */
+/** A trigger that pairs with its handler. */
 export interface Handled<Declared> {
-    /** Pair the trigger with the handler of its events, typed by the trigger's kind. */
+    /** Pair the trigger with its handler. */
     handle(
         handle: (event: TriggerEvent<Declared>, signal: AbortSignal) => Promise<void>,
     ): TriggerHandler<Declared>;
 }
 
-/** Pair a trigger with the handler of its events. */
+/** Pair a trigger with its handler. */
 export function handleTrigger<Declared extends Trigger>(
     this: Declared,
     handle: (event: TriggerEvent<Declared>, signal: AbortSignal) => Promise<void>,
@@ -37,15 +38,17 @@ export function handleTrigger<Declared extends Trigger>(
     return { trigger: this, handle };
 }
 
-/** A workload's handler for one declared trigger of a kind. */
+/** A workload's handler of one trigger. */
 export interface TriggerHandler<Declared> {
-    /** The declared trigger this handler handles. */
+    /** The trigger. */
     readonly trigger: Declared;
-    /** Handle one delivered event, observing cancellation. */
+    /** Handle one event. */
     handle(event: TriggerEvent<Declared>, signal: AbortSignal): Promise<void>;
 }
 
-/** A workload's handler for one declared trigger, of any kind. */
+/** A workload's handler of one trigger, of any kind. */
 export type TriggerImplementation = {
-    [Kind in Trigger["kind"]]: TriggerHandler<TriggerOf<Kind>>;
+    [Kind in Trigger["kind"]]: Kind extends "webhook"
+        ? WebhookHandler
+        : TriggerHandler<TriggerOf<Kind>>;
 }[Trigger["kind"]];

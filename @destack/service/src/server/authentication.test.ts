@@ -32,7 +32,7 @@ import { createCaller, hosting } from "./tests/fixture.ts";
 test.each(["global", "host-local", "account-personal", "space-personal"])(
     "enforce the configured %s authorization scope",
     async (scope) => {
-        // use the same procedure and verified identity for every hosting scope
+        // serve one procedure in every scope
         const definition = {
             read: defineProcedure({ authentication: "identity", permission: null, audit: false })
                 .route({ method: "GET", path: "/scope" })
@@ -56,7 +56,7 @@ test.each(["global", "host-local", "account-personal", "space-personal"])(
             fetch: (request) => server.fetch(request),
         });
 
-        // return the selected scope and reject credentials issued for another scope
+        // return the scope and reject credentials of another scope
         expect(await client.read()).toBe(scope);
         credentialScope = "another-scope";
         await expect(client.read()).rejects.toMatchObject({
@@ -66,9 +66,9 @@ test.each(["global", "host-local", "account-personal", "space-personal"])(
     },
 );
 
-/** Apply the same identity and object rules to direct and forwarded user-service requests. */
+/** Apply the same identity and object rules to direct and forwarded requests. */
 test.each(["direct", "forwarded"])("host personal notes through %s requests", async (transport) => {
-    // declare application permissions independently of hosting and identity providers
+    // declare the note permissions
     const packageId = PackageId.parse("package-019f7480-0000-7000-8000-000000000001");
     const spaceId = "space-019f7480-0000-7000-8000-000000000002";
     const module = { package: { id: packageId, name: "@example/notes", version: "2026.9.0" } };
@@ -111,7 +111,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
             .output(eventIterator(schema.string())),
     };
 
-    // sign reusable service credentials with a real asymmetric key
+    // sign credentials with an asymmetric key
     const keys = await generateKeyPair("ES256");
     const issuer = new TokenIssuer({
         issuer: "https://account.example",
@@ -146,7 +146,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
         credentials.set(subject.id, token.accessToken);
     }
 
-    // keep notes and their relationships in a real database the service's policies read
+    // keep notes and their relationships in a database
     const noteTable = defineTable("note", {
         id: text("id").primaryKey(),
         scope: text("scope").notNull(),
@@ -180,7 +180,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
         );
     const asOwner: AccessContext = { subjects: [owner], now: Date.now(), attributes: {} };
 
-    // retain the host's installation state separately from application records
+    // keep the host's installation state
     let isEnabled = true;
     let invocations = 0;
     let authentications = 0;
@@ -230,7 +230,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
         },
     });
 
-    // forward the original credential without trusting identity headers from the relay
+    // forward the original credential
     let bearer: string | undefined = credentials.get(owner.id);
     const client = createClient(service, {
         url: "https://notes.example",
@@ -249,7 +249,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     expect(await client.read({ id: "one" })).toBe("personal note");
     expect(authentications).toBe(3);
 
-    // restrict an owner's credential to one object despite its broader application permissions
+    // restrict an owner's credential to one object
     const now = Date.now();
     const restricted = await issuer.issue(
         new Caller({
@@ -267,7 +267,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     expect(await client.read({ id: "one" })).toBe("personal note");
     await expect(client.read({ id: "two" })).rejects.toMatchObject({ code: "FORBIDDEN" });
 
-    // grant a collaborator access to one object and reject the same credential on another
+    // grant a collaborator one object
     bearer = credentials.get(guest.id);
     await expect(client.read({ id: "one" })).rejects.toMatchObject({ code: "FORBIDDEN" });
     const shared = await new Authorization(authorizer, database, () => asOwner).grant({
@@ -280,7 +280,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     await new Authorization(authorizer, database, () => asOwner).revoke(shared.object, shared.id);
     await expect(client.read({ id: "one" })).rejects.toMatchObject({ code: "FORBIDDEN" });
 
-    // permit public notes without letting invalid credentials become anonymous
+    // allow public notes and reject invalid credentials
     await database.update(noteTable).set({ public: true }).where(eq(noteTable.id, "one"));
     bearer = undefined;
     expect(await client.read({ id: "one" })).toBe("personal note");
@@ -288,7 +288,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     bearer = "invalid";
     await expect(client.read({ id: "one" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
 
-    // enforce host suspension on public requests and recheck grants during streams
+    // enforce suspension and recheck grants during streams
     bearer = undefined;
     isEnabled = false;
     await expect(client.read({ id: "one" })).rejects.toMatchObject({ code: "FORBIDDEN" });

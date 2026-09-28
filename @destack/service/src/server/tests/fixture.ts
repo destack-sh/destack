@@ -4,7 +4,7 @@ import { ResourceContext } from "@destack/resource/context";
 import { Caller } from "../../authentication/index.ts";
 import { ServiceError } from "../../error/index.ts";
 
-/** Trusted hosting configuration for HTTP lifecycle and operation scenarios. */
+/** The hosting configuration of the server scenarios. */
 export const hosting = {
     audience: PackageId.parse("package-019f7480-0000-7000-8000-000000000001"),
     scope: "test-space",
@@ -20,7 +20,7 @@ export const hosting = {
     authorizeHost: async () => {},
 };
 
-/** Construct a fresh verified identity for a known fixture user. */
+/** Create a verified caller for a fixture user. */
 export function createCaller(name: string): Caller {
     const subject: Subject = principal.user.reference("global", name);
     const now = Date.now();

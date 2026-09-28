@@ -17,7 +17,7 @@ import { SmartCoercionPlugin } from "@orpc/json-schema";
 import { schema, toJsonSchema } from "@destack/schema";
 import type { ConditionalSchemaConverter, JSONSchema } from "@orpc/openapi";
 
-/** Convert portable Destack schemas for HTTP decoding and OpenAPI documents. */
+/** Convert Destack schemas for HTTP decoding and OpenAPI. */
 const schemaConverter: ConditionalSchemaConverter = {
     condition: (validator) => validator instanceof schema.Schema,
     convert: (validator) => {
@@ -29,21 +29,21 @@ const schemaConverter: ConditionalSchemaConverter = {
     },
 };
 
-/** Implement service procedures with typed context and middleware. */
+/** Implement service procedures. */
 export { implement } from "@orpc/server";
 
-/** Dispatch Fetch requests to service procedures using their HTTP routes. */
+/** Dispatch requests to service procedures. */
 export class ServiceHandler<State extends Context> extends OpenAPIHandler<State> {
-    /** Readiness shared with the hosting lifecycle. */
+    /** The health. */
     readonly health: Health;
 
-    /** Configure HTTP handling and extract trace context for each request. */
+    /** Create the handler. */
     constructor(router: Router<ServiceRouter, State>, options: HandlerOptions<State>) {
-        // reject missing enforcement before serving any request
+        // reject missing enforcement
         ServiceHandler.#checkAccess(router, options, new Set());
         const telemetry = new ServiceTelemetry("server");
 
-        // report failures and establish trace context before application interceptors
+        // report failures and extract trace context
         super(router, {
             ...options,
             plugins: [
@@ -53,7 +53,7 @@ export class ServiceHandler<State extends Context> extends OpenAPIHandler<State>
             clientInterceptors: [
                 ({ path, next }) => telemetry.invoke(path, next),
                 async ({ next, procedure, path, input, context, signal }) => {
-                    // evaluate declared access before entering application middleware
+                    // check access before the handler
                     const access = ProcedureAccess.parse(procedure["~orpc"].meta);
                     const call: ProcedureCall<State> = { access, path, input, context, signal };
 
@@ -70,11 +70,11 @@ export class ServiceHandler<State extends Context> extends OpenAPIHandler<State>
         this.health = options.health;
     }
 
-    /** Answer probes through the same HTTP path on every host. */
+    /** Answer probes, then dispatch. */
     override async handle(
         ...args: Parameters<OpenAPIHandler<State>["handle"]>
     ): ReturnType<OpenAPIHandler<State>["handle"]> {
-        // answer probes before routing procedures
+        // answer probes
         const response = this.health.probe(args[0]);
         if (response) {
             return { matched: true, response };
@@ -83,13 +83,13 @@ export class ServiceHandler<State extends Context> extends OpenAPIHandler<State>
         return super.handle(...args);
     }
 
-    /** Require enforcement for every declared procedure before hosting. */
+    /** Require enforcement for every procedure. */
     static #checkAccess<State extends Context>(
         router: Lazyable<AnyRouter>,
         options: Pick<HandlerOptions<State>, "authorize" | "audit">,
         ancestors: Set<object>,
     ): void {
-        // reject deferred or recursive routers before entering the HTTP adapter
+        // reject lazy routers
         if (isLazy(router)) {
             throw new TypeError("service procedures must be declared before hosting");
         }
@@ -99,7 +99,7 @@ export class ServiceHandler<State extends Context> extends OpenAPIHandler<State>
             throw new TypeError("service routers must not contain cycles");
         }
 
-        // require the callbacks declared by each procedure
+        // require the callbacks each procedure needs
         if (isProcedure(router)) {
             const access = ProcedureAccess.parse(router["~orpc"].meta);
             if (
@@ -112,7 +112,7 @@ export class ServiceHandler<State extends Context> extends OpenAPIHandler<State>
                 throw new TypeError("audited procedures require audit recording");
             }
         }
-        // inspect each nested router while permitting reuse at independent addresses
+        // check nested routers
         else {
             ancestors.add(router);
             for (const child of Object.values(router)) {
@@ -123,13 +123,13 @@ export class ServiceHandler<State extends Context> extends OpenAPIHandler<State>
     }
 }
 
-/** HTTP transport settings and required host enforcement. */
+/** The options of a service handler. */
 export interface HandlerOptions<State extends Context> extends OpenAPIHandlerOptions<State> {
-    /** Readiness shared with the host. */
+    /** The health. */
     health: Health;
-    /** Require authenticated request context and enforce the procedure's declared access. */
+    /** Authorize a call. */
     authorize?(call: ProcedureCall<State>): Promise<void>;
-    /** Persist required audit events before acknowledging their completion. */
+    /** Record an audit event. */
     audit?(event: ProcedureAudit<State>): Promise<void>;
 }
 

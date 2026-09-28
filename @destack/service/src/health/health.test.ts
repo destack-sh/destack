@@ -5,7 +5,7 @@ import { implementHealth, ServiceHandler } from "../server/index.ts";
 import { ServiceError } from "../error/index.ts";
 
 test("stream current health and subsequent readiness changes", async () => {
-    // connect the health procedures through their HTTP handler
+    // serve the health procedures
     const readiness = new Health("notes");
     const router = { health };
     const handler = new ServiceHandler<{ caller: string }>(
@@ -22,7 +22,7 @@ test("stream current health and subsequent readiness changes", async () => {
         },
     );
 
-    // use the same client transport as a remote consumer
+    // connect a client
     const client = createClient(router, {
         url: "https://test.local",
         fetch: async (request) => {
@@ -32,7 +32,7 @@ test("stream current health and subsequent readiness changes", async () => {
         },
     });
 
-    // read the initial state through both request and stream APIs
+    // read the initial state
     expect(await client.health.check()).toEqual({ name: "notes", status: "starting" });
     const stream = await client.health.watch();
     expect(await stream.next()).toEqual({
@@ -40,14 +40,14 @@ test("stream current health and subsequent readiness changes", async () => {
         value: { name: "notes", status: "starting" },
     });
 
-    // observe readiness on the existing subscription
+    // observe a change
     readiness.set("serving");
     expect(await stream.next()).toEqual({
         done: false,
         value: { name: "notes", status: "serving" },
     });
 
-    // deliver the terminal state before closing the subscription
+    // deliver the final state
     readiness.set("stopped");
     expect(await stream.next()).toEqual({
         done: false,

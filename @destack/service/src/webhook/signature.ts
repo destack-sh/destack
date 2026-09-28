@@ -1,9 +1,10 @@
 import { schema } from "@destack/schema";
 import { ServiceError } from "../error/index.ts";
-import { WebhookDelivery, type Webhook } from "./webhook.ts";
+import { WebhookDelivery, type WebhookParameters } from "./delivery.ts";
+import type { Webhook } from "./webhook.ts";
 
-/** How far a Standard Webhooks timestamp may lie from the receiver's clock, the five minutes the reference libraries allow. */
-const STANDARD_TOLERANCE_MS = 5 * 60 * 1000;
+/** The Standard Webhooks timestamp tolerance, five minutes as in the reference libraries. */
+const STANDARD_TOLERANCE_MILLISECONDS = 5 * 60 * 1000;
 
 /** The prefix of a serialized Standard Webhooks symmetric secret. */
 const STANDARD_SECRET_PREFIX = "whsec_";
@@ -14,7 +15,7 @@ const STANDARD_SIGNATURE_VERSION = "v1";
 /** The prefix of GitHub's HMAC-SHA256 signature header value. */
 const GITHUB_SIGNATURE_PREFIX = "sha256=";
 
-/** One message a sender signs: its identifier, event, exact body and sending time. */
+/** A signed webhook message. */
 export interface WebhookMessage {
     /** The delivery identifier. */
     readonly id: string;
@@ -22,21 +23,26 @@ export interface WebhookMessage {
     readonly event: string;
     /** The exact body bytes as text. */
     readonly body: string;
-    /** The sending time in UTC epoch milliseconds. */
+    /** The sending time, in UTC epoch milliseconds. */
     readonly sentAt: number;
 }
 
-/** A scheme proving that a delivery came from the holder of the webhook's secret. */
+/** A webhook signature scheme. */
 export interface WebhookSignature {
-    /** Sign a message as its sender does, returning the headers carrying identity and signature. */
+    /** Sign a message, returning the headers. */
     sign(message: WebhookMessage, secret: string): Promise<Headers>;
-    /** Verify a received request's signature and read its delivery, refusing forged or stale ones. */
-    verify(request: Request, secret: string, now: number): Promise<WebhookDelivery>;
+    /** Verify a request's signature and read its delivery. */
+    verify(
+        request: Request,
+        secret: string,
+        parameters: WebhookParameters,
+        now: number,
+    ): Promise<WebhookDelivery>;
 }
 
-/** Standard Webhooks: webhook-id, webhook-timestamp and webhook-signature over `id.timestamp.body`. */
+/** The Standard Webhooks signature over `id.timestamp.body`. */
 export class StandardSignature implements WebhookSignature {
-    /** Sign the identifier, timestamp in seconds and body with the base64 secret. */
+    /** Sign the identifier, timestamp and body. */
     async sign(message: WebhookMessage, secret: string): Promise<Headers> {
         // sign the content in whole seconds
         const timestamp = Math.floor(message.sentAt / 1000);
@@ -51,9 +57,14 @@ export class StandardSignature implements WebhookSignature {
         });
     }
 
-    /** Verify one of the request's v1 signatures within the timestamp tolerance, reading the event from the payload's type. */
-    async verify(request: Request, secret: string, now: number): Promise<WebhookDelivery> {
-        // require the three headers and a timestamp within the tolerance
+    /** Verify a v1 signature within the timestamp tolerance. */
+    async verify(
+        request: Request,
+        secret: string,
+        parameters: WebhookParameters,
+        now: number,
+    ): Promise<WebhookDelivery> {
+        // require the headers and a current timestamp
         const id = request.headers.get("webhook-id");
         const timestamp = request.headers.get("webhook-timestamp");
         const signatures = request.headers.get("webhook-signature");
@@ -61,13 +72,13 @@ export class StandardSignature implements WebhookSignature {
             throw new ServiceError("UNAUTHORIZED", { message: "missing standard webhook headers" });
         }
         const sentAt = Number(timestamp) * 1000;
-        if (!/^\d+$/.test(timestamp) || Math.abs(now - sentAt) > STANDARD_TOLERANCE_MS) {
+        if (!/^\d+$/.test(timestamp) || Math.abs(now - sentAt) > STANDARD_TOLERANCE_MILLISECONDS) {
             throw new ServiceError("UNAUTHORIZED", {
                 message: "webhook timestamp is outside the tolerance",
             });
         }
 
-        // accept the body when any v1 signature matches it
+        // match any v1 signature
         const body = await request.text();
         const key = await StandardSignature.#key(secret, "verify");
         const content = new TextEncoder().encode(`${id}.${timestamp}.${body}`);
@@ -83,7 +94,7 @@ export class StandardSignature implements WebhookSignature {
             throw new ServiceError("UNAUTHORIZED", { message: "webhook signature does not match" });
         }
 
-        // read the event type the payload names
+        // read the event type
         const payload = parsePayload(body);
         const event = schema
             .object({ type: schema.string().min(1) })
@@ -95,10 +106,16 @@ export class StandardSignature implements WebhookSignature {
             });
         }
 
-        return WebhookDelivery.parse({ id, event: event.data.type, payload, receivedAt: now });
+        return WebhookDelivery.parse({
+            id,
+            event: event.data.type,
+            payload,
+            parameters,
+            receivedAt: now,
+        });
     }
 
-    /** Import a serialized whsec_ secret as its HMAC key. */
+    /** Import a whsec_ secret as an HMAC key. */
     static #key(secret: string, usage: "sign" | "verify"): Promise<CryptoKey> {
         if (!secret.startsWith(STANDARD_SECRET_PREFIX)) {
             throw new TypeError("standard webhook secrets start with whsec_");
@@ -108,9 +125,9 @@ export class StandardSignature implements WebhookSignature {
     }
 }
 
-/** GitHub: x-hub-signature-256 over the body, with x-github-delivery and x-github-event. */
+/** The GitHub signature over the body. */
 export class GitHubSignature implements WebhookSignature {
-    /** Sign the body with the secret's UTF-8 bytes. */
+    /** Sign the body. */
     async sign(message: WebhookMessage, secret: string): Promise<Headers> {
         // sign the body alone
         const key = await hmacKey(new TextEncoder().encode(secret), "sign");
@@ -124,9 +141,14 @@ export class GitHubSignature implements WebhookSignature {
         });
     }
 
-    /** Verify the body's signature and read the delivery and event the headers name. */
-    async verify(request: Request, secret: string, now: number): Promise<WebhookDelivery> {
-        // require the delivery, event and signature headers
+    /** Verify the body's signature and read the delivery. */
+    async verify(
+        request: Request,
+        secret: string,
+        parameters: WebhookParameters,
+        now: number,
+    ): Promise<WebhookDelivery> {
+        // require the headers
         const id = request.headers.get("x-github-delivery");
         const event = request.headers.get("x-github-event");
         const signature = request.headers.get("x-hub-signature-256");
@@ -134,7 +156,7 @@ export class GitHubSignature implements WebhookSignature {
             throw new ServiceError("UNAUTHORIZED", { message: "missing github webhook headers" });
         }
 
-        // accept the body when the signature matches it
+        // match the signature
         const body = await request.text();
         const key = await hmacKey(new TextEncoder().encode(secret), "verify");
         const digest = signature.startsWith(GITHUB_SIGNATURE_PREFIX)
@@ -145,11 +167,17 @@ export class GitHubSignature implements WebhookSignature {
             throw new ServiceError("UNAUTHORIZED", { message: "webhook signature does not match" });
         }
 
-        return WebhookDelivery.parse({ id, event, payload: parsePayload(body), receivedAt: now });
+        return WebhookDelivery.parse({
+            id,
+            event,
+            payload: parsePayload(body),
+            parameters,
+            receivedAt: now,
+        });
     }
 }
 
-/** The signature scheme of each webhook verification. */
+/** The signature scheme of each verification. */
 export const WEBHOOK_SIGNATURES: Readonly<Record<Webhook["verification"], WebhookSignature>> = {
     standard: new StandardSignature(),
     github: new GitHubSignature(),
@@ -160,7 +188,7 @@ function hmacKey(bytes: Uint8Array<ArrayBuffer>, usage: "sign" | "verify"): Prom
     return crypto.subtle.importKey("raw", bytes, { name: "HMAC", hash: "SHA-256" }, false, [usage]);
 }
 
-/** Decode a base64 signature, absent when it is not base64. */
+/** Decode a base64 signature. */
 function decodeBase64(value: string | undefined): Uint8Array<ArrayBuffer> | undefined {
     try {
         return value === undefined ? undefined : Uint8Array.fromBase64(value);
@@ -169,7 +197,7 @@ function decodeBase64(value: string | undefined): Uint8Array<ArrayBuffer> | unde
     }
 }
 
-/** Decode a hexadecimal signature, absent when it is not hexadecimal. */
+/** Decode a hexadecimal signature. */
 function decodeHex(value: string): Uint8Array<ArrayBuffer> | undefined {
     try {
         return Uint8Array.fromHex(value);

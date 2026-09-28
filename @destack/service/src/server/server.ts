@@ -12,46 +12,47 @@ import { ServiceError } from "../error/index.ts";
 import { BOOKMARK_HEADER, type Bookmark } from "../bookmark/index.ts";
 import { CAPABILITY_HEADER, ServiceContext, type ServiceAccess } from "./context.ts";
 import type { ProcedureCall } from "./access.ts";
-import { reportError } from "./error.ts";
+import { reportError, reportReconciliation } from "./error.ts";
+import { ControlLoop, type Controller } from "../control/index.ts";
 import { MAX_TIMER_DELAY } from "../timer/index.ts";
 import { copyRequest } from "../request/index.ts";
 
-/** A host-managed HTTP service with readiness and streaming-aware draining. */
+/** A hosted HTTP service. */
 export class Server implements AsyncDisposable {
-    /** Current health, shared with optional health procedures. */
+    /** The health. */
     readonly health: Health;
-    /** Host settings retained until shutdown. */
+    /** The server options. */
     readonly #options: ServerOptions;
-    /** HTTP adapter constructed from the declared router. */
+    /** The HTTP handler. */
     readonly #handler: ServiceHandler<ServiceContext>;
-    /**
-     * Accepted requests by the controller cancelling each, held until their responses settle.
-     *
-     * A request's signal follows its caller's only while the request lives.
-     */
+    /** The accepted requests by their controllers. */
     readonly #requests = new Map<AbortController, Request>();
-    /** Notification when accepted requests complete. */
+    /** Resolve when accepted requests complete. */
     readonly #drained = Promise.withResolvers<void>();
-    /** Completion of request draining and resource disposal, including after a timeout. */
+    /** Resolve when draining and disposal finish. */
     readonly #stopped = Promise.withResolvers<void>();
-    /** The single shutdown attempt. */
+    /** The shutdown. */
     #closing?: Promise<void>;
+    /** Stop the controllers after draining. */
+    readonly #reconciling = new AbortController();
+    /** The running controllers. */
+    readonly #controlled?: Promise<void>;
 
-    /** Wait until accepted requests have actually finished. */
+    /** Wait until the server stopped. */
     get stopped(): Promise<void> {
         return this.#stopped.promise;
     }
 
-    /** Construct the HTTP handler and retain lifecycle settings. */
+    /** Create the server. */
     private constructor(options: ServerOptions) {
-        // reject missing enforcement before wrapping callbacks for the HTTP adapter
+        // reject missing enforcement
         for (const callback of ["authenticate", "authorizeHost"] as const) {
             if (typeof options[callback] !== "function") {
                 throw new TypeError(`${callback} must be configured before starting a server`);
             }
         }
 
-        // reject delays that overflow the runtime's signed 32 bit timer
+        // reject delays beyond the 32 bit timer
         if (
             !Number.isInteger(options.drainTimeout) ||
             options.drainTimeout <= 0 ||
@@ -62,19 +63,32 @@ export class Server implements AsyncDisposable {
             );
         }
 
-        // require a policy declaring every permission a procedure requires
+        // require a policy for every permission
         requirePolicies(options.router, options.access);
 
-        // construct the handler deciding every call through the service's policies and the host
+        // create the handler
         this.#options = options;
         this.health = options.health;
         this.#handler = new ServiceHandler(options.router, {
             ...options,
             authorize: (call) => Server.#authorize(call, options),
         });
+
+        // run the controllers
+        const controllers = options.controllers ?? [];
+        if (controllers.length > 0 && options.access === undefined) {
+            throw new TypeError("a service running controllers needs the database of its access");
+        } else if (controllers.length > 0) {
+            const loop = new ControlLoop(options.access!.database, controllers, {
+                report: reportReconciliation,
+                ...(options.instance === undefined ? {} : { lease: { holder: options.instance } }),
+            });
+            this.#controlled = loop.run(this.#reconciling.signal);
+            this.#controlled.catch(reportError);
+        }
     }
 
-    /** Configure request handling and publish readiness. */
+    /** Start the server. */
     static start(options: ServerOptions): Server {
         const server = new Server(options);
         server.health.set("serving");
@@ -82,25 +96,25 @@ export class Server implements AsyncDisposable {
         return server;
     }
 
-    /** Dispatch probes and authorized requests, retaining streamed response lifetimes. */
+    /** Serve a request. */
     async fetch(request: Request): Promise<Response> {
-        // answer probes and reject application requests during shutdown
+        // answer probes
         const probe = this.health.probe(request);
         if (probe) {
             return this.#headers(probe);
         }
 
-        // refuse application requests while draining
+        // refuse requests while draining
         if (this.#closing || this.health.status !== "serving") {
             return this.#headers(new Response(null, { status: 503 }));
         }
 
-        // retain cancellation across authentication and response consumption
+        // keep cancellation across the response
         const controller = new AbortController();
         const signal = AbortSignal.any([request.signal, controller.signal]);
         this.#requests.set(controller, request);
         try {
-            // dispatch additional protocols or authenticate the declared service procedures
+            // dispatch protocols or procedures
             const accepted = copyRequest(request, { signal });
             this.#requests.set(controller, accepted);
             let response = await this.#options.route?.(accepted);
@@ -114,34 +128,34 @@ export class Server implements AsyncDisposable {
 
             return this.#respond(this.#headers(response), controller, signal);
         } catch (error) {
-            // preserve cancellation and serialize application failures
+            // release the request and report failures
             this.#finish(controller);
             if (signal.aborted) {
                 throw error;
             }
 
-            // translate application failures to their public HTTP representation
+            // map the failure to its HTTP response
             const failure = reportError(error);
 
             return this.#headers(Response.json(failure.toJSON(), { status: failure.status }));
         }
     }
 
-    /** Refuse new work, drain accepted requests, and dispose resources once. */
+    /** Refuse new work, drain requests and dispose resources, once. */
     close(): Promise<void> {
         this.#closing ??= this.#close();
 
         return this.#closing;
     }
 
-    /** Apply deployment response policy to success, failure and health responses. */
+    /** Apply the response headers. */
     #headers(response: Response): Response {
-        // keep responses unchanged without a response policy
+        // keep responses without a header policy
         if (!this.#options.responseHeaders) {
             return response;
         }
 
-        // preserve responses whose headers are immutable, including protocol redirects
+        // copy the headers of immutable responses
         const headers = new Headers(response.headers);
         for (const [name, value] of new Headers(this.#options.responseHeaders)) {
             headers.set(name, value);
@@ -159,9 +173,9 @@ export class Server implements AsyncDisposable {
         await this.close();
     }
 
-    /** Retain authentication failures for the procedure's audit path. */
+    /** Authenticate a request and build its context. */
     static async #authenticate(request: Request, options: ServerOptions): Promise<ServiceContext> {
-        // authenticate only against the installation's trusted configuration
+        // authenticate the request
         let caller: Caller | null = null;
         let authenticationError: unknown;
         try {
@@ -176,7 +190,7 @@ export class Server implements AsyncDisposable {
             authenticationError = error ?? new ServiceError("UNAUTHORIZED");
         }
 
-        // digest the capabilities the request presents, keeping no secrets
+        // digest the presented capabilities
         const presented = (request.headers.get(CAPABILITY_HEADER) ?? "")
             .split(",")
             .map((secret) => secret.trim())
@@ -198,27 +212,27 @@ export class Server implements AsyncDisposable {
         });
     }
 
-    /** Enforce identity, credential restrictions and current installation policy. */
+    /** Authorize a call. */
     static async #authorize(
         call: ProcedureCall<ServiceContext>,
         options: ServerOptions,
     ): Promise<void> {
-        // reject invalid credentials on public routes and require identity on protected routes
+        // require identity on protected routes
         if (call.access.authentication !== "public") {
             call.context.requireCaller();
         }
 
-        // read current access for the call, and again before each value of a stream
+        // renew the call's access
         call.context.authorization?.renew();
 
-        // decide a required permission on the call's target through the service's policies, recording the target for the handler
+        // decide the permission on the call's target
         const permission = call.access.permission;
         if (permission !== null) {
             const target = await options.access!.target!(call);
             await call.context.authorization!.require(permission, target);
             call.context.target = target;
         }
-        // reject invalid credentials and validate the caller's delegation chain in the service's scope
+        // check the caller in the service's scope
         else {
             delegationChain(call.context.access());
         }
@@ -227,23 +241,23 @@ export class Server implements AsyncDisposable {
         await options.authorizeHost(call);
     }
 
-    /** Retain a response until its body completes, fails, or is cancelled. */
+    /** Hold a request until its response body settles. */
     #respond(response: Response, controller: AbortController, signal: AbortSignal): Response {
-        // complete requests without response bodies immediately
+        // finish a response without a body
         if (!response.body) {
             this.#finish(controller);
 
             return response;
         }
 
-        // account for response bodies until they complete, fail, or are cancelled
+        // read the body through
         const reader = response.body.getReader();
         const finish = () => {
             signal.removeEventListener("abort", abort);
             this.#finish(controller);
         };
 
-        // cancel the producer before releasing the request
+        // cancel the producer and release the request
         const abort = () => {
             void reader
                 .cancel(signal.reason)
@@ -254,25 +268,25 @@ export class Server implements AsyncDisposable {
                 .finally(finish);
         };
 
-        // forward cancellation and preserve stream errors
+        // forward cancellation and keep stream errors
         let responseError: unknown;
         signal.addEventListener("abort", abort, { once: true });
         if (signal.aborted) {
             abort();
         }
 
-        // release the request after its response stream settles
+        // release the request when the stream settles
         const body = new ReadableStream<Uint8Array>({
             async pull(stream) {
                 try {
-                    // propagate cancellation before forwarding the next chunk
+                    // stop on cancellation
                     const next = await reader.read();
                     if (responseError !== undefined) {
                         throw responseError;
                     }
                     signal.throwIfAborted();
 
-                    // close a completed stream or forward its next chunk
+                    // close or forward the next chunk
                     if (next.done) {
                         finish();
                         stream.close();
@@ -300,30 +314,30 @@ export class Server implements AsyncDisposable {
         });
     }
 
-    /** Release a request and wake shutdown when all requests finish. */
+    /** Release a request. */
     #finish(controller: AbortController): void {
-        // wake shutdown after the last response releases its request
+        // wake shutdown after the last request
         this.#requests.delete(controller);
         if (this.#closing && !this.#requests.size) {
             this.#drained.resolve();
         }
     }
 
-    /** Drain within the deadline and leave forced termination to the host. */
+    /** Drain within the deadline. */
     async #close(): Promise<void> {
-        // refuse new requests and wait for accepted work to release its resources
+        // refuse new requests
         this.health.set("draining");
         if (!this.#requests.size) {
             this.#drained.resolve();
         }
 
-        // report stopped after every accepted request finishes
+        // report stopped after the requests finish
         const completion = this.#drained.promise.then(() => {
             this.health.set("stopped");
             this.#stopped.resolve();
         });
 
-        // abort overdue requests after the drain deadline
+        // abort overdue requests at the deadline
         const deadline = Promise.withResolvers<never>();
         const timer = setTimeout(() => {
             const error = new DOMException("service drain deadline exceeded", "TimeoutError");
@@ -334,48 +348,55 @@ export class Server implements AsyncDisposable {
             deadline.reject(error);
         }, this.#options.drainTimeout);
 
-        // bound the caller's wait while draining retains its own completion promise
+        // wait for draining or the deadline
         try {
             await Promise.race([completion, deadline.promise]);
         } finally {
+            // stop the controllers
             clearTimeout(timer);
+            this.#reconciling.abort();
+            await this.#controlled;
         }
     }
 }
 
-/** Authentication, authorization, resources and lifecycle for one hosted service. */
+/** The options of a hosted service. */
 export interface ServerOptions extends Omit<ServiceImplementation, "service"> {
-    /** Readiness shared with the host. */
+    /** The health. */
     health: Health;
-    /** Fixed receiving package identifier. */
+    /** The receiving package. */
     audience: PackageId;
-    /** The one scope the service serves, such as a space, host or account; absent for regional services serving many. */
+    /** The one scope the service serves, absent for regional services. */
     scope?: string;
-    /** Installation resource clients selected by the host. */
+    /** The installation's resource clients. */
     resources: ResourceContext;
-    /** Verify credentials; return null only when the request has no credential. */
+    /** Verify credentials, returning null without a credential. */
     authenticate(request: Request): Promise<Caller | null>;
-    /** Enforce installation restrictions and host-only access requirements. */
+    /** Enforce installation and host-only requirements. */
     authorizeHost(call: ProcedureCall<ServiceContext>): Promise<void>;
-    /** Maximum graceful drain time in milliseconds before aborting outstanding requests. */
+    /** The longest drain, in milliseconds. */
     drainTimeout: number;
+    /** This instance's lease holder name. */
+    instance?: string;
 }
 
-/** Implemented procedures, domain enforcement and resource lifecycle. */
+/** The procedures and enforcement of a service. */
 export interface ServiceImplementation extends Omit<HandlerOptions<ServiceContext>, "health"> {
-    /** The declared service these procedures implement. */
+    /** The declared service. */
     readonly service: Service;
-    /** Application procedures receiving the standard service context. */
+    /** The procedures. */
     router: Router<ServiceRouter, ServiceContext>;
-    /** Response headers enforced on every response, including failures and probes. */
+    /** The headers of every response. */
     responseHeaders?: ConstructorParameters<typeof Headers>[0];
-    /** The policies deciding the procedures that require a permission and the permissions handlers require. */
+    /** The policies deciding permissions. */
     access?: ServiceAccess;
-    /** Dispatch an additional HTTP protocol with its own authentication, or return undefined. */
+    /** Serve another HTTP protocol, or return undefined. */
     route?(request: Request): Promise<Response | undefined>;
+    /** The service's controllers. */
+    readonly controllers?: readonly Controller[];
 }
 
-/** Require a policy of the service's authorizer to declare every permission a procedure requires. */
+/** Require a policy for every procedure permission. */
 function requirePolicies(router: unknown, access: ServiceAccess | undefined): void {
     // check each procedure's permission
     if (isProcedure(router)) {
@@ -384,7 +405,7 @@ function requirePolicies(router: unknown, access: ServiceAccess | undefined): vo
             return;
         }
 
-        // require a target and a policy declaring the permission
+        // require a target and a declaring policy
         if (access?.target === undefined) {
             throw new TypeError(
                 `procedures requiring ${permission.name} need service access with targets`,
@@ -407,14 +428,14 @@ function requirePolicies(router: unknown, access: ServiceAccess | undefined): vo
     }
 }
 
-/** Attach the watermarks a request's writes reached to its response. */
+/** Attach the request's watermarks to its response. */
 function attachBookmark(response: Response, observed: Bookmark): Response {
-    // keep a response without writes unchanged
+    // keep a response without writes
     if (observed.watermarks.length === 0) {
         return response;
     }
 
-    // copy the response with the bookmark header
+    // add the bookmark header
     const headers = new Headers(response.headers);
     headers.set(BOOKMARK_HEADER, observed.format());
 

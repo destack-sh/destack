@@ -5,43 +5,43 @@ import { reportError } from "./error.ts";
 import type { HandlerOptions } from "./handler.ts";
 import { ServiceError } from "../error/index.ts";
 
-/** A procedure invocation evaluated by the host's authorization policy. */
+/** A procedure call. */
 export interface ProcedureCall<State extends Context> {
-    /** Declared authentication, permission, and audit requirements. */
+    /** The access requirements. */
     access: ProcedureAccess;
-    /** Procedure keys within the service. */
+    /** The procedure's key path. */
     path: readonly string[];
-    /** Request input, which the policy must validate before interpreting. */
+    /** The unvalidated input. */
     input: unknown;
-    /** Host-provided request context. */
+    /** The request context. */
     context: State;
-    /** Request cancellation. */
+    /** The cancellation signal. */
     signal?: AbortSignal;
 }
 
-/** An invocation's audit event, including stream completion or cancellation. */
+/** An audit event of a call. */
 export interface ProcedureAudit<State extends Context> {
-    /** The invocation evaluated by the host. */
+    /** The call. */
     call: ProcedureCall<State>;
-    /** The stage reached by the invocation. */
+    /** The stage the call reached. */
     outcome: "started" | "success" | "failure" | "denied" | "cancelled";
-    /** The failure supplied to the host, which must redact its persisted record. */
+    /** The failure. */
     error?: unknown;
 }
 
-/** Authorize and audit an invocation before returning its value or stream. */
+/** Authorize and audit a call. */
 export async function invokeProcedure<State extends Context>(
     call: ProcedureCall<State>,
     next: () => Promise<unknown>,
     options: Pick<HandlerOptions<State>, "authorize" | "audit">,
 ): Promise<unknown> {
-    // persist the attempt before allowing application code to execute
+    // record the attempt before the handler runs
     const audit = call.access.audit ? options.audit! : undefined;
     if (audit) {
         await recordAudit({ call, outcome: "started" }, audit);
     }
 
-    // distinguish authorization denial from an application failure
+    // tell a denial from a failure
     try {
         if (options.authorize) {
             await options.authorize(call);
@@ -54,7 +54,7 @@ export async function invokeProcedure<State extends Context>(
         throw failure;
     }
 
-    // retain the actual application outcome independently of audit delivery failures
+    // record the handler's outcome
     let result: unknown;
     try {
         result = await next();
@@ -66,7 +66,7 @@ export async function invokeProcedure<State extends Context>(
         throw failure;
     }
 
-    // retain stream completion until its iterator closes
+    // record a stream when it closes
     if (result !== null && typeof result === "object" && Symbol.asyncIterator in result) {
         return streamProcedure(result as AsyncIterable<unknown>, call, options);
     }
@@ -77,13 +77,13 @@ export async function invokeProcedure<State extends Context>(
     return result;
 }
 
-/** Report stream failures and record declared audit outcomes. */
+/** Authorize and audit a stream. */
 function streamProcedure<State extends Context>(
     stream: AsyncIterable<unknown>,
     call: ProcedureCall<State>,
     options: Pick<HandlerOptions<State>, "authorize" | "audit">,
 ): AsyncIteratorClass<unknown> {
-    // retain completion separately from consumer cancellation
+    // record completion apart from cancellation
     const audit = call.access.audit ? options.audit! : undefined;
     let outcome: ProcedureAudit<State>["outcome"] = "cancelled";
     let failure: unknown;
@@ -92,7 +92,7 @@ function streamProcedure<State extends Context>(
     return new AsyncIteratorClass(
         async () => {
             try {
-                // recheck long-lived subscriptions before work and immediately before disclosure
+                // recheck access before each value
                 if (options.authorize) {
                     await options.authorize(call);
                 }
@@ -113,7 +113,7 @@ function streamProcedure<State extends Context>(
             }
         },
         async (reason) => {
-            // release and audit streams even when cancelled before their first value
+            // record the stream's end
             try {
                 if (reason !== "next" || outcome !== "success") {
                     await iterator.return?.();
@@ -131,7 +131,7 @@ function streamProcedure<State extends Context>(
     );
 }
 
-/** Record an audit event and preserve any preceding application failure. */
+/** Record an audit event, keeping any handler failure. */
 async function recordAudit<State extends Context>(
     event: ProcedureAudit<State>,
     audit: (event: ProcedureAudit<State>) => Promise<void>,
@@ -139,7 +139,7 @@ async function recordAudit<State extends Context>(
     try {
         await audit(event);
     } catch (error) {
-        // retain both failures when audit storage rejects an application failure record
+        // keep both failures
         const failure =
             event.error !== undefined
                 ? new AggregateError([event.error, error], "procedure failure audit failed")
@@ -149,7 +149,7 @@ async function recordAudit<State extends Context>(
     }
 }
 
-/** Classify a reported failure as a denial of access or a failure of the call. */
+/** Classify a failure as a denial or a failure. */
 function outcomeOf(failure: ServiceError<string, unknown>): "denied" | "failure" {
     return failure.status === 401 || failure.status === 403 ? "denied" : "failure";
 }

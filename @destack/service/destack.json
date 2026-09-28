@@ -34,11 +34,11 @@
                 "describe": "./inspect#describeServiceConnection"
             }
         },
-        "defineSubscription": {
+        "defineWatch": {
             "module": 1,
             "inspect": {
-                "kind": "subscription",
-                "describe": "./inspect#describeSubscription"
+                "kind": "watch",
+                "describe": "./inspect#describeWatch"
             }
         },
         "defineWebhook": {

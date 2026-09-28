@@ -10,7 +10,7 @@ import { hosting } from "../server/tests/fixture.ts";
 import { ClientContext } from "./context.ts";
 
 test("route independent connections through typed clients and retain verified caller identity", async () => {
-    // provide one API used through independently selected connections
+    // provide one API through two connections
     const router = {
         read: defineProcedure({ authentication: "identity", permission: null, audit: false })
             .route({ method: "GET", path: "/value" })
@@ -35,7 +35,7 @@ test("route independent connections through typed clients and retain verified ca
     });
 
     try {
-        // bind each declared dependency once without sharing caller credentials
+        // bind each dependency once
         const context = new ResourceContext();
         for (const [connection, user] of [
             [personal, "alice"],
@@ -52,7 +52,7 @@ test("route independent connections through typed clients and retain verified ca
             ["alice", "bob"],
         );
 
-        // reject missing and duplicate bindings before sending a request
+        // reject missing and duplicate bindings
         expect(() => personal.get(new ResourceContext())).toThrow(
             "resource is not bound: personal",
         );
@@ -65,7 +65,7 @@ test("route independent connections through typed clients and retain verified ca
             ).bind(personal),
         ).toThrow("resource already bound: personal");
 
-        // reject absent or ambiguous host configuration before constructing a client
+        // reject absent or ambiguous configuration
         for (const services of [[], [binding, binding]]) {
             const client = new ClientContext({ packageId: hosting.audience, services }, {});
             expect(() => client.bind(personal)).toThrow(

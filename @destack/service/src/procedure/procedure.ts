@@ -2,20 +2,20 @@ import { oc } from "@orpc/contract";
 import { schema } from "@destack/schema";
 import { PermissionReference, type Permission } from "@destack/access/declare";
 
-/** Access and audit requirements interpreted by the service's middleware. */
+/** The access and audit requirements of a procedure. */
 export const ProcedureAccess = schema.object({
-    /** Credentials required before invoking the procedure. */
+    /** The required credentials. */
     authentication: schema.enum(["public", "identity", "host"]),
-    /** The permission the service checks on the call's target before the handler, null when the handler decides through the authorizer itself. */
+    /** The permission checked on the call's target, null when the handler checks itself. */
     permission: PermissionReference.nullable(),
-    /** Whether successful and failed attempts require security audit records. */
+    /** Whether the call records audit events. */
     audit: schema.boolean(),
 });
 
-/** Access and audit requirements declared by a procedure. */
+/** The access and audit requirements of a procedure. */
 export type ProcedureAccess = schema.Infer<typeof ProcedureAccess>;
 
-/** Declare a procedure with explicit access requirements, a permission some policy declares, and conventional errors. */
+/** Declare a procedure with its access requirements. */
 export function defineProcedure(
     access: Omit<ProcedureAccess, "permission"> & { readonly permission: Permission | null },
 ) {

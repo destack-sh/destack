@@ -5,42 +5,42 @@ import type { ResourceContext } from "@destack/resource/context";
 import type { ServiceImplementation } from "../server/index.ts";
 import type { TriggerImplementation } from "../trigger/index.ts";
 
-/** A declared unit of deployment: code started once per instance and scaled together. */
+/** A declared unit of deployment. */
 export interface Workload extends Declaration {
-    /** Capacity and lifecycle policy for each instance. */
+    /** The compute settings of each instance. */
     readonly compute?: ComputeDefinition;
-    /** Start one instance and return the services and triggers it implements. */
+    /** Start one instance and return its services and triggers. */
     start(context: WorkloadContext): WorkloadImplementation | Promise<WorkloadImplementation>;
 }
 
-/** Declare a workload with its compute settings and start function. */
+/** Declare a workload. */
 export function defineWorkload(
     definition: WorkloadDefinition & Pick<Workload, "start">,
     module?: ModuleMetadata,
 ): Workload {
-    // stamp the declaring package supplied by the module transform
+    // stamp the declaring package
     const owner = declaringModule(module, "defineWorkload").package;
     const { start, ...fields } = definition;
 
     return Object.freeze({ ...WorkloadDefinition.parse(fields), start, package: owner });
 }
 
-/** Host-supplied resources and cooperative workload lifecycle. */
+/** The context of a starting workload. */
 export interface WorkloadContext {
-    /** Prepared resource and service clients selected for this installation. */
+    /** The installation's resource and service clients. */
     readonly resources: ResourceContext;
-    /** Cancellation for observations and background activity. */
+    /** The shutdown signal. */
     readonly signal: AbortSignal;
-    /** Request that the hosting adapter stop this workload. */
+    /** Request shutdown. */
     shutdown(): void;
-    /** Register cleanup in reverse acquisition order, after service draining. */
+    /** Register cleanup, run in reverse order after draining. */
     defer(dispose: () => void | PromiseLike<void>): void;
 }
 
-/** Services and triggers implemented together by one workload. */
+/** The services and triggers of one workload. */
 export interface WorkloadImplementation {
-    /** Implementations of declared services. */
+    /** The service implementations. */
     readonly services: readonly ServiceImplementation[];
-    /** Handlers of declared schedules, webhooks and subscriptions. */
+    /** The trigger handlers. */
     readonly triggers?: readonly TriggerImplementation[];
 }

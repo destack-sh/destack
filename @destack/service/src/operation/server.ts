@@ -3,12 +3,12 @@ import { implement } from "../server/handler.ts";
 import { defineOperationProcedures } from "./procedure.ts";
 import type { OperationStore } from "./store.ts";
 
-/** Implement the shared operation API using an authorized in-memory store. */
+/** Implement the operation procedures on a store. */
 export function implementOperation<Result, Progress>(
     store: OperationStore<Result, Progress>,
     path: `/${string}` = "/operations",
 ) {
-    // implement the typed procedures under the host's authenticated context
+    // implement the procedures
     const definition = defineOperationProcedures(store.definition, path);
     const implementation = implement(definition).$context<ServiceContext>();
 

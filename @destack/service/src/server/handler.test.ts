@@ -14,7 +14,7 @@ import type {} from "@destack/package/import-meta";
 test("enforce access and audit requirements through streamed HTTP calls", async ({
     onTestFinished,
 }) => {
-    // collect the telemetry produced by real client and handler calls
+    // collect telemetry
     const spans: ReadableSpan[] = [];
     const reader = new CallMetrics();
     const telemetry = await startTelemetry({
@@ -63,7 +63,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         }),
     });
 
-    // authorize the caller and the complete declared permission
+    // authorize the caller and permission
     const health = new Health("notes");
     const authorize: NonNullable<HandlerOptions<{ caller: string }>["authorize"]> = async ({
         context,
@@ -80,7 +80,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         }
     };
 
-    // reject missing enforcement during handler construction
+    // reject missing enforcement
     expect(() => new ServiceHandler(router, { health })).toThrow(
         new TypeError("protected procedures require authorization"),
     );
@@ -88,7 +88,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         new TypeError("audited procedures require audit recording"),
     );
 
-    // retain audit outcomes through a real HTTP client and handler
+    // record audit outcomes
     const records: { caller: string; outcome: string }[] = [];
     const handler = new ServiceHandler(router, {
         health,
@@ -106,7 +106,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         },
     });
 
-    // acknowledge success only after the complete stream finishes
+    // record success after the stream finishes
     const values = [];
     for await (const value of await client.read()) {
         values.push(value);
@@ -117,7 +117,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         { caller: "alice", outcome: "success" },
     ]);
 
-    // record denied access without entering the application handler
+    // record a denial without running the handler
     const denied = createClient(service, {
         url: "https://test.local",
         fetch: async (request) => {
@@ -135,7 +135,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         { caller: "bob", outcome: "denied" },
     ]);
 
-    // refuse execution when required audit persistence fails
+    // refuse execution when audit fails
     const unavailable = new ServiceHandler(router, {
         health,
         authorize,
@@ -161,7 +161,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     });
     expect(invoked).toBe(1);
 
-    // expose probes independently of application authorization
+    // serve probes without authorization
     const starting = await handler.handle(new Request("https://test.local/readyz"), {
         context: { caller: "" },
     });
@@ -172,7 +172,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     });
     expect(ready.matched && ready.response.status).toBe(200);
 
-    // retain full call outcomes without request values in metric attributes
+    // record call metrics without request values
     await telemetry.flush();
     const collected = await reader.collect();
     const calls = collected.resourceMetrics.scopeMetrics
@@ -203,7 +203,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     expect(new Set(spans.map((span) => span.spanContext().traceId)).size).toBe(3);
 });
 
-/** Revoke access while a protected stream waits for its next value. */
+/** Withhold streamed values after access is revoked. */
 test("withhold streamed values after access revocation", async () => {
     const waiting = Promise.withResolvers<void>();
     const release = Promise.withResolvers<void>();
@@ -228,7 +228,7 @@ test("withhold streamed values after access revocation", async () => {
         }),
     });
 
-    // exercise the HTTP transport while authorization changes during the pending read
+    // revoke access during a pending read
     const handler = new ServiceHandler(router, {
         health: new Health("watch"),
         authorize: async () => {
@@ -265,7 +265,7 @@ test("withhold streamed values after access revocation", async () => {
     expect(outcomes).toEqual(["started", "denied"]);
 });
 
-/** Collect metrics directly after the HTTP calls finish. */
+/** Collect metrics after the calls finish. */
 class CallMetrics extends MetricReader {
     /** Complete synchronous collection. */
     protected async onForceFlush(): Promise<void> {}

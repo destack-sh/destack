@@ -76,7 +76,7 @@ test("start two services and drain accepted requests before shared cleanup", asy
         { resources: hosting.resources, service: () => ({ ...hosting, drainTimeout: 1000 }) },
     );
 
-    // expose every declared service through the same runtime-independent dispatcher
+    // dispatch to every service
     const probe = await instance.fetch(second, new Request("https://fixture.test/readyz"));
     expect([probe.status, await probe.text()]).toEqual([200, "ok\n"]);
     const request = instance.fetch(first, new Request("https://fixture.test/work"));
@@ -85,7 +85,7 @@ test("start two services and drain accepted requests before shared cleanup", asy
     expect(instance.close()).toBe(closing);
     expect(events).toEqual(["shutdown"]);
 
-    // hold resources until the accepted response is consumed
+    // hold resources until the response is consumed
     released.resolve();
     const response = await request;
     expect(await response.text()).toBe("complete");
@@ -127,7 +127,7 @@ test("retain shared resources until an overdue request observes cancellation", a
         { resources: hosting.resources, service: () => ({ ...hosting, drainTimeout: 5 }) },
     );
 
-    // observe failures immediately while holding the cancelled request open
+    // observe failures while the request stays open
     const response = instance.fetch(first, new Request("https://fixture.test/work"));
     const responseFailure = expect(response).rejects.toMatchObject({
         name: "TimeoutError",
@@ -142,7 +142,7 @@ test("retain shared resources until an overdue request observes cancellation", a
     await cancelled.promise;
     expect(events).toEqual([]);
 
-    // release only after the handler stops accessing its resources
+    // release after the handler stops
     released.resolve();
     await Promise.all([responseFailure, closeFailure]);
     expect(events).toEqual(["resources"]);
@@ -174,7 +174,7 @@ test("deliver a schedule's occurrence and a webhook's delivery through the workl
     const github = defineWebhook({
         name: "github",
         verification: "github",
-        secret: { package: first.package, name: "github-webhook" },
+        route: "/",
     });
     await using instance = await WorkloadInstance.start(
         defineWorkload({
@@ -189,31 +189,37 @@ test("deliver a schedule's occurrence and a webhook's delivery through the workl
                             delivered.push([nightly.name, occurrence.scheduledAt]);
                         },
                     },
-                    {
-                        trigger: github,
-                        handle: async (delivery: WebhookDelivery, signal: AbortSignal) => {
+                    github.handle(
+                        async (delivery: WebhookDelivery, signal: AbortSignal) => {
                             signal.throwIfAborted();
                             delivered.push([github.name, delivery.id]);
                         },
-                    },
+                        { secret: async () => "secret" },
+                    ),
                 ],
             }),
         }),
         { resources: hosting.resources, service: () => ({ ...hosting, drainTimeout: 1000 }) },
     );
 
-    // deliver to each implemented trigger, listed in the order the workload returned them
+    // list the triggers in workload order
     expect(instance.triggers).toEqual([nightly, github]);
     const signal = new AbortController().signal;
     await instance.deliver(nightly, { scheduledAt: 1800000000000 }, signal);
-    const delivery = { id: "delivery-1", event: "push", payload: {}, receivedAt: 1 };
+    const delivery = {
+        id: "delivery-1",
+        event: "push",
+        payload: {},
+        parameters: {},
+        receivedAt: 1,
+    };
     await instance.deliver(github, delivery, signal);
     expect(delivered).toEqual([
         ["nightly", 1800000000000],
         ["github", "delivery-1"],
     ]);
 
-    // reject a trigger the workload does not implement, naming its kind
+    // reject an unimplemented trigger
     const weekly = defineSchedule({
         name: "weekly",
         timing: "cron",

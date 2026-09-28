@@ -14,27 +14,27 @@ import { identifier, schema } from "@destack/schema";
 import { ServiceError } from "../error/index.ts";
 import type { TokenIssuerAuthority } from "./token.ts";
 
-/** Maximum age of externally verified identity and membership records. */
-export const CALLER_LIFETIME_MS = 60000;
-/** Maximum difference between the authority's clock and the receiving service's clock. */
-export const CALLER_CLOCK_TOLERANCE_MS = 5000;
+/** The maximum age of verified identity and membership records. */
+export const CALLER_LIFETIME_MILLISECONDS = 60000;
+/** The maximum clock difference between the authority and the receiving service. */
+export const CALLER_CLOCK_TOLERANCE_MILLISECONDS = 5000;
 
-/** Verified caller state established by the receiving host's credential verifier. */
+/** A verified caller. */
 export class Caller<Credential = unknown> {
-    /** Host-verified authentication result; never accepted directly from request input. */
+    /** The host-verified authentication. */
     readonly authentication: CallerAuthentication<Credential>;
 
-    /** Retain a verified credential, its audience and its current subject relationships. */
+    /** Create the caller from its verified authentication. */
     constructor(authentication: CallerAuthentication<Credential>) {
         this.authentication = structuredClone(authentication);
     }
 
-    /** Read the credential reference used for authoritative local rechecks. */
+    /** The credential reference. */
     get credential(): Credential {
         return this.authentication.credential;
     }
 
-    /** Qualify retry identity by both the represented subject and the principal sending the request. */
+    /** The retry identity of the subject and the sending principal. */
     get id(): string {
         const { delegates, subject } = this.authentication;
         const sending = delegates?.at(-1)?.subject ?? subject;
@@ -42,25 +42,25 @@ export class Caller<Credential = unknown> {
         return JSON.stringify([subjectKey(subject), subjectKey(sending)]);
     }
 
-    /** Require authentication for the audience and scope that is still fresh at a time. */
+    /** Require current authentication for the audience and scope. */
     requireCurrent(audience: PackageId, now: number, scope?: string): void {
-        // reject a different audience or scope and stale authentication
+        // reject another audience or scope and stale authentication
         const authentication = this.authentication;
         if (
             authentication.audience !== audience ||
             (authentication.scope !== undefined && authentication.scope !== scope) ||
             !Number.isFinite(authentication.verifiedAt) ||
             !Number.isFinite(authentication.expiresAt) ||
-            authentication.verifiedAt > now + CALLER_CLOCK_TOLERANCE_MS ||
+            authentication.verifiedAt > now + CALLER_CLOCK_TOLERANCE_MILLISECONDS ||
             now >= authentication.expiresAt ||
-            now >= authentication.verifiedAt + CALLER_LIFETIME_MS
+            now >= authentication.verifiedAt + CALLER_LIFETIME_MILLISECONDS
         ) {
             throw new ServiceError("UNAUTHORIZED", {
                 message: "caller authentication is expired or has a different audience or scope",
             });
         }
 
-        // require the represented subject among the verified identities used by the evaluator
+        // require the subject among the verified identities
         if (
             !authentication.subjects.some((subject) => sameSubject(subject, authentication.subject))
         ) {
@@ -70,7 +70,7 @@ export class Caller<Credential = unknown> {
         }
     }
 
-    /** Build a current access context after enforcing audience and authentication freshness. */
+    /** Build an access context for the audience after checking freshness. */
     context(audience: PackageId, now = Date.now(), scope?: string): AccessContext {
         this.requireCurrent(audience, now, scope);
         const authentication = this.authentication;
@@ -94,13 +94,13 @@ export class Caller<Credential = unknown> {
         };
     }
 
-    /** Require identity claims within an issuer's authority, with bound deployments and a valid delegation chain. */
+    /** Require identity claims within an issuer's authority. */
     requireAuthority(authority: TokenIssuerAuthority): void {
         // collect every asserted identity
         const authentication = this.authentication;
         const subjects = [authentication.subject, ...authentication.subjects];
 
-        // allow a space signing key to assert only installations of its own space
+        // allow a space key to assert only installations of its space
         if (
             authority.kind === "space" &&
             (authentication.scope !== authority.spaceId ||
@@ -114,7 +114,7 @@ export class Caller<Credential = unknown> {
             throw new ServiceError("UNAUTHORIZED", { message: "token exceeds issuer authority" });
         }
 
-        // bind the installations of the token's space, deployed packages, to exactly one authenticated deployment
+        // bind each installation of the token's space to one deployment
         const workloads = [
             ...subjects,
             ...(authentication.delegates ?? []).map((delegate) => delegate.subject),
@@ -146,7 +146,7 @@ export class Caller<Credential = unknown> {
             });
         }
 
-        // require an acyclic chain of single principals, where only a user impersonating the subject acts with its full authority
+        // require an acyclic chain of single principals
         const delegates = authentication.delegates ?? [];
         const chain = [authentication.subject, ...delegates.map((delegate) => delegate.subject)];
         if (
@@ -165,47 +165,47 @@ export class Caller<Credential = unknown> {
     }
 }
 
-/** Credential verification performed locally or by an authenticated authoritative service. */
+/** A verified credential. */
 export interface CallerAuthentication<Credential = unknown> {
-    /** Exact authority scope when the credential is scoped. */
+    /** The authority scope of a scoped credential. */
     readonly scope?: string;
-    /** Scope-qualified credential restrictions; an empty list grants no permissions. */
+    /** The credential's permission restrictions. */
     readonly permissions?: AccessContext["permissions"];
-    /** Credential reference for subsequent authoritative checks, excluding raw secrets. */
+    /** The credential reference. */
     readonly credential: Credential;
-    /** Receiving package's immutable identifier. */
+    /** The receiving package. */
     readonly audience: PackageId;
-    /** Verification time in Unix milliseconds, established by the credential authority. */
+    /** The verification time, in Unix milliseconds. */
     readonly verifiedAt: number;
-    /** Exclusive expiry in Unix milliseconds, bounded by the credential and assertion. */
+    /** The exclusive expiry, in Unix milliseconds. */
     readonly expiresAt: number;
-    /** Represented user or software identity. */
+    /** The represented user or software identity. */
     readonly subject: Subject;
-    /** How strongly and how recently the represented subject authenticated. */
+    /** How strongly and how recently the subject authenticated. */
     readonly assurance?: AuthenticationAssurance;
-    /** Identifiers, such as email addresses, the represented subject proved control of. */
+    /** The identifiers the subject proved control of. */
     readonly identifiers?: readonly VerifiedIdentifier[];
-    /** The verified principals and the subject sets, such as account members, the caller belongs to. */
+    /** The verified principals and the subject sets the caller belongs to. */
     readonly subjects: readonly Subject[];
-    /** The principals acting in order, each for the one before and the first for the subject; the last sends the request. */
+    /** The acting principals in order, the last sending the request. */
     readonly delegates?: readonly Delegate[];
-    /** Verified deployments for represented and acting workload identities. */
+    /** The verified deployments of workload identities. */
     readonly deployments?: readonly CallerDeployment[];
-    /** Trusted attributes used by declared access policies. */
+    /** The trusted attributes access policies read. */
     readonly attributes?: AccessContext["attributes"];
 }
 
 /** A workload identity authenticated within one deployment. */
 export const CallerDeployment = schema.object({
-    /** Represented or acting workload identity. */
+    /** The workload identity. */
     subject: Subject,
-    /** Exact authenticated deployment. */
+    /** The deployment. */
     id: identifier("deployment"),
 });
 /** A workload identity authenticated within one deployment. */
 export type CallerDeployment = schema.Infer<typeof CallerDeployment>;
 
-/** Whether a credential names its kind and identifier, identifying the session it authenticates. */
+/** Whether a credential has a kind and an identifier. */
 function isCredentialReference(credential: unknown): credential is { kind: string; id: string } {
     return (
         typeof credential === "object" &&

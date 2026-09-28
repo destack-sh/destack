@@ -4,26 +4,26 @@ import { defineSchema, schema } from "@destack/schema";
 /** The header carrying watermarks on requests and responses. */
 export const BOOKMARK_HEADER = "destack-bookmark";
 
-/** A position in one scope's log, reached by a write or required before a read. */
+/** A position in one scope's log. */
 export const Watermark = defineSchema(
     schema.object({
         /** The scope whose database holds the log. */
         scope: schema.string().min(1),
-        /** The log's epoch, a time-ordered identifier renewed when the database is restored. */
+        /** The log's epoch, renewed when the database is restored. */
         epoch: schema.string().min(1),
         /** The log sequence reached within the epoch. */
         sequence: schema.number().int().nonnegative(),
     }),
 );
-/** A position in one scope's log, reached by a write or required before a read. */
+/** A position in one scope's log. */
 export type Watermark = schema.Infer<typeof Watermark>;
 
-/** The latest watermark per scope that a client observed or a request requires. */
+/** The latest watermark per scope. */
 export class Bookmark {
     /** The latest watermark per scope. */
     #watermarks: Watermark[] = [];
 
-    /** Read the watermarks of a header value, rejecting a malformed one. */
+    /** Parse a header value. */
     static parse(header: string | null): Bookmark {
         const bookmark = new Bookmark();
         if (header) {
@@ -40,7 +40,7 @@ export class Bookmark {
         return this.#watermarks;
     }
 
-    /** Merge a watermark, keeping per scope the newest epoch and its highest sequence. */
+    /** Merge a watermark, keeping the newest per scope. */
     observe(watermark: Watermark): void {
         const index = this.#watermarks.findIndex((known) => known.scope === watermark.scope);
 

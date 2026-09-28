@@ -1,21 +1,17 @@
-import { canonicalize } from "@destack/schema/json";
+import { digest } from "@destack/schema/json";
 import { schema } from "@destack/schema";
 import { v7 } from "uuid";
 import { ServiceError } from "../error/index.ts";
 
-/** Maximum age of a retriable mutation, measured from its immutable UUID timestamp. */
-export const REQUEST_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
-/** Maximum accepted clock difference for newly issued request keys. */
-const CLOCK_TOLERANCE_MS = 5 * 60 * 1000;
+/** The retry lifetime of a request identifier. */
+export const REQUEST_LIFETIME_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
+/** The clock tolerance for new request identifiers. */
+const CLOCK_TOLERANCE_MILLISECONDS = 5 * 60 * 1000;
 
-/** The originals of copied requests, each held while its copy lives. */
+/** The originals of copied requests. */
 const ORIGINALS = new WeakMap<Request, Request>();
 
-/**
- * Copy a request with changes, holding the original while the copy lives.
- *
- * A copy's signal follows the original's only while the original lives.
- */
+/** Copy a request with changes, holding the original while the copy lives. */
 export function copyRequest(request: Request, changes: RequestInit): Request {
     const copy = new Request(request, changes);
     ORIGINALS.set(copy, request);
@@ -23,25 +19,25 @@ export function copyRequest(request: Request, changes: RequestInit): Request {
     return copy;
 }
 
-/** A timestamped idempotency key retained across attempts of the same mutation. */
+/** A timestamped request identifier kept across retries. */
 export const RequestId = {
     /** The schema of a request identifier, a UUIDv7. */
     schema: schema.uuidv7(),
 
-    /** Create a request identifier once, before the first attempt. */
+    /** Create a request identifier. */
     create(): string {
         return v7();
     },
 
-    /** Read the retry deadline of a request identifier, rejecting expired or future ones. */
+    /** Read the retry deadline of a request identifier. */
     expiry(requestId: string, now = Date.now()): number {
-        // read the creation time from the UUIDv7 key
+        // read the creation time
         const key = RequestId.schema.parse(requestId);
         const createdAt = Number.parseInt(key.slice(0, 13).replaceAll("-", ""), 16);
-        const expiresAt = createdAt + REQUEST_LIFETIME_MS;
+        const expiresAt = createdAt + REQUEST_LIFETIME_MILLISECONDS;
 
-        // reject keys outside the retry period, even after their stored responses are removed
-        if (createdAt > now + CLOCK_TOLERANCE_MS || expiresAt <= now) {
+        // reject keys outside the retry period
+        if (createdAt > now + CLOCK_TOLERANCE_MILLISECONDS || expiresAt <= now) {
             throw new ServiceError("PRECONDITION_FAILED", {
                 message: "request identifier is outside its retry period",
             });
@@ -51,29 +47,26 @@ export const RequestId = {
     },
 };
 
-/** The authenticated caller and scope containing a logical mutation. */
+/** The caller and scope of a request. */
 export interface RequestIdentity {
-    /** Stable authenticated principal, independent of credential rotation. */
+    /** The authenticated principal. */
     readonly caller: string;
-    /** Account, space or other authoritative scope. */
+    /** The account, space or other scope. */
     readonly scope: string;
-    /** The client-generated mutation identifier. */
+    /** The request identifier. */
     readonly requestId: string;
 }
 
-/** A fingerprint of a request's input: the SHA-256 digest of its canonical JSON without its sensitive values. */
+/** A fingerprint of a request's input. */
 export interface RequestFingerprint {
     /** The digest, as lowercase hexadecimal. */
     readonly digest: string;
 }
 
-/** A fingerprint of a request's input, which holds nothing derived from its sensitive values. */
+/** A fingerprint of a request's input. */
 export const RequestFingerprint = {
-    /** Digest the canonical JSON of an input without the values its schema marks sensitive. */
+    /** Digest an input's canonical JSON without its sensitive values. */
     async hash(input: schema.Schema, value: unknown): Promise<RequestFingerprint> {
-        const canonical = canonicalize(schema.json().parse(schema.redact(input, value) ?? null));
-        const bytes = new TextEncoder().encode(canonical);
-
-        return { digest: new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)).toHex() };
+        return { digest: await digest(schema.redact(input, value) ?? null) };
     },
 };

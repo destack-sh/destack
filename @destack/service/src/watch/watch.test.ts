@@ -1,21 +1,21 @@
 import { expect, test } from "@destack/test";
 import { Condition } from "@destack/db/query";
-import { describeSubscription } from "../inspect/index.ts";
+import { describeWatch } from "../inspect/index.ts";
 import { defineService } from "../declare/service.ts";
-import { defineSubscription, MAX_LAG_MILLISECONDS } from "./subscription.ts";
+import { defineWatch, MAX_LAG_MILLISECONDS } from "./watch.ts";
 
-test("describe a declared subscription with its object reference, condition, operations and start", () => {
+test("describe a declared watch with its object reference, condition, operations and start", () => {
     const note = { package: defineService("notes", {}).package, name: "note" };
-    const subscription = defineSubscription({
+    const watch = defineWatch({
         name: "published",
         object: note,
         where: Condition.eq("status", "published"),
         on: ["create", "update"],
     });
 
-    expect(subscription.kind).toBe("subscription");
-    expect(subscription.object).toBe(note);
-    expect(describeSubscription(subscription)).toEqual({
+    expect(watch.kind).toBe("watch");
+    expect(watch.object).toBe(note);
+    expect(describeWatch(watch)).toEqual({
         name: "published",
         version: 1,
         object: { packageId: note.package.id, name: "note" },
@@ -30,10 +30,10 @@ test("describe a declared subscription with its object reference, condition, ope
         maxLag: MAX_LAG_MILLISECONDS,
     });
 
-    // refuse a snapshot for a subscription consuming no creations, which its rows are
+    // refuse a snapshot for a watch without creations
     expect(() =>
-        defineSubscription({ name: "removed", object: note, on: ["delete"], from: "snapshot" }),
+        defineWatch({ name: "removed", object: note, on: ["delete"], from: "snapshot" }),
     ).toThrow(
-        "subscription removed starts with a snapshot, whose rows are created, but consumes no creations",
+        "watch removed starts with a snapshot, whose rows are created, but consumes no creations",
     );
 });

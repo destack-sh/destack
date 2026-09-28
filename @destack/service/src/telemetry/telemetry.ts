@@ -14,23 +14,23 @@ import { AsyncIteratorClass, setGlobalOtelConfig } from "@orpc/shared";
 import { ServiceError } from "../error/index.ts";
 import type {} from "@destack/package/import-meta";
 
-/** The package declaring service instrumentation. */
+/** The instrumenting package. */
 const manifest = import.meta.destack.package;
-/** The call duration buckets in seconds, as the OpenTelemetry semantic conventions advise for request durations. */
+/** The call duration buckets in seconds, from the OpenTelemetry semantic conventions. */
 const DURATION_BUCKETS = [
     0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10,
 ];
 
-/** Record complete RPC calls, including streamed results. */
+/** Record RPC calls, including streams. */
 export class ServiceTelemetry {
-    /** Call durations in seconds. */
+    /** The call durations, in seconds. */
     readonly #duration: Histogram;
     /** The RPC span kind. */
     readonly #kind: SpanKind;
 
-    /** Connect tracing and metrics to the host's providers. */
+    /** Create the telemetry. */
     constructor(kind: "client" | "server") {
-        // connect the providers and create the duration histogram
+        // create the duration histogram
         instrumentService();
         this.#kind = kind === "client" ? SpanKind.CLIENT : SpanKind.SERVER;
         this.#duration = telemetry
@@ -41,9 +41,9 @@ export class ServiceTelemetry {
             });
     }
 
-    /** Measure a call without retaining its inputs or results. */
+    /** Measure a call. */
     invoke(path: readonly string[], next: () => Promise<unknown>): Promise<unknown> {
-        // label the call by its procedure path
+        // label the call by its path
         const attributes: Attributes = { "rpc.system.name": "orpc", "rpc.method": path.join("/") };
 
         return telemetry
@@ -53,19 +53,19 @@ export class ServiceTelemetry {
             );
     }
 
-    /** Keep the span open until the value or stream completes. */
+    /** Trace a call until its value or stream completes. */
     async #invoke(
         next: () => Promise<unknown>,
         attributes: Attributes,
         span: Span,
     ): Promise<unknown> {
-        // use declared procedure names as bounded metric labels
+        // start the timer and span
         const started = performance.now();
         const active = context.active();
         try {
             const result = await next();
 
-            // keep a stream's span open until the stream ends
+            // trace a stream until it ends
             if (result !== null && typeof result === "object" && Symbol.asyncIterator in result) {
                 return this.#watch(
                     result as AsyncIterable<unknown>,
@@ -76,7 +76,7 @@ export class ServiceTelemetry {
                 );
             }
 
-            // record a value's call when it returns
+            // record a value call
             this.#record(started, attributes, span);
 
             return result;
@@ -86,7 +86,7 @@ export class ServiceTelemetry {
         }
     }
 
-    /** Retain timing until a consumer completes or cancels the stream. */
+    /** Trace a stream until it completes or is cancelled. */
     #watch(
         stream: AsyncIterable<unknown>,
         started: number,
@@ -94,7 +94,7 @@ export class ServiceTelemetry {
         span: Span,
         active: Context,
     ): AsyncIteratorClass<unknown, unknown, void> {
-        // retain failures until iterator cleanup records the final outcome
+        // keep the failure until the stream closes
         let failure: unknown;
         const iterator = stream[Symbol.asyncIterator]();
 
@@ -108,7 +108,7 @@ export class ServiceTelemetry {
                 }
             },
             async (reason) => {
-                // close even streams cancelled before their first value
+                // record the stream on close
                 try {
                     if (reason !== "next") {
                         attributes["error.type"] = "cancelled";
@@ -124,7 +124,7 @@ export class ServiceTelemetry {
         );
     }
 
-    /** Record bounded failure labels and elapsed seconds. */
+    /** Record a call's outcome and duration. */
     #record(started: number, attributes: Attributes, span: Span, error?: unknown): void {
         // label the failure and end the span
         if (error !== undefined) {
@@ -132,7 +132,7 @@ export class ServiceTelemetry {
                 error instanceof ServiceError ? String(error.status) : "internal";
         }
 
-        // mark failed and cancelled calls, then record the call
+        // mark failed calls, then record the call
         if (attributes["error.type"]) {
             span.setStatus({ code: SpanStatusCode.ERROR });
         }
@@ -142,7 +142,7 @@ export class ServiceTelemetry {
     }
 }
 
-/** Enable procedure and HTTP tracing through the application's telemetry providers. */
+/** Enable procedure and HTTP tracing. */
 function instrumentService(): void {
     setGlobalOtelConfig({
         tracer: trace.getTracer("@destack/service"),

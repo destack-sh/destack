@@ -2,7 +2,7 @@ import { defineSchema, schema, toJsonSchema } from "@destack/schema";
 import { type AnySchema, getEventIteratorSchemaDetails, isContractProcedure } from "@orpc/contract";
 import type { ServiceRouter } from "../service/index.ts";
 
-/** A JSON Schema describing a procedure value. */
+/** A JSON Schema. */
 const JsonSchema = schema.record(schema.string(), schema.json());
 
 /** A procedure's value or event-stream schema. */
@@ -19,34 +19,34 @@ export const PayloadDescription = defineSchema(
             kind: schema.literal("stream"),
             /** The yielded event schema. */
             yields: JsonSchema,
-            /** The final return value schema. */
+            /** The return value schema. */
             returns: JsonSchema.optional(),
         }),
     ]),
 );
 
-/** A procedure's address, payloads, and declared errors. */
+/** A procedure's address, payloads and errors. */
 export const ProcedureDescription = defineSchema(
     schema.object({
-        /** The procedure's key path within the service. */
+        /** The procedure's key path. */
         name: schema.array(schema.string().min(1)),
-        /** The explicitly declared HTTP method. */
+        /** The HTTP method. */
         method: schema.string().optional(),
-        /** The explicitly declared HTTP path. */
+        /** The HTTP path. */
         path: schema.string().optional(),
-        /** The explicitly declared OpenAPI operation identifier. */
+        /** The OpenAPI operation identifier. */
         operationId: schema.string().optional(),
-        /** Serializable procedure annotations, including authentication and audit requirements. */
+        /** The procedure annotations. */
         metadata: schema.record(schema.string(), schema.json()).optional(),
-        /** The accepted input, when a validator is declared. */
+        /** The input. */
         input: PayloadDescription.optional(),
-        /** The returned output, when a validator is declared. */
+        /** The output. */
         output: PayloadDescription.optional(),
-        /** Declared error codes and their payloads. */
+        /** The error codes and payloads. */
         errors: schema.record(
             schema.string(),
             schema.object({
-                /** The explicitly declared HTTP status. */
+                /** The HTTP status. */
                 status: schema.number().int().optional(),
                 /** The default error message. */
                 message: schema.string().optional(),
@@ -56,19 +56,19 @@ export const ProcedureDescription = defineSchema(
         ),
     }),
 );
-/** A procedure's address, payloads, and declared errors. */
+/** A procedure's address, payloads and errors. */
 export type ProcedureDescription = schema.Infer<typeof ProcedureDescription>;
 
-/** Describe each procedure without executing its handler. */
+/** Describe each procedure of a router. */
 export function describeProcedures(service: ServiceRouter): ProcedureDescription[] {
-    // collect declared procedures in stable key order
+    // collect the procedures
     const procedures: ProcedureDescription[] = [];
     visit(service, [], new Set(), procedures);
 
     return procedures;
 }
 
-/** Traverse nested routers while rejecting recursive router objects. */
+/** Visit a router. */
 function visit(
     service: ServiceRouter,
     name: string[],
@@ -80,7 +80,7 @@ function visit(
         throw new TypeError(`cyclic service definition: ${name.join(".")}`);
     }
 
-    // describe a procedure from its declared schemas, independent of generated OpenAPI defaults
+    // describe a procedure
     if (isContractProcedure(service)) {
         const definition = service["~orpc"];
         const errors = Object.fromEntries(
@@ -98,7 +98,7 @@ function visit(
             }),
         );
 
-        // retain routes, access annotations, and input/output schemas
+        // add the description
         procedures.push(
             ProcedureDescription.parse({
                 name,
@@ -112,7 +112,7 @@ function visit(
             }),
         );
     }
-    // traverse nested routers while detecting ancestor cycles
+    // visit nested routers
     else {
         ancestors.add(service);
         for (const key of Object.keys(service).sort()) {
@@ -122,16 +122,16 @@ function visit(
     }
 }
 
-/** Describe a declared value validator or event iterator. */
+/** Describe a value or event iterator schema. */
 export function describePayload(
     validator: AnySchema | undefined,
 ): schema.Infer<typeof PayloadDescription> | undefined {
-    // describe no payload without a validator
+    // describe no payload
     if (!validator) {
         return undefined;
     }
 
-    // distinguish streamed events from single response values
+    // describe a stream or a value
     const iterator = getEventIteratorSchemaDetails(validator);
 
     return iterator
@@ -143,7 +143,7 @@ export function describePayload(
         : { kind: "value", schema: describeSchema(validator) };
 }
 
-/** Require the portable schema definitions used throughout Destack. */
+/** Convert a schema to JSON Schema. */
 function describeSchema(validator: AnySchema): schema.Infer<typeof JsonSchema> {
     // reject validators of other schema libraries
     if (!(validator instanceof schema.Schema)) {

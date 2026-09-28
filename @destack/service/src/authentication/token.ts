@@ -19,65 +19,65 @@ import {
 import {
     Caller,
     CallerDeployment,
-    CALLER_LIFETIME_MS,
-    CALLER_CLOCK_TOLERANCE_MS,
+    CALLER_LIFETIME_MILLISECONDS,
+    CALLER_CLOCK_TOLERANCE_MILLISECONDS,
 } from "./caller.ts";
 import { ServiceError } from "../error/index.ts";
 
-/** Maximum interval between public-key refreshes in milliseconds. */
-const KEY_CACHE_MS = 60000;
-/** The longest key discovery wait, and the pause after a failed one, in milliseconds. */
-const KEY_TIMEOUT_MS = 5000;
+/** The longest interval between public key refreshes, in milliseconds. */
+const KEY_CACHE_MILLISECONDS = 60000;
+/** The longest key discovery wait and the pause after a failed one, in milliseconds. */
+const KEY_TIMEOUT_MILLISECONDS = 5000;
 
-/** Exact permission selection retained by credentials and delegation steps. */
+/** A permission a credential or delegation step keeps. */
 const permission = PermissionReference.extend({
-    /** Exact authority scope. */
+    /** The authority scope. */
     scope: schema.string().min(1),
-    /** Optional object restriction. */
+    /** The object restriction. */
     objectId: schema.string().optional(),
 });
 
-/** Signed identity and restrictions for one space. */
+/** The signed identity and restrictions of one space. */
 export const TokenAuthentication = schema.object({
-    /** Exact space selected during credential exchange. */
+    /** The space. */
     spaceId: identifier("space"),
-    /** Persistent credential reference, excluding its bearer value. */
+    /** The credential reference. */
     credential: schema.object({
-        /** Issuing authority's credential category. */
+        /** The credential kind. */
         kind: schema.string().min(1),
-        /** Stable credential identifier. */
+        /** The credential identifier. */
         id: schema.string().min(1),
     }),
-    /** Represented identity. */
+    /** The represented identity. */
     subject: Subject,
-    /** How strongly and how recently the represented subject authenticated. */
+    /** How strongly and how recently the subject authenticated. */
     assurance: AuthenticationAssurance.optional(),
-    /** Identifiers, such as email addresses, the represented subject proved control of. */
+    /** The identifiers the subject proved control of. */
     identifiers: schema.array(VerifiedIdentifier).optional(),
-    /** The principals acting in order, each for the one before and the first for the subject; the last sends the request. */
+    /** The acting principals in order, the last sending the request. */
     delegates: schema.array(Delegate).optional(),
-    /** Deployment identities authenticated by the issuing host. */
+    /** The deployments the issuing host authenticated. */
     deployments: schema.array(CallerDeployment).optional(),
     /** The verified principals and the subject sets the caller belongs to. */
     subjects: schema.array(Subject),
-    /** Credential restrictions intersected with current local grants. */
+    /** The credential's permission restrictions. */
     permissions: schema.array(permission).optional(),
-    /** Trusted attributes asserted by the issuer. */
+    /** The issuer's trusted attributes. */
     attributes: schema.record(schema.string(), Attribute).optional(),
 });
 
-/** Verify space-scoped access tokens using the deployment's trusted issuer and public keys. */
+/** Verify space-scoped access tokens. */
 export class TokenVerifier {
-    /** Exact issuer and receiving package configured by the host. */
+    /** The verifier configuration. */
     readonly options: TokenVerifierOptions;
-    /** Cached public-key resolver; token contents never select a discovery URL. */
+    /** The cached public keys. */
     readonly keys: ReturnType<typeof createLocalJWKSet> | ReturnType<typeof createRemoteJWKSet>;
 
-    /** Retain public keys across requests and constrain remote discovery to trusted URLs. */
+    /** Create the verifier. */
     constructor(options: TokenVerifierOptions) {
         this.options = options;
 
-        // permit plain HTTP only for loopback development authorities
+        // allow plain HTTP only for loopback
         for (const url of [
             new URL(options.issuer),
             ...(options.keys instanceof URL ? [options.keys] : []),
@@ -95,25 +95,25 @@ export class TokenVerifier {
             }
         }
 
-        // reuse JOSE's key cache and concurrent discovery coordination
+        // cache keys through JOSE
         this.keys =
             options.keys instanceof URL
                 ? createRemoteJWKSet(options.keys, {
-                      cacheMaxAge: KEY_CACHE_MS,
-                      cooldownDuration: KEY_TIMEOUT_MS,
-                      timeoutDuration: KEY_TIMEOUT_MS,
+                      cacheMaxAge: KEY_CACHE_MILLISECONDS,
+                      cooldownDuration: KEY_TIMEOUT_MILLISECONDS,
+                      timeoutDuration: KEY_TIMEOUT_MILLISECONDS,
                       [customFetch]: options.fetch,
                   })
                 : createLocalJWKSet(options.keys);
     }
 
-    /** Verify a bearer token and optionally require one fixed receiving space. */
+    /** Verify a bearer token, optionally for one space. */
     async authenticate(
         request: Request,
         spaceId?: string,
         now = Date.now(),
     ): Promise<Caller<schema.Infer<typeof TokenAuthentication>["credential"]>> {
-        // require one bearer token without cookies
+        // require one bearer token
         const authorization = request.headers.get("authorization");
         if (
             !authorization ||
@@ -123,7 +123,7 @@ export class TokenVerifier {
             throw new ServiceError("UNAUTHORIZED");
         }
 
-        // verify signatures and registered claims before interpreting application claims
+        // verify the signature and registered claims
         let payload;
         try {
             ({ payload } = await jwtVerify(authorization.slice("Bearer ".length), this.keys, {
@@ -131,12 +131,12 @@ export class TokenVerifier {
                 audience: this.options.audience,
                 algorithms: ["ES256"],
                 requiredClaims: ["iss", "aud", "sub", "iat", "exp", "jti"],
-                maxTokenAge: CALLER_LIFETIME_MS / 1000,
-                clockTolerance: CALLER_CLOCK_TOLERANCE_MS / 1000,
+                maxTokenAge: CALLER_LIFETIME_MILLISECONDS / 1000,
+                clockTolerance: CALLER_CLOCK_TOLERANCE_MILLISECONDS / 1000,
                 currentDate: new Date(now),
             }));
         } catch (error) {
-            // report a token that fails verification as unauthorized
+            // report a failed verification as unauthorized
             if (
                 error instanceof errors.JWTClaimValidationFailed ||
                 error instanceof errors.JWTExpired ||
@@ -153,14 +153,14 @@ export class TokenVerifier {
                 });
             }
 
-            // report other failures as unavailable keys
+            // report other failures as unavailable
             throw new ServiceError("UNAVAILABLE", {
                 message: "authentication keys are unavailable",
                 cause: error,
             });
         }
 
-        // require the access-token purpose, bounded lifetime and any configured fixed space
+        // parse the caller claims and check the space
         const parsed = TokenAuthentication.safeParse(payload.caller);
         if (
             !parsed.success ||
@@ -173,12 +173,12 @@ export class TokenVerifier {
             !Number.isInteger(payload.iat) ||
             !Number.isInteger(payload.exp) ||
             payload.exp! <= payload.iat! ||
-            (payload.exp! - payload.iat!) * 1000 > CALLER_LIFETIME_MS
+            (payload.exp! - payload.iat!) * 1000 > CALLER_LIFETIME_MILLISECONDS
         ) {
             throw new ServiceError("UNAUTHORIZED", { message: "invalid access token claims" });
         }
 
-        // build the caller and check its freshness and issuer authority
+        // build the caller and check it
         const caller = new Caller({
             ...parsed.data,
             scope: parsed.data.spaceId,
@@ -193,29 +193,29 @@ export class TokenVerifier {
     }
 }
 
-/** Trusted deployment configuration for signed access tokens. */
+/** The configuration of a token verifier. */
 export interface TokenVerifierOptions {
-    /** Explicit identity authority assigned to these trusted signing keys. */
+    /** The identity authority of the trusted keys. */
     readonly authority: TokenIssuerAuthority;
-    /** Exact authentication issuer URL. */
+    /** The issuer URL. */
     readonly issuer: string;
-    /** Exact receiving service package identifier. */
+    /** The receiving package. */
     readonly audience: PackageId;
-    /** Trusted public keys, or a fixed HTTPS JWKS endpoint. */
+    /** The public keys, or an HTTPS JWKS endpoint. */
     readonly keys: URL | JSONWebKeySet;
-    /** Host transport for public-key discovery. */
+    /** The fetch of key discovery. */
     readonly fetch?: (...arguments_: Parameters<typeof globalThis.fetch>) => Promise<Response>;
 }
 
-/** Identity assertions permitted for a trusted issuer's signing keys. */
+/** The identities an issuer's keys may assert. */
 export type TokenIssuerAuthority =
     | {
           /** The global account authority. */
           readonly kind: "global";
       }
     | {
-          /** An authority restricted to workload identities in one space. */
+          /** An authority over workload identities of one space. */
           readonly kind: "space";
-          /** Exact administered space. */
+          /** The space. */
           readonly spaceId: string;
       };

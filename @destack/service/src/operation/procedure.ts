@@ -2,12 +2,12 @@ import { schema } from "@destack/schema";
 import { eventIterator, defineProcedure } from "../service/service.ts";
 import type { OperationDefinition } from "./operation.ts";
 
-/** Define shared procedures for one typed family of long-running operations. */
+/** Define the procedures of an operation. */
 export function defineOperationProcedures<Result, Progress>(
     definition: OperationDefinition<Result, Progress>,
     path: `/${string}` = "/operations",
 ) {
-    // share typed operation values and request errors across all procedures
+    // read the schemas
     const operation = definition.operation;
     const key = schema.object({ id: schema.uuid() });
     const request = defineProcedure({ authentication: "identity", permission: null, audit: false });

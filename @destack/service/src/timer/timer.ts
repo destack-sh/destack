@@ -1,11 +1,7 @@
-/** The longest delay a runtime timer accepts, the largest signed 32 bit integer, in milliseconds. */
+/** The longest timer delay, the largest signed 32 bit integer, in milliseconds. */
 export const MAX_TIMER_DELAY = 2 ** 31 - 1;
 
-/**
- * Wait a delay in milliseconds, as the web platform's `scheduler.wait` does, rejecting with the signal's reason once it aborts.
- *
- * Runtimes without `scheduler.wait`, such as Bun and Workers, get this in its place.
- */
+/** Wait a delay in milliseconds, as `scheduler.wait` does, rejecting once the signal aborts. */
 export function wait(
     delay: number,
     options: { readonly signal?: AbortSignal } = {},
@@ -20,15 +16,26 @@ export function wait(
             return;
         }
 
-        // resolve after the delay, or reject on abort, whichever comes first
-        const timer = setTimeout(() => {
-            signal?.removeEventListener("abort", abort);
-            resolve();
-        }, delay);
+        // wait one timer at a time until done or aborted
+        let remaining = delay;
+        let timer: ReturnType<typeof setTimeout>;
+        const next = () => {
+            const step = Math.min(remaining, MAX_TIMER_DELAY);
+            remaining -= step;
+            timer = setTimeout(() => {
+                if (remaining > 0) {
+                    next();
+                } else {
+                    signal?.removeEventListener("abort", abort);
+                    resolve();
+                }
+            }, step);
+        };
         function abort() {
             clearTimeout(timer);
             reject(signal!.reason);
         }
         signal?.addEventListener("abort", abort, { once: true });
+        next();
     });
 }

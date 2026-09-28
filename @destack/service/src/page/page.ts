@@ -1,29 +1,29 @@
 import { schema } from "@destack/schema";
 import { ServiceError } from "../error/index.ts";
 
-/** The records a page returns when the request names no limit. */
+/** The default page limit. */
 const DEFAULT_PAGE_LIMIT = 50;
-/** The most records one page returns, bounding the rows and bytes of one response. */
+/** The most records one page returns. */
 const MAX_PAGE_LIMIT = 1000;
 
-/** A bounded collection request whose cursor retains its original filters and ordering. */
+/** A page request. */
 export const PageRequest = schema.object({
-    /** Continuation returned by the preceding page. */
+    /** The cursor of the preceding page. */
     cursor: schema.string().min(1).optional(),
-    /** Maximum records returned in this page, 50 when absent. */
+    /** The most records the page returns, 50 when absent. */
     limit: schema.number().int().min(1).max(MAX_PAGE_LIMIT).optional(),
 });
 
-/** Collection continuation retaining its original scope and sort position. */
+/** A page position within a collection scope. */
 export class Page<Position extends schema.Schema> {
-    /** Maximum returned records. */
+    /** The most records the page returns. */
     readonly limit: number;
-    /** Exclusive position after the preceding page. */
+    /** The exclusive position after the preceding page. */
     readonly after?: schema.Infer<Position>;
-    /** Collection and parent identifiers retained in every continuation. */
+    /** The collection and parent identifiers every cursor keeps. */
     readonly scope: readonly string[];
 
-    /** Validate a continuation before constructing its indexed query. */
+    /** Create the page from a request. */
     constructor(
         input: { cursor?: string; limit?: number },
         scope: readonly string[],
@@ -38,7 +38,7 @@ export class Page<Position extends schema.Schema> {
             });
         }
 
-        // bind cursors to the exact collection and parent identifiers
+        // read the cursor
         if (input.cursor !== undefined) {
             let cursor;
             try {
@@ -50,7 +50,7 @@ export class Page<Position extends schema.Schema> {
                 throw new ServiceError("BAD_REQUEST", { message: "invalid collection cursor" });
             }
 
-            // reject a valid cursor when its collection or filters differ
+            // reject a cursor of another scope
             if (JSON.stringify(cursor.scope) !== JSON.stringify(scope)) {
                 throw new ServiceError("BAD_REQUEST", {
                     message: "cursor belongs to another collection",
@@ -59,9 +59,9 @@ export class Page<Position extends schema.Schema> {
         }
     }
 
-    /** Return bounded records and a continuation only when another record exists. */
+    /** Return the page's records and a cursor when more exist. */
     result<Item>(rows: Item[], position: (item: Item) => schema.Infer<Position>) {
-        // return up to the limit and a cursor after the last returned record
+        // cut to the limit and build the cursor
         const items = rows.slice(0, this.limit);
         const last = items.at(-1);
         const cursor =
@@ -73,12 +73,12 @@ export class Page<Position extends schema.Schema> {
     }
 }
 
-/** Describe a page of records and its optional continuation. */
+/** Describe a page of records. */
 export function page<Item extends schema.Schema>(item: Item) {
     return schema.object({
-        /** Records visible to this caller. */
+        /** The records. */
         items: schema.array(item),
-        /** Continuation, or null when the collection ends. */
+        /** The cursor, or null at the end. */
         cursor: schema.string().min(1).nullable(),
     });
 }

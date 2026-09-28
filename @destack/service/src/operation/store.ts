@@ -1,6 +1,6 @@
 import { toJsonSchema } from "@destack/schema";
 import { ServiceError } from "../error/index.ts";
-import { Watch } from "../watch/index.ts";
+import { Observable } from "../observable/index.ts";
 import type {
     Operation,
     OperationContext,
@@ -10,61 +10,61 @@ import type {
 import { reportError } from "../server/error.ts";
 import { MAX_TIMER_DELAY } from "../timer/index.ts";
 
-/** Authorized, bounded operation state retained until expiry or service shutdown. */
+/** The operations of a service, kept in memory until expiry. */
 export class OperationStore<Result, Progress> implements AsyncDisposable {
-    /** The definition shared with the HTTP procedures. */
+    /** The operation definition. */
     readonly definition: OperationDefinition<Result, Progress>;
-    /** Configured resource limits. */
+    /** The store limits. */
     readonly #options: OperationStoreOptions;
-    /** Operations indexed by identifier. */
+    /** The operations by identifier. */
     readonly #entries = new Map<string, Entry<Result, Progress>>();
     /** Whether new operations are refused. */
     #isClosed = false;
 
-    /** Configure schemas and retention for this operation type. */
+    /** Create the store. */
     constructor(definition: OperationDefinition<Result, Progress>, options: OperationStoreOptions) {
-        // reject limits that cannot bound work or retain active operations
+        // reject nonpositive limits
         for (const value of Object.values(options)) {
             if (!Number.isSafeInteger(value) || value <= 0) {
                 throw new RangeError("operation limits must be positive safe integers");
             }
         }
 
-        // reserve enough retained records for all active runners
+        // require capacity for every runner
         if (options.capacity < options.concurrency) {
             throw new RangeError("operation capacity must cover concurrency");
         }
 
-        // reject delays that overflow the runtime's signed 32 bit timer
+        // reject delays beyond the 32 bit timer
         if (options.timeout > MAX_TIMER_DELAY) {
             throw new RangeError("operation timeout exceeds the runtime timer limit");
         }
 
-        // retain portable schemas and store limits
+        // keep the schemas and limits
         toJsonSchema(definition.result);
         toJsonSchema(definition.progress);
         this.definition = definition;
         this.#options = { ...options };
     }
 
-    /** Start work under an authenticated scope that callers cannot choose themselves. */
+    /** Start an operation for an owner. */
     start(
         owner: string,
         progress: Progress,
         run: (context: OperationContext<Progress>) => Promise<Result>,
     ): Operation<Result, Progress> {
-        // admit work only within configured limits
+        // expire old records
         this.#expire();
         if (!owner) {
             throw new ServiceError("UNAUTHORIZED");
         }
 
-        // refuse work after the store closes
+        // refuse work after close
         if (this.#isClosed) {
             throw new ServiceError("UNAVAILABLE");
         }
 
-        // count active runners within the bounded store
+        // count active runners
         let active = 0;
         for (const entry of this.#entries.values()) {
             if (entry.watch.value.state === "running") {
@@ -72,12 +72,12 @@ export class OperationStore<Result, Progress> implements AsyncDisposable {
             }
         }
 
-        // refuse work that would exceed concurrency or retained record limits
+        // refuse work beyond the limits
         if (active >= this.#options.concurrency || this.#entries.size >= this.#options.capacity) {
             throw new ServiceError("RATE_LIMITED");
         }
 
-        // retain the initial state before scheduling the runner
+        // build the initial state
         const now = Date.now();
         const operation: Operation<Result, Progress> = {
             id: crypto.randomUUID(),
@@ -88,11 +88,11 @@ export class OperationStore<Result, Progress> implements AsyncDisposable {
             progress: structuredClone(this.definition.progress.parse(progress)),
         };
 
-        // register cancellation and subscriptions before scheduling work
+        // register the entry and run it
         const entry: Entry<Result, Progress> = {
             owner,
             controller: new AbortController(),
-            watch: new Watch(operation),
+            watch: new Observable(operation),
             done: Promise.resolve(),
         };
         this.#entries.set(operation.id, entry);
@@ -101,14 +101,14 @@ export class OperationStore<Result, Progress> implements AsyncDisposable {
         return structuredClone(operation);
     }
 
-    /** Read an operation visible to the authenticated scope. */
+    /** Read an operation of an owner. */
     get(owner: string, id: string): Operation<Result, Progress> {
         return structuredClone(this.#entry(owner, id).watch.value);
     }
 
-    /** List retained operations visible to the authenticated scope. */
+    /** List the operations of an owner. */
     list(owner: string): Operation<Result, Progress>[] {
-        // omit expired records before selecting the caller's operations
+        // expire old records
         this.#expire();
 
         return [...this.#entries.values()]
@@ -116,9 +116,9 @@ export class OperationStore<Result, Progress> implements AsyncDisposable {
             .map((entry) => structuredClone(entry.watch.value));
     }
 
-    /** Yield current state and coalesced updates until completion or subscriber cancellation. */
+    /** Yield an operation's state and changes. */
     async *watch(owner: string, id: string, signal?: AbortSignal) {
-        // authorize once and retain the subscription through its terminal outcome
+        // yield the entry's changes
         const entry = this.#entry(owner, id);
         for await (const value of entry.watch.watch(signal)) {
             yield structuredClone(value);
@@ -128,38 +128,38 @@ export class OperationStore<Result, Progress> implements AsyncDisposable {
         }
     }
 
-    /** Request cancellation without claiming the runner has stopped. */
+    /** Request cancellation. */
     cancel(owner: string, id: string): Operation<Result, Progress> {
-        // publish the request and notify the runner
+        // cancel the entry
         const entry = this.#entry(owner, id);
         this.#cancel(entry);
 
         return structuredClone(entry.watch.value);
     }
 
-    /** Delete a completed record without deleting its external output. */
+    /** Delete a completed operation. */
     delete(owner: string, id: string): void {
-        // retain records while their runners can still publish progress
+        // refuse to delete a running operation
         const entry = this.#entry(owner, id);
         if (entry.watch.value.state === "running") {
             throw new ServiceError("CONFLICT");
         }
 
-        // release subscribers and the retained result
+        // release the subscribers
         entry.watch.close();
         this.#entries.delete(id);
     }
 
-    /** Cancel active runners and wait for their cleanup before releasing retained records. */
+    /** Cancel the runners, wait for them, and release the records. */
     async close(): Promise<void> {
-        // refuse new work and cancel active runners
+        // refuse new work and cancel the runners
         this.#isClosed = true;
         const entries = [...this.#entries.values()];
         for (const entry of entries) {
             this.#cancel(entry);
         }
 
-        // wait for cleanup before releasing records and subscribers
+        // wait for the runners
         await Promise.all(entries.map((entry) => entry.done));
         for (const entry of entries) {
             entry.watch.close();
@@ -172,9 +172,9 @@ export class OperationStore<Result, Progress> implements AsyncDisposable {
         await this.close();
     }
 
-    /** Resolve an authorized operation without exposing other owners' records. */
+    /** Find an operation of an owner. */
     #entry(owner: string, id: string): Entry<Result, Progress> {
-        // resolve only records visible to the authenticated caller
+        // match the owner
         this.#expire();
         const entry = this.#entries.get(id);
         if (!entry || entry.owner !== owner) {
@@ -184,9 +184,9 @@ export class OperationStore<Result, Progress> implements AsyncDisposable {
         return entry;
     }
 
-    /** Publish cancellation of a running operation, then notify its runner. */
+    /** Cancel a running operation. */
     #cancel(entry: Entry<Result, Progress>): void {
-        // request cancellation once, while the runner runs
+        // cancel once
         const value = entry.watch.value;
         if (value.state === "running" && !value.cancellationRequested) {
             entry.watch.set({ ...value, updatedAt: Date.now(), cancellationRequested: true });
@@ -194,9 +194,9 @@ export class OperationStore<Result, Progress> implements AsyncDisposable {
         }
     }
 
-    /** Remove expired terminal records while keeping active work addressable. */
+    /** Remove expired completed records. */
     #expire(): void {
-        // release completed records after the configured retention period
+        // remove records past retention
         const cutoff = Date.now() - this.#options.retention;
         for (const [id, entry] of this.#entries) {
             const value = entry.watch.value;
@@ -207,30 +207,30 @@ export class OperationStore<Result, Progress> implements AsyncDisposable {
         }
     }
 
-    /** Run work once and publish a terminal outcome after the runner settles. */
+    /** Run an operation and publish its outcome. */
     async #run(
         entry: Entry<Result, Progress>,
         run: (context: OperationContext<Progress>) => Promise<Result>,
     ): Promise<void> {
-        // notify the runner at its deadline without detaching unfinished work
+        // abort at the deadline
         const timer = setTimeout(() => {
             const value = entry.watch.value;
             entry.watch.set({ ...value, updatedAt: Date.now(), cancellationRequested: true });
             entry.controller.abort(new DOMException("operation deadline exceeded", "TimeoutError"));
         }, this.#options.timeout);
 
-        // run with validated progress updates and cooperative cancellation
+        // run with progress reports
         try {
             entry.controller.signal.throwIfAborted();
             const result = await run({
                 signal: entry.controller.signal,
                 report: (progress) => {
-                    // reject reports after the runner has completed
+                    // reject reports after completion
                     if (entry.watch.value.state !== "running") {
                         throw new ServiceError("PRECONDITION_FAILED");
                     }
 
-                    // publish an independent snapshot of the latest progress
+                    // publish a copy of the progress
                     entry.watch.set({
                         ...entry.watch.value,
                         updatedAt: Date.now(),
@@ -239,7 +239,7 @@ export class OperationStore<Result, Progress> implements AsyncDisposable {
                 },
             });
 
-            // publish success only after the runner and result validation finish
+            // publish the validated result
             const value = structuredClone(this.definition.result.parse(result));
             const now = Date.now();
             entry.watch.set({
@@ -250,7 +250,7 @@ export class OperationStore<Result, Progress> implements AsyncDisposable {
                 result: value,
             });
         } catch (error) {
-            // acknowledge cancellation only when the runner fails with its abort reason
+            // detect cancellation and deadline
             const signal = entry.controller.signal;
             const now = Date.now();
             const cancelled =
@@ -259,11 +259,11 @@ export class OperationStore<Result, Progress> implements AsyncDisposable {
                 signal.aborted && error === signal.reason && signal.reason?.name === "TimeoutError";
             const value = { ...entry.watch.value, updatedAt: now, completedAt: now };
 
-            // retain acknowledged cancellation
+            // keep the cancellation
             if (cancelled) {
                 entry.watch.set({ ...value, state: "cancelled" });
             }
-            // retain the deadline failure
+            // keep the deadline failure
             else if (timedOut) {
                 const failure = {
                     code: "DEADLINE_EXCEEDED",
@@ -271,7 +271,7 @@ export class OperationStore<Result, Progress> implements AsyncDisposable {
                 };
                 entry.watch.set({ ...value, state: "failed", error: failure });
             }
-            // report other failures through the service error policy
+            // keep other failures
             else {
                 const failure = describeFailure(error);
                 entry.watch.set({ ...value, state: "failed", error: failure });
@@ -282,31 +282,31 @@ export class OperationStore<Result, Progress> implements AsyncDisposable {
     }
 }
 
-/** Explicit limits for an in-memory operation store. */
+/** The limits of an operation store. */
 export interface OperationStoreOptions {
-    /** Maximum simultaneous runners. */
+    /** The most simultaneous runners. */
     concurrency: number;
-    /** Maximum retained operations, including active runners. */
+    /** The most retained operations. */
     capacity: number;
-    /** Completed operation retention in milliseconds. */
+    /** The retention of completed operations, in milliseconds. */
     retention: number;
-    /** Deadline in milliseconds, enforced through the runner's cancellation signal. */
+    /** The deadline, in milliseconds. */
     timeout: number;
 }
 
-/** Runtime controls for one retained operation. */
+/** A retained operation. */
 interface Entry<Result, Progress> {
-    /** Authenticated authorization scope. */
+    /** The owner. */
     owner: string;
-    /** Cooperative cancellation controller. */
+    /** The cancellation controller. */
     controller: AbortController;
-    /** Current state and waiting subscribers. */
-    watch: Watch<Operation<Result, Progress>>;
-    /** Runner completion, including cleanup. */
+    /** The state and subscribers. */
+    watch: Observable<Operation<Result, Progress>>;
+    /** The runner's completion. */
     done: Promise<void>;
 }
 
-/** Retain public service failures and record unexpected exceptions privately. */
+/** Describe a failure as a public operation error. */
 function describeFailure(error: unknown): OperationError {
     const failure = reportError(error);
 

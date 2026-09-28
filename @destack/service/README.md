@@ -1,127 +1,68 @@
-Define, host and call Destack HTTP services.
+# @destack/service
+
+Define, host and call Destack HTTP services, their triggers and their background work.
 
 ## Services
 
-A service declares procedures, each with its authentication, the permission it requires and whether it is audited.
+`defineService` declares procedures with their route, authentication, permission and audit.
 
 ```ts
-import { schema } from "@destack/schema";
-import { defineService, defineProcedure } from "@destack/service";
+import { defineProcedure, defineService } from "@destack/service";
 
 export const notesService = defineService("notes", {
     list: defineProcedure({ authentication: "identity", permission: note.permission("read"), audit: false })
         .route({ method: "GET", path: "/notes" })
-        .output(schema.array(Note)),
-
-    // object types route their procedures under their key
+        .output(page(Note)),
     objects: { notebook, note },
 });
 ```
 
-## Hosting
+## Servers
 
-A `Server` authenticates each request, checks the declared permission on the call's target, and drains on close.
+A `Server` authenticates each request, checks the procedure's permission on the call's target and runs its handler.
 
 ```ts
-import { Server, implement, type ServiceContext } from "@destack/service/server";
+import { implement, Server, type ServiceContext } from "@destack/service/server";
 
 const service = implement(notesService.router).$context<ServiceContext>();
 await using server = Server.start({
     service: notesService,
-    router: service.router({
-        list: service.list.handler(({ context }) => notebook.list(context.authorization!)),
-    }),
+    router: service.router({ list: service.list.handler(({ context }) => notebook.list(context)) }),
     access: { authorizer, database, target: async ({ input }) => note.reference(spaceId, input.id) },
-    audience: servicePackageId,
+    audience: packageId,
     scope: spaceId,
     resources,
     authenticate,
     authorizeHost,
-    audit,
     health: new Health("notes"),
-    drainTimeout: 10000,
+    drainTimeout: 10_000,
 });
-const response = await server.fetch(request);
-```
-
-A permission its policy elevates answers a caller who authenticated too weakly or too long ago with a step-up challenge, which the client answers by authenticating again and retrying the request.
-
-```ts
-// 401 { code: "INSUFFICIENT_AUTHENTICATION", data: { assurance: 2, maxAge: 900000 } }
-```
-
-## Timers
-
-`wait` pauses for a delay as the web platform's `scheduler.wait` does, rejecting with the signal's reason once it aborts.
-
-```ts
-import { wait } from "@destack/service/timer";
-
-await wait(1000, { signal });
 ```
 
 ## Workloads
 
-A workload starts once per instance and returns the services and triggers it implements.
+A workload starts once per instance and returns the services and trigger handlers it implements.
 
 ```ts
 import { defineWorkload, WorkloadInstance } from "@destack/service/workload";
 
 export const workload = defineWorkload({
     name: "main",
-    compute: { limits: { memory: 512 } },
     start: async (context) => {
         const notebook = new Notebook(database.get(context.resources));
         context.defer(() => notebook.close());
 
-        return { services: [implementService(notebook)], triggers: [reminders.handle((occurrence) => notebook.remind(occurrence))] };
+        return { services: [implementNotes(notebook)], triggers: [reminders.handle((occurrence) => notebook.remind(occurrence))] };
     },
 });
 
-const instance = await WorkloadInstance.start(workload, { resources, service: serviceOptions });
+const instance = await WorkloadInstance.start(workload, { resources, service: () => serverOptions });
 const response = await instance.fetch(notesService, request);
 ```
 
-## Triggers
-
-A trigger is a declared event source, which the host delivers once per cause and records as a run.
-
-| Trigger | Declared with | Event | Cause |
-|---|---|---|---|
-| schedule | `defineSchedule` | `ScheduleOccurrence { scheduledAt }` | the occurrence time |
-| webhook | `defineWebhook` | `WebhookDelivery { id, event, payload, receivedAt }` | the delivery identifier |
-| subscription | `defineSubscription` | `SubscriptionChange { position, key?, operation, before?, after? }` | the log position, and the row key of a snapshot's rows |
-
-A package declares its triggers, and the host verifies and delivers each event.
-
-```ts
-export const reminders = defineSchedule({ name: "reminders", timing: "cron", cron: "0 9 * * *", timezone: "Europe/Zurich", concurrency: "forbid", deadline: 60000 });
-export const pushes = defineWebhook({ name: "github", verification: "github", secret: webhookSecret });
-export const published = defineSubscription({ name: "published", object: note, where: Condition.eq("status", "published"), on: ["create", "update", "delete"], from: "snapshot" });
-
-await instance.deliver(pushes, await WEBHOOK_SIGNATURES.github.verify(request, secret, Date.now()), request.signal);
-```
-
-A webhook's verification names the scheme its sender signs with.
-
-| Verification | Headers | Signed content |
-|---|---|---|
-| `standard` | `webhook-id`, `webhook-timestamp`, `webhook-signature: v1,<base64 HMAC-SHA256>` | `id.timestamp.body` with the `whsec_` base64 secret, within five minutes |
-| `github` | `x-github-delivery`, `x-github-event`, `x-hub-signature-256: sha256=<hex HMAC-SHA256>` | the body with the secret's UTF-8 bytes |
-
-A subscription consumes its object type's changes exactly.
-
-| Rule | Reason |
-|---|---|
-| rows entering the condition are created, rows leaving it deleted | the condition is the subscribed set |
-| each change is admitted by the access the installation had when it committed | the log replays history |
-| `from: "snapshot"` delivers every admitted row at the start as created | consumers building a projection start complete |
-| the log keeps changes for `maxLag` milliseconds, a week by default, then the subscription fails | a stuck consumer never pins the log forever |
-| handlers apply a change through a Journal request derived from its position and key | a host may deliver a change again |
-
 ## Clients
 
-A connection declares a dependency on a service, and the host binds it to an endpoint.
+A service connection declares a dependency on a service, and a `ClientContext` binds it to the host's endpoint.
 
 ```ts
 import { defineServiceConnection } from "@destack/service/declare";
@@ -132,14 +73,11 @@ export const notes = defineServiceConnection("notes", notesService);
 const context = new ClientContext(configuration, { headers, bookmark });
 context.bind(notes);
 const result = await safe(notes.get(context.resources).update(input));
-if (result.isDefined && result.error.code === "CONFLICT") {
-    retry(result.error.data.revision);
-}
 ```
 
 ## Authentication
 
-A `TokenIssuer` signs a verified caller, and a `TokenVerifier` checks the token and the issuer's authority at the receiving service.
+A `TokenIssuer` signs a verified caller, and a `TokenVerifier` checks the token at the receiving service.
 
 ```ts
 import { TokenIssuer, TokenVerifier } from "@destack/service/authentication";
@@ -147,67 +85,137 @@ import { TokenIssuer, TokenVerifier } from "@destack/service/authentication";
 const issuer = new TokenIssuer({ authority: { kind: "global" }, issuer: accountOrigin, sign });
 const { accessToken } = await issuer.issue(caller);
 
-const verifier = new TokenVerifier({
-    authority: { kind: "space", spaceId },
-    issuer: spaceIssuer,
-    audience: servicePackageId,
-    keys: new URL("/auth/jwks", spaceIssuer),
-});
-const verified = await verifier.authenticate(request, spaceId);
+const verifier = new TokenVerifier({ authority: { kind: "global" }, issuer: accountOrigin, audience: packageId, keys });
+const verified = await verifier.authenticate(request);
 ```
 
 ## Journal
 
-A journal runs each request once in one transaction and replays its outcome, including final failures, to retries; challenges and transient failures stay open to the retry, and fingerprints leave out the input's sensitive values.
+A `Journal` runs each request once in one transaction and replays its outcome to retries.
 
 ```ts
-import { RequestId, RequestFingerprint } from "@destack/service/request";
 import { defineJournal, Journal } from "@destack/service/database";
+import { RequestFingerprint, RequestId } from "@destack/service/request";
 
 export const journal = new Journal(defineJournal("journal"));
 
 const request = { caller: caller.id, scope: spaceId, requestId: RequestId.create() };
-const fingerprint = await RequestFingerprint.hash(AccountUpdate, input); // schema.sensitive fields are left out
+const fingerprint = await RequestFingerprint.hash(AccountUpdate, input);
 const account = await journal.execute(database, request, fingerprint, {
     authorize: (transaction) => authorization.within(transaction).require(permission, target),
     run: (transaction) => updateAccount(transaction, input),
 });
+```
 
-// host maintenance after the retry deadlines
-await journal.prune(database, 100);
+## Pages
+
+A `Page` reads a cursor request and cuts the rows into a page with the next cursor.
+
+```ts
+import { Page } from "@destack/service/page";
+
+const request = new Page(input, [spaceId], schema.string());
+const rows = await readNotes({ after: request.after, limit: request.limit + 1 });
+const result = request.result(rows, (row) => row.id);
 ```
 
 ## Bookmarks
 
-A response carries the watermarks its writes reached, and a client sends them back so its later reads see its own writes.
+A `Bookmark` carries the log watermarks a client has seen, so later reads include its own writes.
 
 ```ts
 import { Bookmark } from "@destack/service/bookmark";
 
 const bookmark = new Bookmark();
 const client = createClient(notesService.router, { url, bookmark });
+```
 
-// in a handler
-context.observed.observe(await server.watermark(scope));
-await server.reach(context, scope);
+## Triggers
+
+A package declares triggers, and the host delivers each event to its handler once per cause.
+
+```ts
+export const reminders = defineSchedule({ name: "reminders", timing: "cron", cron: "0 9 * * *", timezone: "Europe/Zurich", concurrency: "forbid", deadline: 60_000 });
+export const pushes = defineWebhook({ name: "github", verification: "github", secret: webhookSecret });
+export const published = defineWatch({ name: "published", object: note, where: Condition.eq("status", "published"), on: ["create", "update"], from: "snapshot" });
+
+await instance.deliver(pushes, await WEBHOOK_SIGNATURES.github.verify(request, secret, Date.now()), signal);
+```
+
+## Trigger events
+
+Each trigger kind delivers one event type.
+
+| Trigger | Entry point | Event |
+|---|---|---|
+| `defineSchedule` | `@destack/service/schedule` | `ScheduleOccurrence` |
+| `defineWebhook` | `@destack/service/webhook` | `WebhookDelivery` |
+| `defineWatch` | `@destack/service/watch` | `ObjectChange` |
+
+## Controllers
+
+A `ControlLoop` runs level-triggered `Controller`s, which reconcile keys named by a database's committed changes.
+
+```ts
+import { ControlLoop, type Controller } from "@destack/service/control";
+
+const expiry: Controller = {
+    name: "expiry",
+    watches: [session],
+    keys: () => ["expiry"],
+    list: async () => ["expiry"],
+    reconcile: async () => ((await removeExpired()) ? 0 : undefined),
+};
+await new ControlLoop(database, [expiry], { report, lease: { holder: instanceId } }).run(signal);
+```
+
+## Outbox
+
+An `Outbox` commits messages with their transaction and delivers them in order to a `Destination`.
+
+```ts
+import { Outbox, type Destination } from "@destack/service/outbox";
+
+const inbox: Destination<Delivery> = { name: "inbox", message: Delivery, batch: 100, accept: (deliveries, { signal }) => home.accept(deliveries, { signal }) };
+const outbox = new Outbox(database);
+await outbox.append(inbox, deliveryId, delivery, transaction);
+await new ControlLoop(database, [outbox.controller(inbox)], { report }).run(signal);
+```
+
+## Observables
+
+An `Observable` holds a current value and yields it again after each change.
+
+```ts
+import { Observable } from "@destack/service/observable";
+
+const status = new Observable<Status>("starting");
+status.set("ready");
+for await (const value of status.watch(signal)) {
+    render(value);
+}
+```
+
+## Timers
+
+`wait` pauses for a delay, and `RetryPolicy` spaces the attempts of failing work.
+
+```ts
+import { RetryPolicy, wait } from "@destack/service/timer";
+
+await wait(1000, { signal });
+await RetryPolicy.pause(RetryPolicy.of({ maximumInterval: 60_000 }), failures, signal);
 ```
 
 ## Operations
 
-An operation store runs long work in memory, with progress, cancellation and a deadline.
+An `OperationStore` runs long work in memory, with progress, cancellation and a deadline.
 
 ```ts
-import { defineOperation } from "@destack/service/operation";
 import { implementOperation, OperationStore } from "@destack/service/server";
 
-const operations = new OperationStore(defineOperation(Published, Progress), {
-    concurrency: 4,
-    capacity: 100,
-    retention: 3600000,
-    timeout: 60000,
-});
+const operations = new OperationStore(defineOperation(Published, Progress), { concurrency: 4, capacity: 100, retention: 3_600_000, timeout: 60_000 });
 const router = implementOperation(operations);
-
 operations.start(caller.id, { completed: 0 }, async ({ signal, report }) => {
     const output = await publish({ signal });
     report({ completed: 1 });

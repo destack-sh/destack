@@ -2,31 +2,31 @@ import { serve, type Server } from "bun";
 
 /** A request handler served on one network address. */
 export interface Endpoint {
-    /** The network interface selected by the host. */
+    /** The network interface. */
     readonly hostname: string;
-    /** The listening port, or zero to allocate an ephemeral port. */
+    /** The port, or zero for an ephemeral one. */
     readonly port: number;
     /** Handle one request. */
     fetch(request: Request): Response | Promise<Response>;
 }
 
-/** Endpoints served by one process and the lifecycle they share. */
+/** The endpoints and lifecycle of one process. */
 export interface ProcessOptions {
     /** The endpoints to listen on. */
     readonly endpoints: readonly Endpoint[];
-    /** Aborted when the served runtime begins shutdown. */
+    /** The signal aborted on shutdown. */
     readonly signal: AbortSignal;
-    /** Request shutdown, as process signals do. */
+    /** Request shutdown. */
     shutdown(): void;
-    /** Drain accepted requests and release the served runtime. */
+    /** Drain requests and release the runtime. */
     close(): Promise<void>;
-    /** Publish runtime discovery once every listener is available, in endpoint order. */
+    /** Publish the listener addresses, in endpoint order. */
     ready?(addresses: readonly URL[]): Promise<void>;
 }
 
-/** Listen on each endpoint until cooperative or process shutdown, then drain and close. */
+/** Serve each endpoint until shutdown, then drain and close. */
 export async function serveProcess(options: ProcessOptions): Promise<void> {
-    // translate process signals into cooperative shutdown
+    // shut down on process signals
     const listeners: Server<undefined>[] = [];
     const stopped = Promise.withResolvers<void>();
     const stop = () => stopped.resolve();
@@ -35,7 +35,7 @@ export async function serveProcess(options: ProcessOptions): Promise<void> {
     process.on("SIGINT", shutdown);
     process.on("SIGTERM", shutdown);
     try {
-        // open every listener before publishing discovery
+        // open every listener
         for (const endpoint of options.endpoints) {
             listeners.push(
                 serve({
@@ -50,7 +50,7 @@ export async function serveProcess(options: ProcessOptions): Promise<void> {
             await stopped.promise;
         }
     } finally {
-        // drain accepted requests before closing listeners and releasing subscriptions
+        // drain requests and close
         try {
             await options.close();
         } finally {

@@ -8,55 +8,55 @@ import {
 } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import type { ResourceContext } from "@destack/resource/context";
-import { type Caller, CALLER_LIFETIME_MS } from "../authentication/index.ts";
+import { type Caller, CALLER_LIFETIME_MILLISECONDS } from "../authentication/index.ts";
 import { ServiceError } from "../error/index.ts";
 import type { ProcedureCall } from "./access.ts";
 import { BOOKMARK_HEADER, Bookmark } from "../bookmark/index.ts";
 
-/** The header carrying capabilities, such as link secrets, a request presents. */
+/** The header carrying a request's capabilities. */
 export const CAPABILITY_HEADER = "destack-capability";
 
-/** Verified identity and installation resources supplied to a user service invocation. */
+/** The verified context of a service call. */
 export class ServiceContext {
-    /** Incoming request and cancellation signal. */
+    /** The request. */
     readonly request: Request;
-    /** Receiving package identifier fixed by the hosting deployment. */
+    /** The receiving package. */
     readonly audience: PackageId;
-    /** The call's scope, from host configuration or the verified caller; absent for anonymous calls to regional services. */
+    /** The call's scope. */
     readonly scope: string | undefined;
-    /** Authenticated identity, or null for an anonymous request or a failed authentication. */
+    /** The authenticated caller, or null. */
     readonly caller: Caller | null;
-    /** Resource clients bound by the host for this installation. */
+    /** The installation's resource clients. */
     readonly resources: ResourceContext;
-    /** Credential failure retained for procedure audit recording. */
+    /** The credential failure. */
     readonly authenticationError?: unknown;
-    /** Server-generated correlation identity shared by request and domain audit events. */
+    /** The server-generated request identifier. */
     readonly requestId = crypto.randomUUID();
-    /** Cancellation when the request closes or its verified identity expires. */
+    /** Abort when the request closes or its identity expires. */
     readonly signal: AbortSignal;
-    /** Digests of the capabilities, such as link secrets, the request presented. */
+    /** The digests of the presented capabilities. */
     readonly capabilities: readonly string[];
-    /** The watermarks the caller requires before this request reads. */
+    /** The watermarks the caller requires. */
     readonly bookmark: Bookmark;
-    /** The watermarks this request's writes reached, returned to the caller. */
+    /** The watermarks this request's writes reached. */
     readonly observed = new Bookmark();
-    /** The caller's authorization under the service's policies, for services that declare them. */
+    /** The caller's authorization under the service's policies. */
     readonly authorization: Authorization | undefined;
-    /** The object the call's permission was decided on, absent before the check and for procedures without one. */
+    /** The object the call's permission was decided on. */
     target?: ObjectReference;
 
-    /** Retain host-selected scope independently of request input. */
+    /** Create the context of a request. */
     constructor(request: Request, options: ServiceContextOptions) {
-        // read the host-verified state
+        // read the host state
         const { audience, scope, caller, resources, access, authenticationError } = options;
         const capabilities = options.capabilities ?? [];
 
-        // require a failed authentication to leave no caller
+        // require no caller after a failed authentication
         if (caller !== null && authenticationError !== undefined) {
             throw new TypeError("a failed authentication has no caller");
         }
 
-        // retain the request and its authenticated caller
+        // keep the request and caller
         this.request = request;
         this.audience = audience;
         this.scope = scope;
@@ -66,7 +66,7 @@ export class ServiceContext {
         this.capabilities = capabilities;
         this.bookmark = Bookmark.parse(request.headers.get(BOOKMARK_HEADER));
 
-        // authorize the caller under the service's policies, bound to each scope it acts in
+        // authorize the caller under the service's policies
         this.authorization =
             access &&
             new Authorization(access.authorizer, access.database, (scope) => {
@@ -76,16 +76,16 @@ export class ServiceContext {
                 return context;
             });
 
-        // preserve verified context methods when oRPC merges middleware context objects
+        // bind methods for middleware context copies
         this.requireCaller = this.requireCaller.bind(this);
         this.access = this.access.bind(this);
 
-        // retain cancellation as an own property across service middleware context copies
+        // keep the signal as an own property
         const deadline =
             caller &&
             Math.min(
                 caller.authentication.expiresAt,
-                caller.authentication.verifiedAt + CALLER_LIFETIME_MS,
+                caller.authentication.verifiedAt + CALLER_LIFETIME_MILLISECONDS,
             );
         this.signal =
             deadline === null
@@ -96,14 +96,14 @@ export class ServiceContext {
                   ]);
     }
 
-    /** Require a current authenticated caller before performing identity-dependent work. */
+    /** Require a current authenticated caller. */
     requireCaller(): Caller {
-        // preserve invalid credentials and unavailable identity authorities
+        // report a credential failure
         if (this.authenticationError !== undefined) {
             throw this.authenticationError;
         }
 
-        // require a caller whose authentication is still current
+        // require a current caller
         if (!this.caller) {
             throw new ServiceError("UNAUTHORIZED");
         }
@@ -112,14 +112,14 @@ export class ServiceContext {
         return this.caller;
     }
 
-    /** Read authorization inputs with a fresh time for each operation or stream event. */
+    /** Read the access context at the current time. */
     access(scope: string | undefined = this.scope): AccessContext {
-        // preserve invalid credentials and unavailable identity authorities
+        // report a credential failure
         if (this.authenticationError !== undefined) {
             throw this.authenticationError;
         }
 
-        // read the caller's current context, or an anonymous one, with the presented capabilities
+        // read the caller's or an anonymous context with capabilities
         const context = this.caller
             ? this.caller.context(this.audience, Date.now(), scope)
             : { subjects: [], attributes: {}, now: Date.now() };
@@ -130,30 +130,30 @@ export class ServiceContext {
     }
 }
 
-/** The host-verified state of one request. */
+/** The host-verified state of a request. */
 export interface ServiceContextOptions {
     /** The receiving package. */
     readonly audience: PackageId;
-    /** The call's scope, from host configuration or the verified caller. */
+    /** The call's scope. */
     readonly scope?: string;
-    /** The authenticated identity, or null for an anonymous request or a failed authentication. */
+    /** The authenticated caller, or null. */
     readonly caller: Caller | null;
     /** The resource clients bound by the host. */
     readonly resources: ResourceContext;
-    /** The service's policies, for services that declare them. */
+    /** The service's policies. */
     readonly access?: ServiceAccess;
-    /** The credential failure, retained for procedure audit recording. */
+    /** The credential failure. */
     readonly authenticationError?: unknown;
-    /** The digests of the capabilities the request presented. */
+    /** The digests of the presented capabilities. */
     readonly capabilities?: readonly string[];
 }
 
-/** How a service decides its protected procedures: its policies, the database holding their relationships, and each call's target. */
+/** The policies and database that decide a service's calls. */
 export interface ServiceAccess {
-    /** The policies declaring every permission the service's procedures require. */
+    /** The policies. */
     readonly authorizer: Authorizer;
-    /** The database whose relationships and roles decide each call. */
+    /** The database holding relationships and roles. */
     readonly database: DatabaseConnection;
-    /** Name the object a call acts on, or the scope it acts in, for procedures declaring a permission. */
+    /** Name the object or scope a call acts on. */
     target?(call: ProcedureCall<ServiceContext>): Promise<ObjectReference>;
 }

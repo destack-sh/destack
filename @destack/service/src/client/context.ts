@@ -6,40 +6,40 @@ import type { ServiceConnection } from "../declare/index.ts";
 import type { ServiceRouter } from "../service/service.ts";
 import { createClient, type ClientOptions } from "./client.ts";
 
-/** A service dependency resolved to a reachable endpoint by the host. */
+/** A service dependency bound to an endpoint. */
 export const ServiceConnectionBinding = defineSchema(
     schema.object({
-        /** The consumer's package-qualified connection declaration. */
+        /** The connection declaration. */
         declaration: DeclarationReference,
-        /** The endpoint used by this client, relative to its trusted origin when applicable. */
+        /** The endpoint URL. */
         url: schema.string().min(1),
     }),
 );
-/** A service dependency resolved to a reachable endpoint by the host. */
+/** A service dependency bound to an endpoint. */
 export type ServiceConnectionBinding = schema.Infer<typeof ServiceConnectionBinding>;
 
-/** Host-selected service connections for an application. */
+/** The service connections of an application. */
 export const ClientConfiguration = defineSchema(
     schema.object({
-        /** Package receiving the configured connections. */
+        /** The receiving package. */
         packageId: PackageId,
-        /** Endpoints selected for package-qualified connection declarations. */
+        /** The bound connections. */
         services: schema.array(ServiceConnectionBinding),
     }),
 );
-/** Host-selected service connections for an application. */
+/** The service connections of an application. */
 export type ClientConfiguration = schema.Infer<typeof ClientConfiguration>;
 
-/** Application-scoped service clients resolved through the shared resource context. */
+/** The service clients of an application. */
 export class ClientContext {
-    /** Host-selected connections. */
+    /** The connection configuration. */
     readonly configuration: ClientConfiguration;
-    /** Typed clients available to application code. */
+    /** The typed clients. */
     readonly resources: ResourceContext;
-    /** Transport authentication supplied by the hosting runtime. */
+    /** The host's transport options. */
     readonly #options: Omit<ClientOptions, "url">;
 
-    /** Retain validated connection configuration and host transport options. */
+    /** Create the context. */
     constructor(
         configuration: ClientConfiguration,
         options: Omit<ClientOptions, "url">,
@@ -50,9 +50,9 @@ export class ClientContext {
         this.resources = resources;
     }
 
-    /** Construct the client selected for one declared dependency. */
+    /** Create the client of one connection. */
     bind<Router extends ServiceRouter>(connection: ServiceConnection<Router>): void {
-        // require one unambiguous endpoint for the consumer declaration
+        // require exactly one binding
         const bindings = this.configuration.services.filter(
             (binding) =>
                 binding.declaration.packageId === connection.package.id &&
@@ -64,7 +64,7 @@ export class ClientContext {
             );
         }
 
-        // share the resource context between frontend and backend service clients
+        // register the client
         const client = createClient(connection.router, { ...this.#options, url: bindings[0].url });
         this.resources.bind(connection, client);
     }

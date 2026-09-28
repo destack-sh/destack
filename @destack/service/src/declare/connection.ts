@@ -14,7 +14,7 @@ import type { Service } from "./service.ts";
 /** A named dependency on a provided service. */
 export const ServiceConnectionDescription = defineSchema(
     schema.object({
-        /** The immutable identity of the declaring package. */
+        /** The declaring package. */
         packageId: PackageId,
         /** The package-local connection name. */
         name: DeclarationName,
@@ -25,31 +25,31 @@ export const ServiceConnectionDescription = defineSchema(
 /** A named dependency on a provided service. */
 export type ServiceConnectionDescription = schema.Infer<typeof ServiceConnectionDescription>;
 
-/** An inert service dependency with a host-bound typed client. */
+/** A service dependency with a typed client. */
 export class ServiceConnection<Router extends ServiceRouter = ServiceRouter> extends ResourceHandle<
     Client<Router>
 > {
     /** The required service declaration. */
     readonly service: ServiceConnectionDescription["service"];
-    /** The procedure definitions used to construct the client. */
+    /** The procedures of the client. */
     readonly router: Router;
 
-    /** Retain the dependency description and its typed API without opening a connection. */
+    /** Create the connection. */
     constructor(owner: Package, declaration: ServiceConnectionDescription, router: Router) {
-        // retain the provider package, service and router
+        // keep the provider package, service and router
         super(owner, declaration.name);
         this.service = declaration.service;
         this.router = router;
     }
 }
 
-/** Define a named dependency on a declared service, collected by package inspection. */
+/** Define a service dependency. */
 export function defineServiceConnection<Router extends ServiceRouter>(
     name: string,
     service: Service<Router>,
     module?: ModuleMetadata,
 ): ServiceConnection<Router> {
-    // reference the service by its declaring package and name
+    // reference the service by package and name
     const owner = declaringModule(module, "defineServiceConnection").package;
     const declaration = ServiceConnectionDescription.parse({
         packageId: owner.id,

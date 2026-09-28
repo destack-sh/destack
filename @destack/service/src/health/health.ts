@@ -1,14 +1,14 @@
 import { schema } from "@destack/schema";
-import { Watch } from "../watch/index.ts";
+import { Observable } from "../observable/index.ts";
 
-/** Current service health and coalesced change notifications. */
+/** The health of a service. */
 export class Health {
     /** The declared service name. */
     readonly name: string;
-    /** The current readiness state. */
-    readonly #status = new Watch<HealthStatus>("starting");
+    /** The current status. */
+    readonly #status = new Observable<HealthStatus>("starting");
 
-    /** Initialize health before the host starts accepting work. */
+    /** Create the health. */
     constructor(name: string) {
         this.name = name;
     }
@@ -18,21 +18,21 @@ export class Health {
         return this.#status.value;
     }
 
-    /** Publish readiness after initialization, dependency changes, or shutdown. */
+    /** Set the status. */
     set(status: HealthStatus): void {
         if (status !== this.status) {
             this.#status.set(status);
         }
     }
 
-    /** Describe current service health. */
+    /** Describe the health. */
     check(): schema.Infer<typeof HealthDescription> {
         return { name: this.name, status: this.status };
     }
 
-    /** Yield current health and changes until shutdown or subscriber cancellation. */
+    /** Yield the health and its changes. */
     async *watch(signal?: AbortSignal) {
-        // deliver readiness changes until shutdown starts
+        // yield each change
         for await (const status of this.#status.watch(signal)) {
             yield { name: this.name, status };
             if (status === "draining" || status === "stopped") {
@@ -41,20 +41,20 @@ export class Health {
         }
     }
 
-    /** Answer conventional liveness and readiness probes, or return undefined for other paths. */
+    /** Answer liveness and readiness probes. */
     probe(request: Request): Response | undefined {
-        // accept only the standard probe addresses
+        // match the probe paths
         const path = new URL(request.url).pathname;
         if (path !== "/livez" && path !== "/readyz") {
             return;
         }
 
-        // restrict probes to reads and omit bodies for HEAD requests
+        // accept only GET and HEAD
         if (request.method !== "GET" && request.method !== "HEAD") {
             return new Response(null, { status: 405, headers: { allow: "GET, HEAD" } });
         }
 
-        // distinguish process liveness from readiness to accept work
+        // check liveness or readiness
         const ready = path === "/livez" ? this.status !== "stopped" : this.status === "serving";
 
         return new Response(request.method === "HEAD" ? null : ready ? "ok\n" : "unavailable\n", {
@@ -64,7 +64,7 @@ export class Health {
     }
 }
 
-/** Service readiness visible to clients and load balancers. */
+/** The readiness of a service. */
 export const HealthStatus = schema.enum([
     "starting",
     "serving",
@@ -72,13 +72,13 @@ export const HealthStatus = schema.enum([
     "draining",
     "stopped",
 ]);
-/** Service readiness visible to clients and load balancers. */
+/** The readiness of a service. */
 export type HealthStatus = schema.Infer<typeof HealthStatus>;
 
-/** Health of one named service. */
+/** The health of one service. */
 export const HealthDescription = schema.object({
-    /** Declared service name. */
+    /** The service name. */
     name: schema.string().min(1),
-    /** Current readiness. */
+    /** The status. */
     status: HealthStatus,
 });

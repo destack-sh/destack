@@ -10,7 +10,7 @@ import { hosting, createCaller } from "../server/tests/fixture.ts";
 test.for([undefined, "/builds"] as const)(
     "run authorized operations through HTTP, reconnect, cancel, and release results (%s)",
     async (path) => {
-        // configure typed progress and bounded operation retention
+        // define the operation and its limits
         const result = schema.object({ count: schema.number().int() });
         const progress = schema.object({ step: schema.string() });
         const definition = defineOperation(result, progress);
@@ -21,7 +21,7 @@ test.for([undefined, "/builds"] as const)(
             timeout: 1000,
         });
 
-        // serve operation procedures under the authenticated caller
+        // serve the procedures
         const service = defineOperationProcedures(definition, path);
         const router = implementOperation(store, path);
         const alice = createCaller("alice");
@@ -32,7 +32,7 @@ test.for([undefined, "/builds"] as const)(
             drainTimeout: 1000,
         });
 
-        // serve the selected HTTP route before creating any operations
+        // serve the route
         const response = await server.fetch(
             new Request(`https://test.local${path ?? "/operations"}`, {
                 headers: { authorization: "alice" },
@@ -41,7 +41,7 @@ test.for([undefined, "/builds"] as const)(
         expect(response.status).toBe(200);
         expect(await response.json()).toEqual([]);
 
-        // connect two callers to the same operation store
+        // connect two callers
         const client = createClient(service, {
             url: "https://test.local",
             headers: { authorization: "alice" },
@@ -53,7 +53,7 @@ test.for([undefined, "/builds"] as const)(
             fetch: (request) => server.fetch(request),
         });
 
-        // observe work independently of a subscriber's connection
+        // start work
         const release = Promise.withResolvers<void>();
         const started = store.start(alice.id, { step: "compile" }, async ({ report }) => {
             await release.promise;
@@ -62,21 +62,21 @@ test.for([undefined, "/builds"] as const)(
             return { count: 2 };
         });
 
-        // isolate callers and retain records while work is running
+        // isolate callers
         expect(await client.get({ id: started.id })).toEqual(started);
         expect(await other.list()).toEqual([]);
         await expect(other.get({ id: started.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
         await expect(other.cancel({ id: started.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
         await expect(client.delete({ id: started.id })).rejects.toMatchObject({ code: "CONFLICT" });
 
-        // disconnect a subscriber without cancelling the operation
+        // disconnect a subscriber
         const disconnect = new AbortController();
         const stream = await client.watch({ id: started.id }, { signal: disconnect.signal });
         expect(await stream.next()).toEqual({ done: false, value: started });
         disconnect.abort();
         expect(store.get(alice.id, started.id)).toEqual(started);
 
-        // reconnect after publication and collect the retained outcome
+        // reconnect after completion
         release.resolve();
         const resumed = await client.watch({ id: started.id });
         const states = [];
@@ -84,7 +84,7 @@ test.for([undefined, "/builds"] as const)(
             states.push(state);
         }
 
-        // retain the complete result until the owner deletes its record
+        // keep the result until deletion
         expect(states.at(-1)).toEqual({
             ...started,
             updatedAt: expect.any(Number),
@@ -97,7 +97,7 @@ test.for([undefined, "/builds"] as const)(
         await client.delete({ id: started.id });
         expect(await client.list()).toEqual([]);
 
-        // acknowledge cancellation only after the runner observes its signal and cleans up
+        // cancel a running operation
         const entered = Promise.withResolvers<void>();
         let isCleaned = false;
         const cancelled = store.start(alice.id, { step: "wait" }, async ({ signal }) => {
@@ -114,19 +114,19 @@ test.for([undefined, "/builds"] as const)(
             }
         });
 
-        // request cancellation after the runner starts listening
+        // request cancellation
         await entered.promise;
         const requested = await client.cancel({ id: cancelled.id });
         expect(requested.cancellationRequested).toBe(true);
 
-        // observe cancellation only after runner cleanup finishes
+        // observe cancellation after cleanup
         const cancellation = await client.watch({ id: cancelled.id });
         const outcomes = [];
         for await (const state of cancellation) {
             outcomes.push(state);
         }
 
-        // retain the cancelled operation with its final progress
+        // keep the cancelled operation with its progress
         expect(isCleaned).toBe(true);
         expect(outcomes.at(-1)).toEqual({
             ...cancelled,
@@ -139,7 +139,7 @@ test.for([undefined, "/builds"] as const)(
 );
 
 test("enforce operation limits and retain successful work when cancellation loses the race", async () => {
-    // restrict both active runners and retained records to one operation
+    // limit the store to one operation
     await using store = new OperationStore(defineOperation(schema.string(), schema.number()), {
         concurrency: 1,
         capacity: 1,
@@ -147,7 +147,7 @@ test("enforce operation limits and retain successful work when cancellation lose
         timeout: 1000,
     });
 
-    // hold publication until cancellation has been requested
+    // hold publication until cancellation
     const entered = Promise.withResolvers<void>();
     const release = Promise.withResolvers<void>();
     const first = store.start("alice", 0, async () => {
@@ -157,7 +157,7 @@ test("enforce operation limits and retain successful work when cancellation lose
         return "published";
     });
 
-    // reject concurrent work and release the original runner even on assertion failure
+    // reject concurrent work
     await entered.promise;
     try {
         expect(() => store.start("alice", 0, async () => "extra")).toThrow(
@@ -168,13 +168,13 @@ test("enforce operation limits and retain successful work when cancellation lose
         release.resolve();
     }
 
-    // preserve a published result when cancellation loses the race
+    // keep a result that wins against cancellation
     const states = [];
     for await (const state of store.watch("alice", first.id)) {
         states.push(state);
     }
 
-    // keep successful output and the cancellation request in the terminal record
+    // keep the result and the cancellation request
     expect(states.at(-1)).toEqual({
         ...first,
         updatedAt: expect.any(Number),
@@ -184,7 +184,7 @@ test("enforce operation limits and retain successful work when cancellation lose
         result: "published",
     });
 
-    // require deletion before admitting another retained operation
+    // require deletion before another operation
     expect(() => store.start("alice", 0, async () => "extra")).toThrow(
         expect.objectContaining({ code: "RATE_LIMITED" }),
     );
@@ -193,7 +193,7 @@ test("enforce operation limits and retain successful work when cancellation lose
         throw new ServiceError("CONFLICT", { message: "Revision changed." });
     });
 
-    // retain a declared service failure as the operation outcome
+    // keep a service failure as the outcome
     const failures = [];
     for await (const state of store.watch("alice", failed.id)) {
         failures.push(state);
@@ -208,7 +208,7 @@ test("enforce operation limits and retain successful work when cancellation lose
 });
 
 test("enforce deadlines, expire completed operations, and cancel work on shutdown", async () => {
-    // use real short deadlines and retention without replacing the clock
+    // use short deadlines and retention
     const store = new OperationStore(defineOperation(schema.string(), schema.number()), {
         concurrency: 1,
         capacity: 2,
@@ -216,7 +216,7 @@ test("enforce deadlines, expire completed operations, and cancel work on shutdow
         timeout: 10,
     });
 
-    // keep the runner active until its deadline aborts it
+    // run until the deadline
     const operation = store.start("alice", 0, async ({ signal }) => {
         await new Promise<void>((resolve) =>
             signal.addEventListener("abort", () => resolve(), { once: true }),
@@ -226,13 +226,13 @@ test("enforce deadlines, expire completed operations, and cancel work on shutdow
         return "unreachable";
     });
 
-    // collect the deadline failure through the operation subscription
+    // collect the deadline failure
     const states = [];
     for await (const state of store.watch("alice", operation.id)) {
         states.push(state);
     }
 
-    // distinguish deadline expiry from user cancellation
+    // report the deadline apart from cancellation
     expect(states.at(-1)).toEqual({
         ...operation,
         updatedAt: expect.any(Number),
@@ -242,14 +242,14 @@ test("enforce deadlines, expire completed operations, and cancel work on shutdow
         error: { code: "DEADLINE_EXCEEDED", message: "operation deadline exceeded" },
     });
 
-    // expire the retained result and remove it from both read paths
+    // expire the result
     await new Promise((resolve) => setTimeout(resolve, 6));
     expect(store.list("alice")).toEqual([]);
     expect(() => store.get("alice", operation.id)).toThrow(
         expect.objectContaining({ code: "NOT_FOUND" }),
     );
 
-    // stop a runner before it starts and refuse further work after disposal
+    // stop an unstarted runner and refuse work after disposal
     let isInvoked = false;
     store.start("alice", 0, async () => {
         isInvoked = true;

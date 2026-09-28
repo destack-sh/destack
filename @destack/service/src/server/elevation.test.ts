@@ -13,11 +13,11 @@ import { Server } from "./server.ts";
 import type { ServiceContext } from "./context.ts";
 import { hosting } from "./tests/fixture.ts";
 
-/** The authentication renaming a vault asks for: several factors within ten minutes. */
+/** The authentication renaming a vault requires. */
 const RECENT = { assurance: 2, maxAge: 10 * 60 * 1000 };
 
 test("challenge a hand-written procedure's caller for its elevated permission, then admit it once it authenticates again", async () => {
-    // declare a vault only its owner renames, after recent strong authentication
+    // declare a vault its owner renames after recent strong authentication
     const module = {
         package: { id: hosting.audience, name: "@example/vault", version: "2026.9.0" },
     };
@@ -47,7 +47,7 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
         ],
     );
 
-    // hold alice's vault in the served space
+    // hold alice's vault
     const storage = await TestDatabase.create("sqlite", [vaults, ...ACCESS_TABLES], {
         isMigrated: true,
     });
@@ -62,7 +62,7 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
         .insert(vaults)
         .values({ id: "main", scope: hosting.scope, owner: "alice" });
 
-    // serve renaming through the permission, as alice authenticated at a level the test sets
+    // serve renaming with the permission
     const service = {
         rename: defineProcedure({
             authentication: "identity",
@@ -112,7 +112,7 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
         fetch: (request) => server.fetch(request),
     });
 
-    // challenge a single factor for the elevation's level and age, then hand the handler the vault the retry was decided on
+    // challenge a single factor, then rename after elevation
     await expect(client.rename({ id: "main" })).rejects.toMatchObject({
         code: "INSUFFICIENT_AUTHENTICATION",
         status: 401,

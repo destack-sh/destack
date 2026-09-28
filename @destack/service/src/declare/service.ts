@@ -2,39 +2,39 @@ import { DeclarationName, declaringModule, Package, type ModuleMetadata } from "
 import type { Declaration } from "@destack/package/declare";
 import type { ServiceRouter } from "../service/service.ts";
 
-/** A declared HTTP service and the procedures its workload implements. */
+/** A declared HTTP service. */
 export interface Service<Router extends ServiceRouter = ServiceRouter> extends Declaration {
     /** The declaration format version. */
     readonly version: 1;
     /** The service transport. */
     readonly protocol: "http";
-    /** Procedures implemented by the named service. */
+    /** The service's procedures. */
     readonly router: Router;
-    /** The declarations deriving procedures, such as object types, keyed by the name each routes under. */
+    /** The declarations deriving procedures, by route name. */
     readonly objects: Readonly<Record<string, Routed>>;
 }
 
-/** A declaration that derives the procedures a service routes to it, such as an object type. */
+/** A declaration that derives procedures, such as an object type. */
 export interface Routed {
-    /** The declaration's own procedures, routed under its key. */
+    /** The declaration's own procedures. */
     readonly procedures: ServiceRouter;
-    /** The procedures every declaration of its kind shares, routed once at the service's top level. */
+    /** The procedures every declaration of its kind shares. */
     readonly shared: ServiceRouter;
 }
 
-/** The procedures each kind of routed declaration derives, by kind, which the packages declaring the kinds add to. */
+/** The procedures each kind of routed declaration derives. */
 export interface RoutedProcedures<_Declaration> {}
 
-/** The procedures a routed declaration derives, as the package declaring its kind types them. */
+/** The procedures a routed declaration derives. */
 export type ProceduresOf<Declaration> =
     RoutedProcedures<Declaration>[keyof RoutedProcedures<Declaration>];
 
-/** A service's procedures and the declarations deriving more, keyed by the name each routes under. */
+/** A service's procedures and routed declarations. */
 export type ServiceInput = { readonly objects?: Readonly<Record<string, Routed>> } & {
     readonly [Name: string]: ServiceRouter | Readonly<Record<string, Routed>> | undefined;
 };
 
-/** The router a service input declares: its own procedures, each declaration's, and their shared ones. */
+/** The router a service input declares. */
 export type ServiceRoutes<Input extends ServiceInput> = Extract<
     Omit<Input, "objects"> &
         (Input["objects"] extends Readonly<Record<string, Routed>>
@@ -45,16 +45,16 @@ export type ServiceRoutes<Input extends ServiceInput> = Extract<
     ServiceRouter
 >;
 
-/** Declare an HTTP service, its procedures and the declarations deriving more, for workload routing. */
+/** Declare an HTTP service. */
 export function defineService<const Input extends ServiceInput>(
     name: string,
     input: Input,
     module?: ModuleMetadata,
 ): Service<ServiceRoutes<Input>> {
-    // stamp the declaring package supplied by the module transform
+    // stamp the declaring package
     const owner = Package.parse(declaringModule(module, "defineService").package);
 
-    // route each declaration under its own name, and their shared procedures once
+    // route each declaration under its name and the shared procedures once
     const { objects = {}, ...router } = input as ServiceInput;
     const derived: Record<string, unknown> = { ...router };
     const shared: Record<string, unknown> = {};
@@ -63,7 +63,7 @@ export function defineService<const Input extends ServiceInput>(
         Object.assign(shared, routed.shared);
     }
 
-    // refuse a name that two of the procedures, the declarations and the shared procedures take
+    // refuse a name taken twice
     const taken = [...Object.keys(router), ...Object.keys(objects), ...Object.keys(shared)];
     const collision = taken.find((key, position) => taken.indexOf(key) !== position);
     if (collision !== undefined) {
