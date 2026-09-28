@@ -518,12 +518,10 @@ fn build_usage_aliases(color_enabled: bool) -> String {
     if color_enabled {
         let shortcut_style = AnsiColor::Cyan.on_default().bold();
         let hint_style = Style::new().dimmed();
-        return format!(
-            "  {hint_style}or{hint_style:#} {shortcut_style}ds{shortcut_style:#} | {shortcut_style}dsc{shortcut_style:#}"
-        );
+        return format!("  {hint_style}or{hint_style:#} {shortcut_style}tsppc{shortcut_style:#}");
     }
 
-    "  or ds | dsc".to_string()
+    "  or tsppc".to_string()
 }
 
 /// Build the options heading for help output.
