@@ -88,6 +88,7 @@ for await (const result of feed.watch("board", board, signal)) {
 | `changes` | Rows entering, changing or leaving, with the columns `concealed` from the subscriber |
 | `results` | Aggregate groups changing, with the parts of each average |
 | `outcomes` | The subscriber's mutations the page executed or rejected |
+| `broadcasts` | The events sent to what the subscriber follows, which nothing stores |
 
 ## Audiences
 
@@ -98,6 +99,26 @@ An audience decides which rows a subscriber may hold and which columns it may re
 | `where`, `admits` | The rows the subscriber may hold, as SQL and in memory |
 | `concealable`, `conceals` | The columns some rows hide, which queries may not filter, order, join or measure by |
 | `watches`, `dependents` | The access tables it follows, and the rows each of their changes decides again |
+
+## Trackers
+
+A tracker keeps a memory database the same on every instance of a service, removing an owner's rows once no instance holds it.
+
+```ts
+const tracker = new Tracker(memory, [cursor], relay);
+const rows = await memory.transaction(async (transaction) => {
+    await transaction.insert(cursor).values({ id, scope, position: 12 });
+    return tracker.record(transaction, () => owner);
+});
+tracker.publish(rows);
+tracker.hold(owner); // while one of the owner's connections is open here
+```
+
+| Verb | Effect |
+|---|---|
+| `record`, `publish`, `end` | Send a transaction's rows to every instance, and remove an owner's rows everywhere |
+| `hold`, `release`, `isHeld`, `watchHolds` | Track which owners some instance holds |
+| `broadcast`, `listen` | Send an event to a topic's listeners on every instance, storing nothing |
 
 ## Replicas
 
