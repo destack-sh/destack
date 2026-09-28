@@ -32,7 +32,7 @@ const note = new Policy(import.meta.destack.package, {
 |---|---|
 | `grantedBy` | The permission whose holders bind roles and grant relations; a relation overrides it, `null` leaves it to the system |
 | `reserved` | Permissions only expressions grant, never roles |
-| `elevated` | Permissions that need recent strong authentication |
+| `elevated` | The `Elevation` each sensitive permission asks for: an assurance level reached within a maximum age |
 | `administration` | Permissions that stay available in a suspended scope |
 | `scope` | The type's objects are scopes, containing other objects |
 
@@ -62,6 +62,14 @@ const decision = await authorizer.check(snapshot, note.permission("share"), note
 | `check`, `require`, `owns` | One object; a `Decision` holds until the moment time alone may change it |
 | `checkRows` | Rows through the grant trees a `GrantReader` shares |
 | `explain` | Why a caller holds a permission or not: the gate, then each grant per authority |
+| `challenge` | The fresh authentication that would admit a refused caller, which `require` raises as `INSUFFICIENT_AUTHENTICATION` |
+
+A refusal that stronger or fresher authentication alone would lift is a step-up challenge, as OAuth's `insufficient_user_authentication` names one.
+
+```ts
+const note = new Policy(pkg, { name: "note", ..., elevated: { delete: { assurance: 2, maxAge: 15 * 60 * 1000 } } });
+// AccessError { code: "INSUFFICIENT_AUTHENTICATION", stepUp: { assurance: 2, maxAge: 900000 } }
+```
 
 ## Authorization
 

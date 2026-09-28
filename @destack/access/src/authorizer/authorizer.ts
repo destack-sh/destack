@@ -1,12 +1,4 @@
-import {
-    and,
-    eq,
-    or,
-    sql,
-    type DatabaseConnection,
-    type SQL,
-    type Table,
-} from "@destack/db";
+import { and, eq, or, sql, type DatabaseConnection, type SQL, type Table } from "@destack/db";
 import { Condition } from "@destack/db/query";
 import { Snapshot } from "@destack/db/log";
 import type { PackageId } from "@destack/package";
@@ -30,6 +22,7 @@ import {
 } from "../policy/subject.ts";
 import { INTRINSIC_POLICIES } from "../policy/principal.ts";
 import { GLOBAL_SCOPE, type AccessContext } from "../context/context.ts";
+import { HIGHEST_ASSURANCE, type Elevation, type StepUp } from "../context/elevation.ts";
 import { accessRelationship, type RelationshipRow } from "../relationship/table.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRole } from "../role/table.ts";
@@ -70,8 +63,8 @@ export interface ScopeLink {
 export class Authorizer {
     /** The keys of permissions only their expressions grant, which universal roles leave out. */
     readonly reserved: ReadonlySet<string>;
-    /** The keys of permissions that apply only to elevated requests. */
-    readonly elevated: ReadonlySet<string>;
+    /** The authentication each elevated permission asks for, by permission key. */
+    readonly elevated: ReadonlyMap<string, Elevation>;
     /** The keys of permissions that stay available while a scope is suspended. */
     readonly administration: ReadonlySet<string>;
     /** Field-held relations some relation names as a subject set. */
@@ -173,7 +166,7 @@ export class Authorizer {
             }
             for (const name of [
                 ...(definition.reserved ?? []),
-                ...(definition.elevated ?? []),
+                ...Object.keys(definition.elevated ?? {}),
                 ...(definition.administration ?? []),
             ]) {
                 this.expression(type.permission(name));
@@ -187,7 +180,14 @@ export class Authorizer {
 
         // index the permissions the policies list as reserved, elevated or administrative
         this.reserved = listedPermissions(types, "reserved");
-        this.elevated = listedPermissions(types, "elevated");
+        this.elevated = new Map(
+            types.flatMap((type) =>
+                Object.entries(type.definition.elevated ?? {}).map(([name, elevation]) => [
+                    permissionKey(type.permission(name)),
+                    elevation,
+                ]),
+            ),
+        );
         this.administration = listedPermissions(types, "administration");
         this.lag = options.lag ?? LAG_MILLISECONDS;
         this.#compiler = new Compiler(this);
@@ -698,7 +698,7 @@ export class Authorizer {
             for (const permission of permissions) {
                 const decision = await this.check(snapshot, permission, target, access, read);
                 if (!decision.isAllowed) {
-                    throw new AccessError("FORBIDDEN", `permission denied: ${permission.name}`);
+                    await this.#refuse(snapshot, permission, target, access);
                 }
             }
 
@@ -715,8 +715,41 @@ export class Authorizer {
         );
         const denied = permissions.find((_, index) => Number(row![`held_${index}`]) !== 1);
         if (denied) {
-            throw new AccessError("FORBIDDEN", `permission denied: ${denied.name}`);
+            await this.#refuse(snapshot, denied, target, access);
         }
+    }
+
+    /**
+     * Find the fresh authentication that would admit a refused caller: the lowest assurance level at which a decision holds, with the permission's elevation age.
+     *
+     * Refusals stronger authentication would not lift, such as missing grants, find none.
+     */
+    async challenge(
+        snapshot: Snapshot,
+        permission: PermissionReference,
+        access: Access,
+        admits: (stepped: Access) => Promise<boolean>,
+    ): Promise<StepUp | undefined> {
+        // start from the caller's own level and the elevation's, whichever is higher
+        const context = access.context;
+        const elevation = this.elevated.get(permissionKey(permission));
+        const lowest = Math.max(context.assurance?.level ?? 1, elevation?.assurance ?? 1);
+
+        // decide again at each level as if the caller authenticated just now
+        for (let level = lowest; level <= HIGHEST_ASSURANCE; level++) {
+            const stepped = await this.resolve(snapshot, access.scope, {
+                ...context,
+                assurance: { level, authenticatedAt: context.now },
+            });
+            if (await admits(stepped)) {
+                return {
+                    assurance: level,
+                    ...(elevation === undefined ? {} : { maxAge: elevation.maxAge }),
+                };
+            }
+        }
+
+        return undefined;
     }
 
     /** Decide whether the caller owns one object, every authority holding a role that grants everything on or above it. */
@@ -817,6 +850,29 @@ export class Authorizer {
             ...(blocked === undefined ? {} : { gate: blocked }),
             authorities: decided,
         };
+    }
+
+    /** Refuse a caller a permission on one object, challenging it for the authentication that would admit it. */
+    async #refuse(
+        snapshot: Snapshot,
+        permission: PermissionReference,
+        target: ObjectReference,
+        access: Access,
+    ): Promise<never> {
+        const stepUp = await this.challenge(
+            snapshot,
+            permission,
+            access,
+            async (stepped) => (await this.check(snapshot, permission, target, stepped)).isAllowed,
+        );
+        if (stepUp !== undefined) {
+            throw new AccessError(
+                "INSUFFICIENT_AUTHENTICATION",
+                "authenticate again at the required assurance",
+                { stepUp },
+            );
+        }
+        throw new AccessError("FORBIDDEN", `permission denied: ${permission.name}`);
     }
 
     /** Read the gate a request fails on a row before any grant: its credential, elevation or suspension, or a listed row outside the scope. */
@@ -1046,10 +1102,10 @@ function validateCondition(condition: Condition, type: Policy): void {
     }
 }
 
-/** Collect the keys of the permissions policies list as reserved, elevated or administrative. */
+/** Collect the keys of the permissions policies list as reserved or administrative. */
 function listedPermissions(
     types: readonly Policy[],
-    list: "reserved" | "elevated" | "administration",
+    list: "reserved" | "administration",
 ): Set<string> {
     return new Set(
         types.flatMap((type) =>

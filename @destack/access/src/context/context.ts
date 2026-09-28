@@ -8,9 +8,6 @@ import type { Attribute } from "../policy/expression.ts";
 /** The scope of rows outside every other scope, such as users and organisations. */
 export const GLOBAL_SCOPE = "global";
 
-/** How long strong authentication elevates a caller for sensitive permissions, in milliseconds. */
-export const ELEVATION_MILLISECONDS = 15 * 60 * 1000;
-
 /** An identifier a principal proves control of, such as `email:bob@acme.com`, written `scheme:value`. */
 export const VerifiedIdentifier = defineSchema(
     schema
@@ -104,17 +101,6 @@ export function delegationChain(
 
         return link;
     });
-}
-
-/** Determine whether a request authenticated strongly and recently enough for sensitive permissions. */
-export function isElevated(context: AccessContext): boolean {
-    const assurance = context.assurance;
-
-    return (
-        assurance !== undefined &&
-        assurance.level >= 2 &&
-        context.now - assurance.authenticatedAt <= ELEVATION_MILLISECONDS
-    );
 }
 
 /** Read the identifiers the represented subject proved, which a delegate acting with lent authority never inherits. */

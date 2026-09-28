@@ -35,6 +35,9 @@ export const module3 = testModule(3);
 /** The fourth test package, declaring the scope and group types the tests use. */
 export const module4 = testModule(4);
 
+/** The authentication sensitive test permissions ask for: several factors within fifteen minutes. */
+const RECENT = { assurance: 2, maxAge: 15 * 60 * 1000 };
+
 /** The permissions the test scope and group types grant through roles. */
 const OBJECT_PERMISSIONS = { read: none(), update: none(), delete: none(), share: none() };
 
@@ -48,7 +51,7 @@ export const account = new Policy(module4.package, {
     permissions: { ...OBJECT_PERMISSIONS, own: relation("root") },
     grantedBy: "share",
     reserved: ["own"],
-    elevated: ["delete", "own"],
+    elevated: { delete: RECENT, own: RECENT },
     scope: true,
 });
 
@@ -57,7 +60,7 @@ export const space = new Policy(module4.package, {
     name: "space",
     permissions: OBJECT_PERMISSIONS,
     grantedBy: "share",
-    elevated: ["delete"],
+    elevated: { delete: RECENT },
     scope: true,
 });
 
@@ -164,7 +167,7 @@ export const entity = new Policy(module3.package, {
             condition(Condition.eq("protected", 1)),
         ),
     },
-    elevated: ["edit"],
+    elevated: { edit: RECENT },
 });
 
 /** Real application records shared by the three compact integration examples. */

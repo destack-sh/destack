@@ -4,6 +4,7 @@ import { AccessName, type AccessExpression } from "./expression.ts";
 import { type RelationDefinition, type Subject, SubjectType } from "./subject.ts";
 import { AccessError } from "../error/index.ts";
 import { PolicyDescription } from "../inspect/policy.ts";
+import type { Elevation } from "../context/elevation.ts";
 
 /** A protected object: its type, the scope containing it, and its identifier there. */
 export const ObjectReference = defineSchema(
@@ -42,8 +43,8 @@ export interface PolicyDefinition {
     readonly grantedBy?: string;
     /** Permissions only their expressions grant, never roles, not even owners'. */
     readonly reserved?: readonly string[];
-    /** Sensitive permissions that apply only after recent strong authentication, whoever holds them. */
-    readonly elevated?: readonly string[];
+    /** Sensitive permissions that apply only after the authentication each names, whoever holds them. */
+    readonly elevated?: Readonly<Record<string, Elevation>>;
     /** Permissions that stay available while the scope is suspended, such as reading and resuming it. */
     readonly administration?: readonly string[];
     /** Whether the type's objects are scopes, holding other objects while living in their own container like any object. */
@@ -126,7 +127,7 @@ export class Policy<Name extends string = string> {
                 permissions: input.permissions,
                 ...(input.grantedBy === undefined ? {} : { grantedBy: input.grantedBy }),
                 ...(input.reserved === undefined ? {} : { reserved: [...input.reserved] }),
-                ...(input.elevated === undefined ? {} : { elevated: [...input.elevated] }),
+                ...(input.elevated === undefined ? {} : { elevated: { ...input.elevated } }),
                 ...(input.administration === undefined
                     ? {}
                     : { administration: [...input.administration] }),
@@ -267,8 +268,8 @@ export interface PolicyInput<Name extends string> {
     readonly grantedBy?: NoInfer<Name>;
     /** Permissions only their expressions grant, never roles, not even owners'. */
     readonly reserved?: readonly NoInfer<Name>[];
-    /** Sensitive permissions that apply only after recent strong authentication, whoever holds them. */
-    readonly elevated?: readonly NoInfer<Name>[];
+    /** Sensitive permissions that apply only after the authentication each names, whoever holds them. */
+    readonly elevated?: Readonly<Partial<Record<NoInfer<Name>, Elevation>>>;
     /** Permissions that stay available while the scope is suspended, such as reading and resuming it. */
     readonly administration?: readonly NoInfer<Name>[];
     /** Whether the type's objects are scopes, holding other objects while living in their own container like any object. */

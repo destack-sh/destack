@@ -7,12 +7,8 @@ import { permissionKey, type ObjectReference, type PermissionReference } from ".
 import { subjectKey, type Subject, type SubjectType } from "../policy/subject.ts";
 import { ACCESS_PACKAGE_ID } from "../policy/principal.ts";
 import * as principal from "../policy/principal.ts";
-import {
-    delegationChain,
-    isElevated,
-    ELEVATION_MILLISECONDS,
-    type AccessContext,
-} from "../context/context.ts";
+import { delegationChain, type AccessContext } from "../context/context.ts";
+import { Elevation } from "../context/elevation.ts";
 import { Restriction } from "../context/restriction.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import type { RelationshipRow } from "../relationship/table.ts";
@@ -127,17 +123,14 @@ export class Access {
             ),
         ]);
 
-        // take the earliest moment a subject set, an inclusion or the elevation changes by time
-        const assurance = context.assurance;
-        const elevation =
-            assurance !== undefined && isElevated(context)
-                ? assurance.authenticatedAt + ELEVATION_MILLISECONDS
-                : undefined;
+        // take the earliest moment a subject set, an inclusion or an elevation the caller holds changes by time
         const until = earliest([
             roles.until,
             represented.until,
             ...delegates.map((delegate) => delegate.expanded.until),
-            elevation,
+            ...[...authorizer.elevated.values()].map((elevation) =>
+                Elevation.until(elevation, context),
+            ),
         ]);
 
         return new Access(authorizer, {
@@ -233,8 +226,8 @@ export class Access {
         ) {
             return "restricted";
         }
-        // require elevation for elevated permissions
-        else if (this.#authorizer.elevated.has(key) && !isElevated(this.context)) {
+        // require the authentication an elevated permission asks for
+        else if (!this.elevates(permission)) {
             return "elevation";
         }
         // require an active scope for all but administration
@@ -243,6 +236,13 @@ export class Access {
         }
 
         return undefined;
+    }
+
+    /** Report whether the caller authenticated as a permission's elevation asks, as every caller does for a permission without one. */
+    elevates(permission: PermissionReference): boolean {
+        const elevation = this.#authorizer.elevated.get(permissionKey(permission));
+
+        return elevation === undefined || Elevation.admits(elevation, this.context);
     }
 
     /** Read the scope's own object when a mapping holds objects of its type, which lives in the scope containing it. */

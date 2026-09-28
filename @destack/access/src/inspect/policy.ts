@@ -4,6 +4,7 @@ import { PackageId } from "@destack/package";
 import { Condition } from "@destack/db/query";
 import { AccessName, type AccessExpression } from "../policy/expression.ts";
 import { SubjectType } from "../policy/subject.ts";
+import { Elevation } from "../context/elevation.ts";
 
 /** Serialized permission expressions with no executable callbacks. */
 export const AccessExpressionDescription: schema.Schema<AccessExpression> = schema.lazy(() =>
@@ -73,8 +74,8 @@ export const PolicyDescription = defineSchema(
         grantedBy: AccessName.optional(),
         /** The permissions only their expressions grant. */
         reserved: schema.array(AccessName).optional(),
-        /** The permissions that apply only after recent strong authentication. */
-        elevated: schema.array(AccessName).optional(),
+        /** The permissions that apply only after the authentication each names. */
+        elevated: schema.record(AccessName, Elevation.schema).optional(),
         /** Permissions that stay available while the scope is suspended. */
         administration: schema.array(AccessName).optional(),
         /** Whether the objects are scopes. */

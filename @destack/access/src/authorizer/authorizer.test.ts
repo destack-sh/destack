@@ -122,6 +122,31 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
                 ),
             ),
     ).toEqual([]);
+
+    // challenge the stale caller for the elevation's authentication, and refuse one no authentication admits
+    const snapshot = Snapshot.live(database);
+    const refusals = [];
+    for (const context of [stale, { ...stale, attributes: { team: 1, phase: "view" } }]) {
+        const access = await authorizer.resolve(snapshot, "personal", context);
+        refusals.push(
+            await authorizer
+                .require(
+                    snapshot,
+                    [entity.permission("edit")],
+                    entity.reference("personal", "a"),
+                    access,
+                )
+                .catch((error: AccessError) => [error.code, error.message, error.stepUp]),
+        );
+    }
+    expect(refusals).toEqual([
+        [
+            "INSUFFICIENT_AUTHENTICATION",
+            "authenticate again at the required assurance",
+            { assurance: 2, maxAge: 15 * 60 * 1000 },
+        ],
+        ["FORBIDDEN", "permission denied: edit", undefined],
+    ]);
 });
 
 databaseTest(
