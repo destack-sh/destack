@@ -326,8 +326,9 @@ Write code and prose that read plain and boring.
   - `// build drop plan for each function`, not `// each function gets an independent drop plan`
 
 - **WC15** Comments MUST NOT contain LLM slop, statements about what things are not, or negative parallelisms.
-- **WC16** Comments MUST avoid indirect speech and sentences that are hard to parse.
-  - `// borrow the object from a root local when reached by a target`, not `// borrow the object a reference in a root local names when the target reaches through it`
+- **WC16** Comments MUST avoid indirect speech and sentences that are hard to parse:
+  - `// borrow the object from a root local when reached by a target`, NOT `// borrow the object a reference in a root local names when the target reaches through it`
+  - "Traits add columns and methods to every object.", NOT "A trait adds columns and methods to every object whose definition names it."
 - **WC17** Comments MUST NOT pack several complex clauses into one sentence with commas; multi part, noun-heavy sentences are the worst case.
 
 - **WC18** Separator comments MAY frame an uppercase title with `===` lines.
