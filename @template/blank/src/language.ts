@@ -1,12 +1,8 @@
-import type { ResourceContext } from "@destack/resource/context";
 import type { SettingSelection } from "@destack/setting";
-import { SettingClient } from "@destack/setting/client";
+import type { SettingRow } from "@destack/setting/object";
 import { language } from "./settings/index.ts";
-import { settings } from "./connection/index.ts";
 
-/** Read the represented user's language through the host-provided settings context. */
-export function readLanguage(selection: SettingSelection, resources: ResourceContext) {
-    const client = new SettingClient(settings.get(resources), settings.package.id, selection);
-
-    return language.get(client);
+/** Resolve the content language from the setting rows of a user's scope and the space they act in. */
+export function readLanguage(selection: SettingSelection, rows: readonly SettingRow[]) {
+    return language.resolve(selection, rows).value;
 }

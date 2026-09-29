@@ -10,7 +10,7 @@ A lint name in parentheses, like (`destack/valid-declaration`), marks a rule the
 
 ```text
 package/
-├─ destack.json            id, language, template, targets, runtimes, exports, views
+├─ destack.json            id, language, template, targets, runtimes, exports
 ├─ package.json            name, version, dependencies, exports
 ├─ src/
 │  ├─ package.ts           export default definePackage({ resources, secrets })
@@ -22,7 +22,7 @@ package/
 │  ├─ server/              implementService(...): server-only
 │  ├─ workload/            defineWorkload({ name, compute, start })
 │  ├─ settings/ audit/ notification/   defineSetting · defineAuditAction · defineNotification
-│  ├─ app/                 view startup and composition
+│  ├─ app/                 defineView(...) and the view's components
 │  └─ <noun>/              domain modules, one noun each
 └─ tests/                  *.test.ts
 ```
@@ -46,7 +46,7 @@ Reference      a pointer to a declaration   { packageId, name }                 
 - **PK05** Declarations MUST be exported module-level constants initialised by their `define*` constructor. (`destack/valid-declaration`)
 - **PK06** Package handles MUST be default-exported from `src/package.ts`. (`destack/valid-package-handle`)
 - **PK07** Package identity MUST come from `import.meta.destack` or package handles, never from imported `destack.json` or `package.json`. (`destack/no-manifest-import`)
-- **PK08** `destack.json` MUST hold only what code cannot declare: identity, language, template, compatibility and views.
+- **PK08** `destack.json` MUST hold only what code cannot declare: identity, language, template and compatibility.
 
 ## Services
 
