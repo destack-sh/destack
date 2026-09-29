@@ -1,3 +1,4 @@
+import { exportJWK, generateKeyPair, SignJWT, type JSONWebKeySet } from "jose";
 import { v7 } from "uuid";
 import { directoryTables } from "@destack/directory";
 import { Scope, type ObjectReference } from "@destack/sync";
@@ -20,13 +21,14 @@ import { defineDatabase, type Database } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ResourceContext } from "@destack/resource/context";
 import { identifier } from "@destack/schema";
-import { Caller } from "@destack/service/authentication";
+import { Caller, TokenVerifier, type TokenIssuerOptions } from "@destack/service/authentication";
 import { Health } from "@destack/service/health";
 import { Server, type ServiceImplementation } from "@destack/service/server";
 import { connect } from "../client/index.ts";
-import { HostCaller, HostIdentity } from "../identity/index.ts";
+import { HostIdentity } from "../identity/index.ts";
 import { MemoryKeychain } from "../keychain/index.ts";
 import { implementService } from "../server/index.ts";
+import { HostKey } from "../object/index.ts";
 import { hostTables } from "../stack/index.ts";
 
 /** The global tier's origin, the issuer of enrolled hosts. */
@@ -38,6 +40,9 @@ export const globalDatabase = defineDatabase({
     tier: "global",
     tables: [...accountTables, ...directoryTables, ...hostTables],
 });
+
+/** The URL the fixture's host service answers at. */
+export const HOSTS_URL = "https://hosts.test";
 
 /** How long a fixture session lasts, a day in milliseconds. */
 const SESSION_MILLISECONDS = 24 * 60 * 60 * 1000;
@@ -63,17 +68,25 @@ export class GlobalFixture implements AsyncDisposable {
     readonly hosts: Server;
     /** The account service. */
     readonly accounts: Server;
+    /** The public keys of the universe's token authority. */
+    readonly keys: JSONWebKeySet;
 
     /** The empty audit history the served services deliver to. */
     static readonly history: AuditDestination = { ingest: async () => 0 };
 
     /** Hold a served global tier. */
-    private constructor(storage: TestDatabase, hosts: Server, accounts: Server) {
-        // hold the database and both services
+    private constructor(
+        storage: TestDatabase,
+        hosts: Server,
+        accounts: Server,
+        keys: JSONWebKeySet,
+    ) {
+        // hold the database, both services and the token authority's keys
         this.storage = storage;
         this.database = storage.database;
         this.hosts = hosts;
         this.accounts = accounts;
+        this.keys = keys;
     }
 
     /** Serve the global tier with the owner's accounts and the region, relaying the rows of some inherited types. */
@@ -161,10 +174,23 @@ export class GlobalFixture implements AsyncDisposable {
             operator,
         );
 
-        // serve hosts to users and to hosts by their proofs
-        const hosts = GlobalFixture.serve(implementService({ database }), database);
+        // sign the universe's tokens with a key of the fixture's own
+        const pair = await generateKeyPair("ES256");
+        const keys = {
+            keys: [{ ...(await exportJWK(pair.publicKey)), kid: "universe", alg: "ES256" }],
+        };
+        const tokens: Pick<TokenIssuerOptions, "issuer" | "sign"> = {
+            issuer: ISSUER,
+            sign: (payload) =>
+                new SignJWT(payload)
+                    .setProtectedHeader({ alg: "ES256", kid: "universe" })
+                    .sign(pair.privateKey),
+        };
 
-        // serve the account service to hosts by their proofs
+        // serve hosts to users and to hosts by their tokens
+        const hosts = GlobalFixture.serve(implementService({ database, tokens }), database, keys);
+
+        // serve the account service to hosts by their tokens
         const authentication = createAuthentication({
             database,
             origin: ISSUER,
@@ -200,9 +226,9 @@ export class GlobalFixture implements AsyncDisposable {
             history: GlobalFixture.history,
             inherited,
         });
-        const accounts = GlobalFixture.serve(accountImplementation, database);
+        const accounts = GlobalFixture.serve(accountImplementation, database, keys);
 
-        return new GlobalFixture(storage, hosts, accounts);
+        return new GlobalFixture(storage, hosts, accounts, keys);
     }
 
     /** Route a request of the global tier's origin as the universe does: by mount, else to the account service's issuer paths. */
@@ -247,7 +273,7 @@ export class GlobalFixture implements AsyncDisposable {
     /** Connect to the host service as a user. */
     user(userId: string) {
         return connect({
-            url: "https://hosts.test",
+            url: HOSTS_URL,
             headers: { "x-user": userId },
             fetch: (request) => this.hosts.fetch(request),
         });
@@ -256,8 +282,12 @@ export class GlobalFixture implements AsyncDisposable {
     /** Connect to the host service as a host. */
     host(identity: HostIdentity) {
         return connect({
-            url: "https://hosts.test",
-            fetch: identity.fetch((request) => this.hosts.fetch(request)),
+            url: HOSTS_URL,
+            fetch: identity.fetch(
+                (request) => this.hosts.fetch(request),
+                hostService.package.id,
+                HOSTS_URL,
+            ),
         });
     }
 
@@ -300,9 +330,19 @@ export class GlobalFixture implements AsyncDisposable {
         return identity;
     }
 
-    /** Serve an implementation to hosts by their proofs and to users by session or header. */
-    static serve(implementation: ServiceImplementation, database: DatabaseConnection): Server {
+    /** Serve an implementation to hosts by their tokens and to users by session or header. */
+    static serve(
+        implementation: ServiceImplementation,
+        database: DatabaseConnection,
+        keys: JSONWebKeySet,
+    ): Server {
         const audience = implementation.service.package.id;
+        const verifier = new TokenVerifier({
+            authority: { kind: "universe" },
+            issuer: ISSUER,
+            audience,
+            keys,
+        });
 
         return Server.start({
             ...implementation,
@@ -312,9 +352,13 @@ export class GlobalFixture implements AsyncDisposable {
             drainTimeout: 1000,
             authorizeHost: async () => {},
             authenticate: async (request) => {
-                // verify a host by its proof
-                if (HostCaller.accepts(request)) {
-                    return HostCaller.authenticate(request, database, audience);
+                // verify a token the universe signed
+                const authorization = request.headers.get("authorization") ?? "";
+                if (/^Bearer \S+\.\S+\.\S+$/.test(authorization)) {
+                    const caller = await verifier.authenticate(request);
+                    await HostKey.requireAuthenticating(database, caller, Date.now());
+
+                    return caller;
                 }
 
                 // take the user of an unexpired signed-in session, refusing any other bearer

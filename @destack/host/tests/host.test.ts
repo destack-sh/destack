@@ -1,4 +1,4 @@
-import { eq, isNotNull } from "@destack/db";
+import { eq } from "@destack/db";
 import { principal } from "@destack/access";
 import { account } from "@destack/account/object";
 import { Scope } from "@destack/sync";
@@ -52,7 +52,7 @@ test("rotate a host's key, revoking its other keys, and match the keys authentic
     const hostId = identifier("host").parse(identity.hostId);
     const keys = () =>
         global.database
-            .select({ id: hostKey.table.id, isRevoked: isNotNull(hostKey.table.revokedAt) })
+            .select({ id: hostKey.table.id, revokedAt: hostKey.table.revokedAt })
             .from(hostKey.table)
             .where(eq(hostKey.table.parentId, hostId))
             .orderBy(hostKey.table.createdAt);
@@ -67,7 +67,7 @@ test("rotate a host's key, revoking its other keys, and match the keys authentic
     // rotate the key, which revokes the first one
     await identity.rotate(global.host(identity), ids.account);
     const [first, second] = await keys();
-    expect([first!.isRevoked, second!.isRevoked]).toEqual([true, false]);
+    expect([first!.revokedAt !== null, second!.revokedAt !== null]).toEqual([true, false]);
 
     // select only the second key, and none past its lifetime or once the host is revoked
     const now = Date.now();

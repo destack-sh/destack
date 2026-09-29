@@ -1,16 +1,18 @@
 import type { webcrypto } from "node:crypto";
+import { SignJWT } from "jose";
+import type { PackageId } from "@destack/package";
 import { copyRequest, RequestId } from "@destack/service/request";
 import { identifier } from "@destack/schema";
 import { DeviceProof, DevicePublicKey, type ProofRequest } from "@destack/account/object";
-import type { connect } from "../client/index.ts";
+import { connect } from "../client/index.ts";
 import type { Host } from "../object/index.ts";
 import type { Keychain } from "../keychain/index.ts";
 
 /** A private key as Web Crypto exports it, a JSON Web Key. */
 type PrivateJwk = webcrypto.JsonWebKey;
 
-/** The authorization scheme of a request a host signs with a proof by its key. */
-export const HOST_PROOF_SCHEME = "HostProof";
+/** How long before its expiry a host re-grants an access token, in milliseconds: the verifiers' clock tolerance and a grant's round trip. */
+const TOKEN_REFRESH_MILLISECONDS = 10_000;
 
 /** The key algorithm hosts sign with. */
 const KEY_ALGORITHM = { name: "ECDSA", namedCurve: "P-256" } as const;
@@ -37,6 +39,8 @@ export class HostIdentity {
     readonly #keys: Keychain;
     /** The key pair once loaded or generated. */
     #pair: KeyPair | undefined;
+    /** The access tokens granted to this host, by audience, pending while a grant runs. */
+    readonly #tokens = new Map<string, Promise<{ accessToken: string; expiresAt: number }>>();
 
     /** Prove a host's identity with the key its store keeps. */
     constructor(hostId: string, keys: Keychain) {
@@ -87,6 +91,7 @@ export class HostIdentity {
         });
         await this.#keys.save(this.hostId, JSON.stringify(privateJwk));
         this.#pair = pair;
+        this.#tokens.clear();
     }
 
     /** Sign a proof for this host now, bound to a request or proving possession of the key. */
@@ -96,25 +101,63 @@ export class HostIdentity {
         return DeviceProof.sign(pair.privateKey, pair.publicKey, this.hostId, now, request);
     }
 
-    /** Sign a request as this host, replacing any credential it carries. */
-    async sign(request: Request, now = Date.now()): Promise<Request> {
-        // replace the request's credential with a proof bound to it
-        const headers = new Headers(request.headers);
-        const proof = await this.prove(now, { method: request.method, url: request.url });
-        headers.set("authorization", `${HOST_PROOF_SCHEME} ${proof}`);
+    /** Sign a JSON Web Token's claims with this host's key, as the authority of the spaces it holds. */
+    async signToken(claims: Readonly<Record<string, unknown>>): Promise<string> {
+        const pair = await this.#load();
+        const kid = await DeviceProof.thumbprint(pair.publicKey);
 
-        return copyRequest(request, { headers });
+        return new SignJWT({ ...claims })
+            .setProtectedHeader({ alg: "ES256", typ: "JWT", kid })
+            .sign(pair.privateKey);
     }
 
-    /** Wrap a fetch to sign each request as this host. */
-    fetch(inner: (request: Request) => Promise<Response>): (request: Request) => Promise<Response> {
-        return async (request) => inner(await this.sign(request));
+    /** Wrap a fetch to call a service as this host, with access tokens its issuer's host service grants. */
+    fetch(
+        inner: (request: Request) => Promise<Response>,
+        audience: PackageId,
+        hosts: string,
+    ): (request: Request) => Promise<Response> {
+        return async (request) => {
+            // replace the request's credential with the host's token for the audience
+            const { accessToken } = await this.token(audience, hosts, inner);
+            const headers = new Headers(request.headers);
+            headers.set("authorization", `Bearer ${accessToken}`);
+
+            return inner(copyRequest(request, { headers }));
+        };
+    }
+
+    /** Read this host's access token for a service, granting a new one shortly before the last expires. */
+    async token(
+        audience: PackageId,
+        hosts: string,
+        fetch: (request: Request) => Promise<Response>,
+        now = Date.now(),
+    ): Promise<{ accessToken: string; expiresAt: number }> {
+        // reuse a pending or fresh token
+        const cached = this.#tokens.get(audience);
+        const current = await cached;
+        if (current !== undefined && current.expiresAt - TOKEN_REFRESH_MILLISECONDS > now) {
+            return current;
+        }
+
+        // grant a new one with an assertion bound to the grant request, dropping it when refused
+        const granting = (async () => {
+            const assertion = await this.prove(now, { method: "POST", url: `${hosts}/token` });
+
+            return connect({ url: hosts, fetch }).token.grant({ assertion, audience });
+        })();
+        this.#tokens.set(audience, granting);
+        granting.catch(() => this.#tokens.delete(audience));
+
+        return granting;
     }
 
     /** Forget the host's private key. */
     async forget(): Promise<void> {
         await this.#keys.remove(this.hostId);
         this.#pair = undefined;
+        this.#tokens.clear();
     }
 
     /** Load the kept key pair and refuse a host without one. */

@@ -18,6 +18,8 @@ import { type Call, defineObject, field, method } from "@destack/object";
 import { ServerRuntime } from "@destack/package/runtime";
 import { schema, type Identifier } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
+import type { Caller } from "@destack/service/authentication";
+import type { ProcedureCall, ServiceContext } from "@destack/service/server";
 import { Scope } from "@destack/sync";
 
 /** How long a host key authenticates, a year in milliseconds. */
@@ -190,7 +192,7 @@ export const hostKey = defineObject({
     fields: {
         /** The public key. */
         publicKey: field.json(DevicePublicKey),
-        /** The RFC 7638 JWK thumbprint that identifies the key in the host's proofs. */
+        /** The RFC 7638 JWK thumbprint that identifies the key in the host's proofs and assertions. */
         thumbprint: field.string(schema.string().min(1)),
         /** The time the host proved possession of the private key. */
         verifiedAt: field.time(),
@@ -392,6 +394,17 @@ export type Host = Select<typeof host.table>;
 
 /** The checks and reads of hosts that methods and other packages route by. */
 export const Host = {
+    /** Refuse a procedure requiring a host to a caller acting as no host. */
+    async authorize({ context, access }: ProcedureCall<ServiceContext>): Promise<void> {
+        const subject = context.caller?.authentication.subject;
+        if (
+            access.authentication === "host" &&
+            (subject === undefined || !principal.host.is(subject))
+        ) {
+            throw new ServiceError("FORBIDDEN", { message: "the procedure requires a host" });
+        }
+    },
+
     /** Refuse changing a withdrawn host. */
     requireActive(target: { readonly revokedAt: number | null }): void {
         if (target.revokedAt !== null) {
@@ -439,7 +452,7 @@ export const Host = {
 /** A host authentication key. */
 export type HostKey = Select<typeof hostKey.table>;
 
-/** Reads of host keys that proofs and tunnels authenticate by. */
+/** Reads of the host keys that assertions and tokens authenticate by. */
 export const HostKey = {
     /** Match the keys standing at a time: unrevoked and unexpired. */
     standing(now: number): Condition {
@@ -449,12 +462,48 @@ export const HostKey = {
     authenticates(now: number): Condition {
         return Condition.all(HostKey.standing(now), Condition.missing("suspendedAt"));
     },
+    /** Read the keys of an account's host authenticating at a time. */
+    async authenticating(
+        database: DatabaseConnection,
+        accountId: Identifier<"account">,
+        hostId: Identifier<"host">,
+        now: number,
+    ) {
+        return await HostKey.select(
+            database,
+            Condition.all(
+                Condition.eq("parentId", hostId),
+                Condition.eq("scope", accountId),
+                HostKey.authenticates(now),
+            ),
+        );
+    },
+    /** Refuse a caller whose host key no longer authenticates: revoked, expired or suspended by a disabled host. */
+    async requireAuthenticating(database: DatabaseConnection, caller: Caller, now: number) {
+        // pass callers of other credentials
+        const credential = caller.credential;
+        if (credential.kind !== "host-key") {
+            return;
+        }
+
+        // find the key authenticating now
+        const [found] = await HostKey.select(
+            database,
+            Condition.all(Condition.eq("id", credential.id), HostKey.authenticates(now)),
+        );
+        if (found === undefined) {
+            throw new ServiceError("UNAUTHORIZED", {
+                message: "host token's key no longer authenticates",
+            });
+        }
+    },
     /** Read the keys a condition matches, with their hosts. */
     select(database: DatabaseConnection, where: Condition) {
         return database
             .select({
                 id: hostKey.table.id,
                 publicKey: hostKey.table.publicKey,
+                thumbprint: hostKey.table.thumbprint,
                 hostId: host.table.id,
                 accountId: host.table.scope,
                 regionId: host.table.region,

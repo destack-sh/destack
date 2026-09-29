@@ -17,16 +17,21 @@ import { HostIdentity } from "@destack/host/identity";
 
 const identity = new HostIdentity(hostId, keychain);
 await identity.enroll(connect({ url: issuer, headers: { authorization: `Bearer ${session}` } }), { accountId, requestId, name: "laptop", kind: "device", device });
-const accounts = accountClient.connect({ url: issuer, fetch: identity.fetch(fetch) });
 ```
 
-The global tier and peers verify a host's proof against its active keys.
+A host calls services with 60-second universe tokens its issuer's host service grants for a key-signed assertion, spending each assertion once.
 
 ```ts
-authenticate: (request) =>
-    HostCaller.accepts(request) ? HostCaller.authenticate(request, database, audience) : AccountCaller.authenticate(request, authentication, audience),
+const hosts = ServiceMount.url(issuer, hostService.package.id);
+const accounts = accountClient.connect({ url, fetch: identity.fetch(fetch, accountService.package.id, hosts) });
+const { accessToken } = await identity.token(relayService.package.id, hosts, fetch); // cached until shortly before expiry
+```
 
-const peer = await HostCaller.peer(request, hosts, directory, database, audience);
+The global tier verifies these tokens against the universe's keys and rechecks the host's key, so revoking or disabling a host ends its tokens there at once.
+
+```ts
+const caller = await verifier.authenticate(request);
+await HostKey.requireAuthenticating(database, caller, Date.now());
 ```
 
 Hosts and their keys are objects with these methods.
@@ -35,12 +40,13 @@ Hosts and their keys are objects with these methods.
 |---|---|---|
 | `host.enroll` | a member of the account with `enroll`, and `serve` on the region a cloud host acts for | creates the host with its first key |
 | `host.rename` | the host, or the account's administrators | renames it within its account |
-| `host.disable`, `host.drain`, `host.enable` | the host, or the account's administrators | refuses, drains or accepts work, and a disabled host's proofs fail |
+| `host.disable`, `host.drain`, `host.enable` | the host, or the account's administrators | refuses, drains or accepts work, and a disabled host's grants and tokens fail |
 | `host.see` | the host alone | records its contact with the version and runtimes it runs |
 | `host.revoke` | the host, or the account's administrators | ends the host and every key |
 | `hostKey.create` | the host alone | registers another key for a year and revokes the others |
 | `hostKey.revoke` | the host, or the account's administrators | ends one key |
-| `hostKey.list` | the host, its tenants and every other host | reads the keys that sign proofs |
+| `hostKey.list` | the host, its tenants and every other host | reads the keys that sign assertions and space tokens |
+| `token.grant` | anyone holding a host key's assertion | grants the host a token for a service, in a space its cell serves or in the universe |
 
 ## Addresses
 
@@ -75,4 +81,24 @@ import { Router } from "@destack/host/router";
 const router = new Router({ runtimes: [runtime], routes, sign, fetch });
 await router.ingress(installationId, "/notes/list", request, caller);
 await router.egress(request); // <egress>/<address>/<path> with the instance's secret
+```
+
+## Space tokens
+
+A holder signs its installations' calls leaving the host with its host key, scoped to the space each call targets.
+
+```ts
+import { TokenIssuer } from "@destack/service/authentication";
+
+const issuer = new TokenIssuer({ authority: { kind: "space", spaceId }, issuer: hostId, sign: (claims) => identity.signToken(claims) });
+const { accessToken } = await issuer.issue(caller);
+```
+
+A receiving host verifies a token against the keys of the host the directory places the caller's space in.
+
+```ts
+import { SpaceToken } from "@destack/host/identity";
+
+const keys = (accountId, hostId, now) => HostKey.authenticating(database, accountId, hostId, now);
+const caller = await SpaceToken.verify(request, { directory, keys, audience }); // the universe: the caller's own space
 ```
