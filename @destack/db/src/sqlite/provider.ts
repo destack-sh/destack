@@ -2,10 +2,12 @@ import { mkdir, rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import {
     Plan,
-    type ResourceRecord,
+    type Connector,
+    type Copying,
     type Provider,
     type Provisioning,
-    type Copying,
+    type ResourceBinding,
+    type ResourceRecord,
 } from "@destack/resource";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { Database } from "../declare/database.ts";
@@ -14,19 +16,21 @@ import type { SqliteDatabase } from "./database.ts";
 import type { Table } from "../table/table.ts";
 import { DatabaseError } from "../error/error.ts";
 import { Replication } from "../replication/replication.ts";
-import type { DatabaseKind } from "../declare/database.ts";
+import { DatabaseKind } from "../declare/database.ts";
 
 /** Provide databases as SQLite files, one folder per space. */
 export function sqliteProvider(
     root: URL,
-): Provider<DatabaseConnection, typeof DatabaseKind> & Provisioning & Copying {
+): Provider<typeof DatabaseKind> &
+    Provisioning<typeof DatabaseKind> &
+    Copying<typeof DatabaseKind> {
     // require a directory URL
     if (root.protocol !== "file:" || !root.pathname.endsWith("/")) {
         throw new TypeError(`sqlite provider root must be a file directory URL: ${root.href}`);
     }
 
     return {
-        kind: "database",
+        kind: DatabaseKind,
         code: "sqlite",
         provision: async (record) => {
             // create the space folder and the database file
@@ -62,21 +66,6 @@ export function sqliteProvider(
             } finally {
                 await connection.close();
             }
-        },
-        connect: async (record, declaration) => {
-            // refuse a database lacking its tables
-            const database = requireDatabase(declaration);
-            const connection = await open(record, database.tables);
-            const unapplied = await database.check(connection);
-            if (unapplied.length > 0) {
-                await connection.close();
-                throw new DatabaseError(
-                    "NOT_APPLIED",
-                    `database ${database.name} has not applied ${unapplied.join(", ")}`,
-                );
-            }
-
-            return connection;
         },
         export: async function* (copy, after, signal) {
             // read the source file's tables
@@ -114,6 +103,26 @@ export function sqliteProvider(
     };
 }
 
+/** Open SQLite database files inside a workload, refusing one lacking its declaration's tables. */
+export const sqliteConnector: Connector<DatabaseConnection> = {
+    code: "sqlite",
+    connect: async (binding, declaration) => {
+        // refuse a database lacking its tables
+        const database = requireDatabase(declaration);
+        const connection = await open(binding, database.tables);
+        const unapplied = await database.check(connection);
+        if (unapplied.length > 0) {
+            await connection.close();
+            throw new DatabaseError(
+                "NOT_APPLIED",
+                `database ${database.name} has not applied ${unapplied.join(", ")}`,
+            );
+        }
+
+        return connection;
+    },
+};
+
 /** Require a provisioned resource reference. */
 function requireReference(reference: string | null): string {
     if (reference === null) {
@@ -133,6 +142,9 @@ function requireDatabase(declaration: unknown): Database {
 }
 
 /** Open a provisioned database file. */
-function open(record: ResourceRecord, tables: readonly Table[]): Promise<SqliteDatabase> {
-    return connect(fileURLToPath(requireReference(record.reference)), tables);
+function open(
+    resource: Pick<ResourceRecord | ResourceBinding, "reference">,
+    tables: readonly Table[],
+): Promise<SqliteDatabase> {
+    return connect(fileURLToPath(requireReference(resource.reference)), tables);
 }

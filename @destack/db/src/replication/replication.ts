@@ -1,6 +1,5 @@
 import { and, not, sql } from "drizzle-orm";
 import { defineSchema, schema } from "@destack/schema";
-import type { ResourceState } from "@destack/package/declare";
 import type { Chunk, CopyStage } from "@destack/resource";
 import type { DatabaseConnection } from "../database/connection.ts";
 import type { Dialect } from "../dialect/dialect.ts";
@@ -30,7 +29,7 @@ import {
 } from "../table/column.ts";
 import { primaryKey } from "../table/constraint.ts";
 import { mergeStates } from "../migration/merge.ts";
-import { DatabaseState, type TableState } from "../migration/state.ts";
+import type { DatabaseState, TableState } from "../migration/state.ts";
 
 /**
  * The rows one chunk of a table carries.
@@ -226,8 +225,8 @@ export class Replication {
     }
 
     /** Copy the tables of a database's desired states. */
-    static of(desired: readonly ResourceState[], dialect: Dialect): Replication {
-        const tables = desired.map((state) => DatabaseState.parse(state).tables[dialect]);
+    static of(desired: readonly DatabaseState[], dialect: Dialect): Replication {
+        const tables = desired.map((state) => state.tables[dialect]);
 
         return new Replication(mergeStates(tables).declared);
     }

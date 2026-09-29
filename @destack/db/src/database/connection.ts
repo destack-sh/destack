@@ -1,3 +1,4 @@
+import type { DatabaseState } from "../migration/state.ts";
 import { assertNever, classifyError, DatabaseError } from "../error/error.ts";
 import { DatabaseDriver, type NativeDatabase } from "./driver.ts";
 import type { SchemaCompiler } from "../dialect/compiler.ts";
@@ -6,7 +7,6 @@ import type { Table } from "../table/table.ts";
 import { SelectBuilder, type SelectedSubquery, type SelectQuery } from "../query/select.ts";
 import { or, sql, type SQL, type WithSubquery } from "drizzle-orm";
 import { MutationQuery } from "../query/mutation.ts";
-import type { ResourceState } from "@destack/package/declare";
 import {
     declareState,
     readState,
@@ -212,7 +212,7 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
     }
 
     /** Plan the union of the desired states. */
-    plan(desired: readonly ResourceState[]): Promise<TablePlan> {
+    plan(desired: readonly DatabaseState[]): Promise<TablePlan> {
         return planStates(this, desired);
     }
 

@@ -3,7 +3,7 @@ import { declaringModule, type ModuleMetadata, type Package } from "@destack/pac
 import { defineResourceKind, Resource } from "@destack/resource";
 import type { ResourceContext } from "@destack/resource/context";
 import type { DatabaseConnection } from "../database/connection.ts";
-import { providers } from "#provider";
+import { connectors } from "#connector";
 import { TABLE, type Table } from "../table/table.ts";
 import { expandTrees } from "../tree/tree.ts";
 import { DatabaseState, declareState } from "../migration/state.ts";
@@ -38,9 +38,9 @@ export class Database extends Resource<DatabaseConnection, DatabaseDescription> 
         this.tables = tables;
     }
 
-    /** Open the providers holding databases on the running runtime. */
-    override get providers() {
-        return providers;
+    /** The connectors opening databases on the running runtime. */
+    override get connectors() {
+        return connectors;
     }
 
     /** Describe the required tables. */

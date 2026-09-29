@@ -36,10 +36,13 @@ const database = main.get(context);
 const unapplied = await main.check(database);
 ```
 
-A database declaration opens its kind's providers on the running runtime: SQLite on Bun, none elsewhere yet.
+A host manages SQLite files through `sqliteProvider`, and a workload opens them through its declaration's connectors.
 
 ```ts
-const provider = await main.providers.sqlite!(new URL(reference));
+import { sqliteProvider } from "@destack/db/sqlite";
+
+const provider = sqliteProvider(new URL("file:///var/destack/databases/"));
+const connection = await main.connectors.sqlite!.connect(binding, main); // SQLite on Bun, none elsewhere yet
 ```
 
 ## Connections

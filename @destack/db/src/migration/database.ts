@@ -1,6 +1,5 @@
 import type { DatabaseConnection } from "../database/connection.ts";
-import { DatabaseState, readState, readTables, type TableState } from "./state.ts";
-import type { ResourceState } from "@destack/package/declare";
+import { type DatabaseState, readState, readTables, type TableState } from "./state.ts";
 import { type TablePlan, planTables } from "./plan.ts";
 import { type MergedState, mergeStates } from "./merge.ts";
 
@@ -22,11 +21,11 @@ export async function planMigration(
 /** Plan the union of the desired states of a connected database. */
 export async function planStates(
     connection: DatabaseConnection,
-    desired: readonly ResourceState[],
+    desired: readonly DatabaseState[],
 ): Promise<TablePlan> {
     // merge the tables in the connection's dialect
     const dialect = connection.dialect;
-    const merged = mergeStates(desired.map((state) => DatabaseState.parse(state).tables[dialect]));
+    const merged = mergeStates(desired.map((state) => state.tables[dialect]));
 
     return await planMigration(connection, merged.declared, merged.conflicts);
 }

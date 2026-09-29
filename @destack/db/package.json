@@ -23,9 +23,9 @@
         "./wasm": "./src/sqlite/wasm/index.ts"
     },
     "imports": {
-        "#provider": {
-            "bun": "./src/provider/bun.ts",
-            "default": "./src/provider/none.ts"
+        "#connector": {
+            "bun": "./src/connector/bun.ts",
+            "default": "./src/connector/none.ts"
         }
     },
     "scripts": {
