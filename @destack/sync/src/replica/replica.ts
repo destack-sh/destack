@@ -23,7 +23,7 @@ import { DatabaseError } from "@destack/db/error";
 import { SyncError } from "../error/error.ts";
 import { schema } from "@destack/schema";
 import { canonicalize } from "@destack/schema/json";
-import type { LogPosition } from "@destack/db/log";
+import { Log, type LogPosition } from "@destack/db/log";
 import { QueryPage, type MutationOutcome, type ResultChange } from "../query/page.ts";
 import type { Query } from "../query/query.ts";
 import { Node } from "../query/node.ts";
@@ -152,7 +152,7 @@ export class Replica {
     /** The copied tables, by SQL name. */
     readonly #copied: ReadonlyMap<string, Table>;
     /** The shape of the copied tables' logged columns. */
-    readonly #shape: string;
+    readonly #shape: Promise<string>;
 
     /** Define a copy of a scope's rows in some tables. */
     constructor(definition: {
@@ -169,16 +169,7 @@ export class Replica {
         this.where = definition.where ?? new Map();
         this.scopes = definition.scopes ?? new Map();
         this.#copied = new Map(this.tables.map((table) => [table[TABLE].sqlName, table]));
-        this.#shape = canonicalize(
-            this.tables.map((table) => [
-                table[TABLE].sqlName,
-                Object.values(table[TABLE].logged).map(({ definition }) => [
-                    definition.name,
-                    definition.kind,
-                    definition.nullable,
-                ]),
-            ]),
-        );
+        this.#shape = Log.shape(this.tables);
     }
 
     /** The queries the copy holds, by table name, including the source's own copy record. */
@@ -283,7 +274,7 @@ export class Replica {
 
     /** Read the source position the copy holds, absent before its first snapshot or after a shape change. */
     async position(database: DatabaseConnection): Promise<LogPosition | undefined> {
-        return this.#held(await this.#record(database));
+        return this.#held(await this.#record(database), await this.#shape);
     }
 
     /** Read the copy's record, absent before it registered. */
@@ -297,11 +288,11 @@ export class Replica {
     }
 
     /** Read a record's source position, absent before its first snapshot or after a shape change. */
-    #held(record: typeof replica.$inferSelect | undefined): LogPosition | undefined {
+    #held(record: typeof replica.$inferSelect | undefined, shape: string): LogPosition | undefined {
         return record === undefined ||
             record.epoch === null ||
             record.sequence === null ||
-            record.shape !== this.#shape
+            record.shape !== shape
             ? undefined
             : { epoch: record.epoch, sequence: record.sequence };
     }
@@ -339,7 +330,7 @@ export class Replica {
             ...(row?.originEpoch === null || row?.originSequence === null || row === undefined
                 ? {}
                 : { origin: { epoch: row.originEpoch, sequence: row.originSequence } }),
-            isShaped: row?.shape === this.#shape,
+            isShaped: row?.shape === (await this.#shape),
             queries:
                 typeof row?.queries === "object" && row.queries !== null
                     ? Object.keys(row.queries)
@@ -632,7 +623,7 @@ export class Replica {
 
                 // require the held epoch outside a snapshot
                 const record = await this.#record(transaction);
-                const held = this.#held(record);
+                const held = this.#held(record, await this.#shape);
                 if (!isSnapshot && held !== undefined && held.epoch !== page.position.epoch) {
                     throw new DatabaseError(
                         "STALE_EPOCH",
@@ -714,7 +705,7 @@ export class Replica {
                         ...page.position,
                         ...origin,
                         ...(page.scopes === undefined ? {} : { scopes: page.scopes }),
-                        shape: this.#shape,
+                        shape: await this.#shape,
                     };
                     await transaction
                         .insert(replica)
