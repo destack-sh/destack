@@ -28,6 +28,7 @@
     },
     "dependencies": {
         "@destack/package": "workspace:*",
+        "@destack/telemetry": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@sqlite.org/sqlite-wasm": "3.53.4-build1",

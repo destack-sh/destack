@@ -4,6 +4,11 @@ import type { DrizzlePgConfig } from "drizzle-orm/pg-core/utils";
 import type * as declaration from "../declare/database.ts";
 import type { Table } from "../table/table.ts";
 import { PostgresDatabase } from "./database.ts";
+import { telemetry } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
+
+/** The database log records. */
+const { log } = telemetry.scope(import.meta.destack.package);
 
 /** Connect to a PostgreSQL pool or URL. */
 export async function connect(
@@ -35,6 +40,6 @@ export async function connect(
 /** Report a server warning, dropping informational notices such as skipped drops. */
 export function reportNotice(notice: postgres.Notice): void {
     if (notice.severity === "WARNING") {
-        console.warn(`postgresql warning: ${notice.message}`);
+        log.warn("postgresql.warning", { message: notice.message });
     }
 }

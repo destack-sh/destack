@@ -5,6 +5,10 @@ import type { ConnectionState } from "./connection.ts";
 import type { Query, SQL } from "drizzle-orm";
 import { assertNever, classifyError } from "../error/error.ts";
 import { closeTransaction, openTransaction } from "../log/transaction.ts";
+import { type Span, trace } from "@destack/telemetry";
+
+/** The statements each span ran and their summed duration, in milliseconds. */
+const TOTALS = new WeakMap<Span, { statements: number; milliseconds: number }>();
 
 /** A native Drizzle database and its query lifetime. */
 export class DatabaseDriver {
@@ -27,12 +31,18 @@ export class DatabaseDriver {
         // count the statement
         this.state.statements += 1;
 
-        // report concurrent updates first
+        // report concurrent updates first, and add the statement to the active span's totals
         const reported = async () => {
+            const span = trace.getActiveSpan();
+            const started = performance.now();
             try {
                 return await operation();
             } catch (error) {
                 throw classifyError(error);
+            } finally {
+                if (span !== undefined) {
+                    total(span, performance.now() - started);
+                }
             }
         };
 
@@ -198,3 +208,18 @@ export type NativeDatabase =
           /** The native query connection. */
           readonly database: PostgresJsDatabase;
       };
+
+/** Add a statement to a span's totals and stamp them on it. */
+function total(span: Span, milliseconds: number): void {
+    // add to the running totals
+    const totals = TOTALS.get(span) ?? { statements: 0, milliseconds: 0 };
+    totals.statements += 1;
+    totals.milliseconds += milliseconds;
+    TOTALS.set(span, totals);
+
+    // stamp them on the span, replacing the previous totals
+    span.setAttributes({
+        "destack.db.statements": totals.statements,
+        "destack.db.duration": totals.milliseconds,
+    });
+}
