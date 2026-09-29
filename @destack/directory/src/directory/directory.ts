@@ -74,7 +74,7 @@ export abstract class Directory {
             return `${found.endpoint.replace(/\/+$/, "")}${ServiceMount.path(service.package.id)}`;
         };
 
-        return createClient(service.router, {
+        return createClient(service, {
             url: endpoint,
             fetch: async (request, options) => {
                 // send the request and keep its body for the moved scope's cell
