@@ -86,33 +86,6 @@ class SpaceVerification {
         return permissions;
     }
 
-    /** Describe a host acting for the space it serves. */
-    async host(caller: Caller) {
-        // require the space's zone to be placed in the host's cell or its region's
-        const cells = new Set(caller.authentication.subjects.map((subject) => subject.id));
-        const zone = await new DirectoryDatabase(this.transaction).locate(this.spaceId);
-        if (zone === undefined || !cells.has(zone.cell)) {
-            throw new ServiceError("FORBIDDEN", { message: `${this.spaceId} is served elsewhere` });
-        }
-
-        // act as the host and its region in the space
-        const verifiedAt = Date.now();
-        const credential = caller.credential as { readonly kind: string; readonly id: string };
-
-        return {
-            scope: this.spaceId,
-            audience: this.audience,
-            verifiedAt,
-            expiresAt: Math.min(
-                caller.authentication.expiresAt,
-                verifiedAt + CALLER_LIFETIME_MILLISECONDS,
-            ),
-            credential: { kind: credential.kind, id: credential.id },
-            subject: caller.authentication.subject,
-            subjects: [...caller.authentication.subjects],
-        };
-    }
-
     /** Describe an account caller, or the subject it represents, in the space. */
     async caller(caller: AccountCaller, subject: Subject = caller.authentication.subject) {
         // select the account that owns the space for the service token to belong to
@@ -260,7 +233,7 @@ export function authenticationRouter(authentication: Authentication, authorizer:
             );
         }),
         exchange: implementation.exchange.handler(async ({ input, context }) => {
-            // describe the serving host, or recheck the caller
+            // recheck the caller
             const verified = context.requireCaller();
             const identity = await authentication.database.transaction(
                 async (transaction) => {
@@ -270,17 +243,6 @@ export function authenticationRouter(authentication: Authentication, authorizer:
                         input.audience,
                         transaction,
                     );
-
-                    // describe a host acting for the space it serves, as itself alone
-                    if (principal.host.is(verified.authentication.subject)) {
-                        if (input.subject !== undefined) {
-                            throw new ServiceError("FORBIDDEN", {
-                                message: "a host acts as no one but itself",
-                            });
-                        }
-
-                        return verification.host(verified);
-                    }
 
                     // describe the rechecked caller, or the user it acts as
                     const caller = await AccountCaller.require(verified).verify(transaction);

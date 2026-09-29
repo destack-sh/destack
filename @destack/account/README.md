@@ -192,7 +192,7 @@ const global = new DirectoryDatabase(database);
 | `directory.withdraw`, `directory.announce` | a zone the host holds |
 | `directory.incoming`, `directory.publish` | the host itself, or its region |
 | `keys.resolve`, `directory.locate`, `directory.account`, `directory.holder` | every verified caller |
-| `access.watch`, `access.profiles`, `authentication.exchange` | the holder of the space |
+| `access.watch`, `access.profiles` | the holder of the space |
 
 ## Serving
 

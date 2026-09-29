@@ -9,7 +9,7 @@ import { Resolver } from "../src/directory/index.ts";
 import { accountPackage } from "../src/audit/index.ts";
 import { AccountFixture, outcome, place, type Host } from "./fixture.ts";
 
-test("place zones in the hosts creating them, keep names in them, let exactly their cell copy a space's access and exchange its tokens, and let each host copy the access of the account it serves", async () => {
+test("place zones in the hosts creating them, keep names in them, let exactly their cell copy a space's access, refuse hosts exchanging tokens, and let each host copy the access of the account it serves", async () => {
     // enroll two hosts of the owner's account, one of another account, and one serving a region
     await using fixture = await AccountFixture.open();
     const owner = await fixture.signIn("owner@example.com");
@@ -121,22 +121,12 @@ test("place zones in the hosts creating them, keep names in them, let exactly th
         "FORBIDDEN",
     ]);
 
-    // issue tokens of the laptop place to its cell alone, acting as no one but itself
-    const exchange = (host: Host, subject?: typeof owner.subject) =>
-        host.client.authentication.exchange({
-            audience: accountPackage.id,
-            spaceId: laptop,
-            ...(subject === undefined ? {} : { subject }),
-        });
-    expect([
-        (await exchange(local)).tokenType,
-        await outcome(exchange(peer)),
-        await outcome(exchange(local, owner.subject)),
-    ]).toEqual([
-        "Bearer",
-        `FORBIDDEN: ${laptop} is served elsewhere`,
-        "FORBIDDEN: a host acts as no one but itself",
-    ]);
+    // refuse exchanging tokens for hosts, which the host service grants
+    expect(
+        await outcome(
+            local.client.authentication.exchange({ audience: accountPackage.id, spaceId: laptop }),
+        ),
+    ).toBe("UNAUTHORIZED: the caller is not an account caller");
 
     // place the laptop place in the region at the next epoch, after which only the region copies its access
     await directory(local).place(zone(regionId, 2));

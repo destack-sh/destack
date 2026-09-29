@@ -29,6 +29,9 @@ const ACCESS_TOKEN_SECONDS = 10 * 60;
 /** The path Better Auth's routes answer under. */
 const BASE_PATH = "/auth";
 
+/** The path the universe's token signing keys answer at, the JWT plugin's key set. */
+export const JWKS_PATH = `${BASE_PATH}/jwks`;
+
 /** The provider's discovery documents at the issuer's root. */
 const DISCOVERY = new Set([
     "/.well-known/openid-configuration",
