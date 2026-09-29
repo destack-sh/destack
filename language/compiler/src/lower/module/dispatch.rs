@@ -1,5 +1,3 @@
-use std::mem;
-
 use tspp_dir as dir;
 use tspp_mir as mir;
 
@@ -34,9 +32,15 @@ impl ModuleLowerer<'_> {
         }
         let is_object = matches!(source, dir::Type::Object(_));
         let is_class = matches!(source, dir::Type::Application(_));
+        let is_function = matches!(
+            source,
+            dir::Type::Function(_)
+                | dir::Type::FunctionSignature(_)
+                | dir::Type::FunctionPointer(_)
+        );
 
         // read the dispatch shape the constraint registered
-        let Some((shape, _)) = self.dynamic_shape(tree, constraint) else {
+        let Some((shape, _)) = self.shapes.shape(tree, constraint) else {
             return Err(CompilerError::Internal {
                 message: "an erasure without a registered constraint shape".to_string(),
             });
@@ -45,9 +49,6 @@ impl ModuleLowerer<'_> {
         // reject the slots no implementer can answer
         for slot in &shape.slots {
             let construct = match slot {
-                mir::DynamicSlot::Function { name: None, .. } => {
-                    "a call-signature constraint member"
-                }
                 mir::DynamicSlot::Function { .. } if is_object => {
                     "a function member on a structural constraint"
                 }
@@ -61,8 +62,8 @@ impl ModuleLowerer<'_> {
             .into());
         }
 
-        // reject a structural value erased at a constraint with slots
-        if !is_object && !is_class && !shape.slots.is_empty() {
+        // reject a structural value erased at slots
+        if !is_object && !is_class && !is_function && !shape.slots.is_empty() {
             return Err(LowerError::Unsupported {
                 anchor: self.module.into(),
                 construct: "erasing a structural value".to_string(),
@@ -71,12 +72,5 @@ impl ModuleLowerer<'_> {
         }
 
         Ok(())
-    }
-
-    /// Publish the dispatch shapes the lowered constraints registered.
-    pub(in crate::lower) fn publish_dispatch_shapes(&mut self, builder: &mut mir::ModuleBuilder) {
-        for (_, shape) in mem::take(&mut self.dynamic_shapes) {
-            builder.dispatch_mut().insert_dynamic_shape(shape);
-        }
     }
 }

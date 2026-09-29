@@ -17,7 +17,7 @@ impl TypeLowerer<'_, '_> {
 
     /// Lower one open shape, type algebra over a parameter, to the top dynamic reference.
     pub(in crate::lower) fn lower_open_dynamic(&mut self) -> CompilerResult<mir::TypeId> {
-        let constraint = self.dynamic_shape_constraint(Vec::new(), false)?;
+        let constraint = self.dynamic_shape_constraint(Vec::new(), mir::ShapeLookup::Slot)?;
 
         Ok(self.dynamic_over(constraint))
     }
@@ -38,7 +38,7 @@ impl TypeLowerer<'_, '_> {
         constraint: dir::GlobalTypeId,
     ) -> CompilerResult<mir::TypeId> {
         // read the properties the constraint declares
-        let (properties, is_keyed) = match self.lower.ty(constraint)? {
+        let (properties, lookup) = match self.lower.ty(constraint)? {
             dir::Type::Object(shape) => {
                 let properties = self
                     .lower
@@ -46,10 +46,16 @@ impl TypeLowerer<'_, '_> {
                     .properties(shape.properties)
                     .to_vec();
 
-                (properties, !shape.index_signatures.is_empty())
+                // find members by name through an index signature
+                let lookup = match shape.index_signatures.is_empty() {
+                    true => mir::ShapeLookup::Slot,
+                    false => mir::ShapeLookup::Name,
+                };
+
+                (properties, lookup)
             }
             // leave the top constraint empty
-            dir::Type::Unknown => (Vec::new(), false),
+            dir::Type::Unknown => (Vec::new(), mir::ShapeLookup::Slot),
             // leave a parameter's constraint to its argument
             dir::Type::Parameter(_) => return self.lower(constraint),
             // dispatch interface instances through their declared members
@@ -71,14 +77,14 @@ impl TypeLowerer<'_, '_> {
             }
         };
 
-        self.dynamic_shape_constraint(properties, is_keyed)
+        self.dynamic_shape_constraint(properties, lookup)
     }
 
     /// Intern one constraint shape over its declared properties, registering its dispatch shape.
     fn dynamic_shape_constraint(
         &mut self,
         properties: Vec<dir::TypeProperty>,
-        is_keyed: bool,
+        lookup: mir::ShapeLookup,
     ) -> CompilerResult<mir::TypeId> {
         // build the constraint's fields and dispatch shape
         let mut fields = Vec::with_capacity(properties.len());
@@ -107,14 +113,11 @@ impl TypeLowerer<'_, '_> {
         let struct_type = self.tree.intern_type(mir::Type::Struct { fields });
 
         // register the constraint's dispatch shape once
-        self.lower
-            .dynamic_shapes
-            .entry(struct_type)
-            .or_insert(mir::DynamicShape {
-                constraint: struct_type,
-                slots,
-                is_keyed,
-            });
+        self.lower.shapes.insert(mir::DynamicShape {
+            constraint: struct_type,
+            slots,
+            lookup,
+        });
 
         Ok(struct_type)
     }

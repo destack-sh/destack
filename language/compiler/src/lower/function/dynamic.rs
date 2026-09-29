@@ -1,4 +1,3 @@
-use tspp_core::StringId;
 use tspp_dir as dir;
 use tspp_mir as mir;
 use tspp_mir::substitute_type;
@@ -65,45 +64,36 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::Call,
         dispatch: &dir::DynamicDispatch,
     ) -> CompilerResult<Option<mir::Value>> {
-        // read the receiver and member name from the callee
-        let (dir::Expression::Call { left: callee, .. }
-        | dir::Expression::New { left: callee, .. }) = *self.source().tree().get(expression)
-        else {
-            return Err(CompilerError::Internal {
-                message: "a dispatched call outside a call expression".to_string(),
-            });
-        };
-        let dir::Expression::Member {
-            left: receiver,
-            name,
+        let (receiver, _) = self.member_call_receiver(expression)?;
+
+        // read the member the dispatch selected
+        let dir::CallableTarget::Dynamic {
+            function: dir::DynamicFunction::Symbol(symbol),
             ..
-        } = *self.source().tree().get(callee)
+        } = resolution.target
         else {
-            return Err(self.unsupported("a dynamic call without a member callee"));
-        };
-        let Some(name) = name else {
-            return Err(CompilerError::Internal {
-                message: "a dispatched call without a member name".to_string(),
-            });
+            return Err(self.unsupported("a dynamic call without a member symbol"));
         };
 
         let receiver =
             self.lower_adjusted_receiver(receiver, &dispatch.receiver, false, ReceiverUse::Value)?;
 
-        self.lower_dynamic_slot_call(receiver, name, dispatch, resolution)
+        self.lower_dynamic_slot_call(receiver, symbol, dispatch, resolution)
     }
 
-    /// Call one constraint slot by name on an adjusted erased receiver value.
+    /// Call the constraint slot of one member on an adjusted erased receiver value.
     pub(in crate::lower) fn lower_dynamic_slot_call(
         &mut self,
         receiver: mir::Value,
-        name: StringId,
+        symbol: dir::GlobalSymbolId,
         dispatch: &dir::DynamicDispatch,
         call: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
+        let requirement = self.lower.callable_symbol(symbol)?;
+
         // select the constraint's declared slot and signature
         let constraint = self.lower_constraint(dispatch.constraint)?;
-        let Some((shape, applied)) = self.lower.dynamic_shape(self.builder.tree(), constraint)
+        let Some((shape, applied)) = self.lower.shapes.shape(self.builder.tree(), constraint)
         else {
             return Err(CompilerError::Internal {
                 message: "a dynamic call without a registered constraint shape".to_string(),
@@ -116,9 +106,10 @@ impl FunctionLowerer<'_, '_, '_> {
                 .enumerate()
                 .find_map(|(index, slot)| match slot {
                     mir::DynamicSlot::Function {
-                        name: Some(slot_name),
+                        requirement: slot_requirement,
                         signature,
-                    } if *slot_name == name => Some((index, *signature)),
+                        ..
+                    } if *slot_requirement == requirement => Some((index, *signature)),
                     _ => None,
                 })
         else {
@@ -128,6 +119,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // close the slot's signature at the interface's arguments and the member's parameters
+        let applied = applied.to_vec();
         let (arguments, chain) = self.dynamic_slot_arguments(receiver, &applied, call)?;
         let signature = substitute_type(self.builder.tree_mut(), signature, &arguments);
         let mut parameters = self.signature_parameters(signature)?;
@@ -143,6 +135,43 @@ impl FunctionLowerer<'_, '_, '_> {
             )?;
         }
         let values = self.lower_call_arguments(&call.arguments, &parameters, &[])?;
+
+        self.call_dynamic_slot(receiver, constraint, slot, signature, values, result)
+    }
+
+    /// Call one constraint slot with the erased payload.
+    fn call_dynamic_slot(
+        &mut self,
+        receiver: mir::Value,
+        constraint: mir::TypeId,
+        slot: usize,
+        signature: mir::TypeId,
+        arguments: Vec<mir::Value>,
+        result: mir::TypeId,
+    ) -> CompilerResult<Option<mir::Value>> {
+        // take the payload as the receiver
+        let dynamic = self
+            .builder
+            .value_type(receiver)
+            .ok_or_else(|| self.internal("a dynamic receiver without a type"))?;
+        let tree = self.builder.tree_mut();
+        let Some(payload_type) = tree.type_definition(dynamic).dynamic_payload() else {
+            return Err(self.internal("a dynamic call on a non-dynamic receiver"));
+        };
+        let payload_type = tree.intern_type(payload_type);
+        let payload = self.builder.dynamic_payload(receiver, payload_type);
+
+        // lead the slot's signature and arguments with the payload
+        let tree = self.builder.tree_mut();
+        let mut signature = tree.get(signature).clone();
+        let mir::Type::FunctionSignature { parameters, .. } = &mut signature else {
+            return Err(self.internal("a dynamic slot without a function signature"));
+        };
+        parameters.insert(0, mir::SignatureParameter::new(payload_type));
+        let signature = tree.intern_type(signature);
+        let mut values = Vec::with_capacity(arguments.len() + 1);
+        values.push(payload);
+        values.extend(arguments);
 
         Ok(self.builder.call(
             mir::Callee::Dynamic {
@@ -266,11 +295,19 @@ impl FunctionLowerer<'_, '_, '_> {
             return Err(self.unsupported("a computed member read through dynamic dispatch"));
         };
 
-        // select the slot behind the name in the constraint shape
+        // read a getter slot by its requirement, a field slot by its name
+        let getter = match field.target {
+            dir::FieldTarget::Member { symbol, .. } if self.lower.is_method(symbol)? => {
+                Some(self.lower.callable_symbol(symbol)?)
+            }
+            _ => None,
+        };
+
+        // select the member's slot in the constraint shape
         let receiver =
             self.lower_adjusted_receiver(left, &dispatch.receiver, false, ReceiverUse::Value)?;
         let constraint = self.lower_constraint(dispatch.constraint)?;
-        let Some((shape, applied)) = self.lower.dynamic_shape(self.builder.tree(), constraint)
+        let Some((shape, applied)) = self.lower.shapes.shape(self.builder.tree(), constraint)
         else {
             return Err(CompilerError::Internal {
                 message: "a dynamic read without a registered constraint shape".to_string(),
@@ -284,11 +321,12 @@ impl FunctionLowerer<'_, '_, '_> {
                 .find_map(|(index, slot)| match slot {
                     mir::DynamicSlot::Field {
                         name: slot_name, ..
-                    } if *slot_name == name => Some((index, None)),
+                    } if getter.is_none() && *slot_name == name => Some((index, None)),
                     mir::DynamicSlot::Function {
-                        name: Some(slot_name),
+                        requirement,
                         signature,
-                    } if *slot_name == name => Some((index, Some(*signature))),
+                        ..
+                    } if Some(*requirement) == getter => Some((index, Some(*signature))),
                     _ => None,
                 })
         else {
@@ -298,6 +336,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // read the slot at its signature under the interface's arguments
+        let applied = applied.to_vec();
         let signature = match (applied.is_empty(), signature) {
             (false, Some(signature)) => Some(substitute_type(
                 self.builder.tree_mut(),
@@ -311,16 +350,14 @@ impl FunctionLowerer<'_, '_, '_> {
         // call a getter slot at its declared signature
         match signature {
             Some(signature) => {
-                let value = self.builder.call(
-                    mir::Callee::Dynamic {
-                        receiver,
-                        constraint,
-                        slot: mir::DispatchSlot(slot as u32),
-                    },
+                let value = self.call_dynamic_slot(
+                    receiver,
+                    constraint,
+                    slot,
                     signature,
                     Vec::new(),
                     result_type,
-                );
+                )?;
 
                 value.ok_or_else(|| CompilerError::Internal {
                     message: "a void result from a dispatched getter".to_string(),

@@ -32,14 +32,36 @@ impl ModuleLowerer<'_> {
             })
     }
 
+    /// Return whether one member symbol declares a method.
+    pub(in crate::lower) fn is_method(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        let member = self.state(symbol.module_id)?.definitions.member(symbol);
+
+        Ok(matches!(
+            member,
+            Some((_, _, dir::DefinitionMember::Method(_)))
+        ))
+    }
+
     /// Return the declared name of one symbol in its owning module.
     pub(in crate::lower) fn symbol_name(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<tspp_core::StringId>> {
         let bindings = &self.state(symbol.module_id)?.bindings;
+        let symbol = bindings.get_symbol(symbol.local_id);
 
-        Ok(bindings.get_symbol(symbol.local_id).name())
+        // name a role member by the text its key spells
+        let name = match symbol.key {
+            Some(key @ (dir::StaticKey::Call | dir::StaticKey::New)) => {
+                Some(self.strings.intern(&key.text(self.strings)))
+            }
+            _ => symbol.name(),
+        };
+
+        Ok(name)
     }
 
     /// Return the stable identity bits of one declared symbol.

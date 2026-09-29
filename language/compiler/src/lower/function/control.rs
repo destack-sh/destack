@@ -243,7 +243,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     ReceiverUse::Value,
                 )?;
 
-                self.lower_dynamic_symbol_call(receiver, dispatch, *symbol, &decision.iterator)?
+                self.lower_dynamic_slot_call(receiver, *symbol, dispatch, &decision.iterator)?
             }
             _ => {
                 return Err(self.unsupported("a virtual iterator call"));
@@ -365,7 +365,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 let receiver =
                     self.lower_receiver_adjustments(receiver, &dispatch.receiver.adjustments)?;
 
-                self.lower_dynamic_symbol_call(receiver, dispatch, *symbol, &decision.next)?
+                self.lower_dynamic_slot_call(receiver, *symbol, dispatch, &decision.next)?
             }
             _ => {
                 return Err(self.unsupported("a virtual iterator advance"));

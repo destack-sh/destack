@@ -277,7 +277,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 let receiver =
                     self.lower_receiver_adjustments(receiver, &dispatch.receiver.adjustments)?;
 
-                self.lower_dynamic_symbol_call(receiver, dispatch, *symbol, call)
+                self.lower_dynamic_slot_call(receiver, *symbol, dispatch, call)
             }
             _ => Err(self.unsupported("a virtual disposal call")),
         }

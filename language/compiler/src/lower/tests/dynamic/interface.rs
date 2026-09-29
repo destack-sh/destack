@@ -30,7 +30,7 @@ function run(): int32 {
         "test.main.Console.greet",
         r#"
 @nocopy
-type test.main.Console { }
+type test.main.Console = class {  };
 
 export function test.main.Console.greet(v0: ref<test.main.Console, managed, mutable, local>): int32 {
     local l0: ref<test.main.Console, managed, mutable, local>
@@ -41,7 +41,7 @@ entry(v0: ref<test.main.Console, managed, mutable, local>):
     return v1
 }
 
-/// @layout.struct name=test.main.Console size=0 align=1
+/// @layout.class name=test.main.Console size=4 align=4
 "#,
     );
 
@@ -58,8 +58,9 @@ export function test.main.talk(v0: dynamic<test.main.Greeter, managed, mutable, 
 entry(v0: dynamic<test.main.Greeter, managed, mutable, local>):
     store l0, v0
     v1: dynamic<test.main.Greeter, managed, mutable, local> = load l0
-    v2: int32 = call.dynamic v1, test.main.Greeter, 0(): () => int32
-    return v2
+    v2: ref<test.main.Greeter, managed, mutable, local> = dynamic.payload v1
+    v3: int32 = call.dynamic v1, test.main.Greeter, 0(v2): (ref<test.main.Greeter, managed, mutable, local>) => int32
+    return v3
 }
 
 /// @layout.struct name=test.main.Greeter size=0 align=1
@@ -71,7 +72,7 @@ entry(v0: dynamic<test.main.Greeter, managed, mutable, local>):
         "test.main.run",
         r#"
 @nocopy
-type test.main.Console { }
+type test.main.Console = class {  };
 
 @nocopy
 type test.main.Greeter { }
@@ -88,7 +89,7 @@ entry:
     return v3
 }
 
-/// @layout.struct name=test.main.Console size=0 align=1
+/// @layout.class name=test.main.Console size=4 align=4
 /// @layout.struct name=test.main.Greeter size=0 align=1
 "#,
     );
@@ -139,8 +140,9 @@ b2:
     fake.read v4
     v6: dynamic<test.main.Sink, managed, mutable, local> = load (l0 as 0)
     v7: int32 = 1
-    v8: int32 = call.dynamic v6, test.main.Sink, 0(v7): (int32) => int32
-    return v8
+    v8: ref<test.main.Sink, managed, mutable, local> = dynamic.payload v6
+    v9: int32 = call.dynamic v6, test.main.Sink, 0(v8, v7): (ref<test.main.Sink, managed, mutable, local>, int32) => int32
+    return v9
 }
 
 /// @layout.struct name=test.main.Sink size=0 align=1
@@ -190,7 +192,7 @@ function run(): int32 {
         "test.main.Register.name",
         r#"
 @nocopy
-type test.main.Register { }
+type test.main.Register = class {  };
 
 export function test.main.Register.name(v0: ref<test.main.Register, managed, mutable, local>): int32 {
     local l0: ref<test.main.Register, managed, mutable, local>
@@ -201,7 +203,7 @@ entry(v0: ref<test.main.Register, managed, mutable, local>):
     return v1
 }
 
-/// @layout.struct name=test.main.Register size=0 align=1
+/// @layout.class name=test.main.Register size=4 align=4
 "#,
     );
 
@@ -210,7 +212,7 @@ entry(v0: ref<test.main.Register, managed, mutable, local>):
         "test.main.Register.count",
         r#"
 @nocopy
-type test.main.Register { }
+type test.main.Register = class {  };
 
 export function test.main.Register.count(v0: ref<test.main.Register, managed, mutable, local>): int32 {
     local l0: ref<test.main.Register, managed, mutable, local>
@@ -221,7 +223,7 @@ entry(v0: ref<test.main.Register, managed, mutable, local>):
     return v1
 }
 
-/// @layout.struct name=test.main.Register size=0 align=1
+/// @layout.class name=test.main.Register size=4 align=4
 "#,
     );
 
@@ -238,11 +240,13 @@ export function test.main.read(v0: dynamic<test.main.Counted, managed, mutable, 
 entry(v0: dynamic<test.main.Counted, managed, mutable, local>):
     store l0, v0
     v1: dynamic<test.main.Counted, managed, mutable, local> = load l0
-    v2: int32 = call.dynamic v1, test.main.Counted, 0(): () => int32
-    v3: dynamic<test.main.Counted, managed, mutable, local> = load l0
-    v4: int32 = call.dynamic v3, test.main.Counted, 1(): () => int32
-    v5: int32 = add v2, v4
-    return v5
+    v2: ref<test.main.Counted, managed, mutable, local> = dynamic.payload v1
+    v3: int32 = call.dynamic v1, test.main.Counted, 0(v2): (ref<test.main.Counted, managed, mutable, local>) => int32
+    v4: dynamic<test.main.Counted, managed, mutable, local> = load l0
+    v5: ref<test.main.Counted, managed, mutable, local> = dynamic.payload v4
+    v6: int32 = call.dynamic v4, test.main.Counted, 1(v5): (ref<test.main.Counted, managed, mutable, local>) => int32
+    v7: int32 = add v3, v6
+    return v7
 }
 
 /// @layout.struct name=test.main.Counted size=0 align=1
@@ -254,7 +258,7 @@ entry(v0: dynamic<test.main.Counted, managed, mutable, local>):
         "test.main.run",
         r#"
 @nocopy
-type test.main.Register { }
+type test.main.Register = class {  };
 
 @nocopy
 type test.main.Counted extends test.main.Named { }
@@ -271,7 +275,7 @@ entry:
     return v3
 }
 
-/// @layout.struct name=test.main.Register size=0 align=1
+/// @layout.class name=test.main.Register size=4 align=4
 /// @layout.struct name=test.main.Counted size=0 align=1
 "#,
     );
@@ -308,6 +312,51 @@ entry(v0: T):
     v2: dynamic<test.main.Greeter, managed, mutable, local> = dynamic.bind v1, T
     return v2
 }
+"#,
+    );
+}
+
+/// Each overload of one interface method dispatches through its own slot.
+#[test]
+fn test_dispatch_each_overload_through_its_own_slot() {
+    let session = TestSession::single(
+        r#"
+interface Sink {
+    emit(value: int32): int32;
+    emit(value: boolean): int32;
+}
+
+function talk(sink: Sink): int32 {
+    return sink.emit(1) + sink.emit(true);
+}
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.tspp",
+        "test.main.talk",
+        r#"
+@nocopy
+type test.main.Sink { }
+
+export function test.main.talk(v0: dynamic<test.main.Sink, managed, mutable, local>): int32 {
+    local l0: dynamic<test.main.Sink, managed, mutable, local>
+
+entry(v0: dynamic<test.main.Sink, managed, mutable, local>):
+    store l0, v0
+    v1: dynamic<test.main.Sink, managed, mutable, local> = load l0
+    v2: int32 = 1
+    v3: ref<test.main.Sink, managed, mutable, local> = dynamic.payload v1
+    v4: int32 = call.dynamic v1, test.main.Sink, 0(v3, v2): (ref<test.main.Sink, managed, mutable, local>, int32) => int32
+    v5: dynamic<test.main.Sink, managed, mutable, local> = load l0
+    v6: boolean = true
+    v7: ref<test.main.Sink, managed, mutable, local> = dynamic.payload v5
+    v8: int32 = call.dynamic v5, test.main.Sink, 1(v7, v6): (ref<test.main.Sink, managed, mutable, local>, boolean) => int32
+    v9: int32 = add v4, v8
+    return v9
+}
+
+/// @layout.struct name=test.main.Sink size=0 align=1
 "#,
     );
 }

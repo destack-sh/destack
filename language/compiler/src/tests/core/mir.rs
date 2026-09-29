@@ -53,8 +53,7 @@ impl TestProgram {
         {
             panic!("failed to parse MIR: {:?}", parsed.diagnostics);
         }
-        let (tree, target, layouts, dispatch, drops, effects, profile, strings, _) =
-            parsed.into_parts();
+        let (tree, target, layouts, dispatch, drops, profile, strings, _) = parsed.into_parts();
 
         Self {
             lowered: MirLowered {
@@ -64,7 +63,7 @@ impl TestProgram {
                 dispatch,
                 drops,
                 witnesses: mir::WitnessTable::default(),
-                effects,
+                shapes: mir::ShapeTable::default(),
                 profile,
                 initializer: None,
             },
@@ -185,7 +184,6 @@ impl TestProgram {
         let ty = self.type_by_name(name);
         let function = self.function_by_name(function_name);
         self.lowered.drops.set_hook(ty, function);
-        *self.lowered.effects.upsert_function(function) = mir::FunctionEffect::none();
     }
 
     /// Register one generated frame destructor.
@@ -233,7 +231,6 @@ impl TestProgram {
             layouts,
             dispatch: self.lowered.dispatch.clone(),
             drops: self.lowered.drops.clone(),
-            effects: self.lowered.effects.clone(),
             profile: self.lowered.profile.clone(),
         }
     }

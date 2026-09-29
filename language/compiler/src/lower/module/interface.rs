@@ -42,7 +42,16 @@ impl MemberParameter {
     }
 }
 
-/// One named member of a flattened interface.
+/// The key one flattened interface member merges under.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum InterfaceKey {
+    /// A property, which a derived property overrides in place.
+    Field(StringId),
+    /// A method requirement, each overload its own.
+    Method(mir::Symbol),
+}
+
+/// One member of a flattened interface.
 enum InterfaceMember {
     /// A stored property field.
     Field {
@@ -89,7 +98,7 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         definition: &dir::InterfaceDefinition,
     ) -> CompilerResult<(Vec<NominalField>, Vec<mir::FieldId>, Vec<mir::DynamicSlot>)> {
-        // flatten the interface and its bases into one member list by name
+        // flatten the interface and its bases into one member list
         let mut entries = FxIndexMap::default();
         self.collect_interface_members(definition, &mut entries)?;
 
@@ -97,16 +106,21 @@ impl TypeLowerer<'_, '_> {
         let mut fields = Vec::new();
         let mut field_nodes = Vec::new();
         let mut slots = Vec::with_capacity(entries.len());
-        for (name, entry) in entries {
-            match entry {
+        for (key, entry) in entries {
+            match (key, entry) {
                 // store a property and dispatch it through its slot
-                InterfaceMember::Field { node, field } => {
+                (InterfaceKey::Field(name), InterfaceMember::Field { node, field }) => {
                     fields.push(field);
                     field_nodes.push(node);
                     slots.push(mir::DynamicSlot::Field { field: node, name });
                 }
                 // dispatch a method through its slot alone
-                InterfaceMember::Method { slot, .. } => slots.push(slot),
+                (InterfaceKey::Method(_), InterfaceMember::Method { slot, .. }) => slots.push(slot),
+                _ => {
+                    return Err(CompilerError::Internal {
+                        message: "an interface member under another member's key".to_string(),
+                    });
+                }
             }
         }
 
@@ -119,14 +133,11 @@ impl TypeLowerer<'_, '_> {
         ty: mir::TypeId,
         slots: Vec<mir::DynamicSlot>,
     ) {
-        self.lower
-            .dynamic_shapes
-            .entry(ty)
-            .or_insert(mir::DynamicShape {
-                constraint: ty,
-                slots,
-                is_keyed: false,
-            });
+        self.lower.shapes.insert(mir::DynamicShape {
+            constraint: ty,
+            slots,
+            lookup: mir::ShapeLookup::Slot,
+        });
     }
 
     /// Return whether one member type projects an associated const.
@@ -153,11 +164,11 @@ impl TypeLowerer<'_, '_> {
         Ok(false)
     }
 
-    /// Collect one interface's members into a flattened list keyed by name.
+    /// Collect one interface's members into a flattened list.
     fn collect_interface_members(
         &mut self,
         definition: &dir::InterfaceDefinition,
-        entries: &mut FxIndexMap<StringId, InterfaceMember>,
+        entries: &mut FxIndexMap<InterfaceKey, InterfaceMember>,
     ) -> CompilerResult<()> {
         // flatten the inherited members ahead of the derived ones
         for heritage in &definition.extends {
@@ -211,13 +222,14 @@ impl TypeLowerer<'_, '_> {
             // reuse one argument buffer across the base's members, its prefix padded once
             let lowered_count = lowered.len();
             let mut arguments = lowered;
-            for (name, entry) in base_entries {
+            for (key, entry) in base_entries {
                 let entry = match entry {
                     InterfaceMember::Field { node, field } => {
+                        let name = self.tree.get(node).name;
                         let lowered = &arguments[..lowered_count];
                         let ty = substitute_type(self.tree, self.tree.get(node).ty, lowered);
                         let node = self.tree.intern_field(mir::Field {
-                            name: Some(name),
+                            name,
                             ty,
                             attributes: Vec::new(),
                         });
@@ -247,12 +259,15 @@ impl TypeLowerer<'_, '_> {
 
                         // substitute the slot, then drop the member's own arguments
                         let slot = match slot {
-                            mir::DynamicSlot::Function { name, signature } => {
-                                mir::DynamicSlot::Function {
-                                    name,
-                                    signature: substitute_type(self.tree, signature, &arguments),
-                                }
-                            }
+                            mir::DynamicSlot::Function {
+                                name,
+                                requirement,
+                                signature,
+                            } => mir::DynamicSlot::Function {
+                                name,
+                                requirement,
+                                signature: substitute_type(self.tree, signature, &arguments),
+                            },
                             other => other,
                         };
                         arguments.truncate(prefix);
@@ -264,7 +279,7 @@ impl TypeLowerer<'_, '_> {
                         }
                     }
                 };
-                entries.insert(name, entry);
+                entries.insert(key, entry);
             }
         }
 
@@ -288,14 +303,20 @@ impl TypeLowerer<'_, '_> {
                 ty: declared,
                 attributes: Vec::new(),
             });
-            entries.insert(name, InterfaceMember::Field { node, field });
+            entries.insert(
+                InterfaceKey::Field(name),
+                InterfaceMember::Field { node, field },
+            );
         }
 
-        // lower each method into a function slot at its bare signature
+        // lower each instance method into a function slot
         for member in &definition.members {
             let dir::DefinitionMember::Method(method) = member else {
                 continue;
             };
+            if method.space != dir::MemberSpace::Instance {
+                continue;
+            }
 
             let declared = self.lower.symbol_type(method.symbol)?;
             let dir::Type::FunctionSignature(signature) = self.lower.ty(declared)? else {
@@ -306,7 +327,7 @@ impl TypeLowerer<'_, '_> {
                 .into());
             };
 
-            // skip methods declaring type parameters
+            // skip methods declaring type or value parameters
             let signature = *self.lower.types(declared.module_id)?.signature(signature);
             let template = signature.template.or_else(|| {
                 self.lower
@@ -323,9 +344,10 @@ impl TypeLowerer<'_, '_> {
                     .parameters
                     .iter()
                     .any(|parameter| {
-                        let binding = generics.get_parameter(*parameter);
-
-                        binding.kind == dir::GenericParameterKind::Type && binding.is_writable()
+                        generics
+                            .get_parameter(*parameter)
+                            .memory_parameter()
+                            .is_none()
                     });
                 if is_generic {
                     continue;
@@ -345,13 +367,12 @@ impl TypeLowerer<'_, '_> {
                 Some(method.symbol),
             )?;
 
-            // key the slot by the name the method declares
+            // key the slot by the requirement the method declares
+            let requirement = self.lower.callable_symbol(method.symbol)?;
             let Some(name) = self.lower.symbol_name(method.symbol)? else {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lower.module.into(),
-                    construct: "an anonymous interface method".to_string(),
-                }
-                .into());
+                return Err(CompilerError::Internal {
+                    message: "an interface method without a name".to_string(),
+                });
             };
 
             // record the member's parameters in the order its dispatch scope indexes them
@@ -369,10 +390,11 @@ impl TypeLowerer<'_, '_> {
                 });
             }
             entries.insert(
-                name,
+                InterfaceKey::Method(requirement),
                 InterfaceMember::Method {
                     slot: mir::DynamicSlot::Function {
-                        name: Some(name),
+                        name,
+                        requirement,
                         signature,
                     },
                     parameters,

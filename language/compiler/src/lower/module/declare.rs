@@ -198,13 +198,10 @@ impl ModuleLowerer<'_> {
         }
 
         // classify the member in one narrow tree borrow
-        let (role, is_static, body) = match self.local().tree().get(member) {
+        let (is_static, body) = match self.local().tree().get(member) {
             dir::Member::Method {
-                signature,
-                body,
-                is_static,
-                ..
-            } => (signature.role, *is_static, *body),
+                body, is_static, ..
+            } => (*is_static, *body),
 
             // declare the global behind an associated const
             dir::Member::AssociatedConst { value: Some(_), .. } => {
@@ -243,25 +240,6 @@ impl ModuleLowerer<'_> {
         // skip a member the declaration leaves bodiless
         if body.is_none() {
             return Ok(());
-        }
-
-        // reject the roles without a runtime callable
-        match role {
-            // accept methods, constructors and accessors
-            None
-            | Some(
-                dir::FunctionRole::Constructor
-                | dir::FunctionRole::Getter
-                | dir::FunctionRole::Setter,
-            ) => {}
-            // reject the callable roles
-            Some(dir::FunctionRole::New | dir::FunctionRole::Call) => {
-                return Err(LowerError::Unsupported {
-                    anchor: self.module.into(),
-                    construct: "a callable role member".to_string(),
-                }
-                .into());
-            }
         }
 
         // require a named owner for every member

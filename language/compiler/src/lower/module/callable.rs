@@ -252,10 +252,7 @@ impl ModuleLowerer<'_> {
         };
 
         // name the header by the binding's extern name, else the callable's canonical path
-        let name = match &binding {
-            Some(binding) => self.strings.get(binding.name).to_string(),
-            None => self.canonical_path(symbol)?,
-        };
+        let name = self.callable_name(symbol)?;
 
         // import a foreign callable's header under its instance key
         if symbol.module_id != self.module {
@@ -406,6 +403,26 @@ impl ModuleLowerer<'_> {
         }
 
         display
+    }
+
+    /// Return the name one callable declares under, a binding by its extern name.
+    fn callable_name(&mut self, symbol: dir::GlobalSymbolId) -> CompilerResult<String> {
+        match self.callable_implementation(symbol)? {
+            Some(CallableImplementation::Binding { binding }) => {
+                Ok(self.strings.get(binding.name).to_string())
+            }
+            _ => self.canonical_path(symbol),
+        }
+    }
+
+    /// Return the symbol one callable declares under.
+    pub(in crate::lower) fn callable_symbol(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<mir::Symbol> {
+        let name = self.callable_name(symbol)?;
+
+        Ok(self.declared_symbol(symbol, &name))
     }
 
     /// Return the declared symbol of one callable under a name.
