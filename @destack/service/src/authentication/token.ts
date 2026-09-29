@@ -9,16 +9,8 @@ import {
 } from "jose";
 import { schema, identifier } from "@destack/schema";
 import {
-    Attribute,
-    AuthenticationAssurance,
-    VerifiedIdentifier,
-    PermissionReference,
-    Delegate,
-    Subject,
-} from "@destack/access";
-import {
     Caller,
-    CallerDeployment,
+    CallerAuthentication,
     CALLER_LIFETIME_MILLISECONDS,
     CALLER_CLOCK_TOLERANCE_MILLISECONDS,
 } from "./caller.ts";
@@ -29,41 +21,15 @@ const KEY_CACHE_MILLISECONDS = 60000;
 /** The longest key discovery wait and the pause after a failed one, in milliseconds. */
 const KEY_TIMEOUT_MILLISECONDS = 5000;
 
-/** A permission a credential or delegation step keeps. */
-const permission = PermissionReference.extend({
-    /** The authority scope. */
-    scope: schema.string().min(1),
-    /** The object restriction. */
-    objectId: schema.string().optional(),
-});
-
-/** The signed identity and restrictions of one space. */
-export const TokenAuthentication = schema.object({
+/** The signed identity and restrictions of one space: a caller's authentication without its receiver and times. */
+export const TokenAuthentication = CallerAuthentication.omit({
+    scope: true,
+    audience: true,
+    verifiedAt: true,
+    expiresAt: true,
+}).extend({
     /** The space. */
     spaceId: identifier("space"),
-    /** The credential reference. */
-    credential: schema.object({
-        /** The credential kind. */
-        kind: schema.string().min(1),
-        /** The credential identifier. */
-        id: schema.string().min(1),
-    }),
-    /** The represented identity. */
-    subject: Subject,
-    /** How strongly and how recently the subject authenticated. */
-    assurance: AuthenticationAssurance.optional(),
-    /** The identifiers the subject proved control of. */
-    identifiers: schema.array(VerifiedIdentifier).optional(),
-    /** The acting principals in order, the last sending the request. */
-    delegates: schema.array(Delegate).optional(),
-    /** The deployments the issuing host authenticated. */
-    deployments: schema.array(CallerDeployment).optional(),
-    /** The verified principals and the subject sets the caller belongs to. */
-    subjects: schema.array(Subject),
-    /** The credential's permission restrictions. */
-    permissions: schema.array(permission).optional(),
-    /** The issuer's trusted attributes. */
-    attributes: schema.record(schema.string(), Attribute).optional(),
 });
 
 /** Verify space-scoped access tokens. */

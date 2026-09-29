@@ -16,10 +16,6 @@ import type {} from "@destack/package/import-meta";
 
 /** The instrumenting package. */
 const manifest = import.meta.destack.package;
-/** The call duration buckets in seconds, from the OpenTelemetry semantic conventions. */
-const DURATION_BUCKETS = [
-    0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10,
-];
 
 /** Record RPC calls, including streams. */
 export class ServiceTelemetry {
@@ -35,10 +31,7 @@ export class ServiceTelemetry {
         this.#kind = kind === "client" ? SpanKind.CLIENT : SpanKind.SERVER;
         this.#duration = telemetry
             .scope(manifest)
-            .meter.createHistogram(`rpc.${kind}.call.duration`, {
-                unit: "s",
-                advice: { explicitBucketBoundaries: DURATION_BUCKETS },
-            });
+            .meter.createHistogram(`rpc.${kind}.call.duration`, { unit: "s" });
     }
 
     /** Measure a call. */

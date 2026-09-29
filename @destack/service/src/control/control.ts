@@ -1,8 +1,13 @@
 import { TABLE, type DatabaseConnection, type Table } from "@destack/db";
 import { DatabaseError } from "@destack/db/error";
 import type { Change } from "@destack/db/log";
+import { telemetry } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 import { RetryPolicy, wait } from "../timer/index.ts";
 import { LEASE_MILLISECONDS, Leases } from "./lease.ts";
+
+/** The control loop's spans. */
+const { span } = telemetry.scope(import.meta.destack.package);
 
 /** The retry of a failed reconciliation, doubling from a second up to 5 minutes as in controller-runtime. */
 const RETRY = RetryPolicy.of({ maximumInterval: 5 * 60_000 });
@@ -323,7 +328,12 @@ export class ControlLoop {
                     return stopped.aborted ? undefined : 0;
                 }
 
-                return controller.reconcile(key, reconciliation);
+                // trace each reconciliation as its own root span
+                const attributes = { "destack.controller": controller.name, "destack.key": key };
+
+                return span("controller.reconcile", attributes, () =>
+                    controller.reconcile(key, reconciliation),
+                );
             });
             failures.delete(work.key);
             if (delay !== undefined) {

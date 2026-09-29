@@ -38,6 +38,10 @@ export const WorkloadStart = defineSchema(
         secret: schema.string().min(1),
         /** The audit service of the installation's space. */
         audit: schema.url(),
+        /** The monitor service of the installation's space, receiving its telemetry over OTLP. */
+        monitor: schema.url(),
+        /** The share of traces the workload keeps beside every failed or slow one, from 0 to 1. */
+        sampling: schema.number().min(0).max(1),
         /** The space service of the installation's holder, relaying the space's access. */
         space: schema.url(),
     }),

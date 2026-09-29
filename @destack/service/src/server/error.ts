@@ -1,12 +1,12 @@
-import { SeverityNumber, telemetry, trace } from "@destack/telemetry";
+import { telemetry, trace } from "@destack/telemetry";
 import type { Controller, Follower } from "../control/index.ts";
 import { ServiceError } from "../error/index.ts";
 import { AccessError } from "@destack/access";
 import { DatabaseError } from "@destack/db/error";
 import type {} from "@destack/package/import-meta";
 
-/** The failure instruments. */
-const instruments = telemetry.scope(import.meta.destack.package);
+/** The failure log records. */
+const { log } = telemetry.scope(import.meta.destack.package);
 
 /** Record unexpected failures and return an error safe for clients. */
 export function reportError(error: unknown): ServiceError<string, unknown> {
@@ -27,18 +27,8 @@ export function reportError(error: unknown): ServiceError<string, unknown> {
     }
 
     // record unexpected failures
-    const exception = error instanceof Error ? error : new Error(String(error));
-    trace.getActiveSpan()?.recordException(exception);
-    instruments.logger.emit({
-        severityNumber: SeverityNumber.ERROR,
-        severityText: "ERROR",
-        body: "Service request failed",
-        attributes: {
-            "exception.type": exception.name,
-            "exception.message": exception.message,
-            ...(exception.stack ? { "exception.stacktrace": exception.stack } : {}),
-        },
-    });
+    trace.getActiveSpan()?.recordException(error instanceof Error ? error : String(error));
+    log.error("service.request.failed", telemetry.exceptionAttributes(error));
 
     // hide unexpected exception details
     if (error instanceof ServiceError) {
@@ -96,17 +86,9 @@ export function reportReconciliation(
     key: string,
     error: unknown,
 ): void {
-    const exception = error instanceof Error ? error : new Error(String(error));
-    instruments.logger.emit({
-        severityNumber: SeverityNumber.WARN,
-        severityText: "WARN",
-        body: "Reconciliation failed",
-        attributes: {
-            "destack.controller": controller.name,
-            "destack.key": key,
-            "exception.type": exception.name,
-            "exception.message": exception.message,
-            ...(exception.stack ? { "exception.stacktrace": exception.stack } : {}),
-        },
+    log.warn("controller.reconcile.failed", {
+        "destack.controller": controller.name,
+        "destack.key": key,
+        ...telemetry.exceptionAttributes(error),
     });
 }

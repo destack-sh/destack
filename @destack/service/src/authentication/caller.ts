@@ -1,14 +1,16 @@
-import type { PackageId } from "@destack/package";
+import { PackageId } from "@destack/package";
 import {
     type AccessContext,
-    type Delegate,
-    Subject,
+    Attribute,
+    AuthenticationAssurance,
+    Delegate,
     isPrincipal,
+    PermissionReference,
     principal,
     sameSubject,
+    Subject,
     subjectKey,
-    type AuthenticationAssurance,
-    type VerifiedIdentifier,
+    VerifiedIdentifier,
 } from "@destack/access";
 import { identifier, schema } from "@destack/schema";
 import { ServiceError } from "../error/index.ts";
@@ -19,6 +21,62 @@ export const CALLER_LIFETIME_MILLISECONDS = 60000;
 /** The maximum clock difference between the authority and the receiving service. */
 export const CALLER_CLOCK_TOLERANCE_MILLISECONDS = 5000;
 
+/** A workload identity authenticated within one deployment. */
+export const CallerDeployment = schema.object({
+    /** The workload identity. */
+    subject: Subject,
+    /** The deployment. */
+    id: identifier("deployment"),
+});
+/** A workload identity authenticated within one deployment. */
+export type CallerDeployment = schema.Infer<typeof CallerDeployment>;
+
+/** A permission a credential or delegation step keeps. */
+const KeptPermission = PermissionReference.extend({
+    /** The authority scope. */
+    scope: schema.string().min(1),
+    /** The object restriction. */
+    objectId: schema.string().optional(),
+});
+
+/** A verified caller as it travels between hosts, runners and services. */
+export const CallerAuthentication = schema.object({
+    /** The authority scope of a scoped credential. */
+    scope: schema.string().min(1).optional(),
+    /** The credential's permission restrictions. */
+    permissions: schema.array(KeptPermission).optional(),
+    /** The credential reference. */
+    credential: schema.object({
+        /** The credential kind. */
+        kind: schema.string().min(1),
+        /** The credential identifier. */
+        id: schema.string().min(1),
+    }),
+    /** The receiving package. */
+    audience: PackageId,
+    /** The verification time, in Unix milliseconds. */
+    verifiedAt: schema.number(),
+    /** The exclusive expiry, in Unix milliseconds. */
+    expiresAt: schema.number(),
+    /** The represented identity. */
+    subject: Subject,
+    /** How strongly and how recently the subject authenticated. */
+    assurance: AuthenticationAssurance.optional(),
+    /** The identifiers the subject proved control of. */
+    identifiers: schema.array(VerifiedIdentifier).optional(),
+    /** The verified principals and the subject sets the caller belongs to. */
+    subjects: schema.array(Subject),
+    /** The acting principals in order, the last sending the request. */
+    delegates: schema.array(Delegate).optional(),
+    /** The verified deployments of workload identities. */
+    deployments: schema.array(CallerDeployment).optional(),
+    /** The trusted attributes access policies read. */
+    attributes: schema.record(schema.string(), Attribute).optional(),
+});
+
+/** The header carrying the caller a host forwards to a runner. */
+export const CALLER_HEADER = "x-destack-caller";
+
 /** A verified caller. */
 export class Caller<Credential = unknown> {
     /** The host-verified authentication. */
@@ -27,6 +85,20 @@ export class Caller<Credential = unknown> {
     /** Create the caller from its verified authentication. */
     constructor(authentication: CallerAuthentication<Credential>) {
         this.authentication = structuredClone(authentication);
+    }
+
+    /** Read the caller a host forwarded with a request, or null for a request without one. */
+    static forwarded(request: Request): Caller | null {
+        const forwarded = request.headers.get(CALLER_HEADER);
+
+        return forwarded === null
+            ? null
+            : new Caller(CallerAuthentication.parse(JSON.parse(forwarded)));
+    }
+
+    /** Forward the caller to a runner in a request's headers. */
+    forward(headers: Headers): void {
+        headers.set(CALLER_HEADER, JSON.stringify(this.authentication));
     }
 
     /** The credential reference. */
@@ -176,45 +248,14 @@ export class Caller<Credential = unknown> {
     }
 }
 
-/** A verified credential. */
-export interface CallerAuthentication<Credential = unknown> {
-    /** The authority scope of a scoped credential. */
-    readonly scope?: string;
-    /** The credential's permission restrictions. */
-    readonly permissions?: AccessContext["permissions"];
+/** A verified caller as it travels, with a credential reference its verifier shapes. */
+export type CallerAuthentication<Credential = unknown> = Omit<
+    schema.Infer<typeof CallerAuthentication>,
+    "credential"
+> & {
     /** The credential reference. */
     readonly credential: Credential;
-    /** The receiving package. */
-    readonly audience: PackageId;
-    /** The verification time, in Unix milliseconds. */
-    readonly verifiedAt: number;
-    /** The exclusive expiry, in Unix milliseconds. */
-    readonly expiresAt: number;
-    /** The represented user or software identity. */
-    readonly subject: Subject;
-    /** How strongly and how recently the subject authenticated. */
-    readonly assurance?: AuthenticationAssurance;
-    /** The identifiers the subject proved control of. */
-    readonly identifiers?: readonly VerifiedIdentifier[];
-    /** The verified principals and the subject sets the caller belongs to. */
-    readonly subjects: readonly Subject[];
-    /** The acting principals in order, the last sending the request. */
-    readonly delegates?: readonly Delegate[];
-    /** The verified deployments of workload identities. */
-    readonly deployments?: readonly CallerDeployment[];
-    /** The trusted attributes access policies read. */
-    readonly attributes?: AccessContext["attributes"];
-}
-
-/** A workload identity authenticated within one deployment. */
-export const CallerDeployment = schema.object({
-    /** The workload identity. */
-    subject: Subject,
-    /** The deployment. */
-    id: identifier("deployment"),
-});
-/** A workload identity authenticated within one deployment. */
-export type CallerDeployment = schema.Infer<typeof CallerDeployment>;
+};
 
 /** Whether a credential has a kind and an identifier. */
 function isCredentialReference(credential: unknown): credential is { kind: string; id: string } {

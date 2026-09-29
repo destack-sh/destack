@@ -20,6 +20,9 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     const telemetry = await startTelemetry({
         name: "notes",
         version: "1.0.0",
+        report: (error) => {
+            throw error;
+        },
         traces: {
             spanProcessors: [
                 new SimpleSpanProcessor({

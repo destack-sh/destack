@@ -10,7 +10,11 @@ Define, host and call Destack HTTP services, their triggers and their background
 import { defineProcedure, defineService } from "@destack/service";
 
 export const notesService = defineService("notes", {
-    list: defineProcedure({ authentication: "identity", permission: note.permission("read"), audit: false })
+    list: defineProcedure({
+        authentication: "identity",
+        permission: note.permission("read"),
+        audit: false,
+    })
         .route({ method: "GET", path: "/notes" })
         .output(page(Note)),
     objects: { notebook, note },
@@ -28,7 +32,11 @@ const service = implement(notesService.router).$context<ServiceContext>();
 await using server = Server.start({
     service: notesService,
     router: service.router({ list: service.list.handler(({ context }) => notebook.list(context)) }),
-    access: { authorizer, database, target: async ({ input }) => note.reference(spaceId, input.id) },
+    access: {
+        authorizer,
+        database,
+        target: async ({ input }) => note.reference(spaceId, input.id),
+    },
     audience: packageId,
     scope: spaceId,
     resources,
@@ -52,13 +60,41 @@ export const workload = defineWorkload({
         const notebook = new Notebook(database.get(context.resources));
         context.defer(() => notebook.close());
 
-        return { services: [implementNotes(notebook)], triggers: [reminders.handle((occurrence) => notebook.remind(occurrence))] };
+        return {
+            services: [implementNotes(notebook)],
+            triggers: [reminders.handle((occurrence) => notebook.remind(occurrence))],
+        };
     },
 });
 
-const instance = await WorkloadInstance.start(workload, { resources, service: () => serverOptions });
+const instance = await WorkloadInstance.start(workload, {
+    resources,
+    history,
+    access,
+    service: () => serverOptions,
+});
 const response = await instance.fetch(notesService, request);
 ```
+
+## Runners
+
+A host runs each workload instance as a runner process, which exports its telemetry to the space's monitor and serves its package below the package's mount.
+
+```ts
+import { runWorkload } from "@destack/service/bun";
+
+await runWorkload(runner, lines(process.stdin), async (ready) => {
+    process.stdout.write(`${JSON.stringify(ready)}\n`);
+});
+```
+
+The host and the runner exchange one JSON line per message.
+
+| Line              | Direction             | Carries                                                                                                                                            |
+| ----------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WorkloadStart`   | host to runner, first | instance, workload, scope, installation, resource bindings, credential, forwarding secret, audit, monitor and space services, trace sampling ratio |
+| `WorkloadRenewal` | host to runner, later | the installation's next credential                                                                                                                 |
+| `WorkloadReady`   | runner to host, first | the loopback port it serves on                                                                                                                     |
 
 ## Clients
 
@@ -85,7 +121,12 @@ import { TokenIssuer, TokenVerifier } from "@destack/service/authentication";
 const issuer = new TokenIssuer({ authority: { kind: "global" }, issuer: accountOrigin, sign });
 const { accessToken } = await issuer.issue(caller);
 
-const verifier = new TokenVerifier({ authority: { kind: "global" }, issuer: accountOrigin, audience: packageId, keys });
+const verifier = new TokenVerifier({
+    authority: { kind: "global" },
+    issuer: accountOrigin,
+    audience: packageId,
+    keys,
+});
 const verified = await verifier.authenticate(request);
 ```
 
@@ -135,22 +176,43 @@ const client = createClient(notesService.router, { url, bookmark });
 A package declares triggers, and the host delivers each event to its handler once per cause.
 
 ```ts
-export const reminders = defineSchedule({ name: "reminders", timing: "cron", cron: "0 9 * * *", timezone: "Europe/Zurich", concurrency: "forbid", deadline: 60_000 });
-export const pushes = defineWebhook({ name: "github", verification: "github", secret: webhookSecret });
-export const published = defineWatch({ name: "published", object: note, where: Condition.eq("status", "published"), on: ["create", "update"], from: "snapshot" });
+export const reminders = defineSchedule({
+    name: "reminders",
+    timing: "cron",
+    cron: "0 9 * * *",
+    timezone: "Europe/Zurich",
+    concurrency: "forbid",
+    deadline: 60_000,
+});
+export const pushes = defineWebhook({
+    name: "github",
+    verification: "github",
+    secret: webhookSecret,
+});
+export const published = defineWatch({
+    name: "published",
+    object: note,
+    where: Condition.eq("status", "published"),
+    on: ["create", "update"],
+    from: "snapshot",
+});
 
-await instance.deliver(pushes, await WEBHOOK_SIGNATURES.github.verify(request, secret, Date.now()), signal);
+await instance.deliver(
+    pushes,
+    await WEBHOOK_SIGNATURES.github.verify(request, secret, Date.now()),
+    signal,
+);
 ```
 
 ## Trigger events
 
 Each trigger kind delivers one event type.
 
-| Trigger | Entry point | Event |
-|---|---|---|
+| Trigger          | Entry point                 | Event                |
+| ---------------- | --------------------------- | -------------------- |
 | `defineSchedule` | `@destack/service/schedule` | `ScheduleOccurrence` |
-| `defineWebhook` | `@destack/service/webhook` | `WebhookDelivery` |
-| `defineWatch` | `@destack/service/watch` | `ObjectChange` |
+| `defineWebhook`  | `@destack/service/webhook`  | `WebhookDelivery`    |
+| `defineWatch`    | `@destack/service/watch`    | `ObjectChange`       |
 
 ## Controllers
 
@@ -176,7 +238,12 @@ An `Outbox` commits messages with their transaction and delivers them in order t
 ```ts
 import { Outbox, type Destination } from "@destack/service/outbox";
 
-const inbox: Destination<Delivery> = { name: "inbox", message: Delivery, batch: 100, accept: (deliveries, { signal }) => home.accept(deliveries, { signal }) };
+const inbox: Destination<Delivery> = {
+    name: "inbox",
+    message: Delivery,
+    batch: 100,
+    accept: (deliveries, { signal }) => home.accept(deliveries, { signal }),
+};
 const outbox = new Outbox(database);
 await outbox.append(inbox, deliveryId, delivery, transaction);
 await new ControlLoop(database, [outbox.controller(inbox)], { report }).run(signal);
@@ -214,7 +281,12 @@ An `OperationStore` runs long work in memory, with progress, cancellation and a 
 ```ts
 import { implementOperation, OperationStore } from "@destack/service/server";
 
-const operations = new OperationStore(defineOperation(Published, Progress), { concurrency: 4, capacity: 100, retention: 3_600_000, timeout: 60_000 });
+const operations = new OperationStore(defineOperation(Published, Progress), {
+    concurrency: 4,
+    capacity: 100,
+    retention: 3_600_000,
+    timeout: 60_000,
+});
 const router = implementOperation(operations);
 operations.start(caller.id, { completed: 0 }, async ({ signal, report }) => {
     const output = await publish({ signal });
