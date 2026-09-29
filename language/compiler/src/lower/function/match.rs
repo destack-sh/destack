@@ -145,7 +145,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Option<mir::TypeId>> {
         let ty = self.place_type(place)?;
         let ty = self.resolved_type(ty);
-        let ty = self.builder.tree_mut().storage_type(ty);
+        let ty = ty.storage(self.builder.tree_mut());
 
         Ok(matches!(
             self.builder.tree().type_definition(ty),
@@ -744,10 +744,10 @@ impl FunctionLowerer<'_, '_, '_> {
         is_exact: bool,
         fail: mir::LocalNodeId<mir::Block>,
     ) -> CompilerResult<()> {
-        // read a dynamic value, else borrow the object
+        // read a dynamic value or class handle, else borrow the object
         let stored = self.place_type(&input)?;
         let value = match self.builder.tree().type_definition(stored) {
-            mir::Type::Dynamic { .. } => self.read_place(&input)?,
+            mir::Type::Dynamic { .. } | mir::Type::Reference { .. } => self.read_place(&input)?,
             _ => {
                 let input = self.through_handle(input)?;
                 let held = self.place_type(&input)?;

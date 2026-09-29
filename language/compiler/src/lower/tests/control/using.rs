@@ -399,35 +399,36 @@ entry(v0: ref<Array<test.main.File>, managed, mutable, local>):
 b1:
     v4: dynamic<Iterator<test.main.File>, managed, mutable, local> = load l2
     v5: dynamic<Iterator<test.main.File>, borrowed, 'managed, mutable> = cast.bit v4 -> dynamic<Iterator<test.main.File>, borrowed, 'managed, mutable>
-    v6: IteratorResult<test.main.File, void> = call.dynamic v5, Iterator<test.main.File>, 0(): () => IteratorResult<test.main.File, void>
-    v7: variant<uint1> { 0uint1 = IteratorYield<test.main.File>; 1uint1 = IteratorReturn<void>; } = field.get v6, 0
-    variant.switch v7, 0 => b2, 1 => b3
+    v6: ref<Iterator<test.main.File>, borrowed, 'managed, mutable> = dynamic.payload v5
+    v7: IteratorResult<test.main.File, void> = call.dynamic v5, Iterator<test.main.File>, 0(v6): (ref<Iterator<test.main.File>, borrowed, 'managed, mutable>) => IteratorResult<test.main.File, void>
+    v8: variant<uint1> { 0uint1 = IteratorYield<test.main.File>; 1uint1 = IteratorReturn<void>; } = field.get v7, 0
+    variant.switch v8, 0 => b2, 1 => b3
 
 b2:
-    v8: IteratorYield<test.main.File> = variant.payload v7, 0
-    v9: test.main.File = field.get v8, 1
-    store l3, v9
-    v10: test.main.File = load l3
-    store l4, v10
-    v11: int32 = load l1
-    v12: int32 = load (l4).0
-    v13: int32 = add v11, v12
-    store l1, v13
-    v14: ref<test.main.File, borrowed, 'frame, mutable> = address l4
-    call test.main.File.dispose(v14): (ref<test.main.File, borrowed, 'frame, mutable>) => void
+    v9: IteratorYield<test.main.File> = variant.payload v8, 0
+    v10: test.main.File = field.get v9, 1
+    store l3, v10
+    v11: test.main.File = load l3
+    store l4, v11
+    v12: int32 = load l1
+    v13: int32 = load (l4).0
+    v14: int32 = add v12, v13
+    store l1, v14
+    v15: ref<test.main.File, borrowed, 'frame, mutable> = address l4
+    call test.main.File.dispose(v15): (ref<test.main.File, borrowed, 'frame, mutable>) => void
     jump b1
 
 b3:
-    v15: int32 = load l1
-    return v15
+    v16: int32 = load l1
+    return v16
 }
 
 /// @layout.struct name=test.main.File size=4 align=4
 /// @layout.field owner=test.main.File index=0 name=handle offset=0 size=4 align=4
-/// @layout.variant name=type@124 size=8 align=4
-/// @layout.discriminant owner=type@124 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@124 index=0 discriminant=0 payload_offset=4
-/// @layout.case owner=type@124 index=1 discriminant=1 payload_offset=4
+/// @layout.variant name=type@126 size=8 align=4
+/// @layout.discriminant owner=type@126 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@126 index=0 discriminant=0 payload_offset=4
+/// @layout.case owner=type@126 index=1 discriminant=1 payload_offset=4
 "#);
 }
 
@@ -477,8 +478,8 @@ entry(v0: ref<test.main.Connection, borrowed, 'a, mutable>):
 
 /// @layout.struct name=test.main.Connection size=4 align=4
 /// @layout.field owner=test.main.Connection index=0 name=handle offset=0 size=4 align=4
-/// @layout.struct name=type@56 size=8 align=8
-/// @layout.field owner=type@56 index=0 offset=0 size=8 align=8
+/// @layout.struct name=type@62 size=8 align=8
+/// @layout.field owner=type@62 index=0 offset=0 size=8 align=8
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.Connection.asyncDispose.body", r#"
@@ -502,8 +503,8 @@ entry:
 
 /// @layout.struct name=test.main.Connection size=4 align=4
 /// @layout.field owner=test.main.Connection index=0 name=handle offset=0 size=4 align=4
-/// @layout.struct name=type@56 size=8 align=8
-/// @layout.field owner=type@56 index=0 offset=0 size=8 align=8
+/// @layout.struct name=type@62 size=8 align=8
+/// @layout.field owner=type@62 index=0 offset=0 size=8 align=8
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.run", r#"

@@ -732,10 +732,10 @@ function scope(variable: Variable, value: int32): int32 {
 
     session.assert_mir_function("main.tspp", "test.main.scope", r#"
 @nocopy
-type test.main.Context { }
+type test.main.Context = class {  };
 
 @nocopy
-type test.main.Variable { }
+type test.main.Variable = class {  };
 
 export function test.main.scope(v0: ref<test.main.Variable, managed, mutable, local>, v1: int32): int32 {
     local l0: ref<test.main.Variable, managed, mutable, local>
@@ -766,8 +766,8 @@ entry(v0: ref<test.main.Variable, managed, mutable, local>, v1: int32):
     return v14
 }
 
-/// @layout.struct name=test.main.Context size=0 align=1
-/// @layout.struct name=test.main.Variable size=0 align=1
+/// @layout.class name=test.main.Context size=4 align=4
+/// @layout.class name=test.main.Variable size=4 align=4
 /// @layout.struct name=type@6 size=24 align=8
 /// @layout.field owner=type@6 index=0 name=parent offset=0 size=8 align=8
 /// @layout.field owner=type@6 index=1 name=variable offset=8 size=8 align=8

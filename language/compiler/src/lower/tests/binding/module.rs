@@ -163,9 +163,7 @@ function pick(): string {
         r#"
 @nocopy
 @languageItem("string.String")
-type String {
-    codeUnits: slice<uint16, unique, mutable>;
-}
+type String = class { codeUnits: slice<uint16, unique, mutable> };
 
 shared constant string.0: String = "tspp"
 export constant test.main.NAME: ref<String, managed, mutable, local> = globalAddress string.0
@@ -176,10 +174,10 @@ entry:
     return v0
 }
 
-/// @layout.struct name=String size=16 align=8
-/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
-/// @layout.struct name=type@4 size=16 align=8
-/// @layout.field owner=type@4 index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.class name=String size=24 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=8 size=16 align=8
+/// @layout.class name=type@4 size=24 align=8
+/// @layout.field owner=type@4 index=0 name=codeUnits offset=8 size=16 align=8
 "#,
     );
 }
@@ -501,9 +499,7 @@ measure(name);
         r#"
 @nocopy
 @languageItem("string.String")
-type String {
-    codeUnits: slice<uint16, unique, mutable>;
-}
+type String = class { codeUnits: slice<uint16, unique, mutable> };
 
 export constant test.main.name: String = "world"
 
@@ -522,10 +518,10 @@ entry:
     return
 }
 
-/// @layout.struct name=String size=16 align=8
-/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
-/// @layout.struct name=type@4 size=16 align=8
-/// @layout.field owner=type@4 index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.class name=String size=24 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=8 size=16 align=8
+/// @layout.class name=type@4 size=24 align=8
+/// @layout.field owner=type@4 index=0 name=codeUnits offset=8 size=16 align=8
 "#,
     );
 }

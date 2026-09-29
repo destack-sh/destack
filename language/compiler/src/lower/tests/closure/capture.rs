@@ -180,9 +180,7 @@ function chain(outer: Cell): () => () => int32 {
     session.assert_mir_lowered(
         "main.tspp", r#"
 @nocopy
-type test.main.Cell {
-    value: int32;
-}
+type test.main.Cell = class { value: int32 };
 
 export constructor test.main.Cell.constructor(v0: ref<uninit<test.main.Cell>, borrowed, 'managed, mutable>, v1: int32): void {
     local l0: int32
@@ -252,10 +250,10 @@ entry:
     return v11
 }
 
-/// @layout.struct name=test.main.Cell size=4 align=4
-/// @layout.field owner=test.main.Cell index=0 name=value offset=0 size=4 align=4
-/// @layout.struct name=type@3 size=4 align=4
-/// @layout.field owner=type@3 index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Cell size=8 align=4
+/// @layout.field owner=test.main.Cell index=0 name=value offset=4 size=4 align=4
+/// @layout.class name=type@3 size=8 align=4
+/// @layout.field owner=type@3 index=0 name=value offset=4 size=4 align=4
 /// @layout.struct name=type@12 size=8 align=8
 /// @layout.field owner=type@12 index=0 name=outer offset=0 size=8 align=8
 /// @layout.struct name=type@15 size=8 align=8
@@ -266,6 +264,8 @@ entry:
 /// @layout.field owner=type@20 index=0 offset=0 size=8 align=8
 /// @layout.field owner=type@20 index=1 offset=8 size=8 align=8
 /// @layout.field owner=type@20 index=2 offset=16 size=8 align=8
+
+/// @dispatch.virtual concrete=type@0 value=type@1
 "#,
     );
     session.assert_mir_function(
@@ -273,9 +273,7 @@ entry:
         "test.main.chain.closure#0.closure#0",
         r#"
 @nocopy
-type test.main.Cell {
-    value: int32;
-}
+type test.main.Cell = class { value: int32 };
 
 @environment(ref<{ ref<{ next: ref<test.main.Cell, managed, mutable, local> }, managed, mutable, local>, ref<{ inner: ref<test.main.Cell, managed, mutable, local> }, managed, mutable, local>, ref<{ outer: ref<test.main.Cell, managed, mutable, local> }, managed, mutable, local> }, managed, mutable, local>)
 export function test.main.chain.closure#0.closure#0(): int32 {
@@ -295,8 +293,8 @@ entry:
     return v11
 }
 
-/// @layout.struct name=test.main.Cell size=4 align=4
-/// @layout.field owner=test.main.Cell index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Cell size=8 align=4
+/// @layout.field owner=test.main.Cell index=0 name=value offset=4 size=4 align=4
 /// @layout.struct name=type@12 size=8 align=8
 /// @layout.field owner=type@12 index=0 name=outer offset=0 size=8 align=8
 /// @layout.struct name=type@15 size=8 align=8

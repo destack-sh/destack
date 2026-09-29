@@ -284,11 +284,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                     return Err(CompilerError::Internal {
                         message: format!(
                             "an unqualified projection {} of {:?} reached lowering",
-                            match member.key {
-                                dir::StaticKey::Name(name) =>
-                                    self.lower.strings.get(name).to_string(),
-                                dir::StaticKey::Index(index) => index.to_string(),
-                            },
+                            member.key.text(self.lower.strings),
                             member.owner
                         ),
                     });
@@ -435,7 +431,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             payloads.push(self.lower(element)?);
         }
 
-        Ok(self.tree.union_type(&payloads))
+        Ok(mir::Type::union(&payloads, self.tree))
     }
 
     /// Build one function instance key with the regions of its arguments erased.

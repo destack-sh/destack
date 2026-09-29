@@ -55,96 +55,97 @@ entry(v0: ref<Array<ref<Array<int32>, managed, mutable, local>>, managed, mutabl
 b1:
     v8: dynamic<Iterator<ref<Array<int32>, managed, mutable, local>>, managed, mutable, local> = load l3
     v9: dynamic<Iterator<ref<Array<int32>, managed, mutable, local>>, borrowed, 'managed, mutable> = cast.bit v8 -> dynamic<Iterator<ref<Array<int32>, managed, mutable, local>>, borrowed, 'managed, mutable>
-    v10: IteratorResult<ref<Array<int32>, managed, mutable, local>, void> = call.dynamic v9, Iterator<ref<Array<int32>, managed, mutable, local>>, 0(): () => IteratorResult<ref<Array<int32>, managed, mutable, local>, void>
-    v11: variant<uint1> { 0uint1 = IteratorYield<ref<Array<int32>, managed, mutable, local>>; 1uint1 = IteratorReturn<void>; } = field.get v10, 0
-    variant.switch v11, 0 => b2, 1 => b3
+    v10: ref<Iterator<ref<Array<int32>, managed, mutable, local>>, borrowed, 'managed, mutable> = dynamic.payload v9
+    v11: IteratorResult<ref<Array<int32>, managed, mutable, local>, void> = call.dynamic v9, Iterator<ref<Array<int32>, managed, mutable, local>>, 0(v10): (ref<Iterator<ref<Array<int32>, managed, mutable, local>>, borrowed, 'managed, mutable>) => IteratorResult<ref<Array<int32>, managed, mutable, local>, void>
+    v12: variant<uint1> { 0uint1 = IteratorYield<ref<Array<int32>, managed, mutable, local>>; 1uint1 = IteratorReturn<void>; } = field.get v11, 0
+    variant.switch v12, 0 => b2, 1 => b3
 
 b2:
-    v12: IteratorYield<ref<Array<int32>, managed, mutable, local>> = variant.payload v11, 0
-    v13: ref<Array<int32>, managed, mutable, local> = field.get v12, 1
-    v14: variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; } = variant.new 1, v13
-    v15: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, borrowed, 'frame, readonly> = address (*l1)
-    v16: usize = slice.length v15
-    v17: usize = load l2
-    v18: boolean = eq v17, v16
-    branch v18 => b4 | b5
+    v13: IteratorYield<ref<Array<int32>, managed, mutable, local>> = variant.payload v12, 0
+    v14: ref<Array<int32>, managed, mutable, local> = field.get v13, 1
+    v15: variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; } = variant.new 1, v14
+    v16: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, borrowed, 'frame, readonly> = address (*l1)
+    v17: usize = slice.length v16
+    v18: usize = load l2
+    v19: boolean = eq v18, v17
+    branch v19 => b4 | b5
 
 b3:
-    v33: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, borrowed, 'frame, readonly> = address (*l1)
-    v34: usize = slice.length v33
-    v35: usize = load l2
-    v36: boolean = eq v35, v34
-    branch v36 => b10 | b9
+    v34: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, borrowed, 'frame, readonly> = address (*l1)
+    v35: usize = slice.length v34
+    v36: usize = load l2
+    v37: boolean = eq v36, v35
+    branch v37 => b10 | b9
 
 b4:
-    v19: usize = add v16, v16
-    v20: usize = 1
-    v21: usize = add v19, v20
-    v22: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, unique, mutable> = load l1
-    v23: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, unique, mutable> = new.slice.uninit uninit<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, v21, local
-    v24: usize = load l2
-    v25: usize = 0
-    store l4, v25
+    v20: usize = add v17, v17
+    v21: usize = 1
+    v22: usize = add v20, v21
+    v23: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, unique, mutable> = load l1
+    v24: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, unique, mutable> = new.slice.uninit uninit<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, v22, local
+    v25: usize = load l2
+    v26: usize = 0
+    store l4, v26
     jump b6
 
 b5:
-    store (*l1)[v17], v14
-    v31: usize = 1
-    v32: usize = add v17, v31
-    store l2, v32
+    store (*l1)[v18], v15
+    v32: usize = 1
+    v33: usize = add v18, v32
+    store l2, v33
     jump b1
 
 b6:
-    v26: usize = load l4
-    v27: boolean = lt v26, v24
-    branch v27 => b7 | b8
+    v27: usize = load l4
+    v28: boolean = lt v27, v25
+    branch v28 => b7 | b8
 
 b7:
-    v28: variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; } = load (*v22)[v26]
-    store (*v23)[v26], v28
-    v29: usize = 1
-    v30: usize = add v26, v29
-    store l4, v30
+    v29: variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; } = load (*v23)[v27]
+    store (*v24)[v27], v29
+    v30: usize = 1
+    v31: usize = add v27, v30
+    store l4, v31
     jump b6
 
 b8:
-    release v22
-    store l1, v23
+    release v23
+    store l1, v24
     jump b5
 
 b9:
-    v37: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, unique, mutable> = load l1
-    v38: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, unique, mutable> = new.slice.uninit uninit<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, v35, local
-    v39: usize = load l2
-    v40: usize = 0
-    store l5, v40
+    v38: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, unique, mutable> = load l1
+    v39: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, unique, mutable> = new.slice.uninit uninit<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, v36, local
+    v40: usize = load l2
+    v41: usize = 0
+    store l5, v41
     jump b11
 
 b10:
-    v46: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, unique, mutable> = load l1
-    v47: slice<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }, unique, mutable> = new.complete v46
-    v48: Array<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }> = call arrayFromOwnedSlice<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>(v47): (slice<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }, unique, mutable>) => Array<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>
-    v49: uninit<ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, managed, mutable, local>> = new.uninit Array<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, local
-    store (*v49), v48
-    v50: ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, managed, mutable, local> = new.complete v49
-    return v50
+    v47: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, unique, mutable> = load l1
+    v48: slice<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }, unique, mutable> = new.complete v47
+    v49: Array<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }> = call arrayFromOwnedSlice<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>(v48): (slice<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }, unique, mutable>) => Array<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>
+    v50: uninit<ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, managed, mutable, local>> = new.uninit Array<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, local
+    store (*v50), v49
+    v51: ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; }>, managed, mutable, local> = new.complete v50
+    return v51
 
 b11:
-    v41: usize = load l5
-    v42: boolean = lt v41, v39
-    branch v42 => b12 | b13
+    v42: usize = load l5
+    v43: boolean = lt v42, v40
+    branch v43 => b12 | b13
 
 b12:
-    v43: variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; } = load (*v37)[v41]
-    store (*v38)[v41], v43
-    v44: usize = 1
-    v45: usize = add v41, v44
-    store l5, v45
+    v44: variant<uint1> { 0uint1 = int32; 1uint1 = ref<Array<int32>, managed, readonly, local>; } = load (*v38)[v42]
+    store (*v39)[v42], v44
+    v45: usize = 1
+    v46: usize = add v42, v45
+    store l5, v46
     jump b11
 
 b13:
-    release v37
-    store l1, v38
+    release v38
+    store l1, v39
     jump b10
 }
 
@@ -402,8 +403,8 @@ entry:
     return v5
 }
 
-/// @layout.struct name=test.main.Path size=32 align=8
-/// @layout.field owner=test.main.Path index=0 name=steps offset=0 size=32 align=8
+/// @layout.struct name=test.main.Path size=40 align=8
+/// @layout.field owner=test.main.Path index=0 name=steps offset=0 size=40 align=8
 "#,
     );
 }

@@ -533,8 +533,8 @@ entry(v0: int32):
     return v6
 }
 
-/// @layout.struct name=type@72 size=4 align=4
-/// @layout.field owner=type@72 index=0 offset=0 size=4 align=4
+/// @layout.struct name=type@73 size=4 align=4
+/// @layout.field owner=type@73 index=0 offset=0 size=4 align=4
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.count.body", r#"
@@ -600,12 +600,12 @@ b7:
     jump b3
 }
 
-/// @layout.struct name=type@72 size=4 align=4
-/// @layout.field owner=type@72 index=0 offset=0 size=4 align=4
-/// @layout.variant name=type@94 size=1 align=1
-/// @layout.discriminant owner=type@94 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@94 index=0 discriminant=0 payload_offset=1
-/// @layout.case owner=type@94 index=1 discriminant=1 payload_offset=1
+/// @layout.struct name=type@73 size=4 align=4
+/// @layout.field owner=type@73 index=0 offset=0 size=4 align=4
+/// @layout.variant name=type@95 size=1 align=1
+/// @layout.discriminant owner=type@95 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@95 index=0 discriminant=0 payload_offset=1
+/// @layout.case owner=type@95 index=1 discriminant=1 payload_offset=1
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.tally", r#"
@@ -697,14 +697,14 @@ b6:
 }
 
 /// @layout.struct name=type@11 size=0 align=1
-/// @layout.variant name=type@103 size=12 align=4
-/// @layout.discriminant owner=type@103 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@103 index=0 discriminant=0 payload_offset=4
-/// @layout.case owner=type@103 index=1 discriminant=1 payload_offset=4
-/// @layout.variant name=type@106 size=8 align=4
-/// @layout.discriminant owner=type@106 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@106 index=0 discriminant=0 payload_offset=4
-/// @layout.case owner=type@106 index=1 discriminant=1 payload_offset=4
+/// @layout.variant name=type@104 size=12 align=4
+/// @layout.discriminant owner=type@104 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@104 index=0 discriminant=0 payload_offset=4
+/// @layout.case owner=type@104 index=1 discriminant=1 payload_offset=4
+/// @layout.variant name=type@107 size=8 align=4
+/// @layout.discriminant owner=type@107 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@107 index=0 discriminant=0 payload_offset=4
+/// @layout.case owner=type@107 index=1 discriminant=1 payload_offset=4
 "#);
 }
 
@@ -789,8 +789,8 @@ entry(v0: int32):
     return v6
 }
 
-/// @layout.struct name=type@57 size=4 align=4
-/// @layout.field owner=type@57 index=0 offset=0 size=4 align=4
+/// @layout.struct name=type@63 size=4 align=4
+/// @layout.field owner=type@63 index=0 offset=0 size=4 align=4
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.makeAdder.closure#0", r#"
@@ -812,10 +812,10 @@ entry:
     return v6
 }
 
-/// @layout.struct name=type@57 size=4 align=4
-/// @layout.field owner=type@57 index=0 offset=0 size=4 align=4
-/// @layout.struct name=type@63 size=8 align=8
-/// @layout.field owner=type@63 index=0 offset=0 size=8 align=8
+/// @layout.struct name=type@63 size=4 align=4
+/// @layout.field owner=type@63 index=0 offset=0 size=4 align=4
+/// @layout.struct name=type@69 size=8 align=8
+/// @layout.field owner=type@69 index=0 offset=0 size=8 align=8
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.makeAdder.closure#0.body", r#"
@@ -848,9 +848,9 @@ entry:
     return v11
 }
 
-/// @layout.struct name=type@57 size=4 align=4
-/// @layout.field owner=type@57 index=0 offset=0 size=4 align=4
-/// @layout.struct name=type@63 size=8 align=8
-/// @layout.field owner=type@63 index=0 offset=0 size=8 align=8
+/// @layout.struct name=type@63 size=4 align=4
+/// @layout.field owner=type@63 index=0 offset=0 size=4 align=4
+/// @layout.struct name=type@69 size=8 align=8
+/// @layout.field owner=type@69 index=0 offset=0 size=8 align=8
 "#);
 }

@@ -340,9 +340,7 @@ class Logger {
         "test.main.Logger.log",
         r#"
 @nocopy
-type test.main.Logger {
-    name: ref<String, managed, mutable, local>;
-}
+type test.main.Logger = class { name: ref<String, managed, mutable, local> };
 
 @nocopy
 @languageItem("string.String")
@@ -380,8 +378,8 @@ b1:
     return
 }
 
-/// @layout.struct name=test.main.Logger size=8 align=8
-/// @layout.field owner=test.main.Logger index=0 name=name offset=0 size=8 align=8
+/// @layout.class name=test.main.Logger size=16 align=8
+/// @layout.field owner=test.main.Logger index=0 name=name offset=8 size=8 align=8
 /// @layout.struct name=test.main.LogEntry<'a, 'b> size=16 align=8
 /// @layout.field owner=test.main.LogEntry<'a, 'b> index=0 name=logger offset=0 size=8 align=8
 /// @layout.field owner=test.main.LogEntry<'a, 'b> index=1 name=message offset=8 size=8 align=8
@@ -422,9 +420,7 @@ class Counter {
 
     session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32): void {
     local l0: int32
@@ -455,8 +451,8 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32
     return
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 /// @layout.struct name=type@9 size=8 align=8
 /// @layout.field owner=type@9 index=0 offset=0 size=8 align=8
 "#);

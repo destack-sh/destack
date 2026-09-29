@@ -42,7 +42,7 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         };
         let position = self.case(&members, member)? as usize;
-        let boolean = self.builder.tree().boolean_type();
+        let boolean = self.builder.tree().intern_type(mir::Type::Boolean);
         let result = self.builder.local(boolean, mir::Mutability::Immutable);
         let present = self.builder.block();
         let absent = self.builder.block();

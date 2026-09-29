@@ -17,9 +17,7 @@ export function make(): Counter {
 
     session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
-type test.main.Counter {
-    value: int32;
-}
+type test.main.Counter = class { value: int32 };
 
 export constructor test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>
@@ -32,15 +30,13 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>):
     return
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=value offset=4 size=4 align=4
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.make", r#"
 @nocopy
-type test.main.Counter {
-    value: int32;
-}
+type test.main.Counter = class { value: int32 };
 
 export function test.main.make(): ref<test.main.Counter, managed, mutable, shared> {
 entry:
@@ -50,8 +46,8 @@ entry:
     return v0
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=value offset=4 size=4 align=4
 "#);
 }
 
@@ -75,22 +71,25 @@ export struct Cache {
         "main.tspp",
         r#"
 @nocopy
-type test.main.User { }
+type test.main.User = class {  };
 
 @nocopy
-type test.main.SharedUser { }
+type test.main.SharedUser = class {  };
 
 type test.main.Cache {
     localUser: ref<test.main.User, managed, mutable, local>;
     sharedUser: ref<test.main.SharedUser, managed, mutable, shared>;
 }
 
-/// @layout.struct name=test.main.User size=0 align=1
-/// @layout.struct name=test.main.SharedUser size=0 align=1
-/// @layout.struct name=type@2 size=0 align=1
+/// @layout.class name=test.main.User size=4 align=4
+/// @layout.class name=test.main.SharedUser size=4 align=4
+/// @layout.class name=type@2 size=4 align=4
 /// @layout.struct name=type@6 size=16 align=8
 /// @layout.field owner=type@6 index=0 name=localUser offset=0 size=8 align=8
 /// @layout.field owner=type@6 index=1 name=sharedUser offset=8 size=8 align=8
+
+/// @dispatch.virtual concrete=type@0 value=type@1
+/// @dispatch.virtual concrete=type@3 value=type@4
 "#,
     );
 }
@@ -112,9 +111,7 @@ export shared class Counter {
 
     session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
-type test.main.Counter {
-    value: int32;
-}
+type test.main.Counter = class { value: int32 };
 
 export constructor test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>
@@ -127,8 +124,8 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>):
     return
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=value offset=4 size=4 align=4
 "#);
 
     session.assert_mir_function(
@@ -136,9 +133,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>):
         "test.main.Counter.bump",
         r#"
 @nocopy
-type test.main.Counter {
-    value: int32;
-}
+type test.main.Counter = class { value: int32 };
 
 export function test.main.Counter.bump(v0: ref<test.main.Counter, managed, mutable, shared>): int32 {
     local l0: ref<test.main.Counter, managed, mutable, shared>
@@ -152,8 +147,8 @@ entry(v0: ref<test.main.Counter, managed, mutable, shared>):
     return v4
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=value offset=4 size=4 align=4
 "#,
     );
 }

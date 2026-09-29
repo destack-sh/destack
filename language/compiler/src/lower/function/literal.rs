@@ -52,7 +52,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // a singleton literal at a variant lives in the case holding its type
-        let stored = self.builder.tree_mut().storage_type(representation);
+        let stored = representation.storage(self.builder.tree_mut());
         if let Some(singleton) = self.singleton_representation(&literal)
             && let mir::Type::Variant { .. } = self.builder.tree().type_definition(stored)
         {

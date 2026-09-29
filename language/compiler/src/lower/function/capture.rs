@@ -46,7 +46,7 @@ impl FunctionLowerer<'_, '_, '_> {
         environment: mir::Value,
         reference: mir::TypeId,
     ) {
-        let emptied = self.builder.tree_mut().emptied_type(reference);
+        let emptied = reference.emptied(self.builder.tree_mut());
         let environment = self
             .builder
             .cast(mir::CastOperator::Bitcast, environment, emptied);

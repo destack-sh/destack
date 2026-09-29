@@ -612,7 +612,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     };
                     let members = self.lower.union_members(*union)?;
                     let case = self.case(&members, *arm)?;
-                    let Some(ty) = self.builder.tree_mut().case_payload(variant, case) else {
+                    let Some(ty) = variant.case_payload(case, self.builder.tree_mut()) else {
                         return Err(self.internal("a union payload outside the variant cases"));
                     };
                     place.path.push(PlaceProjection::Downcast { case, ty });

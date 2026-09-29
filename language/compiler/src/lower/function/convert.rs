@@ -269,7 +269,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // an untagged union holds the value itself, a constant materializing at it
-        let stored = self.builder.tree_mut().storage_type(representation);
+        let stored = representation.storage(self.builder.tree_mut());
         if !matches!(
             self.builder.tree().type_definition(stored),
             mir::Type::Variant { .. }
@@ -471,7 +471,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // keep a value outside a variant as it is
-        let variant = self.builder.tree_mut().storage_type(representation);
+        let variant = representation.storage(self.builder.tree_mut());
         if !matches!(
             self.builder.tree().type_definition(variant),
             mir::Type::Variant { .. }

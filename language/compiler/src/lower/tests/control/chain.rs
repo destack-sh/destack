@@ -298,9 +298,9 @@ b2:
     return v11
 }
 
-/// @layout.variant name=type@54 size=16 align=8
-/// @layout.discriminant owner=type@54 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@54 index=0 discriminant=0 payload_offset=8
-/// @layout.case owner=type@54 index=1 discriminant=1 payload_offset=8
+/// @layout.variant name=type@53 size=16 align=8
+/// @layout.discriminant owner=type@53 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@53 index=0 discriminant=0 payload_offset=8
+/// @layout.case owner=type@53 index=1 discriminant=1 payload_offset=8
 "#);
 }

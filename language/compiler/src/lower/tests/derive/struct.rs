@@ -118,9 +118,9 @@ entry(v0: ref<test.main.Path, borrowed, 'a, immutable>):
     return v2
 }
 
-/// @layout.struct name=test.main.Path size=40 align=8
-/// @layout.field owner=test.main.Path index=0 name=steps offset=0 size=32 align=8
-/// @layout.field owner=test.main.Path index=1 name=weight offset=32 size=4 align=4
+/// @layout.struct name=test.main.Path size=48 align=8
+/// @layout.field owner=test.main.Path index=0 name=steps offset=0 size=40 align=8
+/// @layout.field owner=test.main.Path index=1 name=weight offset=40 size=4 align=4
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.Clone.clone<test.main.Path>", r#"
@@ -146,9 +146,9 @@ entry(v0: ref<test.main.Path, borrowed, 'a, immutable>):
     return v5
 }
 
-/// @layout.struct name=test.main.Path size=40 align=8
-/// @layout.field owner=test.main.Path index=0 name=steps offset=0 size=32 align=8
-/// @layout.field owner=test.main.Path index=1 name=weight offset=32 size=4 align=4
+/// @layout.struct name=test.main.Path size=48 align=8
+/// @layout.field owner=test.main.Path index=0 name=steps offset=0 size=40 align=8
+/// @layout.field owner=test.main.Path index=1 name=weight offset=40 size=4 align=4
 "#);
 }
 

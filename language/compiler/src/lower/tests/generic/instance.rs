@@ -961,11 +961,12 @@ export function test.main.take(v0: dynamic<test.main.Reader, managed, mutable, l
 entry(v0: dynamic<test.main.Reader, managed, mutable, local>):
     store l0, v0
     v1: dynamic<test.main.Reader, managed, mutable, local> = load l0
-    v2: test.main.Task<Result<usize, IoError>> = call.dynamic v1, test.main.Reader, 0(): () => test.main.Task<Result<usize, IoError>>
-    store l1, v2
-    v3: ref<test.main.Task<Result<usize, IoError>>, borrowed, 'frame, mutable> = address l1
-    v4: Result<usize, IoError> = call test.main.Task.park<Result<usize, IoError>>(v3): (ref<test.main.Task<Result<usize, IoError>>, borrowed, 'frame, mutable>) => Result<usize, IoError>
-    store l2, v4
+    v2: ref<test.main.Reader, managed, mutable, local> = dynamic.payload v1
+    v3: test.main.Task<Result<usize, IoError>> = call.dynamic v1, test.main.Reader, 0(v2): (ref<test.main.Reader, managed, mutable, local>) => test.main.Task<Result<usize, IoError>>
+    store l1, v3
+    v4: ref<test.main.Task<Result<usize, IoError>>, borrowed, 'frame, mutable> = address l1
+    v5: Result<usize, IoError> = call test.main.Task.park<Result<usize, IoError>>(v4): (ref<test.main.Task<Result<usize, IoError>>, borrowed, 'frame, mutable>) => Result<usize, IoError>
+    store l2, v5
     return
 }
 
@@ -1125,7 +1126,7 @@ entry(v0: ref<?T, borrowed, 'a, mutable>):
 /// @layout.struct name=One size=0 align=1
 /// @layout.struct name=type@5 size=0 align=1
 
-/// @dispatch.shape constraint=type@3 function=clone function=cloneFrom function=zero function=one
+/// @dispatch.shape constraint=type@3 function=clone function=cloneFrom
 "#,
     );
 }

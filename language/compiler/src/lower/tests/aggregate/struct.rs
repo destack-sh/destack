@@ -206,9 +206,7 @@ class Counter {
         "test.main.Counter.constructor",
         r#"
 @nocopy
-type test.main.Counter {
-    total: int32;
-}
+type test.main.Counter = class { total: int32 };
 
 export constructor test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>
@@ -221,8 +219,8 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>):
     return
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=total offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=total offset=4 size=4 align=4
 "#,
     );
 
@@ -231,9 +229,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>):
         "test.main.Counter.read",
         r#"
 @nocopy
-type test.main.Counter {
-    total: int32;
-}
+type test.main.Counter = class { total: int32 };
 
 export function test.main.Counter.read<'a>(v0: ref<test.main.Counter, borrowed, 'a, readonly>): int32 {
     local l0: ref<test.main.Counter, borrowed, 'a, readonly>
@@ -244,8 +240,8 @@ entry(v0: ref<test.main.Counter, borrowed, 'a, readonly>):
     return v1
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=total offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=total offset=4 size=4 align=4
 "#,
     );
 
@@ -254,9 +250,7 @@ entry(v0: ref<test.main.Counter, borrowed, 'a, readonly>):
         "test.main.Counter.double",
         r#"
 @nocopy
-type test.main.Counter {
-    total: int32;
-}
+type test.main.Counter = class { total: int32 };
 
 export function test.main.Counter.double<'a>(v0: ref<test.main.Counter, borrowed, 'a, readonly>): int32 {
     local l0: ref<test.main.Counter, borrowed, 'a, readonly>
@@ -270,8 +264,8 @@ entry(v0: ref<test.main.Counter, borrowed, 'a, readonly>):
     return v4
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=total offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=total offset=4 size=4 align=4
 "#,
     );
 }
@@ -478,10 +472,7 @@ class Counter {
         "test.main.Counter.add",
         r#"
 @nocopy
-type test.main.Counter {
-    name: ref<String, managed, mutable, local>;
-    unit: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; };
-}
+type test.main.Counter = class { name: ref<String, managed, mutable, local>, unit: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } };
 
 @nocopy
 @languageItem("string.String")
@@ -532,9 +523,9 @@ b3:
     return
 }
 
-/// @layout.struct name=test.main.Counter size=16 align=8
-/// @layout.field owner=test.main.Counter index=0 name=name offset=0 size=8 align=8
-/// @layout.field owner=test.main.Counter index=1 name=unit offset=8 size=8 align=8
+/// @layout.class name=test.main.Counter size=24 align=8
+/// @layout.field owner=test.main.Counter index=0 name=name offset=8 size=8 align=8
+/// @layout.field owner=test.main.Counter index=1 name=unit offset=16 size=8 align=8
 /// @layout.variant name=type@9 size=8 align=8
 /// @layout.discriminant owner=type@9 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
 /// @layout.case owner=type@9 index=0 discriminant=0 payload_offset=0
@@ -573,10 +564,7 @@ entry(v0: ref<test.main.Entry<'a>, borrowed, 'b, readonly>):
 
     session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
-type test.main.Counter {
-    name: ref<String, managed, mutable, local>;
-    unit: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; };
-}
+type test.main.Counter = class { name: ref<String, managed, mutable, local>, unit: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } };
 
 @nocopy
 @languageItem("string.String")
@@ -600,9 +588,9 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: ref<S
     return
 }
 
-/// @layout.struct name=test.main.Counter size=16 align=8
-/// @layout.field owner=test.main.Counter index=0 name=name offset=0 size=8 align=8
-/// @layout.field owner=test.main.Counter index=1 name=unit offset=8 size=8 align=8
+/// @layout.class name=test.main.Counter size=24 align=8
+/// @layout.field owner=test.main.Counter index=0 name=name offset=8 size=8 align=8
+/// @layout.field owner=test.main.Counter index=1 name=unit offset=16 size=8 align=8
 /// @layout.variant name=type@9 size=8 align=8
 /// @layout.discriminant owner=type@9 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
 /// @layout.case owner=type@9 index=0 discriminant=0 payload_offset=0
@@ -611,10 +599,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: ref<S
 
     session.assert_mir_function("main.tspp", "test.main.Counter.add", r#"
 @nocopy
-type test.main.Counter {
-    name: ref<String, managed, mutable, local>;
-    unit: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; };
-}
+type test.main.Counter = class { name: ref<String, managed, mutable, local>, unit: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } };
 
 @nocopy
 @languageItem("string.String")
@@ -665,9 +650,9 @@ b3:
     return
 }
 
-/// @layout.struct name=test.main.Counter size=16 align=8
-/// @layout.field owner=test.main.Counter index=0 name=name offset=0 size=8 align=8
-/// @layout.field owner=test.main.Counter index=1 name=unit offset=8 size=8 align=8
+/// @layout.class name=test.main.Counter size=24 align=8
+/// @layout.field owner=test.main.Counter index=0 name=name offset=8 size=8 align=8
+/// @layout.field owner=test.main.Counter index=1 name=unit offset=16 size=8 align=8
 /// @layout.variant name=type@9 size=8 align=8
 /// @layout.discriminant owner=type@9 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
 /// @layout.case owner=type@9 index=0 discriminant=0 payload_offset=0

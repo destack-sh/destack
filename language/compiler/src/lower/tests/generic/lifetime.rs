@@ -305,9 +305,7 @@ function inspectManaged(marker: int32, value: User): int32 {
         "test.main.User.constructor",
         r#"
 @nocopy
-type test.main.User {
-    id: int32;
-}
+type test.main.User = class { id: int32 };
 
 export constructor test.main.User.constructor<'a>(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>
@@ -320,8 +318,8 @@ entry(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>):
     return
 }
 
-/// @layout.struct name=test.main.User size=4 align=4
-/// @layout.field owner=test.main.User index=0 name=id offset=0 size=4 align=4
+/// @layout.class name=test.main.User size=8 align=4
+/// @layout.field owner=test.main.User index=0 name=id offset=4 size=4 align=4
 "#,
     );
 
@@ -330,9 +328,7 @@ entry(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>):
         "test.main.inspectBorrowed",
         r#"
 @nocopy
-type test.main.User {
-    id: int32;
-}
+type test.main.User = class { id: int32 };
 
 export function test.main.inspectBorrowed<'a>(v0: int32, v1: ref<test.main.User, borrowed, 'a, readonly>): int32 {
     local l0: int32
@@ -347,16 +343,14 @@ entry(v0: int32, v1: ref<test.main.User, borrowed, 'a, readonly>):
     return v4
 }
 
-/// @layout.struct name=test.main.User size=4 align=4
-/// @layout.field owner=test.main.User index=0 name=id offset=0 size=4 align=4
+/// @layout.class name=test.main.User size=8 align=4
+/// @layout.field owner=test.main.User index=0 name=id offset=4 size=4 align=4
 "#,
     );
 
     session.assert_mir_function("main.tspp", "test.main.inspectManaged", r#"
 @nocopy
-type test.main.User {
-    id: int32;
-}
+type test.main.User = class { id: int32 };
 
 export function test.main.inspectManaged(v0: int32, v1: ref<test.main.User, managed, mutable, local>): int32 {
     local l0: int32
@@ -372,20 +366,18 @@ entry(v0: int32, v1: ref<test.main.User, managed, mutable, local>):
     return v5
 }
 
-/// @layout.struct name=test.main.User size=4 align=4
-/// @layout.field owner=test.main.User index=0 name=id offset=0 size=4 align=4
+/// @layout.class name=test.main.User size=8 align=4
+/// @layout.field owner=test.main.User index=0 name=id offset=4 size=4 align=4
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.inspect<int32>", r#"
 @nocopy
-type test.main.User {
-    id: int32;
-}
+type test.main.User = class { id: int32 };
 
 shared function test.main.inspect<int32, 'a>(v0: int32, v1: ref<test.main.User, borrowed, 'a, readonly>): int32;
 
-/// @layout.struct name=test.main.User size=4 align=4
-/// @layout.field owner=test.main.User index=0 name=id offset=0 size=4 align=4
+/// @layout.class name=test.main.User size=8 align=4
+/// @layout.field owner=test.main.User index=0 name=id offset=4 size=4 align=4
 "#);
 }
 
@@ -590,9 +582,7 @@ function read<'a>(holder: &readonly Holder<'a>): &'a readonly int32 {
 
     session.assert_mir_function("main.tspp", "test.main.label", r#"
 @nocopy
-type test.main.Label {
-    text: ref<String, managed, mutable, local>;
-}
+type test.main.Label = class { text: ref<String, managed, mutable, local> };
 
 @nocopy
 @languageItem("string.String")
@@ -610,14 +600,12 @@ entry(v0: ref<String, borrowed, 'a, readonly>):
     return v2
 }
 
-/// @layout.struct name=test.main.Label size=8 align=8
-/// @layout.field owner=test.main.Label index=0 name=text offset=0 size=8 align=8
+/// @layout.class name=test.main.Label size=16 align=8
+/// @layout.field owner=test.main.Label index=0 name=text offset=8 size=8 align=8
 "#);
     session.assert_mir_function("main.tspp", "test.main.hold", r#"
 @nocopy
-type test.main.Holder<'a> {
-    value: ref<int32, borrowed, 'a, readonly>;
-}
+type test.main.Holder<'a> = class { value: ref<int32, borrowed, 'a, readonly> };
 
 export function test.main.hold<'a>(v0: ref<int32, borrowed, 'a, readonly>): ref<test.main.Holder<'a>, managed, mutable, local> {
     local l0: ref<int32, borrowed, 'a, readonly>
@@ -631,14 +619,12 @@ entry(v0: ref<int32, borrowed, 'a, readonly>):
     return v2
 }
 
-/// @layout.struct name=test.main.Holder<'a> size=8 align=8
-/// @layout.field owner=test.main.Holder<'a> index=0 name=value offset=0 size=8 align=8
+/// @layout.class name=test.main.Holder<'a> size=16 align=8
+/// @layout.field owner=test.main.Holder<'a> index=0 name=value offset=8 size=8 align=8
 "#);
     session.assert_mir_function("main.tspp", "test.main.read", r#"
 @nocopy
-type test.main.Holder<'a> {
-    value: ref<int32, borrowed, 'a, readonly>;
-}
+type test.main.Holder<'a> = class { value: ref<int32, borrowed, 'a, readonly> };
 
 export function test.main.read<'a, 'b>(v0: ref<test.main.Holder<'a>, borrowed, 'b, readonly>): ref<int32, borrowed, 'a, readonly> {
     local l0: ref<test.main.Holder<'a>, borrowed, 'b, readonly>
@@ -650,10 +636,10 @@ entry(v0: ref<test.main.Holder<'a>, borrowed, 'b, readonly>):
     return v2
 }
 
-/// @layout.struct name=test.main.Holder<'a> size=8 align=8
-/// @layout.field owner=test.main.Holder<'a> index=0 name=value offset=0 size=8 align=8
-/// @layout.struct name=test.main.Holder<'b> size=8 align=8
-/// @layout.field owner=test.main.Holder<'b> index=0 name=value offset=0 size=8 align=8
+/// @layout.class name=test.main.Holder<'a> size=16 align=8
+/// @layout.field owner=test.main.Holder<'a> index=0 name=value offset=8 size=8 align=8
+/// @layout.class name=test.main.Holder<'b> size=16 align=8
+/// @layout.field owner=test.main.Holder<'b> index=0 name=value offset=8 size=8 align=8
 "#);
 }
 

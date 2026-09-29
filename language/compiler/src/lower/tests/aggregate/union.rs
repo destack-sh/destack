@@ -358,9 +358,7 @@ function keep(listener: Listener): Listener | undefined {
 
     session.assert_mir_function("main.tspp", "test.main.Listener.constructor", r#"
 @nocopy
-type test.main.Listener {
-    value: int32;
-}
+type test.main.Listener = class { value: int32 };
 
 export constructor test.main.Listener.constructor<'a>(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>
@@ -373,15 +371,13 @@ entry(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>):
     return
 }
 
-/// @layout.struct name=test.main.Listener size=4 align=4
-/// @layout.field owner=test.main.Listener index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Listener size=8 align=4
+/// @layout.field owner=test.main.Listener index=0 name=value offset=4 size=4 align=4
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.keep", r#"
 @nocopy
-type test.main.Listener {
-    value: int32;
-}
+type test.main.Listener = class { value: int32 };
 
 export function test.main.keep(v0: ref<test.main.Listener, managed, mutable, local>): variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; } {
     local l0: ref<test.main.Listener, managed, mutable, local>
@@ -396,8 +392,8 @@ entry(v0: ref<test.main.Listener, managed, mutable, local>):
     return v3
 }
 
-/// @layout.struct name=test.main.Listener size=4 align=4
-/// @layout.field owner=test.main.Listener index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Listener size=8 align=4
+/// @layout.field owner=test.main.Listener index=0 name=value offset=4 size=4 align=4
 /// @layout.variant name=type@8 size=8 align=8
 /// @layout.discriminant owner=type@8 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
 /// @layout.case owner=type@8 index=0 discriminant=0 payload_offset=0
@@ -425,9 +421,7 @@ function forward(listener: Listener): boolean {
 
     session.assert_mir_function("main.tspp", "test.main.Listener.constructor", r#"
 @nocopy
-type test.main.Listener {
-    value: int32;
-}
+type test.main.Listener = class { value: int32 };
 
 export constructor test.main.Listener.constructor<'a>(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>
@@ -440,8 +434,8 @@ entry(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>):
     return
 }
 
-/// @layout.struct name=test.main.Listener size=4 align=4
-/// @layout.field owner=test.main.Listener index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Listener size=8 align=4
+/// @layout.field owner=test.main.Listener index=0 name=value offset=4 size=4 align=4
 "#);
 
     session.assert_mir_function(
@@ -449,9 +443,7 @@ entry(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>):
         "test.main.accept",
         r#"
 @nocopy
-type test.main.Listener {
-    value: int32;
-}
+type test.main.Listener = class { value: int32 };
 
 export function test.main.accept(v0: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; }): boolean {
     local l0: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; }
@@ -465,8 +457,8 @@ entry(v0: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, lo
     return v4
 }
 
-/// @layout.struct name=test.main.Listener size=4 align=4
-/// @layout.field owner=test.main.Listener index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Listener size=8 align=4
+/// @layout.field owner=test.main.Listener index=0 name=value offset=4 size=4 align=4
 /// @layout.variant name=type@8 size=8 align=8
 /// @layout.discriminant owner=type@8 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
 /// @layout.case owner=type@8 index=0 discriminant=0 payload_offset=0
@@ -479,9 +471,7 @@ entry(v0: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, lo
         "test.main.forward",
         r#"
 @nocopy
-type test.main.Listener {
-    value: int32;
-}
+type test.main.Listener = class { value: int32 };
 
 export function test.main.forward(v0: ref<test.main.Listener, managed, mutable, local>): boolean {
     local l0: ref<test.main.Listener, managed, mutable, local>
@@ -494,8 +484,8 @@ entry(v0: ref<test.main.Listener, managed, mutable, local>):
     return v3
 }
 
-/// @layout.struct name=test.main.Listener size=4 align=4
-/// @layout.field owner=test.main.Listener index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Listener size=8 align=4
+/// @layout.field owner=test.main.Listener index=0 name=value offset=4 size=4 align=4
 /// @layout.variant name=type@8 size=8 align=8
 /// @layout.discriminant owner=type@8 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
 /// @layout.case owner=type@8 index=0 discriminant=0 payload_offset=0
@@ -520,9 +510,7 @@ function keep(listener: Listener): Listener | undefined {
 
     session.assert_mir_function("main.tspp", "test.main.Listener.constructor", r#"
 @nocopy
-type test.main.Listener {
-    value: int32;
-}
+type test.main.Listener = class { value: int32 };
 
 export constructor test.main.Listener.constructor<'a>(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>
@@ -535,15 +523,13 @@ entry(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>):
     return
 }
 
-/// @layout.struct name=test.main.Listener size=4 align=4
-/// @layout.field owner=test.main.Listener index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Listener size=8 align=4
+/// @layout.field owner=test.main.Listener index=0 name=value offset=4 size=4 align=4
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.keep", r#"
 @nocopy
-type test.main.Listener {
-    value: int32;
-}
+type test.main.Listener = class { value: int32 };
 
 export function test.main.keep(v0: ref<test.main.Listener, managed, mutable, local>): variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; } {
     local l0: ref<test.main.Listener, managed, mutable, local>
@@ -555,8 +541,8 @@ entry(v0: ref<test.main.Listener, managed, mutable, local>):
     return v2
 }
 
-/// @layout.struct name=test.main.Listener size=4 align=4
-/// @layout.field owner=test.main.Listener index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Listener size=8 align=4
+/// @layout.field owner=test.main.Listener index=0 name=value offset=4 size=4 align=4
 /// @layout.variant name=type@8 size=8 align=8
 /// @layout.discriminant owner=type@8 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
 /// @layout.case owner=type@8 index=0 discriminant=0 payload_offset=0
@@ -584,9 +570,7 @@ function read(head: Listener | undefined): int32 {
 
     session.assert_mir_function("main.tspp", "test.main.Listener.constructor", r#"
 @nocopy
-type test.main.Listener {
-    value: int32;
-}
+type test.main.Listener = class { value: int32 };
 
 export constructor test.main.Listener.constructor<'a>(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>
@@ -599,8 +583,8 @@ entry(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>):
     return
 }
 
-/// @layout.struct name=test.main.Listener size=4 align=4
-/// @layout.field owner=test.main.Listener index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Listener size=8 align=4
+/// @layout.field owner=test.main.Listener index=0 name=value offset=4 size=4 align=4
 "#);
 
     session.assert_mir_function(
@@ -608,9 +592,7 @@ entry(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>):
         "test.main.read",
         r#"
 @nocopy
-type test.main.Listener {
-    value: int32;
-}
+type test.main.Listener = class { value: int32 };
 
 export function test.main.read(v0: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; }): int32 {
     local l0: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; }
@@ -635,8 +617,8 @@ b2:
     return v8
 }
 
-/// @layout.struct name=test.main.Listener size=4 align=4
-/// @layout.field owner=test.main.Listener index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Listener size=8 align=4
+/// @layout.field owner=test.main.Listener index=0 name=value offset=4 size=4 align=4
 /// @layout.variant name=type@8 size=8 align=8
 /// @layout.discriminant owner=type@8 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
 /// @layout.case owner=type@8 index=0 discriminant=0 payload_offset=0
@@ -703,7 +685,7 @@ function keep(circle: Circle): Drawable | undefined {
         "test.main.Circle.draw",
         r#"
 @nocopy
-type test.main.Circle { }
+type test.main.Circle = class {  };
 
 export function test.main.Circle.draw(v0: ref<test.main.Circle, managed, mutable, local>): void {
     local l0: ref<test.main.Circle, managed, mutable, local>
@@ -713,13 +695,13 @@ entry(v0: ref<test.main.Circle, managed, mutable, local>):
     return
 }
 
-/// @layout.struct name=test.main.Circle size=0 align=1
+/// @layout.class name=test.main.Circle size=4 align=4
 "#,
     );
 
     session.assert_mir_function("main.tspp", "test.main.keep", r#"
 @nocopy
-type test.main.Circle { }
+type test.main.Circle = class {  };
 
 @nocopy
 type test.main.Drawable { }
@@ -738,12 +720,12 @@ entry(v0: ref<test.main.Circle, managed, mutable, local>):
     return v4
 }
 
-/// @layout.struct name=test.main.Circle size=0 align=1
+/// @layout.class name=test.main.Circle size=4 align=4
 /// @layout.struct name=test.main.Drawable size=0 align=1
-/// @layout.variant name=type@8 size=16 align=8
-/// @layout.discriminant owner=type@8 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
-/// @layout.case owner=type@8 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@8 index=1 discriminant=1 payload_offset=0
+/// @layout.variant name=type@9 size=16 align=8
+/// @layout.discriminant owner=type@9 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@9 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@9 index=1 discriminant=1 payload_offset=0
 "#);
 }
 
@@ -763,9 +745,7 @@ function isHead(head: Listener | undefined, listener: Listener): boolean {
 
     session.assert_mir_function("main.tspp", "test.main.Listener.constructor", r#"
 @nocopy
-type test.main.Listener {
-    value: int32;
-}
+type test.main.Listener = class { value: int32 };
 
 export constructor test.main.Listener.constructor<'a>(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>
@@ -778,15 +758,13 @@ entry(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>):
     return
 }
 
-/// @layout.struct name=test.main.Listener size=4 align=4
-/// @layout.field owner=test.main.Listener index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Listener size=8 align=4
+/// @layout.field owner=test.main.Listener index=0 name=value offset=4 size=4 align=4
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.isHead", r#"
 @nocopy
-type test.main.Listener {
-    value: int32;
-}
+type test.main.Listener = class { value: int32 };
 
 export function test.main.isHead(v0: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; }, v1: ref<test.main.Listener, managed, mutable, local>): boolean {
     local l0: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, local>; 1uint1 = void; }
@@ -830,8 +808,8 @@ b5:
     jump b3
 }
 
-/// @layout.struct name=test.main.Listener size=4 align=4
-/// @layout.field owner=test.main.Listener index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Listener size=8 align=4
+/// @layout.field owner=test.main.Listener index=0 name=value offset=4 size=4 align=4
 /// @layout.variant name=type@8 size=8 align=8
 /// @layout.discriminant owner=type@8 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
 /// @layout.case owner=type@8 index=0 discriminant=0 payload_offset=0
@@ -1999,8 +1977,8 @@ entry(v0: ref<test.main.Slot, borrowed, 'a, readonly>):
     return v4
 }
 
-/// @layout.struct name=test.main.Slot size=32 align=8
-/// @layout.field owner=test.main.Slot index=0 name=value offset=0 size=32 align=8
+/// @layout.struct name=test.main.Slot size=48 align=8
+/// @layout.field owner=test.main.Slot index=0 name=value offset=0 size=48 align=8
 "#,
     );
 
@@ -2022,10 +2000,10 @@ entry:
     return v4
 }
 
-/// @layout.variant name=type@17 size=32 align=8
-/// @layout.discriminant owner=type@17 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
-/// @layout.case owner=type@17 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@17 index=1 discriminant=1 payload_offset=0
+/// @layout.variant name=type@17 size=48 align=8
+/// @layout.discriminant owner=type@17 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@17 index=0 discriminant=0 payload_offset=8
+/// @layout.case owner=type@17 index=1 discriminant=1 payload_offset=8
 "#);
 }
 

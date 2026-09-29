@@ -157,9 +157,7 @@ type test.main.Box {
 
 @nocopy
 @languageItem("string.String")
-type String {
-    codeUnits: slice<uint16, unique, mutable>;
-}
+type String = class { codeUnits: slice<uint16, unique, mutable> };
 
 shared constant string.0: String = "x"
 
@@ -213,10 +211,10 @@ b3:
 
 /// @layout.struct name=test.main.Box size=8 align=8
 /// @layout.field owner=test.main.Box index=0 name=message offset=0 size=8 align=8
-/// @layout.struct name=String size=16 align=8
-/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
-/// @layout.struct name=type@5 size=16 align=8
-/// @layout.field owner=type@5 index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.class name=String size=24 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=8 size=16 align=8
+/// @layout.class name=type@5 size=24 align=8
+/// @layout.field owner=type@5 index=0 name=codeUnits offset=8 size=16 align=8
 /// @layout.variant name=type@8 size=8 align=8
 /// @layout.discriminant owner=type@8 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
 /// @layout.case owner=type@8 index=0 discriminant=0 payload_offset=0

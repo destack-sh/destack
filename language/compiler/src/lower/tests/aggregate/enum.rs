@@ -185,9 +185,7 @@ type test.main.Level = newtype<ref<String, managed, mutable, local>>;
 
 @nocopy
 @languageItem("string.String")
-type String {
-    codeUnits: slice<uint16, unique, mutable>;
-}
+type String = class { codeUnits: slice<uint16, unique, mutable> };
 
 shared constant string.0: String = "error"
 shared constant string.1: String = "info"
@@ -246,10 +244,10 @@ b6:
     jump b4
 }
 
-/// @layout.struct name=String size=16 align=8
-/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
-/// @layout.struct name=type@5 size=16 align=8
-/// @layout.field owner=type@5 index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.class name=String size=24 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=8 size=16 align=8
+/// @layout.class name=type@5 size=24 align=8
+/// @layout.field owner=type@5 index=0 name=codeUnits offset=8 size=16 align=8
 "#,
     );
 }
@@ -356,9 +354,7 @@ type test.main.Level = newtype<ref<String, managed, mutable, local>>;
 
 @nocopy
 @languageItem("string.String")
-type String {
-    codeUnits: slice<uint16, unique, mutable>;
-}
+type String = class { codeUnits: slice<uint16, unique, mutable> };
 
 type literal.string.hi { }
 
@@ -395,8 +391,8 @@ entry:
 /// @layout.discriminant owner=test.main.Mode kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=test.main.Mode index=0 discriminant=1 payload_offset=1
 /// @layout.case owner=test.main.Mode index=1 discriminant=2 payload_offset=1
-/// @layout.struct name=String size=16 align=8
-/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.class name=String size=24 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=8 size=16 align=8
 /// @layout.struct name=literal.string.hi size=0 align=1
 /// @layout.struct name=literal.integer.3 size=0 align=1
 /// @layout.struct name=literal.integer.4 size=0 align=1
@@ -405,8 +401,8 @@ entry:
 /// @layout.discriminant owner=type@3 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@3 index=0 discriminant=1 payload_offset=1
 /// @layout.case owner=type@3 index=1 discriminant=2 payload_offset=1
-/// @layout.struct name=type@9 size=16 align=8
-/// @layout.field owner=type@9 index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.class name=type@9 size=24 align=8
+/// @layout.field owner=type@9 index=0 name=codeUnits offset=8 size=16 align=8
 /// @layout.struct name=type@12 size=0 align=1
 "#,
     );

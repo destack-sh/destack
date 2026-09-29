@@ -175,7 +175,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     Some(environment) => environment,
                     None => {
                         let tree = self.builder.tree_mut();
-                        let void = tree.void_type();
+                        let void = tree.intern_type(mir::Type::Void);
                         let environment = tree.intern_type(mir::Type::Pointer {
                             pointee: void,
                             access: mir::Access::Readonly,

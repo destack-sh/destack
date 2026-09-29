@@ -61,9 +61,7 @@ function read(value: &readonly User): int32 {
         "test.main.User.constructor",
         r#"
 @nocopy
-type test.main.User {
-    id: int32;
-}
+type test.main.User = class { id: int32 };
 
 export constructor test.main.User.constructor<'a>(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>
@@ -76,8 +74,8 @@ entry(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>):
     return
 }
 
-/// @layout.struct name=test.main.User size=4 align=4
-/// @layout.field owner=test.main.User index=0 name=id offset=0 size=4 align=4
+/// @layout.class name=test.main.User size=8 align=4
+/// @layout.field owner=test.main.User index=0 name=id offset=4 size=4 align=4
 "#,
     );
 
@@ -86,9 +84,7 @@ entry(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>):
         "test.main.read",
         r#"
 @nocopy
-type test.main.User {
-    id: int32;
-}
+type test.main.User = class { id: int32 };
 
 export function test.main.read<'a>(v0: ref<test.main.User, borrowed, 'a, readonly>): int32 {
     local l0: ref<test.main.User, borrowed, 'a, readonly>
@@ -100,8 +96,8 @@ entry(v0: ref<test.main.User, borrowed, 'a, readonly>):
     return v2
 }
 
-/// @layout.struct name=test.main.User size=4 align=4
-/// @layout.field owner=test.main.User index=0 name=id offset=0 size=4 align=4
+/// @layout.class name=test.main.User size=8 align=4
+/// @layout.field owner=test.main.User index=0 name=id offset=4 size=4 align=4
 "#,
     );
 }

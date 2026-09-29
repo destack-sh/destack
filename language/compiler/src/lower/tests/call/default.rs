@@ -24,9 +24,7 @@ type literal.string.little { }
 
 @nocopy
 @languageItem("string.String")
-type String {
-    codeUnits: slice<uint16, unique, mutable>;
-}
+type String = class { codeUnits: slice<uint16, unique, mutable> };
 
 shared constant string.0: String = "big"
 shared constant string.1: String = "little"
@@ -85,16 +83,16 @@ entry:
 
 /// @layout.struct name=literal.string.big size=0 align=1
 /// @layout.struct name=literal.string.little size=0 align=1
-/// @layout.struct name=String size=16 align=8
-/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.class name=String size=24 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=8 size=16 align=8
 /// @layout.struct name=type@1 size=0 align=1
 /// @layout.variant name=type@5 size=1 align=1
 /// @layout.discriminant owner=type@5 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@5 index=0 discriminant=0 payload_offset=1
 /// @layout.case owner=type@5 index=1 discriminant=1 payload_offset=1
 /// @layout.case owner=type@5 index=2 discriminant=2 payload_offset=1
-/// @layout.struct name=type@10 size=16 align=8
-/// @layout.field owner=type@10 index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.class name=type@10 size=24 align=8
+/// @layout.field owner=type@10 index=0 name=codeUnits offset=8 size=16 align=8
 "#);
 }
 

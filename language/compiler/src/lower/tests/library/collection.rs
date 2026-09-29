@@ -205,8 +205,8 @@ b3:
     return v14
 }
 
-/// @layout.struct name=test.main.Label size=32 align=8
-/// @layout.field owner=test.main.Label index=0 name=values offset=0 size=32 align=8
+/// @layout.struct name=test.main.Label size=40 align=8
+/// @layout.field owner=test.main.Label index=0 name=values offset=0 size=40 align=8
 /// @layout.variant name=type@68 size=8 align=8
 /// @layout.discriminant owner=type@68 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
 /// @layout.case owner=type@68 index=0 discriminant=0 payload_offset=0

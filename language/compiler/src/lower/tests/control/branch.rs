@@ -303,9 +303,7 @@ type test.main.Point {
 }
 
 @nocopy
-type test.main.Box {
-    value: int32;
-}
+type test.main.Box = class { value: int32 };
 
 export function test.main.run(v0: test.main.Point): void {
     local l0: test.main.Point
@@ -322,8 +320,8 @@ entry(v0: test.main.Point):
 
 /// @layout.struct name=test.main.Point size=4 align=4
 /// @layout.field owner=test.main.Point index=0 name=x offset=0 size=4 align=4
-/// @layout.struct name=test.main.Box size=4 align=4
-/// @layout.field owner=test.main.Box index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Box size=8 align=4
+/// @layout.field owner=test.main.Box index=0 name=value offset=4 size=4 align=4
 "#,
     );
 }

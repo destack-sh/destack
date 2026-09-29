@@ -431,31 +431,32 @@ entry(v0: ref<Array<int32>, managed, mutable, local>):
 b1:
     v4: dynamic<Iterator<int32>, managed, mutable, local> = load l2
     v5: dynamic<Iterator<int32>, borrowed, 'managed, mutable> = cast.bit v4 -> dynamic<Iterator<int32>, borrowed, 'managed, mutable>
-    v6: IteratorResult<int32, void> = call.dynamic v5, Iterator<int32>, 0(): () => IteratorResult<int32, void>
-    v7: variant<uint1> { 0uint1 = IteratorYield<int32>; 1uint1 = IteratorReturn<void>; } = field.get v6, 0
-    variant.switch v7, 0 => b2, 1 => b3
+    v6: ref<Iterator<int32>, borrowed, 'managed, mutable> = dynamic.payload v5
+    v7: IteratorResult<int32, void> = call.dynamic v5, Iterator<int32>, 0(v6): (ref<Iterator<int32>, borrowed, 'managed, mutable>) => IteratorResult<int32, void>
+    v8: variant<uint1> { 0uint1 = IteratorYield<int32>; 1uint1 = IteratorReturn<void>; } = field.get v7, 0
+    variant.switch v8, 0 => b2, 1 => b3
 
 b2:
-    v8: IteratorYield<int32> = variant.payload v7, 0
-    v9: int32 = field.get v8, 1
-    store l3, v9
-    v10: int32 = load l3
-    store l4, v10
-    v11: int32 = load l1
-    v12: int32 = load l4
-    v13: int32 = add v11, v12
-    store l1, v13
+    v9: IteratorYield<int32> = variant.payload v8, 0
+    v10: int32 = field.get v9, 1
+    store l3, v10
+    v11: int32 = load l3
+    store l4, v11
+    v12: int32 = load l1
+    v13: int32 = load l4
+    v14: int32 = add v12, v13
+    store l1, v14
     jump b1
 
 b3:
-    v14: int32 = load l1
-    return v14
+    v15: int32 = load l1
+    return v15
 }
 
-/// @layout.variant name=type@119 size=8 align=4
-/// @layout.discriminant owner=type@119 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@119 index=0 discriminant=0 payload_offset=4
-/// @layout.case owner=type@119 index=1 discriminant=1 payload_offset=4
+/// @layout.variant name=type@121 size=8 align=4
+/// @layout.discriminant owner=type@121 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@121 index=0 discriminant=0 payload_offset=4
+/// @layout.case owner=type@121 index=1 discriminant=1 payload_offset=4
 "#);
 }
 

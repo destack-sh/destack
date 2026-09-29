@@ -481,10 +481,10 @@ impl FunctionLowerer<'_, '_, '_> {
         // collect the field storage types behind the nominal's object
         let storage = mir::Substitution::resolve(storage, self.builder.tree_mut());
         let storage_fields = match self.builder.tree().get(storage) {
-            mir::Type::Struct { fields, .. } => fields.clone(),
+            mir::Type::Struct { fields, .. } | mir::Type::Class { fields, .. } => fields.clone(),
             _ => {
                 return Err(CompilerError::Internal {
-                    message: "a nominal lowered without struct storage".to_string(),
+                    message: "a nominal lowered without struct or class storage".to_string(),
                 });
             }
         };
@@ -1099,7 +1099,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let ty = self.node_type_id(expression)?;
         let ty = self.lower.stored(ty)?;
         let representation = self.lower_type(ty)?;
-        let storage = self.builder.tree_mut().storage_type(representation);
+        let storage = representation.storage(self.builder.tree_mut());
 
         // store each written bound under the member it names
         let mir::Type::Struct { fields, .. } = self.builder.tree().get(storage).clone() else {

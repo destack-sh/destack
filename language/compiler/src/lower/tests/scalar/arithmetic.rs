@@ -175,9 +175,7 @@ function pick(name: Name): Name {
         r#"
 @nocopy
 @languageItem("string.String")
-type String {
-    codeUnits: slice<uint16, unique, mutable>;
-}
+type String = class { codeUnits: slice<uint16, unique, mutable> };
 
 export function test.main.next(v0: int64): int64 {
     local l0: int64
@@ -199,10 +197,10 @@ entry(v0: ref<String, managed, mutable, local>):
     return v1
 }
 
-/// @layout.struct name=String size=16 align=8
-/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
-/// @layout.struct name=type@5 size=16 align=8
-/// @layout.field owner=type@5 index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.class name=String size=24 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=8 size=16 align=8
+/// @layout.class name=type@5 size=24 align=8
+/// @layout.field owner=type@5 index=0 name=codeUnits offset=8 size=16 align=8
 "#,
     );
 }

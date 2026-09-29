@@ -366,7 +366,7 @@ impl TypeLowerer<'_, '_> {
     }
 
     /// Declare the polymorphic representation of one template at its own parameters.
-    fn lower_template_nominal(
+    pub(in crate::lower) fn lower_template_nominal(
         &mut self,
         source: dir::GlobalTypeId,
         symbol: dir::GlobalSymbolId,

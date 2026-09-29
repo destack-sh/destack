@@ -113,10 +113,12 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<u32> {
         // read the struct storage the type lowers to
         let representation = self.lower_type(ty)?;
-        let storage = self.builder.tree_mut().storage_type(representation);
-        let mir::Type::Struct { fields, .. } = self.builder.tree().get(storage).clone() else {
+        let storage = representation.storage(self.builder.tree_mut());
+        let (mir::Type::Struct { fields, .. } | mir::Type::Class { fields, .. }) =
+            self.builder.tree().get(storage).clone()
+        else {
             return Err(CompilerError::Internal {
-                message: "a language member outside struct storage".to_string(),
+                message: "a language member outside struct or class storage".to_string(),
             });
         };
 

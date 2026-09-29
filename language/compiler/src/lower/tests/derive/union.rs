@@ -471,9 +471,9 @@ entry(v0: ref<variant<uint1> { 0uint1 = test.main.Path; 1uint1 = int32; }, borro
     return v2
 }
 
-/// @layout.struct name=test.main.Path size=32 align=8
-/// @layout.field owner=test.main.Path index=0 name=steps offset=0 size=32 align=8
-/// @layout.variant name=type@17 size=40 align=8
+/// @layout.struct name=test.main.Path size=40 align=8
+/// @layout.field owner=test.main.Path index=0 name=steps offset=0 size=40 align=8
+/// @layout.variant name=type@17 size=48 align=8
 /// @layout.discriminant owner=type@17 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@17 index=0 discriminant=0 payload_offset=8
 /// @layout.case owner=type@17 index=1 discriminant=1 payload_offset=8
@@ -539,9 +539,9 @@ b6:
     return v16
 }
 
-/// @layout.struct name=test.main.Path size=32 align=8
-/// @layout.field owner=test.main.Path index=0 name=steps offset=0 size=32 align=8
-/// @layout.variant name=type@17 size=40 align=8
+/// @layout.struct name=test.main.Path size=40 align=8
+/// @layout.field owner=test.main.Path index=0 name=steps offset=0 size=40 align=8
+/// @layout.variant name=type@17 size=48 align=8
 /// @layout.discriminant owner=type@17 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@17 index=0 discriminant=0 payload_offset=8
 /// @layout.case owner=type@17 index=1 discriminant=1 payload_offset=8
