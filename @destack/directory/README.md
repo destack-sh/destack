@@ -47,3 +47,9 @@ void cache.follow(signal);
 ## Tables
 
 The global database holds `directoryTables`: zones, cells and claims.
+
+```ts
+import { directoryTables } from "@destack/directory";
+
+export const global = defineDatabase({ name: "global", tier: "global", tables: [...directoryTables] });
+```
