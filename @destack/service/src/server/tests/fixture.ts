@@ -3,9 +3,11 @@ import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { Caller } from "../../authentication/index.ts";
 import { ServiceError } from "../../error/index.ts";
+import { defineService } from "../../declare/index.ts";
 
 /** The hosting configuration of the server scenarios. */
 export const hosting = {
+    service: defineService("fixture", {}),
     audience: PackageId.parse("package-019f7480-0000-7000-8000-000000000001"),
     scope: "test-space",
     resources: new ResourceContext(),

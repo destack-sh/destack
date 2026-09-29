@@ -24,6 +24,7 @@ import { Health } from "../health/index.ts";
 import { ServiceError } from "../error/index.ts";
 import { defineProcedure, eventIterator } from "../service/index.ts";
 import { createClient } from "../client/index.ts";
+import { defineService } from "../declare/index.ts";
 import { implement } from "./handler.ts";
 import { Server } from "./server.ts";
 import type { ServiceContext } from "./context.ts";
@@ -51,7 +52,7 @@ test.each(["universe", "host-local", "account-personal", "space-personal"])(
                 read: implementation.read.handler(({ context }) => context.scope!),
             }),
         });
-        const client = createClient(definition, {
+        const client = createClient(defineService("fixture", definition), {
             url: "https://fixture.test",
             fetch: (request) => server.fetch(request),
         });
@@ -188,6 +189,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     const resources = new ResourceContext();
     const implementation = implement(service).$context<ServiceContext>();
     await using server = Server.start({
+        service: hosting.service,
         audience: packageId,
         scope: spaceId,
         resources,
@@ -232,7 +234,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
 
     // forward the original credential
     let bearer: string | undefined = credentials.get(owner.id);
-    const client = createClient(service, {
+    const client = createClient(defineService("fixture", service), {
         url: "https://notes.example",
         headers: () => (bearer ? { authorization: `Bearer ${bearer}` } : {}),
         fetch: (request) =>

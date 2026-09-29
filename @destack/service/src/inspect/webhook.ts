@@ -4,7 +4,6 @@ import { WebhookDescription, type Webhook } from "../webhook/index.ts";
 export function describeWebhook(webhook: Webhook): WebhookDescription {
     return WebhookDescription.parse({
         name: webhook.name,
-        version: webhook.version,
         verification: webhook.verification,
         route: webhook.route,
     });

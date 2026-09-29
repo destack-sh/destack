@@ -26,13 +26,13 @@ export class ServiceBinding<Router extends ServiceRouter = ServiceRouter> extend
     Client<Router>,
     ServiceBindingDescription
 > {
-    /** The procedures of the client. */
-    readonly router: Router;
+    /** The service the client calls. */
+    readonly service: Service<Router>;
 
     /** Create the binding. */
-    constructor(owner: Package, description: ServiceBindingDescription, router: Router) {
+    constructor(owner: Package, description: ServiceBindingDescription, service: Service<Router>) {
         super(owner, description);
-        this.router = router;
+        this.service = service;
     }
 
     /** Open the HTTP provider, calling the service as the workload. */
@@ -50,7 +50,7 @@ export class ServiceBinding<Router extends ServiceRouter = ServiceRouter> extend
                         throw new TypeError(`service binding ${this.name} holds no endpoint`);
                     }
 
-                    return createClient(this.router, {
+                    return createClient(this.service, {
                         url: record.reference,
                         headers: () => ({ authorization: `Bearer ${context.credential()}` }),
                     });
@@ -73,5 +73,5 @@ export function defineServiceBinding<Router extends ServiceRouter>(
         spec: { service: reference(service) },
     });
 
-    return new ServiceBinding(owner, description, service.router);
+    return new ServiceBinding(owner, description, service);
 }

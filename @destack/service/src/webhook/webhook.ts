@@ -17,8 +17,6 @@ export const WebhookDescription = defineSchema(
     schema.object({
         /** The package-local webhook name. */
         name: DeclarationName,
-        /** The declaration format version. */
-        version: schema.literal(1),
         /** The signature scheme. */
         verification: schema.enum(WEBHOOK_VERIFICATIONS),
         /** The path template below the webhook, such as `/{repository}`. */
@@ -32,8 +30,6 @@ export type WebhookDescription = schema.Infer<typeof WebhookDescription>;
 export interface Webhook extends Declaration {
     /** The trigger kind. */
     readonly kind: "webhook";
-    /** The declaration format version. */
-    readonly version: 1;
     /** The signature scheme. */
     readonly verification: WebhookDescription["verification"];
     /** The path template below the webhook. */
@@ -61,7 +57,7 @@ export function defineWebhook(
 ): Webhook {
     // stamp the declaring package
     const owner = declaringModule(module, "defineWebhook").package;
-    const description = WebhookDescription.parse({ ...definition, version: 1 });
+    const description = WebhookDescription.parse(definition);
 
     // require distinct parameter names
     const names = segments(description.route).filter((segment) => segment.startsWith("{"));

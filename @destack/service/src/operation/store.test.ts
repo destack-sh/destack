@@ -6,6 +6,8 @@ import { defineOperation, defineOperationProcedures } from "../operation/index.t
 import { ServiceError } from "../error/index.ts";
 import { implementOperation, OperationStore, Server } from "../server/index.ts";
 import { hosting, createCaller } from "../server/tests/fixture.ts";
+import { defineService } from "../declare/index.ts";
+import { VERSION_HEADER } from "../request/index.ts";
 
 test.for([undefined, "/builds"] as const)(
     "run authorized operations through HTTP, reconnect, cancel, and release results (%s)",
@@ -22,11 +24,12 @@ test.for([undefined, "/builds"] as const)(
         });
 
         // serve the procedures
-        const service = defineOperationProcedures(definition, path);
+        const service = defineService("operations", defineOperationProcedures(definition, path));
         const router = implementOperation(store, path);
         const alice = createCaller("alice");
         await using server = Server.start({
             ...hosting,
+            service,
             router,
             health: new Health("operations"),
             drainTimeout: 1000,
@@ -35,7 +38,7 @@ test.for([undefined, "/builds"] as const)(
         // serve the route
         const response = await server.fetch(
             new Request(`https://test.local${path ?? "/operations"}`, {
-                headers: { authorization: "alice" },
+                headers: { authorization: "alice", [VERSION_HEADER]: service.package.version },
             }),
         );
         expect(response.status).toBe(200);

@@ -3,6 +3,7 @@ import { schema } from "@destack/schema";
 import { Health, health } from "../health/index.ts";
 import { implementHealth } from "../health/server.ts";
 import { createClient } from "../client/index.ts";
+import { defineService } from "../declare/index.ts";
 import { eventIterator, defineProcedure } from "../service/index.ts";
 import { implement, Server, type ServerOptions } from "./index.ts";
 import { createCaller, hosting } from "./tests/fixture.ts";
@@ -49,7 +50,7 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
     });
     const controller = new AbortController();
     try {
-        const client = createClient(service, {
+        const client = createClient(defineService("fixture", service), {
             url: "https://test.local",
             headers: { authorization: "alice" },
             fetch: (request) => server.fetch(request),
@@ -123,7 +124,7 @@ test.for([
 
         // read every value until the stream ends
         try {
-            const client = createClient(service, {
+            const client = createClient(defineService("fixture", service), {
                 url: "https://test.local",
                 headers: { authorization: "alice" },
                 fetch: (request) => server.fetch(request),
@@ -229,7 +230,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
     ]).toEqual([303, "https://identity.local/sign-in", "no-store"]);
 
     // start a stream before shutdown
-    const client = createClient(service, {
+    const client = createClient(defineService("fixture", service), {
         url: "https://test.local",
         headers: { authorization: "alice" },
         fetch: (request) => server.fetch(request),
@@ -303,7 +304,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
     });
 
     // reject unauthenticated requests
-    const client = createClient(service, {
+    const client = createClient(defineService("fixture", service), {
         url: "https://test.local",
         fetch: (request) => server.fetch(request),
     });
@@ -317,7 +318,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
     await failure.arrayBuffer();
 
     // admit an authenticated request
-    const authorized = createClient(service, {
+    const authorized = createClient(defineService("fixture", service), {
         url: "https://test.local",
         headers: { authorization: "alice" },
         fetch: (request) => server.fetch(request),
@@ -374,7 +375,7 @@ test("return observed watermarks and require them on the client's later requests
     });
     try {
         const bookmark = new Bookmark();
-        const client = createClient(service, {
+        const client = createClient(defineService("fixture", service), {
             url: "https://test.local",
             headers: { authorization: "alice" },
             fetch: (request) => server.fetch(request),
@@ -425,7 +426,7 @@ test.for(["before the call", "during the call", "between events"] as const)(
         });
 
         // abort the call at the moment under test
-        const client = createClient(service, {
+        const client = createClient(defineService("fixture", service), {
             url: "https://test.local",
             headers: { authorization: "alice" },
             fetch: (request) => server.fetch(request),
@@ -488,4 +489,42 @@ test("refuse starting a server whose procedures carry payloads the HTTP layer ca
     expect(() =>
         Server.start({ ...hosting, router, health: readiness, drainTimeout: 1000 }),
     ).toThrow("unsupported schema check: custom");
+});
+
+test("report a handler's invalid output as an internal failure and a caller's invalid input as its own", async () => {
+    // serve a procedure whose handler breaks its output contract
+    const routes = {
+        echo: defineProcedure({ authentication: "public", permission: null, audit: false })
+            .route({ method: "POST", path: "/echo" })
+            .input(schema.object({ text: schema.string() }))
+            .output(schema.object({ text: schema.string() })),
+    };
+    const implementation = implement(routes);
+    await using server = Server.start({
+        ...hosting,
+        health: new Health("echo"),
+        drainTimeout: 1000,
+        router: implementation.router({
+            echo: implementation.echo.handler(() => ({ text: 1 }) as never),
+        }),
+    });
+    const client = createClient(defineService("fixture", routes), {
+        url: "https://test.local",
+        headers: { authorization: "alice" },
+        fetch: (request) => server.fetch(request),
+    });
+    const outcome = (call: Promise<unknown>) =>
+        call.then(
+            () => "accepted",
+            (error: { readonly code: string; readonly message: string }) =>
+                `${error.code}: ${error.message}`,
+        );
+
+    expect([
+        await outcome(client.echo({ text: "hello" })),
+        await outcome(client.echo({ text: 1 } as never)),
+    ]).toEqual([
+        "INTERNAL_SERVER_ERROR: internal server error",
+        "BAD_REQUEST: invalid input: text: invalid input: expected string, received number",
+    ]);
 });

@@ -26,8 +26,6 @@ export const WatchDescription = defineSchema(
     schema.object({
         /** The package-local watch name. */
         name: DeclarationName,
-        /** The declaration format version. */
-        version: schema.literal(1),
         /** The watched object type. */
         object: DeclarationReference,
         /** The condition on the object's rows. */
@@ -48,8 +46,6 @@ export interface Watch<Target extends Declaration = Declaration>
     extends Declaration, Handled<Watch<Target>> {
     /** The trigger kind. */
     readonly kind: "watch";
-    /** The declaration format version. */
-    readonly version: 1;
     /** The watched object type. */
     readonly object: Target;
     /** The condition on the object's rows. */
@@ -96,7 +92,6 @@ export function defineWatch<const Target extends Declaration>(
         from: "now",
         maxLag: MAX_LAG_MILLISECONDS,
         ...fields,
-        version: 1,
     });
 
     // require creations for a snapshot

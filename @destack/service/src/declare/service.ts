@@ -1,11 +1,12 @@
 import { DeclarationName, declaringModule, Package, type ModuleMetadata } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
+import { Version } from "@destack/schema";
 import type { ServiceRouter } from "../service/service.ts";
 
 /** A declared HTTP service. */
 export interface Service<Router extends ServiceRouter = ServiceRouter> extends Declaration {
-    /** The declaration format version. */
-    readonly version: 1;
+    /** The oldest caller release the service serves, every release when absent. */
+    readonly since?: Version;
     /** The service transport. */
     readonly protocol: "http";
     /** The service's procedures. */
@@ -30,13 +31,16 @@ export type ProceduresOf<Declaration> =
     RoutedProcedures<Declaration>[keyof RoutedProcedures<Declaration>];
 
 /** A service's procedures and routed declarations. */
-export type ServiceInput = { readonly objects?: Readonly<Record<string, Routed>> } & {
-    readonly [Name: string]: ServiceRouter | Readonly<Record<string, Routed>> | undefined;
+export type ServiceInput = {
+    readonly objects?: Readonly<Record<string, Routed>>;
+    readonly since?: Version;
+} & {
+    readonly [Name: string]: ServiceRouter | Readonly<Record<string, Routed>> | Version | undefined;
 };
 
 /** The router a service input declares. */
 export type ServiceRoutes<Input extends ServiceInput> = Extract<
-    Omit<Input, "objects"> &
+    Omit<Input, "objects" | "since"> &
         (Input["objects"] extends Readonly<Record<string, Routed>>
             ? {
                   readonly [Name in keyof Input["objects"]]: ProceduresOf<Input["objects"][Name]>;
@@ -55,7 +59,7 @@ export function defineService<const Input extends ServiceInput>(
     const owner = Package.parse(declaringModule(module, "defineService").package);
 
     // route each declaration under its name and the shared procedures once
-    const { objects = {}, ...router } = input as ServiceInput;
+    const { objects = {}, since, ...router } = input as ServiceInput;
     const derived: Record<string, unknown> = { ...router };
     const shared: Record<string, unknown> = {};
     for (const [key, routed] of Object.entries(objects)) {
@@ -74,7 +78,7 @@ export function defineService<const Input extends ServiceInput>(
     return Object.freeze({
         package: owner,
         name: DeclarationName.parse(name),
-        version: 1,
+        ...(since === undefined ? {} : { since: Version.parse(since) }),
         protocol: "http",
         router: derived as ServiceRoutes<Input>,
         objects,

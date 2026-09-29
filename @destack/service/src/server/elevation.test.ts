@@ -8,6 +8,7 @@ import { Caller } from "../authentication/index.ts";
 import { Health } from "../health/index.ts";
 import { defineProcedure } from "../service/index.ts";
 import { createClient } from "../client/index.ts";
+import { defineService } from "../declare/index.ts";
 import { implement } from "./handler.ts";
 import { Server } from "./server.ts";
 import type { ServiceContext } from "./context.ts";
@@ -107,7 +108,7 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
                 ),
         },
     });
-    const client = createClient(service, {
+    const client = createClient(defineService("fixture", service), {
         url: "https://vault.test",
         fetch: (request) => server.fetch(request),
     });

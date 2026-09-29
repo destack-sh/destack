@@ -119,7 +119,6 @@ test("describe a declared webhook with its verification and route for the manife
 
     expect(describeWebhook(webhook)).toEqual({
         name: "github",
-        version: 1,
         verification: "github",
         route: "/{repository}",
     });

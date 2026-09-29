@@ -17,7 +17,6 @@ test("describe a declared watch with its object reference, condition, operations
     expect(watch.object).toBe(note);
     expect(describeWatch(watch)).toEqual({
         name: "published",
-        version: 1,
         object: { packageId: note.package.id, name: "note" },
         where: {
             kind: "compare",

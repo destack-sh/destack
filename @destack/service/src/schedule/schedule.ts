@@ -10,8 +10,6 @@ export const CONCURRENCIES = ["allow", "forbid", "replace"] as const;
 const SCHEDULE = schema.object({
     /** The package-local schedule name. */
     name: DeclarationName,
-    /** The declaration format version. */
-    version: schema.literal(1),
     /** Whether occurrences may overlap. */
     concurrency: schema.enum(CONCURRENCIES),
     /** How late an occurrence may start, in milliseconds. */
@@ -54,14 +52,6 @@ export const ScheduleDescription = defineSchema(
 /** A schedule declaration. */
 export type ScheduleDescription = schema.Infer<typeof ScheduleDescription>;
 
-/** A schedule as authored. */
-export type ScheduleDefinition = WithoutVersion<ScheduleDescription>;
-
-/** Remove the version from each timing variant. */
-type WithoutVersion<Description> = Description extends unknown
-    ? Omit<Description, "version">
-    : never;
-
 /** A declared schedule. */
 export type Schedule = Declaration &
     ScheduleDescription & { readonly kind: "schedule" } & Handled<Schedule>;
@@ -77,10 +67,10 @@ export const ScheduleOccurrence = defineSchema(
 export type ScheduleOccurrence = schema.Infer<typeof ScheduleOccurrence>;
 
 /** Declare a schedule. */
-export function defineSchedule(definition: ScheduleDefinition, module?: ModuleMetadata): Schedule {
+export function defineSchedule(definition: ScheduleDescription, module?: ModuleMetadata): Schedule {
     // stamp the declaring package
     const owner = declaringModule(module, "defineSchedule").package;
-    const description = ScheduleDescription.parse({ ...definition, version: 1 });
+    const description = ScheduleDescription.parse(definition);
 
     return Object.freeze({
         ...description,

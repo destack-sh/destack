@@ -3,16 +3,18 @@ import { createClient } from "../client/index.ts";
 import { Health, health } from "../health/index.ts";
 import { implementHealth, ServiceHandler } from "../server/index.ts";
 import { ServiceError } from "../error/index.ts";
+import { defineService } from "../declare/index.ts";
 
 test("stream current health and subsequent readiness changes", async () => {
     // serve the health procedures
     const readiness = new Health("notes");
-    const router = { health };
-    const handler = new ServiceHandler<{ caller: string }>(
+    const service = defineService("notes", { health });
+    const handler = new ServiceHandler<{ caller: string; request: Request }>(
         {
             health: implementHealth(readiness),
         },
         {
+            service,
             health: readiness,
             authorize: async ({ context }) => {
                 if (context.caller !== "alice") {
@@ -23,10 +25,10 @@ test("stream current health and subsequent readiness changes", async () => {
     );
 
     // connect a client
-    const client = createClient(router, {
+    const client = createClient(service, {
         url: "https://test.local",
         fetch: async (request) => {
-            const result = await handler.handle(request, { context: { caller: "alice" } });
+            const result = await handler.handle(request, { context: { caller: "alice", request } });
 
             return result.matched ? result.response : new Response(null, { status: 404 });
         },

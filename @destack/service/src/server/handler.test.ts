@@ -5,11 +5,15 @@ import { startTelemetry } from "@destack/telemetry/host";
 import { MetricReader } from "@destack/telemetry/metric";
 import { SimpleSpanProcessor, type ReadableSpan } from "@destack/telemetry/trace";
 import { createClient } from "../client/index.ts";
+import { defineService } from "../declare/index.ts";
 import { conceal, ServiceError } from "../error/index.ts";
 import { Health } from "../health/index.ts";
 import { defineProcedure, eventIterator } from "../service/index.ts";
 import { implement, ServiceHandler, type HandlerOptions } from "./handler.ts";
 import type {} from "@destack/package/import-meta";
+
+/** The service the handlers serve, whose release the clients speak. */
+const fixture = defineService("fixture", {});
 
 test("enforce access and audit requirements through streamed HTTP calls", async ({
     onTestFinished,
@@ -68,10 +72,9 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
 
     // authorize the caller and permission
     const health = new Health("notes");
-    const authorize: NonNullable<HandlerOptions<{ caller: string }>["authorize"]> = async ({
-        context,
-        access,
-    }) => {
+    const authorize: NonNullable<
+        HandlerOptions<{ caller: string; request: Request }>["authorize"]
+    > = async ({ context, access }) => {
         // hide the notes from carol, and refuse everyone else but alice
         const denial = new ServiceError("FORBIDDEN", { message: "permission denied: read" });
         if (context.caller === "carol") {
@@ -88,26 +91,29 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     };
 
     // reject missing enforcement
-    expect(() => new ServiceHandler(router, { health })).toThrow(
+    expect(() => new ServiceHandler(router, { service: fixture, health })).toThrow(
         new TypeError("protected procedures require authorization"),
     );
-    expect(() => new ServiceHandler(router, { health, authorize })).toThrow(
+    expect(() => new ServiceHandler(router, { service: fixture, health, authorize })).toThrow(
         new TypeError("audited procedures require audit recording"),
     );
 
     // record audit outcomes
     const records: { caller: string; outcome: string }[] = [];
     const handler = new ServiceHandler(router, {
+        service: fixture,
         health,
         authorize,
         audit: async ({ call, outcome }) => {
             records.push({ caller: call.context.caller, outcome });
         },
     });
-    const client = createClient(service, {
+    const client = createClient(defineService("fixture", service), {
         url: "https://test.local",
         fetch: async (request) => {
-            const response = await handler.handle(request, { context: { caller: "alice" } });
+            const response = await handler.handle(request, {
+                context: { caller: "alice", request },
+            });
 
             return response.matched ? response.response : new Response(null, { status: 404 });
         },
@@ -122,10 +128,10 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     expect(records).toEqual([{ caller: "alice", outcome: "success" }]);
 
     // record a denial without running the handler
-    const denied = createClient(service, {
+    const denied = createClient(defineService("fixture", service), {
         url: "https://test.local",
         fetch: async (request) => {
-            const response = await handler.handle(request, { context: { caller: "bob" } });
+            const response = await handler.handle(request, { context: { caller: "bob", request } });
 
             return response.matched ? response.response : new Response(null, { status: 404 });
         },
@@ -139,10 +145,12 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
 
     // answer a concealed denial as a missing resource, recording the denial
     const bodies: unknown[] = [];
-    const concealed = createClient(service, {
+    const concealed = createClient(defineService("fixture", service), {
         url: "https://test.local",
         fetch: async (request) => {
-            const response = await handler.handle(request, { context: { caller: "carol" } });
+            const response = await handler.handle(request, {
+                context: { caller: "carol", request },
+            });
             bodies.push(response.matched ? await response.response.clone().json() : undefined);
 
             return response.matched ? response.response : new Response(null, { status: 404 });
@@ -156,6 +164,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
 
     // fail the call when its audit fails at the end
     const unavailable = new ServiceHandler(router, {
+        service: fixture,
         health,
         authorize,
         audit: async () => {
@@ -165,10 +174,12 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
             });
         },
     });
-    const blocked = createClient(service, {
+    const blocked = createClient(defineService("fixture", service), {
         url: "https://test.local",
         fetch: async (request) => {
-            const response = await unavailable.handle(request, { context: { caller: "alice" } });
+            const response = await unavailable.handle(request, {
+                context: { caller: "alice", request },
+            });
 
             return response.matched ? response.response : new Response(null, { status: 404 });
         },
@@ -185,14 +196,11 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     expect(invoked).toBe(2);
 
     // serve probes without authorization
-    const starting = await handler.handle(new Request("https://test.local/readyz"), {
-        context: { caller: "" },
-    });
+    const probe = new Request("https://test.local/readyz");
+    const starting = await handler.handle(probe, { context: { caller: "", request: probe } });
     expect(starting.matched && starting.response.status).toBe(503);
     health.set("serving");
-    const ready = await handler.handle(new Request("https://test.local/readyz"), {
-        context: { caller: "" },
-    });
+    const ready = await handler.handle(probe, { context: { caller: "", request: probe } });
     expect(ready.matched && ready.response.status).toBe(200);
 
     // record call metrics without request values
@@ -223,9 +231,13 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
             count: 1,
         },
     ];
+    const released = outcomes.map((outcome) => ({
+        ...outcome,
+        attributes: { ...outcome.attributes, "destack.caller.version": fixture.package.version },
+    }));
     expect(calls).toEqual([
         { name: "rpc.client.call.duration", calls: outcomes },
-        { name: "rpc.server.call.duration", calls: outcomes },
+        { name: "rpc.server.call.duration", calls: released },
     ]);
     expect(new Set(spans.map((span) => span.spanContext().traceId)).size).toBe(4);
 });
@@ -257,6 +269,7 @@ test("withhold streamed values after access revocation", async () => {
 
     // revoke access during a pending read
     const handler = new ServiceHandler(router, {
+        service: fixture,
         health: new Health("watch"),
         authorize: async () => {
             if (!isAllowed) {
@@ -267,10 +280,10 @@ test("withhold streamed values after access revocation", async () => {
             outcomes.push(outcome);
         },
     });
-    const client = createClient(service, {
+    const client = createClient(defineService("fixture", service), {
         url: "https://test.local",
         fetch: async (request) => {
-            const result = await handler.handle(request, { context: {} });
+            const result = await handler.handle(request, { context: { request } });
 
             return result.matched ? result.response : new Response(null, { status: 404 });
         },

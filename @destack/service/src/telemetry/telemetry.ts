@@ -35,9 +35,17 @@ export class ServiceTelemetry {
     }
 
     /** Measure a call. */
-    invoke(path: readonly string[], next: () => Promise<unknown>): Promise<unknown> {
-        // label the call by its path
-        const attributes: Attributes = { "rpc.system.name": "orpc", "rpc.method": path.join("/") };
+    invoke(
+        path: readonly string[],
+        next: () => Promise<unknown>,
+        labels: Attributes = {},
+    ): Promise<unknown> {
+        // label the call by its path and the caller's labels
+        const attributes: Attributes = {
+            "rpc.system.name": "orpc",
+            "rpc.method": path.join("/"),
+            ...labels,
+        };
 
         return telemetry
             .scope(manifest)

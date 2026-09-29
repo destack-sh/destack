@@ -17,6 +17,27 @@ export const notesService = defineService("notes", {
 });
 ```
 
+## Releases
+
+Every client sends the release of the service it was built against in `Destack-Version`.
+A server refuses newer releases and those before `since`, and converts earlier inputs through each later release's `convert`, dropping the fields this release no longer declares.
+
+```ts
+const search = defineProcedure({
+    authentication: "identity",
+    permission: null,
+    audit: false,
+    convert: {
+        "2026.9.0": {
+            query: Expression.column("text"),   // renamed from text, which is then dropped
+            limit: Expression.coalesce(Expression.column("limit"), Expression.literal(50)),
+        },
+    },
+}).input(schema.object({ query: schema.string(), limit: schema.number().int() }));
+
+export const searchService = defineService("search", { search, since: "2026.8.0" });
+```
+
 ## Servers
 
 A `Server` authenticates each request, checks the procedure's permission on the call's target and runs its handler.

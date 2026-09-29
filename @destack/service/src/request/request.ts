@@ -3,6 +3,9 @@ import { schema } from "@destack/schema";
 import { v7 } from "uuid";
 import { ServiceError } from "../error/index.ts";
 
+/** The header carrying the release of the callee's package a caller was built against, its API version. */
+export const VERSION_HEADER = "Destack-Version";
+
 /** The retry lifetime of a request identifier. */
 export const REQUEST_LIFETIME_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
 /** The clock tolerance for new request identifiers. */

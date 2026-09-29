@@ -3,13 +3,20 @@ import { OpenAPIHandler, type OpenAPIHandlerOptions } from "@orpc/openapi/fetch"
 import {
     isProcedure,
     isLazy,
+    type AnyProcedure,
     type AnyRouter,
     type Lazyable,
     type Context,
     type Router,
 } from "@orpc/server";
 import type { ServiceRouter } from "../service/index.ts";
-import { ProcedureAccess } from "../procedure/procedure.ts";
+import { ProcedureMeta } from "../procedure/procedure.ts";
+import { Expression } from "@destack/db/query";
+import type { JsonValue } from "@destack/db";
+import { Version } from "@destack/schema";
+import type { Service } from "../declare/service.ts";
+import { VERSION_HEADER } from "../request/request.ts";
+import { ServiceError } from "../error/index.ts";
 import type { Health } from "../health/health.ts";
 import { invokeProcedure, type ProcedureCall, type ProcedureAudit } from "./access.ts";
 import { ServiceTelemetry } from "../telemetry/index.ts";
@@ -33,7 +40,7 @@ const schemaConverter: ConditionalSchemaConverter = {
 export { implement } from "@orpc/server";
 
 /** Dispatch requests to service procedures. */
-export class ServiceHandler<State extends Context> extends OpenAPIHandler<State> {
+export class ServiceHandler<State extends ServiceState> extends OpenAPIHandler<State> {
     /** The health. */
     readonly health: Health;
 
@@ -51,10 +58,28 @@ export class ServiceHandler<State extends Context> extends OpenAPIHandler<State>
                 ...(options.plugins ?? []),
             ],
             clientInterceptors: [
-                ({ path, next }) => telemetry.invoke(path, next),
+                ({ path, next, context }) =>
+                    telemetry.invoke(path, next, {
+                        "destack.caller.version": ServiceHandler.#observedRelease(context.request),
+                    }),
+                (call) => {
+                    // refuse releases the service does not serve, then convert earlier inputs
+                    const caller = ServiceHandler.#requireRelease(
+                        call.context.request,
+                        options.service,
+                    );
+                    const input = ServiceHandler.#convert(
+                        call.procedure,
+                        call.input,
+                        caller,
+                        options.service.package.version,
+                    );
+
+                    return call.next({ ...call, input });
+                },
                 async ({ next, procedure, path, input, context, signal }) => {
                     // check access before the handler
-                    const access = ProcedureAccess.parse(procedure["~orpc"].meta);
+                    const { convert: _convert, ...access } = ProcedureMeta.of(procedure);
                     const call: ProcedureCall<State> = { access, path, input, context, signal };
 
                     return invokeProcedure(call, next, options);
@@ -83,6 +108,82 @@ export class ServiceHandler<State extends Context> extends OpenAPIHandler<State>
         return super.handle(...args);
     }
 
+    /** Read the release a request speaks for telemetry, bounded to releases and two markers. */
+    static #observedRelease(request: Request): string {
+        const header = request.headers.get(VERSION_HEADER);
+
+        return header === null ? "absent" : Version.safeParse(header).success ? header : "invalid";
+    }
+
+    /** Require a request's release to lie within the releases the service serves. */
+    static #requireRelease(request: Request, service: Service): Version {
+        // read the release the caller speaks
+        const header = request.headers.get(VERSION_HEADER);
+        const caller = header === null ? undefined : Version.safeParse(header).data;
+        const served = service.package.version;
+
+        // require a release
+        if (header === null) {
+            throw new ServiceError("BAD_REQUEST", {
+                message: `service ${service.name} requires ${VERSION_HEADER}`,
+            });
+        }
+        // refuse a header that is no release
+        else if (caller === undefined) {
+            throw new ServiceError("BAD_REQUEST", {
+                message: `invalid ${VERSION_HEADER}: ${header}`,
+            });
+        }
+        // refuse a release newer than this one
+        else if (Version.compare(caller, served) > 0) {
+            throw new ServiceError("CONFLICT", {
+                message: `service ${service.name} serves ${served}, the caller speaks ${caller}`,
+            });
+        }
+        // refuse a retired release
+        else if (service.since !== undefined && Version.compare(caller, service.since) < 0) {
+            throw new ServiceError("CONFLICT", {
+                message: `service ${service.name} no longer serves releases before ${service.since}`,
+            });
+        }
+
+        return caller;
+    }
+
+    /** Convert an input of an earlier release through each later release's conversion, dropping the fields this release no longer declares. */
+    static #convert(
+        procedure: AnyProcedure,
+        input: unknown,
+        caller: Version,
+        served: Version,
+    ): unknown {
+        // keep an input of this release as it is
+        const convert = ProcedureMeta.of(procedure).convert ?? {};
+        const releases = Version.between(Object.keys(convert), caller, served);
+        if (releases.length === 0) {
+            return input;
+        }
+
+        // require an object input, and assign each release's fields in order
+        if (typeof input !== "object" || input === null || Array.isArray(input)) {
+            throw new ServiceError("BAD_REQUEST", {
+                message: "a converted input must be an object",
+            });
+        }
+        const converted = releases.reduce(
+            (record, release) => Expression.assign(convert[release]!, record),
+            input as Readonly<Record<string, JsonValue>>,
+        );
+
+        // keep only the fields this release declares, the earlier ones the conversions read
+        const shape = (procedure["~orpc"].inputSchema as { readonly shape?: object } | undefined)
+            ?.shape;
+
+        return shape === undefined
+            ? converted
+            : Object.fromEntries(Object.entries(converted).filter(([field]) => field in shape));
+    }
+
     /** Require enforcement for every procedure. */
     static #checkAccess<State extends Context>(
         router: Lazyable<AnyRouter>,
@@ -101,7 +202,7 @@ export class ServiceHandler<State extends Context> extends OpenAPIHandler<State>
 
         // require the callbacks each procedure needs
         if (isProcedure(router)) {
-            const access = ProcedureAccess.parse(router["~orpc"].meta);
+            const access = ProcedureMeta.of(router);
             if (
                 (access.authentication !== "public" || access.permission !== null) &&
                 !options.authorize
@@ -131,8 +232,13 @@ export class ServiceHandler<State extends Context> extends OpenAPIHandler<State>
     }
 }
 
+/** The state every call of a service handler carries: at least its request. */
+export type ServiceState = Context & { readonly request: Request };
+
 /** The options of a service handler. */
 export interface HandlerOptions<State extends Context> extends OpenAPIHandlerOptions<State> {
+    /** The service the handler serves, whose release callers must speak. */
+    service: Service;
     /** The health. */
     health: Health;
     /** Authorize a call. */

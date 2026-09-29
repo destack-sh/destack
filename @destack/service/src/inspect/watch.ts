@@ -5,7 +5,6 @@ import { WatchDescription, type Watch } from "../watch/index.ts";
 export function describeWatch(watch: Watch): WatchDescription {
     return WatchDescription.parse({
         name: watch.name,
-        version: watch.version,
         object: reference(watch.object),
         where: watch.where,
         on: watch.on,

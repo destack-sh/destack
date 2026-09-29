@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, schema, Version } from "@destack/schema";
 import type { ServiceRouter } from "../service/index.ts";
 import { describeProcedures, ProcedureDescription } from "./procedure.ts";
 import type { Service } from "../declare/service.ts";
@@ -21,8 +21,8 @@ export const ServiceDescription = defineSchema(
     schema.object({
         /** The package-local service name. */
         name: DeclarationName,
-        /** The declaration format version. */
-        version: schema.literal(1),
+        /** The oldest caller release the service serves, every release when absent. */
+        since: Version.optional(),
         /** The service transport. */
         protocol: schema.literal("http"),
         /** The service's procedures. */
@@ -48,7 +48,7 @@ export function describeService(service: Service): ServiceDescription {
 
     return ServiceDescription.parse({
         name: service.name,
-        version: service.version,
+        ...(service.since === undefined ? {} : { since: service.since }),
         protocol: service.protocol,
         api: describeRouter(service.name, service.router),
         objects: Object.keys(service.objects),

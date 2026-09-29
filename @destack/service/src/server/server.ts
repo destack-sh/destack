@@ -1,9 +1,8 @@
-import type { Service } from "../declare/service.ts";
 import type { PackageId } from "@destack/package";
 import type { Health } from "../health/health.ts";
 import { ServiceHandler, type HandlerOptions, type Router } from "./handler.ts";
 import { isProcedure } from "@orpc/server";
-import { ProcedureAccess } from "../procedure/procedure.ts";
+import { ProcedureMeta } from "../procedure/procedure.ts";
 import { Capability, delegationChain } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
 import type { Caller } from "../authentication/index.ts";
@@ -64,7 +63,7 @@ export class Server implements AsyncDisposable {
         }
 
         // require a policy for every permission
-        requirePolicies(options.router, options.access);
+        Server.#requirePolicies(options.router, options.access);
 
         // create the handler
         this.#options = options;
@@ -359,10 +358,42 @@ export class Server implements AsyncDisposable {
             await this.#controlled;
         }
     }
+
+    /** Require a policy for every procedure permission. */
+    static #requirePolicies(router: unknown, access: ServiceAccess | undefined): void {
+        // check each procedure's permission
+        if (isProcedure(router)) {
+            const permission = ProcedureMeta.of(router).permission;
+            if (permission === null) {
+                return;
+            }
+
+            // require a target and a declaring policy
+            if (access?.target === undefined) {
+                throw new TypeError(
+                    `procedures requiring ${permission.name} need service access with targets`,
+                );
+            }
+            if (
+                !Object.hasOwn(
+                    access.authorizer.policy(permission).definition.permissions,
+                    permission.name,
+                )
+            ) {
+                throw new TypeError(`no policy declares ${permission.type}.${permission.name}`);
+            }
+        }
+        // check each nested router
+        else if (router !== null && typeof router === "object") {
+            for (const child of Object.values(router)) {
+                Server.#requirePolicies(child, access);
+            }
+        }
+    }
 }
 
 /** The options of a hosted service. */
-export interface ServerOptions extends Omit<ServiceImplementation, "service"> {
+export interface ServerOptions extends ServiceImplementation {
     /** The health. */
     health: Health;
     /** The receiving package. */
@@ -383,8 +414,6 @@ export interface ServerOptions extends Omit<ServiceImplementation, "service"> {
 
 /** The procedures and enforcement of a service. */
 export interface ServiceImplementation extends Omit<HandlerOptions<ServiceContext>, "health"> {
-    /** The declared service. */
-    readonly service: Service;
     /** The procedures. */
     router: Router<ServiceRouter, ServiceContext>;
     /** The headers of every response. */
@@ -395,38 +424,6 @@ export interface ServiceImplementation extends Omit<HandlerOptions<ServiceContex
     route?(request: Request, context: ServiceContext): Promise<Response | undefined>;
     /** The service's controllers. */
     readonly controllers?: readonly (Controller | Follower)[];
-}
-
-/** Require a policy for every procedure permission. */
-function requirePolicies(router: unknown, access: ServiceAccess | undefined): void {
-    // check each procedure's permission
-    if (isProcedure(router)) {
-        const permission = ProcedureAccess.parse(router["~orpc"].meta).permission;
-        if (permission === null) {
-            return;
-        }
-
-        // require a target and a declaring policy
-        if (access?.target === undefined) {
-            throw new TypeError(
-                `procedures requiring ${permission.name} need service access with targets`,
-            );
-        }
-        if (
-            !Object.hasOwn(
-                access.authorizer.policy(permission).definition.permissions,
-                permission.name,
-            )
-        ) {
-            throw new TypeError(`no policy declares ${permission.type}.${permission.name}`);
-        }
-    }
-    // check each nested router
-    else if (router !== null && typeof router === "object") {
-        for (const child of Object.values(router)) {
-            requirePolicies(child, access);
-        }
-    }
 }
 
 /** Attach the request's watermarks to its response. */
