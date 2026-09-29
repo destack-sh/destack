@@ -21,15 +21,15 @@ const KEY_CACHE_MILLISECONDS = 60000;
 /** The longest key discovery wait and the pause after a failed one, in milliseconds. */
 const KEY_TIMEOUT_MILLISECONDS = 5000;
 
-/** The signed identity and restrictions of one space: a caller's authentication without its receiver and times. */
+/** The signed identity and restrictions of a caller in one space or the universe: its authentication without its receiver and times. */
 export const TokenAuthentication = CallerAuthentication.omit({
     scope: true,
     audience: true,
     verifiedAt: true,
     expiresAt: true,
 }).extend({
-    /** The space. */
-    spaceId: identifier("space"),
+    /** The space, absent for a call to a universe service. */
+    spaceId: identifier("space").optional(),
 });
 
 /** Verify space-scoped access tokens. */

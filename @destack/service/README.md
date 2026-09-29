@@ -150,11 +150,11 @@ A `TokenIssuer` signs a verified caller, and a `TokenVerifier` checks the token 
 ```ts
 import { TokenIssuer, TokenVerifier } from "@destack/service/authentication";
 
-const issuer = new TokenIssuer({ authority: { kind: "global" }, issuer: accountOrigin, sign });
-const { accessToken } = await issuer.issue(caller);
+const issuer = new TokenIssuer({ authority: { kind: "universe" }, issuer: accountOrigin, sign });
+const { accessToken } = await issuer.issue(caller); // a caller without a space gets a token for universe services
 
-const verifier = new TokenVerifier({ authority: { kind: "global" }, issuer: accountOrigin, audience: packageId, keys });
-const verified = await verifier.authenticate(request);
+const verifier = new TokenVerifier({ authority: { kind: "universe" }, issuer: accountOrigin, audience: packageId, keys });
+const verified = await verifier.authenticate(request, spaceId); // any space when spaceId is absent
 ```
 
 ## Journal
