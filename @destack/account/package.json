@@ -1,0 +1,46 @@
+{
+    "name": "@destack/account",
+    "version": "2026.9.0",
+    "private": true,
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Administer Destack accounts and sessions.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./inspect": "./src/inspect/index.ts",
+        "./service": "./src/service/index.ts",
+        "./client": "./src/client/index.ts",
+        "./server": "./src/server/index.ts",
+        "./authentication": "./src/authentication/index.ts",
+        "./stack": "./src/stack/index.ts",
+        "./declare": "./src/declare/index.ts",
+        "./error": "./src/error/index.ts",
+        "./object": "./src/object/index.ts",
+        "./directory": "./src/directory/index.ts"
+    },
+    "dependencies": {
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/service": "workspace:*",
+        "better-auth": "1.7.6",
+        "@better-auth/passkey": "1.7.6",
+        "@better-auth/oauth-provider": "1.7.6",
+        "@destack/access": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/directory": "workspace:*",
+        "@destack/audit": "workspace:*",
+        "@destack/telemetry": "workspace:*",
+        "uuid": "14.0.2",
+        "@destack/object": "workspace:*",
+        "@destack/sync": "workspace:*"
+    },
+    "devDependencies": {
+        "@destack/resource": "workspace:*",
+        "@destack/test": "workspace:*"
+    },
+    "scripts": {
+        "check": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    }
+}

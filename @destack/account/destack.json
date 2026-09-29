@@ -1,0 +1,26 @@
+{
+    "id": "package-01a0c80b-614c-76c1-90c6-f83bdcd72b32",
+    "language": "typescript",
+    "targets": ["browser", "server"],
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        "./server": {
+            "targets": ["server"],
+            "runtimes": ["bun", "workerd"]
+        },
+        "./stack": {
+            "targets": ["server"]
+        }
+    },
+    "declarations": {
+        "defineAccount": {
+            "module": 1,
+            "describes": [
+                {
+                    "kind": "account",
+                    "function": "./inspect#describeAccount"
+                }
+            ]
+        }
+    }
+}
