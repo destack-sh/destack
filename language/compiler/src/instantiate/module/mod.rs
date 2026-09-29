@@ -1,3 +1,4 @@
+mod class;
 mod dispatch;
 mod import;
 mod witness;

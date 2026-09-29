@@ -32,6 +32,10 @@ pub(crate) struct InstantiateState<'a> {
     pub(super) sources: FxIndexMap<ModuleId, Arc<MirLowered>>,
     /// This tree's functions by symbol.
     pub(super) functions: FxIndexMap<mir::Symbol, mir::FunctionId>,
+    /// The dispatch shape of each lowered dynamic constraint.
+    pub(super) shapes: mir::ShapeTable,
+    /// The closed virtual tables of foreign classes by class type.
+    pub(super) imported_class_tables: FxIndexMap<mir::TypeId, Option<mir::VirtualTable>>,
     /// This tree's globals by symbol.
     pub(super) globals: FxIndexMap<mir::Symbol, mir::GlobalId>,
     /// The module and function defining each template, by symbol.
@@ -74,8 +78,10 @@ impl<'a> InstantiateState<'a> {
             dispatch: lowered.dispatch.clone(),
             drops: lowered.drops.clone(),
             witnesses: lowered.witnesses.clone(),
+            shapes: lowered.shapes.clone(),
             sources: FxIndexMap::from_iter([(module, lowered)]),
             functions: FxIndexMap::default(),
+            imported_class_tables: FxIndexMap::default(),
             globals: FxIndexMap::default(),
             templates: FxIndexMap::default(),
             language_functions: FxIndexMap::default(),
@@ -119,12 +125,19 @@ impl<'a> InstantiateState<'a> {
             self.declare_dynamic_tables(function)?;
         }
 
-        // process each new body, including specializations its tables and drop hooks require
-        while let Some(instance) = self.pending.pop() {
-            self.specialize(instance)?;
-            self.declare_dynamic_tables(instance)?;
-            self.specializations.push(instance);
+        // close bodies and class tables until neither grows
+        loop {
+            while let Some(instance) = self.pending.pop() {
+                self.specialize(instance)?;
+                self.declare_dynamic_tables(instance)?;
+                self.specializations.push(instance);
+            }
+            self.declare_class_tables()?;
+            if self.pending.is_empty() {
+                break;
+            }
         }
+        self.drop_template_class_tables();
 
         Ok(())
     }
