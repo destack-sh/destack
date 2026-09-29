@@ -9,23 +9,23 @@ use tspp_program::{
     LayoutId, Object, Program, ProgramBuilder, SamplerId, Signature, SignatureId, TypeId,
     VirtualTableId,
 };
-use tspp_source::{ModuleId, PackageId};
+use tspp_repository::ProviderError;
+use tspp_source::ModuleId;
 
-use crate::{LinkError, LinkResult};
+use crate::CompilerResult;
 
 use super::super::{BytecodeLinker, NativeLinker};
 use super::{
     BindingLinker, DispatchLinker, FrameLinker, FunctionLinker, LayoutLinker, SiteLinker,
     StaticLinker, TypeLinker,
 };
+use crate::invalid_program_input;
 
 /// Build one Program from optimized module objects and an immutable string pool.
 #[derive(Debug)]
 pub struct ProgramLinker<'a> {
     /// The target root modules, the entry module first.
     roots: Vec<ModuleId>,
-    /// Package that owns the linked program.
-    package: PackageId,
     /// Module objects in stable link order.
     objects: Vec<(ModuleId, Arc<Object>)>,
     /// Object positions keyed by module id.
@@ -64,8 +64,10 @@ pub struct ProgramLinker<'a> {
     counter_starts: HashMap<(ModuleId, mir::FunctionId), CounterId>,
     /// First dense sampler id assigned to each canonical function.
     sampler_starts: HashMap<(ModuleId, mir::FunctionId), SamplerId>,
-    /// First dense allocation site id assigned to each object.
-    allocation_starts: HashMap<ModuleId, AllocationSiteId>,
+    /// Dense allocation site ids keyed by object-local site index.
+    allocation_ids: HashMap<(ModuleId, u32), AllocationSiteId>,
+    /// Canonical allocation sites in dense id order.
+    allocation_sites: Vec<(ModuleId, u32)>,
 }
 
 impl<'a> ProgramLinker<'a> {
@@ -76,33 +78,26 @@ impl<'a> ProgramLinker<'a> {
 
     /// Create one program linker.
     pub fn new(
-        package: PackageId,
         objects: Vec<(ModuleId, Arc<Object>)>,
         strings: &'a StringPool,
-    ) -> LinkResult<Self> {
-        let object_ids = Self::object_ids(package, &objects)?;
-        let target_layout = Self::common_layout(package, &objects)?;
+    ) -> Result<Self, ProviderError> {
+        let object_ids = Self::object_ids(&objects)?;
+        let target_layout = Self::common_layout(&objects)?;
         let (type_ids, types_by_id) = TypeLinker::index(&objects);
-        let (function_ids, functions_by_id) =
-            FunctionLinker::index(package, &objects, &type_ids, strings)?;
+        let (function_ids, functions_by_id) = FunctionLinker::index(&objects, &type_ids, strings)?;
         let (signatures, function_signatures, type_signatures) =
             FunctionLinker::signatures(&objects, &type_ids);
-        let (drop_ids, drops) = TypeLinker::drops(
-            package,
-            &objects,
-            &type_ids,
-            types_by_id.len(),
-            &function_ids,
-        )?;
-        let virtual_table_ids = DispatchLinker::virtual_ids(package, &objects, &type_ids)?;
-        let dynamic_table_ids = DispatchLinker::dynamic_ids(&objects, &type_ids);
-        let (global_ids, globals_by_id) = StaticLinker::index(package, &objects, &type_ids)?;
+        let (drop_ids, drops) =
+            TypeLinker::drops(&objects, &type_ids, types_by_id.len(), &function_ids)?;
+        let virtual_table_ids = DispatchLinker::virtual_ids(&objects, &type_ids)?;
+        let dynamic_table_ids = DispatchLinker::dynamic_ids(&objects, &type_ids)?;
+        let (global_ids, globals_by_id) = StaticLinker::index(&objects, &type_ids)?;
         let (counter_starts, sampler_starts) =
-            SiteLinker::profile_starts(package, &objects, &functions_by_id)?;
-        let allocation_starts = SiteLinker::allocation_starts(&objects);
+            SiteLinker::profile_starts(&objects, &functions_by_id)?;
+        let (allocation_ids, allocation_sites) =
+            SiteLinker::allocation_ids(&objects, &function_ids, &functions_by_id)?;
 
         Ok(Self {
-            package,
             roots: Vec::new(),
             objects,
             object_ids,
@@ -123,7 +118,8 @@ impl<'a> ProgramLinker<'a> {
             globals_by_id,
             counter_starts,
             sampler_starts,
-            allocation_starts,
+            allocation_ids,
+            allocation_sites,
         })
     }
 
@@ -173,7 +169,7 @@ impl<'a> ProgramLinker<'a> {
     }
 
     /// Link the program.
-    pub fn link(self) -> LinkResult<Program> {
+    pub fn link(self) -> Result<Program, ProviderError> {
         // project engine-neutral program tables
         let mut frame_linker = FrameLinker::new(&self);
         let frames = frame_linker.link()?;
@@ -190,7 +186,6 @@ impl<'a> ProgramLinker<'a> {
         let native = NativeLinker::new(&self, &frame_linker, &statics).link()?;
 
         // assemble the durable program image
-        let package = self.package;
         let initializers = self.initializers();
         let mut program = ProgramBuilder::new(self.target_layout)
             .strings(self.strings, self.string_ids()?)
@@ -220,25 +215,22 @@ impl<'a> ProgramLinker<'a> {
         }
 
         // seal the image
-        let program = program.build().map_err(|error| LinkError::InvalidInput {
-            anchor: package.into(),
-            package,
-            context: error.to_string(),
-        })?;
+        let program = program
+            .build()
+            .map_err(|error| invalid_program_input(error.to_string()))?;
 
         Ok(program)
     }
 
     /// Return string ids retained by the linked program.
-    fn string_ids(&self) -> LinkResult<Vec<StringId>> {
+    fn string_ids(&self) -> CompilerResult<Vec<StringId>> {
         let mut ids = Vec::new();
 
         // retain canonical function and export names
         for (module, function_id) in &self.functions_by_id {
-            let function = self
-                .object(*module)
-                .function(*function_id)
-                .ok_or_else(|| self.invalid_input(format!("missing function {function_id:?}")))?;
+            let function = self.object(*module).function(*function_id).ok_or_else(|| {
+                invalid_program_input(format!("missing function {function_id:?}"))
+            })?;
             ids.push(function.name);
             if let Some(binding) = &function.binding {
                 ids.push(binding.name);
@@ -259,17 +251,8 @@ impl<'a> ProgramLinker<'a> {
             }
         }
 
-        // retain names stored in linked dynamic dispatch
+        // retain the entry names of each dynamic table
         for (_, object) in &self.objects {
-            // retain the named slots of each dynamic shape
-            for shape in object.dispatch().iter_dynamic_shapes() {
-                ids.extend(shape.slots.iter().filter_map(|slot| match slot {
-                    mir::DynamicSlot::Field { name, .. } => Some(*name),
-                    mir::DynamicSlot::Function { name, .. } => *name,
-                }));
-            }
-
-            // retain the entry names of each dynamic table
             for table in object.dispatch().iter_dynamic_tables() {
                 ids.extend(table.names.iter().map(|entry| entry.name));
             }
@@ -289,47 +272,6 @@ impl<'a> ProgramLinker<'a> {
         }
 
         Ok(ids)
-    }
-
-    /// Return one invalid program input diagnostic.
-    pub(crate) fn invalid_input(&self, context: impl Into<String>) -> LinkError {
-        LinkError::InvalidInput {
-            anchor: self.package.into(),
-            package: self.package,
-            context: context.into(),
-        }
-    }
-
-    /// Return one link type mismatch diagnostic.
-    pub(crate) fn type_mismatch(
-        &self,
-        expected: impl Into<String>,
-        actual: impl Into<String>,
-    ) -> LinkError {
-        LinkError::TypeMismatch {
-            anchor: self.package.into(),
-            package: self.package,
-            expected: expected.into(),
-            actual: actual.into(),
-        }
-    }
-
-    /// Return one unsupported zero initializer diagnostic.
-    pub(crate) fn unsupported_zero_initializer(&self, ty: impl Into<String>) -> LinkError {
-        LinkError::UnsupportedZeroInitializer {
-            anchor: self.package.into(),
-            package: self.package,
-            ty: ty.into(),
-        }
-    }
-
-    /// Return one layout overflow diagnostic.
-    pub(crate) fn layout_overflow(&self, context: impl Into<String>) -> LinkError {
-        LinkError::LayoutOverflow {
-            anchor: self.package.into(),
-            package: self.package,
-            context: context.into(),
-        }
     }
 
     /// Return module objects in stable link order.
@@ -491,25 +433,33 @@ impl<'a> ProgramLinker<'a> {
         SamplerId(self.sampler_start(module, function).0 + sampler.0)
     }
 
-    /// Return one dense allocation id from its object-local identity.
-    pub(crate) fn allocation_id(&self, module: ModuleId, allocation: u32) -> AllocationSiteId {
-        AllocationSiteId(self.allocation_starts[&module].0 + allocation)
+    /// Return one canonical allocation site's dense id.
+    pub(crate) fn allocation_id(
+        &self,
+        module: ModuleId,
+        allocation: u32,
+    ) -> CompilerResult<AllocationSiteId> {
+        self.allocation_ids
+            .get(&(module, allocation))
+            .copied()
+            .ok_or_else(|| invalid_program_input("allocation site without a program id"))
+    }
+
+    /// Return the canonical allocation sites in dense id order.
+    pub(crate) fn allocation_sites(&self) -> &[(ModuleId, u32)] {
+        &self.allocation_sites
     }
 
     /// Build module lookups for the object sequence.
-    fn object_ids(
-        package: PackageId,
-        objects: &[(ModuleId, Arc<Object>)],
-    ) -> LinkResult<HashMap<ModuleId, usize>> {
+    fn object_ids(objects: &[(ModuleId, Arc<Object>)]) -> CompilerResult<HashMap<ModuleId, usize>> {
         let mut ids = HashMap::with_capacity(objects.len());
 
         // assign each module exactly one object position
         for (index, (module, _)) in objects.iter().enumerate() {
             if ids.insert(*module, index).is_some() {
-                return Err(LinkError::invalid_input(
-                    package,
-                    format!("module {module:?} has multiple objects"),
-                ));
+                return Err(invalid_program_input(format!(
+                    "module {module:?} has multiple objects"
+                )));
             }
         }
 
@@ -517,10 +467,9 @@ impl<'a> ProgramLinker<'a> {
         for (module, object) in objects {
             for dependency in object.dependencies() {
                 if !ids.contains_key(dependency) {
-                    return Err(LinkError::invalid_input(
-                        package,
-                        format!("module {module:?} requires missing module {dependency:?}"),
-                    ));
+                    return Err(invalid_program_input(format!(
+                        "module {module:?} requires missing module {dependency:?}"
+                    )));
                 }
             }
         }
@@ -529,15 +478,9 @@ impl<'a> ProgramLinker<'a> {
     }
 
     /// Resolve the target layout shared by all module objects.
-    fn common_layout(
-        package: PackageId,
-        objects: &[(ModuleId, Arc<Object>)],
-    ) -> LinkResult<mir::TargetLayout> {
+    fn common_layout(objects: &[(ModuleId, Arc<Object>)]) -> CompilerResult<mir::TargetLayout> {
         let Some((_, first)) = objects.first() else {
-            return Err(LinkError::invalid_input(
-                package,
-                "Program has no module objects",
-            ));
+            return Err(invalid_program_input("Program has no module objects"));
         };
 
         // read the ABI of the first object as the shared one
@@ -546,10 +489,9 @@ impl<'a> ProgramLinker<'a> {
         // require one ABI across every linked module
         for (module, object) in &objects[1..] {
             if object.target() != target {
-                return Err(LinkError::invalid_input(
-                    package,
-                    format!("module {module:?} uses a different target layout"),
-                ));
+                return Err(invalid_program_input(format!(
+                    "module {module:?} uses a different target layout"
+                )));
             }
         }
 

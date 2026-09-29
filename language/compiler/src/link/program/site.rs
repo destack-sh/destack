@@ -5,13 +5,13 @@ use tspp_core::{Optional, StringId};
 use tspp_mir as mir;
 use tspp_program::{
     AllocationSite, AllocationSiteId, CallDispatch, CallMode, CallSite, CounterId, CounterSite,
-    EdgeSite, MemoryAccess, MemorySite, Object, ProgramPoint, SampleSite, SamplerId,
+    EdgeSite, FunctionId, MemoryAccess, MemorySite, Object, ProgramPoint, SampleSite, SamplerId,
     SiteTableBuilder, object,
 };
-use tspp_source::{ModuleId, PackageId};
+use tspp_source::ModuleId;
 
 use super::ProgramLinker;
-use crate::{LinkError, LinkResult};
+use crate::{CompilerResult, invalid_program_input};
 
 /// Link object-local sites into one Program site table.
 #[derive(Debug)]
@@ -27,7 +27,7 @@ impl<'a> SiteLinker<'a> {
     }
 
     /// Link every emitted site entry.
-    pub(crate) fn link(&self) -> LinkResult<SiteTableBuilder> {
+    pub(crate) fn link(&self) -> CompilerResult<SiteTableBuilder> {
         let mut allocations = Vec::new();
         let mut memory = Vec::new();
         let mut calls = Vec::new();
@@ -35,16 +35,15 @@ impl<'a> SiteLinker<'a> {
         let mut counters = Vec::new();
         let mut samples = Vec::new();
 
+        // link canonical allocation sites in dense order
+        for &(module, index) in self.program.allocation_sites() {
+            let site = &self.program.object(module).allocations()[index as usize];
+            allocations.push(self.allocation(module, site)?);
+        }
+
         // project every object-local site into dense Program identities
         for (module, object) in self.program.objects() {
-            // link allocation and memory operations
-            allocations.extend(
-                object
-                    .allocations()
-                    .iter()
-                    .map(|site| self.allocation(*module, site))
-                    .collect::<LinkResult<Vec<_>>>()?,
-            );
+            // link memory operations
             memory.extend(
                 object
                     .memory()
@@ -58,7 +57,7 @@ impl<'a> SiteLinker<'a> {
                     .calls()
                     .iter()
                     .map(|site| self.call(*module, site))
-                    .collect::<LinkResult<Vec<_>>>()?,
+                    .collect::<CompilerResult<Vec<_>>>()?,
             );
             edges.extend(object.edges().iter().map(|site| self.edge(*module, site)));
 
@@ -91,15 +90,23 @@ impl<'a> SiteLinker<'a> {
         &self,
         module: ModuleId,
         site: &object::AllocationSite,
-    ) -> LinkResult<AllocationSite> {
-        let object = self.program.object(module);
-        let result_type = object
-            .storage_type(site.result_type)
-            .and_then(|ty| object.ty(ty))
-            .ok_or_else(|| self.program.invalid_input("allocation has no result type"))?;
-        let virtual_table = match result_type.definition {
-            mir::Type::Reference { .. } => self.program.virtual_table_id(module, site.storage_type),
-            _ => None,
+    ) -> CompilerResult<AllocationSite> {
+        // require the virtual table of a new class object
+        let layout = self
+            .program
+            .object(module)
+            .layouts()
+            .type_layout(site.storage_type)
+            .ok_or_else(|| invalid_program_input("allocation has no storage layout"))?;
+        let virtual_table = match matches!(layout.shape, mir::LayoutShape::Class(_)) {
+            true => Some(
+                self.program
+                    .virtual_table_id(module, site.storage_type)
+                    .ok_or_else(|| {
+                        invalid_program_input("class allocation has no virtual table")
+                    })?,
+            ),
+            false => None,
         };
 
         Ok(AllocationSite {
@@ -127,7 +134,7 @@ impl<'a> SiteLinker<'a> {
     }
 
     /// Link one call site.
-    fn call(&self, module: ModuleId, site: &object::CallSite) -> LinkResult<CallSite> {
+    fn call(&self, module: ModuleId, site: &object::CallSite) -> CompilerResult<CallSite> {
         let (dispatch, slot) = match site.dispatch {
             mir::CallDispatch::Direct => (CallDispatch::Direct, None),
             mir::CallDispatch::Indirect => (CallDispatch::Indirect, None),
@@ -144,7 +151,7 @@ impl<'a> SiteLinker<'a> {
         let signature = self
             .program
             .type_signature_id(module, site.signature)
-            .ok_or_else(|| self.program.invalid_input("missing call signature"))?;
+            .ok_or_else(|| invalid_program_input("missing call signature"))?;
 
         Ok(CallSite {
             point: self.point(module, site.point),
@@ -216,28 +223,70 @@ impl<'a> SiteLinker<'a> {
 }
 
 impl SiteLinker<'_> {
-    /// Build first allocation site ids for each object.
-    pub(crate) fn allocation_starts(
+    /// Assign dense allocation site ids in program point order.
+    pub(crate) fn allocation_ids(
         objects: &[(ModuleId, Arc<Object>)],
-    ) -> HashMap<ModuleId, AllocationSiteId> {
-        let mut starts = HashMap::with_capacity(objects.len());
-        let mut next = 0;
-
-        // assign each object's contiguous allocation site range
+        function_ids: &HashMap<(ModuleId, mir::FunctionId), FunctionId>,
+        functions: &[(ModuleId, mir::FunctionId)],
+    ) -> CompilerResult<(
+        HashMap<(ModuleId, u32), AllocationSiteId>,
+        Vec<(ModuleId, u32)>,
+    )> {
+        // group each canonical function's sites with their operation offsets
+        let mut canonical = HashMap::<(ModuleId, mir::FunctionId), Vec<(u32, u32)>>::new();
         for (module, object) in objects {
-            starts.insert(*module, AllocationSiteId(next));
-            next += object.allocations().len() as u32;
+            for (index, site) in object.allocations().iter().enumerate() {
+                let key = (*module, site.point.function);
+                let function = function_ids
+                    .get(&key)
+                    .ok_or_else(|| invalid_program_input("allocation site function is absent"))?;
+                if functions[function.index()] == key {
+                    canonical
+                        .entry(key)
+                        .or_default()
+                        .push((site.point.operation, index as u32));
+                }
+            }
         }
 
-        starts
+        // number the canonical sites in function order, then operation order
+        let mut by_operation = HashMap::<(FunctionId, u32), AllocationSiteId>::new();
+        let mut sites = Vec::new();
+        for (position, key) in functions.iter().enumerate() {
+            let Some(indices) = canonical.get_mut(key) else {
+                continue;
+            };
+            indices.sort_unstable();
+            for &(operation, index) in indices.iter() {
+                let id = AllocationSiteId(sites.len() as u32);
+                by_operation.insert((FunctionId(position as u32), operation), id);
+                sites.push((key.0, index));
+            }
+        }
+
+        // resolve every site through its function's canonical copy
+        let mut ids = HashMap::new();
+        for (module, object) in objects {
+            for (index, site) in object.allocations().iter().enumerate() {
+                let function = function_ids[&(*module, site.point.function)];
+                let id = by_operation
+                    .get(&(function, site.point.operation))
+                    .copied()
+                    .ok_or_else(|| {
+                        invalid_program_input("allocation site absent from its canonical function")
+                    })?;
+                ids.insert((*module, index as u32), id);
+            }
+        }
+
+        Ok((ids, sites))
     }
 
     /// Assign contiguous Program counter and sampler ranges in function order.
     pub(crate) fn profile_starts(
-        package: PackageId,
         objects: &[(ModuleId, Arc<Object>)],
         functions: &[(ModuleId, mir::FunctionId)],
-    ) -> LinkResult<(
+    ) -> CompilerResult<(
         HashMap<(ModuleId, mir::FunctionId), CounterId>,
         HashMap<(ModuleId, mir::FunctionId), SamplerId>,
     )> {
@@ -257,14 +306,12 @@ impl SiteLinker<'_> {
             for site in object.counters() {
                 let count = counts
                     .get_mut(&(*module, site.point.function))
-                    .ok_or_else(|| {
-                        LinkError::invalid_input(package, "counter function is absent")
-                    })?;
+                    .ok_or_else(|| invalid_program_input("counter function is absent"))?;
                 let end = site
                     .counter
                     .0
                     .checked_add(1)
-                    .ok_or_else(|| LinkError::invalid_input(package, "counter id overflow"))?;
+                    .ok_or_else(|| invalid_program_input("counter id overflow"))?;
                 count.0 = count.0.max(end);
             }
 
@@ -272,14 +319,12 @@ impl SiteLinker<'_> {
             for site in object.samples() {
                 let count = counts
                     .get_mut(&(*module, site.point.function))
-                    .ok_or_else(|| {
-                        LinkError::invalid_input(package, "sampler function is absent")
-                    })?;
+                    .ok_or_else(|| invalid_program_input("sampler function is absent"))?;
                 let end = site
                     .sampler
                     .0
                     .checked_add(1)
-                    .ok_or_else(|| LinkError::invalid_input(package, "sampler id overflow"))?;
+                    .ok_or_else(|| invalid_program_input("sampler id overflow"))?;
                 count.1 = count.1.max(end);
             }
         }
@@ -289,16 +334,16 @@ impl SiteLinker<'_> {
             let (counter_count, sampler_count) = counts
                 .get(&(module, function))
                 .copied()
-                .ok_or_else(|| LinkError::invalid_input(package, "missing bytecode function"))?;
+                .ok_or_else(|| invalid_program_input("missing bytecode function"))?;
 
             counter_starts.insert((module, function), CounterId(counter_start));
             sampler_starts.insert((module, function), SamplerId(sampler_start));
             counter_start = counter_start
                 .checked_add(counter_count)
-                .ok_or_else(|| LinkError::invalid_input(package, "counter id overflow"))?;
+                .ok_or_else(|| invalid_program_input("counter id overflow"))?;
             sampler_start = sampler_start
                 .checked_add(sampler_count)
-                .ok_or_else(|| LinkError::invalid_input(package, "sampler id overflow"))?;
+                .ok_or_else(|| invalid_program_input("sampler id overflow"))?;
         }
 
         Ok((counter_starts, sampler_starts))

@@ -1,7 +1,9 @@
 use tspp_source::{ModuleId, PackageId};
 
 use crate::link::tests::TestModule;
-use crate::{LinkError, ProgramLinker};
+use tspp_repository::ProviderError;
+
+use crate::ProgramLinker;
 
 /// Resolve functions, globals, and structural types across independently emitted objects.
 #[test]
@@ -44,7 +46,6 @@ entry:
     );
     let strings = TestModule::merge_strings([&provider, &consumer]);
     let linker = ProgramLinker::new(
-        package,
         vec![
             (consumer.module, consumer.object.clone()),
             (provider.module, provider.object.clone()),
@@ -107,7 +108,6 @@ external function transform((int32, boolean)): (int32, boolean)
     );
     let strings = TestModule::merge_strings([&provider, &consumer]);
     let linker = ProgramLinker::new(
-        package,
         vec![
             (consumer.module, consumer.object.clone()),
             (provider.module, provider.object.clone()),
@@ -184,7 +184,6 @@ external function transform(Right): int32
         .symbol;
     let strings = TestModule::merge_strings([&provider, &consumer]);
     let error = ProgramLinker::new(
-        package,
         vec![
             (consumer.module, consumer.object.clone()),
             (provider.module, provider.object.clone()),
@@ -193,13 +192,13 @@ external function transform(Right): int32
     )
     .expect_err("different nominal signatures should not link");
 
-    let LinkError::InvalidInput { context, .. } = error else {
+    let ProviderError::Internal { message } = error else {
         panic!("unexpected link error: {error:?}");
     };
 
     assert_eq!(
-        context,
-        format!("function symbol {symbol:?} has conflicting signatures")
+        message,
+        format!("invalid program input: function symbol {symbol:?} has conflicting signatures")
     );
 }
 
@@ -228,7 +227,6 @@ entry(v0: int32):
         .symbol;
     let strings = TestModule::merge_strings([&first, &second]);
     let error = ProgramLinker::new(
-        package,
         vec![
             (first.module, first.object.clone()),
             (second.module, second.object.clone()),
@@ -237,18 +235,12 @@ entry(v0: int32):
     )
     .expect_err("duplicate definitions should fail");
 
-    let LinkError::InvalidInput {
-        package: error_package,
-        context,
-        ..
-    } = error
-    else {
+    let ProviderError::Internal { message } = error else {
         panic!("unexpected link error: {error:?}");
     };
 
-    assert_eq!(error_package, package);
     assert_eq!(
-        context,
-        format!("function symbol {symbol:?} has multiple definitions")
+        message,
+        format!("invalid program input: function symbol {symbol:?} has multiple definitions")
     );
 }

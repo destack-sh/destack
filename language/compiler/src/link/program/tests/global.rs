@@ -21,12 +21,8 @@ shared global answerReference: ref<int32, borrowed, 'static, readonly> = globalA
         [],
     );
     let strings = TestModule::merge_strings([&emitted]);
-    let linker = ProgramLinker::new(
-        package,
-        vec![(emitted.module, emitted.object.clone())],
-        &strings,
-    )
-    .expect("program linker should initialize");
+    let linker = ProgramLinker::new(vec![(emitted.module, emitted.object.clone())], &strings)
+        .expect("program linker should initialize");
     let answer = linker.global_id(module, linker.global(module, "answer"));
     let answer_reference = linker.global_id(module, linker.global(module, "answerReference"));
     let program = linker.link().expect("program should link");
@@ -75,12 +71,8 @@ constant string.0: String = "hi"
         [],
     );
     let strings = TestModule::merge_strings([&emitted]);
-    let linker = ProgramLinker::new(
-        package,
-        vec![(emitted.module, emitted.object.clone())],
-        &strings,
-    )
-    .expect("program linker should initialize");
+    let linker = ProgramLinker::new(vec![(emitted.module, emitted.object.clone())], &strings)
+        .expect("program linker should initialize");
     let literal = linker.global_id(module, linker.global(module, "string.0"));
     let program = linker.link().expect("program should link");
     let memory =

@@ -38,7 +38,6 @@ entry:
     );
     let strings = TestModule::merge_strings([&provider, &consumer]);
     let linker = ProgramLinker::new(
-        package,
         vec![
             (consumer.module, consumer.object.clone()),
             (provider.module, provider.object.clone()),
