@@ -195,7 +195,7 @@ impl<'a> DropEmitter<'a> {
     /// Release one allocation whose values moved out, typing its storage uninitialized.
     fn emit_storage_release(&mut self, value: mir::Value, ty: mir::TypeId) {
         // retype the referent as uninitialized storage
-        let moved = self.tree.emptied_type(ty);
+        let moved = ty.emptied(self.tree);
 
         // release the allocation under its uninitialized type
         let storage = self.allocate_value(moved);

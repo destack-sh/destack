@@ -123,7 +123,7 @@ impl Compiler {
 
                 let declarations = state.visible_declarations(source_key);
                 if declarations.is_empty() {
-                    let name = state.static_key_text(source_key);
+                    let name = source_key.text(state.strings());
                     let anchor = state.anchor_node(item_id.id)?;
                     let best = find_best_match(
                         &name,

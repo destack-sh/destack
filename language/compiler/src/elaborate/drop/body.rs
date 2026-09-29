@@ -38,7 +38,7 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
         let ty = mir::Substitution::resolve(ty, self.builder.tree());
         match self.builder.tree().type_definition(ty).clone() {
             // type Pair { left: File; right: File; }
-            mir::Type::Struct { fields, .. } => {
+            mir::Type::Struct { fields, .. } | mir::Type::Class { fields, .. } => {
                 // drop fields in reverse declaration order
                 for (index, field) in fields.iter().enumerate().rev() {
                     let field_ty = self.builder.tree().get(*field).ty;

@@ -176,7 +176,7 @@ impl<'a> DestructorBuilder<'a> {
         };
         let pointer = self.tree.intern_type(pointer_type);
         let parameters = vec![mir::FunctionParameter::new(mir::Value::new(0), pointer)];
-        let void = self.tree.void_type();
+        let void = self.tree.intern_type(mir::Type::Void);
 
         // register a bodyless function first so recursive drops can call it
         let mut function = mir::Function::declare(self.module, name, lifetimes, parameters, void)
@@ -191,7 +191,7 @@ impl<'a> DestructorBuilder<'a> {
     fn build_child_destructors(&mut self, ty: mir::TypeId, storage: mir::Storage) {
         match self.tree.get(ty).clone() {
             // type Pair { left: File; right: File; }
-            mir::Type::Struct { fields, .. } => {
+            mir::Type::Struct { fields, .. } | mir::Type::Class { fields, .. } => {
                 // build every field destructor
                 for field in fields {
                     let field_ty = self.tree.get(field).ty;

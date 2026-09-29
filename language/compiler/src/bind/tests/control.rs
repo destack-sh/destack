@@ -48,8 +48,8 @@ fn test_bind_match_arm_pattern_in_guard_and_body() {
 declare const packet: { value: int32 };
 
 const result = match (packet) {
-    { value } if (value > 0) => value
-    _ => 0
+    { value } if (value > 0) => value,
+    _ => 0,
 };
 "#,
     );
@@ -77,7 +77,7 @@ const result = match (packet) {
 /// @binding.node node=expression scope=<module>@4
 /// @binding.node node=expression scope=<module>@4 source=packet
 
-    { value } if (value > 0) => value
+    { value } if (value > 0) => value,
     /// @binding.scope scope=scope2 kind=block parent=<module>@4
     /// @binding.node node=match_arm scope=scope2@0 source="{ value } if (value > 0) => value"
     /// @binding.node node=pattern scope=scope2@0 source={ value }
@@ -88,7 +88,7 @@ const result = match (packet) {
     /// @binding.node node=expression scope=scope2@1 source=0
     /// @binding.node node=expression scope=scope2@1 source=value
 
-    _ => 0
+    _ => 0,
     /// @binding.scope scope=scope3 kind=block parent=<module>@4
     /// @binding.node node=match_arm scope=scope3@0 source="_ => 0"
     /// @binding.node node=pattern scope=scope3@0 source=_

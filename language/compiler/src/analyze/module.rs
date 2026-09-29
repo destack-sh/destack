@@ -10,25 +10,15 @@ pub(super) fn analyse(elaborated: &MirElaborated) -> CompilerResult<MirAnalyzed>
     // resolve calls once for symbol links and function extraction
     let resolution = mir::ResolutionTable::analyse(&elaborated.dispatch, None, &elaborated.tree);
     let calls = mir::CallTable::analyse(&resolution, &elaborated.tree);
-    let links = mir::LinkTable::analyse(
-        &calls,
-        &elaborated.effects,
-        &elaborated.drops,
-        &elaborated.tree,
-    );
+    let links = mir::LinkTable::analyse(&calls, &elaborated.drops, &elaborated.tree);
 
     // extract the module's function effects and pointer flows
     let mut functions = Vec::new();
     for (function, declaration) in elaborated.tree.iter_nodes::<mir::Function>() {
-        let body = mir::FunctionEffectBody::analyse(
-            function,
-            &resolution,
-            &elaborated.effects,
-            &elaborated.tree,
-        )
-        .map_err(|error| CompilerError::Internal {
-            message: format!("failed to extract MIR function effects: {error}"),
-        })?;
+        let body = mir::FunctionEffectBody::analyse(function, &resolution, &elaborated.tree)
+            .map_err(|error| CompilerError::Internal {
+                message: format!("failed to extract MIR function effects: {error}"),
+            })?;
         functions.push((declaration.symbol, Arc::new(body)));
     }
 

@@ -23,10 +23,7 @@ impl Compiler {
 
         // bind role members as anonymous symbols
         let slot = member.slot()?;
-        if !matches!(
-            slot,
-            dir::MemberSlot::Constructor | dir::MemberSlot::New | dir::MemberSlot::Call
-        ) {
+        if slot != dir::MemberSlot::Constructor {
             return None;
         }
 

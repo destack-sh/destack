@@ -299,19 +299,11 @@ impl<'a> ExportState<'a> {
         }))
     }
 
-    /// Render one static export key.
-    pub(in crate::export) fn static_key_text(&self, key: dir::StaticKey) -> String {
-        match key {
-            dir::StaticKey::Name(name) => self.strings().get(name).to_string(),
-            dir::StaticKey::Index(index) => index.to_string(),
-        }
-    }
-
     /// Render one export key.
     pub(in crate::export) fn export_key_text(&self, key: dir::ExportKey) -> String {
         match key {
             dir::ExportKey::Default => "default".to_string(),
-            dir::ExportKey::Named(key) => self.static_key_text(key),
+            dir::ExportKey::Named(key) => key.text(self.strings()),
         }
     }
 
