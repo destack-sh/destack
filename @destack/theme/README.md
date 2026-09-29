@@ -57,12 +57,9 @@ Destack maps shadcn roles to Radix scales as follows:
 | Ring, sidebar ring                    | Accent 8                    |
 | Destructive                           | Red 9                       |
 
-This mapping adapts the two systems; it is not an upstream Radix or shadcn preset.
-
 ## License
 
-Includes palettes from Radix Colors 3.0.0, tokens from Radix Themes, and chart colors from
-shadcn/ui, under the MIT License.
+Includes palettes from Radix Colors 3.0.0, tokens from Radix Themes, and chart colors from shadcn/ui, under the MIT License.
 
 ```text
 Copyright (c) 2021 Radix
