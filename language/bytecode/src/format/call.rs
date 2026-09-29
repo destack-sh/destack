@@ -2,7 +2,7 @@ use tspp_fir::format::{FormatError, FormatResult};
 use tspp_fir::prelude::*;
 use tspp_fir::write;
 
-use crate::{Opcode, ReferenceType, RegisterId, RegisterSpan, RelocationTag, ValueType};
+use crate::{Opcode, RegisterSpan, RelocationTag};
 
 use super::instruction::InstructionFormatter;
 
@@ -18,14 +18,8 @@ enum CallTarget {
         /// The callable value.
         value: RegisterSpan,
     },
-    /// One virtual receiver and slot.
+    /// One virtual slot of the first argument's class table.
     Virtual {
-        /// The receiver reference.
-        receiver: RegisterId,
-        /// The receiver reference representation.
-        reference: ReferenceType,
-        /// The byte offset of the virtual table id in the receiver allocation.
-        dispatch_offset: u32,
         /// The virtual method slot.
         slot: u16,
     },
@@ -143,16 +137,9 @@ impl InstructionFormatter<'_, '_, '_> {
             opcode,
             Opcode::CALL_VIRTUAL | Opcode::INVOKE_VIRTUAL | Opcode::TAIL_CALL_VIRTUAL
         ) {
-            let receiver = self.register_id()?;
-            let reference = self.reference()?;
-            let dispatch_offset = self.u32()?;
             let slot = self.u16()?;
-            return Ok(CallTarget::Virtual {
-                receiver,
-                reference,
-                dispatch_offset,
-                slot,
-            });
+
+            return Ok(CallTarget::Virtual { slot });
         }
 
         // dynamic receiver
@@ -174,24 +161,9 @@ impl InstructionFormatter<'_, '_, '_> {
         match target {
             CallTarget::Direct { name } => self.write_text(name),
             CallTarget::Indirect { value } => self.write_span(*value),
-            CallTarget::Virtual {
-                receiver,
-                reference,
-                dispatch_offset,
-                slot,
-            } => {
-                let dispatch_offset = dispatch_offset.to_string();
+            CallTarget::Virtual { slot } => {
                 let slot = slot.to_string();
-                self.write_register(*receiver)?;
-                self.write_token(":")?;
-                write!(self.formatter, [space()])?;
-                write!(
-                    self.formatter,
-                    [&ValueType::reference(reference.kind(), reference.storage())]
-                )?;
                 self.write_token("[")?;
-                self.write_text(&dispatch_offset)?;
-                self.write_comma()?;
                 self.write_text(&slot)?;
                 self.write_token("]")
             }

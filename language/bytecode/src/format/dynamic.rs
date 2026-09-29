@@ -1,7 +1,5 @@
-use crate::{Opcode, RegisterSpan, ValueType};
+use crate::{Opcode, RegisterSpan};
 use tspp_fir::format::{FormatError, FormatResult};
-use tspp_fir::prelude::*;
-use tspp_fir::write;
 
 use super::instruction::InstructionFormatter;
 
@@ -10,6 +8,7 @@ impl InstructionFormatter<'_, '_, '_> {
     pub(super) fn format_dynamic(&mut self, opcode: Opcode) -> FormatResult<()> {
         match opcode {
             Opcode::DYNAMIC_BIND => self.format_dynamic_bind(),
+            Opcode::DYNAMIC_BIND_VIRTUAL => self.format_dynamic_bind_virtual(),
             Opcode::DYNAMIC_READ => self.format_dynamic_read(),
             Opcode::TYPE_OF_DYNAMIC => self.format_type_of_dynamic(),
             Opcode::TYPE_OF_OBJECT => self.format_type_of_object(),
@@ -33,6 +32,22 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_register(value)?;
         self.write_comma()?;
         self.write_text(&table)
+    }
+
+    /// Format one class object's dynamic value construction.
+    fn format_dynamic_bind_virtual(&mut self) -> FormatResult<()> {
+        let (result, word_count) = self.register_span_id()?;
+        let value = self.register_id()?;
+        let slot = self.u16()?;
+
+        // write the payload and its conformance slot
+        self.write_opcode("dynamic.bind.virtual")?;
+        self.write_span(RegisterSpan::new(result, word_count))?;
+        self.write_comma()?;
+        self.write_register(value)?;
+        self.write_text("[")?;
+        self.write_text(&slot.to_string())?;
+        self.write_text("]")
     }
 
     /// Format one dynamic field read.
@@ -69,25 +84,14 @@ impl InstructionFormatter<'_, '_, '_> {
 
     /// Format one class object runtime type access.
     fn format_type_of_object(&mut self) -> FormatResult<()> {
-        // decode the object reference and the dispatch field holding its table
+        // decode the object reference
         let result = self.register_id()?;
         let object = self.register_id()?;
-        let reference = self.reference()?;
-        let dispatch_offset = self.u32()?.to_string();
 
         // write the runtime type projection
         self.write_opcode("type.of.object")?;
         self.write_register(result)?;
         self.write_comma()?;
-        self.write_register(object)?;
-        self.write_token(":")?;
-        write!(self.formatter, [space()])?;
-        write!(
-            self.formatter,
-            [&ValueType::reference(reference.kind(), reference.storage())]
-        )?;
-        self.write_token("[")?;
-        self.write_text(&dispatch_offset)?;
-        self.write_token("]")
+        self.write_register(object)
     }
 }

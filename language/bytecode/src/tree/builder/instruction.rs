@@ -1,6 +1,6 @@
 use crate::{
-    CounterId, Error, Label, Opcode, Placement, ReferenceKind, RegisterId, RegisterSpan,
-    Relocation, RelocationTag, Result, SamplerId, Scalar, Storage, ValueType, VectorType,
+    CounterId, Error, Label, Opcode, Placement, RegisterId, RegisterSpan, Relocation,
+    RelocationTag, Result, SamplerId, Scalar, ValueType, VectorType,
 };
 
 /// Encoded operands for one instruction under construction.
@@ -180,12 +180,6 @@ impl InstructionBuilder {
         self.bytes.push(vector.scalar.code());
         self.bytes.push(0);
         self.u16(vector.lane_count);
-    }
-
-    /// Append one reference ownership and storage operand.
-    pub fn reference(&mut self, kind: ReferenceKind, storage: Storage) {
-        self.bytes.push(kind.code());
-        self.bytes.push(storage.code());
     }
 
     /// Append one complete value type operand.

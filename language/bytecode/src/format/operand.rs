@@ -1,9 +1,6 @@
 use tspp_fir::format::{FormatError, FormatResult};
 
-use crate::{
-    CodeOffset, CounterId, Error, Label, ReferenceType, RegisterId, Relocation, SamplerId,
-    VectorType,
-};
+use crate::{CodeOffset, CounterId, Error, Label, RegisterId, Relocation, SamplerId, VectorType};
 
 use super::instruction::InstructionFormatter;
 
@@ -30,11 +27,6 @@ impl<'code> InstructionFormatter<'code, '_, '_> {
     /// Read one fixed-width vector type.
     pub(super) fn vector_type(&mut self) -> FormatResult<VectorType> {
         self.operands.vector_type().map_err(FormatError::from)
-    }
-
-    /// Read one reference representation operand.
-    pub(super) fn reference(&mut self) -> FormatResult<ReferenceType> {
-        self.operands.reference().map_err(FormatError::from)
     }
 
     /// Read one counted unsigned 16-bit list.

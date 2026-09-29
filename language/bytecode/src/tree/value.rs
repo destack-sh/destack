@@ -232,18 +232,6 @@ impl ReferenceType {
         Self { kind, storage }
     }
 
-    /// Decode one stable reference operand.
-    pub const fn from_bits(bits: u16) -> Option<Self> {
-        let bytes = bits.to_le_bytes();
-        let reference = Self::new(ReferenceKind(bytes[0]), Storage(bytes[1]));
-
-        if reference.is_defined() {
-            Some(reference)
-        } else {
-            None
-        }
-    }
-
     /// Encode this reference type into one stable operand.
     pub const fn bits(self) -> u16 {
         u16::from_le_bytes([self.kind.0, self.storage.0])

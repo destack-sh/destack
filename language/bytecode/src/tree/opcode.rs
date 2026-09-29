@@ -343,8 +343,13 @@ opcodes! {
     }
     TYPE_OF_OBJECT = 0x007b {
         text: "type.of.object",
-        signature: "(value: ref, dispatchOffset: uint32) => typeId",
-        operands: [Result, Register, Reference, Unsigned32],
+        signature: "(value: ref) => typeId",
+        operands: [Result, Register],
+    }
+    DYNAMIC_BIND_VIRTUAL = 0x007c {
+        text: "dynamic.bind.virtual",
+        signature: "(payload: ref, slot: uint16) => dynamic",
+        operands: [ResultRange, Register, Unsigned16],
     }
 
     // allocation and destruction
@@ -384,8 +389,8 @@ opcodes! {
     }
     CALL_VIRTUAL = 0x00a2 {
         text: "call.virtual",
-        signature: "(receiver: ref, dispatchOffset: uint32, slot: uint16, arguments: value[]) => value[]",
-        operands: [ResultRange, Register, Reference, Unsigned32, Unsigned16, RegisterSpan],
+        signature: "(slot: uint16, arguments: value[]) => value[]",
+        operands: [ResultRange, Unsigned16, RegisterSpan],
     }
     CALL_DYNAMIC = 0x00a3 {
         text: "call.dynamic",
@@ -404,8 +409,8 @@ opcodes! {
     }
     INVOKE_VIRTUAL = 0x00a6 {
         text: "invoke.virtual",
-        signature: "(receiver: ref, dispatchOffset: uint32, slot: uint16, arguments: value[], normal: label, unwind: label) => value[]",
-        operands: [ResultRange, Register, Reference, Unsigned32, Unsigned16, RegisterSpan, Branch, Branch],
+        signature: "(slot: uint16, arguments: value[], normal: label, unwind: label) => value[]",
+        operands: [ResultRange, Unsigned16, RegisterSpan, Branch, Branch],
     }
     INVOKE_DYNAMIC = 0x00a7 {
         text: "invoke.dynamic",
@@ -424,8 +429,8 @@ opcodes! {
     }
     TAIL_CALL_VIRTUAL = 0x00aa {
         text: "tail.call.virtual",
-        signature: "(receiver: ref, dispatchOffset: uint32, slot: uint16, arguments: value[]) => never",
-        operands: [Register, Reference, Unsigned32, Unsigned16, RegisterSpan],
+        signature: "(slot: uint16, arguments: value[]) => never",
+        operands: [Unsigned16, RegisterSpan],
     }
     TAIL_CALL_DYNAMIC = 0x00ab {
         text: "tail.call.dynamic",

@@ -2,8 +2,8 @@ use std::marker::PhantomData;
 use std::ptr;
 
 use crate::{
-    CodeOffset, CounterId, Error, InstructionLayout, Opcode, Operand, Placement, ReferenceType,
-    RegisterId, RegisterSpan, Result, SamplerId, Scalar, ValueType, VectorType,
+    CodeOffset, CounterId, Error, InstructionLayout, Opcode, Operand, Placement, RegisterId,
+    RegisterSpan, Result, SamplerId, Scalar, ValueType, VectorType,
 };
 
 /// One borrowed instruction in a bytecode stream.
@@ -442,14 +442,6 @@ impl<'a, const CHECKED: bool> Operands<'a, CHECKED> {
         let word_count = self.u16()?;
 
         Ok(RegisterSpan::new(start, word_count))
-    }
-
-    /// Read one reference representation.
-    #[inline(always)]
-    pub fn reference(&mut self) -> Result<ReferenceType> {
-        let bits = self.u16()?;
-
-        ReferenceType::from_bits(bits).ok_or(Error::InvalidOperand)
     }
 
     /// Read one scalar representation.

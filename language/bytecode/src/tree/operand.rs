@@ -1,4 +1,4 @@
-use crate::{Error, Placement, ReferenceType, Result, ValueType};
+use crate::{Error, Placement, Result, ValueType};
 
 /// One encoded instruction operand.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -46,8 +46,6 @@ pub enum Operand {
     // value representations
     /// One scalar representation encoded as an unsigned 16-bit code.
     Scalar,
-    /// One reference kind and space encoded as two unsigned bytes.
-    Reference,
     /// One fixed-width vector type encoded as four bytes.
     VectorType,
     /// One complete fixed-width bytecode value type.
@@ -93,7 +91,6 @@ impl Operand {
             | Self::AtomicAccess
             | Self::CompareExchangeAccess
             | Self::Unsigned16 => Some(size_of::<u16>()),
-            Self::Reference => Some(size_of::<ReferenceType>()),
             Self::ValueType => Some(ValueType::BYTE_LEN),
             Self::ResultRange | Self::RegisterSpan => Some(size_of::<[u16; 2]>()),
             Self::Branch

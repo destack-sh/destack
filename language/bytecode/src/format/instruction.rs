@@ -166,6 +166,7 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
 
             // dynamic values
             Opcode::DYNAMIC_BIND
+            | Opcode::DYNAMIC_BIND_VIRTUAL
             | Opcode::DYNAMIC_READ
             | Opcode::TYPE_OF_DYNAMIC
             | Opcode::TYPE_OF_OBJECT => self.format_dynamic(opcode),

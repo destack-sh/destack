@@ -1,6 +1,6 @@
 use crate::{
-    FunctionId, InstructionBuilder, Opcode, ParseError, ParseResult, Parser, ReferenceType,
-    RegisterId, RegisterSpan, RelocationTag, Token, TokenType,
+    FunctionId, InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterSpan,
+    RelocationTag, Token, TokenType,
 };
 
 use super::function::FunctionParser;
@@ -18,14 +18,8 @@ enum CallTarget {
         /// The callable value.
         value: RegisterSpan,
     },
-    /// One virtual receiver and slot.
+    /// One virtual slot of the first argument's class table.
     Virtual {
-        /// The receiver reference.
-        receiver: RegisterId,
-        /// The receiver reference representation.
-        reference: ReferenceType,
-        /// The byte offset of the virtual table id in the receiver allocation.
-        dispatch_offset: u32,
         /// The virtual method slot.
         slot: u16,
     },
@@ -48,15 +42,7 @@ impl CallTarget {
             Self::Indirect { value } => {
                 instruction.span(value);
             }
-            Self::Virtual {
-                receiver,
-                reference,
-                dispatch_offset,
-                slot,
-            } => {
-                instruction.register(receiver);
-                instruction.reference(reference.kind(), reference.storage());
-                instruction.u32(dispatch_offset);
+            Self::Virtual { slot } => {
                 instruction.u16(slot);
             }
             Self::Dynamic { receiver, slot } => {
@@ -148,25 +134,11 @@ impl Parser<'_> {
     fn parse_dispatch_call_target(&mut self, name: &str) -> ParseResult<CallTarget> {
         // virtual dispatch
         if name.ends_with("virtual") {
-            let receiver = self.parse_register()?;
-            self.eat_token(TokenType::Colon)?;
-            let reference = self
-                .parse_value_type()?
-                .reference_type()
-                .ok_or_else(|| ParseError::new("expected reference type", self.previous().span))?;
             self.eat_token(TokenType::OpenBracket)?;
-            let dispatch_offset = self.parse_u32()?;
-            self.eat_token(TokenType::Comma)?;
             let slot = self.parse_u16()?;
             self.eat_token(TokenType::CloseBracket)?;
-            let target = CallTarget::Virtual {
-                receiver,
-                reference,
-                dispatch_offset,
-                slot,
-            };
 
-            return Ok(target);
+            return Ok(CallTarget::Virtual { slot });
         }
 
         // dynamic dispatch
