@@ -16,6 +16,16 @@ export const Version = Object.assign(defineSchema(z.string().regex(VERSION)), {
         return index === -1 ? 0 : Math.sign(first[index]! - second[index]!);
     },
 
+    /** List the releases after one release and up to another, in release order. */
+    between(releases: readonly string[], after: string, upto: string): string[] {
+        return releases
+            .filter(
+                (release) =>
+                    Version.compare(release, after) > 0 && Version.compare(release, upto) <= 0,
+            )
+            .sort(Version.compare);
+    },
+
     /** Read the year, month, release, stable flag and nightly sequence of a version. */
     components(version: string): readonly number[] {
         // read the calendar numbers and the nightly sequence

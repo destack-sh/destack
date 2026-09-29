@@ -46,3 +46,13 @@ test("accept only calendar versions", () => {
         ["2026.9", false],
     ]);
 });
+
+test("list the releases after one release and up to another in release order", () => {
+    const releases = ["2026.11.0", "2026.9.0", "2026.10.0", "2026.8.0", "2026.10.0-nightly.1"];
+
+    expect([
+        Version.between(releases, "2026.8.0", "2026.10.0"),
+        Version.between(releases, "2026.10.0", "2026.10.0"),
+        Version.between(releases, "2026.7.0", "2026.8.0"),
+    ]).toEqual([["2026.9.0", "2026.10.0-nightly.1", "2026.10.0"], [], ["2026.8.0"]]);
+});
