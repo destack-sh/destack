@@ -33,7 +33,7 @@ Importantly, the question is _not_ what is the "best theortical version if we di
 - you can read all about it at [docs](/docs/language/)-->
 
 TypeScript++ is a safe, predictable, fast, and _familiar_ scripting _and_ systems language that combines the best of TypeScript with the safety of Rust, and attempts to bridge the gap between the two as gracefully as possible.
-To be as easy to try and adopt as possible, TS++ follows existing standards and conventions as much as possible, from the Node/Web-shaped standard library, to package formats (`destack.json` extends `package.json`), to formatter conventions (`.ds` looks almost exactly like `.ts/.tsx` with prettier), to linter rules (many are borrowed from `clippy`, `rustc`, `eslint`, etc.).
+To be as easy to try and adopt as possible, TS++ follows existing standards and conventions as much as possible, from the Node/Web-shaped standard library, to package formats (`destack.json` extends `package.json`), to formatter conventions (`.tspp` looks almost exactly like `.ts/.tsx` with prettier), to linter rules (many are borrowed from `clippy`, `rustc`, `eslint`, etc.).
 
 As TypeScript++ is designed to supersede TypeScript, it does not attempt to be a drop-in replacement for TS, nor are we interested in any backward compatibility.
-The idea is to enable "one-shot migration", meaning that a reasonably competent AI agent as of >=2026 should be able to look at a single file and transcribe from `.ts` into `.ds` without difficulty, requiring at most small global patchup.
+The idea is to enable "one-shot migration", meaning that a reasonably competent AI agent as of >=2026 should be able to look at a single file and transcribe from `.ts` into `.tspp` without difficulty, requiring at most small global patchup.
