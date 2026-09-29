@@ -1,5 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { defineTable, index, integer, sql, text } from "../index.ts";
+import { defineTable, index, integer, json, sql, text } from "../index.ts";
+import { schema } from "@destack/schema";
 import { TABLE, type Table } from "../table/table.ts";
 import { qualify } from "../table/namespace.ts";
 import { defineDatabase } from "../declare/database.ts";
@@ -9,6 +10,7 @@ import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { declareState } from "./state.ts";
 import type { TablePlan } from "./plan.ts";
+import { Expression } from "../query/expression.ts";
 
 /** Folders holding documents, as first released. */
 const folderOne = defineTable("folder", {
@@ -71,7 +73,10 @@ const taskTwo = defineTable(
     },
 );
 
-/** Tasks after converting the urgent flag into a priority. */
+/** This package's next release, declaring the converted tasks. */
+const NEXT_RELEASE = { package: { ...taskOne[TABLE].package, version: "2026.10.0" } };
+
+/** Tasks after converting the urgent flag into a priority, in the next release. */
 const taskThree = defineTable(
     "task",
     {
@@ -84,14 +89,18 @@ const taskThree = defineTable(
     },
     {
         log: {},
-        version: 2,
         convert: {
-            2: (task) => ({
-                priority: sql`CASE WHEN ${task.urgent} = 1 THEN 'high' ELSE 'normal' END`,
-            }),
+            "2026.10.0": {
+                priority: Expression.case(
+                    Expression.column("urgent"),
+                    [{ when: 1, then: Expression.literal("high") }],
+                    Expression.literal("normal"),
+                ),
+            },
         },
         constraints: (task) => [index("task_due").on(task.dueAt)],
     },
+    NEXT_RELEASE,
 );
 
 /** Tasks declaring the urgent flag as text. */
@@ -171,7 +180,7 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "convert rows to a new version and log the converted values on %s",
+    "convert rows to a new release and log the converted values on %s",
     async (dialect) => {
         const database = await open(dialect, [taskThree]);
         await database.migrate([taskTwo]);
@@ -180,11 +189,11 @@ test.for(TEST_DIALECTS)(
         );
         const before = (await database.log.position()).sequence;
 
-        // convert every row through version two
+        // convert every row by the next release's conversion
         const plan = await database.migrate([taskThree]);
         expect(review(plan)).toEqual([
             `safe addColumn ${table(taskThree)}: add column priority`,
-            `data-dependent convertRows ${table(taskThree)}: convert rows to version 2`,
+            `data-dependent convertRows ${table(taskThree)}: convert rows to 2026.10.0`,
         ]);
         expect(await database.select().from(taskThree).orderBy(taskThree.id)).toEqual([
             { id: "a", scope: "inbox", title: "Plan", urgent: 1, priority: "high", dueAt: null },
@@ -226,6 +235,108 @@ test.for(TEST_DIALECTS)(
         });
     },
 );
+
+/** Preferences whose mode takes three values. */
+const preferenceOne = defineTable("preference", {
+    id: text("id").primaryKey(),
+    mode: json("mode", schema.enum(["standard", "vim", "emacs"])),
+});
+
+/** Preferences in the next release, whose mode also takes a fourth value. */
+const preferenceWide = defineTable(
+    "preference",
+    {
+        id: text("id").primaryKey(),
+        mode: json("mode", schema.enum(["standard", "vim", "emacs", "helix"])),
+    },
+    {},
+    NEXT_RELEASE,
+);
+
+/** Preferences in the next release, dropping the emacs mode without a conversion. */
+const preferenceNarrow = defineTable(
+    "preference",
+    { id: text("id").primaryKey(), mode: json("mode", schema.enum(["standard", "vim"])) },
+    {},
+    NEXT_RELEASE,
+);
+
+/** Preferences in the next release, converting the emacs mode to the standard one. */
+const preferenceConverted = defineTable(
+    "preference",
+    { id: text("id").primaryKey(), mode: json("mode", schema.enum(["standard", "vim"])) },
+    {
+        convert: {
+            "2026.10.0": {
+                mode: Expression.case(
+                    Expression.scalar(Expression.column("mode"), "text"),
+                    [{ when: "emacs", then: Expression.json("standard") }],
+                    Expression.column("mode"),
+                ),
+            },
+        },
+    },
+    NEXT_RELEASE,
+);
+
+test.for(TEST_DIALECTS)(
+    "widen column values freely and narrow them only by a conversion on %s",
+    async (dialect) => {
+        const database = await open(dialect, [preferenceConverted]);
+        await database.migrate([preferenceOne]);
+        await database.execute(
+            sql`INSERT INTO ${sql.identifier(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"'), ('b', '"vim"')`,
+        );
+
+        // accept the widened mode, refuse the unconverted narrowing, and convert the declared one
+        const wide = await planMigration(database, declareState([preferenceWide], dialect));
+        expect(review(wide)).toEqual([
+            `safe widenColumn ${table(preferenceWide)}: wider ${table(preferenceWide)}.mode`,
+        ]);
+        await expect(
+            planMigration(database, declareState([preferenceNarrow], dialect)),
+        ).rejects.toMatchObject({
+            name: "PlanError",
+            problems: [
+                {
+                    target: `${table(preferenceNarrow)}.mode`,
+                    detail: "declare a conversion for 2026.10.0",
+                },
+            ],
+        });
+        const converted = await database.migrate([preferenceConverted]);
+        expect(review(converted)).toEqual([
+            `data-dependent convertRows ${table(preferenceConverted)}: convert rows to 2026.10.0`,
+        ]);
+        expect(
+            await database.select().from(preferenceConverted).orderBy(preferenceConverted.id),
+        ).toEqual([
+            { id: "a", mode: "standard" },
+            { id: "b", mode: "vim" },
+        ]);
+    },
+);
+
+test("refuse conversions keyed by anything but a release up to the declaring one", () => {
+    const refusal = (release: string) => {
+        try {
+            defineTable(
+                "draft",
+                { id: text("id").primaryKey() },
+                { convert: { [release]: {} } },
+                NEXT_RELEASE,
+            );
+        } catch (error) {
+            return (error as Error).message;
+        }
+    };
+
+    expect([refusal("2026.10.0"), refusal("2026.11.0"), refusal("next")]).toEqual([
+        undefined,
+        "conversion of draft is keyed by 2026.11.0, after its release 2026.10.0",
+        "conversion key of draft is no release: next",
+    ]);
+});
 
 /** Read a table's SQL name. */
 function table(declaration: Table): string {

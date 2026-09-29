@@ -286,7 +286,6 @@ export class Replication {
                               }),
                           ],
                 retention: state.log?.retention ?? "none",
-                version: state.version,
                 moved: {},
                 convert: {},
                 aggregates: [],

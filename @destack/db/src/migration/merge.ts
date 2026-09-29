@@ -1,4 +1,5 @@
 import { canonicalize } from "@destack/schema/json";
+import { Version } from "@destack/schema";
 import type { TableDescription } from "../inspect/table.ts";
 import { logOf, type TableState } from "./state.ts";
 
@@ -52,7 +53,7 @@ function mergeTable(states: readonly TableState[]): {
     // start from the newest release
     const newest = [...states].sort(
         (left, right) =>
-            right.version - left.version ||
+            Version.compare(right.package.version, left.package.version) ||
             Number(renames(right, states)) - Number(renames(left, states)) ||
             canonicalize(left).localeCompare(canonicalize(right)),
     )[0]!;

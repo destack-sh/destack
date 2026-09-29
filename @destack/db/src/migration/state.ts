@@ -1,6 +1,7 @@
 import { canonicalize } from "@destack/schema/json";
 import { sql } from "drizzle-orm";
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, schema, Version } from "@destack/schema";
+import { Expression } from "../query/expression.ts";
 import { Package } from "@destack/package";
 import { TABLE, type Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
@@ -25,8 +26,6 @@ export const TableState = defineSchema(
     schema.object({
         /** The package release declaring the table. */
         package: Package,
-        /** The row shape version, raised by each conversion. */
-        version: schema.number().int().positive(),
         /** The table's columns, keys, indexes and checks. */
         table: TableDescription,
         /** The columns the change triggers record, absent for unlogged tables. */
@@ -57,9 +56,9 @@ export const TableState = defineSchema(
                 }),
             )
             .optional(),
-        /** The column assignments converting rows to each version above the first. */
+        /** The SQL assignments by column converting rows of earlier releases, by the release introducing them. */
         conversions: schema
-            .record(schema.string(), schema.record(schema.string(), schema.string()))
+            .record(Version, schema.record(schema.string(), schema.string()))
             .optional(),
     }),
 );
@@ -110,9 +109,9 @@ export function logOf(state: TableState): string {
 
 /** Report whether an applied state holds a declaration. */
 export function holdsState(applied: TableState, declared: TableState): boolean {
-    // require the same or a newer version and the same log and tree
+    // require the same or a newer release and the same log and tree
     if (
-        applied.version < declared.version ||
+        Version.compare(applied.package.version, declared.package.version) < 0 ||
         logOf(applied) !== logOf(declared) ||
         canonicalize(applied.tree ?? null) !== canonicalize(declared.tree ?? null) ||
         canonicalize(applied.aggregates ?? []) !== canonicalize(declared.aggregates ?? []) ||
@@ -175,7 +174,6 @@ export function declareState(
 
         return {
             package: definition.package,
-            version: definition.version,
             table: options.isReplica
                 ? replicated(table, withinDatabase(describeTable(table, dialect), held))
                 : withinDatabase(describeTable(table, dialect), held),
@@ -196,7 +194,6 @@ export function createState(): string {
     return `CREATE TABLE IF NOT EXISTS "${STATE}" (
         "table" TEXT PRIMARY KEY,
         package_id TEXT NOT NULL,
-        version INTEGER NOT NULL,
         state TEXT NOT NULL,
         applied_at BIGINT NOT NULL
     )`;
@@ -212,7 +209,9 @@ export async function readTables(database: DatabaseConnection): Promise<string[]
               )
             : native.dialect === "postgresql"
               ? await database.execute<{ name: string }>(
-                    sql`SELECT tablename AS name FROM pg_tables WHERE schemaname = current_schema()`,
+                    sql`SELECT c.relname AS name FROM pg_depend d JOIN pg_class c ON c.oid = d.objid
+                        WHERE d.classid = 'pg_class'::regclass AND d.refclassid = 'pg_namespace'::regclass
+                            AND d.refobjid = current_schema()::regnamespace AND c.relkind IN ('r', 'p')`,
                 )
               : assertNever(native);
 
@@ -240,10 +239,10 @@ export function writeState(state: TableState, appliedAt: number): string {
     const { moved: _moved, conversions: _conversions, ...applied } = state;
     const encoded = literal(JSON.stringify(applied));
 
-    return `INSERT INTO ${quote(STATE)} ("table", package_id, version, state, applied_at)
-        VALUES (${literal(state.table.name)}, ${literal(state.package.id)}, ${state.version}, ${encoded}, ${appliedAt})
+    return `INSERT INTO ${quote(STATE)} ("table", package_id, state, applied_at)
+        VALUES (${literal(state.table.name)}, ${literal(state.package.id)}, ${encoded}, ${appliedAt})
         ON CONFLICT ("table") DO UPDATE SET package_id = excluded.package_id,
-            version = excluded.version, state = excluded.state, applied_at = excluded.applied_at`;
+            state = excluded.state, applied_at = excluded.applied_at`;
 }
 
 /** Forget the applied state of a dropped table. */
@@ -273,23 +272,36 @@ function describeMoves(table: Table): TableState["moved"] {
     };
 }
 
-/** Render each version's conversion as SQL assignments. */
+/** Render each release's conversion as SQL assignments of columns of the same kind. */
 function describeConversions(table: Table, dialect: Dialect): TableState["conversions"] {
-    // evaluate and inline each conversion
+    // render each assignment, requiring the column's kind
     const definition = table[TABLE];
-    const versions = Object.entries(definition.convert);
-    if (versions.length === 0) {
+    const releases = Object.entries(definition.convert);
+    if (releases.length === 0) {
         return undefined;
     }
 
     return Object.fromEntries(
-        versions.map(([version, convert]) => [
-            version,
+        releases.map(([release, conversion]) => [
+            release,
             Object.fromEntries(
-                Object.entries(convert(definition.columns)).map(([property, value]) => [
-                    definition.columns[property]!.definition.name,
-                    inlineExpression(value, dialect),
-                ]),
+                Object.entries(conversion).map(([property, expression]) => {
+                    // require the column's kind
+                    const column = definition.columns[property]!.definition;
+                    const kind = Expression.kind(expression!, table);
+                    const isSameKind =
+                        kind === column.kind || (kind === "real" && column.kind === "integer");
+                    if (!isSameKind) {
+                        throw new TypeError(
+                            `conversion of ${definition.name}.${property} yields ${kind} for a ${column.kind} column`,
+                        );
+                    }
+
+                    return [
+                        column.name,
+                        inlineExpression(Expression.render(expression!, table), dialect),
+                    ];
+                }),
             ),
         ]),
     );

@@ -3,6 +3,8 @@ import { Column, type ColumnBuilder } from "./column.ts";
 import { check, ForeignKey, type PrimaryKey, type TableConstraint } from "./constraint.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { declaringModule, type ModuleMetadata, type Package } from "@destack/package";
+import { Version } from "@destack/schema";
+import type { Expression } from "../query/expression.ts";
 import { qualify } from "./namespace.ts";
 import type { ChangeRetention } from "../inspect/log.ts";
 import type { DatabaseTier } from "../declare/database.ts";
@@ -58,7 +60,7 @@ export class Table<
         options: { readonly tree?: TreeColumns; readonly source?: Table } = {},
     ) {
         // declare the table and its key
-        const { constraints, retention, tier, version, moved, convert, aggregates, dependents } =
+        const { constraints, retention, tier, moved, convert, aggregates, dependents } =
             declaration;
         const declared = {
             ...identity,
@@ -66,7 +68,6 @@ export class Table<
             constraints,
             retention,
             ...(tier === undefined ? {} : { tier }),
-            version,
             moved,
             convert,
             aggregates,
@@ -180,9 +181,9 @@ export class Table<
     }
 }
 
-/** Compute new column values from a row's previous values, as SQL. */
-export type RowConversion<Columns = ColumnMap> = (columns: Columns) => {
-    readonly [Property in keyof Columns]?: SQL;
+/** New column values computed from a row's previous values, by property. */
+export type RowConversion<Columns = ColumnMap> = {
+    readonly [Property in keyof Columns]?: Expression;
 };
 
 /** The previous names of a table and its columns. */
@@ -211,12 +212,10 @@ interface TableDeclaration {
     readonly retention: ChangeRetention;
     /** The tier of every database holding the table, any tier when absent. */
     readonly tier?: DatabaseTier;
-    /** The version of the row shape. */
-    readonly version: number;
     /** The table's previous names. */
     readonly moved: TableMove;
-    /** The row conversions by target version. */
-    readonly convert: Readonly<Record<number, RowConversion>>;
+    /** The row conversions by the release introducing them. */
+    readonly convert: Readonly<Record<Version, RowConversion>>;
     /** The aggregates this table's rows feed or hold. */
     readonly aggregates: readonly Aggregate[];
     /** The rows of other tables referencing this table's rows. */
@@ -277,8 +276,6 @@ export interface TableOptions<Columns> {
         : never;
     /** The properties of a single-parent tree per scope. */
     readonly tree?: TreeColumns<keyof Columns & string>;
-    /** The row shape version, one by default. */
-    readonly version?: number;
     /** The previous names of the table and its columns. */
     readonly moved?: {
         /** The table's previous name within its package. */
@@ -286,8 +283,8 @@ export interface TableOptions<Columns> {
         /** The previous SQL column names by property. */
         readonly columns?: { readonly [Property in keyof Columns]?: string };
     };
-    /** The row conversions by target version. */
-    readonly convert?: Readonly<Record<number, RowConversion<Columns>>>;
+    /** The row conversions by the release introducing them, converting rows of earlier releases. */
+    readonly convert?: Readonly<Record<Version, RowConversion<Columns>>>;
     /** The aggregates this table's rows feed or hold. */
     readonly aggregates?: readonly Aggregate[];
     /** The rows of other tables referencing this table's rows. */
@@ -374,11 +371,14 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
         names.add(definition.name);
     }
 
-    // require a conversion per version
-    const version = options.version ?? 1;
-    for (let target = 2; target <= version; target++) {
-        if (!options.convert?.[target]) {
-            throw new TypeError(`missing conversion of ${name} to version ${target}`);
+    // require conversions keyed by releases up to the declaring one
+    for (const release of Object.keys(options.convert ?? {})) {
+        if (!Version.safeParse(release).success) {
+            throw new TypeError(`conversion key of ${name} is no release: ${release}`);
+        } else if (Version.compare(release, owner.version) > 0) {
+            throw new TypeError(
+                `conversion of ${name} is keyed by ${release}, after its release ${owner.version}`,
+            );
         }
     }
 
@@ -396,9 +396,8 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
             constraints: () => options.constraints?.(columns) ?? [],
             retention: options.log === undefined ? "none" : (options.log.retention ?? "window"),
             ...(options.tier === undefined ? {} : { tier: options.tier }),
-            version,
             moved: (options.moved ?? {}) as TableMove,
-            convert: (options.convert ?? {}) as Readonly<Record<number, RowConversion>>,
+            convert: (options.convert ?? {}) as Readonly<Record<Version, RowConversion>>,
             aggregates: options.aggregates ?? [],
             dependents: options.dependents ?? [],
         },

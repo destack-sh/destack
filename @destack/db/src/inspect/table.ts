@@ -9,6 +9,8 @@ export const ColumnDescription = defineSchema(
         name: schema.string(),
         /** The logical value type. */
         kind: schema.enum(COLUMN_KINDS),
+        /** The JSON Schema of the values the column holds. */
+        value: schema.record(schema.string(), schema.json()),
         /** The dialect-specific SQL type. */
         type: schema.string(),
         /** Whether the declaration allows NULL. */

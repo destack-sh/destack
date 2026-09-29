@@ -1,4 +1,5 @@
 import { SQL, sql, type SQLChunk } from "drizzle-orm";
+import { schema, toJsonSchema } from "@destack/schema";
 import { Column } from "../table/column.ts";
 import { TABLE, type Table } from "../table/table.ts";
 import { TableDescription } from "./table.ts";
@@ -45,6 +46,9 @@ export function describeTable(table: Table, dialect: Dialect): TableDescription 
         columns: columns.map((column) => ({
             name: column.definition.name,
             kind: column.definition.kind,
+            value: schema
+                .record(schema.string(), schema.json())
+                .parse(toJsonSchema(column.definition.json ?? column.definition.schema)),
             type: column.definition.types[dialect],
             nullable: column.definition.nullable,
             ...(column.definition.default === undefined

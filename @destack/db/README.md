@@ -4,7 +4,7 @@ Declare, query, log and migrate SQL tables on SQLite and PostgreSQL.
 
 ## Tables
 
-`defineTable` declares a table's columns, constraints, log retention and row versions.
+`defineTable` declares a table's columns, constraints, log retention and the row conversions of its releases.
 
 ```ts
 export const note = defineTable(
@@ -17,8 +17,9 @@ export const note = defineTable(
     {
         constraints: (note) => [index("note_scope").on(note.scope)],
         log: { retention: "history" },
-        version: 2,
-        convert: { 2: (note) => ({ title: sql`trim(${note.title})` }) },
+        convert: {
+            "2026.10.0": { title: Expression.coalesce(Expression.column("title"), Expression.literal("")) },
+        },
     },
 );
 ```
@@ -87,9 +88,23 @@ await database.select().from(note).where(Condition.render(where, Condition.bind(
 Condition.matches(Condition.compile(where, note), row);
 ```
 
+## Expressions
+
+An `Expression` computes a value from one row alike in SQL and memory, JSON included.
+
+```ts
+const mode = Expression.scalar(Expression.path(Expression.column("value"), "editor", "mode"), "text");
+const converted = Expression.object({
+    mode: Expression.case(mode, [{ when: "emacs", then: Expression.literal("standard") }], mode),
+    pinned: Expression.json(false),
+});
+Expression.evaluate(converted, row);
+await database.select({ value: Expression.render(converted, setting) }).from(setting);
+```
+
 ## Migrations
 
-A connection plans and applies the changes from its tables to the declared ones.
+A connection plans and applies the changes from its tables to the declared ones, where column values narrow only by a release's conversion.
 
 ```ts
 await database.migrate([note]);

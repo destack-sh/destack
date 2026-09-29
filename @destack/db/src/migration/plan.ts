@@ -12,7 +12,8 @@ import { bridgeTriggers } from "./bridge.ts";
 import type { Triggers } from "./trigger.ts";
 import type { MergedState } from "./merge.ts";
 import { canonicalize } from "@destack/schema/json";
-import type { Plan, Risk, Step } from "@destack/resource";
+import { Plan, type Risk, type Step } from "@destack/resource";
+import { Version } from "@destack/schema";
 import { PlanError } from "@destack/resource/error";
 
 /** The generated triggers every plan removes and reinstalls. */
@@ -38,6 +39,7 @@ export type TableStepKind =
     | "createIndex"
     | "dropIndex"
     | "convertRows"
+    | "widenColumn"
     | "bridgeColumn"
     | "rebuildTree"
     | "updateLog"
@@ -150,10 +152,18 @@ export function planTables(input: PlanInput): TablePlan {
             problems,
         );
 
-        // convert rows through each version above the applied one
-        for (let version = previous.version + 1; version <= state.version; version++) {
-            changes.push(...convertRows(state, version, problems));
+        // convert rows through each release after the applied one, and check the column values
+        const releases = Object.keys(state.conversions ?? {})
+            .filter(
+                (release) =>
+                    Version.compare(release, previous.package.version) > 0 &&
+                    Version.compare(release, state.package.version) <= 0,
+            )
+            .sort(Version.compare);
+        for (const release of releases) {
+            changes.push(convertRows(state, release));
         }
+        changes.push(...changeValues(previous, state, releases, problems));
 
         // backfill newly bridged columns
         const bridged = new Set((previous.bridges ?? []).map((bridge) => bridge.to));
@@ -375,7 +385,11 @@ function changeTable(
     const changed = next.columns.filter((column) => {
         const old = columns.get(column.name);
 
-        return old !== undefined && canonicalize(old) !== canonicalize(column);
+        return (
+            old !== undefined &&
+            canonicalize({ ...old, value: undefined }) !==
+                canonicalize({ ...column, value: undefined })
+        );
     });
 
     // require a value for each new required column
@@ -585,27 +599,63 @@ function createStatements(table: TableDescription): string[] {
     ];
 }
 
-/** Convert every row of a table to one version. */
-function convertRows(state: TableState, version: number, problems: Problem[]): TableStep[] {
-    // require the conversion as SQL
-    const name = state.table.name;
-    const assignments = state.conversions?.[String(version)];
-    if (!assignments || Object.keys(assignments).length === 0) {
-        problems.push({ target: name, detail: `declare a conversion to version ${version}` });
-
-        return [];
-    }
-
+/** Convert every row of a table from earlier releases by the conversion one release introduces. */
+function convertRows(state: TableState, release: Version): TableStep {
     // assign every converted column in one statement
-    const set = Object.entries(assignments)
+    const name = state.table.name;
+    const set = Object.entries(state.conversions![release]!)
         .map(([column, expression]) => `${quote(column)} = ${expression}`)
         .join(", ");
 
-    return [
-        step("convertRows", "data-dependent", name, `convert rows to version ${version}`, [
-            `UPDATE ${quote(name)} SET ${set}`,
-        ]),
-    ];
+    return step("convertRows", "data-dependent", name, `convert rows to ${release}`, [
+        `UPDATE ${quote(name)} SET ${set}`,
+    ]);
+}
+
+/** Check each kept column's values: widened values are safe, narrowed ones need a conversion. */
+function changeValues(
+    previous: TableState,
+    state: TableState,
+    releases: readonly Version[],
+    problems: Problem[],
+): TableStep[] {
+    // compare each kept column's value schema, under its previous name when moved
+    const steps: TableStep[] = [];
+    const name = state.table.name;
+    for (const column of state.table.columns) {
+        const from = state.moved?.columns[column.name] ?? column.name;
+        const old = previous.table.columns.find(
+            (entry) => entry.name === from || entry.name === column.name,
+        );
+        if (old === undefined) {
+            continue;
+        }
+
+        // plan the change, leaving convert steps to the row conversions
+        const isConverted = releases.some(
+            (release) => state.conversions![release]![column.name] !== undefined,
+        );
+        try {
+            const planned = Plan.schema({
+                target: `${name}.${column.name}`,
+                before: old.value,
+                after: column.value,
+                release: state.package.version,
+                compatibility: "backward",
+                isConverted,
+            });
+            for (const change of planned.steps.filter((entry) => entry.kind === "wider")) {
+                steps.push(step("widenColumn", change.risk, name, change.detail, []));
+            }
+        } catch (error) {
+            if (!(error instanceof PlanError)) {
+                throw error;
+            }
+            problems.push(...error.problems);
+        }
+    }
+
+    return steps;
 }
 
 /** Build a step. */
