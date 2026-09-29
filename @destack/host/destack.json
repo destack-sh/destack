@@ -1,0 +1,6 @@
+{
+    "id": "package-01a0d394-bf2b-7191-926c-8d1fee31f728",
+    "language": "typescript",
+    "targets": ["server"],
+    "runtimes": ["bun"]
+}

@@ -1,0 +1,40 @@
+{
+    "name": "@destack/host",
+    "version": "2026.9.0",
+    "private": true,
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Register Destack hosts and their keys.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./identity": "./src/identity/index.ts",
+        "./keychain": "./src/keychain/index.ts",
+        "./service": "./src/service/index.ts",
+        "./client": "./src/client/index.ts",
+        "./server": "./src/server/index.ts",
+        "./stack": "./src/stack/index.ts",
+        "./test": "./src/test/index.ts"
+    },
+    "dependencies": {
+        "@destack/sync": "workspace:*",
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/audit": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/service": "workspace:*",
+        "uuid": "14.0.2"
+    },
+    "scripts": {
+        "check": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "devDependencies": {
+        "@destack/directory": "workspace:*",
+        "@destack/test": "workspace:*"
+    }
+}
