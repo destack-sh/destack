@@ -60,3 +60,30 @@ test.for(TEST_DIALECTS)(
         expect(await read()).toEqual([{ scope: "s", owner: "bob", name: "c0000", value: 7 }]);
     },
 );
+
+test.for(TEST_DIALECTS)(
+    "roll back a transaction its callback rolls back, keeping what the callback read on %s",
+    async (dialect) => {
+        const storage = await TestDatabase.create(dialect, [counter], { isMigrated: true });
+        onTestFinished(() => storage.close());
+        const database = storage.database;
+
+        // write and read, then roll back
+        let read: unknown;
+        const result = await database.transaction(async (transaction) => {
+            await transaction.upsert(counter, [
+                { scope: "s", owner: "ada", name: "rolled", value: 1 },
+            ]);
+            read = await transaction.select().from(counter);
+            transaction.rollback();
+        });
+
+        // keep the read, resolve nothing, and find nothing written
+        expect([read, result, await database.select().from(counter)]).toEqual([
+            [{ scope: "s", owner: "ada", name: "rolled", value: 1 }],
+            undefined,
+            [],
+        ]);
+        expect(() => database.rollback()).toThrow(new TypeError("only a transaction rolls back"));
+    },
+);

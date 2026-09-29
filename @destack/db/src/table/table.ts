@@ -7,8 +7,8 @@ import { qualify } from "./namespace.ts";
 import type { ChangeTier } from "../inspect/log.ts";
 import { Tree } from "../tree/tree.ts";
 
-/** The key of a table's declaration. */
-export const TABLE = Symbol("destack.table");
+/** The key of a table's declaration, shared by every copy of this module. */
+export const TABLE = Symbol.for("destack.table");
 
 /** One logical SQL table. */
 export class Table<
@@ -119,6 +119,13 @@ export class Table<
         this.#statements.set(name, built);
 
         return built;
+    }
+
+    /** Read the package declaring a value that is a table, from any copy of this module. */
+    static package(value: unknown): Package | undefined {
+        return typeof value === "object" && value !== null && TABLE in value
+            ? (value as Table)[TABLE].package
+            : undefined;
     }
 
     /** Return the table identifier. */

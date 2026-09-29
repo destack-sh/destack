@@ -221,7 +221,7 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         return applyPlan(this, plan);
     }
 
-    /** Commit a callback, or roll back on failure. */
+    /** Commit a callback, or roll back on failure or once the callback rolls back, then resolving undefined. */
     async transaction<Value>(
         operation: (transaction: DatabaseConnection) => Promise<Value>,
         options: TransactionOptions = {},
@@ -296,14 +296,26 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
             }
         };
 
-        // report a lost commit as a concurrent update
+        // report a lost commit as a concurrent update, and resolve nothing once the callback rolled back
         try {
             return this.driver.transaction
                 ? await this.driver.transaction.run(execute, "report")
                 : await this.driver.write(execute, { isTransaction: true });
         } catch (error) {
+            if (error instanceof Rollback) {
+                return undefined as Value;
+            }
             throw classifyError(error);
         }
+    }
+
+    /** Roll back the transaction this connection runs, ending its callback. */
+    rollback(): never {
+        if (this.driver.transaction === undefined) {
+            throw new TypeError("only a transaction rolls back");
+        }
+
+        throw new Rollback();
     }
 
     /** Bind a transaction session and drain its queries. */
@@ -380,3 +392,6 @@ export class ConnectionState {
         return this.#closing;
     }
 }
+
+/** The unwinding of a transaction its callback rolls back. */
+class Rollback extends Error {}
