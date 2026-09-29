@@ -1,5 +1,0 @@
-# npm platform package staged binaries
-npm-*/bin/
-
-# local release artifact output
-install/artifacts/

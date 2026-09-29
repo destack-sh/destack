@@ -83,8 +83,8 @@ jobs:
             - name: Install Rust
               shell: bash
               run: |
-                  source language/toolchain/versions.sh
-                  rustup toolchain install "$DESTACK_RUST_TOOLCHAIN" --profile minimal
+                  rustup toolchain install stable --profile minimal
+                  rustup default stable
             - name: Install Windows installer compiler
               if: runner.os == 'Windows'
               shell: pwsh

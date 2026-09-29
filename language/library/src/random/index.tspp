@@ -1,3 +1,0 @@
-export { RandomBinding, random } from "./binding/random.tspp";
-export * from "./random.tspp";
-export * as binding from "./binding";

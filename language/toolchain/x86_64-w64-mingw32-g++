@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-exec zig c++ -target x86_64-windows-gnu "$@"

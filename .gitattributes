@@ -1,12 +1,3 @@
-# parser bench fixtures
-language/test/fixtures/parser/oxc/**.js linguist-generated
-
-# vendored fixture corpora
-language/test/fixtures/ecosystem/packages/** linguist-vendored -diff
-language/test/fixtures/resolver/**/node_modules/** linguist-vendored
-language/test/fixtures/resolver/**/.yarn/** linguist-vendored
-language/grammar/destack/node_modules/** linguist-vendored
-
 # all other generated files
 *.generated.rs linguist-generated
 *.generated.ts linguist-generated
@@ -15,22 +6,3 @@ language/grammar/destack/node_modules/** linguist-vendored
 *.generated.h linguist-generated
 *.generated.kt linguist-generated
 *.generated.swift linguist-generated
-language/workspace/generated/** linguist-generated
-language/cli/generated/** linguist-generated
-language/bridge/vscode/package.schema.json linguist-generated
-
-# tree sitter generated parser sources
-language/grammar/mir/src/parser.c linguist-generated -diff
-language/grammar/destack/destack/src/parser.c linguist-generated -diff
-language/grammar/destack/typescript/src/parser.c linguist-generated -diff
-language/grammar/destack/tsx/src/parser.c linguist-generated -diff
-
-# tree sitter generated metadata
-language/grammar/mir/src/grammar.json linguist-generated
-language/grammar/mir/src/node-types.json linguist-generated
-language/grammar/destack/destack/src/grammar.json linguist-generated
-language/grammar/destack/destack/src/node-types.json linguist-generated
-language/grammar/destack/typescript/src/grammar.json linguist-generated
-language/grammar/destack/typescript/src/node-types.json linguist-generated
-language/grammar/destack/tsx/src/grammar.json linguist-generated
-language/grammar/destack/tsx/src/node-types.json linguist-generated

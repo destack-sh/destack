@@ -1,3 +1,0 @@
-export * from "./topology.tspp";
-export * from "./edge.tspp";
-export * from "./entity.tspp";

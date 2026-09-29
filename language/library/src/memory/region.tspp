@@ -1,3 +1,0 @@
-/// The referent's extent and place, or a set of possible extent/place pairs.
-@languageItem("memory.Region")
-export newtype Region = intrinsic;

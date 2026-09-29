@@ -1,3 +1,0 @@
-/// Trigger a debugger breakpoint.
-@intrinsic("error.debug.breakpoint")
-export declare function breakpoint(): void;

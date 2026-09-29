@@ -1,7 +1,0 @@
-/// Marks a declaration as deprecated and warns when it is used.
-@languageItem("decorator.deprecated")
-export newtype deprecated = (string,) | ();
-
-/// Marks a declaration as experimental.
-@languageItem("decorator.experimental")
-export newtype experimental = (string,) | ();

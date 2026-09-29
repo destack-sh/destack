@@ -1,9 +1,0 @@
-// SYNTAX TEST "source.tspp"
-
-// memory / drop / cleanup members
-class Resource {
-// <- keyword.declaration.type.tspp
-    drop(): void {
-        cleanup();
-    }
-}

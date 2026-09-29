@@ -7,13 +7,10 @@
   "license": "MIT",
   "workspace": {
     "packages": [
-      "language/*",
-      "language/grammar/*",
       "library/*",
       "service/*",
       "app/*",
       "client/*",
-      "language/bridge/*",
       "platform/*",
       "template/create-destack"
     ]

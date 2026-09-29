@@ -39,8 +39,6 @@ dmypy.json
 # Rust
 target/
 **/target/
-!language/repository/src/config/target/
-!language/repository/src/config/target/**
 !client/typescript/src/_generated/repository/config/target/
 !client/typescript/src/_generated/repository/config/target/**
 Cargo.lock
@@ -91,23 +89,9 @@ dist
 .pnp.*
 *.vsix
 
-# tree-sitter grammar local build artifacts
-language/grammar/destack/build/
-language/grammar/destack/prebuilds/
-language/grammar/destack/.build/
-language/grammar/destack/_obj/
-
 # generated client and bridge artifacts
 client/**/.dart_tool/
 client/**/pubspec.lock
-language/bridge/**/.dart_tool/
-language/bridge/**/pubspec.lock
-language/bridge/vscode/out-tests/
-language/bridge/dotnet/**/[Bb]in/
-language/bridge/dotnet/**/[Oo]bj/
-language/bridge/elixir/**/_build/
-language/bridge/elixir/**/deps/
-language/bridge/elixir/*.tar
 
 # Fuzzing
 **/hfuzz_target/**

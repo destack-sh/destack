@@ -11,14 +11,14 @@ If you find a security issue, please follow [SECURITY.md](SECURITY.md).
 ## Licensing
 
 Repository authored code is MIT unless otherwise noted; vendored components may retain their own licenses.
-See [LICENSE.txt](LICENSE.txt) and [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+See [LICENSE.txt](LICENSE.txt).
 
 ## Setup
 
-Destack is *developed* primarily using Rust and TypeScript (and Destack itself, of course).
+Destack is *developed* primarily using TypeScript (and Destack itself, of course).
 Install the tools needed by the packages you are working on:
 
-- [Rust](https://rustup.rs/): Rust compiler (`nightly-2026-05-26`, see [rust-toolchain.toml](rust-toolchain.toml))
+- [Rust](https://rustup.rs/): Rust compiler (stable), only for the native desktop and release builds
 - [Bun](https://bun.sh/): JavaScript runtime and package management (1.4.2)
 - [just](https://github.com/casey/just): Scripts and command runner
 - [Python](https://python.org/): Project docs validation and codegen utilities
