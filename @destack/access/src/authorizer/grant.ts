@@ -1,3 +1,4 @@
+import { type ObjectReference } from "@destack/sync";
 import type { Snapshot } from "@destack/db/log";
 import { Condition, type Match } from "@destack/db/query";
 import { PackageId } from "@destack/package";
@@ -5,7 +6,7 @@ import { schema } from "@destack/schema";
 import { requireAttribute } from "../context/context.ts";
 import { AccessError } from "../error/index.ts";
 import type { AccessExpression } from "../policy/expression.ts";
-import { objectKey, type ObjectReference, type PermissionReference } from "../policy/policy.ts";
+import { objectKey, type PermissionReference } from "../policy/policy.ts";
 import { accepts, keySubject, type Subject } from "../policy/subject.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import type { RelationshipRow } from "../relationship/table.ts";
@@ -22,11 +23,11 @@ const PREFETCH_CHUNK = 500;
 export interface Grant {
     /** The subject: a principal, a wildcard of a type, or a subject set by its relation. */
     readonly subject: Subject;
-    /** The relationship's conditions, absent for a subject a field of the row holds, which lends nothing to delegates. */
+    /** The relationship's conditions, absent for a subject held in a row field. */
     readonly condition?: GrantCondition;
-    /** The bound role and the permission it must grant, for role bindings; absent, it must grant everything, as owners' roles do. */
+    /** The bound role and the permission it must grant; absent for a role that must grant everything. */
     readonly role?: { readonly id: string; readonly permission?: PermissionReference };
-    /** The conditions of the arrows followed to reach the grant, each of which must hold without delegation. */
+    /** The conditions of the arrows to the grant, which must hold without delegation. */
     readonly arrows: readonly GrantCondition[];
     /** The object the relationship, field or role binding sits on. */
     readonly object: ObjectReference;
@@ -71,7 +72,7 @@ export type GrantTree =
           readonly row: Readonly<Record<string, unknown>>;
       };
 
-/** How a row reaches a decision: listed within the scope that contains it, or read as one object by its key in its own scope. */
+/** How a row reaches a decision: listed in its scope, or read as one object by its key. */
 export type Lookup = "listing" | "object";
 
 /** The arrows followed and the path taken while collecting grants. */
@@ -104,7 +105,7 @@ export class GrantReader {
         this.#scopes = scopes;
     }
 
-    /** Note an object a call creates, holding the relationships its creation writes. */
+    /** Note an object a call creates and the relationships its creation writes. */
     creating(object: ObjectReference, relationships: readonly RelationshipRow[]): void {
         this.#read.set(objectKey(object), Promise.resolve([...relationships]));
     }
@@ -119,7 +120,7 @@ export class GrantReader {
         return found;
     }
 
-    /** Collect the tree of the role bindings granting everything on or above a row, which its owners hold. */
+    /** Collect the tree of the owner role bindings on or above a row. */
     async ownership(
         row: Readonly<Record<string, unknown>>,
         mapping: TableMapping,
@@ -130,7 +131,7 @@ export class GrantReader {
     }
 
     /**
-     * Collect the grant tree of a permission on each row, rows of its own type by default, which decides callers exactly.
+     * Collect the grant tree of a permission on each row, by default of the permission's own type.
      *
      * On rows of another type, only the roles bound on or above them grant the permission.
      */
@@ -225,7 +226,7 @@ export class GrantReader {
         ]);
     }
 
-    /** Collect the tree one expression reaches, combining its branches as it does. */
+    /** Collect the tree one expression reaches and combine its branches like the expression. */
     async #expression(
         expression: AccessExpression,
         mapping: TableMapping,
@@ -383,7 +384,7 @@ export class GrantReader {
         const field = mapping.relations[expression.relation];
         const scope = TableMapping.scope(mapping, row);
 
-        // follow relationships to plain objects in the same scope, each arrow adding its conditions
+        // follow relationships to plain objects in the same scope and add each arrow's conditions
         if (!field) {
             const relationships = (await this.#relationshipsOf(mapping, row)).filter(
                 (entry) =>
@@ -462,7 +463,7 @@ export class GrantReader {
         return some(trees);
     }
 
-    /** Collect the role bindings on the row, its ancestors or owners, or the scope chain, whose roles must grant a permission, or everything when absent. */
+    /** Collect the role bindings on the row, its ancestors, owners or scope chain that grant a permission. */
     async #bound(
         permission: PermissionReference | undefined,
         mapping: TableMapping,
@@ -562,7 +563,7 @@ export class GrantReader {
             return known;
         }
 
-        // read them all, leaving their conditions to each caller
+        // read them all and leave their conditions to each caller
         const read = Relationship.readByObject(this.#snapshot, [object]);
         this.#read.set(key, read);
 
@@ -693,7 +694,7 @@ function any(grants: readonly Grant[]): GrantTree {
 
 /** Read and decide grant trees. */
 export const GrantTree = {
-    /** List every grant a tree reaches, a superset of those admitting any one caller, for indexing and expiry. */
+    /** List every grant a tree reaches for indexing and expiry. */
     flatten(tree: GrantTree): Grant[] {
         switch (tree.kind) {
             case "any":

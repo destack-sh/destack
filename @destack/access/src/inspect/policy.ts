@@ -80,7 +80,7 @@ export const PolicyDescription = defineSchema(
         administration: schema.array(AccessName).optional(),
         /** Whether the objects are scopes. */
         scope: schema.literal(true).optional(),
-        /** Whether the type's objects live in the global scope, so an identifier alone names each. */
+        /** Whether the type's objects live in the universe and an identifier alone refers to each. */
         isGlobal: schema.literal(true).optional(),
     }),
 );

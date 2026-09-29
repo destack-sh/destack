@@ -11,7 +11,7 @@ export interface Link {
     readonly secret: string;
 }
 
-/** An unguessable secret whose holder a relationship admits, kept only as its digest. */
+/** An unguessable secret that admits its holder through a relationship, stored as a digest. */
 export class Capability {
     /** The secret a request presents. */
     readonly secret: string;
@@ -31,7 +31,7 @@ export class Capability {
         return new Capability(secret, await Capability.digest(secret));
     }
 
-    /** Hash a presented secret into the digest requests carry, refusing secrets access never created. */
+    /** Hash a presented secret into the digest requests carry and refuse unknown secrets. */
     static async digest(secret: string): Promise<string> {
         // reject secrets access never created
         if (!SECRET.test(secret)) {

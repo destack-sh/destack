@@ -1,5 +1,6 @@
+import { ObjectReference } from "@destack/sync";
 import { defineSchema, schema } from "@destack/schema";
-import { ObjectReference, PermissionReference } from "../policy/policy.ts";
+import { PermissionReference } from "../policy/policy.ts";
 import { Subject } from "../policy/subject.ts";
 
 /** Whether a caller holds a permission on one object, and until when that holds by time alone. */
@@ -14,7 +15,7 @@ export const Decision = defineSchema(
 /** Whether a caller holds a permission on one object, and until when that holds by time alone. */
 export type Decision = schema.Infer<typeof Decision>;
 
-/** Why a caller's request cannot hold a permission on a row at all, before any grant: its credential, its elevation, its scope's suspension, or the object's scope. */
+/** The gate that refuses a request before any grant: credential, elevation, suspension or scope. */
 export const Gate = defineSchema(schema.enum(["restricted", "elevation", "suspended", "outside"]));
 /** Why a caller's request cannot hold a permission on a row at all, before any grant. */
 export type Gate = schema.Infer<typeof Gate>;
@@ -48,9 +49,9 @@ export const Explanation = defineSchema(
         object: ObjectReference,
         /** Whether the caller holds the permission. */
         isAllowed: schema.boolean(),
-        /** The gate the request fails before any grant: its credential, its elevation, its scope's suspension, or the object's scope. */
+        /** The gate the request fails before any grant. */
         gate: Gate.optional(),
-        /** The represented subject, then each delegate, each of which must be admitted. */
+        /** The represented subject and each delegate, all of which must be admitted. */
         authorities: schema.array(
             schema.object({
                 /** The delegate, absent for the represented subject. */

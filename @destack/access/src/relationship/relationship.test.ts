@@ -27,7 +27,7 @@ test.for(TEST_DIALECTS)(
         const authorizer = new Authorizer(policies, [...mappings, ...ACCESS_MAPPINGS]);
         const carol: AccessContext = {
             ...fixture.alice,
-            subjects: [principal.user.reference("global", "carol")],
+            subjects: [principal.user.reference("universe", "carol")],
         };
 
         // list the relationships each caller may read
@@ -67,7 +67,7 @@ test.for(TEST_DIALECTS)(
         const authorizer = new Authorizer(policies, [...mappings, ...ACCESS_MAPPINGS]);
         const as = (id: string): AccessContext => ({
             ...fixture.alice,
-            subjects: [principal.user.reference("global", id)],
+            subjects: [principal.user.reference("universe", id)],
         });
 
         // let carol ask to view node b, and alice offer dave viewing it
@@ -100,7 +100,7 @@ test.for(TEST_DIALECTS)(
 
         // show both to alice as grantor, and each other caller only its own
         const [carol, dave, alice] = ["carol", "dave", "alice"].map((id) =>
-            subjectKey(principal.user.reference("global", id)),
+            subjectKey(principal.user.reference("universe", id)),
         );
         expect(await visible(fixture.alice)).toEqual([`${carol}>${carol}`, `${alice}>${dave}`]);
         expect(await visible(as("carol"))).toEqual([`${carol}>${carol}`]);
@@ -135,11 +135,11 @@ test.for(TEST_DIALECTS)(
                     .orderBy(asc(accessRelationship.objectId), asc(accessRelationship.subjectId))
             ).map((row) => `${row.objectId}:${row.subjectId}`);
 
-        // relate the worker to a and b, keeping bob's grant
+        // relate the worker to a and b next to bob's grant
         await Relationship.replace(fixture.database, selection, [first!, second!], 1000);
         expect(await held()).toEqual(["a:worker", "b:bob", "b:worker"]);
 
-        // move the worker from a to c, keeping b's relationship and bob's grant
+        // move the worker from a to c without touching b's relationship or bob's grant
         const [kept] = await fixture.database
             .select({ id: accessRelationship.id })
             .from(accessRelationship)

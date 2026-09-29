@@ -1,3 +1,4 @@
+import { ObjectReference, type ObjectTypeReference } from "@destack/sync";
 import {
     and,
     eq,
@@ -13,7 +14,7 @@ import type { Snapshot } from "@destack/db/log";
 import { defineSchema, identifier, schema } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessName } from "../policy/expression.ts";
-import { ObjectReference, objectKey, type TypeReference } from "../policy/policy.ts";
+import { objectKey } from "../policy/policy.ts";
 import { keySubject, Subject, subjectKey } from "../policy/subject.ts";
 import { accessRelationship, type RelationshipColumnMap, type RelationshipRow } from "./table.ts";
 
@@ -98,14 +99,14 @@ export interface RelationshipSelection {
     /** The scope the relationships live in. */
     readonly scope: string;
     /** The object types the selection covers. */
-    readonly objects: readonly TypeReference[];
+    readonly objects: readonly ObjectTypeReference[];
     /** The declared relation. */
     readonly relation: string;
     /** The subject holding the relationships. */
     readonly subject: Subject;
 }
 
-/** Write a relationship as its row, living in the scope whose access it decides. */
+/** Write a relationship as a row in the scope it decides access for. */
 function encode(relationship: Relationship, scope: string) {
     return {
         id: identifier("relationship").parse(relationship.id),
@@ -207,7 +208,7 @@ async function readBySubject(
         }
     }
 
-    // read the relationships by subject, keeping those holding a wanted subject with its relation
+    // read the relationships of each wanted subject and relation
     const tuples = new Map(
         [...wanted.values()].map((held) => [JSON.stringify(held.slice(0, 4)), held.slice(0, 4)]),
     );

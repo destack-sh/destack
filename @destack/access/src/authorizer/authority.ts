@@ -6,7 +6,7 @@ import type { Access } from "./access.ts";
 import type { GrantFailure } from "./decision.ts";
 import type { Grant } from "./grant.ts";
 
-/** The columns naming a subject: its package, type, scope, identifier and, for a subject set, its relation. */
+/** The columns of a subject: its package, type, scope, identifier and set relation. */
 export interface SubjectColumns {
     /** The subject's package. */
     readonly packageId: SQLWrapper;
@@ -23,7 +23,7 @@ export interface SubjectColumns {
 /**
  * One authority of a caller: the represented subject, or a delegate with the principal it acts for.
  *
- * It matches subjects in memory and in SQL alike, each rule once in `isMember` and once in `match`.
+ * It matches subjects in memory with `isMember` and in SQL with `match`, with the same rules.
  */
 export class Authority {
     /** The authority's identities and every subject set they belong to. */
@@ -37,7 +37,7 @@ export class Authority {
         this.delegator = delegator;
     }
 
-    /** Decide whether a subject names the authority: a subject set it belongs to, one of its identities through wildcards, or anyone. */
+    /** Decide whether a subject matches the authority: through a subject set, a wildcard identity, or anyone. */
     isMember(subject: Subject): boolean {
         // match a subject set exactly
         if (subject.relation !== undefined) {

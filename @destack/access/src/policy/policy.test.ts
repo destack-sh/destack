@@ -3,7 +3,7 @@ import { Authorizer, INTRINSIC_POLICIES, none, Policy, principal, relation } fro
 import { account, group, module1, node, team } from "../test/fixture.ts";
 
 test("include the policies declared policies reference, transitively", () => {
-    // declare notes and teams: note viewers reference groups, whose members reference accounts
+    // declare notes and teams: note viewers reference groups of accounts
     const authorizer = new Authorizer([node, team]);
     const names = (policies: readonly { readonly name: string }[]) =>
         policies.map((policy) => policy.name);
@@ -12,7 +12,7 @@ test("include the policies declared policies reference, transitively", () => {
     expect(names(authorizer.policies()).sort()).toEqual(
         [...names(INTRINSIC_POLICIES), "node", "team", "group", "account"].sort(),
     );
-    expect(authorizer.policy(account.reference("global", "account-1"))).toBe(account);
+    expect(authorizer.policy(account.reference("universe", "account-1"))).toBe(account);
     expect(authorizer.policy(group.reference("space-1", "group-1"))).toBe(group);
 });
 
@@ -32,7 +32,7 @@ test("prefer a policy representing a principal and refuse two policies for one t
         relations: { viewer: { subjects: [principal.user, crew] } },
         permissions: { read: relation("viewer") },
     });
-    expect(new Authorizer([document]).policy(principal.user.reference("global", "u"))).toBe(user);
+    expect(new Authorizer([document]).policy(principal.user.reference("universe", "u"))).toBe(user);
 
     // refuse a second policy declaring the same type
     const copy = new Policy(module1.package, { name: "document", permissions: {} });
@@ -42,7 +42,7 @@ test("prefer a policy representing a principal and refuse two policies for one t
 });
 
 test("grant relations through the policy's grant permission unless they name another or none", () => {
-    // declare a shared folder whose owners only the system relates and whose roots own it
+    // declare a shared folder with system-related owners and root ownership
     const folder = new Policy(module1.package, {
         name: "folder",
         relations: {
@@ -54,7 +54,7 @@ test("grant relations through the policy's grant permission unless they name ano
         grantedBy: "share",
     });
 
-    // resolve each relation's grant permission, leaving the system-related one without
+    // resolve each relation's grant permission, none for the system-related one
     expect(
         Object.entries(folder.definition.relations).map(([name, entry]) => [name, entry.grantedBy]),
     ).toEqual([

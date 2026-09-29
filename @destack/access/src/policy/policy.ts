@@ -1,31 +1,11 @@
 import { defineSchema, schema } from "@destack/schema";
 import { PackageId, type Package } from "@destack/package";
+import { ObjectReference } from "@destack/sync";
 import { AccessName, type AccessExpression } from "./expression.ts";
 import { type RelationDefinition, type Subject, SubjectType } from "./subject.ts";
 import { AccessError } from "../error/index.ts";
 import { PolicyDescription } from "../inspect/policy.ts";
 import type { Elevation } from "../context/elevation.ts";
-
-/** A protected object: its type, the scope containing it, and its identifier there. */
-export const ObjectReference = defineSchema(
-    schema.object({
-        /** The package that declares the object type. */
-        packageId: PackageId,
-        /** The declaration-local object type name. */
-        type: AccessName,
-        /** The scope containing the object, the container for a scope object. */
-        scope: schema.string().min(1),
-        /** The stable application record identity. */
-        id: schema.string().min(1),
-    }),
-);
-/** A protected object: its type, the scope containing it, and its identifier there. */
-export type ObjectReference = schema.Infer<typeof ObjectReference>;
-
-/** A package-qualified object type. */
-export const TypeReference = defineSchema(ObjectReference.pick({ packageId: true, type: true }));
-/** A package-qualified object type. */
-export type TypeReference = schema.Infer<typeof TypeReference>;
 
 /** The relations and permissions of one type of object, as data access evaluates. */
 export interface PolicyDefinition {
@@ -47,9 +27,9 @@ export interface PolicyDefinition {
     readonly elevated?: Readonly<Record<string, Elevation>>;
     /** Permissions that stay available while the scope is suspended, such as reading and resuming it. */
     readonly administration?: readonly string[];
-    /** Whether the type's objects are scopes, holding other objects while living in their own container like any object. */
+    /** Whether the type's objects are scopes that hold other objects. */
     readonly scope?: true;
-    /** Whether the type's objects live in the global scope, so an identifier alone names each, as users do. */
+    /** Whether the type's objects live in the universe, like users. */
     readonly isGlobal?: true;
     /** The open relations of other types this type's objects may be subjects of. */
     readonly contributes?: readonly {
@@ -72,7 +52,7 @@ export class Policy<Name extends string = string> {
 
     /** Qualify the declared subject types by package and freeze a copy of the rules. */
     constructor(owner: Package, input: PolicyInput<Name>) {
-        // qualify subject types named by the declaring package, and grant relations as the policy does unless they say otherwise
+        // qualify the declaring package's subject types and default relation grants to the policy's
         const relations = Object.fromEntries(
             Object.entries(input.relations ?? {}).map(([name, relation]) => {
                 const grantedBy =
@@ -237,7 +217,7 @@ export type PermissionReference = schema.Infer<typeof PermissionReference>;
 /** Marks the permission references a policy produced. */
 declare const DECLARED: unique symbol;
 
-/** A permission of a policy, which only `Policy.permission` produces. */
+/** A permission of a policy, produced by `Policy.permission`. */
 export type Permission = PermissionReference & { readonly [DECLARED]: true };
 
 /**
@@ -251,7 +231,7 @@ export type SubjectTypeInput = string | Policy | PolicySubject | SubjectType;
 export interface RelationInput {
     /** The subject types the relation accepts. */
     readonly subjects: readonly SubjectTypeInput[];
-    /** The permission whose holders grant and revoke the relation, the policy's when absent, none when null. */
+    /** The permission to grant and revoke the relation: the policy's when absent, none when null. */
     readonly grantedBy?: string | null;
     /** Whether other types contribute themselves as subject types, as the hosts of an attachment do. */
     readonly open?: true;
@@ -267,7 +247,7 @@ export interface PolicyInput<Name extends string> {
     readonly relations?: Readonly<Record<string, RelationInput>>;
     /** Named permission expressions. */
     readonly permissions: Readonly<Record<Name, AccessExpression>>;
-    /** The permission whose holders bind roles on an object, and grant the relations naming no other. */
+    /** The permission to bind roles on an object and grant relations without their own. */
     readonly grantedBy?: NoInfer<Name>;
     /** Permissions only their expressions grant, never roles, not even owners'. */
     readonly reserved?: readonly NoInfer<Name>[];
@@ -275,9 +255,9 @@ export interface PolicyInput<Name extends string> {
     readonly elevated?: Readonly<Partial<Record<NoInfer<Name>, Elevation>>>;
     /** Permissions that stay available while the scope is suspended, such as reading and resuming it. */
     readonly administration?: readonly NoInfer<Name>[];
-    /** Whether the type's objects are scopes, holding other objects while living in their own container like any object. */
+    /** Whether the type's objects are scopes that hold other objects. */
     readonly scope?: boolean;
-    /** Whether the type's objects live in the global scope, so an identifier alone names each, as users do. */
+    /** Whether the type's objects live in the universe, like users. */
     readonly isGlobal?: boolean;
     /** The open relations of other types this type's objects may be subjects of, such as an attachment's parent. */
     readonly contributes?: readonly { readonly policy: Policy; readonly relation: string }[];

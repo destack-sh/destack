@@ -1,18 +1,14 @@
 import { and, asc, eq, or, type DatabaseConnection, type Select } from "@destack/db";
+import { Scope, type ObjectReference } from "@destack/sync";
 import { Snapshot } from "@destack/db/log";
 import { identifier } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
-import type { ObjectReference, PermissionReference } from "../policy/policy.ts";
+import type { PermissionReference } from "../policy/policy.ts";
 import { sameSubject, subjectKey, type Subject } from "../policy/subject.ts";
 import * as principal from "../policy/principal.ts";
 import { anyone, isPrincipal, principalOf, requirePrincipal } from "../policy/principal.ts";
-import {
-    GLOBAL_SCOPE,
-    VerifiedIdentifier,
-    verifiedIdentifiers,
-    type AccessContext,
-} from "../context/context.ts";
+import { VerifiedIdentifier, verifiedIdentifiers, type AccessContext } from "../context/context.ts";
 import { Relationship, type RelationshipRequest } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
 import { Capability, type Link } from "../relationship/link.ts";
@@ -25,19 +21,18 @@ import {
 import { accessProposal } from "../proposal/table.ts";
 import { Role, type RoleRequest } from "../role/role.ts";
 import { accessRole, accessRolePermission } from "../role/table.ts";
-import { accessScope } from "../scope/table.ts";
 import type { Access } from "./access.ts";
 import type { Admission, Authorizer } from "./authorizer.ts";
 import type { Decision } from "./decision.ts";
 import type { GrantReader } from "./grant.ts";
 
-/** What authorizing a relationship reads from a request, a proposal or a stored relationship, whose subject a proposal may leave open. */
+/** The relationship fields that authorization reads from a request, proposal or stored row. */
 type Grantable = Omit<RelationshipRequest, "subject" | "expiresAt"> & {
     readonly subject?: Subject;
     readonly expiresAt?: number | null;
 };
 
-/** The first relationships of a new object, which no grant can precede, and the owners of a new scope. */
+/** The first relationships of a new object and the owners of a new scope. */
 export interface Creation {
     /** The relations the object's first holders hold. */
     readonly relationships?: readonly {
@@ -48,7 +43,7 @@ export interface Creation {
     readonly owner?: Subject;
 }
 
-/** A caller's authorization under a set of policies in one database: what it may do, and the objects, grants, proposals and roles it changes access of. */
+/** A caller's authorization under a set of policies in one database. */
 export class Authorization {
     /** The policies deciding the caller's access. */
     readonly authorizer: Authorizer;
@@ -101,7 +96,7 @@ export class Authorization {
         return resolved;
     }
 
-    /** Forget every resolved scope, so the next decision reads current access, as long-lived streams do before each value. */
+    /** Forget every resolved scope so the next decision reads current access. */
     renew(): void {
         this.#resolved.clear();
     }
@@ -117,7 +112,7 @@ export class Authorization {
         await this.authorizer.require(snapshot, permissions, scope, access);
     }
 
-    /** Decide whether the caller holds a permission on one object, and until when that holds by time alone, through grants a reader shares. */
+    /** Decide whether the caller holds a permission on one object and until when. */
     async check(
         permission: PermissionReference,
         target: ObjectReference,
@@ -128,7 +123,7 @@ export class Authorization {
         return this.authorizer.check(this.snapshot, permission, target, access, reader);
     }
 
-    /** Start reading grants for decisions in a scope, which checks made before the call writes may share. */
+    /** Start reading grants for decisions in a scope. */
     async reader(scope: string): Promise<GrantReader> {
         return this.authorizer.reader(this.snapshot, (await this.in(scope)).scopes);
     }
@@ -139,7 +134,7 @@ export class Authorization {
         await this.authorizer.require(this.snapshot, [permission], target, access);
     }
 
-    /** Check a permission on rows of a scope, as they are or were, through grants a reader shares: the rows held, and until when. */
+    /** Check a permission on current or past rows of a scope and return the rows held and until when. */
     async checkRows(
         permission: PermissionReference,
         scope: string,
@@ -157,7 +152,7 @@ export class Authorization {
      * The object's own create permission is its caller's to require; the first holders relate without a grant, since none can precede them.
      */
     async create(object: ObjectReference, creation: Creation): Promise<void> {
-        // write only the access of an object this database holds, which no relationship names yet
+        // write the access of an object this database holds
         await this.authorizer.requireHeld(this.database, object);
         const [existing] = await this.database
             .select({ id: accessRelationship.id })
@@ -180,22 +175,22 @@ export class Authorization {
         // record a scope below the scopes containing it
         if (isScope) {
             const [parent] =
-                object.scope === GLOBAL_SCOPE
+                object.scope === Scope.universe.id
                     ? []
                     : await this.database
-                          .select({ ancestors: accessScope.ancestors })
-                          .from(accessScope)
-                          .where(eq(accessScope.scope, object.scope));
-            if (object.scope !== GLOBAL_SCOPE && parent === undefined) {
+                          .select({ ancestors: Scope.table.ancestors })
+                          .from(Scope.table)
+                          .where(eq(Scope.table.scope, object.scope));
+            if (object.scope !== Scope.universe.id && parent === undefined) {
                 throw new AccessError("NOT_FOUND", `unknown scope: ${object.scope}`);
             }
-            await this.database.insert(accessScope).values({
+            await this.database.insert(Scope.table).values({
                 scope: object.id,
                 parent: object.scope,
                 packageId: object.packageId,
                 type: object.type,
                 ancestors:
-                    object.scope === GLOBAL_SCOPE ? [] : [object.scope, ...parent!.ancestors],
+                    object.scope === Scope.universe.id ? [] : [object.scope, ...parent!.ancestors],
             });
         }
 
@@ -205,14 +200,14 @@ export class Authorization {
             await this.database.insert(accessRelationship).values(relationships);
         }
 
-        // define a scope's owner role and bind it to its owner, whose containers' owners own it otherwise
+        // define a scope's owner role and bind it to its owner
         if (creation.owner !== undefined) {
             await Role.own(this.database, object, creation.owner, context.now);
         }
         this.renew();
     }
 
-    /** Suspend a scope, withholding every permission within it but administration until resumed; its caller requires the permission to. */
+    /** Suspend a scope and withhold every permission in it except administration until resumed. */
     async suspend(object: ObjectReference): Promise<void> {
         await this.#suspension(object, this.context(object.id).now);
     }
@@ -262,7 +257,7 @@ export class Authorization {
         });
     }
 
-    /** Relate whoever presents a new secret to an object, as the caller may grant, returning the secret once. */
+    /** Relate the holder of a new secret to an object and return the secret once. */
     async link(request: {
         readonly object: ObjectReference;
         readonly relation: string;
@@ -369,7 +364,7 @@ export class Authorization {
                 await authorization.#authorizeGrant(proposed);
                 subject = proposed.subject!;
             }
-            // require the addressed principal for an offer, whose proposer still holds the authority it offered
+            // require the addressed principal for an offer
             else {
                 const accepting = requirePrincipal(context);
                 if (!Proposal.addresses(proposal, accepting, context)) {
@@ -450,7 +445,7 @@ export class Authorization {
         });
     }
 
-    /** List a page of the proposals the caller made, may lend authority for, or that address it, as it acts in a scope. */
+    /** List a page of the proposals the caller made, may lend authority for, or receives in a scope. */
     async addressed(scope: string, page: ProposalPage): Promise<Proposal[]> {
         // match the caller as proposer, lender, subject, or through a verified identifier
         const context = this.context(scope);
@@ -510,7 +505,7 @@ export class Authorization {
         });
     }
 
-    /** Change a role's name, purpose or permissions at a revision, granting only permissions the caller holds. */
+    /** Change a role's name, purpose or permissions at a revision within the caller's permissions. */
     async updateRole(
         scope: ObjectReference,
         id: string,
@@ -573,7 +568,7 @@ export class Authorization {
             }
             await this.#requireFresh(transaction, scope, [principal.role.permission("delete")]);
 
-            // refuse a role still bound or included, whose bindings and inclusions their grantors revoke first
+            // refuse deleting a role that is still bound or included
             const [binding] = await transaction
                 .select({ id: accessRelationship.id })
                 .from(accessRelationship)
@@ -626,14 +621,14 @@ export class Authorization {
             }
         }
 
-        // require a relation's grant permission, which lending a relation needs as much as granting it
+        // require the relation's grant permission to grant or lend it
         const access = await this.authorizer.resolve(this.snapshot, scope, context);
         const required: PermissionReference[] =
             onBehalfOf === undefined || request.role === undefined
                 ? [this.#grantPermission(request)]
                 : [];
 
-        // prevent escalation: bind or lend only roles the object's scope chain defines, whose permissions the caller already holds here
+        // prevent escalation: bind or lend only scope chain roles with permissions the caller holds
         const grants = request.role === undefined ? undefined : access.grants.get(request.role);
         if (request.role !== undefined && grants === undefined) {
             throw new AccessError("NOT_FOUND", "role not found");
@@ -666,7 +661,7 @@ export class Authorization {
         );
     }
 
-    /** Insert a valid relationship under a new identifier, refusing one that exists with the same conditions. */
+    /** Insert a valid relationship under a new identifier and refuse a duplicate. */
     async #insert(request: RelationshipRequest): Promise<Relationship> {
         // build the relationship
         const scope = this.authorizer.governingScope(request.object);
@@ -729,10 +724,10 @@ export class Authorization {
 
         // mark the scope's record
         const [marked] = await this.database
-            .update(accessScope)
+            .update(Scope.table)
             .set({ suspendedAt })
-            .where(eq(accessScope.scope, object.id))
-            .returning({ scope: accessScope.scope });
+            .where(eq(Scope.table.scope, object.id))
+            .returning({ scope: Scope.table.scope });
         if (marked === undefined) {
             throw new AccessError("NOT_FOUND", `unknown scope: ${object.id}`);
         }
@@ -740,7 +735,7 @@ export class Authorization {
     }
 }
 
-/** Refuse changing a row a declaration manages, which changes at its source until detached. */
+/** Refuse changing a row that a declaration manages until it is detached. */
 function requireUnmanaged(record: {
     readonly managerInstallationId: string | null;
     readonly detachedAt: number | null;
@@ -755,7 +750,7 @@ async function requireRemainingOwner(
     database: DatabaseConnection,
     row: Select<typeof accessRelationship>,
 ): Promise<void> {
-    // skip relations, which bind no role
+    // skip relations
     if (row.roleId === null) {
         return;
     }

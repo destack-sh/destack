@@ -1,4 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
+import { Scope } from "@destack/sync";
 import { Snapshot } from "@destack/db/log";
 import { and, asc, eq, ne } from "@destack/db";
 import { PackageId } from "@destack/package";
@@ -7,7 +8,6 @@ import {
     accessRelationship,
     accessRole,
     accessRolePermission,
-    accessScope,
     Authorization,
     Authorizer,
     principal,
@@ -35,11 +35,11 @@ import { openFixture } from "../test/database.ts";
 import { copyOwner, copyScope } from "../test/copy.ts";
 
 /** The members of carol's account as a subject set. */
-const carolMembership = { ...account.reference("global", "account-1"), relation: "member" };
+const carolMembership = { ...account.reference("universe", "account-1"), relation: "member" };
 
-/** A member of an account, holding roles through the membership. */
+/** A member of an account who holds roles through the membership. */
 const carol: AccessContext = {
-    subjects: [principal.user.reference("global", "carol"), carolMembership],
+    subjects: [principal.user.reference("universe", "carol"), carolMembership],
     now: 1000,
     attributes: {},
 };
@@ -163,9 +163,9 @@ test("ignore roles defined outside the object's scope chain", async () => {
 test("bind roles on enclosing scopes and compose roles through includes", async () => {
     const { database, readable, defineRole, relate } = await openRoleFixture();
 
-    // place the personal scope inside the account, which the account's members own
-    await copyScope(database, account.reference("global", "account-1"));
-    await copyOwner(database, account.reference("global", "account-1"), carolMembership, 1);
+    // place the personal scope inside the account its members own
+    await copyScope(database, account.reference("universe", "account-1"));
+    await copyOwner(database, account.reference("universe", "account-1"), carolMembership, 1);
     await copyScope(database, space.reference("account-1", "personal"));
 
     // bind an editor role including the reader role on the account
@@ -177,16 +177,16 @@ test("bind roles on enclosing scopes and compose roles through includes", async 
         subject: role.reference("account-1", reader),
     });
     await relate({
-        object: account.reference("global", "account-1"),
+        object: account.reference("universe", "account-1"),
         role: editor,
         subject: carolMembership,
     });
     expect(await readable(carol)).toEqual(["a", "b", "c"]);
 
-    // refuse deleting the included reader role, even for the account's owners, in the database holding the account
+    // refuse deleting the included reader role, even for the account's owners
     const home = new Authorizer(policies, homeMappings);
-    const object = account.reference("global", "account-1");
-    await database.insert(accountTable).values({ id: "account-1", scope: "global" });
+    const object = account.reference("universe", "account-1");
+    await database.insert(accountTable).values({ id: "account-1", scope: "universe" });
     await expect(
         new Authorization(home, database, () => carol).deleteRole(object, reader, 1),
     ).rejects.toThrow("role is still bound or included");
@@ -276,7 +276,7 @@ test("bind only roles whose permissions the granting caller holds", async () => 
         message: "permission denied: edit",
     });
 
-    // refuse binding a role to a subject set resolving never expands, which could never apply
+    // refuse binding a role to a subject set that resolving never expands
     await expect(
         new Authorization(query, database, () => alice).grant({
             object: node.reference("personal", "a"),
@@ -294,8 +294,8 @@ test("let owners hold everything in their scope, make owners, and never remove t
 
     // create the personal space in the database holding it, owned by carol: she reads every note in it
     const home = new Authorizer(policies, homeMappings);
-    const place = space.reference("global", "personal");
-    await database.insert(spaceTable).values({ id: "personal", account: "global" });
+    const place = space.reference("universe", "personal");
+    await database.insert(spaceTable).values({ id: "personal", account: "universe" });
     await new Authorization(home, database, () => carol).create(place, {
         owner: carol.subjects[0]!,
     });
@@ -310,7 +310,7 @@ test("let owners hold everything in their scope, make owners, and never remove t
         new Authorization(home, database, () => alice).grant({
             object: place,
             role: owner!.id,
-            subject: principal.user.reference("global", "bob"),
+            subject: principal.user.reference("universe", "bob"),
         }),
     ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: share" });
     const second = await new Authorization(home, database, () => carol).grant({
@@ -326,7 +326,7 @@ test("let owners hold everything in their scope, make owners, and never remove t
         permissions: [space.permission("share")],
     });
     const dave: AccessContext = {
-        subjects: [principal.user.reference("global", "dave")],
+        subjects: [principal.user.reference("universe", "dave")],
         now: 1000,
         attributes: {},
     };
@@ -339,7 +339,7 @@ test("let owners hold everything in their scope, make owners, and never remove t
         new Authorization(home, database, () => dave).grant({
             object: place,
             role: owner!.id,
-            subject: principal.user.reference("global", "bob"),
+            subject: principal.user.reference("universe", "bob"),
         }),
     ).rejects.toMatchObject({
         code: "FORBIDDEN",
@@ -365,17 +365,17 @@ test("let owners hold everything in their scope, make owners, and never remove t
 test("create a scope without owners of its own, which the owners of its account own", async () => {
     const { database } = await openRoleFixture();
 
-    // create the account owned by carol, and a space in it with no owner of its own, in the database holding both
+    // create carol's account and a space in it without its own owner
     const home = new Authorizer(policies, homeMappings);
     const asCarol = new Authorization(home, database, () => carol);
-    const owned = account.reference("global", "account-1");
+    const owned = account.reference("universe", "account-1");
     const place = space.reference("account-1", "shared");
-    await database.insert(accountTable).values({ id: "account-1", scope: "global" });
+    await database.insert(accountTable).values({ id: "account-1", scope: "universe" });
     await database.insert(spaceTable).values({ id: "shared", account: "account-1" });
     await asCarol.create(owned, { owner: carol.subjects[0]! });
     await asCarol.create(place, {});
 
-    // let carol hold everything in the space through her account, and refuse owners of an object that holds none
+    // let carol hold everything in the space through her account
     const access = await home.resolve(Snapshot.live(database), "shared", carol);
     const decision = await home.check(
         Snapshot.live(database),
@@ -404,9 +404,9 @@ test("list the spaces an account contains to the account's owner", async () => {
     ]);
 
     // record two accounts, their spaces, and carol as the first account's owner
-    await copyScope(database, account.reference("global", "account-1"));
-    await copyOwner(database, account.reference("global", "account-1"), carol.subjects[0]!, 1);
-    await copyScope(database, account.reference("global", "account-2"));
+    await copyScope(database, account.reference("universe", "account-1"));
+    await copyOwner(database, account.reference("universe", "account-1"), carol.subjects[0]!, 1);
+    await copyScope(database, account.reference("universe", "account-2"));
     for (const [id, owner] of [
         ["space-1", "account-1"],
         ["space-2", "account-1"],
@@ -433,27 +433,27 @@ test("list the spaces an account contains to the account's owner", async () => {
     expect(await listed(carol)).toEqual(["space-1", "space-2"]);
     expect(await listed(alice)).toEqual([]);
 
-    // list the same spaces from the scope records every database holds, leaving other scope types out
+    // list the same spaces from the scope records of every database
     await copyScope(database, account.reference("account-1", "account-3"));
     const scopes = new Authorizer(policies, mappings);
     const recorded = await database
-        .select({ id: accessScope.scope })
-        .from(accessScope)
+        .select({ id: Scope.table.scope })
+        .from(Scope.table)
         .where(
             scopes.where(
                 space.permission("read"),
                 await scopes.resolve(Snapshot.live(database), "account-1", carol),
             ),
         )
-        .orderBy(asc(accessScope.scope));
+        .orderBy(asc(Scope.table.scope));
     expect(recorded.map((row) => row.id)).toEqual(["space-1", "space-2"]);
 });
 
 test("refuse an offer whose proposer lost the authority to grant it", async () => {
     const { database, query, defineRole, relate } = await openRoleFixture();
-    const bob = principal.user.reference("global", "bob");
+    const bob = principal.user.reference("universe", "bob");
     const dave = {
-        subjects: [principal.user.reference("global", "dave")],
+        subjects: [principal.user.reference("universe", "dave")],
         now: 1000,
         attributes: {},
     };

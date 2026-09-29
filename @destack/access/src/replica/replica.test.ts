@@ -3,7 +3,7 @@ import { Snapshot } from "@destack/db/log";
 import { asc, type DatabaseConnection } from "@destack/db";
 import { Feed, Replica } from "@destack/sync";
 import {
-    ACCESS_TABLES,
+    accessTables,
     accessRelationship,
     COPY_NAME,
     Authorization,
@@ -19,6 +19,7 @@ import {
     mappings,
     node,
     policies,
+    policyTable,
     space,
     spaceTable,
 } from "../test/fixture.ts";
@@ -26,16 +27,16 @@ import { openFixture } from "../test/database.ts";
 
 /** The owner of the account and the space. */
 const alice: AccessContext = {
-    subjects: [principal.user.reference("global", "alice")],
+    subjects: [principal.user.reference("universe", "alice")],
     now: 1000,
     attributes: {},
 };
 
-/** A member of the account, holding its roles through the membership. */
+/** A member of the account who holds roles through the membership. */
 const carol: AccessContext = {
     subjects: [
-        principal.user.reference("global", "carol"),
-        { ...account.reference("global", "account-1"), relation: "member" },
+        principal.user.reference("universe", "carol"),
+        { ...account.reference("universe", "account-1"), relation: "member" },
     ],
     now: 1000,
     attributes: {},
@@ -75,8 +76,8 @@ test("relay an account's access through the space's database into an app's, and 
     const notes = app.authorizer;
 
     // create the account owned by alice, with a reader role bound to its members
-    await global.database.insert(accountTable).values({ id: "account-1", scope: "global" });
-    const object = account.reference("global", "account-1");
+    await global.database.insert(accountTable).values({ id: "account-1", scope: "universe" });
+    const object = account.reference("universe", "account-1");
     const owner = new Authorization(accounts, global.database, () => alice);
     await owner.create(object, { owner: alice.subjects[0]! });
     const reader = await owner.createRole(object, {
@@ -87,7 +88,7 @@ test("relay an account's access through the space's database into an app's, and 
     const binding = await owner.grant({ object, role: reader.id, subject: carol.subjects[1]! });
 
     // copy the account into the regional database, then create the space there
-    const accountFeed = new Feed(global.database, ACCESS_TABLES);
+    const accountFeed = new Feed(global.database, [...accessTables, policyTable]);
     await copy(regional.database, spaces.replica("account-1"), accountFeed);
     await regional.database.insert(spaceTable).values({ id: "personal", account: "account-1" });
     await new Authorization(spaces, regional.database, () => alice).create(
@@ -96,7 +97,7 @@ test("relay an account's access through the space's database into an app's, and 
     );
 
     // relay the space and the account from the regional database into the app's, where carol reads every note
-    const spaceFeed = new Feed(regional.database, ACCESS_TABLES);
+    const spaceFeed = new Feed(regional.database, [...accessTables, policyTable]);
     const relay = async () => {
         await copy(regional.database, spaces.replica("account-1"), accountFeed);
         await copy(app.database, notes.replica("account-1"), spaceFeed);
@@ -118,7 +119,7 @@ test("relay an account's access through the space's database into an app's, and 
         ).map((row) => row.id);
     expect(await readable(carol)).toEqual(["a", "b", "c"]);
 
-    // revoke the binding in the account's database, and refuse deciding on copies their home has not confirmed since
+    // revoke the binding in the account's database and refuse deciding on unconfirmed copies
     await owner.revoke(object, binding.id);
     const revoked = await global.database.log.position();
     const impatient = new Authorizer(policies, mappings, { lag: 50 });
@@ -135,12 +136,12 @@ test("relay an account's access through the space's database into an app's, and 
     const origins = await Replica.origins(app.database, COPY_NAME, ["account-1"]);
     expect(origins.get("account-1")?.position).toEqual(revoked);
 
-    // refuse writing the account's access in the app's database, which only copies it
+    // refuse writing the account's access in the app's copy
     await expect(
         new Authorization(notes, app.database, () => alice).grant({
             object,
             relation: "member",
-            subject: principal.user.reference("global", "dave"),
+            subject: principal.user.reference("universe", "dave"),
         }),
     ).rejects.toMatchObject({
         code: "FORBIDDEN",
@@ -156,7 +157,7 @@ test("relay an account's access through the space's database into an app's, and 
     expect(own.filter((row) => row.type === node.name)).toEqual([{ type: "node", objectId: "b" }]);
 });
 
-/** Apply what a source's feed streams for a copy until it reaches the source's head, from the copy's position or a fresh snapshot. */
+/** Apply a source's feed to a copy until it reaches the source's head. */
 async function copy(
     database: DatabaseConnection,
     replica: Replica,

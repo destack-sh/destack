@@ -1,9 +1,9 @@
 import type { DatabaseConnection } from "@destack/db";
 import type { Snapshot } from "@destack/db/log";
 import type { PackageId } from "@destack/package";
-import { Replica } from "@destack/sync";
+import { Replica, type ScopeLink, Scope, type ObjectReference } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
-import { permissionKey, type ObjectReference, type PermissionReference } from "../policy/policy.ts";
+import { permissionKey, type PermissionReference } from "../policy/policy.ts";
 import { subjectKey, type Subject, type SubjectType } from "../policy/subject.ts";
 import { ACCESS_PACKAGE_ID } from "../policy/principal.ts";
 import * as principal from "../policy/principal.ts";
@@ -20,9 +20,7 @@ import { Authority } from "./authority.ts";
 import { GrantCondition, type ConditionContext } from "./condition.ts";
 import type { Gate } from "./decision.ts";
 import { Authorizer } from "./authorizer.ts";
-import type { ScopeLink } from "../scope/scope.ts";
 import { type FieldRelation, TableMapping } from "./mapping.ts";
-import { Scope } from "../scope/scope.ts";
 
 /** A caller's access in one scope: its authorities, the scope chain, the roles along it, and the time it holds for. */
 export class Access {
@@ -30,7 +28,7 @@ export class Access {
     readonly scope: string;
     /** The caller. */
     readonly context: AccessContext;
-    /** The represented subject, then each delegate through what it was lent, every one of which must be admitted. */
+    /** The represented subject and each delegate with its lent authority, all of which must be admitted. */
     readonly authorities: readonly Authority[];
     /** The objects of the scope and every scope enclosing it, nearest first. */
     readonly scopes: readonly ObjectReference[];
@@ -38,9 +36,9 @@ export class Access {
     readonly grants: ReadonlyMap<string, RoleGrant>;
     /** Whether the scope or one enclosing it is suspended, withholding every permission but administration. */
     readonly isSuspended: boolean;
-    /** The fenced scope nearest in the chain and the holder it moves to. */
-    readonly moved: { readonly scope: string; readonly holder: string } | undefined;
-    /** The next moment time alone changes the caller's subject sets, roles or elevation, absent when it never does. */
+    /** The fenced scope nearest in the chain and the cell it moves to. */
+    readonly moved: { readonly scope: string; readonly cell: string } | undefined;
+    /** The next moment time changes the caller's subject sets, roles or elevation. */
     readonly until: number | undefined;
     /** The roles along the scope chain that grant each permission, by permission key. */
     readonly #roles: ReadonlyMap<string, readonly string[]>;
@@ -71,7 +69,7 @@ export class Access {
         this.isSuspended = resolved.links.some((link) => link.isSuspended);
         const fenced = resolved.links.find((link) => link.movedTo !== undefined);
         this.moved =
-            fenced === undefined ? undefined : { scope: fenced.object.id, holder: fenced.movedTo! };
+            fenced === undefined ? undefined : { scope: fenced.object.id, cell: fenced.movedTo! };
         this.until = resolved.until;
 
         // index the roles by the permissions they grant, apart from the roles granting everything
@@ -97,7 +95,7 @@ export class Access {
     /**
      * Resolve a caller in a scope as a snapshot shows its access: its subject sets, the scope chain and the roles along it, in small indexed reads issued together.
      *
-     * It refuses to decide on a copy of the chain's access whose home stayed silent past the authorizer's lag.
+     * It refuses to decide on a stale copy of the chain's access.
      * A caller that read the chain in the same snapshot passes its links as `known`.
      */
     static async resolve(
@@ -116,7 +114,7 @@ export class Access {
         const links = known ?? (await Scope.chain(snapshot, scope));
         const chain = [scope, ...links.map((link) => link.object.id).filter((id) => id !== scope)];
 
-        // read the roles alongside the caller's and every lent delegate's subject sets, refusing copies whose home went silent
+        // read the roles and the subject sets of the caller and every lent delegate
         const lent = delegationChain(context).filter((link) => link.authority === "lent");
         const [roles, , represented, delegates] = await Promise.all([
             readRoles(snapshot, chain, context),
@@ -157,7 +155,7 @@ export class Access {
         });
     }
 
-    /** Add every subject set some subjects belong to through current relationships and fields, breadth first, with the next moment time changes them. */
+    /** Add the subject sets of some subjects breadth first, with the next moment time changes them. */
     static async expand(
         snapshot: Snapshot,
         subjects: readonly Subject[],
@@ -208,7 +206,7 @@ export class Access {
         return { subjects: expanded, until: earliest(boundaries) };
     }
 
-    /** List the roles along the scope chain granting a permission, which reserved permissions have none of. */
+    /** List the roles along the scope chain that grant a permission. */
     granting(permission: PermissionReference): readonly string[] {
         const key = permissionKey(permission);
 
@@ -236,7 +234,7 @@ export class Access {
     /**
      * Decide whether the credential allows a permission on an object, directly or through its source.
      *
-     * A derivation through a relation needs the object's row, which names the related object.
+     * A derivation through a relation needs the object's row to find the related object.
      */
     admits(
         permission: PermissionReference,
@@ -288,14 +286,14 @@ export class Access {
         return undefined;
     }
 
-    /** Report whether the caller authenticated as a permission's elevation asks, as every caller does for a permission without one. */
+    /** Report whether the caller meets a permission's elevation. */
     elevates(permission: PermissionReference): boolean {
         const elevation = this.#authorizer.elevated.get(permissionKey(permission));
 
         return elevation === undefined || Elevation.admits(elevation, this.context);
     }
 
-    /** Read the scope's own object when a mapping holds objects of its type, which lives in the scope containing it. */
+    /** Read the scope's own object from its containing scope when a mapping holds its type. */
     own(mapping: TableMapping): ObjectReference | undefined {
         const own = this.scopes[0];
         const definition = mapping.policy.definition;
@@ -308,7 +306,7 @@ export class Access {
     }
 }
 
-/** Refuse the copies of a chain's access whose home stayed silent past the lag, which may keep granting what their home revoked. */
+/** Refuse copies of a chain's access with a home silent for longer than the lag. */
 async function requireConfirmed(
     database: DatabaseConnection,
     chain: readonly string[],
@@ -404,7 +402,7 @@ async function memberships(
     );
 }
 
-/** Read the sets a field makes some subjects members of: the rows holding them, in the row's scope unless the field names its subjects' scope. */
+/** Read the sets a field makes some subjects members of. */
 async function fieldSets(
     snapshot: Snapshot,
     entry: FieldRelation,

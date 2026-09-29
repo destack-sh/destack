@@ -5,9 +5,6 @@ import { sameSubject, Subject } from "../policy/subject.ts";
 import type { Restriction } from "./restriction.ts";
 import type { Attribute } from "../policy/expression.ts";
 
-/** The scope of rows outside every other scope, such as users and organisations. */
-export const GLOBAL_SCOPE = "global";
-
 /** An identifier a principal proves control of, such as `email:bob@acme.com`, written `scheme:value`. */
 export const VerifiedIdentifier = defineSchema(
     schema
@@ -24,7 +21,7 @@ export const Delegate = defineSchema(
     schema.object({
         /** The acting principal. */
         subject: Subject,
-        /** What it acts with: what the one before lent it, or the one before's whole authority, as when impersonating. */
+        /** The authority it acts with: lent by the one before, or all of the one before's authority. */
         authority: schema.enum(["lent", "full"]),
     }),
 );
@@ -42,7 +39,7 @@ export interface AccessContext {
     readonly permissions?: readonly Restriction[];
     /** Authenticated represented identity, required for delegated calls. */
     readonly subject?: Subject;
-    /** The principals acting in order, each for the one before and the first for the subject; the last sends the request. */
+    /** The principals acting for the subject in order; the last sends the request. */
     readonly delegates?: readonly Delegate[];
     /** Current identities and verified subject sets; empty means anonymous. */
     readonly subjects: readonly Subject[];
@@ -103,14 +100,14 @@ export function delegationChain(
     });
 }
 
-/** Read the identifiers the represented subject proved, which a delegate acting with lent authority never inherits. */
+/** Read the identifiers the represented subject proved, empty under lent authority. */
 export function verifiedIdentifiers(context: AccessContext): readonly string[] {
     const isLent = context.delegates?.some((delegate) => delegate.authority === "lent") ?? false;
 
     return isLent ? [] : (context.identifiers ?? []);
 }
 
-/** Read the request attribute a policy condition names, refusing a missing or non-finite one rather than inventing it. */
+/** Read a request attribute for a policy condition and refuse a missing or non-finite one. */
 export function requireAttribute(context: AccessContext, name: string): Scalar {
     const value = context.attributes[name];
     if (

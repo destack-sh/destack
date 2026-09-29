@@ -1,31 +1,26 @@
 import type { Table } from "@destack/db";
-import { REPLICA_TABLES } from "@destack/sync";
+import { replicaTables, Scope } from "@destack/sync";
 import type { TableMapping } from "../authorizer/mapping.ts";
 import { proposal, relationship, role } from "../policy/principal.ts";
 import { accessRelationship } from "../relationship/table.ts";
 import { accessRole, accessRolePermission } from "../role/table.ts";
-import { accessScope } from "../scope/table.ts";
 import { accessProposal } from "../proposal/table.ts";
 
-/** The name of every copy of a scope's access, which each database holds one of per scope it copies. */
-export const COPY_NAME = "access";
+/** The name of each database's copy of its scope chain. */
+export const COPY_NAME = "chain";
 
-/** The access tables a decision reads, which databases copy for the scopes they decide in, parents before the rows referencing them. */
-export const DECISION_TABLES: readonly Table[] = [
-    accessScope,
+/** The access tables decisions read, parents first. */
+export const decisionTables: readonly Table[] = [
+    Scope.table,
     accessRole,
     accessRolePermission,
     accessRelationship,
 ];
 
-/** The tables of every database holding protected objects: the decision tables, proposals, and the copies' records. */
-export const ACCESS_TABLES: readonly Table[] = [
-    ...DECISION_TABLES,
-    accessProposal,
-    ...REPLICA_TABLES,
-];
+/** The tables of every database holding protected objects. */
+export const accessTables: readonly Table[] = [...decisionTables, accessProposal, ...replicaTables];
 
-/** Map access's own tables as objects, so their rows are listed, followed and explained like any other. */
+/** The mappings of access's own tables. */
 export const ACCESS_MAPPINGS: readonly TableMapping[] = [
     { policy: role, table: accessRole, id: "id", scope: "scope", attributes: {}, relations: {} },
     {

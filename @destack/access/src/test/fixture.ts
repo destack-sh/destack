@@ -14,7 +14,7 @@ import {
 } from "../index.ts";
 import { defineTable, index, integer, TABLE, text } from "@destack/db";
 import { Condition } from "@destack/db/query";
-import { ACCESS_TABLES, type TableMapping } from "../index.ts";
+import { accessTables, type TableMapping } from "../index.ts";
 import { PackageId } from "@destack/package";
 
 /** Declare objects under a fixed test package. */
@@ -41,7 +41,7 @@ const RECENT = { assurance: 2, maxAge: 15 * 60 * 1000 };
 /** The permissions the test scope and group types grant through roles. */
 const OBJECT_PERMISSIONS = { read: none(), update: none(), delete: none(), share: none() };
 
-/** An account, the root scope of its spaces, whose members are users and whose root owns it. */
+/** Accounts: the root scopes of spaces, with users as members. */
 export const account = new Policy(module4.package, {
     name: "account",
     relations: {
@@ -187,7 +187,7 @@ export const item = defineTable(
     { tree: { id: "id", scope: "scope", parent: "parent" } },
 );
 
-/** Groups, whose members are relationships. */
+/** Groups with relationships as members. */
 export const groupTable = defineTable("example_group", {
     id: text("id").primaryKey().notNull(),
     scope: text("scope").notNull(),
@@ -204,11 +204,23 @@ export const teamTable = defineTable(
     { constraints: (team) => [index("example_team_member").on(team.member)] },
 );
 
-/** Accounts, scope objects living in the global scope. */
+/** Accounts, scope objects living in the universe. */
 export const accountTable = defineTable("example_account", {
     id: text("id").primaryKey().notNull(),
     scope: text("scope").notNull(),
 });
+
+/** Policies a scope sets for itself or hands down to the scopes inside it. */
+export const policyTable = defineTable(
+    "example_policy",
+    {
+        id: text("id").primaryKey().notNull(),
+        scope: text("scope").notNull(),
+        mode: text("mode", { enum: ["set", "require"] }).notNull(),
+        value: text("value").notNull(),
+    },
+    { log: {} },
+);
 
 /** Spaces, scope objects listed by the account containing them. */
 export const spaceTable = defineTable("example_space", {
@@ -219,8 +231,20 @@ export const spaceTable = defineTable("example_space", {
 /** The ancestor index over the items' parent column. */
 export const nodeTree = item[TABLE].tree!;
 
+/** Policies a scope sets for itself or requires of the scopes inside it. */
+export const policy = new Policy(module4.package, { name: "policy", permissions: {} });
+
 /** Map application records and the indexed parent tree to access declarations. */
 export const mappings: TableMapping[] = [
+    {
+        policy,
+        table: policyTable,
+        id: "id",
+        scope: "scope",
+        attributes: {},
+        relations: {},
+        inherited: Condition.eq("mode", "require"),
+    },
     { policy: group, table: groupTable, id: "id", scope: "scope", attributes: {}, relations: {} },
     {
         policy: team,
@@ -228,7 +252,7 @@ export const mappings: TableMapping[] = [
         id: "id",
         scope: "scope",
         attributes: {},
-        relations: { member: { column: "member", scope: "global" } },
+        relations: { member: { column: "member", scope: "universe" } },
     },
     ...[node, cell, entity].map((type): TableMapping => ({
         policy: type,
@@ -239,14 +263,14 @@ export const mappings: TableMapping[] = [
             Object.keys(type.definition.attributes).map((name) => [name, name]),
         ),
         relations: {
-            owner: { column: "owner", scope: "global" },
+            owner: { column: "owner", scope: "universe" },
             ...(type === node ? { parent: { column: "parent" } } : {}),
         },
         trees: type === node ? { parent: nodeTree } : {},
     })),
 ];
 
-/** The mappings of a database holding the scope objects as well, which writes their access. */
+/** The mappings of a database that also holds and writes the scope objects. */
 export const homeMappings: TableMapping[] = [
     ...mappings,
     {
@@ -261,7 +285,7 @@ export const homeMappings: TableMapping[] = [
 ];
 
 /** The fixture's policies. */
-export const policies = [account, space, group, team, node, cell, entity];
+export const policies = [account, space, group, team, node, cell, entity, policy];
 
 /** The fixture's application and access tables. */
 export const fixtureTables = [
@@ -270,7 +294,8 @@ export const fixtureTables = [
     teamTable,
     accountTable,
     spaceTable,
-    ...ACCESS_TABLES,
+    policyTable,
+    ...accessTables,
 ];
 
 /** The fixture database holding the application and access tables. */

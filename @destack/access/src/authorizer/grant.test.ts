@@ -35,7 +35,7 @@ const MODELS = 6;
 /** The time every generated request happens at. */
 const NOW = 1000;
 
-/** Draw numbers from a seeded sequence, so a failing model repeats. */
+/** Draw numbers from a seeded sequence. */
 function random(seed: number) {
     let state = seed;
 
@@ -75,7 +75,7 @@ test.for(TEST_DIALECTS)(
             ),
         ];
 
-        // define a role reading and editing nodes in the scope, and reading cells, which it grants on nodes across types
+        // define a role that reads and edits nodes and reads cells across types
         const roleId = "role-01996ab0-0000-7000-8000-000000000101";
         await database.insert(accessRole).values({
             id: roleId,
@@ -97,7 +97,7 @@ test.for(TEST_DIALECTS)(
         await database.insert(teamTable).values({ id: "t1", scope: "personal", member: "bob" });
 
         // relate subjects through every relation shape and condition
-        const user = (id: string) => principal.user.reference("global", id);
+        const user = (id: string) => principal.user.reference("universe", id);
         const subjects: Subject[] = [
             user("bob"),
             user("carol"),
@@ -263,7 +263,7 @@ test.for(TEST_DIALECTS)(
                                         decided.push(row.id);
                                     }
 
-                                    // decide a permission of another type, which roles bound on or above the node grant, as the object query does
+                                    // decide a permission of another type from roles bound on or above the node
                                     const across = cell.permission("read");
                                     const crossed = await authorizer.check(
                                         snapshot,
@@ -343,7 +343,7 @@ test("read an intersection's grants as the superset its decisions change with", 
     const fixture = await openFixture();
     onTestFinished(() => fixture.close());
 
-    // read the owner each cell's edit permission reaches, which grants alone cannot decide
+    // read the owner each cell's edit permission reaches
     const { database, authorizer } = fixture;
     const rows = await database.select().from(item).orderBy(asc(item.id));
     const trees = await authorizer

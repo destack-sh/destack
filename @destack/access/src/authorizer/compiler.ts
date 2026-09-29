@@ -1,7 +1,8 @@
+import { type ObjectReference } from "@destack/sync";
 import { alias, inArray, sql, type SQL, type SQLWrapper, type Table } from "@destack/db";
 import { Condition, type Binding } from "@destack/db/query";
 import { AccessError } from "../error/index.ts";
-import { objectKey, type ObjectReference, type PermissionReference } from "../policy/policy.ts";
+import { objectKey, type PermissionReference } from "../policy/policy.ts";
 import type { AccessExpression } from "../policy/expression.ts";
 import { accepts, subjectKey, type RelationDefinition } from "../policy/subject.ts";
 import { requireAttribute, type AccessContext } from "../context/context.ts";
@@ -76,9 +77,9 @@ export class Compiler {
         return sql`(${located} AND (${sql.join(predicates, sql` AND `)}))`;
     }
 
-    /** Match one object, in its own scope or as the scope's own object, if the caller holds a permission of its type or through a role of another's. */
+    /** Match one object in its scope, or the scope's own object, if the caller holds a permission on it. */
     holds(permission: PermissionReference, target: ObjectReference, access: Access): SQL {
-        // deny a request its elevation or suspension refuses, or its credential refuses for another type's permission
+        // deny a request that its elevation, suspension or credential refuses
         const isOwn = permission.packageId === target.packageId && permission.type === target.type;
         if (
             access.blocked(permission) !== undefined ||
@@ -104,7 +105,7 @@ export class Compiler {
         });
     }
 
-    /** Match one object of the resolved scope, or the scope's own object in its container, when every authority satisfies a predicate on its row. */
+    /** Match one object of the resolved scope when every authority satisfies a predicate on its row. */
     #target(
         target: ObjectReference,
         access: Access,
@@ -133,7 +134,7 @@ export class Compiler {
     /**
      * Match the objects the credential allows a permission on, directly or through its source.
      *
-     * A derivation through a relation needs the objects' rows, which name the related objects.
+     * A derivation through a relation needs the objects' rows to find the related objects.
      */
     #restricted(
         permission: PermissionReference,
@@ -319,7 +320,7 @@ export class Compiler {
         }
     }
 
-    /** Match rows whose referenced object the caller may grant on, through the grant permission of that object's own type. */
+    /** Match rows with a referenced object the caller holds the grant permission on. */
     #grants(
         reference: string,
         mapping: TableMapping,
@@ -374,7 +375,7 @@ export class Compiler {
                 ? sql`false`
                 : sql`coalesce(${inArray(column(source, field.column), keys)}, false)`;
         }
-        // match a subject whose type, scope and relation the row's columns name
+        // match a subject by the type, scope and relation in the row's columns
         else if (field?.subject !== undefined) {
             const subject = {
                 packageId: column(source, field.subject.packageId),
@@ -453,7 +454,7 @@ export class Compiler {
             return { subject, target, parent, predicate };
         });
 
-        // follow relationships to plain objects in the same scope, whose arrows hold without delegation
+        // follow relationships to plain objects in the same scope without delegation
         if (!field) {
             const relationship = alias(
                 accessRelationship,

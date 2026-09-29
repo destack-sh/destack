@@ -16,10 +16,10 @@ const elevationSchema = defineSchema(
 /** The authentication a sensitive permission requires: an assurance level reached recently enough. */
 export type Elevation = schema.Infer<typeof elevationSchema>;
 
-/** The authentication a refused caller reaches to be admitted, as a step-up challenge names it: the assurance level, and the permission's elevation age when it has one. */
+/** The authentication a step-up challenge asks of a refused caller: the assurance level and elevation age. */
 export type StepUp = Pick<Elevation, "assurance"> & Partial<Pick<Elevation, "maxAge">>;
 
-/** The authentication a sensitive permission requires, as OpenID Connect's `acr_values` and `max_age` name it: its schema, and the requests it admits. */
+/** The authentication a sensitive permission requires, like OpenID Connect's `acr_values` and `max_age`. */
 export const Elevation = {
     /** The schema of an elevation. */
     schema: elevationSchema,
@@ -38,7 +38,7 @@ function admits(elevation: Elevation, context: AccessContext): boolean {
     );
 }
 
-/** Read the moment an admitted request's authentication grows too old for the elevation, absent for a request it does not admit. */
+/** Read the moment an admitted request's authentication grows too old for the elevation. */
 function until(elevation: Elevation, context: AccessContext): number | undefined {
     return admits(elevation, context)
         ? context.assurance!.authenticatedAt + elevation.maxAge

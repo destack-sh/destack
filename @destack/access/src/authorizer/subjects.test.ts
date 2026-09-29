@@ -12,7 +12,7 @@ test.for(TEST_DIALECTS)(
         const fixture = await openFixture(dialect);
         onTestFinished(() => fixture.close());
         const { database, authorizer } = fixture;
-        const user = (id: string) => principal.user.reference("global", id);
+        const user = (id: string) => principal.user.reference("universe", id);
         const relate = (object: Relationship["object"], relation: string, subject: Subject) =>
             database.insert(accessRelationship).values(
                 Relationship.encode(
@@ -37,7 +37,7 @@ test.for(TEST_DIALECTS)(
         await relate(outer, "member", { ...inner, relation: "member" });
         await relate(inner, "member", user("dave"));
 
-        // list alice as owner, carol and dave through the groups, leaving out the wildcard; b's viewers of a do not inherit it
+        // list alice as owner and carol and dave through the groups, without the wildcard or b's viewers
         const readers = async (id: string) =>
             (
                 await authorizer.subjects(
@@ -54,7 +54,7 @@ test.for(TEST_DIALECTS)(
             )
                 .map((subject) => subject.id)
                 .sort();
-        // walk note a's readers two at a time in key order, each page after the last one's key
+        // walk note a's readers in pages of two in key order
         const page = (after?: string) =>
             authorizer.subjects(
                 Snapshot.live(database),

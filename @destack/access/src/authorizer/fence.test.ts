@@ -1,12 +1,11 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { Snapshot } from "@destack/db/log";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { GLOBAL_SCOPE } from "../context/context.ts";
 import { principal } from "../policy/principal.ts";
 import { copyScope } from "../test/copy.ts";
 import { account, fixtureDatabase, mappings, policies, space } from "../test/fixture.ts";
-import { Authorizer } from "../authorizer/authorizer.ts";
-import { Scope } from "./scope.ts";
+import { Authorizer } from "./authorizer.ts";
+import { Scope } from "@destack/sync";
 
 test.for(TEST_DIALECTS)(
     "fence a scope for a transfer, moving it and the scopes below it until unfenced, on %s",
@@ -17,10 +16,10 @@ test.for(TEST_DIALECTS)(
         const authorizer = new Authorizer(policies, mappings);
 
         // hold an account and a space inside it
-        await copyScope(database, account.reference(GLOBAL_SCOPE, "account-a"));
+        await copyScope(database, account.reference(Scope.universe.id, "account-a"));
         await copyScope(database, space.reference("account-a", "space-a"));
         const context = {
-            subjects: [principal.user.reference("global", "alice")],
+            subjects: [principal.user.reference("universe", "alice")],
             now: 1000,
             attributes: {},
         };
@@ -35,8 +34,8 @@ test.for(TEST_DIALECTS)(
         // move the account and the space below it once fenced, and neither once unfenced
         await Scope.fence(database, "account-a", "host-b", 2000);
         expect(await moved()).toEqual([
-            { scope: "account-a", holder: "host-b" },
-            { scope: "account-a", holder: "host-b" },
+            { scope: "account-a", cell: "host-b" },
+            { scope: "account-a", cell: "host-b" },
         ]);
         await Scope.unfence(database, "account-a");
         expect(await moved()).toEqual([undefined, undefined]);
@@ -60,7 +59,7 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
             await other.close();
             await storage.close();
         });
-        await copyScope(storage.database, account.reference(GLOBAL_SCOPE, "account-a"));
+        await copyScope(storage.database, account.reference(Scope.universe.id, "account-a"));
 
         // hold a write guarding the scope open while a fence starts on another connection
         const events: string[] = [];

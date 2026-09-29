@@ -17,13 +17,13 @@ export async function openFixture(dialect = TEST_DIALECTS.at(-1)!) {
 
     // authenticate two independent users
     const alice: AccessContext = {
-        subjects: [principal.user.reference("global", "alice")],
+        subjects: [principal.user.reference("universe", "alice")],
         now: 1000,
         attributes: {},
     };
     const bob: AccessContext = {
         ...alice,
-        subjects: [principal.user.reference("global", "bob")],
+        subjects: [principal.user.reference("universe", "bob")],
     };
 
     // populate the migrated database and grant bob one note
@@ -31,7 +31,7 @@ export async function openFixture(dialect = TEST_DIALECTS.at(-1)!) {
     await new Authorization(authorizer, database, () => alice).grant({
         object: node.reference("personal", "b"),
         relation: "editor",
-        subject: principal.user.reference("global", "bob"),
+        subject: principal.user.reference("universe", "bob"),
     });
 
     return { test, database, authorizer, alice, bob, close: () => test.close() };
@@ -39,5 +39,5 @@ export async function openFixture(dialect = TEST_DIALECTS.at(-1)!) {
 
 /** Reference a globally identified user. */
 export function userSubject(id: string): Subject {
-    return principal.user.reference("global", id);
+    return principal.user.reference("universe", id);
 }

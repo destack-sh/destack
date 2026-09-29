@@ -22,7 +22,7 @@ export const accessProposal = defineTable(
         id: identifier("id", "proposal").primaryKey(),
         /** Creation time in UTC epoch milliseconds. */
         createdAt: integer("created_at").notNull(),
-        /** The scope the proposal lives in, whose access it decides: a scope object's own scope, else the object's scope; routing its changes. */
+        /** The scope the proposal lives in and routes changes to. */
         scope: text("scope").notNull(),
         /** The scope containing the object. */
         objectScope: text("object_scope").notNull(),
@@ -54,7 +54,7 @@ export const accessProposal = defineTable(
         expiresAt: integer("expires_at").notNull(),
     },
     {
-        log: { tier: "history" },
+        log: { retention: "history" },
         constraints: (proposal) => [
             index("proposal_object").on(
                 proposal.objectScope,

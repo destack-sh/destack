@@ -1,4 +1,5 @@
 import type {} from "@destack/package/import-meta";
+import { SYNC_PACKAGE } from "@destack/sync";
 import { grants, none, relation, union } from "./expression.ts";
 import { Policy } from "./policy.ts";
 import { AccessError } from "../error/index.ts";
@@ -19,11 +20,18 @@ export const principal = {
     host: new Policy(OWNER, { name: "host", permissions: {}, scope: true }),
     /** A region of Destack's hosted platform, administering the spaces placed in it. */
     region: new Policy(OWNER, { name: "region", permissions: {}, isGlobal: true }),
-    /** An application installed into an account or space, living there: the principal of software, wherever it runs. */
+    /** An application installed into an account or space: the principal of software. */
     installation: new Policy(OWNER, { name: "installation", permissions: {} }),
     /** A non-person identity an account creates for automation, living in that account. */
     serviceAccount: new Policy(OWNER, { name: "service-account", permissions: {} }),
 };
+
+/** The universe, the root scope: roles and inherited rows bound on it apply in every scope. */
+export const universe = new Policy(SYNC_PACKAGE, {
+    name: "universe",
+    permissions: {},
+    scope: true,
+});
 
 /** Every caller, signed in or anonymous, related through its wildcard; links condition such grants on a capability. */
 export const anyone = new Policy(OWNER, { name: "anyone", permissions: {} });
@@ -35,14 +43,14 @@ export const role = new Policy(OWNER, {
     permissions: { create: none(), read: none(), update: none(), delete: none(), share: none() },
 });
 
-/** A relation or role binding between a subject and an object: its subject reads it, and so does whoever may grant on its object. */
+/** A relation or role binding between a subject and an object. */
 export const relationship = new Policy(OWNER, {
     name: "relationship",
     relations: { subject: { subjects: [principal.user, principal.host, principal.installation] } },
     permissions: { read: union(relation("subject"), grants("object")) },
 });
 
-/** A proposed relationship awaiting acceptance: its proposer, addressee and lender read it, and so does whoever may grant on its object. */
+/** A proposed relationship awaiting acceptance. */
 export const proposal = new Policy(OWNER, {
     name: "proposal",
     relations: {
@@ -60,8 +68,9 @@ export const proposal = new Policy(OWNER, {
     },
 });
 
-/** The policies of access's own types, which every access model contains. */
+/** The policies of access's own types in every access model. */
 export const INTRINSIC_POLICIES: readonly Policy[] = [
+    universe,
     principal.user,
     principal.host,
     principal.region,
@@ -77,11 +86,16 @@ export function isPrincipal(subject: Subject): boolean {
     return Object.values(principal).some((kind) => kind.is(subject));
 }
 
-/** Read the principal acting in a request: the last delegate acting with lent authority, the represented subject, or else the authenticated principal. */
+/** Read the principal acting in a request. */
 export function principalOf(context: AccessContext): Subject | undefined {
     const acting = context.delegates?.findLast((delegate) => delegate.authority === "lent");
 
     return acting?.subject ?? context.subject ?? context.subjects.find(isPrincipal);
+}
+
+/** Read the principal sending a request: its last delegate, else its subject. */
+export function senderOf(context: Pick<AccessContext, "subject" | "delegates">): Subject | undefined {
+    return context.delegates?.at(-1)?.subject ?? context.subject;
 }
 
 /** Require the principal acting in a request. */

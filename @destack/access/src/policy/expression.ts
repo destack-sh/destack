@@ -48,7 +48,7 @@ export type AccessExpression =
       }
     | { readonly kind: "grants"; readonly reference: string };
 
-/** Match no relation, leaving roles as the only way to hold the permission. */
+/** Match no relation, so only roles grant the permission. */
 export function none(): AccessExpression {
     return { kind: "none" };
 }
@@ -97,7 +97,7 @@ export function grants(reference: string): AccessExpression {
     return { kind: "grants", reference: AccessName.parse(reference) };
 }
 
-/** Permit rows whose attributes meet a condition, whose parameters name request attributes. */
+/** Permit rows with attributes that meet a condition over request attributes. */
 export function condition(condition: Condition): AccessExpression {
     return { kind: "condition", condition };
 }

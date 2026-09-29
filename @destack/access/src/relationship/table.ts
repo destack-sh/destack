@@ -33,7 +33,7 @@ export const accessRelationship = defineTable(
         managerName: text("manager_name"),
         /** When the declaration stopped managing the relationship, null while it manages it. */
         detachedAt: integer("detached_at"),
-        /** The scope the relationship lives in, whose access it decides: a scope object's own scope, else the object's scope; routing its changes. */
+        /** The scope the relationship lives in and routes changes to. */
         scope: text("scope").notNull(),
         /** The scope containing the object. */
         objectScope: text("object_scope").notNull(),
@@ -75,7 +75,7 @@ export const accessRelationship = defineTable(
         onBehalfOf: text("on_behalf_of"),
     },
     {
-        log: { tier: "history" },
+        log: { retention: "history" },
         constraints: (relationship) => [
             index("relationship_request").on(relationship.requestId),
             index("relationship_expiry").on(relationship.expiresAt),

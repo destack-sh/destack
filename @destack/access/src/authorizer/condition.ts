@@ -32,7 +32,7 @@ export interface ConditionValues {
 /**
  * A relationship's conditions on the requests it applies to, decided in memory and in SQL alike.
  *
- * Each condition appears once in `failure` and once in `where`, in the same order, so both evaluators decide it the same way.
+ * Each condition appears in `failure` and in `where` in the same order, and both evaluators decide it the same way.
  */
 export class GrantCondition {
     /** The relationship's creation time. */
@@ -52,9 +52,9 @@ export class GrantCondition {
     /** The key of the principal a delegate must act for. */
     readonly onBehalfOf: string | null;
 
-    /** Read a relationship's conditions from its row, whose integers PostgreSQL returns as text. */
+    /** Read a relationship's conditions from its row. */
     constructor(row: RelationshipRow) {
-        // take the times and conditions, reading integers as numbers
+        // take the times and conditions and read PostgreSQL's text integers as numbers
         this.createdAt = Number(row.createdAt);
         this.expiresAt = integerOrNull(row.expiresAt);
         this.requestId = row.requestId;
@@ -122,7 +122,7 @@ export class GrantCondition {
         return GrantCondition.boundary(this, context);
     }
 
-    /** Read the next moment time alone changes whether a relationship's times hold, absent when it never does. */
+    /** Read the next moment a relationship's times start or stop holding. */
     static boundary(
         times: {
             readonly createdAt: number | string;
@@ -131,7 +131,7 @@ export class GrantCondition {
         },
         context: ConditionContext,
     ): number | undefined {
-        // take the start, the expiry and the moment the authentication grows too old, whichever lie ahead
+        // take the upcoming start, expiry and authentication age limit
         const now = context.now;
         const authenticatedAt = context.assurance?.authenticatedAt;
         const maxAge = integerOrNull(times.maxAge);
@@ -146,7 +146,7 @@ export class GrantCondition {
 
     /** Require a relationship's conditions to hold for a request, as `failure` decides in memory. */
     static where(relationship: RelationshipColumnMap, values: ConditionValues): SQL {
-        // type each value, which may be null, for engines that type parameters
+        // type each nullable value for engines that type parameters
         const now = sql`CAST(${values.now} AS BIGINT)`;
         const text = (value: SQLWrapper) => sql`CAST(${value} AS TEXT)`;
         const integer = (value: SQLWrapper) => sql`CAST(${value} AS BIGINT)`;
@@ -214,7 +214,7 @@ export class GrantCondition {
         ) as unknown as ConditionValues;
     }
 
-    /** Name a request's facts as a prepared statement's values, which `bindings` supplies on each run. */
+    /** List a request's facts as the values `bindings` supplies to a prepared statement on each run. */
     static parameters(value: (name: string) => SQLWrapper): ConditionValues {
         return {
             now: value("now"),

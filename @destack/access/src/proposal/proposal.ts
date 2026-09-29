@@ -1,7 +1,7 @@
+import { type ObjectReference } from "@destack/sync";
 import { and, eq, gt, type DatabaseConnection, type Select } from "@destack/db";
 import { defineSchema, identifier, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
-import type { ObjectReference } from "../policy/policy.ts";
 import { sameSubject, Subject, subjectKey } from "../policy/subject.ts";
 import { VerifiedIdentifier, verifiedIdentifiers, type AccessContext } from "../context/context.ts";
 import type { RelationshipRequest } from "../relationship/relationship.ts";
@@ -13,14 +13,14 @@ export const PROPOSAL_LIFETIME_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
 /** The most proposals one page lists, a screen of pending requests at a few hundred bytes each. */
 const PROPOSAL_PAGE_LIMIT = 100;
 
-/** The schema of a proposal: a relationship asked for by its subject or offered by a grantor, which applies only once accepted. */
+/** The schema of a proposal: a relationship requested or offered, which applies after acceptance. */
 const proposalSchema = defineSchema(
     schema.object({
         /** The stable proposal identifier. */
         id: schema.string().min(1),
         /** The relationship accepting the proposal creates. */
         relationship: ProposedRelationship,
-        /** The identifier, such as `email:bob@acme.com`, whose owner may accept in place of a known subject. */
+        /** The identifier of the owner who may accept in place of a known subject, such as `email:bob@acme.com`. */
         recipient: VerifiedIdentifier.optional(),
         /** The principal proposing the relationship. */
         proposer: Subject,
@@ -32,16 +32,16 @@ const proposalSchema = defineSchema(
         expiresAt: schema.number().int(),
     }),
 );
-/** A relationship asked for by its subject or offered by a grantor, which applies only once accepted. */
+/** A relationship that its subject requests or a grantor offers, applied after acceptance. */
 export type Proposal = schema.Infer<typeof proposalSchema>;
 
 /** A proposed relationship, with exactly one of a subject or a recipient. */
 export interface ProposalRequest {
-    /** The relationship to propose, whose subject is the proposer itself when asking, or the offered principal. */
+    /** The relationship to propose, with the proposer or the offered principal as subject. */
     readonly relationship: Omit<RelationshipRequest, "subject"> & {
         readonly subject?: Subject;
     };
-    /** The identifier, such as `email:bob@acme.com`, whose owner may accept an offer. */
+    /** The identifier of the owner who may accept an offer, such as `email:bob@acme.com`. */
     readonly recipient?: string;
     /** Why the proposer asks for or offers the relationship. */
     readonly purpose?: string;
@@ -57,7 +57,7 @@ export interface ProposalPage {
     readonly limit: number;
 }
 
-/** A relationship asked for by its subject or offered by a grantor, which applies only once accepted: its schema, its rows and whom it addresses. */
+/** A proposal: its schema, its rows and its addressees. */
 export const Proposal = {
     /** The schema of a proposal. */
     schema: proposalSchema,

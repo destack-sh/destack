@@ -14,7 +14,7 @@ const restrictionSchema = defineSchema(
 /** A permission a restricted credential allows, in one scope and optionally on one object. */
 export type Restriction = schema.Infer<typeof restrictionSchema>;
 
-/** A permission a restricted credential allows, in one scope and optionally on one object: its schema, and the objects it lets a credential reach. */
+/** A restriction: its schema and the objects it lets a credential reach. */
 export const Restriction = {
     /** The schema of a restriction. */
     schema: restrictionSchema,
@@ -43,7 +43,7 @@ function allows(
     );
 }
 
-/** List the objects a credential's restrictions select for a permission in a scope, or every object when unrestricted or a restriction selects the whole scope. */
+/** List the objects a credential's restrictions select for a permission in a scope, or every object. */
 function select(
     permission: PermissionReference,
     scope: string,

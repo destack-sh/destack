@@ -1,10 +1,11 @@
+import type { Condition } from "@destack/db/query";
+import { Scope } from "@destack/sync";
 import { sql, TABLE, type SQL, type SQLWrapper, type Table } from "@destack/db";
 import type { Tree } from "@destack/db/tree";
 import type { Snapshot } from "@destack/db/log";
 import { AccessError } from "../error/index.ts";
 import type { Policy } from "../policy/policy.ts";
 import type { SubjectType } from "../policy/subject.ts";
-import { GLOBAL_SCOPE } from "../context/context.ts";
 import type { Authorizer } from "./authorizer.ts";
 
 /** Where a policy's objects live: their table and the columns holding their identity, scope, attributes and relations. */
@@ -15,13 +16,15 @@ export interface TableMapping {
     readonly table: Table;
     /** The column identifying an object within its scope. */
     readonly id: string;
-    /** The column selecting the object's scope; objects without one live in the global scope. */
+    /** The column selecting the object's scope; objects without one live in the universe. */
     readonly scope?: string;
     /** Whether the table holds several object types, told apart by its packageId and type columns. */
     readonly isShared?: boolean;
+    /** The rows the scopes inside each row's scope copy, for inherited objects. */
+    readonly inherited?: Condition;
     /** Application columns supplying declared scalar attributes. */
     readonly attributes: Readonly<Record<string, string>>;
-    /** Relations whose subject a field holds; relationships hold every other relation. */
+    /** Relations with the subject in a field; relationships hold all others. */
     readonly relations: Readonly<
         Record<
             string,
@@ -30,7 +33,7 @@ export interface TableMapping {
                 readonly column: string;
                 /** The scope of every subject the column holds; the object's own scope when absent. */
                 readonly scope?: string;
-                /** The columns naming the subject's type, scope and relation, for relations accepting several subject types; objects need no relation column. */
+                /** The columns with the subject's type, scope and relation, for relations with several subject types. */
                 readonly subject?: Omit<ReferenceColumns, "id"> & {
                     readonly relation?: string;
                 };
@@ -39,7 +42,7 @@ export interface TableMapping {
             }
         >
     >;
-    /** Columns naming another object a row refers to, whatever its type, which `grants` expressions follow. */
+    /** The columns that refer to another object of any type, for `grants` expressions. */
     readonly references?: Readonly<Record<string, ReferenceColumns>>;
     /** Engine-maintained ancestor indexes for explicitly transitive relations. */
     readonly trees?: Readonly<Record<string, Tree>>;
@@ -68,7 +71,7 @@ export interface ReferenceColumns {
     readonly id: string;
 }
 
-/** A relation a field holds, which some relation names as a subject set. */
+/** A relation held in a field and used as a subject set. */
 export interface FieldRelation {
     /** The mapping of the type declaring the relation. */
     readonly mapping: TableMapping;
@@ -91,7 +94,7 @@ function validate(authorizer: Authorizer, mapping: TableMapping): void {
         }
     }
 
-    // require columns with the scalar type declared by the object, whose nulls conditions read as missing, in three-valued logic
+    // require columns with the object's declared scalar type, where null reads as missing
     for (const [name, expected] of Object.entries(definition.attributes)) {
         const attribute = column(mapping.table, mapping.attributes[name]).definition;
         const kind = attribute.kind;
@@ -115,7 +118,7 @@ function validate(authorizer: Authorizer, mapping: TableMapping): void {
         }
     }
 
-    // require a field-held relation to accept exactly one type in a text column, unless columns name its subject's type
+    // require a field-held relation to accept one type in a text column, unless columns hold its subject's type
     for (const [name, field] of Object.entries(mapping.relations)) {
         const relation = authorizer.relation(mapping.policy, name);
         if (
@@ -177,7 +180,7 @@ function freeze(mapping: TableMapping): TableMapping {
     });
 }
 
-/** Read rows of a mapped type in a scope by identifier as a snapshot shows them, of the type where the table is shared. */
+/** Read rows of a mapped type in a scope by identifier from a snapshot. */
 async function read(
     snapshot: Snapshot,
     mapping: TableMapping,
@@ -201,12 +204,12 @@ async function read(
 
 /** Read the scope a mapped row lives in. */
 function scope(mapping: TableMapping, row: Readonly<Record<string, unknown>>): string {
-    return mapping.scope === undefined ? GLOBAL_SCOPE : String(row[mapping.scope]);
+    return mapping.scope === undefined ? Scope.universe.id : String(row[mapping.scope]);
 }
 
 /** Select the scope a mapped row of a table, or of one of its aliases, lives in. */
 function scopeColumn(table: Table, mapping: TableMapping): SQLWrapper {
-    return mapping.scope === undefined ? sql`${GLOBAL_SCOPE}` : column(table, mapping.scope);
+    return mapping.scope === undefined ? sql`${Scope.universe.id}` : column(table, mapping.scope);
 }
 
 /** Resolve a mapped application column without interpolating caller SQL. */

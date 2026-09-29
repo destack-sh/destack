@@ -3,7 +3,7 @@ import { and, defineTable, eq, text, type DatabaseConnection, type Table } from 
 import { Snapshot } from "@destack/db/log";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import {
-    ACCESS_TABLES,
+    accessTables,
     Authorizer,
     permission,
     Policy,
@@ -17,14 +17,14 @@ import {
 } from "../index.ts";
 import { module1 } from "../test/fixture.ts";
 
-/** Pages, whose text derives from reading them. */
+/** Pages with text derived from reading them. */
 const page = new Policy(module1.package, {
     name: "page",
     relations: { owner: { subjects: [principal.user] } },
     permissions: { read: relation("owner"), edit: relation("owner"), text: permission("read") },
 });
 
-/** Sheets, whose text derives from reading them as well. */
+/** Sheets with text derived from reading them. */
 const sheet = new Policy(module1.package, {
     name: "sheet",
     relations: { owner: { subjects: [principal.user] } },
@@ -52,7 +52,7 @@ const sheetTable = defineTable("example_sheet", {
     owner: text("owner").notNull(),
 });
 
-/** Pieces, naming their parent's type in columns. */
+/** Pieces that hold their parent's type in columns. */
 const pieceTable = defineTable("example_piece", {
     id: text("id").primaryKey().notNull(),
     scope: text("scope").notNull(),
@@ -72,7 +72,7 @@ const mappings: TableMapping[] = [
         id: "id",
         scope: "scope",
         attributes: {},
-        relations: { owner: { column: "owner", scope: "global" } },
+        relations: { owner: { column: "owner", scope: "universe" } },
     })),
     {
         policy: piece,
@@ -94,7 +94,7 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const storage = await TestDatabase.create(
             dialect,
-            [pageTable, sheetTable, pieceTable, ...ACCESS_TABLES],
+            [pageTable, sheetTable, pieceTable, ...accessTables],
             { isMigrated: true },
         );
         onTestFinished(() => storage.close());
@@ -120,7 +120,7 @@ test.each(TEST_DIALECTS)(
             source: PermissionReference,
             restriction: Omit<Restriction, keyof PermissionReference>,
         ): AccessContext => ({
-            subjects: [principal.user.reference("global", "alice")],
+            subjects: [principal.user.reference("universe", "alice")],
             attributes: {},
             now: 1000,
             permissions: [{ ...source, ...restriction }],

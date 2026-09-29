@@ -4,15 +4,22 @@ import { Condition } from "@destack/db/query";
 import { Snapshot } from "@destack/db/log";
 import type { PackageId } from "@destack/package";
 import { identifier } from "@destack/schema";
-import { Replica, type Watch } from "@destack/sync";
+import {
+    ChainFollower,
+    Replica,
+    Scope,
+    type ScopeLink,
+    type Watch,
+    type ChainRelay,
+    type ObjectReference,
+    type ObjectTypeReference,
+} from "@destack/sync";
 import { AccessError } from "../error/index.ts";
 import {
     permissionKey,
     relationsOf,
-    type ObjectReference,
     type PermissionReference,
     type Policy,
-    type TypeReference,
 } from "../policy/policy.ts";
 import type { AccessExpression } from "../policy/expression.ts";
 import {
@@ -29,19 +36,17 @@ import { accessRelationship, type RelationshipRow } from "../relationship/table.
 import { Relationship } from "../relationship/relationship.ts";
 import type { Creation } from "./authorization.ts";
 import { accessRole } from "../role/table.ts";
-import { accessScope } from "../scope/table.ts";
-import { ACCESS_TABLES, COPY_NAME, DECISION_TABLES } from "../replica/replica.ts";
+import { accessTables, COPY_NAME, decisionTables } from "../replica/replica.ts";
 import { earliest, Access } from "./access.ts";
 import { Compiler } from "./compiler.ts";
 import type { Decision, Explanation } from "./decision.ts";
 import { GrantReader, GrantTree, type Grant, type Lookup } from "./grant.ts";
 import { column, TableMapping, type FieldRelation } from "./mapping.ts";
-import { Scope, type ScopeLink } from "../scope/scope.ts";
 
 /**
  * How long a copy of access may go without hearing from its home before decisions refuse it, by default, in milliseconds.
  *
- * Feeds repeat their position every ten seconds, so a copy three beats late has lost its source rather than lagging behind it.
+ * Feeds repeat their position every ten seconds, and a copy three beats late has lost its source.
  */
 const LAG_MILLISECONDS = 30_000;
 
@@ -49,13 +54,13 @@ const LAG_MILLISECONDS = 30_000;
 export interface Admission {
     /** The positions of the rows the caller holds the permission on. */
     readonly held: ReadonlySet<number>;
-    /** The next moment time alone may change which rows the caller holds it on, absent when only changes to access do. */
+    /** The next moment time may change the rows the caller holds it on. */
     readonly until?: number;
 }
 
-/** Decide policies over the tables their objects live in: registered and validated once, compiled to SQL, or decided in memory from grants. */
+/** Decide policies over their objects' tables, in SQL or in memory from grants. */
 export class Authorizer {
-    /** The keys of permissions only their expressions grant, which universal roles leave out. */
+    /** The keys of permissions that only their expressions grant. */
     readonly reserved: ReadonlySet<string>;
     /** The authentication each elevated permission asks for, by permission key. */
     readonly elevated: ReadonlyMap<string, Elevation>;
@@ -63,12 +68,16 @@ export class Authorizer {
     readonly administration: ReadonlySet<string>;
     /** Field-held relations some relation names as a subject set. */
     readonly fields: FieldRelation[] = [];
-    /** The subject sets some relation accepts and the relations of scopes: the memberships resolving a caller expands, and the sets roles may bind to. */
+    /** The subject sets that relations accept and roles may bind to. */
     readonly memberships: SubjectType[] = [];
-    /** How long a copy of access may go without hearing from its home before decisions refuse it, in milliseconds. */
+    /** How long a copy of access may go without its home before decisions refuse it, in milliseconds. */
     readonly lag: number;
-    /** The object types this database holds the access rows of: those it maps a table of, other than access's own. */
-    readonly held: readonly TypeReference[];
+    /** The object types with access rows in this database. */
+    readonly held: readonly ObjectTypeReference[];
+    /** The object types this database copies inherited rows of from its containing scopes. */
+    readonly copied: readonly ObjectTypeReference[];
+    /** The types whose objects live in the universe, whose access rows stay in the global tier. */
+    readonly universal: readonly ObjectTypeReference[];
     /** The policies indexed by package and type. */
     readonly #policies = new Map<string, Policy>();
     /** The subject types other types contribute to each open relation, by type and relation. */
@@ -78,7 +87,7 @@ export class Authorizer {
     /** The compiler of the registered policies to SQL. */
     readonly #compiler: Compiler;
 
-    /** Validate the policies, with access's own and every policy they name, and the tables of this database their objects live in. */
+    /** Validate the policies, their referenced policies and their tables in this database. */
     constructor(
         policies: readonly Policy[],
         mappings: readonly TableMapping[] = [],
@@ -195,7 +204,7 @@ export class Authorizer {
             )
             .map((policy): TableMapping => ({
                 policy,
-                table: accessScope,
+                table: Scope.table,
                 id: "scope",
                 scope: "parent",
                 isShared: true,
@@ -229,10 +238,22 @@ export class Authorizer {
 
         // list the types whose access rows this database holds
         this.held = [...this.#mappings.values()]
-            .filter((mapping) => !ACCESS_TABLES.includes(mapping.table))
+            .filter((mapping) => !accessTables.includes(mapping.table))
             .map((mapping) => ({
                 packageId: mapping.policy.definition.packageId,
                 type: mapping.policy.definition.name,
+            }));
+        this.copied = [...this.#mappings.values()]
+            .filter((mapping) => mapping.inherited !== undefined)
+            .map((mapping) => ({
+                packageId: mapping.policy.definition.packageId,
+                type: mapping.policy.definition.name,
+            }));
+        this.universal = [...this.#policies.values()]
+            .filter((policy) => policy.definition.isGlobal === true)
+            .map((policy) => ({
+                packageId: policy.definition.packageId,
+                type: policy.definition.name,
             }));
 
         // expand the declared subject sets and every scope's relations, the sets roles may bind to
@@ -268,7 +289,7 @@ export class Authorizer {
             });
         }
 
-        // expand subject sets through the fields holding them, which resolving looks up by an index leading with the column
+        // expand subject sets through the fields that hold them
         for (const mapping of this.#mappings.values()) {
             const definition = mapping.policy.definition;
             for (const [relation, field] of Object.entries(mapping.relations)) {
@@ -298,7 +319,7 @@ export class Authorizer {
             }
         }
 
-        // require every declared relation of a mapped type to decide a permission: in an expression, as a subject set, or as the parent covering its objects
+        // require every declared relation of a mapped type to decide a permission
         const parents = new Set(
             [...this.#mappings.values()].map((mapping) =>
                 JSON.stringify([
@@ -444,7 +465,7 @@ export class Authorizer {
         };
     }
 
-    /** Name the scope whose chain decides access to an object: the scope a scope object is, else the scope containing the object. */
+    /** Read the scope with the chain that decides access to an object: a scope object itself, else its containing scope. */
     governingScope(target: ObjectReference): string {
         return this.policy(target).definition.scope === true ? target.id : target.scope;
     }
@@ -467,7 +488,7 @@ export class Authorizer {
         );
     }
 
-    /** Refuse writing the access rows of an object another database holds, whose copies this database follows. */
+    /** Refuse writing the access rows of an object another database holds. */
     async requireHeld(database: DatabaseConnection, object: ObjectReference): Promise<void> {
         if (!(await this.isHeld(database, object))) {
             throw new AccessError(
@@ -477,16 +498,21 @@ export class Authorizer {
         }
     }
 
-    /** Name the copy of a scope's access this database follows: every decision row except those about objects it holds itself. */
+    /** Build the copy of a scope this database follows. */
     replica(scope: string): Replica {
-        return Authorizer.replicaOf(scope, this.held);
+        return this.replicaOf(scope, this.held, this.copied);
     }
 
-    /** Name the copy of a scope's access a database holding some object types follows, as its source serves it. */
-    static replicaOf(scope: string, held: readonly TypeReference[]): Replica {
-        const where = Condition.not(
+    /** Build the copy of a scope that this source serves to a follower. */
+    replicaOf(
+        scope: string,
+        held: readonly ObjectTypeReference[],
+        copied: readonly ObjectTypeReference[],
+    ): Replica {
+        // leave out the access rows of the objects the follower holds, and of objects living in the universe
+        const own = Condition.not(
             Condition.any(
-                ...held.map((type) =>
+                ...[...held, ...this.universal].map((type) =>
                     Condition.all(
                         Condition.eq("packageId", type.packageId),
                         Condition.eq("type", type.type),
@@ -495,17 +521,50 @@ export class Authorizer {
             ),
         );
 
+        // add each copied type's inherited rows
+        const inherited = copied.map((type) => {
+            const mapping = this.#mappings.get(JSON.stringify([type.packageId, type.type]));
+            if (mapping?.inherited === undefined) {
+                throw new AccessError("NOT_FOUND", `no inherited rows of ${type.type}`);
+            }
+
+            return { table: mapping.table, where: mapping.inherited };
+        });
+
         return new Replica({
             name: COPY_NAME,
             scope,
-            tables: DECISION_TABLES,
-            where: new Map([[accessRelationship, where]]),
+            tables: [...decisionTables, ...inherited.map((entry) => entry.table)],
+            where: new Map([
+                [accessRelationship, own],
+                ...inherited.map((entry): [Table, Condition] => [entry.table, entry.where]),
+            ]),
         });
     }
 
-    /** Name the access rows whose changes decide again what a caller of a scope chain may hold. */
+    /** Copy the chain a relay streams into a database this authorizer decides in. */
+    follower(
+        database: DatabaseConnection,
+        held: readonly ObjectTypeReference[],
+        relay: ChainRelay,
+    ): ChainFollower {
+        const copied = this.copied;
+
+        return new ChainFollower(
+            database,
+            relay.scope,
+            (scope) => this.replicaOf(scope, held, copied),
+            (scope, after, signal) =>
+                relay.watch(
+                    { scope, held, copied, ...(after === undefined ? {} : { after }) },
+                    signal,
+                ),
+        );
+    }
+
+    /** List the access rows with changes that affect what a caller of a scope chain may hold. */
     watch(chain: readonly string[]): Watch[] {
-        return DECISION_TABLES.map((table) => ({ table, scopes: chain }));
+        return decisionTables.map((table) => ({ table, scopes: chain }));
     }
 
     /** Read a page of one object's relationships and role bindings as a snapshot shows them, ordered by identifier. */
@@ -562,7 +621,7 @@ export class Authorizer {
         });
     }
 
-    /** Require a relationship to name exactly one relation or role, a subject the relation or role accepts, and a future expiry. */
+    /** Require a relationship with one relation or role, an accepted subject and a future expiry. */
     validate(
         request: {
             readonly object: ObjectReference;
@@ -618,7 +677,7 @@ export class Authorizer {
         }
     }
 
-    /** Remove the relationships bound to one request once it commits, so they apply exactly once, leaving copies to their home. */
+    /** Remove the relationships bound to one request after it commits. */
     async release(database: DatabaseConnection, requestId: string): Promise<void> {
         // delete the request's relationships about the types this database holds
         const types = this.held.map((held) =>
@@ -634,7 +693,7 @@ export class Authorizer {
         }
     }
 
-    /** Resolve a principal in a scope as if it authenticated just now as strongly as any permission asks, to decide on its behalf. */
+    /** Resolve a principal in a scope at the strongest current authentication. */
     resolveAssured(
         snapshot: Snapshot,
         scope: string,
@@ -688,7 +747,7 @@ export class Authorizer {
         access: Access,
         reader?: GrantReader,
     ): Promise<Decision> {
-        // decide a missing object, which nobody holds a permission on
+        // deny a missing object
         const mapping = this.mapping(target);
         const reading = reader ?? this.reader(snapshot, access.scopes);
         const row = await reading.row(mapping, target);
@@ -696,7 +755,7 @@ export class Authorizer {
             return { isAllowed: false };
         }
 
-        // read the tree the permission reaches on the object, whose grants bound when the decision next changes by time
+        // read the tree the permission reaches on the object
         const [tree] = await reading.trees(permission, [row], mapping);
         const until = earliest([access.until, grantsUntil(GrantTree.flatten(tree!), access)]);
 
@@ -791,7 +850,7 @@ export class Authorizer {
         snapshot: Snapshot,
         permission: PermissionReference,
         target: ObjectReference,
-        type: TypeReference,
+        type: ObjectTypeReference,
         now: number,
         page: { readonly after?: string; readonly limit: number },
     ): Promise<Subject[]> {
@@ -808,7 +867,7 @@ export class Authorizer {
         }
         const [tree] = await reader.trees(permission, [row], this.mapping(target));
 
-        // expand the grants' subject sets into their members, keeping the principals of the type
+        // expand the grants' subject sets into the principals of the type
         const candidates = new Map<string, Subject>();
         const seen = new Set<string>();
         for (
@@ -831,7 +890,7 @@ export class Authorizer {
             frontier = await members(snapshot, sets);
         }
 
-        // decide the candidates after the page's cursor in key order, at the strongest authentication, until the page is full
+        // decide the candidates after the page's cursor in key order until the page is full
         const ordered = [...candidates.entries()]
             .filter(([key]) => page.after === undefined || key > page.after)
             .toSorted(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
@@ -849,7 +908,7 @@ export class Authorizer {
         return held;
     }
 
-    /** Decide whether the caller owns one object, every authority holding a role that grants everything on or above it. */
+    /** Decide whether every authority of the caller owns one object. */
     async owns(snapshot: Snapshot, target: ObjectReference, access: Access): Promise<boolean> {
         // own no missing object
         const mapping = this.mapping(target);
@@ -859,7 +918,7 @@ export class Authorizer {
             return false;
         }
 
-        // read the bindings on or above the object, which admit an authority through a role granting everything
+        // read the owner bindings on or above the object
         const tree = await reader.ownership(row, mapping);
 
         return access.authorities.every((authority) => GrantTree.holds(tree, authority, access));
@@ -877,14 +936,14 @@ export class Authorizer {
         rows: readonly Readonly<Record<string, unknown>>[],
         reader = this.reader(snapshot, access.scopes),
     ): Promise<Admission> {
-        // read the rows' grant trees, whose grants bound when the decisions next change by time
+        // read the rows' grant trees
         const trees = await reader.trees(permission, rows);
         const until = earliest([
             access.until,
             ...trees.map((tree) => grantsUntil(GrantTree.flatten(tree), access)),
         ]);
 
-        // admit the rows whose tree admits every authority of the caller, past the permission's gate
+        // admit the rows with a tree that admits every authority of the caller
         const held = rows.flatMap((row, position) =>
             this.#gate(permission, this.mapping(permission), row, access, "listing") ===
                 undefined &&
@@ -987,7 +1046,7 @@ export class Authorizer {
             return refused;
         }
 
-        // take an object read by its key in the scope as it is
+        // take an object read by its key in the scope unchanged
         if (lookup === "object") {
             return undefined;
         }
@@ -1006,7 +1065,7 @@ export class Authorizer {
             : undefined;
     }
 
-    /** Require a mapping to supply what its policy's expressions compile against: trees for transitive arrows, columns for referenced objects. */
+    /** Require a mapping to supply the trees and reference columns its policy's expressions need. */
     #requireCompilable(mapping: TableMapping): void {
         const pending = Object.values(mapping.policy.definition.permissions);
         while (pending.length > 0) {
@@ -1038,7 +1097,7 @@ export class Authorizer {
 
     /** Require a subject type to name a registered type and one of its relations. */
     #validateSubject(subject: SubjectType): void {
-        // resolve the relation of a subject set, which cannot be a wildcard
+        // resolve the relation of a subject set
         const type = this.policy(subject);
         if (subject.relation !== undefined) {
             if (subject.wildcard) {
@@ -1142,7 +1201,7 @@ function grantsUntil(grants: readonly Grant[], access: Access): number | undefin
 
 /** Require a condition to read declared attributes, ordering numbers only and comparing literals of their type. */
 function validateCondition(condition: Condition, type: Policy): void {
-    // refuse conditions following relations, which grants and roles express instead
+    // refuse conditions that follow relations
     const [relation] = Condition.relations(condition);
     if (relation !== undefined) {
         throw new AccessError(
@@ -1213,7 +1272,7 @@ async function members(snapshot: Snapshot, sets: readonly Subject[]): Promise<Su
         return [];
     }
 
-    // read the sets' objects' relationships, keeping those of each set's relation
+    // read the relationships of each set's relation
     const wanted = new Set(sets.map((set) => subjectKey(set)));
     const rows = await Relationship.readByObject(
         snapshot,

@@ -105,10 +105,10 @@ Each change requires the caller to hold its permission.
 
 ## Storage
 
-Every database holding protected objects includes `ACCESS_TABLES`.
+Every database holding protected objects includes `accessTables`.
 
 ```ts
-export const main = defineDatabase({ name: "main", tables: [...ACCESS_TABLES, notes] });
+export const main = defineDatabase({ name: "main", tables: [...accessTables, notes] });
 
 const replica = authorizer.replica(spaceId);
 ```

@@ -1,8 +1,9 @@
+import { type ObjectReference } from "@destack/sync";
 import { and, asc, eq, type DatabaseConnection, type Select } from "@destack/db";
 import { defineSchema, identifier, schema } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
-import { PermissionReference, type ObjectReference } from "../policy/policy.ts";
+import { PermissionReference } from "../policy/policy.ts";
 import type { Subject } from "../policy/subject.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
@@ -15,7 +16,7 @@ const OWNER_ROLE = {
     description: "Every permission in this scope except reserved ones",
 };
 
-/** The schema of a role: a named set of permissions a scope defines, which relationships bind to subjects. */
+/** The schema of a role: a named set of permissions a scope defines. */
 const roleSchema = defineSchema(
     schema.object({
         /** The role identifier. */
@@ -34,7 +35,7 @@ const roleSchema = defineSchema(
         revision: schema.number().int().positive(),
     }),
 );
-/** A named set of permissions a scope defines, which relationships bind to subjects. */
+/** A named set of permissions a scope defines and relationships bind to subjects. */
 export type Role = schema.Infer<typeof roleSchema>;
 
 /** The name, purpose and permissions of a role to define or change. */
@@ -47,7 +48,7 @@ export interface RoleRequest {
     readonly permissions: readonly PermissionReference[];
 }
 
-/** A named set of permissions a scope defines, which relationships bind to subjects: its schema, its rows and a scope's owners. */
+/** A role: its schema, its rows and a scope's owners. */
 export const Role = {
     /** The schema of a role. */
     schema: roleSchema,

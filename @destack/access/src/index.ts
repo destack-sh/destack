@@ -4,6 +4,5 @@ export * from "./authorizer/index.ts";
 export * from "./relationship/index.ts";
 export * from "./proposal/index.ts";
 export * from "./role/index.ts";
-export * from "./scope/index.ts";
 export * from "./replica/index.ts";
 export * from "./error/index.ts";

@@ -161,7 +161,7 @@ databaseTest(
         });
         const carol = {
             ...alice,
-            subjects: [principal.user.reference("global", "carol")],
+            subjects: [principal.user.reference("universe", "carol")],
         };
         const anonymous = { ...alice, subjects: [] };
         for (const [context, expected] of [
@@ -235,12 +235,12 @@ databaseTest(
         const { database, authorizer, alice, bob } = fixture;
         const carol: AccessContext = {
             ...alice,
-            subjects: [principal.user.reference("global", "carol")],
+            subjects: [principal.user.reference("universe", "carol")],
             identifiers: ["email:carol@example.com"],
         };
         const dave: AccessContext = {
             ...alice,
-            subjects: [principal.user.reference("global", "dave")],
+            subjects: [principal.user.reference("universe", "dave")],
         };
 
         // let carol ask for access without it applying until the owner accepts
@@ -271,7 +271,7 @@ databaseTest(
             ).map((proposal) => proposal.id),
         ).toEqual([asked.id]);
 
-        // hide the proposal once it lapses, and refuse unbounded pages
+        // hide the lapsed proposal and refuse unbounded pages
         expect(
             await new Authorization(authorizer, database, () => ({
                 ...carol,
@@ -405,12 +405,12 @@ databaseTest(
             new Authorization(authorizer, database, () => alice).grant({
                 object: node.reference("personal", "c"),
                 relation: "viewer",
-                subject: principal.user.reference("global", "carol"),
+                subject: principal.user.reference("universe", "carol"),
                 conditions,
             });
         const carol: AccessContext = {
             ...bob,
-            subjects: [principal.user.reference("global", "carol")],
+            subjects: [principal.user.reference("universe", "carol")],
         };
         const readable = async (context: AccessContext) =>
             readableNodes(database, authorizer, context);
@@ -644,7 +644,7 @@ databaseTest("evaluate more rows than one query may bind", async ({ fixture }) =
         copies,
     );
 
-    // permit editing every copy of the two unlocked cells alice owns, which only statements decide
+    // permit editing every copy of the two unlocked cells alice owns
     expect(permitted.held.size).toBe(copies.filter((copy) => copy.locked === 0).length);
 });
 
@@ -692,7 +692,7 @@ async function expectEditable(
 }
 
 test("refuse policy conditions that follow relations when registering them", () => {
-    // decide one permission by a condition over a relation, which only grants and roles express
+    // decide one permission by a condition over a relation
     const fenced = new Policy(module4.package, {
         name: "fenced",
         relations: { owner: { subjects: [principal.user] } },

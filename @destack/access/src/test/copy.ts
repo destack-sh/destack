@@ -1,40 +1,38 @@
 import { eq, type DatabaseConnection } from "@destack/db";
+import { Scope, type ObjectReference } from "@destack/sync";
 import { identifier } from "@destack/schema";
 import { v7 } from "uuid";
-import { GLOBAL_SCOPE } from "../context/context.ts";
 import { AccessError } from "../error/index.ts";
-import type { ObjectReference } from "../policy/policy.ts";
 import type { Subject } from "../policy/subject.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
 import { Role, type RoleRequest } from "../role/role.ts";
 import { accessRole } from "../role/table.ts";
-import { accessScope } from "../scope/table.ts";
 
 /** Record a scope object below the scopes containing it, as a copy of its home's access holds it. */
 export async function copyScope(
     database: DatabaseConnection,
     scope: ObjectReference,
 ): Promise<void> {
-    // read the ancestry of the containing scope, which a copy holds before the scopes below it
+    // read the ancestry of the containing scope
     const [parent] =
-        scope.scope === GLOBAL_SCOPE
+        scope.scope === Scope.universe.id
             ? [{ ancestors: [] }]
             : await database
-                  .select({ ancestors: accessScope.ancestors })
-                  .from(accessScope)
-                  .where(eq(accessScope.scope, scope.scope));
+                  .select({ ancestors: Scope.table.ancestors })
+                  .from(Scope.table)
+                  .where(eq(Scope.table.scope, scope.scope));
     if (parent === undefined) {
         throw new AccessError("NOT_FOUND", `unknown scope: ${scope.scope}`);
     }
 
     // record the scope below it
-    await database.insert(accessScope).values({
+    await database.insert(Scope.table).values({
         scope: scope.id,
         parent: scope.scope,
         packageId: scope.packageId,
         type: scope.type,
-        ancestors: scope.scope === GLOBAL_SCOPE ? [] : [scope.scope, ...parent.ancestors],
+        ancestors: scope.scope === Scope.universe.id ? [] : [scope.scope, ...parent.ancestors],
     });
 }
 
@@ -92,5 +90,5 @@ export async function suspendCopy(
     scope: string,
     suspendedAt: number | null,
 ): Promise<void> {
-    await database.update(accessScope).set({ suspendedAt }).where(eq(accessScope.scope, scope));
+    await database.update(Scope.table).set({ suspendedAt }).where(eq(Scope.table.scope, scope));
 }

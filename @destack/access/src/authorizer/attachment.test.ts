@@ -3,7 +3,7 @@ import { asc, defineTable, text } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import {
-    ACCESS_TABLES,
+    accessTables,
     Authorization,
     Authorizer,
     Policy,
@@ -15,14 +15,14 @@ import {
 } from "../index.ts";
 import { module1 } from "../test/fixture.ts";
 
-/** Remarks attached to any object whose type contributes itself to their parent. */
+/** Remarks attached to any object with a type that contributes itself to their parent. */
 const remark = new Policy(module1.package, {
     name: "remark",
     relations: { parent: { subjects: [], open: true, grantedBy: null } },
     permissions: { read: through("parent", "read") },
 });
 
-/** Articles their owner reads, which take remarks. */
+/** Articles with remarks that their owner reads. */
 const article = new Policy(module1.package, {
     name: "article",
     relations: { owner: { subjects: [principal.user], grantedBy: null } },
@@ -30,7 +30,7 @@ const article = new Policy(module1.package, {
     contributes: [{ policy: remark, relation: "parent" }],
 });
 
-/** Photos their owner reads, which take remarks too. */
+/** Photos with remarks that their owner reads. */
 const photo = new Policy(module1.package, {
     name: "photo",
     relations: { owner: { subjects: [principal.user], grantedBy: null } },
@@ -51,7 +51,7 @@ function hostTable(name: string) {
 const articles = hostTable("attachment_article");
 /** The photo rows. */
 const photos = hostTable("attachment_photo");
-/** The remark rows, each naming its parent's package, type and identifier. */
+/** The remark rows with their parent's package, type and identifier. */
 const remarks = defineTable("attachment_remark", {
     id: text("id").primaryKey().notNull(),
     scope: text("scope").notNull(),
@@ -68,7 +68,7 @@ function hostMapping(policy: Policy, table: typeof articles): TableMapping {
         id: "id",
         scope: "scope",
         attributes: {},
-        relations: { owner: { column: "owner", scope: "global" } },
+        relations: { owner: { column: "owner", scope: "universe" } },
     };
 }
 
@@ -102,7 +102,7 @@ test.for(TEST_DIALECTS)(
             dialect,
             defineDatabase({
                 name: "attachment",
-                tables: [...ACCESS_TABLES, articles, photos, remarks],
+                tables: [...accessTables, articles, photos, remarks],
             }),
             { isMigrated: true },
         );
@@ -148,9 +148,9 @@ test.for(TEST_DIALECTS)(
             },
         ]);
 
-        // decide each remark in memory and by query, which agree
+        // decide each remark in memory and by query
         const alice: AccessContext = {
-            subjects: [principal.user.reference("global", "alice")],
+            subjects: [principal.user.reference("universe", "alice")],
             now: 1000,
             attributes: {},
         };
@@ -198,7 +198,7 @@ test("refuse a contribution to a relation that is not open", () => {
         contributes: [{ policy: closed, relation: "parent" }],
     });
 
-    // refuse at assembly, naming the relation
+    // refuse at assembly with the relation in the error
     expect(() => new Authorizer([closed, host])).toThrow(
         "host contributes to closed.parent, which is not an open relation",
     );

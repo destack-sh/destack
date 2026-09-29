@@ -22,7 +22,7 @@ export type SubjectType = schema.Infer<typeof SubjectType>;
 export interface RelationDefinition {
     /** The subject types the relation accepts. */
     readonly subjects: readonly SubjectType[];
-    /** The permission whose holders grant and revoke the relation, absent when only the system relates it. */
+    /** The permission to grant and revoke the relation, absent when only the system relates it. */
     readonly grantedBy?: string;
     /** Whether other types contribute themselves as subject types, as the hosts of an attachment do. */
     readonly open?: true;
