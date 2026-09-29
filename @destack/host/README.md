@@ -41,3 +41,27 @@ Hosts and their keys are objects with these methods.
 | `hostKey.create` | the host alone | registers another key for a year and revokes the others |
 | `hostKey.revoke` | the host, or the account's administrators | ends one key |
 | `hostKey.list` | the host, its tenants and every other host | reads the keys that sign proofs |
+
+## Runtimes
+
+A `Runtime` starts, stops and serves the instances a holder assigns this host on one server runtime, and reports exits the holder did not ask for.
+
+```ts
+import { BunRuntime } from "@destack/host/bun";
+
+const runtime = new BunRuntime({ directory, egress: `${origin}${Egress.path}`, sampling, output });
+await runtime.start(spec, exited); // exited(code) reports an exit nobody asked for
+const response = await runtime.fetch(instanceId, "/notes/list", request, caller);
+```
+
+## Router
+
+The `Router` sends a call to an installation to the newest running deployment serving the caller's `Destack-Version`, and a workload's call to an address through its host as the workload's installation.
+
+```ts
+import { Router } from "@destack/host/router";
+
+const router = new Router({ runtimes: [runtime], routes, sign, fetch });
+await router.ingress(installationId, "/notes/list", request, caller);
+await router.egress(request); // <egress>/<address>/<path> with the instance's secret
+```
