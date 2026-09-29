@@ -29,9 +29,18 @@ tester.run("require-jsdoc", rules["require-jsdoc"], {
             code: "/** A note. */\nclass Note {\n    /** Write a value. */\n    #write(value: string): void;\n    #write(value: number): void;\n    #write(value: unknown) {}\n}",
             filename: SOURCE,
         },
+        {
+            code: "export default defineConfig({ test: {} });",
+            filename: new URL("../vitest.config.ts", import.meta.url).pathname,
+        },
     ],
     invalid: [
         { code: "export const title = 1;", errors: [{ messageId: "missing" }] },
+        {
+            code: "export default defineConfig({ test: {} });",
+            filename: SOURCE,
+            errors: [{ messageId: "missing" }],
+        },
         {
             code: "/** A note. */\nclass Note {\n    title = 1;\n}",
             errors: [{ messageId: "missing" }],

@@ -11,6 +11,9 @@ const DECLARATIONS = new Set([
     "TSModuleDeclaration",
 ]);
 
+/** The files whose default export is a tool's configuration, such as vitest.config.ts. */
+const CONFIGURATION = /\.config\.[cm]?[jt]sx?$/;
+
 /** Require a documentation comment on declarations, members and fields. */
 export const requireJsdoc: Rule = {
     meta: {
@@ -44,9 +47,12 @@ export const requireJsdoc: Rule = {
                             : statement;
                     if (declaration && DECLARATIONS.has(declaration.type)) {
                         check(statement);
-                    } else if (
+                    }
+                    // check default exports, except a tool's configuration
+                    else if (
                         statement.type === "ExportDefaultDeclaration" &&
-                        statement.declaration.type !== "Identifier"
+                        statement.declaration.type !== "Identifier" &&
+                        !CONFIGURATION.test(context.filename)
                     ) {
                         check(statement);
                     }

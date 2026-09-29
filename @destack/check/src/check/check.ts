@@ -101,13 +101,13 @@ async function hasSources(path: string): Promise<boolean> {
     return (await listFiles(path)).some((file) => pattern.test(file));
 }
 
-/** List the files below a directory, skipping dependencies and leaving symbolic links unfollowed. */
+/** List the files below a directory, skipping dependencies and hidden tool state, and leaving symbolic links unfollowed. */
 async function listFiles(directory: string): Promise<string[]> {
     const files: string[] = [];
     for (const entry of await readdir(directory, { withFileTypes: true })) {
-        // descend into real directories outside dependencies
+        // descend into real directories outside dependencies and hidden ones, such as .terraform
         const path = join(directory, entry.name);
-        if (entry.isDirectory() && entry.name !== "node_modules") {
+        if (entry.isDirectory() && entry.name !== "node_modules" && !entry.name.startsWith(".")) {
             files.push(...(await listFiles(path)));
         }
         // keep regular files
