@@ -1306,6 +1306,52 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Report one erasure of a non-copy value whose member consumes its receiver.
+    pub(in crate::sema) fn report_consumed_receiver(
+        &mut self,
+        origin: Origin,
+        value: dir::GlobalTypeId,
+        constraint: dir::GlobalTypeId,
+        member: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let member = self.format_symbol(member);
+        let error = CheckError::NotErasable {
+            anchor,
+            module,
+            source: self.format_type(value),
+            target: self.format_type(constraint),
+        };
+
+        // name the member that moves the value out of its box
+        let diagnostic = DiagnosticBuilder::new(error)
+            .note(format!("'{member}' consumes its receiver"))
+            .help(format!(
+                "borrow the receiver in '{member}', or make the value copy"
+            ));
+        self.report(module, diagnostic);
+
+        Ok(())
+    }
+
+    /// Report one dynamic call to a generic member without a default.
+    pub(in crate::sema) fn report_not_dynamic_member(
+        &mut self,
+        origin: Origin,
+        member: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::NotDynamicMember {
+            anchor,
+            module,
+            member: self.format_symbol(member),
+        };
+
+        self.report(module, error);
+
+        Ok(())
+    }
+
     /// Report one call whose arguments match no overload.
     pub(in crate::sema) fn report_no_matching_call(
         &mut self,
@@ -2307,6 +2353,7 @@ impl CheckState<'_> {
                 };
 
                 DiagnosticBuilder::new(error)
+                    .help("prove the source erasable with a DynamicSafe bound")
             }
             // report a value converting to several represented union cases
             CheckFailure::AmbiguousUnionCoercion => {

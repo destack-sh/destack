@@ -425,6 +425,14 @@ impl CheckState<'_> {
             self.walk_bound_witnesses(&key, source, worklist)?;
         }
 
+        // record the witnesses a class instance's conformance slots read
+        if key.receiver.is_none() && self.symbol_kind(key.symbol)? == dir::SymbolKind::Class {
+            let application = self.instance_application(&key)?;
+            for (interface, _) in self.class_conformances(application)? {
+                self.write_witness(application, interface, source, worklist)?;
+            }
+        }
+
         // record the Drop witness destructors read on a conforming nominal
         if key.receiver.is_none() && self.drop_hook_member(key.symbol)?.is_some() {
             let application = self.instance_application(&key)?;

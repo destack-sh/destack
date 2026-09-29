@@ -1,9 +1,10 @@
+use smallvec::SmallVec;
 use std::mem::take;
 
 use tspp_core::FxIndexMap;
 use tspp_dir as dir;
 
-use crate::sema::CheckState;
+use crate::sema::{CheckState, Origin, Verdict};
 use crate::{CompilerError, CompilerResult};
 
 use super::conformance::ConformanceSource;
@@ -79,10 +80,15 @@ impl CheckState<'_> {
         }
 
         // queue each implemented interface
-        for conformance in definition.implementations() {
-            worklist
-                .conformances
-                .push((ty, conformance.interface, conformance.source));
+        let conformances = match definition {
+            dir::Definition::Class(_) => self.class_conformances(ty)?,
+            _ => definition
+                .implementations()
+                .map(|conformance| (conformance.interface, conformance.source))
+                .collect(),
+        };
+        for (interface, source) in conformances {
+            worklist.conformances.push((ty, interface, source));
         }
 
         // queue Drop for a nominal with a drop hook
@@ -97,6 +103,39 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Return every interface one class and its bases implement.
+    pub(super) fn class_conformances(
+        &mut self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Vec<(dir::GlobalTypeId, dir::GlobalNodeIdAny)>> {
+        let mut conformances = Vec::new();
+        let mut class = Some(ty);
+        while let Some(current) = class.take() {
+            let (module, instance) = self.nominal_application(current)?;
+            let definition = self.definition(instance.symbol)?;
+            let Some(declared @ dir::Definition::Class(definition)) = definition.as_deref() else {
+                return Err(CompilerError::Internal {
+                    message: "a class conformance chain through a non-class".to_string(),
+                });
+            };
+            let extends = definition.extends.clone();
+            let implements = declared.implementations().cloned().collect::<Vec<_>>();
+
+            // read the interfaces and the base under this class's arguments
+            let substitution = self.instance_substitution(module, &instance)?;
+            for conformance in implements {
+                let interface = self.substitute_type(conformance.interface, &substitution)?;
+                conformances.push((interface, conformance.source));
+            }
+            class = match extends {
+                Some(heritage) => Some(self.substitute_type(heritage.ty, &substitution)?),
+                None => None,
+            };
+        }
+
+        Ok(conformances)
+    }
+
     /// Record the witnesses of the queued conformances.
     pub(in crate::sema) fn record_declared_witnesses(
         &mut self,
@@ -104,6 +143,69 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         for (ty, interface, source) in take(&mut worklist.conformances) {
             self.write_witness(ty, interface, source, worklist)?;
+        }
+
+        Ok(())
+    }
+
+    /// Record the witness of each non-object value one coercion erases.
+    pub(super) fn write_erasure_witnesses(
+        &mut self,
+        coercion: &dir::Coercion,
+        source: dir::GlobalNodeIdAny,
+        worklist: &mut InstanceWorklist,
+    ) -> CompilerResult<()> {
+        for (value, erased) in coercion.erasures() {
+            let Some(constraint) = self.erased_constraint(erased)? else {
+                continue;
+            };
+            let shape = self.shallow_strip_forms(value)?;
+            let is_object = matches!(self.ty(shape)?, dir::Type::Object(_));
+            let is_interface = matches!(self.ty(constraint)?, dir::Type::Application(_));
+            if is_interface && !is_object {
+                self.reject_consuming_erasure(value, constraint, source)?;
+                self.write_witness(value, constraint, source, worklist)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Reject boxing a non-copy value whose member consumes its receiver.
+    fn reject_consuming_erasure(
+        &mut self,
+        value: dir::GlobalTypeId,
+        constraint: dir::GlobalTypeId,
+        source: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<()> {
+        // skip handles, callables and copies
+        let origin = self.anchored_origin(source)?;
+        let is_boxed = !self.is_class_type(value)?
+            && self.invoked_key(value)?.is_none()
+            && !matches!(self.ty(value)?, dir::Type::Form(_));
+        if !is_boxed || self.decide_copy(origin, value, &mut SmallVec::new())? == Verdict::Holds {
+            return Ok(());
+        }
+
+        // report each requirement taking a boxed receiver by value
+        for (_, requirement) in self.witness_members(constraint, value)? {
+            let Requirement::Function(member, _, dir::MemberSpace::Instance) = requirement else {
+                continue;
+            };
+            let signature = self.symbol_type(member)?;
+            let this = self
+                .signature_head(signature)?
+                .and_then(|signature| signature.this_parameter);
+            let Some(this) = this else {
+                continue;
+            };
+            let is_plain = matches!(self.ty(this)?, dir::Type::This);
+            let is_owned = self
+                .receiver_form(this)?
+                .is_some_and(|form| form.ownership == dir::Ownership::Owned);
+            if is_plain || is_owned {
+                self.report_consumed_receiver(origin, value, constraint, member)?;
+            }
         }
 
         Ok(())
@@ -139,13 +241,20 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        // an erased value dispatches itself
+        // answer an erased value's own interface through its table
         let dir::Type::Application(application) = self.ty(interface)? else {
             return Err(CompilerError::Internal {
                 message: "a witness interface outside an application".to_string(),
             });
         };
         if self.dispatches_dynamically(origin, ty, application.symbol)? {
+            if self
+                .erased_constraint(ty)?
+                .and_then(|constraint| self.ty(constraint).ok()?.symbol())
+                == Some(application.symbol)
+            {
+                self.write_dynamic_witness(origin, ty, interface)?;
+            }
             return Ok(());
         }
 
@@ -170,6 +279,52 @@ impl CheckState<'_> {
         }
 
         self.write_conformance_witness(ty, interface, &conformance, source, worklist)
+    }
+
+    /// Record the witness a dynamic value answers its own interface with.
+    fn write_dynamic_witness(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        interface: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let mut functions = Vec::new();
+        for (declaring, requirement) in self.witness_members(interface, ty)? {
+            let Requirement::Function(requirement, _, dir::MemberSpace::Instance) = requirement
+            else {
+                continue;
+            };
+            // dispatch through the table, a generic member through its default body
+            let is_generic = self.is_generic_member(requirement)?;
+            let source = match (is_generic, self.requirement_has_default(requirement)?) {
+                (false, _) => dir::WitnessSource::Dynamic,
+                (true, true) => dir::WitnessSource::Default,
+                // report a generic member without a default
+                (true, false) => {
+                    self.report_not_dynamic_member(origin, requirement)?;
+                    continue;
+                }
+            };
+            let (module, owner) = self.nominal_application(declaring)?;
+            let bindings = self.instance_substitution(module, &owner)?.bindings;
+            functions.push(dir::WitnessFunction {
+                member: requirement,
+                function: dir::InstanceKey::new(requirement, bindings.to_vec()),
+                source,
+                dispatch: dir::FunctionDispatch::Direct,
+            });
+        }
+        self.module.generics_tail.bind_witness(
+            ty,
+            interface,
+            dir::Witness {
+                functions,
+                types: Vec::new(),
+                constants: Vec::new(),
+            },
+        );
+
+        Ok(())
     }
 
     /// Record the witness one closed type answers one member interface with under one conformance.
@@ -222,10 +377,12 @@ impl CheckState<'_> {
                         worklist,
                     )?;
                     if let Some((implementer, witness_source)) = answer {
+                        let dispatch = self.slot_dispatch(implementer.symbol, ty)?;
                         functions.push(dir::WitnessFunction {
                             member: requirement,
                             function: implementer,
                             source: witness_source,
+                            dispatch,
                         });
                     }
                 }

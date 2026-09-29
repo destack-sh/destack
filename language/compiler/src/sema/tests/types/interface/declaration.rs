@@ -243,28 +243,30 @@ export newtype interface Table<T, Context> {
 /// @definition.interface symbol=Table template=(out T, in out Context, this: Table<T, Context>) nominal=true
 /// @definition.where symbol=Table relation=satisfies left=this right=Table<T, Context>
 /// @definition.field symbol=Table.skip source="readonly skip: Table<T, Context>" key=skip type=Table<T, Context>
-/// @definition.signature kind=call source="(name: string, body?: (value: &readonly T, context: &Context) => void): void" type=(string, <type_expression.'a, type_expression.'b>(&type_expression.'a readonly T, &type_expression.'b Context) => void | undefined?) => void
-/// @definition.signature kind=call type=(string, int32, <type_expression.'a, type_expression.'b>(&type_expression.'a readonly T, &type_expression.'b Context) => void | undefined?) => void
+/// @definition.method symbol=Table.()#1 source="(name: string, body?: (value: &readonly T, context: &Context) => void): void" slot=() role=call type=(this: this, string, <type_expression.'a, type_expression.'b>(&type_expression.'a readonly T, &type_expression.'b Context) => void | undefined?) => void
+/// @definition.method symbol=Table.()#2 slot=() role=call type=(this: this, string, int32, <type_expression.'a, type_expression.'b>(&type_expression.'a readonly T, &type_expression.'b Context) => void | undefined?) => void
 /// @type.symbol symbol=Table.T source=T type=T
 /// @type.symbol symbol=Table.Context source=Context type=Context
 
     (name: string, body?: (value: &readonly T, context: &Context) => void): void;
-    /// @type.symbol symbol=Table.name#1 source="name: string" type=string
-    /// @type.symbol symbol=Table.body#1 source="body?: (value: &readonly T, context: &Context) => void" type=<type_expression.'a, type_expression.'b>(&type_expression.'a readonly T, &type_expression.'b Context) => void | undefined
+    /// @type.symbol symbol=Table.()#1 source="(name: string, body?: (value: &readonly T, context: &Context) => void): void" type=(this: this, string, <type_expression.'a, type_expression.'b>(&type_expression.'a readonly T, &type_expression.'b Context) => void | undefined?) => void
+    /// @type.symbol symbol=Table.().name#1 source="name: string" type=string
+    /// @type.symbol symbol=Table.().body#1 source="body?: (value: &readonly T, context: &Context) => void" type=<type_expression.'a, type_expression.'b>(&type_expression.'a readonly T, &type_expression.'b Context) => void | undefined
     /// @generic.template source=type_expression parent=template#0 parameters=('a, 'b)
-    /// @type.symbol symbol=Table.value#1 source="value: &readonly T" type=&type_expression.'a readonly T
+    /// @type.symbol symbol=Table.().value#1 source="value: &readonly T" type=&type_expression.'a readonly T
     /// @resolution.name source=T target=Table.T
-    /// @type.symbol symbol=Table.context#1 source="context: &Context" type=&type_expression.'b Context
+    /// @type.symbol symbol=Table.().context#1 source="context: &Context" type=&type_expression.'b Context
     /// @resolution.name source=Context target=Table.Context
 
     (name: string, options: int32, body?: (value: &readonly T, context: &Context) => void): void;
-    /// @type.symbol symbol=Table.name#2 source="name: string" type=string
-    /// @type.symbol symbol=Table.options source="options: int32" type=int32
-    /// @type.symbol symbol=Table.body#2 source="body?: (value: &readonly T, context: &Context) => void" type=<type_expression.'a, type_expression.'b>(&type_expression.'a readonly T, &type_expression.'b Context) => void | undefined
+    /// @type.symbol symbol=Table.()#2 type=(this: this, string, int32, <type_expression.'a, type_expression.'b>(&type_expression.'a readonly T, &type_expression.'b Context) => void | undefined?) => void
+    /// @type.symbol symbol=Table.().name#2 source="name: string" type=string
+    /// @type.symbol symbol=Table.().options source="options: int32" type=int32
+    /// @type.symbol symbol=Table.().body#2 source="body?: (value: &readonly T, context: &Context) => void" type=<type_expression.'a, type_expression.'b>(&type_expression.'a readonly T, &type_expression.'b Context) => void | undefined
     /// @generic.template source=type_expression parent=template#0 parameters=('a, 'b)
-    /// @type.symbol symbol=Table.value#2 source="value: &readonly T" type=&type_expression.'a readonly T
+    /// @type.symbol symbol=Table.().value#2 source="value: &readonly T" type=&type_expression.'a readonly T
     /// @resolution.name source=T target=Table.T
-    /// @type.symbol symbol=Table.context#2 source="context: &Context" type=&type_expression.'b Context
+    /// @type.symbol symbol=Table.().context#2 source="context: &Context" type=&type_expression.'b Context
     /// @resolution.name source=Context target=Table.Context
 
     readonly skip: Table<T, Context>;
@@ -404,4 +406,120 @@ newtype interface Values<T> {
 "#, r#"
 
 "#);
+}
+
+/// A member with its own type parameters cannot be called through a dynamic value.
+#[test]
+fn test_reject_a_generic_member_call_through_a_dynamic_value() {
+    let session = TestSession::single(
+        r#"
+newtype interface Mapper {
+    map<T>(value: T): T;
+}
+
+function apply(mapper: Mapper): int32 {
+    mapper.map(1)
+}
+"#,
+    );
+
+    session.assert_diagnostics(
+        session.dir_checked_key("main.tspp"),
+        r#"
+/// @diagnostic.error id=not-dynamic-member message="'map' has its own type parameters and cannot be called through a dynamic value"
+/// @diagnostic.label line=7 column=5 span="mapper.map(1)" line_source="mapper.map(1)"
+/// @diagnostic.help message="give the member a default body, or call it on a concrete or generic value"
+"#,
+    );
+}
+
+/// A dynamic value cannot fill a bound with default-less generic members.
+#[test]
+fn test_reject_a_dynamic_value_for_a_bound_with_generic_members() {
+    let session = TestSession::single(
+        r#"
+newtype interface Mapper {
+    map<T>(value: T): T;
+}
+
+function remap<M: Mapper>(mapper: M): int32 {
+    mapper.map(1)
+}
+
+function apply(mapper: Mapper): int32 {
+    remap(mapper)
+}
+"#,
+    );
+
+    session.assert_diagnostics(
+        session.dir_materialized_key("main.tspp"),
+        r#"
+/// @diagnostic.error id=not-dynamic-member message="'map' has its own type parameters and cannot be called through a dynamic value"
+/// @diagnostic.label line=11 column=5 span="remap(mapper)" line_source="remap(mapper)"
+/// @diagnostic.help message="give the member a default body, or call it on a concrete or generic value"
+"#,
+    );
+}
+
+/// A non-copy value cannot be erased when a member consumes its receiver.
+#[test]
+fn test_reject_erasing_a_value_a_member_consumes() {
+    let session = TestSession::single(
+        r#"
+interface Taker {
+    take(this): int32;
+}
+
+struct Items implements Taker {
+    items: ^Array<int32>;
+
+    take(this): int32 {
+        return 1;
+    }
+}
+
+function erase(): Taker {
+    return Items { items: [] };
+}
+"#,
+    );
+
+    session.assert_diagnostics(
+        session.dir_materialized_key("main.tspp"),
+        r#"
+/// @diagnostic.error id=not-erasable message="type 'Items' cannot be erased into 'Taker'"
+/// @diagnostic.label line=15 column=12 span="Items { items: [] }" line_source="return Items { items: [] };"
+/// @diagnostic.note message="'take' consumes its receiver"
+/// @diagnostic.help message="borrow the receiver in 'take', or make the value copy"
+"#,
+    );
+}
+
+/// A class handle erases even when a member takes its receiver by value.
+#[test]
+fn test_erase_a_class_a_member_takes_by_value() {
+    let session = TestSession::single(
+        r#"
+interface Taker {
+    take(this): int32;
+}
+
+class Items implements Taker {
+    take(this): int32 {
+        return 1;
+    }
+}
+
+function erase(): Taker {
+    return new Items();
+}
+"#,
+    );
+
+    session.assert_diagnostics(
+        session.dir_materialized_key("main.tspp"),
+        r#"
+"#,
+    );
 }

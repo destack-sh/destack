@@ -371,8 +371,7 @@ pub enum CheckError {
     /// ```
     #[diagnostic(
         id = "not-erasable",
-        message = "type '{source}' cannot be erased into '{target}'",
-        help = "prove the source erasable with a DynamicSafe bound"
+        message = "type '{source}' cannot be erased into '{target}'"
     )]
     NotErasable {
         /// Report the unerasable value.
@@ -383,6 +382,29 @@ pub enum CheckError {
         source: String,
         /// The erased target type.
         target: String,
+    },
+
+    /// A call through a dynamic value names a generic member without a default body.
+    ///
+    /// ```tspp
+    /// newtype interface Mapper {
+    ///     map<T>(value: T): T;
+    /// }
+    /// declare const mapper: Mapper;
+    /// mapper.map(1);
+    /// ```
+    #[diagnostic(
+        id = "not-dynamic-member",
+        message = "'{member}' has its own type parameters and cannot be called through a dynamic value",
+        help = "give the member a default body, or call it on a concrete or generic value"
+    )]
+    NotDynamicMember {
+        /// Report the call.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The member name.
+        member: String,
     },
 
     /// Source type converts to more than one represented union case.

@@ -338,9 +338,12 @@ impl CheckState<'_> {
             }
             Entry::Coercion(node, coercion) => {
                 let anchor = materialization.anchor.unwrap_or(node);
-                if let Some(resolved) =
-                    self.materialize_payload(materialization, anchor, coercion, worklist)?
-                {
+                let resolved =
+                    self.materialize_payload(materialization, anchor, coercion.clone(), worklist)?;
+                let materialized = resolved.as_ref().unwrap_or(&coercion);
+                self.write_erasure_witnesses(materialized, anchor, worklist)?;
+
+                if let Some(resolved) = resolved {
                     self.module.coercions_tail.bind_coercion(node, resolved);
                 }
 

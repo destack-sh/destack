@@ -1123,3 +1123,54 @@ external function todo(variant<uint1> { 0uint1 = ref<String, managed, mutable, l
 "#,
     );
 }
+
+/// A dynamic value filling a bound dispatches an overridable default through its table.
+#[test]
+fn test_dispatch_a_default_member_through_a_dynamic_bound() {
+    let session = TestSession::single(
+        r#"
+newtype interface Greeter {
+    greet(): int32 {
+        return 0;
+    }
+}
+
+class Console implements Greeter {
+    greet(): int32 {
+        return 1;
+    }
+}
+
+function run<T: Greeter>(greeter: T): int32 {
+    return greeter.greet();
+}
+
+export function main(): int32 {
+    const greeter: Greeter = new Console();
+    return run(greeter);
+}
+"#,
+    );
+
+    session.assert_mir_elaborated_function(
+        "main.tspp",
+        "test.main.run<dynamic<test.main.Greeter, managed, mutable, local>>",
+        r#"
+@nocopy
+type test.main.Greeter { }
+
+shared function test.main.run<dynamic<test.main.Greeter, managed, mutable, local>>(v0: dynamic<test.main.Greeter, managed, mutable, local>): int32 {
+    local l0: dynamic<test.main.Greeter, managed, mutable, local>
+
+entry(v0: dynamic<test.main.Greeter, managed, mutable, local>):
+    store l0, v0
+    v1: dynamic<test.main.Greeter, managed, mutable, local> = load l0
+    v3: ref<test.main.Greeter, managed, mutable, local> = dynamic.payload v1
+    v2: int32 = call.dynamic v1, test.main.Greeter, 0(v3): (ref<test.main.Greeter, managed, mutable, local>) => int32
+    return v2
+}
+
+/// @layout.struct name=test.main.Greeter size=0 align=1
+"#,
+    );
+}
