@@ -21,11 +21,11 @@ test("send a client's writes on to the cell serving a moved scope", async () => 
         objects: [notebook, note],
         scope: spaceId,
         caller: principal.user.reference("universe", "alice"),
-        service: source.connect("alice").replica,
+        endpoint: source.endpoint("alice"),
         reconnect: (cell) => {
             cells.push(cell);
 
-            return target.connect("alice").replica;
+            return target.endpoint("alice");
         },
     });
     const stopping = new AbortController();

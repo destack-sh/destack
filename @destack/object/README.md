@@ -168,12 +168,20 @@ const inbox: Destination<Copy> = { ...INBOX, batch: 100, accept: (copies) => add
 
 ## Clients
 
-An `ObjectClient` holds a scope's objects locally and confirms local mutations from the server.
+An `ObjectClient` holds a scope's objects locally, reaches their package's service at an endpoint, and confirms local mutations from the server.
 
 ```ts
 import { ObjectClient } from "@destack/object/client";
 
-const client = await ObjectClient.open({ database, objects: [notebook, note], scope, caller, service, reconnect });
+const client = await ObjectClient.open({
+    database,
+    objects: [notebook, note],
+    scope,
+    caller,
+    endpoint: { url: `${origin}/.destack/service` },
+    reconnect: (cell) => ({ url: serviceUrl(cell) }),   // the cell a moved scope answers at
+    push: { mutations: 100 },                            // at most the server's 100
+});
 void client.run(signal, report);
 
 const created = client.mutate(note).create({ title: "Ideas" });

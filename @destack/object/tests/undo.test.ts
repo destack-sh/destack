@@ -119,9 +119,9 @@ test("invert each trait's methods into the calls that undo them, and leave the r
 test.each(TEST_DIALECTS)(
     "undo and redo a party's mutations, restoring only what no one changed since, across a restart, on %s",
     async (dialect) => {
-        const { connect } = await serveNotes(dialect);
+        const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect("alice");
-        const device = await Device.open("alice", alice);
+        const device = await Device.open("alice", endpoint("alice"));
         device.online();
         // create a note, then retitle it and write its text, both confirmed
         const created = device.client.mutate(note).create({ title: "Draft" });
@@ -167,7 +167,7 @@ test.each(TEST_DIALECTS)(
             objects: [notebook, note],
             scope: spaceId,
             caller: principal.user.reference("universe", "alice"),
-            service: alice.replica,
+            endpoint: endpoint("alice"),
             reconnect: unmoved,
             origin: device.client.origin,
             isMigrated: true,

@@ -3,9 +3,9 @@ import { Device, serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/notes.ts";
 
 test("hold mutations on local branches, shown while checked out, pushed only once merged", async () => {
-    const { connect } = await serveNotes("sqlite");
+    const { connect, endpoint } = await serveNotes("sqlite");
     const alice = connect("alice");
-    const device = await Device.open("alice", alice);
+    const device = await Device.open("alice", endpoint("alice"));
     device.online();
     const book = device.client.mutate(notebook).create({ name: "Travel" });
     const { id: parentId } = await book.predicted;

@@ -10,8 +10,8 @@ import { ObjectType } from "../src/index.ts";
 test.for(TEST_DIALECTS)(
     "read a query's rows, includes and aggregates with predictions before the server confirms them on %s",
     async (dialect) => {
-        const { connect } = await serveNotes(dialect);
-        const device = await Device.open("alice", connect("alice"), []);
+        const { endpoint } = await serveNotes(dialect);
+        const device = await Device.open("alice", endpoint("alice"), []);
 
         // read notebooks with their first two notes and note counts
         const books = device.client.subscribe(notebook, {
@@ -74,8 +74,8 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "watch a query's rows, includes and counts change with each local commit on %s",
     async (dialect) => {
-        const { connect } = await serveNotes(dialect);
-        const device = await Device.open("alice", connect("alice"), []);
+        const { endpoint } = await serveNotes(dialect);
+        const device = await Device.open("alice", endpoint("alice"), []);
         const books = device.client.subscribe(notebook, {
             order: [{ column: "name", direction: "asc" }],
             include: {
@@ -176,7 +176,7 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "list and read a query filtered, sorted and paged by computed values, with the values beside each row, on %s",
     async (dialect) => {
-        const { connect } = await serveNotes(dialect);
+        const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect("alice");
 
         // file notebooks holding three, one and no notes
@@ -229,7 +229,7 @@ test.for(TEST_DIALECTS)(
         ]);
 
         // read the same query from a local copy, the computed values inline
-        const device = await Device.open("alice", alice, []);
+        const device = await Device.open("alice", endpoint("alice"), []);
         device.online();
         const local = device.client.subscribe(notebook, {
             compute,
@@ -247,7 +247,7 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "list and read the notebooks holding a pinned note outside the trash on %s",
     async (dialect) => {
-        const { connect } = await serveNotes(dialect);
+        const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect("alice");
 
         // file notebooks with a pinned, a trashed pinned, and no pinned note
@@ -277,7 +277,7 @@ test.for(TEST_DIALECTS)(
             order: [{ column: "name", direction: "asc" as const }],
         };
         const listed = await alice.notebook.list({ spaceId, ...query });
-        const device = await Device.open("alice", alice, []);
+        const device = await Device.open("alice", endpoint("alice"), []);
         device.online();
         const local = device.client.subscribe(notebook, query);
         await local.ready;
@@ -291,8 +291,8 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "follow the newest notebooks and notes as one feed on %s",
     async (dialect) => {
-        const { connect } = await serveNotes(dialect);
-        const device = await Device.open("alice", connect("alice"), []);
+        const { endpoint } = await serveNotes(dialect);
+        const device = await Device.open("alice", endpoint("alice"), []);
 
         // follow notebooks and notes together, newest first, three at most
         const activity = device.client.union(
@@ -336,7 +336,7 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "list and read notes sorted by their notebook's name on %s",
     async (dialect) => {
-        const { connect } = await serveNotes(dialect);
+        const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect("alice");
 
         // file notes in two notebooks, the later notebook first by name
@@ -367,7 +367,7 @@ test.for(TEST_DIALECTS)(
             ],
         };
         const listed = await alice.note.list({ spaceId, ...query });
-        const device = await Device.open("alice", alice, []);
+        const device = await Device.open("alice", endpoint("alice"), []);
         device.online();
         const local = device.client.subscribe(note, query);
         await local.ready;
@@ -392,7 +392,7 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "list and read notebooks by how many pinned notes outside the trash they hold on %s",
     async (dialect) => {
-        const { connect } = await serveNotes(dialect);
+        const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect("alice");
 
         // file notebooks holding two, one and no pinned notes, one of Work's in the trash
@@ -436,7 +436,7 @@ test.for(TEST_DIALECTS)(
             ],
         };
         const listed = await alice.notebook.list({ spaceId, ...query });
-        const device = await Device.open("alice", alice, []);
+        const device = await Device.open("alice", endpoint("alice"), []);
         device.online();
         const local = device.client.subscribe(notebook, query);
         await local.ready;
@@ -461,9 +461,9 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "keep following a closed query for a while, receiving the server's changes with no query open, on %s",
     async (dialect) => {
-        const { connect } = await serveNotes(dialect);
+        const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect("alice");
-        const device = await Device.open("alice", alice, []);
+        const device = await Device.open("alice", endpoint("alice"), []);
         device.online();
 
         // close the query and keep it followed for a minute
@@ -486,12 +486,12 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "let go of kept queries beyond the storage budget, keeping queries kept always until released, on %s",
     async (dialect) => {
-        const { connect } = await serveNotes(dialect);
+        const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect("alice");
         for (const name of ["Home", "Work", "Travel"]) {
             await alice.notebook.create({ spaceId, requestId: RequestId.create(), name });
         }
-        const device = await Device.open("alice", alice, [], { storage: { rows: 2 } });
+        const device = await Device.open("alice", endpoint("alice"), [], { storage: { rows: 2 } });
         device.online();
         const database = device.client.database;
         const names = async () =>
@@ -524,10 +524,10 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "describe what a client's copy holds, the queries it follows and what waits for the server on %s",
     async (dialect) => {
-        const { connect } = await serveNotes(dialect);
+        const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect("alice");
         await alice.notebook.create({ spaceId, requestId: RequestId.create(), name: "Home" });
-        const device = await Device.open("alice", alice, [], { storage: { rows: 10 } });
+        const device = await Device.open("alice", endpoint("alice"), [], { storage: { rows: 10 } });
         device.online();
 
         // follow the notebooks, then keep them always once closed

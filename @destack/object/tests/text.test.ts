@@ -8,7 +8,7 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { Caller } from "@destack/service/authentication";
-import { createClient } from "@destack/service/client";
+import { createClient, type ClientOptions } from "@destack/service/client";
 import { defineJournal } from "@destack/service/database";
 import { Health } from "@destack/service/health";
 import { defineService } from "@destack/service";
@@ -114,21 +114,18 @@ async function serveDocuments(dialect: Dialect) {
         },
     });
     onTestFinished(() => server.close());
-    const connect = (name: string) =>
-        createClient(documentsService.router, {
-            url: "https://documents.test",
-            headers: { authorization: `Bearer ${name}` },
-            fetch: (request: Request) => server.fetch(request),
-        });
+    const endpoint = (name: string): ClientOptions => ({
+        url: "https://documents.test",
+        headers: { authorization: `Bearer ${name}` },
+        fetch: (request: Request) => server.fetch(request),
+    });
+    const connect = (name: string) => createClient(documentsService, endpoint(name));
 
-    return { connect, database };
+    return { connect, endpoint, database };
 }
 
-/** The documents procedures one user calls. */
-type Service = ReturnType<Awaited<ReturnType<typeof serveDocuments>>["connect"]>;
-
 /** Open a user's client of the space on a new local database, following every document. */
-async function openClient(name: string, service: Service) {
+async function openClient(name: string, endpoint: ClientOptions) {
     // create the local database and follow the documents
     const tables = ObjectClient.tables([document]);
     const storage = await TestDatabase.create("sqlite", tables, { storage: "file" });
@@ -138,7 +135,7 @@ async function openClient(name: string, service: Service) {
         objects: [document],
         scope: spaceId,
         caller: principal.user.reference("universe", name),
-        service: service.replica,
+        endpoint,
         reconnect: unmoved,
     });
     const live = client.subscribe(document);
@@ -383,10 +380,10 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "predict edits on two clients, converge after push, undo one exactly and hide chunks from others on %s",
     async (dialect) => {
-        const { connect: connectAs } = await serveDocuments(dialect);
-        const alice = await openClient("alice", connectAs("alice"));
-        const bob = await openClient("bob", connectAs("bob"));
-        const carol = await openClient("carol", connectAs("carol"));
+        const { endpoint } = await serveDocuments(dialect);
+        const alice = await openClient("alice", endpoint("alice"));
+        const bob = await openClient("bob", endpoint("bob"));
+        const carol = await openClient("carol", endpoint("carol"));
 
         // create a shared document with a first line
         const created = alice.client.mutate(document).create({ title: "Plan" });
@@ -435,9 +432,9 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "type into a live text by offsets, one change after another, and converge on the server on %s",
     async (dialect) => {
-        const { connect: connectAs } = await serveDocuments(dialect);
-        const alice = await openClient("alice", connectAs("alice"));
-        const bob = await openClient("bob", connectAs("bob"));
+        const { endpoint } = await serveDocuments(dialect);
+        const alice = await openClient("alice", endpoint("alice"));
+        const bob = await openClient("bob", endpoint("bob"));
 
         // create a document shared with bob and follow its body as a sequence
         const created = alice.client.mutate(document).create({ title: "Plan" });

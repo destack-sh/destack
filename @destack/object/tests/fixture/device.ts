@@ -9,9 +9,9 @@ import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { identifier } from "@destack/schema";
 import { Caller } from "@destack/service/authentication";
-import { createClient } from "@destack/service/client";
+import { createClient, type ClientOptions } from "@destack/service/client";
 import { Health } from "@destack/service/health";
-import { Server } from "@destack/service/server";
+import { Server, type ServiceImplementation } from "@destack/service/server";
 import { v7 } from "uuid";
 import { note, notebook, notesDatabase, notesService, notesJournal } from "./notes.ts";
 import { principal } from "@destack/access";
@@ -31,9 +31,9 @@ export async function serveNotes(dialect: Dialect) {
     const database = storage.database;
     await openSpace(database, spaceId);
 
-    // authenticate each request as the user its bearer credential names
-    const server = Server.start({
-        ...ObjectServer.serve(notesService, {
+    // serve the notes over HTTP to bearer-named users
+    const served = serveObjects(
+        ObjectServer.serve(notesService, {
             journal: notesJournal,
             database,
             audit: AuditRecorder.service(new AuditOutbox(database), {
@@ -41,10 +41,23 @@ export async function serveNotes(dialect: Dialect) {
                 service: "test",
             }),
         }),
+        spaceId,
+    );
+
+    const connect = (user: string) => createClient(notesService, served.endpoint(user));
+
+    return { connect, endpoint: served.endpoint, server: served.server, database };
+}
+
+/** Serve an object service over HTTP to bearer-named users in a space, with each user's endpoint. */
+export function serveObjects(implementation: ServiceImplementation, scope: string) {
+    // authenticate each request as the user its bearer credential names
+    const server = Server.start({
+        ...implementation,
         audience,
-        scope: spaceId,
+        scope,
         resources: new ResourceContext(),
-        health: new Health("notes"),
+        health: new Health(implementation.service.name),
         drainTimeout: 1000,
         authorizeHost: async () => {},
         authenticate: async (request) => {
@@ -57,7 +70,7 @@ export async function serveNotes(dialect: Dialect) {
                 subjects: [subject],
                 credential: { kind: "user", id },
                 audience,
-                scope: spaceId,
+                scope,
                 verifiedAt: now,
                 expiresAt: now + 60_000,
             });
@@ -65,14 +78,14 @@ export async function serveNotes(dialect: Dialect) {
     });
     onTestFinished(() => server.close());
 
-    const connect = (user: string) =>
-        createClient(notesService.router, {
-            url: "https://notes.test",
-            headers: { authorization: `Bearer ${user}` },
-            fetch: (request: Request) => server.fetch(request),
-        });
+    // reach the server as a user
+    const endpoint = (user: string): ClientOptions => ({
+        url: "https://objects.test",
+        headers: { authorization: `Bearer ${user}` },
+        fetch: (request: Request) => server.fetch(request),
+    });
 
-    return { connect, database };
+    return { server, endpoint };
 }
 
 /** A user's device holding notebooks and notes in a local database file. */
@@ -97,9 +110,12 @@ export class Device {
     /** Open a user's device on a new local database file, offline until it goes online. */
     static async open(
         user: string,
-        service: ReturnType<Awaited<ReturnType<typeof serveNotes>>["connect"]>,
+        endpoint: ClientOptions,
         queried: readonly (typeof notebook | typeof note)[] = [notebook, note],
-        options: { readonly storage?: { readonly rows: number } } = {},
+        options: {
+            readonly storage?: { readonly rows: number };
+            readonly push?: { readonly mutations: number };
+        } = {},
     ) {
         // create the local database and hold the space's notebooks and notes in it
         const tables = ObjectClient.tables([notebook, note]);
@@ -109,7 +125,7 @@ export class Device {
             objects: [notebook, note],
             scope: spaceId,
             caller: principal.user.reference("universe", user),
-            service: service.replica,
+            endpoint,
             reconnect: unmoved,
             ...options,
         });

@@ -16,7 +16,7 @@ import { unmoved } from "./fixture/space.ts";
 test.each(TEST_DIALECTS)(
     "keep notes private until shared, move them between notebooks and sync them on %s",
     async (dialect) => {
-        const { connect } = await serveNotes(dialect);
+        const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect("alice");
         const bob = connect("bob");
 
@@ -122,7 +122,7 @@ test.each(TEST_DIALECTS)(
         expect(await titles()).toEqual(["Ideas", "Sources"]);
 
         // follow the notes on bob's device and write into the shared notebook, predicted at once
-        const device = await Device.open("bob", connect("bob"));
+        const device = await Device.open("bob", endpoint("bob"));
         device.online();
         await expect.poll(() => device.titles()).toEqual(["Ideas", "Sources"]);
         const questions = device.client
@@ -141,11 +141,11 @@ test.each(TEST_DIALECTS)(
 test.each(TEST_DIALECTS)(
     "queue notes offline, write batches atomically, drop rejected predictions and rebase on %s",
     async (dialect) => {
-        const { connect, database } = await serveNotes(dialect);
+        const { connect, endpoint, database } = await serveNotes(dialect);
         const alice = connect("alice");
 
         // queue a notebook and its first note in one offline mutation
-        const device = await Device.open("alice", alice);
+        const device = await Device.open("alice", endpoint("alice"));
         const travel = device.client.mutation(async (mutation) => {
             const book = await mutation.call(notebook).create({ name: "Travel" });
             await mutation.call(note).create({ parentId: book.id, title: "Packing" });
@@ -163,7 +163,7 @@ test.each(TEST_DIALECTS)(
             objects: [notebook, note],
             scope: spaceId,
             caller: principal.user.reference("universe", "alice"),
-            service: alice.replica,
+            endpoint: endpoint("alice"),
             reconnect: unmoved,
         });
         expect(await restarted.outbox.pending(restarted.database)).toEqual([
@@ -218,7 +218,7 @@ test.each(TEST_DIALECTS)(
         expect([stored.title, stored.text]).toEqual(["Luggage", "passport, charger"]);
 
         // refuse a batch the server forbids as a whole, and revert both of its predictions
-        const bob = await Device.open("bob", connect("bob"));
+        const bob = await Device.open("bob", endpoint("bob"));
         await alice.notebook.grant({
             spaceId,
             id: book.id,
@@ -270,7 +270,7 @@ test.each(TEST_DIALECTS)(
 test.each(TEST_DIALECTS)(
     "hold only the queries a device subscribes to, with their includes, as rows move between them on %s",
     async (dialect) => {
-        const { connect } = await serveNotes(dialect);
+        const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect("alice");
 
         // file notes into two notebooks
@@ -289,7 +289,7 @@ test.each(TEST_DIALECTS)(
         const plan = await noteIn(work.id, "Plan");
 
         // hold the travel notes and the notebook they belong to, nothing of work
-        const device = await Device.open("alice", alice, []);
+        const device = await Device.open("alice", endpoint("alice"), []);
         const travelNotes = device.client.subscribe(note, {
             where: Condition.eq("parentId", travel.id),
             include: { parent: {} },
@@ -347,7 +347,7 @@ test.each(TEST_DIALECTS)(
 test.each(TEST_DIALECTS)(
     "count a notebook's notes outside the trash, predicted on a device before the server confirms on %s",
     async (dialect) => {
-        const { connect } = await serveNotes(dialect);
+        const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect("alice");
         const travel = await alice.notebook.create({
             spaceId,
@@ -357,7 +357,7 @@ test.each(TEST_DIALECTS)(
         expect(travel.noteCount).toBe(0);
 
         // predict the count of a note created offline, before the server holds it
-        const device = await Device.open("alice", alice);
+        const device = await Device.open("alice", endpoint("alice"));
         device.follow();
         await expect
             .poll(async () =>
@@ -394,7 +394,7 @@ test.each(TEST_DIALECTS)(
 );
 
 test("share one browser database between tabs, handing it over when the owning tab closes", async () => {
-    const { connect } = await serveNotes("sqlite");
+    const { connect, endpoint } = await serveNotes("sqlite");
     const alice = connect("alice");
 
     // share one relay, worker and lock queue between tabs
@@ -443,7 +443,7 @@ test("share one browser database between tabs, handing it over when the owning t
             objects: [notebook, note],
             scope: spaceId,
             caller: principal.user.reference("universe", "alice"),
-            service: alice.replica,
+            endpoint: endpoint("alice"),
             reconnect: unmoved,
             host: host(),
             report: (error) => {

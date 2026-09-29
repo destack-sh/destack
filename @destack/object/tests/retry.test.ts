@@ -7,22 +7,22 @@ import { note, notebook } from "./fixture/notes.ts";
 import { unmoved } from "./fixture/space.ts";
 
 test("push again after transient failures, waiting twice as long after each", async () => {
-    const { connect } = await serveNotes("sqlite");
-    const alice = connect("alice");
+    const { endpoint, server } = await serveNotes("sqlite");
+    const alice = endpoint("alice");
 
-    // fail the first two pushes, recording each start
+    // fail the first two pushes as a broken network does, recording each start
     const attempts: number[] = [];
-    const push = async (...parameters: Parameters<typeof alice.replica.push>) => {
-        attempts.push(performance.now());
-        if (attempts.length <= 2) {
+    const fetch = async (request: Request) => {
+        const isPush = new URL(request.url).pathname.endsWith("/replica/push");
+        if (isPush) {
+            attempts.push(performance.now());
+        }
+        if (isPush && attempts.length <= 2) {
             throw new TypeError("fetch failed");
         }
 
-        return await alice.replica.push(...parameters);
+        return await server.fetch(request);
     };
-    const service = new Proxy(alice.replica, {
-        get: (target, name) => (name === "push" ? push : Reflect.get(target, name)),
-    });
 
     // push with retries after 20 ms and 40 ms
     const storage = await TestDatabase.create("sqlite", ObjectClient.tables([notebook, note]));
@@ -32,7 +32,7 @@ test("push again after transient failures, waiting twice as long after each", as
         objects: [notebook, note],
         scope: spaceId,
         caller: principal.user.reference("universe", "alice"),
-        service,
+        endpoint: { ...alice, fetch },
         reconnect: unmoved,
         retry: { initialInterval: 20 },
     });

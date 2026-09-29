@@ -65,7 +65,7 @@ test.each(TEST_DIALECTS)(
         });
         onTestFinished(() => server.close());
         const as = (user: string) =>
-            createClient(tasksService.router, {
+            createClient(tasksService, {
                 url: "https://tasks.test",
                 headers: { authorization: `Bearer ${user}` },
                 fetch: (request: Request) => server.fetch(request),

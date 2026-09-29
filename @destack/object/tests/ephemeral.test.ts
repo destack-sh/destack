@@ -1,4 +1,4 @@
-import type { ObjectReference, TrackerMessage } from "@destack/sync";
+import type { TrackerMessage } from "@destack/sync";
 import { AuditOutbox } from "@destack/audit/outbox";
 import { schema } from "@destack/schema";
 import { Condition } from "@destack/db/query";
@@ -6,7 +6,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { vi } from "vitest";
 import { intersection, principal, relation, through, union } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
-import { unique, type Dialect, type JsonValue } from "@destack/db";
+import { unique, type Dialect } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { relayHub, TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier } from "@destack/schema";
@@ -14,12 +14,12 @@ import { Bookmark } from "@destack/service/bookmark";
 import { Journal } from "@destack/service/database";
 import { RequestId } from "@destack/service/request";
 import type { ServiceContext } from "@destack/service/server";
-import type * as sync from "@destack/sync";
 import { defineObject, field, method, type ObjectType } from "../src/index.ts";
 import { EphemeralStorage, ObjectServer } from "../src/server/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
-import type { ReplicaProcedures } from "../src/replica/replica.ts";
-import type { Client } from "@destack/service";
+import type { ClientOptions } from "@destack/service/client";
+import { defineService } from "@destack/service/declare";
+import { serveObjects } from "./fixture/device.ts";
 import { request, user } from "./schema.ts";
 import { openSpace, space, unmoved } from "./fixture/space.ts";
 
@@ -83,6 +83,9 @@ const profile = defineObject({
     permissions: { read: through("parent", "read"), manage: through("parent", "manage") },
     methods: { list: method.list("read"), create: method.create("manage") },
 });
+
+/** The service serving the boards, profiles and presence. */
+const boardsService = defineService("boards", { objects: { presence, board, profile } });
 
 test.for(TEST_DIALECTS)(
     "share presence on a board across instances, guarded by access, gone after its client on %s",
@@ -255,8 +258,8 @@ test.for(TEST_DIALECTS)(
         });
 
         // follow the owner's presence from the other instance
-        const alice = await clientOf(east.server, "alice");
-        const bob = await clientOf(west.server, "bob");
+        const alice = await clientOf(east, "alice");
+        const bob = await clientOf(west, "bob");
         await alice.client.subscribe(presence).ready;
         const seen = bob.client.subscribe(presence);
         await alice.client.mutate(presence).create({
@@ -288,8 +291,8 @@ test.for(TEST_DIALECTS)(
         const plans = await east.call("alice", board, "create", { requestId: RequestId.create() });
 
         // listen for the board's events as bob before he may read it
-        const alice = await clientOf(east.server, "alice");
-        const bob = await clientOf(west.server, "bob");
+        const alice = await clientOf(east, "alice");
+        const bob = await clientOf(west, "bob");
         const boards = bob.client.subscribe(board);
         const listening = new AbortController();
         onTestFinished(() => listening.abort());
@@ -329,8 +332,8 @@ test.for(TEST_DIALECTS)(
         });
 
         // show the viewer each board with the presence on it and the profile each presence names
-        const alice = await clientOf(east.server, "alice");
-        const bob = await clientOf(west.server, "bob");
+        const alice = await clientOf(east, "alice");
+        const bob = await clientOf(west, "bob");
         await alice.client.subscribe(presence).ready;
         await alice.client.mutate(presence).create({
             parent: { packageId: board.policy.definition.packageId, type: "board", id: plans.id },
@@ -467,11 +470,6 @@ async function serveBoards(dialect: Dialect) {
             objects: { presence, board, profile },
             database: storage.database,
             ephemeral: store,
-            context: (context) => ({
-                subjects: [principal.user.reference("universe", context.requireCaller().id)],
-                now: Date.now(),
-                attributes: {},
-            }),
             journal: new Journal(request),
             audit: AuditRecorder.service(new AuditOutbox(storage.database), {
                 package: presence.package,
@@ -479,8 +477,12 @@ async function serveBoards(dialect: Dialect) {
             }),
         });
 
+        const served = serveObjects(server.implement(boardsService), spaceId);
+
         return {
             server,
+            /** Reach the instance over HTTP as a user. */
+            endpoint: served.endpoint,
             /** Call a method as a user. */
             call: async (as: string, object: ObjectType, name: string, input: object) => {
                 return (await server.call(
@@ -563,6 +565,11 @@ function context(as: string) {
             scope: spaceId,
             caller: { id: as },
             requireCaller: () => ({ id: as }),
+            access: () => {
+                const subject = principal.user.reference("universe", as);
+
+                return { subject, subjects: [subject], now: Date.now(), attributes: {} };
+            },
             bookmark: new Bookmark(),
             observed: new Bookmark(),
             signal: controller.signal,
@@ -572,7 +579,7 @@ function context(as: string) {
 }
 
 /** Open a user's client of the boards over one instance. */
-async function clientOf(server: Pick<ObjectServer, "push" | "sync" | "broadcast">, as: string) {
+async function clientOf(instance: { endpoint(user: string): ClientOptions }, as: string) {
     // hold the boards and presence in a local database
     const storage = await TestDatabase.create(
         "sqlite",
@@ -582,52 +589,12 @@ async function clientOf(server: Pick<ObjectServer, "push" | "sync" | "broadcast"
         },
     );
 
-    // reach the instance's replica procedures directly as the user
-    const procedures = {
-        push: async (input: { scope: string; mutations: sync.Mutation[]; client?: string }) =>
-            server.push(input.scope, input.mutations, context(as).context, input.client),
-        broadcast: async (input: {
-            scope: string;
-            object: Omit<ObjectReference, "scope">;
-            event: JsonValue;
-        }) => {
-            await server.broadcast(input.scope, input.object, input.event, context(as).context);
-
-            return {};
-        },
-        sync: async (
-            input: {
-                scope: string;
-                queries?: Record<string, never>;
-                previous?: Record<string, never>;
-                after?: never;
-                client?: string;
-            },
-            options: { signal: AbortSignal },
-        ) => {
-            const { context: followed, controller } = context(as);
-            options.signal.addEventListener("abort", () => controller.abort());
-
-            const pages = server.sync(input.scope, followed, {
-                ...(input.after === undefined ? {} : { after: input.after }),
-                ...(input.queries === undefined ? {} : { queries: input.queries }),
-                ...(input.previous === undefined ? {} : { previous: input.previous }),
-                ...(input.client === undefined ? {} : { client: input.client }),
-            });
-
-            // fail an aborted stream as a transport does, rather than ending it
-            return (async function* () {
-                yield* pages;
-                options.signal.throwIfAborted();
-            })();
-        },
-    } as unknown as Client<ReplicaProcedures>;
     const client = await ObjectClient.open({
         database: storage.database,
         objects: [board, profile, presence],
         scope: spaceId,
         caller: principal.user.reference("universe", as),
-        service: procedures,
+        endpoint: instance.endpoint(as),
         reconnect: unmoved,
     });
 

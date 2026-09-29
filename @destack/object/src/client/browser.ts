@@ -2,9 +2,8 @@ import type { Subject } from "@destack/access";
 import { broadcastRelay, type Relay } from "@destack/db/relay";
 import { connectShared, type Message } from "@destack/db/shared";
 import type { Table } from "@destack/db";
-import type { Client } from "@destack/service";
+import type { ClientOptions } from "@destack/service/client";
 import { RequestId } from "@destack/service/request";
-import type { ReplicaProcedures } from "../replica/replica.ts";
 import type { ObjectType } from "../object/object.ts";
 import { ObjectClient } from "./client.ts";
 import type { Duration } from "../object/duration.ts";
@@ -85,10 +84,10 @@ export class BrowserTab {
         readonly scope: string;
         /** The calling principal. */
         readonly caller: Subject;
-        /** The service's replica procedures. */
-        readonly service: Client<ReplicaProcedures>;
-        /** Connect to the replica procedures of the holder a moved scope now answers at. */
-        readonly reconnect: (holder: string) => Client<ReplicaProcedures>;
+        /** Where and how to reach the service serving the objects. */
+        readonly endpoint: ClientOptions;
+        /** Where and how to reach the cell serving a moved scope now. */
+        readonly reconnect: (cell: string) => ClientOptions;
         /** The most object rows the shared copy holds, absent for no limit. */
         readonly storage?: { readonly rows: number };
         /** How long the shared local log keeps changes, a minute by default. */

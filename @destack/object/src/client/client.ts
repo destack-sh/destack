@@ -28,6 +28,7 @@ import { DatabaseError } from "@destack/db/error";
 import { schema } from "@destack/schema";
 import { canonicalize, digest } from "@destack/schema/json";
 import type { Client } from "@destack/service";
+import { createClient, type ClientOptions } from "@destack/service/client";
 import { ServiceError } from "@destack/service/error";
 import { Moved } from "@destack/directory";
 import { Failure, Journal } from "@destack/service/database";
@@ -44,6 +45,7 @@ import type { CallableName, ObjectProcedures, ScopeField } from "../method/proce
 import {
     ObjectQuery,
     PUSH_MUTATIONS,
+    replicaProcedures,
     type ObjectInclude,
     type ReplicaProcedures,
 } from "../replica/replica.ts";
@@ -220,6 +222,8 @@ export class ObjectClient {
     >();
     /** The running settle loop, absent while none wait. */
     #settling: Promise<void> | undefined;
+    /** The most mutations one push carries. */
+    readonly #pushMutations: number;
     /** Report the follow loop's failures, absent until it follows. */
     #report: ((error: unknown) => void) | undefined;
 
@@ -229,16 +233,25 @@ export class ObjectClient {
         readonly objects: readonly ObjectType[];
         readonly scope: string;
         readonly caller: Subject;
-        readonly service: Client<ReplicaProcedures>;
-        readonly reconnect: (cell: string) => Client<ReplicaProcedures>;
+        readonly endpoint: ClientOptions;
+        readonly reconnect: (cell: string) => ClientOptions;
         readonly origin: string;
         readonly refresh?: { readonly every: Duration };
         readonly storage?: { readonly rows: number };
         readonly log?: { readonly keep: Duration };
         readonly retry?: Partial<RetryPolicy>;
+        readonly push?: { readonly mutations: number };
     }) {
-        // keep the options
+        // keep the options, refusing a push larger than the server takes
         this.database = options.database;
+        this.#pushMutations = options.push?.mutations ?? PUSH_MUTATIONS;
+        if (
+            !Number.isInteger(this.#pushMutations) ||
+            this.#pushMutations < 1 ||
+            this.#pushMutations > PUSH_MUTATIONS
+        ) {
+            throw new TypeError(`a push carries 1 to ${PUSH_MUTATIONS} mutations`);
+        }
         this.#refresh = options.refresh;
         this.#storage = options.storage;
         this.#logMilliseconds =
@@ -250,8 +263,8 @@ export class ObjectClient {
         this.objects = ObjectType.served(options.objects);
         this.scope = options.scope;
         this.caller = options.caller;
-        this.#service = options.service;
-        this.#reconnect = options.reconnect;
+        this.#service = ObjectClient.#replica(options.objects, options.endpoint);
+        this.#reconnect = (cell) => ObjectClient.#replica(options.objects, options.reconnect(cell));
 
         // require one scope field
         const fields = new Set(this.objects.map((object) => object.route.field));
@@ -325,10 +338,10 @@ export class ObjectClient {
         readonly scope: string;
         /** The calling principal. */
         readonly caller: Subject;
-        /** The service's replica procedures. */
-        readonly service: Client<ReplicaProcedures>;
-        /** Connect to the replica procedures of the cell serving a moved scope now. */
-        readonly reconnect: (cell: string) => Client<ReplicaProcedures>;
+        /** Where and how to reach the service serving the objects. */
+        readonly endpoint: ClientOptions;
+        /** Where and how to reach the cell serving a moved scope now. */
+        readonly reconnect: (cell: string) => ClientOptions;
         /** The party sharing the database, a new one by default. */
         readonly origin?: string;
         /** Whether another party created the local tables. */
@@ -341,6 +354,8 @@ export class ObjectClient {
         readonly log?: { readonly keep: Duration };
         /** How transient failures retry, over the defaults. */
         readonly retry?: Partial<RetryPolicy>;
+        /** The most mutations one push carries, the server's most by default. */
+        readonly push?: { readonly mutations: number };
     }): Promise<ObjectClient> {
         // create the local tables
         if (!options.isMigrated) {
@@ -353,6 +368,21 @@ export class ObjectClient {
             ...options,
             origin: options.origin ?? RequestId.create(),
         });
+    }
+
+    /** Call the replica procedures of the service serving the objects, speaking their package's release. */
+    static #replica(
+        objects: readonly ObjectType[],
+        endpoint: ClientOptions,
+    ): Client<ReplicaProcedures> {
+        // require the objects of one package
+        const packages = new Set(objects.map((object) => object.package.id));
+        if (packages.size !== 1) {
+            throw new TypeError("a client holds the objects of one package");
+        }
+        const router = { replica: replicaProcedures };
+
+        return createClient({ package: objects[0]!.package, router }, endpoint).replica;
     }
 
     /** List the tables a client's local database holds for some object types. */
@@ -548,15 +578,14 @@ export class ObjectClient {
             if (!(await this.outbox.wait(this.database, signal))) {
                 return;
             }
-            const pending = await this.outbox.pending(this.database);
+            const pending = await this.outbox.pending(this.database, {
+                limit: this.#pushMutations,
+            });
 
             // push them
             try {
                 const result = await this.#call((service) =>
-                    service.push(
-                        { scope: this.scope, mutations: pending.slice(0, PUSH_MUTATIONS) },
-                        { signal },
-                    ),
+                    service.push({ scope: this.scope, mutations: pending }, { signal }),
                 );
                 await this.#record(result.outcomes, result.watermark);
                 failures = 0;

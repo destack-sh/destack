@@ -10,7 +10,7 @@ import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { identifier } from "@destack/schema";
 import { Caller } from "@destack/service/authentication";
-import { createClient } from "@destack/service/client";
+import { createClient, type ClientOptions } from "@destack/service/client";
 import { Health } from "@destack/service/health";
 import { RequestId } from "@destack/service/request";
 import { Server } from "@destack/service/server";
@@ -70,19 +70,20 @@ async function servePages(dialect: Dialect) {
     });
     onTestFinished(() => server.close());
 
-    return (headers: Record<string, string>) =>
-        createClient(pagesService.router, {
-            url: "https://page.test",
-            headers,
-            fetch: (request: Request) => server.fetch(request),
-        });
+    // reach the server with some headers
+    const endpoint = (headers: Record<string, string>): ClientOptions => ({
+        url: "https://page.test",
+        headers,
+        fetch: (request: Request) => server.fetch(request),
+    });
+    const connect = (headers: Record<string, string>) =>
+        createClient(pagesService, endpoint(headers));
+
+    return { connect, endpoint };
 }
 
 /** Hold a user's pages on a device. */
-async function openDevice(
-    user: string,
-    service: ReturnType<Awaited<ReturnType<typeof servePages>>>,
-) {
+async function openDevice(user: string, endpoint: ClientOptions) {
     // create the local database and hold the space's pages in it
     const storage = await TestDatabase.create("sqlite", ObjectClient.tables([page]), {
         storage: "file",
@@ -92,7 +93,7 @@ async function openDevice(
         objects: [page],
         scope: spaceId,
         caller: principal.user.reference("universe", user),
-        service: service.replica,
+        endpoint,
         reconnect: unmoved,
     });
 
@@ -129,7 +130,7 @@ async function openDevice(
 test.each(TEST_DIALECTS)(
     "share page trees with members and links, and move pages within them on %s",
     async (dialect) => {
-        const connect = await servePages(dialect);
+        const { connect } = await servePages(dialect);
         const alice = connect({ authorization: "Bearer alice" });
         const bob = connect({ authorization: "Bearer bob" });
         const carol = connect({ authorization: "Bearer carol" });
@@ -303,9 +304,9 @@ test.each(TEST_DIALECTS)(
 test.each(TEST_DIALECTS)(
     "build page trees offline in one mutation, and move and trash pages predictively on %s",
     async (dialect) => {
-        const connect = await servePages(dialect);
+        const { connect, endpoint } = await servePages(dialect);
         const alice = connect({ authorization: "Bearer alice" });
-        const device = await openDevice("alice", alice);
+        const device = await openDevice("alice", endpoint({ authorization: "Bearer alice" }));
 
         // create a tree of three pages in one mutation, shown before the server executes it
         const tree = device.client.mutation(async (mutation) => {
@@ -361,7 +362,7 @@ test.each(TEST_DIALECTS)(
 test.each(TEST_DIALECTS)(
     "follow a shared tree on a device, dropping pages moved out of it and taking them back on %s",
     async (dialect) => {
-        const connect = await servePages(dialect);
+        const { connect, endpoint } = await servePages(dialect);
         const alice = connect({ authorization: "Bearer alice" });
 
         // share a tree of four pages with bob as a viewer
@@ -385,7 +386,7 @@ test.each(TEST_DIALECTS)(
         });
 
         // hold the shared tree on bob's device
-        const device = await openDevice("bob", connect({ authorization: "Bearer bob" }));
+        const device = await openDevice("bob", endpoint({ authorization: "Bearer bob" }));
         const held = async () => {
             const rows = await device.client.database
                 .select({ title: page.table.title })
@@ -415,7 +416,7 @@ test.each(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)("list the pages below and above each page on %s", async (dialect) => {
-    const connect = await servePages(dialect);
+    const { connect } = await servePages(dialect);
     const alice = connect({ authorization: "Bearer alice" });
 
     // nest a guide under a handbook, and a chapter under the guide
@@ -452,9 +453,12 @@ test.for(TEST_DIALECTS)("list the pages below and above each page on %s", async 
 test.for(TEST_DIALECTS)(
     "follow the pages below a page on a device as the tree grows on %s",
     async (dialect) => {
-        const connect = await servePages(dialect);
+        const { connect, endpoint } = await servePages(dialect);
         const alice = connect({ authorization: "Bearer alice" });
-        const { client: device } = await openDevice("alice", alice);
+        const { client: device } = await openDevice(
+            "alice",
+            endpoint({ authorization: "Bearer alice" }),
+        );
         const handbook = await alice.page.create({
             spaceId,
             requestId: RequestId.create(),

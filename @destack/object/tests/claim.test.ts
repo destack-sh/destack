@@ -218,7 +218,7 @@ async function serveProfiles(dialect: Dialect, directory: Directory) {
     });
     onTestFinished(() => server.close());
     const connect = (user: string) =>
-        createClient(profilesService.router, {
+        createClient(profilesService, {
             url: "https://profiles.test",
             headers: { authorization: `Bearer ${user}` },
             fetch: (request: Request) => server.fetch(request),
