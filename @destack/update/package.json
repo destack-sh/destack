@@ -16,9 +16,10 @@
     },
     "dependencies": {
         "@destack/fs": "workspace:*",
+        "@destack/schema": "workspace:*",
         "@tufjs/models": "5.0.0",
-        "tuf-js": "6.0.0",
-        "tar": "7.5.22"
+        "tar": "7.5.22",
+        "tuf-js": "6.0.0"
     },
     "devDependencies": {
         "@destack/test": "workspace:*"

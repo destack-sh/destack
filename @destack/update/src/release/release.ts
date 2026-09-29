@@ -1,7 +1,5 @@
+import { Version } from "@destack/schema";
 import { UpdateError } from "../error/error.ts";
-
-/** Calendar version with an optional nightly build sequence. */
-const VERSION = /^(\d{4})\.([1-9]|1[0-2])\.(0|[1-9]\d*)(?:-nightly\.(0|[1-9]\d*))?$/;
 
 /** Operating systems and architectures supported by Destack distributions. */
 export const TARGETS = [
@@ -49,7 +47,9 @@ export class Release {
     /** Validate the version and target from signed metadata. */
     constructor(version: unknown, target: string) {
         // validate the public release identity before selecting its platform
-        parseVersion(version);
+        if (!Version.safeParse(version).success) {
+            throw new UpdateError("RELEASE", "invalid release version");
+        }
         if (!TARGETS.includes(target as Target)) {
             throw new UpdateError("RELEASE", `unsupported target: ${target}`);
         }
@@ -60,7 +60,7 @@ export class Release {
 
     /** Compare calendar versions in release order. */
     compare(other: Release): number {
-        return compareVersions(this.version, other.version);
+        return Version.compare(this.version, other.version);
     }
 
     /** Name the immutable installed distribution directory. */
@@ -72,37 +72,4 @@ export class Release {
     get channel(): "stable" | "nightly" {
         return this.version.includes("-nightly.") ? "nightly" : "stable";
     }
-}
-
-/** Compare validated calendar versions independently of their distribution format. */
-export function compareVersions(left: string, right: string): number {
-    // compare calendar components before the optional prerelease sequence
-    const first = parseVersion(left);
-    const second = parseVersion(right);
-    for (let index = 0; index < first.length; index++) {
-        if (first[index] !== second[index]) {
-            return Math.sign(first[index] - second[index]);
-        }
-    }
-
-    return 0;
-}
-
-/** Read numeric calendar components and order stable after its nightly prereleases. */
-function parseVersion(version: unknown): number[] {
-    // reject malformed identities before filesystem or ordering operations
-    const match = typeof version === "string" ? VERSION.exec(version) : null;
-    if (!match) {
-        throw new UpdateError("RELEASE", "invalid release version");
-    }
-    const components = match.slice(1, 4).map(Number);
-    const sequence = match[4] === undefined ? undefined : Number(match[4]);
-    if (
-        !components.every(Number.isSafeInteger) ||
-        (sequence !== undefined && !Number.isSafeInteger(sequence))
-    ) {
-        throw new UpdateError("RELEASE", "invalid release version");
-    }
-
-    return [...components, sequence === undefined ? 1 : 0, sequence === undefined ? 0 : sequence];
 }
