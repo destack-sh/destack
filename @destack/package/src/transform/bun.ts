@@ -1,7 +1,8 @@
 /// <reference types="bun" />
 import { readFile } from "node:fs/promises";
-import { PackageLocator, transformModule } from "./transform.ts";
-import { importVariants, requireBase, resolveVariant } from "./variant.ts";
+import { PackageLocator } from "./locator.ts";
+import { transformModule } from "./transform.ts";
+import { FileIndex, importVariants, requireBase, resolveVariant } from "./variant.ts";
 
 /** Package lookups shared by every load in this process. */
 const packages = new PackageLocator();
@@ -11,8 +12,10 @@ export const modulePlugin: Bun.BunPlugin = {
     name: "destack-module",
     setup(build) {
         // replace relative imports with their server variants, since Bun runs server code
+        const files = new FileIndex();
+        const exists = (path: string) => files.has(path);
         build.onResolve({ filter: /^\./ }, ({ path, importer }) => {
-            const variant = resolveVariant(path, importer, "server");
+            const variant = resolveVariant(path, importer, "server", exists);
 
             return variant === undefined ? undefined : { path: variant };
         });
@@ -28,18 +31,22 @@ export const modulePlugin: Bun.BunPlugin = {
             }
 
             // name server variants in runtime sources
-            const loaded = (!isBundling && importVariants(code, path, "server")) || code;
+            const loaded = (!isBundling && importVariants(code, path, "server", exists)) || code;
 
             // pass unchanged sources on to later bundler plugins
-            const result = owner && transformModule(loaded, path, owner);
+            const result = owner && transformModule(loaded, path, owner, packages);
             if (!result && isBundling) {
                 return undefined;
             }
-            const contents = result
-                ? `${result.code}\n//# sourceMappingURL=${result.map.toUrl()}`
-                : loaded;
+            const loader = /\.[cm]?tsx$/.test(path) ? "tsx" : "ts";
+            if (!result) {
+                return { contents: loaded, loader };
+            }
 
-            return { contents, loader: /\.[cm]?tsx$/.test(path) ? "tsx" : "ts" };
+            // map stamped sources back to their authored lines
+            const map = result.source.generateMap({ source: path });
+
+            return { contents: `${result.code}\n//# sourceMappingURL=${map.toUrl()}`, loader };
         });
     },
 };

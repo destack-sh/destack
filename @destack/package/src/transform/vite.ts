@@ -1,5 +1,6 @@
 import type { Plugin } from "vite";
-import { PackageLocator, transformModule } from "./transform.ts";
+import { PackageLocator } from "./locator.ts";
+import { transformModule } from "./transform.ts";
 import { requireBase, resolveVariant } from "./variant.ts";
 
 /**
@@ -9,11 +10,15 @@ import { requireBase, resolveVariant } from "./variant.ts";
  * Bundles outside Vite environments, like declaration evaluation, load the bases.
  */
 export function modulePlugin(): Plugin {
-    const packages = new PackageLocator();
+    let packages = new PackageLocator();
 
     return {
         name: "destack-module",
         enforce: "pre",
+        buildStart() {
+            // read package definitions afresh for each build of a warm builder
+            packages = new PackageLocator();
+        },
         resolveId: {
             filter: { id: /^\./ },
             handler(specifier, importer) {
@@ -40,10 +45,16 @@ export function modulePlugin(): Plugin {
                     return;
                 }
 
-                // require variants to re-export their base, then stamp declarations
+                // require variants to re-export their base, then stamp declarations with a full map
                 requireBase(code, path);
+                const result = transformModule(code, path, owner, packages);
 
-                return transformModule(code, path, owner);
+                return (
+                    result && {
+                        code: result.code,
+                        map: result.source.generateMap({ source: path, hires: true }),
+                    }
+                );
             },
         },
     };
