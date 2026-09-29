@@ -19,8 +19,7 @@ export const notesService = defineService("notes", {
 
 ## Releases
 
-Every client sends the release of the service it was built against in `Destack-Version`.
-A server refuses newer releases and those before `since`, and converts earlier inputs through each later release's `convert`, dropping the fields this release no longer declares.
+A server serves the releases from `since` up to its own, converting earlier inputs through each later release's `convert`.
 
 ```ts
 const search = defineProcedure({
@@ -29,13 +28,14 @@ const search = defineProcedure({
     audit: false,
     convert: {
         "2026.9.0": {
-            query: Expression.column("text"),   // renamed from text, which is then dropped
+            query: Expression.column("text"), // renamed from text, which is then dropped
             limit: Expression.coalesce(Expression.column("limit"), Expression.literal(50)),
         },
     },
 }).input(schema.object({ query: schema.string(), limit: schema.number().int() }));
 
 export const searchService = defineService("search", { search, since: "2026.8.0" });
+// every client sends the release it was built against in Destack-Version
 ```
 
 ## Servers
@@ -95,12 +95,12 @@ const response = await instance.fetch(notesService, request);
 
 ## Runners
 
-A `WorkloadRunner` starts one workload on any runtime as a host's start message asks, opens each bound resource through its declaration's providers, refuses requests without the host's secret, and serves its package below the package's mount.
-It holds no tokens: it reaches its space's services and its service bindings through the host's egress with the same secret.
+A `WorkloadRunner` serves one workload as a host's start message asks, opening each resource binding through its declaration's connectors.
 
 ```ts
 import { WorkloadRunner } from "@destack/service/workload";
 
+// the runner holds no tokens: it calls services through the host's egress with the host's secret
 const workload = await WorkloadRunner.start({ workload, resources, history, access }, start, startTelemetry, report);
 const response = await workload.fetch(request);
 await workload.close();

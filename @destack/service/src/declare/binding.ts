@@ -1,8 +1,8 @@
 import {
+    type ResourceBinding,
+    type Connector,
     defineResourceKind,
     Resource,
-    type Provider,
-    type ProviderContext,
 } from "@destack/resource";
 import { declaringModule, type ModuleMetadata, type Package } from "@destack/package";
 import { DeclarationReference, reference } from "@destack/package/declare";
@@ -40,27 +40,24 @@ export class ServiceBinding<Router extends ServiceRouter = ServiceRouter> extend
         this.service = service;
     }
 
-    /** Open the HTTP provider, calling the service as the workload. */
-    override get providers() {
+    /** The HTTP connector, calling the service at the bound address through the host's egress with the bound credential. */
+    override get connectors(): { readonly http: Connector<Client<Router>> } {
         return {
-            http: async (
-                _reference: URL,
-                context: ProviderContext,
-            ): Promise<Provider<Client<Router>, typeof ServiceKind>> => ({
-                kind: ServiceKind.name,
+            http: {
                 code: "http",
-                connect: async (record) => {
-                    // require the endpoint the binding holds
-                    if (record.reference === null) {
-                        throw new TypeError(`service binding ${this.name} holds no endpoint`);
+                connect: async (binding: ResourceBinding) => {
+                    // require the credential the host lends the binding
+                    const credential = binding.credential;
+                    if (credential === undefined) {
+                        throw new TypeError(`service binding ${this.name} holds no credential`);
                     }
 
                     return createClient(this.service, {
-                        url: record.reference,
-                        headers: () => ({ authorization: `Bearer ${context.credential()}` }),
+                        url: binding.reference,
+                        headers: () => ({ authorization: `Bearer ${credential}` }),
                     });
                 },
-            }),
+            },
         };
     }
 }

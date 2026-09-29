@@ -1,5 +1,5 @@
 import { type ChainRelay } from "@destack/sync";
-import type { ProviderContext, Resource } from "@destack/resource";
+import type { Resource } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
 import type { Identifier } from "@destack/schema";
 import { telemetry } from "@destack/telemetry";
@@ -97,9 +97,7 @@ export class WorkloadRunner implements AsyncDisposable {
 
         // start the instance on the bound resources, stopping telemetry when it fails
         try {
-            const resources = await WorkloadRunner.#connect(runner, start, {
-                credential: () => start.secret,
-            });
+            const resources = await WorkloadRunner.#connect(runner, start);
             const instance = await WorkloadInstance.start(runner.workload, {
                 resources,
                 history: runner.history(Egress.url(start.egress, AUDIT_ADDRESS), start.secret),
@@ -182,30 +180,25 @@ export class WorkloadRunner implements AsyncDisposable {
         await this.close();
     }
 
-    /** Connect each bound resource through its provider. */
-    static async #connect(
-        runner: RunnerOptions,
-        start: WorkloadStart,
-        context: ProviderContext,
-    ): Promise<ResourceContext> {
+    /** Connect each bound resource through its declaration's connector for the resource's provider. */
+    static async #connect(runner: RunnerOptions, start: WorkloadStart): Promise<ResourceContext> {
         const resources = new ResourceContext();
         for (const [name, binding] of Object.entries(start.bindings)) {
-            // require the declaration and the provider of its kind
+            // require the declaration of the binding's kind and its connector for the provider
             const declaration = runner.resources[name];
-            const provider = declaration?.providers[binding.provider];
-            if (declaration === undefined || provider === undefined) {
+            const connector = declaration?.connectors[binding.provider];
+            if (
+                declaration === undefined ||
+                declaration.kind !== binding.kind ||
+                connector === undefined
+            ) {
                 throw new ServiceError("NOT_FOUND", {
-                    message: `no resource ${name} with provider ${binding.provider}`,
+                    message: `no ${binding.kind} ${name} connecting to provider ${binding.provider}`,
                 });
             }
 
-            // connect through the provider holding the resource
-            const { resource, kind, reference, spec } = binding;
-            const record = { id: resource, scope: start.scope, kind, spec, reference };
-            const client = await (
-                await provider(new URL(reference), context)
-            ).connect(record, declaration);
-            resources.bind(declaration, client as never);
+            // connect to the bound resource
+            resources.bind(declaration, (await connector.connect(binding, declaration)) as never);
         }
 
         return resources;

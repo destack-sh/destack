@@ -1,23 +1,6 @@
 import { DeclarationName } from "@destack/package";
+import { ResourceBinding } from "@destack/resource";
 import { defineSchema, identifier, schema } from "@destack/schema";
-
-/** A provisioned resource a host binds to a starting workload. */
-export const ResourceBinding = defineSchema(
-    schema.object({
-        /** The resource. */
-        resource: identifier("resource"),
-        /** The resource kind, such as database. */
-        kind: schema.string().min(1),
-        /** The provider holding the resource, such as sqlite. */
-        provider: schema.string().min(1),
-        /** The provider's reference, such as a file URL. */
-        reference: schema.string().min(1),
-        /** The declared specification. */
-        spec: schema.record(schema.string(), schema.json()),
-    }),
-);
-/** A provisioned resource a host binds to a starting workload. */
-export type ResourceBinding = schema.Infer<typeof ResourceBinding>;
 
 /** The first line a host writes to a runner's input, starting one workload of an installation. */
 export const WorkloadStart = defineSchema(
