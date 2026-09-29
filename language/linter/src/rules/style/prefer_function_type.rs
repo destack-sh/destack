@@ -102,8 +102,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
         let return_type = match view.get(*member) {
-            dir::TypeMember::CallSignature { signature } => signature.return_type,
-            dir::TypeMember::ConstructSignature { signature } => signature.return_type,
+            member @ dir::TypeMember::Method { signature, .. } if member.role_key().is_some() => {
+                signature.return_type
+            }
             _ => continue,
         };
         let Some(return_type) = return_type else {

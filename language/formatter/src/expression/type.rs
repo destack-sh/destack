@@ -2244,12 +2244,14 @@ fn write_type_signature<'ast>(
     f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeMember>,
     signature: &FunctionSignature,
-    name: Name,
+    name: Option<Name>,
     is_optional: bool,
 ) -> FormatResult<()> {
     let generic_parameters = format_with(|f: &mut TsppFormatter<'ast, '_>| {
-        write_function_header_prefix(f, signature, false, true)?;
-        write!(f, [name])?;
+        write_function_header_prefix(f, signature, false, name.is_some())?;
+        if let Some(name) = name {
+            write!(f, [name])?;
+        }
 
         if is_optional {
             write_optional_method_marker(f, node_id)?;

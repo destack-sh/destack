@@ -416,7 +416,7 @@ impl Matcher<'_, '_> {
                 if pattern_static != candidate_static
                     || pattern_optional != candidate_optional
                     || pattern_visibility != candidate_visibility
-                    || !self.match_name(
+                    || !self.match_optional_name(
                         nodes,
                         pattern_any,
                         candidate_id.into_any(),

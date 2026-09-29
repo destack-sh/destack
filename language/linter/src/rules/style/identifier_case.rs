@@ -352,9 +352,8 @@ fn type_member_identifier(member: &dir::TypeMember) -> bool {
         dir::TypeMember::AssociatedType { .. }
         | dir::TypeMember::AssociatedConst { .. }
         | dir::TypeMember::IndexSignature { .. } => true,
-        dir::TypeMember::Field { name, .. } | dir::TypeMember::Method { name, .. } => {
-            matches!(name, dir::Name::Identifier(_))
-        }
+        dir::TypeMember::Field { name, .. } => matches!(name, dir::Name::Identifier(_)),
+        dir::TypeMember::Method { name, .. } => matches!(name, Some(dir::Name::Identifier(_))),
         _ => false,
     }
 }

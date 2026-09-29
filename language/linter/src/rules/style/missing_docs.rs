@@ -98,7 +98,9 @@ fn documentation_span(
     let uses_extent = match node.ty {
         dir::NodeType::TypeMember => matches!(
             view.get(dir::LocalNodeId::<dir::TypeMember>::new(node.id)),
-            dir::TypeMember::CallSignature { .. } | dir::TypeMember::ConstructSignature { .. }
+            dir::TypeMember::Method { name: None, .. }
+                | dir::TypeMember::CallSignature { .. }
+                | dir::TypeMember::ConstructSignature { .. }
         ),
         dir::NodeType::Pattern => true,
         _ => false,
@@ -206,6 +208,8 @@ fn type_member_documentation(
         dir::TypeMember::Method { signature, .. } => match signature.role {
             Some(dir::FunctionRole::Getter) => "getter",
             Some(dir::FunctionRole::Setter) => "setter",
+            Some(dir::FunctionRole::Call) => "call signature",
+            Some(dir::FunctionRole::New) => "construct signature",
             _ => "method",
         },
         dir::TypeMember::CallSignature { .. } => "call signature",

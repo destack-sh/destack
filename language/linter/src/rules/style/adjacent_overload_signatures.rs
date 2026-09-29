@@ -211,10 +211,10 @@ fn type_member_overload(
 
     // select the source span for the callable form
     let span = match value {
-        dir::TypeMember::Method { .. } => module.main_span(member.into_any())?,
-        dir::TypeMember::CallSignature { .. } | dir::TypeMember::ConstructSignature { .. } => {
-            module.span(member.into_any())?
-        }
+        dir::TypeMember::Method { name: Some(_), .. } => module.main_span(member.into_any())?,
+        dir::TypeMember::Method { name: None, .. }
+        | dir::TypeMember::CallSignature { .. }
+        | dir::TypeMember::ConstructSignature { .. } => module.span(member.into_any())?,
         _ => return Ok(None),
     };
 

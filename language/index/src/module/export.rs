@@ -163,6 +163,7 @@ impl<'a> ExportIndexer<'a> {
                 Some(self.strings.get(name).to_string())
             }
             dir::ExportKey::Named(dir::StaticKey::Index(index)) => Some(index.to_string()),
+            dir::ExportKey::Named(dir::StaticKey::Call | dir::StaticKey::New) => None,
         }
     }
 
