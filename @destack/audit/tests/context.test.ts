@@ -68,7 +68,9 @@ test("persist verified caller identities and tell apart identities of different 
             scope: "global",
             caller: null,
             resources: new ResourceContext(),
-            authenticationError: new ServiceError("UNAUTHORIZED"),
+            authenticationError: new ServiceError("UNAUTHORIZED", {
+                message: "invalid bearer credential",
+            }),
         });
         const recorder = AuditRecorder.from(rejected.caller, storage.outbox, {
             ...origin,
