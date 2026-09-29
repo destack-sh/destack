@@ -83,7 +83,9 @@ export class UpdateProcess implements AsyncDisposable {
 
         // let the response complete before the application drains its HTTP server
         setTimeout(() => {
-            this.shutdown().catch((error) => console.error("Desktop shutdown failed:", error));
+            this.shutdown().catch((error) =>
+                process.stderr.write(`desktop shutdown failed: ${error}\n`),
+            );
         }, 0);
 
         return new Response(null, { status: 202 });

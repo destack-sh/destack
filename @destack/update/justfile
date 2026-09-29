@@ -7,5 +7,5 @@ test:
     bun run test
 
 # format
-fmt:
+format:
     bun run destack-check format src

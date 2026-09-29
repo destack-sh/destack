@@ -4,12 +4,7 @@ import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { UpdaterOptions } from "../updater.ts";
-import { createRoot } from "../../../../../platform/release/src/key/root.ts";
-import { SigningKey } from "../../../../../platform/release/src/key/key.ts";
-import {
-    createRepository,
-    encode,
-} from "../../../../../platform/release/src/repository/repository.ts";
+import { createRoot, SigningKey, createRepository, encode } from "../../publish/index.ts";
 
 /** A real signed repository and isolated installation served over loopback. */
 export class Repository implements AsyncDisposable {
@@ -81,8 +76,12 @@ export class Repository implements AsyncDisposable {
         };
     }
 
-    /** Publish a compiled fixture into a fresh repository and open its listener. */
-    static async open(fixture: string, rootKeys: SigningKey[]): Promise<Repository> {
+    /** Publish a compiled fixture as a version into a fresh repository and open its listener. */
+    static async open(
+        fixture: string,
+        rootKeys: SigningKey[],
+        version: string,
+    ): Promise<Repository> {
         // copy shared immutable inputs into an independent scenario directory
         const directory = await mkdtemp(join(tmpdir(), "destack-updater-"));
         const repository = new Repository(directory, rootKeys);
@@ -90,7 +89,7 @@ export class Repository implements AsyncDisposable {
             await cp(join(fixture, "source"), repository.source, { recursive: true });
             await cp(join(fixture, "release.tar.gz"), repository.archive);
             await createRepository(repository.path, 1, repository.root, repository.keys, [
-                { target: repository.target, version: "2026.9.1", archive: repository.archive },
+                { target: repository.target, version, archive: repository.archive },
             ]);
 
             // select an available loopback port for this repository

@@ -10,12 +10,7 @@ import { Metadata, Timestamp } from "@tufjs/models";
 import { Repository, createRootKey } from "./tests/repository.ts";
 import { Updater } from "./updater.ts";
 import { Release } from "../release/release.ts";
-import { createRoot } from "../../../../platform/release/src/key/root.ts";
-import { SigningKey } from "../../../../platform/release/src/key/key.ts";
-import {
-    createRepository,
-    encode,
-} from "../../../../platform/release/src/repository/repository.ts";
+import { createRoot, SigningKey, createRepository, encode } from "../publish/index.ts";
 
 /** Native executable filename expected by the selected archive format. */
 const COMMAND = process.platform === "win32" ? "destack.exe" : "destack";
@@ -67,7 +62,7 @@ async function digest(path: string): Promise<string> {
 
 test("retain staging across sessions and reject concurrent or stale activation", async () => {
     // open an independent signed repository and installation
-    await using repository = await Repository.open(fixture, rootKeys);
+    await using repository = await Repository.open(fixture, rootKeys, "2026.9.1");
     const { options, target } = repository;
 
     // stage the complete archive under an exclusive updater session
@@ -118,7 +113,7 @@ test("retain staging across sessions and reject concurrent or stale activation",
 
 test("retry cancelled downloads and reject tampered archives before staging", async () => {
     // open an independent signed repository and installation
-    await using repository = await Repository.open(fixture, rootKeys);
+    await using repository = await Repository.open(fixture, rootKeys, "2026.9.1");
     const { options, directory, archive } = repository;
 
     // reject cancellation before the download starts
@@ -165,7 +160,7 @@ test("retry cancelled downloads and reject tampered archives before staging", as
 
 test("retain rotated trust across sessions and reject expired or rolled-back metadata", async () => {
     // retain the original timestamp before the repository rotates
-    await using repository = await Repository.open(fixture, rootKeys);
+    await using repository = await Repository.open(fixture, rootKeys, "2026.9.1");
     const { options, target, archive } = repository;
 
     const firstTimestamp = await readFile(join(repository.path, "metadata/timestamp.json"));
@@ -243,7 +238,7 @@ test("retain rotated trust across sessions and reject expired or rolled-back met
 
 test("preserve the installed release when signed replacements contradict its identity", async () => {
     // open an independent signed repository and installation
-    await using repository = await Repository.open(fixture, rootKeys);
+    await using repository = await Repository.open(fixture, rootKeys, "2026.9.1");
     const { options, target, source, archive } = repository;
     let installed: Awaited<ReturnType<Updater["activate"]>>;
 

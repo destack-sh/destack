@@ -10,16 +10,18 @@
         "./release": "./src/release/index.ts",
         "./process": "./src/process/index.ts",
         "./install/macos": "./src/install/macos.ts",
-        "./error": "./src/error/index.ts"
+        "./error": "./src/error/index.ts",
+        "./publish": "./src/publish/index.ts",
+        "./test": "./src/update/tests/repository.ts"
     },
     "dependencies": {
         "@destack/fs": "workspace:*",
+        "@tufjs/models": "5.0.0",
         "tuf-js": "6.0.0",
         "tar": "7.5.22"
     },
     "devDependencies": {
-        "@destack/test": "workspace:*",
-        "@tufjs/models": "5.0.0"
+        "@destack/test": "workspace:*"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",
