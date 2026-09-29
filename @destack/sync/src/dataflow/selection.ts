@@ -263,7 +263,7 @@ export class Selection extends Pipeline {
         this.#assign(key, row, new Set([...partitions, name]), run);
     }
 
-    /** Set the partitions holding a row, holding or letting go of what it holds. */
+    /** Set the partitions that hold a row and hold or let go of its held rows. */
     #assign(key: string, row: Row | undefined, names: ReadonlySet<string>, run: Run): void {
         // move the row between partitions
         const node = this.node;
@@ -480,7 +480,7 @@ export class Selection extends Pipeline {
         }
     }
 
-    /** Count a row's chains up or down, holding it while any chain does. */
+    /** Count a row's chains up or down and hold it while any chain does. */
     #chain(row: Row, step: 1 | -1, run: Run): void {
         // hold the row with its first chain and let go after its last
         const node = this.node;

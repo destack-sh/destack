@@ -37,7 +37,7 @@ export class Copy implements Holding {
             this.results.clear();
         }
 
-        // hold and let go of rows, refusing contradicting changes
+        // hold and let go of rows and refuse contradicting changes
         for (const change of page.changes) {
             const table = this.#tables.get(change.table)!;
             const key = Key.name(table, keyOf(table, change.row));

@@ -11,7 +11,7 @@ import type { Group } from "./upstream.ts";
 /** The most partitions one grouped read counts, bounded by the parameter budget. */
 const COUNTED_PARTITIONS = 500;
 
-/** The aggregate groups of a node's rows per partition, each group's measures in a tally. */
+/** The aggregate groups of a node's rows per partition with their measures in tallies. */
 export class Aggregation extends Pipeline {
     /** The tallies, by group name. */
     readonly tallies = new Map<string, Tally>();
@@ -107,7 +107,7 @@ export class Aggregation extends Pipeline {
         await this.regroup(run);
     }
 
-    /** Count each change of the node's table out as it was and in as it is. */
+    /** Count each change of the node's table out before and in after. */
     protected async countImages(
         run: Run,
         countedAt: (value: unknown) => number | undefined,
@@ -187,7 +187,7 @@ export class Aggregation extends Pipeline {
         }
     }
 
-    /** Send the groups whose results the run changed, returning them. */
+    /** Send and return the groups with results the run changed. */
     protected async regroup(run: Run): Promise<Record<string, Scalar>[]> {
         // take the changed groups
         const changed = [...this.#changed.values()];

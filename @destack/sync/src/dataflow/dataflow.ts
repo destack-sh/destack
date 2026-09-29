@@ -109,7 +109,7 @@ export class Dataflow implements Arrangement {
 
         // refuse unlogged watched tables and concealable columns
         for (const watch of this.watches()) {
-            if (watch.table[TABLE].tier === "none") {
+            if (watch.table[TABLE].retention === "none") {
                 throw new DatabaseError(
                     "INVALID_QUERY",
                     `watched table is not logged: ${watch.table[TABLE].name}`,
@@ -217,7 +217,7 @@ export class Dataflow implements Arrangement {
         return size;
     }
 
-    /** Forget everything, holding nothing as of a position. */
+    /** Forget everything and hold nothing as of a position. */
     forget(position: LogPosition): void {
         // hold nothing as of the position
         this.#position = position;

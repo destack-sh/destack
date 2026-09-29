@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { asc, encodeRow, eq, TABLE } from "@destack/db";
 import { Feed } from "../feed/feed.ts";
-import { REPLICA_TABLES, Replica, replica } from "./replica.ts";
+import { replicaTables, Replica, replica } from "./replica.ts";
 import { asset, first, note, open, openCopy, project, replicate, task } from "../test/fixture.ts";
 import type { Query } from "../query/query.ts";
 import type { QueryPage } from "../query/page.ts";
@@ -279,9 +279,9 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "copy a table whose required column the log leaves out, holding nothing for it, on %s",
     async (dialect) => {
-        // follow an asset whose binary content never enters the log
-        const source = await open(dialect, [asset, ...REPLICA_TABLES]);
-        const copy = await openCopy(dialect, [asset, ...REPLICA_TABLES]);
+        // follow an asset with binary content outside the log
+        const source = await open(dialect, [asset, ...replicaTables]);
+        const copy = await openCopy(dialect, [asset, ...replicaTables]);
         const feed = new Feed(source, [asset, replica]);
         const assets = new Replica({ name: "assets", scope: "inbox", tables: [asset] });
         await source

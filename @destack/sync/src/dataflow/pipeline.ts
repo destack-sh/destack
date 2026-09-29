@@ -126,7 +126,7 @@ export abstract class Pipeline {
         run: Run,
     ): void;
 
-    /** Move a row between partitions, returning the member as it was. */
+    /** Move a row between partitions and return the previous member. */
     protected move(key: string, names: ReadonlySet<string>): Member | undefined {
         // leave the old partitions and enter the new ones
         const member = this.members.get(key);

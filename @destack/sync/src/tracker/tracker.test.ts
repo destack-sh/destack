@@ -145,7 +145,7 @@ async function write(
     await new Promise<void>((resolve) => queueMicrotask(resolve));
 }
 
-/** Read an instance's cursors once it applied its messages. */
+/** Read an instance's cursors after it applies its messages. */
 async function read(tracker: Tracker) {
     await tracker.settled();
 

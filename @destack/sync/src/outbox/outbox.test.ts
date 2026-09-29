@@ -1,11 +1,11 @@
 import { expect, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { asc, eq, TABLE, type DatabaseConnection, encodeRow } from "@destack/db";
-import { Replica, REPLICA_TABLES } from "../replica/replica.ts";
+import { Replica, replicaTables } from "../replica/replica.ts";
 import type { QueryPage } from "../query/page.ts";
 import type { Query } from "../query/query.ts";
 import { first, note, open, replicate, tag } from "../test/fixture.ts";
-import { mutation, OUTBOX_TABLES, Outbox, type Mutation } from "./outbox.ts";
+import { mutation, outboxTables, Outbox, type Mutation } from "./outbox.ts";
 
 /** The source log's epoch. */
 const EPOCH = "01996ab0-0000-7000-8000-000000000001";
@@ -45,7 +45,7 @@ function page(
 }
 
 test("rebase predicted mutations onto source pages until the source executes or rejects them", async () => {
-    const client = await open("sqlite", [note, ...REPLICA_TABLES, ...OUTBOX_TABLES]);
+    const client = await open("sqlite", [note, ...replicaTables, ...outboxTables]);
     const outbox = new Outbox([note], predict, () => [note[TABLE].sqlName]);
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const titles = async () =>
@@ -124,7 +124,7 @@ test("rebase predicted mutations onto source pages until the source executes or 
 
 test("drop a group every predicted row left, without a count measuring it", async () => {
     // hold one group of notes by title
-    const client = await open("sqlite", [note, ...REPLICA_TABLES, ...OUTBOX_TABLES]);
+    const client = await open("sqlite", [note, ...replicaTables, ...outboxTables]);
     const outbox = new Outbox([note], predict, () => [note[TABLE].sqlName]);
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const titles: Omit<Query, "scopes"> = {
@@ -159,7 +159,7 @@ test("drop a group every predicted row left, without a count measuring it", asyn
 test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
     "refuse predicting on PostgreSQL, whose log sequences changes only at commit",
     async () => {
-        const database = await open("postgresql", [note, ...REPLICA_TABLES, ...OUTBOX_TABLES]);
+        const database = await open("postgresql", [note, ...replicaTables, ...outboxTables]);
         const outbox = new Outbox([note], predict, () => [note[TABLE].sqlName]);
         await expect(
             outbox.add(database, IDS[0], "tab-1", async () => ({ calls: [], result: undefined })),
@@ -170,7 +170,7 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
 );
 
 test("rebase predictions only onto pages changing a table they reach", async () => {
-    const client = await open("sqlite", [note, tag, ...REPLICA_TABLES, ...OUTBOX_TABLES]);
+    const client = await open("sqlite", [note, tag, ...replicaTables, ...outboxTables]);
     let predictions = 0;
     const counted = async (transaction: DatabaseConnection, predicted: Mutation) => {
         predictions += 1;

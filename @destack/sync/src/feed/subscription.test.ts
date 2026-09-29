@@ -133,7 +133,7 @@ test.for(TEST_DIALECTS)(
     (dialect) => holdExactly(SCALE_RUN, dialect),
 );
 
-/** Follow a run's queries through random writes, holding exactly what an oracle selects. */
+/** Follow a run's queries through random writes and hold exactly what an oracle selects. */
 async function holdExactly(run: Run, dialect: Dialect): Promise<void> {
     const source = await open(dialect);
     const feed = new Feed(source, TABLES);

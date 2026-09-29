@@ -82,7 +82,7 @@ function change(operation: RowChange["operation"], id: string, title = "Open"): 
     };
 }
 
-/** Follow a promise's value once it settles. */
+/** Follow a promise's value after it settles. */
 function settled<Value>(promise: Promise<Value>): { value: Value | undefined } {
     const holder: { value: Value | undefined } = { value: undefined };
     void promise.then((value) => (holder.value = value));

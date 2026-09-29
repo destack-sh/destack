@@ -15,6 +15,7 @@
     },
     "dependencies": {
         "@destack/db": "workspace:*",
+        "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*"
     },
     "devDependencies": {

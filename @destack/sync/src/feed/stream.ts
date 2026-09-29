@@ -207,7 +207,7 @@ export class Stream {
         held: QueryPage,
         signal: AbortSignal,
     ): AsyncGenerator<QueryPage, number> {
-        // replay the changes, holding back the last page
+        // replay the changes except the last page
         const target = (await this.#feed.database.log.position()).sequence;
         let sequence = position.sequence;
         let last = held;

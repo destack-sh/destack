@@ -204,7 +204,7 @@ test.for(TEST_DIALECTS)(
             if (change.operation === "delete") {
                 held.delete(change.row.id);
             }
-            // hold an entered or changed note as it is
+            // hold an entered or changed note unchanged
             else {
                 held.set(change.row.id, change.row.title);
             }

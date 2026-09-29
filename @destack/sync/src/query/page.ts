@@ -81,6 +81,8 @@ export const QueryPage = defineSchema(
         outcomes: schema.array(MutationOutcome).optional(),
         /** The events since the last page. */
         broadcasts: schema.array(Broadcast).optional(),
+        /** The scopes the subscription reads, nearest first, when its source sends them. */
+        scopes: schema.array(schema.string().min(1)).optional(),
     }),
 );
 /** A page of query rows and aggregates. */

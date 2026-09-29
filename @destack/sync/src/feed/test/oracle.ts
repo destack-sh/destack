@@ -524,7 +524,7 @@ function measured(table: Table, measure: Measure, rows: readonly Row[]): Scalar 
           : (json(table, measure.column!, extreme) as Scalar);
 }
 
-/** Keep a row's logged columns, which pages carry. */
+/** Keep a row's logged columns for pages. */
 function loggedOf(table: Table, row: Row): Row {
     return Object.fromEntries(Object.keys(table[TABLE].logged).map((name) => [name, row[name]]));
 }

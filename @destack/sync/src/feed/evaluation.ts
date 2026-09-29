@@ -25,7 +25,7 @@ export class Evaluation {
     readonly #audience: Audience;
     /** The decided pages after each recent sequence. */
     readonly #decided = new Map<number, Promise<Advance>>();
-    /** The sequences whose decisions reached no further, with their expiry. */
+    /** The sequences with final decisions and their expiry. */
     readonly #idle = new Map<number, number | undefined>();
     /** The queries' dataflow. */
     readonly #dataflow: Dataflow;
@@ -86,7 +86,7 @@ export class Evaluation {
             return undefined;
         }
 
-        // decide the pages, keeping a few recent ones
+        // decide the pages and keep a few recent ones
         const decided = this.#pagesAfter(position);
         this.#decided.set(sequence, decided);
         this.#idle.delete(sequence);
@@ -147,7 +147,7 @@ export class Evaluation {
         await this.#audience.refresh();
         const holding = await this.collect(view);
 
-        // send the difference and rows whose readable columns may have changed
+        // send the difference and rows with possibly changed readable columns
         const patch = Patch.difference(
             held,
             holding,
@@ -249,7 +249,7 @@ export class Evaluation {
         return run.patch;
     }
 
-    /** Forget everything, holding nothing as of a position. */
+    /** Forget everything and hold nothing as of a position. */
     forget(position: LogPosition): void {
         this.#dataflow.forget(position);
     }
@@ -287,7 +287,7 @@ export class Evaluation {
 
 /** The pages decided after a sequence. */
 export interface Advance {
-    /** The pages, each complete at its position. */
+    /** The pages, complete at their positions. */
     readonly pages: readonly QueryPage[];
     /** The sequence the pages reach. */
     readonly sequence: number;
@@ -303,9 +303,9 @@ export function nextTask(): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-/** Split changes into runs of about a page, each ending with a whole transaction. */
+/** Split changes into runs of about a page that end with whole transactions. */
 function chunks(changes: readonly Change[]): Change[][] {
-    // close a run once it holds a page and a transaction ends
+    // close a run when it holds a page and a transaction ends
     const runs: Change[][] = [];
     let run: Change[] = [];
     for (const [index, change] of changes.entries()) {

@@ -7,7 +7,7 @@ import type { Row } from "@destack/db";
  */
 const CHUNK_ENTRIES = 512;
 
-/** One partition of a limited node in its order, holding the first rows up to its limit. */
+/** One partition of a limited node with its first rows in order up to its limit. */
 export class Window {
     /** The complete row order, ending with the key. */
     readonly #compare: (left: Row, right: Row) => number;
@@ -24,7 +24,7 @@ export class Window {
     /** Whether no candidate follows the last known row. */
     #isExhaustive: boolean;
 
-    /** Order the rows of a partition, holding the first up to a limit. */
+    /** Order the rows of a partition and hold the first up to a limit. */
     constructor(
         compare: (left: Row, right: Row) => number,
         limit: number,
@@ -99,7 +99,7 @@ export class Window {
 
     /** Place a row in order, returning whether it is held and the key it evicted. */
     place(key: string, row: Row): { readonly isHeld: boolean; readonly evicted?: string } {
-        // take the row out, leaving a row beyond a bounded window to a refill
+        // take the row out and leave rows beyond a bounded window to a refill
         const boundary = this.last;
         const wasHeld = this.remove(key);
         const isBeyond =

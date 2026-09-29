@@ -13,7 +13,7 @@ import {
     type Table,
 } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { REPLICA_TABLES, type Replica } from "../replica/replica.ts";
+import { replicaTables, type Replica } from "../replica/replica.ts";
 import type { Outbox } from "../outbox/outbox.ts";
 import type { QueryPage } from "../query/page.ts";
 import { schema } from "@destack/schema";
@@ -42,7 +42,7 @@ export const note = defineTable(
     { log: {} },
 );
 
-/** Assets whose required content the log leaves out. */
+/** Assets with required content outside the log. */
 export const asset = defineTable(
     "asset",
     {
@@ -86,7 +86,7 @@ export const task = defineTable(
         rank: integer("rank").notNull(),
         /** The estimate. */
         points: integer("points"),
-        /** The title, which some audiences may not read. */
+        /** The title, concealed from some audiences. */
         title: text("title"),
         /** Whether only the audience's insiders see the task. */
         isSecret: boolean("is_secret").notNull(),
@@ -177,7 +177,7 @@ export const page = defineTable(
 );
 
 /** The tables of each test database. */
-export const TABLES = [note, project, task, comment, tag, taskTag, page, ...REPLICA_TABLES];
+export const TABLES = [note, project, task, comment, tag, taskTag, page, ...replicaTables];
 
 /** Open a migrated test database. */
 export async function open(

@@ -63,7 +63,7 @@ export class Trace implements Arrangement {
         return groups.get(canonicalize(relation.groupFor(value))) ?? {};
     }
 
-    /** Decide again the holders whose measures a run changed. */
+    /** Decide again the holders with measures a run changed. */
     async relate(
         relations: readonly Node[],
         parentOf: (relation: Node) => Pipeline | undefined,

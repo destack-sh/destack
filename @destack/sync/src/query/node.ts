@@ -344,7 +344,7 @@ export class Node {
         return Key.name(this.table, row);
     }
 
-    /** The held row's column whose value names the partition, absent for a root. */
+    /** The held row's column with the partition's value, absent for a root. */
     get parentColumn(): string | undefined {
         const path = this.path;
 
@@ -409,7 +409,7 @@ export class Node {
         return values;
     }
 
-    /** Write a row's logged columns in JSON form, leaving out concealed ones. */
+    /** Write a row's logged columns in JSON form without concealed ones. */
     encode(row: Row, concealed: readonly string[]): Record<string, JsonValue> {
         return encodeColumns(this.#logged, row, concealed);
     }

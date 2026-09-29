@@ -31,7 +31,7 @@ const FEED_SUBSCRIBERS = 1000;
 /**
  * The default count of rows and groups one evaluation knows.
  *
- * Window rows take about 1 KB and arranged entries about 100 B, so 100k stay within about 20 MB.
+ * Window rows take about 1 KB and arranged entries about 100 B: 100k fit in about 20 MB.
  */
 const CAPACITY = 100_000;
 
@@ -422,7 +422,7 @@ export class Feed implements Cache {
         return this.#shares.has(evaluation);
     }
 
-    /** Wait until the feed passes a sequence, reading fails, or the signal aborts. */
+    /** Wait until the feed passes a sequence, a read fails, or the signal aborts. */
     async next(sequence: number, signal: AbortSignal): Promise<void> {
         await new Promise<void>((resolve) => {
             // wake once past, failed or aborted

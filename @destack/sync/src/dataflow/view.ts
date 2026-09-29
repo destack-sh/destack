@@ -203,7 +203,7 @@ export class View {
         return Tally.measure(this.#database, node, and(selection, current)!, admitted);
     }
 
-    /** Read a node's rows whose related rows changed between two sequences, as they were and are. */
+    /** Read a node's rows before and after their related rows changed between two sequences. */
     async dependents(node: Node, after: number, upto: number): Promise<Row[]> {
         // name the values of the changed related and join rows
         const rows = new Map<string, Row>();

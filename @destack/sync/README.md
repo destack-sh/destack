@@ -119,8 +119,8 @@ tracker.broadcast(topic, event);
 
 ## Storage
 
-A database holding copies includes `REPLICA_TABLES`, and a client with an outbox also includes `OUTBOX_TABLES`.
+A database holding copies includes `replicaTables`, and a client with an outbox also includes `outboxTables`.
 
 ```ts
-export const local = defineDatabase({ name: "local", tables: [...REPLICA_TABLES, ...OUTBOX_TABLES, project, task] });
+export const local = defineDatabase({ name: "local", tables: [...replicaTables, ...outboxTables, project, task] });
 ```

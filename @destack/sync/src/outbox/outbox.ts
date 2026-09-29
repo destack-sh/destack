@@ -101,7 +101,7 @@ export const checkout = defineTable("checkout", {
 });
 
 /** The tables of a client's outbox. */
-export const OUTBOX_TABLES = [mutation, checkout] as const;
+export const outboxTables = [mutation, checkout] as const;
 
 /** A client's durable, ordered outbox of mutations, predicted locally. */
 export class Outbox {

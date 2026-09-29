@@ -60,6 +60,8 @@ export const replica = defineTable(
         originSequence: integer("origin_sequence"),
         /** The held queries in the follower's terms, absent for the whole scope. */
         queries: json("queries", schema.json()),
+        /** The scopes the copy reads, nearest first, absent until its source sends them. */
+        scopes: json("scopes", schema.array(schema.string())),
         /** The shape of the copied tables' logged columns. */
         shape: text("shape"),
         /** The last time the home confirmed the rows current, in UTC epoch milliseconds. */
@@ -133,7 +135,7 @@ export const replicaResult = defineTable(
 );
 
 /** The tables of a database holding copies. */
-export const REPLICA_TABLES: readonly Table[] = [replica, replicaPage, replicaResult];
+export const replicaTables: readonly Table[] = [replica, replicaPage, replicaResult];
 
 /** A local copy of one scope's rows in a remote database's tables. */
 export class Replica {
@@ -356,6 +358,16 @@ export class Replica {
             .where(and(eq(replica.name, this.name), eq(replica.scope, this.scope)));
 
         return row?.queries ?? undefined;
+    }
+
+    /** Read the scope chain the copy reads, nearest first: its own scope alone until its source sends it. */
+    async chain(database: DatabaseConnection): Promise<readonly string[]> {
+        const [row] = await database
+            .select({ scopes: replica.scopes })
+            .from(replica)
+            .where(and(eq(replica.name, this.name), eq(replica.scope, this.scope)));
+
+        return row?.scopes ?? [this.scope];
     }
 
     /** Read a query's rows from the copy, predictions included. */
@@ -697,10 +709,11 @@ export class Replica {
                               ? { originEpoch: null, originSequence: null, confirmedAt: Date.now() }
                               : {};
 
-                    // record the new position and drop the staged pages
+                    // record the new position and scopes, and drop the staged pages
                     const advanced = {
                         ...page.position,
                         ...origin,
+                        ...(page.scopes === undefined ? {} : { scopes: page.scopes }),
                         shape: this.#shape,
                     };
                     await transaction

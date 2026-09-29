@@ -367,7 +367,7 @@ export const LOOKUPS: Readonly<Record<string, Query>> = {
     },
 };
 
-/** A project's tasks, which projects measure. */
+/** A project's tasks for project measures. */
 const PROJECT_TASKS: Readonly<Record<string, Relation>> = {
     tasks: { table: task, on: { kind: "key", column: "projectId", parent: "id" } },
 };

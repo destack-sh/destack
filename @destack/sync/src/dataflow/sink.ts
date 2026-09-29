@@ -143,7 +143,7 @@ export class Patch {
         this.results.set(node.name, { query: node.name, group: null, values: null });
     }
 
-    /** Encode the patch into a page at a position, leaving out concealed columns. */
+    /** Encode the patch into a page at a position without concealed columns. */
     async page(
         position: LogPosition,
         audience: Audience,
@@ -237,7 +237,7 @@ export interface Decision {
     readonly operation: RowChange["operation"];
 }
 
-/** Encode a held row's logged columns at a position, leaving out concealed ones. */
+/** Encode a held row's logged columns at a position without concealed ones. */
 function encode(
     table: Table,
     key: string,

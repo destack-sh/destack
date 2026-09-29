@@ -321,7 +321,7 @@ export class Tracker {
         }
     }
 
-    /** Forget one row of an owner, and the owner once it holds none. */
+    /** Forget one row of an owner and the owner when it holds none. */
     #forget(owner: string, key: string): void {
         // forget the row and an empty owner
         const held = this.#owners.get(owner);
