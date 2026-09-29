@@ -3,5 +3,6 @@
     "language": "typescript",
     "targets": [
         "server"
-    ]
+    ],
+    "runtimes": ["bun"]
 }
