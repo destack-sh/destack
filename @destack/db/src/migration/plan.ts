@@ -153,13 +153,11 @@ export function planTables(input: PlanInput): TablePlan {
         );
 
         // convert rows through each release after the applied one, and check the column values
-        const releases = Object.keys(state.conversions ?? {})
-            .filter(
-                (release) =>
-                    Version.compare(release, previous.package.version) > 0 &&
-                    Version.compare(release, state.package.version) <= 0,
-            )
-            .sort(Version.compare);
+        const releases = Version.between(
+            Object.keys(state.conversions ?? {}),
+            previous.package.version,
+            state.package.version,
+        );
         for (const release of releases) {
             changes.push(convertRows(state, release));
         }

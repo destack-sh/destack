@@ -12,6 +12,8 @@ import { Snapshot, type Rewind } from "./snapshot.ts";
 import type { Row } from "../table/row.ts";
 import type { Column } from "../table/column.ts";
 import { Key } from "../query/key.ts";
+import { toJsonSchema } from "@destack/schema";
+import { digest } from "@destack/schema/json";
 
 /**
  * The default page size of a log read, in changes.
@@ -111,6 +113,12 @@ interface ChangeEntry extends Record<string, unknown> {
     changed_at: number | string | null;
 }
 
+/** The hexadecimal digits of a shape digest: 128 bits, whose collisions are negligible among any database's tables. */
+const SHAPE_LENGTH = 32;
+
+/** The logged columns of each table, described once. */
+const COLUMNS = new WeakMap<Table, unknown[]>();
+
 /** The committed changes of one database, in commit order. */
 export class Log {
     /** The database holding the log. */
@@ -119,6 +127,27 @@ export class Log {
     /** Create the log of a database. */
     constructor(database: DatabaseConnection) {
         this.database = database;
+    }
+
+    /** Digest the shape tables' changes carry: each one's logged columns with their kinds and values. */
+    static async shape(tables: readonly Table[]): Promise<string> {
+        // describe each table's logged columns once
+        const described = tables.map((table) => {
+            let columns = COLUMNS.get(table);
+            if (columns === undefined) {
+                columns = Object.values(table[TABLE].logged).map(({ definition }) => [
+                    definition.name,
+                    definition.kind,
+                    definition.nullable,
+                    toJsonSchema(definition.json ?? definition.schema),
+                ]);
+                COLUMNS.set(table, columns);
+            }
+
+            return [table[TABLE].sqlName, columns];
+        });
+
+        return (await digest(described)).slice(0, SHAPE_LENGTH);
     }
 
     /** Read the images a table's rows had before their first change between two sequences, by key. */
