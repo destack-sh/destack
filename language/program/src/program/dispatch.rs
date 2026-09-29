@@ -1,11 +1,10 @@
 use serde::{Deserialize, Serialize};
 use tspp_core::{
-    EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
-    StringId,
+    EntryRange, EntryStore, SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId,
 };
 use tspp_serde::Reflect;
 
-use super::{FunctionId, SignatureId, TypeId, Word};
+use super::{FunctionId, TypeId, Word};
 
 /// Durable virtual dispatch table id inside one program.
 #[repr(transparent)]
@@ -71,16 +70,12 @@ impl From<DynamicTableId> for Word {
 pub struct DispatchTable {
     /// Virtual tables keyed by dense virtual table id.
     virtual_tables: SectionSlice<VirtualTable>,
-    /// Flattened virtual method function ids.
-    virtual_methods: SectionSlice<FunctionId>,
+    /// Flattened virtual table slots.
+    virtual_slots: SectionSlice<VirtualSlot>,
     /// Dynamic tables keyed by dense dynamic table id.
     dynamic_tables: SectionSlice<DynamicTable>,
     /// Flattened dynamic dispatch entries.
     dynamic_entries: SectionSlice<DynamicEntry>,
-    /// Dynamic table shapes keyed by constraint type.
-    dynamic_shapes: SectionSlice<DynamicShape>,
-    /// Flattened dynamic slots.
-    dynamic_slots: SectionSlice<DynamicSlot>,
     /// Flattened name-keyed dynamic entries.
     dynamic_names: SectionSlice<DynamicNamedEntry>,
 }
@@ -100,13 +95,13 @@ impl DispatchTable {
         sections.entries(self.virtual_tables).get(id.index())
     }
 
-    /// Return the virtual methods for one virtual table.
-    pub fn virtual_methods<'a>(
+    /// Return the slots of one virtual table.
+    pub fn virtual_slots<'a>(
         &self,
         sections: SectionImage<'a>,
         table: &VirtualTable,
-    ) -> &'a [FunctionId] {
-        table.methods.slice(sections.entries(self.virtual_methods))
+    ) -> &'a [VirtualSlot] {
+        table.slots.slice(sections.entries(self.virtual_slots))
     }
 
     /// Return all dynamic tables in dense id order.
@@ -132,64 +127,54 @@ impl DispatchTable {
         table.entries.slice(sections.entries(self.dynamic_entries))
     }
 
-    /// Return all dynamic table shapes in constraint order.
-    pub fn dynamic_shapes<'a>(&self, sections: SectionImage<'a>) -> &'a [DynamicShape] {
-        sections.entries(self.dynamic_shapes)
-    }
-
-    /// Return the dynamic table shape for one constraint type.
-    pub fn dynamic_shape<'a>(
-        &self,
-        sections: SectionImage<'a>,
-        constraint: TypeId,
-    ) -> Option<&'a DynamicShape> {
-        sections
-            .entries(self.dynamic_shapes)
-            .iter()
-            .find(|shape| shape.constraint == constraint)
-    }
-
-    /// Return the dynamic slots for one dynamic shape.
-    pub fn dynamic_slots<'a>(
-        &self,
-        sections: SectionImage<'a>,
-        shape: &DynamicShape,
-    ) -> &'a [DynamicSlot] {
-        shape.slots.slice(sections.entries(self.dynamic_slots))
-    }
-
     /// Return whether every dispatch range fits its flattened column.
     pub(super) fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
-        let methods = sections.entries(self.virtual_methods).len();
+        let virtual_slots = sections.entries(self.virtual_slots).len();
         let entries = sections.entries(self.dynamic_entries).len();
-        let slots = sections.entries(self.dynamic_slots).len();
 
         // check each dispatch table family independently
         let virtual_tables = sections
             .entries(self.virtual_tables)
             .iter()
-            .all(|table| table.methods.fits(methods));
+            .all(|table| table.slots.fits(virtual_slots));
         let dynamic_tables = sections
             .entries(self.dynamic_tables)
             .iter()
             .all(|table| table.entries.fits(entries));
-        let dynamic_shapes = sections
-            .entries(self.dynamic_shapes)
-            .iter()
-            .all(|shape| shape.slots.fits(slots));
 
-        virtual_tables && dynamic_tables && dynamic_shapes
+        virtual_tables && dynamic_tables
     }
 }
 
-/// Virtual dispatch table for one concrete type.
+/// Virtual table for one class.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct VirtualTable {
-    /// Concrete type owning this table.
+    /// The class owning this table.
     pub concrete: TypeId,
-    /// Method implementations in runtime slot order.
-    pub methods: EntryRange<FunctionId>,
+    /// The slots in dispatch order.
+    pub slots: EntryRange<VirtualSlot>,
+}
+
+/// One virtual table slot.
+#[repr(transparent)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
+pub struct VirtualSlot(pub u32);
+
+impl From<FunctionId> for VirtualSlot {
+    /// Hold one method's function id.
+    fn from(function: FunctionId) -> Self {
+        Self(function.0)
+    }
+}
+
+impl From<DynamicTableId> for VirtualSlot {
+    /// Hold one conformance's dynamic table id.
+    fn from(table: DynamicTableId) -> Self {
+        Self(table.0)
+    }
 }
 
 /// Dynamic dispatch table for one concrete implementation.
@@ -216,16 +201,6 @@ pub struct DynamicNamedEntry {
     pub entry: DynamicEntry,
 }
 
-/// Dynamic table shape for one constraint type.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct DynamicShape {
-    /// Dynamic constraint type owning this shape.
-    pub constraint: TypeId,
-    /// Slots in declaration order.
-    pub slots: EntryRange<DynamicSlot>,
-}
-
 /// Build-time dispatch table.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DispatchTableBuilder {
@@ -233,8 +208,6 @@ pub struct DispatchTableBuilder {
     virtual_tables: Vec<VirtualTableBuilder>,
     /// Dynamic tables in dense id order.
     dynamic_tables: Vec<DynamicTableBuilder>,
-    /// Dynamic shapes in constraint order.
-    dynamic_shapes: Vec<DynamicShapeBuilder>,
 }
 
 impl DispatchTableBuilder {
@@ -263,33 +236,21 @@ impl DispatchTableBuilder {
         self
     }
 
-    /// Set dynamic shapes in constraint order.
-    pub fn dynamic_shapes(
-        mut self,
-        dynamic_shapes: impl IntoIterator<Item = DynamicShapeBuilder>,
-    ) -> Self {
-        self.dynamic_shapes = dynamic_shapes.into_iter().collect();
-
-        self
-    }
-
     /// Build this dispatch table into program sections.
     pub(crate) fn build(self, sections: &mut SectionBuilder) -> DispatchTable {
         let mut virtual_tables = Vec::with_capacity(self.virtual_tables.len());
-        let mut virtual_methods = EntryStore::new();
+        let mut virtual_slots = EntryStore::new();
         let mut dynamic_tables = Vec::with_capacity(self.dynamic_tables.len());
         let mut dynamic_entries = EntryStore::new();
         let mut dynamic_names = EntryStore::new();
-        let mut dynamic_shapes = Vec::with_capacity(self.dynamic_shapes.len());
-        let mut dynamic_slots = EntryStore::new();
 
-        // flatten virtual method payloads
+        // flatten virtual table slots
         for virtual_table in self.virtual_tables {
-            let methods = virtual_methods.append(virtual_table.methods);
+            let slots = virtual_slots.append(virtual_table.slots);
 
             virtual_tables.push(VirtualTable {
                 concrete: virtual_table.concrete,
-                methods,
+                slots,
             });
         }
 
@@ -306,35 +267,23 @@ impl DispatchTableBuilder {
             });
         }
 
-        // flatten dynamic shape payloads
-        for dynamic_shape in self.dynamic_shapes {
-            let slots = dynamic_slots.append(dynamic_shape.slots);
-
-            dynamic_shapes.push(DynamicShape {
-                constraint: dynamic_shape.constraint,
-                slots,
-            });
-        }
-
         DispatchTable {
             virtual_tables: sections.insert(virtual_tables),
-            virtual_methods: sections.insert(virtual_methods.into_entries()),
+            virtual_slots: sections.insert(virtual_slots.into_entries()),
             dynamic_tables: sections.insert(dynamic_tables),
             dynamic_entries: sections.insert(dynamic_entries.into_entries()),
-            dynamic_shapes: sections.insert(dynamic_shapes),
-            dynamic_slots: sections.insert(dynamic_slots.into_entries()),
             dynamic_names: sections.insert(dynamic_names.into_entries()),
         }
     }
 }
 
-/// Build-time virtual dispatch table.
+/// Build-time virtual table.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VirtualTableBuilder {
-    /// Concrete type owning this table.
+    /// The class owning this table.
     concrete: TypeId,
-    /// Method implementations in runtime slot order.
-    methods: Vec<FunctionId>,
+    /// The slots in dispatch order.
+    slots: Vec<VirtualSlot>,
 }
 
 impl VirtualTableBuilder {
@@ -342,13 +291,13 @@ impl VirtualTableBuilder {
     pub fn new(concrete: TypeId) -> Self {
         Self {
             concrete,
-            methods: Vec::new(),
+            slots: Vec::new(),
         }
     }
 
-    /// Set method implementations in runtime slot order.
-    pub fn methods(mut self, methods: impl IntoIterator<Item = FunctionId>) -> Self {
-        self.methods = methods.into_iter().collect();
+    /// Set the slots in dispatch order.
+    pub fn slots(mut self, slots: impl IntoIterator<Item = VirtualSlot>) -> Self {
+        self.slots = slots.into_iter().collect();
 
         self
     }
@@ -388,32 +337,6 @@ impl DynamicTableBuilder {
     /// Set name-keyed concrete field entries sorted by name.
     pub fn names(mut self, names: impl IntoIterator<Item = DynamicNamedEntry>) -> Self {
         self.names = names.into_iter().collect();
-
-        self
-    }
-}
-
-/// Build-time dynamic table shape.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DynamicShapeBuilder {
-    /// Dynamic constraint type owning this shape.
-    constraint: TypeId,
-    /// Slots in declaration order.
-    slots: Vec<DynamicSlot>,
-}
-
-impl DynamicShapeBuilder {
-    /// Create one dynamic shape builder.
-    pub fn new(constraint: TypeId) -> Self {
-        Self {
-            constraint,
-            slots: Vec::new(),
-        }
-    }
-
-    /// Set slots in declaration order.
-    pub fn slots(mut self, slots: impl IntoIterator<Item = DynamicSlot>) -> Self {
-        self.slots = slots.into_iter().collect();
 
         self
     }
@@ -475,46 +398,4 @@ pub enum DynamicEntryKind {
     Function = 1,
     /// Absent entry, read as undefined.
     Absent = 2,
-}
-
-/// Dynamic dispatch slot.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct DynamicSlot {
-    /// Slot kind.
-    pub kind: DynamicSlotKind,
-    /// Field or function name.
-    pub name: Optional<StringId>,
-    /// Function signature.
-    pub signature: Optional<SignatureId>,
-}
-
-impl DynamicSlot {
-    /// Create a field slot.
-    pub fn field(name: StringId) -> Self {
-        Self {
-            kind: DynamicSlotKind::Field,
-            name: Optional::some(name),
-            signature: Optional::none(),
-        }
-    }
-
-    /// Create a function slot.
-    pub fn function(name: Option<StringId>, signature: SignatureId) -> Self {
-        Self {
-            kind: DynamicSlotKind::Function,
-            name: name.into(),
-            signature: Optional::some(signature),
-        }
-    }
-}
-
-/// Dynamic dispatch slot kind.
-#[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub enum DynamicSlotKind {
-    /// Field slot.
-    Field = 0,
-    /// Function slot.
-    Function = 1,
 }

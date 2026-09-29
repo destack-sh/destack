@@ -65,7 +65,7 @@ impl LayoutTable {
     pub fn field_count(&self, layout: &Layout) -> Option<usize> {
         match layout.shape {
             LayoutShape::Struct(fields) | LayoutShape::Tuple(fields) => Some(fields.len as usize),
-            LayoutShape::Object(object) => Some(object.fields.len as usize),
+            LayoutShape::Class(object) => Some(object.fields.len as usize),
             _ => None,
         }
     }
@@ -76,7 +76,7 @@ impl LayoutTable {
             LayoutShape::Struct(fields) | LayoutShape::Tuple(fields) => {
                 fields.slice(sections.entries(self.fields))
             }
-            LayoutShape::Object(object) => object.fields.slice(sections.entries(self.fields)),
+            LayoutShape::Class(object) => object.fields.slice(sections.entries(self.fields)),
             _ => &[],
         }
     }
@@ -102,7 +102,7 @@ impl LayoutTable {
             .all(|layout| match layout.shape {
                 LayoutShape::Struct(range) | LayoutShape::Tuple(range) => range.fits(fields),
                 LayoutShape::Variant(variant) => variant.cases.fits(cases),
-                LayoutShape::Object(object) => object.fields.fits(fields),
+                LayoutShape::Class(object) => object.fields.fits(fields),
                 _ => true,
             })
     }
@@ -420,8 +420,8 @@ pub enum LayoutShape {
     Vector(ElementLayout),
     /// Variant value storage.
     Variant(VariantLayout),
-    /// Object storage.
-    Object(ObjectLayout),
+    /// Class object storage.
+    Class(ClassLayout),
     /// Runtime dynamic value layout.
     Dynamic(DynamicLayout),
     /// Runtime function value storage.
@@ -610,12 +610,10 @@ pub struct VariantLayout {
     pub cases: EntryRange<VariantCaseLayout>,
 }
 
-/// Concrete layout for one object.
+/// Concrete layout for one class object.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct ObjectLayout {
-    /// Byte offset of the virtual table id when present.
-    pub dispatch_offset: Optional<u32>,
+pub struct ClassLayout {
     /// The object fields in logical source order.
     pub fields: EntryRange<LayoutField>,
 }
@@ -738,8 +736,8 @@ pub enum LayoutShapeBuilder {
     Vector(ElementLayout),
     /// Variant value storage.
     Variant(VariantLayoutBuilder),
-    /// Object storage.
-    Object(ObjectLayoutBuilder),
+    /// Class object storage.
+    Class(ClassLayoutBuilder),
     /// Runtime dynamic value layout.
     Dynamic(DynamicLayout),
     /// Runtime function value storage.
@@ -771,8 +769,7 @@ impl LayoutShapeBuilder {
                 encoding: variant.encoding,
                 cases: cases.append(variant.cases),
             }),
-            Self::Object(object) => LayoutShape::Object(ObjectLayout {
-                dispatch_offset: Optional::from(object.dispatch_offset),
+            Self::Class(object) => LayoutShape::Class(ClassLayout {
                 fields: fields.append(object.fields),
             }),
             Self::Dynamic(dynamic) => LayoutShape::Dynamic(dynamic),
@@ -782,29 +779,19 @@ impl LayoutShapeBuilder {
     }
 }
 
-/// Build-time concrete layout for one object.
+/// Build-time concrete layout for one class object.
 #[derive(Debug, Clone, PartialEq)]
-pub struct ObjectLayoutBuilder {
-    /// Byte offset of the virtual table id when present.
-    dispatch_offset: Option<u32>,
+pub struct ClassLayoutBuilder {
     /// The object fields in logical source order.
     fields: Vec<LayoutField>,
 }
 
-impl ObjectLayoutBuilder {
-    /// Create one object layout builder.
+impl ClassLayoutBuilder {
+    /// Create one class layout builder.
     pub fn new(fields: impl IntoIterator<Item = LayoutField>) -> Self {
         Self {
-            dispatch_offset: None,
             fields: fields.into_iter().collect(),
         }
-    }
-
-    /// Set the virtual table id byte offset.
-    pub fn dispatch_offset(mut self, offset: u32) -> Self {
-        self.dispatch_offset = Some(offset);
-
-        self
     }
 }
 

@@ -22,8 +22,8 @@ use crate::{
     InitializerTable, KnownTypeTable, Layout, LayoutField, LayoutId, LayoutTable, ProgramInfo,
     ProgramPoint, Result, SampleKey, SampleSite, SampleValue, ScalarFormat, Signature,
     SignatureEntry, SignatureId, SiteTable, StaticImage, StaticSpace, StringTable, Symbol,
-    TypeFingerprint, TypeId, TypeTable, Value, VariantCaseLayout, VariantLayout, VirtualTable,
-    VirtualTableId, Word, WordLayout,
+    TypeFingerprint, TypeId, TypeTable, Value, VariantCaseLayout, VariantLayout, VirtualSlot,
+    VirtualTable, VirtualTableId, Word, WordLayout,
 };
 
 /// Linked program.
@@ -263,14 +263,30 @@ impl Program {
         self.dispatch.virtual_table(self.sections(), table)
     }
 
-    /// Return one virtual method by table id and slot.
-    pub fn virtual_method(&self, table: VirtualTableId, slot: u32) -> Option<FunctionId> {
+    /// Return one virtual table slot by table id and slot index.
+    fn virtual_slot(&self, table: VirtualTableId, slot: u32) -> Option<VirtualSlot> {
         let table = self.virtual_table(table)?;
 
         self.dispatch
-            .virtual_methods(self.sections(), table)
+            .virtual_slots(self.sections(), table)
             .get(slot as usize)
             .copied()
+    }
+
+    /// Return the method one virtual table slot holds.
+    pub fn virtual_method(&self, table: VirtualTableId, slot: u32) -> Option<FunctionId> {
+        self.virtual_slot(table, slot)
+            .map(|slot| FunctionId(slot.0))
+    }
+
+    /// Return the dynamic table one conformance slot of a virtual table holds.
+    pub fn virtual_dynamic_table(
+        &self,
+        table: VirtualTableId,
+        slot: u32,
+    ) -> Option<DynamicTableId> {
+        self.virtual_slot(table, slot)
+            .map(|slot| DynamicTableId(slot.0))
     }
 
     /// Return one dynamic table by its durable id.

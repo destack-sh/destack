@@ -5,10 +5,11 @@ use tspp_heap::{
     HeapReference, HeapResult, Payload, Release, SharedHeap, SharedHeapReference, SharedMarkWorker,
     TraceView,
 };
-use tspp_mir::Space;
+use tspp_mir::{Space, VIRTUAL_TABLE_ID_OFFSET};
 
 use crate::{
     AllocationSiteId, Global, GlobalAddress, GlobalLocation, Handshake, Request, StaticSpace,
+    VirtualTableId,
 };
 
 /// Memory available to one program activation.
@@ -98,6 +99,14 @@ impl Memory<'_> {
     /// Resolve one stable heap edge into an ephemeral native address.
     pub fn address(&self, edge: HeapEdge) -> usize {
         self.base_address() + edge.bits()
+    }
+
+    /// Write the virtual table id one new class object leads with.
+    pub fn write_virtual_table(&self, edge: HeapEdge, table: VirtualTableId) {
+        let address = self.address(edge) + VIRTUAL_TABLE_ID_OFFSET as usize;
+
+        // SAFETY: every class object leads with an aligned virtual table id
+        unsafe { std::ptr::write(address as *mut u32, table.0) };
     }
 
     /// Resolve one world-relative allocation owner.
