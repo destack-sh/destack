@@ -26,9 +26,14 @@ export function identifier<const Prefix extends string>(
     return validator as z.core.$ZodBranded<z.ZodString, Prefix>;
 }
 
+/** Read the UUIDv7 a prefixed identifier ends with. */
+export function identifierUuid(value: Identifier<string>): string {
+    return value.slice(-36);
+}
+
 /** Read the creation time a prefixed UUIDv7 identifier encodes, in Unix milliseconds. */
 export function identifierTime(value: Identifier<string>): number {
-    const uuid = value.slice(-36);
+    const uuid = identifierUuid(value);
 
     return Number.parseInt(uuid.slice(0, 8) + uuid.slice(9, 13), 16);
 }
