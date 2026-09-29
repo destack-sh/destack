@@ -27,6 +27,10 @@ export const ServiceDescription = defineSchema(
         protocol: schema.literal("http"),
         /** The service's procedures. */
         api: RouterDescription,
+        /** The route names of the object types the service serves. */
+        objects: schema.array(schema.string().min(1)),
+        /** The service's own route names beside its objects. */
+        routes: schema.array(schema.string().min(1)),
     }),
 );
 /** A declared service. */
@@ -34,11 +38,21 @@ export type ServiceDescription = schema.Infer<typeof ServiceDescription>;
 
 /** Describe a service. */
 export function describeService(service: Service): ServiceDescription {
+    // name the routes the objects derive, shared ones included
+    const derived = new Set(Object.keys(service.objects));
+    for (const routed of Object.values(service.objects)) {
+        for (const route of Object.keys(routed.shared)) {
+            derived.add(route);
+        }
+    }
+
     return ServiceDescription.parse({
         name: service.name,
         version: service.version,
         protocol: service.protocol,
         api: describeRouter(service.name, service.router),
+        objects: Object.keys(service.objects),
+        routes: Object.keys(service.router).filter((route) => !derived.has(route)),
     });
 }
 

@@ -20,6 +20,31 @@ export class Observable<Value> {
         }
     }
 
+    /** Yield the combined latest values of several streams, once each has one. */
+    static async *latest<Value, Combined>(
+        streams: readonly AsyncIterator<Value>[],
+        combine: (values: readonly Value[]) => Combined,
+    ): AsyncGenerator<Combined> {
+        // race the streams for their next values
+        const values = new Map<number, Value>();
+        const next = (index: number) =>
+            streams[index]!.next().then((result) => ({ index, result }));
+        const pending = new Map(streams.map((_, index) => [index, next(index)]));
+        while (pending.size > 0) {
+            // yield once every stream has a value
+            const { index, result } = await Promise.race(pending.values());
+            if (result.done) {
+                pending.delete(index);
+            } else {
+                values.set(index, result.value);
+                pending.set(index, next(index));
+                if (values.size === streams.length) {
+                    yield combine(streams.map((_, position) => values.get(position)!));
+                }
+            }
+        }
+    }
+
     /** The latest value. */
     #value: Value;
     /** The current change number. */

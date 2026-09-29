@@ -40,14 +40,6 @@ export const controllerLease = defineTable(
     },
 );
 
-/** A held lease. */
-export interface Lease {
-    /** The count of takeovers, which fences writes. */
-    readonly epoch: number;
-    /** Abort once the lease is lost. */
-    readonly signal: AbortSignal;
-}
-
 /** The leases of instances over one database. */
 export const Leases = {
     /** Acquire or renew a lease, returning its epoch or the time the other holder's lease lapses. */

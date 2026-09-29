@@ -8,3 +8,4 @@ export * from "./webhook.ts";
 export { WatchDescription } from "../watch/index.ts";
 export * from "./watch.ts";
 export * from "./workload.ts";
+export * from "./journal.ts";

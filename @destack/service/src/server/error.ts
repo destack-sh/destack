@@ -1,5 +1,5 @@
 import { SeverityNumber, telemetry, trace } from "@destack/telemetry";
-import type { Controller } from "../control/index.ts";
+import type { Controller, Follower } from "../control/index.ts";
 import { ServiceError } from "../error/index.ts";
 import { AccessError } from "@destack/access";
 import { DatabaseError } from "@destack/db/error";
@@ -91,7 +91,11 @@ export function domainFailure(error: unknown): ServiceError<string, unknown> | u
 }
 
 /** Log a failed reconciliation. */
-export function reportReconciliation(controller: Controller, key: string, error: unknown): void {
+export function reportReconciliation(
+    controller: Controller | Follower,
+    key: string,
+    error: unknown,
+): void {
     const exception = error instanceof Error ? error : new Error(String(error));
     instruments.logger.emit({
         severityNumber: SeverityNumber.WARN,

@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { defineTable, integer, text } from "@destack/db";
+import { defineTable, eq, integer, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { ControlLoop, type Controller } from "./control.ts";
+import { ControlLoop, type Controller, type Follower } from "./control.ts";
 import { controllerLease } from "./lease.ts";
 
 /** The jobs a controller reconciles. */
@@ -130,8 +130,8 @@ test("lease each key to one instance of several sharing a database, handing it o
         watches: [job],
         keys: () => [],
         list: async () => ["shared"],
-        reconcile: async (_key, lease) => {
-            reconciled.push(`${lease!.epoch}`);
+        reconcile: async (_key, reconciliation) => {
+            reconciled.push(`${reconciliation!.epoch}`);
 
             return undefined;
         },
@@ -164,4 +164,86 @@ test("lease each key to one instance of several sharing a database, handing it o
         .from(controllerLease);
     (held!.holder === "first" ? first : second).abort();
     await expect.poll(() => reconciled, { timeout: 2000 }).toEqual(["1", "1"]);
+});
+
+test("follow each listed key until its list drops it or the loop stops", async () => {
+    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await database.insert(job).values([
+        { id: "kept", scope: "space", runs: 1 },
+        { id: "dropped", scope: "space", runs: 1 },
+    ]);
+
+    // follow each job until its signal aborts
+    const started: string[] = [];
+    const stopped: string[] = [];
+    const reported: string[] = [];
+    const controller: Follower = {
+        name: "follow",
+        watches: [job],
+        list: async () => (await database.select({ id: job.id }).from(job)).map((row) => row.id),
+        concurrency: 8,
+        follow: async (key, signal) => {
+            started.push(key);
+            await new Promise<void>((resolve) =>
+                signal.addEventListener("abort", () => resolve(), { once: true }),
+            );
+            stopped.push(key);
+            throw signal.reason;
+        },
+    };
+    const stopping = new AbortController();
+    const loop = new ControlLoop(database, [controller], {
+        report: (_controller, key) => reported.push(key),
+    });
+    const running = loop.run(stopping.signal);
+
+    // start both, then stop the one the list drops and start the one it adds
+    await expect.poll(() => [...started].sort()).toEqual(["dropped", "kept"]);
+    await database.delete(job).where(eq(job.id, "dropped"));
+    await database.insert(job).values({ id: "added", scope: "space", runs: 1 });
+    await expect.poll(() => stopped).toEqual(["dropped"]);
+    await expect.poll(() => [...started].sort()).toEqual(["added", "dropped", "kept"]);
+
+    // stop the rest with the loop, reporting no failure
+    stopping.abort();
+    await running;
+    expect([...stopped].sort()).toEqual(["added", "dropped", "kept"]);
+    expect(reported).toEqual([]);
+});
+
+test("report a follow that ends unasked and retry it after a backoff", async () => {
+    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await database.insert(job).values({ id: "brief", scope: "space", runs: 1 });
+
+    // end each follow at once, as a broken follower does
+    const started: number[] = [];
+    const reported: string[] = [];
+    const controller: Follower = {
+        name: "brief",
+        watches: [job],
+        list: async () => ["brief"],
+        follow: async () => {
+            started.push(Date.now());
+        },
+    };
+    const stopping = new AbortController();
+    const loop = new ControlLoop(database, [controller], {
+        report: (_controller, key, error) => reported.push(`${key}: ${(error as Error).message}`),
+        retry: { initialInterval: 50 },
+    });
+    const running = loop.run(stopping.signal);
+
+    // follow twice, the second only after the backoff, reporting each end
+    await expect.poll(() => reported.length).toBe(2);
+    stopping.abort();
+    await running;
+    const failure = "brief: brief stopped following brief unasked";
+    expect({ isBackedOff: started[1]! - started[0]! >= 50, reported }).toEqual({
+        isBackedOff: true,
+        reported: [failure, failure],
+    });
 });

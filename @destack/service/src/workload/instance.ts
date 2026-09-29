@@ -1,4 +1,5 @@
 import type { ResourceContext } from "@destack/resource/context";
+import type { AccessRelay } from "@destack/access";
 import { reference } from "@destack/package/declare";
 import { Server, type ServerOptions, type ServiceImplementation } from "../server/index.ts";
 import type { Service } from "../declare/service.ts";
@@ -10,12 +11,12 @@ import type {
 } from "../trigger/index.ts";
 import { Health } from "../health/index.ts";
 import { ServiceError } from "../error/index.ts";
-import type { Workload } from "./workload.ts";
+import type { AuditHistory, Workload } from "./workload.ts";
 
 /** A running workload instance. */
 export class WorkloadInstance implements AsyncDisposable {
-    /** The services by declaration key. */
-    readonly #services = new Map<string, Server>();
+    /** The services and their servers by declaration key. */
+    readonly #services = new Map<string, { readonly service: Service; readonly server: Server }>();
     /** The trigger handlers by key. */
     readonly #triggers = new Map<string, TriggerImplementation>();
     /** The shutdown controller. */
@@ -36,6 +37,8 @@ export class WorkloadInstance implements AsyncDisposable {
             // start the workload
             const implementation = await workload.start({
                 resources: options.resources,
+                history: options.history,
+                ...(options.access === undefined ? {} : { access: options.access }),
                 signal: instance.#controller.signal,
                 shutdown: () => instance.shutdown(),
                 defer: (dispose) => instance.#cleanup.defer(dispose),
@@ -56,7 +59,7 @@ export class WorkloadInstance implements AsyncDisposable {
                     health: new Health(service.service.name),
                     resources: options.resources,
                 });
-                instance.#services.set(key, server);
+                instance.#services.set(key, { service: service.service, server });
             }
 
             // register the trigger handlers
@@ -88,6 +91,11 @@ export class WorkloadInstance implements AsyncDisposable {
         return this.#controller.signal;
     }
 
+    /** The implemented services, in workload order. */
+    get services(): readonly Service[] {
+        return [...this.#services.values()].map((served) => served.service);
+    }
+
     /** The implemented triggers, in workload order. */
     get triggers(): readonly Trigger[] {
         return [...this.#triggers.values()].map((handler) => handler.trigger);
@@ -106,7 +114,7 @@ export class WorkloadInstance implements AsyncDisposable {
     /** Dispatch a request to a service. */
     fetch(service: Service, request: Request): Promise<Response> {
         // require the service
-        const server = this.#services.get(keyOf(service));
+        const server = this.#services.get(keyOf(service))?.server;
         if (!server) {
             throw new ServiceError("NOT_FOUND", {
                 message: `unknown workload service: ${keyOf(service)}`,
@@ -148,7 +156,7 @@ export class WorkloadInstance implements AsyncDisposable {
     /** Close every service and resource, reporting all failures. */
     async #close(): Promise<void> {
         // drain each service
-        const servers = [...this.#services.values()];
+        const servers = [...this.#services.values()].map((served) => served.server);
         const results = await Promise.allSettled(servers.map((server) => server.close()));
         const errors = results.flatMap((result) =>
             result.status === "rejected" ? [result.reason] : [],
@@ -175,6 +183,10 @@ export class WorkloadInstance implements AsyncDisposable {
 export interface WorkloadInstanceOptions {
     /** The installation's resources. */
     readonly resources: ResourceContext;
+    /** The audit history the workload's outboxes deliver to. */
+    readonly history: AuditHistory;
+    /** The relay of the access of the installation's space and its containing scopes. */
+    readonly access?: AccessRelay;
     /** Select the options of one service. */
     service(
         service: Service,

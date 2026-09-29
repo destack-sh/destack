@@ -2,31 +2,49 @@ import { TABLE, type DatabaseConnection, type Table } from "@destack/db";
 import { DatabaseError } from "@destack/db/error";
 import type { Change } from "@destack/db/log";
 import { RetryPolicy, wait } from "../timer/index.ts";
-import { LEASE_MILLISECONDS, Leases, type Lease } from "./lease.ts";
+import { LEASE_MILLISECONDS, Leases } from "./lease.ts";
 
 /** The retry of a failed reconciliation, doubling from a second up to 5 minutes as in controller-runtime. */
 const RETRY = RetryPolicy.of({ maximumInterval: 5 * 60_000 });
 
-/** A level-triggered controller that reconciles keys until settled. */
-export interface Controller {
+/** The keys a controller or follower works on: the tables naming them, and every key. */
+interface Keyed {
     /** The controller's name in reports. */
     readonly name: string;
-    /** The tables whose changes or commits name keys. */
-    readonly watches: readonly Table[];
+    /** The tables whose changes or commits name keys, or list them again. */
+    readonly watches?: readonly Table[];
     /** Name the keys a watched change affects. */
-    keys(change: Change): readonly string[];
+    keys?(change: Change): readonly string[];
     /** List every key. */
     list(): Promise<readonly string[]>;
-    /** Reconcile one key, returning the delay before looking again. */
-    reconcile(key: string, lease?: Lease): Promise<number | undefined>;
-    /** The most keys it reconciles at once, one by default. */
+    /** The most keys it works on at once, one by default. */
     readonly concurrency?: number;
+}
+
+/** A level-triggered controller that reconciles each key until settled. */
+export interface Controller extends Keyed {
+    /** Reconcile one key, returning the delay before looking again. */
+    reconcile(key: string, reconciliation: Reconciliation): Promise<number | undefined>;
+}
+
+/** A follower of each key, for as long as its list names the key and its lease holds. */
+export interface Follower extends Keyed {
+    /** Follow one key until the signal aborts. */
+    follow(key: string, signal: AbortSignal): Promise<void>;
+}
+
+/** One running reconciliation of a key. */
+export interface Reconciliation {
+    /** Abort once the loop stops, the lease is lost or the key leaves the list. */
+    readonly signal: AbortSignal;
+    /** The lease's takeover count, when instances share the loop. */
+    readonly epoch?: number;
 }
 
 /** One key a controller reconciles, due at a time. */
 interface Work {
     /** The controller reconciling the key. */
-    readonly controller: Controller;
+    readonly controller: Controller | Follower;
     /** The key. */
     readonly key: string;
 }
@@ -36,19 +54,19 @@ export class ControlLoop {
     /** The database whose log names the keys. */
     readonly database: DatabaseConnection;
     /** The controllers run. */
-    readonly controllers: readonly Controller[];
+    readonly controllers: readonly (Controller | Follower)[];
     /** Report a failed reconciliation. */
-    readonly #report: (controller: Controller, key: string, error: unknown) => void;
+    readonly #report: (controller: Controller | Follower, key: string, error: unknown) => void;
     /** How a failed key retries. */
     readonly #retry: RetryPolicy;
     /** The keys due, by controller and key, with the time each is due at. */
-    readonly #due = new Map<Controller, Map<string, number>>();
+    readonly #due = new Map<Controller | Follower, Map<string, number>>();
     /** The due keys, earliest first. */
     readonly #queue = new DueQueue();
     /** The consecutive failures by controller and key. */
-    readonly #failures = new Map<Controller, Map<string, number>>();
-    /** The keys reconciling now, by controller. */
-    readonly #running = new Map<Controller, Set<string>>();
+    readonly #failures = new Map<Controller | Follower, Map<string, number>>();
+    /** The keys reconciling now, by controller, each with the controller aborting it. */
+    readonly #running = new Map<Controller | Follower, Map<string, AbortController>>();
     /** The running reconciliations. */
     readonly #reconciling = new Set<Promise<void>>();
     /** The lease holder and duration, when instances share the loop. */
@@ -59,10 +77,14 @@ export class ControlLoop {
     /** Create the loop. */
     constructor(
         database: DatabaseConnection,
-        controllers: readonly Controller[],
+        controllers: readonly (Controller | Follower)[],
         options: {
             /** Report a failed reconciliation. */
-            readonly report: (controller: Controller, key: string, error: unknown) => void;
+            readonly report: (
+                controller: Controller | Follower,
+                key: string,
+                error: unknown,
+            ) => void;
             /** How a failed key retries. */
             readonly retry?: Partial<RetryPolicy>;
             /** Lease each key to this instance. */
@@ -83,7 +105,7 @@ export class ControlLoop {
         for (const controller of controllers) {
             this.#due.set(controller, new Map());
             this.#failures.set(controller, new Map());
-            this.#running.set(controller, new Set());
+            this.#running.set(controller, new Map());
         }
     }
 
@@ -98,7 +120,7 @@ export class ControlLoop {
     }
 
     /** Name a key due. */
-    enqueue(controller: Controller, key: string, at = Date.now()): void {
+    enqueue(controller: Controller | Follower, key: string, at = Date.now()): void {
         // keep the earliest due time
         const due = this.#due.get(controller)!;
         const current = due.get(key);
@@ -109,12 +131,12 @@ export class ControlLoop {
         this.#wake();
     }
 
-    /** Follow the watched logged tables. */
+    /** List every controller, then follow the watched logged tables. */
     async #follow(signal: AbortSignal): Promise<void> {
         const tables = [
-            ...new Set(this.controllers.flatMap((controller) => controller.watches)),
+            ...new Set(this.controllers.flatMap((controller) => controller.watches ?? [])),
         ].filter((table) => table[TABLE].tier !== "none");
-        while (!signal.aborted && tables.length > 0) {
+        while (!signal.aborted) {
             // read the position before listing
             const after = (await this.database.log.position()).sequence;
             for (const controller of this.controllers) {
@@ -122,14 +144,30 @@ export class ControlLoop {
                     this.enqueue(controller, key);
                 }
             }
+            if (tables.length === 0) {
+                return;
+            }
 
-            // enqueue the keys each change names
+            // follow the changes after the listing
             try {
                 for await (const page of this.database.log.follow({ tables, after }, signal)) {
-                    for (const change of page.changes) {
-                        for (const controller of this.controllers) {
-                            if (controller.watches.includes(change.table)) {
-                                for (const key of controller.keys(change)) {
+                    for (const controller of this.controllers) {
+                        // find the changes the controller watches
+                        const watched = controller.watches ?? [];
+                        const changes = page.changes.filter((change) =>
+                            watched.includes(change.table),
+                        );
+
+                        // list a follower again once its tables changed
+                        if ("follow" in controller) {
+                            if (changes.length > 0) {
+                                await this.#relist(controller);
+                            }
+                        }
+                        // enqueue the keys each change names
+                        else {
+                            for (const change of changes) {
+                                for (const key of controller.keys?.(change) ?? []) {
                                     this.enqueue(controller, key);
                                 }
                             }
@@ -148,23 +186,57 @@ export class ControlLoop {
     /** List the controllers of unlogged tables after each commit. */
     async #list(signal: AbortSignal): Promise<void> {
         const listed = this.controllers.filter((controller) =>
-            controller.watches.some((table) => table[TABLE].tier === "none"),
+            (controller.watches ?? []).some((table) => table[TABLE].tier === "none"),
         );
         if (listed.length === 0) {
             return;
         }
         await this.database.log.until(async () => {
             for (const controller of listed) {
-                const failures = this.#failures.get(controller)!;
-                for (const key of await controller.list()) {
-                    if (!failures.has(key)) {
-                        this.enqueue(controller, key);
+                // stop and start a follower's keys
+                if ("follow" in controller) {
+                    await this.#relist(controller);
+                }
+                // enqueue each listed key not failing
+                else {
+                    const failures = this.#failures.get(controller)!;
+                    for (const key of await controller.list()) {
+                        if (!failures.has(key)) {
+                            this.enqueue(controller, key);
+                        }
                     }
                 }
             }
 
             return false;
         }, signal);
+    }
+
+    /** Stop the keys a follower's list dropped, and enqueue the listed ones not running. */
+    async #relist(controller: Follower): Promise<void> {
+        // stop the running keys the list dropped
+        const listed = new Set(await controller.list());
+        const running = this.#running.get(controller)!;
+        for (const [key, stop] of running) {
+            if (!listed.has(key)) {
+                stop.abort(new Error(`${controller.name} no longer lists ${key}`));
+            }
+        }
+
+        // unqueue the due keys the list dropped
+        const due = this.#due.get(controller)!;
+        for (const key of due.keys()) {
+            if (!listed.has(key)) {
+                due.delete(key);
+            }
+        }
+
+        // start the listed keys not running
+        for (const key of listed) {
+            if (!running.has(key)) {
+                this.enqueue(controller, key);
+            }
+        }
     }
 
     /** Start due keys and sleep until more are due. */
@@ -182,7 +254,12 @@ export class ControlLoop {
             }
         }
 
-        // wait for running reconciliations
+        // stop and wait for running reconciliations
+        for (const running of this.#running.values()) {
+            for (const stop of running.values()) {
+                stop.abort(new Error("the control loop stopped"));
+            }
+        }
         await Promise.all(this.#reconciling);
     }
 
@@ -217,10 +294,11 @@ export class ControlLoop {
 
     /** Start a reconciliation. */
     #start(work: Work): void {
-        // mark the key running
+        // mark the key running with the controller aborting it
         const running = this.#running.get(work.controller)!;
-        running.add(work.key);
-        const reconciling = this.#reconcile(work).finally(() => {
+        const stop = new AbortController();
+        running.set(work.key, stop);
+        const reconciling = this.#reconcile(work, stop.signal).finally(() => {
             running.delete(work.key);
             this.#reconciling.delete(reconciling);
             this.#wake();
@@ -228,21 +306,37 @@ export class ControlLoop {
         this.#reconciling.add(reconciling);
     }
 
-    /** Reconcile one key, retrying failures. */
-    async #reconcile(work: Work): Promise<void> {
-        // reconcile under the lease and requeue when asked
-        const failures = this.#failures.get(work.controller)!;
+    /** Reconcile or follow one key until the loop stops it, retrying failures. */
+    async #reconcile(work: Work, stopped: AbortSignal): Promise<void> {
+        // reconcile under the lease and requeue when asked, or follow again once a follow ends
+        const { controller, key } = work;
+        const failures = this.#failures.get(controller)!;
         try {
-            const delay = await this.#leased(work, (lease) =>
-                work.controller.reconcile(work.key, lease),
-            );
+            const delay = await this.#leased(work, stopped, async (reconciliation) => {
+                // follow until stopped, retrying a lost lease at once and a follow that ended as a failure
+                if ("follow" in controller) {
+                    await controller.follow(key, reconciliation.signal);
+                    if (!reconciliation.signal.aborted) {
+                        throw new Error(`${controller.name} stopped following ${key} unasked`);
+                    }
+
+                    return stopped.aborted ? undefined : 0;
+                }
+
+                return controller.reconcile(key, reconciliation);
+            });
             failures.delete(work.key);
             if (delay !== undefined) {
                 this.enqueue(work.controller, work.key, Date.now() + delay);
             }
         }
-        // report and retry the failure
+        // end a reconciliation the loop stopped without a failure
         catch (error) {
+            if (stopped.aborted) {
+                return;
+            }
+
+            // report and retry the failure
             const failed = (failures.get(work.key) ?? 0) + 1;
             failures.set(work.key, failed);
             this.#report(work.controller, work.key, error);
@@ -254,15 +348,16 @@ export class ControlLoop {
         }
     }
 
-    /** Reconcile a key under this instance's lease. */
+    /** Reconcile a key under this instance's lease, stopped by the loop or a lost lease. */
     async #leased(
         work: Work,
-        reconcile: (lease?: Lease) => Promise<number | undefined>,
+        stopped: AbortSignal,
+        reconcile: (reconciliation: Reconciliation) => Promise<number | undefined>,
     ): Promise<number | undefined> {
         // reconcile without a lease
         const options = this.#lease;
         if (options === undefined) {
-            return reconcile();
+            return reconcile({ signal: stopped });
         }
 
         // take the lease or wait for it to lapse
@@ -287,7 +382,9 @@ export class ControlLoop {
             );
         }, duration / 3);
         try {
-            return await reconcile({ epoch: acquired.epoch, signal: lost.signal });
+            const signal = AbortSignal.any([stopped, lost.signal]);
+
+            return await reconcile({ epoch: acquired.epoch, signal });
         } finally {
             clearInterval(renewing);
         }

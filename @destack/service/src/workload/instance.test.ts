@@ -1,4 +1,5 @@
 import { expect, test } from "@destack/test";
+import type { AccessRelay } from "@destack/access";
 import { defineWorkload } from "./workload.ts";
 import { WorkloadInstance } from "./instance.ts";
 import { defineService } from "../declare/service.ts";
@@ -10,6 +11,22 @@ import { hosting } from "../server/tests/fixture.ts";
 const first = defineService("first", {});
 /** The second declared fixture service. */
 const second = defineService("second", {});
+/** An audit history keeping the batches it receives. */
+const history = {
+    batches: [] as unknown[],
+    async ingest(batch: { readonly events: readonly unknown[] }) {
+        history.batches.push(batch);
+    },
+};
+
+/** A relay of the access of a space, which no fixture workload follows. */
+const access: AccessRelay = {
+    scope: "space-01996ab0-0000-7000-8000-000000000001",
+    watch: () => {
+        throw new Error("the fixture relay streams no access");
+    },
+};
+
 /** A declared fixture schedule. */
 const nightly = defineSchedule({
     name: "nightly",
@@ -37,7 +54,12 @@ test("release startup resources when the workload shuts down during startup", as
                     };
                 },
             }),
-            { resources: hosting.resources, service: () => ({ ...hosting, drainTimeout: 100 }) },
+            {
+                resources: hosting.resources,
+                history,
+                access,
+                service: () => ({ ...hosting, drainTimeout: 100 }),
+            },
         ),
     ).rejects.toMatchObject({ name: "AbortError" });
     expect(events).toEqual(["resources"]);
@@ -73,7 +95,12 @@ test("start two services and drain accepted requests before shared cleanup", asy
                 };
             },
         }),
-        { resources: hosting.resources, service: () => ({ ...hosting, drainTimeout: 1000 }) },
+        {
+            resources: hosting.resources,
+            history,
+            access,
+            service: () => ({ ...hosting, drainTimeout: 1000 }),
+        },
     );
 
     // dispatch to every service
@@ -124,7 +151,12 @@ test("retain shared resources until an overdue request observes cancellation", a
                 };
             },
         }),
-        { resources: hosting.resources, service: () => ({ ...hosting, drainTimeout: 5 }) },
+        {
+            resources: hosting.resources,
+            history,
+            access,
+            service: () => ({ ...hosting, drainTimeout: 5 }),
+        },
     );
 
     // observe failures while the request stays open
@@ -163,7 +195,12 @@ test("reject a service implemented twice and release startup resources", async (
                     return { services: [implementation, implementation] };
                 },
             }),
-            { resources: hosting.resources, service: () => ({ ...hosting, drainTimeout: 1000 }) },
+            {
+                resources: hosting.resources,
+                history,
+                access,
+                service: () => ({ ...hosting, drainTimeout: 1000 }),
+            },
         ),
     ).rejects.toThrow(`duplicate workload service: ${first.package.id}/first`);
     expect(events).toEqual(["resources"]);
@@ -199,7 +236,12 @@ test("deliver a schedule's occurrence and a webhook's delivery through the workl
                 ],
             }),
         }),
-        { resources: hosting.resources, service: () => ({ ...hosting, drainTimeout: 1000 }) },
+        {
+            resources: hosting.resources,
+            history,
+            access,
+            service: () => ({ ...hosting, drainTimeout: 1000 }),
+        },
     );
 
     // list the triggers in workload order
@@ -248,8 +290,40 @@ test("reject a trigger implemented twice and release startup resources", async (
                     return { services: [], triggers: [handler, handler] };
                 },
             }),
-            { resources: hosting.resources, service: () => ({ ...hosting, drainTimeout: 1000 }) },
+            {
+                resources: hosting.resources,
+                history,
+                access,
+                service: () => ({ ...hosting, drainTimeout: 1000 }),
+            },
         ),
     ).rejects.toThrow(`duplicate workload schedule: ${nightly.package.id}/nightly`);
     expect(events).toEqual(["resources"]);
 }, 1500);
+
+test("give a starting workload the host's audit history and its space's access relay", async () => {
+    // start a workload that delivers one batch to the history it receives and keeps the relay
+    let relay: AccessRelay | undefined;
+    await using instance = await WorkloadInstance.start(
+        defineWorkload({
+            name: "fixture",
+            start: async (context) => {
+                await context.history.ingest({ events: ["started"] });
+                relay = context.access;
+
+                return { services: [] };
+            },
+        }),
+        {
+            resources: hosting.resources,
+            history,
+            access,
+            service: () => ({ ...hosting, drainTimeout: 100 }),
+        },
+    );
+    expect([instance.triggers, history.batches.at(-1), relay]).toEqual([
+        [],
+        { events: ["started"] },
+        access,
+    ]);
+});

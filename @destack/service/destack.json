@@ -11,49 +11,67 @@
     },
     "declarations": {
         "defineJournal": {
-            "module": 1
+            "module": 1,
+            "describes": [
+                {
+                    "kind": "journal",
+                    "function": "./inspect#describeJournal"
+                }
+            ]
         },
         "defineSchedule": {
             "module": 1,
-            "inspect": {
-                "kind": "schedule",
-                "describe": "./inspect#describeSchedule"
-            }
+            "describes": [
+                {
+                    "kind": "schedule",
+                    "function": "./inspect#describeSchedule"
+                }
+            ]
         },
         "defineService": {
             "module": 2,
-            "inspect": {
-                "kind": "service",
-                "describe": "./inspect#describeService"
-            }
+            "describes": [
+                {
+                    "kind": "service",
+                    "function": "./inspect#describeService"
+                }
+            ]
         },
         "defineServiceConnection": {
             "module": 2,
-            "inspect": {
-                "kind": "service-connection",
-                "describe": "./inspect#describeServiceConnection"
-            }
+            "describes": [
+                {
+                    "kind": "service-connection",
+                    "function": "./inspect#describeServiceConnection"
+                }
+            ]
         },
         "defineWatch": {
             "module": 1,
-            "inspect": {
-                "kind": "watch",
-                "describe": "./inspect#describeWatch"
-            }
+            "describes": [
+                {
+                    "kind": "watch",
+                    "function": "./inspect#describeWatch"
+                }
+            ]
         },
         "defineWebhook": {
             "module": 1,
-            "inspect": {
-                "kind": "webhook",
-                "describe": "./inspect#describeWebhook"
-            }
+            "describes": [
+                {
+                    "kind": "webhook",
+                    "function": "./inspect#describeWebhook"
+                }
+            ]
         },
         "defineWorkload": {
             "module": 1,
-            "inspect": {
-                "kind": "workload",
-                "describe": "./inspect#describeWorkload"
-            }
+            "describes": [
+                {
+                    "kind": "workload",
+                    "function": "./inspect#describeWorkload"
+                }
+            ]
         }
     }
 }
