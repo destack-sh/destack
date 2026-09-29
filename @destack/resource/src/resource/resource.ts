@@ -1,6 +1,7 @@
 import { defineSchema, identifier, schema } from "@destack/schema";
 import { DeclarationName, type Package } from "@destack/package";
 import { ResourceHandle } from "./handle.ts";
+import type { Provider } from "./provider.ts";
 import type { ResourceState } from "@destack/package/declare";
 
 /** A named infrastructure dependency declared by a package. */
@@ -50,6 +51,11 @@ export class Resource<
         this.kind = declaration.kind;
         this.version = declaration.version;
         this.spec = declaration.spec;
+    }
+
+    /** Open the providers holding resources of this kind on the running runtime, by provider code. */
+    get providers(): Readonly<Record<string, (reference: URL) => Promise<Provider>>> {
+        return {};
     }
 
     /** Describe the state the resource must hold, empty for resources that hold none. */
