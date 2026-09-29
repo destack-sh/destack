@@ -17,8 +17,12 @@ export function reportError(error: unknown): ServiceError<string, unknown> {
         return new ServiceError("CONFLICT", { message: error.message });
     }
 
-    // describe invalid input by its issues
-    if (error instanceof ServiceError && error.cause instanceof ValidationError) {
+    // describe invalid input by its issues, leaving invalid output an internal failure
+    if (
+        error instanceof ServiceError &&
+        error.code === "BAD_REQUEST" &&
+        error.cause instanceof ValidationError
+    ) {
         const issues = error.cause.issues.map((issue) => {
             const path = (issue.path ?? [])
                 .map((key) => (typeof key === "object" ? key.key : key))
@@ -49,8 +53,8 @@ export function reportError(error: unknown): ServiceError<string, unknown> {
     trace.getActiveSpan()?.recordException(error instanceof Error ? error : String(error));
     log.error("service.request.failed", telemetry.exceptionAttributes(error));
 
-    // hide unexpected exception details
-    if (error instanceof ServiceError) {
+    // pass deliberate unavailability on, and hide the details of anything unexpected
+    if (error instanceof ServiceError && error.code !== "INTERNAL_SERVER_ERROR") {
         return error;
     }
 
