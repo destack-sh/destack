@@ -5,7 +5,7 @@ import { createLog, logTriggers } from "../log/trigger.ts";
 import { treeTriggers } from "../tree/trigger.ts";
 import { aggregateTriggers, recomputeAggregate } from "../aggregate/trigger.ts";
 import { dependentTriggers } from "../dependent/trigger.ts";
-import { createState, deleteState, type TableState } from "./state.ts";
+import { createState, deleteState, holdsState, type TableState } from "./state.ts";
 import * as statement from "./statement.ts";
 import { quote } from "../dialect/quote.ts";
 import { bridgeTriggers } from "./bridge.ts";
@@ -114,11 +114,24 @@ export function planTables(input: PlanInput): TablePlan {
             (state.moved?.table === undefined ? undefined : remaining.get(state.moved.table));
         remaining.delete(previous?.table.name ?? name);
 
-        // create each missing table unless an unmanaged one holds its name
+        // create each missing table unless a newer release renamed it or an unmanaged one holds its name
         if (!previous) {
-            if (existing.includes(name)) {
+            const renamed = applied.find(
+                (entry) =>
+                    entry.moved?.table === name &&
+                    Version.compare(entry.package.version, state.package.version) > 0,
+            );
+            // refuse a table a newer release renamed, which the rollback would create again empty
+            if (renamed !== undefined) {
+                const detail = `rollback to ${state.package.version} cannot read the table ${renamed.package.version} renamed to ${renamed.table.name}`;
+                problems.push({ target: name, detail });
+            }
+            // refuse a name an unmanaged table holds
+            else if (existing.includes(name)) {
                 problems.push({ target: name, detail: "table exists without applied state" });
-            } else {
+            }
+            // create the table
+            else {
                 steps.push(
                     step(
                         "createTable",
@@ -129,6 +142,15 @@ export function planTables(input: PlanInput): TablePlan {
                     ),
                 );
                 created.push(state.table);
+            }
+            continue;
+        }
+
+        // keep a newer applied table for an older release that it holds, refusing one it cannot hold
+        if (Version.compare(state.package.version, previous.package.version) < 0) {
+            if (!holdsState(previous, state)) {
+                const detail = `rollback to ${state.package.version} cannot hold the table as ${previous.package.version} applied it`;
+                problems.push({ target: name, detail });
             }
             continue;
         }
@@ -305,8 +327,21 @@ export function planTables(input: PlanInput): TablePlan {
         }
     }
 
-    // drop applied tables no longer declared
-    const dropped = [...remaining.keys()];
+    // drop applied tables no longer declared, keeping those a newer release of a declared package added
+    const releases = new Map<string, Version>();
+    for (const state of declared) {
+        const release = releases.get(state.package.id);
+        if (release === undefined || Version.compare(state.package.version, release) > 0) {
+            releases.set(state.package.id, state.package.version);
+        }
+    }
+    const dropped = [...remaining.values()]
+        .filter((previous) => {
+            const release = releases.get(previous.package.id);
+
+            return release === undefined || Version.compare(previous.package.version, release) <= 0;
+        })
+        .map((previous) => previous.table.name);
     for (const name of dropped) {
         steps.push(
             step("dropTable", "destructive", name, "drop table", [

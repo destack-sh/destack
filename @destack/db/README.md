@@ -113,6 +113,14 @@ const plan = await database.plan(desiredStates);
 await database.apply(plan);
 ```
 
+A plan compares the release that applied the tables with the releases declaring them.
+
+| Case | Example | Plan |
+|---|---|---|
+| Upgrade | applied 2026.9.0, declared 2026.10.0 | the changes, then each conversion since 2026.9.0 |
+| Rollout | declared 2026.9.0 and 2026.10.0 together | every column either declares, renamed columns kept in sync |
+| Rollback | applied 2026.10.0, declared 2026.9.0 | nothing when 2026.9.0 still reads the tables, otherwise refused |
+
 ## Log
 
 `database.log` reads committed changes of logged tables in commit order.

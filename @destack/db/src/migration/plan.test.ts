@@ -11,6 +11,7 @@ import type { Dialect } from "../dialect/dialect.ts";
 import { declareState } from "./state.ts";
 import type { TablePlan } from "./plan.ts";
 import { Expression } from "../query/expression.ts";
+import { PlanError } from "@destack/resource/error";
 
 /** Folders holding documents, as first released. */
 const folderOne = defineTable("folder", {
@@ -314,6 +315,72 @@ test.for(TEST_DIALECTS)(
             { id: "a", mode: "standard" },
             { id: "b", mode: "vim" },
         ]);
+    },
+);
+
+/** Themes the next release adds. */
+const themeTable = defineTable("theme", { id: text("id").primaryKey() }, {}, NEXT_RELEASE);
+
+/** Folders the next release renames to directories. */
+const directoryTable = defineTable(
+    "directory",
+    { id: text("id").primaryKey(), extra: text("extra") },
+    { moved: { table: "folder" } },
+    NEXT_RELEASE,
+);
+
+/** Preferences in the next release, adding a theme beside the mode. */
+const preferenceThemed = defineTable(
+    "preference",
+    {
+        id: text("id").primaryKey(),
+        mode: json("mode", schema.enum(["standard", "vim", "emacs"])),
+        theme: text("theme"),
+    },
+    {},
+    NEXT_RELEASE,
+);
+
+test.for(TEST_DIALECTS)(
+    "roll back without contracting what a newer release added, and refuse tables the older release cannot read, on %s",
+    async (dialect) => {
+        // apply the next release adding a theme column and a theme table, then roll back to the first
+        const database = await open(dialect, [preferenceOne]);
+        await database.migrate([preferenceThemed, themeTable]);
+        const rolledBack = await database.migrate([preferenceOne]);
+
+        // refuse rolling back across a renamed table, which would create it again empty
+        const moved = await open(dialect, [folderOne]);
+        await moved.migrate([directoryTable]);
+        const renamed = await moved.migrate([folderOne]).then(
+            () => [],
+            (error: PlanError) => error.problems,
+        );
+
+        // refuse rolling back across widened mode values the first release cannot read
+        const widened = await open(dialect, [preferenceOne]);
+        await widened.migrate([preferenceWide]);
+        const refused = await widened.migrate([preferenceOne]).then(
+            () => [],
+            (error: PlanError) => error.problems,
+        );
+
+        // keep the theme column and table, since dropping them would lose them on the next upgrade
+        expect({ rolledBack: review(rolledBack), refused, renamed }).toEqual({
+            rolledBack: [],
+            refused: [
+                {
+                    target: table(preferenceOne),
+                    detail: `rollback to 2026.9.0 cannot hold the table as ${NEXT_RELEASE.package.version} applied it`,
+                },
+            ],
+            renamed: [
+                {
+                    target: table(folderOne),
+                    detail: `rollback to 2026.9.0 cannot read the table ${NEXT_RELEASE.package.version} renamed to ${table(directoryTable)}`,
+                },
+            ],
+        });
     },
 );
 

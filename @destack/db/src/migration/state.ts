@@ -235,8 +235,8 @@ export async function readState(database: DatabaseConnection): Promise<TableStat
 
 /** Record the applied state of one table. */
 export function writeState(state: TableState, appliedAt: number): string {
-    // drop the moves and conversions
-    const { moved: _moved, conversions: _conversions, ...applied } = state;
+    // drop the conversions, keeping the moves a later rollback reads
+    const { conversions: _conversions, ...applied } = state;
     const encoded = literal(JSON.stringify(applied));
 
     return `INSERT INTO ${quote(STATE)} ("table", package_id, state, applied_at)
