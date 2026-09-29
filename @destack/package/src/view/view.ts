@@ -1,30 +1,29 @@
 import { defineSchema, schema } from "@destack/schema";
-import { Entrypoint, PackageId } from "../definition/package.ts";
+import { PackageId } from "../definition/package.ts";
+import { PackagePath } from "../file/file.ts";
 
-/** A named frontend that clients can open independently. */
-export const ViewDefinition = defineSchema(
+/** A view a browser output compiles, as manifests describe it. */
+export const ViewDescription = defineSchema(
     schema
         .object({
-            /** The package export whose default export is the root component. */
-            entrypoint: Entrypoint,
-            /** Requested operations, granted explicitly by the application host. */
-            permissions: schema
-                .array(
-                    schema
-                        .object({
-                            /** Package declaring the permission. */
-                            packageId: PackageId,
-                            /** Declared object type. */
-                            type: schema.string().min(1),
-                            /** Operation on that type. */
-                            name: schema.string().min(1),
-                        })
-                        .strict(),
-                )
-                .optional(),
+            /** The emitted chunk mounting the view. */
+            entrypoint: PackagePath,
+            /** The permissions the view requests. */
+            permissions: schema.array(
+                schema
+                    .object({
+                        /** The package declaring the permission. */
+                        packageId: PackageId,
+                        /** The object type. */
+                        type: schema.string().min(1),
+                        /** The permission on that type. */
+                        name: schema.string().min(1),
+                    })
+                    .strict(),
+            ),
         })
         .strict(),
 );
 
-/** A named frontend that clients can open independently. */
-export type ViewDefinition = schema.Infer<typeof ViewDefinition>;
+/** A view a browser output compiles, as manifests describe it. */
+export type ViewDescription = schema.Infer<typeof ViewDescription>;

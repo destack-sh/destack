@@ -1,19 +1,24 @@
 import { defineSchema, schema } from "@destack/schema";
-import { DeclarationName } from "./package.ts";
+import { DeclarationName, DependencyName } from "./package.ts";
 
 /** A declaration constructor as its package declares it in destack.json. */
 export const DeclarationConstructor = defineSchema(
     schema.object({
-        /** How the build describes the declarations, absent for constructors it does not inspect. */
-        inspect: schema
-            .object({
-                /** The manifest description kind. */
-                kind: DeclarationName,
-                /** The describing function, as a package export and export name such as `./inspect#describeDatabase`. */
-                describe: schema
-                    .string()
-                    .regex(/^\.(?:\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$(?![\s\S])/),
-            })
+        /** The descriptions the build writes for each declaration, absent when it writes none. */
+        describes: schema
+            .array(
+                schema.object({
+                    /** The description kind. */
+                    kind: DeclarationName,
+                    /** The dependency declaring the kind, this package when absent. */
+                    package: DependencyName.optional(),
+                    /** The describing function as export and name, such as `./inspect#describeDatabase`. */
+                    function: schema
+                        .string()
+                        .regex(/^\.(?:\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$(?![\s\S])/),
+                }),
+            )
+            .min(1)
             .optional(),
         /** The parameter position where the transform passes the calling module, if any. */
         module: schema.number().int().nonnegative().optional(),

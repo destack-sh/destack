@@ -13,13 +13,13 @@ export interface PackageDistribution {
     /** The root manifest. */
     readonly manifest: PackageManifest;
     /** Verified access to serialized descriptions. */
-    readonly reader: PackageReader;
+    readonly reader: BuildReader;
     /** Open a distributed file without retaining its complete contents in memory. */
     open(path: string, signal?: AbortSignal): Promise<ReadableStream<Uint8Array>>;
 }
 
 /** Read selected manifest descriptions through a caller-supplied file transport. */
-export class PackageReader {
+export class BuildReader {
     /** Manifest describing the stored package. */
     readonly manifest: PackageManifest;
     /** Read one package file by its relative path. */
@@ -52,17 +52,31 @@ export class PackageReader {
         return this.read(this.manifest.sourceMaps, schema.array(SourceMapReference));
     }
 
-    /** Collect all distributed file records for complete downloads and verification. */
-    async inventory(): Promise<PackageFile[]> {
-        // follow authenticated indexes without loading individual descriptions
-        const files = await this.files();
+    /** List the files the manifest names directly. */
+    references(): PackageFile[] {
+        // collect inventories, declaration collections and the test file
         const manifest = this.manifest;
+        const collections = Object.values(manifest.descriptions).map(
+            (collection) => collection.file,
+        );
+        const tests = manifest.tests ? [manifest.tests.file] : [];
 
         return [
             manifest.dependencies,
             manifest.files,
             manifest.sourceMaps,
-            ...Object.values(manifest.descriptions).map((collection) => collection.file),
+            ...collections,
+            ...tests,
+        ];
+    }
+
+    /** Collect all distributed file records for complete downloads and verification. */
+    async inventory(): Promise<PackageFile[]> {
+        // follow authenticated indexes without loading individual descriptions
+        const files = await this.files();
+
+        return [
+            ...this.references(),
             ...files.flatMap((file) =>
                 (file.descriptions ?? []).map((description) => description.file),
             ),
@@ -75,25 +89,22 @@ export class PackageReader {
         return this.read(file, ModuleDescription);
     }
 
-    /** Read and validate one domain collection. */
-    domain<Definition extends schema.Schema>(
-        name: string,
-        definition: Definition,
-    ): Promise<schema.Output<Definition>> {
+    /** Read one declaration collection by its domain. */
+    domain(name: string): Promise<DeclarationDescription[]> {
         const collection = this.manifest.descriptions[name];
         if (!collection) {
             throw new PackageError("INVALID_FILE", `unknown description collection: ${name}`);
         }
 
-        return this.read(collection.file, definition);
+        return this.read(collection.file, schema.array(DeclarationDescription));
     }
 
-    /** Read the descriptions of one kind of declaration a package's constructors make. */
+    /** Read the declarations of one kind a package's constructors make, parsing each description. */
     async declared<Item extends schema.Schema>(
         owner: PackageId,
         kind: DeclarationName,
         item: Item,
-    ): Promise<schema.Output<Item>[]> {
+    ): Promise<Declared<schema.Output<Item>>[]> {
         // read the owner's collection of each version the build holds
         const collections = Object.values(this.manifest.descriptions).filter(
             (collection) => collection.package.id === owner,
@@ -107,7 +118,10 @@ export class PackageReader {
         return declarations
             .flat()
             .filter((declaration) => declaration.kind === kind)
-            .map((declaration) => item.parse(declaration.description));
+            .map((declaration) => ({
+                ...declaration,
+                description: item.parse(declaration.description),
+            }));
     }
 
     /** Verify a selected file before decoding its declared description type. */
@@ -123,3 +137,9 @@ export class PackageReader {
         return definition.parse(document);
     }
 }
+
+/** A declaration a build holds, with its description parsed. */
+export type Declared<Description> = Omit<DeclarationDescription, "description"> & {
+    /** The description, parsed by its reader. */
+    readonly description: Description;
+};

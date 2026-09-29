@@ -20,10 +20,12 @@
     "declarations": {
         "defineDatabase": {
             "module": 1,
-            "inspect": {
-                "kind": "resource",
-                "describe": "./inspect#describeDatabase"
-            }
+            "describes": [
+                {
+                    "kind": "resource",
+                    "function": "./inspect#describeDatabase"
+                }
+            ]
         },
         "defineTable": {
             "module": 3

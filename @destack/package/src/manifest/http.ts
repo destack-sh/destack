@@ -1,5 +1,5 @@
 import { PackageManifest, PackageLocation } from "./manifest.ts";
-import { PackageReader } from "./reader.ts";
+import { BuildReader } from "./reader.ts";
 import { verifyFile, PackagePath } from "../file/file.ts";
 import { PackageError } from "../error/index.ts";
 
@@ -15,7 +15,7 @@ export interface PackageHttpOptions {
 export async function openPackage(
     location: PackageLocation,
     options: PackageHttpOptions,
-): Promise<PackageReader> {
+): Promise<BuildReader> {
     // restrict relative reads to this package's HTTP endpoint
     location = PackageLocation.parse(location);
     const base = new URL(location.url);
@@ -47,7 +47,7 @@ export async function openPackage(
         JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)),
     );
 
-    return new PackageReader(manifest, async (path) => {
+    return new BuildReader(manifest, async (path) => {
         const encoded = PackagePath.parse(path).split("/").map(encodeURIComponent).join("/");
 
         return readPackageFile(new URL(`files/${encoded}`, base), options);

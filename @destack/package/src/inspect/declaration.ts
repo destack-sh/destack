@@ -8,9 +8,11 @@ export const DeclarationDescription = defineSchema(
     schema.object({
         /** The declaration name assigned by the domain inspector. */
         name: schema.string().min(1),
-        /** The declaration domain. */
+        /** The description kind. */
         kind: DeclarationName,
-        /** The declaration constructor in its exact domain package. */
+        /** The package declaring the kind. */
+        package: Package,
+        /** The declaration constructor in its exact package. */
         constructor: DependencySymbol.extend({ package: Package }),
         /** The original declaration in its exact source package. */
         symbol: DependencySymbol.extend({ package: Package }),

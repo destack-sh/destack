@@ -3,8 +3,7 @@ import { Language } from "./language.ts";
 import { Target } from "./target.ts";
 import { Runtime } from "../runtime/index.ts";
 import { TemplateDefinition } from "../template/index.ts";
-import { DeclarationName, PackageId } from "./package.ts";
-import { ViewDefinition } from "../view/index.ts";
+import { PackageId } from "./package.ts";
 import { DeclarationConstructorMap } from "./constructor.ts";
 import { Publication } from "./publication.ts";
 
@@ -17,8 +16,6 @@ export const PackageDefinition = defineSchema(
         language: Language,
         /** Source generation settings for a registry template package. */
         template: TemplateDefinition.optional(),
-        /** Named frontends opened independently by clients. */
-        views: schema.record(DeclarationName, ViewDefinition).optional(),
         /** Supported targets inherited by package exports. */
         targets: schema.array(Target).min(1).optional(),
         /** Reviewed runtime compatibility shared by all exports. */

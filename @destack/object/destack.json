@@ -1,22 +1,17 @@
 {
     "id": "package-01a0d462-1b26-7401-be27-6258e0a32141",
     "language": "typescript",
-    "targets": [
-        "browser",
-        "server"
-    ],
-    "runtimes": [
-        "browser",
-        "bun",
-        "workerd"
-    ],
+    "targets": ["browser", "server"],
+    "runtimes": ["browser", "bun", "workerd"],
     "declarations": {
         "defineObject": {
             "module": 1,
-            "inspect": {
-                "kind": "object",
-                "describe": "./inspect#describeObject"
-            }
+            "describes": [
+                {
+                    "kind": "object",
+                    "function": "./inspect#describeObject"
+                }
+            ]
         }
     }
 }

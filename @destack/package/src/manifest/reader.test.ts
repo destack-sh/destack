@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { describeFile } from "../file/file.ts";
 import { Package } from "../definition/package.ts";
-import { PackageReader } from "./reader.ts";
+import { BuildReader } from "./reader.ts";
 import type { PackageManifest } from "./manifest.ts";
 
 /** The declaring package's first release. */
@@ -22,11 +22,25 @@ const other = Package.parse({
     version: "2026.9.0",
 });
 
+/** A package whose constructor also describes the declaring package's kind. */
+const notification = Package.parse({
+    id: "package-019f5530-8000-7000-8000-000000000003",
+    name: "@destack/notification",
+    version: "2026.9.0",
+});
+
 /** Record a declaration of a package's constructor as a build records it. */
-function declaration(constructor: Package, kind: string, name: string, description: object) {
+function declaration(
+    owner: Package,
+    constructor: Package,
+    kind: string,
+    name: string,
+    description: object,
+) {
     return {
         name,
         kind,
+        package: owner,
         constructor: { package: constructor, symbol: { module: "src/setting.ts", name: "define" } },
         symbol: { package: other, symbol: { module: "src/index.ts", name } },
         source: { file: "src/index.ts", line: 0, column: 0 },
@@ -35,7 +49,7 @@ function declaration(constructor: Package, kind: string, name: string, descripti
 }
 
 test("read the descriptions of one kind across every version of a package's declarations", async () => {
-    // hold one collection per version of the declaring package, the first mixing in another kind
+    // hold one collection per version of the declaring package, the first mixing in other kinds
     const files = new Map<string, Uint8Array<ArrayBuffer>>();
     const descriptions: PackageManifest["descriptions"] = {};
     for (const [domain, constructor, declarations] of [
@@ -43,14 +57,17 @@ test("read the descriptions of one kind across every version of a package's decl
             "setting",
             owner,
             [
-                declaration(owner, "setting", "language", { name: "language" }),
-                declaration(owner, "schedule", "nightly", { cron: "0 0 * * *" }),
+                declaration(owner, owner, "setting", "language", { name: "language" }),
+                declaration(owner, owner, "schedule", "nightly", { cron: "0 0 * * *" }),
+                declaration(owner, notification, "setting", "notification.mention", {
+                    name: "notification.mention",
+                }),
             ],
         ],
         [
             "setting-upgraded",
             upgraded,
-            [declaration(upgraded, "setting", "theme", { name: "theme" })],
+            [declaration(upgraded, upgraded, "setting", "theme", { name: "theme" })],
         ],
     ] as const) {
         const bytes = new TextEncoder().encode(JSON.stringify(declarations));
@@ -58,14 +75,48 @@ test("read the descriptions of one kind across every version of a package's decl
         files.set(file.path, bytes);
         descriptions[domain] = { package: constructor, file };
     }
-    const reader = new PackageReader({ descriptions } as PackageManifest, async (path) =>
+    const reader = new BuildReader({ descriptions } as PackageManifest, async (path) =>
         files.get(path)!,
     );
 
-    // read both versions' settings, skip the schedule, and read nothing for another package
+    // read both versions' settings with the notification's, and nothing for another package
     const item = schema.object({ name: schema.string() }).strict();
+    const read = async (id: typeof owner.id) =>
+        (await reader.declared(id, "setting", item)).map((declared) => declared.description);
+    expect([await read(owner.id), await read(other.id)]).toEqual([
+        [{ name: "language" }, { name: "notification.mention" }, { name: "theme" }],
+        [],
+    ]);
+});
+
+test("read declarations of every collection owner beside test declarations of the same package", async () => {
+    // hold the owner's declarations and test declarations under one package
+    const files = new Map<string, Uint8Array<ArrayBuffer>>();
+    const store = async (path: string, value: unknown) => {
+        const bytes = new TextEncoder().encode(JSON.stringify(value));
+        files.set(path, bytes);
+
+        return { package: owner, file: await describeFile(path, "application/json", bytes) };
+    };
+    const tests = [
+        { kind: "test", name: "reads", file: "src/index.test.ts", start: 0, end: 9, modifiers: [] },
+    ];
+    const manifest: Pick<PackageManifest, "descriptions" | "tests"> = {
+        descriptions: {
+            setting: await store("manifest/setting.json", [
+                declaration(owner, owner, "setting", "language", { name: "language" }),
+            ]),
+        },
+        tests: await store("manifest/tests.json", tests),
+    };
+    const reader = new BuildReader(manifest as PackageManifest, async (path) => files.get(path)!);
+
+    // read every collection owner's settings, then the untouched test declarations
+    const item = schema.object({ name: schema.string() }).strict();
+    const owners = Object.values(manifest.descriptions).map((collection) => collection.package.id);
+    const declared = await Promise.all(owners.map((id) => reader.declared(id, "setting", item)));
     expect([
-        await reader.declared(owner.id, "setting", item),
-        await reader.declared(other.id, "setting", item),
-    ]).toEqual([[{ name: "language" }, { name: "theme" }], []]);
+        declared.flat().map((entry) => entry.description),
+        await reader.read(manifest.tests!.file, schema.array(schema.json())),
+    ]).toEqual([[{ name: "language" }], tests]);
 });

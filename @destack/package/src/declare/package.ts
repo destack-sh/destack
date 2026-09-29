@@ -1,8 +1,6 @@
 import { declaringModule, type ModuleMetadata } from "../definition/metadata.ts";
-import { schema } from "@destack/schema";
-import { DeclarationName, Package } from "../definition/package.ts";
+import { Package } from "../definition/package.ts";
 import { PackageError } from "../error/error.ts";
-import { ViewDefinition } from "../view/view.ts";
 import type { ResourceDeclaration, Declaration } from "./declaration.ts";
 
 /** Declarations a package lets its installations bind, keyed by declaration name. */
@@ -21,19 +19,15 @@ export interface PackageHandle<
     readonly resources: NonNullable<Declarations["resources"]>;
     /** Secret declarations keyed by name. */
     readonly secrets: NonNullable<Declarations["secrets"]>;
-    /** The views the package declares, keyed by name. */
-    readonly views: Readonly<Record<string, ViewDefinition>>;
 }
 
 /** Declare the package handle stacks import to install this package. */
 export function definePackage<const Declarations extends PackageDeclarationMap>(
     declarations: Declarations,
-    module?: ModuleMetadata & { readonly views: Readonly<Record<string, ViewDefinition>> },
+    module?: ModuleMetadata,
 ): PackageHandle<Declarations> {
-    // stamp the package and its views supplied by the module transform
-    const declaring = declaringModule(module && { package: module.package }, "definePackage");
-    const owner = Package.parse(declaring.package);
-    const views = schema.record(DeclarationName, ViewDefinition).parse(module?.views);
+    // stamp the package supplied by the module transform
+    const owner = Package.parse(declaringModule(module, "definePackage").package);
     const resources = declarations.resources ?? {};
     const secrets = declarations.secrets ?? {};
 
@@ -56,6 +50,5 @@ export function definePackage<const Declarations extends PackageDeclarationMap>(
         ...owner,
         resources,
         secrets,
-        views,
     }) as PackageHandle<Declarations>;
 }

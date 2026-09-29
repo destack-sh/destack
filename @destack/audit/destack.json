@@ -1,51 +1,31 @@
 {
     "id": "package-01a0c80b-614e-739d-8c3c-55f69a40525a",
     "language": "typescript",
-    "targets": [
-        "browser",
-        "server"
-    ],
-    "runtimes": [
-        "browser",
-        "bun",
-        "workerd"
-    ],
+    "targets": ["browser", "server"],
+    "runtimes": ["browser", "bun", "workerd"],
     "exports": {
         "./outbox": {
-            "targets": [
-                "server"
-            ],
-            "runtimes": [
-                "bun",
-                "workerd"
-            ]
+            "targets": ["server"],
+            "runtimes": ["bun", "workerd"]
         },
         "./history": {
-            "targets": [
-                "server"
-            ],
-            "runtimes": [
-                "bun",
-                "workerd"
-            ]
+            "targets": ["server"],
+            "runtimes": ["bun", "workerd"]
         },
         "./server": {
-            "targets": [
-                "server"
-            ],
-            "runtimes": [
-                "bun",
-                "workerd"
-            ]
+            "targets": ["server"],
+            "runtimes": ["bun", "workerd"]
         }
     },
     "declarations": {
         "defineAuditAction": {
             "module": 1,
-            "inspect": {
-                "kind": "audit-action",
-                "describe": "./inspect#describeAuditAction"
-            }
+            "describes": [
+                {
+                    "kind": "audit-action",
+                    "function": "./inspect#describeAuditAction"
+                }
+            ]
         }
     }
 }

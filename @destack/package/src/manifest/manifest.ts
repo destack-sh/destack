@@ -48,8 +48,10 @@ export const PackageManifest = defineSchema(
         language: Language,
         /** Exact dependencies used by the compiler. */
         dependencies: PackageFile,
-        /** Domain collections qualified by their exact defining package. */
+        /** Declaration collections keyed by domain, each qualified by its declaring package. */
         descriptions: schema.record(schema.string(), DescriptionReference),
+        /** Static test declarations qualified by the package defining their format. */
+        tests: DescriptionReference.optional(),
         /** Named outputs compiled from the package. */
         outputs: schema.record(DeclarationName, PackageOutput),
         /** The inventory of source, executable and asset files. */

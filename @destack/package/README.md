@@ -4,7 +4,7 @@ Define Destack packages, transform their modules, and read their built manifests
 
 ## Definitions
 
-A package's `destack.json` names its identity, targets, runtimes and the declaration constructors it exports.
+A package's `destack.json` names its identity, targets, runtimes and declaration constructors.
 
 ```json
 {
@@ -13,7 +13,13 @@ A package's `destack.json` names its identity, targets, runtimes and the declara
     "targets": ["browser", "server"],
     "runtimes": ["browser", "bun", "workerd"],
     "declarations": {
-        "defineNotification": { "module": 1, "inspect": { "kind": "notification", "describe": "./inspect#describeNotification" } }
+        "defineNotification": {
+            "module": 1,
+            "describes": [
+                { "kind": "notification", "function": "./inspect#describeNotification" },
+                { "kind": "setting", "package": "@destack/setting", "function": "./inspect#describePreference" }
+            ]
+        }
     }
 }
 ```
@@ -58,7 +64,7 @@ src/page/page.browser.ts   replaces page.ts in browser builds
 
 ## Manifests
 
-A `PackageReader` reads a built package's files and the descriptions its declarations produced.
+A `BuildReader` reads a built package's files and the descriptions its declarations produced.
 
 ```ts
 import { openPackage } from "@destack/package/manifest";
