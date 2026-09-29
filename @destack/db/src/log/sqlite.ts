@@ -30,10 +30,10 @@ function createSQLiteLog(): readonly string[] {
             "row" TEXT NOT NULL,
             previous TEXT,
             scope TEXT NOT NULL,
-            tier TEXT NOT NULL,
+            retention TEXT NOT NULL,
             changed_at INTEGER NOT NULL
         )`,
-        `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_compaction`)} ON ${quote(LOG)}(tier, changed_at)`,
+        `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_compaction`)} ON ${quote(LOG)}(retention, changed_at)`,
         `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_scope`)} ON ${quote(LOG)}(scope, sequence)`,
         `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_transaction_sequence`)} ON ${quote(LOG)}("transaction", sequence)`,
         `CREATE TABLE IF NOT EXISTS ${quote(LOG_HORIZON)} (
@@ -86,7 +86,7 @@ function sqliteLogTriggers(description: ChangeDescription): string[] {
         "json_object()",
     )}, '$.__unchanged')`;
     const entry = (operation: string, source: "NEW" | "OLD", condition = "1 = 1", prior = "NULL") =>
-        `INSERT INTO ${log} ("transaction", "table", key, operation, "row", previous, scope, tier, changed_at)
+        `INSERT INTO ${log} ("transaction", "table", key, operation, "row", previous, scope, retention, changed_at)
             SELECT
                 ${transaction},
                 ${literal(description.table)},
@@ -95,7 +95,7 @@ function sqliteLogTriggers(description: ChangeDescription): string[] {
                 ${row(source)},
                 ${prior},
                 ${scope(source)},
-                ${literal(description.tier)},
+                ${literal(description.retention)},
                 ${now}
             WHERE ${condition};`;
     const changed = description.compared

@@ -30,7 +30,7 @@ export const LOG_CHANNEL = "destack_log";
 export function describeLog(table: Table): ChangeDescription | undefined {
     // skip unlogged tables
     const definition = table[TABLE];
-    if (definition.tier === "none") {
+    if (definition.retention === "none") {
         return undefined;
     }
 
@@ -57,7 +57,7 @@ export function describeLog(table: Table): ChangeDescription | undefined {
 
     return {
         table: definition.sqlName,
-        tier: definition.tier,
+        retention: definition.retention,
         key: primaryKey(table).map((column) => column.definition.name),
         columns: recorded.map((column) => column.name),
         exact: recorded
@@ -82,7 +82,7 @@ export function primaryKey(table: Table): readonly Column[] {
     return columns;
 }
 
-/** Create the log's epoch once, keeping existing state. */
+/** Create the log's epoch once and keep existing state. */
 export function createEpoch(): readonly string[] {
     return [
         `CREATE TABLE IF NOT EXISTS ${quote(LOG_HOLD)} (

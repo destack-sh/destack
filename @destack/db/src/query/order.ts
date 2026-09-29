@@ -19,7 +19,7 @@ const ORDERED_KINDS: ReadonlySet<string> = new Set([
     "timestamp",
 ]);
 
-/** The most keys one order holds. */
+/** The most keys one order holds, which every keyset cursor carries; orders use one to four. */
 const ORDER_KEYS = 16;
 
 /** One key of an order. */
@@ -128,7 +128,7 @@ export const Order = {
         return 0;
     },
 
-    /** Merge ordered rows of several tables, each with its list's name. */
+    /** Merge ordered rows of several tables with their list names. */
     merge(
         order: Order,
         lists: readonly {

@@ -186,7 +186,7 @@ export class Log {
     /**
      * Read the position the open transaction's reads reach.
      *
-     * SQLite numbers a transaction's entries as it writes them, and PostgreSQL only at commit.
+     * SQLite numbers a transaction's entries on write, and PostgreSQL at commit.
      */
     async reached(): Promise<LogPosition> {
         // reach the latest commit
@@ -274,7 +274,7 @@ export class Log {
         // require a retained sequence
         const bounds = rows[0]!;
         const horizon = bounds.horizon === null ? 0 : Number(bounds.horizon);
-        const isCompacted = selection.tables.some((table) => table[TABLE].tier === "window");
+        const isCompacted = selection.tables.some((table) => table[TABLE].retention === "window");
         if (isCompacted && selection.after < horizon) {
             throw new DatabaseError(
                 "CHANGES_COMPACTED",
@@ -402,7 +402,7 @@ export class Log {
             const [newest] = await transaction.execute<{ sequence: number | string | null }>(sql`
                 SELECT max(sequence) AS sequence
                 FROM ${log}
-                WHERE tier = 'window'
+                WHERE retention = 'window'
                     AND changed_at < ${before}
                     AND sequence IS NOT NULL
             `);
@@ -441,7 +441,7 @@ export class Log {
             // remove the windowed changes of whole transactions
             await transaction.execute(sql`
                 DELETE FROM ${log}
-                WHERE tier = 'window'
+                WHERE retention = 'window'
                     AND sequence <= ${sequence}
             `);
             const horizon = sql.identifier(LOG_HORIZON);

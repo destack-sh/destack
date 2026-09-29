@@ -4,7 +4,7 @@ Declare, query, log and migrate SQL tables on SQLite and PostgreSQL.
 
 ## Tables
 
-`defineTable` declares a table's columns, constraints, log tier and row versions.
+`defineTable` declares a table's columns, constraints, log retention and row versions.
 
 ```ts
 export const note = defineTable(
@@ -16,7 +16,7 @@ export const note = defineTable(
     },
     {
         constraints: (note) => [index("note_scope").on(note.scope)],
-        log: { tier: "history" },
+        log: { retention: "history" },
         version: 2,
         convert: { 2: (note) => ({ title: sql`trim(${note.title})` }) },
     },
@@ -25,13 +25,20 @@ export const note = defineTable(
 
 ## Databases
 
-`defineDatabase` declares a package's database and the tables it holds.
+`defineDatabase` declares a database in the `global`, `regional` or `zonal` tier, holding each listed table once and refusing tables declared for another tier.
 
 ```ts
 export const main = defineDatabase({ name: "main", tables: [note] });
+export const global = defineDatabase({ name: "global", tier: "global", tables: [...accountTables, ...hostTables] });
 
 const database = main.get(context);
 const unapplied = await main.check(database);
+```
+
+A database declaration opens its kind's providers on the running runtime: SQLite on Bun, none elsewhere yet.
+
+```ts
+const provider = await main.providers.sqlite!(new URL(reference));
 ```
 
 ## Connections

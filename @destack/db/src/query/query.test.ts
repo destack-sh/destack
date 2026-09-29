@@ -93,7 +93,7 @@ test.for(TEST_DIALECTS)("key joined rows by their table names on %s", async (dia
     await database.insert(sample).values([row, { ...row, id: second }]);
     await database.insert(tag).values({ id: "t", sampleId: row.id, label: "draft" });
 
-    // join each sample with its tags, keeping untagged samples
+    // join each sample with its tags and keep untagged samples
     const rows = await database
         .select({ id: sample.id, tag })
         .from(sample)

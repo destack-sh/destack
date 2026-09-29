@@ -4,7 +4,8 @@ import { check, ForeignKey, type PrimaryKey, type TableConstraint } from "./cons
 import type { Dialect } from "../dialect/dialect.ts";
 import { declaringModule, type ModuleMetadata, type Package } from "@destack/package";
 import { qualify } from "./namespace.ts";
-import type { ChangeTier } from "../inspect/log.ts";
+import type { ChangeRetention } from "../inspect/log.ts";
+import type { DatabaseTier } from "../declare/database.ts";
 import { Tree } from "../tree/tree.ts";
 
 /** The key of a table's declaration, shared by every copy of this module. */
@@ -57,12 +58,14 @@ export class Table<
         options: { readonly tree?: TreeColumns; readonly source?: Table } = {},
     ) {
         // declare the table and its key
-        const { constraints, tier, version, moved, convert, aggregates, dependents } = declaration;
+        const { constraints, retention, tier, version, moved, convert, aggregates, dependents } =
+            declaration;
         const declared = {
             ...identity,
             columns,
             constraints,
-            tier,
+            retention,
+            ...(tier === undefined ? {} : { tier }),
             version,
             moved,
             convert,
@@ -204,8 +207,10 @@ interface TreeColumns<Property extends string = string> {
 interface TableDeclaration {
     /** Evaluate the constraints. */
     readonly constraints: () => readonly TableConstraint[];
-    /** The log retention tier. */
-    readonly tier: ChangeTier;
+    /** How long the log keeps the table's changes. */
+    readonly retention: ChangeRetention;
+    /** The tier of every database holding the table, any tier when absent. */
+    readonly tier?: DatabaseTier;
     /** The version of the row shape. */
     readonly version: number;
     /** The table's previous names. */
@@ -259,13 +264,15 @@ export interface Dependent {
 
 /** The options of a table. */
 export interface TableOptions<Columns> {
+    /** The tier of every database holding the table, any tier when absent. */
+    readonly tier?: DatabaseTier;
     /** The constraints and indexes. */
     readonly constraints?: (columns: Columns) => readonly TableConstraint[];
     /** Log committed changes under the scope column. */
     readonly log?: "scope" extends keyof Columns
         ? {
-              /** The retention tier, the window by default. */
-              readonly tier?: Exclude<ChangeTier, "none">;
+              /** How long the log keeps the changes, the window by default. */
+              readonly retention?: Exclude<ChangeRetention, "none">;
           }
         : never;
     /** The properties of a single-parent tree per scope. */
@@ -387,7 +394,8 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
         columns,
         {
             constraints: () => options.constraints?.(columns) ?? [],
-            tier: options.log === undefined ? "none" : (options.log.tier ?? "window"),
+            retention: options.log === undefined ? "none" : (options.log.retention ?? "window"),
+            ...(options.tier === undefined ? {} : { tier: options.tier }),
             version,
             moved: (options.moved ?? {}) as TableMove,
             convert: (options.convert ?? {}) as Readonly<Record<number, RowConversion>>,

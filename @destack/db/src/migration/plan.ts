@@ -189,7 +189,7 @@ export function planTables(input: PlanInput): TablePlan {
                     "updateLog",
                     "safe",
                     name,
-                    `log changes at tier ${state.log?.tier ?? "none"}`,
+                    `log changes with retention ${state.log?.retention ?? "none"}`,
                     [],
                 ),
             );

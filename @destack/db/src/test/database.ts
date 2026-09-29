@@ -301,7 +301,7 @@ async function reset(
     schema: string,
     state: readonly TableState[],
 ): Promise<boolean> {
-    // refuse a schema with foreign tables, or one whose migration stopped before creating the log
+    // refuse a schema with foreign tables or without a log
     const managed = new Set((await readState(database)).map((applied) => applied.table.name));
     const tables = await server<{ name: string }[]>`
         SELECT tablename AS name FROM pg_tables WHERE schemaname = ${schema}`;

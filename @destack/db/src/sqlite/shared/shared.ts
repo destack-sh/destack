@@ -11,7 +11,7 @@ import type { ConnectionClient, QueryClient, Statement } from "../client.ts";
 /**
  * The idle timeout of a party's transaction at the owner, in milliseconds.
  *
- * A transaction holds the owner's only connection, so this bounds how long a frozen tab blocks the others.
+ * A transaction holds the owner's only connection, and this bounds how long a frozen tab blocks the others.
  */
 const IDLE_TRANSACTION_MILLISECONDS = 30_000;
 
@@ -259,7 +259,7 @@ class HeldTransaction {
     }
 }
 
-/** Open a database whose statements the relay's owner runs. */
+/** Open a database with statements that the relay's owner runs. */
 export function connectShared(
     relay: Relay<Message>,
     party: string,
@@ -353,7 +353,7 @@ export class SharedQuery implements QueryClient<unknown> {
     }
 }
 
-/** A connection client whose work the relay's owner runs. */
+/** A connection client with work that the relay's owner runs. */
 export class SharedClient extends SharedQuery implements ConnectionClient<unknown> {
     /** Join the relay as one party. */
     constructor(relay: Relay<Message>, name: string) {

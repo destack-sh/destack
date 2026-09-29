@@ -42,7 +42,7 @@ const KEYWORDS: Readonly<Record<string, number>> = {
 
 /** Scripts of several SQLite statements. */
 export const SqliteScript = {
-    /** Split a script into statements as SQLite completes them, keeping trigger bodies whole. */
+    /** Split a script into complete SQLite statements with whole trigger bodies. */
     statements(script: string): string[] {
         // run the state machine and cut completed statements
         const statements: string[] = [];

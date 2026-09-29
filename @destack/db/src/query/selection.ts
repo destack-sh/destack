@@ -86,7 +86,7 @@ export function selectFields(fields: Selection, compiler: SchemaCompiler): Drizz
         else if (field instanceof SQL) {
             selection[property] = compiler.expression(field);
         }
-        // translate an aliased expression, keeping its alias
+        // translate an aliased expression and keep its alias
         else if (field instanceof SQL.Aliased) {
             const expression = compiler.expression(field.sql);
             selection[property] = Object.assign(expression.as(field.fieldAlias), field, {

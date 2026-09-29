@@ -436,7 +436,7 @@ test.each(TEST_DIALECTS)(
                 .table.constraints.filter((constraint) => constraint.kind === "foreignKey")
                 .map((constraint) => [constraint.kind, constraint.columns, constraint.table]);
 
-        // migrate a database holding documents alone, whose folders live elsewhere
+        // migrate a database with documents but without their folders
         const storage = await TestDatabase.create(
             dialect,
             defineDatabase({ name: "documents", tables: [document] }),

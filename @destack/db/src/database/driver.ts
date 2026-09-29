@@ -50,7 +50,7 @@ export class DatabaseDriver {
     }
 
     /**
-     * Submit a write and notify readers and writers once it commits outside a transaction.
+     * Submit a write and notify readers and writers after it commits outside a transaction.
      *
      * On SQLite, a write outside a transaction runs as one identified transaction.
      */

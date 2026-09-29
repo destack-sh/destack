@@ -5,7 +5,7 @@ import { DatabaseError } from "../error/error.ts";
 import { STATE, writeState } from "./state.ts";
 import type { TablePlan, TableStep } from "./plan.ts";
 
-/** The step kinds applied after the triggers, so the log records their writes. */
+/** The step kinds applied after the triggers for the log to record their writes. */
 const LOGGED_KINDS: ReadonlySet<TableStep["kind"]> = new Set([
     "convertRows",
     "bridgeColumn",

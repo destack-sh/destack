@@ -11,7 +11,7 @@ import { soleWriter, type CommitNotifier } from "../../log/notifier.ts";
 /**
  * The wait for another process's write lock, in milliseconds.
  *
- * A write commits within milliseconds, so only a stuck writer exceeds five seconds.
+ * A write commits within milliseconds, and only a stuck writer exceeds five seconds.
  */
 const BUSY_TIMEOUT_MILLISECONDS = 5000;
 

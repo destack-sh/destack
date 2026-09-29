@@ -119,7 +119,7 @@ function computed(aggregate: AggregateDescription, dialect: Dialect): string {
 /** The longest suffix an aggregate trigger name takes. */
 const SUFFIX = "_maintain";
 
-/** Name an aggregate's triggers, leaving room for their suffixes. */
+/** Build the names of an aggregate's triggers with room for their suffixes. */
 function triggerPrefix(aggregate: AggregateDescription): string {
     return boundedName(
         `${aggregate.source}__${aggregate.table}_${aggregate.column}`,

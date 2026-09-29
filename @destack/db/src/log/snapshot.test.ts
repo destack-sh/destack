@@ -37,7 +37,7 @@ const revision = defineTable(
         /** The revised title. */
         title: text("title").notNull(),
     },
-    { log: { tier: "history" } },
+    { log: { retention: "history" } },
 );
 
 /** Draw a seeded pseudo-random number. */

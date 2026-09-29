@@ -87,7 +87,7 @@ export interface DeclareOptions {
     readonly isReplica?: boolean;
 }
 
-/** Name the declared tables whose declaration is not applied. */
+/** List the declared tables with an unapplied declaration. */
 export function unappliedTables(
     applied: readonly TableState[],
     declared: readonly TableState[],
@@ -103,9 +103,9 @@ export function unappliedTables(
         .map((state) => state.table.name);
 }
 
-/** Name a state's log tier and scope column. */
+/** Describe a state's log retention and scope column. */
 export function logOf(state: TableState): string {
-    return canonicalize({ tier: state.log?.tier, scope: state.log?.scope });
+    return canonicalize({ retention: state.log?.retention, scope: state.log?.scope });
 }
 
 /** Report whether an applied state holds a declaration. */
@@ -160,7 +160,7 @@ export function declareState(
     // attach each aggregate to its aggregated table
     const aggregates = describeAggregates(tables, options.isReplica ?? false);
 
-    // keep foreign keys to tables this database holds, leaving references elsewhere logical
+    // keep foreign keys to tables this database holds and leave other references logical
     const declared = options.isReplica ? tables : expandTrees(tables);
     const held = new Set(options.isReplica ? [] : declared.map((table) => table[TABLE].sqlName));
 

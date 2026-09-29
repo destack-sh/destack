@@ -11,7 +11,7 @@ import { sql, type SQL } from "drizzle-orm";
 export class Tree {
     /** The tree's columns. */
     readonly definition: TreeDefinition;
-    /** The ancestor index table, each node at depth zero included. */
+    /** The ancestor index table, with each node at depth zero. */
     readonly ancestors;
     /** The revision table serializing hierarchy writes per scope. */
     readonly revision;
@@ -41,6 +41,8 @@ export class Tree {
         // index ancestors and descendants per scope
         const name = `${definition.table[TABLE].name}_${definition.name}_ancestor`;
         const owner = { package: definition.table[TABLE].package };
+        const tier = definition.table[TABLE].tier;
+        const placement = tier === undefined ? {} : { tier };
         this.ancestors = defineTable(
             name,
             {
@@ -50,6 +52,7 @@ export class Tree {
                 depth: integer("depth").notNull(),
             },
             {
+                ...placement,
                 constraints: (path) => [
                     primaryKey({
                         name: `${name}_path`,
@@ -58,7 +61,7 @@ export class Tree {
                     index(`${name}_descendant`).on(path.scope, path.descendant, path.ancestor),
                 ],
                 // log each path under its scope
-                log: { tier: "window" },
+                log: { retention: "window" },
             },
             owner,
         );
@@ -67,7 +70,7 @@ export class Tree {
         this.revision = defineTable(
             `${name}_revision`,
             { scope: text("scope").primaryKey(), revision: integer("revision").notNull() },
-            {},
+            placement,
             owner,
         );
     }
@@ -147,7 +150,7 @@ export class Tree {
         )`;
     }
 
-    /** Move a subtree or make it a root, refusing cycles. */
+    /** Move a subtree or make it a root and refuse cycles. */
     async move(
         scope: string,
         id: string,

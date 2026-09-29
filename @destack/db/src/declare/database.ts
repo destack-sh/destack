@@ -3,13 +3,14 @@ import { declaringModule, type ModuleMetadata, type Package } from "@destack/pac
 import { defineResourceSchema, Resource } from "@destack/resource";
 import type { ResourceContext } from "@destack/resource/context";
 import type { DatabaseConnection } from "../database/connection.ts";
+import { providers } from "#provider";
 import { TABLE, type Table } from "../table/table.ts";
 import { expandTrees } from "../tree/tree.ts";
 import { type DatabaseState, declareState } from "../migration/state.ts";
 export type { DatabaseConnection } from "../database/connection.ts";
 
-/** Where a database lives: globally, per region, or per space. */
-export const DatabaseTier = defineSchema(schema.enum(["global", "regional", "space"]));
+/** Where a database lives: once in the universe, once per region, or within one zone. */
+export const DatabaseTier = defineSchema(schema.enum(["global", "regional", "zonal"]));
 /** Where a database lives. */
 export type DatabaseTier = schema.Infer<typeof DatabaseTier>;
 
@@ -32,6 +33,11 @@ export class Database extends Resource<DatabaseConnection, DatabaseDescription> 
     constructor(owner: Package, description: DatabaseDescription, tables: readonly Table[]) {
         super(owner, description);
         this.tables = tables;
+    }
+
+    /** Open the providers holding databases on the running runtime. */
+    override get providers() {
+        return providers;
     }
 
     /** Describe the required tables. */
@@ -59,7 +65,7 @@ export class Database extends Resource<DatabaseConnection, DatabaseDescription> 
 export interface DatabaseDefinition {
     /** The package-local database name. */
     readonly name: string;
-    /** Where the database lives, per space when absent. */
+    /** Where the database lives, within one zone when absent. */
     readonly tier?: DatabaseTier;
     /** The tables the database holds, referencing tables held elsewhere without foreign keys. */
     readonly tables: readonly Table[];
@@ -67,15 +73,20 @@ export interface DatabaseDefinition {
 
 /** Declare a database. */
 export function defineDatabase(definition: DatabaseDefinition, module?: ModuleMetadata): Database {
-    // reject duplicate SQL names
+    // reject duplicate SQL names and tables of another tier
     const owner = declaringModule(module, "defineDatabase").package;
+    const tier = definition.tier ?? "zonal";
     const names = new Map<string, Table>();
     for (const table of expandTrees(definition.tables)) {
-        const existing = names.get(table[TABLE].sqlName);
+        const { sqlName, tier: declared } = table[TABLE];
+        const existing = names.get(sqlName);
         if (existing && existing !== table) {
-            throw new TypeError(`duplicate SQL table: ${table[TABLE].sqlName}`);
+            throw new TypeError(`duplicate SQL table: ${sqlName}`);
         }
-        names.set(table[TABLE].sqlName, table);
+        if (declared !== undefined && declared !== tier) {
+            throw new TypeError(`${declared} table ${sqlName} in a ${tier} database`);
+        }
+        names.set(sqlName, table);
     }
 
     // validate the resource description
@@ -83,7 +94,7 @@ export function defineDatabase(definition: DatabaseDefinition, module?: ModuleMe
         name: definition.name,
         kind: "database",
         version: 1,
-        spec: { tier: definition.tier ?? "space" },
+        spec: { tier },
     });
 
     return new Database(owner, description, [...names.values()]);

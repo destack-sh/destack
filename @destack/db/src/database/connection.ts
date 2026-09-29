@@ -206,7 +206,7 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         return plan;
     }
 
-    /** Name the tables whose declaration is not applied. */
+    /** List the tables with an unapplied declaration. */
     async unapplied(tables: readonly Table[], options: DeclareOptions = {}): Promise<string[]> {
         return unappliedTables(await readState(this), declareState(tables, this.dialect, options));
     }

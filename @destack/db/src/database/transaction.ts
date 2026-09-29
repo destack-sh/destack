@@ -26,7 +26,7 @@ export class TransactionState {
         try {
             result = await operation();
         } catch (error) {
-            // settle the queries, keeping unreported failures
+            // settle the queries and keep unreported failures
             this.close();
             await Promise.all(this.#pending);
             const unreported = this.#failures.filter((failure) => !wraps(error, failure));

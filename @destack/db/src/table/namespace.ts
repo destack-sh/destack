@@ -3,7 +3,7 @@ import type { Package } from "@destack/package";
 /** The longest identifier PostgreSQL stores without truncation, NAMEDATALEN minus one. */
 const MAX_IDENTIFIER_LENGTH = 63;
 
-/** The hexadecimal digits of the hash suffix. */
+/** The hexadecimal digits of the hash suffix: 32 bits, so two shortened names collide once in four billion. */
 const HASH_LENGTH = 8;
 
 /** Derive a package's SQL namespace. */

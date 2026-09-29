@@ -42,7 +42,7 @@ export const revision = defineTable(
     },
     {
         constraints: (revision) => [primaryKey({ columns: [revision.noteId, revision.number] })],
-        log: { tier: "history" },
+        log: { retention: "history" },
     },
 );
 

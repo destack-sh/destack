@@ -19,7 +19,7 @@ test("fit derived names within the identifier limit and keep them distinct", () 
 test("leave room for suffixes appended to a bounded name", () => {
     const name = "destack__account__account__destack__access__relationship_object_id";
 
-    // shorten to the limit minus the reserved suffix, keeping short names whole
+    // shorten long names to the limit minus the reserved suffix
     expect([
         boundedName(name, "_maintain".length).length,
         `${boundedName(name, "_maintain".length)}_maintain`.length,

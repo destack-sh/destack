@@ -38,7 +38,7 @@ export interface Admission {
 export interface RelationView {
     /** Decide whether a related row met a condition, as of the position. */
     decide(via: string, where: Condition | undefined, row: Row): Promise<boolean>;
-    /** Read the keys of rows whose related rows changed between two sequences. */
+    /** Read the keys of rows with related rows that changed between two sequences. */
     touched(after: number, upto: number): Promise<readonly Row[]>;
     /** Resolve a row's lookups, as of the position. */
     resolve(row: Row): Promise<Related>;
@@ -84,7 +84,7 @@ export class Snapshot {
         return kept;
     }
 
-    /** Read a table's rows whose text columns hold one of some tuples, as of the position. */
+    /** Read a table's rows at the position with text columns that hold one of some tuples. */
     async select(
         table: Table,
         columns: readonly string[],
@@ -283,7 +283,7 @@ export class Snapshot {
 
     /** Read the rows' images at the position, none when live. */
     async #since(table: Table, read?: number): Promise<ReadonlyMap<string, Row | null>> {
-        // show the live database as it is
+        // show the live database unchanged
         if (this.position === undefined) {
             return new Map();
         }
@@ -341,7 +341,7 @@ function augment(row: Row, computed: Computed, related?: Related): Row {
           };
 }
 
-/** Decide a condition on a row, reading relations only when needed. */
+/** Decide a condition on a row and read relations only when needed. */
 async function decides(
     match: Match,
     where: Condition,
@@ -379,7 +379,7 @@ async function decides(
 /** Build the statement reading the head and the rows holding listed tuples. */
 function tupleRead(table: Table, columns: readonly string[], dialect: Dialect): Statement {
     return table.statement(`tuple:${dialect}:${columns.join(",")}`, () => {
-        // join each tuple to its rows, keeping a head row for an empty tuple
+        // join each tuple to its rows and keep a head row for an empty tuple
         const logged = Object.values(table[TABLE].logged);
         const definitions = table[TABLE].columns;
         const head = sql.join(

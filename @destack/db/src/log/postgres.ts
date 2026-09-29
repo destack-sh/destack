@@ -37,10 +37,10 @@ function createPostgresLog(): readonly string[] {
             "row" JSONB NOT NULL,
             previous JSONB,
             scope TEXT NOT NULL,
-            tier TEXT NOT NULL,
+            retention TEXT NOT NULL,
             changed_at BIGINT NOT NULL
         )`,
-        `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_compaction`)} ON ${log}(tier, changed_at)`,
+        `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_compaction`)} ON ${log}(retention, changed_at)`,
         `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_scope`)} ON ${log}(scope, sequence)`,
         `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_transaction_sequence`)} ON ${log}("transaction", sequence)`,
         `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_unstamped`)} ON ${log}("transaction", id) WHERE sequence IS NULL`,
@@ -78,7 +78,7 @@ function createPostgresLog(): readonly string[] {
         END $$`,
         `CREATE OR REPLACE FUNCTION ${quote(`${LOG}_record`)}() RETURNS trigger LANGUAGE plpgsql AS $$
         DECLARE
-            tier TEXT := TG_ARGV[0];
+            retention TEXT := TG_ARGV[0];
             key_columns TEXT[] := TG_ARGV[1]::TEXT[];
             recorded TEXT[] := TG_ARGV[2]::TEXT[];
             exact TEXT[] := TG_ARGV[3]::TEXT[];
@@ -129,14 +129,14 @@ function createPostgresLog(): readonly string[] {
                 WHERE entry.value IS DISTINCT FROM new_recorded -> entry.key;
             END IF;
             IF TG_OP = 'DELETE' OR (TG_OP = 'UPDATE' AND (old_key <> new_key OR old_scope IS DISTINCT FROM new_scope)) THEN
-                INSERT INTO ${log}("transaction", "table", key, operation, "row", scope, tier, changed_at)
-                VALUES (transaction_id, TG_TABLE_NAME, old_key, 'delete', old_recorded, old_scope, tier, now_ms);
+                INSERT INTO ${log}("transaction", "table", key, operation, "row", scope, retention, changed_at)
+                VALUES (transaction_id, TG_TABLE_NAME, old_key, 'delete', old_recorded, old_scope, retention, now_ms);
             END IF;
             IF TG_OP <> 'DELETE' THEN
-                INSERT INTO ${log}("transaction", "table", key, operation, "row", previous, scope, tier, changed_at)
+                INSERT INTO ${log}("transaction", "table", key, operation, "row", previous, scope, retention, changed_at)
                 VALUES (transaction_id, TG_TABLE_NAME, new_key,
                     CASE WHEN TG_OP = 'INSERT' OR old_key <> new_key OR old_scope IS DISTINCT FROM new_scope THEN 'insert' ELSE 'update' END,
-                    new_recorded, previous, new_scope, tier, now_ms);
+                    new_recorded, previous, new_scope, retention, now_ms);
             END IF;
             RETURN NULL;
         END $$`,
@@ -150,9 +150,9 @@ function postgresLogTriggers(description: ChangeDescription): string[] {
     const array = (names: readonly string[]) =>
         `{${names.map((name) => `"${name.replaceAll('"', '\\"')}"`).join(",")}}`;
 
-    // pass the tier, columns and scope column
+    // pass the retention, columns and scope column
     const parameters = [
-        literal(description.tier),
+        literal(description.retention),
         literal(array(description.key)),
         literal(array(description.columns)),
         literal(array(description.exact)),

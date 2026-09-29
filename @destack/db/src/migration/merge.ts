@@ -44,7 +44,7 @@ export function mergeStates(declarations: readonly (readonly TableState[])[]): M
     return { declared, conflicts };
 }
 
-/** Merge one table's states into the newest, keeping older columns. */
+/** Merge one table's states into the newest and keep older columns. */
 function mergeTable(states: readonly TableState[]): {
     readonly state: TableState;
     readonly reason?: string;

@@ -9,7 +9,7 @@ import type { Namespace } from "./namespace.ts";
 /** The column kinds arithmetic reads. */
 const NUMERIC_KINDS: ReadonlySet<string> = new Set(["integer", "real"]);
 
-/** The most terms one expression holds. */
+/** The most terms one expression holds, bounding compiled SQL; computed fields use under ten. */
 const EXPRESSION_TERMS = 64;
 
 /**

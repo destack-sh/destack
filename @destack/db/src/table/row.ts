@@ -10,7 +10,7 @@ export function encodeRow(table: Table, row: Row): Record<string, JsonValue> {
     return encodeColumns(table[TABLE].entries, row, []);
 }
 
-/** Write a row's own values in some columns in JSON form, leaving out some. */
+/** Write a row's own values in some columns in JSON form, except the excluded ones. */
 export function encodeColumns(
     columns: readonly (readonly [string, Column])[],
     row: Row,

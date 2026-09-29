@@ -171,7 +171,7 @@ export const Condition = {
     matches,
 };
 
-/** Decide a compiled condition on a row, leaving relations unknown. */
+/** Decide a compiled condition on a row with relations unknown. */
 function matches(match: Match, row: Readonly<Record<string, unknown>>): boolean {
     return (
         match({ column: (name) => row[name], parameter: () => null, exists: () => undefined }) ===

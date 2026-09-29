@@ -137,7 +137,7 @@ export class Replication {
 
     /** Order table states parents first and split them into live and fenced tables. */
     constructor(states: readonly TableState[]) {
-        // build each table, leaving out tree indexes
+        // build each table without tree indexes
         const derived = new Set(
             states.flatMap((state) =>
                 state.tree === undefined ? [] : [state.tree.ancestors, state.tree.revision],
@@ -197,7 +197,7 @@ export class Replication {
         const live = new Set<Table>();
         for (const table of ordered) {
             const isLogged =
-                table[TABLE].tier !== "none" &&
+                table[TABLE].retention !== "none" &&
                 Object.keys(table[TABLE].logged).length === table[TABLE].entries.length;
             const parents = references.get(table)!.filter((parent) => parent !== table);
             if (isLogged && parents.every((parent) => live.has(parent))) {
@@ -285,7 +285,7 @@ export class Replication {
                                   ],
                               }),
                           ],
-                tier: state.log?.tier ?? "none",
+                retention: state.log?.retention ?? "none",
                 version: state.version,
                 moved: {},
                 convert: {},
@@ -318,7 +318,7 @@ export class Replication {
         const changes = this.#steps.findIndex((step) => step.kind === "changes");
         const end = stage === "live" ? changes : this.#steps.length - 1;
 
-        // read each step, holding the log meanwhile
+        // read each step and hold the log meanwhile
         while (cursor.step <= end && !signal.aborted) {
             await database.log.hold(name, cursor.sequence, Date.now() + HOLD_MILLISECONDS);
             const step: Step = this.#steps[cursor.step]!;
@@ -530,7 +530,7 @@ function keyOf(table: Table, row: Row): Record<string, JsonValue> {
     return encodeColumns(key, row, []);
 }
 
-/** Order tables parents first, refusing cycles. */
+/** Order tables parents first and refuse cycles. */
 function parentsFirst(
     tables: readonly Table[],
     references: ReadonlyMap<Table, readonly Table[]>,

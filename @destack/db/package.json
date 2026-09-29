@@ -22,6 +22,12 @@
         "./sqlite": "./src/sqlite/index.ts",
         "./wasm": "./src/sqlite/wasm/index.ts"
     },
+    "imports": {
+        "#provider": {
+            "bun": "./src/provider/bun.ts",
+            "default": "./src/provider/none.ts"
+        }
+    },
     "scripts": {
         "check": "tsc --project tsconfig.json",
         "test": "bun --bun run vitest run --config vitest.config.ts"
