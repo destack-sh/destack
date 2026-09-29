@@ -140,7 +140,9 @@ async function write(
         return tracker.record(transaction, () => owner);
     });
     tracker.publish(rows);
-    await new Promise((resolve) => setTimeout(resolve, 1));
+
+    // let the relay deliver the queued message
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
 }
 
 /** Read an instance's cursors once it applied its messages. */

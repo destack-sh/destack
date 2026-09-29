@@ -249,17 +249,19 @@ test.for(TEST_DIALECTS)(
         // follow with a thousand subscribers
         const controller = new AbortController();
         const reached = Array.from({ length: 1000 }, () => -1);
+        let wake = () => {};
         const subscribers = reached.map(async (_, index) => {
             const pages = feed.subscribe({ ...FILTERS, ...WINDOWS }, undefined, controller.signal, {
                 audience: AUDIENCE,
             });
             for await (const page of pages) {
                 reached[index] = page.complete ? page.position.sequence : reached[index]!;
+                wake();
             }
         });
         const reach = async (position: LogPosition) => {
             while (reached.some((sequence) => sequence < position.sequence)) {
-                await new Promise((resolve) => setTimeout(resolve, 1));
+                await new Promise<void>((resolve) => (wake = resolve));
             }
         };
         await reach(await source.log.position());
