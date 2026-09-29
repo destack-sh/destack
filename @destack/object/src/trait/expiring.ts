@@ -3,7 +3,6 @@ import {
     and,
     type Column,
     type DatabaseConnection,
-    eq,
     isNotNull,
     lte,
     min,
@@ -77,7 +76,7 @@ export const expiring: Trait<readonly ExpiryRule[]> & {
                         await server.executeAsSystem(
                             object,
                             "expire",
-                            rows.map(SystemCall.of),
+                            rows.map((row) => SystemCall.of(row)),
                             now,
                         );
                     }
@@ -138,8 +137,7 @@ const expiry: Method = defineMethod<Method<"delete", null, never, never, true>>(
     result: "value",
     procedure: () => ({ route: { method: "DELETE", path: "/{id}" }, input: Empty, output: Empty }),
     effect: async (call: Call) => {
-        const table = call.object.table as Table & Record<string, Column>;
-        await call.database.delete(table).where(eq(table.id!, call.id!));
+        await call.remove();
 
         return {};
     },

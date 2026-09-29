@@ -1,6 +1,7 @@
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
 import { ObjectServer } from "../src/server/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import type { AuditRecorder } from "@destack/audit";
+import { AuditRecorder } from "@destack/audit";
 import { type DatabaseConnection } from "@destack/db";
 import { Condition } from "@destack/db/query";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -36,13 +37,10 @@ test.each(TEST_DIALECTS)(
             ...ObjectServer.serve(tasksService, {
                 journal: tasksJournal,
                 database,
-                audit: () =>
-                    ({
-                        begin: () => ({}),
-                        append: async () => {},
-                        complete: () => ({}),
-                        record: async () => {},
-                    }) as unknown as AuditRecorder<DatabaseConnection>,
+                audit: AuditRecorder.service(new AuditOutbox(database), {
+                    package: tasksService.package,
+                    service: "test",
+                }),
             }),
             audience,
             scope: spaceId,
@@ -112,10 +110,10 @@ test.each(TEST_DIALECTS)(
                 revision: 2,
                 title: "Rename",
             }),
-        ).rejects.toMatchObject({ code: "FORBIDDEN", message: "Forbidden" });
+        ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: plan" });
         await expect(bob!.project.get({ spaceId, id: launch.id })).rejects.toMatchObject({
             code: "NOT_FOUND",
-            message: "Not Found",
+            message: `no project ${launch.id}`,
         });
 
         // let a user ask to join, and plan once the owner accepts
@@ -189,18 +187,19 @@ test.each(TEST_DIALECTS)(
         expect(followUp.origin).toEqual(origin);
 
         // refuse requests naming another space than the caller authenticated for
+        const elsewhere = identifier("space").parse(`space-${v7()}`);
         await expect(
-            alice!.project.get({
-                spaceId: identifier("space").parse(`space-${v7()}`),
-                id: launch.id,
-            }),
-        ).rejects.toMatchObject({ code: "NOT_FOUND", message: "Not Found" });
+            alice!.project.get({ spaceId: elsewhere, id: launch.id }),
+        ).rejects.toMatchObject({
+            code: "NOT_FOUND",
+            message: `scope ${elsewhere} is outside the pinned scope`,
+        });
 
         // hide the project from users with no relation to it
         expect((await dave!.project.list({ spaceId })).items).toEqual([]);
         await expect(dave!.task.get({ spaceId, id: announce.id })).rejects.toMatchObject({
             code: "NOT_FOUND",
-            message: "Not Found",
+            message: `no task ${announce.id}`,
         });
     },
 );

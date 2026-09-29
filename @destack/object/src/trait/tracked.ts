@@ -232,7 +232,7 @@ async function earlier(call: Call, permission: Permission): Promise<Record<strin
     const snapshot = call.database.log.at(at);
     const row = await snapshot.row(call.object.table as Table, { id: call.id! });
     if (row === undefined) {
-        throw new ServiceError("NOT_FOUND");
+        throw new ServiceError("NOT_FOUND", { message: `no ${call.object.name} ${call.id!}` });
     }
 
     // check the permission as of then
@@ -249,7 +249,7 @@ async function earlier(call: Call, permission: Permission): Promise<Record<strin
         access,
     );
     if (!decision.isAllowed) {
-        throw new ServiceError("NOT_FOUND");
+        throw new ServiceError("NOT_FOUND", { message: `no ${call.object.name} ${call.id!}` });
     }
 
     return row;

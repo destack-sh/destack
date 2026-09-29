@@ -13,10 +13,10 @@ import {
 } from "@destack/db";
 import { CHAIN_TERMS } from "@destack/db/query";
 import { keyEntry } from "./table.ts";
-import type { Change } from "@destack/db/log";
+import { type Change, Snapshot } from "@destack/db/log";
 import { canonicalize } from "@destack/schema/json";
 import { ServiceError } from "@destack/service/error";
-import { GLOBAL_SCOPE, type ObjectReference } from "@destack/access";
+import { GLOBAL_SCOPE, Scope, type ObjectReference } from "@destack/access";
 import type { ObjectType } from "../object/object.ts";
 import type { Controller } from "@destack/service/control";
 import type { ObjectServer } from "../server/server.ts";
@@ -101,7 +101,7 @@ export class KeyIndex {
         return this.backing instanceof KeyIndexDatabase ? this.backing.database : undefined;
     }
 
-    /** Key some values in one of an object type's indexes. */
+    /** Key some values in one of an object type's indexes, within the scope the index is unique across. */
     static key(
         object: ObjectType,
         name: string,
@@ -121,40 +121,76 @@ export class KeyIndex {
         return { index: indexOf(object, name), key: canonicalize([within, ...values]) };
     }
 
-    /** List the keys an object's row holds. */
-    static keys(object: ObjectType, row: Readonly<Record<string, unknown>>): IndexKey[] {
-        return Object.entries(object.indexes).flatMap(([name, declared]) => {
+    /** List the keys an object's row holds, reading enclosing scopes from a snapshot. */
+    static async keys(
+        object: ObjectType,
+        row: Readonly<Record<string, unknown>>,
+        snapshot: Snapshot,
+    ): Promise<IndexKey[]> {
+        // key each index the row holds every value of
+        const scope = String(row.scope);
+        const keys: IndexKey[] = [];
+        for (const [name, declared] of Object.entries(object.indexes)) {
             // skip rows missing a value
             const values = declared.on.map((field) => row[field]);
             if (values.some((value) => value === null || value === undefined)) {
-                return [];
+                continue;
             }
 
-            // key the values within their scope
-            const within = declared.across === GLOBAL_SCOPE ? null : String(row.scope);
+            // key the values within the scope the index is unique across
+            const within = await KeyIndex.#within(object, declared.across, scope, snapshot);
+            keys.push({
+                index: indexOf(object, name),
+                key: canonicalize([within, ...values]),
+                objectId: String(row.id),
+                scope,
+            });
+        }
 
-            return [
-                {
-                    index: indexOf(object, name),
-                    key: canonicalize([within, ...values]),
-                    objectId: String(row.id),
-                    scope: String(row.scope),
-                },
-            ];
-        });
+        return keys;
     }
 
     /** Describe the keys an object holds after a write. */
-    static holding(
+    static async holding(
         object: ObjectType,
         objectId: string,
         row: Readonly<Record<string, unknown>> | undefined,
-    ): KeyHolding {
+        snapshot: Snapshot,
+    ): Promise<KeyHolding> {
         return {
             indexes: Object.keys(object.indexes).map((name) => indexOf(object, name)),
             objectId,
-            keys: row === undefined ? [] : KeyIndex.keys(object, row),
+            keys: row === undefined ? [] : await KeyIndex.keys(object, row, snapshot),
         };
+    }
+
+    /** Find the scope an index is unique across, from the scope an object lives in. */
+    static async #within(
+        object: ObjectType,
+        across: ObjectType["indexes"][string]["across"],
+        scope: string,
+        snapshot: Snapshot,
+    ): Promise<string | null> {
+        // key global indexes without a scope, and indexes across the object's own scope by it
+        if (across === GLOBAL_SCOPE) {
+            return null;
+        } else if (across.same(object.ancestors[0])) {
+            return scope;
+        }
+
+        // find the enclosing scope of the declared type
+        const { packageId, name } = across.policy.definition;
+        const chain = await Scope.chain(snapshot, scope);
+        const enclosing = chain.find(
+            (link) => link.object.packageId === packageId && link.object.type === name,
+        );
+        if (enclosing === undefined) {
+            throw new ServiceError("PRECONDITION_FAILED", {
+                message: `scope ${scope} has no enclosing ${name}`,
+            });
+        }
+
+        return enclosing.object.id;
     }
 
     /** Reserve the keys of indexed objects an open transaction wrote. */
@@ -168,12 +204,14 @@ export class KeyIndex {
         const indexed = objects.filter((object) => Object.keys(object.indexes).length > 0);
         const byTable = new Map(indexed.map((object) => [object.table as Table, object]));
         const images = new Map<string, KeyHolding>();
+        const snapshot = Snapshot.live(transaction);
         if (indexed.length > 0) {
             for (const change of await transaction.log.written([...byTable.keys()])) {
                 const object = byTable.get(change.table)!;
                 const objectId = String(change.key.id);
                 const row = change.after as Readonly<Record<string, unknown>> | undefined;
-                images.set(`${object.name}/${objectId}`, KeyIndex.holding(object, objectId, row));
+                const holding = await KeyIndex.holding(object, objectId, row, snapshot);
+                images.set(`${object.name}/${objectId}`, holding);
             }
         }
 
@@ -197,10 +235,10 @@ export class KeyIndex {
         await this.backing.release(requestId);
     }
 
-    /** Keep an object type's keys in step with one change of its rows. */
-    async apply(object: ObjectType, change: Change): Promise<void> {
+    /** Keep an object type's keys in step with one change of its rows, reading enclosing scopes from a snapshot. */
+    async apply(object: ObjectType, change: Change, snapshot: Snapshot): Promise<void> {
         const row = change.after as Readonly<Record<string, unknown>> | undefined;
-        const holding = KeyIndex.holding(object, String(change.key.id), row);
+        const holding = await KeyIndex.holding(object, String(change.key.id), row, snapshot);
         await this.backing.hold(holding, `change-${change.sequence}`, change.changedAt);
     }
 
@@ -232,8 +270,9 @@ export class KeyIndex {
         );
         const expiry = await this.backing.expired([...byIndex.keys()], now);
 
-        // finish one chain's worth per run
+        // finish one chain's worth per run, reading enclosing scopes from one snapshot
         const due = expiry.keys.slice(0, CHAIN_TERMS);
+        const snapshot = Snapshot.live(database);
         const byObject = Map.groupBy(due, (entry) => byIndex.get(entry.index)!);
         for (const [object, entries] of byObject) {
             // read present rows
@@ -247,7 +286,7 @@ export class KeyIndex {
 
             // hold each object's current keys
             for (const id of ids) {
-                const holding = KeyIndex.holding(object, id, present.get(id));
+                const holding = await KeyIndex.holding(object, id, present.get(id), snapshot);
                 await this.backing.hold(holding, `finish-${id}`, now);
             }
         }

@@ -1,6 +1,7 @@
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Authorization, principal, type AccessContext } from "@destack/access";
-import type { AuditRecorder } from "@destack/audit";
+import { AuditRecorder } from "@destack/audit";
 import type { DatabaseConnection } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -28,7 +29,10 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const storage = await TestDatabase.create(
             dialect,
-            defineDatabase({ name: "main", tables: [...role.tables, space.table, request] }),
+            defineDatabase({
+                name: "main",
+                tables: [...auditOutboxTables, ...role.tables, space.table, request],
+            }),
             { isMigrated: true },
         );
         onTestFinished(() => storage.close());
@@ -45,8 +49,10 @@ test.for(TEST_DIALECTS)(
             database,
             context: (): AccessContext => ({ subjects: [owner], now: Date.now(), attributes: {} }),
             journal: new Journal(request),
-            audit: () =>
-                ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
+            audit: AuditRecorder.service(new AuditOutbox(database), {
+                package: role.package,
+                service: "test",
+            }),
         });
         await database
             .insert(space.table)
@@ -65,6 +71,7 @@ test.for(TEST_DIALECTS)(
             bookmark: new Bookmark(),
             observed: new Bookmark(),
             signal: controller.signal,
+            request: new Request("https://test.local", { signal: controller.signal }),
         } as unknown as ServiceContext;
 
         // hold the owner role and its binding from the snapshot

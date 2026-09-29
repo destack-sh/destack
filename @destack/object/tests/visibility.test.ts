@@ -1,3 +1,4 @@
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import {
     accessRelationship,
@@ -9,7 +10,7 @@ import {
     relation,
     type Delegate,
 } from "@destack/access";
-import type { AuditRecorder } from "@destack/audit";
+import { AuditRecorder } from "@destack/audit";
 import type { DatabaseConnection } from "@destack/db";
 import { copyScope } from "@destack/access/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -67,9 +68,13 @@ const document = defineObject({
 test.each(TEST_DIALECTS)(
     "show a private space to readers of one object in it, forbid their writes, and hide it from strangers on %s",
     async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [...document.tables, request], {
-            isMigrated: true,
-        });
+        const storage = await TestDatabase.create(
+            dialect,
+            [...auditOutboxTables, ...document.tables, request],
+            {
+                isMigrated: true,
+            },
+        );
         onTestFinished(() => storage.close());
         const database = storage.database;
         await openSpace(database, spaceId, "private");
@@ -112,8 +117,10 @@ test.each(TEST_DIALECTS)(
                 attributes: {},
             }),
             journal: new Journal(request),
-            audit: () =>
-                ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
+            audit: AuditRecorder.service(new AuditOutbox(database), {
+                package: document.package,
+                service: "test",
+            }),
         });
         const context = {
             scope: spaceId,
@@ -215,8 +222,10 @@ test.each(TEST_DIALECTS)(
                 attributes: {},
             }),
             journal: new Journal(request),
-            audit: () =>
-                ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
+            audit: AuditRecorder.service(new AuditOutbox(database), {
+                package: document.package,
+                service: "test",
+            }),
         });
         const context = {
             requireCaller: () => ({ id: "alice" }),

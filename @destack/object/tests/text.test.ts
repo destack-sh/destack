@@ -1,7 +1,8 @@
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation, union } from "@destack/access";
-import type { AuditRecorder } from "@destack/audit";
-import { eq, type DatabaseConnection, type Dialect } from "@destack/db";
+import { AuditRecorder } from "@destack/audit";
+import type { DatabaseConnection, Dialect } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { PackageId } from "@destack/package";
@@ -67,7 +68,10 @@ const documentsService = defineService("documents", { objects: { document } });
 const journal = defineJournal("journal");
 
 /** The database of one space's documents. */
-const documentsDatabase = defineDatabase({ name: "main", tables: [...document.tables, journal] });
+const documentsDatabase = defineDatabase({
+    name: "main",
+    tables: [...auditOutboxTables, ...document.tables, journal],
+});
 
 /** Serve a space's documents to bearer-named users. */
 async function serveDocuments(dialect: Dialect) {
@@ -82,13 +86,10 @@ async function serveDocuments(dialect: Dialect) {
         ...ObjectServer.serve(documentsService, {
             journal,
             database,
-            audit: () =>
-                ({
-                    begin: () => ({}),
-                    append: async () => {},
-                    complete: () => ({}),
-                    record: async () => {},
-                }) as unknown as AuditRecorder<DatabaseConnection>,
+            audit: AuditRecorder.service(new AuditOutbox(database), {
+                package: documentsService.package,
+                service: "test",
+            }),
         }),
         audience,
         scope: spaceId,
@@ -188,11 +189,14 @@ test("mint positions between others in collation-independent order, either end o
     expect(minted).toEqual(["9", "i", "r", "ii", "i0i"]);
 
     // keep each between its neighbours
-    expect(["9" < "i", "i" < "r", "i" < "ii" && "ii" < "j", "i" < "i0i" && "i0i" < "i1"]).toEqual([
-        true,
-        true,
-        true,
-        true,
+    expect(["i", "9", "r", "ii", "j", "i0i", "i1"].toSorted()).toEqual([
+        "9",
+        "i",
+        "i0i",
+        "i1",
+        "ii",
+        "j",
+        "r",
     ]);
 });
 
@@ -261,10 +265,16 @@ test.for(TEST_DIALECTS)(
 
         // type past one chunk, then paste into the middle, splitting evenly
         await edit(0, 0, digits(3000));
-        expect((await chunks(database)).map((row) => row.characters)).toEqual([1500, 1500]);
+        expect((await chunks(database)).map((row) => row.characters)).toEqual(
+            Array.from({ length: 8 }, () => 375),
+        );
         await edit(1000, 1000, digits(5000, 3));
         expect((await chunks(database)).map((row) => row.characters)).toEqual([
-            1625, 1625, 1625, 1625, 1500,
+            375,
+            375,
+            ...Array.from({ length: 13 }, () => 384),
+            383,
+            ...Array.from({ length: 5 }, () => 375),
         ]);
         expect((await chunks(database)).every((row) => row.characters <= CHUNK_CHARACTERS)).toBe(
             true,
@@ -277,7 +287,7 @@ test.for(TEST_DIALECTS)(
         expect(after.map((row) => row.id)).toEqual(before.map((row) => row.id));
         expect(
             after.flatMap((row, index) => (row.runs === before[index]!.runs ? [] : [index])),
-        ).toEqual([1, 2]);
+        ).toEqual([7, 8]);
 
         // read the text assembled through get and list
         const text = mirror.text();
@@ -422,6 +432,40 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
+    "type into a live text by offsets, one change after another, and converge on the server on %s",
+    async (dialect) => {
+        const { connect: connectAs } = await serveDocuments(dialect);
+        const alice = await openClient("alice", connectAs("alice"));
+        const bob = await openClient("bob", connectAs("bob"));
+
+        // create a document shared with bob and follow its body as a sequence
+        const created = alice.client.mutate(document).create({ title: "Plan" });
+        const { id } = await created.predicted;
+        await created.confirmed;
+        await alice.client.mutate(document).grant({
+            id,
+            relation: "editor",
+            subject: principal.user.reference("global", "bob"),
+        }).confirmed;
+        const text = alice.client.text(document, id, "body");
+        await text.ready;
+
+        // type twice without waiting, each change against the text the one before left
+        const typed = text.change({ from: 0, to: 0, insert: "Hello" });
+        const extended = text.change({ from: 5, to: 5, insert: " world" });
+        const edits = await Promise.all([typed, extended]);
+        const local = (await text.read()).text();
+
+        // converge bob's copy once both edits reach the server
+        await Promise.all(edits.map((edit) => edit.confirmed));
+        const body = async () => (await bob.live.read()).map((row) => row.body);
+        await expect.poll(body).toEqual(["Hello world"]);
+        await text.close();
+        expect([local, alice.errors, bob.errors]).toEqual(["Hello world", [], []]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
     "edit one keystroke of a large text with the statements and chunk writes of a small one on %s",
     async (dialect) => {
         const { connect: connectAs, database } = await serveDocuments(dialect);
@@ -479,9 +523,9 @@ test.for(TEST_DIALECTS)(
         const smallCost = await keystroke(small, 1);
         const largeCost = await keystroke(large, 100_000);
         expect([smallCost, largeCost, (await chunks(database)).length]).toEqual([
-            { statements: 17 + lock, chunks: 0, changed: 1 },
-            { statements: 17 + lock, chunks: 0, changed: 1 },
-            99,
+            { statements: 18 + lock, chunks: 0, changed: 1 },
+            { statements: 18 + lock, chunks: 0, changed: 1 },
+            522,
         ]);
     },
 );

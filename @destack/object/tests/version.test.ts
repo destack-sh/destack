@@ -1,5 +1,6 @@
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
-import type { AuditRecorder } from "@destack/audit";
+import { AuditRecorder } from "@destack/audit";
 import type { DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier } from "@destack/schema";
@@ -44,8 +45,10 @@ test.each(TEST_DIALECTS)(
                 attributes: {},
             }),
             journal: new Journal(request),
-            audit: () =>
-                ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
+            audit: AuditRecorder.service(new AuditOutbox(database), {
+                package: task.package,
+                service: "test",
+            }),
         });
         const context = {
             scope: spaceId,

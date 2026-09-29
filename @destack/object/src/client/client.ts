@@ -32,6 +32,7 @@ import { ServiceError } from "@destack/service/error";
 import { ScopeHolder } from "../error/holder.ts";
 import { Failure, Journal } from "@destack/service/database";
 import { RequestId } from "@destack/service/request";
+import { Observable } from "@destack/service/observable";
 import { RetryPolicy } from "@destack/service/timer";
 import type { LogPosition } from "@destack/db/log";
 import * as sync from "@destack/sync";
@@ -48,7 +49,9 @@ import {
 } from "../replica/replica.ts";
 import { Duration } from "../object/duration.ts";
 import { ObjectType, type ObjectStorage } from "../object/object.ts";
-import { Chunk } from "../text/chunk.ts";
+import { Sequence, type Run, type TextChange } from "../sequence/index.ts";
+import { Chunk, type Edited } from "../text/chunk.ts";
+import { chunk } from "../text/table.ts";
 
 /** The method kinds whose predictions read only their object's and its parent's tables. */
 const STANDARD_KINDS: ReadonlySet<string> = new Set(["create", "update", "delete", "updateMany"]);
@@ -68,6 +71,20 @@ export interface Submission<Result> {
     readonly predicted: Promise<Result>;
     /** Settles once the replica holds the server's changes, or rejects with the server's failure. */
     readonly confirmed: Promise<void>;
+}
+
+/** One text field of an object, followed as its sequence and changed by visible offsets. */
+export interface LiveText {
+    /** Settles once the copy holds the text. */
+    readonly ready: Promise<void>;
+    /** Read the text's sequence, predictions included. */
+    read(): Promise<Sequence>;
+    /** Yield the sequence, then again after each change. */
+    watch(signal: AbortSignal): AsyncGenerator<Sequence>;
+    /** Replace the text between two offsets, after every earlier change, as one predicted edit. */
+    change(change: TextChange): Promise<Submission<Edited>>;
+    /** Stop following the text. */
+    close(): Promise<void>;
 }
 
 /** A live query a client reads from its copy, predictions included. */
@@ -682,6 +699,56 @@ export class ObjectClient {
         await Promise.all([this.push(signal, report), this.follow(signal, report)]);
     }
 
+    /** Follow one text field of an object as its sequence, changing it by visible offsets. */
+    text<Object extends ObjectType>(object: Object, id: string, field: string): LiveText {
+        // follow the field's chunks in position order
+        const chunks = this.objects.find((held) => held.table === chunk);
+        if (chunks === undefined || !object.text.includes(field)) {
+            throw new TypeError(`object ${object.name} holds no text field ${field}`);
+        }
+        const query = this.subscribe(chunks, {
+            where: Condition.all(
+                Condition.eq("parentType", object.name),
+                Condition.eq("parentId", id),
+                Condition.eq("field", field),
+            ),
+            order: [{ column: "position", direction: "asc" }],
+        });
+        const sequence = (rows: readonly Readonly<Record<string, unknown>>[]) =>
+            new Sequence(rows.flatMap((row) => row.runs as readonly Run[]));
+
+        // apply changes one after another, each against the text the previous one left
+        let previous: Promise<unknown> = Promise.resolve();
+        const change = (replaced: TextChange) => {
+            const next = previous.then(async () => {
+                // translate the offsets against the current text, then edit and wait for the prediction
+                const edits = sequence(await query.read()).change(replaced, v7());
+                const mutator = this.mutate(object) as unknown as Readonly<
+                    Record<string, (input: object) => Submission<Edited>>
+                >;
+                const editing = mutator.edit!({ id, field, edits });
+                await editing.predicted;
+
+                return editing;
+            });
+            previous = next.catch(() => {});
+
+            return next;
+        };
+
+        return {
+            ready: query.ready,
+            read: async () => sequence(await query.read()),
+            watch: async function* (signal) {
+                for await (const rows of query.watch(signal)) {
+                    yield sequence(rows);
+                }
+            },
+            change,
+            close: () => query.close(),
+        };
+    }
+
     /** Keep a query live until closed, reading the local copy with predictions. */
     subscribe<Object extends ObjectType>(
         object: Object,
@@ -1126,7 +1193,7 @@ export class ObjectClient {
             ready: Promise.all(followed.map(({ live }) => live.ready)).then(() => {}),
             read: async () => merge(await Promise.all(followed.map(({ live }) => live.read()))),
             watch: (signal) =>
-                latest(
+                Observable.latest(
                     followed.map(({ live }) => live.watch(signal)),
                     merge,
                 ),
@@ -1556,7 +1623,7 @@ export class ObjectClient {
                 ? await database.select().from(table).where(eq(table.id, targetId))
                 : [];
         if (method.target && target === undefined) {
-            throw new ServiceError("NOT_FOUND");
+            throw new ServiceError("NOT_FOUND", { message: `no ${object.name} ${targetId}` });
         }
         if (
             revision !== undefined &&
@@ -1877,28 +1944,4 @@ function omitField(
     const { [field]: _omitted, ...rest } = input;
 
     return rest;
-}
-
-/** Yield the combined latest values of several streams. */
-async function* latest<Value, Combined>(
-    streams: readonly AsyncGenerator<Value>[],
-    combine: (values: readonly Value[]) => Combined,
-): AsyncGenerator<Combined> {
-    // await every stream
-    const values = new Map<number, Value>();
-    const next = (index: number) => streams[index]!.next().then((result) => ({ index, result }));
-    const pending = new Map(streams.map((_, index) => [index, next(index)]));
-    while (pending.size > 0) {
-        // yield once every stream has a value
-        const { index, result } = await Promise.race(pending.values());
-        if (result.done) {
-            pending.delete(index);
-        } else {
-            values.set(index, result.value);
-            pending.set(index, next(index));
-            if (values.size === streams.length) {
-                yield combine(streams.map((_, position) => values.get(position)!));
-            }
-        }
-    }
 }

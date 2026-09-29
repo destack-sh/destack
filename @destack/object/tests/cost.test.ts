@@ -1,6 +1,7 @@
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal } from "@destack/access";
-import type { AuditRecorder } from "@destack/audit";
+import { AuditRecorder } from "@destack/audit";
 import type { DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Bookmark } from "@destack/service/bookmark";
@@ -29,8 +30,10 @@ test.for(TEST_DIALECTS)(
                 attributes: {},
             }),
             journal: new Journal(notesJournal),
-            audit: () =>
-                ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
+            audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+                package: notebook.package,
+                service: "test",
+            }),
         });
         const context = {
             scope: spaceId,
@@ -67,6 +70,6 @@ test.for(TEST_DIALECTS)(
             create: await counted({ parentId: book.id, title: "Ideas" }),
             chosen: await counted({ parentId: book.id, title: "Plan", id: `note-${v7()}` }),
             update: await counted({ id: book.id, name: "Trips" }, notebook, "update"),
-        }).toEqual({ create: 14 + lock, chosen: 15 + lock, update: 13 + lock });
+        }).toEqual({ create: 15 + lock, chosen: 16 + lock, update: 14 + lock });
     },
 );

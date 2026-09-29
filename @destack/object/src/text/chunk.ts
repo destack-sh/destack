@@ -2,18 +2,12 @@ import { type ObjectReference, through } from "@destack/access";
 import {
     and,
     asc,
-    defineTable,
     eq,
     gt,
     gte,
-    identifier,
-    index,
     inArray,
-    integer,
-    json,
     lte,
     or,
-    text,
     type DatabaseConnection,
     type SQL,
 } from "@destack/db";
@@ -25,90 +19,20 @@ import { Position } from "../field/field.ts";
 import type { Call } from "../method/call.ts";
 import { method } from "../method/method.ts";
 import { ObjectType } from "../object/object.ts";
-import { Run, Sequence, SequenceEdit, type Element } from "../sequence/sequence.ts";
+import { Run, Sequence, SequenceEdit, type Element } from "../sequence/index.ts";
+import { chunk, chunkRun } from "./table.ts";
 
-/** The most characters one chunk holds: a keystroke rewrites one 2 to 8 KiB row, 1 MB is ~500 rows. */
-export const CHUNK_CHARACTERS = 2048;
+/** The most characters one chunk holds: a keystroke rewrites and syncs one ~1 KiB row, 1 MB is ~2,000 rows. */
+export const CHUNK_CHARACTERS = 512;
+
+/** The characters a split leaves in each chunk: three quarters full, so typing there rewrites one row for a while. */
+const FILL_CHARACTERS = (CHUNK_CHARACTERS * 3) / 4;
 
 /** The owner permission whose holders read its text. */
 export const TEXT_READ = "text";
 
 /** The include holding each owner's chunks. */
 export const CHUNKS = "chunks";
-
-/** The pieces of owners' texts, in position order per field. */
-export const chunk = defineTable(
-    "chunk",
-    {
-        /** The chunk's identifier. */
-        id: identifier("id", "chunk").primaryKey(),
-        /** The scope holding the owner. */
-        scope: text("scope").notNull(),
-        /** The package declaring the owner's type. */
-        parentPackageId: identifier("parent_package_id", "package").notNull(),
-        /** The owner's type. */
-        parentType: text("parent_type").notNull(),
-        /** The owner's identifier. */
-        parentId: text("parent_id").notNull(),
-        /** The owner's text field. */
-        field: text("field").notNull(),
-        /** The chunk's place among the field's chunks. */
-        position: text("position").notNull(),
-        /** The chunk's runs in sequence order. */
-        runs: json("runs", schema.array(Run)).notNull(),
-    },
-    {
-        log: {},
-        constraints: (held) => [
-            index("chunk_parent").on(
-                held.parentPackageId,
-                held.parentType,
-                held.parentId,
-                held.field,
-                held.position,
-            ),
-        ],
-    },
-);
-
-/** The server's index of which chunk holds each run's elements, unsynced. */
-export const chunkRun = defineTable(
-    "chunk_run",
-    {
-        /** The chunk holding the elements. */
-        chunk: identifier("chunk", "chunk")
-            .notNull()
-            .references(() => chunk.id, { onDelete: "cascade" }),
-        /** The scope holding the owner. */
-        scope: text("scope").notNull(),
-        /** The package declaring the owner's type. */
-        parentPackageId: identifier("parent_package_id", "package").notNull(),
-        /** The owner's type. */
-        parentType: text("parent_type").notNull(),
-        /** The owner's identifier. */
-        parentId: text("parent_id").notNull(),
-        /** The owner's text field. */
-        field: text("field").notNull(),
-        /** The run the elements belong to. */
-        run: text("run").notNull(),
-        /** The first element's offset. */
-        start: integer("start").notNull(),
-        /** The offset after the last element. */
-        end: integer("end").notNull(),
-    },
-    {
-        constraints: (held) => [
-            index("chunk_run_parent").on(
-                held.parentPackageId,
-                held.parentType,
-                held.parentId,
-                held.field,
-                held.run,
-            ),
-            index("chunk_run_chunk").on(held.chunk),
-        ],
-    },
-);
 
 /** One chunk row. */
 type ChunkRow = typeof chunk.$inferSelect;
@@ -618,9 +542,9 @@ function cut(runs: readonly Run[], boundaries: readonly Element[]): Run[][] {
 
 /** Split a part's runs into even groups of at most a chunk's characters. */
 function fill(runs: readonly Run[]): Run[][] {
-    // size the groups evenly
+    // keep a text that fits one chunk whole, and split a longer one evenly into partly full chunks
     const total = runs.reduce((sum, piece) => sum + characters(piece), 0);
-    const count = Math.max(1, Math.ceil(total / CHUNK_CHARACTERS));
+    const count = total <= CHUNK_CHARACTERS ? 1 : Math.ceil(total / FILL_CHARACTERS);
     const capacity = Math.ceil(total / count);
 
     // fill each group, splitting a piece at a group's end

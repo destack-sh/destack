@@ -19,6 +19,10 @@ import type { ObjectType } from "../object/object.ts";
 import { Manager, type ManagedColumnMap } from "../trait/declarable.ts";
 import type { KeyIndex, Reservation } from "../key/key.ts";
 import { ScopeHolder } from "../error/holder.ts";
+import type { ObjectServer } from "./server.ts";
+import type { PackageId } from "@destack/package";
+import type { BuildReader } from "@destack/package/manifest";
+import type { Identifier } from "@destack/schema";
 
 /** A table of managed records: their identity, revision and manager. */
 type ManagedTable = Table &
@@ -67,6 +71,14 @@ export interface ReconciliationContext {
     readonly now: number;
     /** The policies validating declared access. */
     readonly authorizer: Authorizer;
+    /** Run a system method in the reconciliation's transaction and scope. */
+    invoke(
+        object: ObjectType,
+        name: string,
+        input: Readonly<Record<string, unknown>>,
+    ): Promise<unknown>;
+    /** Open the build of a package's release in the scope, the installation's when named. */
+    release(packageId: PackageId, installation?: Identifier<"installation">): Promise<BuildReader>;
 }
 
 /** How a stack's declarations of one object type become its managed records. */
@@ -103,7 +115,7 @@ export interface Reconciler<
     ): Promise<boolean>;
     /** Write records a created or updated record owns. */
     written?(
-        database: DatabaseConnection,
+        context: ReconciliationContext,
         row: Select<Object["table"]>,
         resolved: Resolved,
     ): Promise<void>;
@@ -112,7 +124,7 @@ export interface Reconciler<
         /** Report whether a record is already retiring. */
         isRetiring(database: DatabaseConnection, row: Select<Object["table"]>): Promise<boolean>;
         /** Begin retiring a record the manager no longer declares. */
-        start(database: DatabaseConnection, row: Select<Object["table"]>): Promise<void>;
+        start(context: ReconciliationContext, row: Select<Object["table"]>): Promise<void>;
     };
 }
 
@@ -159,8 +171,10 @@ export interface ReconciliationOptions {
     readonly policies?: readonly Policy[];
     /** The key index, in another database. */
     readonly index?: KeyIndex;
-    /** Require the applier may still write, inside each type's transaction. */
-    readonly fence?: (transaction: DatabaseConnection) => Promise<void>;
+    /** The object server running the reconcilers' system calls. */
+    readonly server?: Pick<ObjectServer, "invoke">;
+    /** Open the build of a package's release in the scope, the installation's when named. */
+    readonly release?: ReconciliationContext["release"];
 }
 
 /** One application of a declaration document at one time. */
@@ -280,7 +294,6 @@ export class Reconciliation {
                 if (moved !== undefined) {
                     throw ScopeHolder.error({ scope: moved.object.id, holder: moved.movedTo! });
                 }
-                await options.fence?.(database);
 
                 // run the step
                 const find = (object: ObjectType | string, name: string) => {
@@ -313,6 +326,33 @@ export class Reconciliation {
                         throw new Waiting(message);
                     },
                     now,
+                    invoke: (object, name, input) => {
+                        // require the server running system calls
+                        if (options.server === undefined) {
+                            throw new TypeError(
+                                `reconciling ${reconciler.object.plural} invokes ${object.name}.${name}, but no object server runs it`,
+                            );
+                        }
+
+                        return options.server.invoke(
+                            database,
+                            options.scope,
+                            object,
+                            name,
+                            input,
+                            now,
+                        );
+                    },
+                    release: (packageId, installation) => {
+                        // require the host opening releases
+                        if (options.release === undefined) {
+                            throw new TypeError(
+                                `reconciling ${reconciler.object.plural} opens the release of ${packageId}, but no host opens releases`,
+                            );
+                        }
+
+                        return options.release(packageId, installation);
+                    },
                 });
 
                 // reserve written keys
@@ -434,7 +474,7 @@ export class Reconciliation {
                     await database.insert(table).values(created);
                     const id = (created as Record<string, unknown>).id;
                     await reconciler.written?.(
-                        database,
+                        context,
                         (await read(database, table, id))!,
                         resolved,
                     );
@@ -478,7 +518,7 @@ export class Reconciliation {
                         } as Partial<Insert<Table>>)
                         .where(eq(table.id, row.id));
                     await reconciler.written?.(
-                        database,
+                        context,
                         (await read(database, table, row.id))!,
                         resolved,
                     );
@@ -519,7 +559,7 @@ export class Reconciliation {
 
             // retire, request deletion, or delete
             if (reconciler.retire) {
-                await reconciler.retire.start(database, row as never);
+                await reconciler.retire.start(context, row as never);
             } else if (isDeletable) {
                 await database
                     .update(table)

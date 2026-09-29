@@ -1,6 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import type { AuditRecorder } from "@destack/audit";
+import { AuditRecorder } from "@destack/audit";
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
 import { eq, type DatabaseConnection } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { Condition } from "@destack/db/query";
@@ -13,6 +14,7 @@ import type { ServiceContext } from "@destack/service/server";
 import { defineObject, expiring, field, method } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { openSpace, space } from "./fixture/space.ts";
+import { auditedActions } from "./fixture/audit.ts";
 
 /** The space containing the alerts. */
 const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
@@ -42,7 +44,10 @@ const alert = defineObject({
 const journal = defineJournal("journal");
 
 /** The database holding the alerts, their access and the journal. */
-const alertDatabase = defineDatabase({ name: "main", tables: [journal, ...alert.tables] });
+const alertDatabase = defineDatabase({
+    name: "main",
+    tables: [...auditOutboxTables, journal, ...alert.tables],
+});
 
 test.each(TEST_DIALECTS)(
     "remove objects for good once a rule's window passes, as the system, and look again when the next one passes on %s",
@@ -51,7 +56,6 @@ test.each(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
         const database = storage.database;
         await openSpace(database, spaceId);
-        const removed: string[] = [];
         const server = new ObjectServer({
             objects: { alert },
             database,
@@ -61,15 +65,10 @@ test.each(TEST_DIALECTS)(
                 attributes: {},
             }),
             journal: new Journal(journal),
-            audit: (_scope, context) =>
-                ({
-                    record: async (_database: DatabaseConnection, action: { name: string }) => {
-                        // note the system's removals
-                        if (context === undefined) {
-                            removed.push(action.name);
-                        }
-                    },
-                }) as unknown as AuditRecorder<DatabaseConnection>,
+            audit: AuditRecorder.service(new AuditOutbox(database), {
+                package: alert.package,
+                service: "test",
+            }),
         });
         const context = {
             scope: spaceId,
@@ -104,11 +103,11 @@ test.each(TEST_DIALECTS)(
         // remove the two expired alerts and schedule the third
         const controller = expiring.controller(server);
         expect(Object.keys(alert.procedures).sort()).toEqual(["create", "get"]);
-        const delay = await controller.reconcile("expiry");
+        const delay = await controller.reconcile("expiry", { signal: AbortSignal.timeout(5000) });
         const left = await database.select({ id: alert.table.id }).from(alert.table);
         expect([
             left.map((row) => row.id),
-            removed,
+            await auditedActions(database, "system"),
             delay! > 28 * DAY && delay! <= 29 * DAY,
         ]).toEqual([[kept], ["Alert.expire", "Alert.expire"], true]);
     },

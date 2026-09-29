@@ -6,7 +6,6 @@ import {
     type DatabaseConnection,
     type Insert,
     type Select,
-    TABLE,
     type Table,
 } from "@destack/db";
 import { schema } from "@destack/schema";
@@ -238,7 +237,7 @@ export class Call<Definition extends Table = Table> {
                     ),
                 );
             if (held === undefined) {
-                throw new ServiceError("NOT_FOUND");
+                throw new ServiceError("NOT_FOUND", { message: `no ${parent.type} ${parent.id}` });
             }
         }
 
@@ -258,13 +257,45 @@ export class Call<Definition extends Table = Table> {
             reading === undefined ||
             !(await this.authorization!.check(reading, parent)).isAllowed
         ) {
-            throw new ServiceError("NOT_FOUND");
+            throw new ServiceError("NOT_FOUND", { message: `no ${parent.type} ${parent.id}` });
         }
         await this.authorization!.require(receive, parent);
     }
 
-    /** Update the target at the loaded revision. */
+    /** Update the target's desired state at the loaded revision. */
     async revise(changes: Readonly<Record<string, unknown>>): Promise<Record<string, unknown>> {
+        // advance the generation of a controlled target
+        const target = this.target as Record<string, unknown>;
+        const generation = this.object.isControlled
+            ? { generation: (target.generation as number) + 1 }
+            : {};
+
+        return this.#write({ ...changes, ...generation });
+    }
+
+    /** Update the target's observed state at the loaded revision, keeping its generation. */
+    async observe(changes: Readonly<Record<string, unknown>>): Promise<Record<string, unknown>> {
+        return this.#write(changes);
+    }
+
+    /** Delete the target at the loaded revision. */
+    async remove(): Promise<void> {
+        // delete only the revision the call loaded
+        const table = this.object.table as Table & Record<string, never>;
+        const target = this.target as Record<string, unknown>;
+        const deleted = await this.database
+            .delete(table)
+            .where(and(eq(table.id, target.id), eq(table.revision, target.revision)))
+            .returning({ id: table.id });
+        if (deleted.length === 0) {
+            throw new ServiceError("CONFLICT", {
+                message: `${this.object.name} revision has changed`,
+            });
+        }
+    }
+
+    /** Write changes to the target at the loaded revision. */
+    async #write(changes: Readonly<Record<string, unknown>>): Promise<Record<string, unknown>> {
         // update at the loaded revision
         const table = this.object.table as Table & Record<string, never>;
         const target = this.target as Record<string, unknown>;
@@ -273,9 +304,6 @@ export class Call<Definition extends Table = Table> {
             .set({
                 ...changes,
                 revision: (target.revision as number) + 1,
-                ...(Object.hasOwn(table[TABLE].columns, "generation")
-                    ? { generation: (target.generation as number) + 1 }
-                    : {}),
                 updatedAt: this.now,
             } as Partial<Insert<Table>>)
             .where(and(eq(table.id, target.id), eq(table.revision, target.revision)))

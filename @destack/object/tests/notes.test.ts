@@ -60,7 +60,7 @@ test.each(TEST_DIALECTS)(
         expect(edited.text).toBe("Three papers");
         await expect(
             bob.note.delete({ spaceId, id: filed.id, requestId: RequestId.create(), revision: 2 }),
-        ).rejects.toMatchObject({ code: "FORBIDDEN", message: "Forbidden" });
+        ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: manage" });
 
         // move a note only as its manager into an editable notebook
         await alice.note.move({
@@ -79,7 +79,7 @@ test.each(TEST_DIALECTS)(
                 revision: 2,
                 parentId: null,
             }),
-        ).rejects.toMatchObject({ code: "FORBIDDEN", message: "Forbidden" });
+        ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: manage" });
 
         // keep deleted notes restorable from the trash, and refuse changing them there
         await alice.note.delete({

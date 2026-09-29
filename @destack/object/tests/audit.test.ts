@@ -2,6 +2,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { Authorization, principal, relation, type AccessContext } from "@destack/access";
 import { AuditRecorder, defineAuditAction, type AuditEvent } from "@destack/audit";
 import { AuditHistory, auditTables } from "@destack/audit/history";
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
 import { type DatabaseConnection } from "@destack/db";
 import { Condition } from "@destack/db/query";
 import { defineDatabase } from "@destack/db/declare";
@@ -119,6 +120,7 @@ async function serveHistory(dialect: (typeof TEST_DIALECTS)[number]) {
             bookmark: new Bookmark(),
             observed: new Bookmark(),
             signal,
+            request: new Request("https://test.local", { signal }),
         } as unknown as ServiceContext;
     };
 
@@ -165,7 +167,7 @@ test.for(TEST_DIALECTS)(
         const { server, context, rename, history } = await serveHistory(dialect);
         const renamed = await rename("plan");
 
-        // hold the rename and the subscription's own attempt to watch the events
+        // hold the rename, the watch recording itself once it ends
         const controller = new AbortController();
         const pages = server.sync(SPACE_ID, context("owner", controller.signal), {
             queries: {
@@ -184,21 +186,27 @@ test.for(TEST_DIALECTS)(
         await server.query(event, "list", { spaceId: SPACE_ID }, context("owner"));
         await expect(
             server.query(event, "get", { spaceId: SPACE_ID, id: renamed.id }, context("stranger")),
-        ).rejects.toMatchObject({ code: "NOT_FOUND", message: "Not Found" });
+        ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no scope ${SPACE_ID}` });
         const recorded = await history.list({
             scope: SPACE_ID,
             limit: 100,
         });
-        const watching = recorded.items[1]!.event.id;
-        expect(held).toEqual([renamed.id, watching]);
-        expect(recorded.items.map(({ event: read }) => [read.action.name, read.result])).toEqual([
-            ["Document.rename", { stage: "result", outcome: "success" }],
-            ["Event.watch", { stage: "attempt" }],
-            ["Event.watch", { stage: "result", outcome: "cancelled", errorCode: "CANCELLED" }],
-            ["Event.list", { stage: "attempt" }],
-            ["Event.list", { stage: "result", outcome: "success" }],
-            ["Event.get", { stage: "attempt" }],
-            ["Event.get", { stage: "result", outcome: "failure", errorCode: "NOT_FOUND" }],
+        expect(held).toEqual([renamed.id]);
+        expect(
+            recorded.items.map(({ event: read }) => [read.action.name, read.category, read.result]),
+        ).toEqual([
+            ["Document.rename", "activity", { stage: "result", outcome: "success" }],
+            [
+                "Event.watch",
+                "access",
+                { stage: "result", outcome: "cancelled", errorCode: "CANCELLED" },
+            ],
+            ["Event.list", "access", { stage: "result", outcome: "success" }],
+            [
+                "Event.get",
+                "access",
+                { stage: "result", outcome: "failure", errorCode: "NOT_FOUND" },
+            ],
         ]);
     },
 );
@@ -222,9 +230,13 @@ const locker = defineObject({
 });
 
 test("name the version a read disclosed in its audit event, apart from its value", async () => {
-    const storage = await TestDatabase.create("sqlite", [...locker.tables, request], {
-        isMigrated: true,
-    });
+    const storage = await TestDatabase.create(
+        "sqlite",
+        [...auditOutboxTables, ...locker.tables, request],
+        {
+            isMigrated: true,
+        },
+    );
     onTestFinished(() => storage.close());
     const database = storage.database;
     await openSpace(database, SPACE_ID);
@@ -240,8 +252,7 @@ test("name the version a read disclosed in its audit event, apart from its value
         })
         .returning();
 
-    // record each audited read's attempt and result
-    const recorded: unknown[] = [];
+    // record each audited read in the outbox
     const handled = locker.handle({
         open: async (call) => ({ version: call.target!.version, value: "secret" }),
     });
@@ -254,20 +265,10 @@ test("name the version a read disclosed in its audit event, apart from its value
             attributes: {},
         }),
         journal: new Journal(request),
-        audit: () =>
-            ({
-                attempt: async (
-                    action: { name: string },
-                    values: { details: unknown },
-                    execute: () => Promise<unknown>,
-                    detail?: (value: unknown) => unknown,
-                ) => {
-                    const value = await execute();
-                    recorded.push([action.name, values.details, detail?.(value)]);
-
-                    return value;
-                },
-            }) as unknown as AuditRecorder<DatabaseConnection>,
+        audit: AuditRecorder.service(new AuditOutbox(database), {
+            package: locker.package,
+            service: "test",
+        }),
     });
     const context = {
         scope: SPACE_ID,
@@ -282,5 +283,10 @@ test("name the version a read disclosed in its audit event, apart from its value
             value: "secret",
         },
     );
-    expect(recorded).toEqual([["Locker.open", {}, { version: 3 }]]);
+    const recorded = await new AuditOutbox(database).read();
+    expect(
+        recorded.map((read) => [read.action.name, read.category, read.targets, read.details]),
+    ).toEqual([
+        ["Locker.open", "access", { locker: { type: "locker", id: row!.id } }, { version: 3 }],
+    ]);
 });

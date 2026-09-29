@@ -502,7 +502,7 @@ export function custom<
     readonly audit?: { readonly details: schema.Object<Record<string, schema.Schema>> };
     /** The inverse method name, or a function deriving inverse calls. */
     readonly inverse?: string | ((step: Step) => readonly sync.Call[] | undefined);
-}): Method<"custom", Permission, Input, Output, Mutates> {
+}): Method<"custom", Permission, Input, Output, NoInfer<Mutates>> {
     const mutates = (definition.mutates ?? true) as Mutates;
     const { inverse, ...declared } = definition;
 
@@ -683,12 +683,20 @@ async function requireCreatable(
         );
     }
 
-    // refuse readers, hide from others
+    // check whether the caller reads the object
     const reading = call.object.reading;
     const isReadable =
         reading !== undefined &&
         (await authorizer.checkRows(snapshot, reading, access, [row])).held.has(0);
-    throw new ServiceError(isReadable ? "FORBIDDEN" : "NOT_FOUND");
+
+    // refuse a reader
+    if (isReadable) {
+        throw new ServiceError("FORBIDDEN", { message: `permission denied: ${permission.name}` });
+    }
+    // hide the object from others
+    else {
+        throw new ServiceError("NOT_FOUND", { message: `${call.object.name} not found` });
+    }
 }
 
 /** Delete an object, or request deletion when a trash or controller finishes it. */
@@ -709,13 +717,7 @@ async function deleteObject(call: Call): Promise<Record<string, never>> {
     }
 
     // delete at the loaded revision
-    const deleted = await call.database
-        .delete(table)
-        .where(and(eq(table.id, target.id), eq(table.revision, target.revision)))
-        .returning({ id: table.id });
-    if (deleted.length === 0) {
-        throw new ServiceError("CONFLICT", { message: `${object.name} revision has changed` });
-    }
+    await call.remove();
 
     return {};
 }

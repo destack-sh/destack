@@ -4,10 +4,11 @@ import { Step } from "../method/step.ts";
 import { defineMethod, type Method } from "../method/method.ts";
 import type { Procedure, ReplayShape, TargetShape } from "../method/procedure.ts";
 import type { ObjectType } from "../object/object.ts";
-import { SequenceEdit } from "../sequence/sequence.ts";
+import { SequenceEdit } from "../sequence/index.ts";
 import { permission } from "@destack/access";
 import { ServiceError } from "@destack/service/error";
-import { Chunk, chunk, Edited, TEXT_READ } from "../text/chunk.ts";
+import { Chunk, Edited, TEXT_READ } from "../text/chunk.ts";
+import { chunk } from "../text/table.ts";
 import type { Trait } from "./trait.ts";
 
 /** The text fields of an object and the permission editing them. */

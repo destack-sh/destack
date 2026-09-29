@@ -1,3 +1,4 @@
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
 import { schema } from "@destack/schema";
 import { Condition } from "@destack/db/query";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -10,7 +11,7 @@ import {
     union,
     type ObjectReference,
 } from "@destack/access";
-import type { AuditRecorder } from "@destack/audit";
+import { AuditRecorder } from "@destack/audit";
 import { unique, type DatabaseConnection, type Dialect, type JsonValue } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { relayHub, TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -157,7 +158,7 @@ test.for(TEST_DIALECTS)(
                 },
                 activity: "viewing",
             }),
-        ).rejects.toMatchObject({ code: "NOT_FOUND", message: "Not Found" });
+        ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no board ${plans.id}` });
         const carol = west.follow("carol", "client-c");
         expect(await carol.rows()).toEqual([]);
 
@@ -218,6 +219,8 @@ test.for(TEST_DIALECTS)(
             ["alice", "client-a"],
             ["bob", "client-b"],
         ] as const) {
+            // keep each client streaming, so its presence stays past the linger
+            await east.follow(as, client).rows();
             await east.call(as, presence, "create", { client, parent, activity: "editing" });
         }
 
@@ -444,7 +447,10 @@ async function serveBoards(dialect: Dialect) {
     // hold the boards, their access and requests in one durable database
     const storage = await TestDatabase.create(
         dialect,
-        defineDatabase({ name: "main", tables: [request, ...board.tables, ...profile.tables] }),
+        defineDatabase({
+            name: "main",
+            tables: [...auditOutboxTables, request, ...board.tables, ...profile.tables],
+        }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
@@ -474,8 +480,10 @@ async function serveBoards(dialect: Dialect) {
                 attributes: {},
             }),
             journal: new Journal(request),
-            audit: () =>
-                ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
+            audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+                package: presence.package,
+                service: "test",
+            }),
         });
 
         return {
@@ -565,6 +573,7 @@ function context(as: string) {
             bookmark: new Bookmark(),
             observed: new Bookmark(),
             signal: controller.signal,
+            request: new Request("https://test.local", { signal: controller.signal }),
         } as unknown as ServiceContext,
     };
 }

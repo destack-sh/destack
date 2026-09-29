@@ -20,7 +20,8 @@
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
         "uuid": "14.0.2",
-        "@destack/sync": "workspace:*"
+        "@destack/sync": "workspace:*",
+        "@destack/telemetry": "workspace:*"
     },
     "devDependencies": {
         "@destack/resource": "workspace:*",

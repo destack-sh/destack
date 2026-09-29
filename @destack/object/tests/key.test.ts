@@ -1,7 +1,9 @@
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
+import { Snapshot } from "@destack/db/log";
 import { KeyIndex, ObjectServer } from "../src/server/index.ts";
-import { keyEntry } from "../src/index.ts";
+import { defineObject, field, keyEntry } from "../src/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import type { AuditRecorder } from "@destack/audit";
+import { AuditRecorder } from "@destack/audit";
 import type { DatabaseConnection, Dialect } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { PackageId } from "@destack/package";
@@ -14,7 +16,8 @@ import { RequestId } from "@destack/service/request";
 import { Server } from "@destack/service/server";
 import { v7 } from "uuid";
 import { profile, profilesDatabase, profilesJournal, profilesService } from "./fixture/profiles.ts";
-import { principal } from "@destack/access";
+import { GLOBAL_SCOPE, none, principal } from "@destack/access";
+import { copyScope } from "@destack/access/test";
 import { openSpace } from "./fixture/space.ts";
 
 /** The package serving the profiles. */
@@ -23,7 +26,9 @@ const audience = PackageId.parse("package-01a0d5eb-fb8a-74f4-ba37-8a4d6970e239")
 test.each(TEST_DIALECTS)(
     "keep handles unique across spaces in separate databases on %s",
     async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [keyEntry], { isMigrated: true });
+        const storage = await TestDatabase.create(dialect, [...auditOutboxTables, keyEntry], {
+            isMigrated: true,
+        });
         onTestFinished(() => storage.close());
         const index = new KeyIndex(storage.database);
         const east = await serveProfiles(dialect, index);
@@ -84,7 +89,9 @@ test.each(TEST_DIALECTS)(
 test.each(TEST_DIALECTS)(
     "follow writes outside the object server and finish expired reservations on %s",
     async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [keyEntry], { isMigrated: true });
+        const storage = await TestDatabase.create(dialect, [...auditOutboxTables, keyEntry], {
+            isMigrated: true,
+        });
         onTestFinished(() => storage.close());
         const index = new KeyIndex(storage.database);
         const east = await serveProfiles(dialect, index);
@@ -107,9 +114,11 @@ test.each(TEST_DIALECTS)(
             .insert(profile.table)
             .values({ ...row, id: identifier("profile").parse(`profile-${v7()}`) });
         const { changes } = await east.database.log.read({ tables: [profile.table], after });
-        await index.apply(profile, changes[0]!);
+        await index.apply(profile, changes[0]!, Snapshot.live(east.database));
         expect(await handle("carol")).toBe(changes[0]!.key.id);
-        await expect(index.apply(profile, changes[1]!)).rejects.toMatchObject({
+        await expect(
+            index.apply(profile, changes[1]!, Snapshot.live(east.database)),
+        ).rejects.toMatchObject({
             code: "CONFLICT",
             message: `handle of profile ${changes[1]!.key.id} is taken by ${changes[0]!.key.id}`,
         });
@@ -139,7 +148,9 @@ test.each(TEST_DIALECTS)(
 
         // finish through the controller
         const controller = index.controller({ database: east.database, objects: [profile] });
-        const again = await controller.reconcile("reservations");
+        const again = await controller.reconcile("reservations", {
+            signal: AbortSignal.timeout(5000),
+        });
         expect([controller.watches, await controller.list(), again! > 0 && again! <= 1000]).toEqual(
             [[profile.table], ["reservations"], true],
         );
@@ -160,13 +171,10 @@ async function serveProfiles(dialect: Dialect, index: KeyIndex) {
             journal: profilesJournal,
             database: storage.database,
             index,
-            audit: () =>
-                ({
-                    begin: () => ({}),
-                    append: async () => {},
-                    complete: () => ({}),
-                    record: async () => {},
-                }) as unknown as AuditRecorder<DatabaseConnection>,
+            audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+                package: profilesService.package,
+                service: "test",
+            }),
         }),
         audience,
         scope: spaceId,
@@ -200,3 +208,86 @@ async function serveProfiles(dialect: Dialect, index: KeyIndex) {
 
     return { spaceId, database: storage.database, alice: connect("alice"), bob: connect("bob") };
 }
+
+test.each(TEST_DIALECTS)(
+    "key an index within the enclosing scope it is unique across, and refuse one across an unrelated scope, on %s",
+    async (dialect) => {
+        // declare routes in folders of accounts, unique per account
+        const account = defineObject({
+            name: "account",
+            plural: "accounts",
+            scope: "global",
+            isScope: true,
+            fields: {},
+            permissions: { read: none() },
+        });
+        const folder = defineObject({
+            name: "folder",
+            plural: "folders",
+            scope: account,
+            isScope: true,
+            fields: {},
+            permissions: { read: none() },
+        });
+        const route = defineObject({
+            name: "route",
+            plural: "routes",
+            scope: folder,
+            fields: { path: field.string() },
+            indexes: { path: { on: ["path"], unique: true, across: account } },
+            permissions: { read: none() },
+        });
+
+        // record two folders of one account and one of another
+        const storage = await TestDatabase.create(
+            dialect,
+            [...auditOutboxTables, ...account.tables, ...folder.tables],
+            {
+                isMigrated: true,
+            },
+        );
+        onTestFinished(() => storage.close());
+        for (const [accountId, folderId] of [
+            ["account-1", "folder-1"],
+            ["account-1", "folder-2"],
+            ["account-2", "folder-3"],
+        ]) {
+            if (folderId !== "folder-2") {
+                await copyScope(storage.database, account.reference(GLOBAL_SCOPE, accountId!));
+            }
+            await copyScope(storage.database, folder.reference(accountId!, folderId!));
+        }
+
+        // key the same path in each folder
+        const snapshot = Snapshot.live(storage.database);
+        const keys = await Promise.all(
+            ["folder-1", "folder-2", "folder-3"].map(async (scope, position) =>
+                KeyIndex.keys(route, { id: `route-${position}`, scope, path: "/home" }, snapshot),
+            ),
+        );
+
+        // refuse an index across a scope that does not enclose the objects
+        const unrelated = () =>
+            defineObject({
+                name: "stray",
+                plural: "strays",
+                scope: account,
+                fields: { path: field.string() },
+                indexes: { path: { on: ["path"], unique: true, across: folder } },
+                permissions: { read: none() },
+            });
+
+        // one account's folders share a key, another account's folder keys apart
+        const index = keys[0]![0]!.index;
+        expect(keys).toEqual([
+            [{ index, key: '["account-1","/home"]', objectId: "route-0", scope: "folder-1" }],
+            [{ index, key: '["account-1","/home"]', objectId: "route-1", scope: "folder-2" }],
+            [{ index, key: '["account-2","/home"]', objectId: "route-2", scope: "folder-3" }],
+        ]);
+        expect(unrelated).toThrow(
+            new TypeError(
+                "index path of stray is unique within a scope enclosing its objects or across every scope",
+            ),
+        );
+    },
+);

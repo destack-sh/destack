@@ -1,6 +1,7 @@
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
 import { ObjectServer } from "../../src/server/index.ts";
 import { onTestFinished } from "@destack/test";
-import type { AuditRecorder } from "@destack/audit";
+import { AuditRecorder } from "@destack/audit";
 import { isNull, type DatabaseConnection, type Dialect } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../../src/client/index.ts";
@@ -35,13 +36,10 @@ export async function serveNotes(dialect: Dialect) {
         ...ObjectServer.serve(notesService, {
             journal: notesJournal,
             database,
-            audit: () =>
-                ({
-                    begin: () => ({}),
-                    append: async () => {},
-                    complete: () => ({}),
-                    record: async () => {},
-                }) as unknown as AuditRecorder<DatabaseConnection>,
+            audit: AuditRecorder.service(new AuditOutbox(database), {
+                package: notesService.package,
+                service: "test",
+            }),
         }),
         audience,
         scope: spaceId,

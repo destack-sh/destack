@@ -79,13 +79,16 @@ export const PUSH_MUTATIONS = 100;
 export const ClientId = schema.string().min(1).max(64);
 
 /** A query of one object type's rows in the scope a replica follows. */
-export const ObjectQuery = schema.object({
+export type ObjectQuery = Omit<ObjectInclude, "via"> & {
     /** The object type, by name. */
+    readonly object: string;
+};
+
+/** A query of one object type's rows in the scope a replica follows. */
+export const ObjectQuery: schema.Schema<ObjectQuery> = schema.object({
     object: schema.string().min(1),
     ...QueryShape,
-});
-/** A query of one object type's rows in the scope a replica follows. */
-export type ObjectQuery = schema.Infer<typeof ObjectQuery>;
+}) as schema.Schema<ObjectQuery>;
 
 /** The outcomes of a push and the watermark holding their changes. */
 export const PushResult = schema.object({

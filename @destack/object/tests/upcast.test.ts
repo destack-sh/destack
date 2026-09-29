@@ -1,6 +1,7 @@
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import type { AuditRecorder } from "@destack/audit";
+import { AuditRecorder } from "@destack/audit";
 import type { DatabaseConnection } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -48,7 +49,10 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const storage = await TestDatabase.create(
             dialect,
-            defineDatabase({ name: "main", tables: [request, ...card.tables] }),
+            defineDatabase({
+                name: "main",
+                tables: [...auditOutboxTables, request, ...card.tables],
+            }),
             { isMigrated: true },
         );
         onTestFinished(() => storage.close());
@@ -62,8 +66,10 @@ test.for(TEST_DIALECTS)(
                 attributes: {},
             }),
             journal: new Journal(request),
-            audit: () =>
-                ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
+            audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+                package: card.package,
+                service: "test",
+            }),
         });
         const context = {
             scope: spaceId,

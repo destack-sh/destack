@@ -1,5 +1,6 @@
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
-import type { AuditRecorder } from "@destack/audit";
+import { AuditRecorder } from "@destack/audit";
 import { eq, type DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import type { QueryPage } from "@destack/sync";
@@ -56,7 +57,10 @@ async function serveTasks(dialect: (typeof TEST_DIALECTS)[number]) {
             attributes: {},
         }),
         journal: new Journal(request),
-        audit: () => ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
+        audit: AuditRecorder.service(new AuditOutbox(database), {
+            package: task.package,
+            service: "test",
+        }),
     });
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
@@ -66,6 +70,7 @@ async function serveTasks(dialect: (typeof TEST_DIALECTS)[number]) {
         bookmark: new Bookmark(),
         observed: new Bookmark(),
         signal: controller.signal,
+        request: new Request("https://test.local", { signal: controller.signal }),
     } as unknown as ServiceContext;
     const execute = async (
         caller: string,

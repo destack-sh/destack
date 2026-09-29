@@ -1,3 +1,4 @@
+import { auditOutboxTables } from "@destack/audit/outbox";
 import { schema } from "@destack/schema";
 import { relation, through, union, principal } from "@destack/access";
 import { defineDatabase } from "@destack/db/declare";
@@ -88,5 +89,5 @@ export const notesJournal = defineJournal("journal");
 /** The database of one space's notebooks and notes. */
 export const notesDatabase = defineDatabase({
     name: "main",
-    tables: [...notebook.tables, ...note.tables, notesJournal],
+    tables: [...notebook.tables, ...note.tables, notesJournal, ...auditOutboxTables],
 });

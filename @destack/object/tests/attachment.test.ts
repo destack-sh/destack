@@ -1,7 +1,8 @@
 import { schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { intersection, principal, relation, through, union } from "@destack/access";
-import type { AuditRecorder } from "@destack/audit";
+import { AuditRecorder } from "@destack/audit";
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
 import { asc, eq, unique, type DatabaseConnection, type Dialect } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -162,11 +163,11 @@ test.for(TEST_DIALECTS)(
         ).rejects.toMatchObject({ code: "BAD_REQUEST", message: "task takes no remarks" });
         await expect(
             call(remark, "create", { ...host(article, missing), text: "Nope" }),
-        ).rejects.toMatchObject({ code: "NOT_FOUND", message: "Not Found" });
+        ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no article ${missing}` });
         as("bob");
         await expect(
             call(remark, "create", { ...host(article, draft.id), text: "Nope" }),
-        ).rejects.toMatchObject({ code: "NOT_FOUND", message: "Not Found" });
+        ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no article ${draft.id}` });
         as("alice");
 
         // include each article's remarks, and only its own, sharing identifiers with no photo
@@ -244,7 +245,7 @@ test.for(TEST_DIALECTS)(
         as("carol");
         await expect(call(favourite, "create", host(board, plans.id))).rejects.toMatchObject({
             code: "NOT_FOUND",
-            message: "Not Found",
+            message: `no board ${plans.id}`,
         });
 
         // hide a mark from a reader who lost the board, and delete the marks with the board
@@ -324,7 +325,11 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
         dialect,
         defineDatabase({
             name: "main",
-            tables: [request, ...Object.values(objects).flatMap((object) => object.tables)],
+            tables: [
+                ...auditOutboxTables,
+                request,
+                ...Object.values(objects).flatMap((object) => object.tables),
+            ],
         }),
         { isMigrated: true },
     );
@@ -342,7 +347,10 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
             attributes: {},
         }),
         journal: new Journal(request),
-        audit: () => ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
+        audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+            package: Object.values(objects)[0]!.package,
+            service: "test",
+        }),
     });
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
@@ -352,6 +360,7 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
         bookmark: new Bookmark(),
         observed: new Bookmark(),
         signal: controller.signal,
+        request: new Request("https://test.local", { signal: controller.signal }),
     } as unknown as ServiceContext;
 
     return {

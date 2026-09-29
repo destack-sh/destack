@@ -1,4 +1,5 @@
 import {
+    AccessFollower,
     Authorizer,
     objectKey,
     principalOf,
@@ -9,6 +10,7 @@ import {
     Policy,
     type Access,
     type TableMapping,
+    type AccessRelay,
     Scope,
     type ScopeLink,
 } from "@destack/access";
@@ -26,7 +28,12 @@ import { Condition } from "@destack/db/query";
 import { DatabaseError } from "@destack/db/error";
 import { schema } from "@destack/schema";
 import type { Watermark } from "@destack/service/bookmark";
-import { Journal, Outcome, type defineJournal } from "@destack/service/database";
+import {
+    CompactionController,
+    Journal,
+    Outcome,
+    type defineJournal,
+} from "@destack/service/database";
 import { ServiceError } from "@destack/service/error";
 import { RequestFingerprint, type RequestIdentity } from "@destack/service/request";
 import { v7 } from "uuid";
@@ -61,14 +68,15 @@ import { tracked } from "../trait/tracked.ts";
 import { recoverable } from "../trait/recoverable.ts";
 import { expiring } from "../trait/expiring.ts";
 import { addressed } from "../trait/addressed.ts";
-import type { Controller } from "@destack/service/control";
+import type { Controller, Follower } from "@destack/service/control";
 import { Settlement } from "./settlement.ts";
+import { telemetry } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 
+/** The object call spans. */
+const { span } = telemetry.scope(import.meta.destack.package);
 /** The reserved name of the query following a caller's journal entries. */
 const JOURNAL_QUERY = "#journal";
-
-/** The name of the query following a scope's own object. */
-const SCOPE_QUERY = "#scope";
 
 /** The recent pages sharing grant readers: 64 readers of a few KiB, well under a megabyte. */
 const SHARED_READERS = 64;
@@ -134,6 +142,8 @@ export class ObjectServer<
     readonly #audit: (scope: string, context?: ServiceContext) => AuditRecorder<DatabaseConnection>;
     /** Report failed settlements. */
     readonly #report: (error: unknown) => void;
+    /** Whether reads of the objects record access events. */
+    readonly isAccessAudited: boolean;
     /** The shared grant readers, by scope and page position. */
     readonly #readers = new Map<string, GrantReader>();
     /** The input schemas of pushed calls, by method. */
@@ -151,8 +161,8 @@ export class ObjectServer<
         readonly policies?: readonly (Policy | ObjectType | TableMapping)[];
         /** The database holding the objects. */
         readonly database: DatabaseConnection;
-        /** Derive a request's verified authorization inputs within a scope. */
-        readonly context: (context: ServiceContext, scope: string) => AccessContext;
+        /** Derive a request's verified authorization inputs within a scope, the request's own access by default. */
+        readonly context?: (context: ServiceContext, scope: string) => AccessContext;
         /** The record of every mutation executed. */
         readonly journal: Journal;
         /** The key index, in another database. */
@@ -166,6 +176,8 @@ export class ObjectServer<
         ) => AuditRecorder<DatabaseConnection>;
         /** Report failed settlements, thrown when absent. */
         readonly report?: (error: unknown) => void;
+        /** Whether reads of the objects record access events, as the space's audit setting asks. */
+        readonly isAccessAudited?: boolean;
     }) {
         // require each object type under its own name
         for (const [key, object] of Object.entries(options.objects)) {
@@ -207,14 +219,16 @@ export class ObjectServer<
             this.ephemeral = options.ephemeral;
         }
 
-        // build the authorizer and the feed
+        // build the authorizer over the objects and every scope type enclosing them, and the feed
         const others = options.policies ?? [];
         this.database = options.database;
         this.authorizer = new Authorizer(
             [
                 ...this.objects.flatMap((object) => [
                     object.policy,
-                    ...object.scopes.map((scope) => scope.policy),
+                    ...object.scopes
+                        .flatMap((scope) => [scope, ...scope.ancestors])
+                        .map((scope) => scope.policy),
                 ]),
                 ...others.map((other) => (other instanceof Policy ? other : other.policy)),
             ],
@@ -229,8 +243,9 @@ export class ObjectServer<
         );
         tracked.require(this.objects, this.authorizer);
         this.journal = options.journal;
-        this.#context = options.context;
+        this.#context = options.context ?? ((context, scope) => context.access(scope));
         this.#audit = options.audit;
+        this.isAccessAudited = options.isAccessAudited ?? false;
         this.#report =
             options.report ??
             ((error) => {
@@ -266,27 +281,44 @@ export class ObjectServer<
             readonly index?: KeyIndex;
             /** The memory store holding the ephemeral objects. */
             readonly ephemeral?: EphemeralStorage;
+            /** Further controllers running alongside the objects'. */
+            readonly controllers?: readonly (Controller | Follower)[];
+            /** The relay of the access of the objects' space and the scopes containing it, which the database copies. */
+            readonly access?: AccessRelay;
         },
     ): ServiceImplementation {
         // serve the service's objects
         const objects = new ObjectServer({
             objects: service.objects as Readonly<Record<string, ObjectType>>,
             database: options.database,
-            context: (context: ServiceContext) => context.access(),
             audit: options.audit,
             journal: new Journal(options.journal),
             ...(options.index === undefined ? {} : { index: options.index }),
             ...(options.ephemeral === undefined ? {} : { ephemeral: options.ephemeral }),
         });
 
+        // copy the space's access alongside the further controllers
+        const followers =
+            options.access === undefined
+                ? []
+                : [new AccessFollower(options.database, objects.authorizer.held, options.access)];
+
+        return objects.implement(service, [...followers, ...(options.controllers ?? [])]);
+    }
+
+    /** Implement a service with the served objects' access, audit, controllers and router, running further controllers alongside. */
+    implement(
+        service: Service,
+        controllers: readonly (Controller | Follower)[] = [],
+    ): ServiceImplementation {
         return {
             service,
-            access: objects.access,
+            access: this.access,
             audit: AuditRecorder.procedure(({ context }) =>
-                options.audit(context.scope ?? GLOBAL_SCOPE, context),
+                this.#audit(context.scope ?? GLOBAL_SCOPE, context),
             ),
-            controllers: objects.controllers(),
-            router: objects.router(),
+            controllers: [...this.controllers(), ...controllers],
+            router: this.router(),
         };
     }
 
@@ -438,7 +470,7 @@ export class ObjectServer<
             );
 
         // read unaudited objects directly
-        if (!object.isReadAudited && method.audited !== true) {
+        if (!object.isReadAudited && method.audited !== true && !this.isAccessAudited) {
             return read();
         }
         // record the read of one object
@@ -448,7 +480,7 @@ export class ObjectServer<
             };
             const details = method.audit?.details;
 
-            return this.#audit(scope, context).attempt(
+            return this.#audit(scope, context).read(
                 object.audit(name),
                 { targets: target, details: {} },
                 read,
@@ -464,7 +496,7 @@ export class ObjectServer<
         }
         // record the read of the scope's collection
         else {
-            return this.#audit(scope, context).attempt(
+            return this.#audit(scope, context).read(
                 object.audit(name, "collection"),
                 collection(object, scope),
                 read,
@@ -673,21 +705,17 @@ export class ObjectServer<
                       },
                   };
 
-        // follow the scope's own object
-        const scoped = this.#scoped(audience.scope);
-        const compiled = {
-            ...ObjectType.queries(this.#durable, queries, scope),
-            ...scoped,
-            ...journal,
-        };
+        // follow the queries beside the journal
+        const compiled = { ...ObjectType.queries(this.#durable, queries, scope), ...journal };
         const earlier =
             previous === undefined
                 ? undefined
-                : { ...ObjectType.queries(this.#durable, previous, scope), ...scoped, ...journal };
+                : { ...ObjectType.queries(this.#durable, previous, scope), ...journal };
         const table = this.journal.table[TABLE].sqlName;
         const follow = async function* (feed: sync.Feed): AsyncGenerator<sync.QueryPage> {
-            for await (const page of feed.subscribe(compiled, after, context.signal, {
+            for await (const page of feed.subscribe(compiled, after, context.request.signal, {
                 audience,
+                drain: context.signal,
                 ...(earlier === undefined ? {} : { previous: earlier }),
                 ...(refresh === undefined ? {} : { every: Duration.milliseconds(refresh.every) }),
             })) {
@@ -698,7 +726,7 @@ export class ObjectServer<
         // audit watching each audited object type
         const tables = new Set(Object.values(compiled).flatMap(tablesOf));
         const audited = this.objects.filter(
-            (object) => object.isReadAudited && tables.has(object.table),
+            (object) => (object.isReadAudited || this.isAccessAudited) && tables.has(object.table),
         );
         const pages = audited.reduce(
             (source, object) => () =>
@@ -734,29 +762,32 @@ export class ObjectServer<
         try {
             let position = after;
             while (!context.signal.aborted) {
-                // open the audience and watch access rows
+                // open the audience and watch access rows until the request closes or access changes
                 const revised = new AbortController();
-                const signal = AbortSignal.any([context.signal, revised.signal]);
+                const signal = AbortSignal.any([context.request.signal, revised.signal]);
                 const since = (await this.database.log.position()).sequence;
                 const audience = await ObjectAudience.open(this, scope, context, "ephemeral");
                 const { authorization, chain } = audience;
                 const tables = this.authorizer.watch(chain).map((watch) => watch.table);
                 let failure: unknown;
                 const watching = (async () => {
-                    for await (const _ of this.database.log.follow(
+                    for await (const page of this.database.log.follow(
                         { tables, scopes: chain, after: since },
                         signal,
                     )) {
-                        revised.abort();
+                        if (page.changes.length > 0) {
+                            revised.abort();
+                        }
                     }
                 })().catch((error: unknown) => {
                     failure = error;
                     revised.abort();
                 });
 
-                // follow until access changes
+                // follow until access changes, or to a completed page once the caller lapses
                 const pages = store.feed.subscribe(compiled, position, signal, {
                     audience,
+                    drain: context.signal,
                     ...(earlier === undefined ? {} : { previous: earlier }),
                     ...(refresh === undefined
                         ? {}
@@ -797,11 +828,56 @@ export class ObjectServer<
         const reference = { ...target, scope };
         const authorization = await this.admit(this.database, scope, context);
         if (!(await this.#lists(authorization, reference))) {
-            throw new ServiceError("NOT_FOUND", { message: `${target.type} not found` });
+            throw new ServiceError("NOT_FOUND", { message: `no ${target.type} ${target.id}` });
         }
 
         // send it to the scope's streams
         store.tracker.broadcast(scope, { ...reference, event });
+    }
+
+    /** Find the served copy of an object type, which carries the server's handlers. */
+    served<Type extends ObjectType>(object: Type): Type {
+        const found = this.objects.find((served) => served.same(object));
+        if (found === undefined) {
+            throw new TypeError(`object server serves no ${object.name}`);
+        }
+
+        return found as Type;
+    }
+
+    /** Execute one system call inside an open transaction, returning its result. */
+    async invoke(
+        transaction: DatabaseConnection,
+        scope: string,
+        object: ObjectType,
+        name: string,
+        input: Readonly<Record<string, unknown>>,
+        now: number,
+    ): Promise<unknown> {
+        // refuse external work, which an open transaction cannot settle
+        const method = (this.served(object).methods as Readonly<Record<string, Method>>)[name];
+        if (method?.isSystem !== true || method.prepare !== undefined) {
+            throw new TypeError(`${object.name}.${name} is no system method without external work`);
+        }
+
+        // guard the scope, then execute as the system
+        const authorization = await SystemAuthorization.open(
+            this.authorizer,
+            transaction,
+            scope,
+            now,
+        );
+        await guard(transaction, authorization, scope);
+
+        return this.#execute(
+            transaction,
+            authorization,
+            object,
+            name,
+            scoped(object, input, scope),
+            undefined,
+            undefined,
+        );
     }
 
     /** Execute system calls in one transaction, returning each call's result. */
@@ -811,8 +887,9 @@ export class ObjectServer<
         calls: readonly SystemCall[],
         now: number,
     ): Promise<unknown[]> {
-        // build each call as the system
-        const method = (object.methods as Readonly<Record<string, Method>>)[name]!;
+        // build each call as the system, on the served type
+        const served = this.served(object);
+        const method = (served.methods as Readonly<Record<string, Method>>)[name]!;
         const systems = new Map<string, Promise<SystemAuthorization>>();
         const system = (database: DatabaseConnection, scope: string) => {
             // reuse the authorization per database and scope
@@ -827,16 +904,19 @@ export class ObjectServer<
             return opened;
         };
         const calling = async (database: DatabaseConnection, entry: SystemCall) => {
+            // identify the target, or the creation's chosen identifier
             const authorization = await system(database, entry.scope);
             const target = entry.target;
+            const id = target === undefined ? entry.id : String(target.id);
 
             return new Call({
-                object,
+                object: served,
                 name,
                 method,
                 scope: entry.scope,
                 input: entry.input ?? {},
-                ...(target === undefined ? {} : { id: String(target.id), target: target as never }),
+                ...(id === undefined ? {} : { id }),
+                ...(target === undefined ? {} : { target: target as never }),
                 database,
                 now,
                 isPredicted: false,
@@ -876,6 +956,12 @@ export class ObjectServer<
         const results: unknown[] = [];
         try {
             reservation = await this.database.transaction(async (transaction) => {
+                // guard each scope chain and refuse moved scopes, as pushes do
+                for (const scope of new Set(calls.map((entry) => entry.scope))) {
+                    await guard(transaction, await system(transaction, scope), scope);
+                }
+
+                // execute each call
                 for (const [index, entry] of calls.entries()) {
                     const call = await calling(transaction, entry);
                     const work = prepared[index];
@@ -889,9 +975,9 @@ export class ObjectServer<
                     );
                     results.push(result);
                     const id = call.id ?? Call.resultId(result);
-                    await this.#audit(call.scope).record(transaction, object.audit(name), {
+                    await this.#audit(call.scope).record(transaction, served.audit(name), {
                         targets: {
-                            [object.auditTarget]:
+                            [served.auditTarget]:
                                 id === undefined
                                     ? { type: "scope", id: call.scope }
                                     : { type: object.name, id },
@@ -901,6 +987,7 @@ export class ObjectServer<
                     });
                 }
 
+                // commit the external work and reserve unique keys
                 await this.#commit(transaction, prepared);
 
                 return this.index?.reserve(transaction, this.objects, crypto.randomUUID(), now);
@@ -921,7 +1008,7 @@ export class ObjectServer<
 
     /** List the controllers the served objects need. */
     controllers(): readonly Controller[] {
-        // pick the needed controllers
+        // compact the log, and pick the controllers the objects need
         const isRecoverable = this.objects.some((object) => object.recoverable !== undefined);
         const isExpiring = this.objects.some((object) => object.expiring !== undefined);
         const isSettled = this.objects.some((object) =>
@@ -931,6 +1018,7 @@ export class ObjectServer<
         );
 
         return [
+            new CompactionController(this.database),
             ...(this.index === undefined ? [] : [this.index.controller(this)]),
             ...(isRecoverable ? [recoverable.controller(this)] : []),
             ...(isExpiring ? [expiring.controller(this)] : []),
@@ -1004,7 +1092,9 @@ export class ObjectServer<
     async #enter(context: ServiceContext, scope: string): Promise<void> {
         // require the pinned scope
         if (context.scope !== undefined && context.scope !== scope) {
-            throw new ServiceError("NOT_FOUND");
+            throw new ServiceError("NOT_FOUND", {
+                message: `scope ${scope} is outside the pinned scope`,
+            });
         }
 
         // wait for observed writes
@@ -1227,14 +1317,19 @@ export class ObjectServer<
         readonly name: string;
         readonly input: Record<string, unknown>;
     } {
-        // find the object type and method
+        // find the object type and a method clients may call
         const separator = entry.method.lastIndexOf(".");
         const served = this.#schemas.get(entry.method.slice(0, separator));
         const name = entry.method.slice(separator + 1);
         const method = (served?.object.methods as Readonly<Record<string, Method>> | undefined)?.[
             name
         ];
-        if (!served || method === undefined || (mutates && !method.mutates)) {
+        if (
+            !served ||
+            method === undefined ||
+            method.isSystem === true ||
+            (mutates && !method.mutates)
+        ) {
             throw new ServiceError("BAD_REQUEST", {
                 message: `no ${mutates ? "mutating " : ""}method ${entry.method}`,
             });
@@ -1264,21 +1359,6 @@ export class ObjectServer<
         }
 
         return { object: served.object, name, input: parsed.data as Record<string, unknown> };
-    }
-
-    /** Compile the query of a scope's own object. */
-    #scoped(own: ObjectReference | undefined): Record<string, sync.Query> {
-        const object =
-            own === undefined ? undefined : this.objects.find((entry) => entry.policy.is(own));
-
-        return own === undefined || object?.listing === undefined
-            ? {}
-            : {
-                  [SCOPE_QUERY]: {
-                      ...object.query({ where: Condition.eq("id", own.id) }, this.objects),
-                      scopes: [own.scope],
-                  },
-              };
     }
 
     /** Read the scope a call names in its route field. */
@@ -1335,12 +1415,12 @@ export class ObjectServer<
             throw new ServiceError("CONFLICT", { message: `${object.name} revision has changed` });
         }
 
-        // refuse other methods on a trashed object
+        // refuse callers' other methods on a trashed object
         const isTrashed =
             object.recoverable !== undefined &&
             target !== undefined &&
             (target as Record<string, unknown>).deletionRequestedAt !== null;
-        if (isTrashed && !TRASH_METHODS.has(method.kind)) {
+        if (isTrashed && !TRASH_METHODS.has(method.kind) && method.isSystem !== true) {
             throw new ServiceError("CONFLICT", { message: `${object.name} is in the trash` });
         }
 
@@ -1458,8 +1538,8 @@ export class ObjectServer<
         }
     }
 
-    /** Execute, redact and audit one call. */
-    async #execute(
+    /** Execute, redact and audit one call in its own span. */
+    #execute(
         transaction: DatabaseConnection,
         authorization: Authorization,
         object: ObjectType,
@@ -1470,14 +1550,48 @@ export class ObjectServer<
         from?: LogPosition,
         client?: string,
     ): Promise<unknown> {
-        // build the call
+        const attributes = { "destack.object.type": object.name, "destack.object.method": name };
+
+        return span("object.call", attributes, () =>
+            this.#perform(
+                transaction,
+                authorization,
+                object,
+                name,
+                input,
+                context,
+                prepared,
+                from,
+                client,
+            ),
+        );
+    }
+
+    /** Execute, redact and audit one call. */
+    async #perform(
+        transaction: DatabaseConnection,
+        authorization: Authorization,
+        object: ObjectType,
+        name: string,
+        input: Record<string, unknown>,
+        context: ServiceContext | undefined,
+        prepared: Prepared,
+        from?: LogPosition,
+        client?: string,
+    ): Promise<unknown> {
+        // build the call on the served type, whose handlers run
         const { call, method, scope, targetId } = await this.#call(
             transaction,
             authorization,
-            object,
+            this.served(object),
             name,
             input,
         );
+        span.current()?.setAttributes({
+            "destack.scope": scope,
+            ...(targetId === undefined ? {} : { "destack.object.id": targetId }),
+        });
+
         // run invoked system methods as the system
         let system: Promise<SystemAuthorization> | undefined;
         const called = call.with({
@@ -1580,6 +1694,20 @@ function scoped(
     return field === undefined ? { ...input } : { ...input, [field]: scope };
 }
 
+/** Guard a scope chain against moves for the transaction, and refuse a moved scope. */
+async function guard(
+    transaction: DatabaseConnection,
+    authorization: Authorization,
+    scope: string,
+): Promise<void> {
+    const chain = await Scope.chain(Snapshot.live(transaction), scope);
+    await Scope.guard(
+        transaction,
+        chain.map((link) => link.object.id),
+    );
+    authorization.requireUnmoved();
+}
+
 /** Convert capacity failures to service failures. */
 function serviceFailure(error: unknown): unknown {
     return error instanceof sync.SyncError
@@ -1671,10 +1799,16 @@ function settled(change: sync.RowChange): sync.MutationOutcome[] {
 /** Build system calls. */
 export const SystemCall = {
     /** Call on an existing object's row, in its scope. */
-    of(row: Readonly<Record<string, unknown>>): SystemCall {
-        return { scope: String(row.scope), target: row };
+    of(
+        row: Readonly<Record<string, unknown>>,
+        input?: Readonly<Record<string, unknown>>,
+    ): SystemCall {
+        return { scope: String(row.scope), target: row, ...(input === undefined ? {} : { input }) };
     },
 };
+
+/** The parts of an object server that run system calls. */
+export type SystemServer = Pick<ObjectServer, "database" | "executeAsSystem">;
 
 /** One call the system makes. */
 export interface SystemCall {
@@ -1682,6 +1816,8 @@ export interface SystemCall {
     readonly scope: string;
     /** The object the call acts on, absent for a creation or a call on the collection. */
     readonly target?: Readonly<Record<string, unknown>>;
+    /** The identifier a creation takes, minted when absent. */
+    readonly id?: string;
     /** The method's input. */
     readonly input?: Readonly<Record<string, unknown>>;
 }

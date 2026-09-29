@@ -1,6 +1,7 @@
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
 import { ObjectServer } from "../src/server/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import type { AuditRecorder } from "@destack/audit";
+import { AuditRecorder } from "@destack/audit";
 import { isNull, type DatabaseConnection, type Dialect } from "@destack/db";
 import { Condition } from "@destack/db/query";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -36,13 +37,10 @@ async function servePages(dialect: Dialect) {
         ...ObjectServer.serve(pagesService, {
             journal: pagesJournal,
             database,
-            audit: () =>
-                ({
-                    begin: () => ({}),
-                    append: async () => {},
-                    complete: () => ({}),
-                    record: async () => {},
-                }) as unknown as AuditRecorder<DatabaseConnection>,
+            audit: AuditRecorder.service(new AuditOutbox(database), {
+                package: pagesService.package,
+                service: "test",
+            }),
         }),
         audience,
         scope: spaceId,
@@ -149,7 +147,7 @@ test.each(TEST_DIALECTS)(
         const week = await create("First week", onboarding.id);
         await expect(bob.page.get({ spaceId, id: week.id })).rejects.toMatchObject({
             code: "NOT_FOUND",
-            message: "Not Found",
+            message: `no page ${week.id}`,
         });
         await expect(
             bob.page.create({
@@ -158,7 +156,7 @@ test.each(TEST_DIALECTS)(
                 parentId: week.id,
                 title: "Spam",
             }),
-        ).rejects.toMatchObject({ code: "NOT_FOUND", message: "Not Found" });
+        ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no page ${week.id}` });
 
         // share the tree's root: editors edit every subpage but may not delete or move them
         await alice.page.grant({
@@ -184,7 +182,7 @@ test.each(TEST_DIALECTS)(
                 revision: week.revision,
                 parentId: null,
             }),
-        ).rejects.toMatchObject({ code: "FORBIDDEN", message: "Forbidden" });
+        ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: manage" });
 
         // move a subtree out of the shared tree, and refuse moving a page into its own subtree
         await alice.page.move({
@@ -196,7 +194,7 @@ test.each(TEST_DIALECTS)(
         });
         await expect(bob.page.get({ spaceId, id: week.id })).rejects.toMatchObject({
             code: "NOT_FOUND",
-            message: "Not Found",
+            message: `no page ${week.id}`,
         });
         await expect(
             alice.page.move({
@@ -228,7 +226,7 @@ test.each(TEST_DIALECTS)(
         ).toEqual(["Handbook", "Onboarding", "Tools"]);
         await expect(connect({}).page.get({ spaceId, id: handbook.id })).rejects.toMatchObject({
             code: "NOT_FOUND",
-            message: "Not Found",
+            message: `no page ${handbook.id}`,
         });
         await expect(
             visitor.page.update({
@@ -238,7 +236,7 @@ test.each(TEST_DIALECTS)(
                 revision: tools.revision,
                 title: "Defaced",
             }),
-        ).rejects.toMatchObject({ code: "UNAUTHORIZED", message: "Unauthorized" });
+        ).rejects.toMatchObject({ code: "UNAUTHORIZED", message: "missing caller credential" });
 
         // explain to the owner why a reader may not edit
         const why = await alice.page.explain({

@@ -1,7 +1,8 @@
 import type { Change } from "@destack/db/log";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import type { AuditRecorder } from "@destack/audit";
+import { AuditRecorder } from "@destack/audit";
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
 import { eq, type DatabaseConnection } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -14,6 +15,7 @@ import { defineObject, field, method, type ObjectType } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { recoverable } from "../src/trait/recoverable.ts";
 import { openSpace, space } from "./fixture/space.ts";
+import { auditedActions } from "./fixture/audit.ts";
 
 /** The space containing the credentials. */
 const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -46,7 +48,7 @@ const journal = defineJournal("journal");
 /** The database holding the credentials, their access and the journal. */
 const credentialDatabase = defineDatabase({
     name: "main",
-    tables: [journal, ...credential.tables],
+    tables: [...auditOutboxTables, journal, ...credential.tables],
 });
 
 test.each(TEST_DIALECTS)(
@@ -74,7 +76,6 @@ test.each(TEST_DIALECTS)(
             { days: 7 },
         );
         let current = "user-1";
-        const purges: string[] = [];
         const serve = (object: ObjectType) =>
             new ObjectServer({
                 objects: { credential: object },
@@ -85,15 +86,10 @@ test.each(TEST_DIALECTS)(
                     attributes: {},
                 }),
                 journal: new Journal(journal),
-                audit: (_scope, context) =>
-                    ({
-                        record: async (_database: DatabaseConnection, action: { name: string }) => {
-                            // note the system's purges
-                            if (context === undefined) {
-                                purges.push(action.name);
-                            }
-                        },
-                    }) as unknown as AuditRecorder<DatabaseConnection>,
+                audit: AuditRecorder.service(new AuditOutbox(database), {
+                    package: credential.package,
+                    service: "test",
+                }),
             });
         const context = {
             scope: spaceId,
@@ -129,7 +125,7 @@ test.each(TEST_DIALECTS)(
         await execute(handled, "delete", { id: created.id, revision: restored.revision });
         await expect(execute(handled, "purge", { id: created.id })).rejects.toMatchObject({
             code: "FORBIDDEN",
-            message: "Forbidden",
+            message: "permission denied: purge",
         });
 
         // refuse a record-keeping purge without a handler destroying the content
@@ -178,7 +174,7 @@ test.each(TEST_DIALECTS)(
             await recoverable.purge(server, later),
             await recoverable.purge(server, later),
         ]).toEqual([1, 0]);
-        expect(purges).toEqual(["Credential.purge"]);
+        expect(await auditedActions(database, "system")).toEqual(["Credential.purge"]);
         const [kept] = await database
             .select({ value: credential.table.value, purgedAt: credential.table.purgedAt })
             .from(credential.table)
@@ -190,13 +186,13 @@ test.each(TEST_DIALECTS)(
         const pending = await execute(handled, "create", { custodian: "user-2", value: "later" });
         await execute(handled, "delete", { id: pending.id, revision: pending.revision });
         const week = 7 * 24 * 60 * 60 * 1000;
-        const delay = await controller.reconcile("trash");
+        const delay = await controller.reconcile("trash", { signal: AbortSignal.timeout(5000) });
         const change = (before: object, after: object) =>
             ({ operation: "update", before, after }) as unknown as Change;
         expect([
             controller.watches,
-            controller.keys(change({ deletionRequestedAt: null }, { deletionRequestedAt: 1 })),
-            controller.keys(change({ value: "old" }, { value: "new", deletionRequestedAt: null })),
+            controller.keys!(change({ deletionRequestedAt: null }, { deletionRequestedAt: 1 })),
+            controller.keys!(change({ value: "old" }, { value: "new", deletionRequestedAt: null })),
             await controller.list(),
             delay! > week - 60_000 && delay! <= week,
         ]).toEqual([[handled.table], ["trash"], [], ["trash"], true]);
@@ -204,8 +200,13 @@ test.each(TEST_DIALECTS)(
             .update(credential.table)
             .set({ deletionRequestedAt: Date.now() - week - 1 })
             .where(eq(credential.table.id, pending.id));
-        expect(await controller.reconcile("trash")).toBeUndefined();
-        expect(purges).toEqual(["Credential.purge", "Credential.purge"]);
+        expect(
+            await controller.reconcile("trash", { signal: AbortSignal.timeout(5000) }),
+        ).toBeUndefined();
+        expect(await auditedActions(database, "system")).toEqual([
+            "Credential.purge",
+            "Credential.purge",
+        ]);
     },
 );
 

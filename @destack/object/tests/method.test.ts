@@ -1,7 +1,8 @@
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { ServiceError } from "@destack/service/error";
 import type { Subject } from "@destack/access";
-import type { AuditRecorder } from "@destack/audit";
+import { AuditRecorder } from "@destack/audit";
 import { type DatabaseConnection, type Dialect, eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier, schema } from "@destack/schema";
@@ -24,6 +25,7 @@ import { describeObject } from "../src/inspect/index.ts";
 import { comment, folder, objectDatabase, request, task, taskVersion } from "./schema.ts";
 import { principal } from "@destack/access";
 import { openSpace, space } from "./fixture/space.ts";
+import { auditedActions } from "./fixture/audit.ts";
 
 /** The space containing the tasks. */
 const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -141,7 +143,10 @@ test.each(TEST_DIALECTS)(
                     database,
                     context: () => as("user-1"),
                     journal: new Journal(request),
-                    audit: () => ({}) as AuditRecorder<DatabaseConnection>,
+                    audit: AuditRecorder.service(new AuditOutbox(database), {
+                        package: task.package,
+                        service: "test",
+                    }),
                 }),
         ).toThrow(new TypeError("object replica takes the name of the shared replica procedures"));
 
@@ -174,7 +179,7 @@ test.each(TEST_DIALECTS)(
         ).toEqual(["Write the plan"]);
 
         // audit each creation once
-        expect(events).toEqual(["Task.create", "Task.create", "Task.create"]);
+        expect(await events()).toEqual(["Task.create", "Task.create", "Task.create"]);
     },
 );
 
@@ -192,7 +197,7 @@ test.each(TEST_DIALECTS)(
         expect(((await execute("list", {})) as { items: unknown[] }).items).toEqual([]);
         await expect(execute("get", { id: created.id })).rejects.toMatchObject({
             code: "NOT_FOUND",
-            message: "Not Found",
+            message: `no task ${created.id}`,
         });
         await expect(
             execute("update", {
@@ -201,7 +206,7 @@ test.each(TEST_DIALECTS)(
                 revision: created.revision,
                 title: "Taken",
             }),
-        ).rejects.toMatchObject({ code: "NOT_FOUND", message: "Not Found" });
+        ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no task ${created.id}` });
         act("user-1");
 
         // update at the observed revision and reject a stale one
@@ -235,7 +240,7 @@ test.each(TEST_DIALECTS)(
         ]);
 
         // audit each change once
-        expect(events).toEqual(["Task.create", "Task.update"]);
+        expect(await events()).toEqual(["Task.create", "Task.update"]);
     },
 );
 
@@ -295,7 +300,7 @@ test.each(TEST_DIALECTS)(
         act("user-2");
         await expect(execute("get", { id: created.id })).rejects.toMatchObject({
             code: "NOT_FOUND",
-            message: "Not Found",
+            message: `no task ${created.id}`,
         });
         act("user-1");
 
@@ -329,7 +334,7 @@ test.each(TEST_DIALECTS)(
         })) as { id: string };
         await expect(execute("get", { id: created.id })).rejects.toMatchObject({
             code: "NOT_FOUND",
-            message: "Not Found",
+            message: `no task ${created.id}`,
         });
         await expect(
             execute("accept", {
@@ -427,7 +432,7 @@ test.each(TEST_DIALECTS)(
         delegate(undefined);
 
         // audit each change once
-        expect(events).toEqual([
+        expect(await events()).toEqual([
             "Task.create",
             "Task.grant",
             "Task.revoke",
@@ -513,7 +518,7 @@ test.each(TEST_DIALECTS)(
         await execute("reopen", { id: created.id, requestId: RequestId.create() });
 
         // audit each change once
-        expect(events).toEqual([
+        expect(await events()).toEqual([
             "Task.create",
             "Task.update",
             "Task.grant",
@@ -591,7 +596,7 @@ test.each(TEST_DIALECTS)(
         await execute("purge", { id: created.id, requestId: RequestId.create() });
         await expect(execute("get", { id: created.id })).rejects.toMatchObject({
             code: "NOT_FOUND",
-            message: "Not Found",
+            message: `no task ${created.id}`,
         });
 
         // purge the trash once the recovery window passes
@@ -616,8 +621,8 @@ test.each(TEST_DIALECTS)(
         expect(await recoverable.purge(server, Date.now() + 60_000)).toBe(100);
 
         // audit each purge as the system's, and each caller's change once
-        expect(purges).toEqual(Array.from({ length: 101 }, () => "Task.purge"));
-        expect(events).toEqual([
+        expect(await purges()).toEqual(Array.from({ length: 101 }, () => "Task.purge"));
+        expect(await events()).toEqual([
             "Task.create",
             "Task.archive",
             "Task.delete",
@@ -681,7 +686,10 @@ test("prepare external work after the access check, settle it after commit, comp
             attributes: {},
         }),
         journal: new Journal(request),
-        audit: () => ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
+        audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+            package: task.package,
+            service: "test",
+        }),
     });
     const context = {
         scope: spaceId,
@@ -700,7 +708,7 @@ test("prepare external work after the access check, settle it after commit, comp
     current = "user-2";
     await expect(
         execute("archive", { requestId: RequestId.create(), id: created.id }),
-    ).rejects.toMatchObject({ code: "NOT_FOUND", message: "Not Found" });
+    ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no task ${created.id}` });
     expect(external).toEqual([]);
 
     // release the prepared work when the transaction fails, leaving the task unchanged
@@ -822,7 +830,10 @@ test("authorize a creation before its external work, and settle committed work t
             attributes: {},
         }),
         journal: new Journal(request),
-        audit: () => ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
+        audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+            package: task.package,
+            service: "test",
+        }),
         report: (error) => reported.push(error),
     });
     const context = {
@@ -843,7 +854,7 @@ test("authorize a creation before its external work, and settle committed work t
     const version = { spaceId, parentId: created.id, title: "Draft" };
     await expect(
         server.call(versions, "create", { ...version, requestId: RequestId.create() }, context),
-    ).rejects.toMatchObject({ code: "NOT_FOUND", message: "Not Found" });
+    ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no task ${created.id}` });
     expect(external).toEqual([]);
 
     // commit despite a failed confirmation, keeping the settlement
@@ -863,7 +874,9 @@ test("authorize a creation before its external work, and settle committed work t
 
     // confirm it through the controller
     const controller = Settlement.controller(server, { grace: { milliseconds: 0 } });
-    expect(await controller.reconcile(kept[0]!.id)).toBeUndefined();
+    expect(
+        await controller.reconcile(kept[0]!.id, { signal: AbortSignal.timeout(5000) }),
+    ).toBeUndefined();
     expect([external, await storage.database.select().from(settlement)]).toEqual([
         ["copy Draft", `confirm copy-${drafted.id}`],
         [],
@@ -904,7 +917,10 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
             attributes: {},
         }),
         journal: new Journal(request),
-        audit: () => ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
+        audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+            package: task.package,
+            service: "test",
+        }),
     });
     const context = {
         scope: spaceId,
@@ -923,7 +939,7 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
     const controller = Settlement.controller(server, { grace: { milliseconds: 0 } });
     during = async () => {
         const [reserved] = await storage.database.select().from(settlement);
-        await controller.reconcile(reserved!.id);
+        await controller.reconcile(reserved!.id, { signal: AbortSignal.timeout(5000) });
     };
     const version = {
         spaceId,
@@ -1025,9 +1041,7 @@ async function serveTasks(dialect: Dialect) {
         assurance: { level, authenticatedAt: Date.now() },
     });
 
-    // serve the objects, recording each audited change, the system's apart
-    const events: string[] = [];
-    const purges: string[] = [];
+    // serve the objects, recording each audited change in the outbox
     const server = new ObjectServer({
         objects: { task: handled, comment, taskVersion, folder },
         database,
@@ -1043,12 +1057,10 @@ async function serveTasks(dialect: Dialect) {
                 : direct;
         },
         journal: new Journal(request),
-        audit: (_scope, context) =>
-            ({
-                record: async (_database: DatabaseConnection, action: { name: string }) => {
-                    (context === undefined ? purges : events).push(action.name);
-                },
-            }) as unknown as AuditRecorder<DatabaseConnection>,
+        audit: AuditRecorder.service(new AuditOutbox(database), {
+            package: task.package,
+            service: "test",
+        }),
     });
     const observed = new Bookmark();
     const context = {
@@ -1061,8 +1073,10 @@ async function serveTasks(dialect: Dialect) {
     return {
         server,
         database,
-        events,
-        purges,
+        /** Read the callers' audited actions. */
+        events: () => auditedActions(database, "caller"),
+        /** Read the system's audited actions. */
+        purges: () => auditedActions(database, "system"),
         observed,
         as,
         /** Execute a task method as the current caller. */
@@ -1126,7 +1140,10 @@ test("carry a key the method derives from its work, the same for every retry of 
             attributes: {},
         }),
         journal: new Journal(request),
-        audit: () => ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
+        audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+            package: task.package,
+            service: "test",
+        }),
     });
     const context = {
         scope: spaceId,

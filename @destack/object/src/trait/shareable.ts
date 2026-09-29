@@ -316,7 +316,7 @@ async function explain(call: Call): Promise<Explanation> {
 
     // explain the caller's own access to an object it may read
     if (!(await authorizer.check(snapshot, requireReading(object), target, access)).isAllowed) {
-        throw new ServiceError("NOT_FOUND");
+        throw new ServiceError("NOT_FOUND", { message: `no ${object.name} ${target.id}` });
     }
 
     return authorizer.explain(
@@ -350,7 +350,7 @@ async function requirePresent(call: Call, state: "live" | "held"): Promise<void>
 
     // refuse a missing or trashed object
     if (row === undefined) {
-        throw new ServiceError("NOT_FOUND", { message: `${call.object.name} not found` });
+        throw new ServiceError("NOT_FOUND", { message: `no ${call.object.name} ${call.id}` });
     } else if (
         state === "live" &&
         row.deletionRequestedAt !== undefined &&

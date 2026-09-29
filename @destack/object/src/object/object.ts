@@ -53,7 +53,7 @@ import {
     type DetachableMethodMap,
 } from "../trait/declarable.ts";
 import { Duration } from "./duration.ts";
-import { controlled } from "../trait/controlled.ts";
+import { controlled, type ControlledMethodMap } from "../trait/controlled.ts";
 import { nested, type NestedMethodMap, type NestedDefinition } from "../trait/nested.ts";
 import { transitions, type TransitionMethodMap } from "../trait/transition.ts";
 import {
@@ -69,7 +69,8 @@ import { suspendable, type SuspendableMethodMap } from "../trait/suspendable.ts"
 import { attachments } from "../trait/attachment.ts";
 import { tracked, type TrackedDefinition, type TrackedMethodMap } from "../trait/tracked.ts";
 import { text, type TextMethodMap } from "../trait/text.ts";
-import { chunk, Chunk, chunkRun } from "../text/chunk.ts";
+import { Chunk } from "../text/chunk.ts";
+import { chunk, chunkRun } from "../text/table.ts";
 import type { GateOf, Gated, Trait, TraitObject } from "../trait/trait.ts";
 import { INTRINSIC, type Intrinsic } from "./intrinsic.ts";
 import { settlement } from "../method/settlement.ts";
@@ -622,10 +623,10 @@ export class ObjectType<
                 );
             } else if (
                 declared.across !== GLOBAL_SCOPE &&
-                (Array.isArray(this.scope) || !declared.across.same(this.scope as ObjectType))
+                !this.ancestors.some((ancestor) => ancestor.same(declared.across as ObjectType))
             ) {
                 throw new TypeError(
-                    `index ${name} of ${this.name} is unique within its objects' scope or across every scope`,
+                    `index ${name} of ${this.name} is unique within a scope enclosing its objects or across every scope`,
                 );
             }
         }
@@ -875,6 +876,21 @@ export class ObjectType<
         return objectSchema(this);
     }
 
+    /** Whether a controller reconciles the objects to their desired generation. */
+    get isControlled(): boolean {
+        return this.traits.some((applied) => applied.trait === controlled);
+    }
+
+    /** The scope types enclosing each object, nearest first, for objects in one scope type. */
+    get ancestors(): readonly ObjectType[] {
+        const ancestors: ObjectType[] = [];
+        for (let scope = this.scope; scope instanceof ObjectType; scope = scope.scope) {
+            ancestors.push(scope);
+        }
+
+        return ancestors;
+    }
+
     /** Decide whether another type shares this one's table. */
     same(other: ObjectType | "any" | undefined): boolean {
         return other instanceof ObjectType && other.table === this.table;
@@ -979,6 +995,7 @@ export type DeclaredOf<Traits> =
 /** The methods an object's traits derive beside its declared ones. */
 export type TraitMethods<Fields, Traits> = TransitionMethodMap<Fields> &
     RecoverableMethodMap<TraitOf<Traits, "recoverable">> &
+    ControlledMethodMap<TraitOf<Traits, "controlled">> &
     NestedMethodMap<TraitOf<Traits, "nested">> &
     ShareableMethodMap<GateOf<TraitOf<Traits, "shareable">>> &
     SuspendableMethodMap<GateOf<TraitOf<Traits, "suspendable">>> &

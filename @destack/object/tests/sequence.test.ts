@@ -1,6 +1,7 @@
 import { expect, test } from "@destack/test";
 import {
     Sequence,
+    TextChange,
     type Annotation,
     type Element,
     type SequenceEdit,
@@ -302,4 +303,21 @@ test("keep a deletion's length alone, and restore exactly the characters it remo
             restore: { from: { run: "a.1", offset: 1 }, to: { run: "a.1", offset: 3 }, text: "bc" },
         }),
     ).toThrow(new RangeError("sequence restores 2 characters into 3 deleted ones"));
+});
+
+test("find the one replacement between two texts, keeping their common start and end", () => {
+    // typing, deleting, replacing a word, and a repeated letter the end must not overlap
+    expect([
+        TextChange.between("hello", "hello!"),
+        TextChange.between("hello world", "hello"),
+        TextChange.between("hello world", "hello there"),
+        TextChange.between("aa", "aaa"),
+        TextChange.between("same", "same"),
+    ]).toEqual([
+        { from: 5, to: 5, insert: "!" },
+        { from: 5, to: 11, insert: "" },
+        { from: 6, to: 11, insert: "there" },
+        { from: 2, to: 2, insert: "a" },
+        { from: 4, to: 4, insert: "" },
+    ]);
 });

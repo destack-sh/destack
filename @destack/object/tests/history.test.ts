@@ -1,6 +1,7 @@
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation, subjectKey, through, union } from "@destack/access";
-import type { AuditRecorder } from "@destack/audit";
+import { AuditRecorder } from "@destack/audit";
 import type { DatabaseConnection } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -234,7 +235,11 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
         dialect,
         defineDatabase({
             name: "main",
-            tables: [request, ...Object.values(objects).flatMap((object) => object.tables)],
+            tables: [
+                ...auditOutboxTables,
+                request,
+                ...Object.values(objects).flatMap((object) => object.tables),
+            ],
         }),
         { isMigrated: true },
     );
@@ -253,7 +258,10 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
             attributes: {},
         }),
         journal: new Journal(request),
-        audit: () => ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
+        audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+            package: activity.package,
+            service: "test",
+        }),
     });
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
@@ -263,6 +271,7 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
         bookmark: new Bookmark(),
         observed: new Bookmark(),
         signal: controller.signal,
+        request: new Request("https://test.local", { signal: controller.signal }),
     } as unknown as ServiceContext;
 
     return {

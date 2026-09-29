@@ -1,6 +1,7 @@
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal } from "@destack/access";
-import type { AuditRecorder } from "@destack/audit";
+import { AuditRecorder } from "@destack/audit";
 import type { DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Bookmark } from "@destack/service/bookmark";
@@ -62,7 +63,10 @@ function serve(database: DatabaseConnection) {
             attributes: {},
         }),
         journal: new Journal(notesJournal),
-        audit: () => ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
+        audit: AuditRecorder.service(new AuditOutbox(database), {
+            package: notebook.package,
+            service: "test",
+        }),
     });
 }
 
@@ -75,5 +79,6 @@ function context(signal: AbortSignal): ServiceContext {
         bookmark: new Bookmark(),
         observed: new Bookmark(),
         signal,
+        request: new Request("https://test.local", { signal }),
     } as unknown as ServiceContext;
 }

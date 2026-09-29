@@ -120,10 +120,20 @@ export class Authorization extends access.Authorization {
             }
         }
 
-        // refuse readers, hide from others
+        // check whether the caller reads the object
         const isReadable =
             object.reading !== undefined && (await this.#holds(call, id, object.reading));
-        throw new ServiceError(isReadable ? "FORBIDDEN" : "NOT_FOUND");
+
+        // refuse a reader
+        if (isReadable) {
+            throw new ServiceError("FORBIDDEN", {
+                message: `permission denied: ${permission.name}`,
+            });
+        }
+        // hide the object from others
+        else {
+            throw new ServiceError("NOT_FOUND", { message: `no ${object.name} ${id}` });
+        }
     }
 
     /** Require the call's scope to be visible to the caller. */
@@ -143,22 +153,28 @@ export class Authorization extends access.Authorization {
                       .find((candidate) => candidate.policy.is(own))
                 : undefined;
         if (type === undefined) {
-            throw new ServiceError("NOT_FOUND");
+            throw new ServiceError("NOT_FOUND", { message: `no scope ${scope}` });
         }
 
+        // decide for the person when the credential's restrictions name the scope, which its issuer revealed
+        const { permissions, ...person } = this.access.context;
+        const isNamed = permissions?.some((restriction) => restriction.scope === scope) === true;
+        const context = isNamed ? person : this.access.context;
+        const caller = (bound: string) =>
+            isNamed ? this.authorizer.resolve(this.snapshot, bound, person) : this.in(bound);
+
         // decide for the caller, then for the lending principal
-        const context = this.access.context;
         const delegates = context.delegates ?? [];
         const lent = delegates.findIndex((delegate) => delegate.authority === "lent");
         const principal = { ...context, delegates: delegates.slice(0, lent) };
         const isVisible =
-            (await this.#sees(type, own!, objects, (bound) => this.in(bound))) ||
+            (await this.#sees(type, own!, objects, caller)) ||
             (lent !== -1 &&
                 (await this.#sees(type, own!, objects, (bound) =>
                     this.authorizer.resolve(this.snapshot, bound, principal),
                 )));
         if (!isVisible) {
-            throw new ServiceError("NOT_FOUND");
+            throw new ServiceError("NOT_FOUND", { message: `no scope ${scope}` });
         }
     }
 
@@ -210,7 +226,9 @@ export class Authorization extends access.Authorization {
                 : own?.id === this.access.scope &&
                   object.scopes.some((type) => type.policy.is(own));
         if (!isHome) {
-            throw new ServiceError("NOT_FOUND");
+            throw new ServiceError("NOT_FOUND", {
+                message: `no ${object.plural} in scope ${this.access.scope}`,
+            });
         }
     }
 
@@ -382,7 +400,7 @@ export class SystemAuthorization extends Authorization {
             unknown
         >[];
         if (row === undefined) {
-            throw new ServiceError("NOT_FOUND");
+            throw new ServiceError("NOT_FOUND", { message: `no ${call.object.name} ${id}` });
         }
 
         return row;

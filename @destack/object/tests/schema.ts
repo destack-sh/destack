@@ -1,3 +1,4 @@
+import { auditOutboxTables } from "@destack/audit/outbox";
 import { defineObject, field, method, type ObjectType } from "../src/index.ts";
 import { relation, through, union, principal } from "@destack/access";
 import { defineJournal } from "@destack/service/database";
@@ -128,6 +129,7 @@ export const request = defineJournal("journal");
 export const objectDatabase = defineDatabase({
     name: "main",
     tables: [
+        ...auditOutboxTables,
         note.table,
         label.table,
         request,

@@ -1,6 +1,7 @@
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import type { AuditRecorder } from "@destack/audit";
+import { AuditRecorder } from "@destack/audit";
 import { unique, type DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier, schema } from "@destack/schema";
@@ -40,9 +41,13 @@ const handle = defineObject({
 test.each(TEST_DIALECTS)(
     "report a create's conflicts only to callers the create permission admits, inside spaces they read, on %s",
     async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [...handle.tables, request], {
-            isMigrated: true,
-        });
+        const storage = await TestDatabase.create(
+            dialect,
+            [...auditOutboxTables, ...handle.tables, request],
+            {
+                isMigrated: true,
+            },
+        );
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
         await openSpace(storage.database, privateId, "private");
@@ -60,8 +65,10 @@ test.each(TEST_DIALECTS)(
                 assurance: { level, authenticatedAt: Date.now() },
             }),
             journal: new Journal(request),
-            audit: () =>
-                ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
+            audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+                package: handle.package,
+                service: "test",
+            }),
         });
         const create = (user: string, input: Record<string, unknown>, scope = spaceId) => {
             current = user;
@@ -107,9 +114,9 @@ test.each(TEST_DIALECTS)(
             );
         }
         expect(refusals).toEqual([
-            ["NOT_FOUND", "Not Found"],
-            ["NOT_FOUND", "Not Found"],
-            ["NOT_FOUND", "Not Found"],
+            ["NOT_FOUND", "handle not found"],
+            ["NOT_FOUND", "handle not found"],
+            ["NOT_FOUND", "handle not found"],
         ]);
 
         // challenge bob before a conflict, and find nothing for alice's handle
@@ -120,14 +127,14 @@ test.each(TEST_DIALECTS)(
         });
         await expect(create("bob", { holder: "alice", name: "notes" })).rejects.toMatchObject({
             code: "NOT_FOUND",
-            message: "Not Found",
+            message: "handle not found",
         });
         level = 2;
 
         // find nothing inside a space the caller may not read, not even its own handle
         await expect(
             create("alice", { holder: "alice", name: "notes" }, privateId),
-        ).rejects.toMatchObject({ code: "NOT_FOUND", message: "Not Found" });
+        ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no scope ${privateId}` });
     },
 );
 
@@ -146,9 +153,13 @@ const team = defineObject({
 });
 
 test("create an object the caller holds the permission on only as the creator its creation relates", async () => {
-    const storage = await TestDatabase.create("sqlite", [request, ...team.tables], {
-        isMigrated: true,
-    });
+    const storage = await TestDatabase.create(
+        "sqlite",
+        [...auditOutboxTables, request, ...team.tables],
+        {
+            isMigrated: true,
+        },
+    );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const server = new ObjectServer({
@@ -160,7 +171,10 @@ test("create an object the caller holds the permission on only as the creator it
             attributes: {},
         }),
         journal: new Journal(request),
-        audit: () => ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
+        audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+            package: team.package,
+            service: "test",
+        }),
     });
     const context = {
         scope: spaceId,

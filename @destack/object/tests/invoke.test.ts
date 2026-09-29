@@ -1,6 +1,7 @@
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import type { AuditRecorder } from "@destack/audit";
+import { AuditRecorder } from "@destack/audit";
 import type { DatabaseConnection } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -12,6 +13,7 @@ import type { ServiceContext } from "@destack/service/server";
 import { defineObject, field, method } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { openSpace, space } from "./fixture/space.ts";
+import { auditedActions } from "./fixture/audit.ts";
 
 /** The space containing the shelves. */
 const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000011");
@@ -99,7 +101,7 @@ const journal = defineJournal("journal");
 /** The database holding the shelves, the books, their access and the journal. */
 const shelfDatabase = defineDatabase({
     name: "main",
-    tables: [journal, ...book.tables, ...shelf.tables, ...slip.tables],
+    tables: [...auditOutboxTables, journal, ...book.tables, ...shelf.tables, ...slip.tables],
 });
 
 test.each(TEST_DIALECTS)(
@@ -109,7 +111,6 @@ test.each(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
         let current = "user-1";
-        const audited: string[] = [];
         const server = new ObjectServer({
             objects: { book, shelf, slip },
             database: storage.database,
@@ -119,12 +120,10 @@ test.each(TEST_DIALECTS)(
                 attributes: {},
             }),
             journal: new Journal(journal),
-            audit: () =>
-                ({
-                    record: async (_transaction: unknown, action: { name: string }) => {
-                        audited.push(action.name);
-                    },
-                }) as unknown as AuditRecorder<DatabaseConnection>,
+            audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+                package: book.package,
+                service: "test",
+            }),
         });
         const context = {
             scope: spaceId,
@@ -151,9 +150,9 @@ test.each(TEST_DIALECTS)(
 
         // tidy user-1's writable books on the shelf, auditing both calls
         current = "user-1";
-        audited.length = 0;
+        const before = (await auditedActions(storage.database, "caller")).length;
         const tidied = await call(shelf, "tidy", { id: home.id });
-        const auditedTidy = [...audited];
+        const auditedTidy = (await auditedActions(storage.database, "caller")).slice(before);
 
         // refuse straightening user-2's book through user-1's shelf, rolling back the whole call
         await expect(
@@ -180,7 +179,19 @@ test.each(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
         const server = new ObjectServer({
-            objects: { book, shelf, slip },
+            objects: {
+                book,
+                shelf,
+                // mark issued slips on the server, which invoking the base type still runs
+                slip: slip.handle({
+                    issue: (call, next) =>
+                        next(
+                            call.with({
+                                input: { ...call.input, shelf: `${String(call.input.shelf)}!` },
+                            }),
+                        ),
+                }),
+            },
             database: storage.database,
             context: () => ({
                 subjects: [principal.user.reference("global", "user-1")],
@@ -188,8 +199,10 @@ test.each(TEST_DIALECTS)(
                 attributes: {},
             }),
             journal: new Journal(journal),
-            audit: () =>
-                ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
+            audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+                package: book.package,
+                service: "test",
+            }),
         });
         const context = {
             scope: spaceId,
@@ -217,10 +230,33 @@ test.each(TEST_DIALECTS)(
             })
             .from(slip.table);
 
-        // hide system methods from the routes
-        expect([rows, Object.keys(slip.procedures)]).toEqual([
-            [{ id: lent.slip, borrower: "user-2", shelf: "home", isReturned: true }],
+        // refuse a client pushing a system method
+        const pushed = server.push(
+            spaceId,
+            [
+                {
+                    id: "mutation-1",
+                    calls: [{ method: "slip.issue", input: { borrower: "user-1", shelf: "home" } }],
+                },
+            ],
+            context,
+        );
+        // hide system methods from the routes and from pushes
+        expect([rows, Object.keys(slip.procedures), (await pushed).outcomes]).toEqual([
+            [{ id: lent.slip, borrower: "user-2", shelf: "home!", isReturned: true }],
             [],
+            [
+                {
+                    id: "mutation-1",
+                    outcome: {
+                        error: {
+                            code: "BAD_REQUEST",
+                            status: 400,
+                            message: "no mutating method slip.issue",
+                        },
+                    },
+                },
+            ],
         ]);
     },
 );

@@ -1,7 +1,15 @@
+import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
-import { intersection, principal, relation, subjectKey, union } from "@destack/access";
-import type { AuditRecorder } from "@destack/audit";
-import { type DatabaseConnection, isNotNull } from "@destack/db";
+import {
+    accessRelationship,
+    intersection,
+    principal,
+    relation,
+    subjectKey,
+    union,
+} from "@destack/access";
+import { AuditRecorder } from "@destack/audit";
+import { type DatabaseConnection, eq, isNotNull } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier, schema } from "@destack/schema";
@@ -54,7 +62,10 @@ const memo = defineObject({
 const journal = defineJournal("journal");
 
 /** The database holding both spaces' memos, their access, the journal and the outbox. */
-const memoDatabase = defineDatabase({ name: "main", tables: [journal, ...memo.tables] });
+const memoDatabase = defineDatabase({
+    name: "main",
+    tables: [...auditOutboxTables, journal, ...memo.tables],
+});
 
 test.each(TEST_DIALECTS)(
     "copy an addressed object into its recipient's home while the recipient may read it, on %s",
@@ -72,8 +83,10 @@ test.each(TEST_DIALECTS)(
                 attributes: {},
             }),
             journal: new Journal(journal),
-            audit: () =>
-                ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
+            audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+                package: memo.package,
+                service: "test",
+            }),
         });
         const context = {
             scope: spaceId,
@@ -158,7 +171,22 @@ test.each(TEST_DIALECTS)(
         const regranted = await until([{ scope: homeId, origin: spaceId, text: "Lunch at noon?" }]);
         await call("delete", { id: created.id });
         const deleted = await until([]);
-        expect([hidden, shared, updated, revoked, regranted, deleted]).toEqual([
+
+        // forget the deleted memo's relationships
+        const relationships = async () =>
+            (
+                await storage.database
+                    .select({ id: accessRelationship.id })
+                    .from(accessRelationship)
+                    .where(eq(accessRelationship.objectId, created.id))
+            ).length;
+        await storage.database.log.until(
+            async () => (await relationships()) === 0,
+            AbortSignal.timeout(UNTIL_MILLISECONDS),
+        );
+        const forgotten = await relationships();
+        expect([forgotten, hidden, shared, updated, revoked, regranted, deleted]).toEqual([
+            0,
             [],
             [{ scope: homeId, origin: spaceId, text: "Lunch?" }],
             [{ scope: homeId, origin: spaceId, text: "Lunch at noon?" }],
