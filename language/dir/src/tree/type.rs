@@ -2,10 +2,10 @@ use serde::{Deserialize, Serialize};
 use tspp_serde::Reflect;
 
 use crate::{
-    Access, Expression, FunctionSignature, GenericArgument, GenericParameter, Literal, LocalNodeId,
-    MemberSlot, MemberSpace, Mutability, Name, Node, NodeFold, NodeType, Parameter, Path, RangeEnd,
-    ScopeKind, StaticKey, StringId, SymbolKind, ThisForm, TupleElement, TupleForm, TypeLiteral,
-    VarianceBound, Visibility, WhereClause,
+    Access, Expression, FunctionRole, FunctionSignature, GenericArgument, GenericParameter,
+    Literal, LocalNodeId, MemberSlot, MemberSpace, Mutability, Name, Node, NodeFold, NodeType,
+    Parameter, Path, RangeEnd, ScopeKind, StaticKey, StringId, SymbolKind, ThisForm, TupleElement,
+    TupleForm, TypeLiteral, VarianceBound, Visibility, WhereClause,
 };
 
 /// One type-surface member.
@@ -20,9 +20,9 @@ pub enum TypeMember {
         is_optional: bool,
         is_readonly: bool,
     },
-    /// Named method.
+    /// Method or role member.
     Method {
-        name: Name,
+        name: Option<Name>,
         signature: FunctionSignature,
         body: Option<LocalNodeId<Expression>>,
         visibility: Option<Visibility>,
@@ -93,16 +93,12 @@ impl TypeMember {
             Self::Field { name, .. } => Some(MemberSlot::Key((*name).into())),
             Self::Method {
                 name, signature, ..
-            } => {
-                let slot = signature
-                    .role
-                    .and_then(|role| role.try_into().ok())
-                    .unwrap_or(MemberSlot::Key((*name).into()));
-
-                Some(slot)
-            }
-            Self::CallSignature { .. } => Some(MemberSlot::Call),
-            Self::ConstructSignature { .. } => Some(MemberSlot::New),
+            } => signature
+                .role
+                .and_then(|role| role.try_into().ok())
+                .or(name.map(|name| MemberSlot::Key(name.into()))),
+            Self::CallSignature { .. } => Some(MemberSlot::Key(StaticKey::Call)),
+            Self::ConstructSignature { .. } => Some(MemberSlot::Key(StaticKey::New)),
             Self::IndexSignature { .. } | Self::Error => None,
         }
     }
@@ -138,11 +134,27 @@ impl TypeMember {
             Self::AssociatedType { name, .. } | Self::AssociatedConst { name, .. } => {
                 Some(StaticKey::Name(*name))
             }
-            Self::Field { name, .. } | Self::Method { name, .. } => Some((*name).into()),
+            Self::Field { name, .. } => Some((*name).into()),
+            Self::Method {
+                name: Some(name), ..
+            } => Some((*name).into()),
+            Self::Method { .. } => self.role_key(),
             Self::CallSignature { .. }
             | Self::ConstructSignature { .. }
             | Self::IndexSignature { .. }
             | Self::Error => None,
+        }
+    }
+
+    /// Return the key of an interface role member.
+    pub fn role_key(&self) -> Option<StaticKey> {
+        match self {
+            Self::Method {
+                name: None,
+                signature,
+                ..
+            } => signature.role.and_then(FunctionRole::key),
+            _ => None,
         }
     }
 
@@ -178,7 +190,8 @@ impl TypeMember {
             TypeMember::AssociatedType { name, .. } | TypeMember::AssociatedConst { name, .. } => {
                 Some(Name::Identifier(*name))
             }
-            TypeMember::Field { name, .. } | TypeMember::Method { name, .. } => Some(*name),
+            TypeMember::Field { name, .. } => Some(*name),
+            TypeMember::Method { name, .. } => *name,
             _ => None,
         }
     }

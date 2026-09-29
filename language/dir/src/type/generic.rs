@@ -3,9 +3,9 @@ use tspp_serde::Reflect;
 use tspp_source::ModuleId;
 
 use crate::{
-    Coercion, GenericParameter, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, InstanceKey,
-    InstanceKeyVisit, IterationDecision, LanguageItem, LocalScopeId, StaticKey, TypeFlags,
-    TypeFold, VarianceModifier, WhereRelation,
+    Coercion, FunctionDispatch, GenericParameter, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId,
+    InstanceKey, InstanceKeyVisit, IterationDecision, LanguageItem, LocalScopeId, StaticKey,
+    TypeFlags, TypeFold, VarianceModifier, WhereRelation,
 };
 
 /// Unique identifier for generic templates.
@@ -402,6 +402,8 @@ pub struct WitnessFunction {
     pub function: InstanceKey,
     /// Where the implementation comes from.
     pub source: WitnessSource,
+    /// How a call reaches the implementation.
+    pub dispatch: FunctionDispatch,
 }
 
 /// Where one witness function's implementation comes from.
@@ -411,6 +413,10 @@ pub enum WitnessSource {
     Declared,
     /// A member the compiler derives for the receiver.
     Derived,
+    /// The requirement's default body.
+    Default,
+    /// The slot of a dynamic value's own table.
+    Dynamic,
 }
 
 /// One associated type implemented by one type.

@@ -51,10 +51,6 @@ pub enum MemberSlot {
     Key(StaticKey),
     /// Constructor role member.
     Constructor,
-    /// New role member.
-    New,
-    /// Callable role member.
-    Call,
 }
 
 impl FunctionRole {
@@ -65,6 +61,16 @@ impl FunctionRole {
             Self::Getter => Some(Self::Setter),
             Self::Setter => Some(Self::Getter),
             Self::Constructor | Self::New | Self::Call => None,
+        }
+    }
+
+    /// Return the key a role member is looked up under.
+    #[inline]
+    pub const fn key(self) -> Option<StaticKey> {
+        match self {
+            Self::Call => Some(StaticKey::Call),
+            Self::New => Some(StaticKey::New),
+            Self::Getter | Self::Setter | Self::Constructor => None,
         }
     }
 
@@ -87,8 +93,7 @@ impl TryFrom<FunctionRole> for MemberSlot {
     fn try_from(role: FunctionRole) -> Result<Self, Self::Error> {
         match role {
             FunctionRole::Constructor => Ok(Self::Constructor),
-            FunctionRole::New => Ok(Self::New),
-            FunctionRole::Call => Ok(Self::Call),
+            FunctionRole::Call | FunctionRole::New => role.key().map(Self::Key).ok_or(role),
             FunctionRole::Getter | FunctionRole::Setter => Err(role),
         }
     }
@@ -316,10 +321,12 @@ impl Member {
             Self::Method {
                 name: Some(name), ..
             } => Some((*name).into()),
-            Self::Method { name: None, .. }
-            | Self::StaticBlock { .. }
-            | Self::ConstBlock { .. }
-            | Self::Error => None,
+            Self::Method {
+                name: None,
+                signature,
+                ..
+            } => signature.role.and_then(FunctionRole::key),
+            Self::StaticBlock { .. } | Self::ConstBlock { .. } | Self::Error => None,
         }
     }
 
@@ -329,11 +336,8 @@ impl Member {
             Self::AssociatedType { .. } => Some(SymbolKind::AssociatedType),
             Self::AssociatedConst { .. } => Some(SymbolKind::AssociatedConst),
             Self::Field { .. } => Some(SymbolKind::Variable),
-            Self::Method { name: Some(_), .. } => Some(SymbolKind::Function),
-            Self::Method { name: None, .. }
-            | Self::StaticBlock { .. }
-            | Self::ConstBlock { .. }
-            | Self::Error => None,
+            Self::Method { .. } => Some(SymbolKind::Function),
+            Self::StaticBlock { .. } | Self::ConstBlock { .. } | Self::Error => None,
         }
     }
 
@@ -352,7 +356,7 @@ impl Member {
     pub fn symbol_scope_kind(&self) -> Option<ScopeKind> {
         match self {
             Self::AssociatedType { .. } => Some(ScopeKind::Type),
-            Self::Method { name: Some(_), .. } => Some(ScopeKind::Function),
+            Self::Method { .. } => Some(ScopeKind::Function),
             _ => None,
         }
     }

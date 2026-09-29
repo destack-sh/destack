@@ -698,11 +698,7 @@ impl CallableTarget {
             } => Some(*symbol),
             Self::Expression { .. }
             | Self::Dynamic {
-                function:
-                    DynamicFunction::CallSignature(_)
-                    | DynamicFunction::IndexRead(_)
-                    | DynamicFunction::IndexWrite(_)
-                    | DynamicFunction::ConstructSignature(_),
+                function: DynamicFunction::IndexRead(_) | DynamicFunction::IndexWrite(_),
                 ..
             } => None,
         }
@@ -754,7 +750,7 @@ pub enum FunctionDispatch {
     Direct,
     /// Virtual call through a class dispatch table.
     Virtual {
-        /// The class type declaring the virtual dispatch slot.
+        /// The receiver class type whose virtual table holds the slot.
         class: GlobalTypeId,
     },
 }
@@ -776,14 +772,10 @@ pub enum FunctionDispatch {
 pub enum DynamicFunction {
     /// Declared method or property accessor.
     Symbol(GlobalSymbolId),
-    /// Symbol-free call signature.
-    CallSignature(GlobalNodeIdAny),
     /// Read operation declared by one index signature.
     IndexRead(GlobalNodeIdAny),
     /// Write operation declared by one index signature.
     IndexWrite(GlobalNodeIdAny),
-    /// Construct operation declared by one construct signature.
-    ConstructSignature(GlobalNodeIdAny),
 }
 
 /// Subscript selected at an index expression or destructuring field.

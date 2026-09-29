@@ -3200,14 +3200,14 @@ define_language_items! {
 
         /// `tspp:test/case`.
         case {
-            /// Callable test registration interface.
-            Test => (NewtypeInterface, "test/case", "Test"),
+            /// Callable test registration.
+            Test => (Class, "test/case", "Test"),
 
             /// Test registration over one parameter tuple.
-            ParameterizedTest => (NewtypeInterface, "test/case", "ParameterizedTest"),
+            ParameterizedTest => (Class, "test/case", "ParameterizedTest"),
 
             /// Test registration over one unspread table value.
-            TableTest => (NewtypeInterface, "test/case", "TableTest"),
+            TableTest => (Class, "test/case", "TableTest"),
 
             /// Registered test case.
             RegisteredCase => (Struct, "test/case", "Case"),
@@ -3230,8 +3230,8 @@ define_language_items! {
 
         /// `tspp:test/expect`.
         expect {
-            /// Callable assertion interface.
-            TestExpect => (NewtypeInterface, "test/expect", "Expect"),
+            /// Callable assertion.
+            TestExpect => (Class, "test/expect", "Expect"),
 
             /// Value expectation.
             Expectation => (Struct, "test/expect", "Expectation"),
@@ -3347,14 +3347,14 @@ define_language_items! {
 
         /// `tspp:test/suite`.
         suite {
-            /// Callable test suite registration interface.
-            TestSuite => (NewtypeInterface, "test/suite", "TestSuite"),
+            /// Callable test suite registration.
+            TestSuite => (Class, "test/suite", "TestSuite"),
 
             /// Suite registration over one parameter tuple.
-            ParameterizedSuite => (NewtypeInterface, "test/suite", "ParameterizedSuite"),
+            ParameterizedSuite => (Class, "test/suite", "ParameterizedSuite"),
 
             /// Suite registration over one unspread table value.
-            TableSuite => (NewtypeInterface, "test/suite", "TableSuite"),
+            TableSuite => (Class, "test/suite", "TableSuite"),
 
             /// Registered test suite.
             RegisteredSuite => (Struct, "test/suite", "Suite"),

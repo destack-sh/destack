@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use tspp_core::{StringId, StringPool};
 use tspp_serde::Reflect;
 
-/// Key for some static identifier or positional index.
+/// Key for some static identifier, positional index or role member.
 #[derive(
     Debug, Clone, Copy, PartialEq, Hash, PartialOrd, Ord, Eq, Serialize, Deserialize, Reflect,
 )]
@@ -11,6 +11,10 @@ pub enum StaticKey {
     Name(StringId),
     /// Positional index key (like `0` or `1`).
     Index(usize),
+    /// Call member key (like `value(1)`).
+    Call,
+    /// Construct member key (like `new value(1)`).
+    New,
 }
 
 impl From<StringId> for StaticKey {
@@ -24,7 +28,7 @@ impl StaticKey {
     pub fn name(&self) -> Option<StringId> {
         match self {
             StaticKey::Name(name) => Some(*name),
-            StaticKey::Index(_) => None,
+            StaticKey::Index(_) | StaticKey::Call | StaticKey::New => None,
         }
     }
 
@@ -56,6 +60,16 @@ impl StaticKey {
         }
     }
 
+    /// Return the member name text of this key.
+    pub fn text(&self, strings: &StringPool) -> String {
+        match self {
+            StaticKey::Name(name) => strings.get(*name).to_string(),
+            StaticKey::Index(index) => index.to_string(),
+            StaticKey::Call => "()".to_string(),
+            StaticKey::New => "new()".to_string(),
+        }
+    }
+
     /// Get the debug string given a mutable string pool.
     pub fn debug_string(&self, strings: &StringPool) -> String {
         match self {
@@ -63,6 +77,8 @@ impl StaticKey {
                 format!("'{}'", strings.get(*name))
             }
             StaticKey::Index(index) => format!("#{index}"),
+            StaticKey::Call => "()".to_string(),
+            StaticKey::New => "new()".to_string(),
         }
     }
 }

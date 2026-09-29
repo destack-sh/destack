@@ -572,9 +572,7 @@ impl MemberRole {
                 Some(Self::Associated)
             }
             DefinitionMember::EnumVariant(_) => Some(Self::VariantValue),
-            DefinitionMember::CallSignature(_)
-            | DefinitionMember::ConstructSignature(_)
-            | DefinitionMember::IndexSignature(_) => None,
+            DefinitionMember::IndexSignature(_) => None,
         }
     }
 

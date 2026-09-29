@@ -807,6 +807,13 @@ pub struct MethodDefinition {
     pub implementation: MemberImplementation,
 }
 
+impl MethodDefinition {
+    /// Return whether subclasses may override the method.
+    pub fn is_overridable(&self) -> bool {
+        self.is_override || self.abstraction != MethodAbstraction::Concrete
+    }
+}
+
 /// How one member receives its implementation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum MemberImplementation {
@@ -861,15 +868,6 @@ pub struct EnumVariantDefinition {
     pub value: EnumVariantValue,
 }
 
-/// One symbol-free signature member.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
-pub struct SignatureDefinition {
-    /// The source member node.
-    pub source: GlobalNodeIdAny,
-    /// The signature type.
-    pub ty: GlobalTypeId,
-}
-
 /// One structural index signature member.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct IndexSignatureDefinition {
@@ -900,10 +898,6 @@ pub enum DefinitionMember {
     AssociatedConst(AssociatedConstDefinition),
     /// Declared enum variant member.
     EnumVariant(EnumVariantDefinition),
-    /// Structural call signature member.
-    CallSignature(SignatureDefinition),
-    /// Structural construct signature member.
-    ConstructSignature(SignatureDefinition),
     /// Structural index signature member.
     IndexSignature(IndexSignatureDefinition),
 }
@@ -922,15 +916,14 @@ impl DefinitionMember {
                 MemberKind::Property
             }
             Self::Method(method) => match method.slot {
-                MemberSlot::Constructor | MemberSlot::New => MemberKind::Constructor,
-                MemberSlot::Call => MemberKind::CallSignature,
+                MemberSlot::Constructor => MemberKind::Constructor,
+                MemberSlot::Key(StaticKey::Call) => MemberKind::CallSignature,
+                MemberSlot::Key(StaticKey::New) => MemberKind::ConstructSignature,
                 MemberSlot::Key(_) => MemberKind::Method,
             },
             Self::AssociatedType(_) => MemberKind::AssociatedType,
             Self::AssociatedConst(_) => MemberKind::AssociatedConst,
             Self::EnumVariant(_) => MemberKind::Variant,
-            Self::CallSignature(_) => MemberKind::CallSignature,
-            Self::ConstructSignature(_) => MemberKind::ConstructSignature,
             Self::IndexSignature(_) => MemberKind::IndexSignature,
         }
     }
@@ -941,7 +934,7 @@ impl DefinitionMember {
             || matches!(
                 self,
                 Self::Method(MethodDefinition {
-                    slot: MemberSlot::Constructor | MemberSlot::New,
+                    slot: MemberSlot::Constructor,
                     ..
                 })
             )
@@ -968,9 +961,6 @@ impl DefinitionMember {
             Self::AssociatedType(associated) => associated.source,
             Self::AssociatedConst(associated) => associated.source,
             Self::EnumVariant(variant) => variant.source,
-            Self::CallSignature(signature) | Self::ConstructSignature(signature) => {
-                signature.source
-            }
             Self::IndexSignature(signature) => signature.source,
         }
     }
@@ -990,9 +980,7 @@ impl DefinitionMember {
                 MemberSpace::Static
             }
             // structural signatures describe instances
-            Self::CallSignature(_) | Self::ConstructSignature(_) | Self::IndexSignature(_) => {
-                MemberSpace::Instance
-            }
+            Self::IndexSignature(_) => MemberSpace::Instance,
         }
     }
 
@@ -1014,7 +1002,7 @@ impl DefinitionMember {
             Self::AssociatedType(associated) => Some(associated.symbol),
             Self::AssociatedConst(associated) => Some(associated.symbol),
             Self::EnumVariant(variant) => Some(variant.symbol),
-            Self::CallSignature(_) | Self::ConstructSignature(_) | Self::IndexSignature(_) => None,
+            Self::IndexSignature(_) => None,
         }
     }
 
@@ -1024,12 +1012,12 @@ impl DefinitionMember {
             Self::Field(field) => Some(field.key),
             Self::Method(method) => match method.slot {
                 MemberSlot::Key(key) => Some(key),
-                MemberSlot::Constructor | MemberSlot::New | MemberSlot::Call => None,
+                MemberSlot::Constructor => None,
             },
             Self::AssociatedType(associated) => Some(associated.key),
             Self::AssociatedConst(associated) => Some(associated.key),
             Self::EnumVariant(variant) => Some(variant.key),
-            Self::CallSignature(_) | Self::ConstructSignature(_) | Self::IndexSignature(_) => None,
+            Self::IndexSignature(_) => None,
         }
     }
 
@@ -1046,9 +1034,6 @@ impl DefinitionMember {
     pub fn value_type(&self) -> Option<GlobalTypeId> {
         match self {
             Self::AssociatedType(associated) => associated.value,
-            Self::CallSignature(signature) | Self::ConstructSignature(signature) => {
-                Some(signature.ty)
-            }
             Self::IndexSignature(signature) => Some(signature.value_type),
             Self::Field(_) | Self::Method(_) | Self::AssociatedConst(_) | Self::EnumVariant(_) => {
                 None

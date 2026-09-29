@@ -239,6 +239,14 @@ impl Coercion {
     pub fn target(&self) -> GlobalTypeId {
         self.adjustments[self.adjustments.len() - 1].target()
     }
+
+    /// Return the value and erased types of every erasure along this path.
+    pub fn erasures(&self) -> Vec<(GlobalTypeId, GlobalTypeId)> {
+        let mut erasures = Vec::new();
+        push_erasures(self.source, &self.adjustments, &mut erasures);
+
+        erasures
+    }
 }
 
 impl CoercionAdjustment {
@@ -403,5 +411,27 @@ impl TypeFold for CoercionSegment {
         }
 
         Ok(())
+    }
+}
+
+/// Push the value and erased types of every erasure one adjustment path takes.
+fn push_erasures(
+    source: GlobalTypeId,
+    adjustments: &[CoercionAdjustment],
+    erasures: &mut Vec<(GlobalTypeId, GlobalTypeId)>,
+) {
+    let mut current = source;
+    for adjustment in adjustments {
+        // erase the current value, or descend into each union case
+        match adjustment {
+            CoercionAdjustment::Erase { target } => erasures.push((current, *target)),
+            CoercionAdjustment::Union { cases, .. } => {
+                for case in cases {
+                    push_erasures(case.source, &case.adjustments, erasures);
+                }
+            }
+            _ => {}
+        }
+        current = adjustment.target();
     }
 }

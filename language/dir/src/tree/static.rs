@@ -145,10 +145,9 @@ impl StaticProperty {
 
     /// Return this property's name key and field value.
     pub fn as_name_field(&self) -> Option<(StringId, &StaticTerm)> {
-        match self.as_field()? {
-            (StaticKey::Name(name), value) => Some((name, value)),
-            (StaticKey::Index(_), _) => None,
-        }
+        let (key, value) = self.as_field()?;
+
+        Some((key.name()?, value))
     }
 }
 
