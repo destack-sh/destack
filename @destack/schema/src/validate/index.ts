@@ -36,6 +36,7 @@ export {
     ksuid,
     lazy,
     literal,
+    looseObject,
     mac,
     nanoid,
     never,
