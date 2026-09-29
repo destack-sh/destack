@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { Package } from "@destack/package";
 import { ResourceContext } from "../context/index.ts";
-import { Plan, Resource, defineResourceSchema, type Step } from "./index.ts";
+import { Plan, Provider, Resource, defineResourceKind, type Step } from "./index.ts";
 
 /** The package declaring the example resources. */
 const owner = Package.parse({
@@ -15,13 +15,11 @@ test("bind one client per declaration and refuse missing or repeated bindings", 
     const notes = new Resource<string>(owner, {
         name: "notes",
         kind: "database",
-        version: 1,
         spec: {},
     });
     const tasks = new Resource<string>(owner, {
         name: "tasks",
         kind: "database",
-        version: 1,
         spec: {},
     });
     const context = new ResourceContext().bind(notes, "notes client");
@@ -60,23 +58,73 @@ test("classify a plan by its most consequential step and digest its reviewed ste
     expect(await Plan.digest({ steps: [drop, add] })).not.toBe(first);
 });
 
-test("validate declarations against their kind, version and spec", () => {
-    const Bucket = defineResourceSchema("bucket", 1, schema.object({ public: schema.boolean() }));
+test("validate declarations against their kind and spec", () => {
+    const bucket = defineResourceKind("bucket", {
+        spec: schema.object({ public: schema.boolean() }),
+    });
 
     // accept a declaration of the kind and refuse another kind or spec
-    expect(
-        Bucket.parse({ name: "files", kind: "bucket", version: 1, spec: { public: false } }),
-    ).toEqual({
-        name: "files",
-        kind: "bucket",
-        version: 1,
-        spec: { public: false },
+    const parse = (value: unknown) => bucket.description.safeParse(value).success;
+    expect([
+        parse({ name: "files", kind: "bucket", spec: { public: false } }),
+        parse({ name: "files", kind: "vault", spec: { public: false } }),
+        parse({ name: "files", kind: "bucket", spec: {} }),
+    ]).toEqual([true, false, false]);
+});
+
+test("require reconciling from providers of kinds with a state, and whole capabilities from any", () => {
+    const database = defineResourceKind("database", {
+        spec: schema.object({}),
+        state: schema.object({ tables: schema.array(schema.string()) }),
     });
+    const bucket = defineResourceKind("bucket", { spec: schema.object({}) });
+    const connect = async () => "client";
+    const provision = async () => ({ reference: "memory:x" });
+    const destroy = async () => {};
+
+    // refuse a stateful kind's provider without reconciling, half a capability, and reconciling without a state
+    // @ts-expect-error a provider of a kind with a state plans and applies
+    const unreconciled: Provider<string, typeof database> = {
+        kind: "database",
+        code: "memory",
+        connect,
+    };
+    // @ts-expect-error a provider provisions and destroys, or does neither
+    const half: Provider<string, typeof bucket> = {
+        kind: "bucket",
+        code: "memory",
+        connect,
+        provision,
+    };
+    const stateless: Provider<string, typeof bucket> = {
+        kind: "bucket",
+        code: "memory",
+        connect,
+        // @ts-expect-error a provider of a kind without a state reconciles nothing
+        plan: async () => ({ steps: [] }),
+    };
+
+    // report each provider's capabilities
+    const hosted: Provider<string, typeof bucket> = {
+        kind: "bucket",
+        code: "memory",
+        connect,
+        provision,
+        destroy,
+    };
+    const capabilities = (provider: Provider) => [
+        Provider.reconciles(provider),
+        Provider.provisions(provider),
+        Provider.copies(provider),
+    ];
     expect(
-        Bucket.safeParse({ name: "files", kind: "vault", version: 1, spec: { public: false } })
-            .success,
-    ).toBe(false);
-    expect(Bucket.safeParse({ name: "files", kind: "bucket", version: 1, spec: {} }).success).toBe(
-        false,
-    );
+        [unreconciled, half, stateless, hosted].map((provider) =>
+            capabilities(provider as Provider),
+        ),
+    ).toEqual([
+        [false, false, false],
+        [false, false, false],
+        [false, false, false],
+        [false, true, false],
+    ]);
 });

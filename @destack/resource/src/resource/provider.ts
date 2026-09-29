@@ -1,8 +1,8 @@
-import type { Identifier } from "@destack/schema";
+import type { Identifier, schema } from "@destack/schema";
 import type { ResourceState } from "@destack/package/declare";
 import type { Chunk, Copy } from "./copy.ts";
 import type { Plan } from "./plan.ts";
-import type { Resource } from "./resource.ts";
+import type { Resource, ResourceKind } from "./resource.ts";
 
 /** A resource as its space stores it. */
 export interface ResourceRecord {
@@ -18,6 +18,12 @@ export interface ResourceRecord {
     readonly reference: string | null;
 }
 
+/** What a host lends the providers it opens for one workload. */
+export interface ProviderContext {
+    /** Read the workload's current credential, for providers calling services as it. */
+    credential(): string;
+}
+
 /** Where a provider placed a resource. */
 export interface Provision {
     /** The provider's stable reference, such as a file URL or bucket name. */
@@ -26,25 +32,46 @@ export interface Provision {
     readonly location?: string;
 }
 
-/** Infrastructure on one host for resources of one kind. */
-export interface Provider<Client = unknown, Facet = never> {
+/** A technology providing resources of one kind on a host: it connects them, and has the capabilities its kind and technology allow. */
+export type Provider<
+    Client = unknown,
+    Kind extends ResourceKind = ResourceKind,
+    Facet = never,
+> = Connector<Client, Kind, Facet> &
+    (Kind["state"] extends schema.Schema ? Reconciling : unknown) &
+    (Provisioning | { readonly provision?: never; readonly destroy?: never }) &
+    (Copying | { readonly export?: never; readonly import?: never });
+
+/** The part of every provider that opens clients. */
+interface Connector<Client, Kind extends ResourceKind, Facet> {
     /** The resource kind provided. */
-    readonly kind: string;
-    /** The provider code recorded on provisioned resources, such as sqlite. */
+    readonly kind: Kind["name"];
+    /** The provider code recorded on bindings, such as sqlite. */
     readonly code: string;
     /** The object type sharing the resource's identity in its space, such as a vault. */
     readonly facet?: Facet;
-    /** Create or confirm the resource, returning the same reference each time. */
-    provision(record: ResourceRecord): Promise<Provision>;
+    /** Open a client for a resource holding the declaration's desired state, refusing otherwise. */
+    connect(record: ResourceRecord, declaration: Resource<Client>): Promise<Client>;
+}
+
+/** Take a resource to the desired state its kind declares, required of providers of kinds with a state. */
+export interface Reconciling {
     /** Plan the steps taking the resource to the union of the desired states. */
     plan(record: ResourceRecord, desired: readonly ResourceState[]): Promise<Plan>;
     /** Apply the plan with the reviewed digest, refusing when the resource or desired states changed. */
     apply(record: ResourceRecord, desired: readonly ResourceState[], digest: string): Promise<void>;
-    /** Open a client for a resource holding the declaration's desired state, refusing otherwise. */
-    connect(record: ResourceRecord, declaration: Resource<Client>): Promise<Client>;
+}
+
+/** Create and remove resources the provider hosts. */
+export interface Provisioning {
+    /** Create or confirm the resource, returning the same reference each time. */
+    provision(record: ResourceRecord): Promise<Provision>;
     /** Destroy the resource and everything it stores. */
     destroy(record: ResourceRecord): Promise<void>;
+}
 
+/** Move a resource's content out of and into the provider. */
+export interface Copying {
     /**
      * Read the source's content after a cursor as chunks, repeatably, ending once the stage's content is read.
      *
@@ -55,16 +82,26 @@ export interface Provider<Client = unknown, Facet = never> {
     import(copy: Copy, chunk: Chunk): Promise<void>;
 }
 
-/** Infrastructure on one host for resources of each kind. */
+/** The capabilities of providers. */
 export const Provider = {
-    /** Refuse a provider that cannot move its resources' content with a transfer. */
-    require<Client, Facet>(provider: Provider<Client, Facet>): Provider<Client, Facet> {
-        if (typeof provider.export !== "function" || typeof provider.import !== "function") {
-            throw new TypeError(
-                `provider ${provider.code} of ${provider.kind} exports and imports no content`,
-            );
-        }
+    /** Report whether a provider reconciles its resources toward a desired state. */
+    reconciles<Value extends Provider<unknown, ResourceKind, unknown>>(
+        provider: Value,
+    ): provider is Value & Reconciling {
+        return "plan" in provider && "apply" in provider;
+    },
 
-        return provider;
+    /** Report whether a provider creates and removes the resources it hosts. */
+    provisions<Value extends Provider<unknown, ResourceKind, unknown>>(
+        provider: Value,
+    ): provider is Value & Provisioning {
+        return provider.provision !== undefined && provider.destroy !== undefined;
+    },
+
+    /** Report whether a provider moves its resources' content out and in. */
+    copies<Value extends Provider<unknown, ResourceKind, unknown>>(
+        provider: Value,
+    ): provider is Value & Copying {
+        return provider.export !== undefined && provider.import !== undefined;
     },
 };

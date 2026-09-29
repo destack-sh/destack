@@ -4,13 +4,14 @@ Declare the resources a package needs, bind their clients, plan their changes an
 
 ## Declarations
 
-`defineResourceSchema` validates the declarations of one resource kind by their kind, version and spec.
+`defineResourceKind` defines a kind by its spec and, for kinds whose providers reconcile one, its desired state.
 
 ```ts
-import { defineResourceSchema } from "@destack/resource";
+import { defineResourceKind } from "@destack/resource";
 
-const BucketDescription = defineResourceSchema("bucket", 1, schema.object({}));
-const files = BucketDescription.parse({ name: "files", kind: "bucket", version: 1, spec: {} });
+const DatabaseKind = defineResourceKind("database", { spec: DatabaseSpec, state: DatabaseState });
+const BucketKind = defineResourceKind("bucket", { spec: BucketSpec });
+const files = BucketKind.description.parse({ name: "files", kind: "bucket", spec: {} });
 ```
 
 ## Clients
@@ -26,13 +27,24 @@ await database.get(context).select().from(note);
 
 ## Providers
 
-A `Provider` provisions, plans, applies, connects and destroys the resources of one kind on a host.
+A `Provider` connects the resources of one kind on a host, and has the capabilities its kind and technology allow.
+
+| Capability | Methods | Required |
+|---|---|---|
+| connecting | `connect` | always |
+| `Reconciling` | `plan`, `apply` | exactly when the kind declares a desired state |
+| `Provisioning` | `provision`, `destroy` | when the provider hosts what it provides |
+| `Copying` | `export`, `import` | when the provider moves content in and out |
+
+A host checks a capability before using it.
 
 ```ts
-const plan = await provider.plan(record, [notes.state(), tasks.state()]);
-Plan.classify(plan); // "safe", "data-dependent", "backward-incompatible" or "destructive"
-await provider.apply(record, desired, await Plan.digest(plan));
 const client = await provider.connect(record, notes);
+if (Provider.reconciles(provider)) {
+    const plan = await provider.plan(record, [notes.state(), tasks.state()]);
+    Plan.classify(plan); // "safe", "data-dependent", "backward-incompatible" or "destructive"
+    await provider.apply(record, desired, await Plan.digest(plan));
+}
 ```
 
 ## Copies

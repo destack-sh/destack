@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { Provider, Recipient } from "./index.ts";
+import { Recipient } from "./index.ts";
 
 test("seal bytes to a recipient, which alone opens them under the same context", async () => {
     const recipient = await Recipient.generate();
@@ -15,13 +15,5 @@ test("seal bytes to a recipient, which alone opens them under the same context",
     });
     await expect(Recipient.of(recipient.key).open(sealed, context)).rejects.toThrow(
         new TypeError("open sealed bytes on the recipient holding its private key"),
-    );
-});
-
-test("refuse registering a provider that moves no content", () => {
-    const provider = { kind: "cache", code: "memory" } as unknown as Provider;
-
-    expect(() => Provider.require(provider)).toThrow(
-        new TypeError("provider memory of cache exports and imports no content"),
     );
 });

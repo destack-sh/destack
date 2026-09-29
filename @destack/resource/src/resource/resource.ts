@@ -1,7 +1,7 @@
 import { defineSchema, identifier, schema } from "@destack/schema";
 import { DeclarationName, type Package } from "@destack/package";
 import { ResourceHandle } from "./handle.ts";
-import type { Provider } from "./provider.ts";
+import type { Provider, ProviderContext } from "./provider.ts";
 import type { ResourceState } from "@destack/package/declare";
 
 /** A named infrastructure dependency declared by a package. */
@@ -11,8 +11,6 @@ export const ResourceDescription = defineSchema(
         name: DeclarationName,
         /** The resource kind defined by its domain library. */
         kind: DeclarationName,
-        /** The declaration format version. */
-        version: schema.number().int().positive(),
         /** The specification validated by the domain library. */
         spec: schema.record(schema.string(), schema.json()),
     }),
@@ -39,22 +37,21 @@ export class Resource<
 > extends ResourceHandle<Client> {
     /** The resource kind. */
     readonly kind: Declaration["kind"];
-    /** The declaration format version. */
-    readonly version: Declaration["version"];
     /** The domain specification. */
     readonly spec: Declaration["spec"];
 
     /** Retain validated metadata without opening a resource. */
     constructor(owner: Package, declaration: Declaration) {
-        // retain the declared kind, version and spec
+        // retain the declared kind and spec
         super(owner, declaration.name);
         this.kind = declaration.kind;
-        this.version = declaration.version;
         this.spec = declaration.spec;
     }
 
     /** Open the providers holding resources of this kind on the running runtime, by provider code. */
-    get providers(): Readonly<Record<string, (reference: URL) => Promise<Provider>>> {
+    get providers(): Readonly<
+        Record<string, (reference: URL, context: ProviderContext) => Promise<Provider>>
+    > {
         return {};
     }
 
@@ -63,32 +60,49 @@ export class Resource<
         return {};
     }
 
-    /** Serialise the declaration as its declaring package, name, kind, version and spec. */
+    /** Serialise the declaration as its declaring package, name, kind and spec. */
     toJSON() {
-        return {
-            package: this.package,
-            name: this.name,
-            kind: this.kind,
-            version: this.version,
-            spec: this.spec,
-        };
+        return { package: this.package, name: this.name, kind: this.kind, spec: this.spec };
     }
 }
 
-/** Define a resource declaration with a concrete specification. */
-export function defineResourceSchema<const Kind extends string, Spec extends schema.Schema>(
-    kind: Kind,
-    version: number,
-    spec: Spec,
-) {
-    // validate the kind and version before building the schema
-    ResourceDescription.pick({ kind: true, version: true }).parse({ kind, version });
+/** A kind of resource: its specification, and the desired state its providers reconcile, if any. */
+export class ResourceKind<
+    Name extends string = string,
+    Spec extends schema.Schema = schema.Schema,
+    State extends schema.Schema | undefined = schema.Schema | undefined,
+> {
+    /** The kind's name, such as database. */
+    readonly name: Name;
+    /** The schema of a declaration's specification. */
+    readonly spec: Spec;
+    /** The schema of the desired state its providers reconcile resources toward, absent for kinds without one. */
+    readonly state: State;
+    /** The schema of a declaration of this kind. */
+    readonly description;
 
-    return defineSchema(
-        ResourceDescription.extend({
-            kind: schema.literal(kind),
-            version: schema.literal(version),
-            spec,
-        }),
-    );
+    /** Define the kind. */
+    constructor(name: Name, spec: Spec, state: State) {
+        // retain the schemas
+        this.name = DeclarationName.parse(name) as Name;
+        this.spec = spec;
+        this.state = state;
+
+        // describe declarations of the kind
+        this.description = defineSchema(
+            ResourceDescription.extend({ kind: schema.literal(name), spec }),
+        );
+    }
+}
+
+/** Define a resource kind, with the desired state its providers reconcile or without one. */
+export function defineResourceKind<
+    const Name extends string,
+    Spec extends schema.Schema,
+    State extends schema.Schema | undefined = undefined,
+>(
+    name: Name,
+    options: { readonly spec: Spec; readonly state?: State },
+): ResourceKind<Name, Spec, State> {
+    return new ResourceKind(name, options.spec, options.state as State);
 }
