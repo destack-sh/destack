@@ -12,29 +12,43 @@ import { SnapshotOptions } from "./snapshot.tspp";
 /// Assertion function.
 export const expect: Expect = createExpect(false);
 
-/// Callable assertion interface.
+/// Callable assertion.
 @languageItem("test.Expect")
-export newtype interface Expect {
+export class Expect {
     /// Create a panic expectation over one unwind-safe callable.
-    <R>(body: ^Function<(), R, "once"> & UnwindSafe, message?: ^string): PanicExpectation<R>;
+    <R>(body: ^Function<(), R, "once"> & UnwindSafe, message?: ^string): PanicExpectation<R> {
+        todo("Expect()")
+    }
 
     /// Create an expectation over `value`.
-    <T, 'a>(value: Borrowed<T, 'a, "immutable">, message?: ^string): Expectation<'a, T>;
+    <T, 'a>(value: Borrowed<T, 'a, "immutable">, message?: ^string): Expectation<'a, T> {
+        todo("Expect()")
+    }
 
     /// Create soft expectations that record failures and continue.
-    readonly soft: Expect;
+    get soft(): Expect {
+        todo("Expect.soft")
+    }
 
     /// Repeatedly observe a value until one asynchronous matcher succeeds.
-    poll<T>(read: Poll<T>, options?: PollOptions): PollingExpectation<T>;
+    poll<T>(read: Poll<T>, options?: PollOptions): PollingExpectation<T> {
+        todo("Expect.poll")
+    }
 
     /// Require exactly `count` assertions in the current test.
-    assertions(count: usize): void;
+    assertions(count: usize): void {
+        todo("Expect.assertions");
+    }
 
     /// Require at least one assertion in the current test.
-    hasAssertions(): void;
+    hasAssertions(): void {
+        todo("Expect.hasAssertions");
+    }
 
     /// Fail because control reached an impossible branch.
-    unreachable(message?: ^string): never;
+    unreachable(message?: ^string): never {
+        todo("Expect.unreachable")
+    }
 }
 
 /// One expectation over an observed value.

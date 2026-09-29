@@ -11,91 +11,141 @@ export const describe: TestSuite = createSuite();
 /// Alias for `describe`.
 export const suite: TestSuite = describe;
 
-/// Callable test suite registration interface.
+/// Callable test suite registration.
 @languageItem("test.TestSuite")
-export newtype interface TestSuite {
+export class TestSuite {
     /// Register one test suite.
-    (name: string, body?: SuiteBody): void;
+    (name: string, body?: SuiteBody): void {
+        todo("TestSuite()");
+    }
 
     /// Register one configured test suite.
-    (name: string, options: Options, body?: SuiteBody): void;
+    (name: string, options: Options, body?: SuiteBody): void {
+        todo("TestSuite()");
+    }
 
     /// Register skipped suites.
-    readonly skip: TestSuite;
+    get skip(): TestSuite {
+        todo("TestSuite.skip")
+    }
 
     /// Register focused suites.
-    readonly only: TestSuite;
+    get only(): TestSuite {
+        todo("TestSuite.only")
+    }
 
     /// Register pending suites.
-    readonly todo: TestSuite;
+    get todo(): TestSuite {
+        todo("TestSuite.todo")
+    }
 
     /// Register suites whose cases may run concurrently.
-    readonly concurrent: TestSuite;
+    get concurrent(): TestSuite {
+        todo("TestSuite.concurrent")
+    }
 
     /// Register suites whose direct children run in shuffled order.
-    readonly shuffle: TestSuite;
+    get shuffle(): TestSuite {
+        todo("TestSuite.shuffle")
+    }
 
     /// Register suites when `condition` holds.
-    runIf(condition: boolean): TestSuite;
+    runIf(condition: boolean): TestSuite {
+        todo("TestSuite.runIf")
+    }
 
     /// Register skipped suites when `condition` holds.
-    skipIf(condition: boolean): TestSuite;
+    skipIf(condition: boolean): TestSuite {
+        todo("TestSuite.skipIf")
+    }
 
     /// Register one suite for each parameter tuple.
-    each<P: (...unknown[],)>(values: Iterable<P>): ParameterizedSuite<P>;
+    each<P: (...unknown[],)>(values: Iterable<P>): ParameterizedSuite<P> {
+        todo("TestSuite.each")
+    }
 
     /// Register one suite for each value without spreading arrays.
-    for<T>(values: Iterable<T>): TableSuite<T>;
+    for<T>(values: Iterable<T>): TableSuite<T> {
+        todo("TestSuite.for")
+    }
 }
 
 /// Suite registration over one parameter tuple.
 @languageItem("test.ParameterizedSuite")
-export newtype interface ParameterizedSuite<P: (...unknown[],)> {
+export class ParameterizedSuite<P: (...unknown[],)> {
     /// Register one parameterized suite.
-    (name: string, body?: Function<P, void>): void;
+    (name: string, body?: Function<P, void>): void {
+        todo("ParameterizedSuite()");
+    }
 
     /// Register one configured parameterized suite.
-    (name: string, options: Options, body?: Function<P, void>): void;
+    (name: string, options: Options, body?: Function<P, void>): void {
+        todo("ParameterizedSuite()");
+    }
 
     /// Register skipped parameterized suites.
-    readonly skip: ParameterizedSuite<P>;
+    get skip(): ParameterizedSuite<P> {
+        todo("ParameterizedSuite.skip")
+    }
 
     /// Register focused parameterized suites.
-    readonly only: ParameterizedSuite<P>;
+    get only(): ParameterizedSuite<P> {
+        todo("ParameterizedSuite.only")
+    }
 
     /// Register pending parameterized suites.
-    readonly todo: ParameterizedSuite<P>;
+    get todo(): ParameterizedSuite<P> {
+        todo("ParameterizedSuite.todo")
+    }
 
     /// Register parameterized suites whose cases may run concurrently.
-    readonly concurrent: ParameterizedSuite<P>;
+    get concurrent(): ParameterizedSuite<P> {
+        todo("ParameterizedSuite.concurrent")
+    }
 
     /// Register parameterized suites whose direct children run in shuffled order.
-    readonly shuffle: ParameterizedSuite<P>;
+    get shuffle(): ParameterizedSuite<P> {
+        todo("ParameterizedSuite.shuffle")
+    }
 }
 
 /// Suite registration over one unspread table value.
 @languageItem("test.TableSuite")
-export newtype interface TableSuite<T> {
+export class TableSuite<T> {
     /// Register one table suite.
-    (name: string, body?: (value: T) => void): void;
+    (name: string, body?: (value: T) => void): void {
+        todo("TableSuite()");
+    }
 
     /// Register one configured table suite.
-    (name: string, options: Options, body?: (value: T) => void): void;
+    (name: string, options: Options, body?: (value: T) => void): void {
+        todo("TableSuite()");
+    }
 
     /// Register skipped table suites.
-    readonly skip: TableSuite<T>;
+    get skip(): TableSuite<T> {
+        todo("TableSuite.skip")
+    }
 
     /// Register focused table suites.
-    readonly only: TableSuite<T>;
+    get only(): TableSuite<T> {
+        todo("TableSuite.only")
+    }
 
     /// Register pending table suites.
-    readonly todo: TableSuite<T>;
+    get todo(): TableSuite<T> {
+        todo("TableSuite.todo")
+    }
 
     /// Register table suites whose cases may run concurrently.
-    readonly concurrent: TableSuite<T>;
+    get concurrent(): TableSuite<T> {
+        todo("TableSuite.concurrent")
+    }
 
     /// Register table suites whose direct children run in shuffled order.
-    readonly shuffle: TableSuite<T>;
+    get shuffle(): TableSuite<T> {
+        todo("TableSuite.shuffle")
+    }
 }
 
 /// Registered test suite.

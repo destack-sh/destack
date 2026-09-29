@@ -21,99 +21,137 @@ export const test: Test = createTest();
 /// Alias for `test`.
 export const it: Test = test;
 
-/// Callable test registration interface.
+/// Callable test registration.
 @languageItem("test.Test")
-export newtype interface Test<TestValues = {}, ModuleValues = {}, WorkerValues = {}> {
+export class Test<TestValues = {}, ModuleValues = {}, WorkerValues = {}> {
     /// Register one test.
-    (name: string, body?: Body<TestContext<TestValues, ModuleValues, WorkerValues>>): void;
+    (name: string, body?: Body<TestContext<TestValues, ModuleValues, WorkerValues>>): void {
+        todo("Test()");
+    }
 
     /// Register one configured test.
     (
         name: string,
         options: Options,
         body?: Body<TestContext<TestValues, ModuleValues, WorkerValues>>,
-    ): void;
+    ): void {
+        todo("Test()");
+    }
 
     /// Register skipped tests.
-    readonly skip: Test<TestValues, ModuleValues, WorkerValues>;
+    get skip(): Test<TestValues, ModuleValues, WorkerValues> {
+        todo("Test.skip")
+    }
 
     /// Register focused tests.
-    readonly only: Test<TestValues, ModuleValues, WorkerValues>;
+    get only(): Test<TestValues, ModuleValues, WorkerValues> {
+        todo("Test.only")
+    }
 
     /// Register pending tests.
-    readonly todo: Test<TestValues, ModuleValues, WorkerValues>;
+    get todo(): Test<TestValues, ModuleValues, WorkerValues> {
+        todo("Test.todo")
+    }
 
     /// Register tests that must fail.
-    readonly fails: Test<TestValues, ModuleValues, WorkerValues>;
+    get fails(): Test<TestValues, ModuleValues, WorkerValues> {
+        todo("Test.fails")
+    }
 
     /// Register tests that may run concurrently.
-    readonly concurrent: Test<TestValues, ModuleValues, WorkerValues>;
+    get concurrent(): Test<TestValues, ModuleValues, WorkerValues> {
+        todo("Test.concurrent")
+    }
 
     /// Register tests when `condition` holds.
-    runIf(condition: boolean): Test<TestValues, ModuleValues, WorkerValues>;
+    runIf(condition: boolean): Test<TestValues, ModuleValues, WorkerValues> {
+        todo("Test.runIf")
+    }
 
     /// Register skipped tests when `condition` holds.
-    skipIf(condition: boolean): Test<TestValues, ModuleValues, WorkerValues>;
+    skipIf(condition: boolean): Test<TestValues, ModuleValues, WorkerValues> {
+        todo("Test.skipIf")
+    }
 
     /// Register one test for each parameter tuple.
-    each<P: (...unknown[],) & Copy>(values: Iterable<P>): ParameterizedTest<P>;
+    each<P: (...unknown[],) & Copy>(values: Iterable<P>): ParameterizedTest<P> {
+        todo("Test.each")
+    }
 
     /// Register one test for each value without spreading arrays.
-    for<T>(values: Iterable<T>): TableTest<T, TestValues, ModuleValues, WorkerValues>;
+    for<T>(values: Iterable<T>): TableTest<T, TestValues, ModuleValues, WorkerValues> {
+        todo("Test.for")
+    }
 
     /// Add one test-scoped fixture function.
     extend<const Name: string, Value>(
         name: Name,
         fixture: Fixture<TestContext<Omit<TestValues, Name>, ModuleValues, WorkerValues>, Value>,
-    ): Test<Omit<TestValues, Name> & Record<Name, Value>, ModuleValues, WorkerValues>;
+    ): Test<Omit<TestValues, Name> & Record<Name, Value>, ModuleValues, WorkerValues> {
+        todo("Test.extend")
+    }
 
     /// Add one test-scoped fixture value.
     extend<const Name: string, Value: Copy>(
         name: Name,
         value: Value,
-    ): Test<Omit<TestValues, Name> & Record<Name, Value>, ModuleValues, WorkerValues>;
+    ): Test<Omit<TestValues, Name> & Record<Name, Value>, ModuleValues, WorkerValues> {
+        todo("Test.extend")
+    }
 
     /// Add one configured test-scoped fixture function.
     extend<const Name: string, Value>(
         name: Name,
         options: TestFixtureOptions,
         fixture: Fixture<TestContext<Omit<TestValues, Name>, ModuleValues, WorkerValues>, Value>,
-    ): Test<Omit<TestValues, Name> & Record<Name, Value>, ModuleValues, WorkerValues>;
+    ): Test<Omit<TestValues, Name> & Record<Name, Value>, ModuleValues, WorkerValues> {
+        todo("Test.extend")
+    }
 
     /// Add one configured test-scoped fixture value.
     extend<const Name: string, Value: Copy>(
         name: Name,
         options: TestFixtureOptions,
         value: Value,
-    ): Test<Omit<TestValues, Name> & Record<Name, Value>, ModuleValues, WorkerValues>;
+    ): Test<Omit<TestValues, Name> & Record<Name, Value>, ModuleValues, WorkerValues> {
+        todo("Test.extend")
+    }
 
     /// Add one module-scoped fixture function.
     extend<const Name: string, Value>(
         name: Name,
         options: ModuleFixtureOptions,
         fixture: Fixture<WorkerValues & Omit<ModuleValues, Name>, Value>,
-    ): Test<TestValues, Omit<ModuleValues, Name> & Record<Name, Value>, WorkerValues>;
+    ): Test<TestValues, Omit<ModuleValues, Name> & Record<Name, Value>, WorkerValues> {
+        todo("Test.extend")
+    }
 
     /// Add one module-scoped fixture value.
     extend<const Name: string, Value: Copy>(
         name: Name,
         options: ModuleFixtureOptions,
         value: Value,
-    ): Test<TestValues, Omit<ModuleValues, Name> & Record<Name, Value>, WorkerValues>;
+    ): Test<TestValues, Omit<ModuleValues, Name> & Record<Name, Value>, WorkerValues> {
+        todo("Test.extend")
+    }
 
     /// Add one Worker-scoped fixture function.
     extend<const Name: string, Value>(
         name: Name,
         options: WorkerFixtureOptions,
         fixture: Fixture<Omit<WorkerValues, Name>, Value>,
-    ): Test<TestValues, ModuleValues, Omit<WorkerValues, Name> & Record<Name, Value>>;
+    ): Test<TestValues, ModuleValues, Omit<WorkerValues, Name> & Record<Name, Value>> {
+        todo("Test.extend")
+    }
 
     /// Add one Worker-scoped fixture value.
     extend<const Name: string, Value: Copy>(
         name: Name,
         options: WorkerFixtureOptions,
         value: Value,
-    ): Test<TestValues, ModuleValues, Omit<WorkerValues, Name> & Record<Name, Value>>;
+    ): Test<TestValues, ModuleValues, Omit<WorkerValues, Name> & Record<Name, Value>> {
+        todo("Test.extend")
+    }
 
     /// Override one test-scoped fixture function in the current suite.
     override<const Name: keyof TestValues>(
@@ -122,107 +160,152 @@ export newtype interface Test<TestValues = {}, ModuleValues = {}, WorkerValues =
             TestContext<Omit<TestValues, Name>, ModuleValues, WorkerValues>,
             TestValues[Name]
         >,
-    ): Test<TestValues, ModuleValues, WorkerValues>;
+    ): Test<TestValues, ModuleValues, WorkerValues> {
+        todo("Test.override")
+    }
 
     /// Override one test-scoped fixture value in the current suite.
     override<const Name: keyof TestValues>(
         name: Name,
         value: TestValues[Name] & Copy,
-    ): Test<TestValues, ModuleValues, WorkerValues>;
+    ): Test<TestValues, ModuleValues, WorkerValues> {
+        todo("Test.override")
+    }
 
     /// Override one module-scoped fixture function during top-level module registration.
     override<const Name: keyof ModuleValues>(
         name: Name,
         options: { scope: "module" },
         fixture: Fixture<WorkerValues & Omit<ModuleValues, Name>, ModuleValues[Name]>,
-    ): Test<TestValues, ModuleValues, WorkerValues>;
+    ): Test<TestValues, ModuleValues, WorkerValues> {
+        todo("Test.override")
+    }
 
     /// Override one module-scoped fixture value during top-level module registration.
     override<const Name: keyof ModuleValues>(
         name: Name,
         options: { scope: "module" },
         value: ModuleValues[Name] & Copy,
-    ): Test<TestValues, ModuleValues, WorkerValues>;
+    ): Test<TestValues, ModuleValues, WorkerValues> {
+        todo("Test.override")
+    }
 
     /// Override one Worker-scoped fixture function during top-level module registration.
     override<const Name: keyof WorkerValues>(
         name: Name,
         options: { scope: "worker" },
         fixture: Fixture<Omit<WorkerValues, Name>, WorkerValues[Name]>,
-    ): Test<TestValues, ModuleValues, WorkerValues>;
+    ): Test<TestValues, ModuleValues, WorkerValues> {
+        todo("Test.override")
+    }
 
     /// Override one Worker-scoped fixture value during top-level module registration.
     override<const Name: keyof WorkerValues>(
         name: Name,
         options: { scope: "worker" },
         value: WorkerValues[Name] & Copy,
-    ): Test<TestValues, ModuleValues, WorkerValues>;
+    ): Test<TestValues, ModuleValues, WorkerValues> {
+        todo("Test.override")
+    }
 
     /// Test suite registration scoped to this test function.
-    readonly describe: TestSuite;
+    get describe(): TestSuite {
+        todo("Test.describe")
+    }
 
     /// Alias for `describe`.
-    readonly suite: TestSuite;
+    get suite(): TestSuite {
+        todo("Test.suite")
+    }
 
     /// Register setup before each scoped test.
     beforeEach(
         body: HookBody<TestContext<TestValues, ModuleValues, WorkerValues>>,
         timeout?: Duration,
-    ): void;
+    ): void {
+        todo("Test.beforeEach");
+    }
 
     /// Register cleanup after each scoped test.
     afterEach(
         body: HookBody<TestContext<TestValues, ModuleValues, WorkerValues>>,
         timeout?: Duration,
-    ): void;
+    ): void {
+        todo("Test.afterEach");
+    }
 
     /// Register a function around each scoped test.
     aroundEach(
         body: AroundHook<TestContext<TestValues, ModuleValues, WorkerValues>>,
         timeout?: Duration,
-    ): void;
+    ): void {
+        todo("Test.aroundEach");
+    }
 
     /// Register setup before all scoped tests.
-    beforeAll(body: HookBody<SuiteContext & WorkerValues & ModuleValues>, timeout?: Duration): void;
+    beforeAll(
+        body: HookBody<SuiteContext & WorkerValues & ModuleValues>,
+        timeout?: Duration,
+    ): void {
+        todo("Test.beforeAll");
+    }
 
     /// Register cleanup after all scoped tests.
-    afterAll(body: HookBody<SuiteContext & WorkerValues & ModuleValues>, timeout?: Duration): void;
+    afterAll(body: HookBody<SuiteContext & WorkerValues & ModuleValues>, timeout?: Duration): void {
+        todo("Test.afterAll");
+    }
 
     /// Register a function around all scoped tests.
     aroundAll(
         body: AroundHook<SuiteContext & WorkerValues & ModuleValues>,
         timeout?: Duration,
-    ): void;
+    ): void {
+        todo("Test.aroundAll");
+    }
 }
 
 /// Test registration over one parameter tuple.
 @languageItem("test.ParameterizedTest")
-export newtype interface ParameterizedTest<P: (...unknown[],) & Copy> {
+export class ParameterizedTest<P: (...unknown[],) & Copy> {
     /// Register one parameterized test.
-    (name: string, body?: Function<P, BodyResult>): void;
+    (name: string, body?: Function<P, BodyResult>): void {
+        todo("ParameterizedTest()");
+    }
 
     /// Register one configured parameterized test.
-    (name: string, options: Options, body?: Function<P, BodyResult>): void;
+    (name: string, options: Options, body?: Function<P, BodyResult>): void {
+        todo("ParameterizedTest()");
+    }
 
     /// Register skipped parameterized tests.
-    readonly skip: ParameterizedTest<P>;
+    get skip(): ParameterizedTest<P> {
+        todo("ParameterizedTest.skip")
+    }
 
     /// Register focused parameterized tests.
-    readonly only: ParameterizedTest<P>;
+    get only(): ParameterizedTest<P> {
+        todo("ParameterizedTest.only")
+    }
 
     /// Register pending parameterized tests.
-    readonly todo: ParameterizedTest<P>;
+    get todo(): ParameterizedTest<P> {
+        todo("ParameterizedTest.todo")
+    }
 
     /// Register parameterized tests that must fail.
-    readonly fails: ParameterizedTest<P>;
+    get fails(): ParameterizedTest<P> {
+        todo("ParameterizedTest.fails")
+    }
 
     /// Register parameterized tests that may run concurrently.
-    readonly concurrent: ParameterizedTest<P>;
+    get concurrent(): ParameterizedTest<P> {
+        todo("ParameterizedTest.concurrent")
+    }
 }
 
 /// Test registration over one unspread table value.
 @languageItem("test.TableTest")
-export newtype interface TableTest<T, TestValues, ModuleValues, WorkerValues> {
+export class TableTest<T, TestValues, ModuleValues, WorkerValues> {
     /// Register one table test.
     (
         name: string,
@@ -230,7 +313,9 @@ export newtype interface TableTest<T, TestValues, ModuleValues, WorkerValues> {
             value: &readonly T,
             context: &TestContext<TestValues, ModuleValues, WorkerValues>,
         ) => BodyResult,
-    ): void;
+    ): void {
+        todo("TableTest()");
+    }
 
     /// Register one configured table test.
     (
@@ -240,22 +325,34 @@ export newtype interface TableTest<T, TestValues, ModuleValues, WorkerValues> {
             value: &readonly T,
             context: &TestContext<TestValues, ModuleValues, WorkerValues>,
         ) => BodyResult,
-    ): void;
+    ): void {
+        todo("TableTest()");
+    }
 
     /// Register skipped table tests.
-    readonly skip: TableTest<T, TestValues, ModuleValues, WorkerValues>;
+    get skip(): TableTest<T, TestValues, ModuleValues, WorkerValues> {
+        todo("TableTest.skip")
+    }
 
     /// Register focused table tests.
-    readonly only: TableTest<T, TestValues, ModuleValues, WorkerValues>;
+    get only(): TableTest<T, TestValues, ModuleValues, WorkerValues> {
+        todo("TableTest.only")
+    }
 
     /// Register pending table tests.
-    readonly todo: TableTest<T, TestValues, ModuleValues, WorkerValues>;
+    get todo(): TableTest<T, TestValues, ModuleValues, WorkerValues> {
+        todo("TableTest.todo")
+    }
 
     /// Register table tests that must fail.
-    readonly fails: TableTest<T, TestValues, ModuleValues, WorkerValues>;
+    get fails(): TableTest<T, TestValues, ModuleValues, WorkerValues> {
+        todo("TableTest.fails")
+    }
 
     /// Register table tests that may run concurrently.
-    readonly concurrent: TableTest<T, TestValues, ModuleValues, WorkerValues>;
+    get concurrent(): TableTest<T, TestValues, ModuleValues, WorkerValues> {
+        todo("TableTest.concurrent")
+    }
 }
 
 /// Registered test case.
