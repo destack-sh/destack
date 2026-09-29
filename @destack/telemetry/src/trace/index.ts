@@ -21,3 +21,6 @@ export type {
     SpanProcessor,
     TracerProviderOptions,
 } from "@opentelemetry/sdk-trace";
+export * from "./generator.ts";
+export * from "./sampler.ts";
+export * from "./tail.ts";

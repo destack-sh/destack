@@ -2,6 +2,8 @@ import {
     type Attributes,
     context,
     type ContextManager,
+    diag,
+    DiagLogLevel,
     metrics,
     propagation,
     type TextMapPropagator,
@@ -18,7 +20,8 @@ import { LoggerProvider, type LoggerProviderOptions } from "@opentelemetry/sdk-l
 import { MeterProvider, type MeterProviderOptions } from "@opentelemetry/sdk-metrics";
 import { TracerProvider, type TracerProviderOptions } from "@opentelemetry/sdk-trace";
 import type { Package } from "@destack/package";
-import type { TelemetryScope } from "../scope/index.ts";
+import { instrument, type TelemetryScope } from "../scope/index.ts";
+import { TraceIdGenerator } from "../trace/generator.ts";
 
 /** Configure one application's identity and its three telemetry providers. */
 export interface TelemetryOptions {
@@ -36,6 +39,8 @@ export interface TelemetryOptions {
     metrics: Omit<MeterProviderOptions, "resource">;
     /** Log processors and limits. */
     logs: Omit<LoggerProviderOptions, "resource">;
+    /** Report the SDK's own warnings and failures, such as dropped spans. */
+    report: (error: Error) => void;
 }
 
 /** Manage one application's trace, metric, and log providers. */
@@ -68,18 +73,22 @@ export class Telemetry {
             "service.name": options.name,
             "service.version": options.version,
         });
-        this.traces = new TracerProvider({ ...options.traces, resource });
+        this.traces = new TracerProvider({
+            idGenerator: new TraceIdGenerator(),
+            ...options.traces,
+            resource,
+        });
         this.metrics = new MeterProvider({ ...options.metrics, resource });
         this.logs = new LoggerProvider({ ...options.logs, resource });
     }
 
     /** Attribute instrumentation to a package using this instance's providers. */
     scope(source: Package): TelemetryScope {
-        return {
-            tracer: this.traces.getTracer(source.name, source.version),
-            meter: this.metrics.getMeter(source.name, source.version),
-            logger: this.logs.getLogger(source.name, source.version),
-        };
+        return instrument(
+            this.traces.getTracer(source.name, source.version),
+            this.metrics.getMeter(source.name, source.version),
+            this.logs.getLogger(source.name, source.version),
+        );
     }
 
     /** Register providers and the host's context manager once per application. */
@@ -88,6 +97,16 @@ export class Telemetry {
 
         // reject competing global providers and undo partial registration on failure
         try {
+            const report = (message: string, ...details: unknown[]) =>
+                options.report(new Error([message, ...details.map(String)].join(" ")));
+            const logger = {
+                error: report,
+                warn: report,
+                info: () => {},
+                debug: () => {},
+                verbose: () => {},
+            };
+            telemetry.register(diag.setLogger(logger, DiagLogLevel.WARN), () => diag.disable());
             telemetry.register(context.setGlobalContextManager(manager), () => context.disable());
             manager.enable();
             telemetry.register(propagation.setGlobalPropagator(telemetry.propagator), () =>

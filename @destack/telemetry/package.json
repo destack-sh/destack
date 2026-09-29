@@ -22,7 +22,8 @@
         "./otlp": "./src/otlp/index.ts"
     },
     "scripts": {
-        "check": "tsc --project tsconfig.json"
+        "check": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
         "@destack/package": "workspace:*",
@@ -37,8 +38,9 @@
         "@opentelemetry/resources": "2.11.0",
         "@opentelemetry/context-async-hooks": "2.11.0",
         "@opentelemetry/core": "2.11.0",
-        "@opentelemetry/exporter-trace-otlp-http": "0.222.0",
-        "@opentelemetry/exporter-metrics-otlp-http": "0.222.0",
-        "@opentelemetry/exporter-logs-otlp-http": "0.222.0"
+        "@opentelemetry/otlp-transformer": "0.222.0"
+    },
+    "devDependencies": {
+        "@destack/test": "workspace:*"
     }
 }
