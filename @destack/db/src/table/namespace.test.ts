@@ -15,3 +15,14 @@ test("fit derived names within the identifier limit and keep them distinct", () 
     expect(first.slice(0, 54)).toBe(second.slice(0, 54));
     expect(first).not.toBe(second);
 });
+
+test("leave room for suffixes appended to a bounded name", () => {
+    const name = "destack__account__account__destack__access__relationship_object_id";
+
+    // shorten to the limit minus the reserved suffix, keeping short names whole
+    expect([
+        boundedName(name, "_maintain".length).length,
+        `${boundedName(name, "_maintain".length)}_maintain`.length,
+        boundedName("note_count", "_maintain".length),
+    ]).toEqual([54, 63, "note_count"]);
+});

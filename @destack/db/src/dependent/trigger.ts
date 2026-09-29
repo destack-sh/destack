@@ -4,6 +4,7 @@ import { assertNever } from "../error/error.ts";
 import { condition, literal, quote } from "../dialect/quote.ts";
 import type { DependentDescription } from "../inspect/dependent.ts";
 import { LOG_COPYING } from "../log/schema.ts";
+import { boundedName } from "../table/namespace.ts";
 
 /** The message refusing a deletion, classified as a broken reference. */
 const RESTRICTED = "FOREIGN KEY constraint failed";
@@ -11,7 +12,7 @@ const RESTRICTED = "FOREIGN KEY constraint failed";
 /** Generate the trigger cascading or refusing a row's deletion for its dependents. */
 function install(dependent: DependentDescription, dialect: Dialect): string[] {
     // name the trigger and skip replica copies
-    const name = quote(`${dependent.table}__${dependent.source}_${dependent.key}`);
+    const name = quote(boundedName(`${dependent.table}__${dependent.source}_${dependent.key}`));
     const idle = `NOT EXISTS (SELECT 1 FROM ${quote(LOG_COPYING)})`;
     const source = quote(dependent.source);
     const rows = `${source} WHERE ${[
@@ -60,7 +61,7 @@ function install(dependent: DependentDescription, dialect: Dialect): string[] {
 
 /** Remove a dependent's trigger. */
 function remove(dependent: DependentDescription, dialect: Dialect): string[] {
-    const name = quote(`${dependent.table}__${dependent.source}_${dependent.key}`);
+    const name = quote(boundedName(`${dependent.table}__${dependent.source}_${dependent.key}`));
 
     // drop the SQLite trigger
     if (dialect === "sqlite") {

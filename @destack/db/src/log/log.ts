@@ -359,17 +359,17 @@ export class Log {
         return this.database.state.commits.until(check, signal);
     }
 
-    /** Yield committed changes after a sequence until the signal aborts. */
+    /** Yield each page past a sequence, with its selected changes, until the signal aborts. */
     async *follow<Definition extends Table>(
         selection: ChangeSelection<Definition>,
         signal: AbortSignal,
     ): AsyncGenerator<ChangePage<Definition>> {
-        // read until caught up, then wait
+        // yield each advance, also past commits of other tables, then wait
         let after = selection.after;
         while (!signal.aborted) {
             const page = await this.read({ ...selection, after });
-            after = page.sequence;
-            if (page.changes.length > 0) {
+            if (page.sequence > after) {
+                after = page.sequence;
                 yield page;
             } else {
                 await this.wait(after + 1, signal);

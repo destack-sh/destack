@@ -128,6 +128,16 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
     expect(received.done ? [] : received.value.changes.map((change) => change.key)).toEqual([
         { id: "c" },
     ]);
+
+    // advance past a commit of another table without its changes
+    const advancing = following.next();
+    await database
+        .insert(revision)
+        .values({ scope: "inbox", noteId: "c", number: 1, title: "First" });
+    expect(await advancing).toEqual({
+        done: false,
+        value: { changes: [], sequence: (await database.log.position()).sequence },
+    });
     controller.abort();
     expect((await following.next()).done).toBe(true);
 });

@@ -11,7 +11,10 @@ export async function connect(
     tables: declaration.Database | readonly Table[] = [],
     options: Omit<DrizzlePgConfig<EmptyRelations>, "relations"> = {},
 ): Promise<PostgresDatabase> {
-    const client = typeof connection === "string" ? postgres(connection) : connection;
+    const client =
+        typeof connection === "string"
+            ? postgres(connection, { onnotice: reportNotice })
+            : connection;
 
     try {
         return new PostgresDatabase(client, tables, options);
@@ -26,5 +29,12 @@ export async function connect(
         }
 
         throw error;
+    }
+}
+
+/** Report a server warning, dropping informational notices such as skipped drops. */
+export function reportNotice(notice: postgres.Notice): void {
+    if (notice.severity === "WARNING") {
+        console.warn(`postgresql warning: ${notice.message}`);
     }
 }

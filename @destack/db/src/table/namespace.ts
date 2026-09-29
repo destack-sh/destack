@@ -31,14 +31,15 @@ export function constraintName<Name extends string | undefined>(owner: Package, 
     return (name === undefined ? name : qualify(owner, name)) as Name;
 }
 
-/** Fit a derived SQL name within the identifier limit, ending in a hash of the whole name. */
-export function boundedName(name: string): string {
+/** Fit a derived SQL name and a reserved suffix within the identifier limit, ending in a hash. */
+export function boundedName(name: string, reserved = 0): string {
     // keep names that fit
-    if (name.length <= MAX_IDENTIFIER_LENGTH) {
+    const limit = MAX_IDENTIFIER_LENGTH - reserved;
+    if (name.length <= limit) {
         return name;
     }
 
-    return `${name.slice(0, MAX_IDENTIFIER_LENGTH - HASH_LENGTH - 1)}_${hashName(name)}`;
+    return `${name.slice(0, limit - HASH_LENGTH - 1)}_${hashName(name)}`;
 }
 
 /** Hash text into a name suffix with 32-bit FNV-1a. */

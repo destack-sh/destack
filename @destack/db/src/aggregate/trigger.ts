@@ -4,6 +4,7 @@ import { assertNever } from "../error/error.ts";
 import { condition, quote } from "../dialect/quote.ts";
 import type { AggregateDescription } from "../inspect/aggregate.ts";
 import { LOG_COPYING } from "../log/schema.ts";
+import { boundedName } from "../table/namespace.ts";
 
 /** Generate the triggers keeping an aggregate current. */
 function install(aggregate: AggregateDescription, dialect: Dialect): string[] {
@@ -115,9 +116,15 @@ function computed(aggregate: AggregateDescription, dialect: Dialect): string {
     return `SELECT ${expression} FROM ${source} WHERE ${source}.${quote(aggregate.key)} = ${quote(aggregate.table)}.${quote(aggregate.id)}${matching.join("")}`;
 }
 
-/** Name an aggregate's triggers. */
+/** The longest suffix an aggregate trigger name takes. */
+const SUFFIX = "_maintain";
+
+/** Name an aggregate's triggers, leaving room for their suffixes. */
 function triggerPrefix(aggregate: AggregateDescription): string {
-    return `${aggregate.source}__${aggregate.table}_${aggregate.column}`;
+    return boundedName(
+        `${aggregate.source}__${aggregate.table}_${aggregate.column}`,
+        SUFFIX.length,
+    );
 }
 
 /** Test whether an update changed a column the aggregate reads. */

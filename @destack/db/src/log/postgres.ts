@@ -6,11 +6,11 @@ import { createEpoch, LOG, LOG_CHANNEL, LOG_HORIZON, type LogDialect } from "./s
 const STAMPED_SETTING = "destack.stamped";
 
 /**
- * The advisory lock key serialising PostgreSQL commit stamping.
+ * The advisory lock class serialising PostgreSQL commit stamping, keyed by the log's schema.
  *
- * NOTE #Architecture: one lock per database caps logging commits at about 500 to 1000 a second; following only transactions below the snapshot's xmin, as PgQ does, would drop it.
+ * NOTE #Architecture: one lock per log caps logging commits at about 500 to 1000 a second; following only transactions below the snapshot's xmin, as PgQ does, would drop it.
  */
-const COMMIT_LOCK = 4_710_263_811;
+const COMMIT_LOCK = 471_026_381;
 
 /** The PostgreSQL log: its tables, functions and triggers. */
 export const postgresLog: LogDialect = {
@@ -56,7 +56,7 @@ function createPostgresLog(): readonly string[] {
             base BIGINT;
         BEGIN
             IF current_setting('${STAMPED_SETTING}', true) = NEW."transaction" THEN RETURN NULL; END IF;
-            PERFORM pg_advisory_xact_lock(${COMMIT_LOCK});
+            PERFORM pg_advisory_xact_lock(${COMMIT_LOCK}, hashtext(TG_TABLE_SCHEMA));
             SELECT count(*) INTO unstamped FROM ${log} WHERE "transaction" = NEW."transaction" AND sequence IS NULL;
             base := nextval('${LOG}_sequence');
             PERFORM setval('${LOG}_sequence', base + unstamped - 1);

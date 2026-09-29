@@ -1,3 +1,5 @@
+import { DrizzleQueryError } from "drizzle-orm/errors";
+
 /** The database failure codes. */
 export type DatabaseErrorCode =
     | "INVALID_MIGRATION"
@@ -37,8 +39,12 @@ export function assertNever(value: never): never {
 
 /** Classify a failed statement as a conflict, duplicate, broken reference or failed check. */
 export function classifyError(error: unknown): unknown {
-    // classify by PostgreSQL state or SQLite message
-    for (let cause = error; cause instanceof Error; cause = cause.cause) {
+    // classify by PostgreSQL state or SQLite message, looking only through query wrappers
+    for (
+        let cause = error;
+        cause instanceof Error;
+        cause = cause instanceof DrizzleQueryError ? cause.cause : undefined
+    ) {
         if (cause instanceof DatabaseError) {
             return cause;
         }

@@ -425,3 +425,60 @@ test.for(TEST_DIALECTS)(
         expect(await declared.check(database)).toEqual([]);
     },
 );
+
+test.each(TEST_DIALECTS)(
+    "keep foreign keys to held tables and leave references elsewhere logical on %s",
+    async (dialect) => {
+        // describe documents with and without their folders in the same database
+        const keys = (tables: readonly Table[]) =>
+            declareState(tables, dialect)
+                .find((state) => state.table.name === document[TABLE].sqlName)!
+                .table.constraints.filter((constraint) => constraint.kind === "foreignKey")
+                .map((constraint) => [constraint.kind, constraint.columns, constraint.table]);
+
+        // migrate a database holding documents alone, whose folders live elsewhere
+        const storage = await TestDatabase.create(
+            dialect,
+            defineDatabase({ name: "documents", tables: [document] }),
+            { isMigrated: true },
+        );
+        onTestFinished(() => storage.close());
+        await storage.database.insert(document).values({ id: "d1", folderId: "elsewhere" });
+
+        expect([keys([folderTwo, document]), keys([document])]).toEqual([
+            [["foreignKey", ["folder_id"], folderTwo[TABLE].sqlName]],
+            [],
+        ]);
+    },
+);
+
+test.each(TEST_DIALECTS)(
+    "let replicas leave out the sensitive columns their log never carries on %s",
+    (dialect) => {
+        // declare a required secret beside a required name
+        const credential = defineTable("credential", {
+            id: text("id").primaryKey(),
+            name: text("name").notNull(),
+            secret: text("secret").notNull().sensitive(),
+        });
+        const nullable = (isReplica: boolean) =>
+            declareState([credential], dialect, { isReplica })[0]!.table.columns.map((column) => [
+                column.name,
+                column.nullable,
+            ]);
+
+        // keep the secret required where it is held, and optional in a replica
+        expect([nullable(false), nullable(true)]).toEqual([
+            [
+                ["id", false],
+                ["name", false],
+                ["secret", false],
+            ],
+            [
+                ["id", false],
+                ["name", false],
+                ["secret", true],
+            ],
+        ]);
+    },
+);

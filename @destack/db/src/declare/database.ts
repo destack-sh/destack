@@ -25,7 +25,7 @@ export type DatabaseDescription = schema.Infer<typeof DatabaseDescription>;
 
 /** A database declaration. */
 export class Database extends Resource<DatabaseConnection, DatabaseDescription> {
-    /** The tables the database holds, with every referenced table. */
+    /** The tables the database holds, referencing tables held elsewhere without foreign keys. */
     readonly tables: readonly Table[];
 
     /** Create the declaration. */
@@ -61,7 +61,7 @@ export interface DatabaseDefinition {
     readonly name: string;
     /** Where the database lives, per space when absent. */
     readonly tier?: DatabaseTier;
-    /** The tables the database holds, with every referenced table. */
+    /** The tables the database holds, referencing tables held elsewhere without foreign keys. */
     readonly tables: readonly Table[];
 }
 

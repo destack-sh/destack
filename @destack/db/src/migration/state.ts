@@ -160,7 +160,11 @@ export function declareState(
     // attach each aggregate to its aggregated table
     const aggregates = describeAggregates(tables, options.isReplica ?? false);
 
-    return (options.isReplica ? tables : expandTrees(tables)).map((table) => {
+    // keep foreign keys to tables this database holds, leaving references elsewhere logical
+    const declared = options.isReplica ? tables : expandTrees(tables);
+    const held = new Set(options.isReplica ? [] : declared.map((table) => table[TABLE].sqlName));
+
+    return declared.map((table) => {
         // describe the table with its log and tree
         const definition = table[TABLE];
         const log = describeLog(table);
@@ -173,8 +177,8 @@ export function declareState(
             package: definition.package,
             version: definition.version,
             table: options.isReplica
-                ? withoutReferences(describeTable(table, dialect))
-                : describeTable(table, dialect),
+                ? replicated(table, withinDatabase(describeTable(table, dialect), held))
+                : withinDatabase(describeTable(table, dialect), held),
             ...(log === undefined ? {} : { log }),
             ...(tree === undefined ? {} : { tree }),
             ...(aggregates.has(definition.sqlName)
@@ -376,11 +380,27 @@ function describeDependents(table: Table, tables: readonly Table[]): DependentDe
     });
 }
 
-/** Leave out a table's foreign keys. */
-function withoutReferences(table: TableDescription): TableDescription {
+/** Let a replica's copy leave out the columns its log never carries: binary and sensitive ones. */
+function replicated(table: Table, described: TableDescription): TableDescription {
+    const logged = new Set(
+        Object.values(table[TABLE].logged).map((column) => column.definition.name),
+    );
+
+    return {
+        ...described,
+        columns: described.columns.map((column) =>
+            logged.has(column.name) ? column : { ...column, nullable: true },
+        ),
+    };
+}
+
+/** Keep only a table's foreign keys to held tables. */
+function withinDatabase(table: TableDescription, held: ReadonlySet<string>): TableDescription {
     return {
         ...table,
-        constraints: table.constraints.filter((constraint) => constraint.kind !== "foreignKey"),
+        constraints: table.constraints.filter(
+            (constraint) => constraint.kind !== "foreignKey" || held.has(constraint.table),
+        ),
     };
 }
 
