@@ -94,6 +94,7 @@ export class AuditHistory {
                 action: event.action.name,
                 packageId: event.action.package.id,
                 actor,
+                category: event.category,
                 stage: event.result.stage,
                 outcome: "outcome" in event.result ? event.result.outcome : null,
                 occurredAt: event.occurredAt,
@@ -174,6 +175,11 @@ export class AuditHistory {
             filters.push(
                 or(eq(auditEvent.id, query.attemptId), eq(auditEvent.attemptId, query.attemptId)),
             );
+        }
+
+        // filter by category
+        if (query.category) {
+            filters.push(eq(auditEvent.category, query.category));
         }
 
         // filter by outcome

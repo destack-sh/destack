@@ -100,30 +100,27 @@ test("persist prepared attempts and outcomes without recreating events on retry"
     }
 });
 
-test("name in a result what only the action's value tells, beside the attempt's details", async () => {
+test("record a read as one access event naming what only its value tells", async () => {
     const storage = await AuditStorage.open();
     try {
-        // attempt a rename with result details
-        const value = await storage.recorder.attempt(
+        // read a document, naming its name from the value
+        const value = await storage.recorder.read(
             renameDocument,
             rename,
             async () => ({ name: "chosen" }),
             (renamed) => ({ name: renamed.name }),
         );
         const events = await storage.outbox.read();
-        expect([value, events.map((event) => [event.result.stage, event.details])]).toEqual([
-            { name: "chosen" },
-            [
-                ["attempt", { name: "renamed" }],
-                ["result", { name: "chosen" }],
-            ],
-        ]);
+        expect([
+            value,
+            events.map((event) => [event.category, event.result.stage, event.details]),
+        ]).toEqual([{ name: "chosen" }, [["access", "result", { name: "chosen" }]]]);
     } finally {
         await storage.close();
     }
 });
 
-test("leave sensitive values out of attempt and result details", async () => {
+test("leave sensitive values out of attempt and read details", async () => {
     const storage = await AuditStorage.open();
     try {
         // declare a sign-in with a sensitive code and an account result
@@ -151,17 +148,17 @@ test("leave sensitive values out of attempt and result details", async () => {
         });
         expect(attempt.details).toEqual({ method: "code" });
 
-        // keep the account's identifier in the result details
-        const attempted = await storage.recorder.attempt(
+        // keep the account's identifier in the read's details
+        const read = await storage.recorder.read(
             signIn,
             { targets, details: { method: "code" } },
             async () => ({ id: "account-2", secret: "hunter3" }),
             (account) => ({ method: "code", account }),
         );
         const events = await storage.outbox.read();
-        expect([attempted, events.map((event) => event.details)]).toEqual([
+        expect([read, events.map((event) => event.details)]).toEqual([
             { id: "account-2", secret: "hunter3" },
-            [{ method: "code" }, { method: "code", account: { id: "account-2" } }],
+            [{ method: "code", account: { id: "account-2" } }],
         ]);
     } finally {
         await storage.close();

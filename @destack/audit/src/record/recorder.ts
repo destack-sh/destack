@@ -104,53 +104,49 @@ export class AuditRecorder<Transaction = never> {
         );
     }
 
-    /** Record each procedure call as an attempt and its result. */
+    /** Record a procedure call once it ends: writes, reads when audited, and denials. */
     static procedure<State extends object>(
         recorder: (call: ProcedureCall<State>) => ProcedureRecorder | Promise<ProcedureRecorder>,
+        options: { readonly isAccessAudited?: boolean } = {},
     ): (event: ProcedureAudit<State>) => Promise<void> {
-        // keep each call's attempt until its result
-        const attempts = new WeakMap<
-            ProcedureCall<State>,
-            { recorder: ProcedureRecorder; event: AuditEvent }
-        >();
-
         return async (event) => {
-            // persist the attempt when the procedure starts
-            if (event.outcome === "started") {
-                const writer = await recorder(event.call);
-                const attempt = writer.begin(invokeService, {
+            // choose the category, skipping unaudited reads
+            const { access } = event.call;
+            const category =
+                event.outcome === "denied"
+                    ? "denial"
+                    : access.audit === "activity" ||
+                        (access.audit === "access" && options.isAccessAudited === true)
+                      ? access.audit
+                      : undefined;
+            if (category === undefined) {
+                return;
+            }
+
+            // map the outcome and failure code to the result
+            const errorCode =
+                event.error instanceof ServiceError
+                    ? event.error.code
+                    : event.outcome === "cancelled"
+                      ? "CANCELLED"
+                      : "INTERNAL_SERVER_ERROR";
+            const result: AuditResult =
+                event.outcome === "success"
+                    ? { outcome: "success" }
+                    : { outcome: event.outcome, errorCode };
+
+            // record the call as one event
+            const writer = await recorder(event.call);
+            await writer.record(
+                undefined,
+                invokeService,
+                {
                     targets: { procedure: { type: "procedure", id: event.call.path.join(".") } },
-                    details: { authentication: event.call.access.authentication },
-                });
-                await writer.append(attempt);
-                attempts.set(event.call, { recorder: writer, event: attempt });
-            }
-            // complete the attempt with the failure code only
-            else {
-                const attempt = attempts.get(event.call);
-                if (!attempt) {
-                    throw new AuditError(
-                        "INVALID_EVENT",
-                        "audit completion has no recorded procedure attempt",
-                    );
-                }
-
-                // map the outcome and failure code to the result
-                const errorCode =
-                    event.error instanceof ServiceError
-                        ? event.error.code
-                        : event.outcome === "cancelled"
-                          ? "CANCELLED"
-                          : "INTERNAL_SERVER_ERROR";
-                const result: AuditResult =
-                    event.outcome === "success"
-                        ? { outcome: "success" }
-                        : { outcome: event.outcome, errorCode };
-
-                // persist the result and release the attempt
-                await attempt.recorder.append(attempt.recorder.complete(attempt.event, result));
-                attempts.delete(event.call);
-            }
+                    details: { authentication: access.authentication },
+                    ...result,
+                },
+                category,
+            );
         };
     }
 
@@ -160,11 +156,12 @@ export class AuditRecorder<Transaction = never> {
         this.#writer = writer;
     }
 
-    /** Record a completed action. */
+    /** Record a completed action, a committed write unless named otherwise. */
     async record<Targets extends schema.Schema, Details extends schema.Schema>(
-        transaction: Transaction,
+        transaction: Transaction | undefined,
         action: AuditAction<Targets, Details>,
         values: { targets: schema.Input<Targets>; details: schema.Input<Details> } & AuditResult,
+        category: AuditEvent["category"] = "activity",
     ): Promise<AuditEvent> {
         // append the result event
         const { targets, details, ...result } = values;
@@ -172,6 +169,7 @@ export class AuditRecorder<Transaction = never> {
             action,
             { targets, details },
             { stage: "result", ...AuditResult.parse(result) },
+            category,
         );
         await this.#writer.append(event, transaction);
 
@@ -183,7 +181,7 @@ export class AuditRecorder<Transaction = never> {
         action: AuditAction<Targets, Details>,
         values: { targets: schema.Input<Targets>; details: schema.Input<Details> },
     ): AuditEvent {
-        return this.#event(action, values, { stage: "attempt" });
+        return this.#event(action, values, { stage: "attempt" }, "activity");
     }
 
     /** Prepare the result of an attempt, merging any result details. */
@@ -216,12 +214,11 @@ export class AuditRecorder<Transaction = never> {
         });
     }
 
-    /** Persist an attempt, run the action, and persist its result. */
+    /** Persist an attempt, run an external effect, and persist its result. */
     async attempt<Targets extends schema.Schema, Details extends schema.Schema, Value>(
         action: AuditAction<Targets, Details>,
         values: { targets: schema.Input<Targets>; details: schema.Input<Details> },
         execute: () => Promise<Value>,
-        detail?: (value: Value) => schema.Input<Details>,
     ): Promise<Value> {
         // persist the attempt before executing
         const attempt = this.begin(action, values);
@@ -232,33 +229,55 @@ export class AuditRecorder<Transaction = never> {
         try {
             value = await execute();
         } catch (error) {
-            await this.#conclude(attempt, resultOf(error), error);
+            await this.#keep(error, () => this.append(this.complete(attempt, resultOf(error))));
             throw error;
         }
-        const details =
-            detail === undefined
-                ? undefined
-                : (schema.redact(action.details, action.details.parse(detail(value))) as Readonly<
-                      Record<string, unknown>
-                  >);
-        await this.#conclude(attempt, { outcome: "success" }, undefined, details);
+        await this.append(this.complete(attempt, { outcome: "success" }));
 
         return value;
     }
 
-    /** Persist an attempt, pass on a stream's values, and persist its result when it ends. */
+    /** Run a read and record it as one access event, with the details its result names. */
+    async read<Targets extends schema.Schema, Details extends schema.Schema, Value>(
+        action: AuditAction<Targets, Details>,
+        values: { targets: schema.Input<Targets>; details: schema.Input<Details> },
+        execute: () => Promise<Value>,
+        detail?: (value: Value) => schema.Input<Details>,
+    ): Promise<Value> {
+        // record a failed read with its failure
+        let value: Value;
+        try {
+            value = await execute();
+        } catch (error) {
+            await this.#keep(error, () =>
+                this.record(undefined, action, { ...values, ...resultOf(error) }, "access"),
+            );
+            throw error;
+        }
+
+        // record the read before disclosing its result
+        const details = detail === undefined ? values.details : detail(value);
+        await this.record(
+            undefined,
+            action,
+            { targets: values.targets, details, outcome: "success" },
+            "access",
+        );
+
+        return value;
+    }
+
+    /** Pass on a stream's values and record it as one access event when it ends. */
     async *stream<Targets extends schema.Schema, Details extends schema.Schema, Value>(
         action: AuditAction<Targets, Details>,
         values: { targets: schema.Input<Targets>; details: schema.Input<Details> },
         source: () => AsyncIterable<Value>,
     ): AsyncGenerator<Value> {
-        // persist the attempt, cancelled until the stream ends
-        const attempt = this.begin(action, values);
-        await this.append(attempt);
+        // count the stream cancelled until it ends
         let result: AuditResult = { outcome: "cancelled", errorCode: "CANCELLED" };
         let cause: unknown;
 
-        // pass on the values, then persist how the stream ended
+        // pass on the values, then record how the stream ended
         try {
             yield* source();
             result = { outcome: "success" };
@@ -267,7 +286,9 @@ export class AuditRecorder<Transaction = never> {
             result = resultOf(error);
             throw error;
         } finally {
-            await this.#conclude(attempt, result, cause);
+            await this.#keep(cause, () =>
+                this.record(undefined, action, { ...values, ...result }, "access"),
+            );
         }
     }
 
@@ -282,16 +303,10 @@ export class AuditRecorder<Transaction = never> {
         await this.#writer.append(event);
     }
 
-    /** Persist an attempt's result, keeping the action's failure. */
-    async #conclude(
-        attempt: AuditEvent,
-        result: AuditResult,
-        cause?: unknown,
-        details?: Readonly<Record<string, unknown>>,
-    ): Promise<void> {
-        // append the result, keeping both failures
+    /** Persist a result, keeping the action's failure beside a failed write. */
+    async #keep(cause: unknown, persist: () => Promise<unknown>): Promise<void> {
         try {
-            await this.append(this.complete(attempt, result, details));
+            await persist();
         } catch (error) {
             if (cause !== undefined) {
                 throw new AggregateError(
@@ -308,10 +323,12 @@ export class AuditRecorder<Transaction = never> {
         action: AuditAction<Targets, Details>,
         values: { targets: schema.Input<Targets>; details: schema.Input<Details> },
         result: AuditEvent["result"],
+        category: AuditEvent["category"],
     ): AuditEvent {
         return AuditEvent.parse({
             id: `audit-event-${v7()}`,
             action: { name: action.name, package: action.package, version: action.version },
+            category,
             occurredAt: Date.now(),
             context: this.#context,
             targets: action.targets.parse(values.targets),
@@ -322,7 +339,7 @@ export class AuditRecorder<Transaction = never> {
 }
 
 /** The recorder methods a procedure's audit uses. */
-type ProcedureRecorder = Pick<AuditRecorder<unknown>, "begin" | "complete" | "append">;
+type ProcedureRecorder = Pick<AuditRecorder<unknown>, "record">;
 
 /** Map an error to a result. */
 function resultOf(error: unknown): AuditResult {

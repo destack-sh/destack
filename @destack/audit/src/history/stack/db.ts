@@ -26,6 +26,8 @@ export const auditEvent = defineTable(
         packageId: identifier("package_id", "package").notNull(),
         /** The actor's key. */
         actor: text("actor").notNull(),
+        /** A committed write, a read of data, or a refused call. */
+        category: text("category", { enum: ["activity", "access", "denial"] }).notNull(),
         /** Whether the event records an attempt or its result. */
         stage: text("stage", { enum: ["attempt", "result"] }).notNull(),
         /** The result's outcome. */
@@ -44,6 +46,12 @@ export const auditEvent = defineTable(
         constraints: (event) => [
             uniqueIndex("event_attempt_result").on(event.attemptId),
             index("event_scope_time").on(event.scope, event.recordedAt, event.id),
+            index("event_category_time").on(
+                event.scope,
+                event.category,
+                event.recordedAt,
+                event.id,
+            ),
             index("event_action_time").on(event.action, event.recordedAt, event.id),
             index("event_package_time").on(event.packageId, event.recordedAt, event.id),
             index("event_actor_time").on(event.actor, event.recordedAt, event.id),

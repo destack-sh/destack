@@ -35,7 +35,7 @@ const audit = AuditRecorder.from(context.caller, new AuditOutbox(database), {
 
 ## Recording
 
-A recorder writes a database change's event in its transaction, and an external effect's event as an attempt and its result.
+A recorder writes a database change's event in its transaction, an external effect's event as an attempt and its result, and a read as one access event.
 
 ```ts
 await database.transaction(async (transaction) => {
@@ -44,14 +44,23 @@ await database.transaction(async (transaction) => {
 });
 
 await audit.attempt(sendInvitation, { targets, details: {} }, () => invitations.send(id));
+const secret = await audit.read(openSecret, { targets, details: {} }, () => secrets.get(id));
 ```
+
+Each event carries its category.
+
+| Category | Records |
+|---|---|
+| `activity` | A committed write or an external effect. |
+| `access` | A read of data, when the scope audits reads or the object type always does. |
+| `denial` | A refused call. |
 
 ## Procedures
 
-`AuditRecorder.procedure` records every procedure call of a server as an attempt and its result.
+`AuditRecorder.procedure` records each procedure call of a server as one event when it ends, by the category the procedure declares, and every denial.
 
 ```ts
-Server.start({ ...options, audit: AuditRecorder.procedure(({ context }) => recorderOf(context)) });
+Server.start({ ...options, audit: AuditRecorder.procedure(({ context }) => recorderOf(context), { isAccessAudited }) });
 ```
 
 ## Delivery

@@ -38,6 +38,8 @@ export const AuditQuery = defineSchema(
             .optional(),
         /** The attempt the events are or complete. */
         attemptId: identifier("audit-event").optional(),
+        /** The category of the events. */
+        category: AuditEvent.shape.category.optional(),
         /** The outcome the results report. */
         outcome: AuditOutcome.optional(),
         /** Whether to return only attempts without a result. */

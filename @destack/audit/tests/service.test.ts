@@ -185,11 +185,13 @@ test("authorize producers and readers, stream history, and record denied access"
         const accesses = (await outbox.read()).filter(
             (event) => event.action.package.id === auditExport.package.id,
         );
-        expect(accesses.map((event) => [event.action.name, event.result])).toEqual([
-            ["Audit.export", { stage: "attempt" }],
-            ["Audit.export", { stage: "result", outcome: "success" }],
-            ["Audit.export", { stage: "attempt" }],
-            ["Audit.export", { stage: "result", outcome: "denied", errorCode: "FORBIDDEN" }],
+        expect(accesses.map((event) => [event.action.name, event.category, event.result])).toEqual([
+            ["Audit.export", "access", { stage: "result", outcome: "success" }],
+            [
+                "Audit.export",
+                "access",
+                { stage: "result", outcome: "denied", errorCode: "FORBIDDEN" },
+            ],
         ]);
         expect(await history.get(scope, attempt.id)).toEqual(first.items[0]);
 
