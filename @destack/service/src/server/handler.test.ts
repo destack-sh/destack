@@ -76,7 +76,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
             access.permission.type !== "notes" ||
             access.permission.name !== "read"
         ) {
-            throw new ServiceError("FORBIDDEN");
+            throw new ServiceError("FORBIDDEN", { message: "permission denied: read" });
         }
     };
 
@@ -142,7 +142,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         audit: async () => {
             throw new ServiceError("UNAVAILABLE", {
                 status: 503,
-                message: "Audit storage unavailable.",
+                message: "audit storage unavailable",
             });
         },
     });
@@ -157,7 +157,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     await expect(blocked.read()).rejects.toMatchObject({
         code: "UNAVAILABLE",
         status: 503,
-        message: "Audit storage unavailable.",
+        message: "audit storage unavailable",
     });
     expect(invoked).toBe(1);
 
@@ -233,7 +233,7 @@ test("withhold streamed values after access revocation", async () => {
         health: new Health("watch"),
         authorize: async () => {
             if (!isAllowed) {
-                throw new ServiceError("FORBIDDEN");
+                throw new ServiceError("FORBIDDEN", { message: "permission denied: read" });
             }
         },
         audit: async ({ outcome }) => {

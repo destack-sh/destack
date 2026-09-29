@@ -120,7 +120,7 @@ export class TokenVerifier {
             !/^Bearer \S+$/.test(authorization) ||
             request.headers.has("cookie")
         ) {
-            throw new ServiceError("UNAUTHORIZED");
+            throw new ServiceError("UNAUTHORIZED", { message: "invalid bearer credential" });
         }
 
         // verify the signature and registered claims

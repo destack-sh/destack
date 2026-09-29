@@ -56,12 +56,12 @@ export class OperationStore<Result, Progress> implements AsyncDisposable {
         // expire old records
         this.#expire();
         if (!owner) {
-            throw new ServiceError("UNAUTHORIZED");
+            throw new ServiceError("UNAUTHORIZED", { message: "an operation needs an owner" });
         }
 
         // refuse work after close
         if (this.#isClosed) {
-            throw new ServiceError("UNAVAILABLE");
+            throw new ServiceError("UNAVAILABLE", { message: "the operation store is closed" });
         }
 
         // count active runners
@@ -74,7 +74,9 @@ export class OperationStore<Result, Progress> implements AsyncDisposable {
 
         // refuse work beyond the limits
         if (active >= this.#options.concurrency || this.#entries.size >= this.#options.capacity) {
-            throw new ServiceError("RATE_LIMITED");
+            throw new ServiceError("RATE_LIMITED", {
+                message: "the operation store is at its limit",
+            });
         }
 
         // build the initial state
@@ -142,7 +144,7 @@ export class OperationStore<Result, Progress> implements AsyncDisposable {
         // refuse to delete a running operation
         const entry = this.#entry(owner, id);
         if (entry.watch.value.state === "running") {
-            throw new ServiceError("CONFLICT");
+            throw new ServiceError("CONFLICT", { message: `operation ${id} is running` });
         }
 
         // release the subscribers
@@ -178,7 +180,7 @@ export class OperationStore<Result, Progress> implements AsyncDisposable {
         this.#expire();
         const entry = this.#entries.get(id);
         if (!entry || entry.owner !== owner) {
-            throw new ServiceError("NOT_FOUND");
+            throw new ServiceError("NOT_FOUND", { message: `no operation ${id}` });
         }
 
         return entry;
@@ -227,7 +229,9 @@ export class OperationStore<Result, Progress> implements AsyncDisposable {
                 report: (progress) => {
                     // reject reports after completion
                     if (entry.watch.value.state !== "running") {
-                        throw new ServiceError("PRECONDITION_FAILED");
+                        throw new ServiceError("PRECONDITION_FAILED", {
+                            message: "the operation has completed",
+                        });
                     }
 
                     // publish a copy of the progress

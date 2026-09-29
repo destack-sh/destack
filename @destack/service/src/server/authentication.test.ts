@@ -200,7 +200,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
         },
         authorizeHost: async () => {
             if (!isEnabled) {
-                throw new ServiceError("FORBIDDEN");
+                throw new ServiceError("FORBIDDEN", { message: "host procedures are disabled" });
             }
         },
         router: implementation.router({

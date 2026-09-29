@@ -16,7 +16,7 @@ test("stream current health and subsequent readiness changes", async () => {
             health: readiness,
             authorize: async ({ context }) => {
                 if (context.caller !== "alice") {
-                    throw new ServiceError("UNAUTHORIZED");
+                    throw new ServiceError("UNAUTHORIZED", { message: "unknown caller" });
                 }
             },
         },

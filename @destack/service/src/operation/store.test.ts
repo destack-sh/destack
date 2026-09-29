@@ -190,7 +190,7 @@ test("enforce operation limits and retain successful work when cancellation lose
     );
     store.delete("alice", first.id);
     const failed = store.start("alice", 0, async () => {
-        throw new ServiceError("CONFLICT", { message: "Revision changed." });
+        throw new ServiceError("CONFLICT", { message: "revision changed" });
     });
 
     // keep a service failure as the outcome
@@ -203,7 +203,7 @@ test("enforce operation limits and retain successful work when cancellation lose
         updatedAt: expect.any(Number),
         completedAt: expect.any(Number),
         state: "failed",
-        error: { code: "CONFLICT", message: "Revision changed." },
+        error: { code: "CONFLICT", message: "revision changed" },
     });
 });
 

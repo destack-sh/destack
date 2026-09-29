@@ -12,7 +12,7 @@ export const hosting = {
     authenticate: async (request: Request) => {
         const name = request.headers.get("authorization");
         if (name !== "alice" && name !== "bob") {
-            throw new ServiceError("UNAUTHORIZED");
+            throw new ServiceError("UNAUTHORIZED", { message: "invalid caller name" });
         }
 
         return createCaller(name);
