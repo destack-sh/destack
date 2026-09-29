@@ -3,9 +3,10 @@ use tspp_program::{
     BindingAffinity, BindingBuilder, BindingEffect, BindingId, BindingProvider, BindingReplay,
 };
 
-use crate::LinkResult;
+use crate::CompilerResult;
 
 use super::ProgramLinker;
+use crate::invalid_program_input;
 
 /// Link object binding declarations into the Program binding table.
 #[derive(Debug)]
@@ -21,7 +22,7 @@ impl<'a> BindingLinker<'a> {
     }
 
     /// Link runtime binding declarations in function order.
-    pub(crate) fn link(&self) -> LinkResult<Vec<BindingBuilder>> {
+    pub(crate) fn link(&self) -> CompilerResult<Vec<BindingBuilder>> {
         let mut bindings = Vec::new();
 
         // visit canonical function declarations in dense identity order
@@ -32,8 +33,7 @@ impl<'a> BindingLinker<'a> {
                 .object(*module)
                 .function(*function_id)
                 .ok_or_else(|| {
-                    self.program
-                        .invalid_input(format!("missing function {function_id:?}"))
+                    invalid_program_input(format!("missing function {function_id:?}"))
                 })?;
 
             // skip ordinary callable functions
@@ -58,9 +58,6 @@ impl<'a> BindingLinker<'a> {
             .platforms(binding_declaration.platforms.iter().copied())
             .families(binding_declaration.families.iter().copied())
             .hosts(binding_declaration.hosts.iter().copied());
-            if binding_declaration.is_park {
-                binding = binding.park();
-            }
             if declaration.is_import() {
                 binding = binding.imported();
             }

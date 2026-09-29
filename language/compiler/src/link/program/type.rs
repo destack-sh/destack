@@ -5,16 +5,17 @@ use tspp_core::Optional;
 use tspp_heap::DropId;
 use tspp_mir as mir;
 use tspp_program::{
-    DropEntry, DynamicLayout, ElementLayout, FunctionId, FunctionLayout, LayoutField,
-    LayoutShapeBuilder, NewtypeLayout, Object, ObjectLayoutBuilder, PointerLayout, ReferenceLayout,
+    ClassLayoutBuilder, DropEntry, DynamicLayout, ElementLayout, FunctionId, FunctionLayout,
+    LayoutField, LayoutShapeBuilder, NewtypeLayout, Object, PointerLayout, ReferenceLayout,
     ScalarFormat, SignatureId, SliceLayout, TypeDescriptorBuilder, TypeFingerprint, TypeId,
     TypeTableBuilder, VariantCaseLayout, VariantLayoutBuilder,
 };
-use tspp_source::{ModuleId, PackageId};
+use tspp_source::ModuleId;
 
-use crate::{LinkError, LinkResult};
+use crate::CompilerResult;
 
 use super::ProgramLinker;
+use crate::invalid_program_input;
 
 /// Link MIR types into the program type table.
 #[derive(Debug)]
@@ -41,7 +42,7 @@ impl<'a> TypeLinker<'a> {
     }
 
     /// Link the program type table.
-    pub(crate) fn link(&self) -> LinkResult<TypeTableBuilder> {
+    pub(crate) fn link(&self) -> CompilerResult<TypeTableBuilder> {
         let mut descriptors = vec![None; self.program.types_by_id().len()];
 
         // merge every module-local descriptor and reject conflicts
@@ -57,9 +58,9 @@ impl<'a> TypeLinker<'a> {
                 let entry = &mut descriptors[ty.index()];
                 if let Some(previous) = entry {
                     if *previous != descriptor {
-                        return Err(self
-                            .program
-                            .invalid_input(format!("type {ty:?} has conflicting descriptors")));
+                        return Err(invalid_program_input(format!(
+                            "type {ty:?} has conflicting descriptors"
+                        )));
                     }
                 } else {
                     *entry = Some(descriptor);
@@ -71,27 +72,24 @@ impl<'a> TypeLinker<'a> {
         let mut entries = Vec::with_capacity(descriptors.len());
         for (index, descriptor) in descriptors.into_iter().enumerate() {
             let ty = TypeId::from(index as u32);
-            let descriptor = descriptor.ok_or_else(|| {
-                self.program
-                    .invalid_input(format!("type {ty:?} has no descriptor"))
-            })?;
+            let descriptor = descriptor
+                .ok_or_else(|| invalid_program_input(format!("type {ty:?} has no descriptor")))?;
             entries.push(descriptor);
         }
 
         // pair each descriptor with its stable structural identity
-        let fingerprints = self
-            .program
-            .types_by_id()
-            .iter()
-            .map(|(module, ty)| {
-                let ty = self.program.object(*module).ty(*ty).ok_or_else(|| {
-                    self.program
-                        .invalid_input("missing canonical type fingerprint")
-                })?;
+        let fingerprints =
+            self.program
+                .types_by_id()
+                .iter()
+                .map(|(module, ty)| {
+                    let ty = self.program.object(*module).ty(*ty).ok_or_else(|| {
+                        invalid_program_input("missing canonical type fingerprint")
+                    })?;
 
-                Ok(TypeFingerprint::from_raw(ty.fingerprint.raw()))
-            })
-            .collect::<LinkResult<Vec<_>>>()?;
+                    Ok(TypeFingerprint::from_raw(ty.fingerprint.raw()))
+                })
+                .collect::<CompilerResult<Vec<_>>>()?;
 
         Ok(TypeTableBuilder::new().types(fingerprints.into_iter().zip(entries)))
     }
@@ -131,8 +129,11 @@ impl<'a> ObjectTypes<'a> {
         let layout = self.program.layout_id(self.module, storage_type);
         let supertypes = self.supertypes(type_id);
         let drop = self.program.drop_id(self.module, type_id);
+        let language_item = self.object.ty(type_id).and_then(|ty| ty.language_item);
 
-        let descriptor = TypeDescriptorBuilder::new(layout).supertypes(supertypes);
+        let descriptor = TypeDescriptorBuilder::new(layout)
+            .supertypes(supertypes)
+            .language_item(language_item);
 
         match drop {
             Some(drop) => descriptor.drop(drop),
@@ -183,14 +184,9 @@ impl<'a> ObjectTypes<'a> {
                         .cases(cases),
                 )
             }
-            mir::LayoutShape::Object(layout) => {
-                let mut object = ObjectLayoutBuilder::new(self.layout_fields(&layout.fields));
-                if let Some(dispatch_offset) = layout.dispatch_offset {
-                    object = object.dispatch_offset(dispatch_offset);
-                }
-
-                LayoutShapeBuilder::Object(object)
-            }
+            mir::LayoutShape::Class(layout) => LayoutShapeBuilder::Class(ClassLayoutBuilder::new(
+                self.layout_fields(&layout.fields),
+            )),
             mir::LayoutShape::Dynamic => self.dynamic_layout_shape(type_shape)?,
             mir::LayoutShape::Function => self.function_layout_shape(type_shape)?,
             mir::LayoutShape::Newtype(layout) => {
@@ -261,10 +257,9 @@ impl<'a> ObjectTypes<'a> {
     pub(crate) fn storage_type(&self, mut ty: mir::TypeId) -> mir::TypeId {
         loop {
             match self.get(ty) {
-                mir::Type::Application { base, .. }
-                | mir::Type::Uninit { value: base }
-                | mir::Type::ManuallyDrop { value: base } => {
-                    ty = *base;
+                // peel transparent storage forms
+                mir::Type::Uninit { value } | mir::Type::ManuallyDrop { value } => {
+                    ty = *value;
                 }
                 _ => return ty,
             }
@@ -416,7 +411,59 @@ impl TypeLinker<'_> {
             }
         }
 
+        // resolve foreign declarations to their home types
+        for (module, object) in objects {
+            for ty in object.types() {
+                if object.layouts().layout_id(ty.id).is_some() {
+                    continue;
+                }
+                if let Some(id) = fingerprints.get(&ty.fingerprint) {
+                    ids.insert((*module, ty.id), *id);
+                }
+            }
+        }
+
+        // resolve transparent storage forms to the type they store
+        for (module, object) in objects {
+            let stored_by_form = object
+                .types()
+                .iter()
+                .filter_map(|ty| match ty.definition {
+                    mir::Type::Uninit { value } | mir::Type::ManuallyDrop { value } => {
+                        Some((ty.id, value))
+                    }
+                    _ => None,
+                })
+                .collect::<HashMap<_, _>>();
+            for ty in object.types() {
+                let mut value = ty.id;
+                while let Some(stored) = stored_by_form.get(&value) {
+                    value = *stored;
+                }
+                if value != ty.id
+                    && !ids.contains_key(&(*module, ty.id))
+                    && let Some(id) = ids.get(&(*module, value)).copied()
+                {
+                    ids.insert((*module, ty.id), id);
+                }
+            }
+        }
+
         (ids, types)
+    }
+
+    /// Return the program type of one module-local type.
+    pub(crate) fn linked(
+        type_ids: &HashMap<(ModuleId, mir::TypeId), TypeId>,
+        module: ModuleId,
+        ty: mir::TypeId,
+        object: &Object,
+    ) -> CompilerResult<TypeId> {
+        type_ids.get(&(module, ty)).copied().ok_or_else(|| {
+            let definition = object.ty(ty).map(|ty| &ty.definition);
+
+            invalid_program_input(format!("unlinked type {definition:?}"))
+        })
     }
 
     /// Return whether two module-local types resolve to the same program type.
@@ -435,12 +482,11 @@ impl TypeLinker<'_> {
 
     /// Build dense drop identities and destructor functions in program type order.
     pub(crate) fn drops(
-        package: PackageId,
         objects: &[(ModuleId, Arc<Object>)],
         type_ids: &HashMap<(ModuleId, mir::TypeId), TypeId>,
         type_count: usize,
         function_ids: &HashMap<(ModuleId, mir::FunctionId), FunctionId>,
-    ) -> LinkResult<(HashMap<TypeId, DropId>, Vec<DropEntry>)> {
+    ) -> CompilerResult<(HashMap<TypeId, DropId>, Vec<DropEntry>)> {
         let mut functions = HashMap::new();
 
         // resolve every specialized destructor into canonical program identity
@@ -452,23 +498,21 @@ impl TypeLinker<'_> {
                         | mir::Storage::Static(mir::Space::Local)
                         | mir::Storage::Static(mir::Space::Shared)
                 ) {
-                    return Err(LinkError::invalid_input(
-                        package,
-                        format!("type {ty:?} defines a destructor for global storage"),
-                    ));
+                    return Err(invalid_program_input(format!(
+                        "type {ty:?} defines a destructor for global storage"
+                    )));
                 }
 
-                let ty = type_ids[&(*module, ty)];
+                let ty = Self::linked(type_ids, *module, ty, object)?;
                 let function_id = function_ids[&(*module, function)];
                 let key = (ty, storage);
 
                 if let Some((previous_module, previous_function)) = functions.get(&key) {
                     let previous_id = function_ids[&(*previous_module, *previous_function)];
                     if previous_id != function_id {
-                        return Err(LinkError::invalid_input(
-                            package,
-                            format!("type {ty:?} has multiple {storage:?} destructors"),
-                        ));
+                        return Err(invalid_program_input(format!(
+                            "type {ty:?} has multiple {storage:?} destructors"
+                        )));
                     }
                 } else {
                     functions.insert(key, (*module, function));

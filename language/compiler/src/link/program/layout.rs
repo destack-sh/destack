@@ -1,9 +1,10 @@
 use tspp_mir::{TraceMap, TraceTable};
 use tspp_program::{LayoutBuilder, LayoutShapeBuilder, TypeId};
 
-use crate::LinkResult;
+use crate::CompilerResult;
 
 use super::{ObjectTypes, ProgramLinker};
+use crate::invalid_program_input;
 
 /// Linked program layouts and trace maps.
 #[derive(Debug)]
@@ -41,7 +42,7 @@ impl<'a> LayoutLinker<'a> {
     }
 
     /// Link program layouts and trace maps.
-    pub(crate) fn link(&self) -> LinkResult<ProgramLayouts> {
+    pub(crate) fn link(&self) -> CompilerResult<ProgramLayouts> {
         let mut canonical: Vec<Option<CanonicalLayout>> =
             Vec::with_capacity(self.program.types_by_id().len());
         canonical.resize_with(self.program.types_by_id().len(), || None);
@@ -55,13 +56,12 @@ impl<'a> LayoutLinker<'a> {
                     continue;
                 }
 
-                let source = object.layouts().type_layout(type_id).ok_or_else(|| {
-                    self.program
-                        .invalid_input(format!("missing layout for {type_id:?}"))
-                })?;
+                // take a foreign declaration's layout from its home
+                let Some(source) = object.layouts().type_layout(type_id) else {
+                    continue;
+                };
                 let shape = types.layout_shape(type_id, &source.shape).ok_or_else(|| {
-                    self.program
-                        .invalid_input(format!("invalid layout shape for {type_id:?}"))
+                    invalid_program_input(format!("invalid layout shape for {type_id:?}"))
                 })?;
                 let ty = self.program.type_id(*module, type_id);
                 let entry = &mut canonical[ty.index()];
@@ -71,9 +71,9 @@ impl<'a> LayoutLinker<'a> {
                         || previous.alignment != source.alignment
                         || previous.trace_map != source.trace_map
                     {
-                        return Err(self
-                            .program
-                            .invalid_input(format!("type {ty:?} has conflicting layouts")));
+                        return Err(invalid_program_input(format!(
+                            "type {ty:?} has conflicting layouts"
+                        )));
                     }
                 } else {
                     *entry = Some(CanonicalLayout {
@@ -91,10 +91,8 @@ impl<'a> LayoutLinker<'a> {
         let mut traces = TraceTable::new();
         for (index, layout) in canonical.into_iter().enumerate() {
             let ty = TypeId::from(index as u32);
-            let layout = layout.ok_or_else(|| {
-                self.program
-                    .invalid_input(format!("type {ty:?} has no layout"))
-            })?;
+            let layout = layout
+                .ok_or_else(|| invalid_program_input(format!("type {ty:?} has no layout")))?;
             let CanonicalLayout {
                 shape,
                 size,

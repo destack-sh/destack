@@ -4,9 +4,10 @@ use tspp_mir as mir;
 use tspp_program::{object, program};
 use tspp_source::ModuleId;
 
-use crate::LinkResult;
+use crate::CompilerResult;
 
 use super::ProgramLinker;
+use crate::invalid_program_input;
 
 /// Link logical object frame states into canonical Program layouts.
 #[derive(Debug)]
@@ -27,7 +28,7 @@ impl<'a> FrameLinker<'a> {
     }
 
     /// Link every object frame state and canonical layout.
-    pub(crate) fn link(&mut self) -> LinkResult<program::FrameTableBuilder> {
+    pub(crate) fn link(&mut self) -> CompilerResult<program::FrameTableBuilder> {
         let mut layout_ids = HashMap::<Vec<program::TypeId>, program::FrameLayoutId>::new();
         let mut layouts = Vec::new();
         let mut states = Vec::new();
@@ -71,7 +72,7 @@ impl<'a> FrameLinker<'a> {
 
             // reject repeated source points before publishing their ids
             if self.states.insert((module, source), id).is_some() {
-                return Err(self.program.invalid_input("duplicate logical frame point"));
+                return Err(invalid_program_input("duplicate logical frame point"));
             }
 
             // append the state under its assigned dense id
@@ -102,7 +103,7 @@ impl<'a> FrameLinker<'a> {
         &self,
         module: ModuleId,
         types: &[mir::TypeId],
-    ) -> LinkResult<program::FrameLayoutBuilder> {
+    ) -> CompilerResult<program::FrameLayoutBuilder> {
         let object = self.program.object(module);
         let mut slots = Vec::with_capacity(types.len());
         let mut byte_len = 0u32;
@@ -113,7 +114,7 @@ impl<'a> FrameLinker<'a> {
             let layout = object
                 .layouts()
                 .type_layout(*ty)
-                .ok_or_else(|| self.program.invalid_input("frame type has no layout"))?;
+                .ok_or_else(|| invalid_program_input("frame type has no layout"))?;
             byte_len = byte_len.next_multiple_of(layout.alignment);
             frame_alignment = frame_alignment.max(layout.alignment);
             slots.push(program::FrameSlot::new(

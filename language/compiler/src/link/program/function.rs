@@ -8,11 +8,12 @@ use tspp_program::{
     SignatureId, Symbol, TypeId, object,
 };
 
-use tspp_source::{ModuleId, PackageId};
+use tspp_source::ModuleId;
 
-use crate::{LinkError, LinkResult};
+use crate::CompilerResult;
 
 use super::{ProgramLinker, TypeLinker};
+use crate::invalid_program_input;
 
 /// Link object functions into the Program function table.
 #[derive(Debug)]
@@ -28,7 +29,7 @@ impl<'a> FunctionLinker<'a> {
     }
 
     /// Link program function declarations.
-    pub(crate) fn link(&self) -> LinkResult<FunctionTableBuilder> {
+    pub(crate) fn link(&self) -> CompilerResult<FunctionTableBuilder> {
         let mut functions = Vec::new();
         let mut exports = Vec::new();
 
@@ -39,8 +40,7 @@ impl<'a> FunctionLinker<'a> {
                 .object(*module)
                 .function(*function_id)
                 .ok_or_else(|| {
-                    self.program
-                        .invalid_input(format!("missing function {function_id:?}"))
+                    invalid_program_input(format!("missing function {function_id:?}"))
                 })?;
             let program_function = self.program.function_id(*module, *function_id);
             let name = function.name;
@@ -65,11 +65,10 @@ impl<'a> FunctionLinker<'a> {
 impl FunctionLinker<'_> {
     /// Build dense function ids from definitions and imported symbols.
     pub(crate) fn index(
-        package: PackageId,
         objects: &[(ModuleId, Arc<Object>)],
         type_ids: &HashMap<(ModuleId, mir::TypeId), TypeId>,
         strings: &StringPool,
-    ) -> LinkResult<(
+    ) -> CompilerResult<(
         HashMap<(ModuleId, mir::FunctionId), FunctionId>,
         Vec<(ModuleId, mir::FunctionId)>,
     )> {
@@ -98,13 +97,10 @@ impl FunctionLinker<'_> {
                 }
                 // refuse a second definition of an exported symbol
                 else if function.linkage.is_exported() && placed.is_some() {
-                    return Err(LinkError::invalid_input(
-                        package,
-                        format!(
-                            "function symbol {:?} has multiple definitions",
-                            function.symbol
-                        ),
-                    ));
+                    return Err(invalid_program_input(format!(
+                        "function symbol {:?} has multiple definitions",
+                        function.symbol
+                    )));
                 }
                 // place the symbol's definition
                 else if function.linkage == mir::Linkage::Shared || function.linkage.is_exported()
@@ -120,10 +116,9 @@ impl FunctionLinker<'_> {
                     let definition = (id, *module, function);
                     if bindings.insert(binding.name, definition).is_some() {
                         let binding = strings.get(binding.name);
-                        return Err(LinkError::invalid_input(
-                            package,
-                            format!("binding '{binding}' has multiple definitions"),
-                        ));
+                        return Err(invalid_program_input(format!(
+                            "binding '{binding}' has multiple definitions"
+                        )));
                     }
                 }
             }
@@ -150,17 +145,15 @@ impl FunctionLinker<'_> {
                             type_ids,
                         ) {
                             let binding = strings.get(binding.name);
-                            return Err(LinkError::invalid_input(
-                                package,
-                                format!("binding '{binding}' has conflicting declarations"),
-                            ));
+                            return Err(invalid_program_input(format!(
+                                "binding '{binding}' has conflicting declarations"
+                            )));
                         }
                         if definition.binding.as_deref() != Some(binding.as_ref()) {
                             let binding = strings.get(binding.name);
-                            return Err(LinkError::invalid_input(
-                                package,
-                                format!("binding '{binding}' has conflicting declarations"),
-                            ));
+                            return Err(invalid_program_input(format!(
+                                "binding '{binding}' has conflicting declarations"
+                            )));
                         }
 
                         id
@@ -186,10 +179,11 @@ impl FunctionLinker<'_> {
                 let Some((id, definition_module, definition)) =
                     symbols.get(&function.symbol).copied()
                 else {
-                    return Err(LinkError::invalid_input(
-                        package,
-                        format!("function symbol {:?} is undefined", function.symbol),
-                    ));
+                    return Err(invalid_program_input(format!(
+                        "function '{}' ({:?}) is undefined",
+                        strings.get(function.name),
+                        function.symbol
+                    )));
                 };
                 if !Self::signatures_match(
                     *module,
@@ -198,13 +192,10 @@ impl FunctionLinker<'_> {
                     definition,
                     type_ids,
                 ) {
-                    return Err(LinkError::invalid_input(
-                        package,
-                        format!(
-                            "function symbol {:?} has conflicting signatures",
-                            function.symbol
-                        ),
-                    ));
+                    return Err(invalid_program_input(format!(
+                        "function symbol {:?} has conflicting signatures",
+                        function.symbol
+                    )));
                 }
 
                 ids.insert((*module, function_id), id);
@@ -289,7 +280,7 @@ impl FunctionLinker<'_> {
             }
         }
 
-        // assign explicit signature types through the same canonical table
+        // assign closed signature types through the canonical table
         for (module, object) in objects {
             for ty in object.types() {
                 let mir::Type::FunctionSignature {
@@ -298,13 +289,18 @@ impl FunctionLinker<'_> {
                 else {
                     continue;
                 };
-                let signature = Signature {
-                    parameters: parameters
-                        .iter()
-                        .map(|parameter| type_ids[&(*module, parameter.ty)])
-                        .collect(),
-                    result: type_ids[&(*module, *result)],
+
+                // skip an open signature
+                let parameters = parameters
+                    .iter()
+                    .map(|parameter| type_ids.get(&(*module, parameter.ty)).copied())
+                    .collect::<Option<Vec<_>>>();
+                let (Some(parameters), Some(result)) =
+                    (parameters, type_ids.get(&(*module, *result)).copied())
+                else {
+                    continue;
                 };
+                let signature = Signature { parameters, result };
                 let id = Self::insert_signature(&mut signatures, signature);
                 type_signatures.insert((*module, ty.id), id);
             }
