@@ -28,7 +28,7 @@ test("keep each event in the history of its scope", async () => {
         // read it in the space's history and nowhere else
         expect([
             (await storage.history.list({ scope, limit: 100 })).items.map((record) => record.event),
-            await storage.history.list({ scope: "global", limit: 100 }),
+            await storage.history.list({ scope: "universe", limit: 100 }),
         ]).toEqual([[recorded], { items: [], cursor: null }]);
     } finally {
         await storage.close();
@@ -103,7 +103,7 @@ test("persist prepared attempts and outcomes without recreating events on retry"
 test("record a read as one access event naming what only its value tells", async () => {
     const storage = await AuditStorage.open();
     try {
-        // read a document, naming its name from the value
+        // read a document with its name from the value
         const value = await storage.recorder.read(
             renameDocument,
             rename,

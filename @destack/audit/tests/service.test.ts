@@ -6,7 +6,6 @@ import { AuditRecorder } from "../src/record/index.ts";
 import { defineAuditAction } from "../src/action/index.ts";
 import { createAuditClient } from "../src/client/index.ts";
 import { implementService } from "../src/server/index.ts";
-import { auditExport } from "../src/history/index.ts";
 import { Server } from "@destack/service/server";
 import { Caller } from "@destack/service/authentication";
 import { ResourceContext } from "@destack/resource/context";
@@ -29,7 +28,7 @@ const account = new Policy(
     {
         id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000005"),
         name: "@example/account",
-        version: "1.0.0",
+        version: "2026.9.0",
     },
     {
         name: "account",
@@ -54,7 +53,7 @@ const publishDocument = defineAuditAction(
         package: {
             id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000004"),
             name: "@example/document",
-            version: "1.0.0",
+            version: "2026.9.0",
         },
     },
 );
@@ -91,12 +90,12 @@ test("authorize producers and readers, stream history, and record denied access"
             ],
         );
         const owner: AccessContext = {
-            subjects: [principal.user.reference("global", "owner")],
+            subjects: [principal.user.reference("universe", "owner")],
             now: Date.now(),
             attributes: {},
         };
         const asOwner = new Authorization(authorizer, database, () => owner);
-        await copyScope(database, principal.user.reference("global", "owner"));
+        await copyScope(database, principal.user.reference("universe", "owner"));
         await database.insert(accountRecord).values({ id: context.scope, scope: "owner" });
         await asOwner.create(accountObject, { owner: owner.subjects[0]! });
         const reader = await asOwner.createRole(accountObject, {
@@ -107,7 +106,7 @@ test("authorize producers and readers, stream history, and record denied access"
         await asOwner.grant({
             object: accountObject,
             role: reader.id,
-            subject: principal.user.reference("global", "reader"),
+            subject: principal.user.reference("universe", "reader"),
         });
         await using server = Server.start({
             ...implementService(history, {
@@ -121,15 +120,15 @@ test("authorize producers and readers, stream history, and record denied access"
                     }),
             }),
             audience: publishDocument.package.id,
-            scope: "global",
+            scope: "universe",
             resources: new ResourceContext(),
             health: new Health("audit"),
             authenticate: async () =>
                 new Caller({
-                    credential: { kind: "fixture" },
+                    credential: { kind: "fixture", id: "fixture" },
                     audience: publishDocument.package.id,
-                    subject: principal.user.reference("global", "reader"),
-                    subjects: [principal.user.reference("global", "reader")],
+                    subject: principal.user.reference("universe", "reader"),
+                    subjects: [principal.user.reference("universe", "reader")],
                     verifiedAt: Date.now(),
                     expiresAt: Date.now() + 60000,
                 }),
@@ -182,14 +181,23 @@ test("authorize producers and readers, stream history, and record denied access"
             return records;
         };
         await expect(denied()).rejects.toMatchObject({ code: "FORBIDDEN" });
-        const accesses = (await outbox.read()).filter(
-            (event) => event.action.package.id === auditExport.package.id,
-        );
+        const events = await outbox.read();
+        const accesses = events.filter((event) => event.category === "access");
         expect(accesses.map((event) => [event.action.name, event.category, event.result])).toEqual([
             ["Audit.export", "access", { stage: "result", outcome: "success" }],
+        ]);
+
+        // record each refused call once, as its procedure's denial
+        const denials = events.filter((event) => event.category === "denial");
+        expect(denials.map((event) => [event.action.name, event.targets, event.result])).toEqual([
             [
-                "Audit.export",
-                "access",
+                "Service.invoke",
+                { procedure: { type: "procedure", id: "ingest" } },
+                { stage: "result", outcome: "denied", errorCode: "FORBIDDEN" },
+            ],
+            [
+                "Service.invoke",
+                { procedure: { type: "procedure", id: "export" } },
                 { stage: "result", outcome: "denied", errorCode: "FORBIDDEN" },
             ],
         ]);

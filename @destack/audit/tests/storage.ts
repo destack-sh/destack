@@ -1,12 +1,13 @@
+import { outbox } from "@destack/service/outbox";
 import { schema } from "@destack/schema";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import type { DatabaseConnection } from "@destack/db";
 import { AuditRecorder, defineAuditAction } from "../src/index.ts";
-import { AuditOutbox, auditOutboxTables } from "../src/outbox/index.ts";
+import { AuditOutbox } from "../src/outbox/index.ts";
 import { AuditHistory, auditTables } from "../src/history/index.ts";
 import { accountRecord, document } from "./stack/index.ts";
 import { PackageId } from "@destack/package";
-import { ACCESS_TABLES } from "@destack/access";
+import { accessTables } from "@destack/access";
 
 /** A document rename action. */
 export const renameDocument = defineAuditAction(
@@ -28,7 +29,7 @@ export const renameDocument = defineAuditAction(
 );
 
 /** The tables the audit scenarios use. */
-const TABLES = [document, accountRecord, ...auditOutboxTables, ...auditTables, ...ACCESS_TABLES];
+const TABLES = [document, accountRecord, outbox, ...auditTables, ...accessTables];
 
 /** The storage of the audit scenarios. */
 export class AuditStorage {
@@ -55,7 +56,7 @@ export class AuditStorage {
                 delegation: [],
                 package: renameDocument.package,
                 service: "document",
-                scope: "global",
+                scope: "universe",
             },
             this.outbox,
         );

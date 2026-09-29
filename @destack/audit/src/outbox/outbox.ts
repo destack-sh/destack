@@ -1,13 +1,10 @@
-import type { DatabaseConnection, Table } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db";
 import type { Controller } from "@destack/service/control";
-import { Outbox, outbox, type Address, type Destination } from "@destack/service/outbox";
+import { Outbox, type Address, type Destination } from "@destack/service/outbox";
 import { AuditEvent } from "../event/index.ts";
 import { encodeEvent } from "../event/encode.ts";
 import type { AuditWriter } from "../record/index.ts";
 import { AUDIT_BATCH_EVENTS, type AuditDestination } from "./delivery.ts";
-
-/** The audit outbox tables. */
-export const auditOutboxTables: readonly Table[] = [outbox as Table];
 
 /** The outbox address of audit events. */
 const AUDIT: Address<AuditEvent> = { name: "audit", message: AuditEvent };

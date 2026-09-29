@@ -25,7 +25,7 @@ test("deliver a batch again after its acceptance was lost, the history holding e
         storage = await storage.reopen();
         expect(await storage.outbox.deliver(storage.history)).toBe(1);
         expect(await storage.outbox.read()).toEqual([]);
-        const scope = "global";
+        const scope = "universe";
         expect(
             (await storage.history.list({ scope, limit: 100 })).items.map((record) => record.event),
         ).toEqual([event]);
@@ -59,7 +59,7 @@ test("deliver events as they commit through control loops of competing senders, 
             waiting,
         );
         expect([
-            (await storage.history.list({ scope: "global", limit: 100 })).items.map(
+            (await storage.history.list({ scope: "universe", limit: 100 })).items.map(
                 (record) => record.event,
             ),
             failures,
@@ -89,7 +89,7 @@ test("keep a batch the history rejects pending, and reject a second result of an
         const result = storage.recorder.complete(attempt, { outcome: "success" });
         await storage.recorder.append(result);
         expect(await storage.outbox.deliver(storage.history)).toBe(2);
-        const scope = "global";
+        const scope = "universe";
         expect(await storage.history.list({ scope, unresolved: true, limit: 100 })).toEqual({
             items: [],
             cursor: null,

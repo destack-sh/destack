@@ -12,9 +12,9 @@ test("persist verified caller identities and tell apart identities of different 
     const storage = await AuditStorage.open();
     try {
         // use the same identifier in two scopes
-        const origin = { package: renameDocument.package, service: "document", scope: "global" };
+        const origin = { package: renameDocument.package, service: "document", scope: "universe" };
         const now = Date.now();
-        const represented = principal.user.reference("global", "person");
+        const represented = principal.user.reference("universe", "person");
         const actor = principal.installation.reference("space-example", "agent");
         const deploymentId = identifier("deployment").parse(
             "deployment-01996ab0-0000-7000-8000-000000000001",
@@ -38,10 +38,11 @@ test("persist verified caller identities and tell apart identities of different 
             { subject: principal.installation.reference("space-example", "share") },
         ];
         const events = [];
+        const credential = { kind: "token", id: "token-1", secret: "must never be recorded" };
         for (const authentication of requests) {
             const caller = new Caller({
                 ...authentication,
-                credential: { secret: "must never be recorded" },
+                credential,
                 audience: origin.package.id,
                 subjects: [authentication.subject],
                 verifiedAt: now,
@@ -49,7 +50,7 @@ test("persist verified caller identities and tell apart identities of different 
             });
             const request = new ServiceContext(new Request("https://example.test"), {
                 audience: origin.package.id,
-                scope: "global",
+                scope: "universe",
                 caller,
                 resources: new ResourceContext(),
             });
@@ -65,7 +66,7 @@ test("persist verified caller identities and tell apart identities of different 
         // attribute an attempt without authentication to no caller
         const rejected = new ServiceContext(new Request("https://example.test"), {
             audience: origin.package.id,
-            scope: "global",
+            scope: "universe",
             caller: null,
             resources: new ResourceContext(),
             authenticationError: new ServiceError("UNAUTHORIZED", {
@@ -108,7 +109,7 @@ test("persist verified caller identities and tell apart identities of different 
         expect(await storage.outbox.deliver(storage.history)).toBe(5);
         for (const event of events) {
             const page = await storage.history.list({
-                scope: "global",
+                scope: "universe",
                 actor: event.context.actor,
                 limit: 10,
             });

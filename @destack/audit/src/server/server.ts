@@ -1,4 +1,5 @@
 import { auditExport, auditPrune } from "../history/action.ts";
+import { Scope } from "@destack/sync";
 import { Snapshot } from "@destack/db/log";
 import {
     implement,
@@ -12,14 +13,13 @@ import { AuditHistory } from "../history/history.ts";
 import { AuditRecorder } from "../record/index.ts";
 import { AuditError } from "../error/index.ts";
 import { auditService, AuditScope } from "../service/index.ts";
-import { GLOBAL_SCOPE, Scope } from "@destack/access";
 
 /** The request authority a host supplies. */
 export interface AuditRequestContext {
     /** Require a history permission on a scope. */
     authorizeAudit(permission: "ingest" | "read" | "prune", scope: AuditScope): Promise<void>;
     /** The recorder of history access. */
-    audit: Pick<AuditRecorder, "attempt" | "stream">;
+    audit: Pick<AuditRecorder, "attempt" | "record" | "stream">;
 }
 
 /** Implement the audit service on a history. */
@@ -60,13 +60,14 @@ export function implementService(
     return {
         service: auditService,
         access: options.access,
+        audit: AuditRecorder.procedure(({ context }) => options.record(context)),
         router: implementation.router({
             ingest: implementation.ingest.handler(async ({ input, context }) => {
-                // reject events of the global scope and authorize each scope
+                // reject events of the universe and authorize each scope
                 const scopes = new Set(input.events.map((event) => event.context.scope));
-                if (scopes.has(GLOBAL_SCOPE)) {
+                if (scopes.has(Scope.universe.id)) {
                     throw new ServiceError("BAD_REQUEST", {
-                        message: "audit events name a scope other than the global one",
+                        message: "only the universe records its own audit events",
                     });
                 }
                 for (const scope of scopes) {

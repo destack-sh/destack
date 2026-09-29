@@ -5,7 +5,7 @@ import { AuditEvent, AuditResult } from "../event/event.ts";
 import { canonicalize } from "@destack/schema/json";
 import { AuditContext } from "../event/context.ts";
 import { AuditError } from "../error/index.ts";
-import { ServiceError } from "@destack/service";
+import { denialOf, ServiceError } from "@destack/service";
 import type { Caller } from "@destack/service/authentication";
 import {
     domainFailure,
@@ -104,7 +104,7 @@ export class AuditRecorder<Transaction = never> {
         );
     }
 
-    /** Record a procedure call once it ends: writes, reads when audited, and denials. */
+    /** Record a procedure call after it ends: writes, audited reads and denials. */
     static procedure<State extends object>(
         recorder: (call: ProcedureCall<State>) => ProcedureRecorder | Promise<ProcedureRecorder>,
         options: { readonly isAccessAudited?: boolean } = {},
@@ -123,10 +123,10 @@ export class AuditRecorder<Transaction = never> {
                 return;
             }
 
-            // map the outcome and failure code to the result
+            // map the outcome and failure code to the result, recording a concealed denial's own code
             const errorCode =
                 event.error instanceof ServiceError
-                    ? event.error.code
+                    ? (denialOf(event.error) ?? event.error).code
                     : event.outcome === "cancelled"
                       ? "CANCELLED"
                       : "INTERNAL_SERVER_ERROR";
@@ -148,6 +148,11 @@ export class AuditRecorder<Transaction = never> {
                 category,
             );
         };
+    }
+
+    /** Read the result a failed action ends with: a denial for rejected access, a failure otherwise. */
+    static result(error: unknown): AuditResult {
+        return resultOf(error);
     }
 
     /** Create the recorder. */
@@ -244,14 +249,17 @@ export class AuditRecorder<Transaction = never> {
         execute: () => Promise<Value>,
         detail?: (value: Value) => schema.Input<Details>,
     ): Promise<Value> {
-        // record a failed read with its failure
+        // record a failed read, leaving denials to the procedure layer
         let value: Value;
         try {
             value = await execute();
         } catch (error) {
-            await this.#keep(error, () =>
-                this.record(undefined, action, { ...values, ...resultOf(error) }, "access"),
-            );
+            const result = resultOf(error);
+            if (result.outcome !== "denied") {
+                await this.#keep(error, () =>
+                    this.record(undefined, action, { ...values, ...result }, "access"),
+                );
+            }
             throw error;
         }
 
@@ -286,9 +294,12 @@ export class AuditRecorder<Transaction = never> {
             result = resultOf(error);
             throw error;
         } finally {
-            await this.#keep(cause, () =>
-                this.record(undefined, action, { ...values, ...result }, "access"),
-            );
+            // leave a denial to the procedure that refused it
+            if (result.outcome !== "denied") {
+                await this.#keep(cause, () =>
+                    this.record(undefined, action, { ...values, ...result }, "access"),
+                );
+            }
         }
     }
 
@@ -303,7 +314,7 @@ export class AuditRecorder<Transaction = never> {
         await this.#writer.append(event);
     }
 
-    /** Persist a result, keeping the action's failure beside a failed write. */
+    /** Persist a result and keep the action's failure beside a failed write. */
     async #keep(cause: unknown, persist: () => Promise<unknown>): Promise<void> {
         try {
             await persist();
@@ -345,16 +356,16 @@ type ProcedureRecorder = Pick<AuditRecorder<unknown>, "record">;
 function resultOf(error: unknown): AuditResult {
     // map domain failures to service failures
     const known = domainFailure(error) ?? error;
-    const errorCode =
-        known instanceof ServiceError || known instanceof AuditError
-            ? known.code
-            : "INTERNAL_SERVER_ERROR";
+    const denial = known instanceof ServiceError ? denialOf(known) : undefined;
 
-    // report rejected access as a denial
-    const outcome =
-        errorCode === "FORBIDDEN" || errorCode === "UNAUTHORIZED" ? "denied" : "failure";
+    // report rejected access, concealed or not, as a denial with its own code
+    if (denial !== undefined) {
+        return { outcome: "denied", errorCode: denial.code };
+    } else if (known instanceof ServiceError || known instanceof AuditError) {
+        return { outcome: "failure", errorCode: known.code };
+    }
 
-    return { outcome, errorCode };
+    return { outcome: "failure", errorCode: "INTERNAL_SERVER_ERROR" };
 }
 
 /** Name a verified subject as the actor it records. */

@@ -42,7 +42,7 @@ export const auditEvent = defineTable(
         event: json("event", AuditEvent).notNull(),
     },
     {
-        log: { tier: "window" },
+        log: { retention: "window" },
         constraints: (event) => [
             uniqueIndex("event_attempt_result").on(event.attemptId),
             index("event_scope_time").on(event.scope, event.recordedAt, event.id),
@@ -79,7 +79,7 @@ export const auditTarget = defineTable(
         objectId: text("object_id").notNull(),
     },
     {
-        log: { tier: "window" },
+        log: { retention: "window" },
         constraints: (target) => [
             uniqueIndex("target_role").on(target.event, target.role),
             index("target_object").on(target.type, target.objectId, target.event),

@@ -33,7 +33,7 @@ export class AuditHistory {
         this.database = database;
     }
 
-    /** Store a batch's events in one transaction, each once, returning how many it holds. */
+    /** Store a batch's events once in one transaction and return the stored count. */
     async ingest(value: AuditBatch): Promise<number> {
         // parse the batch and insert each event
         const batch = AuditBatch.parse(value);

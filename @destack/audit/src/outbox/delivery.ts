@@ -20,6 +20,6 @@ export type AuditBatch = schema.Infer<typeof AuditBatch>;
 
 /** The history an outbox delivers to. */
 export interface AuditDestination {
-    /** Store a batch's events in one transaction, each once. */
+    /** Store a batch's events once in one transaction. */
     ingest(batch: AuditBatch, options?: { signal?: AbortSignal }): Promise<unknown>;
 }

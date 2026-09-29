@@ -92,9 +92,9 @@ await history.prune({ scope: spaceId, before: cutoff, limit: 100 });
 
 ## Storage
 
-A service database includes `auditOutboxTables`, and a history database includes `auditTables`.
+A service database holds the `outbox` every object type's tables include, and a history database holds `auditTables`.
 
 ```ts
-export const main = defineDatabase({ name: "main", tables: [...auditOutboxTables, note] });
+export const main = defineDatabase({ name: "main", tables: note.tables });
 export const history = defineDatabase({ name: "history", tables: auditTables });
 ```
