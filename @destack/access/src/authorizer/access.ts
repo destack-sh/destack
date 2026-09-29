@@ -222,21 +222,62 @@ export class Access {
         return this.#universal;
     }
 
-    /** Read the gate the request fails for a permission before any grant: its credential, its elevation, or the scope's suspension. */
-    gate(permission: PermissionReference, id?: string): Gate | undefined {
-        // require the credential to allow the permission, on the object among those it selects
-        const key = permissionKey(permission);
-        if (
-            !Restriction.allows(
-                permission,
-                { scope: this.scope, ...(id === undefined ? {} : { id }) },
-                this.context,
-            )
-        ) {
-            return "restricted";
+    /** Read the gate a request fails on a row before any grant: its credential, elevation or suspension. */
+    gate(
+        permission: PermissionReference,
+        mapping: TableMapping,
+        row: Readonly<Record<string, unknown>>,
+    ): Gate | undefined {
+        return this.admits(permission, String(row[mapping.id]), { mapping, row })
+            ? this.blocked(permission)
+            : "restricted";
+    }
+
+    /**
+     * Decide whether the credential allows a permission on an object, directly or through its source.
+     *
+     * A derivation through a relation needs the object's row, which names the related object.
+     */
+    admits(
+        permission: PermissionReference,
+        id: string,
+        stored?: {
+            readonly mapping: TableMapping;
+            readonly row: Readonly<Record<string, unknown>>;
+        },
+    ): boolean {
+        // allow a permission the credential names
+        if (Restriction.allows(permission, { scope: this.scope, id }, this.context)) {
+            return true;
         }
+
+        // allow a derivation as its source is allowed: on the same object, or on the related one the row names
+        const source = this.#authorizer.source(permission);
+        if (source === undefined) {
+            return false;
+        } else if (source.relation === undefined) {
+            return this.admits({ ...permission, name: source.permission }, id, stored);
+        } else if (stored === undefined) {
+            return false;
+        }
+        const related = this.#authorizer.related(stored.mapping, source.relation, stored.row);
+
+        return (
+            related !== undefined &&
+            related.scope === this.scope &&
+            this.admits(
+                { packageId: related.packageId, type: related.type, name: source.permission },
+                related.id,
+            )
+        );
+    }
+
+    /** Read the gate a request fails on any object: its elevation or the scope's suspension. */
+    blocked(permission: PermissionReference): Gate | undefined {
+        const key = permissionKey(permission);
+
         // require the authentication an elevated permission asks for
-        else if (!this.elevates(permission)) {
+        if (!this.elevates(permission)) {
             return "elevation";
         }
         // require an active scope for all but administration

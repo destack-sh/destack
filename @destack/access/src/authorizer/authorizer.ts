@@ -398,6 +398,52 @@ export class Authorizer {
         return [...this.#mappings.values()];
     }
 
+    /** Read the permission another purely derives from, on its object or through a field-held relation. */
+    source(
+        permission: PermissionReference,
+    ): { readonly permission: string; readonly relation?: string } | undefined {
+        const expression = this.expression(permission);
+        if (expression.kind === "permission") {
+            return { permission: expression.name };
+        } else if (
+            expression.kind === "through" &&
+            !expression.transitive &&
+            this.mappingOf(permission)?.relations[expression.relation] !== undefined
+        ) {
+            return { permission: expression.permission, relation: expression.relation };
+        }
+
+        return undefined;
+    }
+
+    /** Read the object a row's field-held relation names, absent when the row names none. */
+    related(
+        mapping: TableMapping,
+        relation: string,
+        row: Readonly<Record<string, unknown>>,
+    ): ObjectReference | undefined {
+        // read the related identifier
+        const field = mapping.relations[relation]!;
+        const id = row[field.column] as string | null | undefined;
+        if (id === null || id === undefined) {
+            return undefined;
+        }
+
+        // type it by the row's columns, or by the one type the relation accepts
+        const [only] = this.relation(mapping.policy, relation).subjects;
+        const typed = field.subject;
+
+        return {
+            packageId: (typed === undefined ? only!.packageId : row[typed.packageId]) as PackageId,
+            type: String(typed === undefined ? only!.type : row[typed.type]),
+            scope:
+                typed === undefined
+                    ? (field.scope ?? TableMapping.scope(mapping, row))
+                    : String(row[typed.scope]),
+            id,
+        };
+    }
+
     /** Name the scope whose chain decides access to an object: the scope a scope object is, else the scope containing the object. */
     governingScope(target: ObjectReference): string {
         return this.policy(target).definition.scope === true ? target.id : target.scope;
@@ -936,7 +982,7 @@ export class Authorizer {
         lookup: Lookup,
     ): ReturnType<Access["gate"]> | "outside" {
         // refuse the request its credential, elevation or suspension refuses
-        const refused = access.gate(permission, String(row[mapping.id]));
+        const refused = access.gate(permission, mapping, row);
         if (refused !== undefined) {
             return refused;
         }

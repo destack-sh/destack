@@ -43,17 +43,18 @@ export class Compiler {
         // deny a request its gate refuses
         const mapping = this.#authorizer.mapping(permission);
         const table = source ?? mapping.table;
-        if (access.gate(permission) !== undefined) {
+        if (access.blocked(permission) !== undefined) {
             return sql`false`;
         }
 
-        // evaluate every authority, and constrain restricted credentials to their selected objects
+        // evaluate every authority, and constrain restricted credentials to the objects they allow
         const predicates = this.#authorities(access, (compilation) =>
             this.#permission(permission, mapping, table, compilation),
         );
-        const selected = Restriction.select(permission, access.scope, access.context);
-        if (selected !== "every") {
-            predicates.push(inArray(column(table, mapping.id), selected));
+        if (access.context.permissions !== undefined) {
+            predicates.push(
+                this.#restricted(permission, column(table, mapping.id), access, { mapping, table }),
+            );
         }
 
         // select the mapped type's rows of a table several types share
@@ -77,19 +78,30 @@ export class Compiler {
 
     /** Match one object, in its own scope or as the scope's own object, if the caller holds a permission of its type or through a role of another's. */
     holds(permission: PermissionReference, target: ObjectReference, access: Access): SQL {
-        // deny a request its gate refuses on the exact target
-        if (access.gate(permission, target.id) !== undefined) {
+        // deny a request its elevation or suspension refuses, or its credential refuses for another type's permission
+        const isOwn = permission.packageId === target.packageId && permission.type === target.type;
+        if (
+            access.blocked(permission) !== undefined ||
+            (!isOwn && !access.admits(permission, target.id))
+        ) {
             return sql`false`;
         }
 
-        // evaluate a permission of the target's own type completely, and another type's through roles
-        const isOwn = permission.packageId === target.packageId && permission.type === target.type;
+        // evaluate another type's permission through roles
+        return this.#target(target, access, (mapping, row, compilation) => {
+            if (!isOwn) {
+                return this.#bound(permission, mapping, row, compilation);
+            }
 
-        return this.#target(target, access, (mapping, row, compilation) =>
-            isOwn
-                ? this.#permission(permission, mapping, row, compilation)
-                : this.#bound(permission, mapping, row, compilation),
-        );
+            // evaluate the target's own permission where the credential allows it
+            const allowed = this.#restricted(permission, column(row, mapping.id), access, {
+                mapping,
+                table: row,
+            });
+            const granted = this.#permission(permission, mapping, row, compilation);
+
+            return sql`(${allowed} AND ${granted})`;
+        });
     }
 
     /** Match one object of the resolved scope, or the scope's own object in its container, when every authority satisfies a predicate on its row. */
@@ -116,6 +128,71 @@ export class Compiler {
                 AND ${TableMapping.scopeColumn(row, mapping)} = ${target.scope}
                 AND ${sql.join(predicates, sql` AND `)}
         )`;
+    }
+
+    /**
+     * Match the objects the credential allows a permission on, directly or through its source.
+     *
+     * A derivation through a relation needs the objects' rows, which name the related objects.
+     */
+    #restricted(
+        permission: PermissionReference,
+        id: SQLWrapper,
+        access: Access,
+        stored?: { readonly mapping: TableMapping; readonly table: Table },
+    ): SQL {
+        // match the objects the credential names
+        const selected = Restriction.select(permission, access.scope, access.context);
+        if (selected === "every") {
+            return sql`true`;
+        }
+        const named = selected.length === 0 ? sql`false` : inArray(id, selected);
+
+        // match a derivation as its source is matched: on the same object, or on the related one each row names
+        const source = this.#authorizer.source(permission);
+        if (source === undefined) {
+            return named;
+        } else if (source.relation === undefined) {
+            const derived = { ...permission, name: source.permission };
+
+            return sql`(${named} OR ${this.#restricted(derived, id, access, stored)})`;
+        } else if (stored === undefined) {
+            return named;
+        }
+
+        // match each type the relation accepts through the related object's column
+        const { mapping, table } = stored;
+        const field = mapping.relations[source.relation]!;
+        const typed = field.subject;
+        const subjects = this.#authorizer.relation(mapping.policy, source.relation).subjects;
+        const arrows = subjects.map((subject) => {
+            const derived = {
+                packageId: subject.packageId,
+                type: subject.type,
+                name: source.permission,
+            };
+            const allowed = this.#restricted(derived, column(table, field.column), access);
+
+            // accept a single-typed relation in the caller's scope
+            if (typed === undefined) {
+                return field.scope === undefined || field.scope === access.scope
+                    ? allowed
+                    : sql`false`;
+            }
+            // accept a typed relation naming this type in the caller's scope
+            else {
+                const conditions = [
+                    sql`${column(table, typed.packageId)} = ${subject.packageId}`,
+                    sql`${column(table, typed.type)} = ${subject.type}`,
+                    sql`${column(table, typed.scope)} = ${access.scope}`,
+                    allowed,
+                ];
+
+                return sql`(${sql.join(conditions, sql` AND `)})`;
+            }
+        });
+
+        return sql`(${sql.join([named, ...arrows], sql` OR `)})`;
     }
 
     /** Evaluate every authority of the caller with one alias allocation, the represented subject first. */
