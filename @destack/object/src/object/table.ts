@@ -1,5 +1,5 @@
 import type { Identifier } from "@destack/schema";
-import { GLOBAL_SCOPE } from "@destack/access";
+import { Scope } from "@destack/sync";
 import {
     type Column,
     type ColumnBuilder,
@@ -32,7 +32,7 @@ type FieldBuilderMap<Fields extends Readonly<Record<string, Field>>> = {
 };
 
 /** The column holding each object's scope. */
-type ScopeBuilderMap<Scope> = Scope extends "global"
+type ScopeBuilderMap<Scope> = Scope extends "universe"
     ? { scope: ColumnBuilder<string, true, true> }
     : Scope extends ObjectType
       ? { scope: ColumnBuilder<Identifier<ScopeIdentity<Scope>>, true, false> }
@@ -132,8 +132,8 @@ export function deriveTable(
     const name = definition.name;
     const scoped = {
         scope:
-            definition.scope === GLOBAL_SCOPE
-                ? text("scope").notNull().default(GLOBAL_SCOPE)
+            definition.scope === Scope.universe.id
+                ? text("scope").notNull().default(Scope.universe.id)
                 : Array.isArray(definition.scope)
                   ? text("scope").notNull()
                   : identifier("scope", (definition.scope as ObjectType).identity).notNull(),
@@ -200,8 +200,10 @@ export function deriveTable(
             ],
             // keep the traits' dependents
             dependents: kept.flatMap((table) => table.dependents ?? []),
+            // place the objects in their tier
+            ...(definition.tier === undefined ? {} : { tier: definition.tier }),
             // keep history for tracked objects, and index a tree
-            log: (definition.tracked === undefined ? {} : { tier: "history" }) as never,
+            log: (definition.tracked === undefined ? {} : { retention: "history" }) as never,
             ...(tree === undefined ? {} : { tree }),
         },
         module,

@@ -1,4 +1,4 @@
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
+import { AuditOutbox } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import {
     accessRelationship,
@@ -9,7 +9,7 @@ import {
     union,
 } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
-import { type DatabaseConnection, eq, isNotNull } from "@destack/db";
+import { eq, isNotNull } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier, schema } from "@destack/schema";
@@ -64,7 +64,7 @@ const journal = defineJournal("journal");
 /** The database holding both spaces' memos, their access, the journal and the outbox. */
 const memoDatabase = defineDatabase({
     name: "main",
-    tables: [...auditOutboxTables, journal, ...memo.tables],
+    tables: [journal, ...memo.tables],
 });
 
 test.each(TEST_DIALECTS)(
@@ -78,7 +78,7 @@ test.each(TEST_DIALECTS)(
             objects: { memo },
             database: storage.database,
             context: () => ({
-                subjects: [principal.user.reference("global", "alice")],
+                subjects: [principal.user.reference("universe", "alice")],
                 now: Date.now(),
                 attributes: {},
             }),
@@ -126,7 +126,7 @@ test.each(TEST_DIALECTS)(
         });
 
         // read the copies in the home, waiting until they match
-        const bob = principal.user.reference("global", "bob");
+        const bob = principal.user.reference("universe", "bob");
         const copies = async () =>
             (await storage.database
                 .select({

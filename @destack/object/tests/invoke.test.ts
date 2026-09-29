@@ -1,8 +1,7 @@
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
+import { AuditOutbox } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
-import type { DatabaseConnection } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier, schema } from "@destack/schema";
@@ -101,7 +100,7 @@ const journal = defineJournal("journal");
 /** The database holding the shelves, the books, their access and the journal. */
 const shelfDatabase = defineDatabase({
     name: "main",
-    tables: [...auditOutboxTables, journal, ...book.tables, ...shelf.tables, ...slip.tables],
+    tables: [journal, ...book.tables, ...shelf.tables, ...slip.tables],
 });
 
 test.each(TEST_DIALECTS)(
@@ -115,7 +114,7 @@ test.each(TEST_DIALECTS)(
             objects: { book, shelf, slip },
             database: storage.database,
             context: () => ({
-                subjects: [principal.user.reference("global", current)],
+                subjects: [principal.user.reference("universe", current)],
                 now: Date.now(),
                 attributes: {},
             }),
@@ -182,7 +181,7 @@ test.each(TEST_DIALECTS)(
             objects: {
                 book,
                 shelf,
-                // mark issued slips on the server, which invoking the base type still runs
+                // mark issued slips on the server when the base type is invoked
                 slip: slip.handle({
                     issue: (call, next) =>
                         next(
@@ -194,7 +193,7 @@ test.each(TEST_DIALECTS)(
             },
             database: storage.database,
             context: () => ({
-                subjects: [principal.user.reference("global", "user-1")],
+                subjects: [principal.user.reference("universe", "user-1")],
                 now: Date.now(),
                 attributes: {},
             }),

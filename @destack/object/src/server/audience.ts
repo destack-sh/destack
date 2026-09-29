@@ -1,15 +1,10 @@
-import {
-    accessRelationship,
-    earliest,
-    type ObjectReference,
-    type Permission,
-} from "@destack/access";
+import type { ObjectReference, RowKey, Audience, Watch } from "@destack/sync";
+import { accessRelationship, earliest, type Permission } from "@destack/access";
 import { and, eq, gt, or, sql, TABLE, type Row, type SQL, type Table } from "@destack/db";
 import type { Change, LogPosition } from "@destack/db/log";
 import { schema } from "@destack/schema";
 import { canonicalize } from "@destack/schema/json";
 import type { ServiceContext } from "@destack/service/server";
-import type { RowKey, Audience, Watch } from "@destack/sync";
 import type { ObjectStorage, ObjectType } from "../object/object.ts";
 import { ListedObjects } from "../query/listing.ts";
 import type { Authorization } from "./authorization.ts";
@@ -81,7 +76,7 @@ export class ObjectAudience implements Audience {
         return new ObjectAudience(server, scope, context, authorization, storage, decided);
     }
 
-    /** The scope's own object, absent for the global scope. */
+    /** The scope's own object, absent for a scope the database does not know. */
     get scope(): ObjectReference | undefined {
         return this.#authorization.access.scopes[0];
     }
@@ -118,8 +113,9 @@ export class ObjectAudience implements Audience {
         }
         const { permission } = listed;
 
-        // check the listing permission
-        const admission = await this.#authorization.checkRows(
+        // check the listing permission, admitting inherited copies
+        const admission = await this.#authorization.admitRows(
+            listed.object,
             permission,
             this.#scope,
             rows,
@@ -165,7 +161,7 @@ export class ObjectAudience implements Audience {
         await this.#authorize();
     }
 
-    /** List the rows whose access a change decides, or everything. */
+    /** List the rows with access a change decides, or everything. */
     async dependents(change: Change): Promise<readonly RowKey[] | "everything"> {
         // resolve access after an access change
         if (
@@ -318,12 +314,7 @@ export class ObjectAudience implements Audience {
 
     /** The scope and the scopes containing it, nearest first. */
     get chain(): string[] {
-        return [
-            ...new Set([
-                this.#scope,
-                ...this.#authorization.access.scopes.map((entry) => entry.id),
-            ]),
-        ];
+        return this.#authorization.chain;
     }
 
     /** Read the listing permission deciding a table's rows. */

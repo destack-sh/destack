@@ -32,10 +32,12 @@ export class Listing implements Audience {
 
     /** Decide which rows of a table the caller may list, at once. */
     async admits(table: Table, rows: readonly Row[]): Promise<ReadonlySet<number>> {
-        const { permission } = this.#objects.listed(table);
+        const { object, permission } = this.#objects.listed(table);
+
         return this.#call.isPredicted
             ? new Set(rows.keys())
-            : (await this.#call.served().checkRows(permission, this.#call.scope, rows)).held;
+            : (await this.#call.served().admitRows(object, permission, this.#call.scope, rows))
+                  .held;
     }
 
     /** List an object type's guarded fields. */

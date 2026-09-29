@@ -43,10 +43,10 @@ export const Observation = defineSchema(
 /** A controller's report on one record. */
 export type Observation = schema.Infer<typeof Observation>;
 
-/** Record a controller's observation of its target, keeping its generation. */
+/** Record a controller's observation of its target at its generation. */
 const observe = method({ permission: null, isSystem: true, input: Observation }).handle(
     async (call) => {
-        // merge the conditions, keeping transition times while their status holds
+        // merge the conditions and keep transition times while their status holds
         const target = call.target as {
             readonly conditions: Readonly<Record<string, StatusCondition>>;
         };
@@ -71,7 +71,7 @@ const observe = method({ permission: null, isSystem: true, input: Observation })
     },
 );
 
-/** Remove a record whose deletion was requested, once its controller is done. */
+/** Remove a record with a requested deletion after its controller finishes. */
 const finalize = method({
     permission: null,
     isSystem: true,
@@ -110,7 +110,7 @@ export function controlledColumns() {
 
 /** Records a controller reconciles. */
 export const controlled: Trait<true> & {
-    /** Record a controller's observation, keeping the last transition time while the status holds. */
+    /** Record a controller's observation and keep the last transition time while the status holds. */
     observe(
         previous: StatusCondition | undefined,
         observation: Omit<StatusCondition, "lastTransitionAt">,

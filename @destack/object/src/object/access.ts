@@ -1,4 +1,5 @@
 import * as access from "@destack/access";
+import { Scope, type ObjectReference } from "@destack/sync";
 import { Snapshot } from "@destack/db/log";
 import {
     ACCESS_MAPPINGS,
@@ -6,9 +7,7 @@ import {
     accessRelationship,
     accessRole,
     PermissionReference,
-    type ObjectReference,
     type TableMapping,
-    Scope,
 } from "@destack/access";
 import { eq, type Table } from "@destack/db";
 import { schema } from "@destack/schema";

@@ -1,8 +1,7 @@
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
+import { AuditOutbox } from "@destack/audit/outbox";
 import { ObjectServer } from "../src/server/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { AuditRecorder } from "@destack/audit";
-import { type DatabaseConnection } from "@destack/db";
 import { Condition } from "@destack/db/query";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { PackageId } from "@destack/package";
@@ -50,7 +49,7 @@ test.each(TEST_DIALECTS)(
             authorizeHost: async () => {},
             authenticate: async (request) => {
                 const id = request.headers.get("authorization")!.slice("Bearer ".length);
-                const subject = principal.user.reference("global", id);
+                const subject = principal.user.reference("universe", id);
                 const now = Date.now();
 
                 return new Caller({
@@ -72,7 +71,7 @@ test.each(TEST_DIALECTS)(
                 fetch: (request: Request) => server.fetch(request),
             });
         const [alice, bob, carol, dave] = ["alice", "bob", "carol", "dave"].map(as);
-        const person = (id: string) => principal.user.reference("global", id);
+        const person = (id: string) => principal.user.reference("universe", id);
 
         // let the owner create a project and a budgeted task assigned to another user
         const launch = await alice!.project.create({

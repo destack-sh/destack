@@ -1,8 +1,8 @@
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
+import { AuditOutbox } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
-import { unique, type DatabaseConnection } from "@destack/db";
+import { unique } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier, schema } from "@destack/schema";
 import { Journal } from "@destack/service/database";
@@ -41,13 +41,9 @@ const handle = defineObject({
 test.each(TEST_DIALECTS)(
     "report a create's conflicts only to callers the create permission admits, inside spaces they read, on %s",
     async (dialect) => {
-        const storage = await TestDatabase.create(
-            dialect,
-            [...auditOutboxTables, ...handle.tables, request],
-            {
-                isMigrated: true,
-            },
-        );
+        const storage = await TestDatabase.create(dialect, [...handle.tables, request], {
+            isMigrated: true,
+        });
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
         await openSpace(storage.database, privateId, "private");
@@ -59,7 +55,7 @@ test.each(TEST_DIALECTS)(
             objects: { handle },
             database: storage.database,
             context: () => ({
-                subjects: [principal.user.reference("global", current)],
+                subjects: [principal.user.reference("universe", current)],
                 now: Date.now(),
                 attributes: {},
                 assurance: { level, authenticatedAt: Date.now() },
@@ -153,20 +149,16 @@ const team = defineObject({
 });
 
 test("create an object the caller holds the permission on only as the creator its creation relates", async () => {
-    const storage = await TestDatabase.create(
-        "sqlite",
-        [...auditOutboxTables, request, ...team.tables],
-        {
-            isMigrated: true,
-        },
-    );
+    const storage = await TestDatabase.create("sqlite", [request, ...team.tables], {
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const server = new ObjectServer({
         objects: { team },
         database: storage.database,
         context: () => ({
-            subjects: [principal.user.reference("global", "alice")],
+            subjects: [principal.user.reference("universe", "alice")],
             now: Date.now(),
             attributes: {},
         }),

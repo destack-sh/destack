@@ -1,10 +1,18 @@
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
+import { outbox } from "@destack/service/outbox";
+import { AuditOutbox } from "@destack/audit/outbox";
+import { Scope } from "@destack/sync";
 import { Snapshot } from "@destack/db/log";
-import { KeyIndex, ObjectServer } from "../src/server/index.ts";
-import { defineObject, field, keyEntry } from "../src/index.ts";
+import { ClaimController, ObjectServer } from "../src/server/index.ts";
+import { defineObject, field } from "../src/index.ts";
+import {
+    directoryTables,
+    DirectoryDatabase,
+    RESERVATION_MILLISECONDS,
+    type Directory,
+} from "@destack/directory";
 import { expect, onTestFinished, test } from "@destack/test";
 import { AuditRecorder } from "@destack/audit";
-import type { DatabaseConnection, Dialect } from "@destack/db";
+import type { Dialect } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
@@ -16,7 +24,7 @@ import { RequestId } from "@destack/service/request";
 import { Server } from "@destack/service/server";
 import { v7 } from "uuid";
 import { profile, profilesDatabase, profilesJournal, profilesService } from "./fixture/profiles.ts";
-import { GLOBAL_SCOPE, none, principal } from "@destack/access";
+import { none, principal } from "@destack/access";
 import { copyScope } from "@destack/access/test";
 import { openSpace } from "./fixture/space.ts";
 
@@ -26,14 +34,15 @@ const audience = PackageId.parse("package-01a0d5eb-fb8a-74f4-ba37-8a4d6970e239")
 test.each(TEST_DIALECTS)(
     "keep handles unique across spaces in separate databases on %s",
     async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [...auditOutboxTables, keyEntry], {
+        const storage = await TestDatabase.create(dialect, [outbox, ...directoryTables], {
             isMigrated: true,
         });
         onTestFinished(() => storage.close());
-        const index = new KeyIndex(storage.database);
-        const east = await serveProfiles(dialect, index);
-        const west = await serveProfiles(dialect, index);
-        const handle = async (name: string) => (await index.resolve(profile, "handle", [name]))?.id;
+        const directory = new DirectoryDatabase(storage.database);
+        const east = await serveProfiles(dialect, directory);
+        const west = await serveProfiles(dialect, directory);
+        const handle = async (name: string) =>
+            (await profile.lookup(directory, "handle", [name]))?.id;
 
         // let one space claim a handle, and refuse it to another space
         const ada = await east.alice.profile.create({
@@ -81,21 +90,24 @@ test.each(TEST_DIALECTS)(
         });
         expect(await handle("ada")).toBeUndefined();
 
-        // hold no key once every holder let go: the failed claim left no reservation behind
-        expect(await storage.database.select().from(keyEntry)).toEqual([]);
+        // keep no reservation once every owner let go: the failed claim left none behind
+        expect(await directory.expired([profile.index("handle")], Number.MAX_SAFE_INTEGER)).toEqual(
+            { claims: [] },
+        );
     },
 );
 
 test.each(TEST_DIALECTS)(
-    "follow writes outside the object server and finish expired reservations on %s",
+    "claim the names of writes outside the object server and finish expired reservations on %s",
     async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [...auditOutboxTables, keyEntry], {
+        const storage = await TestDatabase.create(dialect, [outbox, ...directoryTables], {
             isMigrated: true,
         });
         onTestFinished(() => storage.close());
-        const index = new KeyIndex(storage.database);
-        const east = await serveProfiles(dialect, index);
-        const handle = async (name: string) => (await index.resolve(profile, "handle", [name]))?.id;
+        const directory = new DirectoryDatabase(storage.database);
+        const east = await serveProfiles(dialect, directory);
+        const handle = async (name: string) =>
+            (await profile.lookup(directory, "handle", [name]))?.id;
 
         // follow a profile a controller writes directly, and refuse a second holder of its handle
         const after = (await east.database.log.position()).sequence;
@@ -114,51 +126,57 @@ test.each(TEST_DIALECTS)(
             .insert(profile.table)
             .values({ ...row, id: identifier("profile").parse(`profile-${v7()}`) });
         const { changes } = await east.database.log.read({ tables: [profile.table], after });
-        await index.apply(profile, changes[0]!, Snapshot.live(east.database));
+        const replace = async (position: number) => {
+            const change = changes[position]!;
+            const row = change.after as Readonly<Record<string, unknown>>;
+            const owned = await profile.owned(
+                String(change.key.id),
+                row,
+                Snapshot.live(east.database),
+            );
+            await directory.replace(owned, `change-${change.sequence}`, change.changedAt);
+        };
+        await replace(0);
         expect(await handle("carol")).toBe(changes[0]!.key.id);
-        await expect(
-            index.apply(profile, changes[1]!, Snapshot.live(east.database)),
-        ).rejects.toMatchObject({
+        await expect(replace(1)).rejects.toMatchObject({
             code: "CONFLICT",
             message: `handle of profile ${changes[1]!.key.id} is taken by ${changes[0]!.key.id}`,
         });
 
-        // keep an existing object's key, release a failed one, and wait for the later one
+        // keep an existing object's claim, release a failed one, and wait for the later one
         const kept = identifier("profile").parse(`profile-${v7()}`);
         await east.database.insert(profile.table).values({ ...row, id: kept, handle: "kept" });
-        const reserved = {
-            index: `${profile.policy.definition.packageId}/profile/handle`,
-            scope: east.spaceId,
-            state: "reserved" as const,
-            requestId: "request",
-            expiresAt: now,
-        };
-        await storage.database.insert(keyEntry).values([
-            { ...reserved, key: '[null,"kept"]', objectId: kept },
-            { ...reserved, key: '[null,"lost"]', objectId: `profile-${v7()}` },
-            {
-                ...reserved,
-                key: '[null,"later"]',
-                objectId: `profile-${v7()}`,
-                expiresAt: now + 1000,
-            },
-        ]);
-        const next = await index.finish([profile], east.database, now);
-        expect([next, await handle("kept"), await handle("lost")]).toEqual([1000, kept, undefined]);
-
-        // finish through the controller
-        const controller = index.controller({ database: east.database, objects: [profile] });
-        const again = await controller.reconcile("reservations", {
-            signal: AbortSignal.timeout(5000),
-        });
-        expect([controller.watches, await controller.list(), again! > 0 && again! <= 1000]).toEqual(
-            [[profile.table], ["reservations"], true],
+        const reserved = { index: profile.index("handle"), scope: east.spaceId };
+        const expired = now - RESERVATION_MILLISECONDS;
+        await directory.claim(
+            [
+                { ...reserved, key: '[null,"kept"]', objectId: kept },
+                { ...reserved, key: '[null,"lost"]', objectId: `profile-${v7()}` },
+            ],
+            "request",
+            expired,
         );
+        await directory.claim(
+            [{ ...reserved, key: '[null,"later"]', objectId: `profile-${v7()}` }],
+            "request",
+            expired + 1000,
+        );
+
+        // finish the expired reservations through the controller, looking again at the later one
+        const controller = new ClaimController(directory, east.database, [profile]);
+        const next = await controller.reconcile();
+        expect([
+            controller.watches,
+            await controller.list(),
+            next! > 0 && next! <= 1000,
+            await handle("kept"),
+            await handle("lost"),
+        ]).toEqual([[profile.table], ["reservations"], true, kept, undefined]);
     },
 );
 
 /** Serve one space's profiles in its own database, returning a client per user. */
-async function serveProfiles(dialect: Dialect, index: KeyIndex) {
+async function serveProfiles(dialect: Dialect, directory: Directory) {
     // hold the space's profiles in a database of its own
     const spaceId = identifier("space").parse(`space-${v7()}`);
     const storage = await TestDatabase.create(dialect, profilesDatabase, { isMigrated: true });
@@ -170,7 +188,7 @@ async function serveProfiles(dialect: Dialect, index: KeyIndex) {
         ...ObjectServer.serve(profilesService, {
             journal: profilesJournal,
             database: storage.database,
-            index,
+            directory,
             audit: AuditRecorder.service(new AuditOutbox(storage.database), {
                 package: profilesService.package,
                 service: "test",
@@ -184,7 +202,7 @@ async function serveProfiles(dialect: Dialect, index: KeyIndex) {
         authorizeHost: async () => {},
         authenticate: async (request) => {
             const id = request.headers.get("authorization")!.slice("Bearer ".length);
-            const subject = principal.user.reference("global", id);
+            const subject = principal.user.reference("universe", id);
             const now = Date.now();
 
             return new Caller({
@@ -216,7 +234,7 @@ test.each(TEST_DIALECTS)(
         const account = defineObject({
             name: "account",
             plural: "accounts",
-            scope: "global",
+            scope: "universe",
             isScope: true,
             fields: {},
             permissions: { read: none() },
@@ -239,13 +257,9 @@ test.each(TEST_DIALECTS)(
         });
 
         // record two folders of one account and one of another
-        const storage = await TestDatabase.create(
-            dialect,
-            [...auditOutboxTables, ...account.tables, ...folder.tables],
-            {
-                isMigrated: true,
-            },
-        );
+        const storage = await TestDatabase.create(dialect, [...account.tables, ...folder.tables], {
+            isMigrated: true,
+        });
         onTestFinished(() => storage.close());
         for (const [accountId, folderId] of [
             ["account-1", "folder-1"],
@@ -253,16 +267,16 @@ test.each(TEST_DIALECTS)(
             ["account-2", "folder-3"],
         ]) {
             if (folderId !== "folder-2") {
-                await copyScope(storage.database, account.reference(GLOBAL_SCOPE, accountId!));
+                await copyScope(storage.database, account.reference(Scope.universe.id, accountId!));
             }
             await copyScope(storage.database, folder.reference(accountId!, folderId!));
         }
 
-        // key the same path in each folder
+        // claim the same path in each folder
         const snapshot = Snapshot.live(storage.database);
         const keys = await Promise.all(
             ["folder-1", "folder-2", "folder-3"].map(async (scope, position) =>
-                KeyIndex.keys(route, { id: `route-${position}`, scope, path: "/home" }, snapshot),
+                route.claims({ id: `route-${position}`, scope, path: "/home" }, snapshot),
             ),
         );
 
@@ -277,7 +291,7 @@ test.each(TEST_DIALECTS)(
                 permissions: { read: none() },
             });
 
-        // one account's folders share a key, another account's folder keys apart
+        // one account's folders share a key, another account's folder claims apart
         const index = keys[0]![0]!.index;
         expect(keys).toEqual([
             [{ index, key: '["account-1","/home"]', objectId: "route-0", scope: "folder-1" }],

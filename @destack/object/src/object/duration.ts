@@ -9,7 +9,7 @@ const UNIT_MILLISECONDS = {
     milliseconds: 1,
 } as const;
 
-/** A span of time in the units of a Temporal duration, each one optional. */
+/** A span of time in the optional units of a Temporal duration. */
 export type Duration = { readonly [Unit in keyof typeof UNIT_MILLISECONDS]?: number };
 
 /** Measure, check and describe spans of time. */

@@ -1,5 +1,5 @@
+import { ObjectReference } from "@destack/sync";
 import { defineSchema, type Identifier, schema } from "@destack/schema";
-import { ObjectReference } from "@destack/access";
 import {
     type Column,
     type ColumnBuilder,
@@ -189,7 +189,7 @@ export const nested: Trait<NestedDefinition> = {
     },
 };
 
-/** Move objects to another parent, keeping trees acyclic. */
+/** Move objects to another parent and keep trees acyclic. */
 function move<const Permission extends string>(
     permission: Permission,
 ): Method<"move", Permission, never, never, true> {

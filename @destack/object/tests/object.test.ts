@@ -76,7 +76,7 @@ test.each(TEST_DIALECTS)(
             apply({ notes: {}, labels: { stray: { note: "missing", text: "stray" } } }),
         ).rejects.toMatchObject({ code: "INVALID_DECLARATION", message: "unknown note: missing" });
 
-        // stop at a declaration that waits, keeping what was written before it
+        // stop at a waiting declaration and keep the earlier writes
         expect(
             await apply({
                 notes: { one: { title: "renamed" }, two: { title: "second" } },

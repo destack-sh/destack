@@ -56,7 +56,7 @@ export interface TextChange {
 
 /** Replacements of visible text. */
 export const TextChange = {
-    /** Find the one replacement turning a text into another, keeping their common start and end. */
+    /** Find the one replacement that turns a text into another outside their common start and end. */
     between(before: string, after: string): TextChange {
         // keep the common start
         let start = 0;

@@ -1,4 +1,4 @@
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
+import { AuditOutbox } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation, subjectKey, through, union } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
@@ -27,7 +27,7 @@ const activity = defineObject(Intrinsic.activity(space));
 /** The named points in pages' history. */
 const checkpoint = defineObject(Intrinsic.checkpoint(space));
 
-/** Pages their owner and editors write, keeping their history. */
+/** Pages with history that their owner and editors write. */
 const page = defineObject({
     name: "page",
     plural: "pages",
@@ -69,7 +69,7 @@ test.for(TEST_DIALECTS)(
         await call(page, "grant", {
             id: created.id,
             relation: "editor",
-            subject: principal.user.reference("global", "bob"),
+            subject: principal.user.reference("universe", "bob"),
         });
         await call(page, "update", { id: created.id, body: "outline" });
 
@@ -105,21 +105,21 @@ test.for(TEST_DIALECTS)(
             })),
         ).toEqual([
             {
-                caller: subjectKey(principal.user.reference("global", "alice")),
+                caller: subjectKey(principal.user.reference("universe", "alice")),
                 startedAt: 0,
                 endedAt: 1 * MINUTE,
                 fields: ["owner", "title", "body"],
                 changes: 3,
             },
             {
-                caller: subjectKey(principal.user.reference("global", "bob")),
+                caller: subjectKey(principal.user.reference("universe", "bob")),
                 startedAt: 2 * MINUTE,
                 endedAt: 2 * MINUTE,
                 fields: ["title"],
                 changes: 1,
             },
             {
-                caller: subjectKey(principal.user.reference("global", "alice")),
+                caller: subjectKey(principal.user.reference("universe", "alice")),
                 startedAt: 30 * MINUTE,
                 endedAt: 30 * MINUTE,
                 fields: ["body"],
@@ -156,7 +156,7 @@ test.for(TEST_DIALECTS)(
             title: "Final",
         })) as unknown as { position: object; createdBy: string };
         expect([named.createdBy, await read(named.position)]).toEqual([
-            subjectKey(principal.user.reference("global", "alice")),
+            subjectKey(principal.user.reference("universe", "alice")),
             ["Roadmap", "final"],
         ]);
 
@@ -212,7 +212,7 @@ test("refuse serving history that reads through an object keeping none", () => {
         methods: { get: method.get("read") },
     });
 
-    // refuse the sheet's history, whose earlier readers the folder's lost changes decided
+    // refuse the sheet's history, which the folder's lost changes decided
     expect(
         () =>
             new ObjectServer({
@@ -235,11 +235,7 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
         dialect,
         defineDatabase({
             name: "main",
-            tables: [
-                ...auditOutboxTables,
-                request,
-                ...Object.values(objects).flatMap((object) => object.tables),
-            ],
+            tables: [request, ...Object.values(objects).flatMap((object) => object.tables)],
         }),
         { isMigrated: true },
     );
@@ -253,7 +249,7 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
         objects,
         database: storage.database,
         context: () => ({
-            subjects: [principal.user.reference("global", current)],
+            subjects: [principal.user.reference("universe", current)],
             now,
             attributes: {},
         }),
@@ -293,7 +289,7 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
 }
 
 test("undo a revert by updating the reverted fields no one changed since back", () => {
-    // restore the title, leaving the body changed since
+    // restore the title and leave the later body change
     const input = { spaceId, id: "page-1", at: { epoch: "epoch", sequence: 3 } };
     const before = { title: "Roadmap", body: "final" };
     const after = { title: "Plan", body: "outline" };

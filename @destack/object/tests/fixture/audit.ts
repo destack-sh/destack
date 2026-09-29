@@ -4,7 +4,7 @@ import type { DatabaseConnection } from "@destack/db";
 /** The most events a test reads from an outbox. */
 const READ_EVENTS = 1000;
 
-/** Read the action names of the events a database's outbox holds, by callers or by the system. */
+/** Read the actions a database's outbox holds, by callers or by the system, a failed one with its error code. */
 export async function auditedActions(
     database: DatabaseConnection,
     actor: "caller" | "system",
@@ -13,5 +13,9 @@ export async function auditedActions(
 
     return events
         .filter((event) => (event.context.actor.type === "system") === (actor === "system"))
-        .map((event) => event.action.name);
+        .map((event) =>
+            event.result.stage === "result" && event.result.outcome !== "success"
+                ? `${event.action.name} ${event.result.errorCode}`
+                : event.action.name,
+        );
 }

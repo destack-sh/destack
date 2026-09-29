@@ -1,4 +1,5 @@
-import { ObjectReference, type GrantReader, type Subject } from "@destack/access";
+import { ObjectReference } from "@destack/sync";
+import { type GrantReader, type Subject } from "@destack/access";
 import {
     and,
     eq,
@@ -26,6 +27,8 @@ export class Call<Definition extends Table = Table> {
     readonly method: Method;
     /** The scope containing the object. */
     readonly scope: string;
+    /** The scope and the scopes containing it, nearest first. */
+    readonly chain: readonly string[];
     /** The method's own input fields. */
     readonly input: Readonly<Record<string, unknown>>;
     /** The target's or created object's identifier. */
@@ -60,6 +63,7 @@ export class Call<Definition extends Table = Table> {
         this.name = fields.name;
         this.method = fields.method;
         this.scope = fields.scope;
+        this.chain = fields.chain;
         this.input = fields.input;
         this.database = fields.database;
         this.now = fields.now;
@@ -160,7 +164,7 @@ export class Call<Definition extends Table = Table> {
         return new Call({ ...this, ...changes });
     }
 
-    /** Read the server's authorization, refusing a prediction. */
+    /** Read the server's authorization and refuse a prediction. */
     served(): Authorization {
         if (this.isPredicted) {
             throw new ServiceError("FORBIDDEN", {
@@ -273,7 +277,7 @@ export class Call<Definition extends Table = Table> {
         return this.#write({ ...changes, ...generation });
     }
 
-    /** Update the target's observed state at the loaded revision, keeping its generation. */
+    /** Update the target's observed state at the loaded revision and generation. */
     async observe(changes: Readonly<Record<string, unknown>>): Promise<Record<string, unknown>> {
         return this.#write(changes);
     }
@@ -325,6 +329,7 @@ export type CallFields<Definition extends Table = Table> = Pick<
     | "name"
     | "method"
     | "scope"
+    | "chain"
     | "input"
     | "id"
     | "target"

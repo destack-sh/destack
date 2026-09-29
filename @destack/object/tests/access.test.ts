@@ -1,8 +1,7 @@
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
+import { AuditOutbox } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Authorization, principal, type AccessContext } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
-import type { DatabaseConnection } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier } from "@destack/schema";
@@ -31,7 +30,7 @@ test.for(TEST_DIALECTS)(
             dialect,
             defineDatabase({
                 name: "main",
-                tables: [...auditOutboxTables, ...role.tables, space.table, request],
+                tables: [...role.tables, space.table, request],
             }),
             { isMigrated: true },
         );
@@ -39,8 +38,8 @@ test.for(TEST_DIALECTS)(
         const database = storage.database;
 
         // create the space, owned by the owner, in the database holding it
-        const owner = principal.user.reference("global", "owner");
-        const object = space.reference("global", SPACE_ID);
+        const owner = principal.user.reference("universe", "owner");
+        const object = space.reference("universe", SPACE_ID);
 
         // serve the space's roles and relationships to the owner
         const server = new ObjectServer({
@@ -56,7 +55,7 @@ test.for(TEST_DIALECTS)(
         });
         await database
             .insert(space.table)
-            .values({ id: SPACE_ID, scope: "global", createdAt: 1, updatedAt: 1 });
+            .values({ id: SPACE_ID, scope: "universe", createdAt: 1, updatedAt: 1 });
         await new Authorization(server.authorizer, database, () => ({
             subjects: [owner],
             now: Date.now(),
@@ -117,7 +116,7 @@ test.for(TEST_DIALECTS)(
         await authorization.grant({
             object,
             role: editor.id,
-            subject: principal.user.reference("global", "member"),
+            subject: principal.user.reference("universe", "member"),
         });
         expect(await next()).toEqual([["destack__access__relationship", "insert", "member"]]);
     },

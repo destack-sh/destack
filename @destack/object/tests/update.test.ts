@@ -1,8 +1,7 @@
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
+import { AuditOutbox } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
-import type { DatabaseConnection } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier, schema } from "@destack/schema";
@@ -43,7 +42,7 @@ const journal = defineJournal("journal");
 /** The database holding the chores, their access and the journal. */
 const choreDatabase = defineDatabase({
     name: "main",
-    tables: [...auditOutboxTables, journal, ...chore.tables],
+    tables: [journal, ...chore.tables],
 });
 
 test.each(TEST_DIALECTS)(
@@ -57,7 +56,7 @@ test.each(TEST_DIALECTS)(
             objects: { chore },
             database: storage.database,
             context: () => ({
-                subjects: [principal.user.reference("global", current)],
+                subjects: [principal.user.reference("universe", current)],
                 now: Date.now(),
                 attributes: {},
             }),
@@ -83,7 +82,7 @@ test.each(TEST_DIALECTS)(
         current = "user-2";
         await call("create", { list: "home", done: false });
 
-        // finish user-1's home list, leaving the work chore and user-2's chore as they are
+        // finish user-1's home list and leave the work chore and user-2's chore
         current = "user-1";
         const finished = await call("finish", { where: { list: "home" }, done: true });
         const rows = await storage.database

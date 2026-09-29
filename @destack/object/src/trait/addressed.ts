@@ -86,7 +86,7 @@ type Addressing = Pick<ObjectServer, "objects" | "database" | "authorizer">;
 export const addressed: Trait<AddressedDefinition> & {
     /** Send addressed rows' changes to their recipients' homes through the outbox. */
     controller(server: Addressing): Controller;
-    /** Write copies a home receives, each into the home its recipient names. */
+    /** Write the copies a home receives into their recipients' homes. */
     accept(
         server: Pick<ObjectServer, "objects" | "database">,
         copies: readonly Copy[],

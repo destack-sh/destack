@@ -68,9 +68,9 @@ const RelationshipShape = {
 
 /** The fields selecting what an explanation covers. */
 const ExplainShape = {
-    /** The permission to explain, reading by default. */
+    /** The permission to explain, by default reading. */
     permission: AccessName.optional(),
-    /** The subject whose access to explain, the caller by default. */
+    /** The subject with the access to explain, by default the caller. */
     subject: Subject.optional(),
 };
 

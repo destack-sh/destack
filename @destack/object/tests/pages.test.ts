@@ -1,8 +1,8 @@
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
+import { AuditOutbox } from "@destack/audit/outbox";
 import { ObjectServer } from "../src/server/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { AuditRecorder } from "@destack/audit";
-import { isNull, type DatabaseConnection, type Dialect } from "@destack/db";
+import { isNull, type Dialect } from "@destack/db";
 import { Condition } from "@destack/db/query";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../src/client/index.ts";
@@ -54,7 +54,7 @@ async function servePages(dialect: Dialect) {
                 return null;
             }
             const id = bearer.slice("Bearer ".length);
-            const subject = principal.user.reference("global", id);
+            const subject = principal.user.reference("universe", id);
             const now = Date.now();
 
             return new Caller({
@@ -91,7 +91,7 @@ async function openDevice(
         database: storage.database,
         objects: [page],
         scope: spaceId,
-        caller: principal.user.reference("global", user),
+        caller: principal.user.reference("universe", user),
         service: service.replica,
         reconnect: unmoved,
     });
@@ -164,7 +164,7 @@ test.each(TEST_DIALECTS)(
             id: handbook.id,
             requestId: RequestId.create(),
             relation: "editor",
-            subject: principal.user.reference("global", "bob"),
+            subject: principal.user.reference("universe", "bob"),
         });
         expect((await bob.page.get({ spaceId, id: week.id })).title).toBe("First week");
         const tools = await bob.page.create({
@@ -243,7 +243,7 @@ test.each(TEST_DIALECTS)(
             spaceId,
             id: onboarding.id,
             permission: "edit",
-            subject: principal.user.reference("global", "carol"),
+            subject: principal.user.reference("universe", "carol"),
         });
         expect([
             why.isAllowed,
@@ -270,7 +270,7 @@ test.each(TEST_DIALECTS)(
             requestId: RequestId.create(),
             relationship: {
                 relation: "editor",
-                subject: principal.user.reference("global", "carol"),
+                subject: principal.user.reference("universe", "carol"),
             },
         });
         await alice.page.accept({
@@ -293,7 +293,7 @@ test.each(TEST_DIALECTS)(
                     spaceId,
                     id: onboarding.id,
                     permission: "edit",
-                    subject: principal.user.reference("global", "carol"),
+                    subject: principal.user.reference("universe", "carol"),
                 })
             ).isAllowed,
         ).toBe(true);
@@ -342,7 +342,7 @@ test.each(TEST_DIALECTS)(
         });
         expect(await device.client.outbox.pending(device.client.database)).toEqual([]);
 
-        // trash a page and restore it, each shown at once and confirmed by the server
+        // trash and restore a page, shown at once and confirmed by the server
         const trashed = device.client.mutate(page).delete({ id: week.id });
         await trashed.predicted;
         expect(await device.titles()).toEqual(["Handbook"]);
@@ -381,7 +381,7 @@ test.each(TEST_DIALECTS)(
             id: handbook.id,
             requestId: RequestId.create(),
             relation: "viewer",
-            subject: principal.user.reference("global", "bob"),
+            subject: principal.user.reference("universe", "bob"),
         });
 
         // hold the shared tree on bob's device
@@ -395,7 +395,7 @@ test.each(TEST_DIALECTS)(
         };
         await expect.poll(held).toEqual(["Day one", "First week", "Handbook", "Onboarding"]);
 
-        // drop and regain a subtree as it moves out of and into the shared tree
+        // drop and regain a subtree when it moves out of and into the shared tree
         await alice.page.move({
             spaceId,
             id: week.id,

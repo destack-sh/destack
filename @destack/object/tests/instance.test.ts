@@ -1,4 +1,4 @@
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
+import { AuditOutbox } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
@@ -17,14 +17,14 @@ import { spaceId } from "./fixture/device.ts";
 test.for(TEST_DIALECTS)(
     "follow the changes one instance writes through another instance on its own connection on %s",
     async (dialect) => {
-        // serve one database from two instances, each over its own connection
+        // serve one database from two instances with separate connections
         const storage = await TestDatabase.create(dialect, notesDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
         const east = serve(storage.database);
         const west = serve(await storage.connect(notesDatabase));
 
-        // follow the notebooks on the west instance, reading its snapshot first
+        // follow the notebooks on the west instance, snapshot first
         const controller = new AbortController();
         onTestFinished(() => controller.abort());
         const pages = west.sync(spaceId, context(controller.signal), {
@@ -58,7 +58,7 @@ function serve(database: DatabaseConnection) {
         objects: { notebook, note },
         database,
         context: () => ({
-            subjects: [principal.user.reference("global", "alice")],
+            subjects: [principal.user.reference("universe", "alice")],
             now: Date.now(),
             attributes: {},
         }),

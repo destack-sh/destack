@@ -45,7 +45,7 @@ test.each(TEST_DIALECTS)(
             id: research.id,
             requestId: RequestId.create(),
             relation: "editor",
-            subject: principal.user.reference("global", "bob"),
+            subject: principal.user.reference("universe", "bob"),
         });
         const titles = async () =>
             (await bob.note.list({ spaceId })).items.map((item) => item.title).sort();
@@ -106,7 +106,7 @@ test.each(TEST_DIALECTS)(
                 id: loose.id,
                 requestId: RequestId.create(),
                 relation: "viewer",
-                subject: principal.user.reference("global", "bob"),
+                subject: principal.user.reference("universe", "bob"),
             }),
         ).rejects.toMatchObject({ code: "CONFLICT", message: "note is in the trash" });
 
@@ -162,7 +162,7 @@ test.each(TEST_DIALECTS)(
             database: await device.storage.connect(ObjectClient.tables([notebook, note])),
             objects: [notebook, note],
             scope: spaceId,
-            caller: principal.user.reference("global", "alice"),
+            caller: principal.user.reference("universe", "alice"),
             service: alice.replica,
             reconnect: unmoved,
         });
@@ -210,7 +210,7 @@ test.each(TEST_DIALECTS)(
         };
         await expect.poll(local).toEqual(["Luggage", "passport, charger"]);
 
-        // push the new title, keeping the other device's text
+        // push the new title and keep the other device's text
         device.push();
         await retitled.confirmed;
         expect(await local()).toEqual(["Luggage", "passport, charger"]);
@@ -224,7 +224,7 @@ test.each(TEST_DIALECTS)(
             id: book.id,
             requestId: RequestId.create(),
             relation: "viewer",
-            subject: principal.user.reference("global", "bob"),
+            subject: principal.user.reference("universe", "bob"),
         });
         bob.online();
         await expect.poll(() => bob.titles()).toEqual(["Luggage"]);
@@ -306,7 +306,7 @@ test.each(TEST_DIALECTS)(
                 .sort();
         expect([await device.titles(), await books()]).toEqual([["Packing"], ["Travel"]]);
 
-        // take a note in once it moves into travel, and let it go once it moves out
+        // take a note in when it moves into travel and let it go when it moves out
         await alice.note.move({
             spaceId,
             id: plan.id,
@@ -379,7 +379,7 @@ test.each(TEST_DIALECTS)(
             (await alice.notebook.get({ spaceId, id: travel.id })).noteCount,
         ]).toEqual([1, 0]);
 
-        // hold the server's count once it executes the note, and leave notes in the trash out
+        // hold the server's count after it executes the note, excluding trashed notes
         device.push();
         await created.confirmed;
         expect([
@@ -417,7 +417,7 @@ test("share one browser database between tabs, handing it over when the owning t
                     { once: true },
                 );
 
-                // queue behind the lock's holder, holding it unless the wait aborted
+                // queue behind the lock's holder and hold it unless the wait aborted
                 const previous = locks.get(name) ?? Promise.resolve();
                 const next = previous.then(async () => {
                     if (!signal?.aborted) {
@@ -442,7 +442,7 @@ test("share one browser database between tabs, handing it over when the owning t
             name: "notes",
             objects: [notebook, note],
             scope: spaceId,
-            caller: principal.user.reference("global", "alice"),
+            caller: principal.user.reference("universe", "alice"),
             service: alice.replica,
             reconnect: unmoved,
             host: host(),
@@ -465,7 +465,7 @@ test("share one browser database between tabs, handing it over when the owning t
     await travel.confirmed;
     expect((await alice.notebook.get({ spaceId, id })).name).toBe("Travel");
 
-    // forget a tab's subscriptions once it closes and frees its presence lock
+    // forget a tab's subscriptions after it closes and frees its presence lock
     const third = await open();
     await third.ready;
     await third.client.subscribe(note).ready;

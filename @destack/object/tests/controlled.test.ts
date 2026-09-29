@@ -1,8 +1,8 @@
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
+import { AuditOutbox } from "@destack/audit/outbox";
+import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
-import { principal, relation, Scope } from "@destack/access";
+import { principal, relation } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
-import type { DatabaseConnection } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier, schema } from "@destack/schema";
@@ -43,7 +43,7 @@ const journal = defineJournal("journal");
 /** The database holding the machines, their access and the journal. */
 const machineDatabase = defineDatabase({
     name: "main",
-    tables: [...auditOutboxTables, journal, ...machine.tables],
+    tables: [journal, ...machine.tables],
 });
 
 test.each(TEST_DIALECTS)(
@@ -77,7 +77,7 @@ test.each(TEST_DIALECTS)(
         );
         const created = (await read())!;
 
-        // observe it twice, keeping the transition time while the status holds
+        // observe it twice and keep the transition time while the status holds
         const ready = { status: "false", reason: "Provisioning", message: "" } as const;
         await server.executeAsSystem(
             machine,
@@ -114,7 +114,7 @@ test.each(TEST_DIALECTS)(
         });
         const finalized = await read();
 
-        // refuse system work once the space moves to another holder
+        // refuse system work once the space moves to another cell
         await server.executeAsSystem(
             machine,
             "provision",

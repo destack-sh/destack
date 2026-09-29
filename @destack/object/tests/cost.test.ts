@@ -1,8 +1,7 @@
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
+import { AuditOutbox } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
-import type { DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Bookmark } from "@destack/service/bookmark";
 import { Journal } from "@destack/service/database";
@@ -25,7 +24,7 @@ test.for(TEST_DIALECTS)(
             objects: { notebook, note },
             database: storage.database,
             context: () => ({
-                subjects: [principal.user.reference("global", "alice")],
+                subjects: [principal.user.reference("universe", "alice")],
                 now: Date.now(),
                 attributes: {},
             }),

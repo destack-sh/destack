@@ -31,7 +31,7 @@ test("push again after transient failures, waiting twice as long after each", as
         database: storage.database,
         objects: [notebook, note],
         scope: spaceId,
-        caller: principal.user.reference("global", "alice"),
+        caller: principal.user.reference("universe", "alice"),
         service,
         reconnect: unmoved,
         retry: { initialInterval: 20 },
@@ -45,7 +45,7 @@ test("push again after transient failures, waiting twice as long after each", as
         await running;
     });
 
-    // confirm the note after two reported failures, each retry waiting twice the one before
+    // confirm the note after two reported failures with doubling retry waits
     const created = client.mutate(note).create({ title: "Ideas" });
     await created.confirmed;
     const waits = attempts.slice(1).map((at, position) => at - attempts[position]!);

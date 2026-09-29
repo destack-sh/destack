@@ -291,7 +291,7 @@ function requireKept(
                 ),
             );
             for (const target of new Set(reached)) {
-                if ((target.table as Table)[TABLE].tier !== "history") {
+                if ((target.table as Table)[TABLE].retention !== "history") {
                     throw new TypeError(
                         `object ${keeper.name} keeps history but reads through ${target.name}, which keeps none`,
                     );

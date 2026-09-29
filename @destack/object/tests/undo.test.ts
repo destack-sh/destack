@@ -19,7 +19,7 @@ const folder = defineObject({
     methods: { create: method.create("write") },
 });
 
-/** Pages taking every trait whose methods undo inverts. */
+/** Pages with every trait that undo inverts. */
 const page = defineObject({
     name: "page",
     plural: "pages",
@@ -166,7 +166,7 @@ test.each(TEST_DIALECTS)(
             database: await device.storage.connect(ObjectClient.tables([notebook, note])),
             objects: [notebook, note],
             scope: spaceId,
-            caller: principal.user.reference("global", "alice"),
+            caller: principal.user.reference("universe", "alice"),
             service: alice.replica,
             reconnect: unmoved,
             origin: device.client.origin,

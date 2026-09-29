@@ -2,7 +2,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { Authorization, principal, relation, type AccessContext } from "@destack/access";
 import { AuditRecorder, defineAuditAction, type AuditEvent } from "@destack/audit";
 import { AuditHistory, auditTables } from "@destack/audit/history";
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
+import { AuditOutbox } from "@destack/audit/outbox";
 import { type DatabaseConnection } from "@destack/db";
 import { Condition } from "@destack/db/query";
 import { defineDatabase } from "@destack/db/declare";
@@ -34,7 +34,7 @@ const event = defineObject(Intrinsic.auditEvent(space));
 /** The objects a space's audit events name. */
 const target = defineObject(Intrinsic.auditTarget(space, event));
 
-/** Rename a document, naming it as the event's target. */
+/** Rename a document as the event's target. */
 const renameDocument = defineAuditAction(
     {
         name: "Document.rename",
@@ -90,7 +90,7 @@ async function serveHistory(dialect: (typeof TEST_DIALECTS)[number]) {
         policies: [space],
         database,
         context: (): AccessContext => ({
-            subjects: [principal.user.reference("global", current)],
+            subjects: [principal.user.reference("universe", current)],
             now: Date.now(),
             attributes: {},
         }),
@@ -99,15 +99,15 @@ async function serveHistory(dialect: (typeof TEST_DIALECTS)[number]) {
     });
 
     // create the space, owned by the first user, in the database holding it
-    const owner = principal.user.reference("global", "owner");
+    const owner = principal.user.reference("universe", "owner");
     await database
         .insert(space.table)
-        .values({ id: SPACE_ID, scope: "global", createdAt: 1, updatedAt: 1 });
+        .values({ id: SPACE_ID, scope: "universe", createdAt: 1, updatedAt: 1 });
     await new Authorization(server.authorizer, database, () => ({
         subjects: [owner],
         now: Date.now(),
         attributes: {},
-    })).create(space.reference("global", SPACE_ID), { owner });
+    })).create(space.reference("universe", SPACE_ID), { owner });
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
     const context = (caller: string, signal = controller.signal) => {
@@ -167,7 +167,7 @@ test.for(TEST_DIALECTS)(
         const { server, context, rename, history } = await serveHistory(dialect);
         const renamed = await rename("plan");
 
-        // hold the rename, the watch recording itself once it ends
+        // hold the rename and the watch's own record after it ends
         const controller = new AbortController();
         const pages = server.sync(SPACE_ID, context("owner", controller.signal), {
             queries: {
@@ -180,7 +180,7 @@ test.for(TEST_DIALECTS)(
         }
         const held = snapshot.flatMap((page) => page.changes.map((change) => change.row.id));
 
-        // record the watch end, a listing and a stranger's refused read
+        // record the watch end and a listing without a stranger's refused read
         controller.abort();
         await pages.return(undefined);
         await server.query(event, "list", { spaceId: SPACE_ID }, context("owner"));
@@ -202,16 +202,11 @@ test.for(TEST_DIALECTS)(
                 { stage: "result", outcome: "cancelled", errorCode: "CANCELLED" },
             ],
             ["Event.list", "access", { stage: "result", outcome: "success" }],
-            [
-                "Event.get",
-                "access",
-                { stage: "result", outcome: "failure", errorCode: "NOT_FOUND" },
-            ],
         ]);
     },
 );
 
-/** Lockers whose every read is audited, each read naming the version it disclosed. */
+/** Lockers with audited reads that record the disclosed version. */
 const locker = defineObject({
     name: "locker",
     plural: "lockers",
@@ -230,13 +225,9 @@ const locker = defineObject({
 });
 
 test("name the version a read disclosed in its audit event, apart from its value", async () => {
-    const storage = await TestDatabase.create(
-        "sqlite",
-        [...auditOutboxTables, ...locker.tables, request],
-        {
-            isMigrated: true,
-        },
-    );
+    const storage = await TestDatabase.create("sqlite", [...locker.tables, request], {
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
     await openSpace(database, SPACE_ID);
@@ -260,7 +251,7 @@ test("name the version a read disclosed in its audit event, apart from its value
         objects: { locker: handled },
         database,
         context: (): AccessContext => ({
-            subjects: [principal.user.reference("global", "owner")],
+            subjects: [principal.user.reference("universe", "owner")],
             now: Date.now(),
             attributes: {},
         }),

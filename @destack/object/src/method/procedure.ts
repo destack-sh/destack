@@ -5,7 +5,7 @@ import {
     type Select,
     TABLE,
 } from "@destack/db";
-import { GLOBAL_SCOPE } from "@destack/access";
+import { Scope } from "@destack/sync";
 import { identifier, schema, type Identifier } from "@destack/schema";
 import { defineProcedure } from "@destack/service/procedure";
 import { RequestId } from "@destack/service/request";
@@ -196,7 +196,7 @@ export interface ScopeRoute {
 export function scopeRoute(object: ObjectType): ScopeRoute {
     // route global objects without a scope
     const scope = object.scope;
-    if (scope === GLOBAL_SCOPE) {
+    if (scope === Scope.universe.id) {
         return { prefix: "" };
     }
     // name the scope in a field for objects in several
@@ -262,7 +262,7 @@ type MethodProcedureOf<Object extends ObjectType, Declared extends Method> = (Re
     TextProcedures<Object>)[Declared["kind"]];
 
 /** The input field of an object's scope identifier. */
-export type ScopeField<Object extends ObjectType> = Object["scope"] extends "global"
+export type ScopeField<Object extends ObjectType> = Object["scope"] extends "universe"
     ? never
     : Object["scope"] extends ObjectType
       ? `${ScopeIdentity<Object["scope"]>}Id`

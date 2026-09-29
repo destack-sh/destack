@@ -1,4 +1,5 @@
-import { type ObjectReference, through } from "@destack/access";
+import { type ObjectReference } from "@destack/sync";
+import { through } from "@destack/access";
 import {
     and,
     asc,
@@ -25,7 +26,7 @@ import { chunk, chunkRun } from "./table.ts";
 /** The most characters one chunk holds: a keystroke rewrites and syncs one ~1 KiB row, 1 MB is ~2,000 rows. */
 export const CHUNK_CHARACTERS = 512;
 
-/** The characters a split leaves in each chunk: three quarters full, so typing there rewrites one row for a while. */
+/** The characters a split leaves in each chunk: three quarters full, with room to type into one row. */
 const FILL_CHARACTERS = (CHUNK_CHARACTERS * 3) / 4;
 
 /** The owner permission whose holders read its text. */

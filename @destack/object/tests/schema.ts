@@ -1,4 +1,3 @@
-import { auditOutboxTables } from "@destack/audit/outbox";
 import { defineObject, field, method, type ObjectType } from "../src/index.ts";
 import { relation, through, union, principal } from "@destack/access";
 import { defineJournal } from "@destack/service/database";
@@ -10,7 +9,7 @@ import { space } from "./fixture/space.ts";
 export const user = defineObject({
     name: "user",
     plural: "users",
-    scope: "global",
+    scope: "universe",
     represents: principal.user,
     fields: { name: field.string(schema.string().min(1)) },
     permissions: [],
@@ -36,7 +35,7 @@ export const label = defineObject({
     permissions: [],
 });
 
-/** Teams of users within a space, whose members tasks may name as viewers. */
+/** Teams of users within a space that tasks may list as viewers. */
 export const team = defineObject({
     name: "team",
     plural: "teams",
@@ -129,7 +128,6 @@ export const request = defineJournal("journal");
 export const objectDatabase = defineDatabase({
     name: "main",
     tables: [
-        ...auditOutboxTables,
         note.table,
         label.table,
         request,

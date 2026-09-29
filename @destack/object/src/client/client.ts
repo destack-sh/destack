@@ -29,7 +29,7 @@ import { schema } from "@destack/schema";
 import { canonicalize, digest } from "@destack/schema/json";
 import type { Client } from "@destack/service";
 import { ServiceError } from "@destack/service/error";
-import { ScopeHolder } from "../error/holder.ts";
+import { Moved } from "@destack/directory";
 import { Failure, Journal } from "@destack/service/database";
 import { RequestId } from "@destack/service/request";
 import { Observable } from "@destack/service/observable";
@@ -53,7 +53,7 @@ import { Sequence, type Run, type TextChange } from "../sequence/index.ts";
 import { Chunk, type Edited } from "../text/chunk.ts";
 import { chunk } from "../text/table.ts";
 
-/** The method kinds whose predictions read only their object's and its parent's tables. */
+/** The method kinds with predictions that read only their object's and parent's tables. */
 const STANDARD_KINDS: ReadonlySet<string> = new Set(["create", "update", "delete", "updateMany"]);
 
 /** The default retry of transient failures: a second, doubling, at most a minute. */
@@ -99,7 +99,7 @@ export interface LiveQuery {
     close(): Promise<void>;
 }
 
-/** The mutating methods of an object type, each call its own pending mutation. */
+/** The mutating methods of an object type, one pending mutation per call. */
 export type Mutator<Object extends ObjectType> = {
     readonly [Name in MutatingName<Object>]: (
         input: CallInput<Object, Name>,
@@ -113,7 +113,7 @@ export type MutationCalls<Object extends ObjectType> = {
     ) => Promise<CallOutput<Object, Name>>;
 };
 
-/** The methods of an object type that change nothing, each read from the server. */
+/** The read-only methods of an object type, read from the server. */
 export type Reader<Object extends ObjectType> = {
     readonly [Name in ReadingName<Object>]: (
         input: CallInput<Object, Name>,
@@ -180,11 +180,11 @@ export class ObjectClient {
     readonly outbox: sync.Outbox;
     /** The party sharing the database, such as one browser tab. */
     readonly origin: string;
-    /** The replica procedures of the scope's current holder. */
+    /** The replica procedures of the cell serving the scope now. */
     #service: Client<ReplicaProcedures>;
-    /** Connect to the replica procedures of the holder a moved scope now answers at. */
-    readonly #reconnect: (holder: string) => Client<ReplicaProcedures>;
-    /** Aborts the streams following a moved scope's former holder. */
+    /** Connect to the replica procedures of the cell serving a moved scope now. */
+    readonly #reconnect: (cell: string) => Client<ReplicaProcedures>;
+    /** Aborts the streams following the cell that served a moved scope before. */
     #moves = new AbortController();
     /** The input field naming the scope. */
     readonly #field: string | undefined;
@@ -223,14 +223,14 @@ export class ObjectClient {
     /** Report the follow loop's failures, absent until it follows. */
     #report: ((error: unknown) => void) | undefined;
 
-    /** Hold one scope's objects in a local database whose tables exist. */
+    /** Hold one scope's objects in a local database with existing tables. */
     private constructor(options: {
         readonly database: DatabaseConnection;
         readonly objects: readonly ObjectType[];
         readonly scope: string;
         readonly caller: Subject;
         readonly service: Client<ReplicaProcedures>;
-        readonly reconnect: (holder: string) => Client<ReplicaProcedures>;
+        readonly reconnect: (cell: string) => Client<ReplicaProcedures>;
         readonly origin: string;
         readonly refresh?: { readonly every: Duration };
         readonly storage?: { readonly rows: number };
@@ -327,8 +327,8 @@ export class ObjectClient {
         readonly caller: Subject;
         /** The service's replica procedures. */
         readonly service: Client<ReplicaProcedures>;
-        /** Connect to the replica procedures of the holder a moved scope now answers at. */
-        readonly reconnect: (holder: string) => Client<ReplicaProcedures>;
+        /** Connect to the replica procedures of the cell serving a moved scope now. */
+        readonly reconnect: (cell: string) => Client<ReplicaProcedures>;
         /** The party sharing the database, a new one by default. */
         readonly origin?: string;
         /** Whether another party created the local tables. */
@@ -359,14 +359,14 @@ export class ObjectClient {
     static tables(objects: readonly ObjectType[]): Table[] {
         return [
             ...ObjectType.served(objects).map((object) => object.table as Table),
-            ...sync.REPLICA_TABLES,
-            ...sync.OUTBOX_TABLES,
+            ...sync.replicaTables,
+            ...sync.outboxTables,
             subscription,
             undoEntry,
         ];
     }
 
-    /** Call an object type's mutating methods, each call its own mutation. */
+    /** Call an object type's mutating methods, one mutation per call. */
     mutate<Object extends ObjectType>(object: Object): Mutator<Object> {
         // send an ephemeral call at once
         if (object.storage === "ephemeral") {
@@ -717,7 +717,7 @@ export class ObjectClient {
         const sequence = (rows: readonly Readonly<Record<string, unknown>>[]) =>
             new Sequence(rows.flatMap((row) => row.runs as readonly Run[]));
 
-        // apply changes one after another, each against the text the previous one left
+        // apply changes in order against the text of the previous change
         let previous: Promise<unknown> = Promise.resolve();
         const change = (replaced: TextChange) => {
             const next = previous.then(async () => {
@@ -749,7 +749,7 @@ export class ObjectClient {
         };
     }
 
-    /** Keep a query live until closed, reading the local copy with predictions. */
+    /** Keep a query live over the local copy with predictions until closed. */
     subscribe<Object extends ObjectType>(
         object: Object,
         query: ObjectInclude = {},
@@ -762,7 +762,7 @@ export class ObjectClient {
         const part = this.#part(object, query);
         const whole = ObjectQuery.parse({ object: object.name, ...query });
         const compiled = Object.values(
-            ObjectType.queries(this.objects, { query: whole }, this.scope),
+            ObjectType.queries(this.objects, { query: whole }, [this.scope]),
         )[0]!;
 
         // follow the part and its lookups
@@ -1206,23 +1206,29 @@ export class ObjectClient {
     /** Watch a query's result through the local feed until aborted. */
     async *#watch(
         named: Promise<string>,
-        query: Omit<sync.Query, "scopes">,
+        query: sync.Query,
         signal: AbortSignal,
     ): AsyncGenerator<readonly Readonly<Record<string, unknown>>[]> {
         const name = await named;
-        for await (const rows of this.#local.watch(
-            name,
-            { ...query, scopes: [this.scope] },
-            signal,
-        )) {
+        for await (const rows of this.#local.watch(name, await this.#read(query), signal)) {
             yield query.aggregate === undefined ? Chunk.present(rows, query, this.objects) : rows;
         }
     }
 
+    /** Widen a query of inherited objects to the scope chain the copy last read. */
+    async #read(query: sync.Query): Promise<sync.Query> {
+        const object = this.objects.find((held) => held.table === query.table);
+        if (object?.inherited === undefined) {
+            return query;
+        }
+
+        return { ...query, scopes: object.scopesOf(await this.replica.chain(this.database)) };
+    }
+
     /** Read a query's rows from the local copy. */
-    async #rows(name: string, query: Omit<sync.Query, "scopes">): Promise<Row[]> {
+    async #rows(name: string, query: sync.Query): Promise<Row[]> {
         const dataflow = new sync.Dataflow(
-            { [name]: { ...query, scopes: [this.scope] } },
+            { [name]: await this.#read(query) },
             {
                 audience: sync.EVERYONE,
                 database: this.database,
@@ -1340,7 +1346,7 @@ export class ObjectClient {
 
         // key lookups from the part's rows
         const compiled = Object.values(
-            ObjectType.queries(this.objects, { query: part.query }, this.scope),
+            ObjectType.queries(this.objects, { query: part.query }, [this.scope]),
         )[0]!;
         const { promise: ready, resolve: isReady } = Promise.withResolvers<void>();
         const done = (async () => {
@@ -1351,7 +1357,7 @@ export class ObjectClient {
             try {
                 for await (const rows of this.#local.watch(
                     name,
-                    { ...compiled, scopes: [this.scope] },
+                    await this.#read(compiled),
                     signal,
                 )) {
                     for (const lookup of part.lookups) {
@@ -1605,6 +1611,7 @@ export class ObjectClient {
             name,
             method,
             scope: this.scope,
+            chain: await this.replica.chain(database),
             input: fields,
             ...(targetId === undefined ? {} : { id: targetId }),
             database,
@@ -1635,7 +1642,7 @@ export class ObjectClient {
         return method.execute(target === undefined ? call : call.with({ target: target as never }));
     }
 
-    /** Call the replica procedures, forwarding a call once to a moved scope's new holder. */
+    /** Call the replica procedures, forwarding a call once to the cell serving a moved scope now. */
     async #call<Value>(
         send: (service: Client<ReplicaProcedures>) => Promise<Value>,
     ): Promise<Value> {
@@ -1652,17 +1659,17 @@ export class ObjectClient {
         }
     }
 
-    /** Reconnect to a moved scope's new holder, returning whether the failure was a move. */
+    /** Reconnect to the cell serving a moved scope now, returning whether the failure was a move. */
     #redirect(error: unknown, service: Client<ReplicaProcedures>): boolean {
         // ignore other failures
-        const moved = ScopeHolder.of(error);
+        const moved = Moved.of(error);
         if (moved === undefined) {
             return false;
         }
 
         // reconnect once per move
         if (service === this.#service) {
-            this.#service = this.#reconnect(moved.holder);
+            this.#service = this.#reconnect(moved.cell);
             this.#moves.abort();
             this.#moves = new AbortController();
         }
@@ -1836,7 +1843,7 @@ const undoEntry = defineTable("undo_entry", {
     mutationId: text("mutation_id").notNull(),
 });
 
-/** A stored step, naming its object type. */
+/** A stored step with its object type. */
 type StoredStep = Omit<Step, "object" | "current"> & {
     /** The object type's name. */
     readonly object: string;

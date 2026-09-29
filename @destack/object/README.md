@@ -123,6 +123,13 @@ export const cursor = defineObject({
 });
 ```
 
+A durable object type's `tables` hold its own tables and `serverTables`, and its `tier` keeps it out of databases of other tiers.
+
+```ts
+export const account = defineObject({ ..., tier: "global" });
+export const accountTables: readonly Table[] = [...account.tables, accountJournal];
+```
+
 ## Servers
 
 An `ObjectServer` serves the procedures of its object types and runs their controllers.
@@ -134,6 +141,21 @@ const server = new ObjectServer({ objects: { notebook, note }, database, context
 const router = server.router();
 await new ControlLoop(database, server.controllers(), { report }).run(signal);
 await server.executeAsSystem(upload, "finish", calls, Date.now());
+```
+
+## Controllers
+
+A type's `controller` reconciles its pending objects by key as the system, and the object server runs it.
+
+```ts
+export const reminder = defineObject({ ..., controller: {
+    pending: Condition.missing("sentAt"),
+    key: (row) => ({ topic: row.topic }),
+    async reconcile({ rows, now, execute }) {
+        await execute("send", rows.filter((row) => row.dueAt <= now));
+        return nextDue(rows, now);   // the wait until the next look, or undefined
+    },
+} });
 ```
 
 ## Copies
@@ -208,12 +230,12 @@ const notes = defineReconciler(note, { values: (_name, declared) => ({ title: de
 const { changes, waiting } = await Reconciliation.apply({ database, reconcilers: [notes], manager, scope: spaceId, document });
 ```
 
-## Keys
+## Claims
 
-A `KeyIndex` enforces unique keys across databases.
+A server with a `directory` claims the keys of each unique index across a scope with every write, so the keys stay unique across databases.
 
 ```ts
-const index = new KeyIndex(globalDatabase);
-const server = new ObjectServer({ objects: { profile }, database, context, journal, audit, index });
-const holder = await index.resolve(profile, "handle", ["ada"]);
+export const repository = defineObject({ ..., indexes: { name: { on: ["name"], unique: true, across: account } } });
+const server = new ObjectServer({ objects: { repository }, database, context, journal, audit, directory });
+const found = await repository.lookup(directory, "name", ["notes"], accountId);
 ```

@@ -1,11 +1,5 @@
-import {
-    accessRelationship,
-    anyone,
-    GLOBAL_SCOPE,
-    none,
-    Relationship,
-    relation,
-} from "@destack/access";
+import { accessRelationship, anyone, none, Relationship, relation } from "@destack/access";
+import { Scope } from "@destack/sync";
 import { copyScope } from "@destack/access/test";
 import type { DatabaseConnection } from "@destack/db";
 import { identifier } from "@destack/schema";
@@ -16,7 +10,7 @@ import { defineObject } from "../../src/index.ts";
 export const space = defineObject({
     name: "space",
     plural: "spaces",
-    scope: "global",
+    scope: "universe",
     isScope: true,
     fields: {},
     relations: { reader: { subjects: [anyone.all()] } },
@@ -31,7 +25,7 @@ export async function openSpace(
     visibility: "public" | "private" = "public",
 ): Promise<void> {
     // record the space's scope
-    const object = space.reference(GLOBAL_SCOPE, id);
+    const object = space.reference(Scope.universe.id, id);
     await copyScope(database, object);
 
     // relate anyone to a public space as its reader
@@ -52,7 +46,7 @@ export async function openSpace(
     }
 }
 
-/** Refuse reconnecting a client whose scope no test moves. */
+/** Refuse reconnecting a client with an unmoved scope. */
 export function unmoved(holder: string): never {
     throw new TypeError(`no scope moves in this test, yet one moved to ${holder}`);
 }

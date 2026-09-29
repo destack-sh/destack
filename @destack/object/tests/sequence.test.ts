@@ -267,7 +267,7 @@ test.for([7, 41])(
 );
 
 test("keep a deletion's length alone, and restore exactly the characters it removed", () => {
-    // delete the middle of a text, keeping only its length
+    // delete the middle of a text and keep only its length
     const typed = new Sequence().apply({ insert: "abcdef", run: "a.1" });
     const deletion = {
         delete: { from: { run: "a.1", offset: 1 }, to: { run: "a.1", offset: 3 } },

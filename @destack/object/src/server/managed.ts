@@ -1,5 +1,6 @@
 import { v7 } from "uuid";
-import { Authorizer, type Policy, Scope } from "@destack/access";
+import { Scope } from "@destack/sync";
+import { Authorizer, type Policy } from "@destack/access";
 import { Snapshot } from "@destack/db/log";
 import {
     and,
@@ -17,8 +18,9 @@ import { canonicalize } from "@destack/schema/json";
 import { ObjectError } from "../error/error.ts";
 import type { ObjectType } from "../object/object.ts";
 import { Manager, type ManagedColumnMap } from "../trait/declarable.ts";
-import type { KeyIndex, Reservation } from "../key/key.ts";
-import { ScopeHolder } from "../error/holder.ts";
+import type { Directory } from "@destack/directory";
+import { Reservation } from "../claim/index.ts";
+import { Moved } from "@destack/directory";
 import type { ObjectServer } from "./server.ts";
 import type { PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
@@ -169,8 +171,8 @@ export interface ReconciliationOptions {
     readonly isDry?: boolean;
     /** Further policies of declared objects. */
     readonly policies?: readonly Policy[];
-    /** The key index, in another database. */
-    readonly index?: KeyIndex;
+    /** The directory holding the claims of unique indexes, in the global database. */
+    readonly directory?: Directory;
     /** The object server running the reconcilers' system calls. */
     readonly server?: Pick<ObjectServer, "invoke">;
     /** Open the build of a package's release in the scope, the installation's when named. */
@@ -190,13 +192,13 @@ export class Reconciliation {
 
     /** Order the reconcilers and validate the document. */
     private constructor(options: ReconciliationOptions) {
-        // require a key index for reconciled objects declaring indexes
+        // require the directory for reconciled objects declaring indexes
         const indexed = options.reconcilers.find(
             (entry) => Object.keys(entry.object.indexes).length > 0,
         );
-        if (indexed !== undefined && options.index === undefined) {
+        if (indexed !== undefined && options.directory === undefined) {
             throw new TypeError(
-                `object ${indexed.object.name} declares indexes but no key index keeps them`,
+                `object ${indexed.object.name} declares indexes but no directory keeps their claims`,
             );
         }
 
@@ -292,7 +294,7 @@ export class Reconciliation {
                 );
                 const moved = chain.find((link) => link.movedTo !== undefined);
                 if (moved !== undefined) {
-                    throw ScopeHolder.error({ scope: moved.object.id, holder: moved.movedTo! });
+                    throw Moved.error({ scope: moved.object.id, cell: moved.movedTo! });
                 }
 
                 // run the step
@@ -355,24 +357,26 @@ export class Reconciliation {
                     },
                 });
 
-                // reserve written keys
-                return await options.index?.reserve(
-                    database,
-                    options.reconcilers.map((entry) => entry.object),
-                    requestId,
-                    now,
+                // reserve the names the written objects claim
+                return (
+                    options.directory &&
+                    (await Reservation.open(
+                        options.directory,
+                        database,
+                        options.reconcilers.map((entry) => entry.object),
+                        requestId,
+                        now,
+                    ))
                 );
             });
         } catch (error) {
-            // release keys
-            await options.index?.release(requestId);
+            // release the reserved names
+            await options.directory?.release(requestId);
             throw error;
         }
 
-        // confirm keys
-        if (reservation !== undefined) {
-            await options.index!.confirm(reservation);
-        }
+        // confirm the reserved names
+        await reservation?.confirm();
     }
 
     /** Select a type's reconciler by type or name. */

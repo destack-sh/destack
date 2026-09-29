@@ -1,8 +1,8 @@
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
+import { AuditOutbox } from "@destack/audit/outbox";
 import { ObjectServer } from "../../src/server/index.ts";
 import { onTestFinished } from "@destack/test";
 import { AuditRecorder } from "@destack/audit";
-import { isNull, type DatabaseConnection, type Dialect } from "@destack/db";
+import { isNull, type Dialect } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../../src/client/index.ts";
 import { PackageId } from "@destack/package";
@@ -49,7 +49,7 @@ export async function serveNotes(dialect: Dialect) {
         authorizeHost: async () => {},
         authenticate: async (request) => {
             const id = request.headers.get("authorization")!.slice("Bearer ".length);
-            const subject = principal.user.reference("global", id);
+            const subject = principal.user.reference("universe", id);
             const now = Date.now();
 
             return new Caller({
@@ -108,7 +108,7 @@ export class Device {
             database: storage.database,
             objects: [notebook, note],
             scope: spaceId,
-            caller: principal.user.reference("global", user),
+            caller: principal.user.reference("universe", user),
             service: service.replica,
             reconnect: unmoved,
             ...options,
@@ -142,7 +142,7 @@ export class Device {
         );
     }
 
-    /** Stop pushing and following, keeping the queue and the replica. */
+    /** Stop pushing and following and keep the queue and the replica. */
     async offline(): Promise<void> {
         this.#controller.abort();
         await Promise.all(this.#loops);

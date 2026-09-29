@@ -1,4 +1,5 @@
 import { describePayload, PayloadDescription } from "@destack/service/inspect";
+import { Scope } from "@destack/sync";
 import { PolicyDescription, describePolicy } from "@destack/access/inspect";
 import { AuditActionDescription, describeAuditAction } from "@destack/audit/inspect";
 import { TABLE } from "@destack/db";
@@ -6,7 +7,7 @@ import { defineSchema, schema, toJsonSchema } from "@destack/schema";
 import type { Method } from "../method/method.ts";
 import { METHOD_KINDS } from "../method/kind.ts";
 import type { ObjectType } from "../object/object.ts";
-import { AccessName, GLOBAL_SCOPE } from "@destack/access";
+import { AccessName } from "@destack/access";
 
 /** One method as the manifest describes it. */
 export const MethodDescription = defineSchema(
@@ -123,8 +124,8 @@ export function describeObject(object: ObjectType): ObjectDescription {
         name: object.name,
         plural: object.plural,
         scope:
-            object.scope === GLOBAL_SCOPE
-                ? [GLOBAL_SCOPE]
+            object.scope === Scope.universe.id
+                ? [Scope.universe.id]
                 : object.scopes.map((scope) => scope.name),
         table: object.table[TABLE].sqlName,
         permissions: [...object.permissions],

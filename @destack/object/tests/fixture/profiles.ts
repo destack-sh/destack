@@ -1,4 +1,3 @@
-import { auditOutboxTables } from "@destack/audit/outbox";
 import { schema } from "@destack/schema";
 import { principal, relation } from "@destack/access";
 import { defineDatabase } from "@destack/db/declare";
@@ -16,7 +15,7 @@ export const profile = defineObject({
         owner: field.reference(principal.user).caller(),
         handle: field.string(schema.string().min(1).max(40)).optional(),
     },
-    indexes: { handle: { on: ["handle"], unique: true, across: "global" } },
+    indexes: { handle: { on: ["handle"], unique: true, across: "universe" } },
     permissions: { read: relation("owner"), manage: relation("owner") },
     methods: {
         get: method.get("read"),
@@ -35,5 +34,5 @@ export const profilesJournal = defineJournal("journal");
 /** The database of one space's profiles. */
 export const profilesDatabase = defineDatabase({
     name: "main",
-    tables: [...profile.tables, profilesJournal, ...auditOutboxTables],
+    tables: [...profile.tables, profilesJournal],
 });

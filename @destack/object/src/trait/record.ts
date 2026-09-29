@@ -6,7 +6,6 @@ import {
     type Access,
     type Creation,
     type GrantReader,
-    type ObjectReference,
 } from "@destack/access";
 import {
     and,
@@ -29,11 +28,11 @@ import {
     type Table,
 } from "@destack/db";
 import { type Scalar } from "@destack/db/query";
-import { changesThroughLog, Dataflow, View } from "@destack/sync";
+import { changesThroughLog, Dataflow, View, type ObjectReference } from "@destack/sync";
 import { canonicalize } from "@destack/schema/json";
 import { type Identifier, schema } from "@destack/schema";
 import { DatabaseError } from "@destack/db/error";
-import { ServiceError } from "@destack/service/error";
+import { conceal, ServiceError } from "@destack/service/error";
 import { Page, page } from "@destack/service/page";
 import { v7 } from "uuid";
 import { Call } from "../method/call.ts";
@@ -689,14 +688,11 @@ async function requireCreatable(
         reading !== undefined &&
         (await authorizer.checkRows(snapshot, reading, access, [row])).held.has(0);
 
-    // refuse a reader
-    if (isReadable) {
-        throw new ServiceError("FORBIDDEN", { message: `permission denied: ${permission.name}` });
-    }
-    // hide the object from others
-    else {
-        throw new ServiceError("NOT_FOUND", { message: `${call.object.name} not found` });
-    }
+    // refuse a reader, and hide the object from others
+    const denial = new ServiceError("FORBIDDEN", {
+        message: `permission denied: ${permission.name}`,
+    });
+    throw isReadable ? denial : conceal(denial, `${call.object.name} not found`);
 }
 
 /** Delete an object, or request deletion when a trash or controller finishes it. */
@@ -783,7 +779,7 @@ async function listObjects(call: Call) {
         call.objects,
     );
     const dataflow = new Dataflow(
-        { list: { ...compiled, scopes: [call.scope] } },
+        { list: { ...compiled, scopes: call.object.scopesOf(call.chain) } },
         {
             audience: new Listing(call),
             database: call.database,

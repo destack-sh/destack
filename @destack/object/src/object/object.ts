@@ -4,19 +4,30 @@ import {
     subjectType,
     type AccessExpression,
     type Elevation,
-    type ObjectReference,
     type RelationInput,
     type Subject,
     type PolicySubject,
-    ACCESS_TABLES,
     principal,
     relationsOf,
-    GLOBAL_SCOPE,
     type Permission,
     type TableMapping,
 } from "@destack/access";
+import { Scope, type ObjectReference, type Query } from "@destack/sync";
+import { Snapshot } from "@destack/db/log";
+import { canonicalize } from "@destack/schema/json";
+import { ServiceError } from "@destack/service/error";
+import type { Claim, Directory, ObjectClaims } from "@destack/directory";
+import { Condition } from "@destack/db/query";
 import { type AuditAction, AuditTarget } from "@destack/audit";
-import { eq, type SQL, TABLE, type Table, type TableConstraint } from "@destack/db";
+import {
+    eq,
+    type DatabaseConnection,
+    type DatabaseTier,
+    type SQL,
+    TABLE,
+    type Table,
+    type TableConstraint,
+} from "@destack/db";
 import type { Tree } from "@destack/db/tree";
 import {
     declaringModule,
@@ -44,7 +55,6 @@ import {
     type ReplicaProcedures,
 } from "../replica/replica.ts";
 import { compile, compileQueries, join, type Join } from "../query/query.ts";
-import type { Query } from "@destack/sync";
 import { record } from "../trait/record.ts";
 import {
     declarable,
@@ -73,9 +83,8 @@ import { Chunk } from "../text/chunk.ts";
 import { chunk, chunkRun } from "../text/table.ts";
 import type { GateOf, Gated, Trait, TraitObject } from "../trait/trait.ts";
 import { INTRINSIC, type Intrinsic } from "./intrinsic.ts";
-import { settlement } from "../method/settlement.ts";
-import { controllerLease } from "@destack/service/control";
-import { outbox } from "@destack/service/outbox";
+import { serverTables } from "../stack/db.ts";
+import type { ObjectController } from "./controller.ts";
 import { camelCase, kebabCase, pascalCase } from "./name.ts";
 import { deriveTable, type ConstraintColumns, type ObjectTable, type TraitOf } from "./table.ts";
 
@@ -115,7 +124,7 @@ export interface AppliedTrait {
     readonly options: unknown;
 }
 
-/** A relation an object type declares, naming object types as subjects. */
+/** A relation an object type declares, with object types as subjects. */
 export interface ObjectRelationInput {
     /** The subject types the relation accepts. */
     readonly subjects: readonly (RelationInput["subjects"][number] | ObjectType)[];
@@ -123,9 +132,9 @@ export interface ObjectRelationInput {
     readonly grantedBy?: string | null;
 }
 
-/** The scope objects live in: a scope type, or the global scope. */
+/** The scope objects live in: a scope type, or the universe. */
 export type ObjectScope =
-    | typeof GLOBAL_SCOPE
+    | typeof Scope.universe.id
     | ObjectType<Table, any, any, any, any, any, any, any, any>;
 
 /** The traits an object opts into. */
@@ -138,6 +147,8 @@ export interface ObjectTraits<Declared = unknown, Permissions extends string = s
     readonly expiring?: readonly ExpiryRule[];
     /** Copy each object into its recipient's home. */
     readonly addressed?: AddressedDefinition;
+    /** The scopes inside each object's scope copy the objects, those matching the condition when given. */
+    readonly inherited?: { readonly where?: Condition };
     /** The objects are immutable, numbered versions of their parent. */
     readonly versioned?: VersionsDefinition;
     /** A system controller reconciles the objects. */
@@ -201,6 +212,10 @@ export interface ObjectDefinition<
     readonly indexes?: Readonly<Record<string, ObjectIndex>>;
     /** Where the objects live. */
     readonly storage?: ObjectStorage;
+    /** The tier of every database holding the objects, any tier when absent. */
+    readonly tier?: DatabaseTier;
+    /** The system controller reconciling the objects with work waiting. */
+    readonly controller?: ObjectController;
     /** How long ephemeral objects outlive their session, 10 s by default. */
     readonly linger?: Duration;
     /** The version of the objects' method inputs, 1 when absent. */
@@ -269,6 +284,8 @@ export class ObjectType<
     readonly text: readonly Text[];
     /** Whether reads of the objects are audited. */
     readonly isReadAudited: boolean;
+    /** The rows the scopes inside each object's scope copy, for inherited objects. */
+    readonly inherited?: { readonly where?: Condition };
     /** The ancestor index of a tree of this object type. */
     readonly tree?: Tree;
     /** The tables a database holding the object needs, access tables included. */
@@ -283,6 +300,8 @@ export class ObjectType<
     readonly recoverable?: RecoverableDefinition<Permissions>;
     /** When the system removes the objects, for expiring objects. */
     readonly expiring?: readonly ExpiryRule[];
+    /** The system controller reconciling the objects with work waiting. */
+    readonly controller?: ObjectController;
     /** How addressed objects name their recipient. */
     readonly addressed?: AddressedDefinition;
     /** Whether the objects are numbered versions of their parent. */
@@ -333,7 +352,7 @@ export class ObjectType<
         intrinsic?: Omit<TableMapping, "policy">,
     ) {
         // require a logged table
-        if (definition.table[TABLE].tier === "none") {
+        if (definition.table[TABLE].retention === "none") {
             throw new TypeError(`object table is not logged: ${definition.table[TABLE].name}`);
         }
 
@@ -347,10 +366,11 @@ export class ObjectType<
         const scopes: readonly ObjectScope[] = [
             definition.scope as ObjectScope | readonly ObjectScope[],
         ].flat();
-        this.scopes = scopes.filter((scope): scope is ObjectType => scope !== GLOBAL_SCOPE);
+        this.scopes = scopes.filter((scope): scope is ObjectType => scope !== Scope.universe.id);
         this.declaration = definition.declarable?.schema;
         this.recoverable = definition.recoverable;
         this.expiring = definition.expiring;
+        this.controller = definition.controller;
         this.addressed = definition.addressed;
         this.versioned = definition.versioned;
         this.tracked = definition.tracked;
@@ -362,6 +382,7 @@ export class ObjectType<
             );
         }
         this.isReadAudited = definition.audited?.reads === true;
+        this.inherited = definition.inherited;
         this.methods = definition.methods ?? ({} as Methods);
         this.parent = definition.nested && {
             object: definition.nested.in === "self" ? this : definition.nested.in,
@@ -493,10 +514,8 @@ export class ObjectType<
             this.storage === "durable"
                 ? [
                       this.table,
-                      ...ACCESS_TABLES,
-                      settlement,
-                      controllerLease,
-                      ...(this.addressed === undefined ? [] : [copy, outbox]),
+                      ...serverTables,
+                      ...(this.addressed === undefined ? [] : [copy]),
                       ...(this.text.length === 0 ? [] : [chunk, chunkRun]),
                   ]
                 : [this.table];
@@ -622,7 +641,7 @@ export class ObjectType<
                     `index ${name} of ${this.name} names unlogged field ${unlogged}`,
                 );
             } else if (
-                declared.across !== GLOBAL_SCOPE &&
+                declared.across !== Scope.universe.id &&
                 !this.ancestors.some((ancestor) => ancestor.same(declared.across as ObjectType))
             ) {
                 throw new TypeError(
@@ -637,9 +656,16 @@ export class ObjectType<
         } else if (this.storage === "ephemeral") {
             const durable = [
                 ...traits.filter(({ trait }) => trait.isDurable).map(({ trait }) => trait.key!),
-                ...(["audited", "isScope", "aggregates", "indexes"] as const).filter(
-                    (key) => definition[key] !== undefined && definition[key] !== false,
-                ),
+                ...(
+                    [
+                        "audited",
+                        "inherited",
+                        "controller",
+                        "isScope",
+                        "aggregates",
+                        "indexes",
+                    ] as const
+                ).filter((key) => definition[key] !== undefined && definition[key] !== false),
             ];
             if (durable.length > 0) {
                 throw new TypeError(`ephemeral object ${this.name} takes no ${durable[0]}`);
@@ -679,6 +705,23 @@ export class ObjectType<
         };
     }
 
+    /** Build the audit action and values of a call: its object for a targeted method, else the scope's collection. */
+    auditCall(method: string, input: Readonly<Record<string, unknown>>, scope: string) {
+        // target one object
+        const declared = (this.methods as Readonly<Record<string, Method>>)[method];
+        if (declared?.target === true) {
+            const id = schema.string().parse(input.id);
+            const targets = { [this.auditTarget]: { type: this.name, id } };
+
+            return { action: this.audit(method), values: { targets, details: {} } };
+        }
+
+        // target the scope's collection
+        const targets = { collection: { type: this.plural, id: scope } };
+
+        return { action: this.audit(method, "collection"), values: { targets, details: {} } };
+    }
+
     /** Accept the members of one of this type's relations as subjects. */
     members(relation: string): PolicySubject {
         return this.policy.members(relation);
@@ -701,9 +744,15 @@ export class ObjectType<
 
     /** The table mapping access reads the objects through. */
     get mapping(): TableMapping {
+        // copy every inherited row the condition matches
+        const inherited =
+            this.inherited === undefined
+                ? {}
+                : { inherited: this.inherited.where ?? Condition.all() };
+
         // reuse an intrinsic mapping
         if (this.intrinsic !== undefined) {
-            return { ...this.intrinsic, policy: this.policy };
+            return { ...this.intrinsic, policy: this.policy, ...inherited };
         }
 
         // map each declared relation to its field
@@ -716,15 +765,15 @@ export class ObjectType<
             if (isRelation && field.type === "subject") {
                 relations[name] = { column: property, isKey: true };
             }
-            // map a principal reference in the global scope
+            // map a principal reference in the universe
             else if (isRelation && field.type === "reference" && field.principals !== undefined) {
-                relations[name] = { column: property, scope: GLOBAL_SCOPE };
+                relations[name] = { column: property, scope: Scope.universe.id };
             }
             // map a plain reference by identifier
             else if (isRelation && field.type === "reference" && field.target && !field.qualified) {
                 relations[name] =
-                    field.target().scope === GLOBAL_SCOPE
-                        ? { column: property, scope: GLOBAL_SCOPE }
+                    field.target().scope === Scope.universe.id
+                        ? { column: property, scope: Scope.universe.id }
                         : { column: property };
             }
         }
@@ -753,11 +802,12 @@ export class ObjectType<
                 ]),
             ),
             relations,
+            ...inherited,
             ...Object.assign({}, ...located.map(({ relations: _relations, ...placed }) => placed)),
         };
     }
 
-    /** Require a matching aggregate field whose readers may list every measured row. */
+    /** Require a matching aggregate field with readers that may list every measured row. */
     requireAggregate(measured: ObjectType, name: string, aggregate: ObjectAggregate): void {
         // require this type's field
         if (this.fields[name]?.aggregate !== aggregate.function) {
@@ -891,6 +941,135 @@ export class ObjectType<
         return ancestors;
     }
 
+    /** Read the directory's identity of one of the type's unique indexes. */
+    index(name: string): string {
+        return `${this.policy.definition.packageId}/${this.name}/${name}`;
+    }
+
+    /** Key values in one of the type's indexes, within the scope the index is unique across. */
+    claim(name: string, values: readonly unknown[], scope?: string): Pick<Claim, "index" | "key"> {
+        // require the index and a needed scope
+        const declared = this.indexes[name];
+        if (declared === undefined) {
+            throw new TypeError(`object ${this.name} has no index ${name}`);
+        }
+        const within = declared.across === Scope.universe.id ? null : scope;
+        if (within === undefined) {
+            throw new TypeError(`index ${name} of ${this.name} keys values within a scope`);
+        }
+
+        return { index: this.index(name), key: canonicalize([within, ...values]) };
+    }
+
+    /** List the names a row claims in the type's indexes with enclosing scopes from a snapshot. */
+    async claims(row: Readonly<Record<string, unknown>>, snapshot: Snapshot): Promise<Claim[]> {
+        // key each index the row holds every value of
+        const scope = String(row.scope);
+        const claims: Claim[] = [];
+        for (const [name, declared] of Object.entries(this.indexes)) {
+            // skip rows missing a value
+            const values = declared.on.map((field) => row[field]);
+            if (values.some((value) => value === null || value === undefined)) {
+                continue;
+            }
+
+            // key the values within the scope the index is unique across
+            const within = await this.within(declared.across, scope, snapshot);
+            claims.push({
+                index: this.index(name),
+                key: canonicalize([within, ...values]),
+                objectId: String(row.id),
+                scope,
+            });
+        }
+
+        return claims;
+    }
+
+    /** Describe the names an object claims after a write, none after deletion. */
+    async owned(
+        objectId: string,
+        row: Readonly<Record<string, unknown>> | undefined,
+        snapshot: Snapshot,
+    ): Promise<ObjectClaims> {
+        return {
+            indexes: Object.keys(this.indexes).map((name) => this.index(name)),
+            objectId,
+            claims: row === undefined ? [] : await this.claims(row, snapshot),
+        };
+    }
+
+    /** Look up the object owning values in one of the type's indexes. */
+    async lookup(
+        directory: Directory,
+        name: string,
+        values: readonly unknown[],
+        scope?: string,
+    ): Promise<ObjectReference | undefined> {
+        const { index, key } = this.claim(name, values, scope);
+        const found = await directory.owner(index, key);
+
+        return found === undefined ? undefined : this.reference(found.scope, found.objectId);
+    }
+
+    /** Read the names the indexed rows an open transaction wrote claim, one entry per written object. */
+    static async written(
+        transaction: DatabaseConnection,
+        objects: readonly ObjectType[],
+    ): Promise<ObjectClaims[]> {
+        // read each written row's last image
+        const indexed = objects.filter((object) => Object.keys(object.indexes).length > 0);
+        const byTable = new Map(indexed.map((object) => [object.table as Table, object]));
+        const owned = new Map<string, ObjectClaims>();
+        const snapshot = Snapshot.live(transaction);
+        if (indexed.length > 0) {
+            for (const change of await transaction.log.written([...byTable.keys()])) {
+                const object = byTable.get(change.table)!;
+                const objectId = String(change.key.id);
+                const row = change.after as Readonly<Record<string, unknown>> | undefined;
+                owned.set(
+                    `${object.name}/${objectId}`,
+                    await object.owned(objectId, row, snapshot),
+                );
+            }
+        }
+
+        return [...owned.values()];
+    }
+
+    /** Find the scope an index is unique across, from the scope an object lives in. */
+    async within(
+        across: ObjectType["indexes"][string]["across"],
+        scope: string,
+        snapshot: Snapshot,
+    ): Promise<string | null> {
+        // key global indexes without a scope, and indexes across the object's own scope by it
+        if (across === Scope.universe.id) {
+            return null;
+        } else if (across.same(this.ancestors[0])) {
+            return scope;
+        }
+
+        // find the enclosing scope of the declared type
+        const { packageId, name } = across.policy.definition;
+        const chain = await Scope.chain(snapshot, scope);
+        const enclosing = chain.find(
+            (link) => link.object.packageId === packageId && link.object.type === name,
+        );
+        if (enclosing === undefined) {
+            throw new ServiceError("PRECONDITION_FAILED", {
+                message: `scope ${scope} has no enclosing ${name}`,
+            });
+        }
+
+        return enclosing.object.id;
+    }
+
+    /** Read the scopes a query of the objects reads from a scope chain, nearest first. */
+    scopesOf(chain: readonly string[]): string[] {
+        return this.inherited === undefined ? [chain[0]!] : [...chain];
+    }
+
     /** Decide whether another type shares this one's table. */
     same(other: ObjectType | "any" | undefined): boolean {
         return other instanceof ObjectType && other.table === this.table;
@@ -910,9 +1089,9 @@ export class ObjectType<
     static queries(
         objects: readonly ObjectType[],
         queries: Readonly<Record<string, ObjectQuery>> | undefined,
-        scope: string,
+        chain: readonly string[],
     ): Record<string, Query> {
-        return compileQueries(objects, queries, scope);
+        return compileQueries(objects, queries, chain);
     }
 
     /** The procedures of the object's methods. */

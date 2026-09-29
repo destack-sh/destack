@@ -1,7 +1,7 @@
 import * as access from "@destack/access";
+import { Scope, type ObjectReference } from "@destack/sync";
 import {
     AccessError,
-    GLOBAL_SCOPE,
     delegationChain,
     earliest,
     type AccessContext,
@@ -10,10 +10,20 @@ import {
     type Access,
     type Permission,
 } from "@destack/access";
-import { and, eq, or, sql, type DatabaseConnection, type SQL, type Table } from "@destack/db";
+import {
+    and,
+    eq,
+    ne,
+    or,
+    sql,
+    TABLE,
+    type DatabaseConnection,
+    type SQL,
+    type Table,
+} from "@destack/db";
 import { Snapshot } from "@destack/db/log";
-import { ServiceError } from "@destack/service/error";
-import { ScopeHolder } from "../error/holder.ts";
+import { conceal, ServiceError } from "@destack/service/error";
+import { Moved } from "@destack/directory";
 import type { Call } from "../method/call.ts";
 import { SCOPE_READ, type ObjectType } from "../object/object.ts";
 
@@ -35,9 +45,52 @@ export class Authorization extends access.Authorization {
 
     /** Match the rows the caller may list. */
     listable(object: ObjectType, permission: Permission): SQL | "memory" {
-        return object.storage === "ephemeral"
-            ? "memory"
-            : this.authorizer.where(permission, this.access, object.table as Table);
+        // decide ephemeral rows in memory
+        if (object.storage === "ephemeral") {
+            return "memory";
+        }
+
+        // match held rows, and the copies an enclosing scope hands down to every caller inside it
+        const held = this.authorizer.where(permission, this.access, object.table as Table);
+
+        return object.inherited === undefined
+            ? held
+            : or(ne(object.table[TABLE].columns.scope!, this.access.scope), held)!;
+    }
+
+    /** Decide which rows the caller may list: those it holds the permission on, and the copies an enclosing scope hands down. */
+    async admitRows(
+        object: ObjectType,
+        permission: Permission,
+        scope: string,
+        rows: readonly Readonly<Record<string, unknown>>[],
+        reader?: GrantReader,
+    ): Promise<access.Admission> {
+        // admit the inherited copies of enclosing scopes
+        const copies = new Set(
+            object.inherited === undefined
+                ? []
+                : [...rows.keys()].filter((position) => rows[position]!.scope !== scope),
+        );
+
+        // check the caller's permission on the scope's own rows
+        const own = [...rows.keys()].filter((position) => !copies.has(position));
+        const admission = await this.checkRows(
+            permission,
+            scope,
+            own.map((position) => rows[position]!),
+            reader,
+        );
+
+        return {
+            ...admission,
+            held: new Set([...copies, ...[...admission.held].map((position) => own[position]!)]),
+        };
+    }
+
+    /** The call's scope and the scopes containing it, nearest first. */
+    get chain(): string[] {
+        return [...new Set([this.access.scope, ...this.access.scopes.map((entry) => entry.id)])];
     }
 
     /** Read a call's target where the caller holds the method's permission. */
@@ -124,23 +177,18 @@ export class Authorization extends access.Authorization {
         const isReadable =
             object.reading !== undefined && (await this.#holds(call, id, object.reading));
 
-        // refuse a reader
-        if (isReadable) {
-            throw new ServiceError("FORBIDDEN", {
-                message: `permission denied: ${permission.name}`,
-            });
-        }
-        // hide the object from others
-        else {
-            throw new ServiceError("NOT_FOUND", { message: `no ${object.name} ${id}` });
-        }
+        // refuse a reader, and hide the object from others
+        const denial = new ServiceError("FORBIDDEN", {
+            message: `permission denied: ${permission.name}`,
+        });
+        throw isReadable ? denial : conceal(denial, `no ${object.name} ${id}`);
     }
 
     /** Require the call's scope to be visible to the caller. */
     async requireVisible(objects: readonly ObjectType[]): Promise<void> {
-        // see the global scope
+        // see the universe
         const scope = this.access.scope;
-        if (scope === GLOBAL_SCOPE) {
+        if (scope === Scope.universe.id) {
             return;
         }
 
@@ -156,7 +204,7 @@ export class Authorization extends access.Authorization {
             throw new ServiceError("NOT_FOUND", { message: `no scope ${scope}` });
         }
 
-        // decide for the person when the credential's restrictions name the scope, which its issuer revealed
+        // decide for the person when the credential's restrictions include the scope
         const { permissions, ...person } = this.access.context;
         const isNamed = permissions?.some((restriction) => restriction.scope === scope) === true;
         const context = isNamed ? person : this.access.context;
@@ -174,14 +222,17 @@ export class Authorization extends access.Authorization {
                     this.authorizer.resolve(this.snapshot, bound, principal),
                 )));
         if (!isVisible) {
-            throw new ServiceError("NOT_FOUND", { message: `no scope ${scope}` });
+            const denial = new ServiceError("FORBIDDEN", {
+                message: `scope ${scope} is not visible`,
+            });
+            throw conceal(denial, `no scope ${scope}`);
         }
     }
 
     /** Decide whether an access sees a scope. */
     async #sees(
         type: ObjectType,
-        own: access.ObjectReference,
+        own: ObjectReference,
         objects: readonly ObjectType[],
         resolve: (scope: string) => Promise<Access>,
     ): Promise<boolean> {
@@ -221,7 +272,7 @@ export class Authorization extends access.Authorization {
         // require the object type's home scope
         const own = this.access.scopes[0];
         const isHome =
-            this.access.scope === GLOBAL_SCOPE
+            this.access.scope === Scope.universe.id
                 ? object.scopes.length === 0
                 : own?.id === this.access.scope &&
                   object.scopes.some((type) => type.policy.is(own));
@@ -232,11 +283,11 @@ export class Authorization extends access.Authorization {
         }
     }
 
-    /** Refuse a moved scope, naming its new holder. */
+    /** Refuse a moved scope with its new holder. */
     requireUnmoved(): void {
         const moved = this.access.moved;
         if (moved !== undefined) {
-            throw ScopeHolder.error(moved);
+            throw Moved.error(moved);
         }
     }
 
@@ -388,7 +439,7 @@ export class SystemAuthorization extends Authorization {
         return sql`true`;
     }
 
-    /** Read one object of the call's scope, refusing one that does not exist. */
+    /** Read one object of the call's scope and refuse a missing one. */
     override async read(call: Call, id: string): Promise<Record<string, unknown>> {
         // read the row
         const table = call.object.table as Table & Record<string, never>;

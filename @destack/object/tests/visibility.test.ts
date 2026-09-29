@@ -1,9 +1,9 @@
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
+import { AuditOutbox } from "@destack/audit/outbox";
+import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import {
     accessRelationship,
     anyone,
-    GLOBAL_SCOPE,
     none,
     principal,
     Relationship,
@@ -11,7 +11,6 @@ import {
     type Delegate,
 } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
-import type { DatabaseConnection } from "@destack/db";
 import { copyScope } from "@destack/access/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier, schema } from "@destack/schema";
@@ -32,7 +31,7 @@ const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-0000000
 const room = defineObject({
     name: "room",
     plural: "rooms",
-    scope: "global",
+    scope: "universe",
     isScope: true,
     fields: {},
     relations: { reader: { subjects: [anyone.all()] } },
@@ -68,13 +67,9 @@ const document = defineObject({
 test.each(TEST_DIALECTS)(
     "show a private space to readers of one object in it, forbid their writes, and hide it from strangers on %s",
     async (dialect) => {
-        const storage = await TestDatabase.create(
-            dialect,
-            [...auditOutboxTables, ...document.tables, request],
-            {
-                isMigrated: true,
-            },
-        );
+        const storage = await TestDatabase.create(dialect, [...document.tables, request], {
+            isMigrated: true,
+        });
         onTestFinished(() => storage.close());
         const database = storage.database;
         await openSpace(database, spaceId, "private");
@@ -96,7 +91,7 @@ test.each(TEST_DIALECTS)(
                     id: identifier("relationship").parse(`relationship-${v7()}`),
                     object: document.reference(spaceId, shared),
                     relation: "reader",
-                    subject: principal.user.reference("global", "alice"),
+                    subject: principal.user.reference("universe", "alice"),
                     createdAt: now,
                     expiresAt: null,
                 },
@@ -110,8 +105,8 @@ test.each(TEST_DIALECTS)(
             objects: { document },
             database,
             context: () => ({
-                subject: principal.user.reference("global", caller.user),
-                subjects: [principal.user.reference("global", caller.user)],
+                subject: principal.user.reference("universe", caller.user),
+                subjects: [principal.user.reference("universe", caller.user)],
                 delegates: caller.delegates,
                 now: Date.now(),
                 attributes: {},
@@ -196,7 +191,7 @@ test.each(TEST_DIALECTS)(
 
         // hold a room anyone reads
         const roomId = identifier("room").parse(`room-${v7()}`);
-        const object = room.reference(GLOBAL_SCOPE, roomId);
+        const object = room.reference(Scope.universe.id, roomId);
         await copyScope(database, object);
         await database.insert(accessRelationship).values(
             Relationship.encode(
@@ -217,7 +212,7 @@ test.each(TEST_DIALECTS)(
             objects: { document, desk },
             database,
             context: () => ({
-                subjects: [principal.user.reference("global", "alice")],
+                subjects: [principal.user.reference("universe", "alice")],
                 now: Date.now(),
                 attributes: {},
             }),

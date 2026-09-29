@@ -1,18 +1,12 @@
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
+import type { ObjectReference, TrackerMessage } from "@destack/sync";
+import { AuditOutbox } from "@destack/audit/outbox";
 import { schema } from "@destack/schema";
 import { Condition } from "@destack/db/query";
 import { expect, onTestFinished, test } from "@destack/test";
 import { vi } from "vitest";
-import {
-    intersection,
-    principal,
-    relation,
-    through,
-    union,
-    type ObjectReference,
-} from "@destack/access";
+import { intersection, principal, relation, through, union } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
-import { unique, type DatabaseConnection, type Dialect, type JsonValue } from "@destack/db";
+import { unique, type Dialect, type JsonValue } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { relayHub, TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier } from "@destack/schema";
@@ -21,7 +15,6 @@ import { Journal } from "@destack/service/database";
 import { RequestId } from "@destack/service/request";
 import type { ServiceContext } from "@destack/service/server";
 import type * as sync from "@destack/sync";
-import type { TrackerMessage } from "@destack/sync";
 import { defineObject, field, method, type ObjectType } from "../src/index.ts";
 import { EphemeralStorage, ObjectServer } from "../src/server/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
@@ -104,7 +97,7 @@ test.for(TEST_DIALECTS)(
             requestId: RequestId.create(),
             id: plans.id,
             relation: "viewer",
-            subject: principal.user.reference("global", "bob"),
+            subject: principal.user.reference("universe", "bob"),
         });
         // follow every durable type of the space next to the ephemeral one
         const durable = east.server.sync(spaceId, context("alice").context);
@@ -137,7 +130,7 @@ test.for(TEST_DIALECTS)(
             message: "a record with the same unique key exists",
         });
 
-        // show the viewer on the other instance the owner's cursor as it moves
+        // show the owner's moving cursor to the viewer on the other instance
         const bob = west.follow("bob", "client-b");
         expect(await bob.rows()).toEqual([["alice", "editing", 0]]);
         await east.call("alice", presence, "update", {
@@ -208,7 +201,7 @@ test.for(TEST_DIALECTS)(
             requestId: RequestId.create(),
             id: plans.id,
             relation: "viewer",
-            subject: principal.user.reference("global", "bob"),
+            subject: principal.user.reference("universe", "bob"),
         });
         const parent = {
             packageId: board.policy.definition.packageId,
@@ -219,7 +212,7 @@ test.for(TEST_DIALECTS)(
             ["alice", "client-a"],
             ["bob", "client-b"],
         ] as const) {
-            // keep each client streaming, so its presence stays past the linger
+            // keep each client streaming past the linger
             await east.follow(as, client).rows();
             await east.call(as, presence, "create", { client, parent, activity: "editing" });
         }
@@ -258,7 +251,7 @@ test.for(TEST_DIALECTS)(
             requestId: RequestId.create(),
             id: plans.id,
             relation: "viewer",
-            subject: principal.user.reference("global", "bob"),
+            subject: principal.user.reference("universe", "bob"),
         });
 
         // follow the owner's presence from the other instance
@@ -307,7 +300,7 @@ test.for(TEST_DIALECTS)(
             requestId: RequestId.create(),
             id: plans.id,
             relation: "viewer",
-            subject: principal.user.reference("global", "bob"),
+            subject: principal.user.reference("universe", "bob"),
         });
         await until(async () => (await boards.read()).length === 1);
         await alice.client.broadcast(board, plans.id, { reaction: "👋" });
@@ -326,7 +319,7 @@ test.for(TEST_DIALECTS)(
                 requestId: RequestId.create(),
                 id: shared.id,
                 relation: "viewer",
-                subject: principal.user.reference("global", "bob"),
+                subject: principal.user.reference("universe", "bob"),
             });
         }
         const card = await east.call("alice", profile, "create", {
@@ -449,7 +442,7 @@ async function serveBoards(dialect: Dialect) {
         dialect,
         defineDatabase({
             name: "main",
-            tables: [...auditOutboxTables, request, ...board.tables, ...profile.tables],
+            tables: [request, ...board.tables, ...profile.tables],
         }),
         { isMigrated: true },
     );
@@ -475,7 +468,7 @@ async function serveBoards(dialect: Dialect) {
             database: storage.database,
             ephemeral: store,
             context: (context) => ({
-                subjects: [principal.user.reference("global", context.requireCaller().id)],
+                subjects: [principal.user.reference("universe", context.requireCaller().id)],
                 now: Date.now(),
                 attributes: {},
             }),
@@ -633,7 +626,7 @@ async function clientOf(server: Pick<ObjectServer, "push" | "sync" | "broadcast"
         database: storage.database,
         objects: [board, profile, presence],
         scope: spaceId,
-        caller: principal.user.reference("global", as),
+        caller: principal.user.reference("universe", as),
         service: procedures,
         reconnect: unmoved,
     });

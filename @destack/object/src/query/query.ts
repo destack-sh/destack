@@ -1,20 +1,20 @@
-import { GLOBAL_SCOPE } from "@destack/access";
 import { type Table } from "@destack/db";
+import { Scope, type Include, type Path, type Query, type Relation } from "@destack/sync";
 import { Condition, Expression } from "@destack/db/query";
 import { ServiceError } from "@destack/service/error";
-import type { Include, Path, Query, Relation } from "@destack/sync";
 import type { ObjectInclude, ObjectQuery } from "../replica/replica.ts";
 import type { ObjectType } from "../object/object.ts";
 import { CHUNKS } from "../text/chunk.ts";
 
-/** Compile object queries of a scope into queries of their tables. */
+/** Compile object queries of a scope chain, nearest first, into queries of their tables. */
 export function compileQueries(
     objects: readonly ObjectType[],
     queries: Readonly<Record<string, ObjectQuery>> | undefined,
-    scope: string,
+    chain: readonly string[],
 ): Record<string, Query> {
     // default to every listed object type of the scope's level
-    const isGlobal = scope === GLOBAL_SCOPE;
+    const scope = chain[0]!;
+    const isGlobal = scope === Scope.universe.id;
     const named =
         queries ??
         Object.fromEntries(
@@ -22,7 +22,7 @@ export function compileQueries(
                 .filter(
                     (object) =>
                         object.listing !== undefined &&
-                        (object.scope === GLOBAL_SCOPE) === isGlobal,
+                        (object.scope === Scope.universe.id) === isGlobal,
                 )
                 .map((object) => [
                     object.name,
@@ -43,13 +43,13 @@ export function compileQueries(
             const object = objects.find((entry) => entry.name === objectName);
             if (!object) {
                 throw new ServiceError("BAD_REQUEST", { message: `no object ${objectName}` });
-            } else if ((object.scope === GLOBAL_SCOPE) !== isGlobal) {
+            } else if ((object.scope === Scope.universe.id) !== isGlobal) {
                 throw new ServiceError("BAD_REQUEST", {
                     message: `object ${objectName} is not in scope ${scope}`,
                 });
             }
 
-            return [name, { ...compile(object, shape, objects), scopes: [scope] }];
+            return [name, { ...compile(object, shape, objects), scopes: object.scopesOf(chain) }];
         }),
     );
 }

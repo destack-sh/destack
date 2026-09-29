@@ -2,8 +2,8 @@ import type { Change } from "@destack/db/log";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
-import { eq, type DatabaseConnection } from "@destack/db";
+import { AuditOutbox } from "@destack/audit/outbox";
+import { eq } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier } from "@destack/schema";
@@ -20,7 +20,7 @@ import { auditedActions } from "./fixture/audit.ts";
 /** The space containing the credentials. */
 const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
 
-/** Credentials whose purge keeps their record, reserved to their custodian. */
+/** Credentials that keep their record after a purge, reserved to their custodian. */
 const credential = defineObject({
     name: "credential",
     plural: "credentials",
@@ -48,7 +48,7 @@ const journal = defineJournal("journal");
 /** The database holding the credentials, their access and the journal. */
 const credentialDatabase = defineDatabase({
     name: "main",
-    tables: [...auditOutboxTables, journal, ...credential.tables],
+    tables: [journal, ...credential.tables],
 });
 
 test.each(TEST_DIALECTS)(
@@ -61,7 +61,7 @@ test.each(TEST_DIALECTS)(
         const database = storage.database;
         await openSpace(database, spaceId);
 
-        // serve credentials whose purge handler destroys the value, restorable for a week
+        // serve credentials restorable for a week with a purge handler that destroys the value
         const handled = recoverable.within(
             credential.handle({
                 purge: async (call, next) => {
@@ -81,7 +81,7 @@ test.each(TEST_DIALECTS)(
                 objects: { credential: object },
                 database,
                 context: () => ({
-                    subjects: [principal.user.reference("global", current)],
+                    subjects: [principal.user.reference("universe", current)],
                     now: Date.now(),
                     attributes: {},
                 }),
@@ -181,7 +181,7 @@ test.each(TEST_DIALECTS)(
             .where(eq(credential.table.id, expired.id));
         expect(kept).toEqual({ value: null, purgedAt: later });
 
-        // look again when the next window ends, and purge once it ended
+        // look again and purge after the next window ends
         const controller = recoverable.controller(server);
         const pending = await execute(handled, "create", { custodian: "user-2", value: "later" });
         await execute(handled, "delete", { id: pending.id, revision: pending.revision });

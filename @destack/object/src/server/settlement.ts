@@ -39,7 +39,7 @@ export const Settlement = {
         return call;
     },
 
-    /** Commit the call's prepared value, refusing a claimed settlement. */
+    /** Commit the call's prepared value and refuse a claimed settlement. */
     async commit(transaction: DatabaseConnection, call: Call, prepared: unknown): Promise<void> {
         const committed = await transaction
             .update(settlement)
@@ -100,11 +100,18 @@ export const Settlement = {
             row.target === null
                 ? []
                 : await server.database.select().from(table).where(eq(table.id, row.target));
+        const authorization = await SystemAuthorization.open(
+            server.authorizer,
+            server.database,
+            row.scope,
+            now,
+        );
         const call = new Call({
             object,
             name: row.method,
             method,
             scope: row.scope,
+            chain: authorization.chain,
             input: {},
             ...(row.target === null ? {} : { id: row.target }),
             ...(target === undefined ? {} : { target: target as never }),
@@ -112,12 +119,7 @@ export const Settlement = {
             database: server.database,
             now,
             isPredicted: false,
-            authorization: await SystemAuthorization.open(
-                server.authorizer,
-                server.database,
-                row.scope,
-                now,
-            ),
+            authorization,
             objects: server.objects,
         });
 

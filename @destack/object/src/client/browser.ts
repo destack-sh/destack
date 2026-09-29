@@ -170,7 +170,7 @@ export class BrowserTab {
         }
     }
 
-    /** Forget each party whose tab closes. */
+    /** Forget each party with a closed tab. */
     async #forgetAbsent(signal: AbortSignal, report: (error: unknown) => void): Promise<void> {
         const watched = new Set<string>();
         const unwatched = async () =>

@@ -1,7 +1,7 @@
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
+import { AuditOutbox } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { AuditRecorder } from "@destack/audit";
-import { eq, type DatabaseConnection } from "@destack/db";
+import { eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import type { QueryPage } from "@destack/sync";
 import { identifier } from "@destack/schema";
@@ -52,7 +52,7 @@ async function serveTasks(dialect: (typeof TEST_DIALECTS)[number]) {
         objects: { task, team, comment, taskVersion, folder },
         database,
         context: (_context: ServiceContext) => ({
-            subjects: [principal.user.reference("global", current)],
+            subjects: [principal.user.reference("universe", current)],
             now: Date.now(),
             attributes: {},
         }),
@@ -87,7 +87,7 @@ async function serveTasks(dialect: (typeof TEST_DIALECTS)[number]) {
     current = "user-2";
     const pages = server.sync(spaceId, context);
     const next = async (): Promise<[boolean, string, unknown, unknown][]> => {
-        // skip the bare pages that only move the position, reading the next page of changes
+        // skip the bare pages that only move the position and read the next page of changes
         let page = (await pages.next()).value as QueryPage;
         while (page.changes.length === 0) {
             page = (await pages.next()).value as QueryPage;
@@ -101,7 +101,7 @@ async function serveTasks(dialect: (typeof TEST_DIALECTS)[number]) {
         ]);
     };
 
-    // read a snapshot of every object type, holding none of them yet
+    // read a snapshot of every object type while none exist yet
     const snapshot: QueryPage[] = [];
     while (!snapshot.at(-1)?.complete) {
         snapshot.push((await pages.next()).value as QueryPage);
@@ -117,7 +117,7 @@ test.each(TEST_DIALECTS)(
         const { database, execute, next, first, second } = await serveTasks(dialect);
 
         // hold the task a grant relates the caller to
-        const viewer = principal.user.reference("global", "user-2");
+        const viewer = principal.user.reference("universe", "user-2");
         const shared = await execute("user-1", "grant", {
             id: first,
             requestId: RequestId.create(),
@@ -186,7 +186,7 @@ test.each(TEST_DIALECTS)(
                 id: teamId,
                 requestId: RequestId.create(),
                 relation: "member",
-                subject: principal.user.reference("global", "user-2"),
+                subject: principal.user.reference("universe", "user-2"),
             },
             team,
         );
@@ -204,7 +204,7 @@ test.each(TEST_DIALECTS)(
             id: first,
             requestId: RequestId.create(),
             relation: "viewer",
-            subject: principal.user.reference("global", "user-2"),
+            subject: principal.user.reference("universe", "user-2"),
             expiresAt: Date.now() + GRANT_MILLISECONDS,
         });
         expect(await next()).toEqual([[false, "insert", "First", undefined]]);

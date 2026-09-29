@@ -1,19 +1,14 @@
 import {
-    AccessFollower,
     Authorizer,
     objectKey,
     principalOf,
-    GLOBAL_SCOPE,
     type AccessContext,
     type GrantReader,
-    type ObjectReference,
     Policy,
     type Access,
     type TableMapping,
-    type AccessRelay,
-    Scope,
-    type ScopeLink,
 } from "@destack/access";
+import { Scope, type ScopeLink, type ObjectReference, type ChainRelay } from "@destack/sync";
 import { LogPosition, Snapshot } from "@destack/db/log";
 import { AuditRecorder } from "@destack/audit";
 import {
@@ -24,7 +19,8 @@ import {
     type JsonValue,
     type Table,
 } from "@destack/db";
-import { Condition } from "@destack/db/query";
+import { Condition, type Scalar } from "@destack/db/query";
+import { canonicalize } from "@destack/schema/json";
 import { DatabaseError } from "@destack/db/error";
 import { schema } from "@destack/schema";
 import type { Watermark } from "@destack/service/bookmark";
@@ -57,10 +53,13 @@ import {
     type ReplicaProcedures,
 } from "../replica/replica.ts";
 import { ObjectType } from "../object/object.ts";
+import type { ObjectController } from "../object/controller.ts";
 import { Chunk, CHUNKS } from "../text/chunk.ts";
 import { camelCase } from "../object/name.ts";
 import { Authorization, SystemAuthorization } from "./authorization.ts";
-import type { KeyIndex, Reservation } from "../key/key.ts";
+import type { Directory } from "@destack/directory";
+import { DirectoryDatabase } from "@destack/directory";
+import { ClaimController, Reservation } from "../claim/index.ts";
 import type { EphemeralStorage } from "./ephemeral.ts";
 import { Duration } from "../object/duration.ts";
 import { ObjectAudience } from "./audience.ts";
@@ -132,8 +131,8 @@ export class ObjectServer<
     readonly journal: Journal;
     /** The feed serving every sync. */
     readonly feed: sync.Feed;
-    /** The key index keeping the served objects' unique indexes. */
-    readonly index?: KeyIndex;
+    /** The directory holding the claims of the served objects' unique indexes. */
+    readonly directory?: Directory;
     /** The memory store holding the served ephemeral objects. */
     readonly ephemeral?: EphemeralStorage;
     /** Derive a request's verified authorization inputs within a scope. */
@@ -165,8 +164,8 @@ export class ObjectServer<
         readonly context?: (context: ServiceContext, scope: string) => AccessContext;
         /** The record of every mutation executed. */
         readonly journal: Journal;
-        /** The key index, in another database. */
-        readonly index?: KeyIndex;
+        /** The directory holding the claims of unique indexes, in the global database. */
+        readonly directory?: Directory;
         /** The memory store holding the served ephemeral objects. */
         readonly ephemeral?: EphemeralStorage;
         /** Open an audit recorder for a scope and request. */
@@ -190,21 +189,24 @@ export class ObjectServer<
             }
         }
 
-        // require a separate key index for indexed objects
+        // require the directory, in another database, for indexed objects
         this.#routed = Object.values(options.objects);
         this.objects = ObjectType.served(this.#routed);
         const indexed = this.objects.find((object) => Object.keys(object.indexes).length > 0);
-        if (indexed !== undefined && options.index === undefined) {
+        if (indexed !== undefined && options.directory === undefined) {
             throw new TypeError(
-                `object ${indexed.name} declares indexes but no key index keeps them`,
+                `object ${indexed.name} declares indexes but no directory keeps their claims`,
             );
-        } else if (options.index?.database === options.database) {
+        } else if (
+            options.directory instanceof DirectoryDatabase &&
+            options.directory.database === options.database
+        ) {
             throw new TypeError(
-                "the key index keeps indexes across databases, apart from the objects'",
+                "the directory keeps claims across databases, apart from the objects'",
             );
         }
-        if (options.index !== undefined) {
-            this.index = options.index;
+        if (options.directory !== undefined) {
+            this.directory = options.directory;
         }
 
         // require a store for ephemeral objects
@@ -277,14 +279,14 @@ export class ObjectServer<
                 scope: string,
                 context?: ServiceContext,
             ) => AuditRecorder<DatabaseConnection>;
-            /** The key index keeping the objects' unique indexes. */
-            readonly index?: KeyIndex;
+            /** The directory holding the claims of the objects' unique indexes. */
+            readonly directory?: Directory;
             /** The memory store holding the ephemeral objects. */
             readonly ephemeral?: EphemeralStorage;
             /** Further controllers running alongside the objects'. */
             readonly controllers?: readonly (Controller | Follower)[];
-            /** The relay of the access of the objects' space and the scopes containing it, which the database copies. */
-            readonly access?: AccessRelay;
+            /** The relay of the access of the objects' space and its containing scopes. */
+            readonly access?: ChainRelay;
         },
     ): ServiceImplementation {
         // serve the service's objects
@@ -293,15 +295,21 @@ export class ObjectServer<
             database: options.database,
             audit: options.audit,
             journal: new Journal(options.journal),
-            ...(options.index === undefined ? {} : { index: options.index }),
+            ...(options.directory === undefined ? {} : { directory: options.directory }),
             ...(options.ephemeral === undefined ? {} : { ephemeral: options.ephemeral }),
         });
 
-        // copy the space's access alongside the further controllers
+        // copy the rows the space's chain hands down alongside the further controllers
         const followers =
             options.access === undefined
                 ? []
-                : [new AccessFollower(options.database, objects.authorizer.held, options.access)];
+                : [
+                      objects.authorizer.follower(
+                          options.database,
+                          objects.authorizer.held,
+                          options.access,
+                      ),
+                  ];
 
         return objects.implement(service, [...followers, ...(options.controllers ?? [])]);
     }
@@ -315,7 +323,7 @@ export class ObjectServer<
             service,
             access: this.access,
             audit: AuditRecorder.procedure(({ context }) =>
-                this.#audit(context.scope ?? GLOBAL_SCOPE, context),
+                this.#audit(context.scope ?? Scope.universe.id, context),
             ),
             controllers: [...this.controllers(), ...controllers],
             router: this.router(),
@@ -473,16 +481,21 @@ export class ObjectServer<
         if (!object.isReadAudited && method.audited !== true && !this.isAccessAudited) {
             return read();
         }
-        // record the read of one object
-        else if (method.target) {
-            const target = {
-                [object.auditTarget]: { type: object.name, id: schema.string().parse(input.id) },
-            };
-            const details = method.audit?.details;
 
-            return this.#audit(scope, context).read(
-                object.audit(name),
-                { targets: target, details: {} },
+        // audit one object, or the scope's collection
+        const recorder = this.#audit(scope, context);
+        const { action, values } = object.auditCall(name, input, scope);
+        const details = method.audit?.details;
+
+        // record external work as an attempt and its result
+        if (method.audited === true) {
+            return recorder.attempt(action, values, read);
+        }
+        // record a read as one access event, with the details its result holds
+        else {
+            return recorder.read(
+                action,
+                values,
                 read,
                 details &&
                     ((value) =>
@@ -492,14 +505,6 @@ export class ObjectServer<
                                 (value as Record<string, unknown>)[field],
                             ]),
                         )),
-            );
-        }
-        // record the read of the scope's collection
-        else {
-            return this.#audit(scope, context).read(
-                object.audit(name, "collection"),
-                collection(object, scope),
-                read,
             );
         }
     }
@@ -556,8 +561,9 @@ export class ObjectServer<
         // prepare external work
         const prepared = await this.#prepare(calls, scope, context, request);
 
-        // execute through the journal
+        // execute through the journal and keep the call running
         let authorization: Authorization | undefined;
+        let running: number | undefined;
         let reservation: Reservation | undefined;
         let isExecuted = false;
         let results: unknown[];
@@ -586,6 +592,7 @@ export class ObjectServer<
                         : undefined;
                     const executed: unknown[] = [];
                     for (const [index, call] of calls.entries()) {
+                        running = index;
                         executed.push(
                             await this.#execute(
                                 transaction,
@@ -601,35 +608,52 @@ export class ObjectServer<
                     }
 
                     // commit prepared work
+                    running = undefined;
                     await this.#commit(transaction, prepared);
 
                     // release request-bound relationships
                     await this.authorizer.release(transaction, mutation.id);
 
-                    // reserve written keys
-                    reservation = await this.index?.reserve(
-                        transaction,
-                        this.objects,
-                        mutation.id,
-                        authorization!.access.context.now,
-                    );
+                    // reserve the names the written objects claim
+                    reservation =
+                        this.directory &&
+                        (await Reservation.open(
+                            this.directory,
+                            transaction,
+                            this.objects,
+                            mutation.id,
+                            authorization!.access.context.now,
+                        ));
 
                     return executed;
                 },
             })) as unknown[];
         } catch (error) {
             // release keys and cancel prepared work
-            await this.index?.release(mutation.id).catch((failure: unknown) => {
+            await this.directory?.release(mutation.id).catch((failure: unknown) => {
                 throw new AggregateError([error, failure], "mutation and its key release failed");
             });
             await this.#settle(prepared, false);
+
+            // record the failed call, leaving denials to the procedure layer
+            const failed = running === undefined ? undefined : calls[running];
+            const result = AuditRecorder.result(error);
+            if (failed !== undefined && result.outcome !== "denied") {
+                const { action, values } = failed.object.auditCall(
+                    failed.name,
+                    failed.input,
+                    scope,
+                );
+                await this.#audit(scope, context).record(undefined, action, {
+                    ...values,
+                    ...result,
+                });
+            }
             throw error;
         }
 
         // confirm keys and settle prepared work
-        if (reservation !== undefined) {
-            await this.index!.confirm(reservation);
-        }
+        await reservation?.confirm();
         await this.#settle(prepared, isExecuted);
 
         // report the watermark
@@ -706,11 +730,12 @@ export class ObjectServer<
                   };
 
         // follow the queries beside the journal
-        const compiled = { ...ObjectType.queries(this.#durable, queries, scope), ...journal };
+        const { chain } = audience;
+        const compiled = { ...ObjectType.queries(this.#durable, queries, chain), ...journal };
         const earlier =
             previous === undefined
                 ? undefined
-                : { ...ObjectType.queries(this.#durable, previous, scope), ...journal };
+                : { ...ObjectType.queries(this.#durable, previous, chain), ...journal };
         const table = this.journal.table[TABLE].sqlName;
         const follow = async function* (feed: sync.Feed): AsyncGenerator<sync.QueryPage> {
             for await (const page of feed.subscribe(compiled, after, context.request.signal, {
@@ -719,7 +744,7 @@ export class ObjectServer<
                 ...(earlier === undefined ? {} : { previous: earlier }),
                 ...(refresh === undefined ? {} : { every: Duration.milliseconds(refresh.every) }),
             })) {
-                yield withOutcomes(page, table);
+                yield withOutcomes(page, table, audience.chain);
             }
         };
 
@@ -729,12 +754,11 @@ export class ObjectServer<
             (object) => (object.isReadAudited || this.isAccessAudited) && tables.has(object.table),
         );
         const pages = audited.reduce(
-            (source, object) => () =>
-                this.#audit(scope, context).stream(
-                    object.audit("watch", "collection"),
-                    collection(object, scope),
-                    source,
-                ),
+            (source, object) => () => {
+                const { action, values } = object.auditCall("watch", {}, scope);
+
+                return this.#audit(scope, context).stream(action, values, source);
+            },
             () => follow(this.feed),
         );
         try {
@@ -756,9 +780,11 @@ export class ObjectServer<
         const store = this.#store();
         await this.#enter(context, scope);
         const release = store.hold(this.#clientKey(context, client));
-        const compiled = ObjectType.queries(store.objects, queries, scope);
+        const compiled = ObjectType.queries(store.objects, queries, [scope]);
         let earlier =
-            previous === undefined ? undefined : ObjectType.queries(store.objects, previous, scope);
+            previous === undefined
+                ? undefined
+                : ObjectType.queries(store.objects, previous, [scope]);
         try {
             let position = after;
             while (!context.signal.aborted) {
@@ -835,7 +861,7 @@ export class ObjectServer<
         store.tracker.broadcast(scope, { ...reference, event });
     }
 
-    /** Find the served copy of an object type, which carries the server's handlers. */
+    /** Find the served copy of an object type with the server's handlers. */
     served<Type extends ObjectType>(object: Type): Type {
         const found = this.objects.find((served) => served.same(object));
         if (found === undefined) {
@@ -854,7 +880,7 @@ export class ObjectServer<
         input: Readonly<Record<string, unknown>>,
         now: number,
     ): Promise<unknown> {
-        // refuse external work, which an open transaction cannot settle
+        // refuse external work inside an open transaction
         const method = (this.served(object).methods as Readonly<Record<string, Method>>)[name];
         if (method?.isSystem !== true || method.prepare !== undefined) {
             throw new TypeError(`${object.name}.${name} is no system method without external work`);
@@ -914,6 +940,7 @@ export class ObjectServer<
                 name,
                 method,
                 scope: entry.scope,
+                chain: authorization.chain,
                 input: entry.input ?? {},
                 ...(id === undefined ? {} : { id }),
                 ...(target === undefined ? {} : { target: target as never }),
@@ -990,7 +1017,16 @@ export class ObjectServer<
                 // commit the external work and reserve unique keys
                 await this.#commit(transaction, prepared);
 
-                return this.index?.reserve(transaction, this.objects, crypto.randomUUID(), now);
+                return (
+                    this.directory &&
+                    Reservation.open(
+                        this.directory,
+                        transaction,
+                        this.objects,
+                        crypto.randomUUID(),
+                        now,
+                    )
+                );
             });
         } catch (error) {
             await this.#settle(prepared, false);
@@ -998,9 +1034,7 @@ export class ObjectServer<
         }
 
         // confirm keys and settle prepared work
-        if (reservation !== undefined) {
-            await this.index!.confirm(reservation);
-        }
+        await reservation?.confirm();
         await this.#settle(prepared, true);
 
         return results;
@@ -1019,14 +1053,75 @@ export class ObjectServer<
 
         return [
             new CompactionController(this.database),
-            ...(this.index === undefined ? [] : [this.index.controller(this)]),
+            ...(this.directory === undefined
+                ? []
+                : [new ClaimController(this.directory, this.database, this.objects)]),
             ...(isRecoverable ? [recoverable.controller(this)] : []),
             ...(isExpiring ? [expiring.controller(this)] : []),
             ...(this.objects.some((object) => object.addressed !== undefined)
                 ? [addressed.controller(this)]
                 : []),
             ...(isSettled ? [Settlement.controller(this)] : []),
+            ...this.objects.flatMap((object) =>
+                object.controller === undefined ? [] : [this.#control(object, object.controller)],
+            ),
         ];
+    }
+
+    /** Build the controller a type declares, reconciling its pending objects by key. */
+    #control(object: ObjectType, declared: ObjectController): Controller {
+        // key each pending object by its declared fields
+        const table = object.table as Table;
+        const match = Condition.compile(declared.pending, table);
+        const keyOf = (row: Readonly<Record<string, unknown>>) =>
+            canonicalize(declared.key?.(row) ?? { id: row.id });
+        const pending = (key: string) => {
+            const fields = Object.entries(JSON.parse(key) as Readonly<Record<string, Scalar>>);
+
+            return Condition.all(
+                declared.pending,
+                ...fields.map(([name, value]) => Condition.eq(name, value)),
+            );
+        };
+
+        return {
+            name: object.name,
+            watches: [table],
+            ...(declared.concurrency === undefined ? {} : { concurrency: declared.concurrency }),
+            keys: (change) => {
+                // reconcile a changed object left pending
+                const row = change.after as Readonly<Record<string, unknown>> | undefined;
+
+                return row !== undefined && Condition.matches(match, row) ? [keyOf(row)] : [];
+            },
+            list: async () => {
+                // list the keys of every pending object
+                const rows = await Snapshot.live(this.database).rows(table, declared.pending);
+
+                return [...new Set(rows.map(keyOf))];
+            },
+            reconcile: async (key) => {
+                // reconcile the key's pending objects, if any are left
+                const rows = await Snapshot.live(this.database).rows(table, pending(key));
+                if (rows.length === 0) {
+                    return undefined;
+                }
+                const now = Date.now();
+
+                return declared.reconcile({
+                    rows,
+                    now,
+                    database: this.database,
+                    execute: (method, targets) =>
+                        this.executeAsSystem(
+                            object,
+                            method,
+                            targets.map((row) => SystemCall.of(row)),
+                            now,
+                        ),
+                });
+            },
+        };
     }
 
     /** Share one grant reader per scope and page position. */
@@ -1363,9 +1458,9 @@ export class ObjectServer<
 
     /** Read the scope a call names in its route field. */
     #scope(object: ObjectType, input: Record<string, unknown>): string {
-        // read the field, or the global scope
+        // read the field, or the universe
         const { field } = object.route;
-        const named = field === undefined ? GLOBAL_SCOPE : input[field];
+        const named = field === undefined ? Scope.universe.id : input[field];
         if (typeof named !== "string") {
             throw new ServiceError("BAD_REQUEST", { message: `call names no ${field}` });
         }
@@ -1394,6 +1489,7 @@ export class ObjectServer<
             name,
             method,
             scope,
+            chain: authorization.chain,
             input: fields,
             ...(targetId === undefined ? {} : { id: targetId }),
             database,
@@ -1579,7 +1675,7 @@ export class ObjectServer<
         from?: LogPosition,
         client?: string,
     ): Promise<unknown> {
-        // build the call on the served type, whose handlers run
+        // build the call on the served type to run its handlers
         const { call, method, scope, targetId } = await this.#call(
             transaction,
             authorization,
@@ -1718,11 +1814,6 @@ function serviceFailure(error: unknown): unknown {
         : error;
 }
 
-/** Name a type's objects in a scope as an audit collection target. */
-function collection(object: ObjectType, scope: string) {
-    return { targets: { collection: { type: object.plural, id: scope } }, details: {} };
-}
-
 /** List the tables a query reads. */
 function tablesOf(query: sync.Query | sync.Include | sync.Relation): Table[] {
     return [
@@ -1761,12 +1852,17 @@ function callerOf(authorization: Authorization): Pick<Call, "caller"> {
     return caller === undefined ? {} : { caller };
 }
 
-/** Replace a page's journal rows with mutation outcomes. */
-function withOutcomes(page: sync.QueryPage, journal: string): sync.QueryPage {
-    // move journal changes to outcomes
+/** Replace a page's journal rows with mutation outcomes, and add the scopes the subscription reads. */
+function withOutcomes(
+    page: sync.QueryPage,
+    journal: string,
+    chain: readonly string[],
+): sync.QueryPage {
+    // move journal changes to outcomes, and add the scopes the subscription reads
     const outcomes = page.changes.filter((change) => change.table === journal).flatMap(settled);
     const settledPage: sync.QueryPage = {
         ...page,
+        scopes: [...chain],
         changes: page.changes.filter((change) => change.table !== journal),
         ...(outcomes.length === 0 ? {} : { outcomes: [...(page.outcomes ?? []), ...outcomes] }),
     };

@@ -55,7 +55,7 @@ test("refuse a transition name two state fields declare and a transition naming 
         }),
     ).toThrow(new TypeError("transition approve is declared by more than one state field"));
 
-    // refuse a transition whose permission the object does not declare
+    // refuse a transition with an undeclared permission
     expect(() =>
         defineObject({
             name: "orphan",

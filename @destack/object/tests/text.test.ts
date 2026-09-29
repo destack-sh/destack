@@ -1,4 +1,4 @@
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
+import { AuditOutbox } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation, union } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
@@ -70,7 +70,7 @@ const journal = defineJournal("journal");
 /** The database of one space's documents. */
 const documentsDatabase = defineDatabase({
     name: "main",
-    tables: [...auditOutboxTables, ...document.tables, journal],
+    tables: [...document.tables, journal],
 });
 
 /** Serve a space's documents to bearer-named users. */
@@ -99,7 +99,7 @@ async function serveDocuments(dialect: Dialect) {
         authorizeHost: async () => {},
         authenticate: async (request) => {
             const id = request.headers.get("authorization")!.slice("Bearer ".length);
-            const subject = principal.user.reference("global", id);
+            const subject = principal.user.reference("universe", id);
             const now = Date.now();
 
             return new Caller({
@@ -137,7 +137,7 @@ async function openClient(name: string, service: Service) {
         database: storage.database,
         objects: [document],
         scope: spaceId,
-        caller: principal.user.reference("global", name),
+        caller: principal.user.reference("universe", name),
         service: service.replica,
         reconnect: unmoved,
     });
@@ -320,14 +320,15 @@ test.for(TEST_DIALECTS)(
         expect((await alice.document.get({ spaceId, id: created.id })).body).toBe(text);
 
         // refuse text in a plain update, and an edit naming a missing element
-        await expect(
-            alice.document.update({
+        const plain = await alice.document
+            .update({
                 spaceId,
                 id: created.id,
                 requestId: RequestId.create(),
                 body: "replaced",
-            } as never),
-        ).rejects.toMatchObject({ code: "BAD_REQUEST", message: "Input validation failed" });
+            } as never)
+            .catch((error: { code: string; message: string }) => [error.code, error.message]);
+        expect(plain).toEqual(["BAD_REQUEST", 'invalid input: unrecognized key: "body"']);
         await expect(
             alice.document.edit({
                 spaceId,
@@ -373,7 +374,7 @@ test.for(TEST_DIALECTS)(
             id: created.id,
             requestId: RequestId.create(),
             relation: "editor",
-            subject: principal.user.reference("global", "bob"),
+            subject: principal.user.reference("universe", "bob"),
         });
         expect(await listed()).toEqual([text]);
     },
@@ -396,12 +397,12 @@ test.for(TEST_DIALECTS)(
         await alice.client.mutate(document).grant({
             id,
             relation: "editor",
-            subject: principal.user.reference("global", "bob"),
+            subject: principal.user.reference("universe", "bob"),
         }).confirmed;
         const body = async (live: typeof alice.live) => (await live.read()).map((row) => row.body);
         await expect.poll(() => body(bob.live)).toEqual(["hello world"]);
 
-        // predict one edit on each client at once, each seen locally first
+        // predict one edit on each client at once and see each locally first
         const copy = base.reduce((sequence, each) => sequence.apply(each), new Sequence());
         const shout = copy.change({ from: 0, to: 5, insert: "HELLO" }, "alice.2");
         const exclaim = copy.change({ from: 11, to: 11, insert: "!" }, "bob.1");
@@ -418,7 +419,7 @@ test.for(TEST_DIALECTS)(
         await expect.poll(() => body(alice.live)).toEqual(["HELLO world!"]);
         await expect.poll(() => body(bob.live)).toEqual(["HELLO world!"]);
 
-        // undo alice's edit exactly, keeping bob's
+        // undo alice's edit exactly and keep bob's
         await alice.client.undo().confirmed;
         await expect.poll(() => body(bob.live)).toEqual(["hello world!"]);
         expect(await body(alice.live)).toEqual(["hello world!"]);
@@ -445,12 +446,12 @@ test.for(TEST_DIALECTS)(
         await alice.client.mutate(document).grant({
             id,
             relation: "editor",
-            subject: principal.user.reference("global", "bob"),
+            subject: principal.user.reference("universe", "bob"),
         }).confirmed;
         const text = alice.client.text(document, id, "body");
         await text.ready;
 
-        // type twice without waiting, each change against the text the one before left
+        // type twice without waiting against the text of the previous change
         const typed = text.change({ from: 0, to: 0, insert: "Hello" });
         const extended = text.change({ from: 5, to: 5, insert: " world" });
         const edits = await Promise.all([typed, extended]);

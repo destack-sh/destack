@@ -39,7 +39,7 @@ test.each(TEST_DIALECTS)(
                     relation: "viewer",
                     subjectPackageId: principal.user.definition.packageId,
                     subjectType: principal.user.name,
-                    subjectScope: "global",
+                    subjectScope: "universe",
                     subjectId: "bob",
                 }),
             ),

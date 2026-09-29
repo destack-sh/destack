@@ -2,8 +2,8 @@ import { schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { intersection, principal, relation, through, union } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
-import { asc, eq, unique, type DatabaseConnection, type Dialect } from "@destack/db";
+import { AuditOutbox } from "@destack/audit/outbox";
+import { asc, eq, unique, type Dialect } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier } from "@destack/schema";
@@ -116,7 +116,7 @@ const favourite = defineObject({
     },
 });
 
-/** Boards their owner shares with viewers, each of whom may mark them as a favourite. */
+/** Boards shared with viewers who may mark them as a favourite. */
 const board = defineObject({
     name: "board",
     plural: "boards",
@@ -224,7 +224,7 @@ test.for(TEST_DIALECTS)(
         const shared = await call(board, "grant", {
             id: plans.id,
             relation: "viewer",
-            subject: principal.user.reference("global", "bob"),
+            subject: principal.user.reference("universe", "bob"),
         });
         const mine = await call(favourite, "create", host(board, plans.id));
         await expect(call(favourite, "create", host(board, plans.id))).rejects.toMatchObject({
@@ -325,11 +325,7 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
         dialect,
         defineDatabase({
             name: "main",
-            tables: [
-                ...auditOutboxTables,
-                request,
-                ...Object.values(objects).flatMap((object) => object.tables),
-            ],
+            tables: [request, ...Object.values(objects).flatMap((object) => object.tables)],
         }),
         { isMigrated: true },
     );
@@ -342,7 +338,7 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
         objects,
         database: storage.database,
         context: () => ({
-            subjects: [principal.user.reference("global", current)],
+            subjects: [principal.user.reference("universe", current)],
             now: Date.now(),
             attributes: {},
         }),

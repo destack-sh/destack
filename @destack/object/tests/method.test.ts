@@ -1,9 +1,9 @@
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
+import { AuditOutbox } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { ServiceError } from "@destack/service/error";
 import type { Subject } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
-import { type DatabaseConnection, type Dialect, eq } from "@destack/db";
+import { type Dialect, eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier, schema } from "@destack/schema";
 import { Journal } from "@destack/service/database";
@@ -160,7 +160,7 @@ test.each(TEST_DIALECTS)(
         });
         expect(await execute("create", creation)).toEqual(created);
 
-        // take a chosen identifier, refusing a taken one
+        // take a chosen identifier and refuse a taken one
         const chosen = identifier("task").parse(`task-${v7()}`);
         const drafted = { requestId: RequestId.create(), id: chosen, title: "Draft" };
         expect(((await execute("create", drafted)) as { id: string }).id).toBe(chosen);
@@ -179,7 +179,12 @@ test.each(TEST_DIALECTS)(
         ).toEqual(["Write the plan"]);
 
         // audit each creation once
-        expect(await events()).toEqual(["Task.create", "Task.create", "Task.create"]);
+        expect(await events()).toEqual([
+            "Task.create",
+            "Task.create",
+            "Task.create CONFLICT",
+            "Task.create",
+        ]);
     },
 );
 
@@ -240,7 +245,7 @@ test.each(TEST_DIALECTS)(
         ]);
 
         // audit each change once
-        expect(await events()).toEqual(["Task.create", "Task.update"]);
+        expect(await events()).toEqual(["Task.create", "Task.update", "Task.update CONFLICT"]);
     },
 );
 
@@ -254,7 +259,7 @@ test.each(TEST_DIALECTS)(
         })) as typeof task.table.$inferSelect;
 
         // share the task with another user as a viewer, list it, and revoke it again
-        const viewer = principal.user.reference("global", "user-2");
+        const viewer = principal.user.reference("universe", "user-2");
         const shared = (await execute("grant", {
             id: created.id,
             requestId: RequestId.create(),
@@ -384,9 +389,9 @@ test.each(TEST_DIALECTS)(
         await expect(execute("get", { id: created.id })).rejects.toMatchObject({
             code: "INSUFFICIENT_GRANT",
             message: "propose the missing delegation to the principal the delegate acts for",
-            data: { delegate: agent, onBehalfOf: principal.user.reference("global", "user-1") },
+            data: { delegate: agent, onBehalfOf: principal.user.reference("universe", "user-1") },
         });
-        const owner = principal.user.reference("global", "user-1");
+        const owner = principal.user.reference("universe", "user-1");
         const lending = (await execute("propose", {
             id: created.id,
             requestId: RequestId.create(),
@@ -460,7 +465,7 @@ test.each(TEST_DIALECTS)(
             title: "Ship the plan",
             estimate: 3,
         });
-        const viewer = principal.user.reference("global", "user-4");
+        const viewer = principal.user.reference("universe", "user-4");
         await execute("grant", {
             id: created.id,
             requestId: RequestId.create(),
@@ -503,7 +508,7 @@ test.each(TEST_DIALECTS)(
         ).rejects.toMatchObject({ code: "FORBIDDEN", message: "field estimate is not writable" });
         act("user-1");
 
-        // complete the task once, refusing a second completion and a guarded one
+        // complete the task once and refuse a second and a guarded completion
         const completed = (await execute("complete", {
             id: created.id,
             requestId: RequestId.create(),
@@ -525,6 +530,7 @@ test.each(TEST_DIALECTS)(
             "Task.grant",
             "Task.update",
             "Task.complete",
+            "Task.complete CONFLICT",
             "Task.reopen",
         ]);
     },
@@ -625,6 +631,7 @@ test.each(TEST_DIALECTS)(
         expect(await events()).toEqual([
             "Task.create",
             "Task.archive",
+            "Task.delete MANAGED",
             "Task.delete",
             "Task.restore",
             "Task.delete",
@@ -681,7 +688,7 @@ test("prepare external work after the access check, settle it after commit, comp
         objects: { task: handled, comment, taskVersion, folder },
         database: storage.database,
         context: () => ({
-            subjects: [principal.user.reference("global", current)],
+            subjects: [principal.user.reference("universe", current)],
             now: Date.now(),
             attributes: {},
         }),
@@ -711,7 +718,7 @@ test("prepare external work after the access check, settle it after commit, comp
     ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no task ${created.id}` });
     expect(external).toEqual([]);
 
-    // release the prepared work when the transaction fails, leaving the task unchanged
+    // release the prepared work and leave the task unchanged when the transaction fails
     current = "user-1";
     isFailing = true;
     await expect(
@@ -825,7 +832,7 @@ test("authorize a creation before its external work, and settle committed work t
         objects: { task, comment, taskVersion: versions, folder },
         database: storage.database,
         context: () => ({
-            subjects: [principal.user.reference("global", current)],
+            subjects: [principal.user.reference("universe", current)],
             now: Date.now(),
             attributes: {},
         }),
@@ -857,7 +864,7 @@ test("authorize a creation before its external work, and settle committed work t
     ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no task ${created.id}` });
     expect(external).toEqual([]);
 
-    // commit despite a failed confirmation, keeping the settlement
+    // commit and keep the settlement despite a failed confirmation
     current = "user-1";
     const drafted = (await server.call(
         versions,
@@ -912,7 +919,7 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
         objects: { task, comment, taskVersion: versions, folder },
         database: storage.database,
         context: () => ({
-            subjects: [principal.user.reference("global", "user-1")],
+            subjects: [principal.user.reference("universe", "user-1")],
             now: Date.now(),
             attributes: {},
         }),
@@ -961,7 +968,7 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
 });
 
 test("predict custom methods only where their handler is, and never a scope's suspension", () => {
-    // predict only methods whose handler the client holds
+    // predict only methods with a handler on the client
     const unhandled = method({ permission: "archive" });
     const handled = unhandled.handle(async (call) => call.target);
     expect([
@@ -977,7 +984,7 @@ test("add suspending and detaching through their traits, and refuse them where t
     const room = defineObject({
         name: "room",
         plural: "rooms",
-        scope: "global",
+        scope: "universe",
         isScope: true,
         fields: {},
         permissions: ["read", "update"],
@@ -1035,7 +1042,7 @@ async function serveTasks(dialect: Dialect) {
     let level = 1;
     let agent: Subject | undefined;
     const as = (id: string) => ({
-        subjects: [principal.user.reference("global", id)],
+        subjects: [principal.user.reference("universe", id)],
         now: Date.now(),
         attributes: {},
         assurance: { level, authenticatedAt: Date.now() },
@@ -1135,7 +1142,7 @@ test("carry a key the method derives from its work, the same for every retry of 
         objects: { task, comment, taskVersion: versions, folder },
         database: storage.database,
         context: () => ({
-            subjects: [principal.user.reference("global", "user-1")],
+            subjects: [principal.user.reference("universe", "user-1")],
             now: Date.now(),
             attributes: {},
         }),

@@ -1,8 +1,8 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
-import { AuditOutbox, auditOutboxTables } from "@destack/audit/outbox";
-import { eq, type DatabaseConnection } from "@destack/db";
+import { AuditOutbox } from "@destack/audit/outbox";
+import { eq } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { Condition } from "@destack/db/query";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -46,7 +46,7 @@ const journal = defineJournal("journal");
 /** The database holding the alerts, their access and the journal. */
 const alertDatabase = defineDatabase({
     name: "main",
-    tables: [...auditOutboxTables, journal, ...alert.tables],
+    tables: [journal, ...alert.tables],
 });
 
 test.each(TEST_DIALECTS)(
@@ -60,7 +60,7 @@ test.each(TEST_DIALECTS)(
             objects: { alert },
             database,
             context: () => ({
-                subjects: [principal.user.reference("global", "user-1")],
+                subjects: [principal.user.reference("universe", "user-1")],
                 now: Date.now(),
                 attributes: {},
             }),

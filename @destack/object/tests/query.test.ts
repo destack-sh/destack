@@ -32,7 +32,7 @@ test.for(TEST_DIALECTS)(
                 book.size,
             ]);
 
-        // predict a notebook with three notes offline, reading them at once
+        // predict a notebook with three notes offline and read them at once
         const created = device.client.mutation(async (mutation) => {
             const book = await mutation.call(notebook).create({ name: "Travel" });
             for (const title of ["Tickets", "Packing", "Maps"]) {
@@ -92,7 +92,7 @@ test.for(TEST_DIALECTS)(
                 book.size,
             ]);
 
-        // read nothing, then each notebook as it is predicted
+        // read nothing, then each notebook after its prediction
         expect(await shelf()).toEqual([]);
         const work = await device.client.mutate(notebook).create({ name: "Work" }).predicted;
         expect(await shelf()).toEqual([["Work", [], { notes: 0 }]]);
@@ -466,7 +466,7 @@ test.for(TEST_DIALECTS)(
         const device = await Device.open("alice", alice, []);
         device.online();
 
-        // close the query, keeping it followed for a minute
+        // close the query and keep it followed for a minute
         const kept = device.client.subscribe(notebook, {}, { keep: { minutes: 1 } });
         await kept.ready;
         await kept.close();
@@ -556,7 +556,7 @@ test.for(TEST_DIALECTS)(
 );
 
 test("compile includes of a handled tree and its parent like the declared types", () => {
-    // serve copies with handlers, whose parents and trees still name the declared types
+    // serve copies with handlers and parents and trees of the declared types
     const handledPage = page.handle({});
     const handledNotebook = notebook.handle({});
     const queries = ObjectType.queries(
@@ -565,7 +565,7 @@ test("compile includes of a handled tree and its parent like the declared types"
             tree: { object: "page", include: { descendants: {} } },
             filed: { object: "notebook", include: { notes: {} } },
         },
-        spaceId,
+        [spaceId],
     );
 
     // join the tree's descendants and the notebook's notes

@@ -5,8 +5,7 @@ import { Watermark } from "@destack/service/bookmark";
 import { Outcome } from "@destack/service/database";
 import { defineProcedure } from "@destack/service/procedure";
 import { Condition, Expression, Order, Scalar, type Computed } from "@destack/db/query";
-import { Aggregate, Call, Mutation, QueryPage } from "@destack/sync";
-import { ObjectReference } from "@destack/access";
+import { Aggregate, Call, Mutation, QueryPage, ObjectReference } from "@destack/sync";
 import { Duration } from "../object/duration.ts";
 
 /** Rows an include adds, or their aggregates. */
