@@ -11,6 +11,7 @@
         ".": "./src/index.ts",
         "./package": "./src/package.ts",
         "./manifest": "./src/manifest/index.ts",
+        "./archive": "./src/archive/index.ts",
         "./code": "./src/code/index.ts",
         "./source": "./src/source/index.ts",
         "./inspect": "./src/inspect/index.ts",
