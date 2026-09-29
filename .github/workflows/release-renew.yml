@@ -39,24 +39,24 @@ jobs:
             - name: Install dependencies
               run: bun install --frozen-lockfile
             - name: Prepare signing keys
-              run: bun run platform/release/src/key/credential.ts ${{ inputs.targets == true && 'release' || 'renew' }}
+              run: bun run @platform/release/src/key/credential.ts ${{ inputs.targets == true && 'release' || 'renew' }}
               env:
                   DESTACK_TARGETS_KEY: ${{ inputs.targets == true && secrets.DESTACK_TARGETS_KEY || '' }}
                   DESTACK_SNAPSHOT_KEY: ${{ secrets.DESTACK_SNAPSHOT_KEY }}
                   DESTACK_TIMESTAMP_KEY: ${{ secrets.DESTACK_TIMESTAMP_KEY }}
             - name: Renew metadata
-              run: bun run platform/release/src/repository/renew.ts ${{ inputs.targets == true && 'targets' || 'freshness' }}
+              run: bun run @platform/release/src/repository/renew.ts ${{ inputs.targets == true && 'targets' || 'freshness' }}
             - name: Publish signed freshness
               if: inputs.targets != true
-              run: bun run platform/release/src/repository/submit.ts dist/refresh
+              run: bun run @platform/release/src/repository/submit.ts dist/refresh
             - name: Publish targets authorization
               if: inputs.targets == true
-              run: bun run platform/release/src/repository/upload.ts dist/refresh
+              run: bun run @platform/release/src/repository/upload.ts dist/refresh
               env:
                   CLOUDFLARE_RELEASE_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_RELEASE_ACCESS_KEY_ID }}
                   CLOUDFLARE_RELEASE_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_RELEASE_SECRET_ACCESS_KEY }}
             - name: Verify published metadata
-              run: bun run platform/release/src/repository/verify.ts dist/refresh
+              run: bun run @platform/release/src/repository/verify.ts dist/refresh
             - name: Remove signing keys
               if: always()
-              run: bun run platform/release/src/key/credential.ts remove
+              run: bun run @platform/release/src/key/credential.ts remove

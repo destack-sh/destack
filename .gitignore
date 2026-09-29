@@ -129,14 +129,14 @@ destack-infra/.*
 *.tfstate
 *.tfstate.*
 *.tfvars
-platform/site/app.config.timestamp_*.js
-platform/site/app.config.timestamp_*.mjs
-platform/site/public/brand/
-platform/site/public/blog/
-platform/site/public/docs/
-platform/site/public/_content/
-platform/site/public/search.json
-platform/site/.generated/
+@platform/site/app.config.timestamp_*.js
+@platform/site/app.config.timestamp_*.mjs
+@platform/site/public/brand/
+@platform/site/public/blog/
+@platform/site/public/docs/
+@platform/site/public/_content/
+@platform/site/public/search.json
+@platform/site/.generated/
 @destack/daemon/.generated/
 .DS_Store
 

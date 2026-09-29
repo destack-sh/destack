@@ -57,13 +57,13 @@ jobs:
               with:
                   tofu_version: 1.12.6
             - name: Build bundled view
-              run: bun run platform/release/src/distribution/frontend.ts
+              run: bun run @platform/release/src/distribution/frontend.ts
             - name: Check workspace
               run: just check
             - name: Lint source
-              run: bun run destack-check check @destack/*/src platform/*/src
+              run: bun run destack-check check @destack/*/src @platform/*/src
             - name: Check source formatting
-              run: bun run destack-check format-check @destack/*/src platform/*/src
+              run: bun run destack-check format-check @destack/*/src @platform/*/src
 
     test:
         name: Test workspace
@@ -83,8 +83,8 @@ jobs:
                   sudo apt-get install --yes bubblewrap socat ripgrep
                   sudo sysctl --write kernel.apparmor_restrict_unprivileged_userns=0
             - name: Build bundled view
-              run: bun run platform/release/src/distribution/frontend.ts
+              run: bun run @platform/release/src/distribution/frontend.ts
             - name: Test workspace
               run: just test
             - name: Test releases
-              run: bun --bun run --cwd platform/release test
+              run: bun --bun run --cwd @platform/release test

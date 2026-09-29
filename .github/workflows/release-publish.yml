@@ -44,7 +44,7 @@ jobs:
               run: bun install --frozen-lockfile
             - name: Select release version and channel
               id: release
-              run: bun run platform/release/src/distribution/prepare.ts
+              run: bun run @platform/release/src/distribution/prepare.ts
               env:
                   DESTACK_PUBLISH: ${{ inputs.publish }}
 
@@ -103,20 +103,20 @@ jobs:
                   persist-credentials: false
             - name: Build the Intel macOS Turso addon
               if: matrix.target == 'x86_64-apple-darwin'
-              run: bun run platform/release/src/distribution/turso.ts dist/turso
+              run: bun run @platform/release/src/distribution/turso.ts dist/turso
             - name: Build distribution
-              run: bun run platform/release/src/distribution/build.ts ${{ matrix.target }}
+              run: bun run @platform/release/src/distribution/build.ts ${{ matrix.target }}
             - name: Build Windows Setup
               if: runner.os == 'Windows'
               run: |
-                  bun run platform/release/src/installer/build.ts windows-prepare
-                  bun run platform/release/src/installer/build.ts windows
+                  bun run @platform/release/src/installer/build.ts windows-prepare
+                  bun run @platform/release/src/installer/build.ts windows
             - name: Verify distribution
-              run: bun run platform/release/src/distribution/verify.ts ${{ matrix.target }}
+              run: bun run @platform/release/src/distribution/verify.ts ${{ matrix.target }}
             - name: Pack distribution
-              run: bun run platform/release/src/distribution/pack.ts ${{ matrix.target }}
+              run: bun run @platform/release/src/distribution/pack.ts ${{ matrix.target }}
             - name: Verify archive staging and activation with disposable signing keys
-              run: bun run platform/release/src/distribution/rehearse.ts "$DESTACK_RELEASE_VERSION" "dist/$DESTACK_RELEASE_VERSION/destack-$DESTACK_RELEASE_VERSION-${{ matrix.target }}.tar.gz"
+              run: bun run @platform/release/src/distribution/rehearse.ts "$DESTACK_RELEASE_VERSION" "dist/$DESTACK_RELEASE_VERSION/destack-$DESTACK_RELEASE_VERSION-${{ matrix.target }}.tar.gz"
               shell: bash
             - name: Upload unsigned distributions
               uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -167,7 +167,7 @@ jobs:
                   name: unsigned-${{ matrix.target }}
                   path: dist/${{ needs.prepare.outputs.version }}
             - name: Unpack distribution
-              run: bun run platform/release/src/signing/sign.ts unpack ${{ matrix.target }}
+              run: bun run @platform/release/src/signing/sign.ts unpack ${{ matrix.target }}
             - name: Prepare Windows uninstaller for signing
               if: runner.os == 'Windows'
               shell: pwsh
@@ -175,7 +175,7 @@ jobs:
                   choco install nsis --version=3.12 -y --no-progress
                   $env:PATH = "${env:ProgramFiles(x86)}\NSIS;$env:PATH"
                   "${env:ProgramFiles(x86)}\NSIS" >> $env:GITHUB_PATH
-                  bun run platform/release/src/installer/build.ts windows-prepare
+                  bun run @platform/release/src/installer/build.ts windows-prepare
             - name: Prepare Apple signing credentials
               uses: ./.github/actions/setup-apple
               if: runner.os == 'macOS'
@@ -188,7 +188,7 @@ jobs:
                   issuer: ${{ vars.APPLE_NOTARY_ISSUER }}
             - name: Sign and notarize macOS distribution
               if: runner.os == 'macOS'
-              run: bun run platform/release/src/signing/sign.ts sign ${{ matrix.target }}
+              run: bun run @platform/release/src/signing/sign.ts sign ${{ matrix.target }}
             - name: Authenticate with Azure
               uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6
               if: runner.os == 'Windows'
@@ -223,12 +223,12 @@ jobs:
                     if ($signature.Status -ne 'Valid') { throw "invalid signature: $($file.FullName)" }
                   }
             - name: Verify distribution
-              run: bun run platform/release/src/distribution/verify.ts ${{ matrix.target }}
+              run: bun run @platform/release/src/distribution/verify.ts ${{ matrix.target }}
             - name: Pack distribution
-              run: bun run platform/release/src/distribution/pack.ts ${{ matrix.target }}
+              run: bun run @platform/release/src/distribution/pack.ts ${{ matrix.target }}
             - name: Embed the signed Windows uninstaller and application
               if: runner.os == 'Windows'
-              run: bun run platform/release/src/installer/build.ts windows
+              run: bun run @platform/release/src/installer/build.ts windows
             - name: Sign Windows installer
               uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82
               if: runner.os == 'Windows'
@@ -259,7 +259,7 @@ jobs:
                   if-no-files-found: error
             - name: Remove Apple signing credentials
               if: always() && runner.os == 'macOS'
-              run: bun run platform/release/src/signing/credential.ts remove
+              run: bun run @platform/release/src/signing/credential.ts remove
 
     installer:
         name: Build macOS installer
@@ -298,7 +298,7 @@ jobs:
                   key-id: ${{ vars.APPLE_NOTARY_KEY_ID }}
                   issuer: ${{ vars.APPLE_NOTARY_ISSUER }}
             - name: Build universal macOS installer
-              run: bun run platform/release/src/installer/build.ts
+              run: bun run @platform/release/src/installer/build.ts
             - name: Upload macOS installer
               uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
               with:
@@ -308,7 +308,7 @@ jobs:
                   if-no-files-found: error
             - name: Remove Apple signing credentials
               if: always() && needs.prepare.outputs.publish == 'true'
-              run: bun run platform/release/src/signing/credential.ts remove
+              run: bun run @platform/release/src/signing/credential.ts remove
 
     publish:
         name: Publish release
@@ -350,22 +350,22 @@ jobs:
                   name: macos-installer
                   path: dist/${{ needs.prepare.outputs.version }}
             - name: Prepare update signing keys
-              run: bun run platform/release/src/key/credential.ts release
+              run: bun run @platform/release/src/key/credential.ts release
               env:
                   DESTACK_TARGETS_KEY: ${{ secrets.DESTACK_TARGETS_KEY }}
                   DESTACK_SNAPSHOT_KEY: ${{ secrets.DESTACK_SNAPSHOT_KEY }}
                   DESTACK_TIMESTAMP_KEY: ${{ secrets.DESTACK_TIMESTAMP_KEY }}
             - name: Sign and publish updates
               run: |
-                  bun run platform/release/src/repository/sign.ts aarch64-apple-darwin x86_64-apple-darwin x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-pc-windows-msvc
-                  bun run platform/release/src/repository/upload.ts
-                  bun run platform/release/src/repository/verify.ts
+                  bun run @platform/release/src/repository/sign.ts aarch64-apple-darwin x86_64-apple-darwin x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-pc-windows-msvc
+                  bun run @platform/release/src/repository/upload.ts
+                  bun run @platform/release/src/repository/verify.ts
               env:
                   CLOUDFLARE_RELEASE_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_RELEASE_ACCESS_KEY_ID }}
                   CLOUDFLARE_RELEASE_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_RELEASE_SECRET_ACCESS_KEY }}
             - name: Remove update signing keys
               if: always()
-              run: bun run platform/release/src/key/credential.ts remove
+              run: bun run @platform/release/src/key/credential.ts remove
 
     verify:
         name: Verify installation and updates (${{ matrix.runner }})
@@ -392,4 +392,4 @@ jobs:
               if: runner.os == 'Linux'
               run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-0
             - name: Install the published distribution and verify restart and updates
-              run: bun run platform/release/src/distribution/install.ts
+              run: bun run @platform/release/src/distribution/install.ts

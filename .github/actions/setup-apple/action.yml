@@ -24,7 +24,7 @@ runs:
     steps:
         - name: Import Apple signing credentials
           shell: bash
-          run: bun run platform/release/src/signing/credential.ts prepare
+          run: bun run @platform/release/src/signing/credential.ts prepare
           env:
               APPLE_CERTIFICATE: ${{ inputs.certificate }}
               APPLE_CERTIFICATE_PASSWORD: ${{ inputs.password }}

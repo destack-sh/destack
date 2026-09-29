@@ -42,7 +42,7 @@ jobs:
 
             - name: Check platform
               run: |
-                  just platform/check-quick
+                  just @platform/check-quick
 
     deploy:
         name: Deploy site
@@ -65,4 +65,4 @@ jobs:
               uses: ./.github/actions/setup-platform
 
             - name: Deploy site
-              run: just platform/deploy
+              run: just @platform/deploy

@@ -684,8 +684,8 @@
         "@destack/test": "workspace:*",
       },
     },
-    "platform/release": {
-      "name": "@destack/release",
+    "@platform/release": {
+      "name": "@platform/release",
       "version": "2026.9.0",
       "dependencies": {
         "@destack/build": "workspace:*",
@@ -707,8 +707,8 @@
         "miniflare": "4.20260730.0",
       },
     },
-    "platform/site": {
-      "name": "@destack/site",
+    "@platform/site": {
+      "name": "@platform/site",
       "version": "2026.9.0",
       "dependencies": {
         "@destack/signals": "workspace:*",
@@ -730,8 +730,8 @@
         "wrangler": "4.134.0",
       },
     },
-    "platform/stack": {
-      "name": "@destack/platform",
+    "@platform/stack": {
+      "name": "@platform/stack",
       "version": "2026.9.0",
     },
   },
@@ -939,11 +939,11 @@
 
     "@destack/pages": ["@destack/pages@workspace:@destack/pages"],
 
-    "@destack/platform": ["@destack/platform@workspace:platform/stack"],
+    "@platform/stack": ["@platform/stack@workspace:@platform/stack"],
 
     "@destack/registry": ["@destack/registry@workspace:@destack/registry"],
 
-    "@destack/release": ["@destack/release@workspace:platform/release"],
+    "@platform/release": ["@platform/release@workspace:@platform/release"],
 
     "@destack/repository": ["@destack/repository@workspace:@destack/repository"],
 
@@ -959,7 +959,7 @@
 
     "@destack/signals": ["@destack/signals@workspace:@destack/signals"],
 
-    "@destack/site": ["@destack/site@workspace:platform/site"],
+    "@platform/site": ["@platform/site@workspace:@platform/site"],
 
     "@destack/space": ["@destack/space@workspace:@destack/space"],
 

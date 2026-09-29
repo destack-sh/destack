@@ -16,39 +16,39 @@ update:
 
 # build
 build:
-    just platform/build
-    just platform/release/build
+    just @platform/build
+    just @platform/release/build
 
 # generate
 generate:
-    just platform/site/generate
+    just @platform/site/generate
 
 # format
 format:
     just @destack/format
-    just platform/format
-    just platform/release/format
+    just @platform/format
+    just @platform/release/format
 
 alias fmt := format
 
 # check formatting
 format-check:
     just @destack/format-check
-    just platform/format-check
-    just platform/release/format-check
+    just @platform/format-check
+    just @platform/release/format-check
 
 # lint
 lint:
     just check-hygiene
-    bun run destack-check check @destack/*/src platform/*/src
-    bun run destack-check check README.md AGENTS.md CONTRIBUTING.md SECURITY.md docs blog @destack/*/README.md
-    just platform/lint
-    just platform/release/check
+    bun run destack-check check @destack/*/src @platform/*/src
+    bun run destack-check check README.md AGENTS.md CONTRIBUTING.md SECURITY.md @platform/docs @platform/blog @destack/*/README.md
+    just @platform/lint
+    just @platform/release/check
 
 # test
 test:
     just @destack/test
-    just platform/test
+    just @platform/test
 
 # start, stop or report the test PostgreSQL on port 55432 (DESTACK_TEST_POSTGRES=postgres://postgres@127.0.0.1:55432/postgres)
 postgres action:
@@ -65,9 +65,9 @@ postgres action:
 check:
     just check-hygiene
     just @destack/check
-    just platform/site/typecheck
-    just platform/stack/check
-    just platform/release/check
+    just @platform/site/typecheck
+    just @platform/stack/check
+    just @platform/release/check
 
 alias check-quick := check
 alias check-full := check
@@ -82,4 +82,4 @@ version:
 
 # pack
 pack target="":
-    just platform/release/pack "{{target}}"
+    just @platform/release/pack "{{target}}"
