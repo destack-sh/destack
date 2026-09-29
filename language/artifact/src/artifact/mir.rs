@@ -32,6 +32,8 @@ pub struct MirLowered {
     pub drops: mir::DropTable,
     /// The witnesses that satisfy each closed type's constraints.
     pub witnesses: mir::WitnessTable,
+    /// The dispatch shape of each lowered dynamic constraint.
+    pub shapes: mir::ShapeTable,
     /// Static profile counter table.
     pub profile: mir::ProfileTable,
 }
@@ -47,6 +49,7 @@ impl MirLowered {
             dispatch: mir::DispatchTable::default(),
             drops: mir::DropTable::default(),
             witnesses: mir::WitnessTable::default(),
+            shapes: mir::ShapeTable::default(),
             profile: mir::ProfileTable::default(),
         }
     }
