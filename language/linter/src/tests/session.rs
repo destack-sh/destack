@@ -218,6 +218,7 @@ impl TestSession {
             dispatch,
             drops,
             witnesses: mir::WitnessTable::default(),
+            shapes: mir::ShapeTable::default(),
             profile,
             initializer: None,
         };
