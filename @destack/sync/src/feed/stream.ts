@@ -38,7 +38,7 @@ export class Stream {
     }
 
     /**
-     * Stream the queries from a position until the signal aborts.
+     * Stream the queries from a position until aborted, or to a completed page once drained.
      *
      * A stream without a current position starts with a snapshot.
      * From previous queries, it moves the subscriber's rows to these.
@@ -47,6 +47,7 @@ export class Stream {
         after: LogPosition | undefined,
         signal: AbortSignal,
         previous?: Evaluation,
+        drain?: AbortSignal,
     ): AsyncGenerator<QueryPage> {
         let epoch = await this.#feed.database.log.epoch();
         let sequence: number | undefined;
@@ -64,7 +65,7 @@ export class Stream {
                     }
 
                     // publish what follows
-                    const following = this.#follow({ epoch, sequence }, signal);
+                    const following = this.#follow({ epoch, sequence }, signal, drain);
                     yield* this.#every === undefined
                         ? following
                         : coalesce(following, this.#every, this.#feed.tables);
@@ -92,11 +93,17 @@ export class Stream {
         }
     }
 
-    /** Publish the pages after a position, and the bare position once caught up. */
-    async *#follow(start: LogPosition, signal: AbortSignal): AsyncGenerator<QueryPage> {
+    /** Publish the pages after a position and the bare position once caught up, until aborted or drained. */
+    async *#follow(
+        start: LogPosition,
+        signal: AbortSignal,
+        drain: AbortSignal | undefined,
+    ): AsyncGenerator<QueryPage> {
+        // publish from the start until aborted, or drained between completed pages
         let position = start;
         let published = start.sequence;
-        while (!signal.aborted) {
+        const waking = drain === undefined ? signal : AbortSignal.any([signal, drain]);
+        while (!waking.aborted) {
             // join the shared evaluation
             this.#evaluation = this.#feed.join(this.#evaluation, position);
             const decided = this.#evaluation.after(position);
@@ -120,8 +127,8 @@ export class Stream {
                 // wait for a commit or a heartbeat
                 if (sequence === position.sequence) {
                     const beat = AbortSignal.timeout(this.#feed.heartbeat);
-                    await this.#evaluation.wait(sequence, AbortSignal.any([signal, beat]));
-                    if (beat.aborted && !signal.aborted && sequence === published) {
+                    await this.#evaluation.wait(sequence, AbortSignal.any([waking, beat]));
+                    if (beat.aborted && !waking.aborted && sequence === published) {
                         yield { reset: false, complete: true, changes: [], position };
                     }
                 }
@@ -219,6 +226,11 @@ export class Stream {
                 await this.#feed.next(sequence, signal);
             }
             sequence = next.value;
+        }
+
+        // stop short of completing a page the changes never reached
+        if (signal.aborted) {
+            return sequence;
         }
 
         // complete the last page at the target

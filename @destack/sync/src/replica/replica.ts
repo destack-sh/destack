@@ -23,7 +23,7 @@ import { DatabaseError } from "@destack/db/error";
 import { SyncError } from "../error/error.ts";
 import { schema } from "@destack/schema";
 import { canonicalize } from "@destack/schema/json";
-import { describeLog, type LogPosition } from "@destack/db/log";
+import type { LogPosition } from "@destack/db/log";
 import { QueryPage, type MutationOutcome, type ResultChange } from "../query/page.ts";
 import type { Query } from "../query/query.ts";
 import { Node } from "../query/node.ts";
@@ -160,15 +160,12 @@ export class Replica {
         readonly where?: ReadonlyMap<Table, Condition>;
         readonly scopes?: ReadonlyMap<Table, string>;
     }) {
-        // keep the identity and require complete logged rows
+        // keep the identity
         this.name = definition.name;
         this.scope = definition.scope;
         this.tables = definition.tables;
         this.where = definition.where ?? new Map();
         this.scopes = definition.scopes ?? new Map();
-        for (const table of this.tables) {
-            requireCopyable(table);
-        }
         this.#copied = new Map(this.tables.map((table) => [table[TABLE].sqlName, table]));
         this.#shape = canonicalize(
             this.tables.map((table) => [
@@ -570,17 +567,29 @@ export class Replica {
         }
     }
 
-    /** Apply a source's pages from the recorded position until the signal aborts. */
+    /** Apply a source's pages from the recorded position until the signal aborts, resuming each stream that ends. */
     async follow(
         database: DatabaseConnection,
         source: (after: LogPosition | undefined, signal: AbortSignal) => AsyncIterable<QueryPage>,
         signal: AbortSignal,
         outbox?: Outbox,
     ): Promise<void> {
+        // apply each stream from the recorded position until aborted
         await this.register(database);
-        const pages = source(await this.position(database), signal);
-        for await (const _page of this.apply(database, pages, outbox)) {
-            // apply each page as it arrives
+        while (!signal.aborted) {
+            let isReceived = false;
+            const pages = source(await this.position(database), signal);
+            for await (const _page of this.apply(database, pages, outbox)) {
+                isReceived = true;
+            }
+
+            // reject a stream that ends without a page
+            if (!isReceived && !signal.aborted) {
+                throw new SyncError(
+                    "INVALID_STREAM",
+                    `the source of ${this.scope} ended a stream without a page`,
+                );
+            }
         }
     }
 
@@ -929,24 +938,6 @@ function add(sum: Scalar, value: Scalar, sign: 1 | -1): Scalar {
     return typeof sum === "string" || typeof value === "string"
         ? String(BigInt(sum ?? 0) + BigInt(sign) * BigInt(value ?? 0))
         : Number(sum ?? 0) + sign * Number(value);
-}
-
-/** Require a table's log to carry every column an insert requires. */
-function requireCopyable(table: Table): void {
-    const logged = new Set(describeLog(table)?.columns ?? []);
-    for (const column of Object.values(table[TABLE].columns)) {
-        const definition = column.definition;
-        const isRequired =
-            !definition.nullable &&
-            definition.default === undefined &&
-            definition.runtimeDefault === undefined &&
-            definition.generated === undefined;
-        if (isRequired && !logged.has(definition.name)) {
-            throw new TypeError(
-                `replica table ${table[TABLE].name} requires unlogged column ${definition.name}`,
-            );
-        }
-    }
 }
 
 /** The home position of a copy's rows. */

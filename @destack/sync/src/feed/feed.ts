@@ -142,6 +142,7 @@ export class Feed implements Cache {
      *
      * A subscriber without a current position first receives a paged snapshot.
      * With an interval, pages at the head merge within the interval.
+     * Once the drain aborts, the stream ends after its next completed page.
      */
     async *subscribe(
         queries: Readonly<Record<string, Query>>,
@@ -151,6 +152,7 @@ export class Feed implements Cache {
             readonly audience?: Audience;
             readonly previous?: Readonly<Record<string, Query>>;
             readonly every?: number;
+            readonly drain?: AbortSignal;
         } = {},
     ): AsyncGenerator<QueryPage> {
         // resolve the queries
@@ -167,7 +169,7 @@ export class Feed implements Cache {
         }
         this.#join();
         try {
-            yield* stream.run(after, signal, previous);
+            yield* stream.run(after, signal, previous, options.drain);
         } finally {
             this.#leave();
         }
@@ -221,8 +223,10 @@ export class Feed implements Cache {
                         undefined,
                         read.changes,
                     );
+                    // yield again only when the step changed the held rows or groups
                     position = (await dataflow.step(run)) ? reached : undefined;
-                    if (position !== undefined) {
+                    const isChanged = run.patch.rows.size > 0 || run.patch.results.size > 0;
+                    if (position !== undefined && isChanged) {
                         yield await dataflow.read(name);
                     }
                 }

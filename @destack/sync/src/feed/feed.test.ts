@@ -4,7 +4,7 @@ import { eq, TABLE } from "@destack/db";
 import { Condition } from "@destack/db/query";
 import { Feed } from "./feed.ts";
 import type { QueryPage } from "../query/page.ts";
-import { first, note, open, take, until } from "../test/fixture.ts";
+import { first, note, open, project, take, until } from "../test/fixture.ts";
 
 test.for(TEST_DIALECTS)("keep a query of one scope's matching rows on %s", async (dialect) => {
     const database = await open(dialect);
@@ -296,5 +296,63 @@ test.for(TEST_DIALECTS)(
             await database.insert(note).values({ ...first, id: `n${index}` });
             expect((await busy.next()).done).toBe(false);
         }
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "watch a query's rows again only when a commit changes them on %s",
+    async (dialect) => {
+        const database = await open(dialect);
+        const feed = new Feed(database, [note]);
+        const query = { table: note, scopes: ["inbox"], where: Condition.eq("title", "Open") };
+        await database.insert(note).values([
+            { ...first, id: "a", title: "Open" },
+            { ...first, id: "b", title: "Done" },
+        ]);
+
+        // read the first result, then commit a change outside it and one inside it
+        const watching = feed.watch("notes", query, AbortSignal.timeout(5000));
+        const initial = (await watching.next()).value!;
+        await database.update(note).set({ summary: "Unrelated" }).where(eq(note.id, "b"));
+        await database.update(note).set({ title: "Open" }).where(eq(note.id, "b"));
+        const changed = (await watching.next()).value!;
+        await watching.return(undefined);
+
+        // skip the commit that left the rows as they were
+        const ids = (rows: readonly Readonly<Record<string, unknown>>[]) =>
+            rows.map((row) => row.id);
+        expect([ids(initial), ids(changed)]).toEqual([["a"], ["a", "b"]]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "resume at once past commits of tables the feed leaves out on %s",
+    async (dialect) => {
+        const database = await open(dialect);
+        const feed = new Feed(database, [note]);
+        const query = { table: note, scopes: ["inbox"] };
+        await database.insert(note).values(first);
+
+        // keep the feed reading from the snapshot's position
+        const signal = AbortSignal.timeout(5000);
+        const reading = feed.subscribe({ notes: query }, undefined, signal);
+        const snapshot = (await reading.next()).value as QueryPage;
+
+        // commit to another table, then resume from the snapshot's position
+        await database.insert(project).values({ id: "p1", scope: "inbox", name: "Plan" });
+        const [resumed] = await take(
+            feed.subscribe({ notes: query }, snapshot.position, signal),
+            (page) => page.complete,
+        );
+        await reading.return(undefined);
+        expect([snapshot.complete, resumed]).toEqual([
+            true,
+            {
+                reset: false,
+                complete: true,
+                changes: [],
+                position: await database.log.position(),
+            },
+        ]);
     },
 );
