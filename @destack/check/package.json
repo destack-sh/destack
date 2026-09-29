@@ -15,7 +15,8 @@
         "./error": "./src/error/index.ts"
     },
     "scripts": {
-        "check": "tsc --project tsconfig.json"
+        "check": "tsc --project tsconfig.json",
+        "test": "vitest run"
     },
     "dependencies": {
         "@oxlint/plugins": "1.83.0",

@@ -76,12 +76,29 @@ export function lintConfiguration(plugins: readonly Plugin[] = [], absolute = fa
             // lowercase single-word or kebab-case file names
             "unicorn/filename-case": ["error", { case: "kebabCase" }],
 
+            // log through telemetry and print through a program's output, never the console
+            "eslint/no-console": "error",
+
             ...Object.fromEntries(
                 Object.keys(lint.rules).map((name) => [`destack/${name}`, "error"]),
             ),
             ...rules,
         },
         overrides: [
+            {
+                // let tests and fixtures, the devtools exporter and the build worker redirecting tools own the console
+                files: [
+                    "**/*.test.ts",
+                    "**/*.test.tsx",
+                    "**/test/**",
+                    "**/tests/**",
+                    "**/fixture.ts",
+                    "**/fixture/**",
+                    "**/src/browser/devtools.ts",
+                    "**/src/build/worker.ts",
+                ],
+                rules: { "eslint/no-console": "off" },
+            },
             {
                 // keep declarations and client-safe layers free of server code
                 files: [

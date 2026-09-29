@@ -60,9 +60,8 @@ export const requireJsdoc: Rule = {
                     previous?.type === "TSAbstractMethodDefinition" ||
                     (previous !== undefined &&
                         "key" in previous &&
-                        previous.key.type === "Identifier" &&
-                        node.key.type === "Identifier" &&
-                        previous.key.name === node.key.name);
+                        memberName(previous.key) !== undefined &&
+                        memberName(previous.key) === memberName(node.key));
                 if (!isOverload) {
                     check(node);
                 }
@@ -93,4 +92,11 @@ function directiveLines(comments: readonly { value: string }[], documentation: o
     return comments
         .slice(comments.indexOf(documentation as never) + 1)
         .filter((entry) => isDirective(entry.value)).length;
+}
+
+/** Read a class member's plain or private identifier, absent for computed keys. */
+function memberName(key: ESTree.MethodDefinition["key"]): string | undefined {
+    return key.type === "Identifier" || key.type === "PrivateIdentifier"
+        ? `${key.type}:${key.name}`
+        : undefined;
 }

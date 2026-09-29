@@ -99,7 +99,9 @@ export async function inspectErrors(
                 }
                 description.calls.push({
                     source: inspector.range(node),
-                    target: symbol ? await inspector.reference(symbol) : undefined,
+                    target: symbol?.declarations.length
+                        ? await inspector.reference(symbol)
+                        : undefined,
                     isAwaited: node.parent?.kind === SyntaxKind.AwaitExpression,
                     catches: enclosingCatches(node, root, inspector),
                 });

@@ -21,6 +21,14 @@ tester.run("require-jsdoc", rules["require-jsdoc"], {
         "/** A note. */\nclass Note {\n    /** The title. */\n    title = 1;\n}",
         'export * from "./note.ts";',
         "/** The identifier. */\n// oxlint-disable-next-line destack/prevent-abbreviations -- external identifier\nexport const id = 1;",
+        {
+            code: "/** A note. */\nclass Note {\n    /** Write a value. */\n    write(value: string): void;\n    write(value: number): void;\n    write(value: unknown) {}\n}",
+            filename: SOURCE,
+        },
+        {
+            code: "/** A note. */\nclass Note {\n    /** Write a value. */\n    #write(value: string): void;\n    #write(value: number): void;\n    #write(value: unknown) {}\n}",
+            filename: SOURCE,
+        },
     ],
     invalid: [
         { code: "export const title = 1;", errors: [{ messageId: "missing" }] },
@@ -29,6 +37,11 @@ tester.run("require-jsdoc", rules["require-jsdoc"], {
             errors: [{ messageId: "missing" }],
         },
         { code: "/** The title. */\n\nconst title = 1;", errors: [{ messageId: "missing" }] },
+        {
+            code: "/** A note. */\nclass Note {\n    /** Write text. */\n    #write(value: string) {}\n    write(value: string) {}\n}",
+            filename: SOURCE,
+            errors: [{ messageId: "missing" }],
+        },
     ],
 });
 
@@ -141,6 +154,45 @@ tester.run("boolean-prefix", rules["boolean-prefix"], {
     invalid: [
         { code: "const open = a === b;", errors: [{ messageId: "prefix" }] },
         { code: "let changed = false;", errors: [{ messageId: "prefix" }] },
+    ],
+});
+
+tester.run("error-message-style", rules["error-message-style"], {
+    valid: [
+        'throw new Error("note not found");',
+        'throw new Error("HTTP request failed");',
+        {
+            code: 'throw new ServiceError("NOT_FOUND", { message: `no note ${id}` });',
+            filename: SOURCE,
+        },
+        { code: "const failure = new ServiceError(code, options);", filename: SOURCE },
+        {
+            code: 'const failure = new ServiceError("FORBIDDEN", { ...options });',
+            filename: SOURCE,
+        },
+    ],
+    invalid: [
+        {
+            code: 'throw new Error("Note not found.");',
+            output: 'throw new Error("note not found");',
+            errors: [{ messageId: "style" }],
+        },
+        {
+            code: 'throw new ServiceError("NOT_FOUND");',
+            filename: SOURCE,
+            errors: [{ messageId: "missing" }],
+        },
+        {
+            code: 'throw new ServiceError("FORBIDDEN", { data: { permission: "read" } });',
+            filename: SOURCE,
+            errors: [{ messageId: "missing" }],
+        },
+        {
+            code: 'throw new ServiceError("FORBIDDEN", { message: "Permission denied." });',
+            output: 'throw new ServiceError("FORBIDDEN", { message: "permission denied" });',
+            filename: SOURCE,
+            errors: [{ messageId: "style" }],
+        },
     ],
 });
 

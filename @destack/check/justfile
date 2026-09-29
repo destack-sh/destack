@@ -4,6 +4,10 @@ set shell := ["bash", "-cu"]
 check:
     bun run check
 
+# test
+test:
+    bun run test
+
 # format
 format:
     bun run src/main.ts format src

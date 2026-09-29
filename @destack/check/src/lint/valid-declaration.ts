@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { ESTree, Rule } from "@oxlint/plugins";
-import { packageConstructors } from "@destack/package/transform";
+import { PackageLocator } from "@destack/package/transform";
 import { isPackageFile } from "./package.ts";
 import { isTestFile } from "./word.ts";
 
@@ -25,6 +25,7 @@ export const validDeclaration: Rule = {
             return {};
         }
         const imports = new Map<string, { name: string | undefined; source: string }>();
+        const packages = new PackageLocator();
 
         return {
             ImportDeclaration(node) {
@@ -39,7 +40,7 @@ export const validDeclaration: Rule = {
             },
             CallExpression(node) {
                 // resolve the callee to an imported constructor the build inspects
-                const name = constructorName(node.callee, imports, context.filename);
+                const name = constructorName(node.callee, imports, context.filename, packages);
                 if (name === undefined) {
                     return;
                 }
@@ -58,6 +59,7 @@ function constructorName(
     callee: ESTree.Node,
     imports: ReadonlyMap<string, { name: string | undefined; source: string }>,
     filename: string,
+    packages: PackageLocator,
 ): string | undefined {
     // read named imports and namespace members
     const binding =
@@ -78,9 +80,9 @@ function constructorName(
     const owner = binding.source.startsWith(".")
         ? packageName(directory)
         : PACKAGE_NAME.exec(binding.source)?.[0];
-    const declared = owner === undefined ? undefined : packageConstructors(owner, directory);
+    const declared = owner === undefined ? undefined : packages.constructors(owner, directory);
 
-    return declared?.[binding.name]?.inspect === undefined ? undefined : binding.name;
+    return declared?.[binding.name]?.describes === undefined ? undefined : binding.name;
 }
 
 /** Read the name of the package containing a directory, caching each directory's answer. */

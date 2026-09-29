@@ -2,7 +2,7 @@ import type { Rule } from "@oxlint/plugins";
 import { CheckError } from "../error/index.ts";
 
 /** Judgment rules that source may disable with a stated reason. */
-const DISABLEABLE = ["destack/prevent-abbreviations", "destack/boolean-prefix"];
+const DISABLEABLE = ["destack/prevent-abbreviations", "destack/boolean-prefix", "no-console"];
 
 /** A file or next-line exception for judgment rules with a stated reason. */
 const ALLOWED = new RegExp(
