@@ -2,7 +2,7 @@ import { FileLock } from "../lock.ts";
 
 /** The lock retained until the parent closes stdin or terminates this process. */
 await using lock = await FileLock.acquire(process.argv[2]);
-console.log("locked");
+process.stdout.write("locked\n");
 
 // release when the parent closes stdin
 for await (const chunk of process.stdin) {
