@@ -24,9 +24,7 @@ type test.main.Wrapper {
 }
 
 @nocopy
-type test.main.Node {
-    wrapper: test.main.Wrapper;
-}
+type test.main.Node = class { wrapper: test.main.Wrapper };
 
 export constructor test.main.Node.constructor(v0: ref<uninit<test.main.Node>, borrowed, 'managed, mutable>, v1: test.main.Wrapper): void {
     local l0: test.main.Wrapper
@@ -43,8 +41,8 @@ entry(v0: ref<uninit<test.main.Node>, borrowed, 'managed, mutable>, v1: test.mai
 
 /// @layout.struct name=test.main.Wrapper size=8 align=8
 /// @layout.field owner=test.main.Wrapper index=0 name=node offset=0 size=8 align=8
-/// @layout.struct name=test.main.Node size=8 align=8
-/// @layout.field owner=test.main.Node index=0 name=wrapper offset=0 size=8 align=8
+/// @layout.class name=test.main.Node size=16 align=8
+/// @layout.field owner=test.main.Node index=0 name=wrapper offset=8 size=8 align=8
 "#);
 }
 
@@ -74,9 +72,7 @@ function tally(start: int32): int32 {
 
     session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32): void {
     local l0: int32
@@ -91,8 +87,8 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32
     return
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 "#);
 
     session.assert_mir_function(
@@ -100,9 +96,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32
         "test.main.Counter.bump",
         r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export function test.main.Counter.bump(v0: ref<test.main.Counter, managed, mutable, local>): int32 {
     local l0: ref<test.main.Counter, managed, mutable, local>
@@ -120,8 +114,8 @@ entry(v0: ref<test.main.Counter, managed, mutable, local>):
     return v7
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 "#,
     );
 
@@ -130,9 +124,7 @@ entry(v0: ref<test.main.Counter, managed, mutable, local>):
         "test.main.tally",
         r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export function test.main.tally(v0: int32): int32 {
     local l0: int32
@@ -153,8 +145,8 @@ entry(v0: int32):
     return v8
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 "#,
     );
 }
@@ -183,9 +175,7 @@ function peek(counter: readonly Counter): int32 {
 
     session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32): void {
     local l0: int32
@@ -200,8 +190,8 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32
     return
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 "#);
 
     session.assert_mir_function(
@@ -209,9 +199,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32
         "test.main.own",
         r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export function test.main.own(v0: test.main.Counter): int32 {
     local l0: test.main.Counter
@@ -222,8 +210,8 @@ entry(v0: test.main.Counter):
     return v1
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 "#,
     );
 
@@ -232,9 +220,7 @@ entry(v0: test.main.Counter):
         "test.main.peek",
         r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export function test.main.peek(v0: ref<test.main.Counter, managed, readonly, local>): int32 {
     local l0: ref<test.main.Counter, managed, readonly, local>
@@ -246,8 +232,8 @@ entry(v0: ref<test.main.Counter, managed, readonly, local>):
     return v2
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 "#,
     );
 }
@@ -282,9 +268,7 @@ function forget(counter: Counter): Counter | null {
 
     session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32): void {
     local l0: int32
@@ -299,8 +283,8 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32
     return
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 "#);
 
     session.assert_mir_function(
@@ -308,9 +292,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32
         "test.main.read",
         r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export function test.main.read(v0: variant<uint1> { 0uint1 = ref<test.main.Counter, managed, mutable, local>; 1uint1 = null; }): int32 {
     local l0: variant<uint1> { 0uint1 = ref<test.main.Counter, managed, mutable, local>; 1uint1 = null; }
@@ -334,8 +316,8 @@ b2:
     return v7
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 /// @layout.variant name=type@10 size=8 align=8
 /// @layout.discriminant owner=type@10 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
 /// @layout.case owner=type@10 index=0 discriminant=0 payload_offset=0
@@ -348,9 +330,7 @@ b2:
         "test.main.forget",
         r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export function test.main.forget(v0: ref<test.main.Counter, managed, mutable, local>): variant<uint1> { 0uint1 = ref<test.main.Counter, managed, mutable, local>; 1uint1 = null; } {
     local l0: ref<test.main.Counter, managed, mutable, local>
@@ -374,8 +354,8 @@ b2:
     return v8
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 /// @layout.variant name=type@10 size=8 align=8
 /// @layout.discriminant owner=type@10 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
 /// @layout.case owner=type@10 index=0 discriminant=0 payload_offset=0
@@ -417,9 +397,7 @@ function classify(counter: Counter | undefined | null): int32 {
 
     session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32): void {
     local l0: int32
@@ -434,8 +412,8 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32
     return
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 "#);
 
     session.assert_mir_function(
@@ -443,9 +421,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32
         "test.main.lookup",
         r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export function test.main.lookup(v0: variant<uint1> { 0uint1 = ref<test.main.Counter, managed, mutable, local>; 1uint1 = void; }): int32 {
     local l0: variant<uint1> { 0uint1 = ref<test.main.Counter, managed, mutable, local>; 1uint1 = void; }
@@ -469,8 +445,8 @@ b2:
     return v7
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 /// @layout.variant name=type@9 size=8 align=8
 /// @layout.discriminant owner=type@9 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
 /// @layout.case owner=type@9 index=0 discriminant=0 payload_offset=0
@@ -483,9 +459,7 @@ b2:
         "test.main.classify",
         r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export function test.main.classify(v0: variant<uint2> { 0uint2 = ref<test.main.Counter, managed, mutable, local>; 1uint2 = void; 2uint2 = null; }): int32 {
     local l0: variant<uint2> { 0uint2 = ref<test.main.Counter, managed, mutable, local>; 1uint2 = void; 2uint2 = null; }
@@ -523,8 +497,8 @@ b4:
     return v12
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 /// @layout.variant name=type@12 size=8 align=8
 /// @layout.discriminant owner=type@12 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
 /// @layout.case owner=type@12 index=0 discriminant=0 payload_offset=0
@@ -556,10 +530,7 @@ function total(chain: Chain): int32 {
 
     session.assert_mir_function("main.tspp", "test.main.Chain.constructor", r#"
 @nocopy
-type test.main.Chain {
-    next: variant<uint1> { 0uint1 = ref<test.main.Chain, managed, mutable, local>; 1uint1 = null; };
-    weight: int32;
-}
+type test.main.Chain = class { next: variant<uint1> { 0uint1 = ref<test.main.Chain, managed, mutable, local>; 1uint1 = null; }, weight: int32 };
 
 export constructor test.main.Chain.constructor(v0: ref<uninit<test.main.Chain>, borrowed, 'managed, mutable>, v1: int32): void {
     local l0: int32
@@ -578,9 +549,9 @@ entry(v0: ref<uninit<test.main.Chain>, borrowed, 'managed, mutable>, v1: int32):
     return
 }
 
-/// @layout.struct name=test.main.Chain size=16 align=8
-/// @layout.field owner=test.main.Chain index=0 name=next offset=0 size=8 align=8
-/// @layout.field owner=test.main.Chain index=1 name=weight offset=8 size=4 align=4
+/// @layout.class name=test.main.Chain size=24 align=8
+/// @layout.field owner=test.main.Chain index=0 name=next offset=8 size=8 align=8
+/// @layout.field owner=test.main.Chain index=1 name=weight offset=16 size=4 align=4
 /// @layout.variant name=type@4 size=8 align=8
 /// @layout.discriminant owner=type@4 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
 /// @layout.case owner=type@4 index=0 discriminant=0 payload_offset=0
@@ -592,10 +563,7 @@ entry(v0: ref<uninit<test.main.Chain>, borrowed, 'managed, mutable>, v1: int32):
         "test.main.total",
         r#"
 @nocopy
-type test.main.Chain {
-    next: variant<uint1> { 0uint1 = ref<test.main.Chain, managed, mutable, local>; 1uint1 = null; };
-    weight: int32;
-}
+type test.main.Chain = class { next: variant<uint1> { 0uint1 = ref<test.main.Chain, managed, mutable, local>; 1uint1 = null; }, weight: int32 };
 
 export function test.main.total(v0: ref<test.main.Chain, managed, mutable, local>): int32 {
     local l0: ref<test.main.Chain, managed, mutable, local>
@@ -607,9 +575,9 @@ entry(v0: ref<test.main.Chain, managed, mutable, local>):
     return v2
 }
 
-/// @layout.struct name=test.main.Chain size=16 align=8
-/// @layout.field owner=test.main.Chain index=0 name=next offset=0 size=8 align=8
-/// @layout.field owner=test.main.Chain index=1 name=weight offset=8 size=4 align=4
+/// @layout.class name=test.main.Chain size=24 align=8
+/// @layout.field owner=test.main.Chain index=0 name=next offset=8 size=8 align=8
+/// @layout.field owner=test.main.Chain index=1 name=weight offset=16 size=4 align=4
 "#,
     );
 }
@@ -638,9 +606,7 @@ function main(counter: Counter): int32 {
 
     session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32): void {
     local l0: int32
@@ -655,8 +621,8 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32
     return
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 "#);
 
     session.assert_mir_function(
@@ -664,9 +630,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32
         "test.main.peek",
         r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export function test.main.peek<'a>(v0: ref<test.main.Counter, borrowed, 'a, readonly>): int32 {
     local l0: ref<test.main.Counter, borrowed, 'a, readonly>
@@ -677,8 +641,8 @@ entry(v0: ref<test.main.Counter, borrowed, 'a, readonly>):
     return v1
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 "#,
     );
 
@@ -687,9 +651,7 @@ entry(v0: ref<test.main.Counter, borrowed, 'a, readonly>):
         "test.main.main",
         r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export function test.main.main(v0: ref<test.main.Counter, managed, mutable, local>): int32 {
     local l0: ref<test.main.Counter, managed, mutable, local>
@@ -702,8 +664,8 @@ entry(v0: ref<test.main.Counter, managed, mutable, local>):
     return v3
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 "#,
     );
 }
@@ -729,9 +691,7 @@ function own(start: int32): int32 {
 
     session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export constructor test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>, v1: int32): void {
     local l0: int32
@@ -746,15 +706,13 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>, v1: int32):
     return
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.own", r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export function test.main.own(v0: int32): int32 {
     local l0: int32
@@ -773,8 +731,8 @@ entry(v0: int32):
     return v5
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 "#);
 }
 
@@ -797,9 +755,7 @@ function make(): ^Counter {
         "test.main.Counter.constructor",
         r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export constructor test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>
@@ -812,8 +768,8 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>):
     return
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 "#,
     );
 
@@ -822,9 +778,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>):
         "test.main.make",
         r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export function test.main.make(): test.main.Counter {
     local l0: test.main.Counter
@@ -837,8 +791,8 @@ entry:
     return v2
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 "#,
     );
 }
@@ -872,9 +826,7 @@ function build(): ^Derived {
         "test.main.Base.constructor",
         r#"
 @nocopy
-type test.main.Base {
-    tag: int32;
-}
+type test.main.Base = class { tag: int32 };
 
 export constructor test.main.Base.constructor<'a>(v0: ref<uninit<test.main.Base>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Base>, borrowed, 'a, exclusive>
@@ -887,22 +839,17 @@ entry(v0: ref<uninit<test.main.Base>, borrowed, 'a, exclusive>):
     return
 }
 
-/// @layout.struct name=test.main.Base size=4 align=4
-/// @layout.field owner=test.main.Base index=0 name=tag offset=0 size=4 align=4
+/// @layout.class name=test.main.Base size=8 align=4
+/// @layout.field owner=test.main.Base index=0 name=tag offset=4 size=4 align=4
 "#,
     );
 
     session.assert_mir_function("main.tspp", "test.main.Derived.constructor", r#"
 @nocopy
-type test.main.Base {
-    tag: int32;
-}
+type test.main.Base = class { tag: int32 };
 
 @nocopy
-type test.main.Derived {
-    tag: int32;
-    extra: int32;
-}
+type test.main.Derived = class<test.main.Base> { tag: int32, extra: int32 };
 
 export constructor test.main.Derived.constructor<'a>(v0: ref<uninit<test.main.Derived>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Derived>, borrowed, 'a, exclusive>
@@ -919,11 +866,11 @@ entry(v0: ref<uninit<test.main.Derived>, borrowed, 'a, exclusive>):
     return
 }
 
-/// @layout.struct name=test.main.Base size=4 align=4
-/// @layout.field owner=test.main.Base index=0 name=tag offset=0 size=4 align=4
-/// @layout.struct name=test.main.Derived size=8 align=4
-/// @layout.field owner=test.main.Derived index=0 name=tag offset=0 size=4 align=4
-/// @layout.field owner=test.main.Derived index=1 name=extra offset=4 size=4 align=4
+/// @layout.class name=test.main.Base size=8 align=4
+/// @layout.field owner=test.main.Base index=0 name=tag offset=4 size=4 align=4
+/// @layout.class name=test.main.Derived size=12 align=4
+/// @layout.field owner=test.main.Derived index=0 name=tag offset=4 size=4 align=4
+/// @layout.field owner=test.main.Derived index=1 name=extra offset=8 size=4 align=4
 "#);
 
     session.assert_mir_function(
@@ -931,10 +878,7 @@ entry(v0: ref<uninit<test.main.Derived>, borrowed, 'a, exclusive>):
         "test.main.build",
         r#"
 @nocopy
-type test.main.Derived {
-    tag: int32;
-    extra: int32;
-}
+type test.main.Derived = class<test.main.Base> { tag: int32, extra: int32 };
 
 export function test.main.build(): test.main.Derived {
     local l0: test.main.Derived
@@ -947,9 +891,9 @@ entry:
     return v2
 }
 
-/// @layout.struct name=test.main.Derived size=8 align=4
-/// @layout.field owner=test.main.Derived index=0 name=tag offset=0 size=4 align=4
-/// @layout.field owner=test.main.Derived index=1 name=extra offset=4 size=4 align=4
+/// @layout.class name=test.main.Derived size=12 align=4
+/// @layout.field owner=test.main.Derived index=0 name=tag offset=4 size=4 align=4
+/// @layout.field owner=test.main.Derived index=1 name=extra offset=8 size=4 align=4
 "#,
     );
 }
@@ -977,9 +921,7 @@ export class Failure {
         "test.main.Failure.display",
         r#"
 @nocopy
-type test.main.Failure {
-    message: ref<String, managed, mutable, local>;
-}
+type test.main.Failure = class { message: ref<String, managed, mutable, local> };
 
 @nocopy
 @languageItem("string.String")
@@ -997,15 +939,13 @@ entry(v0: ref<test.main.Failure, borrowed, 'a, readonly>):
     return v4
 }
 
-/// @layout.struct name=test.main.Failure size=8 align=8
-/// @layout.field owner=test.main.Failure index=0 name=message offset=0 size=8 align=8
+/// @layout.class name=test.main.Failure size=16 align=8
+/// @layout.field owner=test.main.Failure index=0 name=message offset=8 size=8 align=8
 "#,
     );
     session.assert_mir_function("main.tspp", "test.main.Failure.constructor", r#"
 @nocopy
-type test.main.Failure {
-    message: ref<String, managed, mutable, local>;
-}
+type test.main.Failure = class { message: ref<String, managed, mutable, local> };
 
 @nocopy
 @languageItem("string.String")
@@ -1024,15 +964,13 @@ entry(v0: ref<uninit<test.main.Failure>, borrowed, 'managed, mutable>, v1: ref<S
     return
 }
 
-/// @layout.struct name=test.main.Failure size=8 align=8
-/// @layout.field owner=test.main.Failure index=0 name=message offset=0 size=8 align=8
+/// @layout.class name=test.main.Failure size=16 align=8
+/// @layout.field owner=test.main.Failure index=0 name=message offset=8 size=8 align=8
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.Failure.display", r#"
 @nocopy
-type test.main.Failure {
-    message: ref<String, managed, mutable, local>;
-}
+type test.main.Failure = class { message: ref<String, managed, mutable, local> };
 
 @nocopy
 @languageItem("string.String")
@@ -1050,8 +988,8 @@ entry(v0: ref<test.main.Failure, borrowed, 'a, readonly>):
     return v4
 }
 
-/// @layout.struct name=test.main.Failure size=8 align=8
-/// @layout.field owner=test.main.Failure index=0 name=message offset=0 size=8 align=8
+/// @layout.class name=test.main.Failure size=16 align=8
+/// @layout.field owner=test.main.Failure index=0 name=message offset=8 size=8 align=8
 "#);
 }
 
@@ -1073,10 +1011,7 @@ class Runtime {
 
     session.assert_mir_function("main.tspp", "test.main.Runtime.constructor", r#"
 @nocopy
-type test.main.Runtime {
-    id: int32;
-    name: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; };
-}
+type test.main.Runtime = class { id: int32, name: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } };
 
 @nocopy
 @languageItem("string.String")
@@ -1098,9 +1033,9 @@ entry(v0: ref<uninit<test.main.Runtime>, borrowed, 'managed, mutable>, v1: int32
     return
 }
 
-/// @layout.struct name=test.main.Runtime size=16 align=8
-/// @layout.field owner=test.main.Runtime index=0 name=id offset=8 size=4 align=4
-/// @layout.field owner=test.main.Runtime index=1 name=name offset=0 size=8 align=8
+/// @layout.class name=test.main.Runtime size=24 align=8
+/// @layout.field owner=test.main.Runtime index=0 name=id offset=16 size=4 align=4
+/// @layout.field owner=test.main.Runtime index=1 name=name offset=8 size=8 align=8
 /// @layout.variant name=type@10 size=8 align=8
 /// @layout.discriminant owner=type@10 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
 /// @layout.case owner=type@10 index=0 discriminant=0 payload_offset=0
@@ -1128,9 +1063,7 @@ class Counter {
         "test.main.Counter.constructor",
         r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>): void {
     local l0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>
@@ -1143,8 +1076,8 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>):
     return
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 "#,
     );
 }
@@ -1169,9 +1102,7 @@ function size(holder: &readonly Holder): isize {
 
     session.assert_mir_function("main.tspp", "test.main.Holder.constructor", r#"
 @nocopy
-type test.main.Holder {
-    storage: slice<int32, unique, mutable>;
-}
+type test.main.Holder = class { storage: slice<int32, unique, mutable> };
 
 export constructor test.main.Holder.constructor<'a>(v0: ref<uninit<test.main.Holder>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Holder>, borrowed, 'a, exclusive>
@@ -1184,8 +1115,8 @@ entry(v0: ref<uninit<test.main.Holder>, borrowed, 'a, exclusive>):
     return
 }
 
-/// @layout.struct name=test.main.Holder size=16 align=8
-/// @layout.field owner=test.main.Holder index=0 name=storage offset=0 size=16 align=8
+/// @layout.class name=test.main.Holder size=24 align=8
+/// @layout.field owner=test.main.Holder index=0 name=storage offset=8 size=16 align=8
 "#);
 
     session.assert_mir_function(
@@ -1193,9 +1124,7 @@ entry(v0: ref<uninit<test.main.Holder>, borrowed, 'a, exclusive>):
         "test.main.size",
         r#"
 @nocopy
-type test.main.Holder {
-    storage: slice<int32, unique, mutable>;
-}
+type test.main.Holder = class { storage: slice<int32, unique, mutable> };
 
 export function test.main.size<'a>(v0: ref<test.main.Holder, borrowed, 'a, readonly>): isize {
     local l0: ref<test.main.Holder, borrowed, 'a, readonly>
@@ -1210,8 +1139,8 @@ entry(v0: ref<test.main.Holder, borrowed, 'a, readonly>):
     return v3
 }
 
-/// @layout.struct name=test.main.Holder size=16 align=8
-/// @layout.field owner=test.main.Holder index=0 name=storage offset=0 size=16 align=8
+/// @layout.class name=test.main.Holder size=24 align=8
+/// @layout.field owner=test.main.Holder index=0 name=storage offset=8 size=16 align=8
 "#,
     );
 }
@@ -1238,9 +1167,7 @@ function make(reset: boolean): Counter {
 
     session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: boolean): void {
     local l0: boolean
@@ -1265,15 +1192,13 @@ b2:
     return
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.make", r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export function test.main.make(v0: boolean): ref<test.main.Counter, managed, mutable, local> {
     local l0: boolean
@@ -1287,8 +1212,8 @@ entry(v0: boolean):
     return v2
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 "#);
 }
 
@@ -1315,9 +1240,7 @@ function make(): Counter {
         "test.main.Counter.constructor",
         r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>): void {
     local l0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>
@@ -1335,8 +1258,8 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>):
     return
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 "#,
     );
 
@@ -1345,9 +1268,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>):
         "test.main.make",
         r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export function test.main.make(): ref<test.main.Counter, managed, mutable, local> {
 entry:
@@ -1357,8 +1278,8 @@ entry:
     return v0
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 "#,
     );
 }
@@ -1394,9 +1315,7 @@ function forms(
 
     session.assert_mir_function("main.tspp", "test.main.forms", r#"
 @nocopy
-type test.main.User {
-    name: int32;
-}
+type test.main.User = class { name: int32 };
 
 type test.main.Point {
     x: int32;
@@ -1430,8 +1349,8 @@ entry(v0: ref<test.main.User, managed, mutable, local>, v1: ref<test.main.User, 
     return
 }
 
-/// @layout.struct name=test.main.User size=4 align=4
-/// @layout.field owner=test.main.User index=0 name=name offset=0 size=4 align=4
+/// @layout.class name=test.main.User size=8 align=4
+/// @layout.field owner=test.main.User index=0 name=name offset=4 size=4 align=4
 /// @layout.struct name=test.main.Point size=4 align=4
 /// @layout.field owner=test.main.Point index=0 name=x offset=0 size=4 align=4
 "#);
@@ -1475,9 +1394,7 @@ type test.main.Payload {
 }
 
 @nocopy
-type test.main.Holder {
-    slot: variant<uint1> { 0uint1 = test.main.Payload; 1uint1 = void; };
-}
+type test.main.Holder = class { slot: variant<uint1> { 0uint1 = test.main.Payload; 1uint1 = void; } };
 
 export function test.main.inspect(v0: variant<uint1> { 0uint1 = test.main.Payload; 1uint1 = void; }): int32 {
     local l0: variant<uint1> { 0uint1 = test.main.Payload; 1uint1 = void; }
@@ -1515,8 +1432,8 @@ b2:
 
 /// @layout.struct name=test.main.Payload size=4 align=4
 /// @layout.field owner=test.main.Payload index=0 name=value offset=0 size=4 align=4
-/// @layout.struct name=test.main.Holder size=8 align=4
-/// @layout.field owner=test.main.Holder index=0 name=slot offset=0 size=8 align=4
+/// @layout.class name=test.main.Holder size=12 align=4
+/// @layout.field owner=test.main.Holder index=0 name=slot offset=4 size=8 align=4
 /// @layout.variant name=type@7 size=8 align=4
 /// @layout.discriminant owner=type@7 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@7 index=0 discriminant=0 payload_offset=4
@@ -1561,15 +1478,10 @@ function read(derived: Derived): int32 {
         "test.main.read",
         r#"
 @nocopy
-type test.main.Base {
-    value: int32;
-}
+type test.main.Base = class { value: int32 };
 
 @nocopy
-type test.main.Derived {
-    value: int32;
-    extra: int32;
-}
+type test.main.Derived = class<test.main.Base> { value: int32, extra: int32 };
 
 export function test.main.read(v0: ref<test.main.Derived, managed, mutable, local>): int32 {
     local l0: ref<test.main.Derived, managed, mutable, local>
@@ -1582,11 +1494,11 @@ entry(v0: ref<test.main.Derived, managed, mutable, local>):
     return v3
 }
 
-/// @layout.struct name=test.main.Base size=4 align=4
-/// @layout.field owner=test.main.Base index=0 name=value offset=0 size=4 align=4
-/// @layout.struct name=test.main.Derived size=8 align=4
-/// @layout.field owner=test.main.Derived index=0 name=value offset=0 size=4 align=4
-/// @layout.field owner=test.main.Derived index=1 name=extra offset=4 size=4 align=4
+/// @layout.class name=test.main.Base size=8 align=4
+/// @layout.field owner=test.main.Base index=0 name=value offset=4 size=4 align=4
+/// @layout.class name=test.main.Derived size=12 align=4
+/// @layout.field owner=test.main.Derived index=0 name=value offset=4 size=4 align=4
+/// @layout.field owner=test.main.Derived index=1 name=extra offset=8 size=4 align=4
 "#,
     );
 }
@@ -1628,15 +1540,10 @@ function read(derived: Derived): int32 {
         "test.main.read",
         r#"
 @nocopy
-type test.main.Base {
-    value: int32;
-}
+type test.main.Base = class { value: int32 };
 
 @nocopy
-type test.main.Derived {
-    value: int32;
-    extra: int32;
-}
+type test.main.Derived = class<test.main.Base> { value: int32, extra: int32 };
 
 export function test.main.read(v0: ref<test.main.Derived, managed, mutable, local>): int32 {
     local l0: ref<test.main.Derived, managed, mutable, local>
@@ -1650,11 +1557,11 @@ entry(v0: ref<test.main.Derived, managed, mutable, local>):
     return v4
 }
 
-/// @layout.struct name=test.main.Base size=4 align=4
-/// @layout.field owner=test.main.Base index=0 name=value offset=0 size=4 align=4
-/// @layout.struct name=test.main.Derived size=8 align=4
-/// @layout.field owner=test.main.Derived index=0 name=value offset=0 size=4 align=4
-/// @layout.field owner=test.main.Derived index=1 name=extra offset=4 size=4 align=4
+/// @layout.class name=test.main.Base size=8 align=4
+/// @layout.field owner=test.main.Base index=0 name=value offset=4 size=4 align=4
+/// @layout.class name=test.main.Derived size=12 align=4
+/// @layout.field owner=test.main.Derived index=0 name=value offset=4 size=4 align=4
+/// @layout.field owner=test.main.Derived index=1 name=extra offset=8 size=4 align=4
 "#,
     );
 }
@@ -1688,15 +1595,10 @@ function wings(animal: Animal | undefined): int32 {
         "test.main.wings",
         r#"
 @nocopy
-type test.main.Animal {
-    legs: int32;
-}
+type test.main.Animal = class { legs: int32 };
 
 @nocopy
-type test.main.Bird {
-    legs: int32;
-    wings: int32;
-}
+type test.main.Bird = class<test.main.Animal> { legs: int32, wings: int32 };
 
 export function test.main.wings(v0: variant<uint1> { 0uint1 = ref<test.main.Animal, managed, mutable, local>; 1uint1 = void; }): int32 {
     local l0: variant<uint1> { 0uint1 = ref<test.main.Animal, managed, mutable, local>; 1uint1 = void; }
@@ -1710,54 +1612,53 @@ entry(v0: variant<uint1> { 0uint1 = ref<test.main.Animal, managed, mutable, loca
     switch v1, b1, 0 => b4
 
 b1:
-    v6: boolean = false
-    store l2, v6
-    jump b2
-
-b2:
-    v7: boolean = load l2
-    v8: ref<variant<uint1> { 0uint1 = ref<test.main.Animal, managed, mutable, local>; 1uint1 = void; }, borrowed, 'frame, readonly> = fake.borrow l0
-    branch v7 => b6 | b7
-
-b3:
-    v5: boolean = true
+    v5: boolean = false
     store l2, v5
     jump b2
 
+b2:
+    v6: boolean = load l2
+    v7: ref<variant<uint1> { 0uint1 = ref<test.main.Animal, managed, mutable, local>; 1uint1 = void; }, borrowed, 'frame, readonly> = fake.borrow l0
+    branch v6 => b6 | b7
+
+b3:
+    v4: boolean = true
+    store l2, v4
+    jump b2
+
 b4:
-    v2: ref<test.main.Animal, borrowed, 'managed, mutable> = address (*(l0 as 0))
-    v3: ref<test.main.Animal, borrowed, 'frame, readonly> = address (*v2)
-    v4: typeId = type.of v3
-    check is.subtype v4, test.main.Bird => b5 | b1
+    v2: ref<test.main.Animal, managed, mutable, local> = load (l0 as 0)
+    v3: typeId = type.of v2
+    check is.subtype v3, test.main.Bird => b5 | b1
 
 b5:
     jump b3
 
 b6:
-    fake.read v8
-    v9: ref<test.main.Animal, managed, mutable, local> = load (l0 as 0)
-    v10: ref<test.main.Bird, managed, mutable, local> = cast.bit v9 -> ref<test.main.Bird, managed, mutable, local>
-    store l3, v10
-    v11: ref<test.main.Bird, borrowed, 'managed, mutable> = address (*l3)
-    v12: int32 = load (*v11).1
-    store l1, v12
+    fake.read v7
+    v8: ref<test.main.Animal, managed, mutable, local> = load (l0 as 0)
+    v9: ref<test.main.Bird, managed, mutable, local> = cast.bit v8 -> ref<test.main.Bird, managed, mutable, local>
+    store l3, v9
+    v10: ref<test.main.Bird, borrowed, 'managed, mutable> = address (*l3)
+    v11: int32 = load (*v10).1
+    store l1, v11
     jump b8
 
 b7:
-    v13: int32 = 0
-    store l1, v13
+    v12: int32 = 0
+    store l1, v12
     jump b8
 
 b8:
-    v14: int32 = load l1
-    return v14
+    v13: int32 = load l1
+    return v13
 }
 
-/// @layout.struct name=test.main.Animal size=4 align=4
-/// @layout.field owner=test.main.Animal index=0 name=legs offset=0 size=4 align=4
-/// @layout.struct name=test.main.Bird size=8 align=4
-/// @layout.field owner=test.main.Bird index=0 name=legs offset=0 size=4 align=4
-/// @layout.field owner=test.main.Bird index=1 name=wings offset=4 size=4 align=4
+/// @layout.class name=test.main.Animal size=8 align=4
+/// @layout.field owner=test.main.Animal index=0 name=legs offset=4 size=4 align=4
+/// @layout.class name=test.main.Bird size=12 align=4
+/// @layout.field owner=test.main.Bird index=0 name=legs offset=4 size=4 align=4
+/// @layout.field owner=test.main.Bird index=1 name=wings offset=8 size=4 align=4
 /// @layout.variant name=type@13 size=8 align=8
 /// @layout.discriminant owner=type@13 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
 /// @layout.case owner=type@13 index=0 discriminant=0 payload_offset=0
@@ -1794,14 +1695,10 @@ function legs(pet: Bird | Cat | undefined): int32 {
         "test.main.legs",
         r#"
 @nocopy
-type test.main.Bird {
-    legs: int32;
-}
+type test.main.Bird = class<test.main.Animal> { legs: int32 };
 
 @nocopy
-type test.main.Cat {
-    legs: int32;
-}
+type test.main.Cat = class<test.main.Animal> { legs: int32 };
 
 export function test.main.legs(v0: variant<uint2> { 0uint2 = ref<test.main.Bird, managed, mutable, local>; 1uint2 = ref<test.main.Cat, managed, mutable, local>; 2uint2 = void; }): int32 {
     local l0: variant<uint2> { 0uint2 = ref<test.main.Bird, managed, mutable, local>; 1uint2 = ref<test.main.Cat, managed, mutable, local>; 2uint2 = void; }
@@ -1893,19 +1790,19 @@ b16:
     jump b9
 }
 
-/// @layout.struct name=test.main.Bird size=4 align=4
-/// @layout.field owner=test.main.Bird index=0 name=legs offset=0 size=4 align=4
-/// @layout.struct name=test.main.Cat size=4 align=4
-/// @layout.field owner=test.main.Cat index=0 name=legs offset=0 size=4 align=4
-/// @layout.variant name=type@16 size=16 align=8
-/// @layout.discriminant owner=type@16 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@16 index=0 discriminant=0 payload_offset=8
-/// @layout.case owner=type@16 index=1 discriminant=1 payload_offset=8
-/// @layout.case owner=type@16 index=2 discriminant=2 payload_offset=8
-/// @layout.variant name=type@20 size=16 align=8
-/// @layout.discriminant owner=type@20 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@20 index=0 discriminant=0 payload_offset=8
-/// @layout.case owner=type@20 index=1 discriminant=1 payload_offset=8
+/// @layout.class name=test.main.Bird size=8 align=4
+/// @layout.field owner=test.main.Bird index=0 name=legs offset=4 size=4 align=4
+/// @layout.class name=test.main.Cat size=8 align=4
+/// @layout.field owner=test.main.Cat index=0 name=legs offset=4 size=4 align=4
+/// @layout.variant name=type@17 size=16 align=8
+/// @layout.discriminant owner=type@17 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@17 index=0 discriminant=0 payload_offset=8
+/// @layout.case owner=type@17 index=1 discriminant=1 payload_offset=8
+/// @layout.case owner=type@17 index=2 discriminant=2 payload_offset=8
+/// @layout.variant name=type@21 size=16 align=8
+/// @layout.discriminant owner=type@21 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@21 index=0 discriminant=0 payload_offset=8
+/// @layout.case owner=type@21 index=1 discriminant=1 payload_offset=8
 "#,
     );
 }
@@ -1937,15 +1834,10 @@ function wings(animal: Animal): int32 {
         "test.main.wings",
         r#"
 @nocopy
-type test.main.Animal {
-    legs: int32;
-}
+type test.main.Animal = class { legs: int32 };
 
 @nocopy
-type test.main.Bird {
-    legs: int32;
-    wings: int32;
-}
+type test.main.Bird = class<test.main.Animal> { legs: int32, wings: int32 };
 
 export function test.main.wings(v0: ref<test.main.Animal, managed, mutable, local>): int32 {
     local l0: ref<test.main.Animal, managed, mutable, local>
@@ -1992,11 +1884,11 @@ b6:
     return v12
 }
 
-/// @layout.struct name=test.main.Animal size=4 align=4
-/// @layout.field owner=test.main.Animal index=0 name=legs offset=0 size=4 align=4
-/// @layout.struct name=test.main.Bird size=8 align=4
-/// @layout.field owner=test.main.Bird index=0 name=legs offset=0 size=4 align=4
-/// @layout.field owner=test.main.Bird index=1 name=wings offset=4 size=4 align=4
+/// @layout.class name=test.main.Animal size=8 align=4
+/// @layout.field owner=test.main.Animal index=0 name=legs offset=4 size=4 align=4
+/// @layout.class name=test.main.Bird size=12 align=4
+/// @layout.field owner=test.main.Bird index=0 name=legs offset=4 size=4 align=4
+/// @layout.field owner=test.main.Bird index=1 name=wings offset=8 size=4 align=4
 "#,
     );
 }
@@ -2030,15 +1922,10 @@ function build(): ^Puppy {
         "test.main.Dog.constructor",
         r#"
 @nocopy
-type test.main.Animal {
-    legs: int32;
-}
+type test.main.Animal = class { legs: int32 };
 
 @nocopy
-type test.main.Dog {
-    legs: int32;
-    good: int32;
-}
+type test.main.Dog = class<test.main.Animal> { legs: int32, good: int32 };
 
 export constructor test.main.Dog.constructor<'a>(v0: ref<uninit<test.main.Dog>, borrowed, 'a, exclusive>, v1: int32): void {
     local l0: ref<uninit<test.main.Dog>, borrowed, 'a, exclusive>
@@ -2054,11 +1941,11 @@ entry(v0: ref<uninit<test.main.Dog>, borrowed, 'a, exclusive>, v1: int32):
     return
 }
 
-/// @layout.struct name=test.main.Animal size=4 align=4
-/// @layout.field owner=test.main.Animal index=0 name=legs offset=0 size=4 align=4
-/// @layout.struct name=test.main.Dog size=8 align=4
-/// @layout.field owner=test.main.Dog index=0 name=legs offset=0 size=4 align=4
-/// @layout.field owner=test.main.Dog index=1 name=good offset=4 size=4 align=4
+/// @layout.class name=test.main.Animal size=8 align=4
+/// @layout.field owner=test.main.Animal index=0 name=legs offset=4 size=4 align=4
+/// @layout.class name=test.main.Dog size=12 align=4
+/// @layout.field owner=test.main.Dog index=0 name=legs offset=4 size=4 align=4
+/// @layout.field owner=test.main.Dog index=1 name=good offset=8 size=4 align=4
 "#,
     );
 
@@ -2067,16 +1954,10 @@ entry(v0: ref<uninit<test.main.Dog>, borrowed, 'a, exclusive>, v1: int32):
         "test.main.Puppy.constructor",
         r#"
 @nocopy
-type test.main.Dog {
-    legs: int32;
-    good: int32;
-}
+type test.main.Dog = class<test.main.Animal> { legs: int32, good: int32 };
 
 @nocopy
-type test.main.Puppy {
-    legs: int32;
-    good: int32;
-}
+type test.main.Puppy = class<test.main.Dog> { legs: int32, good: int32 };
 
 export constructor test.main.Puppy.constructor<'a>(v0: ref<uninit<test.main.Puppy>, borrowed, 'a, exclusive>, v1: int32): void {
     local l0: ref<uninit<test.main.Puppy>, borrowed, 'a, exclusive>
@@ -2089,12 +1970,12 @@ entry(v0: ref<uninit<test.main.Puppy>, borrowed, 'a, exclusive>, v1: int32):
     return
 }
 
-/// @layout.struct name=test.main.Dog size=8 align=4
-/// @layout.field owner=test.main.Dog index=0 name=legs offset=0 size=4 align=4
-/// @layout.field owner=test.main.Dog index=1 name=good offset=4 size=4 align=4
-/// @layout.struct name=test.main.Puppy size=8 align=4
-/// @layout.field owner=test.main.Puppy index=0 name=legs offset=0 size=4 align=4
-/// @layout.field owner=test.main.Puppy index=1 name=good offset=4 size=4 align=4
+/// @layout.class name=test.main.Dog size=12 align=4
+/// @layout.field owner=test.main.Dog index=0 name=legs offset=4 size=4 align=4
+/// @layout.field owner=test.main.Dog index=1 name=good offset=8 size=4 align=4
+/// @layout.class name=test.main.Puppy size=12 align=4
+/// @layout.field owner=test.main.Puppy index=0 name=legs offset=4 size=4 align=4
+/// @layout.field owner=test.main.Puppy index=1 name=good offset=8 size=4 align=4
 "#,
     );
 
@@ -2103,10 +1984,7 @@ entry(v0: ref<uninit<test.main.Puppy>, borrowed, 'a, exclusive>, v1: int32):
         "test.main.build",
         r#"
 @nocopy
-type test.main.Puppy {
-    legs: int32;
-    good: int32;
-}
+type test.main.Puppy = class<test.main.Dog> { legs: int32, good: int32 };
 
 export function test.main.build(): test.main.Puppy {
     local l0: test.main.Puppy
@@ -2120,9 +1998,9 @@ entry:
     return v3
 }
 
-/// @layout.struct name=test.main.Puppy size=8 align=4
-/// @layout.field owner=test.main.Puppy index=0 name=legs offset=0 size=4 align=4
-/// @layout.field owner=test.main.Puppy index=1 name=good offset=4 size=4 align=4
+/// @layout.class name=test.main.Puppy size=12 align=4
+/// @layout.field owner=test.main.Puppy index=0 name=legs offset=4 size=4 align=4
+/// @layout.field owner=test.main.Puppy index=1 name=good offset=8 size=4 align=4
 "#,
     );
 }

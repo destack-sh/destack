@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::mem;
 use std::sync::Arc;
 
 use tspp_artifact::{DiagnosticLike, EnvironmentBound, MirDeclared, MirLowered};
@@ -9,7 +10,7 @@ use tspp_repository::{ArtifactReader, ProfileId, ProviderContext};
 use tspp_source::{ModuleId, TargetId};
 
 use crate::lower::{
-    DeclaredModule, DirModule, FunctionDeclaration, FunctionDefinition, FunctionLowerer,
+    ClassSlot, DeclaredModule, DirModule, FunctionDeclaration, FunctionDefinition, FunctionLowerer,
     GenericInstanceKey, GenericScope, InstanceForm, LowerPhase, NominalInstance, NominalState,
     literal_static,
 };
@@ -103,6 +104,8 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(in crate::lower) representations: Memo<dir::GlobalTypeId, mir::TypeId>,
     /// The dispatch shape behind each constraint the bodies read.
     pub(in crate::lower) constraints: Memo<dir::GlobalTypeId, mir::TypeId>,
+    /// The virtual table slots of each class read.
+    pub(in crate::lower) class_slots: FxIndexMap<dir::GlobalSymbolId, Arc<[ClassSlot]>>,
     /// The nominal instance behind each application type the bodies read.
     pub(in crate::lower) stored_nominals: Memo<dir::GlobalTypeId, NominalInstance>,
     /// The state of each nominal representation being lowered or already lowered.
@@ -121,8 +124,8 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(in crate::lower) constructors: FxIndexMap<mir::Symbol, mir::FunctionId>,
     /// The steps the module initializer runs, in source order.
     pub(in crate::lower) initializers: Vec<ModuleInitializer>,
-    /// The dispatch shape registered for each lowered constraint.
-    pub(in crate::lower) dynamic_shapes: FxIndexMap<mir::TypeId, mir::DynamicShape>,
+    /// The dispatch shape of each lowered dynamic constraint.
+    pub(in crate::lower) shapes: mir::ShapeTable,
 }
 
 impl<'a> ModuleLowerer<'a> {
@@ -164,6 +167,7 @@ impl<'a> ModuleLowerer<'a> {
             pending: Vec::new(),
             // memos
             representations: FxIndexMap::default(),
+            class_slots: FxIndexMap::default(),
             constraints: FxIndexMap::default(),
             stored_nominals: FxIndexMap::default(),
             nominal_states: FxIndexMap::default(),
@@ -174,7 +178,7 @@ impl<'a> ModuleLowerer<'a> {
             functions: FxIndexMap::default(),
             constructors: FxIndexMap::default(),
             initializers: Vec::new(),
-            dynamic_shapes: FxIndexMap::default(),
+            shapes: mir::ShapeTable::default(),
         }
     }
 
@@ -483,22 +487,25 @@ impl<'a> ModuleLowerer<'a> {
         })
     }
 
-    /// Return the dispatch shape one constraint registered.
-    pub(in crate::lower) fn dynamic_shape(
+    /// Return the slot one constraint's shape holds one requirement in.
+    fn dynamic_function_slot(
         &self,
         tree: &mir::Tree,
         constraint: mir::TypeId,
-    ) -> Option<(&mir::DynamicShape, Vec<mir::GenericArgument>)> {
-        let (base, arguments) = match tree.get(constraint) {
-            mir::Type::Application {
-                base, arguments, ..
-            } if !arguments.is_empty() => (*base, arguments.clone()),
-            _ => (constraint, Vec::new()),
+        requirement: mir::Symbol,
+    ) -> CompilerResult<mir::DispatchSlot> {
+        let slot = self.shapes.shape(tree, constraint).and_then(|(shape, _)| {
+            shape.slots.iter().position(|slot| {
+                matches!(slot, mir::DynamicSlot::Function { requirement: found, .. } if *found == requirement)
+            })
+        });
+        let Some(slot) = slot else {
+            return Err(CompilerError::Internal {
+                message: "a dynamic witness requirement outside its constraint's slots".to_string(),
+            });
         };
 
-        self.dynamic_shapes
-            .get(&base)
-            .map(|shape| (shape, arguments))
+        Ok(mir::DispatchSlot::new(slot as u32))
     }
 
     /// Record the witnesses this module closes into the MIR witness table.
@@ -530,18 +537,35 @@ impl<'a> ModuleLowerer<'a> {
             // declare the implementer behind each requirement
             let mut functions = Vec::with_capacity(witness.functions.len());
             for function in &witness.functions {
-                let Some(member) = self.symbol_name(function.member)? else {
-                    return Err(CompilerError::Internal {
-                        message: "a witness member without a name".to_string(),
-                    });
-                };
                 let requirement = self.template_function(tree, function.member, None)?;
-                let entry = self.witness_function(tree, &function.function)?;
+                let implementation = match (function.source, function.dispatch) {
+                    (dir::WitnessSource::Default, _) => mir::WitnessImplementation::Default,
+                    (dir::WitnessSource::Dynamic, _) => mir::WitnessImplementation::Dynamic {
+                        slot: self.dynamic_function_slot(
+                            tree,
+                            constraint,
+                            tree.get(requirement).symbol,
+                        )?,
+                    },
+                    (_, dir::FunctionDispatch::Virtual { class }) => {
+                        mir::WitnessImplementation::Virtual {
+                            slot: self.class_slot(tree, class, function.function.symbol)?,
+                        }
+                    }
+                    (
+                        dir::WitnessSource::Declared | dir::WitnessSource::Derived,
+                        dir::FunctionDispatch::Direct,
+                    ) => {
+                        let entry = self.witness_function(tree, &function.function)?;
+                        mir::WitnessImplementation::Function {
+                            function: entry.function,
+                            arguments: entry.arguments,
+                        }
+                    }
+                };
                 functions.push(mir::WitnessFunction {
-                    member,
                     requirement,
-                    function: entry.function,
-                    arguments: entry.arguments,
+                    implementation,
                 });
             }
 
@@ -560,9 +584,13 @@ impl<'a> ModuleLowerer<'a> {
                 });
             }
 
-            // read the global behind each associated const
+            // read the global of each associated const
             let mut constants = Vec::with_capacity(witness.constants.len());
             for constant in &witness.constants {
+                let ty = self.symbol_type(constant.value)?;
+                if self.argument_memory_kind(ty)?.is_some() {
+                    continue;
+                }
                 let dir::StaticKey::Name(member) = constant.member else {
                     return Err(CompilerError::Internal {
                         message: "an associated const under an indexed key".to_string(),
@@ -638,6 +666,11 @@ impl<'a> ModuleLowerer<'a> {
         let witnesses = self.lower_witness_table(builder.tree_mut())?;
         self.witnesses = witnesses.clone();
 
+        // record the class tables
+        for table in self.declare_class_tables(builder.tree_mut())? {
+            builder.dispatch_mut().insert_virtual_table(table);
+        }
+
         // lower the module initializer
         let mut initializer = None;
         match self.lower_module_initializer(&mut builder) {
@@ -687,8 +720,6 @@ impl<'a> ModuleLowerer<'a> {
         *builder.witnesses_mut() = witnesses;
 
         // publish the dispatch shapes, their tables built over the instance layouts
-        self.publish_dispatch_shapes(&mut builder);
-
         // publish the lowered names into the shared pool
         let (tree, target, layouts, dispatch, drops, witnesses, profile, strings) =
             builder.finish();
@@ -702,6 +733,7 @@ impl<'a> ModuleLowerer<'a> {
             dispatch,
             drops,
             witnesses,
+            shapes: mem::take(&mut self.shapes),
             profile,
             initializer,
         };

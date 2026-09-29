@@ -161,9 +161,7 @@ function keep(user: User): User {
         "test.main.User.constructor",
         r#"
 @nocopy
-type test.main.User {
-    id: int32;
-}
+type test.main.User = class { id: int32 };
 
 export constructor test.main.User.constructor<'a>(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>
@@ -176,8 +174,8 @@ entry(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>):
     return
 }
 
-/// @layout.struct name=test.main.User size=4 align=4
-/// @layout.field owner=test.main.User index=0 name=id offset=0 size=4 align=4
+/// @layout.class name=test.main.User size=8 align=4
+/// @layout.field owner=test.main.User index=0 name=id offset=4 size=4 align=4
 "#,
     );
 
@@ -186,9 +184,7 @@ entry(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>):
         "test.main.User.identity",
         r#"
 @nocopy
-type test.main.User {
-    id: int32;
-}
+type test.main.User = class { id: int32 };
 
 export function test.main.User.identity(v0: ref<test.main.User, managed, mutable, local>): ref<test.main.User, managed, mutable, local> {
     local l0: ref<test.main.User, managed, mutable, local>
@@ -199,16 +195,14 @@ entry(v0: ref<test.main.User, managed, mutable, local>):
     return v1
 }
 
-/// @layout.struct name=test.main.User size=4 align=4
-/// @layout.field owner=test.main.User index=0 name=id offset=0 size=4 align=4
+/// @layout.class name=test.main.User size=8 align=4
+/// @layout.field owner=test.main.User index=0 name=id offset=4 size=4 align=4
 "#,
     );
 
     session.assert_mir_function("main.tspp", "test.main.keep", r#"
 @nocopy
-type test.main.User {
-    id: int32;
-}
+type test.main.User = class { id: int32 };
 
 export function test.main.keep(v0: ref<test.main.User, managed, mutable, local>): ref<test.main.User, managed, mutable, local> {
     local l0: ref<test.main.User, managed, mutable, local>
@@ -220,8 +214,8 @@ entry(v0: ref<test.main.User, managed, mutable, local>):
     return v2
 }
 
-/// @layout.struct name=test.main.User size=4 align=4
-/// @layout.field owner=test.main.User index=0 name=id offset=0 size=4 align=4
+/// @layout.class name=test.main.User size=8 align=4
+/// @layout.field owner=test.main.User index=0 name=id offset=4 size=4 align=4
 "#);
 }
 
@@ -316,9 +310,7 @@ function open(): int32 {
 
     session.assert_mir_function("main.tspp", "test.main.Box.constructor", r#"
 @nocopy
-type test.main.Box {
-    weight: int32;
-}
+type test.main.Box = class { weight: int32 };
 
 export constructor test.main.Box.constructor<'a>(v0: ref<uninit<test.main.Box>, borrowed, 'a, exclusive>, v1: int32): void {
     local l0: int32
@@ -333,8 +325,8 @@ entry(v0: ref<uninit<test.main.Box>, borrowed, 'a, exclusive>, v1: int32):
     return
 }
 
-/// @layout.struct name=test.main.Box size=4 align=4
-/// @layout.field owner=test.main.Box index=0 name=weight offset=0 size=4 align=4
+/// @layout.class name=test.main.Box size=8 align=4
+/// @layout.field owner=test.main.Box index=0 name=weight offset=4 size=4 align=4
 "#);
 
     session.assert_mir_function(
@@ -342,9 +334,7 @@ entry(v0: ref<uninit<test.main.Box>, borrowed, 'a, exclusive>, v1: int32):
         "test.main.Box.unwrap",
         r#"
 @nocopy
-type test.main.Box {
-    weight: int32;
-}
+type test.main.Box = class { weight: int32 };
 
 export function test.main.Box.unwrap(v0: test.main.Box): int32 {
     local l0: test.main.Box
@@ -355,8 +345,8 @@ entry(v0: test.main.Box):
     return v1
 }
 
-/// @layout.struct name=test.main.Box size=4 align=4
-/// @layout.field owner=test.main.Box index=0 name=weight offset=0 size=4 align=4
+/// @layout.class name=test.main.Box size=8 align=4
+/// @layout.field owner=test.main.Box index=0 name=weight offset=4 size=4 align=4
 "#,
     );
 
@@ -365,9 +355,7 @@ entry(v0: test.main.Box):
         "test.main.open",
         r#"
 @nocopy
-type test.main.Box {
-    weight: int32;
-}
+type test.main.Box = class { weight: int32 };
 
 export function test.main.open(): int32 {
     local l0: test.main.Box
@@ -385,8 +373,8 @@ entry:
     return v5
 }
 
-/// @layout.struct name=test.main.Box size=4 align=4
-/// @layout.field owner=test.main.Box index=0 name=weight offset=0 size=4 align=4
+/// @layout.class name=test.main.Box size=8 align=4
+/// @layout.field owner=test.main.Box index=0 name=weight offset=4 size=4 align=4
 "#,
     );
 }
@@ -554,9 +542,7 @@ function read(counter: Counter): int32 {
         "test.main.read",
         r#"
 @nocopy
-type test.main.Counter {
-    value: int32;
-}
+type test.main.Counter = class { value: int32 };
 
 export function test.main.read(v0: ref<test.main.Counter, managed, mutable, local>): int32 {
     local l0: ref<test.main.Counter, managed, mutable, local>
@@ -573,8 +559,8 @@ entry(v0: ref<test.main.Counter, managed, mutable, local>):
     return v5
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=value offset=4 size=4 align=4
 "#,
     );
 }

@@ -633,6 +633,7 @@ impl TestSession {
                     lowered.target,
                     &elaborated.layouts,
                     &elaborated.dispatch,
+                    None,
                 )
             }
             _ => self.render_mir_tree(
@@ -640,6 +641,7 @@ impl TestSession {
                 lowered.target,
                 &lowered.layouts,
                 &lowered.dispatch,
+                Some(&lowered.shapes),
             ),
         }
     }
@@ -651,31 +653,65 @@ impl TestSession {
         target: tspp_mir::TargetLayout,
         layouts: &tspp_mir::LayoutTable,
         dispatch: &tspp_mir::DispatchTable,
+        shapes: Option<&tspp_mir::ShapeTable>,
     ) -> String {
         let strings = self.repository.string_pool();
 
         // format the MIR tree
-        let formatted = Formatter::new(tree, target, strings.as_ref(), FormatOptions::default())
-            .format()
-            .expect("test MIR should format");
+        let formatter = || Formatter::new(tree, target, strings.as_ref(), FormatOptions::default());
+        let formatted = formatter().format().expect("test MIR should format");
 
         // append the aggregate layouts under their declared names
         let layouts =
             Self::render_mir_layouts(tree, target, layouts, strings.as_ref(), None, |_| true);
-        let dispatch = Self::render_mir_dispatch(dispatch, strings.as_ref());
+        let dispatch = Self::render_mir_dispatch(dispatch, shapes, &formatter(), strings.as_ref());
 
         Self::join_mir_rows(formatted, [&layouts, &dispatch])
     }
 
-    /// Render the dynamic dispatch rows of one MIR module.
+    /// Render the virtual and dynamic dispatch rows of one MIR module.
     fn render_mir_dispatch(
         dispatch: &tspp_mir::DispatchTable,
+        shapes: Option<&tspp_mir::ShapeTable>,
+        formatter: &Formatter<'_>,
         strings: &tspp_core::StringPool,
     ) -> String {
         let mut rows = String::new();
+        let function = |function| {
+            formatter
+                .format_function(function)
+                .expect("test MIR dispatch functions should format")
+        };
+
+        // render one row per virtual table
+        for table in dispatch.iter_virtual_tables() {
+            rows.push_str(&format!(
+                "/// @dispatch.virtual concrete={} value={}",
+                mir_type_name(table.concrete),
+                mir_type_name(table.value)
+            ));
+            for slot in &table.slots {
+                match slot {
+                    tspp_mir::VirtualSlot::Method {
+                        function: method,
+                        arguments,
+                    } => {
+                        rows.push_str(&format!(" method={}", function(*method)));
+                        if !arguments.is_empty() {
+                            rows.push_str("(open)");
+                        }
+                    }
+                    tspp_mir::VirtualSlot::Abstract => rows.push_str(" abstract"),
+                    tspp_mir::VirtualSlot::Conformance { constraint } => {
+                        rows.push_str(&format!(" conformance={}", mir_type_name(*constraint)));
+                    }
+                }
+            }
+            rows.push('\n');
+        }
 
         // render one row per dynamic shape
-        for shape in dispatch.iter_dynamic_shapes() {
+        for shape in shapes.into_iter().flat_map(tspp_mir::ShapeTable::iter) {
             rows.push_str(&format!(
                 "/// @dispatch.shape constraint={}",
                 mir_type_name(shape.constraint)
@@ -686,8 +722,7 @@ impl TestSession {
                         rows.push_str(&format!(" field={}", strings.get(*name)));
                     }
                     tspp_mir::DynamicSlot::Function { name, .. } => {
-                        let name = name.map_or("call", |name| strings.get(name));
-                        rows.push_str(&format!(" function={name}"));
+                        rows.push_str(&format!(" function={}", strings.get(*name)));
                     }
                 }
             }
@@ -706,8 +741,8 @@ impl TestSession {
                     tspp_mir::DynamicEntry::Field { offset } => {
                         rows.push_str(&format!(" field+{offset}"));
                     }
-                    tspp_mir::DynamicEntry::Function { function } => {
-                        rows.push_str(&format!(" function@{}", function.id));
+                    tspp_mir::DynamicEntry::Function { function: entry } => {
+                        rows.push_str(&format!(" function={}", function(*entry)));
                     }
                     tspp_mir::DynamicEntry::Absent => {
                         rows.push_str(" absent");
@@ -781,14 +816,25 @@ impl TestSession {
                 &layout.shape,
                 tree.get(tspp_mir::Substitution::resolve(ty, tree)),
             ) {
-                // render one struct row followed by its fields
-                (tspp_mir::LayoutShape::Struct(shape), tspp_mir::Type::Struct { .. }) => {
+                // render one struct or class row followed by its fields
+                (
+                    tspp_mir::LayoutShape::Struct(tspp_mir::StructLayout { fields }),
+                    tspp_mir::Type::Struct { .. },
+                )
+                | (
+                    tspp_mir::LayoutShape::Class(tspp_mir::ClassLayout { fields }),
+                    tspp_mir::Type::Class { .. },
+                ) => {
+                    let kind = match layout.shape {
+                        tspp_mir::LayoutShape::Class(_) => "class",
+                        _ => "struct",
+                    };
                     rows.push_str(&format!(
-                        "/// @layout.struct name={name} size={size} align={alignment}\n"
+                        "/// @layout.{kind} name={name} size={size} align={alignment}\n"
                     ));
 
                     // render fields in declaration order
-                    for (index, field) in shape.fields.iter().enumerate() {
+                    for (index, field) in fields.iter().enumerate() {
                         rows.push_str(&format!("/// @layout.field owner={name} index={index}"));
                         if let Some(field_name) = field.name {
                             let field_name = strings.get(field_name);

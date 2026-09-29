@@ -26,9 +26,7 @@ function compare(left: &immutable Node, right: &immutable Node): boolean {
         "test.main.Node.constructor",
         r#"
 @nocopy
-type test.main.Node {
-    value: int32;
-}
+type test.main.Node = class { value: int32 };
 
 export constructor test.main.Node.constructor<'a>(v0: ref<uninit<test.main.Node>, borrowed, 'a, exclusive>): void {
     local l0: ref<uninit<test.main.Node>, borrowed, 'a, exclusive>
@@ -41,16 +39,14 @@ entry(v0: ref<uninit<test.main.Node>, borrowed, 'a, exclusive>):
     return
 }
 
-/// @layout.struct name=test.main.Node size=4 align=4
-/// @layout.field owner=test.main.Node index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Node size=8 align=4
+/// @layout.field owner=test.main.Node index=0 name=value offset=4 size=4 align=4
 "#,
     );
 
     session.assert_mir_function("main.tspp", "test.main.compare", r#"
 @nocopy
-type test.main.Node {
-    value: int32;
-}
+type test.main.Node = class { value: int32 };
 
 export function test.main.compare<'a, 'b>(v0: ref<test.main.Node, borrowed, 'a, immutable>, v1: ref<test.main.Node, borrowed, 'b, immutable>): boolean {
     local l0: ref<test.main.Node, borrowed, 'a, immutable>
@@ -65,8 +61,8 @@ entry(v0: ref<test.main.Node, borrowed, 'a, immutable>, v1: ref<test.main.Node, 
     return v4
 }
 
-/// @layout.struct name=test.main.Node size=4 align=4
-/// @layout.field owner=test.main.Node index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Node size=8 align=4
+/// @layout.field owner=test.main.Node index=0 name=value offset=4 size=4 align=4
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.same", r#"
@@ -93,9 +89,7 @@ entry(v0: ref<?T, borrowed, 'a, immutable>, v1: ref<?T, borrowed, 'b, immutable>
         "test.main.PartialEqual.equal<ref<test.main.Node, managed, mutable, local>>",
         r#"
 @nocopy
-type test.main.Node {
-    value: int32;
-}
+type test.main.Node = class { value: int32 };
 
 export function test.main.PartialEqual.equal<ref<test.main.Node, managed, mutable, local>, 'a, 'b>(v0: ref<test.main.Node, borrowed, 'a, immutable>, v1: ref<test.main.Node, borrowed, 'b, immutable>): boolean {
     local l0: ref<test.main.Node, borrowed, 'b, immutable>
@@ -110,8 +104,8 @@ entry(v0: ref<test.main.Node, borrowed, 'a, immutable>, v1: ref<test.main.Node, 
     return v4
 }
 
-/// @layout.struct name=test.main.Node size=4 align=4
-/// @layout.field owner=test.main.Node index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Node size=8 align=4
+/// @layout.field owner=test.main.Node index=0 name=value offset=4 size=4 align=4
 "#,
     );
 }
@@ -142,10 +136,7 @@ function copy(value: &immutable Node): ^Node {
 
     session.assert_mir_function("main.tspp", "test.main.copy", r#"
 @nocopy
-type test.main.Node {
-    id: int32;
-    value: int32;
-}
+type test.main.Node = class<test.main.Base> { id: int32, value: int32 };
 
 export function test.main.copy<'a>(v0: ref<test.main.Node, borrowed, 'a, immutable>): test.main.Node {
     local l0: ref<test.main.Node, borrowed, 'a, immutable>
@@ -157,19 +148,16 @@ entry(v0: ref<test.main.Node, borrowed, 'a, immutable>):
     return v2
 }
 
-/// @layout.struct name=test.main.Node size=8 align=4
-/// @layout.field owner=test.main.Node index=0 name=id offset=0 size=4 align=4
-/// @layout.field owner=test.main.Node index=1 name=value offset=4 size=4 align=4
+/// @layout.class name=test.main.Node size=12 align=4
+/// @layout.field owner=test.main.Node index=0 name=id offset=4 size=4 align=4
+/// @layout.field owner=test.main.Node index=1 name=value offset=8 size=4 align=4
 "#);
     session.assert_mir_function(
         "main.tspp",
         "test.main.Clone.clone<ref<test.main.Node, managed, mutable, local>>",
         r#"
 @nocopy
-type test.main.Node {
-    id: int32;
-    value: int32;
-}
+type test.main.Node = class<test.main.Base> { id: int32, value: int32 };
 
 export function test.main.Clone.clone<ref<test.main.Node, managed, mutable, local>, 'a>(v0: ref<test.main.Node, borrowed, 'a, immutable>): test.main.Node {
     local l0: ref<test.main.Node, borrowed, 'a, immutable>
@@ -184,9 +172,9 @@ entry(v0: ref<test.main.Node, borrowed, 'a, immutable>):
     return v5
 }
 
-/// @layout.struct name=test.main.Node size=8 align=4
-/// @layout.field owner=test.main.Node index=0 name=id offset=0 size=4 align=4
-/// @layout.field owner=test.main.Node index=1 name=value offset=4 size=4 align=4
+/// @layout.class name=test.main.Node size=12 align=4
+/// @layout.field owner=test.main.Node index=0 name=id offset=4 size=4 align=4
+/// @layout.field owner=test.main.Node index=1 name=value offset=8 size=4 align=4
 "#,
     );
 }
@@ -211,10 +199,7 @@ function digest(point: &immutable Point, state: &Hasher): void {
 
     session.assert_mir_function("main.tspp", "test.main.digest", r#"
 @nocopy
-type test.main.Point {
-    x: int32;
-    y: boolean;
-}
+type test.main.Point = class { x: int32, y: boolean };
 
 @nocopy
 @languageItem("ops.Hasher")
@@ -237,8 +222,8 @@ entry(v0: ref<test.main.Point, borrowed, 'a, immutable>, v1: dynamic<Hasher, bor
     return
 }
 
-/// @layout.struct name=test.main.Point size=8 align=4
-/// @layout.field owner=test.main.Point index=0 name=x offset=0 size=4 align=4
-/// @layout.field owner=test.main.Point index=1 name=y offset=4 size=1 align=1
+/// @layout.class name=test.main.Point size=12 align=4
+/// @layout.field owner=test.main.Point index=0 name=x offset=4 size=4 align=4
+/// @layout.field owner=test.main.Point index=1 name=y offset=8 size=1 align=1
 "#);
 }

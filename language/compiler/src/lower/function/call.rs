@@ -103,8 +103,11 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::CallableTarget::Dynamic { dispatch, .. } => {
                 self.lower_dynamic_call(expression, call, dispatch)
             }
-            // reject virtual calls
-            dir::CallableTarget::Symbol { .. } => Err(self.unsupported("a virtual call")),
+            // dispatch an overridable method through its class table
+            dir::CallableTarget::Symbol {
+                function,
+                dispatch: dir::FunctionDispatch::Virtual { .. },
+            } => self.lower_method_call(expression, call, function),
         }?;
 
         // end the block after a diverging call
@@ -330,6 +333,7 @@ impl FunctionLowerer<'_, '_, '_> {
         *signature = tree.intern_type(mir::Type::FunctionSignature {
             lifetimes: Vec::new(),
             parameters,
+            rest: None,
             result: *result,
             park,
         });
@@ -472,26 +476,31 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return the receiver expression one method call's member callee reads, with its optionality.
-    fn member_call_receiver(
+    pub(in crate::lower) fn member_call_receiver(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<(dir::LocalNodeId<dir::Expression>, bool)> {
-        let dir::Expression::Call { left: callee, .. } = *self.source().tree().get(expression)
-        else {
-            return Err(CompilerError::Internal {
-                message: "a method call outside a call expression".to_string(),
-            });
-        };
-        let dir::Expression::Member {
-            left: receiver,
-            is_optional,
-            ..
-        } = *self.source().tree().get(callee)
-        else {
-            return Err(self.internal("a method call without a member callee"));
+        let (callee, is_optional_call) = match *self.source().tree().get(expression) {
+            dir::Expression::Call {
+                left, is_optional, ..
+            } => (left, is_optional),
+            dir::Expression::New { left, .. } => (left, false),
+            _ => {
+                return Err(CompilerError::Internal {
+                    message: "a method call outside a call expression".to_string(),
+                });
+            }
         };
 
-        Ok((receiver, is_optional))
+        // read a member's receiver, else the callable object
+        match *self.source().tree().get(callee) {
+            dir::Expression::Member {
+                left: receiver,
+                is_optional,
+                ..
+            } => Ok((receiver, is_optional)),
+            _ => Ok((callee, is_optional_call)),
+        }
     }
 
     /// Lower one function target over one explicit receiver expression.
@@ -511,10 +520,18 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "a method call without a selected receiver".to_string(),
             })?;
 
-        // split the declared receiver off the value parameters
+        // select the callee or its class table slot
         let key =
             self.with_type_lifetimes(function.key.symbol, &function.key, &resolution.regions)?;
-        let mut selected = self.resolve_callee(&key)?;
+        let mut selected = match &resolution.target {
+            dir::CallableTarget::Symbol {
+                dispatch: dir::FunctionDispatch::Virtual { class },
+                ..
+            } => self.virtual_callee(*class, &key)?,
+            _ => self.resolve_callee(&key)?,
+        };
+
+        // split the declared receiver off the value parameters
         self.instantiate_symbol_callee(&mut selected, &key, resolution)?;
         let parameters = selected.parameters.clone();
         let Some((this, parameters)) = parameters.split_first() else {
@@ -556,6 +573,8 @@ impl FunctionLowerer<'_, '_, '_> {
         let arguments =
             self.lower_call_arguments(&resolution.arguments, parameters, supplied.as_slice())?;
         let receiver = self.finish_receiver(source, borrow, rest)?;
+
+        // call with the receiver first
         let mut values = vec![receiver];
         values.extend(arguments);
         let result = self.call(&selected, values);
@@ -595,7 +614,7 @@ impl FunctionLowerer<'_, '_, '_> {
             } => {
                 let receiver = self.adjust_receiver(receiver, &dispatch.receiver)?;
 
-                self.lower_dynamic_symbol_call(receiver, dispatch, *symbol, call)
+                self.lower_dynamic_slot_call(receiver, *symbol, dispatch, call)
             }
             _ => Err(self.unsupported("a virtual value call")),
         }
@@ -641,23 +660,6 @@ impl FunctionLowerer<'_, '_, '_> {
         self.lower_receiver_adjustments(value, &adjusted.adjustments)
     }
 
-    /// Call one constraint slot on an adjusted erased receiver, the slot named by its symbol.
-    pub(in crate::lower) fn lower_dynamic_symbol_call(
-        &mut self,
-        receiver: mir::Value,
-        dispatch: &dir::DynamicDispatch,
-        symbol: dir::GlobalSymbolId,
-        call: &dir::Call,
-    ) -> CompilerResult<Option<mir::Value>> {
-        let Some(name) = self.lower.symbol_name(symbol)? else {
-            return Err(CompilerError::Internal {
-                message: "a dispatched member without a name".to_string(),
-            });
-        };
-
-        self.lower_dynamic_slot_call(receiver, name, dispatch, call)
-    }
-
     /// Resolve one recorded selection to the callee its receiver names.
     pub(in crate::lower) fn resolve_callee(
         &mut self,
@@ -677,6 +679,26 @@ impl FunctionLowerer<'_, '_, '_> {
         self.selected_witness(receiver, selection)
     }
 
+    /// Return the class table slot call of one overridable method.
+    fn virtual_callee(
+        &mut self,
+        class: dir::GlobalTypeId,
+        selection: &dir::InstanceKey,
+    ) -> CompilerResult<Callee> {
+        let (signature, _, _) = self.member_signature(class, selection)?;
+        let slot = self
+            .lower
+            .class_slot(self.builder.tree_mut(), class, selection.symbol)?;
+        let class = self.lower_nominal(class)?.storage;
+
+        Ok(Callee {
+            parameters: self.signature_parameters(signature)?,
+            result: self.builder.signature_result(signature),
+            target: mir::Callee::Virtual { class, slot },
+            signature,
+        })
+    }
+
     /// Return the witness call of one interface member at its receiver.
     fn selected_witness(
         &mut self,
@@ -690,8 +712,41 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "a witness call outside an interface member".to_string(),
             });
         };
+        let (signature, chain, arguments) = self.member_signature(receiver, selection)?;
+        let parameters = self.signature_parameters(signature)?;
+        let result = self.builder.signature_result(signature);
+        let (receiver, interface) =
+            self.lower_witness_types(owner, receiver, &chain, &arguments)?;
+        let requirement =
+            self.lower
+                .template_function(self.builder.tree_mut(), selection.symbol, None)?;
 
-        // lower the member's signature and interface over the member's own template
+        // fill the implementer's open places
+        let requirement_arguments = (chain.owner_count..chain.count())
+            .map(|index| arguments[index as usize].clone())
+            .collect();
+
+        Ok(Callee {
+            parameters,
+            result,
+            target: mir::Callee::Witness {
+                receiver,
+                interface,
+                requirement,
+                arguments: requirement_arguments,
+            },
+            signature,
+        })
+    }
+
+    /// Return one member's signature closed at its receiver.
+    fn member_signature(
+        &mut self,
+        receiver: dir::GlobalTypeId,
+        selection: &dir::InstanceKey,
+    ) -> CompilerResult<(mir::TypeId, GenericScope, Vec<mir::GenericArgument>)> {
+        // lower the member's signature over the member's own template
+        let symbol = selection.symbol;
         let chain = self.lower.symbol_scope(symbol)?;
         let declared = self.lower.symbol_type(symbol)?;
         let tree = self.builder.tree_mut();
@@ -713,6 +768,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     .iter()
                     .map(|parameter| mir::SignatureParameter::new(*parameter))
                     .collect(),
+                rest: None,
                 result,
                 park,
             });
@@ -720,30 +776,8 @@ impl FunctionLowerer<'_, '_, '_> {
         // close the template at the selection's arguments and the receiver, under the binders
         let arguments = self.selection_arguments(receiver, selection, &chain)?;
         let signature = substitute_type(self.builder.tree_mut(), signature, &arguments);
-        let parameters = self.signature_parameters(signature)?;
-        let result = self.builder.signature_result(signature);
-        let (receiver, interface) =
-            self.lower_witness_types(owner, receiver, &chain, &arguments)?;
-        let requirement =
-            self.lower
-                .template_function(self.builder.tree_mut(), selection.symbol, None)?;
 
-        // pass the requirement's arguments, filling the implementer's open places
-        let requirement_arguments = (chain.owner_count..chain.count())
-            .map(|index| arguments[index as usize].clone())
-            .collect();
-
-        Ok(Callee {
-            parameters,
-            result,
-            target: mir::Callee::Witness {
-                receiver,
-                interface,
-                requirement,
-                arguments: requirement_arguments,
-            },
-            signature,
-        })
+        Ok((signature, chain, arguments))
     }
 
     /// Lower the receiver and the applied interface one requirement is answered through.
@@ -794,7 +828,7 @@ impl FunctionLowerer<'_, '_, '_> {
             let Some(argument) = bound else {
                 return Err(CompilerError::Internal {
                     message: format!(
-                        "a witness call to '{}' without a binding for one parameter",
+                        "a member call to '{}' without a binding for one parameter",
                         self.lower.symbol_path(selection.symbol)?
                     ),
                 });
