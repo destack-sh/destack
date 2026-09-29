@@ -3,5 +3,5 @@ import { accountService } from "../service/service.ts";
 
 /** Connect to account administration. */
 export function connect(options: ClientOptions) {
-    return createClient(accountService.router, options);
+    return createClient(accountService, options);
 }
