@@ -427,8 +427,8 @@ fn test_parse_interface_get_set_with_newlines() {
             for member_id in members {
                 if let TypeMember::Method { signature, name, .. } = parser.tree.get(*member_id) {
                     match signature.role {
-                        Some(FunctionRole::Getter) => getter = Some(*name),
-                        Some(FunctionRole::Setter) => setter = Some(*name),
+                        Some(FunctionRole::Getter) => getter = *name,
+                        Some(FunctionRole::Setter) => setter = *name,
                         _ => {}
                     }
                 }

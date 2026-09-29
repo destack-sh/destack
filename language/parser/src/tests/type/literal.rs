@@ -957,7 +957,7 @@ fn test_parse_type_literal_static_members() {
                 assert_node!(parser.tree, properties[1], TypeMember::Method { is_static, name, signature, .. } => {
                     assert!(*is_static);
                     match name {
-                        Name::Identifier(name) => {
+                        Some(Name::Identifier(name)) => {
                             assert_string!(parser, *name, "call");
                         }
                         _ => panic!("expected identifier name, got {name:?}"),

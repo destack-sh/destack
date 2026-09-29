@@ -4,9 +4,9 @@ use crate::{
     assert_node, assert_path, assert_string,
 };
 use tspp_dir::{
-    CommentKind, Declaration, Expression, GenericArgument, GenericParameter, IntegerType,
-    InterfaceDeclaration, Name, Parameter, Pattern, PatternField, TypeExpression, TypeKind,
-    TypeLiteral, TypeMember, VarianceModifier, WhereClause,
+    CommentKind, Declaration, Expression, FunctionRole, GenericArgument, GenericParameter,
+    IntegerType, InterfaceDeclaration, Name, Parameter, Pattern, PatternField, TypeExpression,
+    TypeKind, TypeLiteral, TypeMember, VarianceModifier, WhereClause,
 };
 use tspp_source::{NodeSpanRegion, NodeSpanType};
 
@@ -122,7 +122,8 @@ interface Foo<G> {
     assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, members, .. }) => {
         assert_string!(parser, name.expect("expected name").string(), "Foo");
         assert_eq!(members.len(), 1);
-        assert_node!(parser.tree, members[0], TypeMember::CallSignature { signature } => {
+        assert_node!(parser.tree, members[0], TypeMember::Method { name: None, signature, .. } => {
+            assert_eq!(signature.role, Some(FunctionRole::Call));
             let generic_parameters = &signature.generic_parameters;
             assert_eq!(generic_parameters.len(), 1);
             assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint, .. } => {
@@ -431,7 +432,7 @@ interface SQL {
         assert_eq!(members.len(), 3);
 
         // <T = unknown>(value: T): SQL.Result<T>;
-        assert_node!(parser.tree, members[0], TypeMember::CallSignature { signature } => {
+        assert_node!(parser.tree, members[0], TypeMember::Method { name: None, signature, .. } => {
 
             let generic_parameter_span = parser
                 .tree
@@ -466,7 +467,7 @@ interface SQL {
         });
 
         // (value: unknown, ...arguments: unknown[]): SQL.Result<unknown>;
-        assert_node!(parser.tree, members[1], TypeMember::CallSignature { signature } => {
+        assert_node!(parser.tree, members[1], TypeMember::Method { name: None, signature, .. } => {
             // (value: unknown, ...arguments: unknown[])
             assert_eq!(signature.parameters.len(), 2);
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
@@ -489,7 +490,8 @@ interface SQL {
         });
 
         // new(): SQL;
-        assert_node!(parser.tree, members[2], TypeMember::ConstructSignature { signature } => {
+        assert_node!(parser.tree, members[2], TypeMember::Method { name: None, signature, .. } => {
+            assert_eq!(signature.role, Some(FunctionRole::New));
             assert_eq!(signature.parameters.len(), 0);
             // SQL
             assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "SQL");
@@ -519,7 +521,7 @@ interface Iterator<T, TReturn = unknown, TNext = unknown> {
         assert_eq!(members.len(), 3);
 
         // next(...[value]: [] | [TNext]): IteratorResult<T, TReturn>;
-        assert_node!(parser.tree, members[0], TypeMember::Method { name: Name::Identifier(name), signature, .. } => {
+        assert_node!(parser.tree, members[0], TypeMember::Method { name: Some(Name::Identifier(name)), signature, .. } => {
             assert_string!(parser, *name, "next");
             assert_eq!(signature.parameters.len(), 1);
             assert_node!(parser.tree, signature.parameters[0], Parameter::VariadicPattern { pattern, declared_type, .. } => {
@@ -540,7 +542,7 @@ interface Iterator<T, TReturn = unknown, TNext = unknown> {
         });
 
         // return?(value?: TReturn): IteratorResult<T, TReturn>;
-        assert_node!(parser.tree, members[1], TypeMember::Method { name: Name::Identifier(name), signature, .. } => {
+        assert_node!(parser.tree, members[1], TypeMember::Method { name: Some(Name::Identifier(name)), signature, .. } => {
             assert_string!(parser, *name, "return");
             assert_eq!(signature.parameters.len(), 1);
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { is_optional, name, declared_type, .. } => {
@@ -552,7 +554,7 @@ interface Iterator<T, TReturn = unknown, TNext = unknown> {
         });
 
         // throw?(e?: unknown): IteratorResult<T, TReturn>;
-        assert_node!(parser.tree, members[2], TypeMember::Method { name: Name::Identifier(name), signature, .. } => {
+        assert_node!(parser.tree, members[2], TypeMember::Method { name: Some(Name::Identifier(name)), signature, .. } => {
             assert_string!(parser, *name, "throw");
             assert_eq!(signature.parameters.len(), 1);
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { is_optional, name, declared_type, .. } => {
@@ -608,7 +610,7 @@ interface MacroContext {
         });
 
         // resolve(name: string): Symbol | undefined;
-        assert_node!(parser.tree, members[2], TypeMember::Method { name: Name::Identifier(name), signature, body, .. } => {
+        assert_node!(parser.tree, members[2], TypeMember::Method { name: Some(Name::Identifier(name)), signature, body, .. } => {
             assert_string!(parser, *name, "resolve");
             assert!(body.is_none());
             assert_eq!(signature.parameters.len(), 1);
@@ -683,7 +685,7 @@ where(where: Brackets, parameters?: ObjectLiteral): this
         assert_eq!(members.len(), 2);
 
         // where(where: string, parameters?: ObjectLiteral): this
-        assert_node!(parser.tree, members[0], TypeMember::Method { name: Name::Identifier(name), signature, .. } => {
+        assert_node!(parser.tree, members[0], TypeMember::Method { name: Some(Name::Identifier(name)), signature, .. } => {
             assert_string!(parser, *name, "where");
             assert_eq!(signature.parameters.len(), 2);
             assert_node!(parser.tree, signature.parameters[1], Parameter::Named { is_optional, name, .. } => {
@@ -693,7 +695,7 @@ where(where: Brackets, parameters?: ObjectLiteral): this
         });
 
         // where(where: Brackets, parameters?: ObjectLiteral): this
-        assert_node!(parser.tree, members[1], TypeMember::Method { name: Name::Identifier(name), signature, .. } => {
+        assert_node!(parser.tree, members[1], TypeMember::Method { name: Some(Name::Identifier(name)), signature, .. } => {
             assert_string!(parser, *name, "where");
             assert_eq!(signature.parameters.len(), 2);
             assert_node!(parser.tree, signature.parameters[1], Parameter::Named { is_optional, name, .. } => {
@@ -764,7 +766,7 @@ interface Add<T, R = this> {
 
         // add(other: T): R
         assert_eq!(members.len(), 1);
-        assert_node!(parser.tree, members[0], TypeMember::Method { name: Name::Identifier(name), signature, .. } => {
+        assert_node!(parser.tree, members[0], TypeMember::Method { name: Some(Name::Identifier(name)), signature, .. } => {
             assert_string!(parser, *name, "add");
             assert_eq!(signature.parameters.len(), 1);
         });
@@ -913,7 +915,7 @@ export newtype interface Add<T, R = this> {
 
             // add(other: T): R
             assert_eq!(members.len(), 1);
-            assert_node!(parser.tree, members[0], TypeMember::Method { name: Name::Identifier(name), signature, .. } => {
+            assert_node!(parser.tree, members[0], TypeMember::Method { name: Some(Name::Identifier(name)), signature, .. } => {
                 assert_string!(parser, *name, "add");
                 assert_eq!(signature.parameters.len(), 1);
             });
@@ -946,7 +948,7 @@ newtype interface Error {
             assert_eq!(members.len(), 1);
 
             // source(): Dynamic<Error> | undefined { undefined }
-            assert_node!(parser.tree, members[0], TypeMember::Method { name: Name::Identifier(name), signature, body: Some(body), .. } => {
+            assert_node!(parser.tree, members[0], TypeMember::Method { name: Some(Name::Identifier(name)), signature, body: Some(body), .. } => {
                 assert_string!(parser, *name, "source");
                 assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Union { elements } => {
                     assert_eq!(elements.len(), 2);

@@ -491,8 +491,23 @@ impl Parser {
                 container_kind.allows_body(),
             )?;
 
+            let is_literal = container_kind == TypeMemberContainerKind::TypeLiteral;
             let member = match (name, role) {
-                (Some(name), _) => TypeMember::Method {
+                // keep type literal signatures structural
+                (None, Some(FunctionRole::Call)) if is_literal => TypeMember::CallSignature {
+                    signature: signature.into_function_type(),
+                },
+                (None, Some(FunctionRole::New | FunctionRole::Constructor)) if is_literal => {
+                    TypeMember::ConstructSignature {
+                        signature: signature.into_constructor_type(),
+                    }
+                }
+                // reject a constructor in an interface
+                (None, Some(FunctionRole::Constructor)) => {
+                    return Err(ParserError::unexpected(self.peek_token_span()));
+                }
+                // declare named methods and interface role members
+                _ => TypeMember::Method {
                     is_static,
                     is_optional,
                     visibility,
@@ -500,17 +515,6 @@ impl Parser {
                     signature,
                     body,
                 },
-                (None, Some(FunctionRole::New | FunctionRole::Constructor)) => {
-                    TypeMember::ConstructSignature {
-                        signature: signature.into_constructor_type(),
-                    }
-                }
-                (None, None | Some(FunctionRole::Call)) => TypeMember::CallSignature {
-                    signature: signature.into_function_type(),
-                },
-                (None, Some(FunctionRole::Getter | FunctionRole::Setter)) => {
-                    return Err(ParserError::unexpected(self.peek_token_span()));
-                }
             };
             let member_id = self.insert_node(member, self.range_since(&start));
 
