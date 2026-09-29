@@ -223,6 +223,7 @@ impl CompletionCollector<'_, '_, '_> {
                 let label = match member.key {
                     dir::StaticKey::Name(name) => self.module.strings().get(name).to_string(),
                     dir::StaticKey::Index(index) => index.to_string(),
+                    dir::StaticKey::Call | dir::StaticKey::New => continue,
                 };
                 let completion = CompletionCandidate::new(
                     &label,

@@ -258,8 +258,6 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<SignatureItem> {
         // select the declaring signature and display name
         let (node, name) = match function {
-            dir::DynamicFunction::CallSignature(node) => (*node, "call"),
-            dir::DynamicFunction::ConstructSignature(node) => (*node, "new"),
             dir::DynamicFunction::IndexRead(node) => (*node, "[]"),
             dir::DynamicFunction::IndexWrite(node) => (*node, "[]="),
             dir::DynamicFunction::Symbol(symbol) => {

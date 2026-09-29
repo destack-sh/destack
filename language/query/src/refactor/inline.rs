@@ -306,6 +306,10 @@ impl InlineTarget {
                 key: dir::StaticKey::Index(index),
                 ..
             } => format!("[{index}]"),
+            dir::FieldTarget::Structural {
+                key: dir::StaticKey::Call | dir::StaticKey::New,
+                ..
+            } => return Ok(None),
             dir::FieldTarget::Member { symbol, .. } => {
                 let Some(name) = program.symbol_name(symbol)? else {
                     return Err(QueryError::missing(format!(

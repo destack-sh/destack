@@ -161,7 +161,7 @@ impl Formatter<'_, '_, '_> {
         signature: &dir::FunctionSignature,
         is_static: bool,
     ) -> QueryResult<String> {
-        let mut text = self.call_signature("", signature, false)?;
+        let mut text = self.call_signature(None, signature, false)?;
         if matches!(signature.role, Some(dir::FunctionRole::Setter))
             && signature.return_type.is_none()
         {
@@ -205,7 +205,7 @@ impl Formatter<'_, '_, '_> {
     /// Format one callable signature.
     pub(crate) fn call_signature(
         &self,
-        name: &str,
+        name: Option<&str>,
         signature: &dir::FunctionSignature,
         include_this: bool,
     ) -> QueryResult<String> {
@@ -224,6 +224,7 @@ impl Formatter<'_, '_, '_> {
             .parameter_labels(this_parameter, &signature.parameters)?
             .join(", ");
         let return_type = self.return_type(signature.return_type)?;
+        let name = name.unwrap_or_default();
 
         Ok(format!(
             "{phase_prefix}{async_prefix}{name}{generics}({parameters}){return_type}"

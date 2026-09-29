@@ -366,8 +366,11 @@ impl ModuleQueryContext<'_> {
             .ok_or(QueryError::missing(format!(
                 "call item name: {symbol_id:?}"
             )))?;
-        let signature =
-            Formatter::new(self, program).call_signature(&name, &function.signature, false)?;
+        let signature = Formatter::new(self, program).call_signature(
+            Some(&name),
+            &function.signature,
+            false,
+        )?;
         let target = self.call_item_target(source)?;
 
         Ok(Some(CallItem {
@@ -397,8 +400,8 @@ impl ModuleQueryContext<'_> {
         };
         let name = Formatter::new(self, program).member_name(member)?;
         let kind = match method.slot {
-            dir::MemberSlot::Constructor | dir::MemberSlot::New => CallItemKind::Constructor,
-            dir::MemberSlot::Key(_) | dir::MemberSlot::Call => CallItemKind::Method,
+            dir::MemberSlot::Constructor => CallItemKind::Constructor,
+            dir::MemberSlot::Key(_) => CallItemKind::Method,
         };
         let member_id = method
             .source
@@ -414,8 +417,11 @@ impl ModuleQueryContext<'_> {
             )))?;
         let container = self.call_item_container(program, declaring, definition)?;
         let qualified_name = format!("{container}.{name}");
-        let signature =
-            Formatter::new(self, program).call_signature(&qualified_name, signature, false)?;
+        let signature = Formatter::new(self, program).call_signature(
+            Some(&qualified_name),
+            signature,
+            false,
+        )?;
         let target = self.call_item_target(method.source.local_id)?;
 
         Ok(Some(CallItem {

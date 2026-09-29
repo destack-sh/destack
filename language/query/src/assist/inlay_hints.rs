@@ -219,10 +219,7 @@ impl ModuleQueryContext<'_> {
                 }
                 dir::CallableTarget::Dynamic {
                     function:
-                        dir::DynamicFunction::CallSignature(node)
-                        | dir::DynamicFunction::IndexRead(node)
-                        | dir::DynamicFunction::IndexWrite(node)
-                        | dir::DynamicFunction::ConstructSignature(node),
+                        dir::DynamicFunction::IndexRead(node) | dir::DynamicFunction::IndexWrite(node),
                     ..
                 } => self.signature_call_parameter_names(program, call, *node)?,
             };

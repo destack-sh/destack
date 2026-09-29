@@ -322,9 +322,13 @@ impl ModuleQueryContext<'_> {
         program: &ProgramQueryContext<'_>,
     ) -> QueryResult<Option<String>> {
         match declaration {
-            dir::Declaration::Function(declaration) => Ok(Some(
-                Formatter::new(self, program).call_signature("", &declaration.signature, false)?,
-            )),
+            dir::Declaration::Function(declaration) => {
+                Ok(Some(Formatter::new(self, program).call_signature(
+                    None,
+                    &declaration.signature,
+                    false,
+                )?))
+            }
             dir::Declaration::Type(declaration) => Ok(Some(
                 self.outline_node_type(declaration.value.into(), program)?,
             )),
@@ -535,7 +539,12 @@ impl ModuleQueryContext<'_> {
                 is_static,
                 ..
             } => {
-                let name = self.outline_member_name(*name);
+                // name a role member by its role
+                let name = match (name, signature.role) {
+                    (Some(name), _) => self.outline_member_name(*name),
+                    (None, Some(dir::FunctionRole::New)) => "new".to_string(),
+                    (None, _) => "call".to_string(),
+                };
                 let detail =
                     Formatter::new(self, program).method_signature(signature, *is_static)?;
 

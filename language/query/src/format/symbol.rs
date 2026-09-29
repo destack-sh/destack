@@ -227,8 +227,13 @@ impl Formatter<'_, '_, '_> {
                 format!("{name}: {type_text}")
             }
             dir::DefinitionMember::Method(method) => {
-                let signature = self.authored_member_signature(member.source())?;
-                let signature = self.call_signature(&name, signature, false)?;
+                // print role members without a name
+                let name = match method.role {
+                    Some(dir::FunctionRole::Call | dir::FunctionRole::New) => None,
+                    _ => Some(name.as_str()),
+                };
+                let authored = self.authored_member_signature(member.source())?;
+                let signature = self.call_signature(name, authored, false)?;
                 let static_prefix = if method.space == dir::MemberSpace::Static {
                     "static "
                 } else {
@@ -237,6 +242,8 @@ impl Formatter<'_, '_, '_> {
                 let role_prefix = match method.role {
                     Some(dir::FunctionRole::Getter) => "get ",
                     Some(dir::FunctionRole::Setter) => "set ",
+                    Some(dir::FunctionRole::New) if authored.is_abstract => "abstract new ",
+                    Some(dir::FunctionRole::New) => "new ",
                     _ => "",
                 };
 
@@ -270,12 +277,6 @@ impl Formatter<'_, '_, '_> {
                 let type_text = self.member_type(member)?;
 
                 format!("{name}: {type_text}")
-            }
-            dir::DefinitionMember::CallSignature(_)
-            | dir::DefinitionMember::ConstructSignature(_) => {
-                let signature = self.authored_member_signature(member.source())?;
-
-                self.call_signature(&name, signature, false)?
             }
             dir::DefinitionMember::IndexSignature(_) => {
                 let type_text = self.member_type(member)?;
@@ -402,11 +403,7 @@ impl Formatter<'_, '_, '_> {
 
 /// Convert a static key into a symbol path segment.
 fn static_key_segment(key: Option<dir::StaticKey>, strings: &StringPool) -> Option<String> {
-    let key = key?;
-    match key {
-        dir::StaticKey::Name(name) => Some(strings.get(name).to_string()),
-        dir::StaticKey::Index(index) => Some(index.to_string()),
-    }
+    Some(key?.text(strings))
 }
 
 /// Return the region names one template declares ahead of one parameter.

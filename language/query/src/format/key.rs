@@ -15,14 +15,10 @@ impl Formatter<'_, '_, '_> {
         let name = match member {
             dir::DefinitionMember::Method(method) => match method.slot {
                 dir::MemberSlot::Constructor => "constructor",
-                dir::MemberSlot::New => "new",
-                dir::MemberSlot::Call => "call",
                 dir::MemberSlot::Key(_) => {
                     return Err(QueryError::invalid("member key"));
                 }
             },
-            dir::DefinitionMember::CallSignature(_) => "call",
-            dir::DefinitionMember::ConstructSignature(_) => "new",
             dir::DefinitionMember::IndexSignature(_) => "[]",
             _ => return Err(QueryError::missing("member name")),
         };
@@ -35,6 +31,7 @@ impl Formatter<'_, '_, '_> {
         match key {
             dir::StaticKey::Name(name) => quote_string(self.module.strings().get(name)),
             dir::StaticKey::Index(index) => index.to_string(),
+            dir::StaticKey::Call | dir::StaticKey::New => key.text(self.module.strings()),
         }
     }
 
@@ -50,6 +47,7 @@ impl Formatter<'_, '_, '_> {
                 }
             }
             dir::StaticKey::Index(index) => index.to_string(),
+            dir::StaticKey::Call | dir::StaticKey::New => key.text(self.module.strings()),
         }
     }
 
@@ -65,6 +63,7 @@ impl Formatter<'_, '_, '_> {
                 }
             }
             dir::StaticKey::Index(index) => format!("[{index}]"),
+            dir::StaticKey::Call | dir::StaticKey::New => key.text(self.module.strings()),
         }
     }
 }
