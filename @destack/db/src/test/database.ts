@@ -22,6 +22,9 @@ export const TEST_DIALECTS: readonly Dialect[] = [
     ...(process.env.DESTACK_TEST_POSTGRES ? (["postgresql"] as const) : []),
 ];
 
+/** The connections each test database pools: ten workers stay within a server's hundred. */
+const TEST_POOL_CONNECTIONS = 4;
+
 /** The migrated SQLite templates, by declared state. */
 const templates = new Map<string, Promise<string>>();
 
@@ -81,8 +84,9 @@ export class TestDatabase {
                 (connected) =>
                     postgresql.connect(
                         postgres(address, {
+                            max: TEST_POOL_CONNECTIONS,
                             connection: { search_path: schema },
-                            onnotice: () => {},
+                            onnotice: postgresql.reportNotice,
                         }),
                         connected,
                     );
@@ -209,7 +213,7 @@ function sqliteTemplate(tables: readonly Table[], isReplica: boolean): Promise<s
 function administer(address: string): Promise<postgres.Sql> {
     administration ??= (async () => {
         // drop unclaimed schemas past retention
-        const server = postgres(address, { max: 1, onnotice: () => {} });
+        const server = postgres(address, { max: 1, onnotice: postgresql.reportNotice });
         const expired = Date.now() - SCHEMA_RETENTION_MILLISECONDS;
         const schemas = await server<{ name: string }[]>`
             SELECT nspname AS name FROM pg_namespace
@@ -252,7 +256,7 @@ async function claim(
         SELECT nspname AS name FROM pg_namespace WHERE starts_with(nspname, ${prefix})`;
     for (const { name } of schemas) {
         // hold the claim on its own connection
-        const held = postgres(address, { max: 1, onnotice: () => {} });
+        const held = postgres(address, { max: 1, onnotice: postgresql.reportNotice });
         if (await hold(held, name)) {
             const database = await connector(name)(tables);
             if (await reset(server, database, name, state)) {
@@ -265,7 +269,7 @@ async function claim(
 
     // name the new schema before it exists
     const schema = `${prefix}${crypto.randomUUID().replaceAll("-", "")}`;
-    const held = postgres(address, { max: 1, onnotice: () => {} });
+    const held = postgres(address, { max: 1, onnotice: postgresql.reportNotice });
     await hold(held, schema);
 
     // create it with its claim time, then migrate it
@@ -297,20 +301,20 @@ async function reset(
     schema: string,
     state: readonly TableState[],
 ): Promise<boolean> {
-    // refuse a schema with foreign tables
+    // refuse a schema with foreign tables, or one whose migration stopped before creating the log
     const managed = new Set((await readState(database)).map((applied) => applied.table.name));
     const tables = await server<{ name: string }[]>`
         SELECT tablename AS name FROM pg_tables WHERE schemaname = ${schema}`;
-    const isForeign = tables.some(
-        (table) => !managed.has(table.name) && !table.name.startsWith("__destack_"),
-    );
+    const isUnusable =
+        !tables.some((table) => table.name === LOG_EPOCH) ||
+        tables.some((table) => !managed.has(table.name) && !table.name.startsWith("__destack_"));
     const sequences = await server<{ name: string }[]>`
         SELECT sequencename AS name FROM pg_sequences WHERE schemaname = ${schema}`;
 
     // delete the rows, restart the sequences and start a new epoch
     const quoted = (name: string) => `"${schema}"."${name}"`;
     const emptied = tables.filter((table) => table.name !== STATE && table.name !== LOG_EPOCH);
-    if (!isForeign) {
+    if (!isUnusable) {
         await server.begin((transaction) =>
             transaction.unsafe(`SET LOCAL session_replication_role = replica;
                 ${emptied.map((table) => `DELETE FROM ${quoted(table.name)};`).join("\n")}
@@ -321,7 +325,7 @@ async function reset(
     }
 
     // reuse the schema only with an empty plan
-    const isReset = !isForeign && (await planMigration(database, state)).steps.length === 0;
+    const isReset = !isUnusable && (await planMigration(database, state)).steps.length === 0;
     if (!isReset) {
         await server.unsafe(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
     }
