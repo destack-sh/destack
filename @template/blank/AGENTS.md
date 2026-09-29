@@ -18,7 +18,7 @@ package/
 │  ├─ object/              defineObject(...): data, access and methods, client-safe
 │  ├─ stack/               db.ts · bucket.ts · vault.ts: resource and secret declarations
 │  ├─ service/             defineService(...): procedures, client-safe
-│  ├─ connection/          defineServiceConnection(...): consumed services, client-safe
+│  ├─ binding/             defineServiceBinding(...): consumed services, client-safe
 │  ├─ server/              implementService(...): server-only
 │  ├─ workload/            defineWorkload({ name, compute, start })
 │  ├─ settings/ audit/ notification/   defineSetting · defineAuditAction · defineNotification
@@ -28,7 +28,7 @@ package/
 ```
 
 - **PK01** Public service procedures MUST live in `service/`, and their implementation in `server/`.
-- **PK02** Consumed service declarations MUST live in `connection/`, with `index.ts` re-exports.
+- **PK02** Consumed service declarations MUST live in `binding/`, with `index.ts` re-exports.
 - **PK03** Index modules MUST contain only re-exports. (`destack/no-index-logic`)
 - **PK04** Reusable domain operations SHOULD live beside `server/` and take verified context explicitly.
 
