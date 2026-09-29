@@ -9,13 +9,23 @@ import type {} from "@destack/package/import-meta";
 import { Caller } from "../authentication/index.ts";
 import type { Service } from "../declare/service.ts";
 import { ServiceError } from "../error/index.ts";
+import { Egress } from "../service/egress.ts";
 import { ServiceMount } from "../service/mount.ts";
 import { WorkloadInstance } from "./instance.ts";
-import type { WorkloadRenewal, WorkloadStart } from "./start.ts";
+import type { WorkloadStart } from "./start.ts";
 import type { AuditHistory, Workload } from "./workload.ts";
 
 /** How long a stopping runner drains its requests: below the host's fifteen-second stop timeout. */
 const DRAIN_MILLISECONDS = 10_000;
+
+/** The address of the audit service of a workload's space. */
+const AUDIT_ADDRESS = "@destack/audit";
+
+/** The address of the monitor service of a workload's space, receiving its telemetry over OTLP. */
+const MONITOR_ADDRESS = "@destack/monitor";
+
+/** The address of the space service of a workload's holder, relaying the space's access. */
+const SPACE_ADDRESS = "@destack/space";
 
 /** The runner's log records. */
 const { log } = telemetry.scope(import.meta.destack.package);
@@ -26,16 +36,16 @@ export interface RunnerOptions {
     readonly workload: Workload;
     /** The package's resource declarations by name. */
     readonly resources: Readonly<Record<string, Resource<unknown>>>;
-    /** Connect to an audit service with the installation's current credential. */
-    history(url: string, credential: () => string): AuditHistory;
-    /** Connect to the relay of an installation's space access with its current credential. */
+    /** Connect to an audit service through the host's egress with the runner's secret. */
+    history(url: string, secret: string): AuditHistory;
+    /** Connect to the relay of an installation's space access through the host's egress with the runner's secret. */
     access(
         url: string,
         installation: {
             readonly spaceId: Identifier<"space">;
             readonly installationId: Identifier<"installation">;
         },
-        credential: () => string,
+        secret: string,
     ): ChainRelay;
 }
 
@@ -51,16 +61,12 @@ export class WorkloadRunner implements AsyncDisposable {
     readonly #packageId: string;
     /** The telemetry exporting to the space's monitor. */
     readonly #telemetry: Telemetry;
-    /** The installation's current credential for the runner's clients. */
-    readonly #credential: { current: string };
-
-    /** Hold a started instance, its telemetry and its credential. */
+    /** Hold a started instance and its telemetry. */
     private constructor(
         start: WorkloadStart,
         instance: WorkloadInstance,
         service: Service,
         running: Telemetry,
-        credential: { current: string },
         packageId: string,
     ) {
         // hold the instance and what it runs with
@@ -69,7 +75,6 @@ export class WorkloadRunner implements AsyncDisposable {
         this.#service = service;
         this.#packageId = packageId;
         this.#telemetry = running;
-        this.#credential = credential;
     }
 
     /** Start a workload as a host's start asks, with the runtime's telemetry and failure reporting. */
@@ -79,10 +84,10 @@ export class WorkloadRunner implements AsyncDisposable {
         startTelemetry: (options: TelemetryOptions) => Promise<Telemetry>,
         report: (error: Error) => void,
     ): Promise<WorkloadRunner> {
-        // export the package's telemetry to its space's monitor with the current credential
-        const credential = { current: start.credential };
-        const bearer = () => `Bearer ${credential.current}`;
-        const exporter = OtlpExporter.http(start.monitor, bearer, report);
+        // export the package's telemetry to its space's monitor through the host's egress
+        const bearer = () => `Bearer ${start.secret}`;
+        const monitor = Egress.url(start.egress, MONITOR_ADDRESS);
+        const exporter = OtlpExporter.http(monitor, bearer, report);
         const running = await startTelemetry(
             exporter.options(runner.workload.package, {
                 attributes: { "service.instance.id": start.instance },
@@ -93,15 +98,15 @@ export class WorkloadRunner implements AsyncDisposable {
         // start the instance on the bound resources, stopping telemetry when it fails
         try {
             const resources = await WorkloadRunner.#connect(runner, start, {
-                credential: () => credential.current,
+                credential: () => start.secret,
             });
             const instance = await WorkloadInstance.start(runner.workload, {
                 resources,
-                history: runner.history(start.audit, () => credential.current),
+                history: runner.history(Egress.url(start.egress, AUDIT_ADDRESS), start.secret),
                 access: runner.access(
-                    start.space,
+                    Egress.url(start.egress, SPACE_ADDRESS),
                     { spaceId: start.scope, installationId: start.installation },
-                    () => credential.current,
+                    start.secret,
                 ),
                 service: () => WorkloadRunner.#serve(runner, start),
             });
@@ -116,7 +121,7 @@ export class WorkloadRunner implements AsyncDisposable {
                 });
             }
 
-            // hold the instance with the credential its clients read
+            // hold the instance
             log.info("workload.started", {
                 workload: runner.workload.name,
                 instance: start.instance,
@@ -127,7 +132,6 @@ export class WorkloadRunner implements AsyncDisposable {
                 instance,
                 service,
                 running,
-                credential,
                 runner.workload.package.id,
             );
         } catch (error) {
@@ -139,11 +143,6 @@ export class WorkloadRunner implements AsyncDisposable {
     /** Aborts once the instance shuts down. */
     get signal(): AbortSignal {
         return this.instance.signal;
-    }
-
-    /** Take the installation's next credential. */
-    renew(renewal: WorkloadRenewal): void {
-        this.#credential.current = renewal.credential;
     }
 
     /** Serve a forwarded request below the package's mount and refuse any other. */

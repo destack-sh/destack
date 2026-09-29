@@ -24,17 +24,14 @@ const start: WorkloadStart = {
         "installation-01996ab0-0000-7000-8000-000000000003",
     ),
     bindings: {},
-    credential: "first",
     secret: "forwarding",
-    audit: "http://holder.test/service/audit",
-    monitor: "http://holder.test/service/monitor",
-    space: "http://holder.test/service/space",
+    egress: "http://host.test/.destack/egress",
     sampling: 1,
 };
 
-test("serve a forwarded caller below the package's mount, and export telemetry with the renewed credential", async () => {
+test("serve a forwarded caller below the package's mount, and export telemetry through the host's egress with the runner's secret", async () => {
     // capture the telemetry the runner exports to the monitor
-    const exported: { authorization: string | null; events: string[] }[] = [];
+    const exported: { url: string; authorization: string | null; events: string[] }[] = [];
     const fetch = globalThis.fetch;
     globalThis.fetch = (async (input: RequestInfo | URL, options?: RequestInit) => {
         const request = new Request(input, options);
@@ -42,6 +39,7 @@ test("serve a forwarded caller below the package's mount, and export telemetry w
             resourceLogs?: { scopeLogs: { logRecords: { eventName?: string }[] }[] }[];
         };
         exported.push({
+            url: request.url,
             authorization: request.headers.get("authorization"),
             events: (body.resourceLogs ?? []).flatMap((group) =>
                 group.scopeLogs.flatMap((scope) =>
@@ -116,8 +114,7 @@ test("serve a forwarded caller below the package's mount, and export telemetry w
         new Request("http://runner.test/service/other/notes", { headers }),
     );
 
-    // renew the credential, then close, exporting what remains
-    runner.renew({ credential: "second" });
+    // close, exporting what remains
     await runner.close();
 
     expect({
@@ -129,6 +126,12 @@ test("serve a forwarded caller below the package's mount, and export telemetry w
         unauthorized: [401, { code: "UNAUTHORIZED", message: "invalid host secret" }],
         served: { path: "/notes", caller: "alice" },
         other: 404,
-        exported: [{ authorization: "Bearer second", events: ["workload.started"] }],
+        exported: [
+            {
+                url: "http://host.test/.destack/egress/@destack/monitor/v1/logs",
+                authorization: "Bearer forwarding",
+                events: ["workload.started"],
+            },
+        ],
     });
 });

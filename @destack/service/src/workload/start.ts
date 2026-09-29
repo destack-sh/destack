@@ -30,32 +30,16 @@ export const WorkloadStart = defineSchema(
         installation: identifier("installation"),
         /** The resources the installation binds, by the package's resource name. */
         bindings: schema.record(DeclarationName, ResourceBinding),
-        /** The installation's short-lived credential. */
-        credential: schema.string().min(1),
-        /** The secret the host proves the callers it forwards with. */
+        /** The secret the host and the runner prove each other's requests with. */
         secret: schema.string().min(1),
-        /** The audit service of the installation's space. */
-        audit: schema.url(),
-        /** The monitor service of the installation's space, receiving its telemetry over OTLP. */
-        monitor: schema.url(),
+        /** The host's egress, below which the workload reaches addresses as its installation. */
+        egress: schema.url(),
         /** The share of traces the workload keeps beside every failed or slow one, from 0 to 1. */
         sampling: schema.number().min(0).max(1),
-        /** The space service of the installation's holder, relaying the space's access. */
-        space: schema.url(),
     }),
 );
 /** The first line a host writes to a runner's input. */
 export type WorkloadStart = schema.Infer<typeof WorkloadStart>;
-
-/** A later line a host writes to a runner's input, renewing the installation's credential. */
-export const WorkloadRenewal = defineSchema(
-    schema.object({
-        /** The installation's next credential. */
-        credential: schema.string().min(1),
-    }),
-);
-/** A later line a host writes to a runner's input. */
-export type WorkloadRenewal = schema.Infer<typeof WorkloadRenewal>;
 
 /** The first line a runner writes to its output after it serves. */
 export const WorkloadReady = defineSchema(

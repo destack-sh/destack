@@ -6,7 +6,7 @@ import {
 } from "@destack/resource";
 import { declaringModule, type ModuleMetadata, type Package } from "@destack/package";
 import { DeclarationReference, reference } from "@destack/package/declare";
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, schema, Version } from "@destack/schema";
 import { createClient } from "../client/client.ts";
 import type { Client, ServiceRouter } from "../service/service.ts";
 import type { Service } from "./service.ts";
@@ -15,6 +15,11 @@ import type { Service } from "./service.ts";
 export const ServiceBindingSpec = defineSchema(schema.object({ service: DeclarationReference }));
 /** A service binding's specification. */
 export type ServiceBindingSpec = schema.Infer<typeof ServiceBindingSpec>;
+
+/** The state a service binding requires of its callee: the release its caller was built against. */
+export const ServiceBindingState = defineSchema(schema.object({ release: Version }));
+/** The state a service binding requires of its callee. */
+export type ServiceBindingState = schema.Infer<typeof ServiceBindingState>;
 
 /** The service resource kind: typed clients of a package's service, bound to its endpoint. */
 export const ServiceKind = defineResourceKind("service", { spec: ServiceBindingSpec });

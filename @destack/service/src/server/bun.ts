@@ -1,18 +1,12 @@
 import { serve, type Server } from "bun";
-import { telemetry } from "@destack/telemetry";
 import { startTelemetry } from "@destack/telemetry/host";
-import type {} from "@destack/package/import-meta";
 import { ServiceError } from "../error/index.ts";
 import {
     type RunnerOptions,
     type WorkloadReady,
-    WorkloadRenewal,
     WorkloadRunner,
     WorkloadStart,
 } from "../workload/index.ts";
-
-/** The runner's log records. */
-const { log } = telemetry.scope(import.meta.destack.package);
 
 /** A request handler served on one network address. */
 export interface Endpoint {
@@ -96,16 +90,6 @@ export async function runWorkload(
     await using workload = await WorkloadRunner.start(runner, start, startTelemetry, (error) =>
         process.stderr.write(`telemetry export failed: ${error.message}\n`),
     );
-
-    // follow the host's credential renewals, stopping the workload on a malformed renewal
-    void (async () => {
-        for (let line = await lines.next(); line.done !== true; line = await lines.next()) {
-            workload.renew(WorkloadRenewal.parse(JSON.parse(line.value)));
-        }
-    })().catch((error: unknown) => {
-        log.error("workload.renewal.failed", { message: String(error) });
-        workload.shutdown();
-    });
 
     // serve the workload on a loopback port, publishing the port as the first output line
     await serveProcess({

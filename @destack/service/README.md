@@ -96,12 +96,12 @@ const response = await instance.fetch(notesService, request);
 ## Runners
 
 A `WorkloadRunner` starts one workload on any runtime as a host's start message asks, opens each bound resource through its declaration's providers, refuses requests without the host's secret, and serves its package below the package's mount.
+It holds no tokens: it reaches its space's services and its service bindings through the host's egress with the same secret.
 
 ```ts
 import { WorkloadRunner } from "@destack/service/workload";
 
 const workload = await WorkloadRunner.start({ workload, resources, history, access }, start, startTelemetry, report);
-workload.renew(renewal);
 const response = await workload.fetch(request);
 await workload.close();
 ```
@@ -118,21 +118,29 @@ The host and the runner exchange one JSON line per message.
 
 | Line | Direction | Carries |
 |---|---|---|
-| `WorkloadStart` | host to runner, first | instance, scope, installation, resource bindings, credential, forwarding secret, audit, monitor and space services, trace sampling ratio |
-| `WorkloadRenewal` | host to runner, later | the installation's next credential |
+| `WorkloadStart` | host to runner, first | instance, scope, installation, resource bindings, the secret both sides prove requests with, the host's egress, trace sampling ratio |
 | `WorkloadReady` | runner to host, first | the loopback port it serves on |
 
 ## Clients
 
-A service binding declares a dependency on a service; the host binds it like any resource, and its client calls the service as the workload.
+A service binding declares a dependency on a service; a stack binds it to an address, and its client calls the service through the host's egress as the workload's installation.
 
 ```ts
-import { defineServiceBinding } from "@destack/service/declare";
+import { defineServiceBinding } from "@destack/service";
 import { safe } from "@destack/service/client";
 
 export const notes = defineServiceBinding("notes", notesService);
 
 const result = await safe(notes.get(context.resources).update(input));
+```
+
+`Egress` writes and reads the egress paths: `<egress>/<address>/<path>`, the address an installation (`notes`, `notes.work.acme`) or a package's service (`@destack/audit`).
+
+```ts
+import { Egress } from "@destack/service";
+
+const url = Egress.url(start.egress, "@destack/audit");
+const routed = Egress.route(request); // { address, request below it }
 ```
 
 ## Authentication
@@ -188,7 +196,7 @@ A `Bookmark` carries the log watermarks a client has seen, so later reads includ
 import { Bookmark } from "@destack/service/bookmark";
 
 const bookmark = new Bookmark();
-const client = createClient(notesService.router, { url, bookmark });
+const client = createClient(notesService, { url, bookmark });
 ```
 
 ## Triggers
