@@ -1,12 +1,12 @@
 import { defineSchema, schema } from "@destack/schema";
 import { declaringModule, type ModuleMetadata, type Package } from "@destack/package";
-import { defineResourceSchema, Resource } from "@destack/resource";
+import { defineResourceKind, Resource } from "@destack/resource";
 import type { ResourceContext } from "@destack/resource/context";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { providers } from "#provider";
 import { TABLE, type Table } from "../table/table.ts";
 import { expandTrees } from "../tree/tree.ts";
-import { type DatabaseState, declareState } from "../migration/state.ts";
+import { DatabaseState, declareState } from "../migration/state.ts";
 export type { DatabaseConnection } from "../database/connection.ts";
 
 /** Where a database lives: once in the universe, once per region, or within one zone. */
@@ -19,10 +19,13 @@ export const DatabaseSpec = defineSchema(schema.object({ tier: DatabaseTier }));
 /** A database's resource settings. */
 export type DatabaseSpec = schema.Infer<typeof DatabaseSpec>;
 
+/** The database resource kind: tables planned toward the union of their declared states. */
+export const DatabaseKind = defineResourceKind("database", {
+    spec: DatabaseSpec,
+    state: DatabaseState,
+});
 /** A named database dependency. */
-export const DatabaseDescription = defineResourceSchema("database", 1, DatabaseSpec);
-/** A named database dependency. */
-export type DatabaseDescription = schema.Infer<typeof DatabaseDescription>;
+export type DatabaseDescription = schema.Infer<typeof DatabaseKind.description>;
 
 /** A database declaration. */
 export class Database extends Resource<DatabaseConnection, DatabaseDescription> {
@@ -90,10 +93,9 @@ export function defineDatabase(definition: DatabaseDefinition, module?: ModuleMe
     }
 
     // validate the resource description
-    const description = DatabaseDescription.parse({
+    const description = DatabaseKind.description.parse({
         name: definition.name,
         kind: "database",
-        version: 1,
         spec: { tier },
     });
 

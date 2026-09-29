@@ -1,6 +1,12 @@
 import { mkdir, rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { Plan, type Provider, type ResourceRecord } from "@destack/resource";
+import {
+    Plan,
+    type ResourceRecord,
+    type Provider,
+    type Provisioning,
+    type Copying,
+} from "@destack/resource";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { Database } from "../declare/database.ts";
 import { connect } from "./bun/connection.ts";
@@ -8,9 +14,12 @@ import type { SqliteDatabase } from "./database.ts";
 import type { Table } from "../table/table.ts";
 import { DatabaseError } from "../error/error.ts";
 import { Replication } from "../replication/replication.ts";
+import type { DatabaseKind } from "../declare/database.ts";
 
 /** Provide databases as SQLite files, one folder per space. */
-export function sqliteProvider(root: URL): Provider<DatabaseConnection> {
+export function sqliteProvider(
+    root: URL,
+): Provider<DatabaseConnection, typeof DatabaseKind> & Provisioning & Copying {
     // require a directory URL
     if (root.protocol !== "file:" || !root.pathname.endsWith("/")) {
         throw new TypeError(`sqlite provider root must be a file directory URL: ${root.href}`);
