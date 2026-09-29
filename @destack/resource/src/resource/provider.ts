@@ -27,11 +27,13 @@ export interface Provision {
 }
 
 /** Infrastructure on one host for resources of one kind. */
-export interface Provider<Client = unknown> {
+export interface Provider<Client = unknown, Facet = never> {
     /** The resource kind provided. */
     readonly kind: string;
     /** The provider code recorded on provisioned resources, such as sqlite. */
     readonly code: string;
+    /** The object type sharing the resource's identity in its space, such as a vault. */
+    readonly facet?: Facet;
     /** Create or confirm the resource, returning the same reference each time. */
     provision(record: ResourceRecord): Promise<Provision>;
     /** Plan the steps taking the resource to the union of the desired states. */
@@ -56,7 +58,7 @@ export interface Provider<Client = unknown> {
 /** Infrastructure on one host for resources of each kind. */
 export const Provider = {
     /** Refuse a provider that cannot move its resources' content with a transfer. */
-    require<Client>(provider: Provider<Client>): Provider<Client> {
+    require<Client, Facet>(provider: Provider<Client, Facet>): Provider<Client, Facet> {
         if (typeof provider.export !== "function" || typeof provider.import !== "function") {
             throw new TypeError(
                 `provider ${provider.code} of ${provider.kind} exports and imports no content`,
