@@ -49,7 +49,7 @@ describe("arithmetic", ((): void => {
     test.only("focused", (<'a,>(): BodyResult => {}) as Body<TestContext<{}, {}, {}>> | undefined);
     test.skip("skipped", (<'a,>(): BodyResult => {}) as Body<TestContext<{}, {}, {}>> | undefined);
     test.todo("pending");
-}) as SuiteBody | undefined);
+}) as ^(() => void) | undefined);
 
 === dir ===
 import { beforeEach, describe, expect, test } from "tspp:test";

@@ -679,6 +679,7 @@ impl CheckState<'_> {
         match key {
             dir::StaticKey::Name(name) => format!("\"{}\"", self.text(*name)),
             dir::StaticKey::Index(index) => index.to_string(),
+            dir::StaticKey::Call | dir::StaticKey::New => key.text(self.strings()),
         }
     }
 
@@ -905,6 +906,7 @@ impl CheckState<'_> {
                 let key = match view.get(*index).static_key()? {
                     dir::StaticKey::Name(name) => format!("[\"{}\"]", self.text(name)),
                     dir::StaticKey::Index(index) => format!("[{index}]"),
+                    dir::StaticKey::Call | dir::StaticKey::New => return None,
                 };
 
                 Some(format!("{left}{key}"))
@@ -1087,10 +1089,7 @@ impl CheckState<'_> {
 
     /// Format one member key.
     pub(in crate::sema) fn format_static_key(&self, key: &dir::StaticKey) -> String {
-        match key {
-            dir::StaticKey::Name(name) => self.text(*name),
-            dir::StaticKey::Index(index) => index.to_string(),
-        }
+        key.text(self.strings())
     }
 
     /// Format one owner.case variant label.

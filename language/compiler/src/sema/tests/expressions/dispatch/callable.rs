@@ -193,15 +193,18 @@ interface InvocationKind<in out T> {
 /// @type.symbol symbol=InvocationKind type=InvocationKind
 /// @definition.interface symbol=InvocationKind template=(in out T, this: InvocationKind<T>)
 /// @definition.where symbol=InvocationKind relation=satisfies left=this right=InvocationKind<T>
-/// @definition.signature kind=call source="(): \"affine\"" type=() => "affine"
-/// @definition.signature kind=call source="(): \"copy\" where T: Copy" type=() => "copy"
+/// @definition.method symbol=InvocationKind.()#1 source="(): \"copy\" where T: Copy" slot=() role=call type=(this: this) => "copy"
+/// @definition.method symbol=InvocationKind.()#2 source="(): \"affine\"" slot=() role=call type=(this: this) => "affine"
 /// @type.symbol symbol=InvocationKind.T source="in out T" type=T
 
     (): "copy" where T: Copy;
+    /// @type.symbol symbol=InvocationKind.()#1 source="(): \"copy\" where T: Copy" type=(this: this) => "copy"
     /// @resolution.name source=T target=InvocationKind.T
     /// @resolution.name source=Copy target=Copy
 
     (): "affine";
+    /// @type.symbol symbol=InvocationKind.()#2 source="(): \"affine\"" type=(this: this) => "affine"
+
 }
 
 declare const copyKind: InvocationKind<int32>;
@@ -220,7 +223,7 @@ const copy = copyKind();
 /// @resolution.pattern source=copy kind=binding target=copy
 /// @type.node source=copyKind() type="copy"
 /// @resolution.name source=copyKind target=copyKind
-/// @resolution.call source=copyKind() parameters=() return="copy" kind=dynamic target="call((): \"copy\" where T: Copy)" receiver=InvocationKind<int32> constraint=InvocationKind<int32>
+/// @resolution.call source=copyKind() parameters=() return="copy" kind=dynamic target=InvocationKind.()#1 receiver=InvocationKind<int32> constraint=InvocationKind<int32> generic_arguments=(int32)
 /// @resolution.place source=copyKind placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=copyKind root=copyKind
 
@@ -229,7 +232,7 @@ const affine = affineKind();
 /// @resolution.pattern source=affine kind=binding target=affine
 /// @type.node source=affineKind() type="affine"
 /// @resolution.name source=affineKind target=affineKind
-/// @resolution.call source=affineKind() parameters=() return="affine" kind=dynamic target="call((): \"affine\")" receiver=InvocationKind<^Function<(), void, "once">> constraint=InvocationKind<^Function<(), void, "once">>
+/// @resolution.call source=affineKind() parameters=() return="affine" kind=dynamic target=InvocationKind.()#2 receiver=InvocationKind<^Function<(), void, "once">> constraint=InvocationKind<^Function<(), void, "once">> generic_arguments=(^Function<(), void, "once">)
 /// @resolution.place source=affineKind placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=affineKind root=affineKind
 "#,
@@ -472,11 +475,12 @@ interface Adder {
 /// @type.symbol symbol=Adder type=Adder
 /// @definition.interface symbol=Adder template=(this: Adder)
 /// @definition.where symbol=Adder relation=satisfies left=this right=Adder
-/// @definition.signature kind=call source="(left: int32, right: int32): int32" type=(int32, int32) => int32
+/// @definition.method symbol=Adder.() source="(left: int32, right: int32): int32" slot=() role=call type=(this: this, int32, int32) => int32
 
     (left: int32, right: int32): int32;
-    /// @type.symbol symbol=Adder.left source="left: int32" type=int32
-    /// @type.symbol symbol=Adder.right source="right: int32" type=int32
+    /// @type.symbol symbol=Adder.() source="(left: int32, right: int32): int32" type=(this: this, int32, int32) => int32
+    /// @type.symbol symbol=Adder.().left source="left: int32" type=int32
+    /// @type.symbol symbol=Adder.().right source="right: int32" type=int32
 
 }
 
@@ -489,7 +493,7 @@ const sum = add(1, 2);
 /// @type.symbol symbol=sum source=sum type=int32
 /// @resolution.pattern source=sum kind=binding target=sum
 /// @resolution.name source=add target=add
-/// @resolution.call source="add(1, 2)" parameters=(int32, int32) arguments=(provided(1) as int32, provided(2) as int32) return=int32 kind=dynamic target="call((left: int32, right: int32): int32)" receiver=Adder constraint=Adder
+/// @resolution.call source="add(1, 2)" parameters=(int32, int32) arguments=(provided(1) as int32, provided(2) as int32) return=int32 kind=dynamic target=Adder.() receiver=Adder constraint=Adder
 /// @resolution.place source=add placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=add root=add
 "#,
@@ -545,10 +549,11 @@ interface Factory {
 /// @type.symbol symbol=Factory type=Factory
 /// @definition.interface symbol=Factory template=(this: Factory)
 /// @definition.where symbol=Factory relation=satisfies left=this right=Factory
-/// @definition.signature kind=construct source="new (value: int32): Counter" type=new (int32) => Counter
+/// @definition.method symbol=Factory.new() source="new (value: int32): Counter" slot=new() role=new type=(this: this, int32) => Counter
 
     new (value: int32): Counter;
-    /// @type.symbol symbol=Factory.value source="value: int32" type=int32
+    /// @type.symbol symbol=Factory.new() source="new (value: int32): Counter" type=(this: this, int32) => Counter
+    /// @type.symbol symbol=Factory.new().value source="value: int32" type=int32
     /// @resolution.name source=Counter target=Counter
 
 }
@@ -561,7 +566,7 @@ declare const factory: Factory;
 const counter = new factory(1);
 /// @type.symbol symbol=counter source=counter type=Counter
 /// @resolution.pattern source=counter kind=binding target=counter
-/// @resolution.call source="new factory(1)" parameters=(int32) arguments=(provided(1) as int32) return=Counter kind=dynamic target="construct(new (value: int32): Counter)" receiver=Factory constraint=Factory
+/// @resolution.call source="new factory(1)" parameters=(int32) arguments=(provided(1) as int32) return=Counter kind=dynamic target=Factory.new() receiver=Factory constraint=Factory
 /// @resolution.name source=factory target=factory
 /// @resolution.place source=factory placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=factory root=factory
@@ -598,11 +603,12 @@ interface Adder {
 /// @type.symbol symbol=Adder type=Adder
 /// @definition.interface symbol=Adder template=(this: Adder)
 /// @definition.where symbol=Adder relation=satisfies left=this right=Adder
-/// @definition.signature kind=call source="(left: int32, right: int32): int32" type=(int32, int32) => int32
+/// @definition.method symbol=Adder.()#1 source="(left: int32, right: int32): int32" slot=() role=call type=(this: this, int32, int32) => int32
 
     (left: int32, right: int32): int32;
-    /// @type.symbol symbol=Adder.left source="left: int32" type=int32
-    /// @type.symbol symbol=Adder.right source="right: int32" type=int32
+    /// @type.symbol symbol=Adder.()#1 source="(left: int32, right: int32): int32" type=(this: this, int32, int32) => int32
+    /// @type.symbol symbol=Adder.().left#1 source="left: int32" type=int32
+    /// @type.symbol symbol=Adder.().right#1 source="right: int32" type=int32
 
 }
 
@@ -610,16 +616,21 @@ const add: Adder = (left: int32, right: int32): int32 => left + right;
 /// @type.symbol symbol=add source=add type=Adder
 /// @resolution.pattern source=add kind=binding target=add
 /// @resolution.name source=Adder target=Adder
-/// @type.symbol symbol=symbol5 source="(left: int32, right: int32): int32 => left + right" type=Function<(int32, int32), int32, "readonly">
-/// @type.symbol symbol=symbol5.left source="left: int32" type=int32
-/// @type.symbol symbol=symbol5.right source="right: int32" type=int32
-/// @resolution.name source=left target=symbol5.left
+/// @type.symbol symbol=symbol6 source="(left: int32, right: int32): int32 => left + right" type=Function<(int32, int32), int32, "readonly">
+/// @generic.instance id="Adder.()<Function<(int32, int32), int32, \"readonly\">>" template=Adder.() arguments=()
+/// @type.symbol symbol=symbol6.left source="left: int32" type=int32
+/// @type.symbol symbol=symbol6.right source="right: int32" type=int32
+/// @resolution.name source=left target=symbol6.left
 /// @resolution.operator source="left + right" type=int32 operator="+" kind=builtin operands=[left as int32 families=(integer), right as int32 families=(integer)]
 /// @resolution.place source=left placement="local" lifetime="frame" access="exclusive"
-/// @resolution.access source=left root=symbol5.left
-/// @resolution.name source=right target=symbol5.right
+/// @resolution.access source=left root=symbol6.left
+/// @resolution.name source=right target=symbol6.right
 /// @resolution.place source=right placement="local" lifetime="frame" access="exclusive"
-/// @resolution.access source=right root=symbol5.right
+/// @resolution.access source=right root=symbol6.right
+
+/// @type.symbol symbol=Adder.() type=(this: Function<(int32, int32), int32, "readonly">, int32, int32) => int32
+/// @type.symbol symbol=Adder.().left type=int32
+/// @type.symbol symbol=Adder.().right type=int32
 "#,
     );
 }

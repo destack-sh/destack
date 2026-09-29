@@ -1471,7 +1471,12 @@ impl WalkState<'_, '_> {
                     ..
                 } => {
                     let (signature, is_optional) = (signature.clone(), *is_optional);
-                    let key = (*name).into();
+                    let Some(name) = *name else {
+                        return Err(CompilerError::Internal {
+                            message: format!("a type literal method {member:?} without a name"),
+                        });
+                    };
+                    let key = name.into();
                     let template = self
                         .open_signature_template(member.into_global_any(self.module), &signature)?;
 

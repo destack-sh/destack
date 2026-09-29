@@ -879,7 +879,7 @@ fn add_narrowing_row(
         .join(" | ");
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "narrowing")
         .optional_field("source", builder.node_source(node_id))
-        .type_field("union", builder.global_type_label(narrowing.union))
+        .type_field("declared", builder.global_type_label(narrowing.declared))
         .type_field("arms", arms);
 
     builder.push(row);
@@ -1021,6 +1021,11 @@ fn projection_label(builder: &DirSnapshotBuilder<'_>, projection: &dir::Projecti
         dir::Projection::DynamicType { ty } => {
             format!("dynamic.type({})", builder.global_type_label(*ty))
         }
+        dir::Projection::Arm { union, ty } => format!(
+            "arm({}, {})",
+            builder.global_type_label(*union),
+            builder.global_type_label(*ty)
+        ),
         dir::Projection::Discriminant {
             union,
             key,
@@ -1360,6 +1365,15 @@ fn predicate_label(builder: &DirSnapshotBuilder<'_>, predicate: &dir::Predicate)
             .map(|predicate| predicate_label(builder, predicate))
             .collect::<Vec<_>>()
             .join(" | "),
+        dir::PredicateTest::All(parts) => {
+            let parts = parts
+                .iter()
+                .map(|predicate| predicate_label(builder, predicate))
+                .collect::<Vec<_>>()
+                .join(" && ");
+
+            format!("({parts})")
+        }
     }
 }
 
@@ -1801,7 +1815,9 @@ fn add_pattern_test_fields(
 fn predicate_condition(predicate: &dir::Predicate) -> Option<&dir::PredicateCondition> {
     match &predicate.test {
         dir::PredicateTest::Unary(test) => Some(&test.condition),
-        dir::PredicateTest::Membership(_) | dir::PredicateTest::Any(_) => None,
+        dir::PredicateTest::Membership(_)
+        | dir::PredicateTest::Any(_)
+        | dir::PredicateTest::All(_) => None,
     }
 }
 
@@ -2032,6 +2048,11 @@ fn receiver_adjustment_label(
         dir::ReceiverAdjustment::Upcast { ty } => {
             format!("upcast({})", builder.global_type_label(*ty))
         }
+        dir::ReceiverAdjustment::Materialize { singleton, ty } => format!(
+            "materialize({}, {})",
+            builder.global_type_label(*singleton),
+            builder.global_type_label(*ty)
+        ),
     }
 }
 
@@ -2042,8 +2063,6 @@ fn dynamic_function_label(
 ) -> String {
     let (operation, source) = match function {
         dir::DynamicFunction::Symbol(symbol) => return builder.symbol_path_label(*symbol),
-        dir::DynamicFunction::CallSignature(source) => ("call", source),
-        dir::DynamicFunction::ConstructSignature(source) => ("construct", source),
         dir::DynamicFunction::IndexRead(source) => ("index.read", source),
         dir::DynamicFunction::IndexWrite(source) => ("index.write", source),
     };
@@ -2062,7 +2081,10 @@ fn add_class_construct_fields(
     constructor: &dir::ClassConstructor,
     arguments: &[dir::GenericArgumentBinding],
 ) -> SnapshotRow {
-    let call = constructor.call_symbol().unwrap_or(key.symbol);
+    let call = match constructor {
+        dir::ClassConstructor::Declared { symbol } => *symbol,
+        dir::ClassConstructor::Implicit { .. } => key.symbol,
+    };
 
     row.field("target", builder.symbol_path_label(key.symbol))
         .optional_field("constructor", class_constructor_label(builder, constructor))
@@ -2080,14 +2102,10 @@ fn class_constructor_label(
 ) -> Option<String> {
     match constructor {
         dir::ClassConstructor::Declared { symbol } => Some(builder.symbol_path_label(*symbol)),
-        dir::ClassConstructor::Default => Some("default".to_string()),
-        dir::ClassConstructor::ForwardedDeclared { symbol, .. } => {
-            Some(format!("forwarded:{}", builder.symbol_path_label(*symbol)))
-        }
-        dir::ClassConstructor::ForwardedDefault { base } => Some(format!(
-            "forwarded:{}.default",
-            builder.symbol_path_label(*base)
-        )),
+        dir::ClassConstructor::Implicit { forwards: None } => Some("implicit".to_string()),
+        dir::ClassConstructor::Implicit {
+            forwards: Some(symbol),
+        } => Some(format!("implicit:{}", builder.symbol_path_label(*symbol))),
     }
 }
 

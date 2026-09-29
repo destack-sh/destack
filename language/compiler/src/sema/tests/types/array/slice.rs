@@ -38,7 +38,7 @@ const slice = bytes[1..3];
 /// @generic.instance id=Range<isize> template=Range arguments=(isize)
 /// @type.node source=3 type=3
 
-/// @generic.witness type=Range<isize> interface=RangeBounds<isize> functions=(RangeBounds.startBound: startBound#1<isize>, RangeBounds.endBound: endBound#1<isize>)
+/// @generic.witness type=Range<isize> interface=RangeBounds<isize> functions=(RangeBounds.startBound: startBound#1<isize>, RangeBounds.endBound: endBound#1<isize>, RangeBounds.contains: RangeBounds.contains<isize>)
 "#,
     );
 }

@@ -865,10 +865,7 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Render one static selection.
     pub(crate) fn static_key(&self, key: dir::StaticKey) -> String {
-        match key {
-            dir::StaticKey::Name(name) => self.strings.get(name).to_string(),
-            dir::StaticKey::Index(index) => index.to_string(),
-        }
+        key.text(self.strings)
     }
 
     /// Render one enum variant label as lower snake case.

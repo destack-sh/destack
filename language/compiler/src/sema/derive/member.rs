@@ -56,12 +56,16 @@ pub(in crate::sema) enum Composite {
 pub(in crate::sema) struct Derivation {
     /// The member symbol.
     pub(in crate::sema) symbol: dir::GlobalSymbolId,
+    /// The member node the body attaches to.
+    pub(in crate::sema) node: dir::LocalNodeId<dir::TypeMember>,
     /// The scope every synthesized node sits in.
     pub(in crate::sema) scope: dir::LocalScope,
     /// The body node, whose scope the body's instances close under.
     pub(in crate::sema) body: Option<dir::GlobalNodeIdAny>,
     /// The member's callable type at its receiver.
     pub(in crate::sema) callable: dir::GlobalTypeId,
+    /// The type the body produces.
+    pub(in crate::sema) result: dir::GlobalTypeId,
     /// The module the body lives in.
     pub(in crate::sema) module: ModuleId,
     /// The span every synthesized node takes.
@@ -123,20 +127,6 @@ impl CheckState<'_> {
             }
         }
 
-        // instantiate the requirement's signature at the receiver
-        let module = self.module_id;
-        let requirement_type = self.symbol_type(requirement)?;
-        let mut substitution = TypeSubstitution {
-            bindings: arguments.iter().copied().collect(),
-            receiver: Some(receiver),
-        };
-        let callable = self.substitute_type(requirement_type, &substitution)?;
-        let Some((_, signature)) = self.callable_signature_type(origin, callable)? else {
-            return Err(CompilerError::Internal {
-                message: "a derived requirement without a signature".to_owned(),
-            });
-        };
-
         // read the shape the receiver derives over before declaring anything
         let Some((shape, components)) = self.derived_family(origin, receiver)? else {
             return Ok(None);
@@ -159,6 +149,117 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
+        // declare the member ahead of its body
+        let owner = item.owner.export_name();
+        let name = format!("{owner}.{}", item.key.text(self.strings()));
+        let mut frame =
+            self.declare_derived_member(requirement, receiver, arguments, source, item.key, &name)?;
+        let return_type = frame.result;
+
+        // clone a class field by field
+        let components = match (shape, interface) {
+            (Composite::Class(_), dir::AutoInterface::Clone) => {
+                self.class_field_chain(origin, components)?
+            }
+            _ => components,
+        };
+
+        // check the generated body
+        let origin = self.anchored_origin(source)?;
+        let body = self.with_body_scope(|state| {
+            // select each component's protocol call
+            let components =
+                state.derived_components(&mut frame, origin, interface, item, components)?;
+
+            // fold the components with the interface's combinator
+            let body = match (shape, interface) {
+                (Composite::Union, _) => state.build_union_body(
+                    &mut frame,
+                    origin,
+                    &components,
+                    interface,
+                    return_type,
+                )?,
+                (_, dir::AutoInterface::Clone | dir::AutoInterface::Default) => {
+                    state.build_construct_body(&mut frame, shape, &components, interface)?
+                }
+                (_, dir::AutoInterface::Equal | dir::AutoInterface::PartialEqual) => {
+                    state.build_equal_body(&mut frame, &components)?
+                }
+                (_, dir::AutoInterface::Hash) => state.build_hash_body(&mut frame, &components)?,
+                (Composite::Enum, dir::AutoInterface::Debug | dir::AutoInterface::Display) => {
+                    state.build_value_text_body(&mut frame, &components)?
+                }
+                (_, dir::AutoInterface::Debug | dir::AutoInterface::Display) => {
+                    state.build_text_body(&mut frame, shape, &components, origin, return_type)?
+                }
+                _ => {
+                    return Err(CompilerError::Internal {
+                        message: "a derived body for an underivable requirement".to_owned(),
+                    });
+                }
+            };
+
+            Ok(body)
+        })?;
+        self.attach_derived_body(&mut frame, body)?;
+
+        Ok(Some(frame))
+    }
+
+    /// Build the role member a function or constructor value answers with.
+    pub(in crate::sema) fn build_invoked_member(
+        &mut self,
+        requirement: dir::GlobalSymbolId,
+        key: dir::StaticKey,
+        receiver: dir::GlobalTypeId,
+        arguments: &[dir::GenericArgumentBinding],
+        source: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<Derivation> {
+        // name the member after the interface requiring the role
+        let Some(owner) = self.interface_member_owner(requirement)? else {
+            return Err(CompilerError::Internal {
+                message: "an invoked requirement outside an interface".to_owned(),
+            });
+        };
+        let owner = self.symbol_name(owner)?;
+        let name = format!("{owner}.{}", key.text(self.strings()));
+
+        // declare the member, then invoke the receiver with its parameters
+        let mut frame =
+            self.declare_derived_member(requirement, receiver, arguments, source, key, &name)?;
+        let body = self.with_body_scope(|state| state.build_invoke_body(&mut frame))?;
+        self.attach_derived_body(&mut frame, body)?;
+
+        Ok(frame)
+    }
+
+    /// Declare the member one derivation synthesizes.
+    fn declare_derived_member(
+        &mut self,
+        requirement: dir::GlobalSymbolId,
+        receiver: dir::GlobalTypeId,
+        arguments: &[dir::GenericArgumentBinding],
+        source: dir::GlobalNodeIdAny,
+        key: dir::StaticKey,
+        name: &str,
+    ) -> CompilerResult<Derivation> {
+        let origin = Origin::Node(source, None);
+
+        // instantiate the requirement's signature at the receiver
+        let module = self.module_id;
+        let requirement_type = self.symbol_type(requirement)?;
+        let mut substitution = TypeSubstitution {
+            bindings: arguments.iter().copied().collect(),
+            receiver: Some(receiver),
+        };
+        let callable = self.substitute_type(requirement_type, &substitution)?;
+        let Some((_, signature)) = self.callable_signature_type(origin, callable)? else {
+            return Err(CompilerError::Internal {
+                message: "a derived requirement without a signature".to_owned(),
+            });
+        };
+
         // anchor the member and its body at the node demanding the derivation
         let Some(span) = self
             .module(source.module_id)
@@ -173,13 +274,7 @@ impl CheckState<'_> {
         };
 
         // declare the member node ahead of its body
-        let key = match item.key {
-            dir::StaticKey::Name(key) => self.strings().get(key).to_string(),
-            dir::StaticKey::Index(index) => index.to_string(),
-        };
-        let name = self
-            .strings()
-            .intern(&format!("{}.{key}", item.owner.export_name()));
+        let name = self.strings().intern(name);
         let module_scope = self.module(module).bindings.module_scope();
         let is_static = signature.this_parameter.is_none();
         let member = self.module_mut(module).bindings_tail.insert_symbol(
@@ -194,7 +289,7 @@ impl CheckState<'_> {
             module,
             span,
             dir::TypeMember::Method {
-                name: dir::Name::Identifier(name),
+                name: Some(dir::Name::Identifier(name)),
                 signature: dir::FunctionSignature {
                     asynchrony: dir::Asynchrony::Sync,
                     role: None,
@@ -362,74 +457,10 @@ impl CheckState<'_> {
             parameter_nodes.push(parameter_node);
         }
 
-        // open the frame the body synthesizes its nodes in
-        let mut frame = Derivation {
-            symbol: member,
-            scope,
-            body: None,
-            callable,
-            module,
-            span,
-            receiver,
-            this: signature.this_parameter,
-            parameters: declared,
-            member: item.key,
-            calls: Vec::new(),
-        };
-
-        // clone a class field by field along its heritage, every other body reading the base whole
-        let components = match (shape, interface) {
-            (Composite::Class(_), dir::AutoInterface::Clone) => {
-                self.class_field_chain(origin, components)?
-            }
-            _ => components,
-        };
-
-        // check the generated body under its declaration's template and inference scope
-        let origin = self.anchored_origin(source)?;
-        let body = self.with_body_scope(|state| {
-            // select each component's protocol call under the member's own template
-            let components =
-                state.derived_components(&mut frame, origin, interface, item, components)?;
-
-            // build the body the interface's combinator folds the components with
-            let body = match (shape, interface) {
-                (Composite::Union, _) => state.build_union_body(
-                    &mut frame,
-                    origin,
-                    &components,
-                    interface,
-                    return_type,
-                )?,
-                (_, dir::AutoInterface::Clone | dir::AutoInterface::Default) => {
-                    state.build_construct_body(&mut frame, shape, &components, interface)?
-                }
-                (_, dir::AutoInterface::Equal | dir::AutoInterface::PartialEqual) => {
-                    state.build_equal_body(&mut frame, &components)?
-                }
-                (_, dir::AutoInterface::Hash) => state.build_hash_body(&mut frame, &components)?,
-                (Composite::Enum, dir::AutoInterface::Debug | dir::AutoInterface::Display) => {
-                    state.build_value_text_body(&mut frame, &components)?
-                }
-                (_, dir::AutoInterface::Debug | dir::AutoInterface::Display) => {
-                    state.build_text_body(&mut frame, shape, &components, origin, return_type)?
-                }
-                _ => {
-                    return Err(CompilerError::Internal {
-                        message: "a derived body for an underivable requirement".to_owned(),
-                    });
-                }
-            };
-
-            Ok(body)
-        })?;
-
-        // attach the parameters and the body to the member node, making them visible
+        // attach the parameters to the member node
         let tree = &mut self.module_mut(module).patch.tree;
         let dir::TypeMember::Method {
-            signature: written,
-            body: attached,
-            ..
+            signature: written, ..
         } = tree.get_mut(node)
         else {
             return Err(CompilerError::Internal {
@@ -437,11 +468,45 @@ impl CheckState<'_> {
             });
         };
         written.parameters = parameter_nodes;
+
+        // open the frame the body synthesizes its nodes in
+        let frame = Derivation {
+            symbol: member,
+            node,
+            scope,
+            body: None,
+            callable,
+            result: return_type,
+            module,
+            span,
+            receiver,
+            this: signature.this_parameter,
+            parameters: declared,
+            member: key,
+            calls: Vec::new(),
+        };
+
+        Ok(frame)
+    }
+
+    /// Attach one derived body to its member node.
+    fn attach_derived_body(
+        &mut self,
+        frame: &mut Derivation,
+        body: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<()> {
+        let node = frame.node;
+        let tree = &mut self.module_mut(frame.module).patch.tree;
+        let dir::TypeMember::Method { body: attached, .. } = tree.get_mut(node) else {
+            return Err(CompilerError::Internal {
+                message: "a derived member declared outside a method".to_owned(),
+            });
+        };
         *attached = Some(body);
         tree.index_parents(&[node]);
-        frame.body = Some(body.into_global_any(module));
+        frame.body = Some(body.into_global_any(frame.module));
 
-        Ok(Some(frame))
+        Ok(())
     }
 
     /// Return the derivable interface one requirement belongs to, with the item naming its call.

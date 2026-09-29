@@ -233,11 +233,7 @@ impl CheckState<'_> {
                     }
 
                     // skip constructor returns, they restate the receiver instance
-                    let constructs = matches!(
-                        method.slot,
-                        dir::MemberSlot::Constructor | dir::MemberSlot::New
-                    );
-                    if !constructs {
+                    if method.slot != dir::MemberSlot::Constructor {
                         types.extend(signature.return_type);
                     }
                 }
@@ -253,10 +249,7 @@ impl CheckState<'_> {
                 }
                 // skip variant singletons, they restate the receiver instance
                 dir::DefinitionMember::EnumVariant(_) => {}
-                dir::DefinitionMember::Field(_)
-                | dir::DefinitionMember::AssociatedConst(_)
-                | dir::DefinitionMember::CallSignature(_)
-                | dir::DefinitionMember::ConstructSignature(_) => {
+                dir::DefinitionMember::Field(_) | dir::DefinitionMember::AssociatedConst(_) => {
                     types.extend(self.definition_member_type(member)?);
                 }
             }

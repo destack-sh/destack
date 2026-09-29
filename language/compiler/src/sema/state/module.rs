@@ -1289,8 +1289,6 @@ impl<'a> CheckState<'a> {
             }
             dir::DefinitionMember::Field(_)
             | dir::DefinitionMember::EnumVariant(_)
-            | dir::DefinitionMember::CallSignature(_)
-            | dir::DefinitionMember::ConstructSignature(_)
             | dir::DefinitionMember::IndexSignature(_) => false,
         })
     }

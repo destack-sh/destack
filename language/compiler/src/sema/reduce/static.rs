@@ -311,10 +311,7 @@ impl CheckState<'_> {
         }
         // order fields by name so written order never splits term identity
         let mut fields: Vec<_> = fields.into_iter().collect();
-        fields.sort_by_cached_key(|(key, _)| match key {
-            dir::StaticKey::Name(name) => (self.strings().get(*name).to_string(), 0),
-            dir::StaticKey::Index(index) => (String::new(), *index + 1),
-        });
+        fields.sort_by_cached_key(|(key, _)| self.static_key_order(*key));
         let properties = fields
             .into_iter()
             .map(|(key, value)| dir::StaticProperty::Field { key, value })
@@ -398,10 +395,7 @@ impl CheckState<'_> {
         }
 
         // order fields by name so written order never splits term identity
-        fields.sort_by_cached_key(|(key, _)| match key {
-            dir::StaticKey::Name(name) => (self.strings().get(*name).to_string(), 0),
-            dir::StaticKey::Index(index) => (String::new(), *index + 1),
-        });
+        fields.sort_by_cached_key(|(key, _)| self.static_key_order(*key));
         let properties = fields
             .into_iter()
             .map(|(key, value)| dir::StaticProperty::Field { key, value })
@@ -453,5 +447,15 @@ impl CheckState<'_> {
         };
 
         Ok(Ok(term))
+    }
+}
+
+impl CheckState<'_> {
+    /// Return the order one static field key sorts under, indices first.
+    fn static_key_order(&self, key: dir::StaticKey) -> (usize, String) {
+        match key {
+            dir::StaticKey::Index(index) => (index, String::new()),
+            key => (usize::MAX, key.text(self.strings())),
+        }
     }
 }

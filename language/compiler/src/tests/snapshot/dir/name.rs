@@ -240,6 +240,13 @@ impl<'a> BindingSnapshotName<'a> {
 
     /// Return the label for an anonymous role member symbol.
     fn member_slot_label(&self, symbol: &dir::Symbol) -> Option<&'static str> {
+        // label the role members by their keys
+        match symbol.key {
+            Some(dir::StaticKey::Call) => return Some("()"),
+            Some(dir::StaticKey::New) => return Some("new()"),
+            _ => {}
+        }
+
         let tree = self.tree?;
         let declaration = symbol.declaration?;
         if declaration.local_id.ty != dir::NodeType::Member {
@@ -251,8 +258,6 @@ impl<'a> BindingSnapshotName<'a> {
         ));
         match member.slot()? {
             dir::MemberSlot::Constructor => Some("constructor"),
-            dir::MemberSlot::New => Some("new"),
-            dir::MemberSlot::Call => Some("<call>"),
             dir::MemberSlot::Key(_) => None,
         }
     }

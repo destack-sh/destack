@@ -655,6 +655,22 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
                     .any(|binding| binding.parameter == argument.parameter)
             });
         }
+        // a value invoked through its call member writes only the member's own parameters
+        else if let Some(symbol) = call.target.symbol()
+            && self
+                .types
+                .check
+                .binding_table(symbol.module_id)?
+                .get_symbol(symbol.local_id)
+                .key
+                == Some(dir::StaticKey::Call)
+        {
+            let own = match self.types.check.symbol_template(symbol)? {
+                Some(template) => self.types.check.generic_template_parameters(template)?,
+                None => Default::default(),
+            };
+            arguments.retain(|argument| own.contains(&argument.parameter));
+        }
         if arguments.is_empty() {
             return Ok(());
         }

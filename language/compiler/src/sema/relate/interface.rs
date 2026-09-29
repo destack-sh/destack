@@ -19,10 +19,6 @@ pub(in crate::sema) struct InterfaceRequirements {
     pub(in crate::sema) inherited: SmallVec<[HeritageApplication; 8]>,
     /// The index signatures declared directly by the interface.
     pub(in crate::sema) index_signatures: SmallVec<[InterfaceIndexSignature; 2]>,
-    /// The call signatures declared directly by the interface.
-    pub(in crate::sema) call_signatures: SmallVec<[InterfaceSignature; 2]>,
-    /// The construct signatures declared directly by the interface.
-    pub(in crate::sema) construct_signatures: SmallVec<[InterfaceSignature; 2]>,
 }
 
 /// The signature family one requirement selects from.
@@ -34,13 +30,14 @@ pub(in crate::sema) enum SignatureFamily {
     Construct,
 }
 
-/// One symbol-free signature required by an applied interface.
-#[derive(Debug, Clone, Copy)]
-pub(in crate::sema) struct InterfaceSignature {
-    /// The signature's source declaration.
-    pub(in crate::sema) source: dir::GlobalNodeIdAny,
-    /// The applied signature type.
-    pub(in crate::sema) ty: dir::GlobalTypeId,
+impl SignatureFamily {
+    /// Return the role key this family answers with.
+    pub(in crate::sema) fn key(self) -> dir::StaticKey {
+        match self {
+            Self::Call => dir::StaticKey::Call,
+            Self::Construct => dir::StaticKey::New,
+        }
+    }
 }
 
 /// One index signature required by an applied interface.
@@ -655,7 +652,13 @@ impl CheckState<'_> {
                 }
                 // methods compare callable signatures without their receivers
                 Some(_) => {
-                    let Some(found) = self.member_read_type(&lookup)? else {
+                    // answer a role key with the value's signature
+                    let is_invoked = self.invoked_key(source)? == Some(member.key);
+                    let found = match is_invoked {
+                        true => Some(source),
+                        false => self.member_read_type(&lookup)?,
+                    };
+                    let Some(found) = found else {
                         if member.is_optional || member.has_default {
                             continue;
                         }
@@ -693,9 +696,9 @@ impl CheckState<'_> {
             }
         }
 
-        // prove each direct signature from the source
+        // prove each direct index signature from the source
         let signatures =
-            self.relate_interface_signatures(origin, cause, relation, source, &requirements)?;
+            self.relate_interface_index_signatures(origin, cause, relation, source, &requirements)?;
         verdict = verdict.and(signatures);
         if verdict == Verdict::Fails {
             return Ok(Verdict::Fails);
@@ -713,8 +716,8 @@ impl CheckState<'_> {
         Ok(verdict)
     }
 
-    /// Relate one source against an interface's direct signatures.
-    pub(in crate::sema) fn relate_interface_signatures(
+    /// Relate one source against an interface's direct index signatures.
+    pub(in crate::sema) fn relate_interface_index_signatures(
         &mut self,
         origin: Origin,
         cause: CauseId,
@@ -722,104 +725,14 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         requirements: &InterfaceRequirements,
     ) -> CompilerResult<Verdict> {
-        // prove each required call signature from the source
-        let mut verdict = Verdict::Holds;
-        for signature in &requirements.call_signatures {
-            let required = self.relate_signature_requirement(
-                origin,
-                cause,
-                source,
-                signature.ty,
-                SignatureFamily::Call,
-            )?;
-            verdict = verdict.and(required);
-            if verdict == Verdict::Fails {
-                return Ok(Verdict::Fails);
-            }
-        }
-
-        // prove each required construct signature from the source
-        for signature in &requirements.construct_signatures {
-            let required = self.relate_signature_requirement(
-                origin,
-                cause,
-                source,
-                signature.ty,
-                SignatureFamily::Construct,
-            )?;
-            verdict = verdict.and(required);
-            if verdict == Verdict::Fails {
-                return Ok(Verdict::Fails);
-            }
-        }
-
         // prove each required index signature from the source
+        let mut verdict = Verdict::Holds;
         for signature in &requirements.index_signatures {
             let required =
                 self.relate_index_signature(origin, cause, relation, source, &signature.signature)?;
             verdict = verdict.and(required);
             if verdict == Verdict::Fails {
                 return Ok(Verdict::Fails);
-            }
-        }
-
-        Ok(verdict)
-    }
-
-    /// Relate one source against a required signature.
-    fn relate_signature_requirement(
-        &mut self,
-        origin: Origin,
-        cause: CauseId,
-        source: dir::GlobalTypeId,
-        required: dir::GlobalTypeId,
-        family: SignatureFamily,
-    ) -> CompilerResult<Verdict> {
-        // relate function-typed sources through their own signature
-        let is_function = match self.ty(source)? {
-            dir::Type::FunctionSignature(_)
-            | dir::Type::Function(_)
-            | dir::Type::FunctionPointer(_) => true,
-            dir::Type::Application(callable) => self.is_function_language_item(callable.symbol)?,
-            _ => false,
-        };
-        if is_function {
-            return match family {
-                SignatureFamily::Call => self.relate_method(
-                    origin,
-                    cause,
-                    Relation::Storable,
-                    source,
-                    required,
-                    None,
-                    None,
-                ),
-                SignatureFamily::Construct => Ok(Verdict::Fails),
-            };
-        }
-
-        // relate other sources through their apparent signatures
-        let constraint = match self.ty(source)? {
-            dir::Type::Dynamic(dynamic) => dynamic.constraint,
-            dir::Type::Application(_) => source,
-            _ => return Ok(Verdict::Fails),
-        };
-
-        // accept one apparent signature satisfying the requirement
-        let signatures = self.apparent_signatures(constraint, family)?;
-        let mut verdict = Verdict::Fails;
-        for signature in signatures {
-            verdict = verdict.or(self.relate_method(
-                origin,
-                cause,
-                Relation::Storable,
-                signature.ty,
-                required,
-                None,
-                None,
-            )?);
-            if verdict == Verdict::Holds {
-                return Ok(Verdict::Holds);
             }
         }
 
@@ -850,8 +763,6 @@ impl CheckState<'_> {
         let definition_members = definition.members.clone();
         let mut members = SmallVec::new();
         let mut index_signatures = SmallVec::new();
-        let mut call_signatures = SmallVec::new();
-        let mut construct_signatures = SmallVec::new();
 
         // collect only the named interface's own members
         self.collect_interface_members(symbol, interface, receiver, &mut members)?;
@@ -879,20 +790,6 @@ impl CheckState<'_> {
                     },
                 });
             }
-            // apply the substitution to each call signature
-            else if let dir::DefinitionMember::CallSignature(signature) = member {
-                call_signatures.push(InterfaceSignature {
-                    source: signature.source,
-                    ty: self.instantiate_interface_type(signature.ty, interface, receiver)?,
-                });
-            }
-            // apply the substitution to each construct signature
-            else if let dir::DefinitionMember::ConstructSignature(signature) = member {
-                construct_signatures.push(InterfaceSignature {
-                    source: signature.source,
-                    ty: self.instantiate_interface_type(signature.ty, interface, receiver)?,
-                });
-            }
         }
 
         // apply the interface arguments to each inherited clause
@@ -902,50 +799,7 @@ impl CheckState<'_> {
             members,
             inherited,
             index_signatures,
-            call_signatures,
-            construct_signatures,
         })
-    }
-
-    /// Return the apparent signatures of one interface constraint.
-    pub(in crate::sema) fn apparent_signatures(
-        &mut self,
-        constraint: dir::GlobalTypeId,
-        family: SignatureFamily,
-    ) -> CompilerResult<SmallVec<[InterfaceSignature; 2]>> {
-        // read signatures from an applied interface only
-        if self.nominal_application_maybe(constraint)?.is_none() {
-            return Ok(SmallVec::new());
-        }
-
-        // read the constraint's own signatures of this family
-        let requirements = self.interface_requirements(constraint, constraint)?;
-        let mut signatures = match family {
-            SignatureFamily::Call => requirements.call_signatures.clone(),
-            SignatureFamily::Construct => requirements.construct_signatures.clone(),
-        };
-
-        // collect apparent signatures from inherited interfaces
-        for heritage in &requirements.inherited {
-            let nested = self.apparent_signatures(heritage.ty, family)?;
-            signatures.extend(nested);
-        }
-
-        Ok(signatures)
-    }
-
-    /// Return whether one symbol declares the callable value language item.
-    pub(in crate::sema) fn is_function_language_item(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<bool> {
-        let item = self.language_item(symbol)?;
-
-        // read whether the item names a callable representation
-        Ok(matches!(
-            item,
-            Some(dir::LanguageItem::Function | dir::LanguageItem::FunctionPointer)
-        ))
     }
 
     /// Collect direct members required by one applied interface.

@@ -16,15 +16,6 @@ enum CallableTarget {
     Expression,
     /// Call one declaration-backed function.
     Symbol(dir::GlobalSymbolId),
-    /// Invoke one erased interface signature.
-    Signature {
-        /// The selected call or construct signature.
-        function: dir::DynamicFunction,
-        /// The erased receiver value type.
-        receiver: dir::GlobalTypeId,
-        /// The interface constraint declaring the signature.
-        constraint: dir::GlobalTypeId,
-    },
     /// Construct one newtype.
     Newtype(dir::GlobalSymbolId),
 }
@@ -211,9 +202,7 @@ impl CheckState<'_> {
                 // keep a declaration only while its type is invocable
                 let ty = match &target {
                     CallableTarget::Newtype(_) => ty,
-                    CallableTarget::Expression
-                    | CallableTarget::Symbol(_)
-                    | CallableTarget::Signature { .. } => {
+                    CallableTarget::Expression | CallableTarget::Symbol(_) => {
                         let Some(ty) = self.callable_type(ty, SignatureFamily::Call)? else {
                             continue;
                         };
@@ -302,6 +291,10 @@ impl CheckState<'_> {
                 };
 
                 Ok(Some(candidates))
+            }
+            // call a receiver like any other value
+            Some(dir::Decision::Receiver(_)) => {
+                self.value_callable_candidates(origin, callee_site, is_optional)
             }
             // skip a callee that already reported
             Some(dir::Decision::Rejected | dir::Decision::Poisoned) => Ok(None),
@@ -669,35 +662,6 @@ impl CheckState<'_> {
             return Ok(overloads);
         }
 
-        // call an erased value through its constraint signatures
-        if let Some(constraint) = self.erased_constraint(ty)? {
-            let signatures = self.apparent_signatures(constraint, family)?;
-            let generic_arguments = self.application_generic_argument_bindings(constraint)?;
-            let mut overloads = SmallVec::with_capacity(signatures.len());
-            for signature in signatures {
-                let function = match family {
-                    SignatureFamily::Call => dir::DynamicFunction::CallSignature(signature.source),
-                    SignatureFamily::Construct => {
-                        dir::DynamicFunction::ConstructSignature(signature.source)
-                    }
-                };
-                overloads.push(CallableCandidate {
-                    target: CallableTarget::Signature {
-                        function,
-                        receiver: ty,
-                        constraint,
-                    },
-                    generic_scope: None,
-                    receiver: None,
-                    member_space: None,
-                    ty: signature.ty,
-                    generic_arguments: generic_arguments.clone(),
-                });
-            }
-
-            return Ok(overloads);
-        }
-
         // take a fat callable as its own receiver in one invocable candidate
         let mut overloads = SmallVec::new();
         if let Some(ty) = self.callable_type(ty, family)? {
@@ -726,6 +690,47 @@ impl CheckState<'_> {
                 ty,
                 generic_arguments: Vec::new(),
             });
+        }
+        // call or construct any other value through its role member
+        else {
+            return self.role_member_overloads(origin, receiver, ty, family.key());
+        }
+
+        Ok(overloads)
+    }
+
+    /// Collect the overloads of one role member.
+    fn role_member_overloads(
+        &mut self,
+        origin: Origin,
+        receiver: Value,
+        ty: dir::GlobalTypeId,
+        key: dir::StaticKey,
+    ) -> CompilerResult<SmallVec<[CallableCandidate; 2]>> {
+        // look the role key up on the value's instance surface
+        let subject = self.member_subject(origin, receiver.ty, ty, dir::MemberSpace::Instance)?;
+        let lookup = self.match_member(
+            origin,
+            origin.module(),
+            receiver,
+            subject,
+            key,
+            dir::Access::Readonly,
+            None,
+        )?;
+        let Some(lookup) = lookup else {
+            return Ok(SmallVec::new());
+        };
+        let Some(resolution) = self.select_member_read(origin, receiver, key, &lookup)? else {
+            return Ok(SmallVec::new());
+        };
+
+        // collect the declared overloads each selected access names
+        let mut overloads = SmallVec::new();
+        for access in resolution.arms() {
+            if let Some(arm) = self.member_target_candidates(origin, receiver, &access.target)? {
+                overloads.extend(arm.overloads);
+            }
         }
 
         Ok(overloads)
@@ -1254,30 +1259,6 @@ impl CheckState<'_> {
             CallableTarget::Expression => dir::CallableTarget::Expression {
                 generic_arguments: signature.generic_arguments.clone(),
             },
-            // dispatch erased signature calls through the callee's own table
-            CallableTarget::Signature {
-                function,
-                receiver,
-                constraint,
-            } => dir::CallableTarget::Dynamic {
-                dispatch: dir::DynamicDispatch {
-                    receiver: dir::AdjustedReceiver::direct(*receiver),
-                    constraint: *constraint,
-                },
-                function: *function,
-                // record the signature's own bindings, dropping the constraint's parameters
-                generic_arguments: signature
-                    .generic_arguments
-                    .iter()
-                    .filter(|binding| {
-                        !candidate
-                            .generic_arguments
-                            .iter()
-                            .any(|carried| carried.parameter == binding.parameter)
-                    })
-                    .cloned()
-                    .collect(),
-            },
             // drop the receiver a static member selection went through
             CallableTarget::Symbol(symbol) => {
                 let key_receiver = match candidate.generic_scope {
@@ -1309,11 +1290,27 @@ impl CheckState<'_> {
                                 .adjustments
                                 .push(dir::ReceiverAdjustment::Upcast { ty });
                         }
+                        let dispatch = self.method_dispatch(origin, *symbol, receiver.ty())?;
 
                         dir::CallableTarget::Symbol {
                             function: candidate.function_target(
                                 signature,
                                 Some(receiver),
+                                key_receiver,
+                            )?,
+                            dispatch,
+                        }
+                    }
+                    // call a generic member's default body directly
+                    Some(dir::MemberReceiver::Dynamic(dispatch))
+                        if self.is_default_call(origin, *symbol)? =>
+                    {
+                        let key_receiver = Some(dispatch.receiver.ty());
+
+                        dir::CallableTarget::Symbol {
+                            function: candidate.function_target(
+                                signature,
+                                Some(dispatch.receiver),
                                 key_receiver,
                             )?,
                             dispatch: dir::FunctionDispatch::Direct,

@@ -580,9 +580,10 @@ function sum(values: Iterator<int32>): Result<int32, string> {
     /// @type.node type=Result<int32, string>
     /// @resolution.name source=values target=sum.values
     /// @resolution.member source=values.reduce receiver=Iterator<int32> type=(this: Iterator<int32>, (int32, int32, isize) => int32) => int32 & <Iterator.reduce.U>(this: Iterator<int32>, (Iterator.reduce.U, int32, isize) => Iterator.reduce.U, Iterator.reduce.U) => Iterator.reduce.U kind=overload-set targets=[Iterator.reduce#1, Iterator.reduce#2]
-    /// @resolution.call parameters=((Result<int32, string>, int32, isize) => Result<int32, string>, Result<int32, string>) arguments=(provided(argument) as (Result<int32, string>, int32, isize) => Result<int32, string>, provided(Result.ok(0)) as Result<int32, string>) return=Result<int32, string> kind=dynamic target=Iterator.reduce#2 receiver=Iterator<int32> constraint=Iterator<int32> generic_arguments=(int32, Result<int32, string>)
+    /// @resolution.call parameters=((Result<int32, string>, int32, isize) => Result<int32, string>, Result<int32, string>) arguments=(provided(argument) as (Result<int32, string>, int32, isize) => Result<int32, string>, provided(Result.ok(0)) as Result<int32, string>) return=Result<int32, string> kind=symbol target=Iterator.reduce#2 receiver=Iterator<int32> instance="Iterator<int32>.reduce#2<Result<int32, string>>"
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=sum.values
+    /// @generic.instantiation id="Iterator.reduce#2<Iterator<int32>, int32, Result<int32, string>>" template=Iterator.reduce#2 arguments=(int32, Result<int32, string>)
     /// @generic.instantiation id=Iterator.reduce#1<int32> template=Iterator.reduce#1 arguments=(int32)
     /// @generic.instantiation id=Iterator.reduce#2<int32> template=Iterator.reduce#2 arguments=(int32)
     /// @type.symbol symbol=sum.symbol5 type=Function<(Result<int32, string>, int32, isize), Result<int32, string>, "readonly">
@@ -836,10 +837,11 @@ function sum(values: It<int32>): Wrap<int32> {
     /// @type.node type=Wrap<int32>
     /// @resolution.name source=values target=sum.values
     /// @resolution.member source=values.reduce receiver=It<int32, void> type=(this: It<int32, void>, (int32, int32) => int32) => int32 & <U>(this: It<int32, void>, (U, int32) => U, U) => U kind=overload-set targets=[It.reduce#1, It.reduce#2]
-    /// @resolution.call parameters=((Wrap<int32>, int32) => Wrap<int32>, Wrap<int32>) arguments=(provided(argument) as (Wrap<int32>, int32) => Wrap<int32>, provided(wrap(0)) as Wrap<int32>) return=Wrap<int32> kind=dynamic target=It.reduce#2 receiver=It<int32, void> constraint=It<int32, void> generic_arguments=(int32, void, Wrap<int32>)
+    /// @resolution.call parameters=((Wrap<int32>, int32) => Wrap<int32>, Wrap<int32>) arguments=(provided(argument) as (Wrap<int32>, int32) => Wrap<int32>, provided(wrap(0)) as Wrap<int32>) return=Wrap<int32> kind=symbol target=It.reduce#2 receiver=It<int32, void> instance="It<int32, void>.reduce#2<Wrap<int32>>"
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=sum.values
     /// @generic.instantiation id="It.reduce#1<int32, void>" template=It.reduce#1 arguments=(int32, void)
+    /// @generic.instantiation id="It.reduce#2<It<int32, void>, int32, void, Wrap<int32>>" template=It.reduce#2 arguments=(int32, void, Wrap<int32>)
     /// @generic.instantiation id="It.reduce#2<int32, void>" template=It.reduce#2 arguments=(int32, void)
     /// @type.symbol symbol=sum.symbol30 type=Function<(Wrap<int32>, int32), Wrap<int32>, "readonly">
     /// @type.node type=Function<(Wrap<int32>, int32), Wrap<int32>, "readonly">

@@ -387,14 +387,16 @@ import { describe, test } from "tspp:test";
 
 test.each([(1,)]).only("parameterized case", (value: int32) => {});
 /// @resolution.name source=test target=test
-/// @resolution.member source=test.each receiver=Test<{}, {}, {}> type=<Test.each.P: (...unknown[],) & Copy>(this: Test<{}, {}, {}>, Iterable<Test.each.P>) => ParameterizedTest<Test.each.P> kind=symbol target_receiver=Test<{}, {}, {}> dispatch=dynamic constraint=Test<{}, {}, {}> target=Test.each
-/// @resolution.member source=test.each([(1,)]).only receiver=ParameterizedTest<(int32,)> type=ParameterizedTest<(int32,)> kind=field target_receiver=ParameterizedTest<(int32,)> dispatch=dynamic constraint=ParameterizedTest<(int32,)> key=only target=ParameterizedTest.only target_type=ParameterizedTest<(int32,)>
-/// @resolution.call source="test.each([(1,)]).only(\"parameterized case\", (value: int32) => {})" parameters=(string, (int32) => BodyResult | undefined) arguments=(provided("parameterized case") as string, provided((value: int32) => {}) as (int32) => BodyResult | undefined) return=void kind=dynamic target=call(type_member) receiver=ParameterizedTest<(int32,)> constraint=ParameterizedTest<(int32,)>
-/// @resolution.call source=test.each([(1,)]) parameters=(Iterable<(int32,)>) arguments=(provided([(1,)]) as Iterable<(int32,)>) return=ParameterizedTest<(int32,)> kind=dynamic target=Test.each receiver=Test<{}, {}, {}> constraint=Test<{}, {}, {}> generic_arguments=({}, {}, {}, (int32,))
+/// @resolution.member source=test.each receiver=Test<{}, {}, {}> type=<Test.each.P: (...unknown[],) & Copy>(this: Test<{}, {}, {}>, Iterable<Test.each.P>) => ParameterizedTest<Test.each.P> kind=symbol target_receiver=Test<{}, {}, {}> target=Test.each
+/// @resolution.member source=test.each([(1,)]).only receiver=ParameterizedTest<(int32,)> type=ParameterizedTest<(int32,)> kind=call target="ParameterizedTest.only(parameters=(), arguments=(), return=ParameterizedTest<(int32,)>)"
+/// @resolution.call source="test.each([(1,)]).only(\"parameterized case\", (value: int32) => {})" parameters=(string, (int32) => BodyResult | undefined) arguments=(provided("parameterized case") as string, provided((value: int32) => {}) as (int32) => BodyResult | undefined) return=void kind=symbol target=ParameterizedTest.()#1 receiver=ParameterizedTest<(int32,)> instance=ParameterizedTest<(int32,)>.()#1
+/// @resolution.call source=test.each([(1,)]) parameters=(Iterable<(int32,)>) arguments=(provided([(1,)]) as Iterable<(int32,)>) return=ParameterizedTest<(int32,)> kind=symbol target=Test.each receiver=Test<{}, {}, {}> instance="Test<{}, {}, {}>.each<(int32,)>"
 /// @resolution.place source=test placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=test root=test
-/// @resolution.place source=test.each([(1,)]).only placement="local" lifetime="managed" access="mutable"
+/// @generic.instantiation id="Test.each<{}, {}, {}, (int32,)>" template=Test.each arguments=({}, {}, {}, (int32,))
 /// @generic.instantiation id="Test.each<{}, {}, {}>" template=Test.each arguments=({}, {}, {})
+/// @generic.instantiation id=ParameterizedTest.()#1<(int32,)> template=ParameterizedTest.()#1 arguments=((int32,))
+/// @generic.instantiation id=ParameterizedTest.only<(int32,)> template=ParameterizedTest.only arguments=((int32,))
 /// @resolution.call source=[(1,)] parameters=(^Slice<(int32,)>) arguments=(rest(provided((1,)) as (int32,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
 /// @generic.instantiation id=arrayFromOwnedSlice<(int32,)> template=arrayFromOwnedSlice arguments=((int32,))
 /// @type.symbol symbol=symbol3 source="(value: int32) => {}" type=Function<(int32,), BodyResult, "readonly">
@@ -402,13 +404,15 @@ test.each([(1,)]).only("parameterized case", (value: int32) => {});
 
 test.for([1]).only("table case", (value: &readonly int64) => {});
 /// @resolution.name source=test target=test
-/// @resolution.member source=test.for receiver=Test<{}, {}, {}> type=<Test.for.T>(this: Test<{}, {}, {}>, Iterable<Test.for.T>) => TableTest<Test.for.T, {}, {}, {}> kind=symbol target_receiver=Test<{}, {}, {}> dispatch=dynamic constraint=Test<{}, {}, {}> target=Test.for
-/// @resolution.member source=test.for([1]).only receiver=TableTest<int64, {}, {}, {}> type=TableTest<int64, {}, {}, {}> kind=field target_receiver=TableTest<int64, {}, {}, {}> dispatch=dynamic constraint=TableTest<int64, {}, {}, {}> key=only target=TableTest.only target_type=TableTest<int64, {}, {}, {}>
-/// @resolution.call source="test.for([1]).only(\"table case\", (value: &readonly int64) => {})" parameters=(string, <type_expression.'a, type_expression.'b>(&type_expression.'a readonly int64, &type_expression.'b TestContext<{}, {}, {}>) => BodyResult | undefined) arguments=(provided("table case") as string, provided((value: &readonly int64) => {}) as <type_expression.'a, type_expression.'b>(&type_expression.'a readonly int64, &type_expression.'b TestContext<{}, {}, {}>) => BodyResult | undefined) return=void kind=dynamic target=call(type_member) receiver=TableTest<int64, {}, {}, {}> constraint=TableTest<int64, {}, {}, {}>
-/// @resolution.call source=test.for([1]) parameters=(Iterable<int64>) arguments=(provided([1]) as Iterable<int64>) return=TableTest<int64, {}, {}, {}> kind=dynamic target=Test.for receiver=Test<{}, {}, {}> constraint=Test<{}, {}, {}> generic_arguments=({}, {}, {}, int64)
+/// @resolution.member source=test.for receiver=Test<{}, {}, {}> type=<Test.for.T>(this: Test<{}, {}, {}>, Iterable<Test.for.T>) => TableTest<Test.for.T, {}, {}, {}> kind=symbol target_receiver=Test<{}, {}, {}> target=Test.for
+/// @resolution.member source=test.for([1]).only receiver=TableTest<int64, {}, {}, {}> type=TableTest<int64, {}, {}, {}> kind=call target="TableTest.only(parameters=(), arguments=(), return=TableTest<int64, {}, {}, {}>)"
+/// @resolution.call source="test.for([1]).only(\"table case\", (value: &readonly int64) => {})" parameters=(string, <type_expression.'a, type_expression.'b>(&type_expression.'a readonly int64, &type_expression.'b TestContext<{}, {}, {}>) => BodyResult | undefined) arguments=(provided("table case") as string, provided((value: &readonly int64) => {}) as <type_expression.'a, type_expression.'b>(&type_expression.'a readonly int64, &type_expression.'b TestContext<{}, {}, {}>) => BodyResult | undefined) return=void kind=symbol target=TableTest.()#1 receiver=TableTest<int64, {}, {}, {}> instance="TableTest<int64, {}, {}, {}>.()#1"
+/// @resolution.call source=test.for([1]) parameters=(Iterable<int64>) arguments=(provided([1]) as Iterable<int64>) return=TableTest<int64, {}, {}, {}> kind=symbol target=Test.for receiver=Test<{}, {}, {}> instance="Test<{}, {}, {}>.for<int64>"
 /// @resolution.place source=test placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=test root=test
-/// @resolution.place source=test.for([1]).only placement="local" lifetime="managed" access="mutable"
+/// @generic.instantiation id="TableTest.()#1<int64, {}, {}, {}>" template=TableTest.()#1 arguments=(int64, {}, {}, {})
+/// @generic.instantiation id="TableTest.only<int64, {}, {}, {}>" template=TableTest.only arguments=(int64, {}, {}, {})
+/// @generic.instantiation id="Test.for<{}, {}, {}, int64>" template=Test.for arguments=({}, {}, {}, int64)
 /// @generic.instantiation id="Test.for<{}, {}, {}>" template=Test.for arguments=({}, {}, {})
 /// @resolution.call source=[1] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
@@ -418,22 +422,26 @@ test.for([1]).only("table case", (value: &readonly int64) => {});
 
 describe.each([(1,)])("parameterized suite", (value: int32) => {});
 /// @resolution.name source=describe target=describe
-/// @resolution.member source=describe.each receiver=TestSuite type=<TestSuite.each.P: (...unknown[],)>(this: TestSuite, Iterable<TestSuite.each.P>) => ParameterizedSuite<TestSuite.each.P> kind=symbol target_receiver=TestSuite dispatch=dynamic constraint=TestSuite target=TestSuite.each
-/// @resolution.call source="describe.each([(1,)])(\"parameterized suite\", (value: int32) => {})" parameters=(string, (int32) => void | undefined) arguments=(provided("parameterized suite") as string, provided((value: int32) => {}) as (int32) => void | undefined) return=void kind=dynamic target=call(type_member) receiver=ParameterizedSuite<(int32,)> constraint=ParameterizedSuite<(int32,)>
-/// @resolution.call source=describe.each([(1,)]) parameters=(Iterable<(int32,)>) arguments=(provided([(1,)]) as Iterable<(int32,)>) return=ParameterizedSuite<(int32,)> kind=dynamic target=TestSuite.each receiver=TestSuite constraint=TestSuite generic_arguments=((int32,))
+/// @resolution.member source=describe.each receiver=TestSuite type=<TestSuite.each.P: (...unknown[],)>(this: TestSuite, Iterable<TestSuite.each.P>) => ParameterizedSuite<TestSuite.each.P> kind=symbol target_receiver=TestSuite target=TestSuite.each
+/// @resolution.call source="describe.each([(1,)])(\"parameterized suite\", (value: int32) => {})" parameters=(string, (int32) => void | undefined) arguments=(provided("parameterized suite") as string, provided((value: int32) => {}) as (int32) => void | undefined) return=void kind=symbol target=ParameterizedSuite.()#1 receiver=ParameterizedSuite<(int32,)> instance=ParameterizedSuite<(int32,)>.()#1
+/// @resolution.call source=describe.each([(1,)]) parameters=(Iterable<(int32,)>) arguments=(provided([(1,)]) as Iterable<(int32,)>) return=ParameterizedSuite<(int32,)> kind=symbol target=TestSuite.each receiver=TestSuite instance=TestSuite.each<(int32,)>
 /// @resolution.place source=describe placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=describe root=describe
+/// @generic.instantiation id=ParameterizedSuite.()#1<(int32,)> template=ParameterizedSuite.()#1 arguments=((int32,))
+/// @generic.instantiation id=TestSuite.each<(int32,)> template=TestSuite.each arguments=((int32,))
 /// @resolution.call source=[(1,)] parameters=(^Slice<(int32,)>) arguments=(rest(provided((1,)) as (int32,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
 /// @type.symbol symbol=symbol7 source="(value: int32) => {}" type=Function<(int32,), void, "readonly">
 /// @type.symbol symbol=symbol7.value source="value: int32" type=int32
 
 describe.for([1])("table suite", (value: int32) => {});
 /// @resolution.name source=describe target=describe
-/// @resolution.member source=describe.for receiver=TestSuite type=<TestSuite.for.T>(this: TestSuite, Iterable<TestSuite.for.T>) => TableSuite<TestSuite.for.T> kind=symbol target_receiver=TestSuite dispatch=dynamic constraint=TestSuite target=TestSuite.for
-/// @resolution.call source="describe.for([1])(\"table suite\", (value: int32) => {})" parameters=(string, (int32) => void | undefined) arguments=(provided("table suite") as string, provided((value: int32) => {}) as (int32) => void | undefined) return=void kind=dynamic target=call(type_member) receiver=TableSuite<int32> constraint=TableSuite<int32>
-/// @resolution.call source=describe.for([1]) parameters=(Iterable<int32>) arguments=(provided([1]) as Iterable<int32>) return=TableSuite<int32> kind=dynamic target=TestSuite.for receiver=TestSuite constraint=TestSuite generic_arguments=(int32)
+/// @resolution.member source=describe.for receiver=TestSuite type=<TestSuite.for.T>(this: TestSuite, Iterable<TestSuite.for.T>) => TableSuite<TestSuite.for.T> kind=symbol target_receiver=TestSuite target=TestSuite.for
+/// @resolution.call source="describe.for([1])(\"table suite\", (value: int32) => {})" parameters=(string, (int32) => void | undefined) arguments=(provided("table suite") as string, provided((value: int32) => {}) as (int32) => void | undefined) return=void kind=symbol target=TableSuite.()#1 receiver=TableSuite<int32> instance=TableSuite<int32>.()#1
+/// @resolution.call source=describe.for([1]) parameters=(Iterable<int32>) arguments=(provided([1]) as Iterable<int32>) return=TableSuite<int32> kind=symbol target=TestSuite.for receiver=TestSuite instance=TestSuite.for<int32>
 /// @resolution.place source=describe placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=describe root=describe
+/// @generic.instantiation id=TableSuite.()#1<int32> template=TableSuite.()#1 arguments=(int32)
+/// @generic.instantiation id=TestSuite.for<int32> template=TestSuite.for arguments=(int32)
 /// @resolution.call source=[1] parameters=(^Slice<int32>) arguments=(rest(provided(1) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 /// @type.symbol symbol=symbol9 source="(value: int32) => {}" type=Function<(int32,), void, "readonly">
@@ -441,11 +449,13 @@ describe.for([1])("table suite", (value: int32) => {});
 
 test.each([("a", 2)])("pairs", (text, count) => {
 /// @resolution.name source=test target=test
-/// @resolution.member source=test.each receiver=Test<{}, {}, {}> type=<Test.each.P: (...unknown[],) & Copy>(this: Test<{}, {}, {}>, Iterable<Test.each.P>) => ParameterizedTest<Test.each.P> kind=symbol target_receiver=Test<{}, {}, {}> dispatch=dynamic constraint=Test<{}, {}, {}> target=Test.each
-/// @resolution.call parameters=(string, (string, int64) => BodyResult | undefined) arguments=(provided("pairs") as string, provided(argument) as (string, int64) => BodyResult | undefined) return=void kind=dynamic target=call(type_member) receiver=ParameterizedTest<(string, int64)> constraint=ParameterizedTest<(string, int64)>
-/// @resolution.call source="test.each([(\"a\", 2)])" parameters=(Iterable<(string, int64)>) arguments=(provided([("a", 2)]) as Iterable<(string, int64)>) return=ParameterizedTest<(string, int64)> kind=dynamic target=Test.each receiver=Test<{}, {}, {}> constraint=Test<{}, {}, {}> generic_arguments=({}, {}, {}, (string, int64))
+/// @resolution.member source=test.each receiver=Test<{}, {}, {}> type=<Test.each.P: (...unknown[],) & Copy>(this: Test<{}, {}, {}>, Iterable<Test.each.P>) => ParameterizedTest<Test.each.P> kind=symbol target_receiver=Test<{}, {}, {}> target=Test.each
+/// @resolution.call parameters=(string, (string, int64) => BodyResult | undefined) arguments=(provided("pairs") as string, provided(argument) as (string, int64) => BodyResult | undefined) return=void kind=symbol target=ParameterizedTest.()#1 receiver=ParameterizedTest<(string, int64)> instance="ParameterizedTest<(string, int64)>.()#1"
+/// @resolution.call source="test.each([(\"a\", 2)])" parameters=(Iterable<(string, int64)>) arguments=(provided([("a", 2)]) as Iterable<(string, int64)>) return=ParameterizedTest<(string, int64)> kind=symbol target=Test.each receiver=Test<{}, {}, {}> instance="Test<{}, {}, {}>.each<(string, int64)>"
 /// @resolution.place source=test placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=test root=test
+/// @generic.instantiation id="ParameterizedTest.()#1<(string, int64)>" template=ParameterizedTest.()#1 arguments=((string, int64))
+/// @generic.instantiation id="Test.each<{}, {}, {}, (string, int64)>" template=Test.each arguments=({}, {}, {}, (string, int64))
 /// @resolution.call source=[("a", 2)] parameters=(^Slice<(string, int64)>) arguments=(rest(provided(("a", 2)) as (string, int64)) as (string, int64)) return=(string, int64)[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<(string, int64)>"
 /// @generic.instantiation id="arrayFromOwnedSlice<(string, int64)>" template=arrayFromOwnedSlice arguments=((string, int64))
 /// @type.symbol symbol=symbol11 type=Function<(string, int64), BodyResult, "readonly">

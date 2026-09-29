@@ -3,6 +3,7 @@ mod construct;
 mod dependent;
 mod equal;
 mod hash;
+mod invoke;
 mod member;
 mod node;
 mod text;

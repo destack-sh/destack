@@ -151,6 +151,7 @@ impl DirSnapshotBuilder<'_> {
         match key {
             dir::StaticKey::Name(name) => format!("\"{}\"", self.strings.get(name)),
             dir::StaticKey::Index(index) => index.to_string(),
+            dir::StaticKey::Call | dir::StaticKey::New => key.text(self.strings),
         }
     }
 

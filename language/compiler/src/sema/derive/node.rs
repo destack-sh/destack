@@ -137,6 +137,11 @@ impl CheckState<'_> {
         let name = match key {
             dir::StaticKey::Name(name) => Some(name),
             dir::StaticKey::Index(index) => Some(self.strings().intern(&index.to_string())),
+            dir::StaticKey::Call | dir::StaticKey::New => {
+                return Err(CompilerError::Internal {
+                    message: "a field read under a role key".to_owned(),
+                });
+            }
         };
         let node = self.build_expression(
             frame,
@@ -233,10 +238,7 @@ impl CheckState<'_> {
         supplied: Vec<dir::LocalNodeId<dir::Expression>>,
     ) -> CompilerResult<dir::LocalNodeId<dir::Expression>> {
         // read the member off the receiver
-        let name = match key {
-            dir::StaticKey::Name(name) => Some(name),
-            dir::StaticKey::Index(_) => None,
-        };
+        let name = key.name();
         let callee = self.build_expression(
             frame,
             dir::Expression::Member {

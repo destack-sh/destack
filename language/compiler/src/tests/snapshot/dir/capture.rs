@@ -61,6 +61,10 @@ impl SnapshotTable for dir::CaptureSegment {
                     .field("mode", DirSnapshotBuilder::variant_label(binding.mode()))
                     .type_field("type", builder.global_type_label(binding.ty()))
                     .optional_field(
+                        "access",
+                        binding.access().map(DirSnapshotBuilder::variant_label),
+                    )
+                    .optional_field(
                         "frame",
                         binding
                             .frame()
@@ -74,9 +78,13 @@ impl SnapshotTable for dir::CaptureSegment {
             if let Some(receiver) = capture.this {
                 let row = SnapshotRow::new(anchor, "capture", "receiver")
                     .field("function", builder.symbol_path_label(*symbol_id))
-                    .field("symbol", builder.symbol_label(receiver.symbol))
-                    .field("mode", DirSnapshotBuilder::variant_label(receiver.mode))
-                    .type_field("type", builder.global_type_label(receiver.ty));
+                    .field("symbol", builder.symbol_label(receiver.symbol()))
+                    .field("mode", DirSnapshotBuilder::variant_label(receiver.mode()))
+                    .type_field("type", builder.global_type_label(receiver.ty()))
+                    .optional_field(
+                        "access",
+                        receiver.access().map(DirSnapshotBuilder::variant_label),
+                    );
                 builder.push(row);
             }
 

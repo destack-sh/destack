@@ -373,9 +373,9 @@ impl CheckState<'_> {
             });
         }
 
-        // validate call, construct, and index requirements from the target
+        // validate index requirements from the target
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-        let signatures = self.relate_interface_signatures(
+        let signatures = self.relate_interface_index_signatures(
             origin,
             cause,
             Relation::Subtype,

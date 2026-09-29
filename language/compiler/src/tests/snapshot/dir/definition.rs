@@ -348,12 +348,6 @@ fn add_members(
             dir::DefinitionMember::EnumVariant(variant) => {
                 add_enum_variant(builder, owner, variant);
             }
-            dir::DefinitionMember::CallSignature(signature) => {
-                add_signature(builder, owner, "call", signature);
-            }
-            dir::DefinitionMember::ConstructSignature(signature) => {
-                add_signature(builder, owner, "construct", signature);
-            }
             dir::DefinitionMember::IndexSignature(signature) => {
                 add_index_signature(builder, owner, signature);
             }
@@ -466,21 +460,6 @@ fn add_enum_variant(
     builder.push(row);
 }
 
-/// Add one symbol-free signature row.
-fn add_signature(
-    builder: &mut DirSnapshotBuilder<'_>,
-    owner: dir::GlobalSymbolId,
-    kind: &'static str,
-    signature: &dir::SignatureDefinition,
-) {
-    let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", "signature")
-        .field("kind", kind)
-        .optional_field("source", builder.node_source(signature.source))
-        .type_field("type", builder.global_type_label(signature.ty));
-
-    builder.push(row);
-}
-
 /// Add one index signature row.
 fn add_index_signature(
     builder: &mut DirSnapshotBuilder<'_>,
@@ -517,7 +496,5 @@ fn member_slot_label(slot: dir::MemberSlot, builder: &DirSnapshotBuilder<'_>) ->
     match slot {
         dir::MemberSlot::Key(key) => builder.static_key(key),
         dir::MemberSlot::Constructor => "constructor".to_string(),
-        dir::MemberSlot::New => "new".to_string(),
-        dir::MemberSlot::Call => "call".to_string(),
     }
 }

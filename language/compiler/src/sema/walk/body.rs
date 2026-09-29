@@ -88,45 +88,35 @@ impl WalkState<'_, '_> {
                         }
 
                         // walk parameters retained by the declared signature
-                        match walk.tree.get(*member).clone() {
-                            dir::TypeMember::Method {
-                                signature, body, ..
-                            } => {
-                                walk.walk_parameter_decorators(
-                                    signature.this_parameter,
-                                    &signature.parameters,
-                                )?;
+                        let dir::TypeMember::Method {
+                            signature, body, ..
+                        } = walk.tree.get(*member).clone()
+                        else {
+                            continue;
+                        };
+                        walk.walk_parameter_decorators(
+                            signature.this_parameter,
+                            &signature.parameters,
+                        )?;
 
-                                // check default bodies against their declared signatures
-                                match body {
-                                    Some(body) => {
-                                        walk.walk_declared_default_body(*member, &signature, body)?;
-                                    }
-                                    None => {
-                                        if let Some(symbol) =
-                                            walk.declared_symbol(member.into_any())
-                                            && let Some(method) =
-                                                walk.check.adopt_symbol_type_maybe(symbol)?
-                                            && let Some(head) = walk.check.signature_head(method)?
-                                        {
-                                            walk.bind_declared_parameters(
-                                                &signature,
-                                                method.module_id,
-                                                &head,
-                                            )?;
-                                        }
-                                    }
+                        // check default bodies against their declared signatures
+                        match body {
+                            Some(body) => {
+                                walk.walk_declared_default_body(*member, &signature, body)?;
+                            }
+                            None => {
+                                if let Some(symbol) = walk.declared_symbol(member.into_any())
+                                    && let Some(method) =
+                                        walk.check.adopt_symbol_type_maybe(symbol)?
+                                    && let Some(head) = walk.check.signature_head(method)?
+                                {
+                                    walk.bind_declared_parameters(
+                                        &signature,
+                                        method.module_id,
+                                        &head,
+                                    )?;
                                 }
                             }
-                            dir::TypeMember::CallSignature { signature } => walk
-                                .walk_parameter_decorators(
-                                    signature.this_parameter,
-                                    &signature.parameters,
-                                )?,
-                            dir::TypeMember::ConstructSignature { signature } => {
-                                walk.walk_parameter_decorators(None, &signature.parameters)?
-                            }
-                            _ => {}
                         }
                     }
 

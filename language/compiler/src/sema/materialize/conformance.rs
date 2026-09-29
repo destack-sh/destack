@@ -1,6 +1,7 @@
 use tspp_dir as dir;
 
 use super::instance::InstanceWorklist;
+use crate::sema::derive::Derivation;
 use crate::sema::{CheckState, Origin, TypeSubstitution, Verdict};
 use crate::{CompilerError, CompilerResult};
 
@@ -136,9 +137,15 @@ impl CheckState<'_> {
                     .conformance_member(*declaration, requirement)?
                     .filter(|member| *member != requirement);
 
-                // leave a default body to the instance that calls it
+                // answer with a default body
                 let Some(member) = member else {
-                    return Ok(None);
+                    return Ok(match self.requirement_has_default(requirement)? {
+                        true => Some((
+                            dir::InstanceKey::new(requirement, bindings.clone()),
+                            dir::WitnessSource::Default,
+                        )),
+                        false => None,
+                    });
                 };
                 let key = dir::InstanceKey::new(member, bindings.clone());
                 self.intern_instance(
@@ -151,6 +158,15 @@ impl CheckState<'_> {
                 )?;
 
                 Ok(Some((key, dir::WitnessSource::Declared)))
+            }
+            // derive a role member invoking the value
+            ConformanceSource::Structural { receiver }
+                if self.invoked_key(*receiver)? == Some(key) =>
+            {
+                let synthesized =
+                    self.build_invoked_member(requirement, key, *receiver, owner_bindings, source)?;
+
+                self.derived_witness(synthesized, *receiver, source, worklist)
             }
             // a structural interface takes the receiver's own member under the requirement's key
             ConformanceSource::Structural { receiver } => {
@@ -191,51 +207,59 @@ impl CheckState<'_> {
                 let Some(synthesized) = synthesized else {
                     return Ok(None);
                 };
-                let key = dir::InstanceKey::new(synthesized.symbol, Vec::new())
-                    .with_receiver(Some(receiver));
-                let redirected = self.allocate_instance(
-                    key.clone(),
-                    source,
+
+                self.derived_witness(synthesized, receiver, source, worklist)
+            }
+        }
+    }
+
+    /// Intern the instance of one synthesized member.
+    fn derived_witness(
+        &mut self,
+        synthesized: Derivation,
+        receiver: dir::GlobalTypeId,
+        source: dir::GlobalNodeIdAny,
+        worklist: &mut InstanceWorklist,
+    ) -> CompilerResult<Option<(dir::InstanceKey, dir::WitnessSource)>> {
+        let key =
+            dir::InstanceKey::new(synthesized.symbol, Vec::new()).with_receiver(Some(receiver));
+        let redirected = self.allocate_instance(
+            key.clone(),
+            source,
+            dir::InstanceOrigin::Instantiation,
+            worklist,
+        )?;
+
+        // bind the types a synthesized member reads
+        if let Some(redirected) = redirected {
+            let generics = &mut self.module.generics_tail;
+            generics.bind_instance_symbol(redirected, synthesized.symbol, synthesized.callable);
+            for (parameter, ty) in synthesized.parameters() {
+                generics.bind_instance_symbol(redirected, parameter, ty);
+            }
+
+            // close each recorded call's instance
+            let Some(body) = synthesized.body else {
+                return Err(CompilerError::Internal {
+                    message: "a derived member without its body".to_owned(),
+                });
+            };
+            for call in synthesized.calls {
+                let dir::CallableTarget::Symbol { function, .. } = call.target else {
+                    continue;
+                };
+                self.intern_instance(
+                    function.key.symbol,
+                    function.key.receiver,
+                    function.key.arguments,
+                    body,
                     dir::InstanceOrigin::Instantiation,
                     worklist,
                 )?;
-
-                // bind the types a synthesized member's instance reads, closed already
-                if let Some(redirected) = redirected {
-                    let generics = &mut self.module.generics_tail;
-                    generics.bind_instance_symbol(
-                        redirected,
-                        synthesized.symbol,
-                        synthesized.callable,
-                    );
-                    for (parameter, ty) in synthesized.parameters() {
-                        generics.bind_instance_symbol(redirected, parameter, ty);
-                    }
-
-                    // close each recorded call's instance under the body's own template
-                    let Some(body) = synthesized.body else {
-                        return Err(CompilerError::Internal {
-                            message: "a derived member without its body".to_owned(),
-                        });
-                    };
-                    for call in synthesized.calls {
-                        let dir::CallableTarget::Symbol { function, .. } = call.target else {
-                            continue;
-                        };
-                        self.intern_instance(
-                            function.key.symbol,
-                            function.key.receiver,
-                            function.key.arguments,
-                            body,
-                            dir::InstanceOrigin::Instantiation,
-                            worklist,
-                        )?;
-                    }
-                }
-
-                Ok(Some((key, dir::WitnessSource::Derived)))
             }
         }
+
+        Ok(Some((key, dir::WitnessSource::Derived)))
     }
 
     /// Resolve the type one closed type answers one associated type with, from the declared value.

@@ -64,8 +64,7 @@ impl CheckState<'_> {
                     return Ok(None);
                 };
                 let is_abstract = method.abstraction == dir::MethodAbstraction::Abstract;
-                let is_virtual = method.abstraction == dir::MethodAbstraction::Virtual;
-                let is_overridable = is_abstract || is_virtual;
+                let is_overridable = method.is_overridable();
 
                 Ok(Some(ClassMember {
                     key,

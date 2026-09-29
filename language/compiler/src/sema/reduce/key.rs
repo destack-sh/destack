@@ -43,7 +43,8 @@ impl KeySet {
 
     /// Return whether this set covers one exact key.
     fn has_key(&self, key: dir::StaticKey) -> bool {
-        self.keys.contains(&key) || self.domains.contains(&KeyDomain::from_key(key))
+        self.keys.contains(&key)
+            || KeyDomain::from_key(key).is_some_and(|domain| self.domains.contains(&domain))
     }
 
     /// Return the intersection of two key sets.
@@ -77,10 +78,11 @@ impl KeySet {
 
 impl KeyDomain {
     /// Return the broad key domain containing one exact key.
-    fn from_key(key: dir::StaticKey) -> Self {
+    fn from_key(key: dir::StaticKey) -> Option<Self> {
         match key {
-            dir::StaticKey::Name(_) => Self::String,
-            dir::StaticKey::Index(_) => Self::Usize,
+            dir::StaticKey::Name(_) => Some(Self::String),
+            dir::StaticKey::Index(_) => Some(Self::Usize),
+            dir::StaticKey::Call | dir::StaticKey::New => None,
         }
     }
 
@@ -403,7 +405,7 @@ impl CheckState<'_> {
     /// Return the broad key domain of one closed key type.
     fn index_key_domain(&mut self, key: dir::GlobalTypeId) -> CompilerResult<Option<KeyDomain>> {
         if let Some(static_key) = self.static_key_from_type(key)? {
-            return Ok(Some(KeyDomain::from_key(static_key)));
+            return Ok(KeyDomain::from_key(static_key));
         }
 
         // read the domain the key type names

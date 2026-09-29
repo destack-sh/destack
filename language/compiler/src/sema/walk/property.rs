@@ -738,22 +738,11 @@ impl WalkState<'_, '_> {
                         implementation,
                     })))
                 }
-                // (value: T): U
-                dir::TypeMember::CallSignature { signature } => {
-                    let ty = walk.walk_function_type(id.into_any(), signature, None)?;
-
-                    Ok(Some(dir::DefinitionMember::CallSignature(
-                        dir::SignatureDefinition { source, ty },
-                    )))
-                }
-                // new (value: T): U
-                dir::TypeMember::ConstructSignature { signature } => {
-                    let ty = walk.walk_constructor_type(id.into_any(), signature, None)?;
-
-                    Ok(Some(dir::DefinitionMember::ConstructSignature(
-                        dir::SignatureDefinition { source, ty },
-                    )))
-                }
+                // reject a structural signature
+                dir::TypeMember::CallSignature { .. }
+                | dir::TypeMember::ConstructSignature { .. } => Err(CompilerError::Internal {
+                    message: format!("a structural signature {id:?} in an interface"),
+                }),
                 // [key: K]: V
                 dir::TypeMember::IndexSignature {
                     name,
