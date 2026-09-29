@@ -87,7 +87,7 @@ b1:
     )));
 }
 
-/// Dispatch through the table id initialized in one virtual object.
+/// Dispatch through the virtual table id one new class object leads with.
 #[test]
 fn test_execute_virtual_call() {
     let allocation = TestProgram::virtual_allocation(2, 0, Space::Local, 1, 1);
@@ -95,7 +95,7 @@ fn test_execute_virtual_call() {
         .allocations([allocation])
         .virtual_table(0, [0])
         .virtual_table(1, [1])
-        .virtual_object(1, 16, 12);
+        .class_object(1, 16);
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
@@ -110,7 +110,7 @@ function f1 {
 
 function f2 {
     new.zeroed r0, a0
-    call.virtual r1, r0: ref<managed, local>[12, 0](r0)
+    call.virtual r1, [0](r0)
     return r1
 }
 "#,

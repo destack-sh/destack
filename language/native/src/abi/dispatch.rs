@@ -6,7 +6,7 @@ use std::mem::{offset_of, size_of};
 pub struct VirtualTable {
     /// The concrete program type id.
     pub concrete: u32,
-    /// Program function ids in virtual slot order.
+    /// The slot words in dispatch order.
     pub entries: [u32; 0],
 }
 

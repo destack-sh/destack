@@ -5,11 +5,11 @@ use tspp_core::Optional;
 use tspp_mir::{Access, Reference, Space, Storage, TraceMap};
 use tspp_program as program;
 use tspp_program::{
-    AllocationSite, BreakpointId, CallDispatch, CallMode, CallSite, CounterId, CounterSite,
-    DynamicEntry, DynamicTableBuilder, EdgeSite, FunctionId, LayoutId, LayoutShapeBuilder,
-    MemoryAccess, MemorySite, MemoryStop, MemoryTarget, ObjectLayoutBuilder, ProgramPoint,
+    AllocationSite, BreakpointId, CallDispatch, CallMode, CallSite, ClassLayoutBuilder, CounterId,
+    CounterSite, DynamicEntry, DynamicTableBuilder, EdgeSite, FunctionId, LayoutId,
+    LayoutShapeBuilder, MemoryAccess, MemorySite, MemoryStop, MemoryTarget, ProgramPoint,
     ReferenceLayout, SampleSite, SamplerId, ScalarFormat, Signature, SignatureId, SiteTableBuilder,
-    StopPoint, StopReason, TypeId, VirtualTableBuilder, WatchpointId, Word,
+    StopPoint, StopReason, TypeId, VirtualSlot, VirtualTableBuilder, WatchpointId, Word,
 };
 
 pub(super) const TEST_GLOBAL_BYTES: usize = Word::BYTE_LEN;
@@ -354,8 +354,10 @@ impl TestProgram {
 
     /// Append one virtual table in dense runtime id order.
     pub(crate) fn virtual_table(mut self, ty: u32, methods: impl IntoIterator<Item = u32>) -> Self {
-        let methods = methods.into_iter().map(FunctionId);
-        let table = VirtualTableBuilder::new(TypeId(ty)).methods(methods);
+        let slots = methods
+            .into_iter()
+            .map(|method| VirtualSlot::from(FunctionId(method)));
+        let table = VirtualTableBuilder::new(TypeId(ty)).slots(slots);
         self.virtual_tables.push(table);
 
         self
@@ -455,12 +457,12 @@ impl TestProgram {
         }
     }
 
-    /// Set one object layout with a virtual dispatch word.
-    pub(crate) fn virtual_object(mut self, ty: u32, byte_len: u32, dispatch: u32) -> Self {
-        let object = ObjectLayoutBuilder::new([]).dispatch_offset(dispatch);
+    /// Set one class object layout, its virtual table id leading.
+    pub(crate) fn class_object(mut self, ty: u32, byte_len: u32) -> Self {
+        let object = ClassLayoutBuilder::new([]);
         self.insert_layout(TestLayout {
             ty: TypeId(ty),
-            shape: LayoutShapeBuilder::Object(object),
+            shape: LayoutShapeBuilder::Class(object),
             byte_len,
             alignment: Word::BYTE_LEN as u32,
             trace: TraceMap::empty(),

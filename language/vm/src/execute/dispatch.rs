@@ -243,6 +243,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
                     // dynamic values and calls
                     Opcode::DYNAMIC_BIND
+                    | Opcode::DYNAMIC_BIND_VIRTUAL
                     | Opcode::DYNAMIC_READ
                     | Opcode::TYPE_OF_DYNAMIC
                     | Opcode::TYPE_OF_OBJECT => {

@@ -1,38 +1,11 @@
-use tspp_bytecode::{CodeOffset, Instruction, Opcode, ReferenceType, RegisterId, Space};
-use tspp_heap::{HeapEdge, HeapReference, Release, SharedHeapReference};
-use tspp_mir as mir;
+use tspp_bytecode::{CodeOffset, Instruction, Opcode};
+use tspp_heap::{HeapEdge, Release};
 use tspp_program::{FunctionId, Runtime, Word};
 
 use crate::diagnostic::{Error, ExecutionResult, Result};
 use crate::machine::{Activation, Released, Return};
 
 impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
-    /// Read one stable heap edge from a program storage space.
-    pub(crate) fn read_edge(&self, register: RegisterId, space: mir::Space) -> Result<HeapEdge> {
-        let bits = self.read(register.0).bits() as usize;
-
-        match space {
-            mir::Space::Local => Ok(HeapEdge::Local(HeapReference::from_bits(bits))),
-            mir::Space::Shared => Ok(HeapEdge::Shared(SharedHeapReference::from_bits(bits))),
-            mir::Space::Constant => Err(self.invalid_instruction()),
-        }
-    }
-
-    /// Read one stable heap edge from a bytecode reference operand.
-    pub(crate) fn read_reference_edge(
-        &self,
-        register: RegisterId,
-        reference: ReferenceType,
-    ) -> Result<HeapEdge> {
-        let space = match reference.storage().heap_space() {
-            Some(Space::LOCAL) => mir::Space::Local,
-            Some(Space::SHARED) => mir::Space::Shared,
-            _ => return Err(self.invalid_instruction()),
-        };
-
-        self.read_edge(register, space)
-    }
-
     /// Execute one release of a unique allocation.
     pub(crate) fn execute_release(
         &mut self,

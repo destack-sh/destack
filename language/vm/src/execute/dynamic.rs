@@ -1,6 +1,7 @@
 use std::ptr;
 
 use tspp_bytecode::{Address, Instruction, Opcode};
+use tspp_mir::VIRTUAL_TABLE_ID_OFFSET;
 use tspp_program::{DynamicTableId, MemoryAccess, Runtime, VirtualTableId, Word};
 
 use crate::diagnostic::Result;
@@ -23,6 +24,26 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     return Err(self.invalid_instruction());
                 }
 
+                self.write(target.start.0, self.read(payload.0));
+                self.write(target.start.0 + 1, Word::from(table));
+
+                None
+            }
+            Opcode::DYNAMIC_BIND_VIRTUAL => {
+                let target = operands.span()?;
+                let payload = operands.register()?;
+                let slot = operands.u16()?;
+                if target.word_count != 2 {
+                    return Err(self.invalid_instruction());
+                }
+
+                // bind the table the runtime class's conformance slot holds
+                let class = self.virtual_table(payload.0)?;
+                let table = self
+                    .machine
+                    .program
+                    .virtual_dynamic_table(class, u32::from(slot))
+                    .ok_or_else(|| self.invalid_instruction())?;
                 self.write(target.start.0, self.read(payload.0));
                 self.write(target.start.0 + 1, Word::from(table));
 
@@ -82,17 +103,13 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             Opcode::TYPE_OF_OBJECT => {
                 let target = operands.register()?;
                 let object = operands.register()?;
-                let reference = operands.reference()?;
-                let dispatch_offset = operands.u32()?;
-                let edge = self.read_reference_edge(object, reference)?;
-                let address = self.activation.memory.address(edge) + dispatch_offset as usize;
 
-                // SAFETY: linked object type reads use the dispatch field from the object layout
-                let table = unsafe { ptr::read_unaligned(address as *const u32) };
+                // read the object's runtime class
+                let table = self.virtual_table(object.0)?;
                 let table = self
                     .machine
                     .program
-                    .virtual_table(VirtualTableId(table))
+                    .virtual_table(table)
                     .ok_or_else(|| self.invalid_instruction())?;
 
                 self.write(target.0, Word::from_bits(table.concrete.0 as u64));
@@ -103,5 +120,16 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         };
 
         Ok(memory)
+    }
+
+    /// Read the virtual table id of the class object one register references.
+    pub(crate) fn virtual_table(&self, register: u16) -> Result<VirtualTableId> {
+        let object = self.resolve_address(register, Address::Reference)?;
+        let address = object + VIRTUAL_TABLE_ID_OFFSET as usize;
+
+        // SAFETY: linked class objects lead with an aligned virtual table id
+        let table = unsafe { ptr::read(address as *const u32) };
+
+        Ok(VirtualTableId(table))
     }
 }

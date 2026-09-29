@@ -223,14 +223,14 @@ impl NativeTable {
             .virtual_tables(program.sections())
             .iter()
             .map(|table| {
-                let methods = program
+                let slots = program
                     .dispatch()
-                    .virtual_methods(program.sections(), table)
+                    .virtual_slots(program.sections(), table)
                     .iter()
-                    .map(|function| function.0);
-                let mut row = Vec::with_capacity(methods.len() + 1);
+                    .map(|slot| slot.0);
+                let mut row = Vec::with_capacity(slots.len() + 1);
                 row.push(table.concrete.0);
-                row.extend(methods);
+                row.extend(slots);
 
                 row.into_boxed_slice()
             })
@@ -283,7 +283,7 @@ impl fmt::Debug for NativeTable {
             .field("function_count", &function_count)
             .field("virtual_table_count", &self.virtuals.len())
             .field(
-                "virtual_method_count",
+                "virtual_slot_count",
                 &self
                     .virtual_tables
                     .iter()

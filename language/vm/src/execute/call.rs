@@ -1,7 +1,5 @@
-use std::ptr;
-
 use tspp_bytecode::{CodeOffset, Instruction, Opcode, Operands};
-use tspp_program::{DynamicTableId, FunctionId, Outcome, Runtime, VirtualTableId, Word};
+use tspp_program::{DynamicTableId, FunctionId, Outcome, Runtime, Word};
 
 use crate::diagnostic::{Error, ExecutionResult, Result};
 use crate::machine::{Activation, Return};
@@ -111,19 +109,16 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
             // virtual table id stored in the concrete object
             Opcode::CALL_VIRTUAL | Opcode::INVOKE_VIRTUAL | Opcode::TAIL_CALL_VIRTUAL => {
-                let receiver = operands.register()?;
-                let reference = operands.reference()?;
-                let dispatch_offset = operands.u32()?;
                 let slot = operands.u16()?;
-                let edge = self.read_reference_edge(receiver, reference)?;
-                let address = self.activation.memory.address(edge) + dispatch_offset as usize;
 
-                // SAFETY: linked virtual calls use the dispatch field from the receiver layout
-                let table = unsafe { ptr::read_unaligned(address as *const u32) };
+                // read the receiver's table id
+                let mut peek = *operands;
+                let receiver = peek.span()?.start;
+                let table = self.virtual_table(receiver.0)?;
                 let function = self
                     .machine
                     .program
-                    .virtual_method(VirtualTableId(table), u32::from(slot))
+                    .virtual_method(table, u32::from(slot))
                     .ok_or_else(|| self.invalid_instruction())?;
 
                 Ok(Callee {

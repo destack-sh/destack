@@ -338,10 +338,21 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
                 .memory
                 .allocate(space, plan, payload, call.program.trace_view());
 
-        match allocation {
-            Ok(reference) => reference.bits(),
+        // lead a class object with its virtual table id
+        let reference = match allocation {
+            Ok(reference) => reference,
             Err(error) => call.fail(error),
+        };
+        let table = call
+            .program
+            .sites()
+            .allocation_by_id(call.program.sections(), site)
+            .and_then(|site| site.virtual_table.get());
+        if let Some(table) = table {
+            call.activation.memory.write_virtual_table(reference, table);
         }
+
+        reference.bits()
     }
 
     /// Allocate one repeated heap backing.

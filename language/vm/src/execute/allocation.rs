@@ -1,10 +1,8 @@
-use std::ptr;
-
 use bytecode::{Initialization, Instruction, New, NewKind, RegisterSpan};
 use tspp_bytecode as bytecode;
-use tspp_heap::{AllocationPlan, HeapEdge, HeapError, Payload};
+use tspp_heap::{AllocationPlan, HeapError, Payload};
 use tspp_mir as mir;
-use tspp_program::{AllocationSiteId, LayoutId, LayoutShape, Runtime, VirtualTableId, Word};
+use tspp_program::{AllocationSiteId, Runtime, Word};
 
 use crate::diagnostic::{Error, ExecutionResult, Result};
 use crate::machine::Activation;
@@ -84,9 +82,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             (Ok(reference), None) => reference,
         };
 
-        // initialize the dispatch word only for virtual objects
+        // lead a class object with its virtual table id
         if let Some(table) = site.virtual_table.get() {
-            self.initialize_dispatch(reference, site.layout, table)?;
+            self.activation.memory.write_virtual_table(reference, table);
         }
 
         // materialize the one-word reference or two-word slice descriptor
@@ -106,32 +104,6 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         if OBSERVE {
             self.observe_allocation(site_id, reference, plan.byte_len())?;
         }
-
-        Ok(())
-    }
-
-    /// Initialize one virtual object's durable dispatch table id.
-    fn initialize_dispatch(
-        &self,
-        edge: HeapEdge,
-        layout: LayoutId,
-        table: VirtualTableId,
-    ) -> Result<()> {
-        let layout = self
-            .machine
-            .program
-            .layout_by_id(layout)
-            .ok_or_else(|| self.invalid_instruction())?;
-        let LayoutShape::Object(object) = layout.shape else {
-            return Err(self.invalid_instruction());
-        };
-        let Some(offset) = object.dispatch_offset.get() else {
-            return Err(self.invalid_instruction());
-        };
-        let address = self.activation.memory.address(edge) + offset as usize;
-
-        // SAFETY: the linked object layout reserves this field inside the new allocation
-        unsafe { ptr::write_unaligned(address as *mut u32, table.0) };
 
         Ok(())
     }
