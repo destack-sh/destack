@@ -477,9 +477,7 @@ type test.main.Id = newtype<String>;
 
 @nocopy
 @languageItem("string.String")
-type String {
-    codeUnits: slice<uint16, unique, mutable>;
-}
+type String = class { codeUnits: slice<uint16, unique, mutable> };
 
 type test.main.Ref = newtype<test.main.Id>;
 
@@ -521,10 +519,10 @@ entry(v0: ref<test.main.Id, managed, mutable, local>):
     return v2
 }
 
-/// @layout.struct name=String size=16 align=8
-/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
-/// @layout.struct name=type@6 size=16 align=8
-/// @layout.field owner=type@6 index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.class name=String size=24 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=8 size=16 align=8
+/// @layout.class name=type@6 size=24 align=8
+/// @layout.field owner=type@6 index=0 name=codeUnits offset=8 size=16 align=8
 "#);
     session.assert_mir_verified_diagnostics(
         "main.tspp",
@@ -562,9 +560,7 @@ type test.main.Id = newtype<String>;
 
 @nocopy
 @languageItem("string.String")
-type String {
-    codeUnits: slice<uint16, unique, mutable>;
-}
+type String = class { codeUnits: slice<uint16, unique, mutable> };
 
 type test.main.Ref = newtype<test.main.Id>;
 
@@ -608,9 +604,9 @@ entry(v0: ref<test.main.Id, managed, mutable, local>):
     return v2
 }
 
-/// @layout.struct name=String size=16 align=8
-/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
-/// @layout.struct name=type@6 size=16 align=8
-/// @layout.field owner=type@6 index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.class name=String size=24 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=8 size=16 align=8
+/// @layout.class name=type@6 size=24 align=8
+/// @layout.field owner=type@6 index=0 name=codeUnits offset=8 size=16 align=8
 "#);
 }

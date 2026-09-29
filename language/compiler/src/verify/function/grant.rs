@@ -56,10 +56,9 @@ impl FunctionChecker<'_, '_> {
     }
 
     /// Return whether every traversed safe reference grants the requested access.
-    ///
-    /// A handle of a fresh allocation at the root has no alias yet, so aliasing narrows none of its grants.
     fn place_grants(&self, place: &Place, requested: Access, anchor: LocalNodeIdAny) -> bool {
-        let is_fresh = self.places.is_fresh_at(place, anchor);
+        let root = self.places.resolve_place(place);
+        let is_fresh = self.places.is_fresh_at(&root, anchor);
 
         place.dereferences(self.function_id, self.tree).fold(
             true,
@@ -80,12 +79,15 @@ impl FunctionChecker<'_, '_> {
                 Reference::Managed(_) => {
                     is_granted && self.handle_grants(reference, requested, is_fresh && length == 0)
                 }
-                // narrow the grant by what the borrow itself permits
+                // narrow the grant by the borrow
                 Reference::Borrowed => {
                     let access = reference
                         .reference_access()
                         .unwrap_or_else(|| unreachable!("a borrowed reference has no access"));
-                    is_granted && access.grants(requested)
+                    let is_fresh_root = is_fresh && length == 0;
+                    is_granted
+                        && (access.grants(requested)
+                            || (is_fresh_root && self.handle_grants(reference, requested, true)))
                 }
             },
         )
@@ -140,7 +142,7 @@ impl FunctionChecker<'_, '_> {
                         .iter()
                         .any(|case| self.holds_inline_variant(case.ty, visited))
             }
-            Type::Struct { fields } => fields
+            Type::Struct { fields } | Type::Class { fields, .. } => fields
                 .iter()
                 .any(|field| self.holds_inline_variant(self.tree.get(*field).ty, visited)),
             Type::Tuple { elements } => elements
@@ -176,7 +178,7 @@ impl FunctionChecker<'_, '_> {
 
         // descend through inline components to the leaves that copy
         match self.tree.type_definition(ty) {
-            Type::Struct { fields } => fields
+            Type::Struct { fields } | Type::Class { fields, .. } => fields
                 .iter()
                 .all(|field| self.components_copy(self.tree.get(*field).ty, visited)),
             Type::Tuple { elements } => elements

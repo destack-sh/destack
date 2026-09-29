@@ -306,7 +306,7 @@ ok   test/artifact.tspp
 ok   test/body.tspp
 ok   test/case.tspp
 ok   test/context.tspp
-FAIL test/expect.tspp :: error[unsupported-lower-construct]: unsupported construct: the 'error.catchUnwind' intrinsic @ tspp://test/expect.tspp:356:24
+FAIL test/expect.tspp :: error[unsupported-lower-construct]: unsupported construct: the 'error.catchUnwind' intrinsic @ tspp://test/expect.tspp:370:24
 ok   test/fixture.tspp
 ok   test/hook.tspp
 ok   test/id.tspp

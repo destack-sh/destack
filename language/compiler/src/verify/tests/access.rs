@@ -632,9 +632,7 @@ type literal.string.Alpha { }
 
 @nocopy
 @languageItem("string.String")
-type String {
-    codeUnits: slice<uint16, unique, mutable>;
-}
+type String = class { codeUnits: slice<uint16, unique, mutable> };
 
 type test.main.Beta = newtype<{ name: literal.string.Beta, message: ref<String, managed, mutable, local> }>;
 
@@ -687,12 +685,12 @@ b4:
 external function String.Clone.clone<'a>(ref<String, borrowed, 'a, immutable>): String
 
 /// @layout.struct name=literal.string.Alpha size=0 align=1
-/// @layout.struct name=String size=16 align=8
-/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.class name=String size=24 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=8 size=16 align=8
 /// @layout.struct name=literal.string.Beta size=0 align=1
 /// @layout.struct name=type@3 size=0 align=1
-/// @layout.struct name=type@8 size=16 align=8
-/// @layout.field owner=type@8 index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.class name=type@8 size=24 align=8
+/// @layout.field owner=type@8 index=0 name=codeUnits offset=8 size=16 align=8
 /// @layout.struct name=type@9 size=8 align=8
 /// @layout.field owner=type@9 index=0 name=name offset=8 size=0 align=1
 /// @layout.field owner=type@9 index=1 name=message offset=0 size=8 align=8

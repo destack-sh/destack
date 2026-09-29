@@ -300,7 +300,7 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
     pub(super) fn value_type(&self, value: Value) -> &'a Type {
         let ty = self.function.expect_value_type(value);
 
-        self.tree.type_definition(self.tree.storage_type(ty))
+        self.tree.type_definition(ty.storage(self.tree))
     }
 
     /// Exclude every loan issued by a rejected reference from later diagnostics.

@@ -75,7 +75,7 @@ impl VerifyState<'_> {
                 destination,
                 values,
             } => {
-                let ty = tree.storage_type(function.expect_value_type(*destination));
+                let ty = function.expect_value_type(*destination).storage(tree);
                 if let Type::Slice { element, .. } = tree.type_definition(ty) {
                     self.validate_slice(function_id, *element, tree.get_values(*values));
                 }
@@ -117,7 +117,7 @@ impl VerifyState<'_> {
     /// Validate that one address result references its place's type at equal or weaker access.
     fn validate_address(&mut self, function_id: FunctionId, place: &Place, result_type: TypeId) {
         let tree = self.tree;
-        let result = tree.type_definition(tree.storage_type(result_type));
+        let result = tree.type_definition(result_type.storage(tree));
         let Some(place_type) = place.ty(function_id, tree) else {
             unreachable!("a validated address has a typed place");
         };
@@ -132,8 +132,7 @@ impl VerifyState<'_> {
                 (result.pointee_type(), Some(element), descriptor)
             }
             (PlaceType::Referent(descriptor), None) => {
-                let descriptor_referent =
-                    referent(tree.type_definition(tree.storage_type(descriptor)));
+                let descriptor_referent = referent(tree.type_definition(descriptor.storage(tree)));
 
                 (referent(result), descriptor_referent, descriptor)
             }
@@ -295,9 +294,7 @@ impl VerifyState<'_> {
 
     /// Validate that one allocation results in a unique owner or a handle of the heap it names.
     fn validate_allocation(&mut self, function_id: FunctionId, result_type: TypeId, space: Space) {
-        let result = self
-            .tree
-            .type_definition(self.tree.storage_type(result_type));
+        let result = self.tree.type_definition(result_type.storage(self.tree));
         match result.reference_kind() {
             // reject a handle of another heap
             Some(Reference::Managed(declared)) if declared != space => {
@@ -329,8 +326,8 @@ impl VerifyState<'_> {
         let function = tree.get(function_id);
         let is_valid = match values {
             [address, length] => {
-                let address = tree.storage_type(function.expect_value_type(*address));
-                let length = tree.storage_type(function.expect_value_type(*length));
+                let address = function.expect_value_type(*address).storage(tree);
+                let length = function.expect_value_type(*length).storage(tree);
 
                 matches!(
                     tree.type_definition(address),
@@ -367,10 +364,7 @@ pub(super) fn stored_values(
             values,
         } => {
             let ty = Substitution::resolve(function.expect_value_type(*destination), tree);
-            if matches!(
-                tree.type_definition(tree.storage_type(ty)),
-                Type::Slice { .. }
-            ) {
+            if matches!(tree.type_definition(ty.storage(tree)), Type::Slice { .. }) {
                 return Ok(SmallVec::new());
             }
             let definition = tree.type_definition(ty);
@@ -380,7 +374,7 @@ pub(super) fn stored_values(
                 .enumerate()
                 .map(|(index, value)| {
                     let slot = match definition {
-                        Type::Struct { fields, .. } => {
+                        Type::Struct { fields, .. } | Type::Class { fields, .. } => {
                             fields.get(index).map(|field| tree.get(*field).ty)
                         }
                         Type::Tuple { elements, .. } => elements.get(index).copied(),
@@ -450,7 +444,7 @@ fn referent(descriptor: &Type) -> Option<TypeId> {
 
 /// Return the uninitialized value type one reference type addresses.
 pub(super) fn uninitialized_value(tree: &Tree, reference: TypeId) -> Option<TypeId> {
-    let Type::Reference { pointee, .. } = tree.type_definition(tree.storage_type(reference)) else {
+    let Type::Reference { pointee, .. } = tree.type_definition(reference.storage(tree)) else {
         return None;
     };
     let Type::Uninit { value } = tree.type_definition(*pointee) else {
@@ -462,7 +456,8 @@ pub(super) fn uninitialized_value(tree: &Tree, reference: TypeId) -> Option<Type
 
 /// Return the field count of one struct type.
 pub(super) fn struct_field_count(tree: &Tree, ty: TypeId) -> Option<usize> {
-    let Type::Struct { fields, .. } = tree.type_definition(ty) else {
+    let (Type::Struct { fields, .. } | Type::Class { fields, .. }) = tree.type_definition(ty)
+    else {
         return None;
     };
 

@@ -722,7 +722,8 @@ entry(v0: dynamic<test.main.Sink, managed, mutable, local>):
     store l1, v1
     v2: dynamic<test.main.Sink, managed, mutable, local> = load l0
     v3: ref<int32, borrowed, 'frame, readonly> = address l1
-    call.dynamic v2, test.main.Sink, 0(v3): (ref<int32, borrowed, 'frame, readonly>) => void
+    v4: ref<test.main.Sink, managed, mutable, local> = dynamic.payload v2
+    call.dynamic v2, test.main.Sink, 0(v4, v3): (ref<test.main.Sink, managed, mutable, local>, ref<int32, borrowed, 'frame, readonly>) => void
     return
 }
 
@@ -773,9 +774,7 @@ export function run(): int32 {
 
     session.assert_mir_lowered("main.tspp", r#"
 @nocopy
-type test.main.Derived<T: Copy> {
-    value: T;
-}
+type test.main.Derived<T: Copy> = class<test.main.Base<T>> { value: T };
 
 @nocopy
 @languageItem("memory.Copy")
@@ -786,9 +785,7 @@ type Copy extends Clone { }
 type Clone { }
 
 @nocopy
-type test.main.Base<T: Copy> {
-    value: T;
-}
+type test.main.Base<T: Copy> = class { value: T };
 
 export global test.main.derived: ref<test.main.Derived<int32>, managed, mutable, local> = zeroinit
 
@@ -854,13 +851,17 @@ shared function test.main.Base.get<int32>(v0: ref<test.main.Base<int32>, managed
 
 /// @layout.struct name=Clone size=0 align=1
 /// @layout.struct name=type@5 size=0 align=1
-/// @layout.struct name=test.main.Derived<int32> size=4 align=4
-/// @layout.field owner=test.main.Derived<int32> index=0 name=value offset=0 size=4 align=4
-/// @layout.struct name=test.main.Base<int32> size=4 align=4
-/// @layout.field owner=test.main.Base<int32> index=0 name=value offset=0 size=4 align=4
-/// @layout.struct name=type@40 size=4 align=4
-/// @layout.field owner=type@40 index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.main.Derived<int32> size=8 align=4
+/// @layout.field owner=test.main.Derived<int32> index=0 name=value offset=4 size=4 align=4
+/// @layout.class name=test.main.Base<int32> size=8 align=4
+/// @layout.field owner=test.main.Base<int32> index=0 name=value offset=4 size=4 align=4
+/// @layout.class name=type@41 size=8 align=4
+/// @layout.field owner=type@41 index=0 name=value offset=4 size=4 align=4
+/// @layout.class name=type@42 size=8 align=4
+/// @layout.field owner=type@42 index=0 name=value offset=4 size=4 align=4
 
+/// @dispatch.virtual concrete=type@1 value=type@2
+/// @dispatch.virtual concrete=type@13 value=type@14
 /// @dispatch.shape constraint=type@3 function=clone function=cloneFrom
 /// @dispatch.shape constraint=type@6 function=clone function=cloneFrom
 "#);

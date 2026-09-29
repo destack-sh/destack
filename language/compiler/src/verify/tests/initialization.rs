@@ -515,6 +515,127 @@ entry(v0: ref<uninit<Derived>, borrowed, 'a, exclusive>, v1: int32):
     program.assert_verified();
 }
 
+/// A written constructor reaches its base's implicit constructor while its receiver is fresh.
+#[test]
+fn test_delegate_to_an_implicit_base_constructor_before_this_escapes() {
+    let session = TestSession::single(
+        r#"
+class Animal {
+    hasLegs: boolean = true;
+}
+
+class Registry {
+    last: Crate | undefined = undefined;
+}
+
+const registry = new Registry();
+
+class Crate extends Animal {
+    item: int32;
+
+    constructor(item: int32) {
+        super();
+        this.item = item;
+        registry.last = this;
+    }
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics(
+        "main.tspp",
+        r#"
+"#,
+    );
+}
+
+/// A constructor lends its fresh receiver exclusively to its base constructor.
+#[test]
+fn test_delegate_exclusively_from_a_fresh_constructor_receiver() {
+    let mut program = TestProgram::mir(
+        r#"
+type Base {
+    first: int32;
+}
+
+type Derived {
+    first: int32;
+}
+
+constructor construct_base<'a>(v0: ref<uninit<Base>, borrowed, 'a, exclusive>): void {
+entry(v0: ref<uninit<Base>, borrowed, 'a, exclusive>):
+    v1: ref<uninit<int32>, borrowed, 'a, mutable> = address (*v0).0
+    v2: int32 = 0
+    store (*v1), v2
+    return
+}
+
+constructor construct<'a>(v0: ref<uninit<Derived>, borrowed, 'a, mutable>): void {
+entry(v0: ref<uninit<Derived>, borrowed, 'a, mutable>):
+    v1: ref<uninit<Base>, borrowed, 'a, exclusive> = cast.bit v0 -> ref<uninit<Base>, borrowed, 'a, exclusive>
+    call construct_base(v1): <'a>(ref<uninit<Base>, borrowed, 'a, exclusive>) => void
+    return
+}
+"#,
+    );
+
+    program.assert_verified();
+}
+
+/// A constructor's receiver stops granting exclusive access once it escapes.
+#[test]
+fn test_reject_an_exclusive_delegation_after_the_receiver_escapes() {
+    let mut program = TestProgram::mir(
+        r#"
+type Base {
+    first: int32;
+}
+
+type Derived {
+    first: int32;
+}
+
+function keep<'a>(v0: ref<uninit<Derived>, borrowed, 'a, mutable>): void {
+entry(v0: ref<uninit<Derived>, borrowed, 'a, mutable>):
+    return
+}
+
+constructor construct_base<'a>(v0: ref<uninit<Base>, borrowed, 'a, exclusive>): void {
+entry(v0: ref<uninit<Base>, borrowed, 'a, exclusive>):
+    v1: ref<uninit<int32>, borrowed, 'a, mutable> = address (*v0).0
+    v2: int32 = 0
+    store (*v1), v2
+    return
+}
+
+constructor construct<'a>(v0: ref<uninit<Derived>, borrowed, 'a, mutable>): void {
+entry(v0: ref<uninit<Derived>, borrowed, 'a, mutable>):
+    call keep(v0): <'a>(ref<uninit<Derived>, borrowed, 'a, mutable>) => void
+    v1: ref<uninit<Base>, borrowed, 'a, exclusive> = cast.bit v0 -> ref<uninit<Base>, borrowed, 'a, exclusive>
+    call construct_base(v1): <'a>(ref<uninit<Base>, borrowed, 'a, exclusive>) => void
+    return
+}
+"#,
+    );
+
+    program.assert_verify_errors(
+        r#"
+error[borrow-access-strengthening]: cannot strengthen borrowed access
+  ──▶ <test.tsppm>:26:5
+   │
+24 │ entry(v0: ref<uninit<Derived>, borrowed, 'a, mutable>):
+25 │     call keep(v0): <'a>(ref<uninit<Derived>, borrowed, 'a, mutable>) => void
+26 │ ··f<uninit<Base>, borrowed, 'a, exclusive> = cast.bit v0 -> ref<uninit<Base>, borrowed, 'a, exclusive>
+   │   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+27 │     call construct_base(v1): <'a>(ref<uninit<Base>, borrowed, 'a, exclusive>) => void
+28 │     return
+   │
+
+for more information about an error, run `tspp explain borrow-access-strengthening`
+"#,
+    );
+}
+
 /// A constructor initializes every field through its reborrowed receiver.
 #[test]
 fn test_initialize_every_field_through_the_reborrowed_receiver() {

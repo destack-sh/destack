@@ -137,7 +137,7 @@ impl FunctionChecker<'_, '_> {
                 let PlaceType::Value(reference) = ty else {
                     unreachable!("a place dereferences a non-value");
                 };
-                let reference = self.tree.type_definition(self.tree.storage_type(reference));
+                let reference = self.tree.type_definition(reference.storage(self.tree));
                 match reference.dereference_kind() {
                     Reference::Unique => {}
                     Reference::Borrowed
