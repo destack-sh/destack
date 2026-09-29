@@ -8,7 +8,7 @@ use smallvec::SmallVec;
 use tspp_core::{FrozenArena, SectionEntry, stable_hash_value};
 use tspp_serde::{Reflect, Schema, Type as ReflectType};
 
-use crate::{Field, Static, StaticId, Tree, Type};
+use crate::{Field, Static, StaticId, Substitution, Tree, Type};
 
 /// Compact identity of one interned type.
 #[repr(transparent)]
@@ -33,6 +33,46 @@ impl TypeId {
     #[inline]
     pub fn index(self) -> usize {
         self.0 as usize
+    }
+
+    /// Return the initialized storage type beneath transparent forms.
+    pub fn storage(self, tree: &Tree) -> TypeId {
+        let mut ty = self;
+        loop {
+            ty = Substitution::resolve(ty, tree);
+            match tree.get(ty) {
+                Type::Uninit { value } | Type::ManuallyDrop { value } | Type::Newtype { value } => {
+                    ty = *value
+                }
+                _ => return ty,
+            }
+        }
+    }
+
+    /// Return the payload type this variant stores at one case.
+    pub fn case_payload(self, case: u32, tree: &Tree) -> Option<TypeId> {
+        let ty = Substitution::resolve(self, tree);
+        let Type::Variant { cases, .. } = tree.get(ty) else {
+            return None;
+        };
+
+        cases.get(case as usize).map(|case| case.ty)
+    }
+
+    /// Intern this reference or slice type with its referent uninitialized.
+    pub fn emptied(self, tree: &Tree) -> TypeId {
+        let mut emptied = tree.get(self).clone();
+        match &mut emptied {
+            Type::Reference { pointee, .. } => {
+                *pointee = tree.intern_type(Type::Uninit { value: *pointee });
+            }
+            Type::Slice { element, .. } => {
+                *element = tree.intern_type(Type::Uninit { value: *element });
+            }
+            _ => unreachable!("emptied storage outside a unique reference or slice"),
+        }
+
+        tree.intern_type(emptied)
     }
 }
 
@@ -60,22 +100,6 @@ impl Tree {
     /// Find one type equal by structure.
     pub fn find_type(&self, ty: &Type) -> Option<TypeId> {
         self.types.types.find(ty).map(TypeId)
-    }
-
-    /// Intern one reference or slice type at its referent typed uninitialized, the storage alone.
-    pub fn emptied_type(&self, ty: TypeId) -> TypeId {
-        let mut emptied = self.get(ty).clone();
-        match &mut emptied {
-            Type::Reference { pointee, .. } => {
-                *pointee = self.intern_type(Type::Uninit { value: *pointee });
-            }
-            Type::Slice { element, .. } => {
-                *element = self.intern_type(Type::Uninit { value: *element });
-            }
-            _ => unreachable!("emptied storage outside a unique reference or slice"),
-        }
-
-        self.intern_type(emptied)
     }
 
     /// Intern one type by structural equality.

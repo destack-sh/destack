@@ -327,6 +327,15 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, ty: &Typ
                 visitor.visit_field(tree, *field_id, field);
             }
         }
+        Type::Class { base, fields } => {
+            if let Some(base) = base {
+                walk_type_id(visitor, tree, base);
+            }
+            for field_id in fields {
+                let field = tree.get(*field_id);
+                visitor.visit_field(tree, *field_id, field);
+            }
+        }
         Type::Newtype { value, .. } => {
             walk_type_id(visitor, tree, value);
         }
@@ -343,10 +352,16 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, ty: &Typ
             walk_type_id(visitor, tree, element);
         }
         Type::FunctionSignature {
-            parameters, result, ..
+            parameters,
+            rest,
+            result,
+            ..
         } => {
             for parameter in parameters {
                 walk_type_id(visitor, tree, &parameter.ty);
+            }
+            if let Some(rest) = rest {
+                walk_type_id(visitor, tree, rest);
             }
             walk_type_id(visitor, tree, result);
         }

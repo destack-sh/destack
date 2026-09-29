@@ -574,7 +574,7 @@ impl<'a> MemoryEffectBuilder<'a> {
             return space.space_set();
         }
         let ty = self.tree.get(self.function).expect_value_type(address);
-        let ty = self.tree.storage_type(ty);
+        let ty = ty.storage(self.tree);
 
         self.tree
             .type_definition(ty)

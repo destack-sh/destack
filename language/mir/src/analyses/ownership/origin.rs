@@ -383,13 +383,15 @@ impl<'a> OriginContext<'a> {
             }
 
             // map stored borrow paths through the actual argument's pointee type
-            let parameter = self.tree.storage_type(*parameter);
+            let parameter = (*parameter).storage(self.tree);
             let Type::Reference { pointee, .. } = &self.tree.get(parameter).clone() else {
                 continue;
             };
             let actual = self
                 .tree
-                .storage_type(self.tree.get(self.function).expect_value_type(*argument));
+                .get(self.function)
+                .expect_value_type(*argument)
+                .storage(self.tree);
             let Type::Reference {
                 pointee: actual, ..
             } = &self.tree.get(actual).clone()
@@ -1071,7 +1073,7 @@ impl OriginState {
     /// Return the origin one reference local's type gives its storage before any store.
     fn local_reference_origin(cx: &OriginContext<'_>, local: LocalId) -> Origin {
         let ty = cx.tree.get(local).ty;
-        let ty = cx.tree.storage_type(ty);
+        let ty = ty.storage(cx.tree);
         let ty = cx.tree.get(ty).clone();
         match ty.reference_kind() {
             Some(Reference::Managed(_) | Reference::Borrowed) => Origin::from_reference(&ty),
@@ -1185,7 +1187,9 @@ impl OriginState {
         // keep the same borrow through a reference-like copy under another type
         let ty = cx
             .tree
-            .storage_type(cx.tree.get(cx.function).expect_value_type(destination));
+            .get(cx.function)
+            .expect_value_type(destination)
+            .storage(cx.tree);
         cx.tree.get(ty).reference_kind()?;
         let carried = self.value(source);
         if carried.loans().is_empty() {
@@ -1447,7 +1451,7 @@ impl OriginState {
             } => {
                 if let [argument] = *cx.tree.get_values(*arguments) {
                     let argument_type = cx.tree.get(cx.function).expect_value_type(argument);
-                    let storage = cx.tree.storage_type(argument_type);
+                    let storage = argument_type.storage(cx.tree);
                     match cx.tree.get(storage).reference_kind() {
                         Some(Reference::Unique) => {
                             self.insert(*destination, Origin::one(Extent::Static));
@@ -1581,11 +1585,12 @@ impl OriginState {
         let ty = Substitution::resolve(ty, cx.tree);
         match cx.tree.type_definition(ty) {
             // project a composite by field
-            Type::Struct { .. } | Type::Tuple { .. } | Type::Newtype { .. } => {
-                Some(Projection::Field {
-                    index: index as u32,
-                })
-            }
+            Type::Struct { .. }
+            | Type::Class { .. }
+            | Type::Tuple { .. }
+            | Type::Newtype { .. } => Some(Projection::Field {
+                index: index as u32,
+            }),
             // project a fixed array by element
             Type::FixedArray { .. } => Some(Projection::Element {
                 index: index as u32,
@@ -1608,7 +1613,7 @@ impl OriginState {
     /// Return origin for one storage-producing destination.
     fn destination(cx: &OriginContext<'_>, destination: Value) -> Origin {
         let ty = cx.tree.get(cx.function).expect_value_type(destination);
-        let ty = cx.tree.storage_type(ty);
+        let ty = ty.storage(cx.tree);
         let ty = cx.tree.get(ty).clone();
 
         // handle each reference kind
@@ -1632,7 +1637,7 @@ impl OriginState {
 
         // read the value type
         let ty = cx.tree.get(cx.function).expect_value_type(value);
-        let ty = cx.tree.storage_type(ty);
+        let ty = ty.storage(cx.tree);
         let ty = cx.tree.get(ty).clone();
         match ty.reference_kind() {
             Some(Reference::Managed(_) | Reference::Borrowed) => self
@@ -1649,7 +1654,7 @@ impl OriginState {
         match (place.origin, place.path.first()) {
             (PlaceOrigin::Local(local), Some(Projection::Deref)) => {
                 let ty = cx.tree.get(local).ty;
-                let ty = cx.tree.storage_type(ty);
+                let ty = ty.storage(cx.tree);
                 let ty = cx.tree.get(ty).clone();
 
                 matches!(
@@ -1689,7 +1694,7 @@ impl OriginState {
             let mut pending = vec![(parameter.ty, true)];
             let mut visited = FxIndexSet::default();
             while let Some((ty, is_root)) = pending.pop() {
-                let ty = cx.tree.storage_type(ty);
+                let ty = ty.storage(cx.tree);
                 if !visited.insert((ty, is_root)) {
                     continue;
                 }
@@ -1734,7 +1739,7 @@ impl OriginState {
 
                         continue;
                     }
-                    Type::Struct { fields, .. } => {
+                    Type::Struct { fields, .. } | Type::Class { fields, .. } => {
                         pending.extend(fields.iter().map(|field| (cx.tree.get(*field).ty, false)));
                         continue;
                     }

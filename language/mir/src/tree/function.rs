@@ -477,6 +477,7 @@ impl Function {
         Type::FunctionSignature {
             lifetimes: self.lifetimes.clone(),
             parameters,
+            rest: None,
             result: self.return_type,
             park: self.park,
         }

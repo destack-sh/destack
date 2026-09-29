@@ -3,7 +3,8 @@ use tspp_core::StringId;
 use tspp_serde::Reflect;
 
 use crate::{
-    FunctionId, GenericArgument, Global, LocalNodeId, StaticId, Tree, TypeId, erase_lifetimes,
+    DispatchSlot, FunctionId, GenericArgument, Global, LocalNodeId, StaticId, Tree, TypeId,
+    erase_lifetimes,
 };
 
 /// The witness each closed type records for each interface it implements.
@@ -28,31 +29,54 @@ pub struct Witness {
     pub constants: Vec<WitnessConst>,
 }
 
-/// One requirement implemented by one function.
+/// One requirement implemented by one function or virtual table slot.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct WitnessFunction {
-    /// The member function name.
-    pub member: StringId,
     /// The requirement function.
     pub requirement: FunctionId,
-    /// The implementing function, a template when it leaves a place open.
-    pub function: FunctionId,
-    /// The implementer's arguments, one hole per place the requirement's own arguments fill.
-    pub arguments: Vec<Option<GenericArgument>>,
+    /// The implementation.
+    pub implementation: WitnessImplementation,
 }
 
-impl WitnessFunction {
-    /// Fill each hole with the next filler, in order.
-    pub fn fill(&self, fillers: &[GenericArgument]) -> Option<Vec<GenericArgument>> {
+/// The implementation of one witness requirement.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum WitnessImplementation {
+    /// A function or template.
+    Function {
+        /// The implementing function.
+        function: FunctionId,
+        /// The implementer's arguments with holes for the requirement's places.
+        arguments: Vec<Option<GenericArgument>>,
+    },
+    /// A slot in the receiver class's virtual table.
+    Virtual {
+        /// The virtual table slot.
+        slot: DispatchSlot,
+    },
+    /// The requirement's default body.
+    Default,
+    /// A slot in the dynamic receiver's own table.
+    Dynamic {
+        /// The dynamic slot.
+        slot: DispatchSlot,
+    },
+}
+
+impl WitnessImplementation {
+    /// Fill each hole of one implementer's arguments in order.
+    pub fn fill(
+        arguments: &[Option<GenericArgument>],
+        fillers: &[GenericArgument],
+    ) -> Option<Vec<GenericArgument>> {
         let mut fillers = fillers.iter();
-        let mut arguments = Vec::with_capacity(self.arguments.len());
-        for argument in &self.arguments {
-            arguments.push(match argument {
+        let mut filled = Vec::with_capacity(arguments.len());
+        for argument in arguments {
+            filled.push(match argument {
                 Some(argument) => argument.clone(),
                 None => fillers.next()?.clone(),
             });
         }
-        fillers.next().is_none().then_some(arguments)
+        fillers.next().is_none().then_some(filled)
     }
 }
 

@@ -25,23 +25,25 @@ pub(super) struct Aggregate {
 }
 
 impl Aggregate {
-    /// Pack one aggregate from fields in source order.
+    /// Pack one aggregate's fields in source order.
     pub(super) fn new(
         components: &[(Option<StringId>, TypeId)],
+        start: u32,
+        first_index: usize,
         layouts: &mut LayoutBuilder<'_>,
     ) -> Result<Self, LayoutError> {
         // compute each field layout before physical ordering
         let mut computed = Vec::with_capacity(components.len());
-        for (source_index, (name, ty)) in components.iter().enumerate() {
+        for (index, (name, ty)) in components.iter().enumerate() {
             let layout = layouts.layout_type(*ty)?;
-            computed.push((source_index, *name, *ty, layout));
+            computed.push((first_index + index, *name, *ty, layout));
         }
 
         // place fields by alignment, retaining source order as the tiebreak
         computed.sort_by_key(|(index, _, _, layout)| {
             (Reverse(layouts.layout(*layout).alignment), *index)
         });
-        let mut offset = 0u32;
+        let mut offset = start;
         let mut alignment = 1u32;
         let mut placed = Vec::with_capacity(computed.len());
         let mut traces = Vec::with_capacity(computed.len());

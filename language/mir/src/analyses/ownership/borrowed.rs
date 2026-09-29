@@ -80,7 +80,7 @@ fn type_lifetime_inner(
 
             Some(Lifetime::new(terms)).filter(|lifetime| !lifetime.is_empty())
         }
-        Type::Struct { fields, .. } => {
+        Type::Struct { fields, .. } | Type::Class { fields, .. } => {
             let nested_lifetimes = fields.iter().filter_map(|field| {
                 let field = tree.get(*field);
                 type_lifetime_inner(tree, field.ty, visited)
@@ -167,7 +167,7 @@ fn type_contains_borrowed_refs_inner(
             GenericArgument::Region(_) => true,
             _ => false,
         }),
-        Type::Struct { fields, .. } => fields.iter().any(|field| {
+        Type::Struct { fields, .. } | Type::Class { fields, .. } => fields.iter().any(|field| {
             let field = tree.get(*field);
             type_contains_borrowed_refs_inner(tree, field.ty, visited)
         }),
@@ -275,7 +275,7 @@ fn collect_type_borrowed_paths(
             }
         }
         // descend into named fields
-        Type::Struct { fields, .. } => {
+        Type::Struct { fields, .. } | Type::Class { fields, .. } => {
             for (index, field) in fields.iter().enumerate() {
                 let ty = tree.get(*field).ty;
                 let path = path.clone().with_projection(Projection::Field {

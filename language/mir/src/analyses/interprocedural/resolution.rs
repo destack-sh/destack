@@ -435,7 +435,16 @@ impl Resolver<'_> {
             | mir::Instruction::NewUninit { storage_type, .. } => {
                 CallValue::Receiver(*storage_type)
             }
-            mir::Instruction::DynamicBind { concrete, .. } => CallValue::Receiver(*concrete),
+            // keep a class payload's value
+            mir::Instruction::DynamicBind {
+                payload,
+                concrete,
+                table,
+                ..
+            } => match table {
+                mir::BindTable::Concrete => CallValue::Receiver(*concrete),
+                mir::BindTable::Virtual { .. } => self.value(*payload).clone(),
+            },
             mir::Instruction::NewComplete { value, .. }
             | mir::Instruction::DynamicPayload { dynamic: value, .. } => self.value(*value).clone(),
             mir::Instruction::Cast {
@@ -542,19 +551,14 @@ impl Resolver<'_> {
                 CallValue::Functions(targets) => targets.clone(),
                 _ => Resolution::open(),
             },
-            mir::Callee::Virtual {
-                receiver,
-                class,
-                slot,
-            } => {
-                let target = self
-                    .receiver_type(*receiver)
-                    .filter(|receiver| receiver == class)
+            mir::Callee::Virtual { slot, .. } => {
+                let target = call
+                    .receiver(self.tree)
+                    .and_then(|receiver| self.receiver_type(receiver))
                     .and_then(|receiver| self.dispatch.virtual_table(receiver))
-                    .map(|table| {
-                        *table.methods.get(slot.index()).unwrap_or_else(|| {
-                            unreachable!("virtual call selects a missing method")
-                        })
+                    .and_then(|table| match table.slots.get(slot.index()) {
+                        Some(mir::VirtualSlot::Method { function, .. }) => Some(*function),
+                        _ => None,
                     });
 
                 target
@@ -600,7 +604,12 @@ impl Resolver<'_> {
                             .iter()
                             .find(|member| member.requirement == *requirement)
                     })
-                    .map(|member| member.function);
+                    .and_then(|member| match member.implementation {
+                        mir::WitnessImplementation::Function { function, .. } => Some(function),
+                        mir::WitnessImplementation::Virtual { .. }
+                        | mir::WitnessImplementation::Default
+                        | mir::WitnessImplementation::Dynamic { .. } => None,
+                    });
 
                 function
                     .map(Resolution::function)
@@ -950,7 +959,7 @@ entry(v0: int32):
 
 function test(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call.virtual v0, int32, 0(v0): (int32) => int32
+    v1: int32 = call.virtual int32, 0(v0): (int32) => int32
     return v1
 }
 "#,
@@ -970,7 +979,11 @@ entry(v0: int32):
         // attach the exact virtual table needed by the callsite
         program.dispatch.insert_virtual_table(mir::VirtualTable {
             concrete: class,
-            methods: vec![callee],
+            value: class,
+            slots: vec![mir::VirtualSlot::Method {
+                function: callee,
+                arguments: Vec::new(),
+            }],
         });
 
         let mut analyses = program.module_analyses();
@@ -1111,7 +1124,7 @@ entry(v0: int32):
             r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call.virtual v0, int32, 0(v0): (int32) => int32
+    v1: int32 = call.virtual int32, 0(v0): (int32) => int32
     return v1
 }
 "#,
@@ -1258,7 +1271,7 @@ entry(v0: ref<Object, managed, mutable, local>):
 function test(): void {
 entry:
     v0: ref<Object, managed, mutable, local> = new.zeroed Object, local
-    call.virtual v0, Object, 0(v0): (ref<Object, managed, mutable, local>) => void
+    call.virtual Object, 0(v0): (ref<Object, managed, mutable, local>) => void
     return
 }
 "#,
@@ -1277,7 +1290,11 @@ entry:
         let callee = program.function_id_by_name("method");
         program.dispatch.insert_virtual_table(mir::VirtualTable {
             concrete,
-            methods: vec![callee],
+            value: concrete,
+            slots: vec![mir::VirtualSlot::Method {
+                function: callee,
+                arguments: Vec::new(),
+            }],
         });
         let resolution = mir::ResolutionTable::analyse(&program.dispatch, None, &program.tree);
 
@@ -1332,10 +1349,11 @@ entry(v0: int32):
             concrete: receiver,
             constraint: interface,
             functions: vec![mir::WitnessFunction {
-                member: tspp_core::StringId::for_text("clone"),
                 requirement,
-                function: callee,
-                arguments: Vec::new(),
+                implementation: mir::WitnessImplementation::Function {
+                    function: callee,
+                    arguments: Vec::new(),
+                },
             }],
             types: Vec::new(),
             constants: Vec::new(),

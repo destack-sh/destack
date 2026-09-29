@@ -45,6 +45,11 @@ impl Symbol {
         TypeHasher::symbol(self, arguments, tree)
     }
 
+    /// Derive the symbol of this function's dispatch shim.
+    pub fn shim(self) -> Self {
+        TypeHasher::shim(self)
+    }
+
     /// Create a generated function symbol from its signature and selected application.
     pub fn generated(
         base: Self,

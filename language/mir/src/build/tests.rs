@@ -1789,7 +1789,7 @@ entry:
         })
         .collect();
     let choice = function.value_type(Value(3)).unwrap();
-    let choice = tree.storage_type(choice);
+    let choice = choice.storage(&tree);
     let Type::Reference {
         pointee: choice, ..
     } = tree.type_definition(choice)

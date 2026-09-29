@@ -556,7 +556,7 @@ impl FunctionEffectBuilder<'_> {
 
     /// Resolve the backing storage for one reference-like type.
     fn type_storage(&mut self, ty: mir::TypeId) -> mir::StorageSet {
-        let ty = self.tree.storage_type(ty);
+        let ty = ty.storage(self.tree);
 
         self.tree
             .get(ty)
@@ -768,7 +768,7 @@ entry(v0: int32):
 
 function root(v0: int32): ref<int32, unique, mutable> {
 entry(v0: int32):
-    v1: ref<int32, unique, mutable> = call.virtual v0, int32, 0(v0): (int32) => ref<int32, unique, mutable>
+    v1: ref<int32, unique, mutable> = call.virtual int32, 0(v0): (int32) => ref<int32, unique, mutable>
     return v1
 }
 "#,
@@ -778,7 +778,11 @@ entry(v0: int32):
         let concrete = program.tree.get(root).parameters[0].ty;
         program.dispatch.insert_virtual_table(mir::VirtualTable {
             concrete,
-            methods: vec![allocate],
+            value: concrete,
+            slots: vec![mir::VirtualSlot::Method {
+                function: allocate,
+                arguments: Vec::new(),
+            }],
         });
 
         let mut analyses = program.module_analyses();

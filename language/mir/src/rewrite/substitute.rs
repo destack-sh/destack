@@ -138,7 +138,7 @@ impl<'a> Substitution<'a> {
                 *argument = self.argument(argument.clone());
             }
         } else {
-            if let Type::Struct { fields, .. } = &mut definition {
+            if let Type::Struct { fields, .. } | Type::Class { fields, .. } = &mut definition {
                 for field in fields {
                     let declared = self.tree.get(*field).clone();
                     let ty = self.ty(declared.ty);
@@ -149,6 +149,9 @@ impl<'a> Substitution<'a> {
             let distinct = Self::has_distinct_cases(&definition);
             definition.map_child_type_ids(&mut |child| self.ty(child));
 
+            // spread a rest parameter the arguments closed
+            definition.spread_rest(self.tree);
+
             // merge union cases the arguments made identical
             if distinct
                 && let Type::Variant { cases, .. } = &definition
@@ -157,7 +160,7 @@ impl<'a> Substitution<'a> {
                 let payloads = cases.iter().map(|case| case.ty).collect::<Vec<_>>();
                 self.depth = depth;
 
-                return self.tree.union_type(&payloads);
+                return Type::union(&payloads, self.tree);
             }
         }
         self.depth = depth;
@@ -172,7 +175,7 @@ impl<'a> Substitution<'a> {
         };
         let payloads = cases.iter().map(|case| case.ty).collect::<Vec<_>>();
 
-        Tree::union_cases(&payloads).0.len() == payloads.len()
+        Type::union_cases(&payloads).0.len() == payloads.len()
     }
 
     /// Return the type bound to one type parameter, rebound past the entered binders.

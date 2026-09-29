@@ -156,7 +156,7 @@ impl MoveTable {
 
     /// Return whether one path owns a pointee outside every containing allocation's type.
     fn owns_pointee(&self, path: MovePathId, tree: &Tree) -> bool {
-        let ty = tree.storage_type(self.get(path).ty);
+        let ty = self.get(path).ty.storage(tree);
         let Type::Reference {
             kind: Reference::Unique,
             pointee,
@@ -165,15 +165,15 @@ impl MoveTable {
         else {
             return false;
         };
-        if matches!(tree.get(tree.storage_type(*pointee)), Type::Uninit { .. }) {
+        if matches!(tree.get((*pointee).storage(tree)), Type::Uninit { .. }) {
             return false;
         }
 
         // bound recursive ownership at its first repeated pointee type
-        let pointee = tree.storage_type(*pointee);
+        let pointee = (*pointee).storage(tree);
         let mut parent = self.get(path).parent;
         while let Some(current) = parent {
-            if tree.storage_type(self.get(current).ty) == pointee {
+            if self.get(current).ty.storage(tree) == pointee {
                 return false;
             }
             parent = self.get(current).parent;
@@ -351,7 +351,7 @@ impl MoveTable {
             let ty = Substitution::resolve(ty, tree);
             tree.get(ty).clone()
         } {
-            Type::Struct { fields, .. } => fields
+            Type::Struct { fields, .. } | Type::Class { fields, .. } => fields
                 .iter()
                 .enumerate()
                 .map(|(index, field)| {
@@ -382,7 +382,7 @@ impl MoveTable {
                 kind: Reference::Unique,
                 pointee,
                 ..
-            } => match tree.get(tree.storage_type(*pointee)) {
+            } => match tree.get((*pointee).storage(tree)) {
                 Type::Uninit { .. } => return,
                 _ => vec![(Projection::Deref, *pointee)],
             },

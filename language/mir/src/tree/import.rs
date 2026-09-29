@@ -190,7 +190,7 @@ impl<'t, 'd> Importer<'t, 'd> {
         let mut definition = source.get(ty).clone();
 
         // intern each field under its imported type, attributes included
-        if let Type::Struct { fields, .. } = &mut definition {
+        if let Type::Struct { fields, .. } | Type::Class { fields, .. } = &mut definition {
             for field in fields.iter_mut() {
                 let declared = source.get(*field).clone();
                 let imported = self.import_type(source, declared.ty);

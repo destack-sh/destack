@@ -2,7 +2,7 @@ use crate::source::TokenType;
 use tspp_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
-    AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, Callee, CastOperator,
+    AtomicAccess, AtomicRmwOperator, BinaryOperator, BindTable, Call, Callee, CastOperator,
     CompareExchangeAccess, ConvertMode, CounterId, DispatchSlot, ExecutionScope, FenceAccess,
     GenericParameterDomain, Instruction, LayoutMeasure, LocalNodeId, MemoryOrdering, SamplerId,
     StorageSet, TypeId, UnaryOperator, Value, VectorReduceOperator,
@@ -141,20 +141,12 @@ impl Parser {
                 }
             }
             "call.virtual" => {
-                let (receiver, class, slot, arguments, signature) =
+                let (class, slot, arguments, signature) =
                     self.parse_virtual_call_target_segments(&mut segment_spans)?;
                 let arguments = self.tree.add_values(&arguments);
                 Instruction::Call {
                     destination,
-                    call: Call::new(
-                        Callee::Virtual {
-                            receiver,
-                            class,
-                            slot,
-                        },
-                        arguments,
-                        signature,
-                    ),
+                    call: Call::new(Callee::Virtual { class, slot }, arguments, signature),
                 }
             }
             "call.dynamic" => {
@@ -565,10 +557,25 @@ impl Parser {
                         let payload = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
                         let concrete = self.parse_type_segment(&mut segment_spans)?;
+                        let table = match self.peek_is(TokenType::OpenBracket) {
+                            true => {
+                                self.eat_token(TokenType::OpenBracket)?;
+                                let slot = self.parse_int_segment(&mut segment_spans)?;
+                                let slot = u32::try_from(slot).map_err(|_| {
+                                    ParseError::invalid("conformance slot", self.pos())
+                                })?;
+                                self.eat_token(TokenType::CloseBracket)?;
+                                BindTable::Virtual {
+                                    slot: DispatchSlot::new(slot),
+                                }
+                            }
+                            false => BindTable::Concrete,
+                        };
                         Instruction::DynamicBind {
                             destination,
                             payload,
                             concrete,
+                            table,
                         }
                     }
                     "dynamic.payload" => {
@@ -999,7 +1006,7 @@ impl Parser {
     /// Parse one virtual call target and signature.
     pub(super) fn parse_virtual_call_target(
         &mut self,
-    ) -> ParseResult<(Value, TypeId, DispatchSlot, Vec<Value>, TypeId)> {
+    ) -> ParseResult<(TypeId, DispatchSlot, Vec<Value>, TypeId)> {
         let mut segment_spans = Vec::new();
         self.parse_virtual_call_target_segments(&mut segment_spans)
     }
@@ -1008,9 +1015,7 @@ impl Parser {
     pub(super) fn parse_virtual_call_target_segments(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<(Value, TypeId, DispatchSlot, Vec<Value>, TypeId)> {
-        let receiver = self.parse_value_segment(segment_spans)?;
-        self.eat_token(TokenType::Comma)?;
+    ) -> ParseResult<(TypeId, DispatchSlot, Vec<Value>, TypeId)> {
         let class = self.parse_type_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
         let slot = self.parse_int_segment(segment_spans)?;
@@ -1020,7 +1025,7 @@ impl Parser {
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = self.parse_call_signature_segment(segment_spans)?;
 
-        Ok((receiver, class, slot, arguments, signature))
+        Ok((class, slot, arguments, signature))
     }
 
     /// Parse one dynamic call target and signature.

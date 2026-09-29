@@ -379,7 +379,7 @@ impl Loan {
                 };
                 let representation = tree.get(function).expect_value_type(self.representation);
                 let loan_spaces = tree
-                    .type_definition(tree.storage_type(representation))
+                    .type_definition(representation.storage(tree))
                     .reference_storage_set()
                     .unwrap_or(StorageSet::ANY);
                 let may_change = access.can_write()

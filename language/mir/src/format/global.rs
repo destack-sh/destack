@@ -156,7 +156,7 @@ fn data_init_element_type<'a>(
     match f.context().tree.type_definition(ty) {
         Type::FixedArray { element, .. } | Type::Vector { element, .. } => Some(*element),
         Type::Tuple { elements, .. } => elements.get(index).copied(),
-        Type::Struct { fields, .. } => fields
+        Type::Struct { fields, .. } | Type::Class { fields, .. } => fields
             .get(index)
             .map(|field| f.context().tree.get(*field).ty),
         Type::Newtype { value, .. } => data_init_element_type(Some(*value), index, f),

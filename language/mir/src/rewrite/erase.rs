@@ -11,7 +11,7 @@ pub fn erase_lifetimes(tree: &Tree, ty: TypeId) -> TypeId {
     let mut erased = tree.get(ty).erased_lifetimes();
 
     // erase field types while preserving names and attributes
-    if let Type::Struct { fields, .. } = &mut erased {
+    if let Type::Struct { fields, .. } | Type::Class { fields, .. } = &mut erased {
         for field in fields {
             let declared = tree.get(*field).clone();
             let ty = erase_lifetimes(tree, declared.ty);

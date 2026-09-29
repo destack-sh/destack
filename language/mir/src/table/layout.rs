@@ -7,6 +7,11 @@ use tspp_serde::Reflect;
 
 use crate::{FloatType, TraceMap, TypeId};
 
+/// The byte offset of the virtual table id every class object leads with.
+pub const VIRTUAL_TABLE_ID_OFFSET: u32 = 0;
+/// The byte width of the virtual table id every class object leads with.
+pub const VIRTUAL_TABLE_ID_BYTES: u32 = 4;
+
 /// Canonical layout table for one MIR module.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct LayoutTable {
@@ -177,7 +182,7 @@ impl<T, L> Layout<T, L> {
         match &self.shape {
             LayoutShape::Struct(layout) => Some(layout.fields.len()),
             LayoutShape::Tuple(layout) => Some(layout.elements.len()),
-            LayoutShape::Object(layout) => Some(layout.fields.len()),
+            LayoutShape::Class(layout) => Some(layout.fields.len()),
             _ => None,
         }
     }
@@ -399,8 +404,8 @@ pub enum LayoutShape<T = TypeId, L = LayoutId> {
     Vector(ElementLayout<T>),
     /// Variant value storage.
     Variant(VariantLayout<T>),
-    /// Object field storage with optional virtual dispatch.
-    Object(ObjectLayout<T>),
+    /// Class object storage with its virtual table id.
+    Class(ClassLayout<T>),
     /// Runtime dynamic value layout.
     Dynamic,
     /// Runtime function value storage.
@@ -423,7 +428,7 @@ impl<T, L> LayoutShape<T, L> {
         match self {
             Self::Struct(layout) => &layout.fields,
             Self::Tuple(layout) => &layout.elements,
-            Self::Object(layout) => &layout.fields,
+            Self::Class(layout) => &layout.fields,
             Self::None
             | Self::Scalar
             | Self::Slice
@@ -441,10 +446,7 @@ impl<T, L> LayoutShape<T, L> {
         match self {
             Self::Struct(_) => Self::Struct(StructLayout { fields }),
             Self::Tuple(_) => Self::Tuple(TupleLayout { elements: fields }),
-            Self::Object(layout) => Self::Object(ObjectLayout {
-                dispatch_offset: layout.dispatch_offset,
-                fields,
-            }),
+            Self::Class(_) => Self::Class(ClassLayout { fields }),
             Self::None
             | Self::Scalar
             | Self::Slice
@@ -700,11 +702,9 @@ impl VariantEncoding {
     }
 }
 
-/// Concrete layout for an object.
+/// Concrete layout for a class object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct ObjectLayout<T = TypeId> {
-    /// Byte offset of the virtual table id when present.
-    pub dispatch_offset: Option<u32>,
+pub struct ClassLayout<T = TypeId> {
     /// The fields in layout order.
     pub fields: Vec<LayoutField<T>>,
 }

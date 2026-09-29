@@ -48,7 +48,7 @@ pub enum AddressKind {
 impl Descriptor {
     /// Return the descriptor words of one reference-like type.
     pub fn new(ty: TypeId, tree: &Tree, layouts: &LayoutTable) -> Result<Self, LayoutError> {
-        let ty = tree.storage_type(ty);
+        let ty = ty.storage(tree);
         let invalid = || LayoutError::Unsupported {
             construct: format!("a descriptor of the non-reference type {ty:?}"),
         };
@@ -157,7 +157,7 @@ impl LayoutTable {
 
     /// Return the layout of one type's initialized storage.
     fn storage_layout(&self, ty: TypeId, tree: &Tree) -> Result<&Layout, LayoutError> {
-        let ty = tree.storage_type(ty);
+        let ty = ty.storage(tree);
 
         self.type_layout(ty).ok_or(LayoutError::Missing { ty })
     }

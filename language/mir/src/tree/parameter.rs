@@ -52,7 +52,7 @@ impl FunctionParameter {
     /// Return the matching callable signature parameter.
     #[inline]
     pub fn signature_parameter(&self) -> SignatureParameter {
-        SignatureParameter { ty: self.ty }
+        SignatureParameter::new(self.ty)
     }
 }
 

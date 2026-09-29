@@ -10,13 +10,13 @@ use crate::{
     StaticId, StaticKey, Symbol, Tree, Type, TypeFingerprint, TypeId,
 };
 
-impl Tree {
+impl TypeFingerprint {
     /// Compute the stable canonical fingerprint of one type.
-    pub fn type_fingerprint(&self, ty: TypeId) -> TypeFingerprint {
+    pub fn of(ty: TypeId, tree: &Tree) -> Self {
         let mut hasher = TypeHasher::new();
-        hasher.hash_type(ty, self);
+        hasher.hash_type(ty, tree);
 
-        TypeFingerprint::from_raw(hasher.hasher.finish_u128())
+        Self::from_raw(hasher.hasher.finish_u128())
     }
 }
 
@@ -75,6 +75,15 @@ impl TypeHasher {
         }
 
         Symbol::from_raw(base.module(), hasher.hasher.finish_u64())
+    }
+
+    /// Hash the shim derived from one function symbol.
+    pub(super) fn shim(base: Symbol) -> Symbol {
+        let mut hasher = StableHasher::new();
+        hasher.update_len_prefixed(b"tspp.mir.shim.v1");
+        hasher.write_u64(base.raw());
+
+        Symbol::from_raw(base.module(), hasher.finish_u64())
     }
 
     /// Derive one declaration symbol from its name and declaring identity.
@@ -322,6 +331,17 @@ impl TypeHasher {
                     self.hash_field(*field, tree);
                 }
             }
+            Type::Class { base, fields } => {
+                self.hasher.write_u8(47);
+                self.hasher.write_u8(u8::from(base.is_some()));
+                if let Some(base) = base {
+                    self.hash_type(*base, tree);
+                }
+                self.hash_length(fields.len());
+                for field in fields {
+                    self.hash_field(*field, tree);
+                }
+            }
             Type::Newtype { value } => {
                 self.hasher.write_u8(20);
                 self.hash_type(*value, tree);
@@ -346,6 +366,7 @@ impl TypeHasher {
             Type::FunctionSignature {
                 lifetimes,
                 parameters,
+                rest,
                 result,
                 park,
             } => {
@@ -354,6 +375,10 @@ impl TypeHasher {
                 self.hash_length(parameters.len());
                 for parameter in parameters {
                     self.hash_parameter(parameter, tree);
+                }
+                self.hasher.write_u8(u8::from(rest.is_some()));
+                if let Some(rest) = rest {
+                    self.hash_type(*rest, tree);
                 }
                 self.hash_type(*result, tree);
                 self.hasher.write_u8(u8::from(park.may_park()));

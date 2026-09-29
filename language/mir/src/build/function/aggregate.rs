@@ -1,7 +1,7 @@
 use crate::build::{BuildError, BuildResult, FunctionBuilder};
 use crate::{
-    BinaryOperator, ConvertMode, DispatchSlot, Instruction, Place, Substitution, Tree, Type,
-    TypeId, Value, VectorReduceOperator,
+    BinaryOperator, BindTable, ConvertMode, DispatchSlot, Instruction, Place, Substitution, Tree,
+    Type, TypeId, Value, VectorReduceOperator,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -167,6 +167,7 @@ impl<'a> FunctionBuilder<'a> {
             destination,
             payload,
             concrete,
+            table: BindTable::Concrete,
         });
         self.define_value(destination, dynamic_type);
 

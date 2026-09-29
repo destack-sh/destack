@@ -226,7 +226,7 @@ impl InitializationTable {
         // read the referent type on each side and strip one Uninit layer off it
         let function = tree.get(self.function);
         let pointee = |value: Value| {
-            let ty = tree.storage_type(function.expect_value_type(value));
+            let ty = function.expect_value_type(value).storage(tree);
             match tree.type_definition(ty) {
                 Type::Reference { pointee, .. } => Some(Substitution::resolve(*pointee, tree)),
                 _ => None,
@@ -347,7 +347,7 @@ impl InitializationTable {
         for projection in &place.path.projections {
             if *projection == Projection::Deref
                 && let Some(PlaceType::Value(reference)) = prefix.ty(self.function, tree)
-                && !tree.get(tree.storage_type(reference)).is_unique_storage()
+                && !tree.get(reference.storage(tree)).is_unique_storage()
             {
                 let resolved = self
                     .places

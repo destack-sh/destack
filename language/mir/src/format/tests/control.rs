@@ -67,7 +67,7 @@ b2:
 
 function invokeVirtual(v0: int32): int32 {
 entry(v0: int32):
-    invoke.virtual v0, int32, 0(v0): (int32) => int32 => b1 | b2
+    invoke.virtual int32, 0(v0): (int32) => int32 => b1 | b2
 
 b1(v1: int32):
     return v1
@@ -99,7 +99,7 @@ entry(v0: fn(int32) => int32, v1: int32):
 
 function tailVirtual(v0: int32): int32 {
 entry(v0: int32):
-    tail.call.virtual v0, int32, 0(v0): (int32) => int32
+    tail.call.virtual int32, 0(v0): (int32) => int32
 }
 
 function tailDynamic(v0: int32): int32 {

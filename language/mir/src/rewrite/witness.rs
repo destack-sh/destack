@@ -19,7 +19,7 @@ pub fn resolve_witness_types(tree: &Tree, witnesses: &WitnessTable, ty: TypeId) 
     }
 
     // resolve the children
-    if let Type::Struct { fields, .. } = &mut resolved {
+    if let Type::Struct { fields, .. } | Type::Class { fields, .. } = &mut resolved {
         for field in fields {
             let declared = tree.get(*field).clone();
             let ty = resolve_witness_types(tree, witnesses, declared.ty);

@@ -307,6 +307,8 @@ pub enum Instruction {
         payload: Value,
         /// The concrete payload type paired with the destination constraint.
         concrete: TypeId,
+        /// Where the binding takes its table from.
+        table: BindTable,
     },
     /// Read the erased payload from a dynamic value.
     DynamicPayload {
@@ -627,6 +629,18 @@ pub enum Instruction {
 
 impl Node for Instruction {
     const TYPE: NodeType = NodeType::Instruction;
+}
+
+/// Where one dynamic binding takes its table from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum BindTable {
+    /// The concrete type's own table.
+    Concrete,
+    /// The table in one conformance slot of the payload class's virtual table.
+    Virtual {
+        /// The conformance slot.
+        slot: DispatchSlot,
+    },
 }
 
 impl Instruction {

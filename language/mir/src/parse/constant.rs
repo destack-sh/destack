@@ -116,7 +116,7 @@ impl Parser {
         let kind = self.token_type(token);
         let token_text = self.tree.source_text(token.span).to_string();
         let token_start = token.start();
-        let expected_type = self.tree.storage_type(expected_type);
+        let expected_type = expected_type.storage(&self.tree);
         let expected = self.tree.type_definition(expected_type).clone();
 
         // validate the literal against the expected type

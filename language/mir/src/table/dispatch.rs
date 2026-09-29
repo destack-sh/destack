@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use tspp_core::StringId;
 use tspp_serde::Reflect;
 
-use crate::{FieldId, Function, LocalNodeId, TypeId};
+use crate::{Function, GenericArgument, LocalNodeId, TypeId};
 
 /// Canonical dispatch table for one MIR module.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
@@ -14,8 +14,6 @@ pub struct DispatchTable {
     virtual_tables: Vec<VirtualTable>,
     /// Dynamic dispatch tables.
     dynamic_tables: Vec<DynamicTable>,
-    /// Dynamic dispatch shapes keyed by constraint type id.
-    dynamic_shapes: Vec<DynamicShape>,
 }
 
 impl DispatchTable {
@@ -76,6 +74,11 @@ impl DispatchTable {
         self.virtual_tables.iter()
     }
 
+    /// Keep the virtual tables one predicate accepts.
+    pub fn retain_virtual_tables(&mut self, mut keep: impl FnMut(&VirtualTable) -> bool) {
+        self.virtual_tables.retain(|table| keep(table));
+    }
+
     /// Insert a dynamic table.
     pub fn insert_dynamic_table(&mut self, table: DynamicTable) -> Option<DynamicTable> {
         let key = (table.concrete.index(), table.constraint.index());
@@ -109,46 +112,43 @@ impl DispatchTable {
     pub fn iter_dynamic_tables(&self) -> impl Iterator<Item = &DynamicTable> {
         self.dynamic_tables.iter()
     }
+}
 
-    /// Return the dynamic shape for a constraint type id.
-    pub fn dynamic_shape(&self, constraint: TypeId) -> Option<&DynamicShape> {
-        self.dynamic_shapes
-            .binary_search_by_key(&constraint.index(), |shape| shape.constraint.index())
-            .ok()
-            .map(|index| &self.dynamic_shapes[index])
-    }
+/// Virtual table for one class.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct VirtualTable {
+    /// The class storage owning this table.
+    pub concrete: TypeId,
+    /// The class's value type.
+    pub value: TypeId,
+    /// The slots in dispatch order.
+    pub slots: Vec<VirtualSlot>,
+}
 
-    /// Iterate all dynamic shapes.
-    pub fn iter_dynamic_shapes(&self) -> impl Iterator<Item = &DynamicShape> {
-        self.dynamic_shapes.iter()
-    }
-
-    /// Insert a dynamic shape.
-    pub fn insert_dynamic_shape(&mut self, shape: DynamicShape) -> Option<DynamicShape> {
-        let index = self
-            .dynamic_shapes
-            .binary_search_by_key(&shape.constraint.index(), |candidate| {
-                candidate.constraint.index()
-            });
-
-        match index {
-            Ok(index) => Some(mem::replace(&mut self.dynamic_shapes[index], shape)),
-            Err(index) => {
-                self.dynamic_shapes.insert(index, shape);
-
-                None
-            }
-        }
+impl VirtualTable {
+    /// Return whether every slot holds an implementation.
+    pub fn is_concrete(&self) -> bool {
+        !self.slots.contains(&VirtualSlot::Abstract)
     }
 }
 
-/// Virtual method table for one concrete type.
+/// One slot of a class's virtual table.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct VirtualTable {
-    /// The concrete type owning this table.
-    pub concrete: TypeId,
-    /// Method implementations in virtual slot order.
-    pub methods: Vec<LocalNodeId<Function>>,
+pub enum VirtualSlot {
+    /// A method implementation.
+    Method {
+        /// The implementing function.
+        function: LocalNodeId<Function>,
+        /// The arguments the slot calls the function at, empty once closed.
+        arguments: Vec<GenericArgument>,
+    },
+    /// A method the class leaves abstract.
+    Abstract,
+    /// The class's dynamic table for one interface it implements.
+    Conformance {
+        /// The implemented interface's constraint type.
+        constraint: TypeId,
+    },
 }
 
 /// Table for one concrete implementation of one dynamic constraint.
@@ -173,29 +173,6 @@ pub struct DynamicNamedEntry {
     pub entry: DynamicEntry,
 }
 
-impl DynamicTable {
-    /// Return the table slot for one dynamic slot index.
-    pub const fn slot_for_index(index: usize) -> DispatchSlot {
-        DispatchSlot(index as u32)
-    }
-
-    /// Return the storage slot count for a dynamic table.
-    pub const fn storage_len(dynamic_slots: usize) -> usize {
-        dynamic_slots
-    }
-}
-
-/// Table shape for one dynamic constraint.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct DynamicShape {
-    /// The dynamic constraint type owning this shape.
-    pub constraint: TypeId,
-    /// Slots in declaration order.
-    pub slots: Vec<DynamicSlot>,
-    /// Whether the constraint answers keyed finds by field name.
-    pub is_keyed: bool,
-}
-
 /// Entry in a dynamic dispatch table.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum DynamicEntry {
@@ -211,25 +188,6 @@ pub enum DynamicEntry {
     },
     /// Slot without a concrete member, read as undefined.
     Absent,
-}
-
-/// Slot descriptor for a dynamic shape.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum DynamicSlot {
-    /// Field slot.
-    Field {
-        /// The canonical dispatch field id.
-        field: FieldId,
-        /// The field name.
-        name: StringId,
-    },
-    /// Function slot.
-    Function {
-        /// The function name, absent for call signatures.
-        name: Option<StringId>,
-        /// The function signature.
-        signature: TypeId,
-    },
 }
 
 /// Slot index inside a dispatch table.

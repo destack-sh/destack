@@ -1137,7 +1137,7 @@ entry(v0: ptr<Pair, mutable>):
             .expect_value_type(Value(0));
         let pointer = Substitution::resolve(pointer, &program.tree);
         let ty = program.tree.get(pointer).pointee_type().unwrap();
-        let ty = program.tree.storage_type(ty);
+        let ty = ty.storage(&program.tree);
 
         // lay out the pointer alone, leaving its pointee unlaid
         let mut layouts = LayoutTable::new();

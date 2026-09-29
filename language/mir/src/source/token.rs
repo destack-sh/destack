@@ -183,6 +183,8 @@ pub enum TokenType {
     Struct,
     /// `newtype`
     Newtype,
+    /// `class`
+    Class,
     /// Boolean literal.
     BooleanLiteral,
     /// Primitive type name.
@@ -191,6 +193,8 @@ pub enum TokenType {
     Ownership,
     /// `readonly`
     Readonly,
+    /// `rest`
+    Rest,
     /// `const`
     Const,
 }
@@ -240,10 +244,12 @@ impl TokenType {
                 | Self::Vector
                 | Self::Struct
                 | Self::Newtype
+                | Self::Class
                 | Self::BooleanLiteral
                 | Self::TypeName
                 | Self::Ownership
                 | Self::Readonly
+                | Self::Rest
                 | Self::Const
         )
     }
@@ -331,9 +337,11 @@ impl TokenType {
             "vector" => Self::Vector,
             "struct" => Self::Struct,
             "newtype" => Self::Newtype,
+            "class" => Self::Class,
             "true" | "false" => Self::BooleanLiteral,
             "owned" | "borrowed" | "copy" => Self::Ownership,
             "readonly" => Self::Readonly,
+            "rest" => Self::Rest,
             "const" => Self::Const,
             // null names a constant and a type, both read as an identifier
             "null" => Self::Identifier,

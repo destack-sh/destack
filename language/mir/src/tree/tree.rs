@@ -7,11 +7,10 @@ use tspp_source::{FileId, NodeSpanType, SourceIndex, Span};
 
 use crate::source::{Token, TokenType};
 use crate::{
-    Attribute, Block, CommentSpan, Constant, ExtentSlice, Field, FieldId, FieldSpan, FlagSlice,
-    FloatType, Function, FunctionHeaderSpans, Global, IndexSlice, Instruction, Local, LocalNodeId,
-    Node, NodeIndexEntry, NodeType, Provenance, ProvenanceTable, Substitution, SwitchCase,
-    SwitchCaseSlice, Symbol, Terminator, Type, TypeDeclaration, TypeDeclarationSpans, TypeId,
-    TypeTable, TypedValueSpan, Value, ValueSlice, VariantCase,
+    Attribute, Block, CommentSpan, ExtentSlice, Field, FieldId, FieldSpan, FlagSlice, Function,
+    FunctionHeaderSpans, Global, IndexSlice, Instruction, Local, LocalNodeId, Node, NodeIndexEntry,
+    NodeType, Provenance, ProvenanceTable, SwitchCase, SwitchCaseSlice, Symbol, Terminator, Type,
+    TypeDeclaration, TypeDeclarationSpans, TypeId, TypeTable, TypedValueSpan, Value, ValueSlice,
 };
 
 /// MIR tree for a single unit.
@@ -168,19 +167,6 @@ impl Tree {
         }
     }
 
-    /// Return the initialized storage type beneath transparent forms.
-    pub fn storage_type(&self, mut ty: TypeId) -> TypeId {
-        loop {
-            ty = Substitution::resolve(ty, self);
-            match self.get(ty) {
-                Type::Uninit { value } | Type::ManuallyDrop { value } | Type::Newtype { value } => {
-                    ty = *value
-                }
-                _ => return ty,
-            }
-        }
-    }
-
     /// Return the first global node id stored in this tree.
     #[inline]
     pub fn first_global_id(&self) -> u32 {
@@ -285,86 +271,6 @@ impl Tree {
         }
 
         None
-    }
-
-    /// Return the boolean type id.
-    pub fn boolean_type(&self) -> TypeId {
-        self.intern_type(Type::Boolean)
-    }
-
-    /// Return the character type id.
-    pub fn character_type(&self) -> TypeId {
-        self.intern_type(Type::Character)
-    }
-
-    /// Return the void type id.
-    pub fn void_type(&self) -> TypeId {
-        self.intern_type(Type::Void)
-    }
-
-    /// Return the usize type id.
-    pub fn usize_type(&self) -> TypeId {
-        self.intern_type(Type::Usize)
-    }
-
-    /// Return an integer type id for width and signedness.
-    pub fn int_type(&self, width: u16, signed: bool) -> TypeId {
-        self.intern_type(Type::Int {
-            width,
-            is_signed: signed,
-        })
-    }
-
-    /// Return the union of ordered payload types, merging identical payloads and collapsing one.
-    pub fn union_type(&self, payloads: &[TypeId]) -> TypeId {
-        let (distinct, _) = Self::union_cases(payloads);
-        if let [payload] = distinct.as_slice() {
-            return *payload;
-        }
-
-        // select enough discriminant bits for the distinct cases
-        let width = distinct.len().next_power_of_two().ilog2().max(1) as u16;
-        let discriminant = self.int_type(width, false);
-        let cases = distinct
-            .into_iter()
-            .enumerate()
-            .map(|(index, ty)| VariantCase {
-                discriminant: Constant::UInt {
-                    value: index as u128,
-                    width,
-                },
-                ty,
-            })
-            .collect();
-
-        self.intern_type(Type::Variant {
-            discriminant,
-            cases,
-        })
-    }
-
-    /// Return the distinct ordered payloads and each payload's case index among them.
-    pub fn union_cases(payloads: &[TypeId]) -> (Vec<TypeId>, Vec<u32>) {
-        let mut distinct = Vec::with_capacity(payloads.len());
-        let indices = payloads
-            .iter()
-            .map(
-                |payload| match distinct.iter().position(|seen| seen == payload) {
-                    Some(index) => index as u32,
-                    None => {
-                        distinct.push(*payload);
-                        (distinct.len() - 1) as u32
-                    }
-                },
-            )
-            .collect();
-
-        (distinct, indices)
-    }
-
-    /// Return a float type id for format.
-    pub fn float_type(&self, format: FloatType) -> TypeId {
-        self.intern_type(Type::Float(format))
     }
 
     /// Get a node or interned value by id.

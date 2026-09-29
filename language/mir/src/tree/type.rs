@@ -469,6 +469,13 @@ pub enum Type {
         /// The fields of the struct.
         fields: Vec<FieldId>,
     },
+    /// Class object.
+    Class {
+        /// The base class this one extends.
+        base: Option<TypeId>,
+        /// The fields in source order.
+        fields: Vec<FieldId>,
+    },
     /// Nominal newtype over one wrapped type.
     Newtype {
         /// The wrapped type.
@@ -495,6 +502,8 @@ pub enum Type {
         lifetimes: Vec<LifetimeParameter>,
         /// The parameters of the function.
         parameters: Vec<SignatureParameter>,
+        /// The open parameter tuple the signature spreads last, once it closes.
+        rest: Option<TypeId>,
         /// The result type of the function.
         result: TypeId,
         /// Whether calls through this signature may park the calling fiber.
@@ -656,10 +665,82 @@ impl Type {
         })
     }
 
+    /// Intern the variant over the distinct ordered payload types.
+    pub fn union(payloads: &[TypeId], tree: &Tree) -> TypeId {
+        let (distinct, _) = Self::union_cases(payloads);
+        if let [payload] = distinct.as_slice() {
+            return *payload;
+        }
+
+        // select enough discriminant bits for the distinct cases
+        let width = distinct.len().next_power_of_two().ilog2().max(1) as u16;
+        let discriminant = tree.intern_type(Type::Int {
+            width,
+            is_signed: false,
+        });
+
+        // number each distinct payload as one case
+        let cases = distinct
+            .into_iter()
+            .enumerate()
+            .map(|(index, ty)| VariantCase {
+                discriminant: Constant::UInt {
+                    value: index as u128,
+                    width,
+                },
+                ty,
+            })
+            .collect();
+
+        tree.intern_type(Type::Variant {
+            discriminant,
+            cases,
+        })
+    }
+
+    /// Return the distinct ordered payloads and each payload's case index among them.
+    pub fn union_cases(payloads: &[TypeId]) -> (Vec<TypeId>, Vec<u32>) {
+        let mut distinct = Vec::with_capacity(payloads.len());
+        let indices = payloads
+            .iter()
+            .map(
+                |payload| match distinct.iter().position(|seen| seen == payload) {
+                    Some(index) => index as u32,
+                    None => {
+                        distinct.push(*payload);
+                        (distinct.len() - 1) as u32
+                    }
+                },
+            )
+            .collect();
+
+        (distinct, indices)
+    }
+
+    /// Return the reference type one dynamic value's payload has.
+    pub fn dynamic_payload(&self) -> Option<Type> {
+        let Type::Dynamic {
+            kind,
+            lifetime,
+            constraint,
+            access,
+        } = self
+        else {
+            return None;
+        };
+
+        Some(Type::Reference {
+            kind: *kind,
+            lifetime: lifetime.clone(),
+            access: *access,
+            pointee: *constraint,
+        })
+    }
+
     /// Return one structural field type.
     pub fn field_type(&self, index: u32, tree: &Tree) -> Option<TypeId> {
         match self {
-            Type::Struct { fields, .. } => {
+            Type::Struct { fields, .. } | Type::Class { fields, .. } => {
                 fields.get(index as usize).map(|field| tree.get(*field).ty)
             }
             Type::Tuple { elements, .. } => elements.get(index as usize).copied(),
@@ -1009,6 +1090,32 @@ impl Type {
         }
     }
 
+    /// Spread a rest parameter once its tuple closes, keeping an open one.
+    pub fn spread_rest(&mut self, tree: &Tree) {
+        let Type::FunctionSignature {
+            parameters, rest, ..
+        } = self
+        else {
+            return;
+        };
+        let Some(ty) = *rest else {
+            return;
+        };
+
+        // spread a tuple, pass any other sequence whole, keep an open parameter
+        match tree.get(Substitution::resolve(ty, tree)) {
+            Type::Tuple { elements } => {
+                parameters.extend(elements.iter().copied().map(SignatureParameter::new));
+                *rest = None;
+            }
+            Type::Parameter { .. } => {}
+            _ => {
+                parameters.push(SignatureParameter::new(ty));
+                *rest = None;
+            }
+        }
+    }
+
     /// Convert one bit width to bytes when byte aligned.
     fn byte_width(width: u16) -> Option<u64> {
         width.is_multiple_of(8).then_some(u64::from(width / 8))
@@ -1071,6 +1178,27 @@ pub struct GenericParameter {
     pub name: StringId,
     /// The values the parameter ranges over.
     pub domain: GenericParameterDomain,
+}
+
+impl GenericParameter {
+    /// Return the argument naming this parameter at one index.
+    pub fn argument(&self, index: u32, tree: &Tree) -> GenericArgument {
+        match self.domain {
+            GenericParameterDomain::Type { .. } => {
+                GenericArgument::Type(tree.intern_type(Type::Parameter {
+                    index,
+                    referent: false,
+                }))
+            }
+            GenericParameterDomain::Region { .. } => {
+                GenericArgument::Region(Lifetime::new([Extent::Parameter(index)]))
+            }
+            GenericParameterDomain::Access => GenericArgument::Access(Access::Parameter(index)),
+            GenericParameterDomain::Value { .. } => {
+                GenericArgument::Value(tree.intern_static(Static::Parameter(index)))
+            }
+        }
+    }
 }
 
 /// The values one generic parameter ranges over.
@@ -1181,10 +1309,16 @@ impl Type {
                 }
             }
             Type::FunctionSignature {
-                parameters, result, ..
+                parameters,
+                rest,
+                result,
+                ..
             } => {
                 for parameter in parameters {
                     parameter.ty = map(parameter.ty);
+                }
+                if let Some(rest) = rest {
+                    *rest = map(*rest);
                 }
                 *result = map(*result);
             }
@@ -1212,6 +1346,11 @@ impl Type {
             Type::Parameter { .. } => {}
             // struct children are field nodes, paired by their consumers
             Type::Struct { .. } => {}
+            Type::Class { base, .. } => {
+                if let Some(base) = base {
+                    *base = map(*base);
+                }
+            }
             Type::Declaration { .. }
             | Type::Error
             | Type::Never
@@ -1225,17 +1364,5 @@ impl Type {
             | Type::Float { .. }
             | Type::TypeId => {}
         }
-    }
-}
-
-impl Tree {
-    /// Return the payload type one variant stores at a case.
-    pub fn case_payload(&self, ty: TypeId, case: u32) -> Option<TypeId> {
-        let ty = Substitution::resolve(ty, self);
-        let Type::Variant { cases, .. } = self.get(ty) else {
-            return None;
-        };
-
-        cases.get(case as usize).map(|case| case.ty)
     }
 }

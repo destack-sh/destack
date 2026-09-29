@@ -7,8 +7,8 @@ use super::r#type::{format_generic_arguments, format_parameter};
 use super::value::{format_constant_for_type, format_function_id, format_type_id};
 
 use crate::{
-    AtomicAccess, CompareExchangeAccess, ExecutionScope, FenceAccess, FormatNode, FunctionId,
-    Instruction, LocalNodeId, MemoryOrdering, StorageSet, TypeId, Value, Writer,
+    AtomicAccess, BindTable, CompareExchangeAccess, ExecutionScope, FenceAccess, FormatNode,
+    FunctionId, Instruction, LocalNodeId, MemoryOrdering, StorageSet, TypeId, Value, Writer,
 };
 
 impl FormatNode for Instruction {
@@ -538,6 +538,7 @@ impl FormatNode for Instruction {
                 destination,
                 payload,
                 concrete,
+                table,
             } => {
                 format_typed_destination(*destination, f)?;
                 write!(
@@ -553,7 +554,16 @@ impl FormatNode for Instruction {
                         space(),
                         concrete
                     ]
-                )
+                )?;
+
+                // name a class payload's conformance slot
+                match table {
+                    BindTable::Virtual { slot } => write!(
+                        f,
+                        [token("["), copied_text(&slot.0.to_string()), token("]")]
+                    ),
+                    BindTable::Concrete => Ok(()),
+                }
             }
 
             Instruction::DynamicPayload {

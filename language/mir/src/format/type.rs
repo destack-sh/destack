@@ -409,26 +409,16 @@ pub(super) fn format_type_expanded<'a>(
             }
             write!(f, [token(")")])
         }
-        Type::Struct { fields } => {
-            write!(f, [token("{"), space()])?;
-            for (i, field_id) in fields.iter().enumerate() {
-                if i > 0 {
-                    write!(f, [token(","), space()])?;
-                }
-                let field = f.context().tree.get(*field_id);
-                if !field.attributes.is_empty() {
-                    write_inline_attributes(&field.attributes, f)?;
-                    write!(f, [space()])?;
-                }
-                if let Some(name) = field.name {
-                    let field_name = f.context().strings.get(name);
-                    write!(f, [copied_text(field_name), token(":"), space()])?;
-                    format_type_id(field.ty, f)?;
-                } else {
-                    format_type_id(field.ty, f)?;
-                }
+        Type::Struct { fields } => format_fields(fields, f),
+        Type::Class { base, fields } => {
+            write!(f, [token("class")])?;
+            if let Some(base) = base {
+                write!(f, [token("<")])?;
+                format_type_id(*base, f)?;
+                write!(f, [token(">")])?;
             }
-            write!(f, [space(), token("}")])
+            write!(f, [space()])?;
+            format_fields(fields, f)
         }
         Type::Newtype { value } => {
             write!(f, [token("newtype"), token("<")])?;
@@ -473,9 +463,10 @@ pub(super) fn format_type_expanded<'a>(
         Type::FunctionSignature {
             lifetimes,
             parameters,
+            rest,
             result,
             park,
-        } => format_function_signature(lifetimes, parameters, *result, *park, f),
+        } => format_function_signature(lifetimes, parameters, *rest, *result, *park, f),
         Type::Witness {
             receiver,
             interface,
@@ -486,6 +477,7 @@ pub(super) fn format_type_expanded<'a>(
             let Type::FunctionSignature {
                 lifetimes,
                 parameters,
+                rest,
                 result,
                 park,
             } = signature_type
@@ -499,7 +491,7 @@ pub(super) fn format_type_expanded<'a>(
             if park.may_park() {
                 write!(f, [space()])?;
             }
-            format_function_signature(lifetimes, parameters, *result, *park, f)
+            format_function_signature(lifetimes, parameters, *rest, *result, *park, f)
         }
         Type::Function {
             multiplicity,
@@ -626,18 +618,11 @@ fn format_type_application<'a>(
     write!(f, [token(">")])
 }
 
-/// Format one function signature parameter.
-pub(super) fn format_signature_parameter<'a>(
-    parameter: &SignatureParameter,
-    f: &mut Writer<'a, '_>,
-) -> FormatResult<()> {
-    format_type_id(parameter.ty, f)
-}
-
 /// Format one function signature's lifetimes, parameters, and result.
 pub(super) fn format_function_signature<'a>(
     lifetimes: &[LifetimeParameter],
     parameters: &[SignatureParameter],
+    rest: Option<TypeId>,
     result: TypeId,
     park: ParkBehavior,
     f: &mut Writer<'a, '_>,
@@ -648,12 +633,20 @@ pub(super) fn format_function_signature<'a>(
     f.context_mut().push_lifetimes(lifetimes.to_vec());
     format_lifetimes(lifetimes, f)?;
 
+    // write the parameters, a rest parameter last
     write!(f, [token("(")])?;
     for (index, parameter) in parameters.iter().enumerate() {
         if index > 0 {
             write!(f, [token(","), space()])?;
         }
-        format_signature_parameter(parameter, f)?;
+        format_type_id(parameter.ty, f)?;
+    }
+    if let Some(rest) = rest {
+        if !parameters.is_empty() {
+            write!(f, [token(","), space()])?;
+        }
+        write!(f, [token("rest"), space()])?;
+        format_type_id(rest, f)?;
     }
     write!(f, [token(")"), space(), token("=>"), space()])?;
     format_type_id(result, f)?;
@@ -894,4 +887,26 @@ pub(super) fn format_witness(
             token(">")
         ]
     )
+}
+
+/// Format the braced field list of one struct or class.
+fn format_fields(fields: &[FieldId], f: &mut Writer<'_, '_>) -> FormatResult<()> {
+    write!(f, [token("{"), space()])?;
+    for (i, field_id) in fields.iter().enumerate() {
+        if i > 0 {
+            write!(f, [token(","), space()])?;
+        }
+        let field = f.context().tree.get(*field_id);
+        if !field.attributes.is_empty() {
+            write_inline_attributes(&field.attributes, f)?;
+            write!(f, [space()])?;
+        }
+        if let Some(name) = field.name {
+            let field_name = f.context().strings.get(name);
+            write!(f, [copied_text(field_name), token(":"), space()])?;
+        }
+        format_type_id(field.ty, f)?;
+    }
+
+    write!(f, [space(), token("}")])
 }

@@ -3,11 +3,11 @@ use std::fmt;
 use tspp_core::FxIndexSet;
 
 use crate::{
-    ElementLayout, Function, Global, Layout, LayoutId, LayoutShape, LayoutTable, LocalNodeId,
-    NewtypeLayout, NodeVisitor, PlaceType, Primitive, Reference, Representation, Scalar,
-    ScalarField, Static, StructLayout, Substitution, TargetLayout, TraceMap, Tree, TupleLayout,
-    Type, TypeDeclaration, TypeId, Validity, Vector, WitnessTable, resolve_witness_types,
-    walk_function, walk_type,
+    ClassLayout, ElementLayout, Function, Global, Layout, LayoutId, LayoutShape, LayoutTable,
+    LocalNodeId, NewtypeLayout, NodeVisitor, PlaceType, Primitive, Reference, Representation,
+    Scalar, ScalarField, Static, StructLayout, Substitution, TargetLayout, TraceMap, Tree,
+    TupleLayout, Type, TypeDeclaration, TypeId, VIRTUAL_TABLE_ID_BYTES, VIRTUAL_TABLE_ID_OFFSET,
+    Validity, Vector, WitnessTable, resolve_witness_types, walk_function, walk_type,
 };
 
 use super::aggregate::Aggregate;
@@ -265,6 +265,7 @@ impl<'tree> LayoutBuilder<'tree> {
             | Type::FixedArray { .. }
             | Type::Tuple { .. }
             | Type::Struct { .. }
+            | Type::Class { .. }
             | Type::Newtype { .. }
             | Type::Variant { .. }
             | Type::Vector { .. }
@@ -479,7 +480,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     let field = self.tree.get(field).clone();
                     components.push((field.name, field.ty));
                 }
-                let aggregate = Aggregate::new(&components, self)?;
+                let aggregate = Aggregate::new(&components, 0, 0, self)?;
 
                 Ok(Layout {
                     shape: LayoutShape::Struct(StructLayout {
@@ -494,10 +495,60 @@ impl<'tree> LayoutBuilder<'tree> {
                 })
             }
 
+            // lead with the table id or base, then pack fields
+            Type::Class { base, fields } => {
+                let (mut placed, start, alignment, mut traces, base_uninhabited) = match base {
+                    Some(base) => {
+                        let base = self.layout_type(base)?;
+                        let base = self.layouts.layout(base);
+                        let LayoutShape::Class(class) = &base.shape else {
+                            return Err(self.unsupported("class base"));
+                        };
+
+                        (
+                            class.fields.clone(),
+                            base.size,
+                            base.alignment,
+                            vec![base.trace_map.clone()],
+                            base.uninhabited,
+                        )
+                    }
+                    None => (
+                        Vec::new(),
+                        VIRTUAL_TABLE_ID_OFFSET + VIRTUAL_TABLE_ID_BYTES,
+                        VIRTUAL_TABLE_ID_BYTES,
+                        Vec::new(),
+                        false,
+                    ),
+                };
+                let first = placed.len();
+                let mut components = Vec::with_capacity(fields.len() - first);
+                for field in &fields[first..] {
+                    let field = self.tree.get(*field).clone();
+                    components.push((field.name, field.ty));
+                }
+                let aggregate = Aggregate::new(&components, start, first, self)?;
+
+                // seal the prefix and own fields as one class object
+                placed.extend(aggregate.fields);
+                traces.push(aggregate.trace_map);
+                let alignment = alignment.max(aggregate.alignment);
+
+                Ok(Layout {
+                    shape: LayoutShape::Class(ClassLayout { fields: placed }),
+                    representation: Representation::Memory,
+                    niche: None,
+                    size: aggregate.size.next_multiple_of(alignment),
+                    alignment,
+                    trace_map: TraceMap::composite(traces),
+                    uninhabited: base_uninhabited || aggregate.uninhabited,
+                })
+            }
+
             // tuples pack their elements the same way
             Type::Tuple { elements, .. } => {
                 let components: Vec<_> = elements.iter().map(|element| (None, *element)).collect();
-                let aggregate = Aggregate::new(&components, self)?;
+                let aggregate = Aggregate::new(&components, 0, 0, self)?;
 
                 Ok(Layout {
                     shape: LayoutShape::Tuple(TupleLayout {

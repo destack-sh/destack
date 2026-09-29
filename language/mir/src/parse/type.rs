@@ -198,6 +198,7 @@ impl Parser {
                 | TokenType::Ref
                 | TokenType::Vector
                 | TokenType::Newtype
+                | TokenType::Class
                 | TokenType::LessThan
                 | TokenType::OpenParenthesis
                 | TokenType::OpenBracket
@@ -350,6 +351,7 @@ impl Parser {
             TokenType::Ref => self.parse_reference_type()?,
             TokenType::Vector => self.parse_vector_type()?,
             TokenType::Newtype => self.parse_newtype_type()?,
+            TokenType::Class => self.parse_class_type()?,
             TokenType::LessThan => {
                 return self.parse_lifetime_signature_type();
             }
@@ -625,7 +627,7 @@ impl Parser {
 
     /// Parse a tuple or function signature type.
     fn parse_parenthesized_type(&mut self) -> ParseResult<Type> {
-        let parameters = self.parse_parenthesized_type_parameters()?;
+        let (parameters, rest) = self.parse_parenthesized_type_parameters()?;
 
         if self.eat_token_if(TokenType::FatArrow) {
             let (result, _) = self.parse_type_use_part()?;
@@ -635,9 +637,18 @@ impl Parser {
             return Ok(Type::FunctionSignature {
                 lifetimes,
                 parameters,
+                rest,
                 result,
                 park: ParkBehavior::CannotPark,
             });
+        }
+
+        // reject a rest element outside a signature
+        if rest.is_some() {
+            return Err(ParseError::invalid(
+                "a tuple without a rest element",
+                self.pos(),
+            ));
         }
 
         Ok(Type::Tuple {
@@ -655,16 +666,23 @@ impl Parser {
         })
     }
 
-    /// Parse type parameters enclosed in parentheses.
+    /// Parse type parameters enclosed in parentheses, a rest parameter last.
     pub(super) fn parse_parenthesized_type_parameters(
         &mut self,
-    ) -> ParseResult<Vec<SignatureParameter>> {
+    ) -> ParseResult<(Vec<SignatureParameter>, Option<TypeId>)> {
         self.eat_token(TokenType::OpenParenthesis)?;
         let mut parameters = Vec::new();
+        let mut rest = None;
 
         while !self.peek_is(TokenType::CloseParenthesis) {
+            // read a rest parameter and end the list
+            if self.eat_token_if(TokenType::Rest) {
+                let (ty, _) = self.parse_type_use_part()?;
+                rest = Some(ty);
+                break;
+            }
             let (ty, _) = self.parse_type_use_part()?;
-            parameters.push(SignatureParameter { ty });
+            parameters.push(SignatureParameter::new(ty));
 
             if !self.eat_token_if(TokenType::Comma) {
                 break;
@@ -673,7 +691,7 @@ impl Parser {
 
         self.eat_token(TokenType::CloseParenthesis)?;
 
-        Ok(parameters)
+        Ok((parameters, rest))
     }
 
     /// Parse a function signature type.
@@ -682,7 +700,7 @@ impl Parser {
         mut lifetimes: Vec<LifetimeParameter>,
         park: ParkBehavior,
     ) -> ParseResult<TypeId> {
-        let parameters = self.parse_parenthesized_type_parameters()?;
+        let (parameters, rest) = self.parse_parenthesized_type_parameters()?;
         self.eat_token(TokenType::FatArrow)?;
         let (result, _) = self.parse_type_use_part()?;
         self.parse_lifetime_where(&mut lifetimes)?;
@@ -690,6 +708,7 @@ impl Parser {
         self.intern_type(Type::FunctionSignature {
             lifetimes,
             parameters,
+            rest,
             result,
             park,
         })
@@ -706,6 +725,29 @@ impl Parser {
         self.eat_token(TokenType::CloseBracket)?;
 
         Ok(Type::FixedArray { element, length })
+    }
+
+    /// Parse a class type.
+    fn parse_class_type(&mut self) -> ParseResult<Type> {
+        self.bump();
+
+        // read the base class
+        let base = if self.eat_token_if(TokenType::LessThan) {
+            let (base, _) = self.parse_type_use_part()?;
+            self.eat_token(TokenType::GreaterThan)?;
+
+            Some(base)
+        } else {
+            None
+        };
+
+        // read the fields as a struct body
+        let (fields, _, _) = self.parse_struct_type()?;
+        let Type::Struct { fields } = self.tree.get(fields).clone() else {
+            return Err(ParseError::invalid("a class field list", self.pos()));
+        };
+
+        Ok(Type::Class { base, fields })
     }
 
     /// Parse one struct type and retain field declaration spans.

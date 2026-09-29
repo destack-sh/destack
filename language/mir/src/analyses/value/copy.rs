@@ -70,6 +70,8 @@ fn decide_copy(
         Type::Struct { fields } => fields
             .iter()
             .all(|field| decide_copy(tree, tree.get(*field).ty, generics, active)),
+        // a class object keeps its identity
+        Type::Class { .. } => false,
         Type::Newtype { value } => decide_copy(tree, *value, generics, active),
         Type::Variant { cases, .. } => cases
             .iter()

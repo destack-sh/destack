@@ -669,8 +669,8 @@ impl Parser {
                     ParseError::invalid(&format!("string literal '{token_text}'"), token_start)
                 })?;
                 let is_nominal = expected_type.is_some_and(|ty| {
-                    let ty = self.tree.storage_type(ty);
-                    matches!(self.tree.get(ty), Type::Struct { .. })
+                    let ty = ty.storage(&self.tree);
+                    matches!(self.tree.get(ty), Type::Struct { .. } | Type::Class { .. })
                 });
                 if is_nominal {
                     let value = self.strings.intern(&value);
@@ -790,12 +790,14 @@ impl Parser {
         expected_type: Option<TypeId>,
         index: usize,
     ) -> Option<TypeId> {
-        let expected_type = self.tree.storage_type(expected_type?);
+        let expected_type = (expected_type?).storage(&self.tree);
 
         match self.tree.get(expected_type) {
             Type::FixedArray { element, .. } | Type::Vector { element, .. } => Some(*element),
             Type::Tuple { elements, .. } => elements.get(index).copied(),
-            Type::Struct { fields, .. } => fields.get(index).map(|field| self.tree.get(*field).ty),
+            Type::Struct { fields, .. } | Type::Class { fields, .. } => {
+                fields.get(index).map(|field| self.tree.get(*field).ty)
+            }
             _ => None,
         }
     }

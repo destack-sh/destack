@@ -8,8 +8,7 @@ use crate::source::{Lexer, Token, TokenType};
 use crate::{
     Access, Block, DispatchTable, DropTable, Extent, Function, GenericArgument, GenericParameter,
     GenericParameterDomain, Global, LayoutTable, Lifetime, LifetimeParameter, Local, LocalNodeId,
-    Node, ProfileTable, RegionBound, Static, TargetLayout, Tree, Type, TypeDeclaration, TypeId,
-    Value,
+    Node, ProfileTable, RegionBound, TargetLayout, Tree, Type, TypeDeclaration, TypeId, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -299,21 +298,7 @@ impl Parser {
         if let Some((index, parameter)) = parameter {
             self.bump();
 
-            return Ok(match parameter.domain {
-                GenericParameterDomain::Type { .. } => {
-                    GenericArgument::Type(self.intern_type(Type::Parameter {
-                        index,
-                        referent: false,
-                    })?)
-                }
-                GenericParameterDomain::Region { .. } => {
-                    GenericArgument::Region(Lifetime::new([Extent::Parameter(index)]))
-                }
-                GenericParameterDomain::Access => GenericArgument::Access(Access::Parameter(index)),
-                GenericParameterDomain::Value { .. } => {
-                    GenericArgument::Value(self.tree.intern_static(Static::Parameter(index)))
-                }
-            });
+            return Ok(parameter.argument(index, &self.tree));
         }
 
         match kind {

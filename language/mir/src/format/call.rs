@@ -25,18 +25,11 @@ pub(super) fn format_call<'a>(
         Callee::Indirect { value } => {
             write!(formatter, [token(opcodes[1]), space(), value])?;
         }
-        Callee::Virtual {
-            receiver,
-            class,
-            slot,
-        } => {
+        Callee::Virtual { class, slot } => {
             write!(
                 formatter,
                 [
                     token(opcodes[2]),
-                    space(),
-                    receiver,
-                    token(","),
                     space(),
                     class,
                     token(","),
@@ -125,11 +118,12 @@ fn format_call_signature_suffix<'a>(
     if let Type::FunctionSignature {
         lifetimes,
         parameters,
+        rest,
         result,
         park,
     } = formatter.context().tree.get(*signature)
     {
-        format_function_signature(lifetimes, parameters, *result, *park, formatter)
+        format_function_signature(lifetimes, parameters, *rest, *result, *park, formatter)
     } else {
         format_type_id(*signature, formatter)
     }

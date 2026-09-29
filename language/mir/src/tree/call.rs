@@ -57,9 +57,7 @@ pub enum Callee {
     },
     /// Virtual method target.
     Virtual {
-        /// The receiver value used for dispatch.
-        receiver: Value,
-        /// The class declaring the dispatch slot.
+        /// The receiver's class type.
         class: TypeId,
         /// The virtual dispatch slot.
         slot: DispatchSlot,
@@ -112,9 +110,9 @@ impl Callee {
     /// Return values used to resolve this callee.
     pub fn uses(&self) -> SmallVec<[Value; 1]> {
         match self {
-            Self::Direct { .. } | Self::Witness { .. } => smallvec![],
+            Self::Direct { .. } | Self::Virtual { .. } | Self::Witness { .. } => smallvec![],
             Self::Indirect { value } => smallvec![*value],
-            Self::Virtual { receiver, .. } | Self::Dynamic { receiver, .. } => {
+            Self::Dynamic { receiver, .. } => {
                 smallvec![*receiver]
             }
         }
@@ -131,12 +129,7 @@ impl Callee {
                 arguments: arguments.clone(),
             },
             Self::Indirect { value } => Self::Indirect { value: map(*value) },
-            Self::Virtual {
-                receiver,
-                class,
-                slot,
-            } => Self::Virtual {
-                receiver: map(*receiver),
+            Self::Virtual { class, slot } => Self::Virtual {
                 class: *class,
                 slot: *slot,
             },
@@ -181,6 +174,11 @@ impl Call {
             arguments,
             signature,
         }
+    }
+
+    /// Return the receiver a virtual call dispatches on.
+    pub fn receiver(&self, tree: &Tree) -> Option<Value> {
+        tree.get_values(self.arguments).first().copied()
     }
 
     /// Return every value read by this call.

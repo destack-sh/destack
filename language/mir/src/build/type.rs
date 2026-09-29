@@ -142,6 +142,7 @@ impl ModuleBuilder {
         self.tree.intern_type(Type::FunctionSignature {
             lifetimes: Vec::new(),
             parameters,
+            rest: None,
             result,
             park: ParkBehavior::CannotPark,
         })

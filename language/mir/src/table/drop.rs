@@ -71,7 +71,7 @@ impl DropTable {
     pub fn release_destroys(&self, ty: TypeId, tree: &Tree) -> Option<bool> {
         // read the answer in one heap, the same in every heap
         let storage = Storage::Heap(Space::Local);
-        match tree.type_definition(tree.storage_type(ty)) {
+        match tree.type_definition(ty.storage(tree)) {
             Type::Reference {
                 kind: Reference::Unique,
                 pointee,
@@ -140,11 +140,13 @@ impl DropTable {
         let definition = tree.get(ty).clone();
 
         match &definition {
-            Type::Struct { fields, .. } => fields.iter().any(|field| {
-                let ty = tree.get(*field).ty;
+            Type::Struct { fields, .. } | Type::Class { fields, .. } => {
+                fields.iter().any(|field| {
+                    let ty = tree.get(*field).ty;
 
-                self.child_requires_destructor(ty, storage, tree, seen)
-            }),
+                    self.child_requires_destructor(ty, storage, tree, seen)
+                })
+            }
             Type::Tuple { elements, .. } => elements
                 .iter()
                 .any(|element| self.child_requires_destructor(*element, storage, tree, seen)),

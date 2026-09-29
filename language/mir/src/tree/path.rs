@@ -133,7 +133,7 @@ impl Place {
                     unreachable!("a place dereferences a non-value");
                 };
 
-                (length, tree.type_definition(tree.storage_type(reference)))
+                (length, tree.type_definition(reference.storage(tree)))
             })
     }
 
@@ -148,7 +148,7 @@ impl Place {
                 let PlaceType::Value(ty) = ty else {
                     return None;
                 };
-                reference = Some(tree.storage_type(ty));
+                reference = Some(ty.storage(tree));
             }
             ty = ty.project(projection, tree)?;
         }
@@ -238,7 +238,7 @@ impl PlaceType {
                 if *projection == Projection::Deref
                     && matches!(tree.type_definition(ty), Type::Newtype { .. })
                 {
-                    return Self::Value(tree.storage_type(ty)).project(projection, tree);
+                    return Self::Value(ty.storage(tree)).project(projection, tree);
                 }
 
                 // read the declared representation and retain its applied arguments
