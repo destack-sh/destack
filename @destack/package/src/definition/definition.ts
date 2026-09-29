@@ -8,8 +8,10 @@ import { DeclarationConstructorMap, FunctionReference } from "./constructor.ts";
 import { Publication } from "./publication.ts";
 
 /** The declarations authored in destack.json. */
-export const PackageDefinition = defineSchema(
+const definition = defineSchema(
     schema.object({
+        /** The JSON Schema address of the release that wrote the definition. */
+        $schema: schema.string().regex(/^https:\/\/destack\.app\/schemas\/[^/]+\/destack\.json$/),
         /** The immutable identity assigned when creating this package. */
         id: PackageId,
         /** The language used by the package. */
@@ -41,5 +43,13 @@ export const PackageDefinition = defineSchema(
     }),
 );
 
+/** The declarations authored in destack.json. */
+export const PackageDefinition = Object.assign(definition, {
+    /** Parse the text of a destack.json. */
+    read(text: string): PackageDefinition {
+        return definition.parse(JSON.parse(text));
+    },
+});
+
 /** The validated contents of destack.json. */
-export type PackageDefinition = schema.Infer<typeof PackageDefinition>;
+export type PackageDefinition = schema.Infer<typeof definition>;

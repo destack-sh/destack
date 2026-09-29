@@ -1,4 +1,5 @@
 {
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a0ed2a-b697-77bb-bce0-6b61abb3ed08",
     "language": "typescript",
     "targets": ["browser", "server"],

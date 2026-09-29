@@ -21,6 +21,8 @@ export const DeclarationConstructor = defineSchema(
                     package: DependencyName.optional(),
                     /** The describing function. */
                     function: FunctionReference,
+                    /** The function comparing two releases' descriptions into changes. */
+                    compare: FunctionReference.optional(),
                 }),
             )
             .min(1)

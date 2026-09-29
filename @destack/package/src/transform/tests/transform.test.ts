@@ -60,7 +60,12 @@ test("read a package's constructors once per locator, and its changed ones in th
     const declare = (declarations: Readonly<Record<string, { module: number }>>) =>
         writeFile(
             join(directory, "destack.json"),
-            JSON.stringify({ id: owner.metadata.package.id, declarations }),
+            JSON.stringify({
+                $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+                id: owner.metadata.package.id,
+                language: "typescript",
+                declarations,
+            }),
         );
     await writeFile(join(directory, "package.json"), JSON.stringify({ name: "@example/fresh" }));
     await declare({ defineNote: { module: 1 } });

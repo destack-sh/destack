@@ -1,7 +1,8 @@
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
-import { DeclarationConstructorMap } from "../definition/constructor.ts";
+import type { DeclarationConstructorMap } from "../definition/constructor.ts";
+import { PackageDefinition } from "../definition/definition.ts";
 import { ModuleMetadata } from "../definition/metadata.ts";
 
 /** A package directory and the metadata its modules receive. */
@@ -71,8 +72,10 @@ export class PackageLocator {
         let declared = this.#constructors.get(root);
         if (!declared) {
             const path = join(root, "destack.json");
-            const definition = existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : {};
-            declared = DeclarationConstructorMap.parse(definition.declarations ?? {});
+            const definition = existsSync(path)
+                ? PackageDefinition.read(readFileSync(path, "utf8"))
+                : undefined;
+            declared = definition?.declarations ?? {};
             this.#constructors.set(root, declared);
         }
 
@@ -128,7 +131,9 @@ export class PackageLocator {
 
         // read both manifests where the Destack definition exists
         try {
-            const definition = JSON.parse(await readFile(join(directory, "destack.json"), "utf8"));
+            const definition = PackageDefinition.read(
+                await readFile(join(directory, "destack.json"), "utf8"),
+            );
             const manifest = JSON.parse(await readFile(join(directory, "package.json"), "utf8"));
             const metadata = ModuleMetadata.parse({
                 package: { id: definition.id, name: manifest.name, version: manifest.version },

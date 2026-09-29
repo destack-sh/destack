@@ -1,4 +1,4 @@
-import { defineSchema, identifier, schema } from "@destack/schema";
+import { defineSchema, identifier, schema, Version } from "@destack/schema";
 import { Digest } from "../file/file.ts";
 
 /** A concrete package export containing runnable code. */
@@ -45,7 +45,7 @@ export const Package = defineSchema(
         /** The package name, qualified by its owner. */
         name: PackageName,
         /** The package version. */
-        version: schema.string().min(1),
+        version: Version,
     }),
 );
 
