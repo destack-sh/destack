@@ -20,7 +20,7 @@ async function build(): Promise<void> {
         for (const suffix of ["", "-nightly", "-dev"]) {
             // generate standard raster sizes and the Windows icon container
             const name = `destack${suffix}`;
-            const source = join(ROOT, `platform/brand/icon/icon${suffix}.svg`);
+            const source = join(ROOT, `platform/brand/icon/icon${suffix}-rounded.svg`);
             const directory = join(temporary, name);
             await run(
                 process.execPath,
@@ -32,7 +32,7 @@ async function build(): Promise<void> {
             await cp(join(directory, "icon.ico"), join(output, `${name}.ico`));
 
             // refresh the checked-in brand variants when requested
-            if (suffix && process.argv.includes("--brand")) {
+            if (process.argv.includes("--brand")) {
                 const raster = join(directory, "brand");
                 await run(
                     process.execPath,
@@ -56,7 +56,9 @@ async function build(): Promise<void> {
                 );
                 for (const size of [180, 256, 512, 1024]) {
                     const filename =
-                        size === 1024 ? `icon${suffix}.png` : `icon${suffix}-${size}.png`;
+                        size === 1024
+                            ? `icon${suffix}-rounded.png`
+                            : `icon${suffix}-rounded-${size}.png`;
                     await cp(
                         join(raster, `${size}x${size}.png`),
                         join(ROOT, "platform/brand/icon", filename),

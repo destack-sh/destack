@@ -110,7 +110,7 @@ async function build(): Promise<void> {
     // include Linux menu artwork and a direct installer beside the extracted application
     if (target.endsWith("unknown-linux-gnu")) {
         await cp(
-            join(ROOT, `platform/brand/icon/icon${suffix}.svg`),
+            join(ROOT, `platform/brand/icon/icon${suffix}-rounded.svg`),
             join(application, "icon.svg"),
         );
         await writeFile(

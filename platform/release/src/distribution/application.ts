@@ -14,7 +14,7 @@ export async function configureApplication(
     const icons = join(directory, "icons");
     await mkdir(icons, { recursive: true });
     const tauri = join(root, "@destack/desktop/node_modules/@tauri-apps/cli/tauri.js");
-    let artwork = join(root, `platform/brand/icon/icon${identity.suffix}.svg`);
+    let artwork = join(root, `platform/brand/icon/icon${identity.suffix}-rounded.svg`);
 
     // match the visual padding of native macOS applications
     if (process.platform === "darwin") {
@@ -25,7 +25,7 @@ export async function configureApplication(
                 "-module-cache-path",
                 join(directory, "swift"),
                 join(root, "platform/release/src/icon/macos.swift"),
-                join(root, `platform/brand/icon/icon${identity.suffix}.png`),
+                join(root, `platform/brand/icon/icon${identity.suffix}-rounded.png`),
                 artwork,
             ],
             root,

@@ -41,7 +41,7 @@ export const primaryLinks: readonly NavigationLink[] = [
 /** The external Destack community destinations. */
 export const socialLinks: readonly NavigationLink[] = [
     { href: "https://discord.gg/xUFQ45TWYd", label: "Discord", shortcut: "c", icon: discordIcon },
-    { href: "https://x.com/destack", label: "X", shortcut: "x", icon: xIcon },
+    { href: "https://x.com/destacksh", label: "X", shortcut: "x", icon: xIcon },
     {
         href: "https://github.com/destack-sh/destack",
         label: "GitHub",
