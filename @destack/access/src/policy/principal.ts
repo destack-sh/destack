@@ -21,6 +21,8 @@ export const principal = {
     region: new Policy(OWNER, { name: "region", permissions: {}, isGlobal: true }),
     /** An application installed into an account or space, living there: the principal of software, wherever it runs. */
     installation: new Policy(OWNER, { name: "installation", permissions: {} }),
+    /** A non-person identity an account creates for automation, living in that account. */
+    serviceAccount: new Policy(OWNER, { name: "service-account", permissions: {} }),
 };
 
 /** Every caller, signed in or anonymous, related through its wildcard; links condition such grants on a capability. */

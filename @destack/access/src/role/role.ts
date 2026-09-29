@@ -54,6 +54,7 @@ export const Role = {
     read,
     permissions,
     permit,
+    replace,
     describe,
     own,
     close,
@@ -113,6 +114,17 @@ async function permit(
             })),
         );
     }
+}
+
+/** Replace the permissions a role grants with a declared set. */
+async function replace(
+    database: DatabaseConnection,
+    roleId: Select<typeof accessRole>["id"],
+    scope: string,
+    granted: readonly PermissionReference[],
+): Promise<void> {
+    await database.delete(accessRolePermission).where(eq(accessRolePermission.roleId, roleId));
+    await permit(database, roleId, scope, granted);
 }
 
 /** Describe a role row and its permissions. */

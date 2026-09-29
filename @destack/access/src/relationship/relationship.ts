@@ -1,8 +1,19 @@
-import { sql, type Select, type SQL } from "@destack/db";
+import {
+    and,
+    eq,
+    inArray,
+    isNull,
+    or,
+    sql,
+    type DatabaseConnection,
+    type Select,
+    type SQL,
+} from "@destack/db";
 import type { Snapshot } from "@destack/db/log";
 import { defineSchema, identifier, schema } from "@destack/schema";
+import { v7 } from "uuid";
 import { AccessName } from "../policy/expression.ts";
-import { ObjectReference } from "../policy/policy.ts";
+import { ObjectReference, objectKey, type TypeReference } from "../policy/policy.ts";
 import { keySubject, Subject, subjectKey } from "../policy/subject.ts";
 import { accessRelationship, type RelationshipColumnMap, type RelationshipRow } from "./table.ts";
 
@@ -79,7 +90,20 @@ export const Relationship = {
     readByObject,
     readBySubject,
     subjectColumns,
+    replace,
 };
+
+/** The relationships one subject holds through one relation on objects of some types in a scope. */
+export interface RelationshipSelection {
+    /** The scope the relationships live in. */
+    readonly scope: string;
+    /** The object types the selection covers. */
+    readonly objects: readonly TypeReference[];
+    /** The declared relation. */
+    readonly relation: string;
+    /** The subject holding the relationships. */
+    readonly subject: Subject;
+}
 
 /** Write a relationship as its row, living in the scope whose access it decides. */
 function encode(relationship: Relationship, scope: string) {
@@ -217,4 +241,88 @@ function on(
         AND ${relationship.type} = ${object.type}
         AND ${relationship.objectId} = ${object.id}
     )`;
+}
+
+/** Relate a subject through a relation to exactly the wanted objects of the selected types, as the system. */
+async function replace(
+    database: DatabaseConnection,
+    selection: RelationshipSelection,
+    wanted: readonly ObjectReference[],
+    now: number,
+): Promise<void> {
+    // read the relationships the subject holds through the relation on the selected types
+    const columns = subjectColumns(selection.subject);
+    const held = await database
+        .select({
+            id: accessRelationship.id,
+            objectScope: accessRelationship.objectScope,
+            packageId: accessRelationship.packageId,
+            type: accessRelationship.type,
+            objectId: accessRelationship.objectId,
+        })
+        .from(accessRelationship)
+        .where(
+            and(
+                eq(accessRelationship.scope, selection.scope),
+                selection.objects.length === 0
+                    ? sql`false`
+                    : or(
+                          ...selection.objects.map((object) =>
+                              and(
+                                  eq(accessRelationship.packageId, object.packageId),
+                                  eq(accessRelationship.type, object.type),
+                              ),
+                          ),
+                      ),
+                eq(accessRelationship.relation, selection.relation),
+                eq(accessRelationship.subjectPackageId, columns.subjectPackageId),
+                eq(accessRelationship.subjectType, columns.subjectType),
+                eq(accessRelationship.subjectScope, columns.subjectScope),
+                eq(accessRelationship.subjectId, columns.subjectId),
+                columns.subjectRelation === null
+                    ? isNull(accessRelationship.subjectRelation)
+                    : eq(accessRelationship.subjectRelation, columns.subjectRelation),
+            ),
+        );
+
+    // remove the relationships to objects no longer wanted
+    const missing = new Map(wanted.map((object) => [objectKey(object), object]));
+    const stale = held.filter(
+        (row) =>
+            !missing.delete(
+                objectKey({
+                    scope: row.objectScope,
+                    packageId: row.packageId,
+                    type: row.type,
+                    id: row.objectId,
+                }),
+            ),
+    );
+    if (stale.length > 0) {
+        await database.delete(accessRelationship).where(
+            inArray(
+                accessRelationship.id,
+                stale.map((row) => row.id),
+            ),
+        );
+    }
+
+    // relate the subject to the wanted objects it lacks
+    if (missing.size > 0) {
+        await database.insert(accessRelationship).values(
+            [...missing.values()].map((object) =>
+                encode(
+                    {
+                        id: `relationship-${v7()}`,
+                        object,
+                        relation: selection.relation,
+                        subject: selection.subject,
+                        createdAt: now,
+                        expiresAt: null,
+                    },
+                    selection.scope,
+                ),
+            ),
+        );
+    }
 }

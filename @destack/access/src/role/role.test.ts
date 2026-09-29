@@ -12,6 +12,7 @@ import {
     Authorizer,
     principal,
     role,
+    Role,
     type AccessContext,
     Relationship,
 } from "../index.ts";
@@ -486,4 +487,17 @@ test("refuse an offer whose proposer lost the authority to grant it", async () =
         code: "FORBIDDEN",
         message: "permission denied: share",
     });
+});
+
+test("replace the permissions a role grants with a declared set", async () => {
+    const { database, defineRole } = await openRoleFixture();
+    const read = { packageId: node.definition.packageId, type: node.name, name: "read" };
+    const update = { ...read, name: "update" };
+    const id = identifier("role").parse(await defineRole(1, [read]));
+
+    // replace read with update, then with nothing
+    await Role.replace(database, id, "personal", [update]);
+    const replaced = await Role.permissions(database, id);
+    await Role.replace(database, id, "personal", []);
+    expect([replaced, await Role.permissions(database, id)]).toEqual([[update], []]);
 });

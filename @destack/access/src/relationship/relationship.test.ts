@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { Snapshot } from "@destack/db/log";
-import { asc } from "@destack/db";
+import { asc, eq } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import {
     ACCESS_MAPPINGS,
@@ -10,6 +10,7 @@ import {
     Authorizer,
     principal,
     proposal,
+    Relationship,
     relationship,
     subjectKey,
     type AccessContext,
@@ -105,5 +106,56 @@ test.for(TEST_DIALECTS)(
         expect(await visible(as("carol"))).toEqual([`${carol}>${carol}`]);
         expect(await visible(as("dave"))).toEqual([`${alice}>${dave}`]);
         expect(await visible(fixture.bob)).toEqual([]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "replace a subject's relationships through a relation with exactly the wanted objects on %s",
+    async (dialect) => {
+        // open the fixture, where bob edits node b
+        const fixture = await openFixture(dialect);
+        onTestFinished(() => fixture.close());
+        const worker = principal.installation.reference("personal", "worker");
+        const selection = {
+            scope: "personal",
+            objects: [{ packageId: node.definition.packageId, type: node.name }],
+            relation: "editor",
+            subject: worker,
+        };
+        const [first, second, third] = ["a", "b", "c"].map((id) => node.reference("personal", id));
+        const held = async () =>
+            (
+                await fixture.database
+                    .select({
+                        objectId: accessRelationship.objectId,
+                        subjectId: accessRelationship.subjectId,
+                    })
+                    .from(accessRelationship)
+                    .where(eq(accessRelationship.relation, "editor"))
+                    .orderBy(asc(accessRelationship.objectId), asc(accessRelationship.subjectId))
+            ).map((row) => `${row.objectId}:${row.subjectId}`);
+
+        // relate the worker to a and b, keeping bob's grant
+        await Relationship.replace(fixture.database, selection, [first!, second!], 1000);
+        expect(await held()).toEqual(["a:worker", "b:bob", "b:worker"]);
+
+        // move the worker from a to c, keeping b's relationship and bob's grant
+        const [kept] = await fixture.database
+            .select({ id: accessRelationship.id })
+            .from(accessRelationship)
+            .where(eq(accessRelationship.objectId, "b"))
+            .orderBy(asc(accessRelationship.subjectId))
+            .limit(1)
+            .offset(1);
+        await Relationship.replace(fixture.database, selection, [second!, third!], 2000);
+        const [unchanged] = await fixture.database
+            .select({ id: accessRelationship.id })
+            .from(accessRelationship)
+            .where(eq(accessRelationship.id, kept!.id));
+        expect([await held(), unchanged]).toEqual([["b:bob", "b:worker", "c:worker"], kept]);
+
+        // remove every relationship of the worker
+        await Relationship.replace(fixture.database, selection, [], 3000);
+        expect(await held()).toEqual(["b:bob"]);
     },
 );
