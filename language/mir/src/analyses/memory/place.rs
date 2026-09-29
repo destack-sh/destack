@@ -3,9 +3,9 @@ use tspp_core::{BitSet, FxIndexMap, FxIndexSet};
 
 use crate::{
     Analysis, Block, CastOperator, Constant, ConstantTable, ControlTable, DataflowTable,
-    ForwardTransfer, FunctionId, Instruction, Intrinsic, Lattice, LocalId, LocalNodeId,
-    LocalNodeIdAny, Mutability, Mutation, Place, PlaceOrigin, PlaceType, Projection, Reference,
-    Storage, StorageSet, Substitution, Tree, Type, TypeId, Value, is_copy,
+    ForwardTransfer, FunctionId, FunctionKind, Instruction, Intrinsic, Lattice, LocalId,
+    LocalNodeId, LocalNodeIdAny, Mutability, Mutation, Place, PlaceOrigin, PlaceType, Projection,
+    Reference, Storage, StorageSet, Substitution, Tree, Type, TypeId, Value, is_copy,
 };
 
 /// How one place may alias others, by the root of its storage.
@@ -219,7 +219,7 @@ impl Place {
             return None;
         };
 
-        Some((tree.storage_type(owner), *index, tree.storage_type(field)))
+        Some((owner.storage(tree), *index, field.storage(tree)))
     }
 
     /// Return whether two places of one root diverge at disjoint projections past unaliased references.
@@ -287,7 +287,7 @@ impl Place {
             (PlaceOrigin::Value(_), false) => AliasClass::Value,
             _ => match parameter {
                 Some(parameter) if self.path.projections.first() == Some(&Projection::Deref) => {
-                    AliasClass::Parameter(tree.type_definition(tree.storage_type(parameter.ty)))
+                    AliasClass::Parameter(tree.type_definition(parameter.ty.storage(tree)))
                 }
                 _ if self
                     .reference_type(function, tree)
@@ -529,6 +529,9 @@ impl PlaceTable {
         let mut resolutions = vec![Resolution::Unknown; tree.get(function).value_types().len()];
         let mut fresh = FxIndexSet::default();
 
+        // take a constructor's receiver as the fresh allocation it initializes
+        fresh.extend(Self::constructed_receiver(function, tree));
+
         // root function parameters in their incoming values
         for parameter in &tree.get(function).parameters {
             Self::set(
@@ -649,14 +652,8 @@ impl PlaceTable {
             }
         }
 
-        // position every operation and record where each fresh allocation is defined and escapes
-        let (order, fresh) = Self::escapes(&fresh, function, tree);
-
-        // solve which fresh allocations may have escaped at each block entry
-        let escaped = Self::escaped(&fresh, function, graph, tree);
-
         // preserve an opaque root for unresolved or conflicting values
-        let values = resolutions
+        let values: Vec<Place> = resolutions
             .into_iter()
             .enumerate()
             .map(|(index, resolution)| match resolution {
@@ -667,6 +664,13 @@ impl PlaceTable {
             })
             .collect();
 
+        // record fresh allocation definitions and escapes
+        let holding = Self::holding_locals(function, &forwarded, tree);
+        let (order, fresh) = Self::escapes(&fresh, &values, &holding, function, tree);
+
+        // solve which fresh allocations may have escaped at each block entry
+        let escaped = Self::escaped(&fresh, function, graph, tree);
+
         Self {
             values,
             fresh,
@@ -674,6 +678,48 @@ impl PlaceTable {
             escaped,
             exposed,
         }
+    }
+
+    /// Return the fresh receiver one constructor initializes.
+    fn constructed_receiver(function: FunctionId, tree: &Tree) -> Option<Value> {
+        let function = tree.get(function);
+        if function.kind != FunctionKind::Constructor {
+            return None;
+        }
+
+        function.parameters.first().map(|parameter| parameter.value)
+    }
+
+    /// Return the forwarded locals stored once.
+    fn holding_locals(
+        function: FunctionId,
+        forwarded: &FxIndexSet<LocalId>,
+        tree: &Tree,
+    ) -> FxIndexSet<LocalId> {
+        let mut stores: FxIndexMap<LocalId, usize> = FxIndexMap::default();
+        for &block_id in tree.get(function).blocks() {
+            for &instruction_id in &tree.get(block_id).instructions {
+                if let Instruction::Store {
+                    place:
+                        Place {
+                            origin: PlaceOrigin::Local(local),
+                            path,
+                        },
+                    ..
+                } = tree.get(instruction_id)
+                    && path.is_root()
+                    && forwarded.contains(local)
+                {
+                    *stores.entry(*local).or_default() += 1;
+                }
+            }
+        }
+
+        stores
+            .into_iter()
+            .filter(|(_, count)| *count == 1)
+            .map(|(local, _)| local)
+            .collect()
     }
 
     /// Return whether one instruction defines a fresh allocation or reinterprets one.
@@ -696,6 +742,8 @@ impl PlaceTable {
     /// Position every operation, recording where each fresh allocation is defined and where it escapes a place root or a bit cast.
     fn escapes(
         fresh: &FxIndexSet<Value>,
+        values: &[Place],
+        holding: &FxIndexSet<LocalId>,
         function: FunctionId,
         tree: &Tree,
     ) -> (
@@ -705,8 +753,31 @@ impl PlaceTable {
         let mut order = FxIndexMap::default();
         let mut definitions = FxIndexMap::default();
         let mut escapes: FxIndexMap<Value, SmallVec<[Position; 2]>> = FxIndexMap::default();
-        let mut record = |position: Position, values: SmallVec<[Value; 8]>| {
-            for value in values {
+
+        // define each fresh parameter at entry
+        if let Some(entry) = tree.get(function).entry() {
+            for parameter in &tree.get(function).parameters {
+                if fresh.contains(&parameter.value) {
+                    let position = Position {
+                        block: entry,
+                        index: 0,
+                    };
+                    definitions.insert(parameter.value, position);
+                }
+            }
+        }
+
+        // escape the fresh root a read copies
+        let root = |value: Value| {
+            let place = &values[value.id() as usize];
+            match place.origin {
+                PlaceOrigin::Value(root) if *place == values[root.id() as usize] => root,
+                _ => value,
+            }
+        };
+        let mut record = |position: Position, read: SmallVec<[Value; 8]>| {
+            for value in read {
+                let value = root(value);
                 if fresh.contains(&value) {
                     escapes.entry(value).or_default().push(position);
                 }
@@ -728,7 +799,7 @@ impl PlaceTable {
                 {
                     definitions.insert(destination, position(index));
                 }
-                record(position(index), Self::escaping(instruction, tree));
+                record(position(index), Self::escaping(instruction, holding, tree));
             }
 
             // position the terminator, which escapes every value it passes
@@ -753,9 +824,22 @@ impl PlaceTable {
         (order, allocations)
     }
 
-    /// Return the values one instruction reads outside a place root or a bit cast.
-    fn escaping(instruction: &Instruction, tree: &Tree) -> SmallVec<[Value; 8]> {
+    /// Return the values one instruction reads as escapes.
+    fn escaping(
+        instruction: &Instruction,
+        holding: &FxIndexSet<LocalId>,
+        tree: &Tree,
+    ) -> SmallVec<[Value; 8]> {
         let roots: SmallVec<[Value; 4]> = match instruction {
+            // hold through a single-store local
+            Instruction::Store {
+                place:
+                    Place {
+                        origin: PlaceOrigin::Local(local),
+                        path,
+                    },
+                value,
+            } if path.is_root() && holding.contains(local) => SmallVec::from_slice(&[*value]),
             Instruction::Load { place, .. }
             | Instruction::Address { place, .. }
             | Instruction::FakeBorrow { place, .. }
@@ -1124,7 +1208,7 @@ fn contains_inline(tree: &Tree, ty: TypeId, target: TypeId) -> bool {
     let mut pending = vec![ty];
     while let Some(ty) = pending.pop() {
         // visit each type once
-        let ty = tree.storage_type(ty);
+        let ty = ty.storage(tree);
         if ty == target {
             return true;
         }
@@ -1134,7 +1218,7 @@ fn contains_inline(tree: &Tree, ty: TypeId, target: TypeId) -> bool {
 
         // follow inline storage, stopping at references
         match tree.type_definition(ty) {
-            Type::Struct { fields } => {
+            Type::Struct { fields } | Type::Class { fields, .. } => {
                 pending.extend(fields.iter().map(|field| tree.get(*field).ty))
             }
             Type::Tuple { elements, .. } => pending.extend(elements.iter().copied()),
