@@ -1,6 +1,6 @@
 export * from "./service.ts";
 export * from "./procedure.ts";
-export * from "./connection.ts";
+export * from "./binding.ts";
 export { ScheduleDescription } from "../schedule/index.ts";
 export * from "./schedule.ts";
 export { WebhookDescription } from "../webhook/index.ts";

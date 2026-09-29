@@ -1,2 +1,2 @@
 export * from "./service.ts";
-export * from "./connection.ts";
+export * from "./binding.ts";

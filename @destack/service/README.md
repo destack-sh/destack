@@ -103,16 +103,14 @@ The host and the runner exchange one JSON line per message.
 
 ## Clients
 
-A service connection declares a dependency on a service, and a `ClientContext` binds it to the host's endpoint.
+A service binding declares a dependency on a service; the host binds it like any resource, and its client calls the service as the workload.
 
 ```ts
-import { defineServiceConnection } from "@destack/service/declare";
-import { ClientContext, safe } from "@destack/service/client";
+import { defineServiceBinding } from "@destack/service/declare";
+import { safe } from "@destack/service/client";
 
-export const notes = defineServiceConnection("notes", notesService);
+export const notes = defineServiceBinding("notes", notesService);
 
-const context = new ClientContext(configuration, { headers, bookmark });
-context.bind(notes);
 const result = await safe(notes.get(context.resources).update(input));
 ```
 

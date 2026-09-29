@@ -1,5 +1,5 @@
 import { type ChainRelay } from "@destack/sync";
-import type { Resource } from "@destack/resource";
+import type { ProviderContext, Resource } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
 import type { Identifier } from "@destack/schema";
 import { telemetry } from "@destack/telemetry";
@@ -92,7 +92,9 @@ export class WorkloadRunner implements AsyncDisposable {
 
         // start the instance on the bound resources, stopping telemetry when it fails
         try {
-            const resources = await WorkloadRunner.#connect(runner, start);
+            const resources = await WorkloadRunner.#connect(runner, start, {
+                credential: () => credential.current,
+            });
             const instance = await WorkloadInstance.start(runner.workload, {
                 resources,
                 history: runner.history(start.audit, () => credential.current),
@@ -182,7 +184,11 @@ export class WorkloadRunner implements AsyncDisposable {
     }
 
     /** Connect each bound resource through its provider. */
-    static async #connect(runner: RunnerOptions, start: WorkloadStart): Promise<ResourceContext> {
+    static async #connect(
+        runner: RunnerOptions,
+        start: WorkloadStart,
+        context: ProviderContext,
+    ): Promise<ResourceContext> {
         const resources = new ResourceContext();
         for (const [name, binding] of Object.entries(start.bindings)) {
             // require the declaration and the provider of its kind
@@ -197,7 +203,9 @@ export class WorkloadRunner implements AsyncDisposable {
             // connect through the provider holding the resource
             const { resource, kind, reference, spec } = binding;
             const record = { id: resource, scope: start.scope, kind, spec, reference };
-            const client = await (await provider(new URL(reference))).connect(record, declaration);
+            const client = await (
+                await provider(new URL(reference), context)
+            ).connect(record, declaration);
             resources.bind(declaration, client as never);
         }
 

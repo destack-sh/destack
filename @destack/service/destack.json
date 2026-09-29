@@ -38,12 +38,12 @@
                 }
             ]
         },
-        "defineServiceConnection": {
+        "defineServiceBinding": {
             "module": 2,
             "describes": [
                 {
-                    "kind": "service-connection",
-                    "function": "./inspect#describeServiceConnection"
+                    "kind": "resource",
+                    "function": "./inspect#describeServiceBinding"
                 }
             ]
         },
