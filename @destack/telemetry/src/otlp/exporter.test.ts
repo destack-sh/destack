@@ -7,14 +7,14 @@ import { OtlpExporter, type OtlpSignal } from "./exporter.ts";
 const source = {
     id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000001"),
     name: "@example/notes",
-    version: "1.0.0",
+    version: "2026.9.0",
 };
 
 /** The resource every signal of the package carries. */
 const resource = {
     attributes: [
         { key: "service.name", value: { stringValue: "@example/notes" } },
-        { key: "service.version", value: { stringValue: "1.0.0" } },
+        { key: "service.version", value: { stringValue: "2026.9.0" } },
     ],
     droppedAttributesCount: 0,
 };
@@ -51,7 +51,7 @@ test("export a log record inside its span as OTLP/JSON, correlated by trace", as
         unknown,
     ];
     const { traceId, spanId } = traces.body.resourceSpans[0].scopeSpans[0].spans[0];
-    const scope = { name: "@example/notes", version: "1.0.0" };
+    const scope = { name: "@example/notes", version: "2026.9.0" };
     expect([traces, logs]).toEqual([
         {
             signal: "traces",

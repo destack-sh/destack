@@ -12,7 +12,7 @@ import { TailSampler } from "./tail.ts";
 const source = {
     id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000001"),
     name: "@example/notes",
-    version: "1.0.0",
+    version: "2026.9.0",
 };
 
 /** The span and log record names an export request carries. */

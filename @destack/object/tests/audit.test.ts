@@ -23,7 +23,7 @@ import { openSpace, space } from "./fixture/space.ts";
 const PACKAGE = {
     id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000007"),
     name: "@example/space",
-    version: "1.0.0",
+    version: "2026.9.0",
 };
 
 /** The space whose history the test follows. */

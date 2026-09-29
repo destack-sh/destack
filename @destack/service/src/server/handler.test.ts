@@ -19,7 +19,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     const reader = new CallMetrics();
     const telemetry = await startTelemetry({
         name: "notes",
-        version: "1.0.0",
+        version: "2026.9.0",
         report: (error) => {
             throw error;
         },
