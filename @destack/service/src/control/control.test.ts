@@ -110,7 +110,7 @@ test("reconcile keys up to a controller's concurrency, never one key twice at on
     releases.get(second)!();
     await expect.poll(() => started).toEqual([first, second, third]);
 
-    // reconcile the first again once it finished
+    // reconcile the first again after it finishes
     releases.get(first)!();
     await expect.poll(() => started).toEqual([first, second, third, first]);
     expect(most).toBe(2);

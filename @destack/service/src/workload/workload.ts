@@ -1,8 +1,8 @@
+import { type ChainRelay } from "@destack/sync";
 import { type ComputeDefinition, declaringModule, type ModuleMetadata } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
 import { WorkloadDefinition } from "@destack/package/workload";
 import type { ResourceContext } from "@destack/resource/context";
-import type { AccessRelay } from "@destack/access";
 import type { ServiceImplementation } from "../server/index.ts";
 import type { TriggerImplementation } from "../trigger/index.ts";
 
@@ -33,7 +33,7 @@ export interface WorkloadContext {
     /** The audit history the workload's outboxes deliver to. */
     readonly history: AuditHistory;
     /** The relay of the access of the installation's space and its containing scopes. */
-    readonly access?: AccessRelay;
+    readonly access?: ChainRelay;
     /** The shutdown signal. */
     readonly signal: AbortSignal;
     /** Request shutdown. */
@@ -44,7 +44,7 @@ export interface WorkloadContext {
 
 /** The audit history a workload delivers its events to, in batches of one transaction each. */
 export interface AuditHistory {
-    /** Store a batch's events in one transaction, each once. */
+    /** Store a batch's events once in one transaction. */
     ingest(
         batch: { readonly events: readonly unknown[] },
         options?: { signal?: AbortSignal },

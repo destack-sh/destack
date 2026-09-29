@@ -39,6 +39,18 @@ await using server = Server.start({
 });
 ```
 
+## Errors
+
+A handler hides a refused object as a missing one with `conceal`, and the audit records the denial `denialOf` reads from its cause.
+
+```ts
+import { conceal, denialOf, ServiceError } from "@destack/service/error";
+
+const denial = new ServiceError("FORBIDDEN", { message: "permission denied: read" });
+throw isReader ? denial : conceal(denial, `no note ${id}`);   // the caller sees NOT_FOUND
+denialOf(failure)?.code;                                       // "FORBIDDEN" for both
+```
+
 ## Workloads
 
 A workload starts once per instance and returns the services and trigger handlers it implements.
@@ -62,12 +74,12 @@ const response = await instance.fetch(notesService, request);
 
 ## Runners
 
-A `WorkloadRunner` starts the workload a host's start message names on any runtime, refuses requests without the host's secret, and serves its package below the package's mount.
+A `WorkloadRunner` starts one workload on any runtime as a host's start message asks, opens each bound resource through its declaration's providers, refuses requests without the host's secret, and serves its package below the package's mount.
 
 ```ts
 import { WorkloadRunner } from "@destack/service/workload";
 
-const workload = await WorkloadRunner.start(runner, start, startTelemetry, report);
+const workload = await WorkloadRunner.start({ workload, resources, history, access }, start, startTelemetry, report);
 workload.renew(renewal);
 const response = await workload.fetch(request);
 await workload.close();
@@ -85,7 +97,7 @@ The host and the runner exchange one JSON line per message.
 
 | Line | Direction | Carries |
 |---|---|---|
-| `WorkloadStart` | host to runner, first | instance, workload, scope, installation, resource bindings, credential, forwarding secret, audit, monitor and space services, trace sampling ratio |
+| `WorkloadStart` | host to runner, first | instance, scope, installation, resource bindings, credential, forwarding secret, audit, monitor and space services, trace sampling ratio |
 | `WorkloadRenewal` | host to runner, later | the installation's next credential |
 | `WorkloadReady` | runner to host, first | the loopback port it serves on |
 
@@ -127,6 +139,7 @@ import { defineJournal, Journal } from "@destack/service/database";
 import { RequestFingerprint, RequestId } from "@destack/service/request";
 
 export const journal = new Journal(defineJournal("journal"));
+export const accountJournal = defineJournal("journal", { tier: "global" });
 
 const request = { caller: caller.id, scope: spaceId, requestId: RequestId.create() };
 const fingerprint = await RequestFingerprint.hash(AccountUpdate, input);

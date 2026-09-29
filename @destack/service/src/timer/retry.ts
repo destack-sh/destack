@@ -28,7 +28,7 @@ export const RetryPolicy = {
         return wait(RetryPolicy.interval(policy, failures), { signal }).then(
             () => true,
             (error: unknown) => {
-                // end on abort, keeping other failures
+                // end on abort and keep other failures
                 if (!signal.aborted) {
                     throw error;
                 }

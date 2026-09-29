@@ -22,7 +22,7 @@ export const hosting = {
 
 /** Create a verified caller for a fixture user. */
 export function createCaller(name: string): Caller {
-    const subject: Subject = principal.user.reference("global", name);
+    const subject: Subject = principal.user.reference("universe", name);
     const now = Date.now();
 
     return new Caller({

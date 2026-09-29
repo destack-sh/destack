@@ -1,7 +1,9 @@
 import { telemetry, trace } from "@destack/telemetry";
 import type { Controller, Follower } from "../control/index.ts";
+import { ValidationError } from "@orpc/contract";
 import { ServiceError } from "../error/index.ts";
 import { AccessError } from "@destack/access";
+import { SyncError } from "@destack/sync";
 import { DatabaseError } from "@destack/db/error";
 import type {} from "@destack/package/import-meta";
 
@@ -15,8 +17,25 @@ export function reportError(error: unknown): ServiceError<string, unknown> {
         return new ServiceError("CONFLICT", { message: error.message });
     }
 
+    // describe invalid input by its issues
+    if (error instanceof ServiceError && error.cause instanceof ValidationError) {
+        const issues = error.cause.issues.map((issue) => {
+            const path = (issue.path ?? [])
+                .map((key) => (typeof key === "object" ? key.key : key))
+                .join(".");
+
+            const message = issue.message.charAt(0).toLowerCase() + issue.message.slice(1);
+
+            return path === "" ? message : `${path}: ${message}`;
+        });
+
+        return new ServiceError("BAD_REQUEST", {
+            message: `invalid input: ${issues.join("; ")}`,
+            cause: error.cause,
+        });
+    }
     // pass client failures on
-    if (error instanceof ServiceError && error.status < 500) {
+    else if (error instanceof ServiceError && error.status < 500) {
         return error;
     }
 
@@ -61,6 +80,10 @@ export function domainFailure(error: unknown): ServiceError<string, unknown> | u
                   : error.code;
 
         return new ServiceError(code, { message: error.message });
+    }
+    // report an unknown scope
+    else if (error instanceof SyncError && error.code === "NOT_FOUND") {
+        return new ServiceError("NOT_FOUND", { message: error.message });
     }
     // report a duplicate key or a broken reference as a conflict
     else if (

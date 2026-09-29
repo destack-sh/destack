@@ -12,13 +12,13 @@ const { span } = telemetry.scope(import.meta.destack.package);
 /** The retry of a failed reconciliation, doubling from a second up to 5 minutes as in controller-runtime. */
 const RETRY = RetryPolicy.of({ maximumInterval: 5 * 60_000 });
 
-/** The keys a controller or follower works on: the tables naming them, and every key. */
+/** The keys a controller or follower works on: the tables selecting them, and every key. */
 interface Keyed {
     /** The controller's name in reports. */
     readonly name: string;
-    /** The tables whose changes or commits name keys, or list them again. */
+    /** The tables with changes or commits that select keys or list them again. */
     readonly watches?: readonly Table[];
-    /** Name the keys a watched change affects. */
+    /** List the keys a watched change affects. */
     keys?(change: Change): readonly string[];
     /** List every key. */
     list(): Promise<readonly string[]>;
@@ -56,7 +56,7 @@ interface Work {
 
 /** Run controllers over one database. */
 export class ControlLoop {
-    /** The database whose log names the keys. */
+    /** The database with the log that selects keys. */
     readonly database: DatabaseConnection;
     /** The controllers run. */
     readonly controllers: readonly (Controller | Follower)[];
@@ -70,7 +70,7 @@ export class ControlLoop {
     readonly #queue = new DueQueue();
     /** The consecutive failures by controller and key. */
     readonly #failures = new Map<Controller | Follower, Map<string, number>>();
-    /** The keys reconciling now, by controller, each with the controller aborting it. */
+    /** The keys reconciling now by controller with their abort controllers. */
     readonly #running = new Map<Controller | Follower, Map<string, AbortController>>();
     /** The running reconciliations. */
     readonly #reconciling = new Set<Promise<void>>();
@@ -140,7 +140,7 @@ export class ControlLoop {
     async #follow(signal: AbortSignal): Promise<void> {
         const tables = [
             ...new Set(this.controllers.flatMap((controller) => controller.watches ?? [])),
-        ].filter((table) => table[TABLE].tier !== "none");
+        ].filter((table) => table[TABLE].retention !== "none");
         while (!signal.aborted) {
             // read the position before listing
             const after = (await this.database.log.position()).sequence;
@@ -191,7 +191,7 @@ export class ControlLoop {
     /** List the controllers of unlogged tables after each commit. */
     async #list(signal: AbortSignal): Promise<void> {
         const listed = this.controllers.filter((controller) =>
-            (controller.watches ?? []).some((table) => table[TABLE].tier === "none"),
+            (controller.watches ?? []).some((table) => table[TABLE].retention === "none"),
         );
         if (listed.length === 0) {
             return;
@@ -270,7 +270,7 @@ export class ControlLoop {
 
     /** Take the earliest runnable key, or the next due time. */
     #take(now: number): { readonly runnable?: Due; readonly due?: number } {
-        // skip keys whose controller is full or which run now
+        // skip running keys and keys of a full controller
         const held: Due[] = [];
         let found: { readonly runnable?: Due; readonly due?: number } = {};
         for (let next = this.#next(); next !== undefined; next = this.#next()) {

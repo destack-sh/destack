@@ -14,7 +14,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     const issuer = "https://account.example";
     const audience = PackageId.parse("package-019f7480-0000-7000-8000-000000000001");
     const spaceId = "space-019f7480-0000-7000-8000-000000000002";
-    const subject: Subject = principal.user.reference("global", "user-example");
+    const subject: Subject = principal.user.reference("universe", "user-example");
     const issuedAt = Math.floor(Date.now() / 1000);
     const claims = {
         iss: issuer,
@@ -32,7 +32,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         },
     };
     const verifier = new TokenVerifier({
-        authority: { kind: "global" },
+        authority: { kind: "universe" },
         issuer,
         audience,
         keys: { keys: [publicKey] },
@@ -50,7 +50,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     );
 
     // accept an administrator impersonating a user and reject other impersonations
-    const administrator: Subject = principal.user.reference("global", "user-administrator");
+    const administrator: Subject = principal.user.reference("universe", "user-administrator");
     const impersonate = async (impersonator: Subject) =>
         verifier.authenticate(
             new Request(request, {
@@ -80,7 +80,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     ]);
     for (const impersonator of [
         subject,
-        principal.installation.reference("global", "installation-example"),
+        principal.installation.reference("universe", "installation-example"),
     ]) {
         await expect(impersonate(impersonator)).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     }
@@ -133,7 +133,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     let isAvailable = true;
     let reads = 0;
     const remote = new TokenVerifier({
-        authority: { kind: "global" },
+        authority: { kind: "universe" },
         issuer,
         audience,
         keys: new URL(`${issuer}/jwks`),
@@ -155,7 +155,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
 
     // require discovery without cached public keys
     const disconnected = new TokenVerifier({
-        authority: { kind: "global" },
+        authority: { kind: "universe" },
         issuer,
         audience,
         keys: new URL(`${issuer}/jwks`),
@@ -181,7 +181,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         identifiers: ["email:alice@example.com"],
     });
     const signing = {
-        authority: { kind: "global" as const },
+        authority: { kind: "universe" as const },
         issuer,
         sign: async (payload: JWTPayload) =>
             new SignJWT(payload)

@@ -4,7 +4,7 @@ import { schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import {
-    ACCESS_TABLES,
+    accessTables,
     Authorizer,
     Policy,
     condition,
@@ -29,7 +29,7 @@ import { Server } from "./server.ts";
 import type { ServiceContext } from "./context.ts";
 import { createCaller, hosting } from "./tests/fixture.ts";
 
-test.each(["global", "host-local", "account-personal", "space-personal"])(
+test.each(["universe", "host-local", "account-personal", "space-personal"])(
     "enforce the configured %s authorization scope",
     async (scope) => {
         // serve one procedure in every scope
@@ -115,7 +115,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     const keys = await generateKeyPair("ES256");
     const issuer = new TokenIssuer({
         issuer: "https://account.example",
-        authority: { kind: "global" },
+        authority: { kind: "universe" },
         sign: (payload) =>
             new SignJWT(payload)
                 .setProtectedHeader({ alg: "ES256", kid: "current" })
@@ -123,12 +123,12 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     });
     const verifier = new TokenVerifier({
         issuer: "https://account.example",
-        authority: { kind: "global" },
+        authority: { kind: "universe" },
         audience: packageId,
         keys: { keys: [{ ...(await exportJWK(keys.publicKey)), kid: "current", alg: "ES256" }] },
     });
-    const owner: Subject = principal.user.reference("global", "owner");
-    const guest: Subject = principal.user.reference("global", "guest");
+    const owner: Subject = principal.user.reference("universe", "owner");
+    const guest: Subject = principal.user.reference("universe", "guest");
     const credentials = new Map<string, string>();
     for (const subject of [owner, guest]) {
         const now = Date.now();
@@ -163,16 +163,16 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
                 id: "id",
                 scope: "scope",
                 attributes: { public: "public" },
-                relations: { owner: { column: "owner", scope: "global" } },
+                relations: { owner: { column: "owner", scope: "universe" } },
             },
         ],
     );
-    const test = await TestDatabase.create("sqlite", [noteTable, ...ACCESS_TABLES], {
+    const test = await TestDatabase.create("sqlite", [noteTable, ...accessTables], {
         isMigrated: true,
     });
     onTestFinished(() => test.close());
     const database = test.database;
-    await copyScope(database, { packageId, type: "space", scope: "global", id: spaceId });
+    await copyScope(database, { packageId, type: "space", scope: "universe", id: spaceId });
     await database
         .insert(noteTable)
         .values(

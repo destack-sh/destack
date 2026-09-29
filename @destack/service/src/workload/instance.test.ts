@@ -1,5 +1,5 @@
+import { type ChainRelay } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import type { AccessRelay } from "@destack/access";
 import { defineWorkload } from "./workload.ts";
 import { WorkloadInstance } from "./instance.ts";
 import { defineService } from "../declare/service.ts";
@@ -19,8 +19,8 @@ const history = {
     },
 };
 
-/** A relay of the access of a space, which no fixture workload follows. */
-const access: AccessRelay = {
+/** A relay of the access of a space without fixture workload followers. */
+const access: ChainRelay = {
     scope: "space-01996ab0-0000-7000-8000-000000000001",
     watch: () => {
         throw new Error("the fixture relay streams no access");
@@ -303,7 +303,7 @@ test("reject a trigger implemented twice and release startup resources", async (
 
 test("give a starting workload the host's audit history and its space's access relay", async () => {
     // start a workload that delivers one batch to the history it receives and keeps the relay
-    let relay: AccessRelay | undefined;
+    let relay: ChainRelay | undefined;
     await using instance = await WorkloadInstance.start(
         defineWorkload({
             name: "fixture",

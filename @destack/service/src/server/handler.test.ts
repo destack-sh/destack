@@ -5,7 +5,7 @@ import { startTelemetry } from "@destack/telemetry/host";
 import { MetricReader } from "@destack/telemetry/metric";
 import { SimpleSpanProcessor, type ReadableSpan } from "@destack/telemetry/trace";
 import { createClient } from "../client/index.ts";
-import { ServiceError } from "../error/index.ts";
+import { conceal, ServiceError } from "../error/index.ts";
 import { Health } from "../health/index.ts";
 import { defineProcedure, eventIterator } from "../service/index.ts";
 import { implement, ServiceHandler, type HandlerOptions } from "./handler.ts";
@@ -72,14 +72,18 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         context,
         access,
     }) => {
-        if (
+        // hide the notes from carol, and refuse everyone else but alice
+        const denial = new ServiceError("FORBIDDEN", { message: "permission denied: read" });
+        if (context.caller === "carol") {
+            throw conceal(denial, "no notes");
+        } else if (
             context.caller !== "alice" ||
             access.authentication !== "identity" ||
             access.permission?.packageId !== import.meta.destack.package.id ||
             access.permission.type !== "notes" ||
             access.permission.name !== "read"
         ) {
-            throw new ServiceError("FORBIDDEN", { message: "permission denied: read" });
+            throw denial;
         }
     };
 
@@ -132,6 +136,23 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         { caller: "alice", outcome: "success" },
         { caller: "bob", outcome: "denied" },
     ]);
+
+    // answer a concealed denial as a missing resource, recording the denial
+    const bodies: unknown[] = [];
+    const concealed = createClient(service, {
+        url: "https://test.local",
+        fetch: async (request) => {
+            const response = await handler.handle(request, { context: { caller: "carol" } });
+            bodies.push(response.matched ? await response.response.clone().json() : undefined);
+
+            return response.matched ? response.response : new Response(null, { status: 404 });
+        },
+    });
+    await expect(concealed.read()).rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
+    expect(bodies).toEqual([
+        { defined: true, code: "NOT_FOUND", status: 404, message: "no notes" },
+    ]);
+    expect(records.at(-1)).toEqual({ caller: "carol", outcome: "denied" });
 
     // fail the call when its audit fails at the end
     const unavailable = new ServiceHandler(router, {
@@ -194,6 +215,10 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
             count: 1,
         },
         {
+            attributes: { "rpc.system.name": "orpc", "rpc.method": "read", "error.type": "404" },
+            count: 1,
+        },
+        {
             attributes: { "rpc.system.name": "orpc", "rpc.method": "read", "error.type": "503" },
             count: 1,
         },
@@ -202,7 +227,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         { name: "rpc.client.call.duration", calls: outcomes },
         { name: "rpc.server.call.duration", calls: outcomes },
     ]);
-    expect(new Set(spans.map((span) => span.spanContext().traceId)).size).toBe(3);
+    expect(new Set(spans.map((span) => span.spanContext().traceId)).size).toBe(4);
 });
 
 /** Withhold streamed values after access is revoked. */

@@ -84,7 +84,7 @@ test.for([
 ] as const)(
     "serve a stream past its caller's lapse to its next consistent point: $name",
     async ({ revoked, outcome }) => {
-        // serve a run of two values whose second completes it after the caller's lapse
+        // serve a run of two values with the second after the caller's lapse
         let isRevoked = false;
         const service = {
             watch: defineProcedure({ authentication: "identity", permission: null, audit: false })
@@ -469,7 +469,7 @@ async function collectGarbage(): Promise<void> {
 }
 
 test("refuse starting a server whose procedures carry payloads the HTTP layer cannot describe", () => {
-    // declare a procedure whose input runs a custom check
+    // declare a procedure with a custom input check
     const readiness = new Health("reader");
     const service = {
         health,

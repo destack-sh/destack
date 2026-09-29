@@ -1,10 +1,10 @@
+import { type ObjectReference } from "@destack/sync";
 import type { PackageId } from "@destack/package";
 import {
     Authorization,
     delegationChain,
     type AccessContext,
     type Authorizer,
-    type ObjectReference,
 } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import type { ResourceContext } from "@destack/resource/context";

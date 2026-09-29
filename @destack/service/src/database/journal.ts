@@ -12,6 +12,7 @@ import {
     type DatabaseConnection,
     type TransactionOptions,
 } from "@destack/db";
+import type { DatabaseTier } from "@destack/db";
 import { declaringModule, type ModuleMetadata } from "@destack/package";
 import { schema } from "@destack/schema";
 import { ServiceError } from "../error/index.ts";
@@ -213,8 +214,12 @@ export class Journal {
     }
 }
 
-/** Declare a service's journal table. */
-export function defineJournal(name: string, module?: ModuleMetadata) {
+/** Declare a service's journal table, in the tier of the service's objects. */
+export function defineJournal(
+    name: string,
+    options: { readonly tier?: DatabaseTier } = {},
+    module?: ModuleMetadata,
+) {
     // qualify the journal by the declaring package
     const owner = declaringModule(module, "defineJournal");
 
@@ -239,6 +244,7 @@ export function defineJournal(name: string, module?: ModuleMetadata) {
             expiresAt: integer("expires_at").notNull(),
         },
         {
+            ...options,
             log: {},
             constraints: (journal) => [
                 primaryKey({ columns: [journal.caller, journal.scope, journal.requestId] }),

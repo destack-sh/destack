@@ -3,7 +3,7 @@ import { AsyncIteratorClass } from "@orpc/shared";
 import type { ProcedureAccess } from "../procedure/procedure.ts";
 import { reportError } from "./error.ts";
 import type { HandlerOptions } from "./handler.ts";
-import { ServiceError } from "../error/index.ts";
+import { denialOf, ServiceError } from "../error/index.ts";
 
 /** A procedure call. */
 export interface ProcedureCall<State extends Context> {
@@ -29,7 +29,7 @@ export interface ProcedureAudit<State extends Context> {
     error?: unknown;
 }
 
-/** Authorize a call, and audit it once it ends. */
+/** Authorize a call and audit it after it ends. */
 export async function invokeProcedure<State extends Context>(
     call: ProcedureCall<State>,
     next: () => Promise<unknown>,
@@ -126,7 +126,7 @@ function streamProcedure<State extends Context>(
     );
 }
 
-/** Record an audit event, keeping any handler failure. */
+/** Record an audit event and keep any handler failure. */
 async function recordAudit<State extends Context>(
     event: ProcedureAudit<State>,
     audit: (event: ProcedureAudit<State>) => Promise<void>,
@@ -144,7 +144,7 @@ async function recordAudit<State extends Context>(
     }
 }
 
-/** Classify a failure as a denial or a failure. */
+/** Classify a failure as a denial, concealed or not, or a failure. */
 function outcomeOf(failure: ServiceError<string, unknown>): "denied" | "failure" {
-    return failure.status === 401 || failure.status === 403 ? "denied" : "failure";
+    return denialOf(failure) === undefined ? "failure" : "denied";
 }

@@ -1,7 +1,7 @@
 import { copyScope } from "@destack/access/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { schema } from "@destack/schema";
-import { ACCESS_TABLES, Authorizer, Policy, principal, relation } from "@destack/access";
+import { accessTables, Authorizer, Policy, principal, relation } from "@destack/access";
 import { defineTable, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Caller } from "../authentication/index.ts";
@@ -42,20 +42,20 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
                 id: "id",
                 scope: "scope",
                 attributes: {},
-                relations: { owner: { column: "owner", scope: "global" } },
+                relations: { owner: { column: "owner", scope: "universe" } },
             },
         ],
     );
 
     // hold alice's vault
-    const storage = await TestDatabase.create("sqlite", [vaults, ...ACCESS_TABLES], {
+    const storage = await TestDatabase.create("sqlite", [vaults, ...accessTables], {
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
     await copyScope(storage.database, {
         packageId: hosting.audience,
         type: "space",
-        scope: "global",
+        scope: "universe",
         id: hosting.scope,
     });
     await storage.database
@@ -80,7 +80,7 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
         health: new Health("vault"),
         drainTimeout: 100,
         authenticate: async () => {
-            const subject = principal.user.reference("global", "alice");
+            const subject = principal.user.reference("universe", "alice");
             const now = Date.now();
 
             return new Caller({

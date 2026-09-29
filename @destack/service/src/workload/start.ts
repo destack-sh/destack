@@ -24,8 +24,6 @@ export const WorkloadStart = defineSchema(
     schema.object({
         /** The instance, the holder name of its leases. */
         instance: identifier("instance"),
-        /** The workload, by its name in the output. */
-        workload: DeclarationName,
         /** The space the installation serves. */
         scope: identifier("space"),
         /** The installation the workload runs. */
@@ -59,7 +57,7 @@ export const WorkloadRenewal = defineSchema(
 /** A later line a host writes to a runner's input. */
 export type WorkloadRenewal = schema.Infer<typeof WorkloadRenewal>;
 
-/** The first line a runner writes to its output, once it serves. */
+/** The first line a runner writes to its output after it serves. */
 export const WorkloadReady = defineSchema(
     schema.object({
         /** The loopback port serving the package's service below its mount. */

@@ -11,7 +11,7 @@
     },
     "declarations": {
         "defineJournal": {
-            "module": 1,
+            "module": 2,
             "describes": [
                 {
                     "kind": "journal",

@@ -112,7 +112,7 @@ export class ServiceHandler<State extends Context> extends OpenAPIHandler<State>
                 throw new TypeError("audited procedures require audit recording");
             }
 
-            // require payloads the HTTP layer describes, refusing them at start rather than per request
+            // require payloads the HTTP layer describes and refuse others at start
             const { inputSchema, outputSchema } = router["~orpc"];
             for (const described of [inputSchema, outputSchema]) {
                 if (described instanceof schema.Schema) {

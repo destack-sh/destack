@@ -176,8 +176,8 @@ export interface TokenVerifierOptions {
 /** The identities an issuer's keys may assert. */
 export type TokenIssuerAuthority =
     | {
-          /** The global account authority. */
-          readonly kind: "global";
+          /** The universe's account authority. */
+          readonly kind: "universe";
       }
     | {
           /** An authority over workload identities of one space. */

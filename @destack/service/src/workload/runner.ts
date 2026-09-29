@@ -1,6 +1,5 @@
-import type { AccessRelay } from "@destack/access";
-import type { Package } from "@destack/package";
-import type { Provider, Resource } from "@destack/resource";
+import { type ChainRelay } from "@destack/sync";
+import type { Resource } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
 import type { Identifier } from "@destack/schema";
 import { telemetry } from "@destack/telemetry";
@@ -21,16 +20,12 @@ const DRAIN_MILLISECONDS = 10_000;
 /** The runner's log records. */
 const { log } = telemetry.scope(import.meta.destack.package);
 
-/** What a runner holds of the package it runs: its identity, workloads, resources and providers. */
-export interface RunnerPackage {
-    /** The package, whose mount serves its service and whose name its telemetry carries. */
-    readonly package: Package;
-    /** The workloads by name. */
-    readonly workloads: Readonly<Record<string, Workload>>;
+/** What a runner runs: one workload, its package's resources, and the clients of its space. */
+export interface RunnerOptions {
+    /** The workload with the package mount for its service and the name for its telemetry. */
+    readonly workload: Workload;
     /** The package's resource declarations by name. */
     readonly resources: Readonly<Record<string, Resource<unknown>>>;
-    /** Open the provider holding a resource at a reference, by provider code. */
-    readonly providers: Readonly<Record<string, (reference: URL) => Provider>>;
     /** Connect to an audit service with the installation's current credential. */
     history(url: string, credential: () => string): AuditHistory;
     /** Connect to the relay of an installation's space access with its current credential. */
@@ -41,7 +36,7 @@ export interface RunnerPackage {
             readonly installationId: Identifier<"installation">;
         },
         credential: () => string,
-    ): AccessRelay;
+    ): ChainRelay;
 }
 
 /** A workload instance a host started, serving its package below its mount on any runtime. */
@@ -52,11 +47,11 @@ export class WorkloadRunner implements AsyncDisposable {
     readonly instance: WorkloadInstance;
     /** The package's one service. */
     readonly #service: Service;
-    /** The running package, whose mount serves the service. */
+    /** The running package with the mount that serves the service. */
     readonly #packageId: string;
     /** The telemetry exporting to the space's monitor. */
     readonly #telemetry: Telemetry;
-    /** The installation's current credential, which the runner's clients read. */
+    /** The installation's current credential for the runner's clients. */
     readonly #credential: { current: string };
 
     /** Hold a started instance, its telemetry and its credential. */
@@ -77,25 +72,19 @@ export class WorkloadRunner implements AsyncDisposable {
         this.#credential = credential;
     }
 
-    /** Start the workload a host's start names, with the runtime's telemetry and failure reporting. */
+    /** Start a workload as a host's start asks, with the runtime's telemetry and failure reporting. */
     static async start(
-        runner: RunnerPackage,
+        runner: RunnerOptions,
         start: WorkloadStart,
         startTelemetry: (options: TelemetryOptions) => Promise<Telemetry>,
         report: (error: Error) => void,
     ): Promise<WorkloadRunner> {
-        // select the workload
-        const workload = runner.workloads[start.workload];
-        if (workload === undefined) {
-            throw new ServiceError("NOT_FOUND", { message: `unknown workload: ${start.workload}` });
-        }
-
         // export the package's telemetry to its space's monitor with the current credential
         const credential = { current: start.credential };
         const bearer = () => `Bearer ${credential.current}`;
         const exporter = OtlpExporter.http(start.monitor, bearer, report);
         const running = await startTelemetry(
-            exporter.options(runner.package, {
+            exporter.options(runner.workload.package, {
                 attributes: { "service.instance.id": start.instance },
                 ratio: start.sampling,
             }),
@@ -104,7 +93,7 @@ export class WorkloadRunner implements AsyncDisposable {
         // start the instance on the bound resources, stopping telemetry when it fails
         try {
             const resources = await WorkloadRunner.#connect(runner, start);
-            const instance = await WorkloadInstance.start(workload, {
+            const instance = await WorkloadInstance.start(runner.workload, {
                 resources,
                 history: runner.history(start.audit, () => credential.current),
                 access: runner.access(
@@ -126,7 +115,10 @@ export class WorkloadRunner implements AsyncDisposable {
             }
 
             // hold the instance with the credential its clients read
-            log.info("workload.started", { workload: start.workload, instance: start.instance });
+            log.info("workload.started", {
+                workload: runner.workload.name,
+                instance: start.instance,
+            });
 
             return new WorkloadRunner(
                 start,
@@ -134,7 +126,7 @@ export class WorkloadRunner implements AsyncDisposable {
                 service,
                 running,
                 credential,
-                runner.package.id,
+                runner.workload.package.id,
             );
         } catch (error) {
             await running.shutdown();
@@ -152,7 +144,7 @@ export class WorkloadRunner implements AsyncDisposable {
         this.#credential.current = renewal.credential;
     }
 
-    /** Serve a request the host forwards below the package's mount, refusing any other. */
+    /** Serve a forwarded request below the package's mount and refuse any other. */
     fetch(request: Request): Promise<Response> {
         // refuse a request without the host's secret before anything serves it
         if (request.headers.get("authorization") !== `Bearer ${this.start.secret}`) {
@@ -190,12 +182,12 @@ export class WorkloadRunner implements AsyncDisposable {
     }
 
     /** Connect each bound resource through its provider. */
-    static async #connect(runner: RunnerPackage, start: WorkloadStart): Promise<ResourceContext> {
+    static async #connect(runner: RunnerOptions, start: WorkloadStart): Promise<ResourceContext> {
         const resources = new ResourceContext();
         for (const [name, binding] of Object.entries(start.bindings)) {
-            // require the declaration and its provider
+            // require the declaration and the provider of its kind
             const declaration = runner.resources[name];
-            const provider = runner.providers[binding.provider];
+            const provider = declaration?.providers[binding.provider];
             if (declaration === undefined || provider === undefined) {
                 throw new ServiceError("NOT_FOUND", {
                     message: `no resource ${name} with provider ${binding.provider}`,
@@ -205,7 +197,7 @@ export class WorkloadRunner implements AsyncDisposable {
             // connect through the provider holding the resource
             const { resource, kind, reference, spec } = binding;
             const record = { id: resource, scope: start.scope, kind, spec, reference };
-            const client = await provider(new URL(reference)).connect(record, declaration);
+            const client = await (await provider(new URL(reference))).connect(record, declaration);
             resources.bind(declaration, client as never);
         }
 
@@ -213,8 +205,8 @@ export class WorkloadRunner implements AsyncDisposable {
     }
 
     /** Serve the package's service to the callers the host forwards. */
-    static #serve(runner: RunnerPackage, start: WorkloadStart) {
-        const audience = runner.package.id;
+    static #serve(runner: RunnerOptions, start: WorkloadStart) {
+        const audience = runner.workload.package.id;
 
         return {
             audience,

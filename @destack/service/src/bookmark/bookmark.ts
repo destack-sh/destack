@@ -40,7 +40,7 @@ export class Bookmark {
         return this.#watermarks;
     }
 
-    /** Merge a watermark, keeping the newest per scope. */
+    /** Merge a watermark and keep the newest per scope. */
     observe(watermark: Watermark): void {
         const index = this.#watermarks.findIndex((known) => known.scope === watermark.scope);
 

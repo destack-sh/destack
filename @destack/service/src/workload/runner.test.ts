@@ -1,5 +1,6 @@
+import { type ChainRelay } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
-import { principal, type AccessRelay } from "@destack/access";
+import { principal } from "@destack/access";
 import { identifier } from "@destack/schema";
 import { Caller } from "../authentication/index.ts";
 import { defineService } from "../declare/service.ts";
@@ -18,7 +19,6 @@ const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-0000000
 /** The host's start message. */
 const start: WorkloadStart = {
     instance: identifier("instance").parse("instance-01996ab0-0000-7000-8000-000000000002"),
-    workload: "main",
     scope: spaceId,
     installation: identifier("installation").parse(
         "installation-01996ab0-0000-7000-8000-000000000003",
@@ -56,8 +56,8 @@ test("serve a forwarded caller below the package's mount, and export telemetry w
         globalThis.fetch = fetch;
     });
 
-    // start a workload whose service answers with the path and the caller it sees
-    const relay: AccessRelay = {
+    // start a workload with a service that answers with the path and the caller
+    const relay: ChainRelay = {
         scope: spaceId,
         watch: () => {
             throw new Error("the fixture relay streams no access");
@@ -65,9 +65,8 @@ test("serve a forwarded caller below the package's mount, and export telemetry w
     };
     const runner = await WorkloadRunner.start(
         {
-            package: notes.package,
-            workloads: {
-                main: defineWorkload({
+            workload: defineWorkload(
+                {
                     name: "main",
                     start: async () => ({
                         services: [
@@ -82,10 +81,10 @@ test("serve a forwarded caller below the package's mount, and export telemetry w
                             },
                         ],
                     }),
-                }),
-            },
+                },
+                { package: notes.package },
+            ),
             resources: {},
-            providers: {},
             history: () => ({ ingest: async () => ({ events: 0 }) }),
             access: () => relay,
         },
@@ -101,7 +100,7 @@ test("serve a forwarded caller below the package's mount, and export telemetry w
     const unauthorized = await runner.fetch(new Request(`${mount}/notes`));
     const refusal = await unauthorized.json();
     const now = Date.now();
-    const alice = principal.user.reference("global", "alice");
+    const alice = principal.user.reference("universe", "alice");
     const headers = new Headers({ authorization: "Bearer forwarding" });
     new Caller({
         subject: alice,

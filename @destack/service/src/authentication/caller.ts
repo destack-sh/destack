@@ -39,7 +39,7 @@ const KeptPermission = PermissionReference.extend({
     objectId: schema.string().optional(),
 });
 
-/** A verified caller as it travels between hosts, runners and services. */
+/** A verified caller in transit between hosts, runners and services. */
 export const CallerAuthentication = schema.object({
     /** The authority scope of a scoped credential. */
     scope: schema.string().min(1).optional(),
@@ -78,7 +78,7 @@ export const CallerAuthentication = schema.object({
 export const CALLER_HEADER = "x-destack-caller";
 
 /** A verified caller. */
-export class Caller<Credential = unknown> {
+export class Caller<Credential extends CredentialReference = CredentialReference> {
     /** The host-verified authentication. */
     readonly authentication: CallerAuthentication<Credential>;
 
@@ -167,9 +167,7 @@ export class Caller<Credential = unknown> {
             ...(authentication.identifiers === undefined
                 ? {}
                 : { identifiers: authentication.identifiers }),
-            ...(isCredentialReference(authentication.credential)
-                ? { session: `${authentication.credential.kind}:${authentication.credential.id}` }
-                : {}),
+            session: SessionKey.of(authentication.credential),
             delegates: authentication.delegates,
             attributes: authentication.attributes ?? {},
             permissions: authentication.permissions,
@@ -248,21 +246,32 @@ export class Caller<Credential = unknown> {
     }
 }
 
-/** A verified caller as it travels, with a credential reference its verifier shapes. */
-export type CallerAuthentication<Credential = unknown> = Omit<
-    schema.Infer<typeof CallerAuthentication>,
-    "credential"
-> & {
-    /** The credential reference. */
-    readonly credential: Credential;
-};
+/** A verified caller in transit with a credential reference from its verifier. */
+export type CallerAuthentication<Credential extends CredentialReference = CredentialReference> =
+    Omit<schema.Infer<typeof CallerAuthentication>, "credential"> & {
+        /** The credential reference. */
+        readonly credential: Credential;
+    };
 
-/** Whether a credential has a kind and an identifier. */
-function isCredentialReference(credential: unknown): credential is { kind: string; id: string } {
-    return (
-        typeof credential === "object" &&
-        credential !== null &&
-        typeof (credential as { kind?: unknown }).kind === "string" &&
-        typeof (credential as { id?: unknown }).id === "string"
-    );
+/** A credential a caller presented, by kind and identifier. */
+export interface CredentialReference {
+    /** The credential kind, such as session or host-key. */
+    readonly kind: string;
+    /** The credential identifier. */
+    readonly id: string;
 }
+
+/** A caller's session key in access decisions: its credential's kind and identifier. */
+export const SessionKey = {
+    /** Build a credential's session key. */
+    of(credential: CredentialReference): string {
+        return `${credential.kind}:${credential.id}`;
+    },
+
+    /** Read the credential identifier of a session key of one kind, absent for another kind. */
+    id(key: string | undefined, kind: string): string | undefined {
+        const prefix = `${kind}:`;
+
+        return key?.startsWith(prefix) === true ? key.slice(prefix.length) : undefined;
+    },
+};

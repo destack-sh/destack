@@ -11,7 +11,7 @@ const CLOCK_TOLERANCE_MILLISECONDS = 5 * 60 * 1000;
 /** The originals of copied requests. */
 const ORIGINALS = new WeakMap<Request, Request>();
 
-/** Copy a request with changes and an optional URL, holding the client's original while the copy lives. */
+/** Copy a request with changes and an optional URL and hold the client's original while the copy lives. */
 export function copyRequest(request: Request, changes: RequestInit, url = request.url): Request {
     const copy = new Request(url, new Request(request, changes));
     ORIGINALS.set(copy, originalRequest(request));

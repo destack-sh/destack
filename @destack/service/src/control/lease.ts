@@ -28,7 +28,7 @@ export const controllerLease = defineTable(
         key: text("key").notNull(),
         /** The instance holding the lease. */
         holder: text("holder").notNull(),
-        /** The count of takeovers, which fences writes. */
+        /** The count of takeovers that fences writes. */
         epoch: integer("epoch").notNull(),
         /** The lapse time, in UTC epoch milliseconds. */
         expiresAt: integer("expires_at").notNull(),

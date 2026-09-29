@@ -1,5 +1,5 @@
+import { type ChainRelay } from "@destack/sync";
 import type { ResourceContext } from "@destack/resource/context";
-import type { AccessRelay } from "@destack/access";
 import { reference } from "@destack/package/declare";
 import { Server, type ServerOptions, type ServiceImplementation } from "../server/index.ts";
 import type { Service } from "../declare/service.ts";
@@ -186,7 +186,7 @@ export interface WorkloadInstanceOptions {
     /** The audit history the workload's outboxes deliver to. */
     readonly history: AuditHistory;
     /** The relay of the access of the installation's space and its containing scopes. */
-    readonly access?: AccessRelay;
+    readonly access?: ChainRelay;
     /** Select the options of one service. */
     service(
         service: Service,

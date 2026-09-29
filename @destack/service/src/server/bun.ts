@@ -4,7 +4,7 @@ import { startTelemetry } from "@destack/telemetry/host";
 import type {} from "@destack/package/import-meta";
 import { ServiceError } from "../error/index.ts";
 import {
-    type RunnerPackage,
+    type RunnerOptions,
     type WorkloadReady,
     WorkloadRenewal,
     WorkloadRunner,
@@ -79,9 +79,9 @@ export async function serveProcess(options: ProcessOptions): Promise<void> {
     }
 }
 
-/** Run the workload a host's first input line starts, on a loopback port, until shutdown. */
+/** Run a workload as a host's first input line starts it, on a loopback port, until shutdown. */
 export async function runWorkload(
-    runner: RunnerPackage,
+    runner: RunnerOptions,
     lines: AsyncIterator<string>,
     ready: (ready: WorkloadReady) => Promise<void>,
 ): Promise<void> {

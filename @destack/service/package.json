@@ -55,6 +55,7 @@
         "@orpc/server": "1.15.1",
         "@destack/resource": "workspace:*",
         "@destack/access": "workspace:*",
+        "@destack/sync": "workspace:*",
         "cron-parser": "5.7.0"
     }
 }

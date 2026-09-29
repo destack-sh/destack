@@ -50,7 +50,7 @@ export interface Address<Message = unknown> {
 export interface Destination<Message = unknown> extends Address<Message> {
     /** The most messages one delivery carries. */
     readonly batch: number;
-    /** Accept messages oldest first, each once by key. */
+    /** Accept messages oldest first and once per key. */
     accept(
         messages: readonly Message[],
         options: { readonly signal: AbortSignal },
