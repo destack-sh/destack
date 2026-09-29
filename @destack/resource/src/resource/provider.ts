@@ -20,7 +20,7 @@ export interface ResourceRecord {
 
 /** What a host lends the providers it opens for one workload. */
 export interface ProviderContext {
-    /** Read the workload's current credential, for providers calling services as it. */
+    /** Read the credential the workload's calls through its host carry. */
     credential(): string;
 }
 
