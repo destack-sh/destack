@@ -26,7 +26,7 @@ impl Specialization<'_, '_> {
             return CaseMap::Kept;
         }
 
-        let storage = self.source.storage_type(template);
+        let storage = template.storage(self.source);
         let mir::Type::Variant { cases, .. } = self.source.type_definition(storage).clone() else {
             return CaseMap::Kept;
         };
@@ -36,7 +36,7 @@ impl Specialization<'_, '_> {
             .iter()
             .map(|case| self.ty(case.ty))
             .collect::<Vec<_>>();
-        let (_, indices) = mir::Tree::union_cases(&payloads);
+        let (_, indices) = mir::Type::union_cases(&payloads);
         let distinct = indices.iter().max().map_or(0, |index| *index as usize + 1);
 
         // classify by the distinct case count

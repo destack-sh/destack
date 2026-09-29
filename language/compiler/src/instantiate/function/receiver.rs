@@ -4,7 +4,7 @@ use crate::instantiate::function::Specialization;
 use crate::{CompilerError, CompilerResult};
 
 impl Specialization<'_, '_> {
-    /// Borrow a witness call's receiver at the form its implementation takes.
+    /// Take a witness call's receiver at the form its implementation takes.
     pub(super) fn witness_receiver(
         &mut self,
         function: mir::FunctionId,
@@ -31,18 +31,36 @@ impl Specialization<'_, '_> {
             return Ok(None);
         }
 
-        // borrow the receiver place
         let mir::Type::Reference { pointee, .. } =
             self.state.tree.type_definition(parameter).clone()
         else {
             return Err(self.unreachable_receiver(passed, parameter));
         };
-        let place = match self.state.tree.type_definition(passed).clone() {
+        let result_type = mir::erase_lifetimes(&self.state.tree, parameter);
+        let taken = self.add_value(result_type);
+        match self.state.tree.type_definition(passed).clone() {
+            // reborrow a handle to the implementation's receiver
             mir::Type::Reference {
                 pointee: referent, ..
             } if referent == pointee => {
-                mir::Place::value(receiver).with_projection(mir::Projection::Deref)
+                self.prefix.push(mir::Instruction::Address {
+                    destination: taken,
+                    place: mir::Place::value(receiver).with_projection(mir::Projection::Deref),
+                    result_type,
+                });
             }
+            // upcast a subclass handle to the implementation's class
+            mir::Type::Reference {
+                pointee: referent, ..
+            } if self.is_class(referent) && self.is_class(pointee) => {
+                self.prefix.push(mir::Instruction::Cast {
+                    destination: taken,
+                    operator: mir::CastOperator::Bitcast,
+                    argument: receiver,
+                    to_type: result_type,
+                });
+            }
+            // borrow a value receiver from a local
             _ if passed == pointee => {
                 let local = self.state.tree.insert(mir::Local {
                     ty: passed,
@@ -53,23 +71,26 @@ impl Specialization<'_, '_> {
                     place: mir::Place::local(local),
                     value: receiver,
                 });
-
-                mir::Place::local(local)
+                self.prefix.push(mir::Instruction::Address {
+                    destination: taken,
+                    place: mir::Place::local(local),
+                    result_type,
+                });
             }
             _ => return Err(self.unreachable_receiver(passed, parameter)),
-        };
-        let result_type = mir::erase_lifetimes(&self.state.tree, parameter);
-        let borrowed = self.add_value(result_type);
-        self.prefix.push(mir::Instruction::Address {
-            destination: borrowed,
-            place,
-            result_type,
-        });
+        }
 
         let mut values = values;
-        values[0] = borrowed;
+        values[0] = taken;
 
         Ok(Some(self.state.tree.add_values(&values)))
+    }
+
+    /// Return whether one type is stored as a class object.
+    fn is_class(&self, ty: mir::TypeId) -> bool {
+        let storage = mir::Substitution::resolve(ty, &self.state.tree);
+
+        matches!(self.state.tree.get(storage), mir::Type::Class { .. })
     }
 
     /// Build the error for a receiver the implementation cannot take.

@@ -62,18 +62,30 @@ impl InstantiateState<'_> {
                 .functions
                 .iter()
                 .map(|function| mir::WitnessFunction {
-                    member: function.member,
                     requirement: self.import_function(module, &source.tree, function.requirement),
-                    function: self.import_function(module, &source.tree, function.function),
-                    arguments: function
-                        .arguments
-                        .iter()
-                        .map(|argument| {
-                            argument
-                                .as_ref()
-                                .map(|argument| self.import_argument(module, argument))
-                        })
-                        .collect(),
+                    implementation: match &function.implementation {
+                        mir::WitnessImplementation::Function {
+                            function,
+                            arguments,
+                        } => mir::WitnessImplementation::Function {
+                            function: self.import_function(module, &source.tree, *function),
+                            arguments: arguments
+                                .iter()
+                                .map(|argument| {
+                                    argument
+                                        .as_ref()
+                                        .map(|argument| self.import_argument(module, argument))
+                                })
+                                .collect(),
+                        },
+                        mir::WitnessImplementation::Virtual { slot } => {
+                            mir::WitnessImplementation::Virtual { slot: *slot }
+                        }
+                        mir::WitnessImplementation::Default => mir::WitnessImplementation::Default,
+                        mir::WitnessImplementation::Dynamic { slot } => {
+                            mir::WitnessImplementation::Dynamic { slot: *slot }
+                        }
+                    },
                 })
                 .collect();
             let types = foreign
@@ -143,7 +155,7 @@ impl InstantiateState<'_> {
     }
 
     /// Import one foreign generic argument into this tree.
-    fn import_argument(
+    pub(crate) fn import_argument(
         &mut self,
         module: ModuleId,
         argument: &mir::GenericArgument,
@@ -172,7 +184,7 @@ impl InstantiateState<'_> {
     }
 
     /// Return the lowered MIR of one home module.
-    fn home_source(&mut self, module: ModuleId) -> CompilerResult<Arc<MirLowered>> {
+    pub(crate) fn home_source(&mut self, module: ModuleId) -> CompilerResult<Arc<MirLowered>> {
         if let Some(source) = self.sources.get(&module) {
             return Ok(source.clone());
         }

@@ -9,6 +9,15 @@ use crate::{CompilerError, CompilerResult};
 pub(crate) enum Dispatch {
     /// The function the call names after substitution.
     Function(mir::FunctionId),
+    /// The slot the call reaches through its receiver's virtual table.
+    Virtual(mir::DispatchSlot),
+    /// The slot the call reaches through its dynamic receiver's table.
+    Dynamic {
+        /// The dispatching constraint.
+        constraint: mir::TypeId,
+        /// The dynamic slot.
+        slot: mir::DispatchSlot,
+    },
     /// A clone the compiler implements by loading through the receiver.
     Clone,
     /// A drop the compiler answers with an empty body.
@@ -59,23 +68,40 @@ impl InstantiateState<'_> {
             .iter()
             .find(|function| function.requirement == requirement)
             .cloned();
-        if let Some(function) = named {
-            if !self.tree.get(function.function).is_polymorphic() {
-                return Ok(Dispatch::Function(function.function));
+        match named.map(|named| named.implementation) {
+            // call a virtual implementation through the receiver's table
+            Some(mir::WitnessImplementation::Virtual { slot }) => {
+                return Ok(Dispatch::Virtual(slot));
             }
-            let Some(arguments) = function.fill(applied) else {
-                return Err(CompilerError::Internal {
-                    message: format!(
-                        "a witness call to '{}' with {} arguments for the implementer's places",
-                        self.strings.get(self.tree.get(requirement).name),
-                        applied.len()
-                    ),
+            // call a dynamic receiver's slot through its own table
+            Some(mir::WitnessImplementation::Dynamic { slot }) => {
+                return Ok(Dispatch::Dynamic {
+                    constraint: interface,
+                    slot,
                 });
-            };
+            }
+            Some(mir::WitnessImplementation::Function {
+                function,
+                arguments,
+            }) => {
+                if !self.tree.get(function).is_polymorphic() {
+                    return Ok(Dispatch::Function(function));
+                }
+                let Some(arguments) = mir::WitnessImplementation::fill(&arguments, applied) else {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "a witness call to '{}' with {} arguments for the implementer's places",
+                            self.strings.get(self.tree.get(requirement).name),
+                            applied.len()
+                        ),
+                    });
+                };
 
-            return self
-                .specialization(function.function, arguments)
-                .map(Dispatch::Function);
+                return self
+                    .specialization(function, arguments)
+                    .map(Dispatch::Function);
+            }
+            Some(mir::WitnessImplementation::Default) | None => {}
         }
 
         // specialize the requirement's default body at the receiver and its own arguments
@@ -129,17 +155,54 @@ impl InstantiateState<'_> {
                             message: "an erasure outside a dynamic destination".to_string(),
                         });
                     };
-                    erasures.push((*concrete, constraint));
+                    erasures.push((*instruction, *concrete, constraint));
                 }
             }
         }
 
-        // declare the implementations before the function worklist drains
-        for (concrete, constraint) in erasures {
-            self.declare_dynamic_table(concrete, constraint)?;
+        // bind a class through its conformance slot
+        for (instruction, concrete, constraint) in erasures {
+            match self.class_type(concrete) {
+                Some(class) => {
+                    let slot = self.conformance_slot(class, constraint)?;
+                    let mir::Instruction::DynamicBind { table, .. } =
+                        self.tree.get_mut(instruction)
+                    else {
+                        return Err(CompilerError::Internal {
+                            message: "an erasure outside a dynamic binding".to_string(),
+                        });
+                    };
+                    *table = mir::BindTable::Virtual { slot };
+                }
+                None => self.declare_dynamic_table(concrete, constraint)?,
+            }
         }
 
         Ok(())
+    }
+
+    /// Return the conformance slot of one constraint in one class's table.
+    fn conformance_slot(
+        &mut self,
+        class: mir::TypeId,
+        constraint: mir::TypeId,
+    ) -> CompilerResult<mir::DispatchSlot> {
+        let constraint = mir::erase_lifetimes(&self.tree, constraint);
+        let Some(table) = self.class_table(class)? else {
+            return Err(CompilerError::Internal {
+                message: format!("an erased class {class:?} without its virtual table"),
+            });
+        };
+        let slot = table.slots.iter().position(|slot| {
+            matches!(slot, mir::VirtualSlot::Conformance { constraint: slotted } if *slotted == constraint)
+        });
+        let Some(slot) = slot else {
+            return Err(CompilerError::Internal {
+                message: format!("an erased class {class:?} without a conformance slot"),
+            });
+        };
+
+        Ok(mir::DispatchSlot::new(slot as u32))
     }
 
     /// Record the dynamic table one closed concrete type answers a constraint with, once.
@@ -151,25 +214,27 @@ impl InstantiateState<'_> {
         if self.dispatch.dynamic_table(concrete, constraint).is_some() {
             return Ok(());
         }
-        let Some(shape) = self.dispatch.dynamic_shape(constraint).cloned() else {
+        let shape = self.shapes.shape(&self.tree, constraint);
+        let Some(shape) = shape.map(|(shape, _)| shape.clone()) else {
             return Err(CompilerError::Internal {
                 message: "an erasure without a registered constraint shape".to_string(),
             });
         };
-        let witness = self.witness(concrete, constraint)?;
-
         // lay out the concrete storage before recording field offsets
-        let storage = match self.tree.type_definition(concrete) {
+        let nominal = match self.tree.type_definition(concrete) {
             mir::Type::Reference { pointee, .. } => *pointee,
             _ => concrete,
         };
-        let storage = self.tree.storage_type(storage);
-        mir::LayoutBuilder::new(&self.tree, &mut self.layouts, self.layout)
-            .witnesses(&self.witnesses)
-            .layout_type(storage)
-            .map_err(|error| CompilerError::Internal {
-                message: format!("dynamic storage layout failed: {error:?}"),
-            })?;
+        let storage = nominal.storage(&self.tree);
+        let mut layouts = mir::LayoutBuilder::new(&self.tree, &mut self.layouts, self.layout)
+            .witnesses(&self.witnesses);
+        for ty in [storage, constraint] {
+            layouts
+                .layout_type(ty)
+                .map_err(|error| CompilerError::Internal {
+                    message: format!("dynamic storage layout failed: {error:?}"),
+                })?;
+        }
         let fields = self.layouts.named_field_offsets(storage);
 
         // fill one entry per constraint slot from the layout and the witness
@@ -183,33 +248,23 @@ impl InstantiateState<'_> {
                         None => mir::DynamicEntry::Absent,
                     }
                 }
-                mir::DynamicSlot::Function {
-                    name: Some(name), ..
-                } => {
-                    // select the witness function implementing the slot's member
-                    let function = witness.as_ref().and_then(|witness| {
+                // dispatch a method slot like its witness call
+                mir::DynamicSlot::Function { requirement, .. } => {
+                    let function = self.witness(concrete, constraint)?.and_then(|witness| {
                         witness
                             .functions
                             .iter()
-                            .find(|function| function.member == *name)
-                            .cloned()
+                            .map(|function| function.requirement)
+                            .find(|function| self.tree.get(*function).symbol == *requirement)
                     });
                     let Some(function) = function else {
                         return Err(CompilerError::Internal {
                             message: format!(
-                                "a dynamic slot '{}' without an implementing function",
-                                self.strings.get(*name)
+                                "a dynamic slot {requirement:?} without its witness requirement"
                             ),
                         });
                     };
-                    mir::DynamicEntry::Function {
-                        function: function.function,
-                    }
-                }
-                mir::DynamicSlot::Function { name: None, .. } => {
-                    return Err(CompilerError::Internal {
-                        message: "a call-signature constraint member".to_string(),
-                    });
+                    self.dynamic_function(concrete, constraint, nominal, function)?
                 }
             };
             entries.push(entry);
@@ -217,7 +272,7 @@ impl InstantiateState<'_> {
 
         // index the concrete fields by name for keyed constraints
         let mut names = Vec::new();
-        if shape.is_keyed {
+        if shape.lookup == mir::ShapeLookup::Name {
             names.extend(fields.iter().map(|(name, offset)| mir::DynamicNamedEntry {
                 name: *name,
                 entry: mir::DynamicEntry::Field { offset: *offset },
@@ -236,6 +291,152 @@ impl InstantiateState<'_> {
         });
 
         Ok(())
+    }
+
+    /// Return the dynamic entry one method slot holds.
+    fn dynamic_function(
+        &mut self,
+        concrete: mir::TypeId,
+        constraint: mir::TypeId,
+        nominal: mir::TypeId,
+        requirement: mir::FunctionId,
+    ) -> CompilerResult<mir::DynamicEntry> {
+        match self.dispatch_witness(concrete, constraint, requirement, &[])? {
+            Dispatch::Function(function) => {
+                let function = self.payload_shim(function, concrete)?;
+
+                Ok(mir::DynamicEntry::Function { function })
+            }
+            // take the concrete class's own method for a virtual slot
+            Dispatch::Virtual(slot) => {
+                let table = self.class_table(nominal)?;
+                let method = table.and_then(|table| table.slots.get(slot.index()).cloned());
+                let Some(mir::VirtualSlot::Method {
+                    function,
+                    arguments,
+                }) = method
+                else {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "a dynamic slot {requirement:?} on a class slot without a method"
+                        ),
+                    });
+                };
+                if !arguments.is_empty() {
+                    return Err(CompilerError::Internal {
+                        message: format!("a dynamic slot {requirement:?} on an open class method"),
+                    });
+                }
+
+                Ok(mir::DynamicEntry::Function { function })
+            }
+            Dispatch::Dynamic { .. }
+            | Dispatch::Clone
+            | Dispatch::Drop
+            | Dispatch::Zero
+            | Dispatch::One => Err(CompilerError::Internal {
+                message: format!(
+                    "a dynamic slot {requirement:?} without a concrete implementation"
+                ),
+            }),
+        }
+    }
+
+    /// Return the function a table slot calls with its payload.
+    fn payload_shim(
+        &mut self,
+        function: mir::FunctionId,
+        concrete: mir::TypeId,
+    ) -> CompilerResult<mir::FunctionId> {
+        // keep an implementation taking the payload address
+        let declared = self.tree.get(function).clone();
+        let Some(receiver) = declared.parameters.first() else {
+            return Err(CompilerError::Internal {
+                message: "a dynamic slot implementation without a receiver".to_string(),
+            });
+        };
+        let is_boxed = !matches!(
+            self.tree.type_definition(concrete),
+            mir::Type::Reference { .. } | mir::Type::Parameter { .. }
+        );
+        if !is_boxed || mir::erase_lifetimes(&self.tree, receiver.ty) != concrete {
+            return Ok(function);
+        }
+
+        // copy the receiver out of the box
+        if !mir::is_copy(&self.tree, concrete, &[]) {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "a dynamic slot implementation '{}' consuming a boxed receiver",
+                    self.strings.get(declared.name)
+                ),
+            });
+        }
+
+        // declare one shared shim per implementation
+        let name = format!("{}.shim", self.strings.get(declared.name));
+        let name = self.strings.intern(&name);
+        let symbol = declared.symbol.shim();
+        if let Some(existing) = self.functions.get(&symbol) {
+            return Ok(*existing);
+        }
+        // append the payload lifetime
+        let payload_lifetime = declared.lifetimes.len() as u32;
+        let mut lifetimes = declared.lifetimes.clone();
+        lifetimes.push(mir::LifetimeParameter::new(Some(
+            self.strings.intern("'payload"),
+        )));
+        let payload = self.tree.intern_type(mir::Type::Reference {
+            kind: mir::Reference::Borrowed,
+            lifetime: mir::Lifetime::bound(payload_lifetime),
+            access: mir::Access::Readonly,
+            pointee: concrete,
+        });
+        let mut parameters = vec![mir::FunctionParameter::new(mir::Value::new(0), payload)];
+        for (index, parameter) in declared.parameters.iter().enumerate().skip(1) {
+            let value = mir::Value::new(index as u32);
+            parameters.push(mir::FunctionParameter::new(value, parameter.ty));
+        }
+        let mut shim = mir::Function::declare(
+            self.module,
+            name,
+            lifetimes,
+            parameters,
+            declared.return_type,
+        )
+        .with_symbol(symbol);
+        shim.linkage = mir::Linkage::Shared;
+        let shim = self.tree.insert(shim);
+        self.functions.insert(symbol, shim);
+
+        // load the receiver and forward the arguments
+        let pointer_bits = self.layout.pointer.width_bits();
+        let mut builder =
+            mir::FunctionBuilder::from_declared(self.module, &mut self.tree, pointer_bits, shim)
+                .map_err(|error| CompilerError::Internal {
+                    message: format!("a dynamic shim failed to build: {error}"),
+                })?;
+        let block = builder.block();
+        builder.switch_to_block(block);
+        let payload = builder.function_parameter(0);
+        let place = mir::Place::value(payload).with_projection(mir::Projection::Deref);
+        let mut values = vec![builder.load(place, concrete)];
+        values
+            .extend((1..declared.parameters.len()).map(|index| builder.function_parameter(index)));
+
+        // call the implementation and return its result
+        let signature = builder.tree_mut().intern_type(declared.signature());
+        let callee = mir::Callee::Direct {
+            function,
+            arguments: Vec::new(),
+        };
+        let result = builder.call(callee, signature, values, declared.return_type);
+        builder.return_(result);
+        builder.finish().map_err(|error| CompilerError::Internal {
+            message: format!("a dynamic shim failed to build: {error}"),
+        })?;
+
+        Ok(shim)
     }
 
     /// Return the global one closed receiver answers an interface's associated const with.

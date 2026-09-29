@@ -227,11 +227,6 @@ entry(v0: int8):
 /// @layout.struct name=Zero size=0 align=1
 /// @layout.struct name=One size=0 align=1
 /// @layout.struct name=type@4 size=0 align=1
-
-/// @dispatch.shape constraint=type@2 function=clone function=cloneFrom function=zero function=one
-/// @dispatch.shape constraint=type@7 function=clone function=cloneFrom
-/// @dispatch.shape constraint=type@9 function=zero
-/// @dispatch.shape constraint=type@10 function=one
 "#,
     );
 }
@@ -260,7 +255,7 @@ function main(): boolean {
     session.assert_mir_elaborated(
         "main.tspp", r#"
 @nocopy
-type test.main.User { }
+type test.main.User = class {  };
 
 @nocopy
 @languageItem("ops.StrictEqual")
@@ -318,18 +313,18 @@ entry(v0: variant<uint1> { 0uint1 = ref<test.main.User, managed, mutable, local>
     return v3
 }
 
-/// @layout.struct name=test.main.User size=0 align=1
-/// @layout.struct name=type@2 size=0 align=1
-/// @layout.variant name=type@12 size=8 align=4
-/// @layout.discriminant owner=type@12 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@12 index=0 discriminant=0 payload_offset=4
-/// @layout.case owner=type@12 index=1 discriminant=1 payload_offset=4
-/// @layout.variant name=type@13 size=8 align=8
-/// @layout.discriminant owner=type@13 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
-/// @layout.case owner=type@13 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@13 index=1 discriminant=1 payload_offset=0
+/// @layout.class name=test.main.User size=4 align=4
+/// @layout.class name=type@2 size=4 align=4
+/// @layout.variant name=type@13 size=8 align=4
+/// @layout.discriminant owner=type@13 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@13 index=0 discriminant=0 payload_offset=4
+/// @layout.case owner=type@13 index=1 discriminant=1 payload_offset=4
+/// @layout.variant name=type@14 size=8 align=8
+/// @layout.discriminant owner=type@14 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@14 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@14 index=1 discriminant=1 payload_offset=0
 
-/// @dispatch.shape constraint=type@6
+/// @dispatch.virtual concrete=type@0 value=type@1
 "#,
     );
 }
@@ -441,8 +436,6 @@ entry(v0: ptr<int32, mutable>, v1: variant<uint1> { 0uint1 = MemoryOrdering; 1ui
 /// @layout.case owner=type@7 index=0 discriminant=0 payload_offset=0
 /// @layout.case owner=type@7 index=1 discriminant=1 payload_offset=0
 /// @layout.struct name=type@10 size=0 align=1
-
-/// @dispatch.shape constraint=type@8 function=clone function=cloneFrom
 "#,
     );
 }
@@ -469,9 +462,7 @@ function main(left: string, right: string): boolean {
         r#"
 @nocopy
 @languageItem("string.String")
-type String {
-    codeUnits: slice<uint16, unique, mutable>;
-}
+type String = class { codeUnits: slice<uint16, unique, mutable> };
 
 @nocopy
 @languageItem("ops.StrictEqual")
@@ -507,12 +498,10 @@ entry(v0: ref<String, managed, mutable, local>, v1: ref<String, managed, mutable
 
 external function stringEqual(ref<String, managed, mutable, local>, ref<String, managed, mutable, local>): boolean
 
-/// @layout.struct name=String size=16 align=8
-/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
-/// @layout.struct name=type@4 size=16 align=8
-/// @layout.field owner=type@4 index=0 name=codeUnits offset=0 size=16 align=8
-
-/// @dispatch.shape constraint=type@7
+/// @layout.class name=String size=24 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=8 size=16 align=8
+/// @layout.class name=type@4 size=24 align=8
+/// @layout.field owner=type@4 index=0 name=codeUnits offset=8 size=16 align=8
 "#,
     );
 }
@@ -539,9 +528,7 @@ function main(left: string, right: string): boolean {
         r#"
 @nocopy
 @languageItem("string.String")
-type String {
-    codeUnits: slice<uint16, unique, mutable>;
-}
+type String = class { codeUnits: slice<uint16, unique, mutable> };
 
 @nocopy
 @languageItem("ops.StrictEqual")
@@ -578,12 +565,10 @@ entry(v0: ref<String, managed, mutable, local>, v1: ref<String, managed, mutable
 
 external function stringEqual(ref<String, managed, mutable, local>, ref<String, managed, mutable, local>): boolean
 
-/// @layout.struct name=String size=16 align=8
-/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
-/// @layout.struct name=type@4 size=16 align=8
-/// @layout.field owner=type@4 index=0 name=codeUnits offset=0 size=16 align=8
-
-/// @dispatch.shape constraint=type@7
+/// @layout.class name=String size=24 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=8 size=16 align=8
+/// @layout.class name=type@4 size=24 align=8
+/// @layout.field owner=type@4 index=0 name=codeUnits offset=8 size=16 align=8
 "#,
     );
 }
@@ -698,9 +683,6 @@ entry:
 /// @layout.field owner=type@26 index=0 name=value offset=0 size=4 align=4
 /// @layout.struct name=type@28 size=8 align=8
 /// @layout.field owner=type@28 index=0 offset=0 size=8 align=8
-
-/// @dispatch.shape constraint=type@6 function=clone function=cloneFrom
-/// @dispatch.shape constraint=type@9 function=clone function=cloneFrom
 "#,
     );
 }

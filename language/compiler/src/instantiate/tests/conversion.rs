@@ -71,6 +71,8 @@ entry(v0: ref<int32, borrowed, 'a, immutable>):
     return v1
 }
 
+external function Clone.cloneFrom<this: Clone, 'a, 'b>(ref<?this, borrowed, 'a, exclusive>, ref<?this, borrowed, 'b, immutable>): void
+
 shared function test.main.duplicate<int32, 'a>(v0: ref<int32, borrowed, 'a, immutable>): int32 {
     local l0: ref<int32, borrowed, 'a, immutable>
 
@@ -89,8 +91,6 @@ entry(v0: ref<int32, borrowed, 'a, immutable>):
 /// @layout.struct name=Zero size=0 align=1
 /// @layout.struct name=One size=0 align=1
 /// @layout.struct name=type@6 size=0 align=1
-
-/// @dispatch.shape constraint=type@4 function=clone function=cloneFrom
 "#,
     );
 }

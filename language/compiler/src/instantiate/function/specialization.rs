@@ -337,27 +337,18 @@ impl Specialization<'_, '_> {
                 }));
             }
             mir::Instruction::Call { destination, call } => {
-                let mut arguments = self.values(call.arguments);
+                call.arguments = self.values(call.arguments);
                 match self.dispatch(&call.callee)? {
-                    Some(Dispatch::Function(function)) => {
-                        if matches!(call.callee, mir::Callee::Witness { .. })
-                            && let Some(adjusted) = self.witness_receiver(function, arguments)?
-                        {
-                            arguments = adjusted;
-                            let signature = self.state.tree.get(function).signature();
-                            call.signature = self.state.tree.intern_type(signature);
-                        }
-                        call.callee = mir::Callee::Direct {
-                            function,
-                            arguments: Vec::new(),
-                        };
+                    Some(Dispatch::Function(function)) => self.select_function(call, function)?,
+                    Some(Dispatch::Virtual(slot)) => self.select_slot(call, slot)?,
+                    Some(Dispatch::Dynamic { constraint, slot }) => {
+                        self.select_dynamic(call, constraint, slot)?;
                     }
                     Some(dispatch) => {
-                        return self.structural_call(dispatch, *destination, arguments);
+                        return self.structural_call(dispatch, *destination, call.arguments);
                     }
                     None => {}
                 }
-                call.arguments = arguments;
             }
             _ => {}
         }
@@ -373,7 +364,9 @@ impl Specialization<'_, '_> {
         arguments: mir::ValueSlice,
     ) -> CompilerResult<Option<mir::Instruction>> {
         match dispatch {
-            Dispatch::Function(_) => unreachable!("a function dispatch rewrites the callee"),
+            Dispatch::Function(_) | Dispatch::Virtual(_) | Dispatch::Dynamic { .. } => {
+                unreachable!("a function dispatch rewrites the callee")
+            }
             // a clone loads through the receiver
             Dispatch::Clone => {
                 let Some(destination) = destination else {
@@ -491,18 +484,10 @@ impl Specialization<'_, '_> {
     /// Rewrite the callee of one terminator call.
     fn dispatch_call(&mut self, call: &mut mir::Call, position: &str) -> CompilerResult<()> {
         match self.dispatch(&call.callee)? {
-            Some(Dispatch::Function(function)) => {
-                if matches!(call.callee, mir::Callee::Witness { .. })
-                    && let Some(adjusted) = self.witness_receiver(function, call.arguments)?
-                {
-                    call.arguments = adjusted;
-                    let signature = self.state.tree.get(function).signature();
-                    call.signature = self.state.tree.intern_type(signature);
-                }
-                call.callee = mir::Callee::Direct {
-                    function,
-                    arguments: Vec::new(),
-                };
+            Some(Dispatch::Function(function)) => self.select_function(call, function)?,
+            Some(Dispatch::Virtual(slot)) => self.select_slot(call, slot)?,
+            Some(Dispatch::Dynamic { constraint, slot }) => {
+                self.select_dynamic(call, constraint, slot)?;
             }
             Some(Dispatch::Clone | Dispatch::Drop | Dispatch::Zero | Dispatch::One) => {
                 return Err(CompilerError::Internal {
@@ -511,6 +496,155 @@ impl Specialization<'_, '_> {
             }
             None => {}
         }
+
+        Ok(())
+    }
+
+    /// Point one call at its selected function.
+    fn select_function(
+        &mut self,
+        call: &mut mir::Call,
+        function: mir::FunctionId,
+    ) -> CompilerResult<()> {
+        // take a witness receiver at the implementation's receiver
+        if matches!(call.callee, mir::Callee::Witness { .. })
+            && let Some(adjusted) = self.witness_receiver(function, call.arguments)?
+        {
+            call.arguments = adjusted;
+            let signature = self.state.tree.get(function).signature();
+            call.signature = self.state.tree.intern_type(signature);
+        }
+        call.callee = mir::Callee::Direct {
+            function,
+            arguments: Vec::new(),
+        };
+
+        Ok(())
+    }
+
+    /// Point one call at a slot of its class receiver's virtual table.
+    fn select_slot(&mut self, call: &mut mir::Call, slot: mir::DispatchSlot) -> CompilerResult<()> {
+        let Some(receiver) = call.receiver(&self.state.tree) else {
+            return Err(CompilerError::Internal {
+                message: "a virtual witness call without a receiver".to_string(),
+            });
+        };
+
+        // read a borrowed class handle
+        let receiver_type = self.value_type(receiver)?;
+        let handle = match self.state.class_type(receiver_type) {
+            Some(_) => receiver,
+            None => self.read_through_borrow(receiver)?,
+        };
+        let handle_type = self.value_type(handle)?;
+        let Some(class) = self.state.class_type(handle_type) else {
+            return Err(CompilerError::Internal {
+                message: "a virtual witness call without a class handle receiver".to_string(),
+            });
+        };
+        self.replace_receiver(call, handle, handle_type)?;
+        call.callee = mir::Callee::Virtual { class, slot };
+
+        Ok(())
+    }
+
+    /// Load one borrowed receiver's value.
+    fn read_through_borrow(&mut self, receiver: mir::Value) -> CompilerResult<mir::Value> {
+        let receiver_type = self.value_type(receiver)?;
+        let mir::Type::Reference { pointee, .. } =
+            self.state.tree.type_definition(receiver_type).clone()
+        else {
+            return Err(CompilerError::Internal {
+                message: "a witness receiver read through a non-borrow".to_string(),
+            });
+        };
+        if !mir::is_copy(&self.state.tree, pointee, &[]) {
+            return Err(CompilerError::Internal {
+                message: "a witness receiver borrowing a value it would copy out".to_string(),
+            });
+        }
+
+        // copy the handle out of its borrow
+        let value = self.add_value(pointee);
+        self.prefix.push(mir::Instruction::Load {
+            destination: value,
+            place: mir::Place::value(receiver).with_projection(mir::Projection::Deref),
+            result_type: pointee,
+        });
+
+        Ok(value)
+    }
+
+    /// Replace one call's receiver argument and its signature's receiver parameter.
+    fn replace_receiver(
+        &mut self,
+        call: &mut mir::Call,
+        receiver: mir::Value,
+        receiver_type: mir::TypeId,
+    ) -> CompilerResult<()> {
+        let mut values = self.state.tree.get_values(call.arguments).to_vec();
+        values[0] = receiver;
+        call.arguments = self.state.tree.add_values(&values);
+
+        // take the receiver type as the first parameter
+        let mut signature = self.state.tree.get(call.signature).clone();
+        let mir::Type::FunctionSignature { parameters, .. } = &mut signature else {
+            return Err(CompilerError::Internal {
+                message: "a witness call without a function signature".to_string(),
+            });
+        };
+        parameters[0] = mir::SignatureParameter::new(receiver_type);
+        call.signature = self.state.tree.intern_type(signature);
+
+        Ok(())
+    }
+
+    /// Point one call at a slot of its dynamic receiver's table.
+    fn select_dynamic(
+        &mut self,
+        call: &mut mir::Call,
+        constraint: mir::TypeId,
+        slot: mir::DispatchSlot,
+    ) -> CompilerResult<()> {
+        let Some(receiver) = call.receiver(&self.state.tree) else {
+            return Err(CompilerError::Internal {
+                message: "a dynamic witness call without a receiver".to_string(),
+            });
+        };
+
+        // read a borrowed dynamic receiver through its reference
+        let receiver_type = self.value_type(receiver)?;
+        let dynamic = match self.state.tree.type_definition(receiver_type) {
+            mir::Type::Reference { .. } => self.read_through_borrow(receiver)?,
+            _ => receiver,
+        };
+
+        // take the payload as the receiver
+        let dynamic_type = self.value_type(dynamic)?;
+        let payload_type = self
+            .state
+            .tree
+            .type_definition(dynamic_type)
+            .dynamic_payload();
+        let Some(payload_type) = payload_type else {
+            return Err(CompilerError::Internal {
+                message: "a dynamic witness call without a dynamic receiver".to_string(),
+            });
+        };
+        let payload_type = self.state.tree.intern_type(payload_type);
+        let payload = self.add_value(payload_type);
+        self.prefix.push(mir::Instruction::DynamicPayload {
+            destination: payload,
+            dynamic,
+            result_type: payload_type,
+        });
+
+        self.replace_receiver(call, payload, payload_type)?;
+        call.callee = mir::Callee::Dynamic {
+            receiver: dynamic,
+            constraint,
+            slot,
+        };
 
         Ok(())
     }

@@ -72,7 +72,9 @@ impl Specialization<'_, '_> {
             mir::Type::Reference { pointee, .. } => (vec![mir::Projection::Deref], *pointee),
             _ => (Vec::new(), closed),
         };
-        let mir::Type::Struct { fields } = tree.type_definition(storage) else {
+        let (mir::Type::Struct { fields } | mir::Type::Class { fields, .. }) =
+            tree.type_definition(storage)
+        else {
             return Err(self.absent_member(closed));
         };
         let index = fields

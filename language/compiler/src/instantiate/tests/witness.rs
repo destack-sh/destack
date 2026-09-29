@@ -40,8 +40,8 @@ entry(v0: ref<test.main.Path, borrowed, 'a, immutable>):
     return v3
 }
 
-/// @layout.struct name=test.main.Path size=32 align=8
-/// @layout.field owner=test.main.Path index=0 name=steps offset=0 size=32 align=8
+/// @layout.struct name=test.main.Path size=40 align=8
+/// @layout.field owner=test.main.Path index=0 name=steps offset=0 size=40 align=8
 "#,
     );
 }
@@ -181,7 +181,7 @@ function run(): int32 {
     session.assert_mir_elaborated(
         "main.tspp", r#"
 @nocopy
-type test.main.Console { }
+type test.main.Console = class {  };
 
 @nocopy
 type test.main.Greeter { }
@@ -199,8 +199,9 @@ export function test.main.run(): int32 {
 entry:
     v0: ref<test.main.Console, managed, mutable, local> = new.zeroed test.main.Console, local
     v1: dynamic<test.main.Greeter, managed, mutable, local> = call test.main.erase<ref<test.main.Console, managed, mutable, local>>(v0): (ref<test.main.Console, managed, mutable, local>) => dynamic<test.main.Greeter, managed, mutable, local>
-    v2: int32 = call.dynamic v1, test.main.Greeter, 0(): () => int32
-    return v2
+    v2: ref<test.main.Greeter, managed, mutable, local> = dynamic.payload v1
+    v3: int32 = call.dynamic v1, test.main.Greeter, 0(v2): (ref<test.main.Greeter, managed, mutable, local>) => int32
+    return v3
 }
 
 export function test.main.erase<T: test.main.Greeter>(v0: T): dynamic<test.main.Greeter, managed, mutable, local>;
@@ -213,16 +214,285 @@ shared function test.main.erase<ref<test.main.Console, managed, mutable, local>>
 entry(v0: ref<test.main.Console, managed, mutable, local>):
     store l0, v0
     v1: ref<test.main.Console, managed, mutable, local> = load l0
-    v2: dynamic<test.main.Greeter, managed, mutable, local> = dynamic.bind v1, ref<test.main.Console, managed, mutable, local>
+    v2: dynamic<test.main.Greeter, managed, mutable, local> = dynamic.bind v1, ref<test.main.Console, managed, mutable, local>[0]
     return v2
 }
 
-/// @layout.struct name=test.main.Console size=0 align=1
+/// @layout.class name=test.main.Console size=4 align=4
 /// @layout.struct name=test.main.Greeter size=0 align=1
-/// @layout.struct name=type@2 size=0 align=1
+/// @layout.class name=type@2 size=4 align=4
+/// @layout.struct name=type@8 size=0 align=1
 
-/// @dispatch.shape constraint=type@5 function=greet
-/// @dispatch.table concrete=type@1 constraint=type@5 function@1
+/// @dispatch.virtual concrete=type@0 value=type@1 conformance=type@5
+/// @dispatch.table concrete=type@1 constraint=type@5 function=test.main.Console.greet
+"#,
+    );
+}
+
+/// An erased function value answers its call slot through a shim loading it from the payload.
+#[test]
+fn test_instantiate_a_payload_shim_for_an_erased_function_value() {
+    let session = TestSession::single(
+        r#"
+interface Adder {
+    (value: int32): int32;
+}
+
+function add(adder: Adder): int32 {
+    adder(1)
+}
+
+function run(): int32 {
+    add((value: int32): int32 => value + 1)
+}
+"#,
+    );
+
+    session.assert_mir_elaborated(
+        "main.tspp", r#"
+@nocopy
+type test.main.Adder { }
+
+export function test.main.add(v0: dynamic<test.main.Adder, managed, mutable, local>): int32 {
+    local l0: dynamic<test.main.Adder, managed, mutable, local>
+
+entry(v0: dynamic<test.main.Adder, managed, mutable, local>):
+    store l0, v0
+    v1: dynamic<test.main.Adder, managed, mutable, local> = load l0
+    v2: int32 = 1
+    v3: ref<test.main.Adder, managed, mutable, local> = dynamic.payload v1
+    v4: int32 = call.dynamic v1, test.main.Adder, 0(v3, v2): (ref<test.main.Adder, managed, mutable, local>, int32) => int32
+    return v4
+}
+
+export function test.main.run(): int32 {
+entry:
+    v0: ptr<void, readonly> = null
+    v1: function<(int32) => int32, repeatable, managed, mutable, local> = function.bind test.main.run.closure#0, v0
+    v2: uninit<ref<function<(int32) => int32, repeatable, managed, mutable, local>, managed, mutable, local>> = new.uninit function<(int32) => int32, repeatable, managed, mutable, local>, local
+    store (*v2), v1
+    v3: ref<function<(int32) => int32, repeatable, managed, mutable, local>, managed, mutable, local> = new.complete v2
+    v4: dynamic<test.main.Adder, managed, mutable, local> = dynamic.bind v3, function<(int32) => int32, repeatable, managed, mutable, local>
+    v5: int32 = call test.main.add(v4): (dynamic<test.main.Adder, managed, mutable, local>) => int32
+    return v5
+}
+
+external function test.main.Adder.()<this: test.main.Adder>(this, int32): int32
+
+export function test.main.Adder.()<function<(int32) => int32, repeatable, managed, mutable, local>>(v0: function<(int32) => int32, repeatable, managed, mutable, local>, v1: int32): int32 {
+    local l0: int32
+    local l1: function<(int32) => int32, repeatable, managed, mutable, local>
+
+entry(v0: function<(int32) => int32, repeatable, managed, mutable, local>, v1: int32):
+    store l0, v1
+    store l1, v0
+    v2: function<(int32) => int32, repeatable, managed, mutable, local> = load l1
+    v3: int32 = load l0
+    v4: function<(int32) => int32, repeatable, borrowed, 'managed, readonly> = cast.bit v2 -> function<(int32) => int32, repeatable, borrowed, 'managed, readonly>
+    v5: int32 = call.indirect v4(v3): (int32) => int32
+    return v5
+}
+
+export function test.main.run.closure#0(v0: int32): int32 {
+    local l0: int32
+
+entry(v0: int32):
+    store l0, v0
+    v1: int32 = load l0
+    v2: int32 = 1
+    v3: int32 = add v1, v2
+    return v3
+}
+
+shared function test.main.Adder.().shim<'payload>(v0: ref<function<(int32) => int32, repeatable, managed, mutable, local>, borrowed, 'payload, readonly>, v1: int32): int32 {
+entry(v0: ref<function<(int32) => int32, repeatable, managed, mutable, local>, borrowed, 'payload, readonly>, v1: int32):
+    v2: function<(int32) => int32, repeatable, managed, mutable, local> = load (*v0)
+    v3: int32 = call test.main.Adder.()<function<(int32) => int32, repeatable, managed, mutable, local>>(v2, v1): (function<(int32) => int32, repeatable, managed, mutable, local>, int32) => int32
+    return v3
+}
+
+/// @layout.struct name=test.main.Adder size=0 align=1
+/// @layout.struct name=type@4 size=0 align=1
+
+/// @dispatch.table concrete=type@5 constraint=type@0 function=test.main.Adder.().shim
+"#,
+    );
+}
+
+/// A class extending a generic base inherits the base's virtual methods at its heritage arguments.
+#[test]
+fn test_instantiate_the_virtual_table_of_a_class_extending_a_generic_base() {
+    let session = TestSession::single(
+        r#"
+class Base<T: Copy> {
+    item: T;
+
+    constructor(item: T) {
+        this.item = item;
+    }
+
+    virtual get(): T {
+        this.item
+    }
+}
+
+class Derived extends Base<int32> {
+    constructor() {
+        super(1);
+    }
+}
+
+class Wrapper<T: Copy> extends Base<T> {
+    constructor(item: T) {
+        super(item);
+    }
+
+    override get(): T {
+        this.item
+    }
+}
+
+function read(base: Base<int32>): int32 {
+    base.get()
+}
+
+function run(): int32 {
+    read(new Derived()) + read(new Wrapper<int32>(2))
+}
+"#,
+    );
+
+    session.assert_mir_elaborated(
+        "main.tspp", r#"
+@nocopy
+type test.main.Derived = class<test.main.Base<int32>> { item: int32 };
+
+@nocopy
+type test.main.Base<T: Copy> = class { item: T };
+
+@nocopy
+@languageItem("memory.Copy")
+type Copy extends Clone { }
+
+@nocopy
+@languageItem("memory.Clone")
+type Clone { }
+
+@nocopy
+type test.main.Wrapper<T: Copy> = class<test.main.Base<T>> { item: T };
+
+export constructor test.main.Derived.constructor(v0: ref<uninit<test.main.Derived>, borrowed, 'managed, mutable>): void {
+    local l0: ref<uninit<test.main.Derived>, borrowed, 'managed, mutable>
+
+entry(v0: ref<uninit<test.main.Derived>, borrowed, 'managed, mutable>):
+    store l0, v0
+    v1: ref<uninit<test.main.Derived>, borrowed, 'managed, mutable> = address (*l0)
+    v2: ref<uninit<test.main.Base<int32>>, borrowed, 'managed, mutable> = cast.bit v1 -> ref<uninit<test.main.Base<int32>>, borrowed, 'managed, mutable>
+    v3: int32 = 1
+    call test.main.Base.constructor<int32>(v2, v3): (ref<uninit<test.main.Base<int32>>, borrowed, 'managed, mutable>, int32) => void
+    v4: void = zeroed
+    return
+}
+
+export function test.main.read(v0: ref<test.main.Base<int32>, managed, mutable, local>): int32 {
+    local l0: ref<test.main.Base<int32>, managed, mutable, local>
+
+entry(v0: ref<test.main.Base<int32>, managed, mutable, local>):
+    store l0, v0
+    v1: ref<test.main.Base<int32>, managed, mutable, local> = load l0
+    v2: int32 = call.virtual test.main.Base<int32>, 0(v1): (ref<test.main.Base<int32>, managed, mutable, local>) => int32
+    return v2
+}
+
+export function test.main.run(): int32 {
+entry:
+    v0: ref<test.main.Derived, managed, mutable, local> = new.zeroed test.main.Derived, local
+    v1: ref<uninit<test.main.Derived>, borrowed, 'managed, mutable> = cast.bit v0 -> ref<uninit<test.main.Derived>, borrowed, 'managed, mutable>
+    call test.main.Derived.constructor(v1): (ref<uninit<test.main.Derived>, borrowed, 'managed, mutable>) => void
+    v2: ref<test.main.Base<int32>, managed, mutable, local> = cast.bit v0 -> ref<test.main.Base<int32>, managed, mutable, local>
+    v3: int32 = call test.main.read(v2): (ref<test.main.Base<int32>, managed, mutable, local>) => int32
+    v4: int32 = 2
+    v5: ref<test.main.Wrapper<int32>, managed, mutable, local> = new.zeroed test.main.Wrapper<int32>, local
+    v6: ref<uninit<test.main.Wrapper<int32>>, borrowed, 'managed, mutable> = cast.bit v5 -> ref<uninit<test.main.Wrapper<int32>>, borrowed, 'managed, mutable>
+    call test.main.Wrapper.constructor<int32>(v6, v4): (ref<uninit<test.main.Wrapper<int32>>, borrowed, 'managed, mutable>, int32) => void
+    v7: ref<test.main.Base<int32>, managed, mutable, local> = cast.bit v5 -> ref<test.main.Base<int32>, managed, mutable, local>
+    v8: int32 = call test.main.read(v7): (ref<test.main.Base<int32>, managed, mutable, local>) => int32
+    v9: int32 = add v3, v8
+    return v9
+}
+
+export constructor test.main.Base.constructor<T: Copy>(v0: ref<uninit<test.main.Base<T>>, borrowed, 'managed, mutable>, v1: T): void;
+
+export function test.main.Base.get<T: Copy>(v0: ref<test.main.Base<T>, managed, mutable, local>): T;
+
+export constructor test.main.Wrapper.constructor<T: Copy>(v0: ref<uninit<test.main.Wrapper<T>>, borrowed, 'managed, mutable>, v1: T): void;
+
+export function test.main.Wrapper.get<T: Copy>(v0: ref<test.main.Wrapper<T>, managed, mutable, local>): T;
+
+shared constructor test.main.Base.constructor<int32>(v0: ref<uninit<test.main.Base<int32>>, borrowed, 'managed, mutable>, v1: int32): void {
+    local l0: int32
+    local l1: ref<uninit<test.main.Base<int32>>, borrowed, 'managed, mutable>
+
+entry(v0: ref<uninit<test.main.Base<int32>>, borrowed, 'managed, mutable>, v1: int32):
+    store l0, v1
+    store l1, v0
+    v2: ref<uninit<test.main.Base<int32>>, borrowed, 'managed, mutable> = load l1
+    v3: int32 = load l0
+    store (*v2).0, v3
+    return
+}
+
+shared constructor test.main.Wrapper.constructor<int32>(v0: ref<uninit<test.main.Wrapper<int32>>, borrowed, 'managed, mutable>, v1: int32): void {
+    local l0: int32
+    local l1: ref<uninit<test.main.Wrapper<int32>>, borrowed, 'managed, mutable>
+
+entry(v0: ref<uninit<test.main.Wrapper<int32>>, borrowed, 'managed, mutable>, v1: int32):
+    store l0, v1
+    store l1, v0
+    v2: ref<uninit<test.main.Wrapper<int32>>, borrowed, 'managed, mutable> = address (*l1)
+    v3: ref<uninit<test.main.Base<int32>>, borrowed, 'managed, mutable> = cast.bit v2 -> ref<uninit<test.main.Base<int32>>, borrowed, 'managed, mutable>
+    v4: int32 = load l0
+    call test.main.Base.constructor<int32>(v3, v4): (ref<uninit<test.main.Base<int32>>, borrowed, 'managed, mutable>, int32) => void
+    v5: void = zeroed
+    return
+}
+
+shared function test.main.Base.get<int32>(v0: ref<test.main.Base<int32>, managed, mutable, local>): int32 {
+    local l0: ref<test.main.Base<int32>, managed, mutable, local>
+
+entry(v0: ref<test.main.Base<int32>, managed, mutable, local>):
+    store l0, v0
+    v1: ref<test.main.Base<int32>, managed, mutable, local> = load l0
+    v2: int32 = load (*v1).0
+    return v2
+}
+
+shared function test.main.Wrapper.get<int32>(v0: ref<test.main.Wrapper<int32>, managed, mutable, local>): int32 {
+    local l0: ref<test.main.Wrapper<int32>, managed, mutable, local>
+
+entry(v0: ref<test.main.Wrapper<int32>, managed, mutable, local>):
+    store l0, v0
+    v1: ref<test.main.Wrapper<int32>, managed, mutable, local> = load l0
+    v2: int32 = load (*v1).0
+    return v2
+}
+
+/// @layout.class name=test.main.Derived size=8 align=4
+/// @layout.field owner=test.main.Derived index=0 name=item offset=4 size=4 align=4
+/// @layout.struct name=Clone size=0 align=1
+/// @layout.struct name=type@7 size=0 align=1
+/// @layout.class name=test.main.Base<int32> size=8 align=4
+/// @layout.field owner=test.main.Base<int32> index=0 name=item offset=4 size=4 align=4
+/// @layout.class name=type@18 size=8 align=4
+/// @layout.field owner=type@18 index=0 name=item offset=4 size=4 align=4
+/// @layout.class name=type@19 size=8 align=4
+/// @layout.field owner=type@19 index=0 name=item offset=4 size=4 align=4
+/// @layout.class name=test.main.Wrapper<int32> size=8 align=4
+/// @layout.field owner=test.main.Wrapper<int32> index=0 name=item offset=4 size=4 align=4
+
+/// @dispatch.virtual concrete=type@0 value=type@1 method=test.main.Base.get<int32>
+/// @dispatch.virtual concrete=type@16 value=type@17 method=test.main.Base.get<int32>
+/// @dispatch.virtual concrete=type@47 value=type@51 method=test.main.Wrapper.get<int32>
 "#,
     );
 }
@@ -317,10 +587,7 @@ function main(): void {
         "test.main.label<ref<test.main.Person, managed, mutable, local>>",
         r#"
 @nocopy
-type test.main.Person {
-    age: int32;
-    name: ref<String, managed, mutable, local>;
-}
+type test.main.Person = class { age: int32, name: ref<String, managed, mutable, local> };
 
 @nocopy
 @languageItem("string.String")
@@ -337,9 +604,9 @@ entry(v0: ref<test.main.Person, borrowed, 'a, readonly>):
     return v3
 }
 
-/// @layout.struct name=test.main.Person size=16 align=8
-/// @layout.field owner=test.main.Person index=0 name=age offset=8 size=4 align=4
-/// @layout.field owner=test.main.Person index=1 name=name offset=0 size=8 align=8
+/// @layout.class name=test.main.Person size=24 align=8
+/// @layout.field owner=test.main.Person index=0 name=age offset=16 size=4 align=4
+/// @layout.field owner=test.main.Person index=1 name=name offset=8 size=8 align=8
 "#,
     );
     session.assert_mir_elaborated_function(
@@ -394,9 +661,7 @@ type test.main.Level = newtype<ref<String, managed, mutable, local>>;
 
 @nocopy
 @languageItem("string.String")
-type String {
-    codeUnits: slice<uint16, unique, mutable>;
-}
+type String = class { codeUnits: slice<uint16, unique, mutable> };
 
 @nocopy
 @languageItem("ops.Display")
@@ -457,13 +722,11 @@ entry(v0: ref<String, borrowed, 'a, exclusive>):
     return
 }
 
-/// @layout.struct name=String size=16 align=8
-/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
-/// @layout.struct name=type@5 size=16 align=8
-/// @layout.field owner=type@5 index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.class name=String size=24 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=8 size=16 align=8
+/// @layout.class name=type@5 size=24 align=8
+/// @layout.field owner=type@5 index=0 name=codeUnits offset=8 size=16 align=8
 /// @layout.struct name=type@10 size=0 align=1
-
-/// @dispatch.shape constraint=type@8 function=display
 "#,
     );
 }
@@ -554,9 +817,7 @@ function main(value: int32): void {
         r#"
 @nocopy
 @languageItem("string.String")
-type String {
-    codeUnits: slice<uint16, unique, mutable>;
-}
+type String = class { codeUnits: slice<uint16, unique, mutable> };
 
 @nocopy
 @languageItem("ops.Display")
@@ -728,8 +989,8 @@ entry(v0: ref<String, borrowed, 'a, exclusive>):
     return
 }
 
-/// @layout.struct name=String size=16 align=8
-/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.class name=String size=24 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=8 size=16 align=8
 /// @layout.struct name=Concrete size=0 align=1
 /// @layout.struct name=Copy size=0 align=1
 /// @layout.struct name=Clone size=0 align=1
@@ -737,8 +998,8 @@ entry(v0: ref<String, borrowed, 'a, exclusive>):
 /// @layout.struct name=Zero size=0 align=1
 /// @layout.struct name=One size=0 align=1
 /// @layout.struct name=literal.boolean.true size=0 align=1
-/// @layout.struct name=type@9 size=16 align=8
-/// @layout.field owner=type@9 index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.class name=type@9 size=24 align=8
+/// @layout.field owner=type@9 index=0 name=codeUnits offset=8 size=16 align=8
 /// @layout.struct name=type@12 size=0 align=1
 /// @layout.variant name=type@64 size=16 align=8
 /// @layout.discriminant owner=type@64 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
@@ -748,10 +1009,6 @@ entry(v0: ref<String, borrowed, 'a, exclusive>):
 /// @layout.discriminant owner=type@67 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
 /// @layout.case owner=type@67 index=0 discriminant=0 payload_offset=0
 /// @layout.case owner=type@67 index=1 discriminant=1 payload_offset=0
-
-/// @dispatch.shape constraint=type@10 function=display
-/// @dispatch.shape constraint=type@16 function=equal
-/// @dispatch.shape constraint=type@18 function=equal
 "#,
     );
 }
@@ -786,18 +1043,11 @@ type Default { }
 
 @nocopy
 @languageItem("collections.Deque")
-type Deque<T> {
-    storage: slice<uninit<T>, unique, mutable>;
-    start: usize;
-    capacity: usize;
-    count: isize;
-}
+type Deque<T> = class { storage: slice<uninit<T>, unique, mutable>, start: usize, capacity: usize, count: isize };
 
 @nocopy
 @languageItem("string.String")
-type String {
-    codeUnits: slice<uint16, unique, mutable>;
-}
+type String = class { codeUnits: slice<uint16, unique, mutable> };
 
 external constant string.18: String
 
@@ -849,27 +1099,27 @@ b1:
 
 external function todo(variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }): never
 
-/// @layout.struct name=String size=16 align=8
-/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.class name=String size=24 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=8 size=16 align=8
 /// @layout.struct name=type@4 size=0 align=1
-/// @layout.struct name=Deque<int32> size=40 align=8
-/// @layout.field owner=Deque<int32> index=0 name=storage offset=0 size=16 align=8
-/// @layout.field owner=Deque<int32> index=1 name=start offset=16 size=8 align=8
-/// @layout.field owner=Deque<int32> index=2 name=capacity offset=24 size=8 align=8
-/// @layout.field owner=Deque<int32> index=3 name=count offset=32 size=8 align=8
-/// @layout.struct name=type@26 size=40 align=8
-/// @layout.field owner=type@26 index=0 name=storage offset=0 size=16 align=8
-/// @layout.field owner=type@26 index=1 name=start offset=16 size=8 align=8
-/// @layout.field owner=type@26 index=2 name=capacity offset=24 size=8 align=8
-/// @layout.field owner=type@26 index=3 name=count offset=32 size=8 align=8
-/// @layout.struct name=type@32 size=16 align=8
-/// @layout.field owner=type@32 index=0 name=codeUnits offset=0 size=16 align=8
-/// @layout.variant name=type@35 size=8 align=8
-/// @layout.discriminant owner=type@35 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
-/// @layout.case owner=type@35 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@35 index=1 discriminant=1 payload_offset=0
+/// @layout.class name=Deque<int32> size=48 align=8
+/// @layout.field owner=Deque<int32> index=0 name=storage offset=8 size=16 align=8
+/// @layout.field owner=Deque<int32> index=1 name=start offset=24 size=8 align=8
+/// @layout.field owner=Deque<int32> index=2 name=capacity offset=32 size=8 align=8
+/// @layout.field owner=Deque<int32> index=3 name=count offset=40 size=8 align=8
+/// @layout.class name=type@24 size=48 align=8
+/// @layout.field owner=type@24 index=0 name=storage offset=8 size=16 align=8
+/// @layout.field owner=type@24 index=1 name=start offset=24 size=8 align=8
+/// @layout.field owner=type@24 index=2 name=capacity offset=32 size=8 align=8
+/// @layout.field owner=type@24 index=3 name=count offset=40 size=8 align=8
+/// @layout.class name=type@30 size=24 align=8
+/// @layout.field owner=type@30 index=0 name=codeUnits offset=8 size=16 align=8
+/// @layout.variant name=type@33 size=8 align=8
+/// @layout.discriminant owner=type@33 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@33 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@33 index=1 discriminant=1 payload_offset=0
 
-/// @dispatch.shape constraint=type@2 function=default
+/// @dispatch.virtual concrete=type@15 value=type@16
 "#,
     );
 }

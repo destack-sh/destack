@@ -152,7 +152,7 @@ impl Specialization<'_, '_> {
         ty: mir::TypeId,
         is_undefined: bool,
     ) -> CompilerResult<NullishCase> {
-        let stored = self.state.tree.storage_type(ty);
+        let stored = ty.storage(&self.state.tree);
         match self.state.tree.type_definition(stored) {
             // select the payloadless case holding the singleton
             mir::Type::Variant { cases, .. } => cases
@@ -174,7 +174,7 @@ impl Specialization<'_, '_> {
 
     /// Return whether one type stores the singleton a nullish constant names.
     fn is_nullish(&self, ty: mir::TypeId, is_undefined: bool) -> bool {
-        let stored = self.state.tree.storage_type(ty);
+        let stored = ty.storage(&self.state.tree);
 
         matches!(
             (is_undefined, self.state.tree.type_definition(stored)),
