@@ -165,12 +165,12 @@ impl MoveTable {
         else {
             return false;
         };
-        if matches!(tree.get((*pointee).storage(tree)), Type::Uninit { .. }) {
+        if matches!(tree.get(pointee.storage(tree)), Type::Uninit { .. }) {
             return false;
         }
 
         // bound recursive ownership at its first repeated pointee type
-        let pointee = (*pointee).storage(tree);
+        let pointee = pointee.storage(tree);
         let mut parent = self.get(path).parent;
         while let Some(current) = parent {
             if self.get(current).ty.storage(tree) == pointee {
@@ -382,7 +382,7 @@ impl MoveTable {
                 kind: Reference::Unique,
                 pointee,
                 ..
-            } => match tree.get((*pointee).storage(tree)) {
+            } => match tree.get(pointee.storage(tree)) {
                 Type::Uninit { .. } => return,
                 _ => vec![(Projection::Deref, *pointee)],
             },

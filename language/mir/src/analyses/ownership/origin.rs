@@ -383,7 +383,7 @@ impl<'a> OriginContext<'a> {
             }
 
             // map stored borrow paths through the actual argument's pointee type
-            let parameter = (*parameter).storage(self.tree);
+            let parameter = parameter.storage(self.tree);
             let Type::Reference { pointee, .. } = &self.tree.get(parameter).clone() else {
                 continue;
             };

@@ -790,7 +790,7 @@ impl Parser {
         expected_type: Option<TypeId>,
         index: usize,
     ) -> Option<TypeId> {
-        let expected_type = (expected_type?).storage(&self.tree);
+        let expected_type = expected_type?.storage(&self.tree);
 
         match self.tree.get(expected_type) {
             Type::FixedArray { element, .. } | Type::Vector { element, .. } => Some(*element),
