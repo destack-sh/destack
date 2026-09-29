@@ -1,7 +1,7 @@
 import { defineSchema, identifier, schema } from "@destack/schema";
 import { DeclarationName, type Package } from "@destack/package";
 import { ResourceHandle } from "./handle.ts";
-import type { Provider, ProviderContext } from "./provider.ts";
+import type { Connector, KindState, ResourceRecord } from "./provider.ts";
 import type { ResourceState } from "@destack/package/declare";
 
 /** A named infrastructure dependency declared by a package. */
@@ -48,10 +48,8 @@ export class Resource<
         this.spec = declaration.spec;
     }
 
-    /** Open the providers holding resources of this kind on the running runtime, by provider code. */
-    get providers(): Readonly<
-        Record<string, (reference: URL, context: ProviderContext) => Promise<Provider>>
-    > {
+    /** The connectors opening clients of this kind's resources on the running runtime, by provider code. */
+    get connectors(): Readonly<Record<string, Connector<Client>>> {
         return {};
     }
 
@@ -92,6 +90,30 @@ export class ResourceKind<
         this.description = defineSchema(
             ResourceDescription.extend({ kind: schema.literal(name), spec }),
         );
+    }
+
+    /** Read a stored resource of this kind, refusing another kind or an invalid specification. */
+    record(stored: ResourceRecord): ResourceRecord<this> {
+        if (stored.kind !== this.name) {
+            throw new TypeError(`resource ${stored.id} is a ${stored.kind}, not a ${this.name}`);
+        }
+
+        return { ...stored, kind: this.name, spec: this.spec.parse(stored.spec) };
+    }
+
+    /** Read stored desired states of this kind, refusing invalid ones, and any but empty ones of a kind without a state. */
+    states(stored: readonly ResourceState[]): KindState<this>[] {
+        // read none for a kind without a state, whose bindings require nothing
+        const state = this.state;
+        if (state === undefined) {
+            if (stored.some((entry) => Object.keys(entry).length > 0)) {
+                throw new TypeError(`resources of kind ${this.name} hold no desired state`);
+            }
+
+            return [];
+        }
+
+        return stored.map((entry) => state.parse(entry) as KindState<this>);
     }
 }
 

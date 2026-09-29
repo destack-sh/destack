@@ -27,24 +27,33 @@ await database.get(context).select().from(note);
 
 ## Providers
 
-A `Provider` connects the resources of one kind on a host, and has the capabilities its kind and technology allow.
+A `Provider` manages one kind's resources on a host, and has the capabilities its kind and technology allow.
 
 | Capability | Methods | Required |
 |---|---|---|
-| connecting | `connect` | always |
 | `Reconciling` | `plan`, `apply` | exactly when the kind declares a desired state |
 | `Provisioning` | `provision`, `destroy` | when the provider hosts what it provides |
 | `Copying` | `export`, `import` | when the provider moves content in and out |
 
-A host checks a capability before using it.
+A host parses stored rows through the provider's kind and checks a capability before using it.
 
 ```ts
-const client = await provider.connect(record, notes);
+const record = provider.kind.record(row);
 if (Provider.reconciles(provider)) {
-    const plan = await provider.plan(record, [notes.state(), tasks.state()]);
+    const desired = provider.kind.states([notes.state(), tasks.state()]);
+    const plan = await provider.plan(record, desired);
     Plan.classify(plan); // "safe", "data-dependent", "backward-incompatible" or "destructive"
     await provider.apply(record, desired, await Plan.digest(plan));
 }
+```
+
+## Connectors
+
+A declaration's `Connector` for a provider opens a client inside a workload for the `ResourceBinding` its host sends.
+
+```ts
+const binding = { resource, kind: "database", provider: "sqlite", reference: "file:///spaces/space-…/resource-….db" };
+const connection = await notes.connectors.sqlite!.connect(binding, notes);
 ```
 
 ## Copies

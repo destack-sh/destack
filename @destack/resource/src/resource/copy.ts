@@ -1,6 +1,6 @@
 import { defineSchema, schema } from "@destack/schema";
-import type { ResourceState } from "@destack/package/declare";
-import type { ResourceRecord } from "./provider.ts";
+import type { KindState, ResourceRecord } from "./provider.ts";
+import type { ResourceKind } from "./resource.ts";
 
 /** The curve of recipient keys and the ephemeral keys sealing to them. */
 const CURVE = { name: "ECDH", namedCurve: "P-256" } as const;
@@ -121,11 +121,11 @@ export class Recipient {
 }
 
 /** A resource a transfer copies on one side: its record there, its bindings' desired states, the target sealing secrets, and how far the copy goes. */
-export interface Copy {
+export interface Copy<Kind extends ResourceKind = ResourceKind> {
     /** The resource as this side records it: the source's or the target's provisioning. */
-    readonly record: ResourceRecord;
+    readonly record: ResourceRecord<Kind>;
     /** The desired states of the resource's bindings, whose shape the copy follows, such as a database's tables. */
-    readonly desired: readonly ResourceState[];
+    readonly desired: readonly KindState<Kind>[];
     /** The target, which secrets are sealed to. */
     readonly recipient: Recipient;
     /** How far the copy goes. */
