@@ -206,3 +206,46 @@ test("rebase predictions only onto pages changing a table they reach", async () 
     await replicate(copy, client, [page(3, [{ id: "b", title: "Server" }])], outbox);
     expect([afterTags, predictions]).toEqual([0, 1]);
 });
+
+test("read pending mutations up to a limit, and count each state leaving branched mutations out of the pending ones", async () => {
+    // predict three notes and a fourth on a branch
+    const client = await open("sqlite", [note, ...replicaTables, ...outboxTables]);
+    const outbox = new Outbox([note], predict, () => [note[TABLE].sqlName]);
+    const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
+    await replicate(notes, client, [page(1, [], { reset: true })], outbox);
+    const add = (id: string, key: string) =>
+        outbox.add(client, id, "tab-1", async (transaction) => {
+            const calls = [{ method: "note.create", input: { id: key, title: "Local" } }];
+            await predict(transaction, { id, calls });
+
+            return { calls, result: undefined };
+        });
+    for (const [index, id] of IDS.entries()) {
+        await add(id, ["a", "b", "c"][index]!);
+    }
+    await outbox.checkout(client, "draft");
+    await add("01996ab0-0000-7000-8000-00000000000d", "d");
+    await outbox.checkout(client, undefined);
+    const before = await outbox.inspect(client);
+    const limited = (await outbox.pending(client, { limit: 2 })).map((entry) => entry.id);
+
+    // drop the first once its page holds it, reject the second, and acknowledge the third
+    await replicate(
+        notes,
+        client,
+        [
+            page(2, [{ id: "a", title: "Server" }], {
+                outcomes: [{ id: IDS[0] }, { id: IDS[1], error: { code: "FORBIDDEN" } }],
+            }),
+        ],
+        outbox,
+    );
+    await outbox.acknowledge(client, IDS[2], { epoch: EPOCH, sequence: 3 });
+
+    // read the first pending ones up to the limit, and count each state without the branched one
+    expect({ limited, before, after: await outbox.inspect(client) }).toEqual({
+        limited: [IDS[0], IDS[1]],
+        before: { pending: 3, executed: 0, rejected: 0 },
+        after: { pending: 0, executed: 1, rejected: 1 },
+    });
+});

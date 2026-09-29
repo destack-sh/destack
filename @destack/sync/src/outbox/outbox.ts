@@ -1,6 +1,7 @@
 import {
     and,
     asc,
+    count,
     defineTable,
     eq,
     integer,
@@ -16,7 +17,9 @@ import {
     isNotNull,
     text,
     TABLE,
+    sql,
     type DatabaseConnection,
+    type SQL,
     type Table,
     encodeRow,
     decodeRow,
@@ -185,24 +188,35 @@ export class Outbox {
     async inspect(
         database: DatabaseConnection,
     ): Promise<{ readonly pending: number; readonly executed: number; readonly rejected: number }> {
-        const rows = await database
-            .select({ epoch: mutation.epoch, error: mutation.error })
+        // count each state in one pass, pending as the push reads it
+        const when = (condition: SQL | undefined) => count(sql`CASE WHEN ${condition} THEN 1 END`);
+        const [counts] = await database
+            .select({
+                pending: when(
+                    and(isNull(mutation.epoch), isNull(mutation.error), isNull(mutation.branch)),
+                ),
+                executed: when(and(isNotNull(mutation.epoch), isNull(mutation.error))),
+                rejected: when(isNotNull(mutation.error)),
+            })
             .from(mutation);
 
-        return {
-            pending: rows.filter((row) => row.epoch === null && row.error === null).length,
-            executed: rows.filter((row) => row.epoch !== null && row.error === null).length,
-            rejected: rows.filter((row) => row.error !== null).length,
-        };
+        return counts!;
     }
 
     /** Read the mutations waiting for the server, in order. */
-    async pending(database: DatabaseConnection): Promise<Mutation[]> {
-        const rows = await database
+    async pending(
+        database: DatabaseConnection,
+        options: {
+            /** The most mutations to read, every pending one when absent. */
+            readonly limit?: number;
+        } = {},
+    ): Promise<Mutation[]> {
+        const query = database
             .select({ id: mutation.id, calls: mutation.calls })
             .from(mutation)
             .where(and(isNull(mutation.epoch), isNull(mutation.error), isNull(mutation.branch)))
             .orderBy(asc(mutation.position));
+        const rows = await (options.limit === undefined ? query : query.limit(options.limit));
 
         return rows.map((row) => ({ id: row.id, calls: row.calls }));
     }
@@ -292,7 +306,10 @@ export class Outbox {
 
     /** Wait until a committed mutation is pending, returning false once the signal aborts. */
     wait(database: DatabaseConnection, signal: AbortSignal): Promise<boolean> {
-        return database.log.until(async () => (await this.pending(database)).length > 0, signal);
+        return database.log.until(
+            async () => (await this.pending(database, { limit: 1 })).length > 0,
+            signal,
+        );
     }
 
     /** Record the log position of an executed mutation. */

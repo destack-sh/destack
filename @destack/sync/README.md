@@ -101,6 +101,8 @@ const outbox = new Outbox([project, task], predict, reach);
 const result = await outbox.add(local, mutationId, origin, async (transaction) => ({ calls, result: await rename(transaction) }));
 await outbox.checkout(local, "draft");
 await outbox.merge(local, "draft");
+const next = await outbox.pending(local, { limit: 100 });        // the mutations the next push carries
+const { pending, executed, rejected } = await outbox.inspect(local);
 ```
 
 ## Trackers
