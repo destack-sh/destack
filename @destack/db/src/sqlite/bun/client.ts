@@ -3,8 +3,11 @@ import type * as bun from "bun:sqlite";
 import { WorkQueue, type ConnectionClient, type QueryClient, type Statement } from "../client.ts";
 import { SqliteScript } from "../script.ts";
 
-/** The most prepared statement texts per connection. */
+/** The most prepared statement texts per connection: a service runs 400 to 600, at 2 to 10 KB each. */
 const PREPARED_TEXTS = 512;
+
+/** The work queue of each database file, shared by the process's connections to it. */
+const FILE_QUEUES = new Map<string, WorkQueue>();
 
 /** A Bun statement with its integer mode. */
 type NativeStatement = bun.Statement & {
@@ -104,16 +107,34 @@ export class BunQuery implements QueryClient<RunResult> {
     }
 }
 
-/** A connection client over one SQLite database, one transaction at a time. */
+/** A connection client over one SQLite database, one transaction at a time per file and process. */
 export class BunClient extends BunQuery implements ConnectionClient<RunResult> {
-    /** The work queue. */
+    /** The work queue of the database file. */
     readonly #queue: WorkQueue;
 
     /** Create the client. */
     constructor(database: bun.Database) {
-        const queue = new WorkQueue();
+        const queue = BunClient.queue(database);
         super(database, new StatementCache(database), queue);
         this.#queue = queue;
+    }
+
+    /** Read the work queue of a database's file, or a queue of its own for a memory database. */
+    static queue(database: bun.Database): WorkQueue {
+        // give each memory database its own queue
+        const file = database.filename;
+        if (file === "" || file === ":memory:") {
+            return new WorkQueue();
+        }
+
+        // share one queue per file
+        let queue = FILE_QUEUES.get(file);
+        if (queue === undefined) {
+            queue = new WorkQueue();
+            FILE_QUEUES.set(file, queue);
+        }
+
+        return queue;
     }
 
     /** Close the database after its work. */
@@ -152,7 +173,7 @@ export class BunClient extends BunQuery implements ConnectionClient<RunResult> {
 /**
  * The prepared statements of one connection by text, least recently used first.
  *
- * Statements run synchronously, so one statement serves each text.
+ * Statements run synchronously, and one statement serves each text.
  */
 export class StatementCache {
     /** The database preparing the statements. */
