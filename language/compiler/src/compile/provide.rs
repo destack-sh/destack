@@ -10,7 +10,7 @@ impl Compiler {
         let artifact_key = context.artifact_key();
 
         self.collect_artifact(context, artifact_key)
-            .map_err(|error| error.into_provider_error().into())
+            .map_err(|error| Box::new(error.into()))
     }
 
     /// Collect the dependency closure for one compiler owned artifact key.
@@ -277,11 +277,11 @@ impl Compiler {
             Ok(payload) => Ok(payload),
             Err(CompilerError::Diagnostic(diagnostic)) => {
                 self.emit_diagnostic(context, diagnostic)
-                    .map_err(|error| Box::new(error.into_provider_error()))?;
+                    .map_err(|error| Box::new(error.into()))?;
 
                 Err(ProviderError::failed(ArtifactFailure::diagnostics()).into())
             }
-            Err(error) => Err(error.into_provider_error().into()),
+            Err(error) => Err(Box::new(error.into())),
         }
     }
 }

@@ -83,15 +83,15 @@ impl_compiler_error_from_diagnostic!(AnalyzeError);
 impl_compiler_error_from_diagnostic!(ResolveError);
 impl_compiler_error_from_diagnostic!(VerifyError);
 
-impl CompilerError {
+impl From<CompilerError> for ProviderError {
     /// Convert provider boundary control flow into a provider error.
-    pub(crate) fn into_provider_error(self) -> ProviderError {
-        match self {
-            Self::Blocked { keys } => ProviderError::Blocked { keys },
-            Self::RequirementFailed { key } => ProviderError::RequirementFailed { key },
-            Self::Corrupt { version } => ProviderError::Corrupt { version },
-            Self::Diagnostic(_) => ProviderError::failed(ArtifactFailure::diagnostics()),
-            Self::Internal { message } => ProviderError::Internal { message },
+    fn from(error: CompilerError) -> Self {
+        match error {
+            CompilerError::Blocked { keys } => Self::Blocked { keys },
+            CompilerError::RequirementFailed { key } => Self::RequirementFailed { key },
+            CompilerError::Corrupt { version } => Self::Corrupt { version },
+            CompilerError::Diagnostic(_) => Self::failed(ArtifactFailure::diagnostics()),
+            CompilerError::Internal { message } => Self::Internal { message },
         }
     }
 }
