@@ -3,7 +3,7 @@ Structured instruction operands
 ==================================
 
 function dispatch {
-    call.virtual r5, f0, ref<managed, local>, 0, 0, r0:r2
+    call.virtual r5, [0](r0:r2)
     switch r0 { 0 => b0, default => b1 }
 b0:
     continuation.resume r7:r8, r9, r10:r11, r6, r5 => b2 | b3 | b4
@@ -21,23 +21,15 @@ b0:
       (operands
         (register_identifier)
         (comma)
-        (function_identifier)
-        (comma)
-        (identifier)
-        (type_arguments
+        (list
           (operands
-            (identifier)
-            (comma)
-            (identifier)))
-        (comma)
-        (integer_literal)
-        (comma)
-        (integer_literal)
-        (comma)
-        (register_span
-          (register_identifier)
-          (colon)
-          (register_identifier))))
+            (integer_literal)))
+        (tuple
+          (operands
+            (register_span
+              (register_identifier)
+              (colon)
+              (register_identifier))))))
     (instruction
       (opcode)
       (operands

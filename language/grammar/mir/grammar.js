@@ -71,6 +71,7 @@ module.exports = grammar({
         "vector",
         "space",
         "struct",
+        "class",
         "newtype",
         "atomic",
         "variant",
@@ -97,7 +98,8 @@ module.exports = grammar({
         "nullable",
         "undefined",
         "nullish",
-        "exclusive"
+        "exclusive",
+        "rest"
       ))),
 
     arrow: () => "->",

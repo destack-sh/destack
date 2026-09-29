@@ -293,6 +293,10 @@
             },
             {
               "type": "STRING",
+              "value": "class"
+            },
+            {
+              "type": "STRING",
               "value": "newtype"
             },
             {
@@ -394,6 +398,10 @@
             {
               "type": "STRING",
               "value": "exclusive"
+            },
+            {
+              "type": "STRING",
+              "value": "rest"
             }
           ]
         }

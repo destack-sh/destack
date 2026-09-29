@@ -11,12 +11,12 @@ function dispatch {
 //  ^^^^^^^^^^^^^^^ keyword.operator.instruction.tsppa
 //                  ^^ variable.other.register.tsppa
 //                      ^^ constant.numeric.tsppa
-    call.virtual r5, f0, ref<managed, local>, 0, 0, r0:r2
+    call.virtual r5, [0](r0:r2)
 //  ^^^^^^^^^^^^ keyword.operator.instruction.tsppa
 //               ^^ variable.other.register.tsppa
-//                   ^^ entity.name.function.tsppa
-//                                                  ^^ variable.other.register.tsppa
-//                                                     ^^ variable.other.register.tsppa
+//                    ^ constant.numeric.tsppa
+//                       ^^ variable.other.register.tsppa
+//                          ^^ variable.other.register.tsppa
     switch r0 { 0 => b0, default => b1 }
 //  ^^^^^^ keyword.control.flow.tsppa
 //         ^^ variable.other.register.tsppa

@@ -167,3 +167,38 @@ type @Outcome = variant<uint8> {
   (punctuation)
   (punctuation)
   (punctuation))
+
+==================================
+Class and rest type forms
+==================================
+
+type @Cell = class { value: int32 };
+type @Spread = (rest (int32, int32)) => void;
+
+---
+
+(source_file
+  (declaration_keyword)
+  (symbol_identifier)
+  (operator)
+  (type_keyword)
+  (punctuation)
+  (identifier)
+  (punctuation)
+  (type_keyword)
+  (punctuation)
+  (punctuation)
+  (declaration_keyword)
+  (symbol_identifier)
+  (operator)
+  (punctuation)
+  (memory_keyword)
+  (punctuation)
+  (type_keyword)
+  (punctuation)
+  (type_keyword)
+  (punctuation)
+  (punctuation)
+  (operator)
+  (type_keyword)
+  (punctuation))
