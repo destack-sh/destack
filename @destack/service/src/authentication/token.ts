@@ -43,11 +43,8 @@ export class TokenVerifier {
     constructor(options: TokenVerifierOptions) {
         this.options = options;
 
-        // allow plain HTTP only for loopback
-        for (const url of [
-            new URL(options.issuer),
-            ...(options.keys instanceof URL ? [options.keys] : []),
-        ]) {
+        // fetch keys over plain HTTP only from loopback
+        for (const url of options.keys instanceof URL ? [options.keys] : []) {
             if (
                 url.protocol !== "https:" &&
                 !(
@@ -163,7 +160,7 @@ export class TokenVerifier {
 export interface TokenVerifierOptions {
     /** The identity authority of the trusted keys. */
     readonly authority: TokenIssuerAuthority;
-    /** The issuer URL. */
+    /** The issuer, a URL for a remote key set or a host identifier for its host keys. */
     readonly issuer: string;
     /** The receiving package. */
     readonly audience: PackageId;

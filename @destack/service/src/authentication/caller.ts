@@ -181,11 +181,10 @@ export class Caller<Credential extends CredentialReference = CredentialReference
         const authentication = this.authentication;
         const subjects = [authentication.subject, ...authentication.subjects];
 
-        // allow a space key to assert only installations of its space
+        // allow a space key to assert only installations of its space, calling any space
         if (
             authority.kind === "space" &&
-            (authentication.scope !== authority.spaceId ||
-                authentication.identifiers?.length ||
+            (authentication.identifiers?.length ||
                 authentication.delegates?.length ||
                 subjects.some(
                     (subject) =>
@@ -195,14 +194,11 @@ export class Caller<Credential extends CredentialReference = CredentialReference
             throw new ServiceError("UNAUTHORIZED", { message: "token exceeds issuer authority" });
         }
 
-        // bind each installation of the token's space to one deployment
+        // bind each asserted installation to one deployment
         const workloads = [
             ...subjects,
             ...(authentication.delegates ?? []).map((delegate) => delegate.subject),
-        ].filter(
-            (subject) =>
-                principal.installation.is(subject) && subject.scope === authentication.scope,
-        );
+        ].filter((subject) => principal.installation.is(subject));
         const deployments = authentication.deployments ?? [];
         for (const subject of workloads) {
             const matching = deployments.filter((deployment) =>
