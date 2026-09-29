@@ -4,7 +4,7 @@ use tspp_repository::{ProviderContext, Target};
 use tspp_source::{ModuleId, PackageId, ProfileId, Span, TargetId};
 
 use super::super::ModuleSet;
-use crate::{Compiler, JsLinker, LinkError, LinkResult};
+use crate::{CompilerResult, JsLinker, LinkError};
 
 impl JsLinker<'_> {
     /// Return whether one module is a bundled entry.
@@ -21,7 +21,7 @@ impl JsLinker<'_> {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-    ) -> LinkResult<bool> {
+    ) -> CompilerResult<bool> {
         let dependency_target = self.compiler.js_dependency_target(specifier, target_module);
         let module = self.module(module_id)?;
 
@@ -49,7 +49,7 @@ impl JsLinker<'_> {
         package_id: PackageId,
         profile_id: ProfileId,
         context: &dyn ProviderContext,
-    ) -> LinkResult<Option<js::LocalNodeIdAny>> {
+    ) -> CompilerResult<Option<js::LocalNodeIdAny>> {
         let is_internal = self.is_internal_script_dependency(
             module_id,
             specifier,
@@ -96,7 +96,8 @@ impl JsLinker<'_> {
                 message: format!(
                     "bundled internal import attributes are not supported yet in '{target_id}'"
                 ),
-            });
+            }
+            .into());
         }
 
         let Some(target_module) = target_module else {
@@ -108,7 +109,6 @@ impl JsLinker<'_> {
             module_id,
             target_module,
             profile_id,
-            package_id,
         )?;
 
         Ok(replacement.first().copied().map(js::LocalNodeId::into_any))
@@ -127,7 +127,7 @@ impl JsLinker<'_> {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-    ) -> LinkResult<Option<js::LocalNodeIdAny>> {
+    ) -> CompilerResult<Option<js::LocalNodeIdAny>> {
         let Some(specifier) = specifier else {
             return Ok(if self.is_bundled_entry_module(module_set, module_id) {
                 Some(statement_id.into_any())
@@ -166,7 +166,8 @@ impl JsLinker<'_> {
                 message: format!(
                     "bundled internal re-export rewriting is only implemented for plain named exports in '{target_id}'"
                 ),
-            });
+            }
+            .into());
         }
 
         let statement = script.tree.get_mut(statement_id);
@@ -190,7 +191,7 @@ impl JsLinker<'_> {
         package_id: PackageId,
         profile_id: ProfileId,
         context: &dyn ProviderContext,
-    ) -> LinkResult<Option<js::LocalNodeIdAny>> {
+    ) -> CompilerResult<Option<js::LocalNodeIdAny>> {
         let statement = script.tree.get(statement_id).clone();
 
         match statement {
@@ -263,7 +264,7 @@ impl JsLinker<'_> {
         package_id: PackageId,
         profile_id: ProfileId,
         context: &dyn ProviderContext,
-    ) -> LinkResult<js::Module> {
+    ) -> CompilerResult<js::Module> {
         let mut module = script.module().clone();
         let mut rewritten_roots = Vec::with_capacity(module.roots.len());
         let roots = module.roots.clone();
@@ -362,11 +363,10 @@ impl JsLinker<'_> {
         target_id: &TargetId,
         package_id: PackageId,
         context: &dyn ProviderContext,
-    ) -> LinkResult<js::Module> {
+    ) -> CompilerResult<js::Module> {
         let profile_id = self
             .compiler
-            .profile_id_for_target(context.revision(), target_id)
-            .map_err(|error| Compiler::link_error(package_id, error))?;
+            .profile_id_for_target(context.revision(), target_id)?;
 
         self.rewrite_module(
             module_id, script, module_set, target, target_id, package_id, profile_id, context,

@@ -1,4 +1,4 @@
-use crate::{Compiler, CompilerError, CompilerResult, LinkError, LinkResult};
+use crate::{Compiler, CompilerResult, LinkError};
 
 use tspp_artifact::{Bundle, BundleFile};
 use tspp_repository::JsOutputFormat;
@@ -15,13 +15,10 @@ impl<'a> JsLinker<'a> {
         let mut output_files = Vec::new();
 
         // JS outputs
-        output_files.extend(self.render_js_graph(&plan).map_err(CompilerError::from)?);
+        output_files.extend(self.render_js_graph(&plan)?);
 
         // asset outputs
-        output_files.extend(
-            self.emit_asset_files(plan.asset_reference_map())
-                .map_err(CompilerError::from)?,
-        );
+        output_files.extend(self.emit_asset_files(plan.asset_reference_map())?);
 
         // packaged output
         let mut output = self.bundle(output_files);
@@ -43,7 +40,7 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Validate the JS bundle options used by this target.
-    fn validate_target(&self) -> LinkResult<()> {
+    fn validate_target(&self) -> CompilerResult<()> {
         // only esm bundle output is implemented so far
         if let Some(format) = self.target.js.output.format
             && format != JsOutputFormat::Esm
@@ -58,7 +55,8 @@ impl<'a> JsLinker<'a> {
                 package: self.package_id,
                 target: *self.target_id,
                 message: format!("js.output.format '{format}' is not implemented yet"),
-            });
+            }
+            .into());
         }
 
         Ok(())

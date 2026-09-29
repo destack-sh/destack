@@ -2,14 +2,17 @@ use indexmap::{IndexMap, IndexSet};
 use tspp_repository::JsOutputMode;
 use tspp_source::ModuleId;
 
-use crate::{LinkError, LinkResult};
+use crate::{CompilerResult, LinkError};
 
 use super::super::JsLinker;
 use super::{ModuleSet, Output, OutputGraph, OutputId, OutputKind};
 
 impl<'a> JsLinker<'a> {
     /// Build the output graph over the current JS module set.
-    pub(crate) fn build_js_output_graph(&self, module_set: &ModuleSet) -> LinkResult<OutputGraph> {
+    pub(crate) fn build_js_output_graph(
+        &self,
+        module_set: &ModuleSet,
+    ) -> CompilerResult<OutputGraph> {
         let static_entry_sets = self.collect_script_static_entry_sets(
             self.target,
             self.target_id,
@@ -63,7 +66,7 @@ impl<'a> JsLinker<'a> {
         dynamic_target_modules: &IndexSet<ModuleId>,
         dynamic_entry_modules: &IndexSet<ModuleId>,
         dynamic_target_sets: &IndexMap<ModuleId, IndexSet<ModuleId>>,
-    ) -> LinkResult<OutputGraph> {
+    ) -> CompilerResult<OutputGraph> {
         let manual_output_names =
             self.resolve_script_manual_output_names(self.package_dir, module_set.modules())?;
         let mut outputs = Vec::<Output>::new();
@@ -136,7 +139,10 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Build the single-file output graph over the current JS module set.
-    fn build_single_file_js_output_graph(&self, module_set: &ModuleSet) -> LinkResult<OutputGraph> {
+    fn build_single_file_js_output_graph(
+        &self,
+        module_set: &ModuleSet,
+    ) -> CompilerResult<OutputGraph> {
         let output = Output {
             kind: OutputKind::Entry,
             modules: module_set.modules().to_vec(),
@@ -164,7 +170,8 @@ impl<'a> JsLinker<'a> {
                     "bundled opaque dynamic imports are not supported yet in '{}'",
                     self.target_name()
                 ),
-            });
+            }
+            .into());
         }
 
         Ok(OutputGraph {
@@ -179,7 +186,7 @@ impl<'a> JsLinker<'a> {
         &self,
         module_set: &ModuleSet,
         dynamic_entry_modules: &IndexSet<ModuleId>,
-    ) -> LinkResult<OutputGraph> {
+    ) -> CompilerResult<OutputGraph> {
         let output_ids_by_module = module_set
             .modules()
             .iter()
@@ -212,13 +219,14 @@ impl<'a> JsLinker<'a> {
         &self,
         package_dir: &std::path::Path,
         module_ids: &[ModuleId],
-    ) -> LinkResult<IndexMap<ModuleId, String>> {
+    ) -> CompilerResult<IndexMap<ModuleId, String>> {
         let mut linked_module_paths = IndexMap::new();
         for module_id in module_ids {
-            let module_path = self
-                .compiler
-                .package_relative_module_path(package_dir, *module_id, self.context)
-                .map_err(|error| self.link_error(error))?;
+            let module_path = self.compiler.package_relative_module_path(
+                package_dir,
+                *module_id,
+                self.context,
+            )?;
 
             linked_module_paths.insert(*module_id, module_path);
         }
@@ -237,7 +245,8 @@ impl<'a> JsLinker<'a> {
                         message: format!(
                             "manualChunks['{output_name}'] references unknown linked module '{module_path}'"
                         ),
-                    });
+                    }
+                    .into());
                 };
 
                 if let Some(previous_name) =
@@ -250,7 +259,8 @@ impl<'a> JsLinker<'a> {
                         message: format!(
                             "linked module '{module_path}' is assigned to both manual chunks '{previous_name}' and '{output_name}'"
                         ),
-                    });
+                    }
+                    .into());
                 }
             }
         }
@@ -354,7 +364,7 @@ impl<'a> JsLinker<'a> {
         output_ids_by_module: &IndexMap<ModuleId, OutputId>,
         module_set: &ModuleSet,
         dynamic_entry_modules: &IndexSet<ModuleId>,
-    ) -> LinkResult<Output> {
+    ) -> CompilerResult<Output> {
         let static_dependency_modules = self.bundled_static_js_modules(
             module_id,
             self.target,
@@ -414,7 +424,7 @@ impl<'a> JsLinker<'a> {
         output_graph: &mut OutputGraph,
         module_set: &ModuleSet,
         dynamic_entry_modules: &IndexSet<ModuleId>,
-    ) -> LinkResult<()> {
+    ) -> CompilerResult<()> {
         // finalize kind and facade after membership is known
         for output in &mut output_graph.outputs {
             output.kind = self.output_kind(&output.modules, module_set, dynamic_entry_modules);

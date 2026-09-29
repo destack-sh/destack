@@ -108,6 +108,8 @@ impl Compiler {
                     }
                 }
                 Err(ProviderError::Blocked { .. }) => dependencies.mark_partial(),
+                // collect every failed root
+                Err(ProviderError::RequirementFailed { .. }) => {}
                 Err(error) => return Err(error.into()),
             }
             index += 1;
@@ -158,7 +160,7 @@ impl Compiler {
             index += 1;
         }
         // link module objects into one Program
-        let program = ProgramLinker::new(package, objects, self.strings())?
+        let program = ProgramLinker::new(objects, self.strings())?
             .with_roots(roots)
             .link()?;
 
@@ -298,15 +300,6 @@ impl Compiler {
                 target,
                 message: error.to_string(),
             },
-        }
-    }
-
-    /// Map one compiler boundary failure into a link diagnostic.
-    pub(crate) fn link_error(package: PackageId, error: CompilerError) -> LinkError {
-        LinkError::Internal {
-            anchor: package.into(),
-            package,
-            message: format!("{error:?}"),
         }
     }
 }

@@ -1,6 +1,6 @@
 use crate::emit::js;
 use crate::link::{OutputLocation, TargetLocation};
-use crate::{Compiler, LinkError, LinkResult};
+use crate::{CompilerError, CompilerResult};
 use tspp_artifact::{BundleFile, Script};
 use tspp_repository::JsOutputMode;
 use tspp_source::ModuleId;
@@ -15,15 +15,13 @@ impl<'a> JsLinker<'a> {
         &self,
         output_id: OutputId,
         plan: &Plan,
-    ) -> LinkResult<Vec<(ModuleId, js::PrintedJsModule)>> {
-        let output = plan
-            .output_graph()
-            .output(output_id)
-            .ok_or_else(|| LinkError::Internal {
-                anchor: (self.package_id).into(),
-                package: self.package_id,
-                message: format!("missing JS output graph node for output id {}", output_id.0),
-            })?;
+    ) -> CompilerResult<Vec<(ModuleId, js::PrintedJsModule)>> {
+        let output =
+            plan.output_graph()
+                .output(output_id)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("missing JS output graph node for output id {}", output_id.0),
+                })?;
         let mut modules = Vec::<OutputModule>::new();
 
         // rewrite each output member in stable member order
@@ -52,9 +50,7 @@ impl<'a> JsLinker<'a> {
 
         // print each rewritten module after output-level rewrites and minification
         for (module_id, module) in modules {
-            let printed = self
-                .print_js_module(module_id, self.target, &module, self.context)
-                .map_err(|error| Compiler::link_error(self.package_id, error))?;
+            let printed = self.print_js_module(module_id, self.target, &module, self.context)?;
 
             segments.push((module_id, printed));
         }
@@ -63,7 +59,7 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Render the JS outputs for the current JS graph.
-    pub(in super::super) fn render_js_graph(&self, plan: &Plan) -> LinkResult<Vec<BundleFile>> {
+    pub(in super::super) fn render_js_graph(&self, plan: &Plan) -> CompilerResult<Vec<BundleFile>> {
         if plan.output_graph().bundle_mode() == JsOutputMode::PreserveModules {
             return self.link_module_outputs(plan);
         }
@@ -72,7 +68,7 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Link preserve-modules outputs for this target.
-    fn link_module_outputs(&self, plan: &Plan) -> LinkResult<Vec<BundleFile>> {
+    fn link_module_outputs(&self, plan: &Plan) -> CompilerResult<Vec<BundleFile>> {
         let mut output_files = Vec::new();
 
         // preserve-modules keeps one artifact-level output per module
@@ -80,24 +76,20 @@ impl<'a> JsLinker<'a> {
             let output_id = plan
                 .output_graph()
                 .output_id_for_module(*module_id)
-                .ok_or_else(|| LinkError::Internal {
-                    anchor: (self.package_id).into(),
-                    package: self.package_id,
-                    message: format!("missing output id for JS module {module_id:?}"),
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("missing output id for JS module {module_id:? }"),
                 })?;
             let script = self.js_output_for_output(output_id, *module_id, plan)?;
             let module = self.module(*module_id)?;
 
-            let files = self
-                .link_js_output_files(
-                    module.as_ref(),
-                    &script,
-                    self.target,
-                    self.package_dir,
-                    self.root_dir,
-                    self.context,
-                )
-                .map_err(|error| Compiler::link_error(self.package_id, error))?;
+            let files = self.link_js_output_files(
+                module.as_ref(),
+                &script,
+                self.target,
+                self.package_dir,
+                self.root_dir,
+                self.context,
+            )?;
 
             output_files.extend(files);
         }
@@ -111,7 +103,7 @@ impl<'a> JsLinker<'a> {
         output_id: OutputId,
         module_id: ModuleId,
         plan: &Plan,
-    ) -> LinkResult<Script> {
+    ) -> CompilerResult<Script> {
         let source_module = self.module(module_id)?;
 
         // asset modules are synthesized by the linker with final linked values
@@ -136,7 +128,7 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Link graph-based outputs for this target.
-    fn link_output_graph(&self, plan: &Plan) -> LinkResult<Vec<BundleFile>> {
+    fn link_output_graph(&self, plan: &Plan) -> CompilerResult<Vec<BundleFile>> {
         let target_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
         let mut output_files = Vec::new();
 
@@ -146,9 +138,7 @@ impl<'a> JsLinker<'a> {
             let output_location =
                 plan.output_layout()
                     .output_location(output_id)
-                    .ok_or_else(|| LinkError::Internal {
-                        anchor: (self.package_id).into(),
-                        package: self.package_id,
+                    .ok_or_else(|| CompilerError::Internal {
                         message: format!(
                             "missing output location for JS output id {}",
                             output_id.0
@@ -170,15 +160,13 @@ impl<'a> JsLinker<'a> {
                 .as_ref()
                 .map(|location: &OutputLocation| location.path());
             let emitted_source_map_path = source_map_path.unwrap_or_else(|| output_location.path());
-            let source_map = self
-                .script_source_map_for_parts(
-                    self.package_dir,
-                    emitted_source_map_path,
-                    &parts,
-                    self.target.should_minify_js_text(),
-                    self.context,
-                )
-                .map_err(|error| Compiler::link_error(self.package_id, error))?;
+            let source_map = self.script_source_map_for_parts(
+                self.package_dir,
+                emitted_source_map_path,
+                &parts,
+                self.target.should_minify_js_text(),
+                self.context,
+            )?;
             let files = self
                 .link_script_text_files(
                     self.target,
@@ -187,11 +175,7 @@ impl<'a> JsLinker<'a> {
                     Some(source_map),
                     source_map_path,
                 )
-                .map_err(|message| LinkError::Internal {
-                    anchor: (self.package_id).into(),
-                    package: self.package_id,
-                    message,
-                })?;
+                .map_err(|message| CompilerError::Internal { message })?;
 
             output_files.extend(files);
         }

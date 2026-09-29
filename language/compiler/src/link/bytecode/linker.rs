@@ -1,9 +1,10 @@
 use tspp_bytecode as bytecode;
 use tspp_program::Object;
 
-use crate::LinkResult;
+use crate::CompilerResult;
 
 use super::super::program::{FrameLinker, ProgramLinker};
+use crate::invalid_program_input;
 
 /// Link relocatable bytecode objects into one executable code image.
 #[derive(Debug)]
@@ -21,7 +22,7 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
     }
 
     /// Link bytecode when every object carries that code form.
-    pub(crate) fn link(&self) -> LinkResult<Option<bytecode::CodeBuilder>> {
+    pub(crate) fn link(&self) -> CompilerResult<Option<bytecode::CodeBuilder>> {
         // inspect bytecode coverage across the complete Program
         let object_count = self.program.objects().len();
         let bytecode_count = self
@@ -38,9 +39,9 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
 
         // reject incomplete code forms
         if bytecode_count != object_count {
-            return Err(self
-                .program
-                .invalid_input("only some linked objects contain bytecode"));
+            return Err(invalid_program_input(
+                "only some linked objects contain bytecode",
+            ));
         }
 
         // relocate every object in stable link order
@@ -81,9 +82,9 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
     }
 
     /// Return the bytecode emitted for one linked object.
-    pub(super) fn object<'c>(&self, object: &'c Object) -> LinkResult<&'c bytecode::Object> {
+    pub(super) fn object<'c>(&self, object: &'c Object) -> CompilerResult<&'c bytecode::Object> {
         object
             .bytecode()
-            .ok_or_else(|| self.program.invalid_input("object has no bytecode"))
+            .ok_or_else(|| invalid_program_input("object has no bytecode"))
     }
 }

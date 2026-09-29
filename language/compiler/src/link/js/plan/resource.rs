@@ -9,7 +9,7 @@ use tspp_serde::Value;
 use tspp_source::{Loader, ModuleId};
 
 use crate::link::TargetLocation;
-use crate::{LinkError, LinkResult};
+use crate::{CompilerError, CompilerResult, LinkError};
 
 use super::super::JsLinker;
 use super::{OutputGraph, OutputId, OutputLayout, Plan};
@@ -115,7 +115,7 @@ fn insert_json_expression(
     module_id: ModuleId,
     anchor: dir::LocalNodeIdAny,
     value: &Value,
-) -> LinkResult<js::LocalNodeId<js::Expression>> {
+) -> CompilerResult<js::LocalNodeId<js::Expression>> {
     match value {
         Value::Null => Ok(tree.insert_from_source_any(
             js::Expression::Literal {
@@ -255,7 +255,7 @@ impl<'a> JsLinker<'a> {
         output_id: OutputId,
         output_layout: &OutputLayout,
         module: &Module,
-    ) -> LinkResult<String> {
+    ) -> CompilerResult<String> {
         let asset = self.plan_asset_reference(module.id)?;
         let output_location = match asset {
             super::super::AssetReference::Inline { url } => return Ok(url),
@@ -268,7 +268,8 @@ impl<'a> JsLinker<'a> {
                     message:
                         "assets.binding = \"reference\" is not supported for code file imports"
                             .to_string(),
-                });
+                }
+                .into());
             }
         };
 
@@ -276,9 +277,7 @@ impl<'a> JsLinker<'a> {
         let current_output =
             output_layout
                 .output_location(output_id)
-                .ok_or_else(|| LinkError::Internal {
-                    anchor: (self.package_id).into(),
-                    package: self.package_id,
+                .ok_or_else(|| CompilerError::Internal {
                     message: format!("missing output placement for output id {}", output_id.0),
                 })?;
         let target_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
@@ -293,16 +292,14 @@ impl<'a> JsLinker<'a> {
         module_id: ModuleId,
         output_graph: &OutputGraph,
         plan: &Plan,
-    ) -> LinkResult<Script> {
+    ) -> CompilerResult<Script> {
         let source_module = self.module(module_id)?;
         let source_module = source_module.as_ref();
         let profile_id = self.profile_id()?;
         let dir = self
             .artifacts
             .read::<DirBound>((module_id, profile_id))
-            .map_err(|error| LinkError::Internal {
-                anchor: (self.package_id).into(),
-                package: self.package_id,
+            .map_err(|error| CompilerError::Internal {
                 message: format!(
                     "missing bound DIR for asset module {:?} target '{}': {error:?}",
                     module_id,
@@ -368,7 +365,7 @@ impl<'a> JsLinker<'a> {
         anchor: dir::LocalNodeIdAny,
         tree: &mut js::Tree,
         strings: &mut StringPool,
-    ) -> LinkResult<js::LocalNodeId<js::Expression>> {
+    ) -> CompilerResult<js::LocalNodeId<js::Expression>> {
         if module.loader.is_data() {
             let value = self.data(module.id)?;
             let Data::Json(value) = value.as_ref();
@@ -379,9 +376,7 @@ impl<'a> JsLinker<'a> {
         if module.loader == Loader::Base64 {
             let file = self.file(module.file_id)?;
             if file.is_text() {
-                return Err(LinkError::Internal {
-                    anchor: (self.package_id).into(),
-                    package: self.package_id,
+                return Err(CompilerError::Internal {
                     message: format!(
                         "base64 loader expected binary file content for '{}'",
                         module.uri
@@ -398,9 +393,7 @@ impl<'a> JsLinker<'a> {
         if module.loader.is_text() {
             let file = self.file(module.file_id)?;
             if !file.is_text() {
-                return Err(LinkError::Internal {
-                    anchor: (self.package_id).into(),
-                    package: self.package_id,
+                return Err(CompilerError::Internal {
                     message: format!(
                         "text loader expected text file content for '{}'",
                         module.uri
@@ -420,9 +413,7 @@ impl<'a> JsLinker<'a> {
         if module.loader == Loader::Binary {
             let file = self.file(module.file_id)?;
             if file.is_text() {
-                return Err(LinkError::Internal {
-                    anchor: (self.package_id).into(),
-                    package: self.package_id,
+                return Err(CompilerError::Internal {
                     message: format!(
                         "binary loader expected binary file content for '{}'",
                         module.uri
@@ -451,9 +442,7 @@ impl<'a> JsLinker<'a> {
             ));
         }
 
-        Err(LinkError::Internal {
-            anchor: (self.package_id).into(),
-            package: self.package_id,
+        Err(CompilerError::Internal {
             message: format!(
                 "unsupported asset loader '{}' for module '{}'",
                 module.loader.as_str(),

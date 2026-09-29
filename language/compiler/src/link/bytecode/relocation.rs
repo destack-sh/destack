@@ -5,13 +5,14 @@ use tspp_mir as mir;
 use tspp_program::{CounterId, Object, SamplerId, TypeId};
 use tspp_source::ModuleId;
 
-use crate::LinkResult;
+use crate::CompilerResult;
 
 use super::BytecodeLinker;
+use crate::invalid_program_input;
 
 impl<'a, 'b> BytecodeLinker<'a, 'b> {
     /// Resolve one object's encoded identities into final Program ids.
-    pub(super) fn link_code(&self, module: ModuleId, object: &Object) -> LinkResult<Vec<u8>> {
+    pub(super) fn link_code(&self, module: ModuleId, object: &Object) -> CompilerResult<Vec<u8>> {
         let bytecode = self.object(object)?;
         let mut code = bytecode.code().to_vec();
         let counters = object
@@ -30,14 +31,14 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
             let start = relocation.byte_offset as usize;
             let byte_len = size_of::<u32>();
             let end = start + byte_len;
-            let bytes = code.get(start..end).ok_or_else(|| {
-                self.program
-                    .invalid_input("bytecode relocation is out of range")
-            })?;
-            let encoded = u32::from_le_bytes(bytes.try_into().map_err(|_| {
-                self.program
-                    .invalid_input("bytecode relocation has invalid width")
-            })?);
+            let bytes = code
+                .get(start..end)
+                .ok_or_else(|| invalid_program_input("bytecode relocation is out of range"))?;
+            let encoded = u32::from_le_bytes(
+                bytes
+                    .try_into()
+                    .map_err(|_| invalid_program_input("bytecode relocation has invalid width"))?,
+            );
             let linked = self.relocation(
                 module,
                 object,
@@ -47,10 +48,9 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
                 &counters,
                 &samplers,
             )?;
-            let bytes = code.get_mut(start..end).ok_or_else(|| {
-                self.program
-                    .invalid_input("bytecode relocation is out of range")
-            })?;
+            let bytes = code
+                .get_mut(start..end)
+                .ok_or_else(|| invalid_program_input("bytecode relocation is out of range"))?;
             bytes.copy_from_slice(&linked.to_le_bytes());
         }
 
@@ -67,7 +67,7 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
         index: u32,
         counters: &HashSet<(mir::FunctionId, mir::CounterId)>,
         samplers: &HashSet<(mir::FunctionId, mir::SamplerId)>,
-    ) -> LinkResult<u32> {
+    ) -> CompilerResult<u32> {
         if tag == bytecode::RelocationTag::TYPE {
             self.type_id(module, object, index).map(|id| id.0)
         } else if tag == bytecode::RelocationTag::LAYOUT {
@@ -75,17 +75,17 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
 
             Ok(self.program.layout_id(module, ty).raw())
         } else if tag == bytecode::RelocationTag::FUNCTION {
-            let function = object.functions().get(index as usize).ok_or_else(|| {
-                self.program
-                    .invalid_input("bytecode function operand is absent")
-            })?;
+            let function = object
+                .functions()
+                .get(index as usize)
+                .ok_or_else(|| invalid_program_input("bytecode function operand is absent"))?;
 
             Ok(self.program.function_id(module, function.id).0)
         } else if tag == bytecode::RelocationTag::GLOBAL {
-            let global = object.globals().get(index as usize).ok_or_else(|| {
-                self.program
-                    .invalid_input("bytecode global operand is absent")
-            })?;
+            let global = object
+                .globals()
+                .get(index as usize)
+                .ok_or_else(|| invalid_program_input("bytecode global operand is absent"))?;
 
             Ok(self.program.global_id(module, global.id).0)
         } else if tag == bytecode::RelocationTag::DYNAMIC {
@@ -93,23 +93,20 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
                 .dispatch()
                 .iter_dynamic_tables()
                 .nth(index as usize)
-                .ok_or_else(|| {
-                    self.program
-                        .invalid_input("bytecode dynamic table is absent")
-                })?;
+                .ok_or_else(|| invalid_program_input("bytecode dynamic table is absent"))?;
             let id = self
                 .program
                 .dynamic_table_id(module, table.concrete, table.constraint)
-                .ok_or_else(|| self.program.invalid_input("linked dynamic table is absent"))?;
+                .ok_or_else(|| invalid_program_input("linked dynamic table is absent"))?;
 
             Ok(id.0)
         } else if tag == bytecode::RelocationTag::ALLOCATION {
-            object.allocations().get(index as usize).ok_or_else(|| {
-                self.program
-                    .invalid_input("bytecode allocation site is absent")
-            })?;
+            object
+                .allocations()
+                .get(index as usize)
+                .ok_or_else(|| invalid_program_input("bytecode allocation site is absent"))?;
 
-            Ok(self.program.allocation_id(module, index).0)
+            Ok(self.program.allocation_id(module, index)?.0)
         } else if tag == bytecode::RelocationTag::COUNTER {
             let function = self.relocation_function(object, byte_offset)?;
 
@@ -121,9 +118,7 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
             self.sampler_id(module, samplers, function, mir::SamplerId(index))
                 .map(|sampler| sampler.0)
         } else {
-            Err(self
-                .program
-                .invalid_input("unsupported bytecode relocation"))
+            Err(invalid_program_input("unsupported bytecode relocation"))
         }
     }
 
@@ -132,7 +127,7 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
         &self,
         object: &Object,
         byte_offset: u32,
-    ) -> LinkResult<mir::FunctionId> {
+    ) -> CompilerResult<mir::FunctionId> {
         for (declaration, function) in object
             .functions()
             .iter()
@@ -147,9 +142,9 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
             }
         }
 
-        Err(self
-            .program
-            .invalid_input("bytecode relocation has no owning function"))
+        Err(invalid_program_input(
+            "bytecode relocation has no owning function",
+        ))
     }
 
     /// Resolve one function-local counter declared by an artifact site.
@@ -159,11 +154,9 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
         counters: &HashSet<(mir::FunctionId, mir::CounterId)>,
         function: mir::FunctionId,
         counter: mir::CounterId,
-    ) -> LinkResult<CounterId> {
+    ) -> CompilerResult<CounterId> {
         if !counters.contains(&(function, counter)) {
-            return Err(self
-                .program
-                .invalid_input("bytecode counter site is absent"));
+            return Err(invalid_program_input("bytecode counter site is absent"));
         }
 
         Ok(self.program.counter_id(module, function, counter))
@@ -176,26 +169,21 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
         samplers: &HashSet<(mir::FunctionId, mir::SamplerId)>,
         function: mir::FunctionId,
         sampler: mir::SamplerId,
-    ) -> LinkResult<SamplerId> {
+    ) -> CompilerResult<SamplerId> {
         if !samplers.contains(&(function, sampler)) {
-            return Err(self
-                .program
-                .invalid_input("bytecode sampler site is absent"));
+            return Err(invalid_program_input("bytecode sampler site is absent"));
         }
 
         Ok(self.program.sampler_id(module, function, sampler))
     }
 
     /// Return one object-local MIR type identity.
-    pub(super) fn object_type(&self, object: &Object, index: u32) -> LinkResult<mir::TypeId> {
+    pub(super) fn object_type(&self, object: &Object, index: u32) -> CompilerResult<mir::TypeId> {
         object
             .types()
             .get(index as usize)
             .map(|ty| ty.id)
-            .ok_or_else(|| {
-                self.program
-                    .invalid_input("bytecode type operand is absent")
-            })
+            .ok_or_else(|| invalid_program_input("bytecode type operand is absent"))
     }
 
     /// Return one final Program type identity.
@@ -204,7 +192,7 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
         module: ModuleId,
         object: &Object,
         index: u32,
-    ) -> LinkResult<TypeId> {
+    ) -> CompilerResult<TypeId> {
         let ty = self.object_type(object, index)?;
 
         Ok(self.program.type_id(module, ty))

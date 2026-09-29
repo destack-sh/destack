@@ -7,7 +7,7 @@ use tspp_dir as dir;
 use tspp_repository::ProviderContext;
 use tspp_source::{ModuleId, PackageId, TargetId};
 
-use crate::{JsLinker, LinkError, LinkResult};
+use crate::{CompilerError, CompilerResult, JsLinker, LinkError};
 
 impl JsLinker<'_> {
     /// Rewrite one same-output resource import into local bindings.
@@ -20,7 +20,7 @@ impl JsLinker<'_> {
         target_id: &TargetId,
         package_id: PackageId,
         _context: &dyn ProviderContext,
-    ) -> LinkResult<Vec<js::LocalNodeId<js::Statement>>> {
+    ) -> CompilerResult<Vec<js::LocalNodeId<js::Statement>>> {
         let items = {
             let statement = module.tree.get(statement_id);
             let js::Statement::Import { items, .. } = statement else {
@@ -51,16 +51,12 @@ impl JsLinker<'_> {
             let is_namespace = item.binding == js::DependencyBinding::Namespace;
             let binding_name = match item.binding {
                 js::DependencyBinding::Default => {
-                    item.alias.ok_or_else(|| LinkError::Internal {
-                        anchor: (package_id).into(),
-                        package: package_id,
+                    item.alias.ok_or_else(|| CompilerError::Internal {
                         message: "resource default import is missing an alias".to_string(),
                     })?
                 }
                 js::DependencyBinding::Namespace => {
-                    item.alias.ok_or_else(|| LinkError::Internal {
-                        anchor: (package_id).into(),
-                        package: package_id,
+                    item.alias.ok_or_else(|| CompilerError::Internal {
                         message: "resource namespace import is missing an alias".to_string(),
                     })?
                 }
@@ -78,7 +74,8 @@ impl JsLinker<'_> {
                             target: *target_id,
                             message: "resource imports only support default and namespace bindings"
                                 .to_string(),
-                        });
+                        }
+                        .into());
                     }
                 },
             };
@@ -148,8 +145,7 @@ impl JsLinker<'_> {
         module_id: ModuleId,
         target_module: ModuleId,
         profile_id: tspp_source::ProfileId,
-        package_id: PackageId,
-    ) -> LinkResult<Vec<js::LocalNodeId<js::Statement>>> {
+    ) -> CompilerResult<Vec<js::LocalNodeId<js::Statement>>> {
         let mut declarators = Vec::new();
 
         let items = {
@@ -193,7 +189,6 @@ impl JsLinker<'_> {
                     statement_id,
                     target_module,
                     profile_id,
-                    package_id,
                 )?;
                 let pattern = module.tree.insert_from(
                     js::Pattern::Binding {
@@ -218,9 +213,8 @@ impl JsLinker<'_> {
                 continue;
             }
 
-            let (target_symbol, target_binding_name) = self.same_output_import_target_binding(
-                module, item_id, module_id, profile_id, package_id,
-            )?;
+            let (target_symbol, target_binding_name) =
+                self.same_output_import_target_binding(module, item_id, module_id, profile_id)?;
             let local_binding_content = module.strings.get(local_binding_name).to_string();
 
             // direct symbol rewrites avoid emitting invalid `const x = x`
@@ -287,37 +281,32 @@ impl JsLinker<'_> {
         item_id: js::LocalNodeId<js::DependencyItem>,
         module_id: ModuleId,
         profile_id: tspp_source::ProfileId,
-        package_id: PackageId,
-    ) -> LinkResult<(dir::GlobalSymbolId, String)> {
+    ) -> CompilerResult<(dir::GlobalSymbolId, String)> {
         let origin = module
             .tree
             .get_origin(item_id.id)
-            .ok_or_else(|| LinkError::Internal {
-                anchor: package_id.into(),
-                package: package_id,
+            .ok_or_else(|| CompilerError::Internal {
                 message: "same-output import item has no origin".to_string(),
             })?;
         let source_item_id = dir::LocalNodeId::<dir::DependencyItem>::new(origin.node_id);
 
         // read the symbol the source module declares for the imported item
-        let source_symbols = self.source_bindings(module_id, profile_id, package_id)?;
+        let source_symbols = self.source_bindings(module_id, profile_id)?;
         let target_symbol = {
             if let Some(symbol) =
                 source_symbols.declaration_symbol(source_item_id.into_global_any(module_id))
             {
                 symbol.into_global(module_id)
             } else {
-                return Err(LinkError::Internal {
-                    anchor: (package_id).into(),
-                    package: package_id,
+                return Err(CompilerError::Internal {
                     message: format!(
-                        "missing local symbol for same-output import rewrite item {item_id:?} in module {module_id:?}"
+                        "missing local symbol for same-output import rewrite item {item_id:? } in module {module_id:?}"
                     ),
                 });
             }
         };
 
-        self.resolve_same_output_printable_symbol(target_symbol, profile_id, package_id)
+        self.resolve_same_output_printable_symbol(target_symbol, profile_id)
     }
 
     /// Read one source module's bindings through its expanded stage.
@@ -325,14 +314,11 @@ impl JsLinker<'_> {
         &self,
         module_id: ModuleId,
         profile_id: tspp_source::ProfileId,
-        package_id: PackageId,
-    ) -> LinkResult<dir::BindingTable<'static>> {
+    ) -> CompilerResult<dir::BindingTable<'static>> {
         let key = (module_id, profile_id);
-        let read = |error: tspp_repository::ProviderError| LinkError::Internal {
-            anchor: package_id.into(),
-            package: package_id,
+        let read = |error: tspp_repository::ProviderError| CompilerError::Internal {
             message: format!(
-                "missing expanded DIR for same-output module {module_id:?}: {error:?}"
+                "missing expanded DIR for same-output module {module_id:? }: {error:?}"
             ),
         };
         let stages = DirView::expanded(
@@ -350,10 +336,9 @@ impl JsLinker<'_> {
         &self,
         symbol_id: dir::GlobalSymbolId,
         profile_id: tspp_source::ProfileId,
-        package_id: PackageId,
-    ) -> LinkResult<(dir::GlobalSymbolId, String)> {
+    ) -> CompilerResult<(dir::GlobalSymbolId, String)> {
         // load the source module for the exported symbol
-        let symbols = self.source_bindings(symbol_id.module_id, profile_id, package_id)?;
+        let symbols = self.source_bindings(symbol_id.module_id, profile_id)?;
         let symbol = symbols.get_symbol(symbol_id.local_id);
 
         // use the source declaration name for same-output local bridging
@@ -364,11 +349,9 @@ impl JsLinker<'_> {
             ));
         }
 
-        Err(LinkError::Internal {
-            anchor: (package_id).into(),
-            package: package_id,
+        Err(CompilerError::Internal {
             message: format!(
-                "same-output import target symbol {symbol_id:?} has no printable binding name"
+                "same-output import target symbol {symbol_id:? } has no printable binding name"
             ),
         })
     }
@@ -513,16 +496,12 @@ impl JsLinker<'_> {
         statement_id: js::LocalNodeId<js::Statement>,
         target_module: ModuleId,
         profile_id: tspp_source::ProfileId,
-        package_id: PackageId,
-    ) -> LinkResult<js::LocalNodeId<js::Expression>> {
+    ) -> CompilerResult<js::LocalNodeId<js::Expression>> {
         let target_directory = self
             .artifacts
             .read::<DirExported>((target_module, profile_id))
-            .map_err(|error| LinkError::Internal {
-                anchor: (package_id).into(),
-                package: package_id,
-                message: format!(
-                    "missing resolved dir for same-output namespace import target {target_module:?}: {error:?}",
+            .map_err(|error| CompilerError::Internal { message: format!(
+                    "missing resolved dir for same-output namespace import target {target_module:? }: {error:?}",
                 ),
             })?;
         let mut seen_keys = HashSet::new();
@@ -541,19 +520,17 @@ impl JsLinker<'_> {
             }
 
             // select the implementation from the exported overload group
-            let target_symbol = symbols.last().ok_or_else(|| LinkError::Internal {
-                anchor: package_id.into(),
-                package: package_id,
-                message: format!("runtime export {key:?} has no local declaration"),
+            let target_symbol = symbols.last().ok_or_else(|| CompilerError::Internal {
+                message: format!("runtime export {key:? } has no local declaration"),
             })?;
             let target_symbol = target_symbol.into_global(target_module);
             let (target_symbol, target_name) =
-                self.resolve_same_output_printable_symbol(target_symbol, profile_id, package_id)?;
+                self.resolve_same_output_printable_symbol(target_symbol, profile_id)?;
             let key = Self::same_output_namespace_key(
                 module,
                 self.compiler.repository.string_pool().as_ref(),
                 static_key,
-            );
+            )?;
             let value = self.insert_same_output_symbol_path(
                 module,
                 statement_id,
@@ -596,7 +573,7 @@ impl JsLinker<'_> {
         module: &mut js::Module,
         target_strings: &StringPool,
         key: dir::StaticKey,
-    ) -> js::Key {
+    ) -> CompilerResult<js::Key> {
         let name = match key {
             dir::StaticKey::Name(name) => {
                 let content = target_strings.get(name);
@@ -612,8 +589,13 @@ impl JsLinker<'_> {
                 let name = module.strings.intern(&index.to_string());
                 js::Name::String(name)
             }
+            dir::StaticKey::Call | dir::StaticKey::New => {
+                return Err(CompilerError::Internal {
+                    message: "an export under a role key".to_string(),
+                });
+            }
         };
 
-        js::Key::Name(name)
+        Ok(js::Key::Name(name))
     }
 }

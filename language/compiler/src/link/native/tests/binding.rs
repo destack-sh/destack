@@ -22,7 +22,7 @@ entry:
 "#,
         [],
     );
-    let program = TestModule::link(package, &[&object]);
+    let program = TestModule::link(&[&object]);
     let caller = program
         .function_id_by_name("caller")
         .expect("native caller should retain its Program function");

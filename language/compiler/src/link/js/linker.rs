@@ -5,7 +5,7 @@ use tspp_artifact::{Data, Script};
 use tspp_repository::{ArtifactReader, Module, ProviderContext, Revision, Target};
 use tspp_source::{File, FileId, ModuleId, PackageId, ProfileId, Span, TargetId};
 
-use crate::{Compiler, CompilerError, LinkError, LinkResult};
+use crate::{Compiler, CompilerError, CompilerResult};
 
 /// One JS target linker.
 pub(crate) struct JsLinker<'a> {
@@ -40,10 +40,8 @@ impl<'a> JsLinker<'a> {
         target: &'a Target,
         target_id: &'a TargetId,
         package_id: PackageId,
-    ) -> LinkResult<Self> {
-        let target_name = compiler
-            .target_name(context.revision(), *target_id)
-            .map_err(|error| Compiler::link_error(package_id, error))?;
+    ) -> CompilerResult<Self> {
+        let target_name = compiler.target_name(context.revision(), *target_id)?;
 
         Ok(Self {
             compiler,
@@ -69,33 +67,27 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Return the anchor span for one linked module.
-    pub(crate) fn module_anchor_span(&self, module_id: ModuleId) -> LinkResult<Span> {
+    pub(crate) fn module_anchor_span(&self, module_id: ModuleId) -> CompilerResult<Span> {
         let module = self.module(module_id)?;
 
         Ok(Span::empty(module.file_id))
     }
 
     /// Return one revision-scoped module snapshot.
-    pub(crate) fn module(&self, module_id: ModuleId) -> LinkResult<Arc<Module>> {
-        self.compiler
-            .module(self.revision(), module_id)
-            .map_err(|error| self.link_error(error))
+    pub(crate) fn module(&self, module_id: ModuleId) -> CompilerResult<Arc<Module>> {
+        self.compiler.module(self.revision(), module_id)
     }
 
     /// Return one revision-scoped file snapshot.
-    pub(crate) fn file(&self, file_id: FileId) -> LinkResult<Arc<File>> {
-        self.compiler
-            .file(self.context, file_id)
-            .map_err(|error| self.link_error(error))
+    pub(crate) fn file(&self, file_id: FileId) -> CompilerResult<Arc<File>> {
+        self.compiler.file(self.context, file_id)
     }
 
     /// Return one structured script for this target.
-    pub(crate) fn script(&self, module_id: ModuleId) -> LinkResult<Arc<Script>> {
+    pub(crate) fn script(&self, module_id: ModuleId) -> CompilerResult<Arc<Script>> {
         self.artifacts
             .read::<Script>((module_id, *self.target_id))
-            .map_err(|error| LinkError::Internal {
-                anchor: (self.package_id).into(),
-                package: self.package_id,
+            .map_err(|error| CompilerError::Internal {
                 message: format!(
                     "missing script for module {:?} target '{}': {error:?}",
                     module_id,
@@ -105,29 +97,21 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Return the profile selected by this target.
-    pub(crate) fn profile_id(&self) -> LinkResult<ProfileId> {
+    pub(crate) fn profile_id(&self) -> CompilerResult<ProfileId> {
         self.compiler
             .profile_id_for_target(self.revision(), self.target_id)
-            .map_err(|error| self.link_error(error))
     }
 
     /// Return the parsed data payload for one linked module.
-    pub(crate) fn data(&self, module_id: ModuleId) -> LinkResult<Arc<Data>> {
+    pub(crate) fn data(&self, module_id: ModuleId) -> CompilerResult<Arc<Data>> {
         self.artifacts
             .read::<Data>(module_id)
-            .map_err(|error| LinkError::Internal {
-                anchor: (self.package_id).into(),
-                package: self.package_id,
+            .map_err(|error| CompilerError::Internal {
                 message: format!(
                     "missing data artifact for module {:?} target '{}': {error:?}",
                     module_id,
                     self.target_name()
                 ),
             })
-    }
-
-    /// Map one compiler boundary failure into a link diagnostic.
-    pub(crate) fn link_error(&self, error: CompilerError) -> LinkError {
-        Compiler::link_error(self.package_id, error)
     }
 }

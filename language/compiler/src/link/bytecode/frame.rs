@@ -1,31 +1,32 @@
 use tspp_bytecode as bytecode;
 use tspp_core::EntryRange;
 
-use crate::LinkResult;
+use crate::CompilerResult;
 
 use super::BytecodeLinker;
+use crate::invalid_program_input;
 
 impl<'a, 'b> BytecodeLinker<'a, 'b> {
     /// Link bytecode frame maps into canonical Program frame state order.
     pub(super) fn link_frames(
         &self,
-    ) -> LinkResult<(Vec<bytecode::FrameMap>, Vec<bytecode::RegisterSpan>)> {
+    ) -> CompilerResult<(Vec<bytecode::FrameMap>, Vec<bytecode::RegisterSpan>)> {
         let mut sources = Vec::new();
 
         // resolve every object-local map to its canonical frame state
         for (module, object) in self.program.objects() {
             let bytecode = self.object(object)?;
             if object.frames().len() != bytecode.frames().len() {
-                return Err(self
-                    .program
-                    .invalid_input("logical and physical frame counts differ"));
+                return Err(invalid_program_input(
+                    "logical and physical frame counts differ",
+                ));
             }
 
             for (state, map) in object.frames().iter().zip(bytecode.frames()) {
                 let state = self
                     .frames
                     .state(*module, state.point)
-                    .ok_or_else(|| self.program.invalid_input("linked frame state is absent"))?;
+                    .ok_or_else(|| invalid_program_input("linked frame state is absent"))?;
                 sources.push((state, map, bytecode.registers()));
             }
         }
@@ -38,9 +39,9 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
         // append each map under its matching dense Program frame state id
         for (state, map, source_registers) in sources {
             if state.index() != frames.len() {
-                return Err(self
-                    .program
-                    .invalid_input("bytecode frame maps are not canonical"));
+                return Err(invalid_program_input(
+                    "bytecode frame maps are not canonical",
+                ));
             }
 
             // append the physical spans under their canonical state identity

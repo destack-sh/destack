@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::hash::Hash;
 use std::path::{Path, PathBuf};
 
-use crate::{LinkError, LinkResult};
+use crate::{CompilerError, CompilerResult, LinkError};
 use tspp_core::{StableHasher, stable_hash_bytes};
 use tspp_repository::{JsOutputFormat, JsOutputMode, Module, Target};
 use tspp_source::ModuleId;
@@ -163,7 +163,7 @@ impl OutputLayout {
 
 impl<'a> JsLinker<'a> {
     /// Return one stable content hash for one source-backed module.
-    fn source_hash(&self, module_id: ModuleId) -> LinkResult<String> {
+    fn source_hash(&self, module_id: ModuleId) -> CompilerResult<String> {
         let module = self.module(module_id)?;
         let file = self.file(module.file_id)?;
 
@@ -177,7 +177,7 @@ impl<'a> JsLinker<'a> {
     pub(crate) fn build_output_layout(
         &self,
         output_graph: &OutputGraph,
-    ) -> LinkResult<OutputLayout> {
+    ) -> CompilerResult<OutputLayout> {
         if output_graph.outputs().is_empty() {
             return Ok(OutputLayout::default());
         }
@@ -203,7 +203,7 @@ impl<'a> JsLinker<'a> {
     pub(crate) fn build_chunked_output_layout(
         &self,
         output_graph: &OutputGraph,
-    ) -> LinkResult<OutputLayout> {
+    ) -> CompilerResult<OutputLayout> {
         let output_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
         let mut used_names = HashSet::new();
         let mut used_output_paths = HashSet::new();
@@ -244,7 +244,8 @@ impl<'a> JsLinker<'a> {
                         "multiple JS outputs resolve to the same emitted path '{}'",
                         output_location.path().display()
                     ),
-                });
+                }
+                .into());
             }
 
             output_names.push(output_name);
@@ -258,7 +259,10 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Build the preserve-modules output layout over the current JS output graph.
-    fn build_preserve_output_layout(&self, output_graph: &OutputGraph) -> LinkResult<OutputLayout> {
+    fn build_preserve_output_layout(
+        &self,
+        output_graph: &OutputGraph,
+    ) -> CompilerResult<OutputLayout> {
         let mut output_names = Vec::with_capacity(output_graph.outputs().len());
         let mut output_locations = Vec::with_capacity(output_graph.outputs().len());
 
@@ -268,9 +272,7 @@ impl<'a> JsLinker<'a> {
                 .facade_module()
                 .or_else(|| output.modules().first().copied());
             let Some(module_id) = module_id else {
-                return Err(LinkError::Internal {
-                    anchor: (self.package_id).into(),
-                    package: self.package_id,
+                return Err(CompilerError::Internal {
                     message: "preserve-modules JS output had no facade or member modules"
                         .to_string(),
                 });
@@ -281,11 +283,7 @@ impl<'a> JsLinker<'a> {
                 self.target,
                 self.module(module_id)?.as_ref(),
             )
-            .map_err(|message| LinkError::Internal {
-                anchor: (self.package_id).into(),
-                package: self.package_id,
-                message,
-            })?;
+            .map_err(|message| CompilerError::Internal { message })?;
             let output_name = self.base_js_output_name(module_id, Path::new(""))?;
 
             output_names.push(output_name);
@@ -318,7 +316,7 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Build one stable emitted file-name hash for one JS output.
-    fn js_output_hash(&self, output: &super::Output) -> LinkResult<String> {
+    fn js_output_hash(&self, output: &super::Output) -> CompilerResult<String> {
         let mut hasher = StableHasher::new();
 
         // output shape
@@ -346,7 +344,7 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Build one default output name candidate for one automatic chunk.
-    fn automatic_js_output_name(&self, output: &super::Output) -> LinkResult<String> {
+    fn automatic_js_output_name(&self, output: &super::Output) -> CompilerResult<String> {
         if output.kind() == OutputKind::Shared && output.facade_module().is_none() {
             return Ok("chunk".to_string());
         }
@@ -360,11 +358,14 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Build one default output name candidate for one module.
-    fn base_js_output_name(&self, module_id: ModuleId, package_dir: &Path) -> LinkResult<String> {
-        let module_path = self
-            .compiler
-            .package_relative_module_path(package_dir, module_id, self.context)
-            .map_err(|error| self.link_error(error))?;
+    fn base_js_output_name(
+        &self,
+        module_id: ModuleId,
+        package_dir: &Path,
+    ) -> CompilerResult<String> {
+        let module_path =
+            self.compiler
+                .package_relative_module_path(package_dir, module_id, self.context)?;
         let module_path = Path::new(&module_path);
         let stem = module_path
             .file_stem()

@@ -8,7 +8,7 @@ use tspp_source::{File, FileType, ModuleId, Uri};
 
 use super::super::JsLinker;
 use crate::link::{OutputFileNameValues, OutputLocation, TargetLocation};
-use crate::{CompilerResult, LinkError, LinkResult};
+use crate::{CompilerError, CompilerResult, LinkError};
 
 use super::model::{Asset, AssetReference};
 use super::name::{content_hash, directory_token, name_token, percent_encode_for_data_url};
@@ -138,7 +138,7 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Collect the file modules that should emit as assets.
-    fn collect_file_modules(&self, module_ids: &[ModuleId]) -> LinkResult<Vec<ModuleId>> {
+    fn collect_file_modules(&self, module_ids: &[ModuleId]) -> CompilerResult<Vec<ModuleId>> {
         let mut asset_module_ids = Vec::new();
 
         // collect file modules in the JS closure
@@ -156,28 +156,29 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Return the source module for one asset module id.
-    fn asset_module(&self, module_id: ModuleId) -> LinkResult<Arc<Module>> {
+    fn asset_module(&self, module_id: ModuleId) -> CompilerResult<Arc<Module>> {
         self.module(module_id)
     }
 
     /// Return one linker-local Asset from one source module.
-    fn asset(&self, module: &Module) -> LinkResult<Asset> {
+    fn asset(&self, module: &Module) -> CompilerResult<Asset> {
         let file = self.file(module.file_id)?;
 
-        Asset::from_module(module, file).map_err(|message| LinkError::Internal {
-            anchor: (self.package_id).into(),
-            package: self.package_id,
-            message,
-        })
+        Asset::from_module(module, file).map_err(|message| CompilerError::Internal { message })
     }
 
     /// Return one emitted output location for an Asset.
-    fn asset_output_location(&self, module: &Module, asset: &Asset) -> LinkResult<OutputLocation> {
-        let source_path = module.path.as_ref().ok_or_else(|| LinkError::Internal {
-            anchor: (self.package_id).into(),
-            package: self.package_id,
-            message: format!("asset module '{}' has no filesystem path", module.uri),
-        })?;
+    fn asset_output_location(
+        &self,
+        module: &Module,
+        asset: &Asset,
+    ) -> CompilerResult<OutputLocation> {
+        let source_path = module
+            .path
+            .as_ref()
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("asset module '{}' has no filesystem path", module.uri),
+            })?;
         let output_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
         let directory = directory_token(self.root_dir, self.package_dir, source_path);
         let name = name_token(source_path).ok_or_else(|| LinkError::InvalidOutputPath {
@@ -202,7 +203,10 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Plan the final reference for one asset module.
-    pub(crate) fn plan_asset_reference(&self, module_id: ModuleId) -> LinkResult<AssetReference> {
+    pub(crate) fn plan_asset_reference(
+        &self,
+        module_id: ModuleId,
+    ) -> CompilerResult<AssetReference> {
         let module = self.asset_module(module_id)?;
         let asset = self.asset(module.as_ref())?;
         let should_inline = match self.target.js.assets.mode {
@@ -238,7 +242,7 @@ impl<'a> JsLinker<'a> {
     pub(crate) fn plan_asset_references(
         &self,
         module_ids: impl IntoIterator<Item = ModuleId>,
-    ) -> LinkResult<IndexMap<ModuleId, AssetReference>> {
+    ) -> CompilerResult<IndexMap<ModuleId, AssetReference>> {
         let mut asset_reference_map = IndexMap::new();
 
         // collect one planned reference per distinct asset module
@@ -259,7 +263,7 @@ impl<'a> JsLinker<'a> {
         &self,
         module_id: ModuleId,
         output_location: &OutputLocation,
-    ) -> LinkResult<BundleFile> {
+    ) -> CompilerResult<BundleFile> {
         let module = self.asset_module(module_id)?;
         let file = self.file(module.file_id)?;
 
@@ -276,7 +280,7 @@ impl<'a> JsLinker<'a> {
     pub(crate) fn emit_asset_files(
         &self,
         asset_reference_map: &IndexMap<ModuleId, AssetReference>,
-    ) -> LinkResult<Vec<BundleFile>> {
+    ) -> CompilerResult<Vec<BundleFile>> {
         let mut files = Vec::new();
 
         // emit one output for each emitted asset reference

@@ -8,7 +8,7 @@ use super::super::linker::OutputModule;
 use super::linker::Rewriter;
 use super::source::{MinifySourceContext, OutputScopeId};
 use super::statement::DeclarationBindingAccess;
-use crate::{JsLinker, LinkError, LinkResult};
+use crate::{CompilerError, CompilerResult, JsLinker};
 
 /// The first character alphabet for minified identifiers.
 const MINIFIED_IDENTIFIER_START: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$_";
@@ -77,7 +77,7 @@ impl JsLinker<'_> {
     pub(in super::super) fn rewrite_module_defaults(
         &self,
         modules: &mut [OutputModule],
-    ) -> LinkResult<()> {
+    ) -> CompilerResult<()> {
         let mut used_names = self.collect_output_identifier_names(modules);
         let mut rename_by_symbol = HashMap::<js::ScriptSymbolId, String>::new();
         let ordered_symbols = self.collect_output_module_default_symbols(modules);
@@ -183,7 +183,7 @@ impl JsLinker<'_> {
     pub(in super::super) fn minify_output_identifiers(
         &self,
         modules: &mut [OutputModule],
-    ) -> LinkResult<()> {
+    ) -> CompilerResult<()> {
         let source_contexts = self.load_minify_source_contexts(modules)?;
         let mut bindings = HashMap::<js::ScriptSymbolId, BindingEntry>::new();
         let mut references = HashMap::<js::ScriptSymbolId, u32>::new();
@@ -410,7 +410,7 @@ impl JsLinker<'_> {
         bindings: &mut HashMap<js::ScriptSymbolId, BindingEntry>,
         references: &mut HashMap<js::ScriptSymbolId, u32>,
         reserved_names: &mut HashSet<String>,
-    ) -> LinkResult<()> {
+    ) -> CompilerResult<()> {
         // declaration bindings
         for declaration_id in module.tree.get_nodes::<js::Declaration>() {
             let Some(symbol_id) =
@@ -588,7 +588,7 @@ impl JsLinker<'_> {
         is_preserved: bool,
         source_contexts: &HashMap<ModuleId, MinifySourceContext>,
         bindings: &mut HashMap<js::ScriptSymbolId, BindingEntry>,
-    ) -> LinkResult<()> {
+    ) -> CompilerResult<()> {
         let scope_id = self.symbol_scope_id(symbol_id, source_contexts)?;
         let entry = bindings.entry(symbol_id).or_insert_with(|| BindingEntry {
             original_name: original_name.clone(),
@@ -687,7 +687,7 @@ impl JsLinker<'_> {
         pattern_id: js::LocalNodeId<js::Pattern>,
         source_contexts: &HashMap<ModuleId, MinifySourceContext>,
         bindings: &mut HashMap<js::ScriptSymbolId, BindingEntry>,
-    ) -> LinkResult<()> {
+    ) -> CompilerResult<()> {
         let pattern = module.tree.get(pattern_id);
 
         match pattern {
@@ -722,7 +722,7 @@ impl JsLinker<'_> {
         fields: &[js::LocalNodeId<js::PatternField>],
         source_contexts: &HashMap<ModuleId, MinifySourceContext>,
         bindings: &mut HashMap<js::ScriptSymbolId, BindingEntry>,
-    ) -> LinkResult<()> {
+    ) -> CompilerResult<()> {
         for field_id in fields {
             let field = module.tree.get(*field_id);
 
@@ -760,7 +760,7 @@ impl JsLinker<'_> {
         bindings: &HashMap<js::ScriptSymbolId, BindingEntry>,
         source_contexts: &HashMap<ModuleId, MinifySourceContext>,
         reserved_names: &HashSet<String>,
-    ) -> LinkResult<HashMap<js::ScriptSymbolId, String>> {
+    ) -> CompilerResult<HashMap<js::ScriptSymbolId, String>> {
         let mut symbols_by_scope = BTreeMap::<OutputScopeId, Vec<js::ScriptSymbolId>>::new();
         let mut children_by_scope = BTreeMap::<OutputScopeId, Vec<OutputScopeId>>::new();
 
@@ -809,7 +809,7 @@ impl JsLinker<'_> {
         inherited_names: &mut HashSet<String>,
         allocator: &mut IdentifierNameAllocator,
         rename_by_symbol: &mut HashMap<js::ScriptSymbolId, String>,
-    ) -> LinkResult<()> {
+    ) -> CompilerResult<()> {
         let mut used_names = inherited_names.clone();
         used_names.extend(reserved_names.iter().cloned());
 
@@ -817,14 +817,13 @@ impl JsLinker<'_> {
 
         // collect the scope bindings up front so missing entries fail loudly
         for symbol_id in symbols_by_scope.get(&scope_id).cloned().unwrap_or_default() {
-            let entry = bindings
-                .get(&symbol_id)
-                .cloned()
-                .ok_or_else(|| LinkError::Internal {
-                    anchor: (self.package_id).into(),
-                    package: self.package_id,
-                    message: format!("missing minify binding entry for symbol {symbol_id:?}"),
-                })?;
+            let entry =
+                bindings
+                    .get(&symbol_id)
+                    .cloned()
+                    .ok_or_else(|| CompilerError::Internal {
+                        message: format!("missing minify binding entry for symbol {symbol_id:? }"),
+                    })?;
 
             symbols.push((symbol_id, entry));
         }
@@ -892,7 +891,7 @@ impl JsLinker<'_> {
         module: &mut js::Module,
         source_contexts: &HashMap<ModuleId, MinifySourceContext>,
         rename_by_symbol: &HashMap<js::ScriptSymbolId, String>,
-    ) -> LinkResult<()> {
+    ) -> CompilerResult<()> {
         // declaration names
         for declaration_id in module.tree.get_nodes::<js::Declaration>() {
             let Some(symbol_id) =
@@ -1040,7 +1039,7 @@ impl JsLinker<'_> {
         module: &mut js::Module,
         source_contexts: &HashMap<ModuleId, MinifySourceContext>,
         references: &HashMap<js::ScriptSymbolId, u32>,
-    ) -> LinkResult<()> {
+    ) -> CompilerResult<()> {
         if self.target.js.minify.keep_names {
             return Ok(());
         }

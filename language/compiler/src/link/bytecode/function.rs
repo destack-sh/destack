@@ -3,9 +3,10 @@ use tspp_core::{EntryRange, Optional};
 use tspp_mir as mir;
 use tspp_program::{Object, Word};
 
-use crate::LinkResult;
+use crate::CompilerResult;
 
 use super::BytecodeLinker;
+use crate::invalid_program_input;
 
 impl<'a, 'b> BytecodeLinker<'a, 'b> {
     /// Link one bytecode function and append its operation and code sections.
@@ -17,7 +18,7 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
         object_code: &[u8],
         operations: &mut Vec<bytecode::CodeOffset>,
         code: &mut Vec<u8>,
-    ) -> LinkResult<bytecode::Function> {
+    ) -> CompilerResult<bytecode::Function> {
         let bytecode = self.object(object)?;
 
         // append operation coordinates without changing function-relative offsets
@@ -53,10 +54,10 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
         object: &Object,
         function: mir::FunctionId,
         emitted_register_count: u16,
-    ) -> LinkResult<u16> {
+    ) -> CompilerResult<u16> {
         let function = object
             .function(function)
-            .ok_or_else(|| self.program.invalid_input("object function is absent"))?;
+            .ok_or_else(|| invalid_program_input("object function is absent"))?;
         let types = function
             .environment
             .iter()
@@ -65,17 +66,15 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
 
         // size the contiguous entry window from canonical object layouts
         for ty in types {
-            let layout = object.layouts().type_layout(*ty).ok_or_else(|| {
-                self.program
-                    .invalid_input("function parameter layout is absent")
-            })?;
+            let layout = object
+                .layouts()
+                .type_layout(*ty)
+                .ok_or_else(|| invalid_program_input("function parameter layout is absent"))?;
             entry_register_count += layout.byte_len().div_ceil(Word::BYTE_LEN);
         }
 
-        let entry_register_count = u16::try_from(entry_register_count).map_err(|_| {
-            self.program
-                .invalid_input("function register count is out of range")
-        })?;
+        let entry_register_count = u16::try_from(entry_register_count)
+            .map_err(|_| invalid_program_input("function register count is out of range"))?;
 
         Ok(emitted_register_count.max(entry_register_count))
     }
@@ -85,15 +84,15 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
         &self,
         object: &'c Object,
         function: mir::FunctionId,
-    ) -> LinkResult<&'c bytecode::Function> {
+    ) -> CompilerResult<&'c bytecode::Function> {
         let index = object
             .functions()
             .binary_search_by_key(&function, |declaration| declaration.id)
-            .map_err(|_| self.program.invalid_input("object function is absent"))?;
+            .map_err(|_| invalid_program_input("object function is absent"))?;
 
         self.object(object)?
             .functions()
             .get(index)
-            .ok_or_else(|| self.program.invalid_input("bytecode function is absent"))
+            .ok_or_else(|| invalid_program_input("bytecode function is absent"))
     }
 }

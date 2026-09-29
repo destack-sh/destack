@@ -3,9 +3,10 @@ use std::collections::HashMap;
 use tspp_native as native;
 use tspp_source::ModuleId;
 
-use crate::LinkResult;
+use crate::CompilerResult;
 
 use super::{Image, NativeLinker};
+use crate::{invalid_program_input, layout_overflow};
 
 /// One platform unwind section before native code packing.
 #[derive(Debug)]
@@ -30,7 +31,7 @@ impl<'a, 'b> NativeLinker<'a, 'b> {
         &self,
         image: &Image,
         functions: &[Option<native::Function>],
-    ) -> LinkResult<(Option<native::UnwindBuilder>, Vec<native::ImportRelocation>)> {
+    ) -> CompilerResult<(Option<native::UnwindBuilder>, Vec<native::ImportRelocation>)> {
         let mut format = None;
         let mut sections = Vec::new();
         let mut offsets = HashMap::new();
@@ -46,16 +47,14 @@ impl<'a, 'b> NativeLinker<'a, 'b> {
                 .replace(unwind.format)
                 .is_some_and(|value| value != unwind.format)
             {
-                return Err(self.program.invalid_input("native unwind formats differ"));
+                return Err(invalid_program_input("native unwind formats differ"));
             }
             let source_sections = source.sections();
             let source_bytes = unwind.bytes(source_sections);
             for (index, section) in unwind.sections(source_sections).iter().copied().enumerate() {
                 next_offset = next_offset.next_multiple_of(section.alignment.bytes() as usize);
-                let offset = u32::try_from(next_offset).map_err(|_| {
-                    self.program
-                        .layout_overflow("native unwind offset exceeds u32")
-                })?;
+                let offset = u32::try_from(next_offset)
+                    .map_err(|_| layout_overflow("native unwind offset exceeds u32"))?;
                 let bytes = section.bytes(source_bytes).to_vec();
                 next_offset += bytes.len();
                 offsets.insert((*module, index as u32), offset);
@@ -81,7 +80,7 @@ impl<'a, 'b> NativeLinker<'a, 'b> {
             let source = self.source(object)?;
             let unwind = source
                 .unwind()
-                .ok_or_else(|| self.program.invalid_input("native unwind table is absent"))?;
+                .ok_or_else(|| invalid_program_input("native unwind table is absent"))?;
             for relocation in unwind
                 .relocations(source.sections())
                 .iter()
@@ -97,38 +96,28 @@ impl<'a, 'b> NativeLinker<'a, 'b> {
                     } => offsets
                         .get(&(section.module, target_section))
                         .and_then(|base| base.checked_add(offset))
-                        .ok_or_else(|| {
-                            self.program.invalid_input("native unwind target is absent")
-                        })?,
+                        .ok_or_else(|| invalid_program_input("native unwind target is absent"))?,
                     native::UnwindTarget::Import(import) => {
-                        let offset =
-                            section
-                                .offset
-                                .checked_add(relocation.offset)
-                                .ok_or_else(|| {
-                                    self.program
-                                        .layout_overflow("native import offset exceeds u32")
-                                })?;
+                        let offset = section
+                            .offset
+                            .checked_add(relocation.offset)
+                            .ok_or_else(|| layout_overflow("native import offset exceeds u32"))?;
                         if relocation.kind != native::RelocationKind::Absolute64
                             || relocation.addend != 0
                         {
-                            return Err(self
-                                .program
-                                .invalid_input("native import is not one absolute pointer"));
+                            return Err(invalid_program_input(
+                                "native import is not one absolute pointer",
+                            ));
                         }
                         imports.push(native::ImportRelocation::new(offset, import));
 
                         continue;
                     }
                 };
-                let source_offset =
-                    section
-                        .offset
-                        .checked_add(relocation.offset)
-                        .ok_or_else(|| {
-                            self.program
-                                .layout_overflow("native unwind source exceeds u32")
-                        })?;
+                let source_offset = section
+                    .offset
+                    .checked_add(relocation.offset)
+                    .ok_or_else(|| layout_overflow("native unwind source exceeds u32"))?;
                 self.patch(
                     &mut section.bytes,
                     relocation.offset,

@@ -1,5 +1,5 @@
 use crate::link::{OutputLocation, TargetLocation};
-use crate::{LinkError, LinkResult};
+use crate::{CompilerError, CompilerResult};
 use tspp_artifact::{
     BuildManifest, BuildManifestFile, BuildManifestFileType, BuildManifestLoader, Bundle,
     BundleFile, BundleSection,
@@ -73,7 +73,7 @@ impl<'a> JsLinker<'a> {
         &self,
         output: &Bundle,
         plan: &Plan,
-    ) -> LinkResult<BuildManifest> {
+    ) -> CompilerResult<BuildManifest> {
         let target_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
         let mut files = Vec::new();
         for file in output.files() {
@@ -93,7 +93,7 @@ impl<'a> JsLinker<'a> {
         target_layout: &TargetLocation<'_>,
         file: &BundleFile,
         plan: &Plan,
-    ) -> LinkResult<BuildManifestFile> {
+    ) -> CompilerResult<BuildManifestFile> {
         let output_location = self.compiler.file_output_location(target_layout, file);
         let path = output_location
             .as_ref()
@@ -125,7 +125,7 @@ impl<'a> JsLinker<'a> {
         section: BundleSection,
         output_location: Option<&OutputLocation>,
         plan: &Plan,
-    ) -> LinkResult<Option<ManifestChunkMetadata>> {
+    ) -> CompilerResult<Option<ManifestChunkMetadata>> {
         if !matches!(section, BundleSection::Entry | BundleSection::Module) {
             return Ok(None);
         }
@@ -139,14 +139,12 @@ impl<'a> JsLinker<'a> {
         else {
             return Ok(None);
         };
-        let output = plan
-            .output_graph()
-            .output(output_id)
-            .ok_or_else(|| LinkError::Internal {
-                anchor: (self.package_id).into(),
-                package: self.package_id,
-                message: format!("missing output graph node for output id {}", output_id.0),
-            })?;
+        let output =
+            plan.output_graph()
+                .output(output_id)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("missing output graph node for output id {}", output_id.0),
+                })?;
 
         Ok(Some(self.build_js_manifest_node_metadata(
             target_layout,
@@ -163,13 +161,11 @@ impl<'a> JsLinker<'a> {
         output_id: OutputId,
         output: &Output,
         plan: &Plan,
-    ) -> LinkResult<ManifestChunkMetadata> {
+    ) -> CompilerResult<ManifestChunkMetadata> {
         let output_location = plan
             .output_layout()
             .output_location(output_id)
-            .ok_or_else(|| LinkError::Internal {
-                anchor: (self.package_id).into(),
-                package: self.package_id,
+            .ok_or_else(|| CompilerError::Internal {
                 message: format!("missing output placement for output id {}", output_id.0),
             })?;
         let mut imports = output
@@ -210,9 +206,11 @@ impl<'a> JsLinker<'a> {
             input: output
                 .facade_module()
                 .map(|module_id| {
-                    self.compiler
-                        .package_relative_module_path(self.package_dir, module_id, self.context)
-                        .map_err(|error| self.link_error(error))
+                    self.compiler.package_relative_module_path(
+                        self.package_dir,
+                        module_id,
+                        self.context,
+                    )
                 })
                 .transpose()?,
             is_entry: output.is_entry(),

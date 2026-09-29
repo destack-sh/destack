@@ -4,7 +4,7 @@ use tspp_repository::Target;
 use tspp_source::ModuleId;
 
 use super::super::{OutputGraph, OutputId, OutputLayout};
-use crate::{JsLinker, LinkError, LinkResult};
+use crate::{CompilerResult, JsLinker, LinkError};
 
 impl JsLinker<'_> {
     /// Rewrite one JS module to emitted output paths.
@@ -16,7 +16,7 @@ impl JsLinker<'_> {
         output_graph: &OutputGraph,
         output_layout: &OutputLayout,
         target: &Target,
-    ) -> LinkResult<js::Module> {
+    ) -> CompilerResult<js::Module> {
         let mut module = script.module().clone();
         let roots = module.roots.clone();
         let mut rewritten_roots = Vec::with_capacity(module.roots.len());
@@ -72,7 +72,7 @@ impl JsLinker<'_> {
         module_id: ModuleId,
         module: &mut js::Module,
         statement_id: js::LocalNodeId<js::Statement>,
-    ) -> LinkResult<Vec<js::LocalNodeIdAny>> {
+    ) -> CompilerResult<Vec<js::LocalNodeIdAny>> {
         let (specifier, target_module, item_set, has_arguments, is_import) = {
             let statement = module.tree.get(statement_id);
 
@@ -151,7 +151,6 @@ impl JsLinker<'_> {
             output_id,
             target_output_id,
             output_layout,
-            self.package_id,
         )?;
         let rewritten_specifier = module.strings.intern(&rewritten_specifier);
         let statement = module.tree.get_mut(statement_id);
@@ -174,7 +173,7 @@ impl JsLinker<'_> {
         item_set: &[js::LocalNodeId<js::DependencyItem>],
         has_arguments: bool,
         target_module: ModuleId,
-    ) -> LinkResult<Vec<js::LocalNodeIdAny>> {
+    ) -> CompilerResult<Vec<js::LocalNodeIdAny>> {
         let target_module_ref = self.module(target_module)?;
 
         // asset wrapper imports become local value bindings
@@ -201,13 +200,15 @@ impl JsLinker<'_> {
 
         // reject unsupported import attributes
         if has_arguments {
-            return Err(self.invalid_output_statement(
-                module_id,
-                format!(
-                    "bundled same-output import attributes are not supported yet in '{}'",
-                    self.target_name()
-                ),
-            ));
+            return Err(self
+                .invalid_output_statement(
+                    module_id,
+                    format!(
+                        "bundled same-output import attributes are not supported yet in '{}'",
+                        self.target_name()
+                    ),
+                )
+                .into());
         }
         let profile_id = self.profile_id()?;
 
@@ -217,7 +218,6 @@ impl JsLinker<'_> {
             module_id,
             target_module,
             profile_id,
-            self.package_id,
         )?;
 
         Ok(replacement
@@ -233,7 +233,7 @@ impl JsLinker<'_> {
         module: &mut js::Module,
         statement_id: js::LocalNodeId<js::Statement>,
         item_set: &[js::LocalNodeId<js::DependencyItem>],
-    ) -> LinkResult<Vec<js::LocalNodeIdAny>> {
+    ) -> CompilerResult<Vec<js::LocalNodeIdAny>> {
         // reject export forms that need binding rewrites
         if !self
             .compiler
@@ -245,7 +245,7 @@ impl JsLinker<'_> {
                     "bundled same-output re-export rewriting is only implemented for plain named exports in '{}'",
                     self.target_name()
                 ),
-            ));
+            ).into());
         }
 
         let statement = module.tree.get_mut(statement_id);

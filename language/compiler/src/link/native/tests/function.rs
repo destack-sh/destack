@@ -30,7 +30,7 @@ entry(v0: int32):
         .expect("native object should define advance");
     let source_body = source.blocks()[source_definition.body.index()];
     let source_entry = source.blocks()[source_definition.entry.index()];
-    let program = TestModule::link(package, &[&object]);
+    let program = TestModule::link(&[&object]);
     let code = program
         .native()
         .expect("native linking should produce native code");
@@ -82,7 +82,7 @@ entry(v0: int64, v1: int64):
         .get()
         .expect("native object should define divide");
     let source_traps = source.map().traps(source.sections());
-    let program = TestModule::link(package, &[&object]);
+    let program = TestModule::link(&[&object]);
     let code = program
         .native()
         .expect("native linking should produce native code");

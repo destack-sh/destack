@@ -1,10 +1,11 @@
 use tspp_native as native;
 use tspp_program::Object;
 
-use crate::LinkResult;
+use crate::CompilerResult;
 
 use super::super::program::{FrameLinker, ProgramLinker, ProgramStatics};
 use super::Image;
+use crate::invalid_program_input;
 
 /// Link relocatable native objects into one position-independent code image.
 #[derive(Debug)]
@@ -32,7 +33,7 @@ impl<'a, 'b> NativeLinker<'a, 'b> {
     }
 
     /// Link native code when every object carries that code form.
-    pub(crate) fn link(&self) -> LinkResult<Option<native::CodeBuilder>> {
+    pub(crate) fn link(&self) -> CompilerResult<Option<native::CodeBuilder>> {
         // inspect native-code coverage across the complete Program
         let object_count = self.program.objects().len();
         let native_count = self
@@ -49,9 +50,9 @@ impl<'a, 'b> NativeLinker<'a, 'b> {
 
         // reject incomplete code forms
         if native_count != object_count {
-            return Err(self
-                .program
-                .invalid_input("only some linked objects contain native code"));
+            return Err(invalid_program_input(
+                "only some linked objects contain native code",
+            ));
         }
 
         // place and relocate every object into one executable image
@@ -100,9 +101,9 @@ impl<'a, 'b> NativeLinker<'a, 'b> {
     }
 
     /// Return the common native target and feature set.
-    pub(super) fn target(&self) -> LinkResult<(&str, Vec<String>)> {
+    pub(super) fn target(&self) -> CompilerResult<(&str, Vec<String>)> {
         let Some((_, first)) = self.program.objects().first() else {
-            return Err(self.program.invalid_input("Program has no native objects"));
+            return Err(invalid_program_input("Program has no native objects"));
         };
         let first = self.source(first)?;
         let target = first.target();
@@ -116,9 +117,9 @@ impl<'a, 'b> NativeLinker<'a, 'b> {
                 || source.target_layout() != self.program.target_layout()
                 || source_features != features.iter().map(String::as_str).collect::<Vec<_>>()
             {
-                return Err(self
-                    .program
-                    .invalid_input(format!("module {module:?} uses a different native target")));
+                return Err(invalid_program_input(format!(
+                    "module {module:?} uses a different native target"
+                )));
             }
         }
 
@@ -126,9 +127,9 @@ impl<'a, 'b> NativeLinker<'a, 'b> {
     }
 
     /// Return the native code emitted for one object.
-    pub(super) fn source<'c>(&self, object: &'c Object) -> LinkResult<&'c native::Object> {
+    pub(super) fn source<'c>(&self, object: &'c Object) -> CompilerResult<&'c native::Object> {
         object
             .native()
-            .ok_or_else(|| self.program.invalid_input("object has no native code"))
+            .ok_or_else(|| invalid_program_input("object has no native code"))
     }
 }

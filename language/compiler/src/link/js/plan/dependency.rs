@@ -5,7 +5,7 @@ use tspp_artifact::Script;
 use tspp_repository::Target;
 use tspp_source::{ModuleId, PackageId, Span, TargetId};
 
-use crate::{CompilerError, LinkError, LinkResult};
+use crate::{CompilerError, CompilerResult, LinkError};
 
 use super::super::{JsDependencyTarget, JsLinker, dynamic_js_dependencies, static_js_dependencies};
 use super::ModuleSet;
@@ -16,17 +16,14 @@ impl JsLinker<'_> {
         &self,
         module_id: ModuleId,
         target_id: &TargetId,
-        package_id: PackageId,
-    ) -> LinkResult<Option<Script>> {
+    ) -> CompilerResult<Option<Script>> {
         let script = self
             .artifacts
             .read::<Script>((module_id, *target_id))
             .map_err(CompilerError::from)
-            .map_err(|error| LinkError::Internal {
-                anchor: (package_id).into(),
-                package: package_id,
+            .map_err(|error| CompilerError::Internal {
                 message: format!(
-                    "missing script for module {module_id:?} target '{target_id}': {error:?}"
+                    "missing script for module {module_id:? } target '{target_id}': {error:?}"
                 ),
             })?;
         Ok(Some(script.as_ref().clone()))
@@ -72,7 +69,7 @@ impl JsLinker<'_> {
         target_id: &TargetId,
         target: &Target,
         dependency_target: &JsDependencyTarget,
-    ) -> LinkResult<bool> {
+    ) -> CompilerResult<bool> {
         let specifier = dependency_target.specifier();
         let has_resolved_module = dependency_target.module().is_some();
         let is_package_like = Self::is_package_like_dependency_specifier(specifier);
@@ -108,7 +105,8 @@ impl JsLinker<'_> {
                 message: format!(
                     "dependencies.onlyBundle does not allow bundled dependency '{specifier}'"
                 ),
-            });
+            }
+            .into());
         }
 
         // local resolved modules still bundle by default
@@ -134,8 +132,8 @@ impl JsLinker<'_> {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-    ) -> LinkResult<Vec<ModuleId>> {
-        let Some(script) = self.linked_script(module_id, target_id, package_id)? else {
+    ) -> CompilerResult<Vec<ModuleId>> {
+        let Some(script) = self.linked_script(module_id, target_id)? else {
             return Ok(Vec::new());
         };
         let script = script.module();
@@ -172,8 +170,8 @@ impl JsLinker<'_> {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-    ) -> LinkResult<Vec<ModuleId>> {
-        let Some(script) = self.linked_script(module_id, target_id, package_id)? else {
+    ) -> CompilerResult<Vec<ModuleId>> {
+        let Some(script) = self.linked_script(module_id, target_id)? else {
             return Ok(Vec::new());
         };
         let script = script.module();
@@ -214,8 +212,8 @@ impl JsLinker<'_> {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-    ) -> LinkResult<Vec<String>> {
-        let Some(script) = self.linked_script(module_id, target_id, package_id)? else {
+    ) -> CompilerResult<Vec<String>> {
+        let Some(script) = self.linked_script(module_id, target_id)? else {
             return Ok(Vec::new());
         };
         let script = script.module();
@@ -248,8 +246,8 @@ impl JsLinker<'_> {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-    ) -> LinkResult<Vec<String>> {
-        let Some(script) = self.linked_script(module_id, target_id, package_id)? else {
+    ) -> CompilerResult<Vec<String>> {
+        let Some(script) = self.linked_script(module_id, target_id)? else {
             return Ok(Vec::new());
         };
         let script = script.module();
@@ -286,7 +284,7 @@ impl JsLinker<'_> {
         target_id: &TargetId,
         package_id: PackageId,
         module_set: &ModuleSet,
-    ) -> LinkResult<IndexMap<ModuleId, IndexSet<ModuleId>>> {
+    ) -> CompilerResult<IndexMap<ModuleId, IndexSet<ModuleId>>> {
         let mut entry_sets: IndexMap<ModuleId, IndexSet<ModuleId>> = IndexMap::new();
 
         // walk bundled static edges from each entry root independently
@@ -323,7 +321,7 @@ impl JsLinker<'_> {
         target_id: &TargetId,
         package_id: PackageId,
         module_set: &ModuleSet,
-    ) -> LinkResult<IndexSet<ModuleId>> {
+    ) -> CompilerResult<IndexSet<ModuleId>> {
         let mut dynamic_target_modules = IndexSet::new();
 
         // bundled dynamic imports become internal lazy boundaries
@@ -359,7 +357,7 @@ impl JsLinker<'_> {
         target_id: &TargetId,
         package_id: PackageId,
         dynamic_target_modules: &IndexSet<ModuleId>,
-    ) -> LinkResult<IndexMap<ModuleId, IndexSet<ModuleId>>> {
+    ) -> CompilerResult<IndexMap<ModuleId, IndexSet<ModuleId>>> {
         let mut entry_sets: IndexMap<ModuleId, IndexSet<ModuleId>> = IndexMap::new();
 
         // walk bundled static edges from each dynamic target independently

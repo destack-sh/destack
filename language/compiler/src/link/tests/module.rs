@@ -4,7 +4,7 @@ use tspp_artifact::MirOptimized;
 use tspp_core::StringPool;
 use tspp_mir as mir;
 use tspp_program::{Object, Program};
-use tspp_source::{File, FileId, FileType, ModuleId, PackageId, Uri};
+use tspp_source::{File, FileId, FileType, ModuleId, Uri};
 
 #[cfg(feature = "native")]
 use crate::NativeEmitter;
@@ -93,8 +93,7 @@ impl TestModule {
         let parsed = mir::parse::Parser::parse(&file, mir::parse::ParseOptions::default())
             .expect("test MIR should be text");
         assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
-        let (tree, target, mut layouts, dispatch, drops, effects, profile, strings, _) =
-            parsed.into_parts();
+        let (tree, target, mut layouts, dispatch, drops, profile, strings, _) = parsed.into_parts();
 
         // compute target layouts required by object emission
         let mut layout_builder = mir::LayoutBuilder::new(&tree, &mut layouts, target);
@@ -108,7 +107,6 @@ impl TestModule {
             layouts,
             dispatch,
             drops,
-            effects,
             profile,
         };
 
@@ -128,13 +126,13 @@ impl TestModule {
     }
 
     /// Link emitted modules into one test program.
-    pub(in crate::link) fn link(package: PackageId, modules: &[&Self]) -> Program {
+    pub(in crate::link) fn link(modules: &[&Self]) -> Program {
         let strings = Self::merge_strings(modules.iter().copied());
         let objects = modules
             .iter()
             .map(|module| (module.module, module.object.clone()))
             .collect();
-        let linker = ProgramLinker::new(package, objects, &strings)
+        let linker = ProgramLinker::new(objects, &strings)
             .expect("test modules should initialize the Program linker");
 
         linker.link().expect("test modules should link")

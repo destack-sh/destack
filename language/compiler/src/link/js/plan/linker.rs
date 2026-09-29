@@ -5,7 +5,7 @@ use tspp_artifact::{ArtifactDependencySet, ArtifactKey, Script};
 use tspp_repository::ProviderError;
 use tspp_source::ModuleId;
 
-use crate::{CompilerError, CompilerResult, LinkError, LinkResult};
+use crate::{CompilerError, CompilerResult, LinkError};
 
 use super::super::{JsLinker, dynamic_js_dependencies, static_js_dependencies};
 use super::{ModuleSet, OutputGraph, Plan};
@@ -16,7 +16,7 @@ impl<'a> JsLinker<'a> {
         &self,
         entry_modules: &[ModuleId],
         module_ids: &[ModuleId],
-    ) -> LinkResult<ModuleSet> {
+    ) -> CompilerResult<ModuleSet> {
         let entry_modules = entry_modules.to_vec();
         let included_modules = module_ids.to_vec();
         let modules = self.order_script_modules(&included_modules)?;
@@ -35,7 +35,7 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Order the included modules after their bundled dependencies.
-    fn order_script_modules(&self, module_ids: &[ModuleId]) -> LinkResult<Vec<ModuleId>> {
+    fn order_script_modules(&self, module_ids: &[ModuleId]) -> CompilerResult<Vec<ModuleId>> {
         let included_modules = module_ids.iter().copied().collect::<HashSet<_>>();
         let mut active_modules = HashSet::new();
         let mut finished_modules = HashSet::new();
@@ -63,7 +63,7 @@ impl<'a> JsLinker<'a> {
         finished_modules: &mut HashSet<ModuleId>,
         ordered_modules: &mut Vec<ModuleId>,
         module_id: ModuleId,
-    ) -> LinkResult<()> {
+    ) -> CompilerResult<()> {
         // skip modules that are already fully ordered
         if finished_modules.contains(&module_id) {
             return Ok(());
@@ -98,7 +98,7 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Collect the retained external and dynamic JS targets.
-    fn collect_retained_script_targets(&self, module_set: &mut ModuleSet) -> LinkResult<()> {
+    fn collect_retained_script_targets(&self, module_set: &mut ModuleSet) -> CompilerResult<()> {
         for module_id in &module_set.modules {
             let module = self.module(*module_id)?;
 
@@ -153,7 +153,8 @@ impl<'a> JsLinker<'a> {
                             "bundled dynamic import '{}' is not implemented yet",
                             dependency_target.specifier()
                         ),
-                    });
+                    }
+                    .into());
                 }
 
                 module_set
@@ -224,10 +225,7 @@ impl<'a> JsLinker<'a> {
             for key in self.bundled_static_dependency_exports(module_id)? {
                 dependencies.require(key);
             }
-            for dependency_id in self
-                .bundled_script_dependency_modules(module_id)
-                .map_err(CompilerError::from)?
-            {
+            for dependency_id in self.bundled_script_dependency_modules(module_id)? {
                 if !queued_modules.contains(&dependency_id) {
                     pending_modules.push_back(dependency_id);
                 }
@@ -254,15 +252,13 @@ impl<'a> JsLinker<'a> {
 
         // collect bundled static dependency export tables
         for dependency in static_js_dependencies(script) {
-            let should_bundle = self
-                .should_bundle_js_dependency(
-                    self.module_anchor_span(module_id)?,
-                    self.package_id,
-                    self.target_id,
-                    self.target,
-                    &dependency.target,
-                )
-                .map_err(CompilerError::from)?;
+            let should_bundle = self.should_bundle_js_dependency(
+                self.module_anchor_span(module_id)?,
+                self.package_id,
+                self.target_id,
+                self.target,
+                &dependency.target,
+            )?;
             if !should_bundle {
                 continue;
             }
@@ -280,7 +276,10 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Return the bundled internal JS dependencies for one emitted module.
-    fn bundled_script_dependency_modules(&self, module_id: ModuleId) -> LinkResult<Vec<ModuleId>> {
+    fn bundled_script_dependency_modules(
+        &self,
+        module_id: ModuleId,
+    ) -> CompilerResult<Vec<ModuleId>> {
         let module = self.module(module_id)?;
 
         if !module.is_code() {
@@ -321,23 +320,17 @@ impl<'a> JsLinker<'a> {
         let module_set = if script_module_id_set.is_empty() {
             super::ModuleSet::default()
         } else {
-            self.build_js_module_set(&script_root_modules, &script_module_id_set)
-                .map_err(CompilerError::from)?
+            self.build_js_module_set(&script_root_modules, &script_module_id_set)?
         };
         let output_graph = if module_set.modules().is_empty() {
             OutputGraph::default_empty(self.target.js.mode)
         } else {
-            self.build_js_output_graph(&module_set)
-                .map_err(CompilerError::from)?
+            self.build_js_output_graph(&module_set)?
         };
         let asset_module_id_set =
             self.collect_asset_modules(&asset_root_modules, &script_module_id_set)?;
-        let output_layout = self
-            .build_output_layout(&output_graph)
-            .map_err(CompilerError::from)?;
-        let asset_reference_map = self
-            .plan_asset_references(asset_module_id_set)
-            .map_err(CompilerError::from)?;
+        let output_layout = self.build_output_layout(&output_graph)?;
+        let asset_reference_map = self.plan_asset_references(asset_module_id_set)?;
 
         Ok(Plan::new(
             module_set,

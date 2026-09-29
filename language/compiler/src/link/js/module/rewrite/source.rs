@@ -8,7 +8,7 @@ use tspp_dir as dir;
 use tspp_source::ModuleId;
 
 use super::super::linker::OutputModule;
-use crate::{JsLinker, LinkError, LinkResult};
+use crate::{CompilerError, CompilerResult, JsLinker};
 
 /// One linked output scope for identifier assignment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -53,7 +53,7 @@ impl JsLinker<'_> {
     pub(super) fn load_minify_source_contexts(
         &self,
         modules: &[OutputModule],
-    ) -> LinkResult<HashMap<ModuleId, MinifySourceContext>> {
+    ) -> CompilerResult<HashMap<ModuleId, MinifySourceContext>> {
         let mut source_contexts = HashMap::new();
 
         // keep one source context per referenced source module
@@ -70,17 +70,15 @@ impl JsLinker<'_> {
         &self,
         module_id: ModuleId,
         source_contexts: &mut HashMap<ModuleId, MinifySourceContext>,
-    ) -> LinkResult<()> {
+    ) -> CompilerResult<()> {
         if source_contexts.contains_key(&module_id) {
             return Ok(());
         }
 
         let source_context = self
             .minify_source_context(module_id, source_contexts)?
-            .ok_or_else(|| LinkError::Internal {
-                anchor: (self.package_id).into(),
-                package: self.package_id,
-                message: format!("missing source context for minify module {module_id:?}"),
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("missing source context for minify module {module_id:? }"),
             })?;
 
         source_contexts.insert(module_id, source_context);
@@ -93,7 +91,7 @@ impl JsLinker<'_> {
         &self,
         module_id: ModuleId,
         source_contexts: &HashMap<ModuleId, MinifySourceContext>,
-    ) -> LinkResult<Option<MinifySourceContext>> {
+    ) -> CompilerResult<Option<MinifySourceContext>> {
         // reuse the cached context when possible
         if let Some(source_context) = source_contexts.get(&module_id) {
             return Ok(Some(source_context.clone()));
@@ -104,11 +102,8 @@ impl JsLinker<'_> {
         let dir = self
             .artifacts
             .read::<DirBound>((module_id, profile_id))
-            .map_err(|error| LinkError::Internal {
-                anchor: (self.package_id).into(),
-                package: self.package_id,
-                message: format!(
-                    "missing bound source context for minify module {module_id:?} profile {profile_id:?}: {error:?}"
+            .map_err(|error| CompilerError::Internal { message: format!(
+                    "missing bound source context for minify module {module_id:? } profile {profile_id:?}: {error:?}"
                 ),
             })?;
 
@@ -124,7 +119,7 @@ impl JsLinker<'_> {
         &self,
         module: &js::Module,
         source_contexts: &mut HashMap<ModuleId, MinifySourceContext>,
-    ) -> LinkResult<()> {
+    ) -> CompilerResult<()> {
         let mut visitor = ReferencedNodeCollector::default();
         js::walk_roots(&mut visitor, &module.tree, &module.roots);
 
@@ -151,7 +146,7 @@ impl JsLinker<'_> {
         module: &js::Module,
         declaration_id: js::LocalNodeId<js::Declaration>,
         source_contexts: &HashMap<ModuleId, MinifySourceContext>,
-    ) -> LinkResult<Option<js::ScriptSymbolId>> {
+    ) -> CompilerResult<Option<js::ScriptSymbolId>> {
         let declaration = module.tree.get(declaration_id);
         if !matches!(
             declaration,
@@ -166,9 +161,7 @@ impl JsLinker<'_> {
 
         let source_context = self
             .minify_source_context(origin.module_id, source_contexts)?
-            .ok_or_else(|| LinkError::Internal {
-                anchor: (self.package_id).into(),
-                package: self.package_id,
+            .ok_or_else(|| CompilerError::Internal {
                 message: format!(
                     "missing source context for declaration module {:?}",
                     origin.module_id
@@ -178,9 +171,7 @@ impl JsLinker<'_> {
         let symbol_id = source_context
             .symbols
             .declaration_symbol(source_declaration_id.into_global_any(origin.module_id))
-            .ok_or_else(|| LinkError::Internal {
-                anchor: (self.package_id).into(),
-                package: self.package_id,
+            .ok_or_else(|| CompilerError::Internal {
                 message: format!(
                     "source declaration has no symbol in module {:?}",
                     origin.module_id
@@ -196,7 +187,7 @@ impl JsLinker<'_> {
         &self,
         symbol_id: js::ScriptSymbolId,
         source_contexts: &HashMap<ModuleId, MinifySourceContext>,
-    ) -> LinkResult<Option<String>> {
+    ) -> CompilerResult<Option<String>> {
         match symbol_id {
             js::ScriptSymbolId::Source(symbol_id) => {
                 let Some(source_context) =
@@ -220,14 +211,12 @@ impl JsLinker<'_> {
         &self,
         symbol_id: js::ScriptSymbolId,
         source_contexts: &HashMap<ModuleId, MinifySourceContext>,
-    ) -> LinkResult<OutputScopeId> {
+    ) -> CompilerResult<OutputScopeId> {
         match symbol_id {
             js::ScriptSymbolId::Source(symbol_id) => {
                 let source_context = self
                     .minify_source_context(symbol_id.module_id, source_contexts)?
-                    .ok_or_else(|| LinkError::Internal {
-                        anchor: (self.package_id).into(),
-                        package: self.package_id,
+                    .ok_or_else(|| CompilerError::Internal {
                         message: format!(
                             "missing source context for symbol module {:?} profile lookup",
                             symbol_id.module_id
@@ -254,7 +243,7 @@ impl JsLinker<'_> {
         &self,
         scope_id: OutputScopeId,
         source_contexts: &HashMap<ModuleId, MinifySourceContext>,
-    ) -> LinkResult<Option<OutputScopeId>> {
+    ) -> CompilerResult<Option<OutputScopeId>> {
         match scope_id {
             OutputScopeId::TopLevel => Ok(None),
             OutputScopeId::Source {
@@ -264,11 +253,8 @@ impl JsLinker<'_> {
                 let profile_id = self.profile_id()?;
                 let source_context = self
                     .minify_source_context(module_id, source_contexts)?
-                    .ok_or_else(|| LinkError::Internal {
-                        anchor: (self.package_id).into(),
-                        package: self.package_id,
-                        message: format!(
-                            "missing source context for scope module {module_id:?} profile {profile_id:?}"
+                    .ok_or_else(|| CompilerError::Internal { message: format!(
+                            "missing source context for scope module {module_id:? } profile {profile_id:?}"
                         ),
                     })?;
                 let scope = source_context.symbols.get_scope_by_id(scope_id);

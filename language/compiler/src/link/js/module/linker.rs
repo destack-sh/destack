@@ -2,10 +2,10 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use crate::emit::js;
-use crate::{Compiler, LinkError, LinkResult};
+use crate::{Compiler, CompilerError, CompilerResult, LinkError};
 use tspp_artifact::Script;
 use tspp_repository::{JsOutputMode, Target};
-use tspp_source::{ModuleId, PackageId};
+use tspp_source::ModuleId;
 
 use super::super::{JsDependencyTarget, JsLinker, ModuleSet, OutputGraph, OutputId, OutputLayout};
 use crate::link::TargetLocation;
@@ -63,7 +63,7 @@ impl<'a> JsLinker<'a> {
     pub(super) fn rewrite_output_script_imports(
         &self,
         modules: &mut [OutputModule],
-    ) -> LinkResult<()> {
+    ) -> CompilerResult<()> {
         let mut imported_specifiers = HashSet::<String>::new();
         let mut imported_bindings = HashMap::<String, (String, u8, Option<String>)>::new();
 
@@ -139,7 +139,8 @@ impl<'a> JsLinker<'a> {
                             message: format!(
                                 "linked output import binding collision for local name '{local_binding}'"
                             ),
-                        });
+                        }
+                        .into());
                     }
 
                     imported_bindings.insert(local_binding, source);
@@ -175,15 +176,12 @@ impl<'a> JsLinker<'a> {
         from_output_id: OutputId,
         to_output_id: OutputId,
         output_layout: &OutputLayout,
-        package_id: PackageId,
-    ) -> LinkResult<String> {
+    ) -> CompilerResult<String> {
         let target_layout = TargetLocation::new(Path::new(""), target, self.target_name());
         let from_output_location =
             output_layout
                 .output_location(from_output_id)
-                .ok_or_else(|| LinkError::Internal {
-                    anchor: (package_id).into(),
-                    package: package_id,
+                .ok_or_else(|| CompilerError::Internal {
                     message: format!(
                         "missing output placement for import source output id {}",
                         from_output_id.0
@@ -192,9 +190,7 @@ impl<'a> JsLinker<'a> {
         let to_output_location =
             output_layout
                 .output_location(to_output_id)
-                .ok_or_else(|| LinkError::Internal {
-                    anchor: (package_id).into(),
-                    package: package_id,
+                .ok_or_else(|| CompilerError::Internal {
                     message: format!(
                         "missing output placement for import target output id {}",
                         to_output_id.0
@@ -214,7 +210,7 @@ impl<'a> JsLinker<'a> {
         output_graph: &OutputGraph,
         output_layout: &OutputLayout,
         target: &Target,
-    ) -> LinkResult<js::Module> {
+    ) -> CompilerResult<js::Module> {
         match output_graph.bundle_mode() {
             JsOutputMode::SingleFile => self.rewrite_script_module(
                 module_id,

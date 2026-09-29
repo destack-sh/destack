@@ -3,7 +3,7 @@ use tspp_repository::Target;
 use tspp_source::ModuleId;
 
 use super::super::{OutputGraph, OutputId, OutputLayout};
-use crate::{Compiler, JsLinker, LinkError, LinkResult};
+use crate::{Compiler, CompilerResult, JsLinker, LinkError};
 
 /// One visitor that records dynamic import call expressions.
 #[derive(Debug, Default)]
@@ -63,7 +63,7 @@ impl JsLinker<'_> {
         module_id: ModuleId,
         module: &mut js::Module,
         import_call_id: js::LocalNodeId<js::Expression>,
-    ) -> LinkResult<()> {
+    ) -> CompilerResult<()> {
         let (target_expression_id, target_module) = {
             let expression = module.tree.get(import_call_id);
             let js::Expression::ImportCall {
@@ -93,7 +93,8 @@ impl JsLinker<'_> {
                     "bundled same-output dynamic imports are not supported yet in '{}'",
                     self.target_name()
                 ),
-            });
+            }
+            .into());
         }
 
         let specifier = {
@@ -130,7 +131,6 @@ impl JsLinker<'_> {
             output_id,
             target_output_id,
             output_layout,
-            self.package_id,
         )?;
         let expression = module.tree.get_mut(target_expression_id);
         let js::Expression::Literal {

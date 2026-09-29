@@ -2,7 +2,7 @@ use crate::emit::js;
 use tspp_repository::Target;
 
 use super::super::linker::OutputModule;
-use crate::{JsLinker, LinkResult};
+use crate::{CompilerResult, JsLinker};
 
 /// One stateful rewriter for one linked JS module.
 pub(in super::super) struct Rewriter<'module, 'a> {
@@ -349,7 +349,7 @@ impl JsLinker<'_> {
     pub(in super::super) fn minify_output_syntax(
         &self,
         modules: &mut [OutputModule],
-    ) -> LinkResult<()> {
+    ) -> CompilerResult<()> {
         for (_, module) in modules {
             let mut rewriter = Rewriter::new(self.target, module);
             rewriter.minify_syntax();

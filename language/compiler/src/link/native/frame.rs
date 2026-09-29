@@ -2,9 +2,10 @@ use tspp_native as native;
 use tspp_program::FrameStateId;
 use tspp_source::ModuleId;
 
-use crate::LinkResult;
+use crate::CompilerResult;
 
 use super::{Image, NativeLinker};
+use crate::{invalid_program_input, layout_overflow};
 
 /// One native frame map before final return-address ordering.
 #[derive(Debug)]
@@ -28,7 +29,7 @@ impl<'a, 'b> NativeLinker<'a, 'b> {
     pub(super) fn link_maps(
         &self,
         image: &mut Image,
-    ) -> LinkResult<(Vec<native::FrameMapBuilder>, Vec<u8>)> {
+    ) -> CompilerResult<(Vec<native::FrameMapBuilder>, Vec<u8>)> {
         let mut frames = Vec::new();
         let mut constants = Vec::new();
 
@@ -37,33 +38,23 @@ impl<'a, 'b> NativeLinker<'a, 'b> {
             let source = self.source(object)?;
             let sections = source.sections();
             let map = source.map();
-            let constant_start = i32::try_from(constants.len()).map_err(|_| {
-                self.program
-                    .layout_overflow("native frame constants exceed i32")
-            })?;
+            let constant_start = i32::try_from(constants.len())
+                .map_err(|_| layout_overflow("native frame constants exceed i32"))?;
             constants.extend_from_slice(map.constants(sections));
 
             for (index, frame) in map.frames(sections).iter().copied().enumerate() {
                 let block = self.block(image, *module, frame.block)?;
-                let return_offset =
-                    block
-                        .offset
-                        .checked_add(frame.return_offset)
-                        .ok_or_else(|| {
-                            self.program
-                                .layout_overflow("native return address exceeds u32")
-                        })?;
+                let return_offset = block
+                    .offset
+                    .checked_add(frame.return_offset)
+                    .ok_or_else(|| layout_overflow("native return address exceeds u32"))?;
                 let source_state = object.frames().get(frame.state as usize).ok_or_else(|| {
-                    self.program
-                        .invalid_input("native frame map references an unknown frame state")
+                    invalid_program_input("native frame map references an unknown frame state")
                 })?;
                 let state = self
                     .frames
                     .state(*module, source_state.point)
-                    .ok_or_else(|| {
-                        self.program
-                            .invalid_input("native frame state was not linked")
-                    })?;
+                    .ok_or_else(|| invalid_program_input("native frame state was not linked"))?;
                 let values =
                     map.values(sections, frame)
                         .iter()
@@ -102,7 +93,7 @@ impl<'a, 'b> NativeLinker<'a, 'b> {
                 .insert((frame.module, frame.source), index as u32)
                 .is_some()
             {
-                return Err(self.program.invalid_input("duplicate native frame map"));
+                return Err(invalid_program_input("duplicate native frame map"));
             }
             builders.push(
                 native::FrameMapBuilder::new(
