@@ -1,0 +1,215 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "pattern": "^https:\\/\\/destack\\.app\\/schemas\\/[^/]+\\/destack\\.json$"
+        },
+        "id": {
+            "type": "string",
+            "pattern": "^package-[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$(?![\\s\\S])"
+        },
+        "language": {
+            "type": "string",
+            "enum": [
+                "typescript",
+                "typescript++"
+            ]
+        },
+        "template": {
+            "type": "object",
+            "properties": {
+                "files": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "pattern": "^(?!\\/)(?![A-Za-z]:)(?!.*\\\\)(?!.*(?:^|\\/)\\.{1,2}(?:\\/|$))[^/\\x00-\\x1f\\x7f]+(?:\\/[^/\\x00-\\x1f\\x7f]+)*$(?![\\s\\S])"
+                    }
+                },
+                "dependencies": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "maxLength": 214,
+                        "pattern": "^@[a-z0-9][a-z0-9._-]*\\/[a-z0-9][a-z0-9._-]*$(?![\\s\\S])"
+                    }
+                }
+            },
+            "required": [
+                "files"
+            ],
+            "additionalProperties": false
+        },
+        "targets": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+                "type": "string",
+                "enum": [
+                    "browser",
+                    "server"
+                ]
+            }
+        },
+        "runtimes": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+                "type": "string",
+                "enum": [
+                    "browser",
+                    "bun",
+                    "workerd"
+                ]
+            }
+        },
+        "declarations": {
+            "type": "object",
+            "propertyNames": {
+                "type": "string",
+                "pattern": "^define[A-Z][A-Za-z0-9]*$"
+            },
+            "additionalProperties": {
+                "type": "object",
+                "properties": {
+                    "describes": {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "kind": {
+                                    "type": "string",
+                                    "pattern": "^[a-z][a-z0-9-]*$(?![\\s\\S])"
+                                },
+                                "package": {
+                                    "type": "string",
+                                    "maxLength": 214,
+                                    "pattern": "^(?:@[a-z0-9][a-z0-9._-]*\\/)?[a-z0-9][a-z0-9._-]*$(?![\\s\\S])"
+                                },
+                                "function": {
+                                    "type": "string",
+                                    "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$(?![\\s\\S])"
+                                },
+                                "compare": {
+                                    "type": "string",
+                                    "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$(?![\\s\\S])"
+                                }
+                            },
+                            "required": [
+                                "kind",
+                                "function"
+                            ],
+                            "additionalProperties": false
+                        }
+                    },
+                    "module": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                    }
+                },
+                "additionalProperties": false
+            }
+        },
+        "build": {
+            "type": "string",
+            "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$(?![\\s\\S])"
+        },
+        "publication": {
+            "type": "object",
+            "properties": {
+                "outputs": {
+                    "type": "object",
+                    "propertyNames": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9-]*$(?![\\s\\S])"
+                    },
+                    "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                            "target": {
+                                "type": "string",
+                                "enum": [
+                                    "browser",
+                                    "server"
+                                ]
+                            },
+                            "runtime": {
+                                "type": "string",
+                                "enum": [
+                                    "browser",
+                                    "bun",
+                                    "workerd"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "target"
+                        ],
+                        "additionalProperties": false
+                    }
+                },
+                "conditions": {
+                    "type": "object",
+                    "propertyNames": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9_-]*$(?![\\s\\S])"
+                    },
+                    "additionalProperties": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9-]*$(?![\\s\\S])"
+                    }
+                }
+            },
+            "required": [
+                "outputs",
+                "conditions"
+            ],
+            "additionalProperties": false
+        },
+        "exports": {
+            "type": "object",
+            "propertyNames": {
+                "type": "string"
+            },
+            "additionalProperties": {
+                "type": "object",
+                "properties": {
+                    "targets": {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "browser",
+                                "server"
+                            ]
+                        }
+                    },
+                    "runtimes": {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "browser",
+                                "bun",
+                                "workerd"
+                            ]
+                        }
+                    }
+                },
+                "additionalProperties": false
+            }
+        }
+    },
+    "required": [
+        "$schema",
+        "id",
+        "language"
+    ],
+    "additionalProperties": false
+}

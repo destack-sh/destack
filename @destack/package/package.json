@@ -27,7 +27,8 @@
         "./transform/bun": "./src/transform/bun.ts",
         "./transform/preload": "./src/transform/preload.ts",
         "./declare": "./src/declare/index.ts",
-        "./build": "./src/build/index.ts"
+        "./build": "./src/build/index.ts",
+        "./schemas/destack.json": "./schemas/destack.json"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",
