@@ -4,7 +4,7 @@ import { Target } from "./target.ts";
 import { Runtime } from "../runtime/index.ts";
 import { TemplateDefinition } from "../template/index.ts";
 import { PackageId } from "./package.ts";
-import { DeclarationConstructorMap } from "./constructor.ts";
+import { DeclarationConstructorMap, FunctionReference } from "./constructor.ts";
 import { Publication } from "./publication.ts";
 
 /** The declarations authored in destack.json. */
@@ -22,6 +22,8 @@ export const PackageDefinition = defineSchema(
         runtimes: schema.array(Runtime).min(1).optional(),
         /** The declaration constructors the package exports, by name. */
         declarations: DeclarationConstructorMap.optional(),
+        /** The extension building the packages that use this one, such as `./build#viewBuild`. */
+        build: FunctionReference.optional(),
         /** How the registry publishes the package. */
         publication: Publication.schema.optional(),
         /** Compatibility overrides keyed by the names in package.json exports. */

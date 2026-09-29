@@ -20,10 +20,8 @@ export type WorkloadDefinition = schema.Infer<typeof WorkloadDefinition>;
 /** A workload located in a compiled output with the declarations its code reaches. */
 export const WorkloadDescription = defineSchema(
     schema.object({
-        /** The package export exposing the workload declaration. */
+        /** The package entrypoint running the workload. */
         entrypoint: Entrypoint,
-        /** The export name of the workload declaration within the entrypoint. */
-        export: schema.string().min(1),
         /** Service declarations of this package reachable from the workload. */
         services: schema.array(DeclarationReference),
         /** Trigger declarations (schedules, webhooks, subscriptions) of this package reachable from the workload. */

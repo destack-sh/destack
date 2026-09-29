@@ -26,7 +26,8 @@
         "./transform/vite": "./src/transform/vite.ts",
         "./transform/bun": "./src/transform/bun.ts",
         "./transform/preload": "./src/transform/preload.ts",
-        "./declare": "./src/declare/index.ts"
+        "./declare": "./src/declare/index.ts",
+        "./build": "./src/build/index.ts"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",

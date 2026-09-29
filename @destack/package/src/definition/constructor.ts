@@ -1,6 +1,13 @@
 import { defineSchema, schema } from "@destack/schema";
 import { DeclarationName, DependencyName } from "./package.ts";
 
+/** A function a package exports, as export and name, such as `./inspect#describeDatabase`. */
+export const FunctionReference = defineSchema(
+    schema.string().regex(/^\.(?:\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$(?![\s\S])/),
+);
+/** A function a package exports, as export and name. */
+export type FunctionReference = schema.Infer<typeof FunctionReference>;
+
 /** A declaration constructor as its package declares it in destack.json. */
 export const DeclarationConstructor = defineSchema(
     schema.object({
@@ -12,10 +19,8 @@ export const DeclarationConstructor = defineSchema(
                     kind: DeclarationName,
                     /** The dependency declaring the kind, this package when absent. */
                     package: DependencyName.optional(),
-                    /** The describing function as export and name, such as `./inspect#describeDatabase`. */
-                    function: schema
-                        .string()
-                        .regex(/^\.(?:\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$(?![\s\S])/),
+                    /** The describing function. */
+                    function: FunctionReference,
                 }),
             )
             .min(1)

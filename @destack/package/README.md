@@ -62,6 +62,16 @@ src/page/page.server.ts    replaces page.ts in server builds, Bun processes and 
 src/page/page.browser.ts   replaces page.ts in browser builds
 ```
 
+## Builds
+
+A dependency's `BuildExtension` compiles and describes the outputs of the packages that use it, and `@destack/package/build` holds the runtime facts every build shares.
+
+```ts
+import { type BuildExtension, runtimeConditions } from "@destack/package/build";
+
+export const spaceBuild: BuildExtension = { compile: (compilation) => [workloadPlugin(compilation)], describe: (compilation, compiled) => ({ workloads }) };
+```
+
 ## Manifests
 
 A `BuildReader` reads a built package's files and the descriptions its declarations produced.
