@@ -316,7 +316,7 @@ impl FunctionEmitter<'_> {
     /// Return one MIR vector's element type.
     fn vector_element(&self, value: mir::Value) -> Result<mir::TypeId, EmitError> {
         // resolve the vector storage type
-        let ty = self.optimized.tree.storage_type(self.value_type(value)?);
+        let ty = self.value_type(value)?.storage(&self.optimized.tree);
         match self.optimized.tree.type_definition(ty) {
             mir::Type::Vector { element, .. } => Ok(*element),
             _ => Err(self.invalid("native value has no vector element type")),

@@ -56,7 +56,7 @@ impl<'a> TypeEmitter<'a> {
         ty: mir::TypeId,
     ) -> Result<bool, EmitError> {
         // resolve the integer storage type
-        let ty = self.optimized.tree.storage_type(ty);
+        let ty = ty.storage(&self.optimized.tree);
 
         self.optimized
             .tree

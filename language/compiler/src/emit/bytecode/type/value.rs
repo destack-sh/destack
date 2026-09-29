@@ -9,7 +9,7 @@ impl TypeEmitter<'_> {
     /// Return the bytecode register representation for one MIR type.
     pub(crate) fn register_type(&self, ty: mir::TypeId) -> Result<bytecode::ValueType, EmitError> {
         // resolve the storage type behind the MIR type and its layout
-        let representation = self.optimized.tree.storage_type(ty);
+        let representation = ty.storage(&self.optimized.tree);
         let definition = self.optimized.tree.type_definition(representation);
         let layout = self.layout(representation)?;
 
@@ -69,6 +69,7 @@ impl TypeEmitter<'_> {
             mir::Type::FixedArray { .. }
             | mir::Type::Tuple { .. }
             | mir::Type::Struct { .. }
+            | mir::Type::Class { .. }
             | mir::Type::Variant { .. }
             | mir::Type::Newtype { .. } => {
                 let word_count = self.word_count(representation)?;
@@ -97,7 +98,7 @@ impl TypeEmitter<'_> {
     /// Return the scalar bytecode representation for one MIR type.
     pub(crate) fn scalar(&self, ty: mir::TypeId) -> Result<bytecode::Scalar, EmitError> {
         // require the storage type to be laid out as a scalar
-        let storage = self.optimized.tree.storage_type(ty);
+        let storage = ty.storage(&self.optimized.tree);
         let layout = self.layout(storage)?;
         let scalar = match layout.representation {
             mir::Representation::Scalar(scalar) => scalar,
@@ -119,11 +120,7 @@ impl TypeEmitter<'_> {
 
     /// Return one uninitialized bytecode representation.
     fn uninitialized(&self, ty: mir::TypeId) -> Result<bytecode::ValueType, EmitError> {
-        match self
-            .optimized
-            .tree
-            .get(self.optimized.tree.storage_type(ty))
-        {
+        match self.optimized.tree.get(ty.storage(&self.optimized.tree)) {
             mir::Type::Reference { kind, .. } => Ok(bytecode::ValueType::uninit_reference(
                 self.reference_kind(*kind),
                 self.reference_storage(*kind),

@@ -180,7 +180,7 @@ impl<'a> FunctionEmitter<'a> {
     ) -> Result<cir::Value, EmitError> {
         // resolve integer widths using the target pointer width
         let pointer_bits = self.types.layout.pointer_bits();
-        let source = self.optimized.tree.storage_type(self.value_type(value)?);
+        let source = self.value_type(value)?.storage(&self.optimized.tree);
         let (source_width, source_signed) = self
             .optimized
             .tree

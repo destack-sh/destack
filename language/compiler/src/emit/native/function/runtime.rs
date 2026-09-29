@@ -78,7 +78,7 @@ impl<'a> FunctionEmitter<'a> {
     /// Return the heap space one managed reference type addresses.
     pub(super) fn heap_space(&self, ty: mir::TypeId) -> Result<mir::Space, EmitError> {
         // resolve the allocation storage type
-        let ty = self.optimized.tree.storage_type(ty);
+        let ty = ty.storage(&self.optimized.tree);
         let definition = self.optimized.tree.type_definition(ty);
 
         definition

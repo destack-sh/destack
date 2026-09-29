@@ -159,7 +159,8 @@ impl<'a> FunctionEmitter<'a> {
                 destination,
                 payload,
                 concrete,
-            } => self.emit_dynamic_bind(*destination, *payload, *concrete),
+                table,
+            } => self.emit_dynamic_bind(*destination, *payload, *concrete, *table),
             mir::Instruction::DynamicPayload {
                 destination,
                 dynamic,

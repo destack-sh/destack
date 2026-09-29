@@ -41,12 +41,12 @@ impl<'a> FunctionEmitter<'a> {
                 left,
                 right,
             } => {
-                let ty = self.optimized.tree.storage_type(self.value_type(*left)?);
+                let ty = self.value_type(*left)?.storage(&self.optimized.tree);
                 let ty = match self.optimized.tree.type_definition(ty) {
                     mir::Type::Vector { element, .. } => *element,
                     _ => ty,
                 };
-                let ty = self.optimized.tree.storage_type(ty);
+                let ty = ty.storage(&self.optimized.tree);
                 let left = self.scalar(*left)?;
                 let right = self.scalar(*right)?;
                 let value = self.emit_binary(*operator, left, right, ty, builder)?;
@@ -57,10 +57,7 @@ impl<'a> FunctionEmitter<'a> {
                 operator,
                 argument,
             } => {
-                let ty = self
-                    .optimized
-                    .tree
-                    .storage_type(self.value_type(*argument)?);
+                let ty = self.value_type(*argument)?.storage(&self.optimized.tree);
                 let definition = self.optimized.tree.type_definition(ty);
                 let is_float = definition.is_float(&self.optimized.tree);
                 let is_boolean = matches!(definition, mir::Type::Boolean);
@@ -237,7 +234,8 @@ impl<'a> FunctionEmitter<'a> {
                 destination,
                 payload,
                 concrete,
-            } => self.emit_dynamic_bind(*destination, *payload, *concrete, builder)?,
+                table,
+            } => self.emit_dynamic_bind(*destination, *payload, *concrete, *table, builder)?,
             mir::Instruction::DynamicPayload {
                 destination,
                 dynamic,

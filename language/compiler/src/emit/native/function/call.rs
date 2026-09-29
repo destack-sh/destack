@@ -230,12 +230,11 @@ impl FunctionEmitter<'_> {
                     return Err(self.invalid("native indirect callee is not a function value"));
                 }
             },
-            mir::Callee::Virtual {
-                receiver,
-                class,
-                slot,
-            } => {
-                let function = self.virtual_function(receiver, class, slot, builder)?;
+            mir::Callee::Virtual { slot, .. } => {
+                let receiver = call
+                    .receiver(&self.optimized.tree)
+                    .ok_or_else(|| self.invalid("native virtual call without a receiver"))?;
+                let function = self.virtual_function(receiver, slot, builder)?;
 
                 (None, Some(function), None)
             }
@@ -327,31 +326,28 @@ impl FunctionEmitter<'_> {
     fn virtual_function(
         &mut self,
         receiver: mir::Value,
-        class: mir::TypeId,
         slot: mir::DispatchSlot,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
-        // read the virtual method layout
-        let layout = self
-            .optimized
-            .layouts
-            .type_layout(class)
-            .ok_or_else(|| self.invalid("native virtual receiver has no layout"))?;
-        let mir::LayoutShape::Object(layout) = &layout.shape else {
-            return Err(self.invalid("native virtual receiver is not an object"));
-        };
-        let offset = layout
-            .dispatch_offset
-            .ok_or_else(|| self.invalid("native virtual receiver has no dispatch field"))?;
-        let receiver = self.materialize_pointer(receiver, builder)?;
-        let table = builder.ins().load(
-            cir::types::I32,
-            cir::MemFlagsData::trusted(),
-            receiver,
-            offset as i32,
-        );
+        let table = self.class_table(receiver, builder)?;
 
         self.virtual_entry(table, slot.0, builder)
+    }
+
+    /// Load the virtual table id one class object leads with.
+    pub(super) fn class_table(
+        &mut self,
+        object: mir::Value,
+        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
+    ) -> Result<cir::Value, EmitError> {
+        let object = self.materialize_pointer(object, builder)?;
+
+        Ok(builder.ins().load(
+            cir::types::I32,
+            cir::MemFlagsData::trusted(),
+            object,
+            mir::VIRTUAL_TABLE_ID_OFFSET as i32,
+        ))
     }
 
     /// Load one dynamic method identity from the erased value's linked table.

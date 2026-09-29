@@ -286,8 +286,8 @@ impl<'a> FunctionEmitter<'a> {
     ) -> Result<cir::Value, EmitError> {
         // resolve conversion widths using the target pointer width
         let pointer_bits = self.types.layout.pointer_bits();
-        let source = self.optimized.tree.storage_type(source);
-        let target = self.optimized.tree.storage_type(target);
+        let source = source.storage(&self.optimized.tree);
+        let target = target.storage(&self.optimized.tree);
         let source_definition = self.optimized.tree.type_definition(source);
         let target_definition = self.optimized.tree.type_definition(target);
         let source_integer = source_definition.integer(pointer_bits);
@@ -350,8 +350,8 @@ impl<'a> FunctionEmitter<'a> {
     ) -> Result<cir::Value, EmitError> {
         // resolve integer widths using the target pointer width
         let pointer_bits = self.types.layout.pointer_bits();
-        let source = self.optimized.tree.storage_type(source);
-        let target = self.optimized.tree.storage_type(target);
+        let source = source.storage(&self.optimized.tree);
+        let target = target.storage(&self.optimized.tree);
         let source = self
             .optimized
             .tree

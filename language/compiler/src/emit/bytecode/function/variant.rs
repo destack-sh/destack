@@ -16,7 +16,7 @@ impl<'a> FunctionEmitter<'a> {
     ) -> Result<(), EmitError> {
         // encode the variant tag and payload
         let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::VARIANT_NEW);
-        let result_type = self.optimized.tree.storage_type(result_type);
+        let result_type = result_type.storage(&self.optimized.tree);
         let result_type = self.types.type_id(result_type)?;
         instruction.relocation(bytecode::RelocationTag::LAYOUT, result_type.0);
         instruction.u32(case);
@@ -41,7 +41,7 @@ impl<'a> FunctionEmitter<'a> {
             .function
             .value_type(variant)
             .ok_or_else(|| self.internal("missing variant type"))?;
-        let ty = self.optimized.tree.storage_type(ty);
+        let ty = ty.storage(&self.optimized.tree);
         let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::VARIANT_TAG);
         instruction.span(self.register(variant)?);
         let ty = self.types.type_id(ty)?;
@@ -63,7 +63,7 @@ impl<'a> FunctionEmitter<'a> {
         else {
             return Err(self.internal("variant tag load does not select a value"));
         };
-        let variant_type = self.optimized.tree.storage_type(variant_type);
+        let variant_type = variant_type.storage(&self.optimized.tree);
         let selected = self.emit_place(place, None)?;
         let opcode = bytecode::Opcode::variant_tag_load(selected.kind);
         let mut instruction = bytecode::InstructionBuilder::new(opcode);
@@ -83,7 +83,7 @@ impl<'a> FunctionEmitter<'a> {
         case: u32,
     ) -> Result<(), EmitError> {
         // read the variant payload layout
-        let variant_type = self.optimized.tree.storage_type(self.value_type(variant)?);
+        let variant_type = self.value_type(variant)?.storage(&self.optimized.tree);
         let (byte_offset, byte_len) = self.types.variant(variant_type, case)?;
 
         self.emit_extract(destination, variant, byte_offset, byte_len)

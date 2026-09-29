@@ -14,13 +14,27 @@ impl FunctionEmitter<'_> {
         destination: mir::Value,
         payload: mir::Value,
         concrete: mir::TypeId,
+        table: mir::BindTable,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // bind a class payload through its runtime class's conformance slot
+        if let mir::BindTable::Virtual { slot } = table {
+            let class = self.class_table(payload, builder)?;
+            let row = self.virtual_table_address(class, builder)?;
+            let table = builder.ins().load(
+                cir::types::I32,
+                cir::MemFlagsData::trusted(),
+                row,
+                native::abi::VirtualTable::entry_offset(slot.0) as i32,
+            );
+            let payload = self.scalar(payload)?;
+            self.set(destination, Value::ScalarPair([payload, table]))?;
+
+            return Ok(());
+        }
+
         // read the dynamic representation and its dispatch table
-        let dynamic_type = self
-            .optimized
-            .tree
-            .storage_type(self.value_type(destination)?);
+        let dynamic_type = self.value_type(destination)?.storage(&self.optimized.tree);
         let mir::Type::Dynamic { constraint, .. } = self.optimized.tree.get(dynamic_type) else {
             return Err(self.invalid("native dynamic binding result is not dynamic"));
         };
@@ -78,29 +92,10 @@ impl FunctionEmitter<'_> {
         value: mir::Value,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
-        // read a class object's type through the virtual table its dispatch field names
+        // read a class object's type through its virtual table
         let ty = self.value_type(value)?;
-        if let mir::Type::Reference { pointee, .. } =
-            self.optimized.tree.type_definition(ty).clone()
-        {
-            let layout = self
-                .optimized
-                .layouts
-                .type_layout(pointee)
-                .ok_or_else(|| self.invalid("native object type read without a layout"))?;
-            let mir::LayoutShape::Object(layout) = &layout.shape else {
-                return Err(self.invalid("native object type read of a non-object type"));
-            };
-            let offset = layout
-                .dispatch_offset
-                .ok_or_else(|| self.invalid("native object type read without a dispatch field"))?;
-            let object = self.materialize_pointer(value, builder)?;
-            let table = builder.ins().load(
-                cir::types::I32,
-                cir::MemFlagsData::trusted(),
-                object,
-                offset as i32,
-            );
+        if let mir::Type::Reference { .. } = self.optimized.tree.type_definition(ty) {
+            let table = self.class_table(value, builder)?;
             let row = self.virtual_table_address(table, builder)?;
             let concrete = builder.ins().load(
                 cir::types::I32,

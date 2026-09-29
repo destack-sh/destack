@@ -361,7 +361,7 @@ impl SiteEmitter {
             point,
             access,
             storage: place.storage(function, &optimized.tree),
-            value_type: optimized.tree.storage_type(value_type),
+            value_type: value_type.storage(&optimized.tree),
         })
     }
 
@@ -401,10 +401,10 @@ impl SiteEmitter {
     ) -> Result<CallSite, EmitError> {
         // resolve the callee dispatch type and a handle receiver's heap space
         let (space, dispatch_type) = match call.callee {
-            mir::Callee::Virtual {
-                receiver, class, ..
-            } => {
-                let receiver_type = function.value_type(receiver).ok_or_else(|| {
+            mir::Callee::Virtual { class, .. } => {
+                let receiver = call.receiver(&optimized.tree);
+                let receiver_type = receiver.and_then(|receiver| function.value_type(receiver));
+                let receiver_type = receiver_type.ok_or_else(|| {
                     ObjectEmitter::internal(module, "missing virtual receiver type")
                 })?;
                 let space = Self::reference_storage(optimized, receiver_type)
@@ -462,7 +462,7 @@ impl SiteEmitter {
     fn reference_storage(optimized: &MirOptimized, ty: mir::TypeId) -> Option<mir::Storage> {
         optimized
             .tree
-            .type_definition(optimized.tree.storage_type(ty))
+            .type_definition(ty.storage(&optimized.tree))
             .reference_storage()
     }
 }

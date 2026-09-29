@@ -42,6 +42,20 @@ pub struct ObjectEmitter {
 }
 
 impl ObjectEmitter {
+    /// Return one type's direct supertypes.
+    fn heritage(tree: &mir::Tree, ty: mir::TypeId) -> Option<mir::TypeHeritage> {
+        let mut heritage = tree.type_heritage(ty).cloned().unwrap_or_default();
+        let storage = mir::Substitution::resolve(ty, tree);
+        if let mir::Type::Class {
+            base: Some(base), ..
+        } = tree.get(storage)
+        {
+            heritage.extends.push(*base);
+        }
+
+        (!heritage.is_empty()).then_some(heritage)
+    }
+
     /// Collect engine-neutral object entries from optimized MIR.
     pub fn new(
         module: ModuleId,
@@ -80,15 +94,11 @@ impl ObjectEmitter {
             });
             types.push(Type {
                 id,
-                fingerprint: optimized.tree.type_fingerprint(id),
+                fingerprint: mir::TypeFingerprint::of(id, &optimized.tree),
                 definition: definition.clone(),
                 symbol: optimized.tree.type_symbol(id),
                 name,
-                heritage: optimized
-                    .tree
-                    .type_heritage(id)
-                    .filter(|heritage| !heritage.is_empty())
-                    .cloned(),
+                heritage: Self::heritage(&optimized.tree, id),
                 language_item,
             });
         }

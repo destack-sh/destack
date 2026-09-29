@@ -106,32 +106,10 @@ impl<'a> FunctionEmitter<'a> {
             mir::Callee::Indirect { value } => {
                 instruction.span(self.register(*value)?);
             }
-            mir::Callee::Virtual {
-                receiver,
-                class,
-                slot,
-            } => {
-                let reference = self
-                    .register_type(*receiver)?
-                    .reference_type()
-                    .ok_or_else(|| self.internal("virtual receiver is not a reference"))?;
-                let layout = self
-                    .optimized
-                    .layouts
-                    .type_layout(*class)
-                    .ok_or_else(|| self.internal("virtual class has no layout"))?;
-                let mir::LayoutShape::Object(layout) = &layout.shape else {
-                    return Err(self.internal("virtual class has no object layout"));
-                };
-                let dispatch_offset = layout
-                    .dispatch_offset
-                    .ok_or_else(|| self.internal("virtual class has no dispatch field"))?;
+            mir::Callee::Virtual { slot, .. } => {
                 let slot = u16::try_from(slot.0)
                     .map_err(|_| self.internal("virtual dispatch slot exceeds bytecode"))?;
 
-                instruction.register(self.word(*receiver)?);
-                instruction.reference(reference.kind(), reference.storage());
-                instruction.u32(dispatch_offset);
                 instruction.u16(slot);
             }
             mir::Callee::Dynamic { receiver, slot, .. } => {

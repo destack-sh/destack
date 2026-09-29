@@ -19,7 +19,7 @@ impl FunctionEmitter<'_> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         // resolve the variant storage type
-        let result_type = self.optimized.tree.storage_type(result_type);
+        let result_type = result_type.storage(&self.optimized.tree);
         let layout = self
             .optimized
             .layouts
@@ -65,7 +65,7 @@ impl FunctionEmitter<'_> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         // resolve the variant storage type
-        let variant_type = self.optimized.tree.storage_type(self.value_type(variant)?);
+        let variant_type = self.value_type(variant)?.storage(&self.optimized.tree);
         let layout = self
             .optimized
             .layouts
@@ -102,7 +102,7 @@ impl FunctionEmitter<'_> {
         else {
             return Err(self.invalid("native variant tag load does not select a value"));
         };
-        let variant_type = self.optimized.tree.storage_type(variant_type);
+        let variant_type = variant_type.storage(&self.optimized.tree);
         let layout = self
             .optimized
             .layouts
@@ -133,7 +133,7 @@ impl FunctionEmitter<'_> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         // resolve the variant storage type
-        let variant_type = self.optimized.tree.storage_type(self.value_type(variant)?);
+        let variant_type = self.value_type(variant)?.storage(&self.optimized.tree);
         let layout = self
             .optimized
             .layouts

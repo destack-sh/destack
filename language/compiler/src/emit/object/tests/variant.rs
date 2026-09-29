@@ -157,7 +157,7 @@ block0(v0: i64, v1: i64, v2: i64):
         point: Point::new(program.function_by_name("tag"), 0),
         access: mir::MemoryOperation::Read,
         storage: None,
-        value_type: program.lowered.tree.storage_type(choice),
+        value_type: choice.storage(&program.lowered.tree),
     };
     assert_eq!(object.memory(), &[site]);
 }

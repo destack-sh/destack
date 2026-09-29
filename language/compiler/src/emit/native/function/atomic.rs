@@ -40,7 +40,7 @@ impl FunctionEmitter<'_> {
 
         // materialize the atomic address and stored value
         let pointer = self.place_pointer(place, builder)?;
-        let ty = self.optimized.tree.storage_type(self.value_type(value)?);
+        let ty = self.value_type(value)?.storage(&self.optimized.tree);
         let value = self.scalar(value)?;
         let value = self.encode_atomic(value, ty, builder)?;
         builder
@@ -66,7 +66,7 @@ impl FunctionEmitter<'_> {
 
         // materialize the atomic address and comparison values
         let pointer = self.place_pointer(place, builder)?;
-        let ty = self.optimized.tree.storage_type(self.value_type(expected)?);
+        let ty = self.value_type(expected)?.storage(&self.optimized.tree);
         let expected = self.scalar(expected)?;
         let new_value = self.scalar(new_value)?;
         let expected_bits = self.encode_atomic(expected, ty, builder)?;
@@ -101,7 +101,7 @@ impl FunctionEmitter<'_> {
 
         // materialize the atomic address and operand
         let pointer = self.place_pointer(place, builder)?;
-        let ty = self.optimized.tree.storage_type(self.value_type(value)?);
+        let ty = self.value_type(value)?.storage(&self.optimized.tree);
         let value = self.scalar(value)?;
         let is_float = matches!(self.optimized.tree.type_definition(ty), mir::Type::Float(_));
         let old = match (is_float, operator) {

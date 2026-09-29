@@ -62,7 +62,7 @@ impl<'a> FunctionEmitter<'a> {
         cases: mir::SwitchCaseSlice,
     ) -> Result<(), EmitError> {
         // read the variant layout and encoding
-        let variant_type = self.optimized.tree.storage_type(self.value_type(value)?);
+        let variant_type = self.value_type(value)?.storage(&self.optimized.tree);
         let discriminant = match self.optimized.tree.get(variant_type) {
             mir::Type::Variant { discriminant, .. } => *discriminant,
             _ => return Err(self.internal("variant switch requires a variant value")),

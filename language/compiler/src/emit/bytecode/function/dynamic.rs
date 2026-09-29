@@ -12,12 +12,23 @@ impl<'a> FunctionEmitter<'a> {
         destination: mir::Value,
         payload: mir::Value,
         concrete: mir::TypeId,
+        table: mir::BindTable,
     ) -> Result<(), EmitError> {
+        // bind a class payload through its runtime class's conformance slot
+        if let mir::BindTable::Virtual { slot } = table {
+            let slot = u16::try_from(slot.0)
+                .map_err(|_| self.internal("conformance slot exceeds bytecode"))?;
+            let mut instruction =
+                bytecode::InstructionBuilder::new(bytecode::Opcode::DYNAMIC_BIND_VIRTUAL);
+            instruction.register(self.word(payload)?);
+            instruction.u16(slot);
+            let destination = self.register(destination)?;
+
+            return self.encode(instruction, &[destination]);
+        }
+
         // read the dynamic representation and its dispatch table
-        let dynamic_type = self
-            .optimized
-            .tree
-            .storage_type(self.value_type(destination)?);
+        let dynamic_type = self.value_type(destination)?.storage(&self.optimized.tree);
         let mir::Type::Dynamic { constraint, .. } = self.optimized.tree.get(dynamic_type) else {
             return Err(self.internal("dynamic binding result is not dynamic"));
         };
@@ -69,30 +80,12 @@ impl<'a> FunctionEmitter<'a> {
         destination: mir::Value,
         value: mir::Value,
     ) -> Result<(), EmitError> {
-        // read a class object's type through the virtual table its dispatch field names
+        // read a class object's type through its virtual table
         let ty = self.value_type(value)?;
-        let ty = self.optimized.tree.type_definition(ty).clone();
-        if let mir::Type::Reference { pointee, .. } = ty {
-            let reference = self
-                .register_type(value)?
-                .reference_type()
-                .ok_or_else(|| self.internal("object type read of a non-reference value"))?;
-            let layout = self
-                .optimized
-                .layouts
-                .type_layout(pointee)
-                .ok_or_else(|| self.internal("object type read of a type without a layout"))?;
-            let mir::LayoutShape::Object(layout) = &layout.shape else {
-                return Err(self.internal("object type read of a non-object type"));
-            };
-            let dispatch_offset = layout.dispatch_offset.ok_or_else(|| {
-                self.internal("object type read of a class without a dispatch field")
-            })?;
+        if let mir::Type::Reference { .. } = self.optimized.tree.type_definition(ty) {
             let mut instruction =
                 bytecode::InstructionBuilder::new(bytecode::Opcode::TYPE_OF_OBJECT);
             instruction.register(self.word(value)?);
-            instruction.reference(reference.kind(), reference.storage());
-            instruction.u32(dispatch_offset);
             let destination = self.register(destination)?;
 
             return self.encode(instruction, &[destination]);

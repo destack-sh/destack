@@ -310,7 +310,7 @@ impl<'a> FunctionEmitter<'a> {
             return Ok(value);
         }
 
-        let ty = self.optimized.tree.storage_type(ty);
+        let ty = ty.storage(&self.optimized.tree);
         let definition = self.optimized.tree.type_definition(ty);
         let is_signed = definition
             .integer(self.types.layout.pointer_bits())
