@@ -51,7 +51,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         read: defineProcedure({
             authentication: "identity",
             permission: notes.permission("read"),
-            audit: true,
+            audit: "access",
         })
             .route({ method: "GET", path: "/notes" })
             .output(eventIterator(schema.string())),
@@ -115,10 +115,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         values.push(value);
     }
     expect(values).toEqual(["first", "last"]);
-    expect(records).toEqual([
-        { caller: "alice", outcome: "started" },
-        { caller: "alice", outcome: "success" },
-    ]);
+    expect(records).toEqual([{ caller: "alice", outcome: "success" }]);
 
     // record a denial without running the handler
     const denied = createClient(service, {
@@ -132,13 +129,11 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     await expect(denied.read()).rejects.toMatchObject({ code: "FORBIDDEN", status: 403 });
     expect(invoked).toBe(1);
     expect(records).toEqual([
-        { caller: "alice", outcome: "started" },
         { caller: "alice", outcome: "success" },
-        { caller: "bob", outcome: "started" },
         { caller: "bob", outcome: "denied" },
     ]);
 
-    // refuse execution when audit fails
+    // fail the call when its audit fails at the end
     const unavailable = new ServiceHandler(router, {
         health,
         authorize,
@@ -157,12 +152,16 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
             return response.matched ? response.response : new Response(null, { status: 404 });
         },
     });
-    await expect(blocked.read()).rejects.toMatchObject({
+    const drained = (async () => {
+        for await (const _ of await blocked.read()) {
+        }
+    })();
+    await expect(drained).rejects.toMatchObject({
         code: "UNAVAILABLE",
         status: 503,
         message: "audit storage unavailable",
     });
-    expect(invoked).toBe(1);
+    expect(invoked).toBe(2);
 
     // serve probes without authorization
     const starting = await handler.handle(new Request("https://test.local/readyz"), {
@@ -214,7 +213,7 @@ test("withhold streamed values after access revocation", async () => {
     let isClosed = false;
     const outcomes: string[] = [];
     const service = {
-        watch: defineProcedure({ authentication: "identity", permission: null, audit: true })
+        watch: defineProcedure({ authentication: "identity", permission: null, audit: "access" })
             .route({ method: "GET", path: "/watch" })
             .output(eventIterator(schema.string())),
     };
@@ -265,7 +264,7 @@ test("withhold streamed values after access revocation", async () => {
     release.resolve();
     await rejected;
     expect(isClosed).toBe(true);
-    expect(outcomes).toEqual(["started", "denied"]);
+    expect(outcomes).toEqual(["denied"]);
 });
 
 /** Collect metrics after the calls finish. */

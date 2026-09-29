@@ -23,25 +23,20 @@ export interface ProcedureCall<State extends Context> {
 export interface ProcedureAudit<State extends Context> {
     /** The call. */
     call: ProcedureCall<State>;
-    /** The stage the call reached. */
-    outcome: "started" | "success" | "failure" | "denied" | "cancelled";
+    /** How the call ended. */
+    outcome: "success" | "failure" | "denied" | "cancelled";
     /** The failure. */
     error?: unknown;
 }
 
-/** Authorize and audit a call. */
+/** Authorize a call, and audit it once it ends. */
 export async function invokeProcedure<State extends Context>(
     call: ProcedureCall<State>,
     next: () => Promise<unknown>,
     options: Pick<HandlerOptions<State>, "authorize" | "audit">,
 ): Promise<unknown> {
-    // record the attempt before the handler runs
-    const audit = call.access.audit ? options.audit! : undefined;
-    if (audit) {
-        await recordAudit({ call, outcome: "started" }, audit);
-    }
-
-    // tell a denial from a failure
+    // tell a denial from a failure, recording every call's end for the recorder to keep or skip
+    const audit = options.audit;
     try {
         if (options.authorize) {
             await options.authorize(call);
@@ -84,7 +79,7 @@ function streamProcedure<State extends Context>(
     options: Pick<HandlerOptions<State>, "authorize" | "audit">,
 ): AsyncIteratorClass<unknown> {
     // record completion apart from cancellation
-    const audit = call.access.audit ? options.audit! : undefined;
+    const audit = options.audit;
     let outcome: ProcedureAudit<State>["outcome"] = "cancelled";
     let failure: unknown;
     const iterator = stream[Symbol.asyncIterator]();

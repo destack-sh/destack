@@ -108,7 +108,7 @@ export class ServiceHandler<State extends Context> extends OpenAPIHandler<State>
             ) {
                 throw new TypeError("protected procedures require authorization");
             }
-            if (access.audit && !options.audit) {
+            if (access.audit !== false && !options.audit) {
                 throw new TypeError("audited procedures require audit recording");
             }
 

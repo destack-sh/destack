@@ -8,8 +8,8 @@ export const ProcedureAccess = schema.object({
     authentication: schema.enum(["public", "identity", "host"]),
     /** The permission checked on the call's target, null when the handler checks itself. */
     permission: PermissionReference.nullable(),
-    /** Whether the call records audit events. */
-    audit: schema.boolean(),
+    /** The category of the event a call records when it ends, or false to record only denials. */
+    audit: schema.union([schema.literal(false), schema.enum(["activity", "access"])]),
 });
 
 /** The access and audit requirements of a procedure. */

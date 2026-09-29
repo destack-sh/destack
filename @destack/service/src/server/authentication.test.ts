@@ -90,13 +90,13 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     });
     const key = schema.object({ id: schema.string() });
     const service = {
-        me: defineProcedure({ authentication: "identity", permission: null, audit: true })
+        me: defineProcedure({ authentication: "identity", permission: null, audit: "access" })
             .route({ method: "GET", path: "/me" })
             .output(schema.string()),
         read: defineProcedure({
             authentication: "public",
             permission: note.permission("read"),
-            audit: true,
+            audit: "access",
         })
             .route({ method: "GET", path: "/notes/{id}" })
             .input(key)
@@ -104,7 +104,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
         watch: defineProcedure({
             authentication: "public",
             permission: note.permission("read"),
-            audit: true,
+            audit: "access",
         })
             .route({ method: "GET", path: "/notes/{id}/watch" })
             .input(key)
@@ -299,33 +299,19 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     await expect(stream.next()).rejects.toMatchObject({ code: "FORBIDDEN" });
     expect(invocations).toBe(5);
     expect(outcomes).toEqual([
-        "started",
         "success",
-        "started",
         "success",
-        "started",
         "success",
-        "started",
         "success",
-        "started",
         "denied",
-        "started",
         "denied",
-        "started",
         "success",
-        "started",
         "denied",
-        "started",
         "denied",
-        "started",
         "success",
-        "started",
         "denied",
-        "started",
         "denied",
-        "started",
         "denied",
-        "started",
         "denied",
     ]);
 });
