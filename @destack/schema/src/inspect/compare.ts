@@ -171,9 +171,12 @@ class Inclusion {
 
     /** Report whether single-alternative outer keywords accept every value of each inner type. */
     #includesTyped(outer: JsonSchema, inner: JsonSchema): boolean {
-        // refuse unreadable outer keywords, and outer value lists an unlisted inner schema escapes
+        // accept an identical schema, then refuse unreadable outer keywords and unmatched value lists
         const isListed = outer.const !== undefined || outer.enum !== undefined;
-        if (isListed || Object.keys(outer).some((keyword) => !isKnown(keyword))) {
+        const isUnreadable = Object.keys(outer).some((keyword) => !isKnown(keyword));
+        if ((isListed || isUnreadable) && equals(outer, inner)) {
+            return true;
+        } else if (isListed || isUnreadable) {
             return false;
         }
 

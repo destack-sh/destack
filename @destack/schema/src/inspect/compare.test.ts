@@ -29,6 +29,7 @@ const CHANGES: readonly (readonly [string, schema.Schema, schema.Schema, SchemaC
     ["add a maximum length", schema.string(), schema.string().max(5), "narrower"],
     ["drop an email format", schema.string().email(), schema.string(), "wider"],
     ["swap a pattern", schema.string().regex(/^a/), schema.string().regex(/^b/), "incompatible"],
+    ["keep a base64 string", schema.base64(), schema.base64(), "same"],
 
     // enums and literals
     ["add an enum value", schema.enum(["a", "b"]), schema.enum(["a", "b", "c"]), "wider"],
