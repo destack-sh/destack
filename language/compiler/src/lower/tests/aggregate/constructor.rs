@@ -15,7 +15,7 @@ function create(constructor: typeof Counter): Counter {
 
     session.assert_mir_function("main.tspp", "test.main.create", r#"
 @nocopy
-type test.main.Counter { }
+type test.main.Counter = class {  };
 
 export function test.main.create(v0: function<() => ref<test.main.Counter, managed, mutable, local>, repeatable, managed, mutable, local>): ref<test.main.Counter, managed, mutable, local> {
     local l0: function<() => ref<test.main.Counter, managed, mutable, local>, repeatable, managed, mutable, local>
@@ -28,7 +28,7 @@ entry(v0: function<() => ref<test.main.Counter, managed, mutable, local>, repeat
     return v3
 }
 
-/// @layout.struct name=test.main.Counter size=0 align=1
+/// @layout.class name=test.main.Counter size=4 align=4
 "#);
 }
 
@@ -49,7 +49,7 @@ function create(): new (...values: &readonly [int32]) => Counter {
 
     session.assert_mir_lowered("main.tspp", r#"
 @nocopy
-type test.main.Counter { }
+type test.main.Counter = class {  };
 
 export constructor test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: slice<int32, borrowed, 'a, readonly>): void {
     local l0: slice<int32, borrowed, 'a, readonly>
@@ -76,8 +76,10 @@ entry(v0: slice<int32, borrowed, 'a, readonly>):
     return v1
 }
 
-/// @layout.struct name=test.main.Counter size=0 align=1
-/// @layout.struct name=type@2 size=0 align=1
+/// @layout.class name=test.main.Counter size=4 align=4
+/// @layout.class name=type@2 size=4 align=4
+
+/// @dispatch.virtual concrete=type@0 value=type@1
 "#);
 }
 
@@ -98,7 +100,7 @@ function create(): new (start: int32, ...values: ^[int32]) => Counter {
 
     session.assert_mir_lowered("main.tspp", r#"
 @nocopy
-type test.main.Counter { }
+type test.main.Counter = class {  };
 
 export constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, v2: slice<int32, unique, mutable>): void {
     local l0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }
@@ -146,12 +148,14 @@ entry(v0: int32, v1: slice<int32, unique, mutable>):
     return v3
 }
 
-/// @layout.struct name=test.main.Counter size=0 align=1
-/// @layout.struct name=type@2 size=0 align=1
+/// @layout.class name=test.main.Counter size=4 align=4
+/// @layout.class name=type@2 size=4 align=4
 /// @layout.variant name=type@6 size=8 align=4
 /// @layout.discriminant owner=type@6 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@6 index=0 discriminant=0 payload_offset=4
 /// @layout.case owner=type@6 index=1 discriminant=1 payload_offset=4
+
+/// @dispatch.virtual concrete=type@0 value=type@1
 "#);
 }
 
@@ -174,7 +178,7 @@ function create(value: &readonly int32): Counter {
 
     session.assert_mir_lowered("main.tspp", r#"
 @nocopy
-type test.main.Counter { }
+type test.main.Counter = class {  };
 
 export constructor test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: ref<int32, borrowed, 'a, readonly>): void {
     local l0: ref<int32, borrowed, 'a, readonly>
@@ -209,8 +213,10 @@ entry(v0: ref<int32, borrowed, 'a, readonly>):
     return v1
 }
 
-/// @layout.struct name=test.main.Counter size=0 align=1
-/// @layout.struct name=type@2 size=0 align=1
+/// @layout.class name=test.main.Counter size=4 align=4
+/// @layout.class name=type@2 size=4 align=4
+
+/// @dispatch.virtual concrete=type@0 value=type@1
 "#);
 }
 
@@ -247,9 +253,7 @@ function constrained<T: Value<U>, U>(): new (value: T) => Box<T> {
 
     session.assert_mir_lowered("main.tspp", r#"
 @nocopy
-type test.main.Box<T> {
-    value: T;
-}
+type test.main.Box<T> = class { value: T };
 
 @nocopy
 type test.main.Value<T> {
@@ -314,6 +318,7 @@ entry(v0: T):
     return v1
 }
 
+/// @dispatch.virtual concrete=type@1 value=type@2
 /// @dispatch.shape constraint=type@13 field=value
 "#);
 }
@@ -341,7 +346,7 @@ function third<T, U>(): new () => User {
 
     session.assert_mir_lowered("main.tspp", r#"
 @nocopy
-type test.main.User { }
+type test.main.User = class {  };
 
 export function test.main.second(): function<() => ref<test.main.User, managed, mutable, local>, repeatable, managed, mutable, local> {
 entry:
@@ -370,8 +375,10 @@ entry:
     return v0
 }
 
-/// @layout.struct name=test.main.User size=0 align=1
-/// @layout.struct name=type@2 size=0 align=1
+/// @layout.class name=test.main.User size=4 align=4
+/// @layout.class name=type@2 size=4 align=4
+
+/// @dispatch.virtual concrete=type@0 value=type@1
 "#);
 }
 
@@ -394,7 +401,7 @@ function pair(first: int32, second: int32): Counter {
 
     session.assert_mir_function("main.tspp", "test.main.pair", r#"
 @nocopy
-type test.main.Counter { }
+type test.main.Counter = class {  };
 
 export function test.main.pair(v0: int32, v1: int32): ref<test.main.Counter, managed, mutable, local> {
     local l0: int32
@@ -414,12 +421,12 @@ entry(v0: int32, v1: int32):
     return v7
 }
 
-/// @layout.struct name=test.main.Counter size=0 align=1
+/// @layout.class name=test.main.Counter size=4 align=4
 "#);
 
     session.assert_mir_function("main.tspp", "test.main.Counter.constructor.new", r#"
 @nocopy
-type test.main.Counter { }
+type test.main.Counter = class {  };
 
 @nocopy
 @languageItem("collections.Array")
@@ -446,7 +453,7 @@ entry(v0: int32, v1: int32):
     return v12
 }
 
-/// @layout.struct name=test.main.Counter size=0 align=1
+/// @layout.class name=test.main.Counter size=4 align=4
 /// @layout.variant name=type@6 size=8 align=4
 /// @layout.discriminant owner=type@6 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@6 index=0 discriminant=0 payload_offset=4
@@ -471,7 +478,7 @@ function direct(first: int32, second: int32): Counter {
 
     session.assert_mir_function("main.tspp", "test.main.direct", r#"
 @nocopy
-type test.main.Counter { }
+type test.main.Counter = class {  };
 
 @nocopy
 @languageItem("collections.Array")
@@ -505,7 +512,7 @@ entry(v0: int32, v1: int32):
     return v14
 }
 
-/// @layout.struct name=test.main.Counter size=0 align=1
+/// @layout.class name=test.main.Counter size=4 align=4
 /// @layout.variant name=type@6 size=8 align=4
 /// @layout.discriminant owner=type@6 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@6 index=0 discriminant=0 payload_offset=4
@@ -532,7 +539,7 @@ function spread(counts: (int32 | undefined)[]): Counter {
 
     session.assert_mir_function("main.tspp", "test.main.spread", r#"
 @nocopy
-type test.main.Counter { }
+type test.main.Counter = class {  };
 
 @nocopy
 @languageItem("collections.Array")
@@ -578,108 +585,109 @@ entry(v0: ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed,
 b1:
     v8: dynamic<Iterator<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local> = load l4
     v9: dynamic<Iterator<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, borrowed, 'managed, mutable> = cast.bit v8 -> dynamic<Iterator<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, borrowed, 'managed, mutable>
-    v10: IteratorResult<variant<uint1> { 0uint1 = int32; 1uint1 = void; }, void> = call.dynamic v9, Iterator<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, 0(): () => IteratorResult<variant<uint1> { 0uint1 = int32; 1uint1 = void; }, void>
-    v11: variant<uint1> { 0uint1 = IteratorYield<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>; 1uint1 = IteratorReturn<void>; } = field.get v10, 0
-    variant.switch v11, 0 => b2, 1 => b3
+    v10: ref<Iterator<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, borrowed, 'managed, mutable> = dynamic.payload v9
+    v11: IteratorResult<variant<uint1> { 0uint1 = int32; 1uint1 = void; }, void> = call.dynamic v9, Iterator<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, 0(v10): (ref<Iterator<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, borrowed, 'managed, mutable>) => IteratorResult<variant<uint1> { 0uint1 = int32; 1uint1 = void; }, void>
+    v12: variant<uint1> { 0uint1 = IteratorYield<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>; 1uint1 = IteratorReturn<void>; } = field.get v11, 0
+    variant.switch v12, 0 => b2, 1 => b3
 
 b2:
-    v12: IteratorYield<variant<uint1> { 0uint1 = int32; 1uint1 = void; }> = variant.payload v11, 0
-    v13: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = field.get v12, 1
-    v14: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, borrowed, 'frame, readonly> = address (*l2)
-    v15: usize = slice.length v14
-    v16: usize = load l3
-    v17: boolean = eq v16, v15
-    branch v17 => b4 | b5
+    v13: IteratorYield<variant<uint1> { 0uint1 = int32; 1uint1 = void; }> = variant.payload v12, 0
+    v14: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = field.get v13, 1
+    v15: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, borrowed, 'frame, readonly> = address (*l2)
+    v16: usize = slice.length v15
+    v17: usize = load l3
+    v18: boolean = eq v17, v16
+    branch v18 => b4 | b5
 
 b3:
-    v32: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, borrowed, 'frame, readonly> = address (*l2)
-    v33: usize = slice.length v32
-    v34: usize = load l3
-    v35: boolean = eq v34, v33
-    branch v35 => b10 | b9
+    v33: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, borrowed, 'frame, readonly> = address (*l2)
+    v34: usize = slice.length v33
+    v35: usize = load l3
+    v36: boolean = eq v35, v34
+    branch v36 => b10 | b9
 
 b4:
-    v18: usize = add v15, v15
-    v19: usize = 1
-    v20: usize = add v18, v19
-    v21: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, unique, mutable> = load l2
-    v22: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, unique, mutable> = new.slice.uninit uninit<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, v20, local
-    v23: usize = load l3
-    v24: usize = 0
-    store l5, v24
+    v19: usize = add v16, v16
+    v20: usize = 1
+    v21: usize = add v19, v20
+    v22: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, unique, mutable> = load l2
+    v23: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, unique, mutable> = new.slice.uninit uninit<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, v21, local
+    v24: usize = load l3
+    v25: usize = 0
+    store l5, v25
     jump b6
 
 b5:
-    store (*l2)[v16], v13
-    v30: usize = 1
-    v31: usize = add v16, v30
-    store l3, v31
+    store (*l2)[v17], v14
+    v31: usize = 1
+    v32: usize = add v17, v31
+    store l3, v32
     jump b1
 
 b6:
-    v25: usize = load l5
-    v26: boolean = lt v25, v23
-    branch v26 => b7 | b8
+    v26: usize = load l5
+    v27: boolean = lt v26, v24
+    branch v27 => b7 | b8
 
 b7:
-    v27: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = load (*v21)[v25]
-    store (*v22)[v25], v27
-    v28: usize = 1
-    v29: usize = add v25, v28
-    store l5, v29
+    v28: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = load (*v22)[v26]
+    store (*v23)[v26], v28
+    v29: usize = 1
+    v30: usize = add v26, v29
+    store l5, v30
     jump b6
 
 b8:
-    release v21
-    store l2, v22
+    release v22
+    store l2, v23
     jump b5
 
 b9:
-    v36: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, unique, mutable> = load l2
-    v37: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, unique, mutable> = new.slice.uninit uninit<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, v34, local
-    v38: usize = load l3
-    v39: usize = 0
-    store l6, v39
+    v37: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, unique, mutable> = load l2
+    v38: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, unique, mutable> = new.slice.uninit uninit<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, v35, local
+    v39: usize = load l3
+    v40: usize = 0
+    store l6, v40
     jump b11
 
 b10:
-    v45: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, unique, mutable> = load l2
-    v46: slice<variant<uint1> { 0uint1 = int32; 1uint1 = void; }, unique, mutable> = new.complete v45
-    v47: Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }> = call arrayFromOwnedSlice<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>(v46): (slice<variant<uint1> { 0uint1 = int32; 1uint1 = void; }, unique, mutable>) => Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>
-    v48: uninit<ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local>> = new.uninit Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, local
-    store (*v48), v47
-    v49: ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local> = new.complete v48
-    v50: ref<test.main.Counter, managed, mutable, local> = call.indirect v3(v49): (ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local>) => ref<test.main.Counter, managed, mutable, local>
-    return v50
+    v46: slice<uninit<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, unique, mutable> = load l2
+    v47: slice<variant<uint1> { 0uint1 = int32; 1uint1 = void; }, unique, mutable> = new.complete v46
+    v48: Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }> = call arrayFromOwnedSlice<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>(v47): (slice<variant<uint1> { 0uint1 = int32; 1uint1 = void; }, unique, mutable>) => Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>
+    v49: uninit<ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local>> = new.uninit Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, local
+    store (*v49), v48
+    v50: ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local> = new.complete v49
+    v51: ref<test.main.Counter, managed, mutable, local> = call.indirect v3(v50): (ref<Array<variant<uint1> { 0uint1 = int32; 1uint1 = void; }>, managed, mutable, local>) => ref<test.main.Counter, managed, mutable, local>
+    return v51
 
 b11:
-    v40: usize = load l6
-    v41: boolean = lt v40, v38
-    branch v41 => b12 | b13
+    v41: usize = load l6
+    v42: boolean = lt v41, v39
+    branch v42 => b12 | b13
 
 b12:
-    v42: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = load (*v36)[v40]
-    store (*v37)[v40], v42
-    v43: usize = 1
-    v44: usize = add v40, v43
-    store l6, v44
+    v43: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = load (*v37)[v41]
+    store (*v38)[v41], v43
+    v44: usize = 1
+    v45: usize = add v41, v44
+    store l6, v45
     jump b11
 
 b13:
-    release v36
-    store l2, v37
+    release v37
+    store l2, v38
     jump b10
 }
 
-/// @layout.struct name=test.main.Counter size=0 align=1
+/// @layout.class name=test.main.Counter size=4 align=4
 /// @layout.variant name=type@6 size=8 align=4
 /// @layout.discriminant owner=type@6 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@6 index=0 discriminant=0 payload_offset=4
 /// @layout.case owner=type@6 index=1 discriminant=1 payload_offset=4
-/// @layout.variant name=type@133 size=8 align=4
-/// @layout.discriminant owner=type@133 kind=niche offset=0 byte_len=1 bit_offset=0 bit_len=8 untagged=0 niche_start=2
-/// @layout.case owner=type@133 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@133 index=1 discriminant=1 payload_offset=0
+/// @layout.variant name=type@136 size=8 align=4
+/// @layout.discriminant owner=type@136 kind=niche offset=0 byte_len=1 bit_offset=0 bit_len=8 untagged=0 niche_start=2
+/// @layout.case owner=type@136 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@136 index=1 discriminant=1 payload_offset=0
 "#);
 }
 
@@ -713,9 +721,7 @@ function create(value: int32): counter.Counter<int32> {
 
     session.assert_mir_lowered("main.tspp", r#"
 @nocopy
-type test.counter.Counter<T> {
-    value: T;
-}
+type test.counter.Counter<T> = class { value: T };
 
 export function test.main.create(v0: int32): ref<test.counter.Counter<int32>, managed, mutable, local> {
     local l0: int32
@@ -733,10 +739,10 @@ external constructor test.counter.Counter.constructor<T>(ref<uninit<test.counter
 
 shared constructor test.counter.Counter.constructor<int32>(v0: ref<uninit<test.counter.Counter<int32>>, borrowed, 'managed, mutable>, v1: int32): void;
 
-/// @layout.struct name=test.counter.Counter<int32> size=4 align=4
-/// @layout.field owner=test.counter.Counter<int32> index=0 name=value offset=0 size=4 align=4
-/// @layout.struct name=type@14 size=4 align=4
-/// @layout.field owner=type@14 index=0 name=value offset=0 size=4 align=4
+/// @layout.class name=test.counter.Counter<int32> size=8 align=4
+/// @layout.field owner=test.counter.Counter<int32> index=0 name=value offset=4 size=4 align=4
+/// @layout.class name=type@14 size=8 align=4
+/// @layout.field owner=type@14 index=0 name=value offset=4 size=4 align=4
 "#);
 }
 
@@ -764,9 +770,7 @@ function read(count: int32): int32 {
 
     session.assert_mir_lowered("main.tspp", r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32): void {
     local l0: int32
@@ -809,10 +813,12 @@ entry(v0: int32):
     return v1
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
-/// @layout.struct name=type@3 size=4 align=4
-/// @layout.field owner=type@3 index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
+/// @layout.class name=type@3 size=8 align=4
+/// @layout.field owner=type@3 index=0 name=count offset=4 size=4 align=4
+
+/// @dispatch.virtual concrete=type@0 value=type@1
 "#);
 }
 
@@ -841,9 +847,7 @@ function create(): Counter {
 
     session.assert_mir_function("main.tspp", "test.main.create", r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export function test.main.create(): ref<test.main.Counter, managed, mutable, local> {
 entry:
@@ -854,8 +858,8 @@ entry:
     return v3
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
 "#);
 }
 
@@ -882,9 +886,7 @@ function create(): Counter {
 
     session.assert_mir_lowered("main.tspp", r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: variant<uint1> { 0uint1 = int32; 1uint1 = void; }): void {
     local l0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }
@@ -938,14 +940,16 @@ entry:
     return v1
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
-/// @layout.struct name=type@3 size=4 align=4
-/// @layout.field owner=type@3 index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
+/// @layout.class name=type@3 size=8 align=4
+/// @layout.field owner=type@3 index=0 name=count offset=4 size=4 align=4
 /// @layout.variant name=type@6 size=8 align=4
 /// @layout.discriminant owner=type@6 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@6 index=0 discriminant=0 payload_offset=4
 /// @layout.case owner=type@6 index=1 discriminant=1 payload_offset=4
+
+/// @dispatch.virtual concrete=type@0 value=type@1
 "#);
 }
 
@@ -972,9 +976,7 @@ function create<T>(value: T): Box<T> {
 
     session.assert_mir_lowered("main.tspp", r#"
 @nocopy
-type test.main.Box<T> {
-    value: T;
-}
+type test.main.Box<T> = class { value: T };
 
 export function test.main.create<T>(v0: T): ref<test.main.Box<T>, managed, mutable, local> {
     local l0: T
@@ -1011,6 +1013,8 @@ entry(v0: T):
     call test.main.Box.constructor<T>(v2, v0): (ref<uninit<test.main.Box<T>>, borrowed, 'managed, mutable>, T) => void
     return v1
 }
+
+/// @dispatch.virtual concrete=type@1 value=type@2
 "#);
 }
 
@@ -1037,9 +1041,7 @@ function create(count: int32): Counter {
 
     session.assert_mir_lowered("main.tspp", r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: variant<uint1> { 0uint1 = int32; 1uint1 = void; }): void {
     local l0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }
@@ -1096,14 +1098,16 @@ entry(v0: int32):
     return v2
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
-/// @layout.struct name=type@3 size=4 align=4
-/// @layout.field owner=type@3 index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
+/// @layout.class name=type@3 size=8 align=4
+/// @layout.field owner=type@3 index=0 name=count offset=4 size=4 align=4
 /// @layout.variant name=type@6 size=8 align=4
 /// @layout.discriminant owner=type@6 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@6 index=0 discriminant=0 payload_offset=4
 /// @layout.case owner=type@6 index=1 discriminant=1 payload_offset=4
+
+/// @dispatch.virtual concrete=type@0 value=type@1
 "#);
 }
 
@@ -1130,9 +1134,7 @@ function create(count: int32): Counter | undefined {
 
     session.assert_mir_lowered("main.tspp", r#"
 @nocopy
-type test.main.Counter {
-    count: int32;
-}
+type test.main.Counter = class { count: int32 };
 
 export constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32): void {
     local l0: int32
@@ -1171,13 +1173,15 @@ entry(v0: int32):
     return v3
 }
 
-/// @layout.struct name=test.main.Counter size=4 align=4
-/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
-/// @layout.struct name=type@3 size=4 align=4
-/// @layout.field owner=type@3 index=0 name=count offset=0 size=4 align=4
+/// @layout.class name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=4 size=4 align=4
+/// @layout.class name=type@3 size=8 align=4
+/// @layout.field owner=type@3 index=0 name=count offset=4 size=4 align=4
 /// @layout.variant name=type@9 size=8 align=8
 /// @layout.discriminant owner=type@9 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
 /// @layout.case owner=type@9 index=0 discriminant=0 payload_offset=0
 /// @layout.case owner=type@9 index=1 discriminant=1 payload_offset=0
+
+/// @dispatch.virtual concrete=type@0 value=type@1
 "#);
 }

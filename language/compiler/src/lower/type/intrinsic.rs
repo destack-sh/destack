@@ -107,31 +107,18 @@ impl TypeLowerer<'_, '_> {
                         message: "Function instantiated without its signature".to_string(),
                     });
                 };
-                let dir::Type::Tuple(tuple) = self.lower.ty(*parameters)? else {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lower.module.into(),
-                        construct: "a function value without a parameter tuple".to_string(),
-                    }
-                    .into());
-                };
-
-                // lower every tuple element into a signature parameter
-                let elements = self
-                    .lower
-                    .tuple_element_types(parameters.module_id, &tuple)?;
-                let mut lowered = Vec::with_capacity(elements.len());
-                for element in elements {
-                    lowered.push(mir::SignatureParameter::new(self.lower(element)?));
-                }
-
-                // intern the signature
+                // take the parameter tuple as the rest parameter
+                let rest = self.lower(*parameters)?;
                 let result = self.lower(*result)?;
-                let signature = self.tree.intern_type(mir::Type::FunctionSignature {
+                let mut signature = mir::Type::FunctionSignature {
                     lifetimes: Vec::new(),
-                    parameters: lowered,
+                    parameters: Vec::new(),
+                    rest: Some(rest),
                     result,
                     park: mir::ParkBehavior::CannotPark,
-                });
+                };
+                signature.spread_rest(self.tree);
+                let signature = self.tree.intern_type(signature);
 
                 // read the invocation count off the receiver mode
                 let multiplicity = self.lower.callable_multiplicity(*receiver)?;

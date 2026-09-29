@@ -13,25 +13,38 @@ impl TypeLowerer<'_, '_> {
     ) -> CompilerResult<(Vec<mir::TypeId>, mir::TypeId)> {
         let (signature, owner) = self.lower.signature(declared)?;
         let signature = *self.lower.types(owner)?.signature(signature);
-        let parameter_types = self
+        let declared_parameters = self
             .lower
             .types(owner)?
             .parameters(signature.parameters)
-            .iter()
-            .map(|parameter| parameter.ty)
-            .collect::<Vec<_>>();
+            .to_vec();
         let return_type = signature.return_type;
 
         // lower parameters in their declared order
-        let mut parameters = Vec::with_capacity(parameter_types.len());
-        for ty in parameter_types {
-            parameters.push(self.lower(ty)?);
+        let mut parameters = Vec::with_capacity(declared_parameters.len());
+        for parameter in declared_parameters {
+            let ty = self.lower(parameter.ty)?;
+
+            // reject a declared tuple rest, which needs variadic declarations
+            let resolved = mir::Substitution::resolve(ty, self.tree);
+            let is_tuple = matches!(
+                self.tree.get(resolved),
+                mir::Type::Tuple { .. } | mir::Type::Parameter { .. }
+            );
+            if parameter.is_rest && is_tuple {
+                return Err(LowerError::Unsupported {
+                    anchor: self.lower.module.into(),
+                    construct: "a tuple rest parameter on a declared function".to_string(),
+                }
+                .into());
+            }
+            parameters.push(ty);
         }
 
         // lower the result, using void for an omitted return annotation
         let result = match return_type {
             Some(ty) => self.lower(ty)?,
-            None => self.tree.void_type(),
+            None => self.tree.intern_type(mir::Type::Void),
         };
 
         Ok((parameters, result))
@@ -110,23 +123,32 @@ impl TypeLowerer<'_, '_> {
         let mut types = self.lower.type_lowerer(self.tree, &scope);
         types.this_type = self.this_type;
         let mut parameters = Vec::with_capacity(declared.len());
+        let mut rest = None;
         for parameter in declared {
             let ty = types.lower(parameter.ty)?;
-            parameters.push(mir::SignatureParameter::new(ty));
+            match parameter.is_rest {
+                true => rest = Some(ty),
+                false => parameters.push(mir::SignatureParameter::new(ty)),
+            }
         }
 
         // lower the result and declare the collected lifetime slots
         let result = match signature.return_type {
             Some(ty) => types.lower(ty)?,
-            None => types.tree.void_type(),
+            None => types.tree.intern_type(mir::Type::Void),
         };
         let lifetimes = scope.declarations(self.lower.strings);
 
-        Ok(self.tree.intern_type(mir::Type::FunctionSignature {
+        // spread a rest parameter that already closed
+        let mut signature = mir::Type::FunctionSignature {
             lifetimes,
             parameters,
+            rest,
             result,
             park: signature.parks.into(),
-        }))
+        };
+        signature.spread_rest(self.tree);
+
+        Ok(self.tree.intern_type(signature))
     }
 }
