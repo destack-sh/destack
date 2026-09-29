@@ -22,16 +22,13 @@ if (update) {
 
 ## Restart
 
-Staging persists across sessions.
-Activation refreshes signed metadata and requires network access.
-Stop affected processes before activation; restart them after activation succeeds.
+An update stays staged across sessions, and activates online once its processes have stopped.
 
 ```ts
 using updater = await Updater.open(options);
 const staged = await updater.staged();
 if (staged) {
-    const installed = await updater.activate(staged);
+    // the CLI stops the desktop and the daemon first, and restarts them once activation succeeds
+    const installed = await updater.activate(staged); // refreshes the signed metadata
 }
 ```
-
-The CLI coordinates desktop shutdown, daemon shutdown, activation, and restart.
