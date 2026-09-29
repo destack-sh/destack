@@ -214,6 +214,7 @@ impl SignatureSelection {
         symbol: dir::GlobalSymbolId,
         key_receiver: Option<dir::GlobalTypeId>,
         arguments: Vec<dir::ArgumentBinding>,
+        dispatch: dir::FunctionDispatch,
     ) -> dir::Call {
         if let Some(adjustments) = &self.receiver_adjustments {
             receiver
@@ -232,7 +233,7 @@ impl SignatureSelection {
                     key: dir::InstanceKey::new(symbol, generic_arguments)
                         .with_receiver(key_receiver),
                 },
-                dispatch: dir::FunctionDispatch::Direct,
+                dispatch,
             },
             dir::MemberReceiver::Dynamic(dispatch) => dir::CallableTarget::Dynamic {
                 dispatch,
@@ -426,6 +427,44 @@ impl CheckState<'_> {
         };
 
         Ok(signature)
+    }
+
+    /// Return the role key one value answers by invoking itself.
+    pub(in crate::sema) fn invoked_key(
+        &mut self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::StaticKey>> {
+        // call a function value, else invoke a signature by its family
+        let key = match self.ty(ty)? {
+            dir::Type::Application(callable)
+                if self.is_function_language_item(callable.symbol)? =>
+            {
+                Some(dir::StaticKey::Call)
+            }
+            dir::Type::Application(_) => None,
+            _ => self
+                .signature_head(ty)?
+                .map(|signature| match signature.is_construct {
+                    true => dir::StaticKey::New,
+                    false => dir::StaticKey::Call,
+                }),
+        };
+
+        Ok(key)
+    }
+
+    /// Return whether one symbol declares the callable value language item.
+    pub(in crate::sema) fn is_function_language_item(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        let item = self.language_item(symbol)?;
+
+        // read whether the item names a callable representation
+        Ok(matches!(
+            item,
+            Some(dir::LanguageItem::Function | dir::LanguageItem::FunctionPointer)
+        ))
     }
 
     /// Expand one substituted tuple rest into its positional parameters, the list itself otherwise.

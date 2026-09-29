@@ -331,26 +331,25 @@ impl<'a> CheckState<'a> {
                 {
                     None
                 }
-                dir::DefinitionMember::Method(_) if !is_reference => {
-                    // value methods read their whole signature covariantly
+                // measure methods without their receiver
+                dir::DefinitionMember::Method(_) => {
+                    let input = match is_reference {
+                        true => Variance::Contravariant,
+                        false => Variance::Covariant,
+                    };
                     if let Some(ty) = self.require_definition_member_type(member)? {
-                        members.extend(self.value_method_positions(ty)?);
+                        members.extend(self.method_positions(ty, input)?);
                     }
 
                     None
                 }
-                dir::DefinitionMember::Method(_) | dir::DefinitionMember::AssociatedConst(_) => {
-                    self.require_definition_member_type(member)?
-                        .map(|ty| (ty, Variance::Covariant))
-                }
+                dir::DefinitionMember::AssociatedConst(_) => self
+                    .require_definition_member_type(member)?
+                    .map(|ty| (ty, Variance::Covariant)),
                 dir::DefinitionMember::AssociatedType(associated) => associated
                     .value
                     .or(associated.constraint)
                     .map(|ty| (ty, Variance::Covariant)),
-                dir::DefinitionMember::CallSignature(signature)
-                | dir::DefinitionMember::ConstructSignature(signature) => {
-                    Some((signature.ty, Variance::Covariant))
-                }
                 // index keys accept like parameters, values store like slots
                 dir::DefinitionMember::IndexSignature(signature) => {
                     members.push((signature.key_type, Variance::Contravariant));
@@ -435,10 +434,11 @@ impl<'a> CheckState<'a> {
         Ok(value)
     }
 
-    /// Collect one value method's positions, reading the signature covariantly.
-    fn value_method_positions(
+    /// Collect one member method's positions without its receiver.
+    fn method_positions(
         &mut self,
         ty: dir::GlobalTypeId,
+        input: Variance,
     ) -> CompilerResult<SmallVec<[(dir::GlobalTypeId, Variance); 4]>> {
         let mut positions = SmallVec::new();
         let Some(signature) = self.signature_head(ty)? else {
@@ -447,15 +447,11 @@ impl<'a> CheckState<'a> {
             return Ok(positions);
         };
 
-        // read the parameters and return covariantly, static dispatch types against the copy
+        // read the parameters at the input position and the return covariantly
         let parameters: SmallVec<[_; 4]> = self
             .signature_parameters(ty.module_id, signature.parameters)?
             .into();
-        positions.extend(
-            parameters
-                .iter()
-                .map(|parameter| (parameter.ty, Variance::Covariant)),
-        );
+        positions.extend(parameters.iter().map(|parameter| (parameter.ty, input)));
         positions.extend(
             signature
                 .return_type

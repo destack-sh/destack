@@ -4,6 +4,7 @@ mod binding;
 mod call;
 mod chain;
 mod construct;
+mod dispatch;
 mod disposal;
 mod extension;
 mod field;

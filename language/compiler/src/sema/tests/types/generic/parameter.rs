@@ -2559,12 +2559,13 @@ export newtype interface Parameterized<P: readonly unknown[]> {
 /// @definition.interface symbol=Parameterized template=(P#1: readonly unknown[], this: Parameterized<P#1>) nominal=true
 /// @definition.where symbol=Parameterized relation=satisfies left=this right=Parameterized<P#1>
 /// @definition.field symbol=Parameterized.skip source="readonly skip: Parameterized<P>" key=skip type=Parameterized<P#1>
-/// @definition.signature kind=call source="(name: string, body?: Function<P, void>): void" type=(string, Function<P#1, void> | undefined?) => void
+/// @definition.method symbol=Parameterized.() source="(name: string, body?: Function<P, void>): void" slot=() role=call type=(this: this, string, Function<P#1, void, "mutable"> | undefined?) => void
 /// @type.symbol symbol=Parameterized.P source="P: readonly unknown[]" type=P#1
 
     (name: string, body?: Function<P, void>): void;
-    /// @type.symbol symbol=Parameterized.name source="name: string" type=string
-    /// @type.symbol symbol=Parameterized.body source="body?: Function<P, void>" type=Function<P#1, void, "mutable"> | undefined
+    /// @type.symbol symbol=Parameterized.() source="(name: string, body?: Function<P, void>): void" type=(this: this, string, Function<P#1, void, "mutable"> | undefined?) => void
+    /// @type.symbol symbol=Parameterized.().name source="name: string" type=string
+    /// @type.symbol symbol=Parameterized.().body source="body?: Function<P, void>" type=Function<P#1, void, "mutable"> | undefined
     /// @resolution.name source=Function target=Function
     /// @resolution.name source=P target=Parameterized.P
 
@@ -2627,13 +2628,14 @@ export newtype interface Parameterized<P: readonly unknown[] & Copy> {
 /// @type.symbol symbol=Parameterized type=Parameterized
 /// @definition.interface symbol=Parameterized template=(P: readonly unknown[] & Copy, this: Parameterized<P>) nominal=true
 /// @definition.where symbol=Parameterized relation=satisfies left=this right=Parameterized<P>
-/// @definition.signature kind=call source="(name: string, body?: Function<P, void>): void" type=(string, Function<P, void> | undefined?) => void
+/// @definition.method symbol=Parameterized.() source="(name: string, body?: Function<P, void>): void" slot=() role=call type=(this: this, string, Function<P, void, "mutable"> | undefined?) => void
 /// @type.symbol symbol=Parameterized.P source="P: readonly unknown[] & Copy" type=P
 /// @resolution.name source=Copy target=Copy
 
     (name: string, body?: Function<P, void>): void;
-    /// @type.symbol symbol=Parameterized.name source="name: string" type=string
-    /// @type.symbol symbol=Parameterized.body source="body?: Function<P, void>" type=Function<P, void, "mutable"> | undefined
+    /// @type.symbol symbol=Parameterized.() source="(name: string, body?: Function<P, void>): void" type=(this: this, string, Function<P, void, "mutable"> | undefined?) => void
+    /// @type.symbol symbol=Parameterized.().name source="name: string" type=string
+    /// @type.symbol symbol=Parameterized.().body source="body?: Function<P, void>" type=Function<P, void, "mutable"> | undefined
     /// @resolution.name source=Function target=Function
     /// @resolution.name source=P target=Parameterized.P
 

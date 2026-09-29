@@ -1018,9 +1018,10 @@ function observe(values: Iterator<^string>): Iterator<^string> {
     /// @flow.diverging
     /// @resolution.name source=values target=observe.values
     /// @resolution.member source=values.map receiver=Iterator<^string> type=<Iterator.map.U>(this: Iterator<^string>, (^string, isize) => Iterator.map.U) => MapIterator<Iterator<^string>, ^string, Iterator.map.U> kind=symbol target_receiver=Iterator<^string> dispatch=dynamic constraint=Iterator<^string> target=Iterator.map
-    /// @resolution.call parameters=((^string, isize) => ^string) arguments=(provided(argument) as (^string, isize) => ^string) return=MapIterator<Iterator<^string>, ^string, ^string> kind=dynamic target=Iterator.map receiver=Iterator<^string> constraint=Iterator<^string> generic_arguments=(^string, ^string)
+    /// @resolution.call parameters=((^string, isize) => ^string) arguments=(provided(argument) as (^string, isize) => ^string) return=MapIterator<Iterator<^string>, ^string, ^string> kind=symbol target=Iterator.map receiver=Iterator<^string> instance=Iterator<^string>.map<^string>
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=observe.values
+    /// @generic.instantiation id="Iterator.map<Iterator<^string>, ^string, ^string>" template=Iterator.map arguments=(^string, ^string)
     /// @generic.instantiation id=Iterator.map<^string> template=Iterator.map arguments=(^string)
     /// @generic.instance id="MapIterator<Iterator<^string>, ^string, ^string>" template=MapIterator arguments=(Iterator<^string>, ^string, ^string)
     /// @flow.access source=values root=observe.values uses=read

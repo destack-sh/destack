@@ -571,12 +571,31 @@ impl CheckState<'_> {
         let bound = signature.bind_arguments(origin, self)?;
         let key_receiver =
             self.interface_member_receiver(declared.owner, signature.callable, None)?;
+
+        // call a generic member's default body directly
+        let (resolution, key_receiver) = match resolution {
+            dir::MemberReceiver::Dynamic(dispatch)
+                if self.is_default_call(origin, declared.symbol)? =>
+            {
+                let key_receiver = Some(dispatch.receiver.ty());
+
+                (dir::MemberReceiver::Direct(dispatch.receiver), key_receiver)
+            }
+            resolution => (resolution, key_receiver),
+        };
+        let dispatch = match &resolution {
+            dir::MemberReceiver::Direct(receiver) => {
+                self.method_dispatch(origin, declared.symbol, receiver.ty())?
+            }
+            _ => dir::FunctionDispatch::Direct,
+        };
         let call = signature.member_call(
             resolution,
             declared.owner,
             declared.symbol,
             key_receiver,
             bound,
+            dispatch,
         );
 
         Ok(Ok(call))

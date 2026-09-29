@@ -531,15 +531,6 @@ impl<'a> CheckState<'a> {
         Ok(Some(held))
     }
 
-    /// Return whether one type names a class.
-    fn is_class_type(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
-        let dir::Type::Application(instance) = self.ty(ty)? else {
-            return Ok(false);
-        };
-
-        Ok(self.symbol_kind(instance.symbol)? == dir::SymbolKind::Class)
-    }
-
     /// Settle each recorded narrowing on the solved members it keeps, dropping the vacuous ones.
     pub(in crate::sema) fn settle_narrowings(&mut self, module: ModuleId) -> CompilerResult<()> {
         let entries: Vec<_> = self

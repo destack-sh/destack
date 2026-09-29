@@ -867,4 +867,30 @@ impl CheckState<'_> {
 
         Ok(Some(self.substitute_type(backing, &substitution)?))
     }
+
+    /// Return whether one proven class coercion changes the class.
+    pub(in crate::sema) fn is_class_upcast(
+        &mut self,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let (dir::Type::Application(source_instance), dir::Type::Application(target_instance)) =
+            (self.ty(source)?, self.ty(target)?)
+        else {
+            return Ok(false);
+        };
+
+        Ok(source_instance.symbol != target_instance.symbol
+            && self.is_class_type(source)?
+            && self.is_class_type(target)?)
+    }
+
+    /// Return whether one type names a class.
+    pub(in crate::sema) fn is_class_type(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+        let dir::Type::Application(instance) = self.ty(ty)? else {
+            return Ok(false);
+        };
+
+        Ok(self.symbol_kind(instance.symbol)? == dir::SymbolKind::Class)
+    }
 }

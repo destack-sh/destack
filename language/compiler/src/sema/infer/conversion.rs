@@ -1866,6 +1866,12 @@ impl CheckState<'_> {
             {
                 Some(adjustment)
             }
+            // reinterpret a class handle at the base class it extends
+            else if self.is_class_upcast(source_base, target_base)? {
+                Some(dir::CoercionAdjustment::Representation {
+                    target: recorded_target,
+                })
+            }
             // manage an owned value into managed storage
             else if source_chain
                 .ownership_form()

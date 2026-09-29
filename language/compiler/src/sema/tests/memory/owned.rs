@@ -1053,7 +1053,9 @@ const values = Deque.from([1, 2, 3]);
 /// @resolution.call source=[1, 2, 3] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64, provided(2) as int64, provided(3) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
 /// @generic.instance id=Array<int64> template=Array arguments=(int64)
+/// @generic.instance id=Iterator<int64> template=Iterator arguments=(int64)
 /// @generic.instance id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
+/// @generic.instance id=iterator#2<int64> template=iterator#2 arguments=(int64)
 "#,
     );
 }

@@ -6076,8 +6076,9 @@ function span<T>(name: string, body: (span: Span) => T): T {
     tracer().span(name, body)
     /// @resolution.name source=tracer target=tracer
     /// @resolution.member source=tracer().span receiver=Tracer type=<T#1>(this: Tracer, string, (Span) => T#1) => T#1 kind=symbol target_receiver=Tracer dispatch=dynamic constraint=Tracer target=Tracer.span
-    /// @resolution.call source="tracer().span(name, body)" parameters=(string, (Span) => T#2) arguments=(provided(name) as string, provided(body) as (Span) => T#2) return=T#2 kind=dynamic target=Tracer.span receiver=Tracer constraint=Tracer generic_arguments=(T#2)
+    /// @resolution.call source="tracer().span(name, body)" parameters=(string, (Span) => T#2) arguments=(provided(name) as string, provided(body) as (Span) => T#2) return=T#2 kind=symbol target=Tracer.span receiver=Tracer instance=Tracer.span<T#2>
     /// @resolution.call source=tracer() parameters=() return=Tracer kind=symbol target=tracer
+    /// @generic.instantiation id="Tracer.span<Tracer, T#2>" template=Tracer.span arguments=(T#2) owner=span
     /// @resolution.name source=name target=span.name
     /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=name root=span.name
@@ -6088,6 +6089,9 @@ function span<T>(name: string, body: (span: Span) => T): T {
 }
 "#,
         r#"
+/// @diagnostic.error id=not-dynamic-member message="'span' has its own type parameters and cannot be called through a dynamic value"
+/// @diagnostic.label line=13 column=5 span="tracer().span(name, body)" line_source="tracer().span(name, body)"
+/// @diagnostic.help message="give the member a default body, or call it on a concrete or generic value"
 "#,
     );
 }
