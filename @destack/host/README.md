@@ -42,6 +42,17 @@ Hosts and their keys are objects with these methods.
 | `hostKey.revoke` | the host, or the account's administrators | ends one key |
 | `hostKey.list` | the host, its tenants and every other host | reads the keys that sign proofs |
 
+## Addresses
+
+An installation answers at its origin under Destack's domains, serving its views and, at `SERVICE_PATH`, its service.
+
+```ts
+import { DOMAINS, InstallationOrigin, SERVICE_PATH } from "@destack/host";
+
+InstallationOrigin.parse("notes.personal.florian.destack.space", DOMAINS.space); // { alias, space, handle }
+const url = `https://notes.personal.florian.${DOMAINS.space}${SERVICE_PATH}`;
+```
+
 ## Runtimes
 
 A `Runtime` starts, stops and serves the instances a holder assigns this host on one server runtime, and reports exits the holder did not ask for.
