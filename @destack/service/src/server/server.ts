@@ -13,7 +13,7 @@ import { BOOKMARK_HEADER, type Bookmark } from "../bookmark/index.ts";
 import { CAPABILITY_HEADER, ServiceContext, type ServiceAccess } from "./context.ts";
 import type { ProcedureCall } from "./access.ts";
 import { reportError, reportReconciliation } from "./error.ts";
-import { ControlLoop, type Controller } from "../control/index.ts";
+import { ControlLoop, type Controller, type Follower } from "../control/index.ts";
 import { MAX_TIMER_DELAY } from "../timer/index.ts";
 import { copyRequest } from "../request/index.ts";
 
@@ -114,13 +114,13 @@ export class Server implements AsyncDisposable {
         const signal = AbortSignal.any([request.signal, controller.signal]);
         this.#requests.set(controller, request);
         try {
-            // dispatch protocols or procedures
+            // authenticate, then dispatch protocols or procedures
             const accepted = copyRequest(request, { signal });
             this.#requests.set(controller, accepted);
-            let response = await this.#options.route?.(accepted);
+            const context = await Server.#authenticate(accepted, this.#options);
+            signal.throwIfAborted();
+            let response = await this.#options.route?.(accepted, context);
             if (response === undefined) {
-                const context = await Server.#authenticate(accepted, this.#options);
-                signal.throwIfAborted();
                 const result = await this.#handler.handle(accepted, { context });
                 response = result.matched ? result.response : new Response(null, { status: 404 });
                 response = attachBookmark(response, context.observed);
@@ -187,7 +187,8 @@ export class Server implements AsyncDisposable {
             );
             caller = authenticated;
         } catch (error) {
-            authenticationError = error ?? new ServiceError("UNAUTHORIZED");
+            authenticationError =
+                error ?? new ServiceError("UNAUTHORIZED", { message: "authentication failed" });
         }
 
         // digest the presented capabilities
@@ -390,10 +391,10 @@ export interface ServiceImplementation extends Omit<HandlerOptions<ServiceContex
     responseHeaders?: ConstructorParameters<typeof Headers>[0];
     /** The policies deciding permissions. */
     access?: ServiceAccess;
-    /** Serve another HTTP protocol, or return undefined. */
-    route?(request: Request): Promise<Response | undefined>;
+    /** Serve another HTTP protocol for an authenticated request, or return undefined. */
+    route?(request: Request, context: ServiceContext): Promise<Response | undefined>;
     /** The service's controllers. */
-    readonly controllers?: readonly Controller[];
+    readonly controllers?: readonly (Controller | Follower)[];
 }
 
 /** Require a policy for every procedure permission. */

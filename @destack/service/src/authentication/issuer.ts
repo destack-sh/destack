@@ -1,5 +1,5 @@
 import type { JWTPayload } from "jose";
-import { Caller, CALLER_LIFETIME_MILLISECONDS } from "./caller.ts";
+import { Caller } from "./caller.ts";
 import { TokenAuthentication, type TokenIssuerAuthority } from "./token.ts";
 import { ServiceError } from "../error/index.ts";
 
@@ -18,12 +18,12 @@ export class TokenIssuer {
         // keep the original verification deadline
         const current = caller.authentication;
         caller.requireCurrent(current.audience, now, current.scope);
-        const expiresAt = Math.floor(
-            Math.min(current.expiresAt, current.verifiedAt + CALLER_LIFETIME_MILLISECONDS) / 1000,
-        );
+        const expiresAt = Math.floor(caller.lapsesAt / 1000);
         const issuedAt = Math.floor(current.verifiedAt / 1000);
         if (expiresAt * 1000 <= now || expiresAt <= issuedAt) {
-            throw new ServiceError("UNAUTHORIZED");
+            throw new ServiceError("UNAUTHORIZED", {
+                message: "the caller's verification expired",
+            });
         }
 
         // encode the verified identity fields

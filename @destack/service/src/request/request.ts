@@ -11,12 +11,17 @@ const CLOCK_TOLERANCE_MILLISECONDS = 5 * 60 * 1000;
 /** The originals of copied requests. */
 const ORIGINALS = new WeakMap<Request, Request>();
 
-/** Copy a request with changes, holding the original while the copy lives. */
-export function copyRequest(request: Request, changes: RequestInit): Request {
-    const copy = new Request(request, changes);
-    ORIGINALS.set(copy, request);
+/** Copy a request with changes and an optional URL, holding the client's original while the copy lives. */
+export function copyRequest(request: Request, changes: RequestInit, url = request.url): Request {
+    const copy = new Request(url, new Request(request, changes));
+    ORIGINALS.set(copy, originalRequest(request));
 
     return copy;
+}
+
+/** Find a request as its client sent it, before any router copied it. */
+export function originalRequest(request: Request): Request {
+    return ORIGINALS.get(request) ?? request;
 }
 
 /** A timestamped request identifier kept across retries. */

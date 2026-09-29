@@ -8,7 +8,7 @@ import {
 } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import type { ResourceContext } from "@destack/resource/context";
-import { type Caller, CALLER_LIFETIME_MILLISECONDS } from "../authentication/index.ts";
+import type { Caller } from "../authentication/index.ts";
 import { ServiceError } from "../error/index.ts";
 import type { ProcedureCall } from "./access.ts";
 import { BOOKMARK_HEADER, Bookmark } from "../bookmark/index.ts";
@@ -32,7 +32,7 @@ export class ServiceContext {
     readonly authenticationError?: unknown;
     /** The server-generated request identifier. */
     readonly requestId = crypto.randomUUID();
-    /** Abort when the request closes or its identity expires. */
+    /** Abort when the request closes or its caller lapses, ending handlers at their next consistent point. */
     readonly signal: AbortSignal;
     /** The digests of the presented capabilities. */
     readonly capabilities: readonly string[];
@@ -81,22 +81,16 @@ export class ServiceContext {
         this.access = this.access.bind(this);
 
         // keep the signal as an own property
-        const deadline =
-            caller &&
-            Math.min(
-                caller.authentication.expiresAt,
-                caller.authentication.verifiedAt + CALLER_LIFETIME_MILLISECONDS,
-            );
         this.signal =
-            deadline === null
+            caller === null
                 ? this.request.signal
                 : AbortSignal.any([
                       this.request.signal,
-                      AbortSignal.timeout(Math.max(0, Math.ceil(deadline - Date.now()))),
+                      AbortSignal.timeout(Math.max(0, Math.ceil(caller.lapsesAt - Date.now()))),
                   ]);
     }
 
-    /** Require a current authenticated caller. */
+    /** Require an authenticated caller, current as of its lapse at latest. */
     requireCaller(): Caller {
         // report a credential failure
         if (this.authenticationError !== undefined) {
@@ -105,14 +99,14 @@ export class ServiceContext {
 
         // require a current caller
         if (!this.caller) {
-            throw new ServiceError("UNAUTHORIZED");
+            throw new ServiceError("UNAUTHORIZED", { message: "missing caller credential" });
         }
-        this.caller.requireCurrent(this.audience, Date.now(), this.scope);
+        this.caller.requireCurrent(this.audience, this.caller.within(Date.now()), this.scope);
 
         return this.caller;
     }
 
-    /** Read the access context at the current time. */
+    /** Read the access context at the current time, held at the caller's lapse once passed. */
     access(scope: string | undefined = this.scope): AccessContext {
         // report a credential failure
         if (this.authenticationError !== undefined) {
@@ -121,7 +115,7 @@ export class ServiceContext {
 
         // read the caller's or an anonymous context with capabilities
         const context = this.caller
-            ? this.caller.context(this.audience, Date.now(), scope)
+            ? this.caller.context(this.audience, this.caller.within(Date.now()), scope)
             : { subjects: [], attributes: {}, now: Date.now() };
 
         return this.capabilities.length === 0

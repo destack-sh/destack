@@ -111,6 +111,14 @@ export class ServiceHandler<State extends Context> extends OpenAPIHandler<State>
             if (access.audit && !options.audit) {
                 throw new TypeError("audited procedures require audit recording");
             }
+
+            // require payloads the HTTP layer describes, refusing them at start rather than per request
+            const { inputSchema, outputSchema } = router["~orpc"];
+            for (const described of [inputSchema, outputSchema]) {
+                if (described instanceof schema.Schema) {
+                    toJsonSchema(described);
+                }
+            }
         }
         // check nested routers
         else {

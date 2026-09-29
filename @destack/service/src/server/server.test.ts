@@ -5,11 +5,15 @@ import { implementHealth } from "../health/server.ts";
 import { createClient } from "../client/index.ts";
 import { eventIterator, defineProcedure } from "../service/index.ts";
 import { implement, Server, type ServerOptions } from "./index.ts";
-import { hosting } from "./tests/fixture.ts";
+import { createCaller, hosting } from "./tests/fixture.ts";
 import { Observable } from "../observable/index.ts";
 import { ServiceError } from "../error/index.ts";
 import type { ServiceContext } from "./context.ts";
 import { Bookmark, Watermark } from "../bookmark/index.ts";
+import { Caller } from "../authentication/index.ts";
+
+/** The authentication lifetime of the lapsing callers, short enough for a fast test. */
+const LAPSE_MILLISECONDS = 200;
 
 test("reauthenticate completed snapshot subscriptions and report revoked access", async () => {
     // serve a finite snapshot subscription
@@ -29,7 +33,7 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
         authenticate: async (request) => {
             requests++;
             if (requests === 3) {
-                throw new ServiceError("UNAUTHORIZED");
+                throw new ServiceError("UNAUTHORIZED", { message: "invalid bearer credential" });
             }
 
             return hosting.authenticate(request);
@@ -65,6 +69,82 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
         await server.close();
     }
 });
+
+test.for([
+    {
+        name: "complete the run as verified",
+        revoked: false,
+        outcome: { values: [1, 2], error: undefined },
+    },
+    {
+        name: "refuse the value once revoked",
+        revoked: true,
+        outcome: { values: [1], error: "FORBIDDEN" },
+    },
+] as const)(
+    "serve a stream past its caller's lapse to its next consistent point: $name",
+    async ({ revoked, outcome }) => {
+        // serve a run of two values whose second completes it after the caller's lapse
+        let isRevoked = false;
+        const service = {
+            watch: defineProcedure({ authentication: "identity", permission: null, audit: false })
+                .route({ method: "GET", path: "/watch" })
+                .output(eventIterator(schema.number())),
+        };
+        const implementation = implement(service).$context<ServiceContext>();
+        const server = Server.start({
+            ...hosting,
+            health: new Health("lapse"),
+            drainTimeout: 1000,
+            authenticate: async () => {
+                const { authentication } = createCaller("alice");
+
+                return new Caller({
+                    ...authentication,
+                    expiresAt: Date.now() + LAPSE_MILLISECONDS,
+                });
+            },
+            authorizeHost: async () => {
+                if (isRevoked) {
+                    throw new ServiceError("FORBIDDEN", { message: "permission denied: watch" });
+                }
+            },
+            router: implementation.router({
+                watch: implementation.watch.handler(async function* ({ context }) {
+                    yield 1;
+                    await new Promise((resolve) =>
+                        context.signal.addEventListener("abort", resolve, { once: true }),
+                    );
+                    isRevoked = revoked;
+                    yield 2;
+                }),
+            }),
+        });
+
+        // read every value until the stream ends
+        try {
+            const client = createClient(service, {
+                url: "https://test.local",
+                headers: { authorization: "alice" },
+                fetch: (request) => server.fetch(request),
+            });
+            const values: number[] = [];
+            const error = await (async () => {
+                for await (const value of await client.watch()) {
+                    values.push(value);
+                }
+            })().then(
+                () => undefined,
+                (failure: ServiceError<string, unknown>) => failure.code,
+            );
+
+            // complete the run as verified, unless revoked meanwhile
+            expect({ values, error }).toEqual(outcome);
+        } finally {
+            await server.close();
+        }
+    },
+);
 
 test("drain complete HTTP response streams before reporting the server stopped", async () => {
     // declare health and a held stream
@@ -103,12 +183,14 @@ test("drain complete HTTP response streams before reporting the server stopped",
         ...hosting,
         router,
         health: readiness,
-        route: async (request) => {
+        route: async (request, context) => {
             const path = new URL(request.url).pathname;
             if (path === "/auth/redirect") {
                 return Response.redirect("https://identity.local/sign-in", 303);
             } else if (path === "/auth/keys") {
                 return Response.json({ keys: [] });
+            } else if (path === "/auth/caller") {
+                return Response.json({ subject: context.access().subject?.id ?? null });
             } else {
                 return undefined;
             }
@@ -123,6 +205,19 @@ test("drain complete HTTP response streams before reporting the server stopped",
         200,
         "no-store",
         { keys: [] },
+    ]);
+
+    // give the protocol the authenticated caller, and its credential failure
+    const caller = async (headers: Record<string, string>) => {
+        const response = await server.fetch(
+            new Request("https://test.local/auth/caller", { headers }),
+        );
+
+        return [response.status, (await response.json()) as unknown];
+    };
+    expect([await caller({ authorization: "alice" }), (await caller({}))[0]]).toEqual([
+        [200, { subject: "alice" }],
+        401,
     ]);
 
     // keep the redirect status and location
@@ -372,3 +467,25 @@ async function collectGarbage(): Promise<void> {
         await new Promise((resolve) => setTimeout(resolve, 10));
     }
 }
+
+test("refuse starting a server whose procedures carry payloads the HTTP layer cannot describe", () => {
+    // declare a procedure whose input runs a custom check
+    const readiness = new Health("reader");
+    const service = {
+        health,
+        read: defineProcedure({ authentication: "public", permission: null, audit: false })
+            .route({ method: "GET", path: "/read" })
+            .input(schema.object({ name: schema.string().refine((name) => name !== "latest") }))
+            .output(schema.string()),
+    };
+    const implementation = implement(service);
+    const router = implementation.router({
+        health: implementHealth(readiness),
+        read: implementation.read.handler(async () => "read"),
+    });
+
+    // refuse it at start instead of answering every request with a failure
+    expect(() =>
+        Server.start({ ...hosting, router, health: readiness, drainTimeout: 1000 }),
+    ).toThrow("unsupported schema check: custom");
+});

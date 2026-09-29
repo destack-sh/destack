@@ -34,6 +34,18 @@ export class Caller<Credential = unknown> {
         return this.authentication.credential;
     }
 
+    /** The time the caller's authentication lapses, in Unix milliseconds. */
+    get lapsesAt(): number {
+        const { expiresAt, verifiedAt } = this.authentication;
+
+        return Math.min(expiresAt, verifiedAt + CALLER_LIFETIME_MILLISECONDS);
+    }
+
+    /** Hold a time within the caller's lifetime: the time itself, or just before the lapse once passed. */
+    within(now: number): number {
+        return Math.min(now, this.lapsesAt - 1);
+    }
+
     /** The retry identity of the subject and the sending principal. */
     get id(): string {
         const { delegates, subject } = this.authentication;
@@ -52,8 +64,7 @@ export class Caller<Credential = unknown> {
             !Number.isFinite(authentication.verifiedAt) ||
             !Number.isFinite(authentication.expiresAt) ||
             authentication.verifiedAt > now + CALLER_CLOCK_TOLERANCE_MILLISECONDS ||
-            now >= authentication.expiresAt ||
-            now >= authentication.verifiedAt + CALLER_LIFETIME_MILLISECONDS
+            now >= this.lapsesAt
         ) {
             throw new ServiceError("UNAUTHORIZED", {
                 message: "caller authentication is expired or has a different audience or scope",
