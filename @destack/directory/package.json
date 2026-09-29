@@ -1,0 +1,23 @@
+{
+    "name": "@destack/directory",
+    "version": "2026.9.0",
+    "private": true,
+    "type": "module",
+    "license": "MIT",
+    "sideEffects": false,
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "scripts": {
+        "check": "tsc -p tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "dependencies": {
+        "@destack/db": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/service": "workspace:*"
+    },
+    "devDependencies": {
+        "@destack/test": "workspace:*"
+    }
+}
