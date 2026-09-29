@@ -23,6 +23,23 @@ import { fromJsonSchema } from "@destack/schema";
 fromJsonSchema(toJsonSchema(Note)).parse({ title: "Hello", archived: false });
 ```
 
+Two described schemas compare by the values each accepts.
+
+```ts
+import { compareJsonSchemas } from "@destack/schema";
+
+compareJsonSchemas(toJsonSchema(schema.enum(["a"])), toJsonSchema(schema.enum(["a", "b"]))); // "wider"
+compareJsonSchemas(toJsonSchema(schema.string()), toJsonSchema(schema.string().max(5))); // "narrower"
+compareJsonSchemas(toJsonSchema(schema.string()), toJsonSchema(schema.number())); // "incompatible"
+```
+
+| Change | Meaning |
+|---|---|
+| `same` | each accepts exactly the other's values |
+| `wider` | the new schema accepts every old value |
+| `narrower` | the old schema accepts every new value |
+| `incompatible` | neither holds, or the comparison cannot prove it |
+
 ## Identifiers
 
 ```ts
