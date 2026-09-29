@@ -2,6 +2,8 @@ Define, validate and describe the data of Destack packages, based on [Zod](https
 
 ## Schemas
 
+`schema` is Zod's API, limited to rules JSON Schema can express: transforms, refinements, dates and loose objects are rejected.
+
 ```ts
 import { defineSchema, schema, toJsonSchema } from "@destack/schema";
 
@@ -11,9 +13,6 @@ type Note = schema.Infer<typeof Note>;
 Note.parse({ title: "Hello", archived: false });
 toJsonSchema(Note);
 ```
-
-`schema` is Zod's API.
-A declared schema describes JSON values with rules JSON Schema can express, so transforms, refinements, dates and loose objects are rejected.
 
 A described schema validates again after it travels as JSON Schema.
 
@@ -67,5 +66,3 @@ import { canonicalize, digest } from "@destack/schema/json";
 canonicalize({ b: 1, a: [true] }); // '{"a":[true],"b":1}'
 await digest({ b: 1, a: [true] }); // the SHA-256 of the canonical form, as hex
 ```
-
-Canonical JSON sorts object keys, omits undefined fields and rejects values JSON cannot hold.
