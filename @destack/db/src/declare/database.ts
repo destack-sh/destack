@@ -74,11 +74,16 @@ export interface DatabaseDefinition {
     readonly tables: readonly Table[];
 }
 
-/** Declare a database. */
+/**
+ * Declare a database.
+ *
+ * A database holds tables of its own tier and of wider ones, whose rows it replicates from their home.
+ */
 export function defineDatabase(definition: DatabaseDefinition, module?: ModuleMetadata): Database {
-    // reject duplicate SQL names and tables of another tier
+    // reject duplicate SQL names and tables of a narrower tier
     const owner = declaringModule(module, "defineDatabase").package;
     const tier = definition.tier ?? "zonal";
+    const tiers = DatabaseTier.options;
     const names = new Map<string, Table>();
     for (const table of expandTrees(definition.tables)) {
         const { sqlName, tier: declared } = table[TABLE];
@@ -86,7 +91,7 @@ export function defineDatabase(definition: DatabaseDefinition, module?: ModuleMe
         if (existing && existing !== table) {
             throw new TypeError(`duplicate SQL table: ${sqlName}`);
         }
-        if (declared !== undefined && declared !== tier) {
+        if (declared !== undefined && tiers.indexOf(declared) > tiers.indexOf(tier)) {
             throw new TypeError(`${declared} table ${sqlName} in a ${tier} database`);
         }
         names.set(sqlName, table);

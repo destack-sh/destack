@@ -210,7 +210,7 @@ interface TableDeclaration {
     readonly constraints: () => readonly TableConstraint[];
     /** How long the log keeps the table's changes. */
     readonly retention: ChangeRetention;
-    /** The tier of every database holding the table, any tier when absent. */
+    /** The tier holding the table's rows, replicated into narrower databases, any tier when absent. */
     readonly tier?: DatabaseTier;
     /** The table's previous names. */
     readonly moved: TableMove;
@@ -263,7 +263,7 @@ export interface Dependent {
 
 /** The options of a table. */
 export interface TableOptions<Columns> {
-    /** The tier of every database holding the table, any tier when absent. */
+    /** The tier holding the table's rows, replicated into narrower databases, any tier when absent. */
     readonly tier?: DatabaseTier;
     /** The constraints and indexes. */
     readonly constraints?: (columns: Columns) => readonly TableConstraint[];

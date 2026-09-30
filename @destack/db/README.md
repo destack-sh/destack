@@ -26,7 +26,8 @@ export const note = defineTable(
 
 ## Databases
 
-`defineDatabase` declares a database in the `global`, `regional` or `zonal` tier, holding each listed table once and refusing tables declared for another tier.
+`defineDatabase` declares a database in the `global`, `regional` or `zonal` tier, holding each listed table once.
+A database holds tables of its own tier and of wider tiers, whose rows it replicates from their home, and refuses tables of a narrower tier.
 
 ```ts
 export const main = defineDatabase({ name: "main", tables: [note] });
