@@ -6,6 +6,9 @@
     "exports": {
         "./bun": {
             "runtimes": ["bun"]
+        },
+        "./test": {
+            "runtimes": ["bun"]
         }
     },
     "declarations": {

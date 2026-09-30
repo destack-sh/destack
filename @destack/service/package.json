@@ -26,6 +26,7 @@
         "./client": "./src/client/index.ts",
         "./bookmark": "./src/bookmark/index.ts",
         "./server": "./src/server/index.ts",
+        "./test": "./src/test/context.ts",
         "./inspect": "./src/inspect/index.ts",
         "./schedule": "./src/schedule/index.ts",
         "./webhook": "./src/webhook/index.ts",
