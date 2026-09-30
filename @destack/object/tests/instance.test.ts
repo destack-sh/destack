@@ -4,8 +4,8 @@ import { principal } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
 import type { DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { Bookmark } from "@destack/service/bookmark";
 import { Journal } from "@destack/service/database";
+import { subjectContext } from "@destack/service/test";
 import { RequestId } from "@destack/service/request";
 import type { ServiceContext } from "@destack/service/server";
 import type { QueryPage } from "@destack/sync";
@@ -72,13 +72,5 @@ function serve(database: DatabaseConnection) {
 
 /** Build alice's request context in the space, ending with the signal. */
 function context(signal: AbortSignal): ServiceContext {
-    return {
-        scope: spaceId,
-        caller: { id: "alice" },
-        requireCaller: () => ({ id: "alice" }),
-        bookmark: new Bookmark(),
-        observed: new Bookmark(),
-        signal,
-        request: new Request("https://test.local", { signal }),
-    } as unknown as ServiceContext;
+    return subjectContext(principal.user.reference("universe", "alice"), spaceId, signal);
 }

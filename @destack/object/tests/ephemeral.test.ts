@@ -10,10 +10,9 @@ import { unique, type Dialect } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { relayHub, TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier } from "@destack/schema";
-import { Bookmark } from "@destack/service/bookmark";
 import { Journal } from "@destack/service/database";
+import { subjectContext } from "@destack/service/test";
 import { RequestId } from "@destack/service/request";
-import type { ServiceContext } from "@destack/service/server";
 import { defineObject, field, method, type ObjectType } from "../src/index.ts";
 import { EphemeralStorage, ObjectServer } from "../src/server/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
@@ -561,20 +560,11 @@ function context(as: string) {
 
     return {
         controller,
-        context: {
-            scope: spaceId,
-            caller: { id: as },
-            requireCaller: () => ({ id: as }),
-            access: () => {
-                const subject = principal.user.reference("universe", as);
-
-                return { subject, subjects: [subject], now: Date.now(), attributes: {} };
-            },
-            bookmark: new Bookmark(),
-            observed: new Bookmark(),
-            signal: controller.signal,
-            request: new Request("https://test.local", { signal: controller.signal }),
-        } as unknown as ServiceContext,
+        context: subjectContext(
+            principal.user.reference("universe", as),
+            spaceId,
+            controller.signal,
+        ),
     };
 }
 

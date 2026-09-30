@@ -7,9 +7,8 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier } from "@destack/schema";
 import type { QueryPage } from "@destack/sync";
 import { Journal } from "@destack/service/database";
+import { subjectContext } from "@destack/service/test";
 import { RequestId } from "@destack/service/request";
-import { Bookmark } from "@destack/service/bookmark";
-import type { ServiceContext } from "@destack/service/server";
 import { ObjectServer } from "../src/server/index.ts";
 import { defineObject, Intrinsic } from "../src/index.ts";
 import { request } from "./schema.ts";
@@ -63,15 +62,11 @@ test.for(TEST_DIALECTS)(
         })).create(object, { owner });
         const controller = new AbortController();
         onTestFinished(() => controller.abort());
-        const context = {
-            scope: SPACE_ID,
-            caller: { id: "owner" },
-            requireCaller: () => ({ id: "owner" }),
-            bookmark: new Bookmark(),
-            observed: new Bookmark(),
-            signal: controller.signal,
-            request: new Request("https://test.local", { signal: controller.signal }),
-        } as unknown as ServiceContext;
+        const context = subjectContext(
+            principal.user.reference("universe", "owner"),
+            SPACE_ID,
+            controller.signal,
+        );
 
         // hold the owner role and its binding from the snapshot
         const pages = server.sync(SPACE_ID, context, {

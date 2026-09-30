@@ -11,6 +11,7 @@ import { PackageId } from "@destack/package";
 import { identifier, schema } from "@destack/schema";
 import type { QueryPage } from "@destack/sync";
 import { Journal } from "@destack/service/database";
+import { subjectContext } from "@destack/service/test";
 import { Bookmark } from "@destack/service/bookmark";
 import type { ServiceContext } from "@destack/service/server";
 import { v7 } from "uuid";
@@ -112,15 +113,7 @@ async function serveHistory(dialect: (typeof TEST_DIALECTS)[number]) {
     const context = (caller: string, signal = controller.signal) => {
         current = caller;
 
-        return {
-            scope: SPACE_ID,
-            caller: { id: caller },
-            requireCaller: () => ({ id: caller }),
-            bookmark: new Bookmark(),
-            observed: new Bookmark(),
-            signal,
-            request: new Request("https://test.local", { signal }),
-        } as unknown as ServiceContext;
+        return subjectContext(principal.user.reference("universe", caller), SPACE_ID, signal);
     };
 
     return { server, context, rename, history };
