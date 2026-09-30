@@ -13,8 +13,8 @@ Both products and processes will evolve under intense competition, with free mig
 [Cambrian marine life](https://es.knowablemagazine.org/content/articulo/alimentos-ambiente/2026/como-los-herbivoros-obtienen-aminoacidos-esenciales) — Christian Jégou, Science Source.
 :::
 
-It's good timing, because the current stack is fundamentally broken:
-we've got a thousand little software silos, each with their own slightly incompatible slice of the stack, each with its own control and data and auth and compute and telemetry, each encapsulated from its user and impossible to modify or even properly integrate.
+It's good timing too, because the current stack is fundamentally broken:
+we've got a thousand little software silos, each with their own slightly incompatible slice of the stack, wrapping its own control and data and auth and compute and telemetry planes, awkwardly encapsulated from its users, and all but impossible to modify or even properly integrate.
 
 <!--Now, we have a rare opportunity to explore new software production processes as probabilistic computing enables new kinds of useful software, which drives demand for new use cases and approaches, while, simultaneously, AI drastically reduces the cost of software production and migration.-->
 <!--It is the time to reconsider the entire stack.-->
@@ -23,7 +23,7 @@ we've got a thousand little software silos, each with their own slightly incompa
 >
 > — Edsger Dijkstra, *The Humble Programmer* (1972)
 
-Over half a century later, our software stack is once again buckling under the weight, volume and speed of a new kind of more powerful machine.
+Half a century later since the last software crisis, the software stack is once again buckling under the weight, volume and speed of a more powerful machine.
 Once more, we will have to retrace from the beginning, reconsider what programming even means, and reshape what software should look like for the next century.
 
 # The Software That Could Be
@@ -32,48 +32,38 @@ Software was never meant to be like _this_.
 The pioneers meant for software to be open, hackable, remixable - and fast.
 Hardware has advanced far beyond the capabilities envisioned all those decades ago, and yet, a duller, infinitely fragmented version of software has settled in and stayed stuck by sheer inertia.
 
-Of course, "malleable software" and "end-user programming" have been valiantly tried many times - only to die again, every time.
-The closest to malleable software we have today are heavily constrained environments like Excel and Notion and Roblox, which _are_ great, but not _general_, and so we are stuck with a thousand little rented software silos.
+Of course, "malleable software" and "end-user programming" have been valiantly again and again - only to die again and again.
+Sort of.
+The closest to malleable software we have today are constrained sandboxes like Excel and Notion, which are useful, but not _general_, and so we are stuck with a thousand little rented software silos.
 
 :::figure width="600" src="./tiny-glade.gif" alt="In Tiny Glade, drawing a path through a wall creates an archway automatically."
 [Path editing in Tiny Glade](https://www.youtube.com/watch?v=CdWpq2efN8Y) — Pounce Light, trailer excerpt.
 :::
 
-Yet, our new, alien machine users - agents - really, really want the broadest possilbe access to your software stack, with as many degrees of freedom as we can safely manage. 
-Agents are well on pace to outnumber human users by an order of magnitude or two very soon, they're still very expensive and slow, but already useful - even though they are caged in by last century's software stack.
+Yet, our new alien machine users urgently demand the broadest possilbe access to the entire software stack, with as many degrees of freedom as we can safely provide, up and down and left and right. 
+Agents are on pace to outnumber human users by an order of magnitude or two very soon, but they are awkwardly caged in by last century's software stack.
 
-In general, up till now, the key issue with "malleable software" has been that approximately nobody _wants_ to build their own software.
-It's difficult, it's a hassle, it never works quite as well, and so there was little reason to even attempt to own the stack.
-To get the most out of agents, and to get the most out of software requires the same thing - a fully integrated, standardised, open stack.
+The key issue with "malleable software" has been that approximately nobody _wants_ to build their own software.
+Building custom software was enticing but difficult, it never ends, rarely works _quite_ as well, and so there was little reason to even attempt to own the stack.
 
-Of course, to fully _own_ your software stack, you would need to get each vendor's sources, enforce compatible stores and interfaces, and unify enough of the stack to join "reminders in Notion" with "leads in Salesforce" and "events in Outlook".
-With the current stack, this is just not a serious option, so instead we have "connectors".
+Now, the equation has flipped, and it is almost trivially easy to build your own software, but nothing quite fits together yet.
+Just like it's hard to build custom software that works well across all systems, it is difficult to deploy agents if software is fragmented across thousands of little silos you do not own or control.
 
-:::figure width="640" src="./tower-of-babel.jpg" alt="Bruegel's Tower of Babel under construction, with tiers of arches, exposed rock, scaffolding, and workers above a crowded city."
-[The Tower of Babel, 1563](https://bruegel.at/en/the-tower-of-babel/) — Pieter Bruegel the Elder, Kunsthistorisches Museum, Vienna.
-:::
-
-Sadly, "connectors" are a hack.
-Integrations shouldn't exist at all.
-Of course, we need interfaces, just not _these_ interfaces - we're bolting two icebergs together with duct tape at the top.
-Better connectors patch the symptom; there is a much more fundamental architecture issue, and that it is impossible to correct unless we reconsider the entire stack.
-
-What we _really_ need is software designed from the ground up to be open, hackable, and remixable.
-The contemporary stack has grown "organically" and each layer of sediment has enabled the next until it became impossible to even consider challenging the 100 million lines of code it takes to render a rectangle in Chrome.
-<!--Howver, astoundingly, miraciously, building a new stack just moved from _impossible_ to merely _very hard_.-->
-
-The brute "acceleration" of old processes with "self-driving factories" is not magically solving this with better software, just _more_ software.
-To industrialise the precise manufacture of quality software, we need entirely _new_ processes, not just for building software, but for understanding and studying software from all angles.
+For example, how do you join "reminders in Notion" with "leads in Salesforce" and "events in Outlook"?
+With real, transactional guarantees, in real time, at scale?
+It simply does not compute - the depth of integration we need is impossible with the current approach.
 
 :::figure width="640" src="./wright-flyer-wind-tunnel.jpg" alt="A full-size Wright Flyer replica mounted on a test stand inside the Ames wind tunnel, with two engineers standing beside it."
 [Wright Flyer replica in the Ames wind tunnel](https://www.nasa.gov/image-article/wright-flyer/) — NASA, public domain.
 :::
 
+The predicament of the current software stack goes far beyond a mere lack of integration:
+it's not just that things don't work well _together_, it's that they don't work well _at all_.
 If software is solved, why is there still so much bad software?
-Perhaps "coding is solved", maybe everyone can vibecode a database, and the tests pass, the output is "byte-identical", but - nobody dares using it.
-Strange.
-Something is clearly amiss.
 How do we put the "engineering" into "software engineering"?
+
+The brute "acceleration" of old processes with "self-driving factories" will not magically yield a better stack with better software, just more of the same stack.
+To finally industrialise the precise manufacture of quality software, we need entirely _new_ processes, not just for building software, but for understanding and studying software from all angles.
 
 # Higher Order Programming
 
@@ -87,36 +77,31 @@ We gradually remove ourselves from the cumbersome burden of having to actually s
 [Difference Engine No. 1, 1832](https://commons.wikimedia.org/wiki/File:Babbages_difference_engine_1832.jpg) — Sebastian Wallroth, public domain.
 :::
 
-Historically, whenever some more accessible form of programming becomes too common, the "real" programmers no longer consider it programming.
-Thus, Excel is not "programming", just like image classification is no longer "AI" - and soon, presumably, voice recognition, chatbots, and agentiveness will blend into boring software like the magic of the internet did.
-
-In whatever form, "programming" is just problem solving: iterating, thinking, working to understand the shape of a problem and then specifying its solution in some repeatable form.
+"Programming" is just problem solving: iterating, thinking, working to understand the shape of a problem and then specifying its solution in some repeatable form.
 We used to solve software-shaped problems with artisinal human-directed next-character-prediction of symbolic code, but really, it doesn't even have to be any formal language at all - recipe writing is programming, too.
 
-:::figure width="480" src="./ibm-extra-engineers.jpg" alt="IBM’s 1951 advertisement, 150 Extra Engineers, showing rows of engineers doing calculations."
-[150 Extra Engineers, 1951](https://commons.wikimedia.org/wiki/File:IBM_150_Extra_Engineers_1951.jpg) — IBM.
-:::
-
-The idea of programming beyond code is almost as old as code itself.
-From the onset, the pioneers dreamed of natural, multimodal human computer interaction, to be able to "program" by conversation.
-In some ways, the current mode is unprecedented, but fundamentally, we already _have_ established examples of "higher order multimodal programming": the humble spreadsheet, and game engines.
-
-The history of game development often precedes general software development, mostly because games faced even tighter constraints on everything, and even more competitive pressure to get the most out of hardware, all the while working with multidiscplinary teams.
+The idea of programming beyond code is almost as old as code itself, and there are many existing approaches to higher order programming.
+Indeed, game developers have been doing this for decades!
 Early on, game development was also a complete schlep, and only a tiny guild of brilliant nerds could pull off presentable commercial games.
 
 In the early days, to get a game started, everyone had to write their own graphics, networking, scripting, asset pipelines, editors - a whole engine for every game, on top of the actual game!
 Then, eventually, we figured out how to package the hard bits into reusable components and evolve more complete, higher level packages of reusable software components we call a "game engine".
 
-:::figure width="640" src="./ubiart.gif" alt="An artist assembles and poses a hand-drawn character directly in UbiArt, with the artwork and animation rig side by side."
-[Character editing in UbiArt](https://www.youtube.com/watch?v=B_QhZYTukac&t=35s) — Ubisoft, demonstration excerpt.
+:::figure width="480" src="./ibm-extra-engineers.jpg" alt="IBM’s 1951 advertisement, 150 Extra Engineers, showing rows of engineers doing calculations."
+[150 Extra Engineers, 1951](https://commons.wikimedia.org/wiki/File:IBM_150_Extra_Engineers_1951.jpg) — IBM.
 :::
+<!--:::figure width="640" src="./ubiart.gif" alt="An artist assembles and poses a hand-drawn character directly in UbiArt, with the artwork and animation rig side by side."
+[Character editing in UbiArt](https://www.youtube.com/watch?v=B_QhZYTukac&t=35s) — Ubisoft, demonstration excerpt.
+:::-->
 
 Initially, developers using game engines didn't get quite the same level of control, or hit _quite_ the same high notes as those without.
 But it was a lot more productive, and it enabled a scale of project and a type of contributor that was impossible before - designers, writers, and artists, could now contribute _directly_, be it via Lua, visual scripting, material editors, or more advanced in-game level designers.
 
 Games never superseded code, even as a lot of code was abstracted away for use cases that previously required it.
-It's still there, and it's still important, but, thanks to rich game engines, you can now build commercial games without thinking in code.
-Now, when building a game, sometimes you "play" the game, sometimes you edit the game, sometimes you build new tools to help you edit the game, sometimes you watch others play the game, and so it goes.
+It's still important, but, thanks to modern game engines, you can now build commercial games without thinking in code.
+
+The analogy of the game engine also applies to the iterative deployment of software, especially as we bifurcate into stable "platform software" building blocks that serve "userland software". 
+When building a game (or piece of software), sometimes you "play" the game, sometimes you edit the game, sometimes you build new tools to help you edit the game, sometimes you watch others play the game.
 
 # The System and The Scaffolding
 
