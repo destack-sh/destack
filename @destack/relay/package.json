@@ -1,0 +1,33 @@
+{
+    "name": "@destack/relay",
+    "version": "2026.9.0",
+    "private": true,
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Relay HTTP requests for Destack names to the cells serving them.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./server": "./src/server/index.ts",
+        "./bun": "./src/bun/index.ts",
+        "./tunnel": "./src/tunnel/index.ts"
+    },
+    "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/host": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/service": "workspace:*",
+        "@destack/space": "workspace:*"
+    },
+    "scripts": {
+        "check": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "devDependencies": {
+        "@destack/directory": "workspace:*",
+        "@destack/test": "workspace:*"
+    }
+}
