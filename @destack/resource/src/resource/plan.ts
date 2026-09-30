@@ -3,11 +3,12 @@ import {
     defineSchema,
     schema,
     type JsonSchema,
-    type Version,
+    Version,
 } from "@destack/schema";
 import { digest } from "@destack/schema/json";
 import type { DeclarationDescription } from "@destack/package/inspect";
 import { PlanError } from "../error/error.ts";
+import { Address } from "./address.ts";
 
 /** How consequential a step is, from least to most. */
 export const Risk = defineSchema(
@@ -16,23 +17,53 @@ export const Risk = defineSchema(
 /** How consequential a step is, from least to most. */
 export type Risk = schema.Infer<typeof Risk>;
 
-/** One change a plan makes to a resource, as reviewers see it. */
-export interface Step {
-    /** What the step changes, such as addColumn. */
-    readonly kind: string;
-    /** How consequential the step is. */
-    readonly risk: Risk;
-    /** The changed part of the resource, such as a table. */
-    readonly target: string;
-    /** A readable summary, such as "add column priority". */
-    readonly detail: string;
-}
+/** What a step does to its target, after Terraform's plan actions. */
+export const Action = defineSchema(
+    schema.enum(["create", "update", "delete", "replace", "rename", "convert", "restore"]),
+);
+/** What a step does to its target. */
+export type Action = schema.Infer<typeof Action>;
 
-/** The changes taking a resource from its applied state to its desired state. */
+/** One change a plan makes, as reviewers see it. */
+export const Step = defineSchema(
+    schema.object({
+        /** What the step does. */
+        action: Action,
+        /** The changed part. */
+        target: Address,
+        /** How consequential the step is. */
+        risk: Risk,
+        /** A readable summary, such as "add column priority". */
+        detail: schema.string().min(1),
+        /** Each changed field's current and planned value. */
+        fields: schema
+            .record(schema.string(), schema.object({ before: schema.json(), after: schema.json() }))
+            .optional(),
+    }),
+);
+/** One change a plan makes, as reviewers see it. */
+export type Step = schema.Infer<typeof Step>;
+
+/** The changes one review covers, in application order. */
 export interface Plan<Change extends Step = Step> {
     /** The steps in application order. */
     readonly steps: readonly Change[];
+    /** Why the plan stops before later steps. */
+    readonly deferred?: string;
 }
+
+/** The changes one review covers. */
+export const Plan = Object.assign(
+    defineSchema(
+        schema.object({
+            /** The steps in application order. */
+            steps: schema.array(Step),
+            /** Why the plan stops before later steps. */
+            deferred: schema.string().min(1).optional(),
+        }),
+    ),
+    { classify, reaches, join, digest: digestSteps, values: planValues },
+);
 
 /** Which readers must accept a changed schema: newer readers of older values, or older readers of newer values. */
 export type Compatibility = "backward" | "forward";
@@ -46,7 +77,7 @@ export type Compare = (
 /** A schema change between two releases of a declaration. */
 export interface SchemaChange {
     /** The changed part, such as a setting's value. */
-    readonly target: string;
+    readonly target: Address;
     /** The earlier release's schema. */
     readonly before: JsonSchema;
     /** The later release's schema. */
@@ -59,9 +90,6 @@ export interface SchemaChange {
     readonly isConverted: boolean;
 }
 
-/** The changes taking a resource from its applied state to its desired state. */
-export const Plan = { classify, digest: digestSteps, schema: planSchema };
-
 /** Classify a plan by its most consequential step, safe when empty. */
 function classify(plan: Plan): Risk {
     return plan.steps.reduce<Risk>(
@@ -71,20 +99,50 @@ function classify(plan: Plan): Risk {
     );
 }
 
+/** Decide whether a plan reaches a risk. */
+function reaches(plan: Plan, risk: Risk): boolean {
+    return (
+        plan.steps.length > 0 && Risk.options.indexOf(classify(plan)) >= Risk.options.indexOf(risk)
+    );
+}
+
+/** Join plans in order, collecting every refusal into one PlanError. */
+function join(parts: readonly (() => Plan)[]): Plan {
+    // run each part, keeping its steps or its problems
+    const steps: Step[] = [];
+    const problems: PlanError["problems"][number][] = [];
+    for (const part of parts) {
+        try {
+            steps.push(...part().steps);
+        } catch (error) {
+            if (!(error instanceof PlanError)) {
+                throw error;
+            }
+            problems.push(...error.problems);
+        }
+    }
+    if (problems.length > 0) {
+        throw new PlanError(problems);
+    }
+
+    return { steps };
+}
+
 /** Digest a plan's reviewed steps, so an apply can require the plan a review saw. */
 function digestSteps(plan: Plan): Promise<string> {
     return digest(
         plan.steps.map((step) => ({
-            kind: step.kind,
+            action: step.action,
             risk: step.risk,
             target: step.target,
             detail: step.detail,
+            ...(step.fields === undefined ? {} : { fields: step.fields }),
         })),
     );
 }
 
-/** Plan a schema change: widening for backward readers, narrowing for forward ones, converting otherwise. */
-function planSchema(change: SchemaChange): Plan {
+/** Plan a value schema change: widening for backward readers, narrowing for forward ones, converting otherwise. */
+function planValues(change: SchemaChange): Plan {
     // compare the accepted values and keep an unchanged schema out of the plan
     const { target, release, compatibility } = change;
     const compared = compareJsonSchemas(change.before, change.after);
@@ -97,14 +155,14 @@ function planSchema(change: SchemaChange): Plan {
     // accept a compatible change as safe
     if (isCompatible) {
         return {
-            steps: [{ kind: compared, risk: "safe", target, detail: `${compared} ${target}` }],
+            steps: [{ action: "update", target, risk: "safe", detail: `${compared} values` }],
         };
     }
     // convert earlier values for newer readers
     else if (compatibility === "backward" && change.isConverted) {
-        const detail = `convert ${target} to ${release}`;
+        const detail = `convert values to ${release}`;
 
-        return { steps: [{ kind: "convert", risk: "data-dependent", target, detail }] };
+        return { steps: [{ action: "convert", target, risk: "data-dependent", detail }] };
     }
     // require a conversion the release lacks
     else if (compatibility === "backward") {
@@ -112,8 +170,8 @@ function planSchema(change: SchemaChange): Plan {
     }
     // keep earlier releases serving their readers
     else {
-        const detail = `${compared} ${target}: earlier readers keep their release`;
+        const detail = `${compared} values: earlier readers keep their release`;
 
-        return { steps: [{ kind: compared, risk: "backward-incompatible", target, detail }] };
+        return { steps: [{ action: "update", target, risk: "backward-incompatible", detail }] };
     }
 }

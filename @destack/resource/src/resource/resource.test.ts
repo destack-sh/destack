@@ -34,15 +34,15 @@ test("bind one client per declaration and refuse missing or repeated bindings", 
 
 test("classify a plan by its most consequential step and digest its reviewed steps", async () => {
     const add: Step = {
-        kind: "addColumn",
+        action: "create",
+        target: "table/note/column/priority",
         risk: "safe",
-        target: "note",
         detail: "add column priority",
     };
     const drop: Step = {
-        kind: "dropColumn",
+        action: "delete",
+        target: "table/note/column/body",
         risk: "destructive",
-        target: "note",
         detail: "drop column body",
     };
 

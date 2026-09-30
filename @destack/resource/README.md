@@ -67,3 +67,45 @@ for await (const chunk of provider.export(source, after, signal)) {
     await target.import({ record: targetRecord, desired, recipient, stage: "live" }, chunk);
 }
 ```
+
+## Plans
+
+A `Plan` lists `Step`s, each an action on an address.
+
+```ts
+const plan: Plan = {
+    steps: [
+        { action: "create", target: "resource/main/table/note/column/priority", risk: "safe", detail: "add column priority" },
+        { action: "delete", target: "role/viewer", risk: "destructive", detail: "retire" },
+    ],
+};
+Plan.classify(plan); // "destructive"
+Plan.reaches(plan, "backward-incompatible"); // true: the plan needs approval
+await Plan.digest(plan); // what an approval holds
+```
+
+| Action | Meaning |
+|---|---|
+| `create`, `update`, `delete` | add, change or remove the target |
+| `replace` | recreate the target, such as rebuilding a table |
+| `rename` | move the target to a new address |
+| `convert` | rewrite stored values, such as rows of an earlier release |
+| `restore` | reuse a removed term under its last definition |
+
+## Upgrades
+
+A build plans its `Upgrade` from the package's latest release.
+
+```ts
+const history = await History.read(latest.reader, vocabulary);
+const build = await builder.build({ outputs, dependencies, history });
+const upgrade = await build.reader.read(build.manifest.upgrade!.file, Upgrade);
+// { from: "2026.9.0", steps: [{ action: "delete", target: "object/note/relation/editor", risk: "backward-incompatible", ... }] }
+```
+
+A `Vocabulary` records the release that added and removed each term.
+
+```ts
+Vocabulary.plan(vocabulary, declarations); // PlanError: object/note/relation/editor: removed in 2026.10.0 with another definition; choose a new name
+const advanced = Vocabulary.advance(vocabulary, declarations, "2026.11.0");
+```

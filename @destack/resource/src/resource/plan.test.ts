@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import { schema, toJsonSchema } from "@destack/schema";
 import { Plan, type Compatibility } from "./plan.ts";
+import { PlanError } from "../error/error.ts";
 
 /** Plan a change between two schemas, reading a refusal as its message. */
 function plan(
@@ -10,7 +11,7 @@ function plan(
     isConverted = false,
 ) {
     try {
-        return Plan.schema({
+        return Plan.values({
             target: "value",
             before: toJsonSchema(before),
             after: toJsonSchema(after),
@@ -39,40 +40,56 @@ test("plan schema changes by the readers each must serve", () => {
         plan(small, other, "forward"),
     ]).toEqual([
         [],
-        [{ kind: "wider", risk: "safe", target: "value", detail: "wider value" }],
+        [{ action: "update", risk: "safe", target: "value", detail: "wider values" }],
         "value: declare a conversion for 2026.10.0",
         [
             {
-                kind: "convert",
+                action: "convert",
                 risk: "data-dependent",
                 target: "value",
-                detail: "convert value to 2026.10.0",
+                detail: "convert values to 2026.10.0",
             },
         ],
         [
             {
-                kind: "convert",
+                action: "convert",
                 risk: "data-dependent",
                 target: "value",
-                detail: "convert value to 2026.10.0",
+                detail: "convert values to 2026.10.0",
             },
         ],
-        [{ kind: "narrower", risk: "safe", target: "value", detail: "narrower value" }],
+        [{ action: "update", risk: "safe", target: "value", detail: "narrower values" }],
         [
             {
-                kind: "wider",
+                action: "update",
                 risk: "backward-incompatible",
                 target: "value",
-                detail: "wider value: earlier readers keep their release",
+                detail: "wider values: earlier readers keep their release",
             },
         ],
         [
             {
-                kind: "incompatible",
+                action: "update",
                 risk: "backward-incompatible",
                 target: "value",
-                detail: "incompatible value: earlier readers keep their release",
+                detail: "incompatible values: earlier readers keep their release",
             },
         ],
     ]);
+});
+
+test("join plans in order, collecting every refusal into one error", () => {
+    const step = (target: string) =>
+        ({ action: "create", target, risk: "safe", detail: "add" }) as const;
+    const refuse = (target: string) => () => {
+        throw new PlanError([{ target, detail: "declare a conversion for 2026.10.0" }]);
+    };
+
+    // keep the steps in order, then report both refusals at once
+    expect(Plan.join([() => ({ steps: [step("a")] }), () => ({ steps: [step("b")] })])).toEqual({
+        steps: [step("a"), step("b")],
+    });
+    expect(() => Plan.join([refuse("a"), () => ({ steps: [step("b")] }), refuse("c")])).toThrow(
+        "a: declare a conversion for 2026.10.0; c: declare a conversion for 2026.10.0",
+    );
 });
