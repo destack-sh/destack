@@ -2,6 +2,11 @@
     {
         "name": "credentials",
         "kind": "resource",
+        "package": {
+            "id": "package-01a0c80b-614d-75a9-a76d-357d71d330a6",
+            "name": "@destack/vault",
+            "version": "2026.9.0"
+        },
         "constructor": {
             "package": {
                 "id": "package-01a0c80b-614d-75a9-a76d-357d71d330a6",
@@ -26,19 +31,23 @@
         },
         "source": {
             "file": "src/server.ts",
-            "line": 31,
+            "line": 32,
             "column": 21
         },
         "description": {
             "name": "credentials",
             "kind": "vault",
-            "version": 1,
             "spec": {}
         }
     },
     {
         "name": "mail-token",
         "kind": "secret",
+        "package": {
+            "id": "package-01a0c80b-614d-75a9-a76d-357d71d330a6",
+            "name": "@destack/vault",
+            "version": "2026.9.0"
+        },
         "constructor": {
             "package": {
                 "id": "package-01a0c80b-614d-75a9-a76d-357d71d330a6",
@@ -63,7 +72,7 @@
         },
         "source": {
             "file": "src/server.ts",
-            "line": 33,
+            "line": 34,
             "column": 21
         },
         "description": {

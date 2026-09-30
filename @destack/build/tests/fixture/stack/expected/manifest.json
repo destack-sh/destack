@@ -3,13 +3,13 @@
     "package": {
         "id": "package-01a0c80b-614f-73f2-a9cd-9cb63f4d528d",
         "name": "@example/stack",
-        "version": "1.0.0"
+        "version": "2026.9.0"
     },
     "language": "typescript",
     "dependencies": {
         "path": "manifest/dependencies.json",
-        "digest": "999e2901e91e955fd26aa9f7867081688f9c51b6266137b4b925625a6066aa17",
-        "size": 88817,
+        "digest": "1dcbd67a6bfb5437b7b0c85b5c012f29f7a58f33c44c5d1f182a0474effd1310",
+        "size": 129219,
         "mediaType": "application/json"
     },
     "descriptions": {
@@ -21,8 +21,8 @@
             },
             "file": {
                 "path": "manifest/setting.json",
-                "digest": "9bb21dcf3a90b468c0ef1657c4e4342729024def1d9afb882d74721b7a3126d2",
-                "size": 1638,
+                "digest": "7b93bd55c59affaf83aff1556ba5ca37794e9a09fccfd2f0956b2d6622cf142f",
+                "size": 1816,
                 "mediaType": "application/json"
             }
         },
@@ -34,8 +34,8 @@
             },
             "file": {
                 "path": "manifest/account.json",
-                "digest": "3d7022a43ab446cae70c85a7cfb71103aa41dccceccdef3278bd23b2a7f2ab1c",
-                "size": 1023,
+                "digest": "3c78a61940dfa3cd5a426e8d77adb12c46c5f4eafb9b5e551e7d511d09f1798d",
+                "size": 1198,
                 "mediaType": "application/json"
             }
         },
@@ -47,8 +47,8 @@
             },
             "file": {
                 "path": "manifest/space.json",
-                "digest": "3bace0000280c14f0fd41ed4f9c19da637931e7a732dfdd4c829986bdb0f085b",
-                "size": 3247,
+                "digest": "8923ef38ce23c6ce694a7425253554efd713ab4804627d3b7777fc5f1c22f5cd",
+                "size": 3544,
                 "mediaType": "application/json"
             }
         }
@@ -59,6 +59,7 @@
             "runtime": "bun",
             "emit": true,
             "workloads": {},
+            "views": {},
             "descriptions": {
                 "setting": [
                     0
@@ -70,23 +71,24 @@
                     0
                 ]
             },
+            "tests": [],
             "directory": "output/stack",
             "exports": {
-                ".": "output/stack/index-BDHUuIZY.js"
+                ".": "output/stack/index-DmSkkPYl.js"
             },
             "dependencies": {}
         }
     },
     "files": {
         "path": "manifest/files.json",
-        "digest": "7f7c66411e8a8870d5129a756c43f0fe02c2904f59cf2734f83de1a17c3f7093",
-        "size": 3458,
+        "digest": "755252bb0fe4071a33d7be6a3f00c20476b0bd477e374f9cb2f572e9add7f90f",
+        "size": 4327,
         "mediaType": "application/json"
     },
     "sourceMaps": {
         "path": "manifest/sourceMaps.json",
-        "digest": "1313d5da02f8dd35c8cba40c6466fe41b240fa4dd5aa9724cb63aafb57354b00",
-        "size": 123,
+        "digest": "b0cc43d9cea16857fea0cd616a9f57ce50d34f1ef7b267ee828c46868be09306",
+        "size": 375,
         "mediaType": "application/json"
     }
 }

@@ -10,24 +10,25 @@ A lint name in parentheses, like (`destack/valid-declaration`), marks a rule the
 
 ```text
 package/
-├─ destack.json            id, language, template, targets, runtimes, exports, views
+├─ destack.json            id, language, template, targets, runtimes, exports
 ├─ package.json            name, version, dependencies, exports
 ├─ src/
 │  ├─ package.ts           export default definePackage({ resources, secrets })
 │  ├─ index.ts             re-exports only
+│  ├─ object/              defineObject(...): data, access and methods, client-safe
 │  ├─ stack/               db.ts · bucket.ts · vault.ts: resource and secret declarations
 │  ├─ service/             defineService(...): procedures, client-safe
-│  ├─ connection/          defineServiceConnection(...): consumed services, client-safe
+│  ├─ binding/             defineServiceBinding(...): consumed services, client-safe
 │  ├─ server/              implementService(...): server-only
 │  ├─ workload/            defineWorkload({ name, compute, start })
-│  ├─ settings/ audit/ access/   defineSetting · defineAuditAction · defineObject
-│  ├─ app/                 view startup and composition
+│  ├─ settings/ audit/ notification/   defineSetting · defineAuditAction · defineNotification
+│  ├─ app/                 defineView(...) and the view's components
 │  └─ <noun>/              domain modules, one noun each
 └─ tests/                  *.test.ts
 ```
 
 - **PK01** Public service procedures MUST live in `service/`, and their implementation in `server/`.
-- **PK02** Consumed service declarations MUST live in `connection/`, with `index.ts` re-exports.
+- **PK02** Consumed service declarations MUST live in `binding/`, with `index.ts` re-exports.
 - **PK03** Index modules MUST contain only re-exports. (`destack/no-index-logic`)
 - **PK04** Reusable domain operations SHOULD live beside `server/` and take verified context explicitly.
 
@@ -45,7 +46,7 @@ Reference      a pointer to a declaration   { packageId, name }                 
 - **PK05** Declarations MUST be exported module-level constants initialised by their `define*` constructor. (`destack/valid-declaration`)
 - **PK06** Package handles MUST be default-exported from `src/package.ts`. (`destack/valid-package-handle`)
 - **PK07** Package identity MUST come from `import.meta.destack` or package handles, never from imported `destack.json` or `package.json`. (`destack/no-manifest-import`)
-- **PK08** `destack.json` MUST hold only what code cannot declare: identity, language, template, compatibility and views.
+- **PK08** `destack.json` MUST hold only what code cannot declare: identity, language, template and compatibility.
 
 ## Services
 

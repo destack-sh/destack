@@ -1,8 +1,8 @@
 [
     {
         "path": "destack.json",
-        "digest": "c0f2135786dd5e27aa5323effe79ea642bc328188777306dc04dd798eaddef1e",
-        "size": 129,
+        "digest": "9caf3f75c1f9ffc885345647f1ceab597a2ee4e90b9705738807b4f4b0ef07ee",
+        "size": 197,
         "mediaType": "application/json"
     },
     {
@@ -25,8 +25,8 @@
     },
     {
         "path": "package.json",
-        "digest": "998c74925ef2c80cda92325d55ef8d32d17d686bf0b3b3ba2512ea42f663585c",
-        "size": 184,
+        "digest": "4260d52033f1723a5bc3c0f28cf9d32cde7f84ac57a68f15899c50213e81dcd5",
+        "size": 187,
         "mediaType": "application/json"
     },
     {

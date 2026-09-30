@@ -1,8 +1,8 @@
 [
     {
         "path": "destack.json",
-        "digest": "b6e1328ed9a2f77de6a2876d144cb9f3378b3af6ede9c76b8bc5e0021917ffc8",
-        "size": 177,
+        "digest": "10b167ca48a07e52d6a8c3c601a2af3f0d5ffe4ca5f87b2c4bd28249ae0b2a54",
+        "size": 197,
         "mediaType": "application/json"
     },
     {
@@ -19,8 +19,8 @@
     },
     {
         "path": "output/website-browser/assets/virtual_solid-ssr-entry-client-NSujsqV_.js.map",
-        "digest": "c307b8eab9f85a458e44c5ddbd7d7562e154aaf944937ab0648fb935274b5ae5",
-        "size": 540339,
+        "digest": "7879698a00537148be8c8b76dbd1c8f748734a5b5d6cb8e13a86d88cdaa2579d",
+        "size": 540345,
         "mediaType": "application/json"
     },
     {
@@ -43,8 +43,8 @@
     },
     {
         "path": "output/website-server/server.js.map",
-        "digest": "43f26a58ce75ae0f9ac5a04cf8cd478af36345694289e63e5e3b972aa8e3a39d",
-        "size": 540449,
+        "digest": "b3eae7d01241501ca51175eccc8db78488200d5b7d2fe42de6898f0a0f2d21b9",
+        "size": 540455,
         "mediaType": "application/json"
     },
     {

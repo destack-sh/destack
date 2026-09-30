@@ -1,6 +1,14 @@
 [
     {
-        "generated": "output/stack/index-BDHUuIZY.js",
-        "map": "output/stack/index-BDHUuIZY.js.map"
+        "generated": "output/stack/index-DmSkkPYl.js",
+        "map": "output/stack/index-DmSkkPYl.js.map"
+    },
+    {
+        "generated": "output/stack/database-B2GWCpI9.js",
+        "map": "output/stack/database-B2GWCpI9.js.map"
+    },
+    {
+        "generated": "output/stack/provider-DH4goO8u.js",
+        "map": "output/stack/provider-DH4goO8u.js.map"
     }
 ]

@@ -1,8 +1,8 @@
 [
     {
         "path": "destack.json",
-        "digest": "b6e1328ed9a2f77de6a2876d144cb9f3378b3af6ede9c76b8bc5e0021917ffc8",
-        "size": 177,
+        "digest": "10b167ca48a07e52d6a8c3c601a2af3f0d5ffe4ca5f87b2c4bd28249ae0b2a54",
+        "size": 197,
         "mediaType": "application/json"
     },
     {
@@ -19,8 +19,8 @@
     },
     {
         "path": "output/website-browser/assets/virtual_solid-ssr-entry-client-CYeSRSrL.js.map",
-        "digest": "9114fc3721a7c109f06979b5bbde642fda6766f51271cf66b600f82d3b617bf4",
-        "size": 524793,
+        "digest": "3b8422cc004394d85888d10e43d43e57dbb0b785b51f8bbcfd13d323e88bb886",
+        "size": 524799,
         "mediaType": "application/json"
     },
     {

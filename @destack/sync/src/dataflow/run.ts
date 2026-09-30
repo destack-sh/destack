@@ -141,8 +141,8 @@ export interface Transition {
 export interface Touch {
     /** The row's table. */
     readonly table: Table;
-    /** The row at the position, or its key once gone. */
-    row: Row;
+    /** The row at the position, absent until a holder passes it or the sink reads it. */
+    row: Row | undefined;
     /** Whether the subscriber held the row before the run. */
     readonly wasHeld: boolean;
 }

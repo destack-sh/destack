@@ -2,6 +2,11 @@
     {
         "name": "account",
         "kind": "account",
+        "package": {
+            "id": "package-01a0c80b-614c-76c1-90c6-f83bdcd72b32",
+            "name": "@destack/account",
+            "version": "2026.9.0"
+        },
         "constructor": {
             "package": {
                 "id": "package-01a0c80b-614c-76c1-90c6-f83bdcd72b32",
@@ -17,7 +22,7 @@
             "package": {
                 "id": "package-01a0c80b-614f-73f2-a9cd-9cb63f4d528d",
                 "name": "@example/stack",
-                "version": "1.0.0"
+                "version": "2026.9.0"
             },
             "symbol": {
                 "module": "src/stack.ts",

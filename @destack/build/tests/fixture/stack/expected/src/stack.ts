@@ -2,7 +2,7 @@ import { defineSpace, install } from "@destack/space";
 import stack from "./package.ts";
 import type {} from "@destack/package/import-meta";
 import { defineAccount } from "@destack/account/declare";
-import { database } from "@destack/template-stack";
+import { database } from "@template/stack";
 import { defineSetting } from "@destack/setting/declare";
 import { schema } from "@destack/schema";
 
@@ -19,7 +19,7 @@ export const language = defineSetting({
 });
 
 /** Reuse the database declaration from the shared stack package. */
-export { database } from "@destack/template-stack";
+export { database } from "@template/stack";
 
 /** Declare environments independently of the destination space. */
 export const account = defineAccount({ environments: { development: {}, production: {} } });

@@ -1,10 +1,26 @@
 [
     {
-        "generated": "output/bun/server-DMHck6up.js",
-        "map": "output/bun/server-DMHck6up.js.map"
+        "generated": "output/bun/workload-web-B1wzBObS.js",
+        "map": "output/bun/workload-web-B1wzBObS.js.map"
     },
     {
-        "generated": "output/worker/server-DMHck6up.js",
-        "map": "output/worker/server-DMHck6up.js.map"
+        "generated": "output/bun/provider-CbP3i3dq.js",
+        "map": "output/bun/provider-CbP3i3dq.js.map"
+    },
+    {
+        "generated": "output/bun/server-gsUe_vAE.js",
+        "map": "output/bun/server-gsUe_vAE.js.map"
+    },
+    {
+        "generated": "output/bun/snapshot-BoDV3EAe.js",
+        "map": "output/bun/snapshot-BoDV3EAe.js.map"
+    },
+    {
+        "generated": "output/bun/trace-api-CTzHbl64.js",
+        "map": "output/bun/trace-api-CTzHbl64.js.map"
+    },
+    {
+        "generated": "output/worker/server-nEw3c2ys.js",
+        "map": "output/worker/server-nEw3c2ys.js.map"
     }
 ]

@@ -13,6 +13,7 @@
         "@destack/telemetry": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/vault": "workspace:*",
+        "@destack/space": "workspace:*",
         "@destack/service": "workspace:*"
     }
 }

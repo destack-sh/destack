@@ -1,26 +1,50 @@
 [
     {
         "path": "destack.json",
-        "digest": "76837d4925b9e743081842499df1442b7cb188147b383d05d801bf79dea69bd8",
-        "size": 118,
+        "digest": "3f3763b551102c21991f69362d7a1d03858ca5ee69f03e3fd9756ea2cd72b86c",
+        "size": 186,
         "mediaType": "application/json"
     },
     {
-        "path": "output/library/index-DbgZ_Ejw.js",
-        "digest": "aca72531109c867d2b97c0aa1e68fb563c5a5ad0e05ceb11113873fb1004210d",
-        "size": 257924,
+        "path": "output/library/database-DFrC3fct.js",
+        "digest": "4bcb7c97d17054983d258b453903cba19e5034083f78beca6d180895320f12cc",
+        "size": 335887,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/library/index-DbgZ_Ejw.js.map",
-        "digest": "ffa009a694107993aa58c3a3d2151fe657451428308ec0a85a2c19d51330ec8e",
-        "size": 706625,
+        "path": "output/library/database-DFrC3fct.js.map",
+        "digest": "f9dc025a37fc992dcb7e9d5f945896db7c5d7e41a96ae16a6a2bb4618c6f1b40",
+        "size": 843119,
+        "mediaType": "application/json"
+    },
+    {
+        "path": "output/library/index-BIa03NMa.js",
+        "digest": "bb6752d9c32d6b9be3e22262338d0e4d826d2eb2e01e86a85b954782afd0b8d4",
+        "size": 656,
+        "mediaType": "text/javascript"
+    },
+    {
+        "path": "output/library/index-BIa03NMa.js.map",
+        "digest": "1163bbfe4a8264ed9932ddf05a83064a09209db0abf193db72c46ae71517bff7",
+        "size": 765,
+        "mediaType": "application/json"
+    },
+    {
+        "path": "output/library/provider-DPL9-eox.js",
+        "digest": "9451226b4b136d4c1150c382bc0147c4525b70f940143d8c3f43274ebe4dc1e8",
+        "size": 335581,
+        "mediaType": "text/javascript"
+    },
+    {
+        "path": "output/library/provider-DPL9-eox.js.map",
+        "digest": "363977c8a411a945cccea411d830ca2be3e0f6d9f709d588dde4e063277ffcdb",
+        "size": 733931,
         "mediaType": "application/json"
     },
     {
         "path": "package.json",
-        "digest": "85516d6e5b1da5e151063b52155ceb44655ef8a8f7a0f9d8421d09122dc3b770",
-        "size": 203,
+        "digest": "dcbc2fcb42009feadc7c582ee0a59860ba0439662774323ad391e12cb7169b39",
+        "size": 206,
         "mediaType": "application/json"
     },
     {

@@ -2,14 +2,14 @@
     "path": "src/package.ts",
     "source": {
         "path": "src/package.ts",
-        "digest": "4121f43a1bfe72c9400188e1d7ad1f943be04cfa2913d263fd3158273a1af570",
-        "size": 233,
+        "digest": "aed2eba1e646ad8e22cc0401ea4e17d6d1df5c25db16713481235061c5c432ce",
+        "size": 225,
         "mediaType": "text/plain"
     },
-    "length": 233,
+    "length": 225,
     "imports": [
         "@destack/package/declare",
-        "@destack/template-stack"
+        "@template/stack"
     ],
     "globals": [],
     "errors": [
@@ -17,15 +17,15 @@
             "source": {
                 "file": "src/package.ts",
                 "start": 0,
-                "end": 233
+                "end": 225
             },
             "throws": [],
             "calls": [
                 {
                     "source": {
                         "file": "src/package.ts",
-                        "start": 183,
-                        "end": 231
+                        "start": 175,
+                        "end": 223
                     },
                     "target": {
                         "package": {
@@ -48,8 +48,8 @@
                 {
                     "source": {
                         "file": "src/package.ts",
-                        "start": 183,
-                        "end": 231
+                        "start": 175,
+                        "end": 223
                     },
                     "reason": "call"
                 }
@@ -64,8 +64,8 @@
                     "kind": "ExportAssignment",
                     "source": {
                         "file": "src/package.ts",
-                        "start": 168,
-                        "end": 232
+                        "start": 160,
+                        "end": 224
                     },
                     "modifiers": [],
                     "typeParameters": [],

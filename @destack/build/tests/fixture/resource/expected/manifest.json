@@ -3,13 +3,13 @@
     "package": {
         "id": "package-01a0c80b-614f-73f0-b2a5-37fb7fb295b5",
         "name": "@example/resources",
-        "version": "1.0.0"
+        "version": "2026.9.0"
     },
     "language": "typescript",
     "dependencies": {
         "path": "manifest/dependencies.json",
-        "digest": "5232abb77f5f3b2e57d5fd5bb68e625ee3669f2cb040be7149fe8b94f27db95b",
-        "size": 26327,
+        "digest": "073b96e00981523ebd1589431aa09816ada8977684a8021740e39745980d7120",
+        "size": 43454,
         "mediaType": "application/json"
     },
     "descriptions": {
@@ -21,8 +21,8 @@
             },
             "file": {
                 "path": "manifest/db.json",
-                "digest": "6a36b0851ad652077da174b27921bdaefcc2ab2aef0885cf57cde026466fe0fe",
-                "size": 3809,
+                "digest": "92a9c97d9929bd5edd5935d2445783aec5438902503a5466d2dc0094e2ce98ab",
+                "size": 5722,
                 "mediaType": "application/json"
             }
         }
@@ -33,28 +33,30 @@
             "runtime": "bun",
             "emit": true,
             "workloads": {},
+            "views": {},
             "descriptions": {
                 "db": [
                     0
                 ]
             },
+            "tests": [],
             "directory": "output/library",
             "exports": {
-                ".": "output/library/index-DbgZ_Ejw.js"
+                ".": "output/library/index-BIa03NMa.js"
             },
             "dependencies": {}
         }
     },
     "files": {
         "path": "manifest/files.json",
-        "digest": "80861c6c58bcd897a5be41180cbd4dd1e7ec1f0edc95e10de7187e4c17bfbea5",
-        "size": 2588,
+        "digest": "b8f6f6605e988c2bb92e55a5bf0af41154140e5ddd32a39b5fcf0c01e282c1f7",
+        "size": 3460,
         "mediaType": "application/json"
     },
     "sourceMaps": {
         "path": "manifest/sourceMaps.json",
-        "digest": "95d9e9e83eef4b2b657e0f5eabac48ba314621e0359e637368b2fbd262aebd2d",
-        "size": 127,
+        "digest": "ef6500659bd63346e351e746882db38fdfe66f11dd7cc02eeb99a3a47e9f3698",
+        "size": 387,
         "mediaType": "application/json"
     }
 }

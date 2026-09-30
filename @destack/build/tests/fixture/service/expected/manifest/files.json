@@ -1,44 +1,98 @@
 [
     {
         "path": "destack.json",
-        "digest": "f8a10e740f65a9b94fd76ad73d6173634e5a41b660b30e413696b1124421601b",
-        "size": 118,
+        "digest": "661bc88dc755611fb376806a3cdc535c390769dc76f411a4c7dc2e1993118501",
+        "size": 186,
         "mediaType": "application/json"
     },
     {
-        "path": "output/bun/server-DMHck6up.js",
-        "digest": "cd8c6149956f5b2279441a4da5eae3500adb698c0e79070ff8a0f2d34b3b4d51",
-        "size": 324299,
+        "path": "output/bun/provider-CbP3i3dq.js",
+        "digest": "66583f827f0493c170feb77c080fb877abfe90a46809f46275b9787819d95792",
+        "size": 282507,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/bun/server-DMHck6up.js.map",
-        "digest": "fb7e9cb7d096a0287d9a244fc10f05e0a287fbf01aa29ffb72ddd295724e8443",
-        "size": 913414,
+        "path": "output/bun/provider-CbP3i3dq.js.map",
+        "digest": "175ce4fc9841b999f19bd9909d1875f176a8abbcc30cc4b3116e8e4db7565c42",
+        "size": 617669,
         "mediaType": "application/json"
     },
     {
-        "path": "output/worker/server-DMHck6up.js",
-        "digest": "cd8c6149956f5b2279441a4da5eae3500adb698c0e79070ff8a0f2d34b3b4d51",
-        "size": 324299,
+        "path": "output/bun/server-BAogSeaL.js",
+        "digest": "e98d59192dca9f05280f52079fb53c3d57d249beadadc89c79746f5f41b9aed3",
+        "size": 344,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/worker/server-DMHck6up.js.map",
-        "digest": "fb7e9cb7d096a0287d9a244fc10f05e0a287fbf01aa29ffb72ddd295724e8443",
-        "size": 913414,
+        "path": "output/bun/server-gsUe_vAE.js",
+        "digest": "c595c9acbd44f71e1f2b5b130e9f36c65906274f0d955f6f08bf970e1369f2f5",
+        "size": 147133,
+        "mediaType": "text/javascript"
+    },
+    {
+        "path": "output/bun/server-gsUe_vAE.js.map",
+        "digest": "95d6cf0c305fead58aa51e84d615296347337cec5a029a064a4eeeddf4bdc516",
+        "size": 350947,
+        "mediaType": "application/json"
+    },
+    {
+        "path": "output/bun/snapshot-BoDV3EAe.js",
+        "digest": "00bf0326773847a1c17bc70fa7e4f5f8a1c1148b56cad2aa3900c2d0ff5a2b66",
+        "size": 30404,
+        "mediaType": "text/javascript"
+    },
+    {
+        "path": "output/bun/snapshot-BoDV3EAe.js.map",
+        "digest": "788b30312929334ceb1990500aacd50dc062f7157bbd00d0dd7a577a7b8b2ae7",
+        "size": 68036,
+        "mediaType": "application/json"
+    },
+    {
+        "path": "output/bun/trace-api-CTzHbl64.js",
+        "digest": "e420529c3900aaf595e166864c7538546a4a2ce8c2ca2d7b284912af83d8b3bc",
+        "size": 372795,
+        "mediaType": "text/javascript"
+    },
+    {
+        "path": "output/bun/trace-api-CTzHbl64.js.map",
+        "digest": "ec737c400589c8b9d17d30c1c17d0b13111eedd196f5bc80646f794b9d60eede",
+        "size": 899225,
+        "mediaType": "application/json"
+    },
+    {
+        "path": "output/bun/workload-web-B1wzBObS.js",
+        "digest": "02284b5f0104ad40d5c9845b2fb0c9f5cd0a39199f65a1229f4cec0201bfbf7a",
+        "size": 850466,
+        "mediaType": "text/javascript"
+    },
+    {
+        "path": "output/bun/workload-web-B1wzBObS.js.map",
+        "digest": "bbd0827e684ed51360b5a075c0b206d1443bc498999ebb3a51d4982a219627e3",
+        "size": 2236286,
+        "mediaType": "application/json"
+    },
+    {
+        "path": "output/worker/server-nEw3c2ys.js",
+        "digest": "827f8ddacc1f852f9332b94233dd633cb2416fd5f958fd6c409df78b8f6704cf",
+        "size": 426218,
+        "mediaType": "text/javascript"
+    },
+    {
+        "path": "output/worker/server-nEw3c2ys.js.map",
+        "digest": "4e43bbf7126f238d0ad53f1c9249b9746d8dc0b299498a3dda64298b3b8e0605",
+        "size": 1165753,
         "mediaType": "application/json"
     },
     {
         "path": "package.json",
-        "digest": "5cc7ed4bc7affe591c0ff69f6a28dd4e00e9890e0ca55ea5becf78fca9bb244c",
-        "size": 525,
+        "digest": "fdbb950f08bbb795406605c56614a67f9fed5aab4c9801fca5aafa38c11ba22c",
+        "size": 566,
         "mediaType": "application/json"
     },
     {
         "path": "src/server.ts",
-        "digest": "614605fee7ee91cb1f48da0d726cdbe51c290e05cfb41aa30d6e9a342ec16e39",
-        "size": 3725,
+        "digest": "e75e5c989703920cad76a414b4be6a0adba62d8658dcbf6526313d3e110d7b72",
+        "size": 3738,
         "mediaType": "application/octet-stream",
         "descriptions": [
             {
@@ -54,8 +108,8 @@
                 ],
                 "file": {
                     "path": "manifest/files/src/server.ts.json",
-                    "digest": "d35a87081815dba6e51ed2eebece008c1eeeefb8bae36f0a334dad21d5dfd7b8",
-                    "size": 113705,
+                    "digest": "f965a63444c8427d31b3d9054c49acc43478962623a1d7c9db0754ab6028d925",
+                    "size": 1202537,
                     "mediaType": "application/json"
                 }
             }

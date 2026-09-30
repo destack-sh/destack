@@ -1,6 +1,6 @@
 {
     "name": "@example/stack",
-    "version": "1.0.0",
+    "version": "2026.9.0",
     "type": "module",
     "exports": {
         ".": "./src/index.ts"
@@ -10,7 +10,7 @@
         "@destack/schema": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/access": "workspace:*",
-        "@destack/template-stack": "workspace:*",
+        "@template/stack": "workspace:*",
         "@destack/space": "workspace:*",
         "@destack/account": "workspace:*"
     }

@@ -8,23 +8,22 @@
     "language": "typescript",
     "dependencies": {
         "path": "manifest/dependencies.json",
-        "digest": "0ee03eac6710cbfaadc2871dc810112782fa3b648f9ba2bb1f7617903636b5cf",
-        "size": 14021,
+        "digest": "f11cbded67e165fafe0a214174c75d682c1c55cfa9dcbf15f91832f1c4dcfa7a",
+        "size": 115547,
         "mediaType": "application/json"
     },
-    "descriptions": {
-        "test": {
-            "package": {
-                "id": "package-01a0c80b-614f-73ed-891d-020804987e52",
-                "name": "@destack/test",
-                "version": "2026.9.0"
-            },
-            "file": {
-                "path": "manifest/test.json",
-                "digest": "b39ee45eb874810a11104fdadc1af641e59c3bf2782322157e835625f82f3d4a",
-                "size": 534,
-                "mediaType": "application/json"
-            }
+    "descriptions": {},
+    "tests": {
+        "package": {
+            "id": "package-01a0c80b-614f-73ed-891d-020804987e52",
+            "name": "@destack/test",
+            "version": "2026.9.0"
+        },
+        "file": {
+            "path": "manifest/tests.json",
+            "digest": "b39ee45eb874810a11104fdadc1af641e59c3bf2782322157e835625f82f3d4a",
+            "size": 534,
+            "mediaType": "application/json"
         }
     },
     "outputs": {
@@ -32,15 +31,14 @@
             "target": "browser",
             "runtime": "browser",
             "emit": true,
-            "view": "main",
             "workloads": {},
-            "descriptions": {
-                "test": [
-                    0,
-                    1,
-                    2
-                ]
-            },
+            "views": {},
+            "descriptions": {},
+            "tests": [
+                0,
+                1,
+                2
+            ],
             "directory": "output/website-browser",
             "exports": {
                 ".": "output/website-browser/index.html"
@@ -50,7 +48,7 @@
     },
     "files": {
         "path": "manifest/files.json",
-        "digest": "f9f98b577656a6c49c2af1a578531c88867cb89fba57e12ff9a6bb281767dc2b",
+        "digest": "681f6e970b7440ac69db79897c0ebfb49c79507596a2a9a6bc125086630fb855",
         "size": 4434,
         "mediaType": "application/json"
     },

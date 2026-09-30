@@ -244,7 +244,7 @@ export class Dataflow implements Arrangement {
             if (root.aggregate !== undefined || root.limit !== undefined) {
                 run.workOf(pipeline).opened.set("", undefined);
                 await this.#settle(run);
-                this.sink.emit(run);
+                await this.sink.emit(run);
                 yield;
                 continue;
             }
@@ -257,7 +257,7 @@ export class Dataflow implements Arrangement {
                 isDone = rows.length < PAGE_ROWS;
                 after = rows.at(-1);
                 await this.#settle(run);
-                this.sink.emit(run);
+                await this.sink.emit(run);
                 yield;
             }
         }
@@ -357,7 +357,7 @@ export class Dataflow implements Arrangement {
                 await mirror.refresh(run);
             }
         }
-        this.sink.emit(run);
+        await this.sink.emit(run);
         this.#position = run.view.position;
         cost();
         this.#requireCapacity();

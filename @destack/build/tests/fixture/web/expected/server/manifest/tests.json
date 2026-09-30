@@ -1,0 +1,28 @@
+[
+    {
+        "kind": "suite",
+        "name": "application",
+        "file": "src/app.test.ts",
+        "start": 180,
+        "end": 292,
+        "modifiers": []
+    },
+    {
+        "kind": "test",
+        "name": "renders",
+        "file": "src/app.test.ts",
+        "start": 216,
+        "end": 241,
+        "modifiers": []
+    },
+    {
+        "kind": "test",
+        "name": "renders %i",
+        "file": "src/app.test.ts",
+        "start": 247,
+        "end": 288,
+        "modifiers": [
+            "each"
+        ]
+    }
+]

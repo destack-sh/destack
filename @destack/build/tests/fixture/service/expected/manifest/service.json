@@ -2,6 +2,11 @@
     {
         "name": "notes",
         "kind": "service",
+        "package": {
+            "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
+            "name": "@destack/service",
+            "version": "2026.9.0"
+        },
         "constructor": {
             "package": {
                 "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
@@ -26,7 +31,7 @@
         },
         "source": {
             "file": "src/server.ts",
-            "line": 41,
+            "line": 42,
             "column": 23
         },
         "description": {
@@ -70,6 +75,9 @@
                             "UNAUTHORIZED": {
                                 "status": 401
                             },
+                            "INSUFFICIENT_AUTHENTICATION": {
+                                "status": 401
+                            },
                             "FORBIDDEN": {
                                 "status": 403
                             },
@@ -85,6 +93,9 @@
                             "MANAGED": {
                                 "status": 409
                             },
+                            "MOVED": {
+                                "status": 421
+                            },
                             "UNSUPPORTED": {
                                 "status": 422
                             },
@@ -97,12 +108,21 @@
                         }
                     }
                 ]
-            }
+            },
+            "objects": [],
+            "routes": [
+                "list"
+            ]
         }
     },
     {
         "name": "notes",
-        "kind": "service-connection",
+        "kind": "resource",
+        "package": {
+            "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
+            "name": "@destack/service",
+            "version": "2026.9.0"
+        },
         "constructor": {
             "package": {
                 "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
@@ -110,8 +130,8 @@
                 "version": "2026.9.0"
             },
             "symbol": {
-                "module": "src/declare/connection.ts",
-                "name": "defineServiceConnection"
+                "module": "src/declare/binding.ts",
+                "name": "defineServiceBinding"
             }
         },
         "symbol": {
@@ -127,21 +147,28 @@
         },
         "source": {
             "file": "src/server.ts",
-            "line": 43,
+            "line": 44,
             "column": 21
         },
         "description": {
-            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
             "name": "notes",
-            "service": {
-                "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
-                "name": "notes"
+            "kind": "service",
+            "spec": {
+                "service": {
+                    "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                    "name": "notes"
+                }
             }
         }
     },
     {
         "name": "web",
         "kind": "workload",
+        "package": {
+            "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
+            "name": "@destack/service",
+            "version": "2026.9.0"
+        },
         "constructor": {
             "package": {
                 "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
@@ -166,7 +193,7 @@
         },
         "source": {
             "file": "src/server.ts",
-            "line": 59,
+            "line": 60,
             "column": 19
         },
         "description": {
@@ -182,6 +209,11 @@
     {
         "name": "reminders",
         "kind": "schedule",
+        "package": {
+            "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
+            "name": "@destack/service",
+            "version": "2026.9.0"
+        },
         "constructor": {
             "package": {
                 "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
@@ -206,7 +238,7 @@
         },
         "source": {
             "file": "src/server.ts",
-            "line": 73,
+            "line": 74,
             "column": 25
         },
         "description": {
@@ -222,6 +254,11 @@
     {
         "name": "refresh",
         "kind": "schedule",
+        "package": {
+            "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
+            "name": "@destack/service",
+            "version": "2026.9.0"
+        },
         "constructor": {
             "package": {
                 "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
@@ -246,7 +283,7 @@
         },
         "source": {
             "file": "src/server.ts",
-            "line": 83,
+            "line": 84,
             "column": 23
         },
         "description": {
@@ -263,6 +300,11 @@
     {
         "name": "appointment",
         "kind": "schedule",
+        "package": {
+            "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
+            "name": "@destack/service",
+            "version": "2026.9.0"
+        },
         "constructor": {
             "package": {
                 "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
@@ -287,7 +329,7 @@
         },
         "source": {
             "file": "src/server.ts",
-            "line": 94,
+            "line": 95,
             "column": 27
         },
         "description": {

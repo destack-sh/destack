@@ -40,6 +40,7 @@
                 "case": "kebabCase"
             }
         ],
+        "eslint/no-console": "error",
         "destack/boolean-prefix": "error",
         "destack/branch-comment-position": "error",
         "destack/comment-style": "error",
@@ -58,6 +59,21 @@
         "destack/valid-package-handle": "error"
     },
     "overrides": [
+        {
+            "files": [
+                "**/*.test.ts",
+                "**/*.test.tsx",
+                "**/test/**",
+                "**/tests/**",
+                "**/fixture.ts",
+                "**/fixture/**",
+                "**/src/browser/devtools.ts",
+                "**/src/build/worker.ts"
+            ],
+            "rules": {
+                "eslint/no-console": "off"
+            }
+        },
         {
             "files": [
                 "**/src/service/**",

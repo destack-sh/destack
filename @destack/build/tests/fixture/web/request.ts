@@ -1,18 +1,18 @@
-import type { ApplicationOptions } from "../../../src/index.ts";
+import type { ApplicationOptions } from "@destack/view/build";
 
 /** Browser, server, static, and mixed outputs from one application. */
 export const requests = {
-    browser: { kind: "web", view: "main", ssr: false },
-    server: { kind: "web", view: "main", ssr: { runtime: "bun" } },
+    browser: { kind: "web", app: "src/app.tsx", ssr: false },
+    server: { kind: "web", app: "src/app.tsx", ssr: { runtime: "bun" } },
     static: {
         kind: "web",
-        view: "main",
+        app: "src/app.tsx",
         ssr: { runtime: "bun", emit: false },
         prerender: { origin: "https://example.test", routes: ["/", "/about/"] },
     },
     mixed: {
         kind: "web",
-        view: "main",
+        app: "src/app.tsx",
         ssr: { runtime: "workerd" },
         prerender: { origin: "https://example.test", routes: ["/"] },
     },

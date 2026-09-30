@@ -2,6 +2,11 @@
     {
         "name": "main",
         "kind": "resource",
+        "package": {
+            "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
+            "name": "@destack/db",
+            "version": "2026.9.0"
+        },
         "constructor": {
             "package": {
                 "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
@@ -17,7 +22,7 @@
             "package": {
                 "id": "package-01a0c80b-614f-73f0-b2a5-37fb7fb295b5",
                 "name": "@example/resources",
-                "version": "1.0.0"
+                "version": "2026.9.0"
             },
             "symbol": {
                 "module": "src/database.ts",
@@ -32,24 +37,40 @@
         "description": {
             "name": "main",
             "kind": "database",
-            "version": 1,
-            "spec": {},
+            "spec": {
+                "tier": "zonal"
+            },
             "tables": {
                 "sqlite": [
                     {
-                        "packageId": "package-01a0c80b-614f-73f0-b2a5-37fb7fb295b5",
-                        "version": 1,
+                        "package": {
+                            "id": "package-01a0c80b-614f-73f0-b2a5-37fb7fb295b5",
+                            "name": "@example/resources",
+                            "version": "2026.9.0"
+                        },
                         "table": {
                             "dialect": "sqlite",
                             "name": "example__resources__note",
                             "columns": [
                                 {
                                     "name": "id",
+                                    "kind": "integer",
+                                    "value": {
+                                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                    },
                                     "type": "integer",
                                     "nullable": false
                                 },
                                 {
                                     "name": "title",
+                                    "kind": "text",
+                                    "value": {
+                                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                        "type": "string"
+                                    },
                                     "type": "text",
                                     "nullable": false
                                 }
@@ -69,19 +90,34 @@
                 ],
                 "postgresql": [
                     {
-                        "packageId": "package-01a0c80b-614f-73f0-b2a5-37fb7fb295b5",
-                        "version": 1,
+                        "package": {
+                            "id": "package-01a0c80b-614f-73f0-b2a5-37fb7fb295b5",
+                            "name": "@example/resources",
+                            "version": "2026.9.0"
+                        },
                         "table": {
                             "dialect": "postgresql",
                             "name": "example__resources__note",
                             "columns": [
                                 {
                                     "name": "id",
+                                    "kind": "integer",
+                                    "value": {
+                                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                    },
                                     "type": "bigint",
                                     "nullable": false
                                 },
                                 {
                                     "name": "title",
+                                    "kind": "text",
+                                    "value": {
+                                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                        "type": "string"
+                                    },
                                     "type": "text",
                                     "nullable": false
                                 }

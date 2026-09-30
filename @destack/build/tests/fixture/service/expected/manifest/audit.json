@@ -2,6 +2,11 @@
     {
         "name": "Note.publish",
         "kind": "audit-action",
+        "package": {
+            "id": "package-01a0c80b-614e-739d-8c3c-55f69a40525a",
+            "name": "@destack/audit",
+            "version": "2026.9.0"
+        },
         "constructor": {
             "package": {
                 "id": "package-01a0c80b-614e-739d-8c3c-55f69a40525a",
@@ -26,7 +31,7 @@
         },
         "source": {
             "file": "src/server.ts",
-            "line": 13,
+            "line": 14,
             "column": 27
         },
         "description": {

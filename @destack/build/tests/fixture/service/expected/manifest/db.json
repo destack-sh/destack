@@ -2,6 +2,11 @@
     {
         "name": "main",
         "kind": "resource",
+        "package": {
+            "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
+            "name": "@destack/db",
+            "version": "2026.9.0"
+        },
         "constructor": {
             "package": {
                 "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
@@ -26,14 +31,15 @@
         },
         "source": {
             "file": "src/server.ts",
-            "line": 26,
+            "line": 27,
             "column": 24
         },
         "description": {
             "name": "main",
             "kind": "database",
-            "version": 1,
-            "spec": {},
+            "spec": {
+                "tier": "zonal"
+            },
             "tables": {
                 "sqlite": [],
                 "postgresql": []

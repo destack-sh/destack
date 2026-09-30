@@ -8,8 +8,8 @@
     "language": "typescript",
     "dependencies": {
         "path": "manifest/dependencies.json",
-        "digest": "2f4d60e8eca8075234c42fc0c1d65f2114d2a77ec0776b17ba4f012a8f16d298",
-        "size": 73589,
+        "digest": "245169dd67fd37748f1ac5423fee6e17c28e69deba91753fe3ca9f15c1112a57",
+        "size": 144851,
         "mediaType": "application/json"
     },
     "descriptions": {
@@ -21,8 +21,8 @@
             },
             "file": {
                 "path": "manifest/audit.json",
-                "digest": "314eaa7a0128229654720e472e6b03218a4a4da7ba273a4ffcb2b127c76786b7",
-                "size": 2697,
+                "digest": "9eba4edf48dfaad6c0b1fdc59b593551aec9b0b63735883b9637c0327177de1a",
+                "size": 2867,
                 "mediaType": "application/json"
             }
         },
@@ -34,8 +34,8 @@
             },
             "file": {
                 "path": "manifest/db.json",
-                "digest": "ac9b07e5646b3ec48228968792e9263183e5ecfcbaf4b0163204d80077183b6e",
-                "size": 1139,
+                "digest": "e296f0c9cc0507dbf233161fa2dd10e1014b104e87040547e851019c6ffc8100",
+                "size": 1325,
                 "mediaType": "application/json"
             }
         },
@@ -47,8 +47,8 @@
             },
             "file": {
                 "path": "manifest/vault.json",
-                "digest": "b694eecc70979889e739d37044780d2fa7ab506fde0db9fbab7b6ff2d68c54f2",
-                "size": 2026,
+                "digest": "efb2662956a63954803afa7a9c4874eb1edc3ffe961f69cfdfdbe646c8a7f61b",
+                "size": 2340,
                 "mediaType": "application/json"
             }
         },
@@ -60,8 +60,8 @@
             },
             "file": {
                 "path": "manifest/service.json",
-                "digest": "884ec98edadbb140ab882f212a05ccc15fad7240b5898ee2888445ecdabf6dd2",
-                "size": 9391,
+                "digest": "dee996f2cb2b46c245ec27673f2d1f2cf8934c8ea92ffcc0aff0344a832654ac",
+                "size": 10760,
                 "mediaType": "application/json"
             }
         }
@@ -73,15 +73,14 @@
             "emit": true,
             "workloads": {
                 "web": {
-                    "entrypoint": "./server",
-                    "export": "web",
+                    "entrypoint": "./workload/web",
                     "services": [
                         {
                             "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
                             "name": "notes"
                         }
                     ],
-                    "schedules": [
+                    "triggers": [
                         {
                             "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
                             "name": "reminders"
@@ -103,6 +102,10 @@
                         {
                             "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
                             "name": "credentials"
+                        },
+                        {
+                            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                            "name": "notes"
                         }
                     ],
                     "secrets": [
@@ -111,12 +114,7 @@
                             "name": "mail-token"
                         }
                     ],
-                    "connections": [
-                        {
-                            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
-                            "name": "notes"
-                        }
-                    ],
+                    "connections": [],
                     "compute": {
                         "requests": {},
                         "limits": {},
@@ -125,6 +123,7 @@
                     }
                 }
             },
+            "views": {},
             "descriptions": {
                 "audit": [
                     0
@@ -145,9 +144,11 @@
                     5
                 ]
             },
+            "tests": [],
             "directory": "output/bun",
             "exports": {
-                "./server": "output/bun/server-DMHck6up.js"
+                "./server": "output/bun/server-BAogSeaL.js",
+                "./workload/web": "output/bun/workload-web-B1wzBObS.js"
             },
             "dependencies": {}
         },
@@ -155,60 +156,8 @@
             "target": "server",
             "runtime": "workerd",
             "emit": true,
-            "workloads": {
-                "web": {
-                    "entrypoint": "./server",
-                    "export": "web",
-                    "services": [
-                        {
-                            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
-                            "name": "notes"
-                        }
-                    ],
-                    "schedules": [
-                        {
-                            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
-                            "name": "reminders"
-                        },
-                        {
-                            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
-                            "name": "refresh"
-                        },
-                        {
-                            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
-                            "name": "appointment"
-                        }
-                    ],
-                    "resources": [
-                        {
-                            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
-                            "name": "main"
-                        },
-                        {
-                            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
-                            "name": "credentials"
-                        }
-                    ],
-                    "secrets": [
-                        {
-                            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
-                            "name": "mail-token"
-                        }
-                    ],
-                    "connections": [
-                        {
-                            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
-                            "name": "notes"
-                        }
-                    ],
-                    "compute": {
-                        "requests": {},
-                        "limits": {},
-                        "scaling": {},
-                        "cpuTime": 1000
-                    }
-                }
-            },
+            "workloads": {},
+            "views": {},
             "descriptions": {
                 "audit": [
                     0
@@ -229,23 +178,24 @@
                     5
                 ]
             },
+            "tests": [],
             "directory": "output/worker",
             "exports": {
-                "./server": "output/worker/server-DMHck6up.js"
+                "./server": "output/worker/server-nEw3c2ys.js"
             },
             "dependencies": {}
         }
     },
     "files": {
         "path": "manifest/files.json",
-        "digest": "6fef834bbd80d1c3edcf88111a7af1a4ef03a59257961a79a90da65a4e1ec527",
-        "size": 2159,
+        "digest": "8dfff3dadaa49408339a479b8d95610b19526382d02ed32bf932f9f2ef194097",
+        "size": 4102,
         "mediaType": "application/json"
     },
     "sourceMaps": {
         "path": "manifest/sourceMaps.json",
-        "digest": "a4eb30aedecb7b074c6851670ce9e573995c045d3474d697473fcc23bab51325",
-        "size": 245,
+        "digest": "2d614b5c299d648db3924c99d9e4c1a901703110d06c1701e940b88bfc607604",
+        "size": 743,
         "mediaType": "application/json"
     }
 }

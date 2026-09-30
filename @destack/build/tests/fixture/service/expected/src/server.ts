@@ -1,9 +1,10 @@
 import { defineDatabase } from "@destack/db/declare";
 import { defineSecret, defineVault } from "@destack/vault";
 import { defineSchedule } from "@destack/service/schedule";
-import { defineService, defineProcedure, defineServiceConnection } from "@destack/service";
+import { defineService, defineProcedure, defineServiceBinding } from "@destack/service";
 import { implement, type ServiceImplementation } from "@destack/service/server";
-import type { Schedule, ScheduleImplementation } from "@destack/service/schedule";
+import type { Schedule } from "@destack/service/schedule";
+import type { TriggerHandler } from "@destack/service/trigger";
 import { defineWorkload } from "@destack/service/workload";
 import { schema } from "@destack/schema";
 import { telemetry } from "@destack/telemetry";
@@ -13,7 +14,6 @@ import { defineAuditAction } from "@destack/audit";
 /** Record a published note under its declaring package. */
 export const publishNote = defineAuditAction({
     name: "Note.publish",
-    version: 1,
     targets: schema.object({
         note: schema.object({ type: schema.literal("note"), id: schema.string() }),
     }),
@@ -41,7 +41,7 @@ export const router = {
 /** The public HTTP service. */
 export const service = defineService("notes", router);
 /** A dependency on the installation's notes service. */
-export const notes = defineServiceConnection("notes", service);
+export const notes = defineServiceBinding("notes", service);
 
 /** Implement the public notes procedures. */
 export function implementService(): ServiceImplementation {
@@ -65,7 +65,7 @@ export const web = defineWorkload({
 
         return {
             services: [implementService()],
-            schedules: [reminders, refresh, appointment].map(implementSchedule),
+            triggers: [reminders, refresh, appointment].map(implementSchedule),
         };
     },
 });
@@ -101,12 +101,9 @@ export const appointment = defineSchedule({
 });
 
 /** Log each occurrence of a reminder schedule. */
-function implementSchedule(schedule: Schedule): ScheduleImplementation {
-    return {
-        schedule,
-        run: async (signal) => {
-            signal.throwIfAborted();
-            instruments.logger.emit({ body: `Reminder ${schedule.name}` });
-        },
-    };
+function implementSchedule(schedule: Schedule): TriggerHandler<Schedule> {
+    return schedule.handle(async (_occurrence, signal) => {
+        signal.throwIfAborted();
+        instruments.logger.emit({ body: `Reminder ${schedule.name}` });
+    });
 }

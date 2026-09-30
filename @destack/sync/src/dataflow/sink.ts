@@ -5,7 +5,7 @@ import type { Node } from "../query/node.ts";
 import type { QueryPage, ResultChange, RowChange } from "../query/page.ts";
 import type { Audience } from "../feed/audience.ts";
 import type { Cache } from "./view.ts";
-import type { Run } from "./run.ts";
+import type { Run, Touch } from "./run.ts";
 import type { Result } from "./tally.ts";
 
 /** What the subscriber holds: each row by its holder count, and each shown group. */
@@ -24,11 +24,7 @@ export class Sink {
     touch(run: Run, table: Table, key: string, row: Row | undefined): void {
         const touched = run.touched.get(key);
         if (touched === undefined) {
-            run.touched.set(key, {
-                table,
-                row: row ?? (Key.parse(table, key) as Row),
-                wasHeld: this.#rows.has(key),
-            });
+            run.touched.set(key, { table, row, wasHeld: this.#rows.has(key) });
         } else if (row !== undefined) {
             touched.row = row;
         }
@@ -64,19 +60,54 @@ export class Sink {
     }
 
     /** Send the rows a run moved into, out of or within the subscriber's set. */
-    emit(run: Run): void {
+    async emit(run: Run): Promise<void> {
+        // read the held rows no holder passed at the run's position
+        const unread = new Map<Table, [string, Touch][]>();
+        for (const entry of run.touched) {
+            const [key, touched] = entry;
+            if (touched.row === undefined && this.#rows.has(key)) {
+                unread.set(touched.table, [...(unread.get(touched.table) ?? []), entry]);
+            }
+        }
+        for (const [table, entries] of unread) {
+            const rows = await run.view.keyed(
+                table,
+                entries.map(([key]) => Key.parse(table, key) as Row),
+            );
+            for (const [index, [key, touched]] of entries.entries()) {
+                // refuse a held row missing at the position
+                const row = rows[index];
+                if (row === undefined) {
+                    throw new TypeError(
+                        `subscriber holds ${key}, missing at ${run.view.position.sequence}`,
+                    );
+                }
+                touched.row = row;
+            }
+        }
+
+        // decide each touched row's move
         for (const [key, touched] of run.touched) {
             const isHeld = this.#rows.has(key);
-            const decision = (operation: RowChange["operation"]) =>
-                run.patch.rows.set(key, { table: touched.table, row: touched.row, operation });
+            const table = touched.table;
             if (run.walk === "rebuild") {
                 continue;
-            } else if (isHeld && !touched.wasHeld) {
-                decision("insert");
-            } else if (!isHeld && touched.wasHeld) {
-                decision("delete");
-            } else if (isHeld && run.changed.has(key)) {
-                decision("update");
+            }
+            // send a row entering the set
+            else if (isHeld && !touched.wasHeld) {
+                run.patch.rows.set(key, { table, row: touched.row!, operation: "insert" });
+            }
+            // send the key of a row leaving it
+            else if (!isHeld && touched.wasHeld) {
+                run.patch.rows.set(key, {
+                    table,
+                    row: Key.parse(table, key) as Row,
+                    operation: "delete",
+                });
+            }
+            // send a held row the run changed
+            else if (isHeld && run.changed.has(key)) {
+                run.patch.rows.set(key, { table, row: touched.row!, operation: "update" });
             }
         }
         run.touched.clear();

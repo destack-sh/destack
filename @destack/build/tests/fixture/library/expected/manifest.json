@@ -3,7 +3,7 @@
     "package": {
         "id": "package-01a0c80b-6150-71b2-81d9-ada29e8d0cc0",
         "name": "@destack/build-library-fixture",
-        "version": "1.0.0"
+        "version": "2026.9.0"
     },
     "language": "typescript",
     "dependencies": {
@@ -19,7 +19,9 @@
             "runtime": "bun",
             "emit": true,
             "workloads": {},
+            "views": {},
             "descriptions": {},
+            "tests": [],
             "directory": "output/library",
             "exports": {
                 ".": "output/library/index-D7oujdfV.js",
@@ -30,7 +32,7 @@
     },
     "files": {
         "path": "manifest/files.json",
-        "digest": "10ea2a4c2815c865f595c53baf0296c227f9221146af73f7a886e588f5bdbafc",
+        "digest": "0508a74b07bfd79134eb0581c576aba0126ae35c72bee96df8fd3ecdac099c6f",
         "size": 2781,
         "mediaType": "application/json"
     },
