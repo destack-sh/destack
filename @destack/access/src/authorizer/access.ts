@@ -1,4 +1,4 @@
-import type { DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection, Select } from "@destack/db";
 import type { Snapshot } from "@destack/db/log";
 import type { PackageId } from "@destack/package";
 import { Replica, type ScopeLink, Scope, type ObjectReference } from "@destack/sync";
@@ -46,6 +46,8 @@ export class Access {
     readonly #universal: readonly string[];
     /** The authorizer whose reserved, elevated and administration permissions apply. */
     readonly #authorizer: Authorizer;
+    /** The scope and every scope enclosing it, nearest first. */
+    readonly #links: readonly ScopeLink[];
 
     /** Assemble a resolved caller from what its resolution read. */
     constructor(
@@ -64,6 +66,7 @@ export class Access {
         this.scope = resolved.scope;
         this.context = resolved.context;
         this.authorities = resolved.authorities;
+        this.#links = resolved.links;
         this.scopes = resolved.links.map((link) => link.object);
         this.grants = resolved.grants;
         this.isSuspended = resolved.links.some((link) => link.isSuspended);
@@ -153,6 +156,98 @@ export class Access {
             grants: roles.grants,
             until,
         });
+    }
+
+    /**
+     * Resolve the caller in scopes this one encloses, in reads shared by all of them.
+     *
+     * The caller's subject sets and the roles along this scope's chain are reused.
+     * A scope this one does not enclose is left out.
+     */
+    async descend(snapshot: Snapshot, scopes: readonly string[]): Promise<Map<string, Access>> {
+        // read the scopes' rows and the rows between them and this scope
+        const chain = new Set(this.#links.map((link) => link.object.id));
+        const rows = new Map<string, Select<typeof Scope.table>>();
+        for (let wanted = scopes.filter((id) => !chain.has(id)); wanted.length > 0;) {
+            const read = (await snapshot.select(
+                Scope.table,
+                ["scope"],
+                wanted.map((id) => [id]),
+            )) as Select<typeof Scope.table>[];
+            for (const row of read) {
+                rows.set(row.scope, row);
+            }
+            wanted = [...new Set(read.map((row) => row.parent))].filter(
+                (id) => !rows.has(id) && !chain.has(id),
+            );
+        }
+
+        // link each scope up to this one, leaving out the scopes it does not enclose
+        const below = new Map<string, ScopeLink[]>();
+        for (const scope of new Set(scopes)) {
+            const links: ScopeLink[] = [];
+            let current = rows.get(scope);
+            while (
+                current !== undefined &&
+                !links.some((link) => link.object.id === current!.scope)
+            ) {
+                links.push({
+                    object: {
+                        packageId: current.packageId,
+                        type: current.type,
+                        scope: current.parent,
+                        id: current.scope,
+                    },
+                    parent: current.parent,
+                    isSuspended: current.suspendedAt !== null,
+                    movedTo: current.movedTo ?? undefined,
+                });
+                if (current.parent === this.scope) {
+                    below.set(scope, links);
+                    break;
+                }
+                current = rows.get(current.parent);
+            }
+        }
+
+        // refuse stale copies of the scopes' access, and find the scopes defining roles
+        const ids = [...new Set([...below.values()].flat().map((link) => link.object.id))];
+        const [defining] = await Promise.all([
+            snapshot.select(
+                accessRole,
+                ["scope"],
+                ids.map((id) => [id]),
+            ),
+            snapshot.position === undefined
+                ? requireConfirmed(snapshot.database, ids, this.#authorizer.lag)
+                : undefined,
+        ]);
+        const defined = new Set(defining.map((row) => String(row.scope)));
+
+        // reuse this scope's roles below it, reading the roles of a chain that defines more
+        const resolved = new Map<string, Access>();
+        for (const [scope, links] of below) {
+            const roles = links.some((link) => defined.has(link.object.id))
+                ? await readRoles(
+                      snapshot,
+                      [...links, ...this.#links].map((link) => link.object.id),
+                      this.context,
+                  )
+                : { grants: this.grants, until: undefined };
+            resolved.set(
+                scope,
+                new Access(this.#authorizer, {
+                    scope,
+                    context: this.context,
+                    authorities: this.authorities,
+                    links: [...links, ...this.#links],
+                    grants: roles.grants,
+                    until: earliest([this.until, roles.until]),
+                }),
+            );
+        }
+
+        return resolved;
     }
 
     /** Add the subject sets of some subjects breadth first, with the next moment time changes them. */

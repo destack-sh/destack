@@ -111,9 +111,17 @@ Every database holding protected objects includes `accessTables`.
 export const main = defineDatabase({ name: "main", tables: [...accessTables, notes] });
 ```
 
-A database below a scope copies the chain above it: each scope's access rows and inherited rows.
+A database below a scope copies the chain above it: each scope's access rows and inherited rows, and the scope's own row where the database keeps its type's table.
 
 ```ts
 const requests = await authorizer.chain(database, spaceId, { isHome: true });
 const replica = authorizer.replicaOf(requests[0]!);
+```
+
+`Access.descend` resolves a caller in the scopes below one in shared reads, and `checkRows` decides each row by the caller's access in the row's own scope.
+
+```ts
+const above = await authorizer.resolve(snapshot, accountId, context);
+const below = await above.descend(snapshot, spaceIds);
+const { held } = await authorizer.checkRows(snapshot, permission, above, rows, undefined, below);
 ```

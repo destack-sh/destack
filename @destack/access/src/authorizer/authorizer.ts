@@ -73,7 +73,7 @@ export class Authorizer {
     readonly lag: number;
     /** The object types with access rows in this database. */
     readonly held: readonly ObjectTypeReference[];
-    /** The object types this database copies inherited rows of from its containing scopes. */
+    /** The object types this database keeps copies of from the scopes above it: inherited rows, and the scopes' own rows of the scope types it keeps a table of. */
     readonly copied: readonly ObjectTypeReference[];
     /** The types whose objects live in the universe, whose access rows stay in the global tier. */
     readonly universal: readonly ObjectTypeReference[];
@@ -90,7 +90,12 @@ export class Authorizer {
     constructor(
         policies: readonly Policy[],
         mappings: readonly TableMapping[] = [],
-        options: { readonly lag?: number } = {},
+        options: {
+            /** How long a copy of access may go without hearing from its home, in milliseconds. */
+            readonly lag?: number;
+            /** Decide whether the database keeps a table's rows as copies from their home, which writes their access rows. */
+            readonly copies?: (table: Table) => boolean;
+        } = {},
     ) {
         // include every policy the declared policies name
         const identity = (type: Policy) =>
@@ -235,15 +240,22 @@ export class Authorizer {
             this.#mappings.set(key, mapping);
         }
 
-        // list the types whose access rows this database holds
+        // list the types whose access rows this database holds, and the types it keeps copies of
+        const copies = options.copies ?? (() => false);
         this.held = [...this.#mappings.values()]
-            .filter((mapping) => !accessTables.includes(mapping.table))
+            .filter((mapping) => !accessTables.includes(mapping.table) && !copies(mapping.table))
             .map((mapping) => ({
                 packageId: mapping.policy.definition.packageId,
                 type: mapping.policy.definition.name,
             }));
         this.copied = [...this.#mappings.values()]
-            .filter((mapping) => mapping.inherited !== undefined)
+            .filter(
+                (mapping) =>
+                    mapping.inherited !== undefined ||
+                    (copies(mapping.table) &&
+                        mapping.policy.definition.scope === true &&
+                        mapping.table !== Scope.table),
+            )
             .map((mapping) => ({
                 packageId: mapping.policy.definition.packageId,
                 type: mapping.policy.definition.name,
@@ -513,7 +525,7 @@ export class Authorizer {
             ...(copy === undefined ? [] : [...copy.ancestors, Scope.universe.id]),
         ];
 
-        // copy each scope's access rows and inherited rows, decided for the scope below
+        // copy each scope's access rows, inherited rows and own object, decided for the scope below
         return scopes.map((scope) => ({
             name: COPY_NAME,
             scope,
@@ -542,26 +554,43 @@ export class Authorizer {
             ? decisionTables.map((table) => [table, table === accessRelationship ? own : undefined])
             : [];
 
-        // add each copied type's inherited rows, and each global type's requested rows
-        const inherited = request.copied.map((type): [Table, Condition] => {
-            const mapping = this.#mappings.get(JSON.stringify([type.packageId, type.type]));
-            if (mapping?.inherited === undefined) {
+        // add each copied type's inherited rows, or the scope's own row when its identifier is of a copied scope type
+        const copied = request.copied.flatMap((type): [Table, Condition][] => {
+            // copy an inherited type's inherited rows
+            const mapping = this.mapping(type);
+            const table = this.#copiedTable(type);
+            if (mapping.inherited !== undefined) {
+                return [[table, mapping.inherited]];
+            } else if (mapping.policy.definition.scope !== true) {
                 throw new AccessError("NOT_FOUND", `no inherited rows of ${type.type}`);
             }
+            const identifier = column(table, mapping.id).definition.schema;
 
-            return [mapping.table, mapping.inherited];
+            return identifier.safeParse(request.scope).success
+                ? [[table, Condition.eq(mapping.id, request.scope)]]
+                : [];
         });
-        const rows = request.rows.map(({ type, where }): [Table, Condition] => {
-            const mapping = this.#mappings.get(JSON.stringify([type.packageId, type.type]));
-            if (mapping === undefined) {
-                throw new AccessError("NOT_FOUND", `no object type ${type.type} to copy`);
-            }
+        const owned = new Set(
+            request.copied
+                .filter((type) => this.mapping(type).inherited === undefined)
+                .map((type) => this.#copiedTable(type)),
+        );
 
-            return [mapping.table, where];
-        });
+        // add each requested type's rows
+        const rows = request.rows.map(({ type, where }): [Table, Condition] => [
+            this.#copiedTable(type),
+            where,
+        ]);
+
+        // copy across scopes the rows living in the scopes of other requested types' rows
+        const within = request.rows.flatMap(({ type, within }): [Table, Table[]][] =>
+            within === undefined
+                ? []
+                : [[this.#copiedTable(type), within.map((parent) => this.#copiedTable(parent))]],
+        );
 
         // copy them under the request's name and scope
-        const tables = [...access, ...inherited, ...rows];
+        const tables = [...access, ...copied, ...rows];
 
         return new Replica({
             name: request.name,
@@ -572,7 +601,19 @@ export class Authorizer {
                     where === undefined ? [] : [[table, where]],
                 ),
             ),
+            within: new Map(within),
+            everywhere: owned,
         });
+    }
+
+    /** Read the table of an object type a copy asks for, refusing a type this database keeps no table of. */
+    #copiedTable(type: ObjectTypeReference): Table {
+        const mapping = this.#mappings.get(JSON.stringify([type.packageId, type.type]));
+        if (mapping === undefined || mapping.table === Scope.table) {
+            throw new AccessError("NOT_FOUND", `no object type ${type.type} to copy`);
+        }
+
+        return mapping.table;
     }
 
     /** List the access rows with changes that affect what a caller of a scope chain may hold. */
@@ -941,6 +982,7 @@ export class Authorizer {
      * Check a permission on each of the given rows, as they are or were: the positions the caller holds it on, and until when that holds by time alone.
      *
      * Every permission decides in memory from the grant trees the reader shares among callers, as the compiled predicate decides in SQL.
+     * A row of a scope the caller's scope encloses is decided by the caller's access in that scope, given in `below`.
      */
     async checkRows(
         snapshot: Snapshot,
@@ -948,24 +990,38 @@ export class Authorizer {
         access: Access,
         rows: readonly Readonly<Record<string, unknown>>[],
         reader = this.reader(snapshot, access.scopes),
+        below: ReadonlyMap<string, Access> = new Map(),
     ): Promise<Admission> {
+        // decide each row by the caller's access in the row's scope
+        const mapping = this.mapping(permission);
+        const accesses = rows.map((row) => below.get(TableMapping.scope(mapping, row)) ?? access);
+        for (const enclosed of below.values()) {
+            reader.cover(enclosed.scopes);
+        }
+
         // read the rows' grant trees
         const trees = await reader.trees(permission, rows);
         const until = earliest([
             access.until,
-            ...trees.map((tree) => grantsUntil(GrantTree.flatten(tree), access)),
+            ...trees.map((tree, position) =>
+                earliest([
+                    accesses[position]!.until,
+                    grantsUntil(GrantTree.flatten(tree), accesses[position]!),
+                ]),
+            ),
         ]);
 
         // admit the rows with a tree that admits every authority of the caller
-        const held = rows.flatMap((row, position) =>
-            this.#gate(permission, this.mapping(permission), row, access, "listing") ===
-                undefined &&
-            access.authorities.every((authority) =>
-                GrantTree.holds(trees[position]!, authority, access),
-            )
+        const held = rows.flatMap((row, position) => {
+            const evaluated = accesses[position]!;
+
+            return this.#gate(permission, mapping, row, evaluated, "listing") === undefined &&
+                evaluated.authorities.every((authority) =>
+                    GrantTree.holds(trees[position]!, authority, evaluated),
+                )
                 ? [position]
-                : [],
-        );
+                : [];
+        });
 
         return { held: new Set(held), ...(until === undefined ? {} : { until }) };
     }

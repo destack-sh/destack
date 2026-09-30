@@ -55,6 +55,8 @@ export class Authorization {
     readonly #bind: (scope: string) => AccessContext;
     /** The caller's access resolved in each scope during this call, until renewed. */
     readonly #resolved = new Map<string, Promise<Access>>();
+    /** The caller's access in the scopes below each scope, absent for a scope it does not enclose, until renewed. */
+    readonly #below = new Map<string, Map<string, Access | undefined>>();
 
     /** Authorize one caller, bound to each scope it acts in, with its access already resolved in some scope. */
     constructor(
@@ -99,6 +101,7 @@ export class Authorization {
     /** Forget every resolved scope so the next decision reads current access. */
     renew(): void {
         this.#resolved.clear();
+        this.#below.clear();
     }
 
     /** Require the caller to hold permissions on a scope as a transaction shows its access, resolved afresh. */
@@ -140,10 +143,45 @@ export class Authorization {
         scope: string,
         rows: readonly Readonly<Record<string, unknown>>[],
         reader?: GrantReader,
+        below?: ReadonlyMap<string, Access>,
     ): Promise<Admission> {
         const access = await this.in(scope);
 
-        return this.authorizer.checkRows(this.snapshot, permission, access, rows, reader);
+        return this.authorizer.checkRows(this.snapshot, permission, access, rows, reader, below);
+    }
+
+    /**
+     * Resolve the caller's access in scopes another scope encloses, in reads shared by all of them.
+     *
+     * A scope it does not enclose is left out, and a credential pinned to the enclosing scope is refused below it.
+     */
+    async descend(scope: string, below: readonly string[]): Promise<Map<string, Access>> {
+        // resolve the scopes not resolved before together
+        const known = this.#below.get(scope) ?? new Map<string, Access | undefined>();
+        this.#below.set(scope, known);
+        const missing = [...new Set(below)].filter((enclosed) => !known.has(enclosed));
+        if (missing.length > 0) {
+            const resolved = await (await this.in(scope)).descend(this.snapshot, missing);
+            for (const enclosed of missing) {
+                known.set(enclosed, resolved.get(enclosed));
+            }
+
+            // refuse a credential pinned to another scope in each enclosed scope
+            for (const enclosed of resolved.keys()) {
+                this.context(enclosed);
+            }
+        }
+
+        // keep the scopes the scope encloses
+        const enclosing = new Map<string, Access>();
+        for (const enclosed of below) {
+            const access = known.get(enclosed);
+            if (access !== undefined) {
+                enclosing.set(enclosed, access);
+            }
+        }
+
+        return enclosing;
     }
 
     /**

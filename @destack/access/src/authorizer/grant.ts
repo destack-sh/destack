@@ -91,6 +91,8 @@ export class GrantReader {
     readonly #snapshot: Snapshot;
     /** The objects of the rows' scope and every scope enclosing it, nearest first. */
     readonly #scopes: readonly ObjectReference[];
+    /** The chains of the scopes below that scope whose rows the reader also decides, by scope. */
+    readonly #chains = new Map<string, readonly ObjectReference[]>();
     /** The relationships of each object read so far, by object key. */
     readonly #read = new Map<string, Promise<RelationshipRow[]>>();
     /** The proper ancestors of each node read so far, by tree, scope and node. */
@@ -103,6 +105,14 @@ export class GrantReader {
         this.#authorizer = authorizer;
         this.#snapshot = snapshot;
         this.#scopes = scopes;
+    }
+
+    /** Decide the rows of a scope the reader's scope encloses by that scope's own chain, nearest first. */
+    cover(scopes: readonly ObjectReference[]): void {
+        const [nearest] = scopes;
+        if (nearest !== undefined) {
+            this.#chains.set(nearest.id, scopes);
+        }
     }
 
     /** Note an object a call creates and the relationships its creation writes. */
@@ -125,7 +135,7 @@ export class GrantReader {
         row: Readonly<Record<string, unknown>>,
         mapping: TableMapping,
     ): Promise<GrantTree> {
-        await this.#prefetch(mapping, TableMapping.scope(mapping, row), [row]);
+        await this.#prefetch(mapping, [row]);
 
         return any(await this.#bound(undefined, mapping, row, { arrows: [], path: ["ownership"] }));
     }
@@ -140,12 +150,8 @@ export class GrantReader {
         rows: readonly Readonly<Record<string, unknown>>[],
         mapping = this.#authorizer.mapping(permission),
     ): Promise<GrantTree[]> {
-        // read the rows' relationships and ancestry in bulk per scope
-        for (const [scope, within] of Map.groupBy(rows, (row) =>
-            TableMapping.scope(mapping, row),
-        )) {
-            await this.#prefetch(mapping, scope, within);
-        }
+        // read the rows' relationships and ancestry in bulk
+        await this.#prefetch(mapping, rows);
 
         // collect each row's tree, through the permission's expression on rows of its own type
         const isOwn = mapping.policy === this.#authorizer.policy(permission);
@@ -160,29 +166,12 @@ export class GrantReader {
         );
     }
 
-    /** Read the relationships of a scope's rows and of their tree ancestors with one query per chunk. */
+    /** Read the relationships of some rows, of their tree ancestors and of their scope chains with one query per chunk. */
     async #prefetch(
         mapping: TableMapping,
-        scope: string,
         rows: readonly Readonly<Record<string, unknown>>[],
     ): Promise<void> {
-        // read the ancestry of the rows in every tree of their type
-        const ids = rows.map((row) => String(row[mapping.id]));
-        const ancestors = new Set<string>();
-        for (const [relation, tree] of Object.entries(mapping.trees ?? {})) {
-            const found = new Map<string, string[]>(ids.map((id) => [id, []]));
-            for (const chunk of chunks(ids)) {
-                for (const entry of await tree.ancestry(this.#snapshot, scope, chunk)) {
-                    found.get(String(entry.descendant))!.push(String(entry.ancestor));
-                    ancestors.add(String(entry.ancestor));
-                }
-            }
-            for (const [id, above] of found) {
-                this.#ancestry.set(ancestryKey(relation, scope, id), Promise.resolve(above));
-            }
-        }
-
-        // read in one query the relationships of the rows, their ancestors, and the scope chain
+        // read the ancestry of each scope's rows in every tree of their type
         const definition = mapping.policy.definition;
         const typed = (id: string, within: string): ObjectReference => ({
             packageId: definition.packageId,
@@ -190,9 +179,33 @@ export class GrantReader {
             scope: within,
             id,
         });
+        const reached: ObjectReference[] = [];
+        for (const [scope, within] of Map.groupBy(rows, (row) =>
+            TableMapping.scope(mapping, row),
+        )) {
+            const ids = within.map((row) => String(row[mapping.id]));
+            const ancestors = new Set<string>();
+            for (const [relation, tree] of Object.entries(mapping.trees ?? {})) {
+                const found = new Map<string, string[]>(ids.map((id) => [id, []]));
+                for (const chunk of chunks(ids)) {
+                    for (const entry of await tree.ancestry(this.#snapshot, scope, chunk)) {
+                        found.get(String(entry.descendant))!.push(String(entry.ancestor));
+                        ancestors.add(String(entry.ancestor));
+                    }
+                }
+                for (const [id, above] of found) {
+                    this.#ancestry.set(ancestryKey(relation, scope, id), Promise.resolve(above));
+                }
+            }
+            reached.push(
+                ...[...new Set([...ids, ...ancestors])].map((id) => typed(id, scope)),
+                ...this.#chain(scope),
+            );
+        }
+
+        // read in one query the relationships of the rows, their ancestors, and their scope chains
         const objects = [
-            ...[...new Set([...ids, ...ancestors])].map((id) => typed(id, scope)),
-            ...this.#scopes,
+            ...new Map(reached.map((object) => [objectKey(object), object])).values(),
         ].filter((object) => !this.#read.has(objectKey(object)));
         const found = new Map<string, RelationshipRow[]>(
             objects.map((object) => [objectKey(object), []]),
@@ -472,7 +485,7 @@ export class GrantReader {
     ): Promise<Grant[]> {
         const bindings = [
             ...(await this.#covering(mapping, row)),
-            ...(await this.#scopeBindings()),
+            ...(await this.#scopeBindings(TableMapping.scope(mapping, row))),
         ];
 
         return bindings.map((entry) => ({
@@ -537,13 +550,18 @@ export class GrantReader {
         }
     }
 
-    /** Read the role bindings on the objects of the scope chain. */
-    async #scopeBindings(): Promise<RelationshipRow[]> {
+    /** Read the role bindings on the objects of a scope's chain. */
+    async #scopeBindings(scope: string): Promise<RelationshipRow[]> {
         const bindings = await Promise.all(
-            this.#scopes.map((object) => this.#relationships(object)),
+            this.#chain(scope).map((object) => this.#relationships(object)),
         );
 
         return bindings.flat().filter((entry) => entry.roleId !== null);
+    }
+
+    /** Read the chain deciding a scope's rows: its own when covered, the reader's otherwise. */
+    #chain(scope: string): readonly ObjectReference[] {
+        return this.#chains.get(scope) ?? this.#scopes;
     }
 
     /** Read the relationships on the object a mapped row is. */
