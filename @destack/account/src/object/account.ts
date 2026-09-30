@@ -1,4 +1,13 @@
-import { principal, relation, union, type Creation } from "@destack/access";
+import {
+    condition,
+    intersection,
+    principal,
+    relation,
+    through,
+    union,
+    type Creation,
+} from "@destack/access";
+import { Condition } from "@destack/db/query";
 import { Scope, type ObjectReference } from "@destack/sync";
 import { Snapshot } from "@destack/db/log";
 import { check, dialectSQL, index, sql, unique, uniqueIndex, type Select } from "@destack/db";
@@ -24,20 +33,33 @@ export const account = defineObject({
         /** The display name. */
         name: field.string(schema.string().min(1).max(200)),
         /** The residency new spaces take. */
-        defaultResidency: field.enum(RESIDENCIES),
+        defaultResidency: field.enum(RESIDENCIES).guard({ read: "use" }),
         /** Whether the account is its user's own or shared. */
         kind: field.enum(["personal", "shared"]).default("shared"),
 
         // the account-wide policies, held in the region administering them
         /** The package admission policy every space of the account inherits. */
-        packagePolicyId: field.string(identifier("package-policy")).optional(),
+        packagePolicyId: field
+            .string(identifier("package-policy"))
+            .optional()
+            .guard({ read: "use" }),
         /** The region holding the package policy. */
-        packagePolicyRegion: field.reference(region, { delete: "restrict" }).optional(),
+        packagePolicyRegion: field
+            .reference(region, { delete: "restrict" })
+            .optional()
+            .guard({ read: "use" }),
         /** The network policy every space of the account inherits. */
-        networkPolicyId: field.string(identifier("network-policy")).optional(),
+        networkPolicyId: field
+            .string(identifier("network-policy"))
+            .optional()
+            .guard({ read: "use" }),
         /** The region holding the network policy. */
-        networkPolicyRegion: field.reference(region, { delete: "restrict" }).optional(),
+        networkPolicyRegion: field
+            .reference(region, { delete: "restrict" })
+            .optional()
+            .guard({ read: "use" }),
     },
+    attributes: { kind: "string" },
     recoverable: { within: { days: 30 }, by: "delete" },
     relations: {
         root: { subjects: [user, organisation.members("owner")], grantedBy: "own" },
@@ -45,7 +67,14 @@ export const account = defineObject({
         host: { subjects: [principal.host.all()], grantedBy: null },
     },
     permissions: {
-        read: union(relation("root"), relation("member"), relation("host")),
+        read: union(
+            relation("root"),
+            relation("member"),
+            relation("host"),
+            intersection(condition(Condition.eq("kind", "personal")), through("user", "read")),
+        ),
+        use: union(relation("root"), relation("member"), relation("host")),
+        replicate: relation("host"),
         update: relation("root"),
         delete: relation("root"),
         share: relation("root"),
@@ -54,7 +83,7 @@ export const account = defineObject({
         verify: relation("root"),
     },
     shareable: { by: "share" },
-    reserved: ["own"],
+    reserved: ["own", "replicate"],
     elevated: { delete: sudo, own: sudo, impersonate: sudo },
     methods: {
         get: method.get("read"),

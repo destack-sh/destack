@@ -1,4 +1,4 @@
-import { principal, relation } from "@destack/access";
+import { principal, relation, union } from "@destack/access";
 import { unique, type Select } from "@destack/db";
 import { defineObject, field, method } from "@destack/object";
 import { defineSchema, identifier, schema } from "@destack/schema";
@@ -41,33 +41,34 @@ export const user = defineObject({
         /** The display name. */
         name: field.string(schema.string().max(200)),
         /** The primary email address, unique across users. */
-        email: field.string(),
+        email: field.string().guard({ read: "update" }),
         /** Whether the user proved control of the email address. */
-        emailVerified: field.boolean().default(false),
+        emailVerified: field.boolean().default(false).guard({ read: "update" }),
         /** The profile image URL. */
         image: field.string().optional(),
         /** The login the sign-in provider knows the user by. */
-        login: field.string().optional(),
+        login: field.string().optional().guard({ read: "update" }),
         /** The language and region the user reads, the OpenID Connect locale claim. */
-        locale: field.string(Locale).optional(),
+        locale: field.string(Locale).optional().guard({ read: "update" }),
         /** The time zone the user lives in, the OpenID Connect zoneinfo claim. */
-        timeZone: field.string(TimeZone).optional(),
+        timeZone: field.string(TimeZone).optional().guard({ read: "update" }),
         /** The jurisdiction the user's home space keeps their data in, chosen with their handle. */
-        residency: field.enum(RESIDENCIES).optional(),
+        residency: field.enum(RESIDENCIES).optional().guard({ read: "update" }),
         /** The user's home space. */
-        home: field.string(identifier("space")).optional(),
+        home: field.string(identifier("space")).optional().guard({ read: "update" }),
         /** Whether sign-in requires a second factor. */
-        twoFactorEnabled: field.boolean().default(false),
+        twoFactorEnabled: field.boolean().default(false).guard({ read: "update" }),
         /** When the platform suspended the user, in UTC epoch milliseconds. */
-        suspendedAt: field.time().optional(),
+        suspendedAt: field.time().optional().guard({ read: "update" }),
     },
     recoverable: { within: { days: 30 }, by: "delete" },
     relations: {
         self: { subjects: [principal.user] },
         delegate: { subjects: [principal.user], grantedBy: "lend" },
+        joined: { subjects: [principal.space], grantedBy: null },
     },
     permissions: {
-        read: relation("self"),
+        read: union(relation("self"), relation("joined")),
         update: relation("self"),
         lend: relation("self"),
         impersonate: relation("delegate"),
@@ -77,6 +78,7 @@ export const user = defineObject({
     elevated: { lend: sudo, impersonate: sudo, delete: sudo },
     methods: {
         get: method.get("read"),
+        list: method.list("read"),
         update: method.update("update", {
             fields: ["name", "image", "locale", "timeZone", "residency"],
         }),

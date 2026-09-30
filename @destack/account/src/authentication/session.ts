@@ -212,7 +212,13 @@ export class ActiveSession {
             throw new APIError("UNAUTHORIZED", { message: "session is no longer authorized" });
         }
 
-        return new ActiveSession(active);
+        // require the user's private fields, which the user's home database always has
+        const { twoFactorEnabled, email, emailVerified } = active;
+        if (twoFactorEnabled === null || email === null || emailVerified === null) {
+            throw new TypeError(`user ${active.userId} has its private fields concealed`);
+        }
+
+        return new ActiveSession({ ...active, twoFactorEnabled, email, emailVerified });
     }
 
     /** Hold a session Better Auth resolved after the session guard found it active. */

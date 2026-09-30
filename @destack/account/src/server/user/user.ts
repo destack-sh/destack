@@ -52,6 +52,9 @@ async function update(call: UserCall, next: (call?: UserCall) => Promise<unknown
 async function suggestHandle(call: UserCall): Promise<{ handle: string }> {
     // make the stem a valid handle
     const target = call.target as User;
+    if (target.email === null) {
+        throw new TypeError(`user ${target.id} has its email concealed`);
+    }
     const from = target.login ?? target.email.split("@")[0]!;
     const stem =
         from
