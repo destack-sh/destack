@@ -7,15 +7,13 @@ export const AuditActionName = defineSchema(
     schema.string().regex(/^[A-Z][A-Za-z0-9]*(?:\.[A-Z][A-Za-z0-9]*)*\.[a-z][A-Za-z0-9]*$/),
 );
 
-/** A reference to a versioned action of a package. */
+/** A reference to an action of a package release, whose schemas read its targets and details. */
 export const AuditActionReference = defineSchema(
     schema.object({
-        /** The declaring package. */
+        /** The declaring package at the release that recorded the event. */
         package: Package,
         /** The package-local Noun.verb action name. */
         name: AuditActionName,
-        /** The version of the targets and details schemas. */
-        version: schema.number().int().positive(),
     }),
 );
 /** A serializable action declaration reference. */
@@ -30,8 +28,6 @@ export interface AuditAction<
     readonly package: Package;
     /** The package-local Noun.verb action name. */
     readonly name: string;
-    /** The version of the targets and details schemas. */
-    readonly version: number;
     /** A short description for inspection. */
     readonly description?: string;
     /** Named affected objects. */
@@ -48,9 +44,8 @@ export function defineAuditAction<
     definition: Omit<AuditAction<Targets, Details>, "package">,
     module?: ModuleMetadata,
 ): AuditAction<Targets, Details> {
-    // validate the action name and schema version
+    // validate the action name
     AuditActionName.parse(definition.name);
-    schema.number().int().positive().parse(definition.version);
 
     return Object.freeze({
         ...definition,

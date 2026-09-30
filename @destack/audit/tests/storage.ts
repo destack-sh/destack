@@ -13,7 +13,6 @@ import { accessTables } from "@destack/access";
 export const renameDocument = defineAuditAction(
     {
         name: "Document.rename",
-        version: 1,
         targets: schema.object({
             document: schema.object({ type: schema.literal("document"), id: schema.string() }),
         }),

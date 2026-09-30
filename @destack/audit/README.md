@@ -11,7 +11,6 @@ import { defineAuditAction } from "@destack/audit";
 
 export const renameNote = defineAuditAction({
     name: "Note.rename",
-    version: 1,
     targets: schema.object({ note: schema.object({ type: schema.literal("note"), id: schema.string() }) }),
     details: schema.object({ title: schema.string() }),
 });

@@ -36,7 +36,7 @@ export const AuditEvent = defineSchema(
         id: identifier("audit-event"),
         /** The attempt this result completes. */
         attemptId: identifier("audit-event").optional(),
-        /** The versioned action. */
+        /** The action and the package release recording it. */
         action: AuditActionReference,
         /** A committed write, a read of data, or a refused call. */
         category: schema.enum(["activity", "access", "denial"]),

@@ -43,7 +43,6 @@ const account = new Policy(
 const publishDocument = defineAuditAction(
     {
         name: "Document.publish",
-        version: 1,
         targets: schema.object({
             document: schema.object({ type: schema.literal("document"), id: schema.string() }),
         }),

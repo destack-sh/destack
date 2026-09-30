@@ -9,8 +9,6 @@ export const AuditActionDescription = defineSchema(
         name: AuditActionName,
         /** The declaring package. */
         package: Package,
-        /** The version of the targets and details schemas. */
-        version: schema.number().int().positive(),
         /** A short description. */
         description: schema.string().optional(),
         /** The JSON Schema of the named affected objects. */
@@ -27,7 +25,6 @@ export function describeAuditAction(action: AuditAction): AuditActionDescription
     return AuditActionDescription.parse({
         name: action.name,
         package: action.package,
-        version: action.version,
         description: action.description,
         targets: toJsonSchema(action.targets),
         details: toJsonSchema(action.details),

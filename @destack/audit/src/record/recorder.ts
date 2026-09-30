@@ -338,7 +338,7 @@ export class AuditRecorder<Transaction = never> {
     ): AuditEvent {
         return AuditEvent.parse({
             id: `audit-event-${v7()}`,
-            action: { name: action.name, package: action.package, version: action.version },
+            action: { name: action.name, package: action.package },
             category,
             occurredAt: Date.now(),
             context: this.#context,

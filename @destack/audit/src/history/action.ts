@@ -11,7 +11,6 @@ const historyDetails = schema.object({});
 /** Export audit history. */
 export const auditExport = defineAuditAction({
     name: "Audit.export",
-    version: 1,
     targets: historyTarget,
     details: historyDetails,
 });
@@ -19,7 +18,6 @@ export const auditExport = defineAuditAction({
 /** Prune audit history. */
 export const auditPrune = defineAuditAction({
     name: "Audit.prune",
-    version: 1,
     targets: historyTarget,
     details: historyDetails,
 });

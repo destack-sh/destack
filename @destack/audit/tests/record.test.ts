@@ -127,7 +127,6 @@ test("leave sensitive values out of attempt and read details", async () => {
         const signIn = defineAuditAction(
             {
                 name: "Account.signIn",
-                version: 1,
                 targets: renameDocument.targets,
                 details: schema.object({
                     method: schema.string(),
