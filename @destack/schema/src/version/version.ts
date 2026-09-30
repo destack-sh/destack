@@ -26,6 +26,20 @@ export const Version = Object.assign(defineSchema(z.string().regex(VERSION)), {
             .sort(Version.compare);
     },
 
+    /** Refuse keys that are no releases, or releases after the declaring one, such as a declaration's conversions. */
+    requireUpTo(keyed: Readonly<Record<string, unknown>>, release: string, name: string): void {
+        for (const key of Object.keys(keyed)) {
+            // refuse a key that is no release, then one after the declaring release
+            if (!Version.safeParse(key).success) {
+                throw new TypeError(`conversion key of ${name} is no release: ${key}`);
+            } else if (Version.compare(key, release) > 0) {
+                throw new TypeError(
+                    `conversion of ${name} is keyed by ${key}, after its release ${release}`,
+                );
+            }
+        }
+    },
+
     /** Read the year, month, release, stable flag and nightly sequence of a version. */
     components(version: string): readonly number[] {
         // read the calendar numbers and the nightly sequence
