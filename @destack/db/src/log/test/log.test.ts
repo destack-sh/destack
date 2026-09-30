@@ -342,31 +342,34 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
 );
 
 test.for(TEST_DIALECTS)(
-    "keep the changes after a consumer's hold until it expires or is released on %s",
+    "keep the changes after a consumer's slot until it expires or is dropped, and read its position on %s",
     async (dialect) => {
         const { database } = await open(dialect);
         await database.insert(note).values(first);
-        const held = (await database.log.position()).sequence;
+        const kept = (await database.log.position()).sequence;
         await database.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
 
-        // keep the changes after the hold while it lasts
+        // keep the changes after the slot while it lasts
         const now = Date.now();
-        await database.log.hold("subscription", held, now + 60_000);
+        await database.log.advance("subscription", kept, now + 60_000);
+        expect([await database.log.slot("subscription"), await database.log.slot("other")]).toEqual(
+            [kept, undefined],
+        );
         await database.log.compact(now + 1, now);
         expect(
-            (await database.log.read({ tables: [note], after: held })).changes.map(
+            (await database.log.read({ tables: [note], after: kept })).changes.map(
                 (change) => change.operation,
             ),
         ).toEqual(["update"]);
 
-        // compact past an expired and a released hold
+        // compact past an expired and a dropped slot
         await database.log.compact(now + 1, now + 120_000);
-        await expect(database.log.read({ tables: [note], after: held })).rejects.toMatchObject({
+        await expect(database.log.read({ tables: [note], after: kept })).rejects.toMatchObject({
             code: "CHANGES_COMPACTED",
         });
-        await database.log.release("subscription");
+        await database.log.drop("subscription");
         expect(
-            await database.execute(sql`SELECT name FROM ${sql.identifier("__destack_log_hold")}`),
+            await database.execute(sql`SELECT name FROM ${sql.identifier("__destack_log_slot")}`),
         ).toEqual([]);
     },
 );

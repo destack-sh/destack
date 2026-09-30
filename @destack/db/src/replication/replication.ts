@@ -42,7 +42,7 @@ const CHUNK_ROWS = 1000;
  *
  * A pass over 1 GB at about 100 MB/s fits well within an hour.
  */
-const HOLD_MILLISECONDS = 3_600_000;
+const SLOT_MILLISECONDS = 3_600_000;
 
 /** The column builder of each logical kind. */
 const COLUMNS: Readonly<Record<ColumnDescription["kind"], (name: string) => ColumnBuilder<any>>> = {
@@ -316,9 +316,9 @@ export class Replication {
         const changes = this.#steps.findIndex((step) => step.kind === "changes");
         const end = stage === "live" ? changes : this.#steps.length - 1;
 
-        // read each step and hold the log meanwhile
+        // read each step, advancing the replication's slot meanwhile
         while (cursor.step <= end && !signal.aborted) {
-            await database.log.hold(name, cursor.sequence, Date.now() + HOLD_MILLISECONDS);
+            await database.log.advance(name, cursor.sequence, Date.now() + SLOT_MILLISECONDS);
             const step: Step = this.#steps[cursor.step]!;
 
             // read the changes until caught up

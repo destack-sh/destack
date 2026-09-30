@@ -137,8 +137,8 @@ const selection = { tables: [note], scopes: [spaceId], after: position.sequence 
 for await (const page of database.log.follow(selection, signal)) {
     apply(page.changes);
 }
-await database.log.hold("notes/published", consumed, Date.now() + maxLag);
-await database.log.release("notes/published");
+await database.log.advance("notes/published", consumed, Date.now() + maxLag);
+await database.log.drop("notes/published");
 ```
 
 ## Snapshots

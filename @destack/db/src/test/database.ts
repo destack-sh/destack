@@ -11,7 +11,7 @@ import { declareState } from "../migration/state.ts";
 import * as sqlite from "../sqlite/bun/connection.ts";
 import * as postgresql from "../postgres/connection.ts";
 import { PostgresDatabase } from "../postgres/database.ts";
-import { LOG_EPOCH } from "../log/schema.ts";
+import { LOG_EPOCH, LOG_TABLES } from "../log/schema.ts";
 import { relayNotifier } from "../log/notifier.ts";
 import { relayHub } from "./relay.ts";
 import { readState, STATE, type TableState } from "../migration/state.ts";
@@ -184,18 +184,18 @@ export interface TestDatabaseOptions {
 }
 
 /**
- * The PostgreSQL server of one test process, holding the migrated schemas it claimed until the process exits.
+ * The PostgreSQL server of one test process, keeping the migrated schemas it claimed until the process exits.
  *
- * The administration connection holds every claim's advisory lock, so the server releases them when the process ends.
+ * The administration connection takes every claim's advisory lock, so the server releases them when the process ends.
  */
 class TestServer {
     /** The server address. */
     readonly address: string;
-    /** The one connection that manages schemas and holds their claims. */
+    /** The one connection that manages schemas and locks their claims. */
     readonly administration: postgres.Sql;
-    /** The schema names this process holds, including claims still verifying. */
-    readonly #held = new Set<string>();
-    /** The adopted schemas this process holds, idle or in use. */
+    /** The schema names this process locked, including claims still verifying. */
+    readonly #locked = new Set<string>();
+    /** The adopted schemas this process locked, idle or in use. */
     readonly #schemas: TestSchema[] = [];
 
     /** Create the server of a connection. */
@@ -220,7 +220,7 @@ class TestServer {
             ORDER BY coalesce(obj_description(oid, 'pg_namespace'), '0')::bigint
             LIMIT ${EXPIRED_SCHEMA_DROPS}`;
         for (const { name } of schemas) {
-            if (await server.#holdListed(name)) {
+            if (await server.#lockListed(name)) {
                 await server.#drop(name, []);
             }
         }
@@ -248,8 +248,8 @@ class TestServer {
         );
         const prefix = `test_s${digest.subarray(0, 8).toHex()}_`;
 
-        // reuse an idle schema this process holds unless a test changed its shape
-        for (const schema of this.#schemas.filter((held) => held.name.startsWith(prefix))) {
+        // reuse an idle schema this process locked unless a test changed its shape
+        for (const schema of this.#schemas.filter((locked) => locked.name.startsWith(prefix))) {
             if (schema.isIdle) {
                 schema.isIdle = false;
                 const shape = await this.#readShape(schema.name);
@@ -267,7 +267,7 @@ class TestServer {
         const listed = await this.administration<{ name: string }[]>`
             SELECT nspname AS name FROM pg_namespace WHERE starts_with(nspname, ${prefix})`;
         for (const { name } of listed) {
-            if (!this.#held.has(name) && (await this.#holdListed(name))) {
+            if (!this.#locked.has(name) && (await this.#lockListed(name))) {
                 const schema = await this.#verify(name, state, tables);
                 if (schema !== undefined) {
                     await this.#reset(schema);
@@ -279,7 +279,7 @@ class TestServer {
 
         // create a new schema with its claim time
         const name = `${prefix}${crypto.randomUUID().replaceAll("-", "")}`;
-        await this.#hold(name);
+        await this.#lock(name);
         await this.administration.unsafe(
             `CREATE SCHEMA "${name}"; COMMENT ON SCHEMA "${name}" IS '${Date.now()}';`,
         );
@@ -294,21 +294,21 @@ class TestServer {
     }
 
     /** Take a schema's advisory lock, registered before it is awaited, reporting whether it was free. */
-    async #hold(schema: string): Promise<boolean> {
+    async #lock(schema: string): Promise<boolean> {
         // register the name so concurrent claims of this session skip it
-        this.#held.add(schema);
-        const [held] = await this.administration<{ isHeld: boolean }[]>`
-            SELECT pg_try_advisory_lock(hashtext(${schema})) AS "isHeld"`;
-        if (!held!.isHeld) {
-            this.#held.delete(schema);
+        this.#locked.add(schema);
+        const [locked] = await this.administration<{ isLocked: boolean }[]>`
+            SELECT pg_try_advisory_lock(hashtext(${schema})) AS "isLocked"`;
+        if (!locked!.isLocked) {
+            this.#locked.delete(schema);
         }
 
-        return held!.isHeld;
+        return locked!.isLocked;
     }
 
     /** Take a listed schema's advisory lock, reporting whether it was free and the schema still exists. */
-    async #holdListed(schema: string): Promise<boolean> {
-        if (!(await this.#hold(schema))) {
+    async #lockListed(schema: string): Promise<boolean> {
+        if (!(await this.#lock(schema))) {
             return false;
         }
 
@@ -317,14 +317,14 @@ class TestServer {
             SELECT to_regnamespace(${schema}) IS NOT NULL AS "isPresent"`;
         if (!found!.isPresent) {
             await this.administration`SELECT pg_advisory_unlock(hashtext(${schema}))`;
-            this.#held.delete(schema);
+            this.#locked.delete(schema);
         }
 
         return found!.isPresent;
     }
 
     /**
-     * Adopt a newly held schema that migrates to nothing, or drop it.
+     * Adopt a newly locked schema that migrates to nothing, or drop it.
      *
      * A schema without state, without a log, with foreign tables or with a pending plan is dropped.
      */
@@ -344,7 +344,7 @@ class TestServer {
             : undefined;
         const isUsable =
             managed !== undefined &&
-            names.includes(LOG_EPOCH) &&
+            LOG_TABLES.every((table) => names.includes(table)) &&
             names.every((table) => managed.has(table) || table.startsWith("__destack_"));
 
         // adopt the schema only with an empty plan
@@ -362,7 +362,7 @@ class TestServer {
         return await this.#adopt(name, pools);
     }
 
-    /** Record a held schema's shape and keep it with its pools. */
+    /** Record a locked schema's shape and keep it with its pools. */
     async #adopt(name: string, pools: postgres.Sql[]): Promise<TestSchema> {
         const schema = new TestSchema(this, name, await this.#readShape(name), pools);
         this.#schemas.push(schema);
@@ -407,7 +407,7 @@ class TestServer {
             ORDER BY c.relname`;
     }
 
-    /** Drop a held schema, close its pools and release its claim. */
+    /** Drop a locked schema, close its pools and release its claim. */
     async #drop(name: string, pools: readonly postgres.Sql[]): Promise<void> {
         // close the pools before the schema goes
         await Promise.all(pools.map((pool) => pool.end()));
@@ -415,7 +415,7 @@ class TestServer {
         // drop the schema, then release its lock
         await this.administration.unsafe(`DROP SCHEMA "${name}" CASCADE`);
         await this.administration`SELECT pg_advisory_unlock(hashtext(${name}))`;
-        this.#held.delete(name);
+        this.#locked.delete(name);
     }
 }
 

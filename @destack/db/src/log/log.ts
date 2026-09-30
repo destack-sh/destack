@@ -6,7 +6,7 @@ import type { DatabaseConnection } from "../database/connection.ts";
 import { TABLE, type Select, type Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever, DatabaseError } from "../error/error.ts";
-import { LOG_EPOCH, LOG_HOLD, LOG_HORIZON, LOG_COPYING, LOG, LOG_TRANSACTION } from "./schema.ts";
+import { LOG_EPOCH, LOG_SLOT, LOG_HORIZON, LOG_COPYING, LOG, LOG_TRANSACTION } from "./schema.ts";
 import { latestOf, selectHead, type LogPosition } from "./position.ts";
 import { Snapshot, type Rewind } from "./snapshot.ts";
 import type { Row } from "../table/row.ts";
@@ -81,7 +81,7 @@ export interface ChangeSelection<Definition extends Table> {
     readonly tables: readonly Definition[];
     /** The consumed sequence, zero for the start. */
     readonly after: number;
-    /** The most changes a page holds before completing its last transaction. */
+    /** The most changes a page carries before completing its last transaction. */
     readonly limit?: number;
     /** The scopes to read. */
     readonly scopes?: readonly string[];
@@ -121,7 +121,7 @@ const COLUMNS = new WeakMap<Table, unknown[]>();
 
 /** The committed changes of one database, in commit order. */
 export class Log {
-    /** The database holding the log. */
+    /** The database keeping the log. */
     readonly database: DatabaseConnection;
 
     /** Create the log of a database. */
@@ -373,7 +373,7 @@ export class Log {
         );
     }
 
-    /** Wait until the log holds a sequence, returning false once the signal aborts. */
+    /** Wait until the log reaches a sequence, returning false once the signal aborts. */
     async wait(sequence: number, signal: AbortSignal): Promise<boolean> {
         // wait on the connection
         if (this.database.driver.transaction) {
@@ -383,7 +383,7 @@ export class Log {
         return this.until(async () => (await this.position()).sequence >= sequence, signal);
     }
 
-    /** Wait until a check holds after a commit, returning false once the signal aborts. */
+    /** Wait until a check passes after a commit, returning false once the signal aborts. */
     until(check: () => Promise<boolean>, signal: AbortSignal): Promise<boolean> {
         return this.database.state.commits.until(check, signal);
     }
@@ -406,24 +406,33 @@ export class Log {
         }
     }
 
-    /** Keep the changes after a position for a consumer until a time. */
-    async hold(name: string, sequence: number, expiresAt: number): Promise<void> {
-        const hold = sql.identifier(LOG_HOLD);
+    /** Move a consumer's slot to a position, keeping the changes after it until a time, as a PostgreSQL replication slot keeps its WAL. */
+    async advance(slot: string, sequence: number, expiresAt: number): Promise<void> {
+        const table = sql.identifier(LOG_SLOT);
         await this.database.execute(sql`
-            INSERT INTO ${hold} (name, sequence, expires_at)
-            VALUES (${name}, ${sequence}, ${expiresAt})
+            INSERT INTO ${table} (name, sequence, expires_at)
+            VALUES (${slot}, ${sequence}, ${expiresAt})
             ON CONFLICT (name) DO UPDATE SET sequence = excluded.sequence, expires_at = excluded.expires_at
         `);
     }
 
-    /** Stop keeping changes for a consumer. */
-    async release(name: string): Promise<void> {
+    /** Read the position of a consumer's slot, absent without one. */
+    async slot(slot: string): Promise<number | undefined> {
+        const [row] = await this.database.execute<{ sequence: number | string }>(
+            sql`SELECT sequence FROM ${sql.identifier(LOG_SLOT)} WHERE name = ${slot}`,
+        );
+
+        return row === undefined ? undefined : Number(row.sequence);
+    }
+
+    /** Drop a consumer's slot, keeping no more changes for it. */
+    async drop(slot: string): Promise<void> {
         await this.database.execute(
-            sql`DELETE FROM ${sql.identifier(LOG_HOLD)} WHERE name = ${name}`,
+            sql`DELETE FROM ${sql.identifier(LOG_SLOT)} WHERE name = ${slot}`,
         );
     }
 
-    /** Delete old windowed changes no hold keeps, and advance the horizon. */
+    /** Delete old windowed changes no slot keeps, and advance the horizon. */
     async compact(before: number, now = Date.now()): Promise<void> {
         await this.database.transaction(async (transaction) => {
             // find the newest removable change
@@ -439,20 +448,20 @@ export class Log {
                 return;
             }
 
-            // keep the held changes
-            const [held] = await transaction.execute<{
+            // keep the changes slots keep
+            const [kept] = await transaction.execute<{
                 sequence: number | string | null;
                 horizon: number | string | null;
             }>(sql`
                 SELECT
-                    (SELECT min(sequence) FROM ${sql.identifier(LOG_HOLD)} WHERE expires_at > ${now}) AS sequence,
+                    (SELECT min(sequence) FROM ${sql.identifier(LOG_SLOT)} WHERE expires_at > ${now}) AS sequence,
                     (SELECT sequence FROM ${sql.identifier(LOG_HORIZON)} WHERE slot = 1) AS horizon
             `);
             const cap =
-                held?.sequence === null || held?.sequence === undefined
+                kept?.sequence === null || kept?.sequence === undefined
                     ? Number(newest.sequence)
-                    : Math.min(Number(newest.sequence), Number(held.sequence));
-            if (cap <= Number(held?.horizon ?? 0)) {
+                    : Math.min(Number(newest.sequence), Number(kept.sequence));
+            if (cap <= Number(kept?.horizon ?? 0)) {
                 return;
             }
 

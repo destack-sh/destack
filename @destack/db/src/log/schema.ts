@@ -11,8 +11,8 @@ export const LOG = "__destack_log";
 /** The SQL name of the highest compacted change sequence. */
 export const LOG_HORIZON = "__destack_log_horizon";
 
-/** The SQL name of the consumers' held positions. */
-export const LOG_HOLD = "__destack_log_hold";
+/** The SQL name of the consumers' slots: each one's position, and when it stops keeping changes. */
+export const LOG_SLOT = "__destack_log_slot";
 
 /** The SQL name of the log's epoch. */
 export const LOG_EPOCH = "__destack_log_epoch";
@@ -25,6 +25,16 @@ export const LOG_TRANSACTION = "__destack_log_transaction";
 
 /** The PostgreSQL notification channel of logged commits. */
 export const LOG_CHANNEL = "destack_log";
+
+/** The SQL names of every table the log keeps. */
+export const LOG_TABLES = [
+    LOG,
+    LOG_HORIZON,
+    LOG_SLOT,
+    LOG_EPOCH,
+    LOG_COPYING,
+    LOG_TRANSACTION,
+] as const;
 
 /** Describe the columns a table's change triggers record, absent for unlogged tables. */
 export function describeLog(table: Table): ChangeDescription | undefined {
@@ -85,7 +95,7 @@ export function primaryKey(table: Table): readonly Column[] {
 /** Create the log's epoch once and keep existing state. */
 export function createEpoch(): readonly string[] {
     return [
-        `CREATE TABLE IF NOT EXISTS ${quote(LOG_HOLD)} (
+        `CREATE TABLE IF NOT EXISTS ${quote(LOG_SLOT)} (
             name TEXT PRIMARY KEY,
             sequence BIGINT NOT NULL,
             expires_at BIGINT NOT NULL
