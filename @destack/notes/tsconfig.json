@@ -1,5 +1,10 @@
 {
     "extends": "../../tsconfig.json",
-    "compilerOptions": { "lib": ["ESNext", "DOM", "DOM.Iterable"] },
-    "include": ["src/**/*.ts"]
+    "compilerOptions": {
+        "lib": ["ESNext", "DOM", "DOM.Iterable"],
+        "jsx": "preserve",
+        "jsxImportSource": "@destack/view",
+        "types": ["@destack/build/browser"]
+    },
+    "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "tests/**/*.tsx"]
 }
