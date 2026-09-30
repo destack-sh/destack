@@ -1,6 +1,12 @@
 /// <reference types="bun" />
 import type * as bun from "bun:sqlite";
-import { WorkQueue, type ConnectionClient, type QueryClient, type Statement } from "../client.ts";
+import {
+    Savepoint,
+    WorkQueue,
+    type ConnectionClient,
+    type QueryClient,
+    type Statement,
+} from "../client.ts";
 import { SqliteScript } from "../script.ts";
 
 /** The most prepared statement texts per connection: a service runs 400 to 600, at 2 to 10 KB each. */
@@ -99,6 +105,14 @@ export class BunQuery implements QueryClient<RunResult> {
                 this.database.run(statement);
             }
         });
+    }
+
+    /** Run work in a savepoint at a depth. */
+    nest<Value>(
+        depth: number,
+        operation: (client: QueryClient<RunResult>) => Promise<Value>,
+    ): Promise<Value> {
+        return Savepoint.run(this, depth, operation);
     }
 
     /** Run work behind the queue, or at once within a transaction. */

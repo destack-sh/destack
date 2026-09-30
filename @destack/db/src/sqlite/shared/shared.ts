@@ -6,7 +6,7 @@ import type { Relay } from "../../relay/relay.ts";
 import type { Table } from "../../table/table.ts";
 import { SqliteDatabase } from "../database.ts";
 import { DatabaseError } from "../../error/error.ts";
-import type { ConnectionClient, QueryClient, Statement } from "../client.ts";
+import { Savepoint, type ConnectionClient, type QueryClient, type Statement } from "../client.ts";
 
 /**
  * The idle timeout of a party's transaction at the owner, in milliseconds.
@@ -325,6 +325,14 @@ export class SharedQuery implements QueryClient<unknown> {
     /** Read the first row as a named object. */
     async get(sql: string, ...parameters: unknown[]): Promise<unknown> {
         return (await this.prepare(sql)).get(...parameters);
+    }
+
+    /** Run work in a savepoint the owner keeps, at a depth. */
+    nest<Value>(
+        depth: number,
+        operation: (client: QueryClient<unknown>) => Promise<Value>,
+    ): Promise<Value> {
+        return Savepoint.run(this, depth, operation);
     }
 
     /** Run a script. */

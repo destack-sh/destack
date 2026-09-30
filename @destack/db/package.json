@@ -21,7 +21,8 @@
         "./relay": "./src/relay/index.ts",
         "./shared": "./src/sqlite/shared/index.ts",
         "./sqlite": "./src/sqlite/index.ts",
-        "./wasm": "./src/sqlite/wasm/index.ts"
+        "./wasm": "./src/sqlite/wasm/index.ts",
+        "./durable-object": "./src/sqlite/durable-object/index.ts"
     },
     "imports": {
         "#connector": {
@@ -44,6 +45,8 @@
         "uuid": "14.0.2"
     },
     "devDependencies": {
-        "@destack/test": "workspace:*"
+        "@destack/test": "workspace:*",
+        "esbuild": "~0.28.1",
+        "miniflare": "4.20260730.0"
     }
 }

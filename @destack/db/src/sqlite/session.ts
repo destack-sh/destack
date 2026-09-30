@@ -1,4 +1,3 @@
-import { sql } from "drizzle-orm";
 import {
     SQLiteAsyncPreparedQuery,
     SQLiteAsyncSession,
@@ -172,35 +171,19 @@ export class TransactionSession<Result, Relations extends AnyRelations> extends 
         this.depth = depth;
     }
 
-    /** Run a nested transaction in a savepoint. */
+    /** Run a nested transaction through the client, which undoes only its writes when it fails. */
     async transaction<Value>(
         operation: (transaction: Transaction<Result, Relations>) => Promise<Value>,
     ): Promise<Value> {
-        const name = sql.identifier(`destack_savepoint_${this.depth}`);
-        await this.run(sql`SAVEPOINT ${name}`);
-        try {
+        return this.client.nest(this.depth, (client) => {
             const session = new TransactionSession(
-                this.client,
+                client,
                 this.relations,
                 this.options,
                 this.depth + 1,
             );
-            const result = await operation(
-                new Transaction("async", session.dialect, session, this.relations),
-            );
-            await this.run(sql`RELEASE SAVEPOINT ${name}`);
 
-            return result;
-        } catch (error) {
-            // keep both failures when the savepoint cannot be restored
-            try {
-                await this.run(sql`ROLLBACK TO SAVEPOINT ${name}`);
-                await this.run(sql`RELEASE SAVEPOINT ${name}`);
-            } catch (rollback) {
-                throw new AggregateError([error, rollback], "SQLite savepoint and rollback failed");
-            }
-
-            throw error;
-        }
+            return operation(new Transaction("async", session.dialect, session, this.relations));
+        });
     }
 }

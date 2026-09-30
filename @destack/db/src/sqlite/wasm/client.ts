@@ -1,5 +1,11 @@
 import init, { type Database, type SqlValue } from "@sqlite.org/sqlite-wasm";
-import { WorkQueue, type ConnectionClient, type QueryClient, type Statement } from "../client.ts";
+import {
+    Savepoint,
+    WorkQueue,
+    type ConnectionClient,
+    type QueryClient,
+    type Statement,
+} from "../client.ts";
 
 /** The result of running a statement. */
 export interface RunResult {
@@ -63,6 +69,14 @@ export class WasmQuery implements QueryClient<RunResult> {
     /** Run a script. */
     exec(script: string): Promise<unknown> {
         return this.#schedule(async () => this.database.exec(script));
+    }
+
+    /** Run work in a savepoint at a depth. */
+    nest<Value>(
+        depth: number,
+        operation: (client: QueryClient<RunResult>) => Promise<Value>,
+    ): Promise<Value> {
+        return Savepoint.run(this, depth, operation);
     }
 
     /** Run work behind the queue, or at once within a transaction. */

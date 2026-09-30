@@ -10,6 +10,11 @@ export interface QueryClient<Result> {
     get(statement: string, ...parameters: unknown[]): Promise<unknown>;
     /** Execute a script of statements without returning rows. */
     exec(script: string): Promise<unknown>;
+    /** Run work in a nested transaction at a depth, undoing only its writes when it fails. */
+    nest<Value>(
+        depth: number,
+        operation: (client: QueryClient<Result>) => Promise<Value>,
+    ): Promise<Value>;
 }
 
 /** A SQLite connection with dedicated transactions. */
@@ -54,3 +59,32 @@ export class WorkQueue {
         return result;
     }
 }
+
+/** Nested transactions as SQL savepoints, for clients that accept savepoint statements. */
+export const Savepoint = {
+    /** Run work in a savepoint at a depth, rolling back to it when the work fails. */
+    async run<Result, Value>(
+        client: QueryClient<Result>,
+        depth: number,
+        operation: (client: QueryClient<Result>) => Promise<Value>,
+    ): Promise<Value> {
+        const name = `"destack_savepoint_${depth}"`;
+        await client.run(`SAVEPOINT ${name}`);
+        try {
+            const result = await operation(client);
+            await client.run(`RELEASE SAVEPOINT ${name}`);
+
+            return result;
+        } catch (error) {
+            // keep both failures when the savepoint cannot be restored
+            try {
+                await client.run(`ROLLBACK TO SAVEPOINT ${name}`);
+                await client.run(`RELEASE SAVEPOINT ${name}`);
+            } catch (rollback) {
+                throw new AggregateError([error, rollback], "SQLite savepoint and rollback failed");
+            }
+
+            throw error;
+        }
+    },
+};
