@@ -1,5 +1,6 @@
 import { expect, test, onTestFinished } from "@destack/test";
-import { Condition, Expression } from "@destack/db/query";
+import { Condition } from "@destack/db/query";
+import { Expression } from "@destack/schema/expression";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { RequestId } from "@destack/service/request";
 import { Device, serveNotes, spaceId } from "./fixture/device.ts";

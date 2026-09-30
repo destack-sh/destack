@@ -9,7 +9,8 @@ import {
     type Select,
     type Table,
 } from "@destack/db";
-import { schema } from "@destack/schema";
+import { schema, Version } from "@destack/schema";
+import { Expression } from "@destack/schema/expression";
 import { ServiceError } from "@destack/service/error";
 import type * as sync from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
@@ -102,7 +103,7 @@ export class Call<Definition extends Table = Table> {
         }
     }
 
-    /** Record a call of an object's method. */
+    /** Record a call of an object's method, against the release of the object's package. */
     static record(
         object: ObjectType,
         name: string,
@@ -111,20 +112,37 @@ export class Call<Definition extends Table = Table> {
         return {
             method: `${object.name}.${name}`,
             input: schema.record(schema.string(), schema.json()).parse(input),
-            ...(object.version > 1 ? { version: object.version } : {}),
+            release: object.package.version,
         };
     }
 
-    /** Upcast a recorded call's input to the object type's current version. */
-    static upcast(object: ObjectType, name: string, call: sync.Call): Record<string, unknown> {
-        const from = call.version ?? 1;
-        if (from > object.version) {
+    /** Convert a recorded call's input of an earlier release to the object's release, dropping the fields a shape no longer declares. */
+    static upgrade(
+        object: ObjectType,
+        name: string,
+        call: sync.Call,
+        shape?: Readonly<Record<string, unknown>>,
+    ): Record<string, unknown> {
+        // refuse a call of a later release
+        const served = object.package.version;
+        if (Version.compare(call.release, served) > 0) {
             throw new ServiceError("BAD_REQUEST", {
-                message: `${call.method} was made against version ${from} of ${object.name}, which is at version ${object.version}`,
+                message: `${call.method} was made against release ${call.release} of ${object.name}, which is at ${served}`,
             });
         }
 
-        return from === object.version ? call.input : object.upcast!(name, call.input, from);
+        // keep a call of this release as it is
+        const conversions = object.conversions(name);
+        if (Version.between(Object.keys(conversions), call.release, served).length === 0) {
+            return call.input;
+        }
+
+        // assign each later release's fields, then drop the fields this release no longer declares
+        const converted = Expression.upgrade(conversions, call.input, call.release, served);
+
+        return shape === undefined
+            ? converted
+            : Object.fromEntries(Object.entries(converted).filter(([field]) => field in shape));
     }
 
     /** Read the identifier of the object a method returned. */

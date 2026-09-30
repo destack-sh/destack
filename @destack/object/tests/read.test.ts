@@ -17,7 +17,11 @@ test("read through methods that change nothing on the server, and refuse mutatio
     // refuse a mutation sent as a read
     const refused = alice.replica.call({
         scope: spaceId,
-        call: { method: "notebook.create", input: { spaceId, name: "Ideas" } },
+        call: {
+            method: "notebook.create",
+            release: notebook.package.version,
+            input: { spaceId, name: "Ideas" },
+        },
     });
     await expect(refused).rejects.toMatchObject({
         code: "BAD_REQUEST",

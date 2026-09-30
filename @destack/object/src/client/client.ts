@@ -23,9 +23,10 @@ import {
     TABLE,
     type Table,
 } from "@destack/db";
-import { Condition, Expression, Order, type Scalar } from "@destack/db/query";
+import { Condition, Order, type Scalar } from "@destack/db/query";
+import { Expression } from "@destack/schema/expression";
 import { DatabaseError } from "@destack/db/error";
-import { schema } from "@destack/schema";
+import { schema, type Version } from "@destack/schema";
 import { canonicalize, digest } from "@destack/schema/json";
 import type { Client } from "@destack/service";
 import { createClient, type ClientOptions } from "@destack/service/client";
@@ -1452,7 +1453,7 @@ export class ObjectClient {
             await transaction.transaction(async (savepoint) => {
                 for (const entry of pending.calls) {
                     const { object, name } = this.#method(entry.method);
-                    await this.#predict(savepoint, object, name, Call.upcast(object, name, entry));
+                    await this.#predict(savepoint, object, name, Call.upgrade(object, name, entry));
                 }
             });
         } catch (error) {
@@ -1483,7 +1484,7 @@ export class ObjectClient {
             created === undefined ? undefined : await this.#row(database, object, created);
         const step: StoredStep = {
             object: object.name,
-            version: object.version,
+            release: object.package.version,
             name,
             input,
             ...(result === undefined ? {} : { result }),
@@ -1578,7 +1579,7 @@ export class ObjectClient {
             const calls: sync.Call[] = [];
             for (const stored of [...(entry.steps as StoredStep[])].reverse()) {
                 const { object, name, method } = this.#method(`${stored.object}.${stored.name}`);
-                if ((stored.version ?? 1) !== object.version) {
+                if (stored.release !== object.package.version) {
                     calls.length = 0;
                     break;
                 }
@@ -1876,8 +1877,8 @@ const undoEntry = defineTable("undo_entry", {
 type StoredStep = Omit<Step, "object" | "current"> & {
     /** The object type's name. */
     readonly object: string;
-    /** The object type's version the step was taken at, the first when absent. */
-    readonly version?: number;
+    /** The release of the object type's package the step was taken at. */
+    readonly release: Version;
 };
 
 /** The part of a query one storage follows, and the lookups its rows key. */

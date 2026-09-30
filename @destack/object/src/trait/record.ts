@@ -28,9 +28,10 @@ import {
     type Table,
 } from "@destack/db";
 import { type Scalar } from "@destack/db/query";
+import { type Expression } from "@destack/schema/expression";
 import { changesThroughLog, Dataflow, View, type ObjectReference } from "@destack/sync";
 import { canonicalize } from "@destack/schema/json";
-import { type Identifier, schema } from "@destack/schema";
+import { type Identifier, schema, type Version } from "@destack/schema";
 import { DatabaseError } from "@destack/db/error";
 import { conceal, ServiceError } from "@destack/service/error";
 import { Page, page } from "@destack/service/page";
@@ -188,6 +189,8 @@ export function create<
         readonly creation?: (call: Call, object: ObjectReference) => Creation | Promise<Creation>;
         /** Whether clients predict the creation. */
         readonly isPredicted?: false;
+        /** The input fields each release computes from an earlier call's input, by the release introducing them. */
+        readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
     } = {},
 ): Method<"create", Permission, NoInfer<Input>, never, true, NoInfer<Fields>> {
     // resolve the creation
@@ -278,6 +281,8 @@ export function update<
         readonly input?: Input;
         /** Whether clients predict the update. */
         readonly isPredicted?: false;
+        /** The input fields each release computes from an earlier call's input, by the release introducing them. */
+        readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
     } = {},
 ): Method<"update", Permission, NoInfer<Input>, never, true, NoInfer<Fields>> {
     return defineMethod<Method<"update", Permission, Input, never, true, Fields>>({
@@ -342,12 +347,15 @@ export function updateMany<
         readonly fields: readonly Fields[];
         /** The fields the call matches objects by. */
         readonly match: readonly Match[];
+        /** The input fields each release computes from an earlier call's input, by the release introducing them. */
+        readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
     },
 ): Method<"updateMany", Permission, never, never, true, NoInfer<Fields>> {
     return defineMethod<Method<"updateMany", Permission, never, never, true, Fields>>({
         kind: "updateMany",
         permission,
         mutates: true,
+        ...(options.convert === undefined ? {} : { convert: options.convert }),
         target: false,
         result: "value",
         procedure: (_name, shapes) => ({
@@ -501,6 +509,8 @@ export function custom<
     readonly audit?: { readonly details: schema.Object<Record<string, schema.Schema>> };
     /** The inverse method name, or a function deriving inverse calls. */
     readonly inverse?: string | ((step: Step) => readonly sync.Call[] | undefined);
+    /** The input fields each release computes from an earlier call's input, by the release introducing them. */
+    readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
 }): Method<"custom", Permission, Input, Output, NoInfer<Mutates>> {
     const mutates = (definition.mutates ?? true) as Mutates;
     const { inverse, ...declared } = definition;

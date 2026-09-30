@@ -105,7 +105,6 @@ test("derive typed routes and describe each method with its permission, input an
                 name: "@destack/object",
                 version: expect.any(String),
             },
-            version: 1,
             targets: expect.any(Object),
             details: expect.any(Object),
         },

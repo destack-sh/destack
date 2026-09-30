@@ -302,5 +302,11 @@ test("undo a revert by updating the reverted fields no one changed since back", 
             after,
             current: { title: "Plan", body: "edited" },
         }),
-    ).toEqual([{ method: "page.update", input: { spaceId, id: "page-1", title: "Roadmap" } }]);
+    ).toEqual([
+        {
+            method: "page.update",
+            release: page.package.version,
+            input: { spaceId, id: "page-1", title: "Roadmap" },
+        },
+    ]);
 });

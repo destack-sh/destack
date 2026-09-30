@@ -146,7 +146,7 @@ export class ObjectServer<
     /** The shared grant readers, by scope and page position. */
     readonly #readers = new Map<string, GrantReader>();
     /** The input schemas of pushed calls, by method. */
-    readonly #inputs = new Map<string, schema.Schema>();
+    readonly #inputs = new Map<string, schema.Object<Record<string, schema.Schema>>>();
     /** The object types routed by name, without the chunk types serving them. */
     readonly #routed: readonly ObjectType[];
     /** The object schemas, by object name. */
@@ -1445,7 +1445,7 @@ export class ObjectServer<
             input = mutates ? procedure.omit(replay as never) : procedure;
             this.#inputs.set(entry.method, input);
         }
-        const parsed = input.safeParse(Call.upcast(served.object, name, entry));
+        const parsed = input.safeParse(Call.upgrade(served.object, name, entry, input.shape));
         if (!parsed.success) {
             throw new ServiceError("BAD_REQUEST", {
                 message: `invalid input to ${entry.method}`,

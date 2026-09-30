@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { Device, serveNotes, spaceId } from "./fixture/device.ts";
-import { notebook } from "./fixture/notes.ts";
+import { note, notebook } from "./fixture/notes.ts";
 
 test("predict recorded calls as one mutation, which the server executes together", async () => {
     const { connect, endpoint } = await serveNotes("sqlite");
@@ -13,8 +13,16 @@ test("predict recorded calls as one mutation, which the server executes together
 
     // submit two recorded note creations
     const submitted = device.client.submit([
-        { method: "note.create", input: { spaceId, parentId, title: "Packing" } },
-        { method: "note.create", input: { spaceId, parentId, title: "Tickets" } },
+        {
+            method: "note.create",
+            release: note.package.version,
+            input: { spaceId, parentId, title: "Packing" },
+        },
+        {
+            method: "note.create",
+            release: note.package.version,
+            input: { spaceId, parentId, title: "Tickets" },
+        },
     ]);
     await submitted.predicted;
     const predicted = await device.titles();

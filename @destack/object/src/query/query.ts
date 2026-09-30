@@ -1,6 +1,7 @@
 import { type Table } from "@destack/db";
 import { Scope, type Include, type Path, type Query, type Relation } from "@destack/sync";
-import { Condition, Expression } from "@destack/db/query";
+import { Condition } from "@destack/db/query";
+import { Expression } from "@destack/schema/expression";
 import { ServiceError } from "@destack/service/error";
 import type { ObjectInclude, ObjectQuery } from "../replica/replica.ts";
 import type { ObjectType } from "../object/object.ts";

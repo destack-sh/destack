@@ -170,9 +170,14 @@ test.each(TEST_DIALECTS)(
             {
                 id: expect.any(String),
                 calls: [
-                    { method: "notebook.create", input: { name: "Travel", id: book.id, spaceId } },
+                    {
+                        method: "notebook.create",
+                        release: notebook.package.version,
+                        input: { name: "Travel", id: book.id, spaceId },
+                    },
                     {
                         method: "note.create",
+                        release: note.package.version,
                         input: {
                             parentId: book.id,
                             title: "Packing",

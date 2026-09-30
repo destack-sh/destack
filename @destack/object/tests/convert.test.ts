@@ -4,6 +4,7 @@ import { principal, relation } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { Expression } from "@destack/schema/expression";
 import { schema } from "@destack/schema";
 import { Bookmark } from "@destack/service/bookmark";
 import { Journal } from "@destack/service/database";
@@ -15,22 +16,12 @@ import { request } from "./schema.ts";
 import { openSpace, space } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
 
-/** Cards at their second version, with `title` renamed to `name`. */
+/** Cards whose `title` became `name`. */
 const card = defineObject({
     name: "card",
     plural: "cards",
     scope: space,
-    version: 2,
-    upcast: (name, input, from) => {
-        // rename the first version's title
-        if (from < 2 && (name === "create" || name === "update") && "title" in input) {
-            const { title, ...rest } = input;
-
-            return { ...rest, name: title };
-        }
-
-        return { ...input };
-    },
+    moved: { fields: { name: "title" } },
     fields: {
         owner: field.reference(principal.user).caller(),
         name: field.string(schema.string().min(1)),
@@ -44,7 +35,7 @@ const card = defineObject({
 });
 
 test.for(TEST_DIALECTS)(
-    "execute calls made against an earlier version through the upcast, and refuse calls of a later one, on %s",
+    "execute calls made against an earlier release with the fields they renamed, and refuse calls of a later release, on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(
             dialect,
@@ -77,11 +68,17 @@ test.for(TEST_DIALECTS)(
             observed: new Bookmark(),
         } as unknown as ServiceContext;
 
-        // create and rename a card through unversioned first-version calls
+        // create and rename a card through calls of the release before the rename
         const [created] = (await server.mutate(
             {
                 id: RequestId.create(),
-                calls: [{ method: "card.create", input: { spaceId, title: "Plan" } }],
+                calls: [
+                    {
+                        method: "card.create",
+                        release: "2026.8.0",
+                        input: { spaceId, title: "Plan" },
+                    },
+                ],
             },
             context,
         )) as [{ id: string }];
@@ -89,21 +86,25 @@ test.for(TEST_DIALECTS)(
             {
                 id: RequestId.create(),
                 calls: [
-                    { method: "card.update", input: { spaceId, id: created.id, title: "Roadmap" } },
+                    {
+                        method: "card.update",
+                        release: "2026.8.0",
+                        input: { spaceId, id: created.id, title: "Roadmap" },
+                    },
                 ],
             },
             context,
         );
 
-        // refuse a call made against a version the server does not know yet
+        // refuse a call made against a release the server does not serve yet
         const later = server.mutate(
             {
                 id: RequestId.create(),
                 calls: [
                     {
                         method: "card.update",
+                        release: "2026.10.0",
                         input: { spaceId, id: created.id, name: "Next" },
-                        version: 3,
                     },
                 ],
             },
@@ -111,7 +112,7 @@ test.for(TEST_DIALECTS)(
         );
         await expect(later).rejects.toMatchObject({
             code: "BAD_REQUEST",
-            message: "card.update was made against version 3 of card, which is at version 2",
+            message: "card.update was made against release 2026.10.0 of card, which is at 2026.9.0",
         });
         const stored = (await server.call(card, "get", { spaceId, id: created.id }, context)) as {
             name: string;
@@ -120,15 +121,36 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-test("refuse an object at a later version without an upcast", () => {
+test("refuse method conversions keyed by a release after the object's package release", () => {
     expect(() =>
         defineObject({
             name: "sheet",
             plural: "sheets",
             scope: space,
-            version: 2,
-            fields: {},
-            permissions: ["read"],
+            fields: { name: field.string() },
+            permissions: ["write"],
+            methods: {
+                create: method.create("write", {
+                    convert: { "2026.10.0": { name: Expression.column("title") } },
+                }),
+            },
         }),
-    ).toThrow(new TypeError("object sheet is at version 2 without an upcast"));
+    ).toThrow(
+        new TypeError(
+            "conversion of sheet.create is keyed by 2026.10.0, after its release 2026.9.0",
+        ),
+    );
+});
+
+test("refuse a field moved from the name of a current field", () => {
+    expect(() =>
+        defineObject({
+            name: "sheet",
+            plural: "sheets",
+            scope: space,
+            moved: { fields: { name: "title" } },
+            fields: { name: field.string(), title: field.string() },
+            permissions: ["write"],
+        }),
+    ).toThrow(new TypeError("field sheet.name moved from title, which names a current field"));
 });

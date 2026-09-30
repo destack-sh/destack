@@ -235,7 +235,13 @@ test.each(TEST_DIALECTS)(
             [
                 {
                     id: "mutation-1",
-                    calls: [{ method: "slip.issue", input: { borrower: "user-1", shelf: "home" } }],
+                    calls: [
+                        {
+                            method: "slip.issue",
+                            release: slip.package.version,
+                            input: { borrower: "user-1", shelf: "home" },
+                        },
+                    ],
                 },
             ],
             context,

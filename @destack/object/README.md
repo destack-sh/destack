@@ -53,6 +53,21 @@ Each trait adds columns, permissions and methods to the type.
 | `method.updateMany` | Update every object matching some fields that the caller may change |
 | `method({ permission })` | A custom method, with `isSystem: true` for one only the system executes |
 
+## Releases
+
+A renamed field keeps its column and its earlier callers' inputs, and `convert` computes fields from stored rows and earlier callers' inputs by the release introducing them.
+
+```ts
+const note = defineObject({
+    name: "note",
+    moved: { fields: { body: "text" } },                                            // calls of earlier releases may still send `text`
+    convert: { "2026.10.0": { pinned: Expression.coalesce(Expression.column("pinned"), Expression.literal(false)) } },
+    fields: { body: field.string(), pinned: field.boolean() },
+    methods: { create: method.create("write"), update: method.update("write") },
+});
+// queued calls and undo steps record their release; the server converts calls of earlier releases, a later release is refused
+```
+
 ## Handlers
 
 `handle` implements methods on both client and server, or on the server alone.

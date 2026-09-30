@@ -200,6 +200,16 @@ export function deriveTable(
             ],
             // keep the traits' dependents
             dependents: kept.flatMap((table) => table.dependents ?? []),
+            // rename moved fields' columns in place, and convert stored rows
+            moved: {
+                columns: Object.fromEntries(
+                    Object.entries(definition.moved?.fields ?? {}).map(([field, previous]) => [
+                        field,
+                        snakeCase(previous),
+                    ]),
+                ) as never,
+            },
+            ...(definition.convert === undefined ? {} : { convert: definition.convert as never }),
             // place the objects in their tier
             ...(definition.tier === undefined ? {} : { tier: definition.tier }),
             // keep history for tracked objects, and index a tree

@@ -64,9 +64,9 @@ test("invert each trait's methods into the calls that undo them, and leave the r
         invert("delete", { input: target }),
         invert("restore", { input: target }),
     ]).toEqual([
-        [{ method: "page.delete", input: target }],
-        [{ method: "page.restore", input: target }],
-        [{ method: "page.delete", input: target }],
+        [{ method: "page.delete", release: page.package.version, input: target }],
+        [{ method: "page.restore", release: page.package.version, input: target }],
+        [{ method: "page.delete", release: page.package.version, input: target }],
     ]);
 
     // restore only fields unchanged since
@@ -80,7 +80,13 @@ test("invert each trait's methods into the calls that undo them, and leave the r
         invert("update", { ...update, current: { title: "C", body: "y" } }),
         invert("update", update),
     ]).toEqual([
-        [{ method: "page.update", input: { ...target, title: "A" } }],
+        [
+            {
+                method: "page.update",
+                release: page.package.version,
+                input: { ...target, title: "A" },
+            },
+        ],
         undefined,
         undefined,
     ]);
@@ -94,9 +100,15 @@ test("invert each trait's methods into the calls that undo them, and leave the r
         invert("publish", { input: target, before: { status: "draft" } }),
         invert("retract", { input: target, before: { status: "published" } }),
     ]).toEqual([
-        [{ method: "page.move", input: { ...target, parentId: "folder-1" } }],
-        [{ method: "page.retract", input: target }],
-        [{ method: "page.publish", input: target }],
+        [
+            {
+                method: "page.move",
+                release: page.package.version,
+                input: { ...target, parentId: "folder-1" },
+            },
+        ],
+        [{ method: "page.retract", release: page.package.version, input: target }],
+        [{ method: "page.publish", release: page.package.version, input: target }],
     ]);
 
     // undo grants and custom methods with inverses
@@ -109,8 +121,14 @@ test("invert each trait's methods into the calls that undo them, and leave the r
         invert("announce", { input: target }),
         invert("revoke", { input: { ...target, relationshipId: "relationship-1" } }),
     ]).toEqual([
-        [{ method: "page.revoke", input: { ...target, relationshipId: "relationship-1" } }],
-        [{ method: "page.unarchive", input: target }],
+        [
+            {
+                method: "page.revoke",
+                release: page.package.version,
+                input: { ...target, relationshipId: "relationship-1" },
+            },
+        ],
+        [{ method: "page.unarchive", release: page.package.version, input: target }],
         undefined,
         undefined,
     ]);

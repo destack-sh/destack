@@ -99,6 +99,7 @@ export function objectProcedures<Object extends ObjectType>(
                 authentication: method.mutates ? "identity" : "public",
                 permission: null,
                 audit: false,
+                convert: object.conversions(name),
             }),
             { method: route.method, path: `${collection}${route.path}` as `/${string}` },
             input,

@@ -1,3 +1,5 @@
+import type { Expression } from "@destack/schema/expression";
+import type { Version } from "@destack/schema";
 import type { schema } from "@destack/schema";
 import type * as sync from "@destack/sync";
 import type { Call, Handler, Phases } from "./call.ts";
@@ -30,6 +32,8 @@ export interface Method<
     readonly fields?: readonly Fields[];
     /** The caller-supplied values beyond columns. */
     readonly input?: Input;
+    /** The input fields each release computes from an earlier call's input, by the release introducing them. */
+    readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
     /** The result of a custom method. */
     readonly output?: Output;
     /** The state change a transition makes. */

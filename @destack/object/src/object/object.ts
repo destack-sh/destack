@@ -18,6 +18,7 @@ import { canonicalize } from "@destack/schema/json";
 import { ServiceError } from "@destack/service/error";
 import type { Claim, Directory, ObjectClaims } from "@destack/directory";
 import { Condition } from "@destack/db/query";
+import { Expression } from "@destack/schema/expression";
 import { type AuditAction, AuditTarget } from "@destack/audit";
 import {
     eq,
@@ -35,7 +36,7 @@ import {
     type Package,
     type PackageId,
 } from "@destack/package";
-import { schema } from "@destack/schema";
+import { schema, Version } from "@destack/schema";
 import type { AggregateFunction, Field, TextField } from "../field/field.ts";
 import type { Handler, Phases } from "../method/call.ts";
 import type { Method, MethodKind } from "../method/method.ts";
@@ -212,20 +213,16 @@ export interface ObjectDefinition<
     readonly indexes?: Readonly<Record<string, ObjectIndex>>;
     /** Where the objects live. */
     readonly storage?: ObjectStorage;
+    /** The previous names of renamed fields, by current field. */
+    readonly moved?: { readonly fields?: Readonly<Record<string, string>> };
+    /** The fields each release computes from stored rows and earlier callers' inputs, by the release introducing them. */
+    readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
     /** The tier of every database holding the objects, any tier when absent. */
     readonly tier?: DatabaseTier;
     /** The system controller reconciling the objects with work waiting. */
     readonly controller?: ObjectController;
     /** How long ephemeral objects outlive their session, 10 s by default. */
     readonly linger?: Duration;
-    /** The version of the objects' method inputs, 1 when absent. */
-    readonly version?: number;
-    /** Convert a call made against an earlier version to the current inputs. */
-    readonly upcast?: (
-        name: string,
-        input: Readonly<Record<string, unknown>>,
-        from: number,
-    ) => Record<string, unknown>;
 }
 
 /** Where objects live: durable in the scope's database, or ephemeral in instances' memory. */
@@ -331,16 +328,12 @@ export class ObjectType<
     readonly storage: Storage;
     /** How long ephemeral objects outlive their session, in milliseconds. */
     readonly linger?: number;
-    /** The version of the objects' method inputs. */
-    readonly version: number;
-    /** Convert a call made against an earlier version to the current inputs. */
-    readonly upcast?: (
-        name: string,
-        input: Readonly<Record<string, unknown>>,
-        from: number,
-    ) => Record<string, unknown>;
     /** Where access finds objects stored in a table another package owns. */
     readonly intrinsic?: Omit<TableMapping, "policy">;
+    /** The previous names of renamed fields, by current field. */
+    readonly moved: Readonly<Record<string, string>>;
+    /** The fields each release computes from stored rows and earlier callers' inputs. */
+    readonly convert: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
 
     /** Retain a definition with its table, methods and traits, and assemble its policy. */
     constructor(
@@ -374,13 +367,22 @@ export class ObjectType<
         this.addressed = definition.addressed;
         this.versioned = definition.versioned;
         this.tracked = definition.tracked;
-        this.version = definition.version ?? 1;
-        this.upcast = definition.upcast;
-        if (this.version > 1 && this.upcast === undefined) {
-            throw new TypeError(
-                `object ${definition.name} is at version ${this.version} without an upcast`,
-            );
+        for (const [name, method] of Object.entries(definition.methods ?? {}) as [
+            string,
+            Method,
+        ][]) {
+            Version.requireUpTo(method.convert ?? {}, owner.version, `${definition.name}.${name}`);
         }
+        this.moved = definition.moved?.fields ?? {};
+        this.convert = definition.convert ?? {};
+        for (const [field, previous] of Object.entries(this.moved)) {
+            if (previous in (definition.fields ?? {})) {
+                throw new TypeError(
+                    `field ${definition.name}.${field} moved from ${previous}, which names a current field`,
+                );
+            }
+        }
+        Version.requireUpTo(this.convert, owner.version, definition.name);
         this.isReadAudited = definition.audited?.reads === true;
         this.inherited = definition.inherited;
         this.methods = definition.methods ?? ({} as Methods);
@@ -686,6 +688,31 @@ export class ObjectType<
         }
     }
 
+    /** The input conversions of a method: renamed fields, the object's conversions, then the method's own. */
+    conversions(name: string): Readonly<Record<Version, Readonly<Record<string, Expression>>>> {
+        // rename previous field names in calls of releases before this one
+        const renames = Object.fromEntries(
+            Object.entries(this.moved).map(([field, previous]) => [
+                field,
+                Expression.column(previous),
+            ]),
+        );
+        const releases: Record<string, Record<string, Expression>> = Object.keys(renames).length ===
+        0
+            ? {}
+            : { [this.package.version]: renames };
+
+        // merge the object's and the method's assignments by release
+        const method = (this.methods as Readonly<Record<string, Method>>)[name];
+        for (const conversions of [this.convert, method?.convert ?? {}]) {
+            for (const [release, assignments] of Object.entries(conversions)) {
+                releases[release] = { ...releases[release], ...assignments };
+            }
+        }
+
+        return releases;
+    }
+
     /** The audit target name of the objects' method events. */
     get auditTarget(): string {
         return camelCase(this.name);
@@ -699,7 +726,6 @@ export class ObjectType<
         return {
             package: this.package,
             name: `${pascalCase(this.name)}.${method}`,
-            version: 1,
             targets: schema.object({ [target]: AuditTarget }),
             details: declared === undefined ? schema.object({}) : declared.details.partial(),
         };
