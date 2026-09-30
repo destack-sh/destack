@@ -416,6 +416,18 @@ export const ROLLUPS: Readonly<Record<string, Query>> = {
     },
 };
 
+/** Queries of rows in the scopes held rows are: each project's own tags. */
+export const WITHIN: Readonly<Record<string, Query>> = {
+    folders: {
+        table: project,
+        scopes: ROUTES,
+        where: Condition.ne("name", "x"),
+        include: {
+            tags: { table: tag, on: { kind: "key", column: "scope", parent: "id" } },
+        },
+    },
+};
+
 /** Every query set at once. */
 export const EVERYTHING: Readonly<Record<string, Query>> = {
     ...FILTERS,
@@ -427,6 +439,7 @@ export const EVERYTHING: Readonly<Record<string, Query>> = {
     ...RELATED,
     ...LOOKUPS,
     ...ROLLUPS,
+    ...WITHIN,
 };
 
 /** The query sets random workloads run, by name. */
@@ -441,6 +454,7 @@ export const QUERY_SETS: Readonly<Record<string, Readonly<Record<string, Query>>
     related: RELATED,
     lookups: LOOKUPS,
     rollups: ROLLUPS,
+    within: WITHIN,
     everything: EVERYTHING,
 };
 

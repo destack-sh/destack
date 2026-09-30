@@ -6,8 +6,8 @@ import { defineSchema, schema } from "@destack/schema";
 export interface Query {
     /** The logged table. */
     readonly table: Table;
-    /** The scopes whose rows the query holds. */
-    readonly scopes: readonly string[];
+    /** The scopes whose rows the query holds, or every scope. */
+    readonly scopes: readonly string[] | "every";
     /** The computed values, by name. */
     readonly compute?: Computed;
     /** The condition over logged columns and computed values. */
@@ -24,7 +24,12 @@ export interface Query {
     readonly aggregate?: Aggregate;
 }
 
-/** Rows each held row includes. */
+/**
+ * Rows each held row includes.
+ *
+ * The included rows live in the query's scopes.
+ * A key path on their scope column reaches the rows of every scope instead, those in the scope a held row is.
+ */
 export interface Include extends Omit<Query, "scopes"> {
     /** How the included rows relate to a held row. */
     readonly on: Path;

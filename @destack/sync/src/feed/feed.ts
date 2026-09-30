@@ -6,7 +6,7 @@ import { SyncError } from "../error/error.ts";
 import type { Row } from "@destack/db";
 import type { QueryPage } from "../query/page.ts";
 import type { Query } from "../query/query.ts";
-import { EVERYONE, type Audience, type Watch } from "./audience.ts";
+import { EVERYONE, watchedScopes, type Audience, type Watch } from "./audience.ts";
 import { Evaluation } from "./evaluation.ts";
 import { Stream } from "./stream.ts";
 import type { Upstream } from "../dataflow/upstream.ts";
@@ -286,11 +286,12 @@ export class Feed implements Cache {
         watches: readonly Watch[],
         sequence: number,
     ): Promise<{ readonly changes: readonly Change[]; readonly sequence: number } | undefined> {
+        const scopes = watchedScopes(watches);
         try {
             const read = await this.database.log.read({
                 tables: [...new Set(watches.map((entry) => entry.table))],
                 after: sequence,
-                scopes: [...new Set(watches.flatMap((entry) => entry.scopes))],
+                ...(scopes === undefined ? {} : { scopes }),
             });
 
             return {
@@ -532,7 +533,10 @@ export class Feed implements Cache {
     #isWatched(watches: readonly Watch[], change: Change): boolean {
         return watches.some((entry) => {
             // require the table and scope
-            if (entry.table !== change.table || !entry.scopes.includes(change.scope)) {
+            if (
+                entry.table !== change.table ||
+                (entry.scopes !== "every" && !entry.scopes.includes(change.scope))
+            ) {
                 return false;
             } else if (entry.where === undefined) {
                 return true;

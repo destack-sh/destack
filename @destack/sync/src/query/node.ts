@@ -33,8 +33,8 @@ export class Node {
     readonly name: string;
     /** The logged table. */
     readonly table: Table;
-    /** The scopes the tree's rows live in. */
-    readonly scopes: readonly string[];
+    /** The scopes the node's rows live in. */
+    readonly scopes: Query["scopes"];
     /** The logged columns, by property. */
     readonly columns: Readonly<Record<string, Column>>;
     /** The logged columns in declaration order. */
@@ -87,13 +87,17 @@ export class Node {
     constructor(
         name: string,
         query: Query | Include,
-        scopes: readonly string[],
+        within: Query["scopes"],
         parent?: Node,
         kind: Node["kind"] = "include",
     ) {
-        // read the table's columns
+        // read every scope for rows joined by their scope column
         const table = query.table;
         const definition = table[TABLE];
+        const scopes =
+            "on" in query && query.on.kind === "key" && query.on.column === "scope"
+                ? "every"
+                : within;
         this.name = name;
         this.kind = kind;
         this.table = table;
@@ -390,13 +394,13 @@ export class Node {
     }
 
     /** Express rows in some scopes as a condition. */
-    static scoped(scopes: readonly string[]): Condition {
-        return Condition.oneOf("scope", scopes);
+    static scoped(scopes: Query["scopes"]): Condition {
+        return scopes === "every" ? Condition.all() : Condition.oneOf("scope", scopes);
     }
 
     /** Decide whether a row lives in some scopes. */
-    static isScoped(row: Row, scopes: readonly string[]): boolean {
-        return scopes.includes(row.scope as string);
+    static isScoped(row: Row, scopes: Query["scopes"]): boolean {
+        return scopes === "every" || scopes.includes(row.scope as string);
     }
 
     /** Read the values a row sorts by. */

@@ -17,7 +17,7 @@ export const ReplicaRequest = defineSchema(
         access: schema.boolean(),
         /** The object types whose access rows live in the follower's own database. */
         held: schema.array(ObjectTypeReference),
-        /** The inherited object types whose rows the copy includes. */
+        /** The object types the follower keeps copies of: the inherited rows of inherited types, and the scope's own row of scope types. */
         copied: schema.array(ObjectTypeReference),
         /** The global rows the follower reads, by object type, decided for it where they live. */
         rows: schema.array(
@@ -26,6 +26,8 @@ export const ReplicaRequest = defineSchema(
                 type: ObjectTypeReference,
                 /** The rows copied. */
                 where: Condition.schema,
+                /** The requested object types whose copied rows are the scopes of these rows, absent for rows of the copied scope. */
+                within: schema.array(ObjectTypeReference).min(1).optional(),
             }),
         ),
         /** The log position the copy reached, absent before its first snapshot. */

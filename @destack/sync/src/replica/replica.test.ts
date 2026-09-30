@@ -3,7 +3,17 @@ import { TEST_DIALECTS } from "@destack/db/test";
 import { asc, encodeRow, eq, TABLE } from "@destack/db";
 import { Feed } from "../feed/feed.ts";
 import { replicaTables, Replica, replica } from "./replica.ts";
-import { asset, first, note, open, openCopy, project, replicate, task } from "../test/fixture.ts";
+import {
+    asset,
+    first,
+    note,
+    open,
+    openCopy,
+    project,
+    replicate,
+    tag,
+    task,
+} from "../test/fixture.ts";
 import type { Query } from "../query/query.ts";
 import type { QueryPage } from "../query/page.ts";
 import type { LogPosition } from "@destack/db/log";
@@ -499,5 +509,145 @@ test.for(TEST_DIALECTS)(
             ["a", "shared", "z"],
             ["a", "z"],
         ]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "copy the rows in the scopes of copied rows, and take them out with the row they are in, on %s",
+    async (dialect) => {
+        const source = await open(dialect);
+        const copy = await openCopy(dialect);
+        const feed = new Feed(source, [project, task, tag, replica]);
+        const work = new Replica({
+            name: "work",
+            scope: "inbox",
+            tables: [project, task, tag],
+            within: new Map([[tag, [project, task]]]),
+        });
+        await source.insert(project).values([
+            { id: "p1", scope: "inbox", name: "Plan" },
+            { id: "p2", scope: "archive", name: "Old" },
+        ]);
+        await source.insert(tag).values([
+            { id: "g1", scope: "p1", name: "urgent" },
+            { id: "g2", scope: "p2", name: "done" },
+            { id: "g3", scope: "inbox", name: "loose" },
+            { id: "g6", scope: "t1", name: "own" },
+        ]);
+        await source.insert(task).values({
+            id: "t1",
+            scope: "inbox",
+            state: "open",
+            rank: 1,
+            isSecret: false,
+        });
+        const signal = AbortSignal.timeout(5000);
+        const tags = async () => {
+            expect(await Replica.reach(copy, "inbox", await source.log.position(), signal)).toBe(
+                true,
+            );
+
+            return (await copy.select().from(tag).orderBy(asc(tag.id))).map((row) => [
+                row.id,
+                row.scope,
+            ]);
+        };
+
+        // copy the tags in the scopes of the copied project and task alone
+        const controller = new AbortController();
+        const following = work.follow(
+            copy,
+            (after, stream) => feed.subscribe(work.queries, after, stream),
+            controller.signal,
+            { request: 1 },
+        );
+        expect(await tags()).toEqual([
+            ["g1", "p1"],
+            ["g6", "t1"],
+        ]);
+
+        // add a tag entering a copied project's scope, and the tags of a project entering the copy
+        await source.insert(tag).values({ id: "g4", scope: "p1", name: "later" });
+        await source.update(project).set({ scope: "inbox" }).where(eq(project.id, "p2"));
+        expect(await tags()).toEqual([
+            ["g1", "p1"],
+            ["g2", "p2"],
+            ["g4", "p1"],
+            ["g6", "t1"],
+        ]);
+
+        // take a project's tags out with it
+        await source.delete(project).where(eq(project.id, "p1"));
+        expect(await tags()).toEqual([
+            ["g2", "p2"],
+            ["g6", "t1"],
+        ]);
+        controller.abort();
+        await following;
+
+        // take out the tags a later snapshot leaves out
+        await source.delete(tag).where(eq(tag.id, "g2"));
+        await source.insert(tag).values({ id: "g5", scope: "p2", name: "kept" });
+        const again = new AbortController();
+        const snapshotting = work.follow(
+            copy,
+            (after, stream) => feed.subscribe(work.queries, after, stream),
+            again.signal,
+            { request: 2 },
+        );
+        expect(await tags()).toEqual([
+            ["g5", "p2"],
+            ["g6", "t1"],
+        ]);
+        again.abort();
+        await snapshotting;
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "keep a column one copy hides while another shows it, and clear it once none does, on %s",
+    async (dialect) => {
+        const copy = await openCopy(dialect);
+        const epoch = "01996ab0-0000-7000-8000-000000000001";
+        const snapshot = (
+            sequence: number,
+            summary: string | null,
+            concealed: string[],
+        ): QueryPage[] => [
+            {
+                reset: true,
+                complete: true,
+                changes: [
+                    {
+                        table: note[TABLE].sqlName,
+                        operation: "insert" as const,
+                        row: encodeRow(note, { ...first, summary }),
+                        ...(concealed.length === 0 ? {} : { concealed }),
+                    },
+                ],
+                position: { epoch, sequence },
+            },
+        ];
+        const empty = (sequence: number): QueryPage[] => [
+            { reset: true, complete: true, changes: [], position: { epoch, sequence } },
+        ];
+        const summary = async () =>
+            (await copy.select({ summary: note.summary }).from(note)).map((row) => row.summary);
+        const open = new Replica({ name: "open", scope: "inbox", tables: [note] });
+        const closed = new Replica({ name: "closed", scope: "inbox", tables: [note] });
+
+        // show the summary through one copy, and keep it as the other hides it
+        const stored = [];
+        await replicate(closed, copy, snapshot(1, null, ["summary"]));
+        stored.push(await summary());
+        await replicate(open, copy, snapshot(1, "Plan", []));
+        stored.push(await summary());
+        await replicate(closed, copy, snapshot(2, null, ["summary"]));
+        stored.push(await summary());
+
+        // clear the summary once the copy showing it leaves the row to the one hiding it
+        await replicate(open, copy, empty(2));
+        stored.push(await summary());
+        expect(stored).toEqual([[null], ["Plan"], ["Plan"], [null]]);
     },
 );

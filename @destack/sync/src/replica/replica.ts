@@ -4,6 +4,7 @@ import {
     count,
     defineTable,
     eq,
+    gt,
     gte,
     index,
     integer,
@@ -11,6 +12,7 @@ import {
     inArray,
     Key,
     lt,
+    not,
     primaryKey,
     sql,
     text,
@@ -25,9 +27,9 @@ import { DatabaseError } from "@destack/db/error";
 import { SyncError } from "../error/error.ts";
 import { schema } from "@destack/schema";
 import { canonicalize } from "@destack/schema/json";
-import { Log, type LogPosition } from "@destack/db/log";
+import { Log, Snapshot, type LogPosition } from "@destack/db/log";
 import { QueryPage, type MutationOutcome, type ResultChange } from "../query/page.ts";
-import type { Query } from "../query/query.ts";
+import type { Include, Query } from "../query/query.ts";
 import { Node } from "../query/node.ts";
 import type { Row } from "@destack/db";
 import type { Outbox } from "../outbox/outbox.ts";
@@ -136,7 +138,11 @@ export const replicaResult = defineTable(
     },
 );
 
-/** The rows of each copy, so a row several copies include stays until none includes it. */
+/**
+ * The rows of each copy's shape, as the follower stores them: the rows it includes and the columns it hides on each.
+ *
+ * A row several copies include stays until none includes it, and keeps a column while one of them shows it.
+ */
 export const replicaRow = defineTable(
     "replica_row",
     {
@@ -148,6 +154,8 @@ export const replicaRow = defineTable(
         table: text("table").notNull(),
         /** The row's key. */
         key: text("key").notNull(),
+        /** The columns the copy's shape hides on the row, by property. */
+        concealed: json("concealed", schema.array(schema.string())).notNull(),
     },
     {
         constraints: (row) => [
@@ -175,6 +183,10 @@ export class Replica {
     readonly where: ReadonlyMap<Table, Condition>;
     /** The scope of each table whose rows live outside the copy's scope. */
     readonly scopes: ReadonlyMap<Table, string>;
+    /** The tables whose rows are copied from whichever scope they live in. */
+    readonly everywhere: ReadonlySet<Table>;
+    /** The copied tables, keyed by `id`, whose rows are the scopes of each table's rows, for the tables copied across scopes. */
+    readonly within: ReadonlyMap<Table, readonly Table[]>;
     /** The copied tables, by SQL name. */
     readonly #copied: ReadonlyMap<string, Table>;
     /** The shape of the copied tables' logged columns. */
@@ -187,6 +199,8 @@ export class Replica {
         readonly tables: readonly Table[];
         readonly where?: ReadonlyMap<Table, Condition>;
         readonly scopes?: ReadonlyMap<Table, string>;
+        readonly everywhere?: ReadonlySet<Table>;
+        readonly within?: ReadonlyMap<Table, readonly Table[]>;
     }) {
         // keep the identity
         this.name = definition.name;
@@ -194,25 +208,58 @@ export class Replica {
         this.tables = definition.tables;
         this.where = definition.where ?? new Map();
         this.scopes = definition.scopes ?? new Map();
+        this.everywhere = definition.everywhere ?? new Set();
+        this.within = definition.within ?? new Map();
         this.#copied = new Map(this.tables.map((table) => [table[TABLE].sqlName, table]));
         this.#shape = Log.shape(this.tables);
     }
 
     /** The queries the copy holds, by table name, including the source's own copy record. */
     get queries(): Record<string, Query> {
-        return Object.fromEntries([
-            ...this.tables.map((table) => {
-                const where = this.where.get(table);
+        // include each table copied across scopes under each table whose rows are its scopes
+        const include = (parent: Table): { include?: Record<string, Include> } => {
+            const children = this.tables.filter((table) =>
+                this.within.get(table)?.includes(parent),
+            );
 
-                return [
-                    table[TABLE].sqlName,
-                    {
-                        table,
-                        scopes: [this.scopes.get(table) ?? this.scope],
-                        ...(where === undefined ? {} : { where }),
-                    },
-                ];
-            }),
+            return children.length === 0
+                ? {}
+                : {
+                      include: Object.fromEntries(
+                          children.map((table) => {
+                              const where = this.where.get(table);
+
+                              return [
+                                  table[TABLE].sqlName,
+                                  {
+                                      table,
+                                      on: { kind: "key", column: "scope", parent: "id" },
+                                      ...(where === undefined ? {} : { where }),
+                                      ...include(table),
+                                  },
+                              ];
+                          }),
+                      ),
+                  };
+        };
+
+        return Object.fromEntries([
+            ...this.tables
+                .filter((table) => !this.within.has(table))
+                .map((table) => {
+                    const where = this.where.get(table);
+                    const scope = this.scopes.get(table) ?? this.scope;
+
+                    return [
+                        table[TABLE].sqlName,
+                        {
+                            table,
+                            scopes: this.everywhere.has(table) ? "every" : [scope],
+                            ...(where === undefined ? {} : { where }),
+                            ...include(table),
+                        },
+                    ];
+                }),
             [
                 replica[TABLE].sqlName,
                 { table: replica, scopes: [this.scope], where: Condition.eq("name", this.name) },
@@ -823,7 +870,7 @@ export class Replica {
         delivered: ReadonlyMap<string, Set<string>> | undefined,
     ): Promise<{ readonly outcomes: readonly MutationOutcome[]; readonly origin?: Origin }> {
         // batch each table's writes
-        const batches = new Map<Table, { held: Row[]; removed: Row[] }>();
+        const batches = new Map<Table, { held: Row[]; hidden: string[][]; removed: Row[] }>();
         let origin: Origin | undefined;
         for (const change of page.changes) {
             // take a relaying source's copy record as the home position
@@ -847,15 +894,13 @@ export class Replica {
             }
             const row = decodeRow(table, change.row);
             delivered?.get(change.table)!.add(Key.name(table, row));
-            const batch = batches.get(table) ?? { held: [], removed: [] };
+            const batch = batches.get(table) ?? { held: [], hidden: [], removed: [] };
             batches.set(table, batch);
             if (change.operation === "delete") {
                 batch.removed.push(row);
             } else {
-                batch.held.push({
-                    ...row,
-                    ...Object.fromEntries((change.concealed ?? []).map((name) => [name, null])),
-                });
+                batch.held.push(row);
+                batch.hidden.push(change.concealed ?? []);
             }
         }
         for (const [table, batch] of batches) {
@@ -864,8 +909,11 @@ export class Replica {
                 table,
                 batch.removed.map((row) => Key.name(table, row)),
             );
-            await transaction.upsert(table, batch.held);
-            await this.#include(transaction, table, batch.held);
+            await transaction.upsert(
+                table,
+                await this.#conceal(transaction, table, batch.held, batch.hidden),
+            );
+            await this.#include(transaction, table, batch.held, batch.hidden);
         }
 
         // hold the groups
@@ -927,58 +975,157 @@ export class Replica {
         return and(eq(replicaPage.name, this.name), eq(replicaPage.scope, this.scope))!;
     }
 
-    /** Let go of the rows a completed snapshot left out in the copy's scope, a batch at a time in key order. */
+    /** Take the rows a completed snapshot left out of the copy, a batch at a time in key order. */
     async #prune(database: DatabaseConnection, table: Table, delivered: ReadonlySet<string>) {
-        // read the rows of the copy's scope and condition in batches
-        const columns = table[TABLE].columns;
-        const key = table[TABLE].key;
-        const order = Order.complete([], table);
-        const fields = Object.fromEntries(key.map((name) => [name, columns[name]!]));
-        let last: Record<string, unknown> | undefined;
-        do {
-            const rows = (await database
-                .select(fields)
-                .from(table)
-                .where(
-                    and(
-                        Condition.render(
-                            Condition.all(
-                                Node.scoped([this.scopes.get(table) ?? this.scope]),
-                                this.where.get(table) ?? Condition.all(),
-                            ),
-                            Condition.bind(table),
+        // read a table copied across scopes by the rows the copy includes
+        if (this.within.has(table) || this.everywhere.has(table)) {
+            const name = table[TABLE].sqlName;
+            let last: string | undefined;
+            do {
+                const rows = await database
+                    .select({ key: replicaRow.key })
+                    .from(replicaRow)
+                    .where(
+                        and(
+                            this.#included(),
+                            eq(replicaRow.table, name),
+                            last === undefined ? undefined : gt(replicaRow.key, last),
                         ),
-                        last && Order.after(order, table, last),
-                    ),
-                )
-                .orderBy(...Order.render(order, table))
-                .limit(PRUNE_BATCH)) as Record<string, unknown>[];
-            last = rows.at(-1);
+                    )
+                    .orderBy(asc(replicaRow.key))
+                    .limit(PRUNE_BATCH);
+                last = rows.at(-1)?.key;
 
-            // let go of the rows the snapshot left out
-            const stale = rows
-                .map((row) => Key.name(table, row))
-                .filter((name) => !delivered.has(name));
-            await this.#exclude(database, table, stale);
-        } while (last !== undefined);
+                // take out the rows the snapshot left out
+                const stale = rows.map((row) => row.key).filter((key) => !delivered.has(key));
+                await this.#exclude(database, table, stale);
+            } while (last !== undefined);
+        }
+        // read any other table by the rows of the copy's scope and condition
+        else {
+            const columns = table[TABLE].columns;
+            const key = table[TABLE].key;
+            const order = Order.complete([], table);
+            const fields = Object.fromEntries(key.map((name) => [name, columns[name]!]));
+            let last: Record<string, unknown> | undefined;
+            do {
+                const rows = (await database
+                    .select(fields)
+                    .from(table)
+                    .where(
+                        and(
+                            Condition.render(
+                                Condition.all(
+                                    Node.scoped([this.scopes.get(table) ?? this.scope]),
+                                    this.where.get(table) ?? Condition.all(),
+                                ),
+                                Condition.bind(table),
+                            ),
+                            last && Order.after(order, table, last),
+                        ),
+                    )
+                    .orderBy(...Order.render(order, table))
+                    .limit(PRUNE_BATCH)) as Record<string, unknown>[];
+                last = rows.at(-1);
+
+                // take out the rows the snapshot left out
+                const stale = rows
+                    .map((row) => Key.name(table, row))
+                    .filter((name) => !delivered.has(name));
+                await this.#exclude(database, table, stale);
+            } while (last !== undefined);
+        }
     }
 
-    /** Record the rows the copy includes. */
+    /** Clear the columns the copy's shape hides on some rows, keeping a column another copy's shape shows. */
+    async #conceal(
+        database: DatabaseConnection,
+        table: Table,
+        rows: readonly Row[],
+        hidden: readonly (readonly string[])[],
+    ): Promise<Row[]> {
+        // read what the other copies' shapes hide on the rows hiding columns
+        const hiding = rows.filter((_, position) => hidden[position]!.length > 0);
+        const others = await this.#others(
+            database,
+            table,
+            hiding.map((row) => Key.name(table, row)),
+        );
+
+        // read the stored values of the rows another copy includes
+        const key = table[TABLE].key;
+        const shared = hiding.filter((row) => others.has(Key.name(table, row)));
+        const stored = new Map(
+            (
+                await Snapshot.live(database).select(
+                    table,
+                    key,
+                    shared.map((row) => key.map((name) => row[name])),
+                )
+            ).map((row) => [Key.name(table, row), row]),
+        );
+
+        return rows.map((row, position) => {
+            // keep a hidden column as stored while another copy's shape shows it
+            const name = Key.name(table, row);
+            const shapes = others.get(name) ?? [];
+            const values = hidden[position]!.map((column) => [
+                column,
+                shapes.some((shape) => !shape.includes(column))
+                    ? (stored.get(name)?.[column] ?? null)
+                    : null,
+            ]);
+
+            return { ...row, ...Object.fromEntries(values) };
+        });
+    }
+
+    /** Read the columns the other copies' shapes hide on some rows, by row key. */
+    async #others(
+        database: DatabaseConnection,
+        table: Table,
+        keys: readonly string[],
+    ): Promise<Map<string, string[][]>> {
+        // read the other copies' records of the rows, a batch at a time
+        const name = table[TABLE].sqlName;
+        const others = new Map<string, string[][]>();
+        for (let start = 0; start < keys.length; start += PRUNE_BATCH) {
+            const found = await database
+                .select({ key: replicaRow.key, concealed: replicaRow.concealed })
+                .from(replicaRow)
+                .where(
+                    and(
+                        not(this.#included()),
+                        eq(replicaRow.table, name),
+                        inArray(replicaRow.key, keys.slice(start, start + PRUNE_BATCH)),
+                    ),
+                );
+            for (const row of found) {
+                others.set(row.key, [...(others.get(row.key) ?? []), row.concealed]);
+            }
+        }
+
+        return others;
+    }
+
+    /** Record the rows the copy includes and the columns its shape hides on each. */
     async #include(
         database: DatabaseConnection,
         table: Table,
         rows: readonly Row[],
+        hidden: readonly (readonly string[])[],
     ): Promise<void> {
         const name = table[TABLE].sqlName;
-        for (let start = 0; start < rows.length; start += PRUNE_BATCH) {
-            const values = rows.slice(start, start + PRUNE_BATCH).map((row) => ({
+        await database.upsert(
+            replicaRow,
+            rows.map((row, position) => ({
                 name: this.name,
                 scope: this.scope,
                 table: name,
                 key: Key.name(table, row),
-            }));
-            await database.insert(replicaRow).values(values).onConflictDoNothing();
-        }
+                concealed: hidden[position]!,
+            })),
+        );
     }
 
     /** Take some rows out of the copy, deleting those no copy includes any longer. */
@@ -991,25 +1138,53 @@ export class Replica {
         const name = table[TABLE].sqlName;
         for (let start = 0; start < keys.length; start += PRUNE_BATCH) {
             const batch = keys.slice(start, start + PRUNE_BATCH);
-            await database
-                .delete(replicaRow)
-                .where(
-                    and(
-                        this.#included(),
-                        eq(replicaRow.table, name),
-                        inArray(replicaRow.key, batch),
-                    ),
-                );
+            const selected = and(
+                this.#included(),
+                eq(replicaRow.table, name),
+                inArray(replicaRow.key, batch),
+            );
+            const shown = await database
+                .select({ key: replicaRow.key, concealed: replicaRow.concealed })
+                .from(replicaRow)
+                .where(selected);
+            await database.delete(replicaRow).where(selected);
 
             // delete the rows no other copy includes
-            const kept = await database
-                .select({ key: replicaRow.key })
-                .from(replicaRow)
-                .where(and(eq(replicaRow.table, name), inArray(replicaRow.key, batch)));
-            const included = new Set(kept.map((row) => row.key));
+            const others = await this.#others(database, table, batch);
             await database.remove(
                 table,
-                batch.filter((key) => !included.has(key)).map((key) => Key.parse(table, key)),
+                batch.filter((key) => !others.has(key)).map((key) => Key.parse(table, key)),
+            );
+
+            // clear the columns only this copy's shape showed on the rows the others keep
+            const cleared = shown.flatMap(({ key, concealed }) => {
+                const shapes = others.get(key) ?? [];
+                const columns = (shapes[0] ?? []).filter(
+                    (column) =>
+                        !concealed.includes(column) &&
+                        shapes.every((shape) => shape.includes(column)),
+                );
+
+                return columns.length === 0 ? [] : [{ key: Key.parse(table, key), columns }];
+            });
+            const primary = table[TABLE].key;
+            const stored = await Snapshot.live(database).select(
+                table,
+                primary,
+                cleared.map(({ key }) => primary.map((column) => key[column])),
+            );
+            await database.upsert(
+                table,
+                stored.map((row) => {
+                    const entry = cleared.find(
+                        ({ key }) => Key.name(table, key) === Key.name(table, row),
+                    )!;
+
+                    return {
+                        ...row,
+                        ...Object.fromEntries(entry.columns.map((column) => [column, null])),
+                    };
+                }),
             );
         }
     }

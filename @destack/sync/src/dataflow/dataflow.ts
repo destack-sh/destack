@@ -3,7 +3,7 @@ import type { Scalar } from "@destack/db/query";
 import { DatabaseError } from "@destack/db/error";
 import type { Change, LogPosition } from "@destack/db/log";
 import { canonicalize } from "@destack/schema/json";
-import type { Audience, Watch } from "../feed/audience.ts";
+import { watchedScopes, type Audience, type Watch } from "../feed/audience.ts";
 import { Node } from "../query/node.ts";
 import type { Query } from "../query/query.ts";
 import { Aggregation, Mirror, Relation } from "./aggregation.ts";
@@ -613,6 +613,8 @@ function isPresent(value: unknown): boolean {
 /** Read the watched changes between two sequences from a database's log. */
 export function changesThroughLog(database: DatabaseConnection): Context["changesThrough"] {
     return async (watches, after, through) => {
+        // read the scopes the watches read, every scope when one reads them all
+        const scopes = watchedScopes(watches);
         const changes: Change[] = [];
         for (let sequence = after; sequence < through;) {
             // read a page, absent once compacted
@@ -621,7 +623,7 @@ export function changesThroughLog(database: DatabaseConnection): Context["change
                 read = await database.log.read({
                     tables: [...new Set(watches.map((entry) => entry.table))],
                     after: sequence,
-                    scopes: [...new Set(watches.flatMap((entry) => entry.scopes))],
+                    ...(scopes === undefined ? {} : { scopes }),
                 });
             } catch (error) {
                 if (error instanceof DatabaseError && error.code === "CHANGES_COMPACTED") {
@@ -645,7 +647,7 @@ export function changesThroughLog(database: DatabaseConnection): Context["change
 /** Describe a query or include in JSON. */
 function describe(
     query:
-        | (Omit<Query, "scopes"> & { readonly scopes?: readonly string[] })
+        | (Omit<Query, "scopes"> & { readonly scopes?: Query["scopes"] })
         | NonNullable<Query["relations"]>[string],
 ): unknown {
     return {

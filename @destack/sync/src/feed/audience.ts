@@ -2,6 +2,7 @@ import { sql, type SQL, type Table } from "@destack/db";
 import { type Condition } from "@destack/db/query";
 import type { Change, LogPosition } from "@destack/db/log";
 import type { Row } from "@destack/db";
+import type { Query } from "../query/query.ts";
 
 /** An audience that holds and reads every row. */
 export const EVERYONE: Audience = {
@@ -46,10 +47,25 @@ export interface Audience {
 export interface Watch {
     /** The logged table. */
     readonly table: Table;
-    /** The scopes whose changes matter. */
-    readonly scopes: readonly string[];
+    /** The scopes whose changes matter, or every scope. */
+    readonly scopes: Query["scopes"];
     /** The rows whose changes matter, absent for every row. */
     readonly where?: Condition;
+}
+
+/** Join the scopes some watches read for one log read, absent when one reads every scope. */
+export function watchedScopes(watches: readonly Watch[]): string[] | undefined {
+    const scopes = new Set<string>();
+    for (const { scopes: watched } of watches) {
+        if (watched === "every") {
+            return undefined;
+        }
+        for (const scope of watched) {
+            scopes.add(scope);
+        }
+    }
+
+    return [...scopes];
 }
 
 /** A row whose visibility a change decided. */

@@ -146,10 +146,11 @@ export class Workload {
                     .onConflictDoUpdate({ target: task.id, set: values });
             }
         }
-        // write a tag
+        // write a tag in a folder or in a project's own scope
         else if (kind === "tag") {
             const id = random.pick(this.#tags);
-            const values = { id, scope: folder, name: random.pick(["a", "b", "hidden"]) };
+            const scope = random.chance(0.4) ? random.pick(this.#projects) : folder;
+            const values = { id, scope, name: random.pick(["a", "b", "hidden"]) };
             await (isDeleted
                 ? database.delete(tag).where(eq(tag.id, id))
                 : database

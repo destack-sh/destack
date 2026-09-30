@@ -92,7 +92,13 @@ await copy.follow(local, (after, signal) => feed.subscribe({ board }, after, sig
 const projects = await copy.rows(local, "board", board, outbox);
 ```
 
-Several replicas may include one row, which stays until none includes it.
+A table in `within` is copied across scopes: its rows live in the scopes that another copied table's rows are.
+
+```ts
+const copy = new Replica({ name: "work", scope: spaceId, tables: [project, note], within: new Map([[note, [project]]]) });
+```
+
+Several replicas may include one row, which stays until none includes it and keeps a column while one of them shows it.
 
 ```ts
 const tasks = await local.select().from(task).where(Replica.includes("board", task));

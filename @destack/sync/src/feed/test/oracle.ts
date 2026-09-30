@@ -54,7 +54,7 @@ export function groupName(query: string, group: Readonly<Record<string, unknown>
 function hold(
     name: string,
     query: Query | Include,
-    scopes: readonly string[],
+    scopes: Query["scopes"],
     candidates: readonly Row[],
     partition: { readonly name: string; readonly value: unknown } | undefined,
     tables: Rows,
@@ -88,7 +88,7 @@ function hold(
         }))
         .filter(
             (row) =>
-                scopes.includes(row[scope] as string) &&
+                inScopes(scopes, row[scope]) &&
                 audience.isVisible(table, row) &&
                 meets(query, row, scopes, tables, audience),
         );
@@ -173,7 +173,7 @@ function hold(
             const members = hold(
                 `${name}.${child}`,
                 include,
-                scopes,
+                scopesOf(include, scopes),
                 reached.rows,
                 reached.partition,
                 tables,
@@ -220,7 +220,7 @@ function chain(
     column: string,
     lower: Row,
     upper: Row,
-    scopes: readonly string[],
+    scopes: Query["scopes"],
     tables: Rows,
     audience: ConditionAudience,
 ): Row[] {
@@ -242,7 +242,7 @@ function chain(
             .find(
                 (entry) =>
                     Order.values(entry[key], parentKey) === 0 &&
-                    scopes.includes(entry.scope as string) &&
+                    inScopes(scopes, entry.scope) &&
                     audience.isVisible(table, entry),
             );
         if (parent === undefined) {
@@ -258,7 +258,7 @@ function chain(
 function meets(
     query: Query | Include,
     row: Row,
-    scopes: readonly string[],
+    scopes: Query["scopes"],
     tables: Rows,
     audience: ConditionAudience,
 ): boolean {
@@ -267,14 +267,16 @@ function meets(
         return true;
     }
     const exists = (via: string, where: Condition | undefined) => {
+        // reach the related rows in the relation's own scopes
         const include = relationOf(query, via, where);
         const scope = "scope";
+        const inner = scopesOf(include, scopes);
 
         return reach(include, query.table, row, scopes, tables, audience).rows.some(
             (related) =>
-                scopes.includes(related[scope] as string) &&
+                inScopes(inner, related[scope]) &&
                 audience.isVisible(include.table, related) &&
-                meets(include, related, scopes, tables, audience),
+                meets(include, related, inner, tables, audience),
         );
     };
 
@@ -296,19 +298,31 @@ function relatedOf(
     via: string,
     where: Condition | undefined,
     row: Row,
-    scopes: readonly string[],
+    scopes: Query["scopes"],
     tables: Rows,
     audience: ConditionAudience,
 ): Row[] {
+    // reach the related rows in the relation's own scopes
     const include = relationOf(query, via, where);
     const scope = "scope";
+    const inner = scopesOf(include, scopes);
 
     return reach(include, query.table, row, scopes, tables, audience).rows.filter(
         (related) =>
-            scopes.includes(related[scope] as string) &&
+            inScopes(inner, related[scope]) &&
             audience.isVisible(include.table, related) &&
-            meets(include, related, scopes, tables, audience),
+            meets(include, related, inner, tables, audience),
     );
+}
+
+/** Read the scopes an include's rows live in: every scope for rows joined by their scope column. */
+function scopesOf(include: Pick<Include, "on">, scopes: Query["scopes"]): Query["scopes"] {
+    return include.on.kind === "key" && include.on.column === "scope" ? "every" : scopes;
+}
+
+/** Decide whether a scope is among some scopes. */
+function inScopes(scopes: Query["scopes"], scope: unknown): boolean {
+    return scopes === "every" || scopes.includes(scope as string);
 }
 
 /** Measure rows by a rollup. */
@@ -412,7 +426,7 @@ function reach(
     include: Include,
     table: Table,
     held: Row,
-    scopes: readonly string[],
+    scopes: Query["scopes"],
     tables: Rows,
     audience: ConditionAudience,
 ): {
@@ -423,7 +437,7 @@ function reach(
     // pass only through visible rows of the scopes
     const path = include.on;
     const passes = (through: Table, row: Row) =>
-        scopes.includes(row.scope as string) && audience.isVisible(through, row);
+        inScopes(scopes, row.scope) && audience.isVisible(through, row);
     // join a column to the held row's
     if (path.kind === "key") {
         return {
