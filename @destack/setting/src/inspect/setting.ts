@@ -1,5 +1,6 @@
 import { Expression } from "@destack/schema/expression";
-import { Plan, type Compare } from "@destack/resource";
+import type { JsonValue } from "@destack/schema/json";
+import { Address, Plan, type Compare } from "@destack/resource";
 import { defineSchema, fromJsonSchema, schema, toJsonSchema, Version } from "@destack/schema";
 import { Package } from "@destack/package";
 import type {} from "@destack/package/import-meta";
@@ -53,8 +54,8 @@ export const compareSetting: Compare = (before, after) => {
     const later = SettingDescription.parse(after.description);
     const release = after.symbol.package.version;
 
-    return Plan.schema({
-        target: `setting ${later.name}`,
+    return Plan.values({
+        target: Address.join("setting", later.name),
         before: earlier.schema,
         after: later.schema,
         release,
@@ -128,4 +129,11 @@ export class SettingCatalog {
 
         return setting;
     }
+}
+
+/** List a setting's term: its name, with its scope. */
+export function settingVocabulary(input: Record<string, JsonValue>): Record<string, JsonValue> {
+    const description = SettingDescription.parse(input);
+
+    return { [description.name]: { scope: description.scope } };
 }

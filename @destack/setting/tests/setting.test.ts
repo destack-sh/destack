@@ -8,6 +8,7 @@ import { SettingError } from "../src/error/index.ts";
 import {
     compareSetting,
     describeSetting,
+    settingVocabulary,
     SettingCatalog,
     SettingDescription,
 } from "../src/inspect/index.ts";
@@ -197,6 +198,9 @@ test("describe a setting and read the settings a build declares", async () => {
         scope: "user",
         overrides: ["space", "installation", "device"],
         apply: "immediate",
+    });
+    expect(settingVocabulary(JSON.parse(JSON.stringify(describeSetting(editor))))).toEqual({
+        "editor.mode": { scope: "user" },
     });
 
     // read both settings back, validating values by their described schemas
@@ -566,20 +570,20 @@ test("plan a setting's value change between releases: safe widenings, converted 
         [],
         [
             {
-                kind: "wider",
+                action: "update",
+                target: "setting/editor.mode",
                 risk: "safe",
-                target: "setting editor.mode",
-                detail: "wider setting editor.mode",
+                detail: "wider values",
             },
         ],
         [
             {
-                kind: "convert",
+                action: "convert",
+                target: "setting/editor.mode",
                 risk: "data-dependent",
-                target: "setting editor.mode",
-                detail: `convert setting editor.mode to ${release}`,
+                detail: `convert values to ${release}`,
             },
         ],
-        "setting editor.mode: declare a conversion for 2026.9.0",
+        "setting/editor.mode: declare a conversion for 2026.9.0",
     ]);
 });

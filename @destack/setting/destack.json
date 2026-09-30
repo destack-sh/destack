@@ -16,7 +16,8 @@
                 {
                     "kind": "setting",
                     "function": "./inspect#describeSetting",
-                    "compare": "./inspect#compareSetting"
+                    "compare": "./inspect#compareSetting",
+                    "vocabulary": "./inspect#settingVocabulary"
                 }
             ]
         }
