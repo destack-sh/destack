@@ -7,6 +7,7 @@ import { DatabaseError } from "../error/error.ts";
 import { Replication } from "../replication/replication.ts";
 import { DatabaseKind } from "../declare/database.ts";
 import { mergeStates } from "../migration/merge.ts";
+import { createLog } from "../log/trigger.ts";
 
 /** Provide databases as SQLite files, one folder per space. */
 export function sqliteProvider(
@@ -23,12 +24,16 @@ export function sqliteProvider(
         kind: DatabaseKind,
         code: "sqlite",
         provision: async (record) => {
-            // create the space folder and the database file
+            // create the space folder and the database file with its log
             const space = new URL(`${record.scope}/`, root);
             const file = new URL(`${record.id}.db`, space);
             await mkdir(space, { recursive: true });
             const connection = await connect(fileURLToPath(file));
-            await connection.close();
+            try {
+                await connection.executeScript(createLog("sqlite").join(";\n"));
+            } finally {
+                await connection.close();
+            }
 
             return { reference: file.href };
         },

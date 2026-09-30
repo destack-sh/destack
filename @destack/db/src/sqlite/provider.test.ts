@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { expect, onTestFinished, test } from "@destack/test";
-import { Plan } from "@destack/resource";
+import { Plan, Recipient } from "@destack/resource";
 import { identifier } from "@destack/schema";
 import { defineDatabase } from "../declare/database.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
@@ -70,4 +70,47 @@ test("provision, plan and apply a SQLite database file, connect a workload to it
         applied: "connected",
         isGone: true,
     });
+});
+
+test("copy a provisioned SQLite database with no tables applied through its log", async () => {
+    // provision a source and a target file
+    const directory = await mkdtemp(join(tmpdir(), "destack-sqlite-"));
+    onTestFinished(() => rm(directory, { recursive: true }));
+    const provider = sqliteProvider(pathToFileURL(`${directory}/`));
+    const record = (id: string) => ({
+        id: identifier("resource").parse(id),
+        scope: identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002"),
+        kind: "database" as const,
+        spec: { tier: "zonal" as const },
+        reference: null,
+    });
+    const provision = async (id: string) => {
+        const empty = record(id);
+        const { reference } = await provider.provision(empty);
+
+        return { ...empty, reference };
+    };
+    const source = await provision("resource-01996ab0-0000-7000-8000-000000000003");
+    const target = await provision("resource-01996ab0-0000-7000-8000-000000000004");
+
+    // export the empty source at both stages and import each chunk into the target
+    const recipient = await Recipient.generate();
+    const stages = [];
+    for (const stage of ["live", "fenced"] as const) {
+        const chunks = [];
+        const copy = { desired: [], recipient, stage };
+        for await (const chunk of provider.export(
+            { ...copy, record: source },
+            undefined,
+            AbortSignal.timeout(5000),
+        )) {
+            await provider.import({ ...copy, record: target }, chunk);
+            chunks.push(chunk);
+        }
+        stages.push([stage, chunks.length]);
+    }
+    expect(stages).toEqual([
+        ["live", 0],
+        ["fenced", 0],
+    ]);
 });
