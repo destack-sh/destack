@@ -2,17 +2,16 @@
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a0d5eb-fb8a-74f4-ba37-8a4d6970e238",
     "language": "typescript",
-    "targets": ["browser", "server"],
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
         "./stack": {
-            "targets": ["server"]
+            "runtimes": ["bun", "workerd"]
         },
         "./package": {
-            "targets": ["server"]
+            "runtimes": ["bun", "workerd"]
         },
         "./view": {
-            "targets": ["browser"]
+            "runtimes": ["browser"]
         }
     }
 }
