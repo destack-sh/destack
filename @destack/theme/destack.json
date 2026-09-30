@@ -2,13 +2,6 @@
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a0c80b-614d-75aa-9a7c-0ffca96cf01a",
     "language": "typescript",
-    "targets": [
-        "browser",
-        "server"
-    ],
-    "runtimes": [
-        "browser",
-        "bun",
-        "workerd"
-    ]
+    "targets": ["browser", "server"],
+    "runtimes": ["browser", "bun", "workerd"]
 }

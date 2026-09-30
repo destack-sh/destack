@@ -2,33 +2,18 @@
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a0c80b-614f-73ef-ba8b-b65e3579f3d0",
     "language": "typescript",
-    "targets": [
-        "browser",
-        "server"
-    ],
+    "targets": ["browser", "server"],
     "exports": {
         "./browser": {
-            "targets": [
-                "browser"
-            ]
+            "targets": ["browser"]
         },
         "./worker": {
-            "targets": [
-                "server"
-            ]
+            "targets": ["server"]
         },
         "./host": {
-            "targets": [
-                "server"
-            ],
-            "runtimes": [
-                "bun"
-            ]
+            "targets": ["server"],
+            "runtimes": ["bun"]
         }
     },
-    "runtimes": [
-        "browser",
-        "bun",
-        "workerd"
-    ]
+    "runtimes": ["browser", "bun", "workerd"]
 }

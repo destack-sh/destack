@@ -159,7 +159,10 @@ export class Sandbox implements AsyncDisposable {
             if (launcher.connected) {
                 launcher.disconnect();
             }
-            const timeout = setTimeout(() => launcher.kill("SIGKILL"), CLEANUP_TIMEOUT_MILLISECONDS);
+            const timeout = setTimeout(
+                () => launcher.kill("SIGKILL"),
+                CLEANUP_TIMEOUT_MILLISECONDS,
+            );
             try {
                 await closed.promise;
             } finally {
