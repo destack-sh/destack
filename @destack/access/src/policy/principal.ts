@@ -22,6 +22,10 @@ export const principal = {
     region: new Policy(OWNER, { name: "region", permissions: {}, isGlobal: true }),
     /** An application installed into an account or space: the principal of software. */
     installation: new Policy(OWNER, { name: "installation", permissions: {} }),
+    /** A space, the principal its cell copies rows for. */
+    space: new Policy(OWNER, { name: "space", permissions: {}, isGlobal: true }),
+    /** A host or region serving zones, as the directory knows it. */
+    cell: new Policy(OWNER, { name: "cell", permissions: {}, isGlobal: true }),
     /** A non-person identity an account creates for automation, living in that account. */
     serviceAccount: new Policy(OWNER, { name: "service-account", permissions: {} }),
 };
@@ -94,7 +98,9 @@ export function principalOf(context: AccessContext): Subject | undefined {
 }
 
 /** Read the principal sending a request: its last delegate, else its subject. */
-export function senderOf(context: Pick<AccessContext, "subject" | "delegates">): Subject | undefined {
+export function senderOf(
+    context: Pick<AccessContext, "subject" | "delegates">,
+): Subject | undefined {
     return context.delegates?.at(-1)?.subject ?? context.subject;
 }
 
