@@ -24,9 +24,6 @@ export abstract class Directory {
     /** Mark a zone its cell serves at an epoch as moving to a target cell. */
     abstract move(zone: Zone, target: string): Promise<void>;
 
-    /** Follow the zones moving to a cell until the signal aborts. */
-    abstract incoming(cell: string, signal: AbortSignal): AsyncIterable<readonly Zone[]>;
-
     /** Record the URL a cell answers at. */
     abstract publish(cell: string, scope: string, endpoint: string): Promise<void>;
 

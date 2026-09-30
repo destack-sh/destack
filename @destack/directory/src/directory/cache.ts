@@ -60,11 +60,6 @@ export class DirectoryCache extends Directory {
         return this.#directory.move(zone, target);
     }
 
-    /** Follow the zones moving to a cell. */
-    incoming(cell: string, signal: AbortSignal): AsyncIterable<readonly Zone[]> {
-        return this.#directory.incoming(cell, signal);
-    }
-
     /** Record the URL a cell answers at. */
     publish(cell: string, scope: string, endpoint: string): Promise<void> {
         return this.#directory.publish(cell, scope, endpoint);

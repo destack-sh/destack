@@ -1,6 +1,9 @@
 import { check, defineTable, index, integer, sql, text } from "@destack/db";
 import { defineSchema, schema } from "@destack/schema";
 
+/** The universe scope, as sync names it, where every zone row lives so a cell copies the zones moving to it across accounts. */
+export const ZONE_SCOPE = "universe";
+
 /** A scope with its own databases, placed in the cell serving them. */
 export const Zone = defineSchema(
     schema.object({
@@ -43,8 +46,10 @@ export const zoneTable = defineTable(
     {
         /** The scope the databases belong to. */
         id: text("id").primaryKey(),
-        /** The scope containing it, such as its account. */
+        /** The universe, where every zone row lives. */
         scope: text("scope").notNull(),
+        /** The scope containing the zone's scope, such as its account. */
+        parent: text("parent").notNull(),
         /** The cell serving the databases. */
         cell: text("cell").notNull(),
         /** The placement epoch the cell serves the zone at. */
@@ -58,8 +63,8 @@ export const zoneTable = defineTable(
         constraints: (zone) => [
             check("zone_epoch", sql`${zone.epoch} > 0`),
             check("zone_target", sql`${zone.target} IS NULL OR ${zone.target} <> ${zone.cell}`),
-            index("zone_incoming").on(zone.target),
-            index("zone_scope").on(zone.scope),
+            index("zone_target").on(zone.target),
+            index("zone_parent").on(zone.parent),
         ],
     },
 );

@@ -2,7 +2,7 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 import { defineProcedure, defineService, ServiceMount } from "@destack/service";
 import { expect, onTestFinished, test } from "@destack/test";
-import { directoryTables, DirectoryDatabase, Zone } from "../src/index.ts";
+import { directoryTables, DirectoryDatabase, Zone, zoneTable } from "../src/index.ts";
 
 /** A service a cell mounts, answering a zone's location. */
 const zones = defineService("zones", {
@@ -52,7 +52,7 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "follow the zones moving to a cell until it takes them, and serve cells' endpoints on %s",
+    "mark a zone moving to a cell until it takes it, and serve cells' endpoints on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
@@ -60,15 +60,15 @@ test.each(TEST_DIALECTS)(
         const zone = { id: "space-1", scope: "account-1", cell: "host-1", epoch: 1 };
         await directory.place(zone);
 
-        // follow the zones moving to the target: none, the moving one, then none after the takeover
-        const following = new AbortController();
-        onTestFinished(() => following.abort());
-        const incoming = directory.incoming("host-2", following.signal)[Symbol.asyncIterator]();
-        const seen = [(await incoming.next()).value];
+        // mark the zone moving to the target, and clear the mark once the target takes it
+        const target = async () =>
+            (await storage.database.select({ target: zoneTable.target }).from(zoneTable))[0]!
+                .target;
+        const seen = [await target()];
         await directory.move(zone, "host-2");
-        seen.push((await incoming.next()).value);
+        seen.push(await target());
         await directory.place({ ...zone, cell: "host-2", epoch: 2 });
-        seen.push((await incoming.next()).value);
+        seen.push(await target());
 
         // refuse moving a zone its cell no longer serves at the epoch
         await expect(directory.move(zone, "host-3")).rejects.toMatchObject({
@@ -79,7 +79,7 @@ test.each(TEST_DIALECTS)(
         // publish a cell's endpoint, and find none of an unknown cell
         await directory.publish("host-2", "account-1", "https://host-2.test/");
         expect([seen, await directory.cell("host-2"), await directory.cell("host-9")]).toEqual([
-            [[], [zone], []],
+            [null, "host-2", null],
             { id: "host-2", scope: "account-1", endpoint: "https://host-2.test/" },
             undefined,
         ]);

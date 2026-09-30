@@ -1,6 +1,5 @@
 import { and, eq, gt, inArray, lte, min, ne, or, sql, type DatabaseConnection } from "@destack/db";
 import { CHAIN_TERMS } from "@destack/db/query";
-import { canonicalize } from "@destack/schema/json";
 import { ServiceError } from "@destack/service/error";
 import {
     claimTable,
@@ -10,13 +9,13 @@ import {
     type Expiry,
     type ObjectClaims,
 } from "../claim/claim.ts";
-import { cellTable, zoneTable, type Cell, type Zone } from "../zone/zone.ts";
+import { cellTable, ZONE_SCOPE, zoneTable, type Cell, type Zone } from "../zone/zone.ts";
 import { Directory } from "./directory.ts";
 
 /** The columns of a zone. */
 const ZONE_COLUMNS = {
     id: zoneTable.id,
-    scope: zoneTable.scope,
+    scope: zoneTable.parent,
     cell: zoneTable.cell,
     epoch: zoneTable.epoch,
 };
@@ -39,10 +38,16 @@ export class DirectoryDatabase extends Directory {
         // move the zone to a later epoch, or keep the same placement
         const placed = await this.database
             .insert(zoneTable)
-            .values(zone)
+            .values({
+                id: zone.id,
+                scope: ZONE_SCOPE,
+                parent: zone.scope,
+                cell: zone.cell,
+                epoch: zone.epoch,
+            })
             .onConflictDoUpdate({
                 target: zoneTable.id,
-                set: { scope: zone.scope, cell: zone.cell, epoch: zone.epoch, target: null },
+                set: { parent: zone.scope, cell: zone.cell, epoch: zone.epoch, target: null },
                 setWhere: sql`${zoneTable.epoch} < ${zone.epoch} OR (${zoneTable.epoch} = ${zone.epoch} AND ${zoneTable.cell} = ${zone.cell})`,
             })
             .returning({ id: zoneTable.id });
@@ -85,7 +90,7 @@ export class DirectoryDatabase extends Directory {
         return this.database
             .select(ZONE_COLUMNS)
             .from(zoneTable)
-            .where(eq(zoneTable.scope, scope))
+            .where(eq(zoneTable.parent, scope))
             .orderBy(zoneTable.id);
     }
 
@@ -100,32 +105,6 @@ export class DirectoryDatabase extends Directory {
             throw new ServiceError("CONFLICT", {
                 message: `${zone.id} is no longer placed in ${zone.cell} at epoch ${zone.epoch}`,
             });
-        }
-    }
-
-    /** Follow the zones moving to a cell, now and after each change. */
-    async *incoming(cell: string, signal: AbortSignal): AsyncGenerator<readonly Zone[]> {
-        // read the zones moving to the cell, in identity order
-        const read = () =>
-            this.database
-                .select(ZONE_COLUMNS)
-                .from(zoneTable)
-                .where(eq(zoneTable.target, cell))
-                .orderBy(zoneTable.id);
-
-        // yield them, then wait for a commit changing them
-        let zones = await read();
-        while (!signal.aborted) {
-            yield zones;
-            const shown = canonicalize(zones);
-            const isChanged = await this.database.log.until(async () => {
-                zones = await read();
-
-                return canonicalize(zones) !== shown;
-            }, signal);
-            if (!isChanged) {
-                return;
-            }
         }
     }
 

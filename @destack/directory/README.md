@@ -13,7 +13,7 @@ const directory = new DirectoryDatabase(globalDatabase);
 await directory.publish("region-eu", "universe", "https://eu.destack.app");
 await directory.place({ id: spaceId, scope: accountId, cell: "region-eu", epoch: 1 });
 const zone = await directory.locate(spaceId);                  // { id, scope, cell: "region-eu", epoch: 1 }
-await directory.move(zone!, "host-01a0…");                     // the target follows directory.incoming("host-01a0…")
+await directory.move(zone!, "host-01a0…");                     // the target cell copies the zones moving to it
 ```
 
 ## Clients
