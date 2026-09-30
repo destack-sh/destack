@@ -42,6 +42,19 @@ const carol: AccessContext = {
     attributes: {},
 };
 
+/** Build the copy of a scope's chain row an authorizer's database follows. */
+function chainOf(authorizer: Authorizer, scope: string) {
+    return authorizer.replicaOf({
+        name: COPY_NAME,
+        scope,
+        below: scope,
+        access: true,
+        held: [...authorizer.held],
+        copied: [...authorizer.copied],
+        rows: [],
+    });
+}
+
 test("relay an account's access through the space's database into an app's, and follow its revocation", async () => {
     // open the global database holding accounts, the regional one holding spaces, and an app's holding notes
     const global = await openFixture();
@@ -89,7 +102,7 @@ test("relay an account's access through the space's database into an app's, and 
 
     // copy the account into the regional database, then create the space there
     const accountFeed = new Feed(global.database, [...accessTables, policyTable]);
-    await copy(regional.database, spaces.replica("account-1"), accountFeed);
+    await copy(regional.database, chainOf(spaces, "account-1"), accountFeed);
     await regional.database.insert(spaceTable).values({ id: "personal", account: "account-1" });
     await new Authorization(spaces, regional.database, () => alice).create(
         space.reference("account-1", "personal"),
@@ -99,9 +112,9 @@ test("relay an account's access through the space's database into an app's, and 
     // relay the space and the account from the regional database into the app's, where carol reads every note
     const spaceFeed = new Feed(regional.database, [...accessTables, policyTable]);
     const relay = async () => {
-        await copy(regional.database, spaces.replica("account-1"), accountFeed);
-        await copy(app.database, notes.replica("account-1"), spaceFeed);
-        await copy(app.database, notes.replica("personal"), spaceFeed);
+        await copy(regional.database, chainOf(spaces, "account-1"), accountFeed);
+        await copy(app.database, chainOf(notes, "account-1"), spaceFeed);
+        await copy(app.database, chainOf(notes, "personal"), spaceFeed);
     };
     await relay();
     const readable = async (context: AccessContext) =>
@@ -149,7 +162,7 @@ test("relay an account's access through the space's database into an app's, and 
     });
 
     // keep the app's own relationships, about its notes, through a fresh snapshot of the space's copy
-    await copy(app.database, notes.replica("personal"), spaceFeed, "snapshot");
+    await copy(app.database, chainOf(notes, "personal"), spaceFeed, "snapshot");
     const own = await app.database
         .select({ type: accessRelationship.type, objectId: accessRelationship.objectId })
         .from(accessRelationship)

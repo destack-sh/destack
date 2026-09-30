@@ -109,6 +109,11 @@ Every database holding protected objects includes `accessTables`.
 
 ```ts
 export const main = defineDatabase({ name: "main", tables: [...accessTables, notes] });
+```
 
-const replica = authorizer.replica(spaceId);
+A database below a scope copies the chain above it: each scope's access rows and inherited rows.
+
+```ts
+const requests = await authorizer.chain(database, spaceId, { isHome: true });
+const replica = authorizer.replicaOf(requests[0]!);
 ```

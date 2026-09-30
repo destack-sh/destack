@@ -5,12 +5,11 @@ import { Snapshot } from "@destack/db/log";
 import type { PackageId } from "@destack/package";
 import { identifier } from "@destack/schema";
 import {
-    ChainFollower,
     Replica,
     Scope,
+    type ReplicaRequest,
     type ScopeLink,
     type Watch,
-    type ChainRelay,
     type ObjectReference,
     type ObjectTypeReference,
 } from "@destack/sync";
@@ -498,21 +497,40 @@ export class Authorizer {
         }
     }
 
-    /** Build the copy of a scope this database follows. */
-    replica(scope: string): Replica {
-        return this.replicaOf(scope, this.held, this.copied);
+    /** List the requests of the copies of the scopes above one, and of the scope itself unless the database is its home. */
+    async chain(
+        database: DatabaseConnection,
+        below: string,
+        options: { readonly isHome: boolean },
+    ): Promise<Omit<ReplicaRequest, "after">[]> {
+        // read the ancestors the scope's copy lists, the scope alone until it arrives
+        const [copy] = await database
+            .select({ ancestors: Scope.table.ancestors })
+            .from(Scope.table)
+            .where(eq(Scope.table.scope, below));
+        const scopes = [
+            ...(options.isHome ? [] : [below]),
+            ...(copy === undefined ? [] : [...copy.ancestors, Scope.universe.id]),
+        ];
+
+        // copy each scope's access rows and inherited rows, decided for the scope below
+        return scopes.map((scope) => ({
+            name: COPY_NAME,
+            scope,
+            below,
+            access: true,
+            held: [...this.held],
+            copied: [...this.copied],
+            rows: [],
+        }));
     }
 
-    /** Build the copy of a scope that this source serves to a follower. */
-    replicaOf(
-        scope: string,
-        held: readonly ObjectTypeReference[],
-        copied: readonly ObjectTypeReference[],
-    ): Replica {
+    /** Build the copy a request asks for: a scope's access rows, inherited rows and global rows. */
+    replicaOf(request: Omit<ReplicaRequest, "after">): Replica {
         // leave out the access rows of the objects the follower holds, and of objects living in the universe
         const own = Condition.not(
             Condition.any(
-                ...[...held, ...this.universal].map((type) =>
+                ...[...request.held, ...this.universal].map((type) =>
                     Condition.all(
                         Condition.eq("packageId", type.packageId),
                         Condition.eq("type", type.type),
@@ -520,46 +538,41 @@ export class Authorizer {
                 ),
             ),
         );
+        const access: [Table, Condition | undefined][] = request.access
+            ? decisionTables.map((table) => [table, table === accessRelationship ? own : undefined])
+            : [];
 
-        // add each copied type's inherited rows
-        const inherited = copied.map((type) => {
+        // add each copied type's inherited rows, and each global type's requested rows
+        const inherited = request.copied.map((type): [Table, Condition] => {
             const mapping = this.#mappings.get(JSON.stringify([type.packageId, type.type]));
             if (mapping?.inherited === undefined) {
                 throw new AccessError("NOT_FOUND", `no inherited rows of ${type.type}`);
             }
 
-            return { table: mapping.table, where: mapping.inherited };
+            return [mapping.table, mapping.inherited];
         });
+        const rows = request.rows.map(({ type, where }): [Table, Condition] => {
+            const mapping = this.#mappings.get(JSON.stringify([type.packageId, type.type]));
+            if (mapping === undefined) {
+                throw new AccessError("NOT_FOUND", `no object type ${type.type} to copy`);
+            }
+
+            return [mapping.table, where];
+        });
+
+        // copy them under the request's name and scope
+        const tables = [...access, ...inherited, ...rows];
 
         return new Replica({
-            name: COPY_NAME,
-            scope,
-            tables: [...decisionTables, ...inherited.map((entry) => entry.table)],
-            where: new Map([
-                [accessRelationship, own],
-                ...inherited.map((entry): [Table, Condition] => [entry.table, entry.where]),
-            ]),
-        });
-    }
-
-    /** Copy the chain a relay streams into a database this authorizer decides in. */
-    follower(
-        database: DatabaseConnection,
-        held: readonly ObjectTypeReference[],
-        relay: ChainRelay,
-    ): ChainFollower {
-        const copied = this.copied;
-
-        return new ChainFollower(
-            database,
-            relay.scope,
-            (scope) => this.replicaOf(scope, held, copied),
-            (scope, after, signal) =>
-                relay.watch(
-                    { scope, held, copied, ...(after === undefined ? {} : { after }) },
-                    signal,
+            name: request.name,
+            scope: request.scope,
+            tables: tables.map(([table]) => table),
+            where: new Map(
+                tables.flatMap(([table, where]): [Table, Condition][] =>
+                    where === undefined ? [] : [[table, where]],
                 ),
-        );
+            ),
+        });
     }
 
     /** List the access rows with changes that affect what a caller of a scope chain may hold. */

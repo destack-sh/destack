@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { asc, type DatabaseConnection } from "@destack/db";
 import { Condition } from "@destack/db/query";
-import { Feed, Replica, Scope, type ChainRelay } from "@destack/sync";
+import { Feed, Replica, Scope } from "@destack/sync";
 import {
     accessRelationship,
     accessRole,
@@ -48,16 +48,22 @@ test("copy a space's chain up to the universe from a relay, with the policies ea
 
     // relay the space's chain from the home database
     const feed = new Feed(home.database, [...accessTables, policyTable]);
-    const relay: ChainRelay = {
-        scope: "personal",
-        watch: (request, signal) =>
-            feed.subscribe(
-                authorizer.replicaOf(request.scope, request.held, request.copied).queries,
-                request.after,
-                signal,
-            ),
+    const requests = () => app.authorizer.chain(app.database, "personal", { isHome: false });
+    const scopes = async () => (await requests()).map((request) => request.scope);
+    const follow = async (scope: string) => {
+        const request = (await requests()).find((entry) => entry.scope === scope)!;
+        following.push(
+            app.authorizer
+                .replicaOf(request)
+                .follow(
+                    app.database,
+                    (after, signal) =>
+                        feed.subscribe(authorizer.replicaOf(request).queries, after, signal),
+                    controller.signal,
+                    { request },
+                ),
+        );
     };
-    const follower = app.authorizer.follower(app.database, app.authorizer.held, relay);
     const controller = new AbortController();
     const following: Promise<void>[] = [];
     onTestFinished(async () => {
@@ -70,14 +76,14 @@ test("copy a space's chain up to the universe from a relay, with the policies ea
     };
 
     // list the space alone until its copy lists the account containing it, up to the universe
-    expect(await follower.list()).toEqual(["personal"]);
-    following.push(follower.follow("personal", controller.signal));
+    expect(await scopes()).toEqual(["personal"]);
+    await follow("personal");
     await reach("personal");
-    expect(await follower.list()).toEqual(["personal", "account-1", "universe"]);
+    expect(await scopes()).toEqual(["personal", "account-1", "universe"]);
 
     // copy the account's access row for row, and only the policies the account and the universe hand down
-    following.push(follower.follow("account-1", controller.signal));
-    following.push(follower.follow("universe", controller.signal));
+    await follow("account-1");
+    await follow("universe");
     await reach("account-1");
     await reach("universe");
     expect([
@@ -94,7 +100,17 @@ test("copy a space's chain up to the universe from a relay, with the policies ea
     // leave the access rows of held types and of universe-living types out of every copy
     const types = [...app.authorizer.held, ...authorizer.universal];
     expect(
-        authorizer.replicaOf("universe", app.authorizer.held, []).where.get(accessRelationship),
+        authorizer
+            .replicaOf({
+                name: "chain",
+                scope: "universe",
+                below: "personal",
+                access: true,
+                held: [...app.authorizer.held],
+                copied: [],
+                rows: [],
+            })
+            .where.get(accessRelationship),
     ).toEqual(
         Condition.not(
             Condition.any(
