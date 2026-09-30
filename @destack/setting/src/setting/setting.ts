@@ -1,7 +1,8 @@
 import { PackageId, type Package } from "@destack/package";
 import { defineSchema, identifier, schema, Version } from "@destack/schema";
 import { canonicalize } from "@destack/schema/json";
-import { Condition, Expression } from "@destack/db/query";
+import { Condition } from "@destack/db/query";
+import { Expression } from "@destack/schema/expression";
 import type { JsonValue } from "@destack/db";
 import type { SettingDefinition } from "../declare/setting.ts";
 import type { SettingRow } from "../object/setting.ts";

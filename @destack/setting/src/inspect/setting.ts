@@ -1,5 +1,5 @@
-import { Expression } from "@destack/db/query";
-import { Plan } from "@destack/resource";
+import { Expression } from "@destack/schema/expression";
+import { Plan, type Compare } from "@destack/resource";
 import { defineSchema, fromJsonSchema, schema, toJsonSchema, Version } from "@destack/schema";
 import { Package } from "@destack/package";
 import type {} from "@destack/package/import-meta";
@@ -46,21 +46,27 @@ export function describeSetting(setting: Setting): SettingDescription {
     };
 }
 
-/** Plan a setting's value change between two releases: newer readers read earlier values, converted by the release's conversion. */
-export function compareSetting(
-    before: SettingDescription,
-    after: SettingDescription,
-    release: Version,
-): Plan {
+/** Plan a setting's value change between two releases: newer readers read earlier values, converted by a conversion of a release between them. */
+export const compareSetting: Compare = (before, after) => {
+    // read both releases' settings and the releases declaring them
+    const earlier = SettingDescription.parse(before.description);
+    const later = SettingDescription.parse(after.description);
+    const release = after.symbol.package.version;
+
     return Plan.schema({
-        target: `setting ${after.name}`,
-        before: before.schema,
-        after: after.schema,
+        target: `setting ${later.name}`,
+        before: earlier.schema,
+        after: later.schema,
         release,
         compatibility: "backward",
-        isConverted: after.convert?.[release] !== undefined,
+        isConverted:
+            Version.between(
+                Object.keys(later.convert ?? {}),
+                before.symbol.package.version,
+                release,
+            ).length > 0,
     });
-}
+};
 
 /** The settings a build declares, by key. */
 export class SettingCatalog {

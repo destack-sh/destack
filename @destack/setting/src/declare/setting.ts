@@ -1,6 +1,6 @@
-import { Expression } from "@destack/db/query";
+import { Expression } from "@destack/schema/expression";
 import { declaringModule, Package, type ModuleMetadata } from "@destack/package";
-import { defineSchema, schema, type Version } from "@destack/schema";
+import { defineSchema, schema, Version } from "@destack/schema";
 import { Setting, SettingName } from "../setting/setting.ts";
 
 /** The scope a setting belongs to and the overrides it permits. */
@@ -81,7 +81,7 @@ export function defineSetting<Value extends schema.Schema>(
     SettingScope.parse({ scope, overrides });
 
     // require conversions keyed by releases up to the declaring one
-    Expression.requireReleases(convert ?? {}, owner.version, definition.name);
+    Version.requireUpTo(convert ?? {}, owner.version, definition.name);
 
     // require a declarative value schema and a valid JSON default
     defineSchema(valueSchema);

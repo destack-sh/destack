@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { Expression } from "@destack/db/query";
+import { Expression } from "@destack/schema/expression";
 import { identifier, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { Scope } from "@destack/sync";
@@ -27,6 +27,23 @@ import {
     space,
 } from "./fixture/index.ts";
 import { editor, notes, release } from "./fixture/settings/index.ts";
+
+/** The package whose releases the entries declare. */
+const PACKAGE = {
+    id: PackageId.parse("package-01996ab0-0000-7000-8000-00000000c001"),
+    name: "@destack/compare-fixture",
+};
+
+/** A release's manifest entry of a declaration, its description read back from JSON. */
+const entry = (description: unknown, version: string) => ({
+    description: schema
+        .record(schema.string(), schema.json())
+        .parse(JSON.parse(JSON.stringify(description))),
+    symbol: {
+        package: { ...PACKAGE, version },
+        symbol: { module: "src/index.ts", name: "declared" },
+    },
+});
 
 /** The resolution of the editor mode to its default for the fixture's selection. */
 const standard = {
@@ -533,7 +550,7 @@ test("plan a setting's value change between releases: safe widenings, converted 
     );
     const outcome = (after: SettingDescription) => {
         try {
-            return compareSetting(before, after, release).steps;
+            return compareSetting(entry(before, "2026.8.0"), entry(after, release)).steps;
         } catch (error) {
             return (error as Error).message;
         }
