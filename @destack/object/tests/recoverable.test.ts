@@ -1,4 +1,5 @@
 import type { Change } from "@destack/db/log";
+import { reconciliation } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
@@ -186,7 +187,10 @@ test.each(TEST_DIALECTS)(
         const pending = await execute(handled, "create", { custodian: "user-2", value: "later" });
         await execute(handled, "delete", { id: pending.id, revision: pending.revision });
         const week = 7 * 24 * 60 * 60 * 1000;
-        const delay = await controller.reconcile("trash", { signal: AbortSignal.timeout(5000) });
+        const delay = await controller.reconcile(
+            "trash",
+            reconciliation(AbortSignal.timeout(5000)),
+        );
         const change = (before: object, after: object) =>
             ({ operation: "update", before, after }) as unknown as Change;
         expect([
@@ -201,7 +205,7 @@ test.each(TEST_DIALECTS)(
             .set({ deletionRequestedAt: Date.now() - week - 1 })
             .where(eq(credential.table.id, pending.id));
         expect(
-            await controller.reconcile("trash", { signal: AbortSignal.timeout(5000) }),
+            await controller.reconcile("trash", reconciliation(AbortSignal.timeout(5000))),
         ).toBeUndefined();
         expect(await auditedActions(database, "system")).toEqual([
             "Credential.purge",

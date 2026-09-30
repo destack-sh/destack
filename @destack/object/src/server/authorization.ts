@@ -32,6 +32,8 @@ import { SCOPE_READ, type ObjectType } from "../object/object.ts";
 export class Authorization extends access.Authorization {
     /** The caller's resolved access in the call's scope. */
     readonly access: Access;
+    /** The token lending the caller's authority to the installation serving the call, for the calls it sends. */
+    readonly delegation?: string;
 
     /** Authorize a caller in one transaction. */
     constructor(
@@ -39,9 +41,13 @@ export class Authorization extends access.Authorization {
         database: DatabaseConnection,
         bind: (scope: string) => AccessContext,
         resolved: Access,
+        delegation?: string,
     ) {
         super(authorizer, database, bind, resolved);
         this.access = resolved;
+        if (delegation !== undefined) {
+            this.delegation = delegation;
+        }
     }
 
     /** Match the rows the caller may list. */

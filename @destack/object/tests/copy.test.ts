@@ -1,4 +1,5 @@
 import { AuditOutbox } from "@destack/audit/outbox";
+import { reconciliation } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import {
     accessTables,
@@ -163,7 +164,7 @@ test.each(TEST_DIALECTS)(
         for (const scope of [spaceId, accountId, Scope.universe.id]) {
             const key = (await follower.list()).find((entry) => scopeOf(entry) === scope)!;
             following.push(
-                follower.reconcile(key, { signal: controller.signal }).then(() => undefined),
+                follower.reconcile(key, reconciliation(controller.signal)).then(() => undefined),
             );
             await Replica.reach(workload.database, scope, head, controller.signal);
         }

@@ -1,4 +1,5 @@
 import { AuditOutbox } from "@destack/audit/outbox";
+import { reconciliation } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { none, principal, relation, through } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
@@ -138,7 +139,7 @@ test.each(TEST_DIALECTS)(
         const follower = copying.controllers().find((each) => each.name === "replica")!;
         const controller = new AbortController();
         const [key] = await follower.list();
-        const following = follower.reconcile(key!, { signal: controller.signal });
+        const following = follower.reconcile(key!, reconciliation(controller.signal));
         onTestFinished(async () => {
             controller.abort();
             await following.catch(() => undefined);

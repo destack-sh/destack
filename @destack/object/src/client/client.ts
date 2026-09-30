@@ -42,7 +42,7 @@ import { v7 } from "uuid";
 import { Call } from "../method/call.ts";
 import type { Method } from "../method/method.ts";
 import type { Step } from "../method/step.ts";
-import type { CallableName, ObjectProcedures, ScopeField } from "../method/procedure.ts";
+import type { CallableName, CallInput, CallOutput, MutatingName } from "../method/procedure.ts";
 import {
     ObjectQuery,
     PUSH_MUTATIONS,
@@ -1812,32 +1812,6 @@ type ReadingName<Object extends ObjectType> = {
         ? Name
         : never;
 }[CallableName<Object>];
-
-/** The names of an object type's mutating methods. */
-type MutatingName<Object extends ObjectType> = {
-    [Name in CallableName<Object>]: Object["methods"][Name] extends { mutates: true }
-        ? Name
-        : never;
-}[CallableName<Object>];
-
-/** The procedure one method derives. */
-type ProcedureOf<
-    Object extends ObjectType,
-    Name extends CallableName<Object>,
-> = ObjectProcedures<Object>[Name] & {
-    readonly "~orpc": { readonly inputSchema: schema.Schema; readonly outputSchema: schema.Schema };
-};
-
-/** The input a client passes to a method. */
-export type CallInput<Object extends ObjectType, Name extends CallableName<Object>> = Omit<
-    schema.Input<ProcedureOf<Object, Name>["~orpc"]["inputSchema"]>,
-    "requestId" | (Object["storage"] extends "ephemeral" ? "client" : never) | ScopeField<Object>
->;
-
-/** The result a method returns. */
-export type CallOutput<Object extends ObjectType, Name extends CallableName<Object>> = schema.Infer<
-    ProcedureOf<Object, Name>["~orpc"]["outputSchema"]
->;
 
 /** The queries each party sharing a client database follows. */
 const subscription = defineTable("subscription", {

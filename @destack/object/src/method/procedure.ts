@@ -6,6 +6,7 @@ import {
     TABLE,
 } from "@destack/db";
 import { Scope } from "@destack/sync";
+import type * as sync from "@destack/sync";
 import { identifier, schema, type Identifier } from "@destack/schema";
 import { defineProcedure } from "@destack/service/procedure";
 import { RequestId } from "@destack/service/request";
@@ -271,6 +272,37 @@ type MethodProcedureOf<Object extends ObjectType, Declared extends Method> = (Re
     DetachableProcedures<Object> &
     TrackedProcedures<Object> &
     TextProcedures<Object>)[Declared["kind"]];
+
+/** The names of an object type's mutating methods. */
+export type MutatingName<Object extends ObjectType> = {
+    [Name in CallableName<Object>]: Object["methods"][Name] extends { mutates: true }
+        ? Name
+        : never;
+}[CallableName<Object>];
+
+/** The calls of an object type's mutating methods, recorded to run later. */
+export type Calls<Object extends ObjectType> = {
+    readonly [Name in MutatingName<Object>]: (input: CallInput<Object, Name>) => sync.Call;
+};
+
+/** The procedure one method derives. */
+type ProcedureOf<
+    Object extends ObjectType,
+    Name extends CallableName<Object>,
+> = ObjectProcedures<Object>[Name] & {
+    readonly "~orpc": { readonly inputSchema: schema.Schema; readonly outputSchema: schema.Schema };
+};
+
+/** The input a caller passes to a method, without the scope it calls in. */
+export type CallInput<Object extends ObjectType, Name extends CallableName<Object>> = Omit<
+    schema.Input<ProcedureOf<Object, Name>["~orpc"]["inputSchema"]>,
+    "requestId" | (Object["storage"] extends "ephemeral" ? "client" : never) | ScopeField<Object>
+>;
+
+/** The result a method returns. */
+export type CallOutput<Object extends ObjectType, Name extends CallableName<Object>> = schema.Infer<
+    ProcedureOf<Object, Name>["~orpc"]["outputSchema"]
+>;
 
 /** The input field of an object's scope identifier. */
 export type ScopeField<Object extends ObjectType> = Object["scope"] extends "universe"

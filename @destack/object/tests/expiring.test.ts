@@ -1,4 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
+import { reconciliation } from "@destack/service/test";
 import { principal, relation } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
 import { AuditOutbox } from "@destack/audit/outbox";
@@ -103,7 +104,10 @@ test.each(TEST_DIALECTS)(
         // remove the two expired alerts and schedule the third
         const controller = expiring.controller(server);
         expect(Object.keys(alert.procedures).sort()).toEqual(["create", "get"]);
-        const delay = await controller.reconcile("expiry", { signal: AbortSignal.timeout(5000) });
+        const delay = await controller.reconcile(
+            "expiry",
+            reconciliation(AbortSignal.timeout(5000)),
+        );
         const left = await database.select({ id: alert.table.id }).from(alert.table);
         expect([
             left.map((row) => row.id),

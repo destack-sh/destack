@@ -138,7 +138,7 @@ export const cursor = defineObject({
 });
 ```
 
-A durable object type's `tables` hold its own tables and `serverTables`, and its `tier` keeps it out of databases of other tiers.
+A durable object type's `tables` include its own tables and `serverTables`, and its `tier` keeps it out of databases of other tiers.
 
 ```ts
 export const account = defineObject({ ..., tier: "global" });
@@ -217,7 +217,7 @@ export const profile = defineObject({ ..., scope: person, permissions: { read: t
 
 ## Fields
 
-A guarded field is required to write and optional to read: a reader without the permission, and a copy in another database, hold it concealed.
+A guarded field is required to write and optional to read: a reader without the permission, and a copy in another database, see it concealed.
 
 ```ts
 email: field.string().guard({ read: "update" }),

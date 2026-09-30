@@ -1,4 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
+import { reconciliation } from "@destack/service/test";
 import { principal, relation } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
 import { AuditOutbox } from "@destack/audit/outbox";
@@ -120,7 +121,10 @@ test.each(TEST_DIALECTS)(
         ]).toEqual([['{"topic":"tea"}'], ['{"topic":"cake"}'], []]);
 
         // send the due tea reminders together and look again when the last one is due
-        const wait = await controller.reconcile(keys[0]!, { signal: AbortSignal.timeout(5000) });
+        const wait = await controller.reconcile(
+            keys[0]!,
+            reconciliation(AbortSignal.timeout(5000)),
+        );
         const sent = await database
             .select({ id: reminder.table.id, sentAt: reminder.table.sentAt })
             .from(reminder.table)

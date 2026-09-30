@@ -43,7 +43,7 @@ import {
 } from "@destack/service/server";
 import { withEventMeta, type Service } from "@destack/service";
 import * as sync from "@destack/sync";
-import { Call } from "../method/call.ts";
+import { Call, RUNS } from "../method/call.ts";
 import type { Method, MethodKind } from "../method/method.ts";
 import type { ObjectProcedures, ObjectSchema } from "../method/procedure.ts";
 import {
@@ -58,6 +58,8 @@ import type { ObjectController } from "../object/controller.ts";
 import { Chunk, CHUNKS } from "../text/chunk.ts";
 import { camelCase } from "../object/name.ts";
 import { Authorization, SystemAuthorization } from "./authorization.ts";
+import { WatchController } from "./watch.ts";
+import { Outbox } from "@destack/service/outbox";
 import type { Directory } from "@destack/directory";
 import { DirectoryDatabase } from "@destack/directory";
 import { ClaimController, Reservation } from "../claim/index.ts";
@@ -69,6 +71,7 @@ import { recoverable } from "../trait/recoverable.ts";
 import { expiring } from "../trait/expiring.ts";
 import { addressed } from "../trait/addressed.ts";
 import type { Controller } from "@destack/service/control";
+import type { RunClient, TriggerOf } from "@destack/service/trigger";
 import { until } from "@destack/service/timer";
 import { Settlement } from "./settlement.ts";
 import { telemetry } from "@destack/telemetry";
@@ -157,6 +160,12 @@ export class ObjectServer<
     readonly ephemeral?: EphemeralStorage;
     /** The copies the database keeps, and the source streaming them. */
     readonly replicas?: ObjectReplicas;
+    /** The cell recording the objects' runs: the calls methods send, and the calls of the objects' watches. */
+    readonly runs?: RunClient;
+    /** The watches of the served objects, each change they admit recorded as a run. */
+    readonly watches: readonly TriggerOf<"watch">[];
+    /** The outbox delivering the calls methods send, absent where no cell records runs. */
+    readonly #sends?: Outbox;
     /** Derive a request's verified authorization inputs within a scope. */
     readonly #context: (context: ServiceContext, scope: string) => AccessContext;
     /** Open an audit recorder for a scope and request. */
@@ -192,6 +201,10 @@ export class ObjectServer<
         readonly ephemeral?: EphemeralStorage;
         /** The copies the database keeps, and the source streaming them. */
         readonly replicas?: ObjectReplicas;
+        /** The cell recording the objects' runs: the calls methods send, and the calls of the objects' watches. */
+        readonly runs?: RunClient;
+        /** The watches of the served objects, which need a cell recording their runs. */
+        readonly watches?: readonly TriggerOf<"watch">[];
         /** Open an audit recorder for a scope and request. */
         readonly audit: (
             scope: string,
@@ -234,6 +247,14 @@ export class ObjectServer<
         }
         if (options.replicas !== undefined) {
             this.replicas = options.replicas;
+        }
+        if (options.runs !== undefined) {
+            this.runs = options.runs;
+            this.#sends = new Outbox(options.database);
+        }
+        this.watches = options.watches ?? [];
+        if (this.watches.length > 0 && options.runs === undefined) {
+            throw new TypeError("watches need a cell recording their runs");
         }
 
         // require a store for ephemeral objects
@@ -315,6 +336,10 @@ export class ObjectServer<
             readonly controllers?: readonly Controller[];
             /** The source of the copies of the objects' space: its chain, and what its objects point at. */
             readonly replicas?: { readonly scope: string; readonly source: sync.ReplicaSource };
+            /** The cell recording the objects' runs: the calls methods send, and the calls of the objects' watches. */
+            readonly runs?: RunClient;
+            /** The watches of the served objects. */
+            readonly watches?: readonly TriggerOf<"watch">[];
         },
     ): ServiceImplementation {
         // serve the service's objects, keeping the copies of their space
@@ -335,6 +360,8 @@ export class ObjectServer<
                               objects.replicaRequests(replicas.scope, { isHome: false }),
                       },
                   }),
+            ...(options.runs === undefined ? {} : { runs: options.runs }),
+            ...(options.watches === undefined ? {} : { watches: options.watches }),
         });
 
         return objects.implement(service, options.controllers);
@@ -808,7 +835,11 @@ export class ObjectServer<
     ): Promise<PushResult> {
         // execute each mutation in its own transaction
         const outcomes: PushResult["outcomes"][number][] = [];
-        for (const mutation of mutations) {
+        for (const pushed of mutations) {
+            const mutation = {
+                ...pushed,
+                calls: pushed.calls.map((call) => this.#within(call, scope)),
+            };
             try {
                 // require the pushed scope
                 const first = this.#resolve(mutation.calls[0]!, true);
@@ -1086,6 +1117,7 @@ export class ObjectServer<
                 isPredicted: false,
                 authorization,
                 objects: this.objects,
+                ...(this.#sends === undefined ? {} : { sends: this.#sends }),
                 run: (invoked, invokedName, invokedInput) =>
                     this.#execute(
                         database,
@@ -1199,6 +1231,12 @@ export class ObjectServer<
                 ? [addressed.controller(this)]
                 : []),
             ...(isSettled ? [Settlement.controller(this)] : []),
+            ...(this.#sends === undefined || this.runs === undefined
+                ? []
+                : [this.#sends.controller(RUNS.to(this.runs, this.#report))]),
+            ...(this.runs === undefined || this.watches.length === 0
+                ? []
+                : [new WatchController(this.database, this.watches, this.runs, this.#report)]),
             ...(this.replicas === undefined ? [] : [this.#replicate(this.replicas)]),
             ...this.objects.flatMap((object) =>
                 object.controller === undefined ? [] : [this.#control(object, object.controller)],
@@ -1263,6 +1301,7 @@ export class ObjectServer<
                     database: this.database,
                     server: this as ObjectServer,
                     signal: reconciliation.signal,
+                    changed: () => reconciliation.changed(),
                     execute: (method, targets) =>
                         this.executeAsSystem(
                             object,
@@ -1356,7 +1395,13 @@ export class ObjectServer<
             links,
         );
 
-        return new Authorization(this.authorizer, database, bind, access);
+        return new Authorization(
+            this.authorizer,
+            database,
+            bind,
+            access,
+            context.caller?.authentication.delegation,
+        );
     }
 
     /** Authorize a principal in a scope, as a follow of its copies does. */
@@ -1803,6 +1848,18 @@ export class ObjectServer<
         return { object: served.object, name, input: parsed.data as Record<string, unknown> };
     }
 
+    /** Run a pushed call that leaves out its scope field in the scope it is pushed to. */
+    #within(call: sync.Call, scope: string): sync.Call {
+        // leave a call naming its scope, or one of an unknown type the resolution refuses
+        const served = this.#schemas.get(call.method.slice(0, call.method.lastIndexOf(".")));
+        const field = served?.object.route.field;
+        if (field === undefined || Object.hasOwn(call.input, field)) {
+            return call;
+        }
+
+        return { ...call, input: { ...call.input, [field]: scope } };
+    }
+
     /** Read the scope a call names in its route field. */
     #scope(object: ObjectType, input: Record<string, unknown>): string {
         // read the field, or the universe
@@ -1852,6 +1909,7 @@ export class ObjectServer<
             isPredicted: false,
             authorization,
             objects: this.objects,
+            ...(this.#sends === undefined ? {} : { sends: this.#sends }),
         });
 
         // load the permitted target at the named revision

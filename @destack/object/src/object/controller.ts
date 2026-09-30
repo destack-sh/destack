@@ -43,6 +43,8 @@ export interface ObjectControl {
     readonly server: ObjectServer;
     /** Abort once the loop stops, the lease is lost or the key leaves the pending ones. */
     readonly signal: AbortSignal;
+    /** Wait for the key's objects to change again while they reconcile. */
+    changed(): Promise<void>;
     /** Run one system method on some objects in one transaction. */
     execute(method: string, rows: readonly Readonly<Record<string, unknown>>[]): Promise<unknown[]>;
 }

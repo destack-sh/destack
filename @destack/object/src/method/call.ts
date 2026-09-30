@@ -12,11 +12,65 @@ import {
 import { schema, Version } from "@destack/schema";
 import { Expression } from "@destack/schema/expression";
 import { ServiceError } from "@destack/service/error";
+import { type Address, type Destination, Outbox } from "@destack/service/outbox";
+import { RequestId } from "@destack/service/request";
+import { type RunClient, RunRequest } from "@destack/service/trigger";
 import type * as sync from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
 import type { Authorization } from "../server/authorization.ts";
 import type { Method } from "./method.ts";
 import { ParentReference } from "../trait/nested.ts";
+
+/** A call a method sent, as its outbox keeps it until the cell records its run. */
+export const SentCall = schema.object({
+    /** The request recording the run once, however often the outbox delivers it. */
+    requestId: RequestId.schema,
+    /** The sent call. */
+    request: RunRequest,
+});
+/** A call a method sent. */
+export type SentCall = schema.Infer<typeof SentCall>;
+
+/** The sent calls one delivery records: 100 small calls, sent to the cell at once. */
+const SEND_BATCH = 100;
+
+/** The client errors worth delivering again: a timeout, an early request, and a throttle. */
+const RETRIED_STATUSES: ReadonlySet<number> = new Set([408, 425, 429]);
+
+/** The outbox address of the calls methods send, delivered to the cell recording their runs. */
+export const RUNS = {
+    name: "runs",
+    message: SentCall,
+
+    /** Deliver the sent calls to a cell a batch at a time, reporting and letting go of one it refuses for good. */
+    to(client: RunClient, report: (error: unknown) => void): Destination<SentCall> {
+        return {
+            name: RUNS.name,
+            message: SentCall,
+            batch: SEND_BATCH,
+            accept: async (sent, { signal }) => {
+                // send the whole batch at once
+                const delivered = await Promise.allSettled(
+                    sent.map(({ requestId, request }) =>
+                        client.send(request, { requestId, signal }),
+                    ),
+                );
+
+                // report a call the cell refuses for good and let it go, and deliver the batch again after another failure
+                const failures = delivered.flatMap((result) =>
+                    result.status === "rejected" ? [result.reason as unknown] : [],
+                );
+                for (const refused of failures.filter(isRefusal)) {
+                    report(new Error("the cell refused a sent call for good", { cause: refused }));
+                }
+                const failed = failures.find((failure) => !isRefusal(failure));
+                if (failed !== undefined) {
+                    throw failed;
+                }
+            },
+        };
+    },
+} satisfies Address<SentCall> & Readonly<Record<string, unknown>>;
 
 /** One call of a method inside its transaction, served or predicted. */
 export class Call<Definition extends Table = Table> {
@@ -56,6 +110,8 @@ export class Call<Definition extends Table = Table> {
     readonly client?: string;
     /** Run another method in the call's transaction as its caller. */
     readonly run?: Run;
+    /** The outbox delivering the calls the call sends to the cell recording its runs, absent where no cell records them. */
+    readonly sends?: Outbox;
 
     /** Hold one call's fields. */
     constructor(fields: CallFields<Definition>) {
@@ -100,6 +156,9 @@ export class Call<Definition extends Table = Table> {
         }
         if (fields.run !== undefined) {
             this.run = fields.run;
+        }
+        if (fields.sends !== undefined) {
+            this.sends = fields.sends;
         }
     }
 
@@ -284,6 +343,30 @@ export class Call<Definition extends Table = Table> {
         await this.authorization!.require(receive, parent);
     }
 
+    /** Send a call to run later, once this call's transaction commits. */
+    async send(request: { readonly call: sync.Call; readonly at?: number }): Promise<void> {
+        // require a served call on an object server whose cell records runs
+        this.served();
+        if (this.sends === undefined) {
+            throw new TypeError(
+                `${this.method.kind} ${this.name} sends calls where no cell records runs`,
+            );
+        }
+
+        // record the send in the call's transaction under the request recording its run once, lending the caller's authority when the host delegated it
+        const requestId = RequestId.create();
+        const delegation = this.authorization?.delegation;
+        const message: SentCall = {
+            requestId,
+            request: {
+                cause: "send",
+                ...request,
+                ...(delegation === undefined ? {} : { delegation }),
+            },
+        };
+        await this.sends.append(RUNS, requestId, message, this.database);
+    }
+
     /** Update the target's desired state at the loaded revision. */
     async revise(changes: Readonly<Record<string, unknown>>): Promise<Record<string, unknown>> {
         // advance the generation of a controlled target
@@ -361,6 +444,7 @@ export type CallFields<Definition extends Table = Table> = Pick<
     | "key"
     | "client"
     | "run"
+    | "sends"
 >;
 
 /** Run a method of an object in a call's scope and transaction, as its caller. */
@@ -392,4 +476,13 @@ export interface Phases<Definition extends Table = Table> {
         prepared: unknown,
         isCommitted: boolean,
     ) => Promise<void>;
+}
+
+/** Report whether a failure is the cell's final refusal: a client error other than a timeout or throttle. */
+function isRefusal(error: unknown): boolean {
+    const status = (error as { readonly status?: unknown } | undefined)?.status;
+
+    return (
+        typeof status === "number" && status >= 400 && status < 500 && !RETRIED_STATUSES.has(status)
+    );
 }

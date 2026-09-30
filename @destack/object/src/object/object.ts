@@ -38,7 +38,8 @@ import {
 } from "@destack/package";
 import { schema, Version } from "@destack/schema";
 import type { AggregateFunction, Field, TextField } from "../field/field.ts";
-import type { Handler, Phases } from "../method/call.ts";
+import { Call, type Handler, type Phases } from "../method/call.ts";
+import type { Calls } from "../method/procedure.ts";
 import type { Method, MethodKind } from "../method/method.ts";
 import type { ServiceRouter } from "@destack/service";
 import {
@@ -923,6 +924,19 @@ export class ObjectType<
         }
 
         return { object: this, by: options.by };
+    }
+
+    /** Build calls of the objects' mutating methods, to run later in the scope they are sent to or the one their input adds. */
+    calls<Self extends ObjectType>(this: Self): Calls<Self> {
+        const methods = Object.entries(this.methods as Readonly<Record<string, Method>>);
+        const calls = methods
+            .filter(([, method]) => method.mutates)
+            .map(([name]) => [
+                name,
+                (input: Readonly<Record<string, unknown>>) => Call.record(this, name, input),
+            ]);
+
+        return Object.fromEntries(calls) as unknown as Calls<Self>;
     }
 
     /** Wrap methods' effects in handlers. */

@@ -1,4 +1,5 @@
 import { AuditOutbox } from "@destack/audit/outbox";
+import { reconciliation } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { ServiceError } from "@destack/service/error";
 import type { Subject } from "@destack/access";
@@ -881,7 +882,7 @@ test("authorize a creation before its external work, and settle committed work t
     // confirm it through the controller
     const controller = Settlement.controller(server, { grace: { milliseconds: 0 } });
     expect(
-        await controller.reconcile(kept[0]!.id, { signal: AbortSignal.timeout(5000) }),
+        await controller.reconcile(kept[0]!.id, reconciliation(AbortSignal.timeout(5000))),
     ).toBeUndefined();
     expect([external, await storage.database.select().from(settlement)]).toEqual([
         ["copy Draft", `confirm copy-${drafted.id}`],
@@ -945,7 +946,7 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
     const controller = Settlement.controller(server, { grace: { milliseconds: 0 } });
     during = async () => {
         const [reserved] = await storage.database.select().from(settlement);
-        await controller.reconcile(reserved!.id, { signal: AbortSignal.timeout(5000) });
+        await controller.reconcile(reserved!.id, reconciliation(AbortSignal.timeout(5000)));
     };
     const version = {
         spaceId,
