@@ -221,7 +221,7 @@ export class Authorization {
     async grant(request: RelationshipRequest): Promise<Relationship> {
         const relationship = await this.database.transaction(async (transaction) => {
             const authorization = this.within(transaction);
-            await authorization.#authorizeGrant(request);
+            await authorization.authorizeGrant(request);
 
             return authorization.#insert(request);
         });
@@ -248,7 +248,7 @@ export class Authorization {
             await this.authorizer.requireHeld(transaction, object);
             requireUnmanaged(row);
             const relationship = Relationship.decode(row);
-            await authorization.#authorizeRevoke(relationship);
+            await authorization.authorizeRevoke(relationship);
             await requireRemainingOwner(transaction, row);
             await transaction.delete(accessRelationship).where(eq(accessRelationship.id, key));
             this.renew();
@@ -312,7 +312,7 @@ export class Authorization {
                 ) {
                     throw new AccessError("FORBIDDEN", "proposal subject must be one principal");
                 }
-                await authorization.#authorizeGrant(proposed);
+                await authorization.authorizeGrant(proposed);
             }
 
             // store the proposal apart from the relationships that apply
@@ -361,7 +361,7 @@ export class Authorization {
             const proposed = proposal.relationship;
             let subject: Subject;
             if (Proposal.asksForItself(proposal)) {
-                await authorization.#authorizeGrant(proposed);
+                await authorization.authorizeGrant(proposed);
                 subject = proposed.subject!;
             }
             // require the addressed principal for an offer
@@ -376,7 +376,7 @@ export class Authorization {
                     now: context.now,
                     attributes: {},
                 }));
-                await proposer.#authorizeGrant(proposed);
+                await proposer.authorizeGrant(proposed);
             }
 
             // relate the accepting subject and retire the proposal
@@ -406,7 +406,7 @@ export class Authorization {
                 (!sameSubject(acting, proposal.proposer) &&
                     !Proposal.addresses(proposal, acting, context))
             ) {
-                await authorization.#authorizeRevoke(proposal.relationship);
+                await authorization.authorizeRevoke(proposal.relationship);
             }
             await transaction.delete(accessProposal).where(eq(accessProposal.id, Proposal.id(id)));
 
@@ -422,7 +422,7 @@ export class Authorization {
         return this.database.transaction(async (transaction) => {
             // require the grant permission, then read the object's proposals after the cursor
             const context = this.context(this.authorizer.governingScope(request.object));
-            await this.within(transaction).#authorizeRevoke(request);
+            await this.within(transaction).authorizeRevoke(request);
             const rows = await transaction
                 .select()
                 .from(accessProposal)
@@ -598,7 +598,7 @@ export class Authorization {
     }
 
     /** Require the grant permission and, for a role, every permission the role grants; a delegation needs only its lender. */
-    async #authorizeGrant(request: Grantable): Promise<void> {
+    protected async authorizeGrant(request: Grantable): Promise<void> {
         // write only the access of an object this database holds
         await this.authorizer.requireHeld(this.database, request.object);
 
@@ -646,7 +646,7 @@ export class Authorization {
     }
 
     /** Require the permission granting what a relationship grants, unless the caller lent it. */
-    async #authorizeRevoke(request: Grantable): Promise<void> {
+    protected async authorizeRevoke(request: Grantable): Promise<void> {
         // let a lender manage its own delegations
         if (this.#lends(request)) {
             return;
