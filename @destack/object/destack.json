@@ -10,7 +10,8 @@
             "describes": [
                 {
                     "kind": "object",
-                    "function": "./inspect#describeObject"
+                    "function": "./inspect#describeObject",
+                    "vocabulary": "./inspect#objectVocabulary"
                 }
             ]
         }

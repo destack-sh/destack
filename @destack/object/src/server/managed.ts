@@ -1,3 +1,4 @@
+import { Address, type Plan, type Step } from "@destack/resource";
 import { v7 } from "uuid";
 import { Scope } from "@destack/sync";
 import { Authorizer, type Policy } from "@destack/access";
@@ -38,18 +39,6 @@ type ManagedTable = Table &
         /** The revision used by conditional updates. */
         readonly revision: Column;
     };
-
-/** One change reconciling a document makes to a record. */
-export interface RecordChange {
-    /** Create, update or delete. */
-    readonly action: "create" | "update" | "delete";
-    /** The declaration name of the changed record. */
-    readonly name: string;
-    /** Each changed column's previous and declared value, for updates. */
-    readonly fields?: Readonly<
-        Record<string, { readonly before: unknown; readonly after: unknown }>
-    >;
-}
 
 /** What reconciling one object type's declarations can read and ask for. */
 export interface ReconciliationContext {
@@ -147,14 +136,6 @@ export function defineReconciler<
     return { object, ...reconciler };
 }
 
-/** The records a reconciliation changed and what it waits for. */
-export interface ReconciliationResult {
-    /** Changes by object plural name. */
-    readonly changes: Readonly<Record<string, readonly RecordChange[]>>;
-    /** Why reconciliation stopped before writing every declaration. */
-    readonly waiting?: string;
-}
-
 /** The inputs of applying a declaration document. */
 export interface ReconciliationOptions {
     /** The database holding the document's scope and records. */
@@ -221,15 +202,15 @@ export class Reconciliation {
         this.now = Date.now();
     }
 
-    /** Apply a declaration document through the reconcilers of its object types. */
-    static async apply(options: ReconciliationOptions): Promise<ReconciliationResult> {
+    /** Apply a declaration document through the reconcilers of its object types, as steps addressed `<type>/<name>`. */
+    static async apply(options: ReconciliationOptions): Promise<Plan> {
         return new Reconciliation(options).#run();
     }
 
     /** Write each object type's declarations, then retire undeclared records. */
-    async #run(): Promise<ReconciliationResult> {
+    async #run(): Promise<Plan> {
         // write each type in order
-        const changes: Record<string, RecordChange[]> = {};
+        const steps: Step[] = [];
         const resolved = new Map<Reconciler, ReadonlyMap<string, unknown>>();
         for (const reconciler of this.ordered) {
             try {
@@ -247,16 +228,12 @@ export class Reconciliation {
                         );
                     }
                     resolved.set(reconciler, desired);
-                    changes[reconciler.object.plural] = await this.#write(
-                        reconciler,
-                        context,
-                        desired,
-                    );
+                    steps.push(...(await this.#write(reconciler, context, desired)));
                 });
             } catch (error) {
                 // stop at a wait
                 if (error instanceof Waiting) {
-                    return { changes, waiting: error.message };
+                    return { steps, deferred: error.message };
                 }
                 throw error;
             }
@@ -265,13 +242,11 @@ export class Reconciliation {
         // retire in reverse order
         for (const reconciler of [...this.ordered].reverse()) {
             await this.#transact(reconciler, async (context) => {
-                const retired = await this.#retire(reconciler, context, resolved.get(reconciler)!);
-                const plural = reconciler.object.plural;
-                changes[plural] = [...(changes[plural] ?? []), ...retired];
+                steps.push(...(await this.#retire(reconciler, context, resolved.get(reconciler)!)));
             });
         }
 
-        return { changes };
+        return { steps };
     }
 
     /** Run a step on a reconciler's database, reserving and confirming its index keys. */
@@ -449,14 +424,14 @@ export class Reconciliation {
         reconciler: Reconciler,
         context: ReconciliationContext,
         desired: ReadonlyMap<string, unknown>,
-    ): Promise<RecordChange[]> {
+    ): Promise<Step[]> {
         // read existing records
         const isDry = this.#isDry(reconciler);
         const { database, manager } = context;
         const table = reconciler.object.table as ManagedTable;
         const existing = await this.#records(reconciler, context);
         const isDeletable = "deletionRequestedAt" in table[TABLE].columns;
-        const changes: RecordChange[] = [];
+        const steps: Step[] = [];
         const { now } = context;
         for (const [name, resolved] of desired) {
             // create a missing record
@@ -465,7 +440,8 @@ export class Reconciliation {
             requireColumns(reconciler.object, values);
             const changed = row === undefined ? {} : difference(row, values);
             if (!row) {
-                changes.push({ action: "create", name });
+                const target = Address.join(reconciler.object.name, name);
+                steps.push({ action: "create", target, risk: "safe", detail: "declare" });
                 if (!isDry) {
                     const created = {
                         id: `${reconciler.object.identity}-${v7()}`,
@@ -491,20 +467,18 @@ export class Reconciliation {
                     (isDeletable && row.deletionRequestedAt !== null) ||
                     (await reconciler.changed?.(database, row as never, resolved)))
             ) {
-                changes.push({
+                const fields = {
+                    ...changed,
+                    ...(isDeletable && row.deletionRequestedAt !== null
+                        ? { deletionRequestedAt: { before: row.deletionRequestedAt, after: null } }
+                        : {}),
+                };
+                steps.push({
                     action: "update",
-                    name,
-                    fields: {
-                        ...changed,
-                        ...(isDeletable && row.deletionRequestedAt !== null
-                            ? {
-                                  deletionRequestedAt: {
-                                      before: row.deletionRequestedAt,
-                                      after: null,
-                                  },
-                              }
-                            : {}),
-                    },
+                    target: Address.join(reconciler.object.name, name),
+                    risk: "safe",
+                    detail: Object.keys(fields).length > 0 ? "change declared fields" : "refresh",
+                    fields: fields as Step["fields"],
                 });
                 if (!isDry) {
                     await database
@@ -530,7 +504,7 @@ export class Reconciliation {
             }
         }
 
-        return changes;
+        return steps;
     }
 
     /** Retire attached records the manager no longer declares. */
@@ -538,13 +512,13 @@ export class Reconciliation {
         reconciler: Reconciler,
         context: ReconciliationContext,
         desired: ReadonlyMap<string, unknown>,
-    ): Promise<RecordChange[]> {
+    ): Promise<Step[]> {
         // read existing records
         const isDry = this.#isDry(reconciler);
         const { database } = context;
         const table = reconciler.object.table as ManagedTable;
         const isDeletable = "deletionRequestedAt" in table[TABLE].columns;
-        const changes: RecordChange[] = [];
+        const steps: Step[] = [];
         for (const [name, row] of await this.#records(reconciler, context)) {
             // skip declared, detached and already retiring records
             const record = row as Record<string, unknown>;
@@ -556,7 +530,8 @@ export class Reconciliation {
             ) {
                 continue;
             }
-            changes.push({ action: "delete", name });
+            const target = Address.join(reconciler.object.name, name);
+            steps.push({ action: "delete", target, risk: "destructive", detail: "retire" });
             if (isDry) {
                 continue;
             }
@@ -574,7 +549,7 @@ export class Reconciliation {
             }
         }
 
-        return changes;
+        return steps;
     }
 }
 

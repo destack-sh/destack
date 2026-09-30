@@ -58,13 +58,11 @@ test.each(TEST_DIALECTS)(
                 labels: { urgent: { note: "one", text: "urgent" } },
             }),
         ).toEqual({
-            changes: {
-                notes: [
-                    { action: "create", name: "one" },
-                    { action: "create", name: "two" },
-                ],
-                labels: [{ action: "create", name: "urgent" }],
-            },
+            steps: [
+                { action: "create", target: "note/one", risk: "safe", detail: "declare" },
+                { action: "create", target: "note/two", risk: "safe", detail: "declare" },
+                { action: "create", target: "label/urgent", risk: "safe", detail: "declare" },
+            ],
         });
 
         // reject collections no object reads and references to undeclared objects
@@ -83,16 +81,16 @@ test.each(TEST_DIALECTS)(
                 labels: { soon: { note: "later", text: "soon" } },
             }),
         ).toEqual({
-            changes: {
-                notes: [
-                    {
-                        action: "update",
-                        name: "one",
-                        fields: { title: { before: "first", after: "renamed" } },
-                    },
-                ],
-            },
-            waiting: "note later is not declared yet",
+            steps: [
+                {
+                    action: "update",
+                    target: "note/one",
+                    risk: "safe",
+                    detail: "change declared fields",
+                    fields: { title: { before: "first", after: "renamed" } },
+                },
+            ],
+            deferred: "note later is not declared yet",
         });
 
         // detach one note, then retire labels before notes and keep it
@@ -101,10 +99,10 @@ test.each(TEST_DIALECTS)(
             .set({ detachedAt: 1 })
             .where(eq(note.table.managerName, "two"));
         expect(await apply({})).toEqual({
-            changes: {
-                notes: [{ action: "delete", name: "one" }],
-                labels: [{ action: "delete", name: "urgent" }],
-            },
+            steps: [
+                { action: "delete", target: "label/urgent", risk: "destructive", detail: "retire" },
+                { action: "delete", target: "note/one", risk: "destructive", detail: "retire" },
+            ],
         });
         expect(await titles()).toEqual([["two", "second"]]);
     },

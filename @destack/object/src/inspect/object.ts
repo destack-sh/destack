@@ -8,6 +8,7 @@ import type { Method } from "../method/method.ts";
 import { METHOD_KINDS } from "../method/kind.ts";
 import type { ObjectType } from "../object/object.ts";
 import { AccessName } from "@destack/access";
+import type { JsonValue } from "@destack/schema/json";
 
 /** One method as the manifest describes it. */
 export const MethodDescription = defineSchema(
@@ -141,4 +142,23 @@ export function describeObject(object: ObjectType): ObjectDescription {
             ),
         ),
     });
+}
+
+/** List an object type's terms: its name, relations, permissions and methods. */
+export function objectVocabulary(input: Record<string, JsonValue>): Record<string, JsonValue> {
+    // define each term by the shape stored data depends on
+    const description = ObjectDescription.parse(input);
+    const { name, policy } = description;
+    const terms: Record<string, JsonValue> = { [name]: { table: description.table } };
+    for (const [relation, declared] of Object.entries(policy.relations)) {
+        terms[`${name}/relation/${relation}`] = { subjects: declared.subjects };
+    }
+    for (const permission of Object.keys(policy.permissions)) {
+        terms[`${name}/permission/${permission}`] = {};
+    }
+    for (const [method, declared] of Object.entries(description.methods)) {
+        terms[`${name}/method/${method}`] = { kind: declared.kind };
+    }
+
+    return terms;
 }
