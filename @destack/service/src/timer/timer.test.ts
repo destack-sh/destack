@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test } from "@destack/test";
 import { vi } from "vitest";
-import { MAX_TIMER_DELAY, wait } from "./timer.ts";
+import { MAX_TIMER_DELAY, until, wait } from "./timer.ts";
 
 beforeEach(() => {
     vi.useFakeTimers();
@@ -44,5 +44,20 @@ test("wait delays beyond one timer through a chain of timers", async () => {
     expect([isDone, vi.getTimerCount()]).toEqual([false, 1]);
     await vi.advanceTimersByTimeAsync(1000);
     await waiting;
+    expect(isDone).toBe(true);
+});
+
+test("wait until a signal aborts, and at once for an aborted signal", async () => {
+    // resolve once the signal aborts
+    const controller = new AbortController();
+    let isDone = false;
+    const waiting = until(controller.signal).then(() => (isDone = true));
+    await Promise.resolve();
+    expect(isDone).toBe(false);
+    controller.abort();
+    await waiting;
+
+    // resolve at once for an aborted signal
+    await until(AbortSignal.abort());
     expect(isDone).toBe(true);
 });

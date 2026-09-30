@@ -39,3 +39,14 @@ export function wait(
         next();
     });
 }
+
+/** Wait until the signal aborts, resolving at once for an aborted signal. */
+export function until(signal: AbortSignal): Promise<void> {
+    return new Promise((resolve) => {
+        if (signal.aborted) {
+            resolve();
+        } else {
+            signal.addEventListener("abort", () => resolve(), { once: true });
+        }
+    });
+}
