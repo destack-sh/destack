@@ -1,7 +1,18 @@
 import { expect, test } from "@destack/test";
 import { describeWebhook } from "../inspect/index.ts";
 import { GitHubSignature, StandardSignature, WEBHOOK_SIGNATURES } from "./signature.ts";
+import { ResourceContext } from "@destack/resource/context";
 import { defineWebhook } from "./webhook.ts";
+import type { WebhookDelivery } from "./delivery.ts";
+
+/** Push the delivered branch to the repository its route names. */
+function push(delivery: WebhookDelivery) {
+    return {
+        method: "repository.push",
+        input: { repository: delivery.parameters.repository!, payload: delivery.payload },
+        release: "2026.9.0",
+    };
+}
 
 /** The Standard Webhooks reference example of "sign function works". */
 const STANDARD_EXAMPLE = {
@@ -28,6 +39,11 @@ const NOW = STANDARD_EXAMPLE.message.sentAt + 60_000;
 /** Post a signed body. */
 function post(headers: Headers, body: string): Request {
     return new Request("https://hooks.test/webhooks/github", { method: "POST", headers, body });
+}
+
+/** Read the body digest a GitHub signature carries, which names its delivery. */
+function digestOf(headers: Headers): string {
+    return headers.get("x-hub-signature-256")!.slice("sha256=".length);
 }
 
 test("sign the Standard Webhooks and GitHub reference examples exactly", async () => {
@@ -95,8 +111,10 @@ test("verify a GitHub delivery and refuse a signature made with another secret",
         sentAt: NOW,
     };
     const headers = await signature.sign(message, GITHUB_EXAMPLE.secret);
+
+    // know the delivery by its signed body, since GitHub signs no delivery header
     expect(await signature.verify(post(headers, body), GITHUB_EXAMPLE.secret, {}, NOW)).toEqual({
-        id: "72d3162e-cc78-11e3-81ab-4c9367dc0958",
+        id: digestOf(headers),
         event: "push",
         payload: { ref: "refs/heads/main", after: "aa218f56b14c9653891f9e74264a383fa43fefbd" },
         parameters: {},
@@ -115,6 +133,8 @@ test("describe a declared webhook with its verification and route for the manife
         name: "github",
         verification: "github",
         route: "/{repository}",
+        secret: async () => "secret",
+        call: push,
     });
 
     expect(describeWebhook(webhook)).toEqual({
@@ -124,37 +144,50 @@ test("describe a declared webhook with its verification and route for the manife
     });
 });
 
-test("receive a delivery with its route's parameters and the secret they resolve", async () => {
+test("receive a delivery with its route's parameters and the secret they resolve, and build its call", async () => {
     // resolve each repository's secret
+    const requested: unknown[] = [];
     const webhook = defineWebhook({
         name: "pushes",
         verification: "github",
         route: "/repositories/{repository}",
-    });
-    const requested: unknown[] = [];
-    const handler = webhook.handle(async () => {}, {
         secret: async (parameters) => {
             requested.push(parameters);
 
             return parameters.repository === "acme site" ? GITHUB_EXAMPLE.secret : "another secret";
         },
+        call: push,
     });
+    const resources = new ResourceContext();
 
     // accept the repository's signed delivery
     const body = '{"ref":"refs/heads/main"}';
     const message = { id: "delivery-1", event: "push", body, sentAt: NOW };
     const headers = await WEBHOOK_SIGNATURES.github.sign(message, GITHUB_EXAMPLE.secret);
-    expect(await handler.receive(post(headers, body), "/repositories/acme%20site", NOW)).toEqual({
-        id: "delivery-1",
-        event: "push",
-        payload: { ref: "refs/heads/main" },
-        parameters: { repository: "acme site" },
-        receivedAt: NOW,
-    });
+    const delivery = await webhook.receive(
+        post(headers, body),
+        "/repositories/acme%20site",
+        NOW,
+        resources,
+    );
+    expect([delivery, webhook.call(delivery)]).toEqual([
+        {
+            id: digestOf(headers),
+            event: "push",
+            payload: { ref: "refs/heads/main" },
+            parameters: { repository: "acme site" },
+            receivedAt: NOW,
+        },
+        {
+            method: "repository.push",
+            input: { repository: "acme site", payload: { ref: "refs/heads/main" } },
+            release: "2026.9.0",
+        },
+    ]);
 
     // refuse another repository's secret and paths outside the route
     const refusal = (path: string) =>
-        handler.receive(post(headers, body), path, NOW).then(
+        webhook.receive(post(headers, body), path, NOW, resources).then(
             () => "accepted",
             (error: { code: string; message: string }) => `${error.code}: ${error.message}`,
         );
@@ -177,7 +210,13 @@ test("receive a delivery with its route's parameters and the secret they resolve
 test("refuse webhook routes with malformed segments or a repeated parameter", () => {
     const refusal = (route: string) => {
         try {
-            defineWebhook({ name: "pushes", verification: "github", route });
+            defineWebhook({
+                name: "pushes",
+                verification: "github",
+                route,
+                secret: async () => "secret",
+                call: push,
+            });
 
             return "accepted";
         } catch (error) {

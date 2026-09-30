@@ -9,6 +9,9 @@ import { startTelemetry } from "@destack/telemetry/host";
 import { WorkloadRunner } from "./runner.ts";
 import type { WorkloadStart } from "./start.ts";
 import { defineWorkload } from "./workload.ts";
+import { WEBHOOK_PATH } from "./start.ts";
+import { defineWebhook, WEBHOOK_SIGNATURES } from "../webhook/index.ts";
+import type { RunRequest } from "../trigger/index.ts";
 
 /** The runner's one service. */
 const notes = defineService("notes", {});
@@ -84,6 +87,11 @@ test("serve a forwarded caller below the package's mount, and export telemetry t
             resources: {},
             history: () => ({ ingest: async () => ({ events: 0 }) }),
             replicas: () => source,
+            runs: () => ({
+                send: async () => {
+                    throw new Error("the fixture records no runs");
+                },
+            }),
         },
         start,
         startTelemetry,
@@ -133,4 +141,101 @@ test("serve a forwarded caller below the package's mount, and export telemetry t
             },
         ],
     });
+});
+
+test("verify a webhook's deliveries with each route's secret and record each delivery's call once as a run", async () => {
+    // start a workload receiving pushes, whose secrets its resources hold per repository
+    const pushes = defineWebhook(
+        {
+            name: "pushes",
+            verification: "github",
+            route: "/{repository}",
+            secret: async ({ repository }) => `secret-${repository}`,
+            call: (delivery) => ({
+                method: "repository.push",
+                input: { repository: delivery.parameters.repository!, payload: delivery.payload },
+                release: "2026.9.0",
+            }),
+        },
+        { package: notes.package },
+    );
+    const recorded: RunRequest[] = [];
+    const runner = await WorkloadRunner.start(
+        {
+            workload: defineWorkload(
+                {
+                    name: "main",
+                    start: async () => ({
+                        services: [{ service: notes, router: {} }],
+                        webhooks: [pushes],
+                    }),
+                },
+                { package: notes.package },
+            ),
+            resources: {},
+            history: () => ({ ingest: async () => ({ events: 0 }) }),
+            replicas: () => ({
+                stream: () => {
+                    throw new Error("the fixture source streams no copies");
+                },
+            }),
+            runs: () => ({
+                send: async (request) => {
+                    recorded.push(request);
+                },
+            }),
+        },
+        start,
+        async () => ({ shutdown: async () => {} }) as never,
+        (error) => {
+            throw error;
+        },
+    );
+    onTestFinished(() => runner.close());
+
+    // accept a delivery signed with its repository's secret, and refuse a forged one, an unknown webhook and a missing secret
+    const body = JSON.stringify({ ref: "refs/heads/main" });
+    const signed = await WEBHOOK_SIGNATURES.github.sign(
+        { id: "delivery-1", event: "push", body, sentAt: Date.now() },
+        "secret-notes",
+    );
+    const post = async (path: string, headers: Headers) => {
+        const response = await runner.fetch(
+            new Request(`http://runner.test${WEBHOOK_PATH}${path}`, {
+                method: "POST",
+                headers,
+                body,
+            }),
+        );
+
+        return [response.status, response.status === 202 ? null : await response.json()];
+    };
+    const authorized = new Headers(signed);
+    authorized.set("authorization", "Bearer forwarding");
+
+    expect([
+        await post("/pushes/notes", authorized),
+        await post("/pushes/other", authorized),
+        await post("/releases/notes", authorized),
+        await post("/pushes/notes", signed),
+    ]).toEqual([
+        [202, null],
+        [401, { code: "UNAUTHORIZED", message: "webhook signature does not match" }],
+        [404, { code: "NOT_FOUND", message: "no webhook releases" }],
+        [401, { code: "UNAUTHORIZED", message: "invalid host secret" }],
+    ]);
+    const digest = signed.get("x-hub-signature-256")!.slice("sha256=".length);
+    expect(recorded).toEqual([
+        {
+            cause: "webhook",
+            call: {
+                method: "repository.push",
+                input: { repository: "notes", payload: { ref: "refs/heads/main" } },
+                release: "2026.9.0",
+            },
+            packageId: notes.package.id,
+            trigger: "pushes",
+            deliveryId: `/notes ${digest}`,
+        },
+    ]);
 });

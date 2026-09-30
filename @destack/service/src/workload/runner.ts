@@ -10,9 +10,12 @@ import type { Service } from "../declare/service.ts";
 import { ServiceError } from "../error/index.ts";
 import { Egress } from "../service/egress.ts";
 import { ServiceMount } from "../service/mount.ts";
-import type { Alarm } from "../control/index.ts";
 import { WorkloadInstance } from "./instance.ts";
-import type { WorkloadStart } from "./start.ts";
+import { WEBHOOK_PATH, type WorkloadStart } from "./start.ts";
+import type { PackageId } from "@destack/package";
+import type { RunClient } from "../trigger/index.ts";
+import { reportError } from "../server/error.ts";
+import type { Alarm } from "../control/index.ts";
 import type { AuditHistory, Workload } from "./workload.ts";
 
 /** How long a stopping runner drains its requests: below the host's fifteen-second stop timeout. */
@@ -40,6 +43,8 @@ export interface RunnerOptions {
     history(url: string, secret: string): AuditHistory;
     /** Connect to the source of an installation's copies, its space's cell, through the host's egress with the runner's secret. */
     replicas(url: string, secret: string): ReplicaSource;
+    /** Connect to the cell recording the installation's runs, through the host's egress with the runner's secret. */
+    runs(url: string, start: WorkloadStart): RunClient;
     // TODO #Incomplete: pass the Durable Object's storage as the alarm from a workerd entry, awaiting `idle()` in its alarm handler
     /** Keep a wake-up for the workload's earliest due controller key, such as the Durable Object's alarm running it. */
     readonly alarm?: Alarm;
@@ -54,7 +59,11 @@ export class WorkloadRunner implements AsyncDisposable {
     /** The package's one service. */
     readonly #service: Service;
     /** The running package with the mount that serves the service. */
-    readonly #packageId: string;
+    readonly #packageId: PackageId;
+    /** The installation's resources, which webhooks read their secrets from. */
+    readonly #resources: ResourceContext;
+    /** The cell recording the installation's runs. */
+    readonly #runs: RunClient;
     /** The telemetry exporting to the space's monitor. */
     readonly #telemetry: Telemetry;
     /** Hold a started instance and its telemetry. */
@@ -63,7 +72,9 @@ export class WorkloadRunner implements AsyncDisposable {
         instance: WorkloadInstance,
         service: Service,
         running: Telemetry,
-        packageId: string,
+        packageId: PackageId,
+        resources: ResourceContext,
+        runs: RunClient,
     ) {
         // hold the instance and what it runs with
         this.start = start;
@@ -71,6 +82,8 @@ export class WorkloadRunner implements AsyncDisposable {
         this.#service = service;
         this.#packageId = packageId;
         this.#telemetry = running;
+        this.#resources = resources;
+        this.#runs = runs;
     }
 
     /** Start a workload as a host's start asks, with the runtime's telemetry and failure reporting. */
@@ -94,15 +107,18 @@ export class WorkloadRunner implements AsyncDisposable {
         // start the instance on the bound resources, stopping telemetry when it fails
         try {
             const resources = await WorkloadRunner.#connect(runner, start);
+            const space = Egress.url(start.egress, SPACE_ADDRESS);
+            const runs = runner.runs(space, start);
             const instance = await WorkloadInstance.start(runner.workload, {
                 resources,
                 history: runner.history(Egress.url(start.egress, AUDIT_ADDRESS), start.secret),
                 replicas: {
                     scope: start.scope,
-                    source: runner.replicas(Egress.url(start.egress, SPACE_ADDRESS), start.secret),
+                    source: runner.replicas(space, start.secret),
                 },
-                service: () => WorkloadRunner.#serve(runner, start),
+                runs,
                 ...(runner.alarm === undefined ? {} : { alarm: runner.alarm }),
+                service: () => WorkloadRunner.#serve(runner, start),
             });
 
             // require the package's one service
@@ -127,6 +143,8 @@ export class WorkloadRunner implements AsyncDisposable {
                 service,
                 running,
                 runner.workload.package.id,
+                resources,
+                runs,
             );
         } catch (error) {
             await running.shutdown();
@@ -148,6 +166,12 @@ export class WorkloadRunner implements AsyncDisposable {
             return Promise.resolve(Response.json(refusal, { status: 401 }));
         }
 
+        // verify and record a webhook's delivery
+        const { pathname } = new URL(request.url);
+        if (pathname.startsWith(`${WEBHOOK_PATH}/`) && request.method === "POST") {
+            return this.#receive(request, pathname.slice(WEBHOOK_PATH.length + 1));
+        }
+
         // refuse other paths, and serve the package's mount
         const routed = ServiceMount.route(request);
         if (routed?.packageId !== this.#packageId) {
@@ -165,6 +189,41 @@ export class WorkloadRunner implements AsyncDisposable {
     /** Settle once no controller key is due now or reconciling, as an alarm's handler waits before its instance may be evicted. */
     idle(): Promise<void> {
         return this.instance.idle();
+    }
+
+    /** Verify a request to one of the package's webhooks, and record the call its delivery runs once. */
+    async #receive(request: Request, below: string): Promise<Response> {
+        // find the webhook the first segment names
+        const slash = below.indexOf("/");
+        const name = slash === -1 ? below : below.slice(0, slash);
+        const webhook = this.instance.webhook(this.#packageId, name);
+        if (webhook === undefined) {
+            const refusal = { code: "NOT_FOUND", message: `no webhook ${name}` };
+
+            return Response.json(refusal, { status: 404 });
+        }
+
+        // verify the delivery below the webhook's route, and record its call once per route path and delivery
+        try {
+            const path = slash === -1 ? "/" : below.slice(slash);
+            const delivery = await webhook.receive(request, path, Date.now(), this.#resources);
+            await this.#runs.send({
+                cause: "webhook",
+                call: webhook.call(delivery),
+                packageId: this.#packageId,
+                trigger: name,
+                deliveryId: `${path} ${delivery.id}`,
+            });
+
+            return new Response(null, { status: 202 });
+        }
+        // answer a refusal as it is, and report an unexpected failure without its details
+        catch (error) {
+            const reported = reportError(error);
+            const refusal = { code: reported.code, message: reported.message };
+
+            return Response.json(refusal, { status: reported.status });
+        }
     }
 
     /** Drain the instance, then export the telemetry left and stop it. */

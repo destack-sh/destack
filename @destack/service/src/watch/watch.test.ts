@@ -6,11 +6,13 @@ import { defineWatch, MAX_LAG_MILLISECONDS } from "./watch.ts";
 
 test("describe a declared watch with its object reference, condition, operations and start", () => {
     const note = { package: defineService("notes", {}).package, name: "note" };
+    const call = () => ({ method: "note.summarize", input: {}, release: "2026.9.0" });
     const watch = defineWatch({
         name: "published",
         object: note,
         where: Condition.eq("status", "published"),
         on: ["create", "update"],
+        call,
     });
 
     expect(watch.kind).toBe("watch");
@@ -31,7 +33,7 @@ test("describe a declared watch with its object reference, condition, operations
 
     // refuse a snapshot for a watch without creations
     expect(() =>
-        defineWatch({ name: "removed", object: note, on: ["delete"], from: "snapshot" }),
+        defineWatch({ name: "removed", object: note, on: ["delete"], from: "snapshot", call }),
     ).toThrow(
         "watch removed starts with a snapshot, whose rows are created, but consumes no creations",
     );

@@ -149,10 +149,9 @@ export class GitHubSignature implements WebhookSignature {
         now: number,
     ): Promise<WebhookDelivery> {
         // require the headers
-        const id = request.headers.get("x-github-delivery");
         const event = request.headers.get("x-github-event");
         const signature = request.headers.get("x-hub-signature-256");
-        if (id === null || event === null || signature === null) {
+        if (event === null || signature === null) {
             throw new ServiceError("UNAUTHORIZED", { message: "missing github webhook headers" });
         }
 
@@ -167,8 +166,9 @@ export class GitHubSignature implements WebhookSignature {
             throw new ServiceError("UNAUTHORIZED", { message: "webhook signature does not match" });
         }
 
+        // know the delivery by its signed body, since GitHub signs no delivery header
         return WebhookDelivery.parse({
-            id,
+            id: digest.toHex(),
             event,
             payload: parsePayload(body),
             parameters,

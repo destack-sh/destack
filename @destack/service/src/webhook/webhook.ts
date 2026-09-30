@@ -1,4 +1,5 @@
-import type { TriggerHandler } from "../trigger/trigger.ts";
+import type { Call } from "@destack/sync";
+import type { ResourceContext } from "@destack/resource/context";
 import { ServiceError } from "../error/index.ts";
 import { defineSchema, schema } from "@destack/schema";
 import { DeclarationName, declaringModule, type ModuleMetadata } from "@destack/package";
@@ -26,7 +27,7 @@ export const WebhookDescription = defineSchema(
 /** A webhook, as the manifest describes it. */
 export type WebhookDescription = schema.Infer<typeof WebhookDescription>;
 
-/** A declared webhook. */
+/** A declared webhook: requests a sender signs, each delivery running one object method call. */
 export interface Webhook extends Declaration {
     /** The trigger kind. */
     readonly kind: "webhook";
@@ -34,30 +35,28 @@ export interface Webhook extends Declaration {
     readonly verification: WebhookDescription["verification"];
     /** The path template below the webhook. */
     readonly route: string;
-
-    /** Pair the webhook with its handler and secret. */
-    handle(
-        handle: (event: WebhookDelivery, signal: AbortSignal) => Promise<void>,
-        options: Pick<WebhookHandler, "secret">,
-    ): WebhookHandler;
-}
-
-/** A workload's handler of one webhook. */
-export interface WebhookHandler extends TriggerHandler<Webhook> {
-    /** Read the signing secret of a delivery's route parameters. */
-    secret(parameters: WebhookParameters): Promise<string>;
+    /** Read the signing secret of a delivery's route parameters from the installation's resources. */
+    secret(parameters: WebhookParameters, resources: ResourceContext): Promise<string>;
+    /** Build the call a verified delivery runs. */
+    call(delivery: WebhookDelivery): Call;
     /** Verify a request to a path below the webhook and read its delivery. */
-    receive(request: Request, path: string, now: number): Promise<WebhookDelivery>;
+    receive(
+        request: Request,
+        path: string,
+        now: number,
+        resources: ResourceContext,
+    ): Promise<WebhookDelivery>;
 }
 
 /** Declare a webhook. */
 export function defineWebhook(
-    definition: Pick<Webhook, "name" | "verification" | "route">,
+    definition: Pick<Webhook, "name" | "verification" | "route" | "secret" | "call">,
     module?: ModuleMetadata,
 ): Webhook {
     // stamp the declaring package
     const owner = declaringModule(module, "defineWebhook").package;
-    const description = WebhookDescription.parse(definition);
+    const { secret, call, ...fields } = definition;
+    const description = WebhookDescription.parse(fields);
 
     // require distinct parameter names
     const names = segments(description.route).filter((segment) => segment.startsWith("{"));
@@ -69,28 +68,24 @@ export function defineWebhook(
         ...description,
         kind: "webhook",
         package: owner,
-        handle: handleWebhook,
+        secret,
+        call,
+        receive,
     });
 }
 
-/** Pair a webhook with its handler and secret. */
-function handleWebhook(
+/** Verify a request to a path below a webhook with its route's secret, and read its delivery. */
+async function receive(
     this: Webhook,
-    handle: WebhookHandler["handle"],
-    options: Pick<WebhookHandler, "secret">,
-): WebhookHandler {
-    return {
-        trigger: this,
-        handle,
-        secret: options.secret,
-        receive: async (request, path, now) => {
-            // verify the delivery with its route's secret
-            const parameters = match(this.route, path);
-            const secret = await options.secret(parameters);
+    request: Request,
+    path: string,
+    now: number,
+    resources: ResourceContext,
+): Promise<WebhookDelivery> {
+    const parameters = match(this.route, path);
+    const secret = await this.secret(parameters, resources);
 
-            return WEBHOOK_SIGNATURES[this.verification].verify(request, secret, parameters, now);
-        },
-    };
+    return WEBHOOK_SIGNATURES[this.verification].verify(request, secret, parameters, now);
 }
 
 /** Read a path's parameters from a route. */

@@ -3,8 +3,8 @@ import { expect, test } from "@destack/test";
 import { defineWorkload } from "./workload.ts";
 import { WorkloadInstance } from "./instance.ts";
 import { defineService } from "../declare/service.ts";
-import { defineSchedule, type ScheduleOccurrence } from "../schedule/index.ts";
-import { defineWebhook, type WebhookDelivery } from "../webhook/index.ts";
+import { defineWebhook } from "../webhook/index.ts";
+import type { RunClient } from "../trigger/index.ts";
 import { hosting } from "../server/tests/fixture.ts";
 
 /** The first declared fixture service. */
@@ -29,14 +29,24 @@ const replicas = {
     } satisfies ReplicaSource,
 };
 
-/** A declared fixture schedule. */
-const nightly = defineSchedule({
-    name: "nightly",
-    timing: "cron",
-    cron: "0 3 * * *",
-    timezone: "UTC",
-    concurrency: "forbid",
-    deadline: 60000,
+/** A cell the fixture workloads record no runs in. */
+const runs: RunClient = {
+    send: async () => {
+        throw new Error("the fixture records no runs");
+    },
+};
+
+/** A declared fixture webhook. */
+const github = defineWebhook({
+    name: "github",
+    verification: "github",
+    route: "/",
+    secret: async () => "secret",
+    call: (delivery) => ({
+        method: "repository.push",
+        input: { id: delivery.id },
+        release: "2026.9.0",
+    }),
 });
 
 test("release startup resources when the workload shuts down during startup", async () => {
@@ -60,6 +70,7 @@ test("release startup resources when the workload shuts down during startup", as
                 resources: hosting.resources,
                 history,
                 replicas,
+                runs,
                 service: () => ({ ...hosting, drainTimeout: 100 }),
             },
         ),
@@ -101,6 +112,7 @@ test("start two services and drain accepted requests before shared cleanup", asy
             resources: hosting.resources,
             history,
             replicas,
+            runs,
             service: () => ({ ...hosting, drainTimeout: 1000 }),
         },
     );
@@ -157,6 +169,7 @@ test("retain shared resources until an overdue request observes cancellation", a
             resources: hosting.resources,
             history,
             replicas,
+            runs,
             service: () => ({ ...hosting, drainTimeout: 5 }),
         },
     );
@@ -201,6 +214,7 @@ test("reject a service implemented twice and release startup resources", async (
                 resources: hosting.resources,
                 history,
                 replicas,
+                runs,
                 service: () => ({ ...hosting, drainTimeout: 1000 }),
             },
         ),
@@ -208,78 +222,27 @@ test("reject a service implemented twice and release startup resources", async (
     expect(events).toEqual(["resources"]);
 }, 1500);
 
-test("deliver a schedule's occurrence and a webhook's delivery through the workload's triggers", async () => {
-    const delivered: unknown[] = [];
-    const github = defineWebhook({
-        name: "github",
-        verification: "github",
-        route: "/",
-    });
+test("list the webhooks a workload receives and find each by its package and name", async () => {
     await using instance = await WorkloadInstance.start(
-        defineWorkload({
-            name: "fixture",
-            start: () => ({
-                services: [],
-                triggers: [
-                    {
-                        trigger: nightly,
-                        handle: async (occurrence: ScheduleOccurrence, signal: AbortSignal) => {
-                            signal.throwIfAborted();
-                            delivered.push([nightly.name, occurrence.scheduledAt]);
-                        },
-                    },
-                    github.handle(
-                        async (delivery: WebhookDelivery, signal: AbortSignal) => {
-                            signal.throwIfAborted();
-                            delivered.push([github.name, delivery.id]);
-                        },
-                        { secret: async () => "secret" },
-                    ),
-                ],
-            }),
-        }),
+        defineWorkload({ name: "fixture", start: () => ({ services: [], webhooks: [github] }) }),
         {
             resources: hosting.resources,
             history,
             replicas,
+            runs,
             service: () => ({ ...hosting, drainTimeout: 1000 }),
         },
     );
 
-    // list the triggers in workload order
-    expect(instance.triggers).toEqual([nightly, github]);
-    const signal = new AbortController().signal;
-    await instance.deliver(nightly, { scheduledAt: 1800000000000 }, signal);
-    const delivery = {
-        id: "delivery-1",
-        event: "push",
-        payload: {},
-        parameters: {},
-        receivedAt: 1,
-    };
-    await instance.deliver(github, delivery, signal);
-    expect(delivered).toEqual([
-        ["nightly", 1800000000000],
-        ["github", "delivery-1"],
-    ]);
-
-    // reject an unimplemented trigger
-    const weekly = defineSchedule({
-        name: "weekly",
-        timing: "cron",
-        cron: "0 3 * * 1",
-        timezone: "UTC",
-        concurrency: "forbid",
-        deadline: 60000,
-    });
-    expect(() => instance.deliver(weekly, { scheduledAt: 0 }, signal)).toThrow(
-        `unknown workload schedule: ${weekly.package.id}/weekly`,
-    );
+    expect([
+        instance.webhooks,
+        instance.webhook(github.package.id, "github"),
+        instance.webhook(github.package.id, "gitlab"),
+    ]).toEqual([[github], github, undefined]);
 }, 1500);
 
-test("reject a trigger implemented twice and release startup resources", async () => {
+test("reject a webhook received twice and release startup resources", async () => {
     const events: string[] = [];
-    const handler = { trigger: nightly, handle: async () => {} };
     await expect(
         WorkloadInstance.start(
             defineWorkload({
@@ -289,29 +252,32 @@ test("reject a trigger implemented twice and release startup resources", async (
                         events.push("resources");
                     });
 
-                    return { services: [], triggers: [handler, handler] };
+                    return { services: [], webhooks: [github, github] };
                 },
             }),
             {
                 resources: hosting.resources,
                 history,
                 replicas,
+                runs,
                 service: () => ({ ...hosting, drainTimeout: 1000 }),
             },
         ),
-    ).rejects.toThrow(`duplicate workload schedule: ${nightly.package.id}/nightly`);
+    ).rejects.toThrow(`duplicate workload webhook: ${github.package.id}/github`);
     expect(events).toEqual(["resources"]);
 }, 1500);
 
-test("give a starting workload the host's audit history and its space's source of copies", async () => {
-    // start a workload that delivers one batch to the history it receives and keeps the source
+test("give a starting workload the host's audit history, its space's source of copies and the cell recording its runs", async () => {
+    // start a workload that delivers one batch to the history it receives and keeps the source and the cell
     let received: { readonly scope: string; readonly source: ReplicaSource } | undefined;
+    let recording: RunClient | undefined;
     await using instance = await WorkloadInstance.start(
         defineWorkload({
             name: "fixture",
             start: async (context) => {
                 await context.history.ingest({ events: ["started"] });
                 received = context.replicas;
+                recording = context.runs;
 
                 return { services: [] };
             },
@@ -320,12 +286,14 @@ test("give a starting workload the host's audit history and its space's source o
             resources: hosting.resources,
             history,
             replicas,
+            runs,
             service: () => ({ ...hosting, drainTimeout: 100 }),
         },
     );
-    expect([instance.triggers, history.batches.at(-1), received]).toEqual([
+    expect([instance.webhooks, history.batches.at(-1), received, recording]).toEqual([
         [],
         { events: ["started"] },
         replicas,
+        runs,
     ]);
 });

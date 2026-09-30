@@ -1,4 +1,4 @@
-import { handleTrigger, type Handled } from "../trigger/trigger.ts";
+import type { Call } from "@destack/sync";
 import { defineSchema, schema } from "@destack/schema";
 import { DeclarationName, declaringModule, type ModuleMetadata } from "@destack/package";
 import { type Declaration, DeclarationReference } from "@destack/package/declare";
@@ -41,9 +41,8 @@ export const WatchDescription = defineSchema(
 /** A watch, as the manifest describes it. */
 export type WatchDescription = schema.Infer<typeof WatchDescription>;
 
-/** A durable consumer of one object type's changes. */
-export interface Watch<Target extends Declaration = Declaration>
-    extends Declaration, Handled<Watch<Target>> {
+/** A durable consumer of one object type's changes, each admitted change running one object method call. */
+export interface Watch<Target extends Declaration = Declaration> extends Declaration {
     /** The trigger kind. */
     readonly kind: "watch";
     /** The watched object type. */
@@ -56,6 +55,8 @@ export interface Watch<Target extends Declaration = Declaration>
     readonly from: "now" | "snapshot";
     /** How long the log keeps unconsumed changes, in milliseconds. */
     readonly maxLag: number;
+    /** Build the call an admitted change runs. */
+    call(change: ObjectChange<Target>): Call;
 }
 
 /** A row of a watched object type. */
@@ -81,13 +82,13 @@ export interface ObjectChange<Target = Declaration> {
 
 /** Declare a watch. */
 export function defineWatch<const Target extends Declaration>(
-    definition: Pick<Watch<Target>, "name" | "object" | "where" | "on"> &
+    definition: Pick<Watch<Target>, "name" | "object" | "where" | "on" | "call"> &
         Partial<Pick<Watch<Target>, "from" | "maxLag">>,
     module?: ModuleMetadata,
 ): Watch<Target> {
     // stamp the declaring package
     const owner = declaringModule(module, "defineWatch").package;
-    const { object, ...fields } = definition;
+    const { object, call, ...fields } = definition;
     const description = WatchDescription.omit({ object: true }).parse({
         from: "now",
         maxLag: MAX_LAG_MILLISECONDS,
@@ -105,7 +106,7 @@ export function defineWatch<const Target extends Declaration>(
         ...description,
         kind: "watch",
         object,
+        call,
         package: owner,
-        handle: handleTrigger,
     }) as Watch<Target>;
 }

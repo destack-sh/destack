@@ -3,13 +3,9 @@ import type { ResourceContext } from "@destack/resource/context";
 import { reference } from "@destack/package/declare";
 import { Server, type ServerOptions, type ServiceImplementation } from "../server/index.ts";
 import type { Service } from "../declare/service.ts";
-import type {
-    Trigger,
-    TriggerEvent,
-    TriggerHandler,
-    TriggerImplementation,
-} from "../trigger/index.ts";
+import type { RunClient } from "../trigger/index.ts";
 import { type Alarm, AlarmClock } from "../control/index.ts";
+import type { Webhook } from "../webhook/index.ts";
 import { Health } from "../health/index.ts";
 import { ServiceError } from "../error/index.ts";
 import type { AuditHistory, Workload } from "./workload.ts";
@@ -18,8 +14,8 @@ import type { AuditHistory, Workload } from "./workload.ts";
 export class WorkloadInstance implements AsyncDisposable {
     /** The services and their servers by declaration key. */
     readonly #services = new Map<string, { readonly service: Service; readonly server: Server }>();
-    /** The trigger handlers by key. */
-    readonly #triggers = new Map<string, TriggerImplementation>();
+    /** The webhooks the workload receives, by declaration key. */
+    readonly #webhooks = new Map<string, Webhook>();
     /** The shutdown controller. */
     readonly #controller = new AbortController();
     /** The resources released after draining. */
@@ -41,6 +37,7 @@ export class WorkloadInstance implements AsyncDisposable {
                 resources: options.resources,
                 history: options.history,
                 ...(options.replicas === undefined ? {} : { replicas: options.replicas }),
+                runs: options.runs,
                 signal: instance.#controller.signal,
                 shutdown: () => instance.shutdown(),
                 defer: (dispose) => instance.#cleanup.defer(dispose),
@@ -65,13 +62,13 @@ export class WorkloadInstance implements AsyncDisposable {
                 instance.#services.set(key, { service: service.service, server });
             }
 
-            // register the trigger handlers
-            for (const handler of implementation.triggers ?? []) {
-                const key = triggerKey(handler.trigger);
-                if (instance.#triggers.has(key)) {
-                    throw new TypeError(`duplicate workload ${key}`);
+            // register the webhooks
+            for (const webhook of implementation.webhooks ?? []) {
+                const key = keyOf(webhook);
+                if (instance.#webhooks.has(key)) {
+                    throw new TypeError(`duplicate workload webhook: ${key}`);
                 }
-                instance.#triggers.set(key, handler);
+                instance.#webhooks.set(key, webhook);
             }
 
             // reject a cancelled start
@@ -99,9 +96,14 @@ export class WorkloadInstance implements AsyncDisposable {
         return [...this.#services.values()].map((served) => served.service);
     }
 
-    /** The implemented triggers, in workload order. */
-    get triggers(): readonly Trigger[] {
-        return [...this.#triggers.values()].map((handler) => handler.trigger);
+    /** The webhooks the workload receives, in workload order. */
+    get webhooks(): readonly Webhook[] {
+        return [...this.#webhooks.values()];
+    }
+
+    /** Find a webhook the workload receives by its package and name. */
+    webhook(packageId: string, name: string): Webhook | undefined {
+        return this.#webhooks.get(`${packageId}/${name}`);
     }
 
     /** Report whether the workload implements a service. */
@@ -130,22 +132,6 @@ export class WorkloadInstance implements AsyncDisposable {
         }
 
         return server.fetch(request);
-    }
-
-    /** Deliver one trigger event to its handler. */
-    deliver<Declared extends Trigger>(
-        trigger: Declared,
-        event: TriggerEvent<Declared>,
-        signal: AbortSignal,
-    ): Promise<void> {
-        // require the handler
-        const key = triggerKey(trigger);
-        const handler = this.#triggers.get(key) as TriggerHandler<Declared> | undefined;
-        if (!handler) {
-            throw new ServiceError("NOT_FOUND", { message: `unknown workload ${key}` });
-        }
-
-        return handler.handle(event, AbortSignal.any([signal, this.signal]));
     }
 
     /** Close the workload. */
@@ -195,6 +181,8 @@ export interface WorkloadInstanceOptions {
     readonly history: AuditHistory;
     /** The source of the copies of the installation's space: its chain, and the global rows it reads. */
     readonly replicas?: { readonly scope: string; readonly source: ReplicaSource };
+    /** The cell recording the installation's runs. */
+    readonly runs: RunClient;
     /** Keep a wake-up for the services' earliest due controller key, such as a Durable Object's alarm. */
     readonly alarm?: Alarm;
     /** Select the options of one service. */
@@ -204,13 +192,8 @@ export interface WorkloadInstanceOptions {
 }
 
 /** Key a declaration by its package and name. */
-function keyOf(declaration: Service | Trigger): string {
+function keyOf(declaration: Service | Webhook): string {
     const { packageId, name } = reference(declaration);
 
     return `${packageId}/${name}`;
-}
-
-/** Key a trigger by its kind, package and name. */
-function triggerKey(trigger: Trigger): string {
-    return `${trigger.kind}: ${keyOf(trigger)}`;
 }

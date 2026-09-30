@@ -74,7 +74,7 @@ denialOf(failure)?.code;                                       // "FORBIDDEN" fo
 
 ## Workloads
 
-A workload starts once per instance and returns the services and trigger handlers it implements.
+A workload starts once per instance and returns the services and webhooks it serves.
 
 ```ts
 import { defineWorkload, WorkloadInstance } from "@destack/service/workload";
@@ -85,7 +85,7 @@ export const workload = defineWorkload({
         const notebook = new Notebook(database.get(context.resources));
         context.defer(() => notebook.close());
 
-        return { services: [implementNotes(notebook)], triggers: [reminders.handle((occurrence) => notebook.remind(occurrence))] };
+        return { services: [implementNotes(notebook)], webhooks: [pushes] };
     },
 });
 
@@ -201,25 +201,31 @@ const client = createClient(notesService, { url, bookmark });
 
 ## Triggers
 
-A package declares triggers, and the host delivers each event to its handler once per cause.
+A trigger is a cause of runs, and every run is one object method call the space's cell makes later as the installation.
+
+| Trigger | Entry point | Cause | Where it is followed |
+|---|---|---|---|
+| `defineSchedule` | `@destack/service/schedule` | a timing and a static call | the cell |
+| `defineWebhook` | `@destack/service/webhook` | a signed request, verified with the installation's secret | the workload |
+| `defineWatch` | `@destack/service/watch` | an admitted change of the installation's own objects | the workload's object server |
 
 ```ts
-export const reminders = defineSchedule({ name: "reminders", timing: "cron", cron: "0 9 * * *", timezone: "Europe/Zurich", concurrency: "forbid", deadline: 60_000 });
-export const pushes = defineWebhook({ name: "github", verification: "github", secret: webhookSecret });
-export const published = defineWatch({ name: "published", object: note, where: Condition.eq("status", "published"), on: ["create", "update"], from: "snapshot" });
-
-await instance.deliver(pushes, await WEBHOOK_SIGNATURES.github.verify(request, secret, Date.now()), signal);
+export const reminders = defineSchedule({ name: "reminders", timing: "cron", cron: "0 9 * * *", timezone: "Europe/Zurich", concurrency: "forbid", deadline: 60_000, call: reminder.calls().send({}) });
+export const pushes = defineWebhook({ name: "github", verification: "github", route: "/{repository}", secret: ({ repository }, resources) => vault.get(resources).read(repository), call: (delivery) => repository.calls().push({ id: delivery.parameters.repository!, payload: delivery.payload }) });
+export const published = defineWatch({ name: "published", object: note, where: Condition.eq("status", "published"), on: ["create", "update"], from: "snapshot", call: (change) => note.calls().index({ id: change.after!.id }) });
 ```
 
-## Trigger events
+A method sends a call to run once its transaction commits; it runs on the authority the calling person lent the installation.
 
-Each trigger kind delivers one event type.
+```ts
+await call.send({ call: mail.calls().welcome({ userId }) });
+```
 
-| Trigger | Entry point | Event |
-|---|---|---|
-| `defineSchedule` | `@destack/service/schedule` | `ScheduleOccurrence` |
-| `defineWebhook` | `@destack/service/webhook` | `WebhookDelivery` |
-| `defineWatch` | `@destack/service/watch` | `ObjectChange` |
+Outside a method, a workload sends through the cell recording its runs, with a request identifier when it may retry.
+
+```ts
+await context.runs.send({ call: digest.calls().send({}), at: Date.now() + 60_000, requestId });
+```
 
 ## Controllers
 

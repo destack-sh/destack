@@ -2,6 +2,9 @@ import { DeclarationName } from "@destack/package";
 import { ResourceBinding } from "@destack/resource";
 import { defineSchema, identifier, schema } from "@destack/schema";
 
+/** The path below which an installation's origin receives webhook requests, and a host forwards them to a runner. */
+export const WEBHOOK_PATH = "/.destack/webhook";
+
 /** The first line a host writes to a runner's input, starting one workload of an installation. */
 export const WorkloadStart = defineSchema(
     schema.object({

@@ -4,13 +4,14 @@ import type { Declaration } from "@destack/package/declare";
 import { WorkloadDefinition } from "@destack/package/workload";
 import type { ResourceContext } from "@destack/resource/context";
 import type { ServiceImplementation } from "../server/index.ts";
-import type { TriggerImplementation } from "../trigger/index.ts";
+import type { RunClient } from "../trigger/index.ts";
+import type { Webhook } from "../webhook/index.ts";
 
 /** A declared unit of deployment. */
 export interface Workload extends Declaration {
     /** The compute settings of each instance. */
     readonly compute?: ComputeDefinition;
-    /** Start one instance and return its services and triggers. */
+    /** Start one instance and return its services and webhooks. */
     start(context: WorkloadContext): WorkloadImplementation | Promise<WorkloadImplementation>;
 }
 
@@ -34,6 +35,8 @@ export interface WorkloadContext {
     readonly history: AuditHistory;
     /** The source of the copies of the installation's space: its chain, and the global rows it reads. */
     readonly replicas?: { readonly scope: string; readonly source: ReplicaSource };
+    /** The cell recording the installation's runs: sent calls and the calls of its triggers' causes. */
+    readonly runs: RunClient;
     /** The shutdown signal. */
     readonly signal: AbortSignal;
     /** Request shutdown. */
@@ -51,10 +54,10 @@ export interface AuditHistory {
     ): Promise<unknown>;
 }
 
-/** The services and triggers of one workload. */
+/** The services and webhooks of one workload. */
 export interface WorkloadImplementation {
     /** The service implementations. */
     readonly services: readonly ServiceImplementation[];
-    /** The trigger handlers. */
-    readonly triggers?: readonly TriggerImplementation[];
+    /** The webhooks the workload receives. */
+    readonly webhooks?: readonly Webhook[];
 }
