@@ -5,25 +5,35 @@
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
-    "description": "Plan projects as tasks with assignees, states and comments.",
+    "description": "Plan projects as tasks with assignees, states and comment threads.",
     "exports": {
         ".": "./src/index.ts",
         "./destack.json": "./destack.json",
         "./service": "./src/service/index.ts",
-        "./stack": "./src/stack/index.ts"
+        "./stack": "./src/stack/index.ts",
+        "./package": "./src/package.ts"
     },
     "dependencies": {
+        "@destack/sync": "workspace:*",
+        "@destack/audit": "workspace:*",
+        "@destack/space": "workspace:*",
         "@destack/access": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/notification": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
+        "@destack/social": "workspace:*",
         "@destack/account": "workspace:*"
     },
     "devDependencies": {
-        "@destack/resource": "workspace:*"
+        "@destack/resource": "workspace:*",
+        "@destack/test": "workspace:*",
+        "uuid": "14.0.2"
     },
     "scripts": {
-        "check": "tsc --project tsconfig.json"
+        "check": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
     }
 }
