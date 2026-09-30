@@ -4,6 +4,7 @@ import {
     type Audience,
     type Watch,
     replica,
+    Scope,
 } from "@destack/sync";
 import { accessRelationship, earliest, type Permission, type Subject } from "@destack/access";
 import { and, eq, gt, or, sql, TABLE, type Row, type SQL, type Table } from "@destack/db";
@@ -42,7 +43,11 @@ export class ObjectAudience implements Audience {
     readonly #storage: ObjectStorage;
     /** The durable log position access was decided at, for ephemeral objects. */
     #decided: LogPosition | undefined;
-    /** The scope chain's access rows, none for ephemeral objects. */
+    /** Whether the subscriber keeps every row by containing the scope, with only guarded fields decided. */
+    readonly #isContained: boolean;
+    /** The scopes below the followed one whose access decided rows. */
+    readonly #below = new Set<string>();
+    /** The access rows of the scope chain and of the scopes below deciding rows, none for ephemeral objects. */
     watches: readonly Watch[];
 
     /** Serve a caller of a scope with resolved access. */
@@ -53,6 +58,7 @@ export class ObjectAudience implements Audience {
         authorization: Authorization,
         storage: ObjectStorage,
         decided: LogPosition | undefined,
+        isContained = false,
     ) {
         // keep the inputs and watch access
         this.#server = server;
@@ -63,7 +69,8 @@ export class ObjectAudience implements Audience {
         this.#until = authorization.access.until;
         this.#storage = storage;
         this.#decided = decided;
-        this.watches = storage === "durable" ? server.authorizer.watch(this.chain) : [];
+        this.#isContained = isContained;
+        this.watches = this.#watched();
     }
 
     /** Resolve a caller's access to a scope's objects. */
@@ -93,6 +100,17 @@ export class ObjectAudience implements Audience {
         return new ObjectAudience(server, scope, admit, await admit(), "durable", undefined);
     }
 
+    /** Resolve a follower below the scopes it copies: it keeps every row of their chains, with the guarded fields its principal may not read concealed. */
+    static async contained(
+        server: Omit<ObjectServer, "router">,
+        subject: Subject,
+    ): Promise<ObjectAudience> {
+        const scope = Scope.universe.id;
+        const admit = () => server.authorizeSubject(server.database, scope, subject);
+
+        return new ObjectAudience(server, scope, admit, await admit(), "durable", undefined, true);
+    }
+
     /** The scope's own object, absent for a scope the database does not know. */
     get scope(): ObjectReference | undefined {
         return this.#authorization.access.scopes[0];
@@ -100,11 +118,22 @@ export class ObjectAudience implements Audience {
 
     /** Match the rows of a table the caller may list. */
     where(table: Table): SQL | "memory" {
+        // leave the journal and the copies' records to their queries
         const listed = this.#listed(table);
+        if (listed === "query") {
+            return sql`true`;
+        }
+        // decide in memory the rows at their home in the scopes below the followed one, each in its own chain
+        else if (
+            listed.object.storage === "durable" &&
+            listed.object.inherited === undefined &&
+            !this.#server.database.copies(listed.object.table) &&
+            !this.#authorization.isScopeOf(listed.object)
+        ) {
+            return "memory";
+        }
 
-        return listed === "query"
-            ? sql`true`
-            : this.#authorization.listable(listed.object, listed.permission);
+        return this.#authorization.listable(listed.object, listed.permission);
     }
 
     /** The key of the caller's access inputs. */
@@ -112,6 +141,7 @@ export class ObjectAudience implements Audience {
         this.#key ??= canonicalize({
             scope: this.#scope,
             context: { ...this.#authorization.access.context, request: null, now: null },
+            isContained: this.#isContained,
         });
 
         return this.#key;
@@ -140,6 +170,15 @@ export class ObjectAudience implements Audience {
         );
         this.#until = earliest([this.#until, admission.until]);
 
+        // watch the access of the scopes below that decided rows
+        const known = this.#below.size;
+        for (const scope of admission.below) {
+            this.#below.add(scope);
+        }
+        if (this.#below.size > known) {
+            this.watches = this.#watched();
+        }
+
         return admission.held;
     }
 
@@ -154,12 +193,12 @@ export class ObjectAudience implements Audience {
         rows: readonly Row[],
         position: LogPosition,
     ): Promise<readonly (readonly string[])[]> {
-        // conceal nothing of the rows left to their query
-        const listed = this.#listed(table);
-        if (listed === "query") {
+        // conceal nothing of the rows left to their query, or of another table's rows a follower keeps by containment
+        const listed = this.#isContained ? this.#objects.get(table) : this.#listed(table);
+        if (listed === "query" || listed === undefined) {
             return rows.map(() => []);
         }
-        const { object } = listed;
+        const object = "object" in listed ? listed.object : listed;
 
         // conceal unreadable fields
         const concealed = await this.#authorization.concealed(object, rows, this.#reader(position));
@@ -317,7 +356,18 @@ export class ObjectAudience implements Audience {
         if (this.#storage === "ephemeral") {
             this.#decided = await this.#server.database.log.position();
         }
-        this.watches = this.#storage === "durable" ? this.#server.authorizer.watch(this.chain) : [];
+        this.#below.clear();
+        this.watches = this.#watched();
+    }
+
+    /** List the access rows deciding what the caller lists: those of the chain and of the scopes below deciding rows, and the relationships of the caller's subjects in every scope. */
+    #watched(): Watch[] {
+        return this.#storage === "durable"
+            ? this.#server.authorizer.watch(
+                  [...this.chain, ...this.#below],
+                  this.#authorization.access.authorities.flatMap((authority) => authority.subjects),
+              )
+            : [];
     }
 
     /** The caller's access, resolved again once access changes. */
@@ -334,8 +384,8 @@ export class ObjectAudience implements Audience {
     #listed(
         table: Table,
     ): { readonly object: ObjectType; readonly permission: Permission } | "query" {
-        // leave the journal and the copies' records to their queries
-        if (table === this.#server.journal.table || table === replica) {
+        // leave the journal and the copies' records to their queries, and every row to a follower keeping it by containment
+        if (this.#isContained || table === this.#server.journal.table || table === replica) {
             return "query";
         }
 

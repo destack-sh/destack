@@ -63,22 +63,28 @@ export class Authorization extends access.Authorization {
             : or(isCopy, held)!;
     }
 
-    /** Decide which rows the caller may list: those it holds the permission on, and the copies an enclosing scope hands down. */
+    /**
+     * Decide which rows the caller may list.
+     *
+     * The copies an enclosing scope hands down and the copies kept for the scope are admitted.
+     * The scope's own rows are decided by the caller's access in it, and the rows of a scope it encloses by the caller's access there.
+     */
     async admitRows(
         object: ObjectType,
         permission: Permission,
         scope: string,
         rows: readonly Readonly<Record<string, unknown>>[],
         reader?: GrantReader,
-    ): Promise<access.Admission> {
+    ): Promise<access.Admission & { readonly below: readonly string[] }> {
         // admit the inherited copies of enclosing scopes wholesale
         const table = object.table as Table;
         const others = [...rows.keys()].filter((position) => rows[position]!.scope !== scope);
         let copies: ReadonlySet<number>;
+        let below: ReadonlyMap<string, Access> = new Map();
         if (object.inherited !== undefined) {
             copies = new Set(others);
         }
-        // admit the durable copies of global rows kept for the scope
+        // admit the durable copies of global rows kept for the scope, and resolve the scopes of the other rows
         else if (object.storage === "durable" && others.length > 0) {
             const included = await Replica.keysIncluded(
                 this.database,
@@ -89,24 +95,34 @@ export class Authorization extends access.Authorization {
             copies = new Set(
                 others.filter((position) => included.has(Key.name(table, rows[position]!))),
             );
+            const scopes = others
+                .filter((position) => !copies.has(position))
+                .map((position) => String(rows[position]!.scope));
+            below = await this.descend(scope, [...new Set(scopes)]);
         }
         // admit no other scope's rows
         else {
             copies = new Set();
         }
 
-        // check the caller's permission on the scope's own rows
-        const own = [...rows.keys()].filter((position) => !copies.has(position));
+        // check the caller's permission on the scope's own rows and on the rows of the scopes it encloses
+        const own = [...rows.keys()].filter(
+            (position) =>
+                !copies.has(position) &&
+                (rows[position]!.scope === scope || below.has(String(rows[position]!.scope))),
+        );
         const admission = await this.checkRows(
             permission,
             scope,
             own.map((position) => rows[position]!),
             reader,
+            below,
         );
 
         return {
             ...admission,
             held: new Set([...copies, ...[...admission.held].map((position) => own[position]!)]),
+            below: [...below.keys()],
         };
     }
 
@@ -289,16 +305,18 @@ export class Authorization extends access.Authorization {
         return false;
     }
 
+    /** Decide whether an object type's rows live in scopes of the admitted scope's type. */
+    isScopeOf(object: ObjectType): boolean {
+        const own = this.access.scopes[0];
+
+        return this.access.scope === Scope.universe.id
+            ? object.scopes.length === 0
+            : own?.id === this.access.scope && object.scopes.some((type) => type.policy.is(own));
+    }
+
     /** Refuse an object type living outside the admitted scope's type. */
     requireScopeOf(object: ObjectType): void {
-        // require the object type's home scope
-        const own = this.access.scopes[0];
-        const isHome =
-            this.access.scope === Scope.universe.id
-                ? object.scopes.length === 0
-                : own?.id === this.access.scope &&
-                  object.scopes.some((type) => type.policy.is(own));
-        if (!isHome) {
+        if (!this.isScopeOf(object)) {
             throw new ServiceError("NOT_FOUND", {
                 message: `no ${object.plural} in scope ${this.access.scope}`,
             });
@@ -391,14 +409,23 @@ export class Authorization extends access.Authorization {
             permissions.set(permission, [...(permissions.get(permission) ?? []), name]);
         }
 
+        // decide the rows of the scopes below in their own chains
+        const scope = this.access.scope;
+        const others = rows.map((row) => String(row.scope)).filter((other) => other !== scope);
+        const below =
+            permissions.size === 0 || others.length === 0
+                ? undefined
+                : await this.descend(scope, [...new Set(others)]);
+
         // check each distinct read permission once over every row
         const moments: (number | undefined)[] = [];
         for (const [permission, names] of permissions) {
             const readable = await this.checkRows(
                 object.permission(permission),
-                this.access.scope,
+                scope,
                 rows,
                 reader,
+                below,
             );
             moments.push(readable.until);
             for (const [position, fields] of hidden.entries()) {

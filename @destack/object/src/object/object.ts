@@ -300,6 +300,8 @@ export class ObjectType<
     readonly expiring?: readonly ExpiryRule[];
     /** The system controller reconciling the objects with work waiting. */
     readonly controller?: ObjectController;
+    /** The relations of the objects to the scope they live in, by the name of the scope's type, that permissions read through. */
+    readonly enclosing: readonly string[];
     /** How a stack's declarations of the objects become their managed records. */
     readonly declaration?: ObjectDeclaration;
     /** How addressed objects name their recipient. */
@@ -461,6 +463,20 @@ export class ObjectType<
                 };
             }
         }
+
+        // relate the objects to the scope they live in, under its type's name, when a permission reads through it
+        const enclosing = this.scopes.filter(
+            (scope) => decided.has(scope.name) && relations[scope.name] === undefined,
+        );
+        for (const scope of enclosing) {
+            if (scope.scopes.length > 0) {
+                throw new TypeError(
+                    `object ${definition.name} reads through its scope ${scope.name}, which is no object of the universe`,
+                );
+            }
+            relations[scope.name] = { subjects: [scope.policy], grantedBy: null };
+        }
+        this.enclosing = enclosing.map((scope) => scope.name);
         this.fields = definition.fields ?? {};
         this.text = Object.entries(this.fields)
             .filter(([, declared]) => declared.type === "text")
@@ -799,6 +815,11 @@ export class ObjectType<
                         : { column: property };
             }
         }
+        // map each relation to the scope the objects live in, an object of the universe
+        for (const name of this.enclosing) {
+            relations[name] = { column: "scope", scope: Scope.universe.id };
+        }
+
         // add trait mappings
         const object = traitObject(this, this.policy.package.id);
         const located = this.traits.flatMap(({ trait, options }) =>

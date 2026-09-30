@@ -217,7 +217,7 @@ test("refuse serving history that reads through an object keeping none", () => {
         () =>
             new ObjectServer({
                 objects: { activity, folder, sheet },
-                database: {} as DatabaseConnection,
+                database: { copies: () => false } as unknown as DatabaseConnection,
                 context: () => ({ subjects: [], now: 0, attributes: {} }),
                 journal: new Journal(request),
                 audit: () => ({}) as AuditRecorder<DatabaseConnection>,

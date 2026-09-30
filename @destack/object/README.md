@@ -199,7 +199,15 @@ const server = new ObjectServer({
 });
 ```
 
-`replicaRequests` lists the requests of a scope's chain and of one copy of the global rows its principal may read, such as the users who joined a space.
+`replicaRequests` lists the requests of a scope's chain and of one copy of the universe's rows its principal may read, such as the users who joined a space.
+A server keeps the types its database copies (`database.copies(table)`: a wider tier than its own) from its source, and refuses writes to them.
+A copied type living in the scopes of other copied types is copied across scopes, each row decided in its own scope, such as the accounts of those users.
+
+A permission reads through the scope an object lives in under the scope type's name.
+
+```ts
+export const profile = defineObject({ ..., scope: person, permissions: { read: through("person", "read") } });
+```
 
 ## Fields
 

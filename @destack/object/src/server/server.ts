@@ -282,6 +282,7 @@ export class ObjectServer<
                     other instanceof Policy || other instanceof ObjectType ? [] : [other],
                 ),
             ],
+            { copies: (table) => options.database.copies(table) },
         );
         tracked.require(this.objects, this.authorizer);
         this.journal = options.journal;
@@ -1289,35 +1290,62 @@ export class ObjectServer<
         return new Authorization(this.authorizer, database, bind, access);
     }
 
-    /** List the global rows a scope reads: every row of each global object type served here that its principal may read. */
-    globals(): sync.ReplicaRequest["rows"] {
-        return this.#durable
-            .filter((object) => object.table[TABLE].tier === "global")
-            .map((object) => ({
-                type: {
-                    packageId: object.policy.definition.packageId,
-                    type: object.policy.definition.name,
-                },
-                where: Condition.all(),
-            }));
+    /**
+     * List the rows of the universe a scope reads: every row of each copied object type living in the universe that its principal may read.
+     *
+     * A copied type living in the scopes other listed types' rows are is copied across scopes, within those types.
+     */
+    universeRows(): sync.ReplicaRequest["rows"] {
+        // list the copied types of the universe first
+        const reference = (object: ObjectType) => ({
+            packageId: object.policy.definition.packageId,
+            type: object.policy.definition.name,
+        });
+        const copied = this.#durable.filter((object) => this.database.copies(object.table));
+        const listed = copied.filter((object) => object.scopes.length === 0);
+        const rows: sync.ReplicaRequest["rows"][number][] = listed.map((object) => ({
+            type: reference(object),
+            where: Condition.all(),
+        }));
+
+        // add the types living in the scopes of listed types, at any depth
+        for (let isGrowing = true; isGrowing;) {
+            isGrowing = false;
+            for (const object of copied.filter((candidate) => !listed.includes(candidate))) {
+                const scopes = listed.filter((scope) =>
+                    object.scopes.some((type) => type.same(scope)),
+                );
+                if (scopes.length > 0) {
+                    rows.push({
+                        type: reference(object),
+                        where: Condition.all(),
+                        within: scopes.map(reference),
+                    });
+                    listed.push(object);
+                    isGrowing = true;
+                }
+            }
+        }
+
+        return rows;
     }
 
-    /** List the requests of the copies a database keeps for a scope: its chain, and the global rows it reads. */
+    /** List the requests of the copies a database keeps for a scope: its chain, and the rows of the universe it reads. */
     async replicaRequests(
         below: string,
         options: { readonly isHome: boolean },
     ): Promise<Omit<sync.ReplicaRequest, "after">[]> {
-        // copy the chain, then the global rows the scope reads
+        // copy the chain, then the rows of the universe the scope reads
         const chain = await this.authorizer.chain(this.database, below, options);
-        const global = this.globalRequest(below);
+        const universe = this.universeRequest(below);
 
-        return global === undefined ? chain : [...chain, global];
+        return universe === undefined ? chain : [...chain, universe];
     }
 
-    /** Build the request of the copy of the global rows a scope or cell reads, absent when no global type is served. */
-    globalRequest(below: string): Omit<sync.ReplicaRequest, "after"> | undefined {
+    /** Build the request of the copy of the universe's rows a scope or cell reads, absent when the server copies no type living there. */
+    universeRequest(below: string): Omit<sync.ReplicaRequest, "after"> | undefined {
         // request nothing where no global object type is served
-        const rows = this.globals();
+        const rows = this.universeRows();
         if (rows.length === 0) {
             return undefined;
         }
@@ -1334,7 +1362,12 @@ export class ObjectServer<
         };
     }
 
-    /** Stream a copy's pages to a database below: a chain decided by containment, global rows decided for their reader. */
+    /**
+     * Stream a copy's pages to a database below.
+     *
+     * A chain's rows are decided by containment, with the guarded fields of the scope's own row decided for the follower.
+     * The rows of the universe are decided for their reader.
+     */
     async *replicate(
         request: sync.ReplicaRequest,
         follower: ReplicaFollower,
@@ -1366,12 +1399,19 @@ export class ObjectServer<
             throw error;
         }
 
-        // decide global rows for a principal where they live, or for a caller of the space it relays them to
-        const audience = request.access
-            ? sync.EVERYONE
-            : "subject" in follower
-              ? await ObjectAudience.of(this, request.scope, follower.subject)
-              : await ObjectAudience.open(this, request.below, follower.context);
+        // decide a chain by containment, and the universe's rows for a principal where they live or for a caller of the space it relays them to
+        let audience: sync.Audience;
+        if (request.access) {
+            audience =
+                "subject" in follower
+                    ? await ObjectAudience.contained(this, follower.subject)
+                    : sync.EVERYONE;
+        } else {
+            audience =
+                "subject" in follower
+                    ? await ObjectAudience.of(this, request.scope, follower.subject)
+                    : await ObjectAudience.open(this, request.below, follower.context);
+        }
 
         // stream the copy, ending at a completed page once drained
         const copy = this.authorizer.replicaOf(request);
@@ -1690,8 +1730,15 @@ export class ObjectServer<
         name: string,
         input: Record<string, unknown>,
     ): Promise<{ call: Call; method: Method; scope: string; targetId: string | undefined }> {
-        // split off routing fields
+        // refuse changing the rows of a type kept as copies from its home
         const method = (object.methods as Readonly<Record<string, Method>>)[name]!;
+        if (method.mutates && this.database.copies(object.table)) {
+            throw new ServiceError("CONFLICT", {
+                message: `${object.name} is a copy, which changes at its home`,
+            });
+        }
+
+        // split off routing fields
         const { field } = object.route;
         const { id, revision, ...rest } = input;
         const fields = Object.fromEntries(Object.entries(rest).filter(([name]) => name !== field));
