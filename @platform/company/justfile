@@ -1,7 +1,7 @@
 set shell := ["bash", "-cu"]
 set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
 
-# the Wrangler version, the same as platform/site
+# the Wrangler version, the same as @platform/site
 wrangler := "bunx wrangler@4.134.0"
 
 _default:
