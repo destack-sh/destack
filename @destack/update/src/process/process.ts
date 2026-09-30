@@ -7,7 +7,7 @@ import { FileSystemError } from "@destack/fs/error";
 /** Maximum time allowed for a native application to shut down. */
 const STOP_TIMEOUT = 30_000;
 /** Private route served by the desktop's existing HTTP server. */
-const STOP_PATH = "/_destack/update/stop";
+const STOP_PATH = "/.destack/update/stop";
 
 /** A desktop process registered for authenticated update shutdown. */
 export class UpdateProcess implements AsyncDisposable {

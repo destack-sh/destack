@@ -51,7 +51,7 @@ test("authenticate desktop shutdown and wait for process exit", async () => {
             },
         ];
         for (const headers of requests) {
-            const response = await fetch(`http://127.0.0.1:${endpoint.port}/_destack/update/stop`, {
+            const response = await fetch(`http://127.0.0.1:${endpoint.port}/.destack/update/stop`, {
                 method: "POST",
                 headers,
             });
