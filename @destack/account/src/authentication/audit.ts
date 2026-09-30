@@ -39,7 +39,6 @@ const SEVERITIES = {
 /** One authentication protocol request, without credentials or provider payloads. */
 export const authenticationRequest = defineAuditAction({
     name: "Authentication.request",
-    version: 1,
     targets: schema.object({
         endpoint: schema.object({
             type: schema.literal("authentication-endpoint"),
@@ -52,7 +51,6 @@ export const authenticationRequest = defineAuditAction({
 /** A session issued after all required authentication ceremonies complete. */
 export const sessionCreated = defineAuditAction({
     name: "Session.create",
-    version: 1,
     targets: schema.object({
         user: schema.object({ type: schema.literal("user"), id: identifier("user") }),
         session: schema.object({ type: schema.literal("session"), id: identifier("session") }),
