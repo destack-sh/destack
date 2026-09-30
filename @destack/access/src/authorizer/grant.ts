@@ -250,6 +250,11 @@ export class GrantReader {
             case "none":
                 return some([]);
             case "condition":
+                // grant nothing by attributes a database holding only the object's scope row cannot read
+                if (!TableMapping.decides(mapping, expression.condition)) {
+                    return some([]);
+                }
+
                 return {
                     kind: "condition",
                     match: Condition.compile(
@@ -437,7 +442,7 @@ export class GrantReader {
             return some(trees);
         }
 
-        // follow the parent a field holds, of whichever type the row's columns name when it holds several
+        // follow the parent a field refers to, in the row's scope or the scope the field gives
         const typed = field.subject;
         const subject =
             typed === undefined
@@ -456,7 +461,7 @@ export class GrantReader {
               ? []
               : [String(row[field.column])];
         const trees: GrantTree[] = [];
-        for (const related of await this.#rows(target, scope, ids)) {
+        for (const related of await this.#rows(target, field.scope ?? scope, ids)) {
             trees.push(
                 await this.#permission(
                     target.policy.permission(expression.permission),

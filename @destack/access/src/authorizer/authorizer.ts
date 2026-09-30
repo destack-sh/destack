@@ -42,6 +42,9 @@ import type { Decision, Explanation } from "./decision.ts";
 import { GrantReader, GrantTree, type Grant, type Lookup } from "./grant.ts";
 import { column, TableMapping, type FieldRelation } from "./mapping.ts";
 
+/** The identifier of a wildcard subject, which relates every identity of its type. */
+const WILDCARD = "*";
+
 /**
  * How long a copy of access may go without hearing from its home before decisions refuse it, by default, in milliseconds.
  *
@@ -616,9 +619,26 @@ export class Authorizer {
         return mapping.table;
     }
 
-    /** List the access rows with changes that affect what a caller of a scope chain may hold. */
-    watch(chain: readonly string[]): Watch[] {
-        return decisionTables.map((table) => ({ table, scopes: chain }));
+    /**
+     * List the access rows with changes that affect what a caller of a scope chain may hold.
+     *
+     * A scope object's relationships live in that scope, so the relationships of a caller's subjects are watched in every scope.
+     */
+    watch(chain: readonly string[], subjects: readonly Subject[] = []): Watch[] {
+        const ids = [...new Set(subjects.map((subject) => subject.id))];
+
+        return [
+            ...decisionTables.map((table): Watch => ({ table, scopes: chain })),
+            ...(ids.length === 0
+                ? []
+                : [
+                      {
+                          table: accessRelationship,
+                          scopes: "every" as const,
+                          where: Condition.oneOf("subjectId", [...ids, WILDCARD]),
+                      },
+                  ]),
+        ];
     }
 
     /** Read a page of one object's relationships and role bindings as a snapshot shows them, ordered by identifier. */

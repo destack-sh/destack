@@ -1,4 +1,4 @@
-import type { Condition } from "@destack/db/query";
+import { Condition } from "@destack/db/query";
 import { Scope } from "@destack/sync";
 import { sql, TABLE, type SQL, type SQLWrapper, type Table } from "@destack/db";
 import type { Tree } from "@destack/db/tree";
@@ -57,7 +57,15 @@ export const TableMapping = {
     scopeColumn,
     validate,
     freeze,
+    decides,
 };
+
+/** Decide whether a mapping reads every attribute a policy condition reads, which a scope type mapped onto its scope rows does not. */
+function decides(mapping: TableMapping, condition: Condition): boolean {
+    return [...Condition.columns(condition)].every(
+        (name) => mapping.attributes[name] !== undefined,
+    );
+}
 
 /** The columns naming an object of any type: its package, type, scope and identifier. */
 export interface ReferenceColumns {
@@ -96,7 +104,17 @@ function validate(authorizer: Authorizer, mapping: TableMapping): void {
 
     // require columns with the object's declared scalar type, where null reads as missing
     for (const [name, expected] of Object.entries(definition.attributes)) {
-        const attribute = column(mapping.table, mapping.attributes[name]).definition;
+        // leave the attributes of a scope type mapped onto its scope rows undecided
+        const mapped = mapping.attributes[name];
+        if (mapped === undefined && mapping.table === Scope.table) {
+            continue;
+        } else if (mapped === undefined) {
+            throw new AccessError(
+                "INVALID_DECLARATION",
+                `no column maps attribute ${name} of ${definition.name}`,
+            );
+        }
+        const attribute = column(mapping.table, mapped).definition;
         const kind = attribute.kind;
         const type =
             kind === "integer" || kind === "real" ? "number" : kind === "text" ? "string" : kind;

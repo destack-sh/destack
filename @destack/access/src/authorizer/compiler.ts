@@ -307,6 +307,10 @@ export class Compiler {
                     compilation,
                 );
             case "condition": {
+                // grant nothing by attributes a database holding only the object's scope row cannot read
+                if (!TableMapping.decides(mapping, expression.condition)) {
+                    return sql`false`;
+                }
                 const binding = bindAttributes(mapping, source, compilation.access.context);
 
                 return sql`coalesce(${Condition.render(expression.condition, binding)}, false)`;
@@ -507,14 +511,14 @@ export class Compiler {
             return arrows.length === 0 ? sql`false` : sql`(${sql.join(arrows, sql` OR `)})`;
         }
 
-        // correlate the direct parent a field holds within the source object's scope
+        // correlate the direct parent a field refers to, in the source object's scope or the scope the field gives
         const [{ target, parent, predicate }] = related as [(typeof related)[number]];
         const targetId = column(parent, target.id);
         const targetScope = TableMapping.scopeColumn(parent, target);
         if (!expression.transitive) {
             return sql`EXISTS (
                 SELECT 1 FROM ${from(parent)}
-                WHERE ${targetScope} = ${scope}
+                WHERE ${targetScope} = ${field.scope === undefined ? scope : sql`${field.scope}`}
                     AND ${targetId} = ${column(source, field.column)}
                     AND ${predicate}
             )`;
