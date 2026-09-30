@@ -1,13 +1,22 @@
+import { existsSync, globSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { basename, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import * as vitest from "vitest/config";
 import type { UserWorkspaceConfig, ViteUserConfig } from "vitest/config";
+import type { Plugin } from "vite";
 import { modulePlugin } from "@destack/package/transform/vite";
+
+/** How often `expect.poll` rechecks, in milliseconds: a local sync round trip takes a few, so the default 50 only adds idle waiting. */
+const POLL = { poll: { interval: 5 } };
 
 /** Define a test configuration whose package sources receive Destack module metadata. */
 /* oxlint-disable-next-line destack/prevent-abbreviations -- mirrors the vitest defineConfig export */
 export function defineConfig(configuration: ViteUserConfig): ViteUserConfig {
     return vitest.defineConfig({
         ...configuration,
-        plugins: [modulePlugin(), ...(configuration.plugins ?? [])],
+        test: { fsModuleCache: true, expect: POLL, ...configuration.test },
+        plugins: [modulePlugin(), cachePlugin(), ...(configuration.plugins ?? [])],
     });
 }
 
@@ -15,6 +24,68 @@ export function defineConfig(configuration: ViteUserConfig): ViteUserConfig {
 export function defineProject(configuration: UserWorkspaceConfig): UserWorkspaceConfig {
     return vitest.defineProject({
         ...configuration,
-        plugins: [modulePlugin(), ...(configuration.plugins ?? [])],
+        test: { fsModuleCache: true, expect: POLL, ...configuration.test },
+        plugins: [modulePlugin(), cachePlugin(), ...(configuration.plugins ?? [])],
     });
+}
+
+/** Key cached module transforms by every package definition the module transform reads, and by its own sources. */
+function cachePlugin(): Plugin {
+    let fingerprint: string | undefined;
+
+    return {
+        name: "destack-module-cache",
+        configureVitest({ defineCacheKeyGenerator }) {
+            defineCacheKeyGenerator(() => (fingerprint ??= definitions()));
+        },
+    };
+}
+
+/** Digest the workspace's package definitions and the module transform's sources. */
+function definitions(): string {
+    // find the workspace root listing the packages
+    let root = process.cwd();
+    while (!isWorkspace(root)) {
+        if (dirname(root) === root) {
+            throw new TypeError(`no workspace above ${process.cwd()}`);
+        }
+        root = dirname(root);
+    }
+
+    // read each package's destack.json and package.json, skipping dependencies and hidden directories
+    const workspaces = (
+        JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as { workspaces: string[] }
+    ).workspaces;
+    const packages = globSync(
+        workspaces.flatMap((pattern) => [
+            `${pattern}/**/destack.json`,
+            `${pattern}/**/package.json`,
+        ]),
+        {
+            cwd: root,
+            exclude: (path) => basename(path) === "node_modules" || basename(path).startsWith("."),
+        },
+    ).map((file) => join(root, file));
+
+    // read the module transform's sources
+    const transform = dirname(
+        fileURLToPath(import.meta.resolve("@destack/package/transform/vite")),
+    );
+    const sources = globSync("*.ts", { cwd: transform }).map((file) => join(transform, file));
+    const files = [...packages, ...sources].sort();
+
+    // hash each file's path and content
+    const hash = createHash("sha256");
+    for (const file of files) {
+        hash.update(file).update("\0").update(readFileSync(file)).update("\0");
+    }
+
+    return hash.digest("hex");
+}
+
+/** Report whether a directory's package.json lists workspaces. */
+function isWorkspace(directory: string): boolean {
+    const file = join(directory, "package.json");
+
+    return existsSync(file) && "workspaces" in JSON.parse(readFileSync(file, "utf8"));
 }
