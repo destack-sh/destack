@@ -11,8 +11,8 @@ import * as resource from "../../tests/fixture/resource/request.ts";
 import { Fixture, expectBuild, expectFiles } from "../../tests/fixture.ts";
 import { requests } from "../../tests/fixture/web/request.ts";
 import { formatSource } from "@destack/check";
-import { schema } from "@destack/schema";
-import { DeclarationDescription } from "@destack/package/inspect";
+import { Vocabulary } from "@destack/resource";
+import * as service from "../../tests/fixture/service/request.ts";
 
 test("rebuild a web application with emitted assets and restore every output", async () => {
     await using fixture = await Fixture.open("web");
@@ -101,7 +101,7 @@ test("bundle each target's module variant and reject browser imports of server v
             .map(([path]) => path.split("/")[1]),
     ).toEqual(["website-server"]);
 
-    // reject a browser import naming the server variant
+    // reject a browser import of the server variant
     await writeFile(app, source.replace('"./origin.ts"', '"./origin.server.ts"'));
     const directory = await realpath(fixture.source);
     await expect(
@@ -140,18 +140,18 @@ test("reinspect edited declaration helpers in a retained compiler", async () => 
         await using builder = await PackageBuilder.start(directory);
         await using first = await builder.build({ dependencies, ...resource.request });
 
-        // reload the title module and preserve declaration logs outside the result stream
+        // reload the edited title module, which logs like a dependency writing to standard output
         await writeFile(
             titleModule,
-            'console.info("inspecting title");\n/** Return the column name. */\nexport function title(): string {\n    return "heading";\n}\n',
+            '// oxlint-disable-next-line no-console -- log like a dependency while declaring\nconsole.info("inspecting title");\n/** Return the column name. */\nexport function title(): string {\n    return "heading";\n}\n',
         );
         await using edited = await builder.build({ dependencies, ...resource.request });
-        const baseline = (
-            await first.reader.domain("db", schema.array(DeclarationDescription))
-        ).find((declaration) => declaration.kind === "resource")!;
-        const actual = (
-            await edited.reader.domain("db", schema.array(DeclarationDescription))
-        ).find((declaration) => declaration.kind === "resource")!;
+        const baseline = (await first.reader.domain("db")).find(
+            (declaration) => declaration.kind === "resource",
+        )!;
+        const actual = (await edited.reader.domain("db")).find(
+            (declaration) => declaration.kind === "resource",
+        )!;
         const expected = structuredClone(baseline);
         for (const dialect of ["sqlite", "postgresql"]) {
             // rename the column in the table
@@ -241,32 +241,11 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
             outputs: {
                 library: {
                     ...request.outputs.library,
-                    target: "browser",
                     runtime: "browser",
                 },
             },
         });
         expect(await readFile(join(browser.directory, "src/note.ts"), "utf8")).toBe(browserSource);
-
-        // reject server functions before their bodies can enter a browser output
-        await writeFile(notePath, '"use server";\n' + note);
-        const filename = await realpath(notePath);
-        await expect(
-            builder.build({
-                dependencies: {},
-                outputs: {
-                    library: {
-                        kind: "module",
-                        target: "browser",
-                        runtime: "browser",
-                    },
-                },
-            }),
-        ).rejects.toMatchObject({
-            code: "BUILD_FAILED",
-            message: `solid server functions are unsupported: ${filename}:0`,
-        });
-        await writeFile(notePath, note);
 
         // remove source access before loading the distributed package
         await build.write(destination);
@@ -311,14 +290,11 @@ test("reject invalid outputs and recover the retained compiler", async () => {
     await expect(
         builder.build({
             dependencies: {},
-            outputs: {
-                "website-browser": request.outputs.library,
-                website: { kind: "web", ssr: false },
-            },
+            outputs: { website: { kind: "web", app: "src/app.tsx", ssr: false } },
         }),
     ).rejects.toMatchObject({
         code: "BUILD_FAILED",
-        message: "duplicate output name: website-browser",
+        message: "no dependency compiles outputs of kind web",
     });
 
     // use the same compiler successfully after rejected requests
@@ -332,7 +308,25 @@ test("reject invalid outputs and recover the retained compiler", async () => {
     expect(build.manifest).toEqual(expected);
 });
 
-test("terminate compilation on cancellation and deadline", async () => {
+test("refuse an output name a kind's expansion takes", async () => {
+    // expand a web application beside a module output taking its browser output's name
+    await using fixture = await Fixture.open("web");
+    await using builder = await PackageBuilder.start(fixture.source);
+    await expect(
+        builder.build({
+            dependencies: fixture.dependencies,
+            outputs: {
+                "website-browser": { kind: "module", runtime: "browser" },
+                website: { kind: "web", app: "src/app.tsx", ssr: false },
+            },
+        }),
+    ).rejects.toMatchObject({
+        code: "BUILD_FAILED",
+        message: "duplicate output name: website-browser",
+    });
+});
+
+test("terminate compilation on cancellation and deadline, and build again with the same builder", async () => {
     const directory = fileURLToPath(
         new URL("../../tests/fixture/library/source/", import.meta.url),
     );
@@ -344,9 +338,86 @@ test("terminate compilation on cancellation and deadline", async () => {
         code: "BUILD_FAILED",
         message: "build cancelled",
     });
+
+    // stop a compiler past its deadline, and build again with the same builder
+    await expect(builder.build({ ...request, timeout: 1 })).rejects.toMatchObject({
+        code: "BUILD_FAILED",
+        message: "build exceeded 1 ms",
+    });
+    await using rebuilt = await builder.build(request);
+    expect(rebuilt.manifest.package.name).toBe("@destack/build-library-fixture");
     await expect(buildPackage({ ...request, directory, timeout: 1 })).rejects.toMatchObject({
         code: "BUILD_FAILED",
         message: "build exceeded 1 ms",
+    });
+});
+
+test("plan the upgrade from what a package published", async () => {
+    await using fixture = await Fixture.open("service");
+    const options = {
+        dependencies: fixture.dependencies,
+        outputs: { bun: service.request.outputs.bun },
+    };
+    const file = join(fixture.source, "src/server.ts");
+    const manifest = join(fixture.source, "package.json");
+    const original = await readFile(file, "utf8");
+    await using builder = await PackageBuilder.start(fixture.source);
+
+    // publish the first release
+    await using first = await builder.build(options);
+    const published = await first.reader.declarations();
+    const history = {
+        release: "2026.9.0",
+        declarations: published,
+        vocabulary: Vocabulary.advance({}, published, "2026.9.0"),
+    };
+
+    // rename the audit action and add a procedure in the next release
+    const release = async (version: string, source: string) => {
+        const definition = await readFile(manifest, "utf8");
+        await writeFile(
+            manifest,
+            definition.replace(/"version": "[^"]+"/, `"version": "${version}"`),
+        );
+        await writeFile(file, await formatSource(file, source));
+    };
+    const renamed = original
+        .replace('name: "Note.publish"', 'name: "Note.release"')
+        .replace(
+            "        .output(schema.object({ path: schema.string() })),\n};",
+            '        .output(schema.object({ path: schema.string() })),\n    count: defineProcedure({ authentication: "public", permission: null, audit: false })\n        .route({ method: "GET", path: "/notes/count" })\n        .output(schema.number()),\n};',
+        )
+        .replace(
+            'list: implementation.list.handler(() => ({ path: "/notes" })),',
+            'list: implementation.list.handler(() => ({ path: "/notes" })),\n            count: implementation.count.handler(() => 0),',
+        );
+    await release("2026.10.0", renamed);
+    await using second = await builder.build({ ...options, history });
+    const upgrade = JSON.parse(
+        await readFile(join(second.directory, second.manifest.upgrade!.file.path), "utf8"),
+    );
+    expect(upgrade).toEqual({
+        from: "2026.9.0",
+        steps: [
+            {
+                action: "create",
+                target: "audit-action/Note.release",
+                risk: "safe",
+                detail: "add audit-action",
+            },
+            {
+                action: "create",
+                target: "service/notes/procedure/count",
+                risk: "safe",
+                detail: "add procedure count",
+            },
+            {
+                action: "delete",
+                target: "audit-action/Note.publish",
+                risk: "backward-incompatible",
+                detail: "remove: data stored under it no longer applies",
+            },
+        ],
     });
 });
 

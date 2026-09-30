@@ -15,7 +15,8 @@
         ".": "./src/index.ts",
         "./inspect": "./src/inspect/index.ts",
         "./access": "./src/access/index.ts",
-        "./error": "./src/error/index.ts"
+        "./error": "./src/error/index.ts",
+        "./store": "./src/store/index.ts"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",
@@ -25,24 +26,21 @@
         "@destack/access": "workspace:*",
         "@destack/check": "workspace:*",
         "magic-string": "1.4.1",
-        "@jridgewell/remapping": "2.3.5",
         "@cloudflare/workers-types": "5.20260917.1",
         "@destack/service": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/test": "workspace:*",
-        "@solidjs/vite-plugin": "3.0.0-next.43",
-        "@solidjs/web": "2.0.0-rc.8",
-        "solid-js": "2.0.0-rc.8",
-        "@stylexjs/unplugin": "0.19.1",
         "vite": "8.3.0",
         "typescript": "7.0.2",
-        "rolldown": "1.2.9"
+        "rolldown": "1.2.9",
+        "@destack/bucket": "workspace:*",
+        "@destack/resource": "workspace:*"
     },
     "devDependencies": {
-        "@destack/resource": "workspace:*",
         "@destack/db": "workspace:*",
-        "@stylexjs/stylex": "0.19.1",
+        "@destack/sync": "workspace:*",
+        "@destack/view": "workspace:*",
         "uuid": "14.0.2"
     }
 }

@@ -27,17 +27,13 @@ import {
     type BuildProgress,
     type InspectRequest,
 } from "../service/index.ts";
-import { implementPreview } from "./preview.ts";
-import { PreviewPool, type PreviewHost, type PreviewLimits } from "../preview/index.ts";
 
-/** Build and preview procedures with bounded, caller-scoped state. */
+/** Build and inspection procedures with bounded, caller-scoped state. */
 class BuildServer implements AsyncDisposable {
     /** Build procedures hosted through the shared Server lifecycle. */
     readonly router: Router<typeof buildService.router, ServiceContext>;
     /** Retained operation records. */
     readonly builds: OperationStore<BuildResult, BuildProgress>;
-    /** Retained previews and their live servers. */
-    readonly #previews: PreviewPool;
     /** Active inspection requests retained until their compiler exits. */
     readonly #inspections = new Map<AbortController, Promise<void>>();
     /** Source access and limits shared by request handlers. */
@@ -49,8 +45,7 @@ class BuildServer implements AsyncDisposable {
     constructor(options: BuildServerOptions) {
         // retain host access and bounded request state
         this.#options = options;
-        this.builds = new OperationStore(BuildOperation, options.limits.build);
-        this.#previews = new PreviewPool(options.previews, options.limits.preview);
+        this.builds = new OperationStore(BuildOperation, options.limits);
         const service = implement(buildService.router).$context<ServiceContext>();
 
         // retain host source access until compilation and storage have settled
@@ -103,11 +98,10 @@ class BuildServer implements AsyncDisposable {
                 return await this.#inspect(context.requireCaller().id, input, signal);
             }),
             build: { ...implementOperation(this.builds, "/builds"), start },
-            preview: implementPreview(this.#previews),
         });
     }
 
-    /** Stop accepting work and await build and preview cleanup. */
+    /** Stop accepting work and await build and inspection cleanup. */
     async [Symbol.asyncDispose](): Promise<void> {
         // stop accepting work and cancel running inspections
         this.#closed = true;
@@ -118,7 +112,6 @@ class BuildServer implements AsyncDisposable {
         // await all retained work before reporting shutdown failures
         const results = await Promise.allSettled([
             this.builds.close(),
-            this.#previews[Symbol.asyncDispose](),
             ...this.#inspections.values(),
         ]);
         const failures = results
@@ -137,10 +130,14 @@ class BuildServer implements AsyncDisposable {
     ): Promise<ReturnType<typeof PackageInspection.parse>> {
         // bound compiler processes and reject requests during shutdown
         if (this.#closed) {
-            throw new ServiceError("UNAVAILABLE");
+            throw new ServiceError("UNAVAILABLE", {
+                message: "the build service is shutting down",
+            });
         }
-        if (this.#inspections.size >= this.#options.limits.build.concurrency) {
-            throw new ServiceError("RATE_LIMITED");
+        if (this.#inspections.size >= this.#options.limits.concurrency) {
+            throw new ServiceError("RATE_LIMITED", {
+                message: `too many inspections: at most ${this.#options.limits.concurrency}`,
+            });
         }
         const controller = new AbortController();
         const completed = Promise.withResolvers<void>();
@@ -155,7 +152,6 @@ class BuildServer implements AsyncDisposable {
             cancellation.throwIfAborted();
             await using compiler = await PackageBuilder.start(source.directory);
             const inspection = {
-                target: source.target,
                 runtime: source.runtime,
                 configuration: source.configuration,
             };
@@ -168,7 +164,7 @@ class BuildServer implements AsyncDisposable {
     }
 }
 
-/** Implement bounded build and preview operations under the host's access and audit. */
+/** Implement bounded build operations under the host's access and audit. */
 export function implementService(
     options: BuildServerOptions,
     access: Required<Pick<ServiceImplementation, "access" | "audit">>,
@@ -200,12 +196,10 @@ export interface BuildHost {
     store(owner: string, build: PackageBuild, signal: AbortSignal): Promise<PackageLocation>;
 }
 
-/** Source access, operation retention and preview hosting. */
+/** Source access and operation retention. */
 export interface BuildServerOptions {
     /** Immutable source access and result storage. */
     builds: BuildHost;
-    /** Editable source access and preview routing. */
-    previews: PreviewHost;
-    /** Build and preview bounds; inspection uses the build concurrency as a separate limit. */
-    limits: { build: OperationStoreOptions; preview: PreviewLimits };
+    /** The bounds of build operations; inspections run under the same concurrency, counted apart. */
+    limits: OperationStoreOptions;
 }

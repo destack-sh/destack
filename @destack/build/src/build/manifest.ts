@@ -1,11 +1,26 @@
 import type { Package } from "@destack/package";
 import { describeFile } from "@destack/package/file";
-import type { PackageManifest, PackageOutput, FileDescription } from "@destack/package/manifest";
+import type {
+    DescriptionReference,
+    PackageManifest,
+    PackageOutput,
+    FileDescription,
+} from "@destack/package/manifest";
 import type { ModuleDescription } from "@destack/package/code";
 import type { TestDeclaration } from "@destack/test/inspect";
 import type { DeclarationDescription } from "@destack/package/inspect";
 import { stringifyInspection } from "./serialization.ts";
 import { BuildError } from "../error/index.ts";
+
+/** The inventories a manifest refers to, each kept in `manifest/<inventory>.json`. */
+export const MANIFEST_INVENTORIES = ["dependencies", "files", "sourceMaps"] as const;
+
+/** The names of the files a build writes beside its description collections, which none takes. */
+export const RESERVED_COLLECTIONS: readonly string[] = [
+    ...MANIFEST_INVENTORIES,
+    "tests",
+    "upgrade",
+];
 
 /** Shared descriptions collected across build targets. */
 export interface ManifestDescription {
@@ -23,20 +38,20 @@ export interface ManifestDescription {
     selections: Map<string, { modules: number[]; declarations: number[]; tests: number[] }>;
 }
 
-/** Serialize domain collections and independently readable code descriptions. */
+/** Serialize declaration collections, test declarations and code descriptions. */
 export async function serializeDescriptions(
     source: ManifestDescription,
     outputs: Record<string, PackageOutput>,
 ) {
-    // group descriptions by package
+    // group declarations by package
     const files = new Map<string, Uint8Array<ArrayBuffer>>();
     const descriptions: PackageManifest["descriptions"] = {};
-    const groups = new Map<string, { package: Package; values: unknown[] }>();
+    const groups = new Map<string, { package: Package; values: DeclarationDescription[] }>();
     const references: { group: string; index: number }[] = [];
 
-    // collect declarations by the exact domain package defining them
+    // collect declarations by the exact package declaring their kind
     for (const declaration of source.declarations) {
-        const owner = declaration.constructor.package;
+        const owner = declaration.package;
         const key = `${owner.id}@${owner.version}`;
         let group = groups.get(key);
         if (!group) {
@@ -45,12 +60,6 @@ export async function serializeDescriptions(
         }
         references.push({ group: key, index: group.values.length });
         group.values.push(declaration);
-    }
-
-    // retain test descriptions as their domain's collection
-    const testKey = `${source.testPackage.id}@${source.testPackage.version}`;
-    if (source.tests.length) {
-        groups.set(testKey, { package: source.testPackage, values: source.tests });
     }
 
     // use short names unless package names or versions would collide
@@ -63,7 +72,7 @@ export async function serializeDescriptions(
     const domains = new Map<string, string>();
     for (const [key, group] of groups) {
         const name = group.package.name.split("/").at(-1)!;
-        const isReserved = ["dependencies", "files", "sourceMaps"].includes(name);
+        const isReserved = RESERVED_COLLECTIONS.includes(name);
         const domain =
             names.get(name) === 1 && !isReserved ? name : `${name}-${encodeURIComponent(key)}`;
         const file = `manifest/${domain}.json`;
@@ -71,6 +80,18 @@ export async function serializeDescriptions(
         const bytes = encodeDescription(group.values);
         descriptions[domain] = {
             package: group.package,
+            file: await describeFile(file, "application/json", bytes),
+        };
+        files.set(file, bytes);
+    }
+
+    // keep test declarations in their own file
+    let tests: DescriptionReference | undefined;
+    if (source.tests.length) {
+        const file = "manifest/tests.json";
+        const bytes = encodeDescription(source.tests);
+        tests = {
+            package: source.testPackage,
             file: await describeFile(file, "application/json", bytes),
         };
         files.set(file, bytes);
@@ -84,9 +105,7 @@ export async function serializeDescriptions(
             const domain = domains.get(reference.group)!;
             (collections[domain] ??= []).push(reference.index);
         }
-        if (selected.tests.length) {
-            collections[domains.get(testKey)!] = selected.tests;
-        }
+        outputs[name].tests = selected.tests;
     }
 
     // identify paths with target-specific descriptions
@@ -134,7 +153,7 @@ export async function serializeDescriptions(
         modules.set(module.path, variants);
     }
 
-    return { modules, descriptions, files };
+    return { modules, descriptions, tests, files };
 }
 
 /** Encode descriptions as readable JSON without implicit value conversions. */

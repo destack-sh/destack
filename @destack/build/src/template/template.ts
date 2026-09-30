@@ -32,8 +32,8 @@ export class Template {
             }
             files.set(name, new Uint8Array(await readFile(join(root, name))));
         }
-        const definition = PackageDefinition.parse(
-            JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(files.get("destack.json"))),
+        const definition = PackageDefinition.read(
+            new TextDecoder("utf-8", { fatal: true }).decode(files.get("destack.json")),
         );
         if (!definition.template) {
             throw new PackageError("INVALID_DEFINITION", "package has no template declaration");
@@ -81,8 +81,10 @@ export class Template {
         // read declarations from the selected source package
         const decoder = new TextDecoder("utf-8", { fatal: true });
         const manifest = JSON.parse(decoder.decode(requiredFile(source, "package.json")));
-        const definition = JSON.parse(decoder.decode(requiredFile(source, "destack.json")));
-        const template = PackageDefinition.parse(definition).template;
+        const definition = PackageDefinition.read(
+            decoder.decode(requiredFile(source, "destack.json")),
+        );
+        const template = definition.template;
         if (!template) {
             throw new PackageError("INVALID_DEFINITION", "package has no template declaration");
         }

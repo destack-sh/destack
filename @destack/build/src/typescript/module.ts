@@ -16,7 +16,7 @@ import {
     SyntaxKind,
 } from "typescript/unstable/ast";
 import { DependencySymbol, ModuleDescription } from "@destack/package/code";
-import { Package, DependencyPackage } from "@destack/package";
+import { DependencyPackage, Package, PackageDefinition } from "@destack/package";
 import { SymbolInspector } from "./symbol.ts";
 import { describeFile } from "@destack/package/file";
 import type { TestDeclaration } from "@destack/test/inspect";
@@ -406,7 +406,7 @@ async function describeSymbol(
         const owner =
             definition === undefined
                 ? DependencyPackage.parse(identity)
-                : Package.parse({ ...identity, id: JSON.parse(definition).id });
+                : Package.parse({ ...identity, id: PackageDefinition.read(definition).id });
 
         return DependencySymbol.parse({
             package: owner,

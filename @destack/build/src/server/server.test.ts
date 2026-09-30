@@ -1,6 +1,5 @@
 import { expect, test } from "@destack/test";
 import { Health } from "@destack/service/health";
-import { ServiceError } from "@destack/service/error";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,10 +30,7 @@ test("inspect and build authorized source through the service", async () => {
     await using opened = await openAccess();
     const service = implementService(
         {
-            limits: {
-                build: { concurrency: 1, capacity: 4, retention: 60_000, timeout: 10_000 },
-                preview: { concurrency: 1, capacity: 4, retention: 60_000 },
-            },
+            limits: { concurrency: 1, capacity: 4, retention: 60_000, timeout: 10_000 },
             builds: {
                 async open(owner, selection) {
                     expect({ owner, selection }).toEqual({
@@ -57,7 +53,6 @@ test("inspect and build authorized source through the service", async () => {
 
                     return {
                         directory,
-                        target: "server",
                         runtime: "bun",
                         async [Symbol.asyncDispose]() {
                             released.push("inspect");
@@ -80,13 +75,6 @@ test("inspect and build authorized source through the service", async () => {
                     stored.push(owner);
 
                     return location;
-                },
-            },
-            previews: {
-                async open() {
-                    throw new ServiceError("NOT_FOUND", {
-                        message: "source has no web application",
-                    });
                 },
             },
         },
@@ -120,7 +108,7 @@ test("inspect and build authorized source through the service", async () => {
     expect(released).toEqual(["inspect"]);
 
     // require local and remote inspection to return the same complete description
-    const local = await inspectPackage({ directory, target: "server", runtime: "bun" });
+    const local = await inspectPackage({ directory, runtime: "bun" });
     expect(local).toEqual(inspection);
 
     // wait for the complete build, including storage and source release

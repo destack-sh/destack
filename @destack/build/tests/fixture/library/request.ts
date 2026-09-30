@@ -6,7 +6,6 @@ export const request = {
     outputs: {
         library: {
             kind: "module",
-            target: "server",
             runtime: "bun",
             bundle: false,
         },

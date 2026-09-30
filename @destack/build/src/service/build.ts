@@ -44,7 +44,7 @@ export const build = {
     start: defineProcedure({
         authentication: "identity",
         permission: policy.build.permission("start"),
-        audit: true,
+        audit: "activity",
     })
         .route({ method: "POST", path: "/builds" })
         .input(BuildRequest)

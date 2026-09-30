@@ -18,6 +18,16 @@ export class BuildError extends Error {
         this.code = code;
     }
 
+    /** Report any failure as a build failure, keeping a build failure as it is. */
+    static from(cause: unknown): BuildError {
+        // keep build failures as they are
+        if (cause instanceof BuildError) {
+            return cause;
+        }
+
+        return BuildError.fromBundle(cause);
+    }
+
     /** Report a failed bundle by the messages of its errors, keeping the bundler's error as cause. */
     static fromBundle(error: unknown): BuildError {
         // read the errors a Rolldown bundle failure aggregates

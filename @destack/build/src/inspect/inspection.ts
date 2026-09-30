@@ -1,4 +1,4 @@
-import { type Package, type Target } from "@destack/package";
+import { type Package } from "@destack/package";
 import { type Runtime } from "@destack/package/runtime";
 import { schema } from "@destack/schema";
 import { type ModuleDescription, ModuleGraph } from "@destack/package/code";
@@ -13,10 +13,8 @@ import { TestDeclaration } from "@destack/test/inspect";
 export interface InspectOptions {
     /** The source package directory. */
     directory: string;
-    /** The selected execution target. */
-    target: Target;
-    /** Runtime conditions used to resolve dependencies. */
-    runtime?: Runtime;
+    /** The runtime the source is inspected for. */
+    runtime: Runtime;
     /** The TypeScript configuration; omit to use package defaults. */
     configuration?: string;
 }

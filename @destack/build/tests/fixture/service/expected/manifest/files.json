@@ -1,86 +1,86 @@
 [
     {
         "path": "destack.json",
-        "digest": "661bc88dc755611fb376806a3cdc535c390769dc76f411a4c7dc2e1993118501",
-        "size": 186,
+        "digest": "9c8b3d6ae4e5fe138f82c6866965f4a191b9a517c6fcc697d6c0db0a9b621b4c",
+        "size": 195,
         "mediaType": "application/json"
     },
     {
-        "path": "output/bun/provider-CbP3i3dq.js",
-        "digest": "66583f827f0493c170feb77c080fb877abfe90a46809f46275b9787819d95792",
-        "size": 282507,
+        "path": "output/bun/connector-DYjyYlo7.js",
+        "digest": "8b85cd4b29d4f2a53c32ce2d90d7471b69d50a682352799d89c455d0563ec278",
+        "size": 249145,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/bun/provider-CbP3i3dq.js.map",
-        "digest": "175ce4fc9841b999f19bd9909d1875f176a8abbcc30cc4b3116e8e4db7565c42",
-        "size": 617669,
+        "path": "output/bun/connector-DYjyYlo7.js.map",
+        "digest": "6eb142c6fa61c70125008902d9b82e2564477b1a379314829dfc61ef69f9fe27",
+        "size": 539036,
         "mediaType": "application/json"
     },
     {
-        "path": "output/bun/server-BAogSeaL.js",
-        "digest": "e98d59192dca9f05280f52079fb53c3d57d249beadadc89c79746f5f41b9aed3",
+        "path": "output/bun/log-Bax8_ncE.js",
+        "digest": "0bfbe9ff3f0f9efdab95f86307e5b8a29c9e2f68caf4a46baf874d1cef05728f",
+        "size": 48199,
+        "mediaType": "text/javascript"
+    },
+    {
+        "path": "output/bun/log-Bax8_ncE.js.map",
+        "digest": "34b0bf631a8936f8a31641f920eb8f63c629f7e420768890f3b51a81720eb0e7",
+        "size": 108036,
+        "mediaType": "application/json"
+    },
+    {
+        "path": "output/bun/server-DVf9XgjR.js",
+        "digest": "9adee3c2b3212912a1dd20ba8696e6bd42b9e7d66151714347c5305472aeee46",
+        "size": 152236,
+        "mediaType": "text/javascript"
+    },
+    {
+        "path": "output/bun/server-DVf9XgjR.js.map",
+        "digest": "695342f760c158500b01aaef7acce042447e50b53044949369f6a218302eeca9",
+        "size": 362604,
+        "mediaType": "application/json"
+    },
+    {
+        "path": "output/bun/server-DuJeAr9R.js",
+        "digest": "29393fd0b14d445b4c5ee689ba840cf60c6007a33f5a73890e7d784eb3a01de3",
         "size": 344,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/bun/server-gsUe_vAE.js",
-        "digest": "c595c9acbd44f71e1f2b5b130e9f36c65906274f0d955f6f08bf970e1369f2f5",
-        "size": 147133,
+        "path": "output/bun/trace-api-DJ-_ZhlJ.js",
+        "digest": "ea8ad321340cfd34e3bb8fd0ec9cb16a74c51c742580c6ad127b69f9b4069285",
+        "size": 365674,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/bun/server-gsUe_vAE.js.map",
-        "digest": "95d6cf0c305fead58aa51e84d615296347337cec5a029a064a4eeeddf4bdc516",
-        "size": 350947,
+        "path": "output/bun/trace-api-DJ-_ZhlJ.js.map",
+        "digest": "6434a007ba455e11cb3cbf0a5cc09a852d5aea96563e37fe3606ca9ee91b29c2",
+        "size": 894846,
         "mediaType": "application/json"
     },
     {
-        "path": "output/bun/snapshot-BoDV3EAe.js",
-        "digest": "00bf0326773847a1c17bc70fa7e4f5f8a1c1148b56cad2aa3900c2d0ff5a2b66",
-        "size": 30404,
+        "path": "output/bun/workload-web-DwV9oTB9.js",
+        "digest": "632ae479c1cb1d6519988c5797650d22c36178b9d85cc0bd85fa4c30060b3dc4",
+        "size": 889059,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/bun/snapshot-BoDV3EAe.js.map",
-        "digest": "788b30312929334ceb1990500aacd50dc062f7157bbd00d0dd7a577a7b8b2ae7",
-        "size": 68036,
+        "path": "output/bun/workload-web-DwV9oTB9.js.map",
+        "digest": "e38df54cbf86d3be195f03e5442c3f2a2b0b79e9b75a6b0c8d3a394d097da387",
+        "size": 2331996,
         "mediaType": "application/json"
     },
     {
-        "path": "output/bun/trace-api-CTzHbl64.js",
-        "digest": "e420529c3900aaf595e166864c7538546a4a2ce8c2ca2d7b284912af83d8b3bc",
-        "size": 372795,
+        "path": "output/worker/server-aRGgwctc.js",
+        "digest": "58096b8ad270720bf5c9db0b1dfe27714654cf249de8bd97d66650ff41ca21c7",
+        "size": 416134,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/bun/trace-api-CTzHbl64.js.map",
-        "digest": "ec737c400589c8b9d17d30c1c17d0b13111eedd196f5bc80646f794b9d60eede",
-        "size": 899225,
-        "mediaType": "application/json"
-    },
-    {
-        "path": "output/bun/workload-web-B1wzBObS.js",
-        "digest": "02284b5f0104ad40d5c9845b2fb0c9f5cd0a39199f65a1229f4cec0201bfbf7a",
-        "size": 850466,
-        "mediaType": "text/javascript"
-    },
-    {
-        "path": "output/bun/workload-web-B1wzBObS.js.map",
-        "digest": "bbd0827e684ed51360b5a075c0b206d1443bc498999ebb3a51d4982a219627e3",
-        "size": 2236286,
-        "mediaType": "application/json"
-    },
-    {
-        "path": "output/worker/server-nEw3c2ys.js",
-        "digest": "827f8ddacc1f852f9332b94233dd633cb2416fd5f958fd6c409df78b8f6704cf",
-        "size": 426218,
-        "mediaType": "text/javascript"
-    },
-    {
-        "path": "output/worker/server-nEw3c2ys.js.map",
-        "digest": "4e43bbf7126f238d0ad53f1c9249b9746d8dc0b299498a3dda64298b3b8e0605",
-        "size": 1165753,
+        "path": "output/worker/server-aRGgwctc.js.map",
+        "digest": "66a40e9d75a75b3a2faec46118a7cbc3800565d54d13d813a06380cc90927a5b",
+        "size": 1133456,
         "mediaType": "application/json"
     },
     {
@@ -91,8 +91,8 @@
     },
     {
         "path": "src/server.ts",
-        "digest": "e75e5c989703920cad76a414b4be6a0adba62d8658dcbf6526313d3e110d7b72",
-        "size": 3738,
+        "digest": "bc905dd157052487466f396561b4989039cf8a203f5a365ad89a31a7f2e673cf",
+        "size": 3722,
         "mediaType": "application/octet-stream",
         "descriptions": [
             {
@@ -108,8 +108,8 @@
                 ],
                 "file": {
                     "path": "manifest/files/src/server.ts.json",
-                    "digest": "f965a63444c8427d31b3d9054c49acc43478962623a1d7c9db0754ab6028d925",
-                    "size": 1202537,
+                    "digest": "e65a96b8a171c3df2bda78c2759bd6f5f6845f3d56c510a8a1666fe346516480",
+                    "size": 1334982,
                     "mediaType": "application/json"
                 }
             }

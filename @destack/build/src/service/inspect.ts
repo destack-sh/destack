@@ -7,7 +7,7 @@ import { defineProcedure } from "@destack/service";
 export const InspectRequest = schema.object({
     /** Source reference resolved and authorized by the host. */
     source: schema.string().min(1),
-    /** Named output configuration determining target and runtime. */
+    /** Named output configuration determining the runtime. */
     output: schema.string().min(1),
 });
 
@@ -18,7 +18,7 @@ export type InspectRequest = schema.Infer<typeof InspectRequest>;
 export const inspect = defineProcedure({
     authentication: "identity",
     permission: policy.build.permission("inspect"),
-    audit: true,
+    audit: "access",
 })
     .route({ method: "POST", path: "/inspect" })
     .input(InspectRequest)

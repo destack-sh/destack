@@ -1,19 +1,32 @@
 import type { Package } from "@destack/package";
 import type { DeclarationDescription, BuildDescription } from "@destack/package/inspect";
 
+/** A function a package exports, located for evaluation. */
+export interface FunctionExport {
+    /** The package directory. */
+    readonly directory: string;
+    /** The package export of the function, such as `./inspect`. */
+    readonly subpath: string;
+    /** The export's package.json target, which may select a module by runtime condition. */
+    readonly target: unknown;
+    /** The function's export name. */
+    readonly name: string;
+}
+
+/** The functions inspecting one kind of declaration, exported by the kind's packages. */
+export interface Inspector {
+    /** The function describing a declaration, exported by its constructor's package. */
+    readonly describe: FunctionExport;
+    /** The function comparing two releases' descriptions, exported by the kind's package. */
+    readonly compare?: FunctionExport;
+    /** The function listing a description's terms, exported by the kind's package. */
+    readonly vocabulary?: FunctionExport;
+}
+
 /** An exported declaration located by the compiler. */
 export interface DeclarationExport {
-    /** The function describing the declaration, exported by its constructor's package. */
-    inspector: {
-        /** The package directory. */
-        readonly directory: string;
-        /** The package export holding the function, such as `./inspect`. */
-        readonly subpath: string;
-        /** The export's package.json target, which may select a module by runtime condition. */
-        readonly target: unknown;
-        /** The function's export name. */
-        readonly name: string;
-    };
+    /** The functions inspecting the declaration's kind. */
+    inspector: Inspector;
     /** The absolute source module path. */
     file: string;
     /** The exported constant name. */

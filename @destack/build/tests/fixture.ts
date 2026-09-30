@@ -1,6 +1,5 @@
-import { PackageReader } from "@destack/package/manifest";
+import { BuildReader } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
-import { DeclarationDescription } from "@destack/package/inspect";
 import { TestDeclaration } from "@destack/test/inspect";
 import { cp, mkdtemp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
@@ -8,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { Buffer } from "node:buffer";
 import { expect } from "@destack/test";
 import { buildPackage, type BuildOptions, type PackageBuild } from "../src/index.ts";
+import { comparePath } from "../src/build/serialization.ts";
 import { readDependencies } from "../src/local/index.ts";
 import { linkDependencies } from "../src/source/index.ts";
 import { tmpdir } from "node:os";
@@ -30,10 +30,10 @@ export async function expectDirectory(
 ): Promise<void> {
     const directory = fileURLToPath(expected);
     const paths = [...files.keys()].sort();
-    const update = process.env.UPDATE_BUILD_FIXTURES === "1";
+    const isUpdating = process.env.UPDATE_BUILD_FIXTURES === "1";
 
     // refresh only the explicitly selected fixture output
-    if (update) {
+    if (isUpdating) {
         await mkdir(directory, { recursive: true });
         const entries = await readdir(directory, { recursive: true, withFileTypes: true });
         for (const entry of entries) {
@@ -88,9 +88,7 @@ export async function readBuildFiles(
     build: PackageBuild,
 ): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
     const files = new Map<string, Uint8Array<ArrayBuffer>>();
-    const records = (await build.reader.inventory()).sort((left, right) =>
-        left.path < right.path ? -1 : left.path > right.path ? 1 : 0,
-    );
+    const records = (await build.reader.inventory()).sort(comparePath);
     for (const file of records) {
         files.set(file.path, new Uint8Array(await readFile(join(build.directory, file.path))));
     }
@@ -174,7 +172,7 @@ export class Fixture implements AsyncDisposable {
 export async function expectManifest(build: PackageBuild, destination: string): Promise<void> {
     // load each domain independently without touching code descriptions or executable files
     const loaded: string[] = [];
-    const reader = new PackageReader(build.manifest, async (path) => {
+    const reader = new BuildReader(build.manifest, async (path) => {
         loaded.push(path);
 
         return new Uint8Array(await readFile(join(destination, path)));
@@ -197,16 +195,24 @@ export async function expectManifest(build: PackageBuild, destination: string): 
     // load each domain without reading inventories or unrelated domains
     for (const [domain, collection] of Object.entries(build.manifest.descriptions)) {
         loaded.length = 0;
-        const definition =
-            collection.package.name === "@destack/test"
-                ? schema.array(TestDeclaration)
-                : schema.array(DeclarationDescription);
-        const records = await reader.domain(domain, definition);
+        const records = await reader.domain(domain);
         expect(loaded).toEqual([collection.file.path]);
         for (const output of Object.values(build.manifest.outputs)) {
             for (const index of output.descriptions[domain] ?? []) {
                 expect(index).toBeLessThan(records.length);
             }
+        }
+    }
+
+    // load the test declarations alone and bound each output's selection
+    loaded.length = 0;
+    const tests = build.manifest.tests
+        ? await reader.read(build.manifest.tests.file, schema.array(TestDeclaration))
+        : [];
+    expect(loaded).toEqual(build.manifest.tests ? [build.manifest.tests.file.path] : []);
+    for (const output of Object.values(build.manifest.outputs)) {
+        for (const index of output.tests) {
+            expect(index).toBeLessThan(tests.length);
         }
     }
 

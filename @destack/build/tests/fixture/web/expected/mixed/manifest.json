@@ -8,8 +8,8 @@
     "language": "typescript",
     "dependencies": {
         "path": "manifest/dependencies.json",
-        "digest": "bcca94f7dd686f0b1f3b24da6854d882bafc6c688fa30241715dde69018afb75",
-        "size": 116197,
+        "digest": "dffe31ee34ff7f102802a7eb771fe0716e7b19fb184ccf910065fdb34a9fd74f",
+        "size": 118030,
         "mediaType": "application/json"
     },
     "descriptions": {},
@@ -28,7 +28,6 @@
     },
     "outputs": {
         "website-browser": {
-            "target": "browser",
             "runtime": "browser",
             "emit": true,
             "workloads": {},
@@ -44,7 +43,6 @@
             "dependencies": {}
         },
         "website-server": {
-            "target": "server",
             "runtime": "workerd",
             "emit": true,
             "workloads": {},
@@ -64,7 +62,7 @@
     },
     "files": {
         "path": "manifest/files.json",
-        "digest": "7c526d8c0f171db0ab9a0cdfbeb247269ac96fa99f159710ad972eff665dca9e",
+        "digest": "da352abe79a525443557af383cb8fa1dee8f0a85ea5c7894bbe2dad5d19b8300",
         "size": 5201,
         "mediaType": "application/json"
     },

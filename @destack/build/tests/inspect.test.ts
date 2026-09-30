@@ -15,7 +15,7 @@ test("inspect test bodies without declaring their temporary resources", async ({
     const metadata = JSON.parse(await readFile(manifest, "utf8"));
     await writeFile(manifest, JSON.stringify({ ...metadata, exports: { ".": "./src/app.tsx" } }));
     await using compiler = await PackageBuilder.start(input.source);
-    const before = await compiler.inspect({ target: "server", runtime: "bun" });
+    const before = await compiler.inspect({ runtime: "bun" });
     const description = schema.object({
         tests: schema.array(TestDeclaration),
         declarations: schema.array(DeclarationDescription),
@@ -32,7 +32,7 @@ test("bind a secret", () => {
 });
 `;
     await writeFile(join(input.source, "src/resource.test.ts"), source);
-    const after = await compiler.inspect({ target: "server", runtime: "bun" });
+    const after = await compiler.inspect({ runtime: "bun" });
 
     // compare the complete declaration collection and the statically collected test
     expect(description.parse(after.descriptions)).toEqual({
@@ -74,7 +74,7 @@ test.concurrent.for(invalid)("reject $message", async (fixture, { expect }) => {
     const metadata = JSON.parse(await readFile(path, "utf8"));
     await writeFile(path, JSON.stringify({ ...metadata, exports: { ".": "./src/app.tsx" } }));
     await using compiler = await PackageBuilder.start(input.source);
-    await expect(compiler.inspect({ target: "browser" })).rejects.toMatchObject({
+    await expect(compiler.inspect({ runtime: "browser" })).rejects.toMatchObject({
         code: fixture.code,
         message: fixture.message,
     });

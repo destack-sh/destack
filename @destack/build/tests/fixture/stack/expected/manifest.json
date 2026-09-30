@@ -8,8 +8,8 @@
     "language": "typescript",
     "dependencies": {
         "path": "manifest/dependencies.json",
-        "digest": "1dcbd67a6bfb5437b7b0c85b5c012f29f7a58f33c44c5d1f182a0474effd1310",
-        "size": 129219,
+        "digest": "79c24a84ad04001d1ed37367f29d1530085bd6cbe0c4663dafb5b0a5cfb7a9b5",
+        "size": 125100,
         "mediaType": "application/json"
     },
     "descriptions": {
@@ -21,8 +21,8 @@
             },
             "file": {
                 "path": "manifest/setting.json",
-                "digest": "7b93bd55c59affaf83aff1556ba5ca37794e9a09fccfd2f0956b2d6622cf142f",
-                "size": 1816,
+                "digest": "7352652f9656b0d0c513ee1dad3ef5703e14d63d59095c541add6aeb74c9a3e5",
+                "size": 1950,
                 "mediaType": "application/json"
             }
         },
@@ -55,7 +55,6 @@
     },
     "outputs": {
         "stack": {
-            "target": "server",
             "runtime": "bun",
             "emit": true,
             "workloads": {},
@@ -74,21 +73,21 @@
             "tests": [],
             "directory": "output/stack",
             "exports": {
-                ".": "output/stack/index-DmSkkPYl.js"
+                ".": "output/stack/index-Ci4mocPI.js"
             },
             "dependencies": {}
         }
     },
     "files": {
         "path": "manifest/files.json",
-        "digest": "755252bb0fe4071a33d7be6a3f00c20476b0bd477e374f9cb2f572e9add7f90f",
-        "size": 4327,
+        "digest": "6f1e4339431f4c8bd8c2002eb90a81192f05bd1b23377cf27f77a54fc7e0961f",
+        "size": 4321,
         "mediaType": "application/json"
     },
     "sourceMaps": {
         "path": "manifest/sourceMaps.json",
-        "digest": "b0cc43d9cea16857fea0cd616a9f57ce50d34f1ef7b267ee828c46868be09306",
-        "size": 375,
+        "digest": "ba9ce031329efedbef48a954fa713c04486d39bee632f235f71f9bce3ee11f84",
+        "size": 369,
         "mediaType": "application/json"
     }
 }

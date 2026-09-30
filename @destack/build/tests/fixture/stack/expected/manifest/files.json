@@ -1,44 +1,44 @@
 [
     {
         "path": "destack.json",
-        "digest": "6bb3bf3dc8ec678d790fcac0f39d8bce21c417a7d4093d3531decbb7a0ba9522",
-        "size": 186,
+        "digest": "60f134f3a7e9b94c0332d7340fc5a6ad027c838d495e712fee38d691b8e51ff7",
+        "size": 195,
         "mediaType": "application/json"
     },
     {
-        "path": "output/stack/database-B2GWCpI9.js",
-        "digest": "4e77ebae709c7a7e004bdbed0ed07c6b28eeeaa375ce62e767013128f9b4710d",
-        "size": 340678,
+        "path": "output/stack/connector-TTjT2AhC.js",
+        "digest": "ae9588d418310ddc4b0bb7c203f88dcc090909a6fea2b1ac8ef093dacb046c80",
+        "size": 319138,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/stack/database-B2GWCpI9.js.map",
-        "digest": "fef01f90dc78b0ec88a0633d41fb5e2fa8c655160784b3ffe38e1fbaa394457d",
-        "size": 846537,
+        "path": "output/stack/connector-TTjT2AhC.js.map",
+        "digest": "b8f1a8620f1c7bcf2eaef962ed3ab6dd1d1cf7c9baf10c4b1fbaaca3a5472312",
+        "size": 694729,
         "mediaType": "application/json"
     },
     {
-        "path": "output/stack/index-DmSkkPYl.js",
-        "digest": "e0ca04836e2fcce07d71dee82314211171276faa19b62057b41f5172f8909536",
-        "size": 37223,
+        "path": "output/stack/index-Ci4mocPI.js",
+        "digest": "77e3a402370642147df9e19f41289a7c84be57a812e550b9d95f0d1945f04624",
+        "size": 39514,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/stack/index-DmSkkPYl.js.map",
-        "digest": "9700d7ad50139fe6e3bae6a30ba5d645230f886085d153dcace201094fe24e98",
-        "size": 157949,
+        "path": "output/stack/index-Ci4mocPI.js.map",
+        "digest": "c4af09f07a569f949fd83350316583d6500085e7d564d1c6c72844209b558c4d",
+        "size": 165066,
         "mediaType": "application/json"
     },
     {
-        "path": "output/stack/provider-DH4goO8u.js",
-        "digest": "f893326387b12385e57a9ba27620f039b93d1509ba7ba3977c11a43d75651ded",
-        "size": 335580,
+        "path": "output/stack/tier-D1tCxCZ_.js",
+        "digest": "a8768007ba119a6d43d98ac6facfd8947edc5f09809409ba4696eb06c6668e88",
+        "size": 331537,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/stack/provider-DH4goO8u.js.map",
-        "digest": "63b7ece1c1e1e26ff6eb1fdb4e37c08b9201f8d5b060ed782919b65939eb3573",
-        "size": 733931,
+        "path": "output/stack/tier-D1tCxCZ_.js.map",
+        "digest": "695eb329dbe07671417d7041001422fda2b3679bcde4301b24f92b78b6cef3fe",
+        "size": 840895,
         "mediaType": "application/json"
     },
     {

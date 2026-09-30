@@ -11,7 +11,7 @@ import { expectDirectory } from "../../tests/fixture.ts";
 test.each(["stack", "blank"])("instantiate the %s package template", async (name) => {
     const directory = await mkdtemp(join(tmpdir(), "destack-template-"));
     const template = await Template.read(
-        fileURLToPath(new URL(`../../../template-${name}/`, import.meta.url)),
+        fileURLToPath(new URL(`../../../../@template/${name}/`, import.meta.url)),
     );
     const parameters: TemplateInput = {
         id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000005"),
@@ -19,10 +19,10 @@ test.each(["stack", "blank"])("instantiate the %s package template", async (name
         dependencies:
             name === "blank"
                 ? {
-                      "@destack/template-stack": {
+                      "@template/stack": {
                           id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000006"),
                           name: "@example/stack",
-                          version: "1.0.0",
+                          version: "2026.9.0",
                       },
                   }
                 : {},

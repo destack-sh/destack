@@ -15,7 +15,6 @@
     "descriptions": {},
     "outputs": {
         "library": {
-            "target": "server",
             "runtime": "bun",
             "emit": true,
             "workloads": {},
@@ -32,7 +31,7 @@
     },
     "files": {
         "path": "manifest/files.json",
-        "digest": "0508a74b07bfd79134eb0581c576aba0126ae35c72bee96df8fd3ecdac099c6f",
+        "digest": "f371f96e261386de70639cf1b256e970f9ca17be9afce76c11bb62e3c67bcf23",
         "size": 2781,
         "mediaType": "application/json"
     },

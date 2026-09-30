@@ -10,11 +10,5 @@ export const build = new Policy(OWNER, {
     permissions: { start: none(), inspect: none() },
 });
 
-/** Previews of a space's source, and the frontends opened in them. */
-export const preview = new Policy(OWNER, {
-    name: "preview",
-    permissions: { read: none(), open: none(), start: none(), stop: none() },
-});
-
 /** Every policy of the build package's operations. */
-export const BUILD_POLICIES = [build, preview];
+export const BUILD_POLICIES = [build];

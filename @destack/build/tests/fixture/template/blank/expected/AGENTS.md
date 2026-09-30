@@ -10,7 +10,7 @@ A lint name in parentheses, like (`destack/valid-declaration`), marks a rule the
 
 ```text
 package/
-├─ destack.json            id, language, template, targets, runtimes, exports
+├─ destack.json            id, language, template, runtimes, exports
 ├─ package.json            name, version, dependencies, exports
 ├─ src/
 │  ├─ package.ts           export default definePackage({ resources, secrets })

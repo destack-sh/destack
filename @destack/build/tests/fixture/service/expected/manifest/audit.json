@@ -41,7 +41,6 @@
                 "name": "@destack/build-service-fixture",
                 "version": "2026.9.0"
             },
-            "version": 1,
             "targets": {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "type": "object",
@@ -84,6 +83,9 @@
                 ],
                 "additionalProperties": false
             }
+        },
+        "vocabulary": {
+            "audit-action/Note.publish": "24e02b150bc76af86014ab3e722821dbdfe55fd0a527699d6540d2d60ededaa0"
         }
     }
 ]

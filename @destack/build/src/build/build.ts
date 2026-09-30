@@ -1,16 +1,13 @@
-import { type DependencyResolution } from "@destack/package";
-import { type CompileOptions } from "../compile/module.ts";
-import { type ApplicationOptions } from "../compile/application.ts";
+import { type DependencyResolution, PackageDefinition } from "@destack/package";
+import type { History } from "@destack/resource";
+import { mapExports, readPackageDescription } from "../source/source.ts";
+import type { OutputRequest } from "@destack/package/build";
+import { type ModuleOptions } from "../compile/compilation.ts";
 import { mkdir, readFile, writeFile, copyFile, rm } from "node:fs/promises";
 import { createReadStream } from "node:fs";
-import { Readable } from "node:stream";
 import { createHash } from "node:crypto";
 import { dirname, resolve } from "node:path";
-import {
-    PackageManifest,
-    PackageReader,
-    type PackageDistribution,
-} from "@destack/package/manifest";
+import { PackageManifest, BuildReader, type PackageDistribution } from "@destack/package/manifest";
 import { PackagePath } from "@destack/package/file";
 import { PackageError } from "@destack/package/error";
 
@@ -23,7 +20,7 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
     /** Whether disposal removes the result directory. */
     readonly ownership: "temporary" | "retained";
     /** Selective access to the build's description files. */
-    readonly reader: PackageReader;
+    readonly reader: BuildReader;
     /** Immutable inventory paths used by streamed reads. */
     #paths?: Promise<Set<string>>;
 
@@ -33,7 +30,7 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
         this.manifest = manifest;
         this.directory = directory;
         this.ownership = ownership;
-        this.reader = new PackageReader(
+        this.reader = new BuildReader(
             manifest,
             async (path) =>
                 new Uint8Array(await readFile(resolve(directory, PackagePath.parse(path)))),
@@ -51,7 +48,24 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
             throw new PackageError("INVALID_FILE", `unknown build file: ${path}`);
         }
 
-        return Readable.toWeb(createReadStream(resolve(this.directory, path), { signal }));
+        // pull the file's chunks as the web stream's reader asks for them
+        const chunks = createReadStream(resolve(this.directory, path), { signal })[
+            Symbol.asyncIterator
+        ]();
+
+        return new ReadableStream<Uint8Array>({
+            pull: async (controller) => {
+                const next = await chunks.next();
+                if (next.done === true) {
+                    controller.close();
+                } else {
+                    controller.enqueue(next.value as Uint8Array);
+                }
+            },
+            cancel: async () => {
+                await chunks.return?.();
+            },
+        });
     }
 
     /** Remove only temporary results owned by this instance. */
@@ -62,12 +76,12 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
     }
 
     /** Read only the root manifest and load each description when requested. */
-    static async open(directory: string): Promise<PackageReader> {
+    static async open(directory: string): Promise<BuildReader> {
         const manifest = PackageManifest.parse(
             JSON.parse(await readFile(resolve(directory, "manifest.json"), "utf8")),
         );
 
-        return new PackageReader(
+        return new BuildReader(
             manifest,
             async (path) =>
                 new Uint8Array(await readFile(resolve(directory, PackagePath.parse(path)))),
@@ -82,7 +96,7 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
         );
 
         // follow verified file references without retaining source or executable contents
-        const reader = new PackageReader(manifest, async (path) => {
+        const reader = new BuildReader(manifest, async (path) => {
             return new Uint8Array(await readFile(resolve(directory, PackagePath.parse(path))));
         });
         const inventory = await reader.inventory();
@@ -155,6 +169,9 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
                     );
                 }
             }
+            if (output.tests.length && !manifest.tests) {
+                throw new PackageError("INVALID_FILE", "output selects absent test declarations");
+            }
         }
         for (const source of await reader.sourceMaps()) {
             references.push(source.generated, source.map);
@@ -202,8 +219,8 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
 export interface BuildOptions {
     /** The source package directory, kept unchanged for the duration of this build. */
     directory: string;
-    /** Named browser and server outputs. */
-    outputs: Readonly<Record<string, CompileOptions | ApplicationOptions>>;
+    /** Named module outputs, and outputs of kinds the package's dependencies compile. */
+    outputs: Readonly<Record<string, ModuleOptions | OutputRequest>>;
     /** Exact dependency releases selected by the package resolver. */
     dependencies: Readonly<Record<string, DependencyResolution>>;
     /** The TypeScript configuration; omit to use package defaults. */
@@ -212,4 +229,22 @@ export interface BuildOptions {
     signal?: AbortSignal;
     /** Maximum compilation time in milliseconds. */
     timeout?: number;
+    /** What the package has published, to plan the upgrade from. */
+    history?: History;
+}
+
+/** Read the outputs a package's exports imply: a browser module and one server module per server runtime. */
+export async function readOutputs(directory: string): Promise<BuildOptions["outputs"]> {
+    // read the package's declaration
+    const declaration = await readPackageDescription(directory);
+    const definition = declaration.definition;
+    const outputs: Record<string, ModuleOptions> = {};
+    for (const name of Object.keys(mapExports(declaration))) {
+        // compile one module per runtime the export compiles for
+        for (const runtime of PackageDefinition.runtimes(definition, name)) {
+            outputs[runtime] = { kind: "module", runtime, bundle: true };
+        }
+    }
+
+    return outputs;
 }

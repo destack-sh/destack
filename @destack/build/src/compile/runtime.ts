@@ -2,7 +2,7 @@ import type { BuildDescription } from "@destack/package/inspect";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { createRequire, isBuiltin } from "node:module";
+import { createRequire } from "node:module";
 import { API } from "typescript/unstable/async";
 import type { GlobalReference, ModuleDescription } from "@destack/package/code";
 import type { Runtime } from "@destack/package/runtime";
@@ -227,43 +227,4 @@ export async function checkRuntime(
 
     // check the collected globals against the runtime
     await compiler.check(globals, runtime);
-}
-
-/** Select standard package conditions for a runtime and build mode. */
-export function runtimeConditions(
-    runtime: Runtime,
-    mode: "development" | "production" = "production",
-): string[] {
-    switch (runtime) {
-        case "browser":
-            return ["browser", "module", mode];
-        case "bun":
-            return ["server", "bun", "node", "module", mode];
-        case "workerd":
-            return ["server", "worker", "workerd", "module", mode];
-    }
-}
-
-/** Identify built-in modules supplied by the selected Destack runtime. */
-export function isRuntimeModule(specifier: string, runtime: Runtime): boolean {
-    return (
-        (runtime === "bun" &&
-            (isBuiltin(specifier) || specifier === "bun" || specifier.startsWith("bun:"))) ||
-        (runtime === "workerd" && specifier === "node:async_hooks")
-    );
-}
-
-/** Preserve supported built-ins and reject unsupported host module imports. */
-export function externalModule(specifier: string, runtime: Runtime): boolean {
-    if (!isBuiltin(specifier) && specifier !== "bun" && !specifier.startsWith("bun:")) {
-        return false;
-    }
-    if (!isRuntimeModule(specifier, runtime)) {
-        throw new BuildError(
-            "BUILD_FAILED",
-            `host module is unavailable on ${runtime}: ${specifier}`,
-        );
-    }
-
-    return true;
 }

@@ -57,6 +57,9 @@
                     "de"
                 ]
             }
+        },
+        "vocabulary": {
+            "setting/language": "fca7fac393ea7a7020ebc5b177fce667a8bad5d0ae665fd7971a3b0ae57a19fb"
         }
     }
 ]

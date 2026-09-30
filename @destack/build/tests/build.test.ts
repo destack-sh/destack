@@ -1,24 +1,25 @@
+import { VERSION_HEADER } from "@destack/service/request";
 import { test } from "@destack/test";
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { PackageBuild } from "../src/index.ts";
 import { Fixture, expectBuild, expectFiles, expectManifest, readBuildFiles } from "./fixture.ts";
-import { request } from "./fixture/library/request.ts";
-import { request as serviceRequest } from "./fixture/service/request.ts";
-import { request as resourceRequest } from "./fixture/resource/request.ts";
-import { request as stackRequest } from "./fixture/stack/request.ts";
+import * as library from "./fixture/library/request.ts";
+import * as service from "./fixture/service/request.ts";
+import * as resource from "./fixture/resource/request.ts";
+import * as stack from "./fixture/stack/request.ts";
 import { requests } from "./fixture/web/request.ts";
-import { PackageReader } from "@destack/package/manifest";
+import { BuildReader } from "@destack/package/manifest";
 import { WorkloadInstance } from "@destack/service/workload";
 import { ResourceContext } from "@destack/resource/context";
 
 /** Complete build scenarios and their expected output directories. */
 const fixtures = [
-    { name: "library", request, expected: "expected/" },
-    { name: "service", request: serviceRequest, expected: "expected/" },
-    { name: "resource", request: resourceRequest, expected: "expected/" },
-    { name: "stack", request: stackRequest, expected: "expected/" },
+    { name: "library", request: library.request, expected: "expected/" },
+    { name: "service", request: service.request, expected: "expected/" },
+    { name: "resource", request: resource.request, expected: "expected/" },
+    { name: "stack", request: stack.request, expected: "expected/" },
     ...Object.entries(requests).map(([mode, application]) => ({
         name: "web",
         mode,
@@ -42,10 +43,9 @@ test.concurrent.for(fixtures)("build $name $expected", async (fixture, { expect 
 
     await expectManifest(build, destination);
 
-    // exercise the exported package API from the relocated build
+    // reject corrupted description bytes, then call the library's exports from the relocated build
     if (fixture.name === "library") {
-        // reject corrupted description bytes before decoding them
-        const corrupt = new PackageReader(build.manifest, async (path) => {
+        const corrupt = new BuildReader(build.manifest, async (path) => {
             const bytes = new Uint8Array(await readFile(join(destination, path)));
             bytes[0] ^= 1;
 
@@ -60,15 +60,25 @@ test.concurrent.for(fixtures)("build $name $expected", async (fixture, { expect 
             pathToFileURL(join(destination, build.manifest.outputs.library.exports["."])).href
         );
         expect(module.createNote("A note")).toEqual({ title: "A note", complete: false });
-    } else if (fixture.name === "service") {
+    }
+    // run each output's declared workload
+    else if (fixture.name === "service") {
         for (const output of Object.values(build.manifest.outputs)) {
-            // start the declared workload through the export its description names
-            const { entrypoint, export: name } = output.workloads.web;
+            // start the declared workload from its package export
             const module = await import(
-                pathToFileURL(join(destination, output.exports[entrypoint])).href
+                pathToFileURL(join(destination, output.exports["./server"])).href
             );
-            await using instance = await WorkloadInstance.start(module[name], {
+            await using instance = await WorkloadInstance.start(module.web, {
                 resources: new ResourceContext(),
+                history: { ingest: async () => 0 },
+                replicas: {
+                    scope: "fixture",
+                    source: {
+                        stream: () => {
+                            throw new TypeError("the fixture workload keeps no copies");
+                        },
+                    },
+                },
                 service: () => ({
                     audience: build.manifest.package.id,
                     scope: "fixture",
@@ -79,50 +89,59 @@ test.concurrent.for(fixtures)("build $name $expected", async (fixture, { expect 
             });
             const response = await instance.fetch(
                 module.service,
-                new Request("https://example.test/notes"),
+                new Request("https://example.test/notes", {
+                    headers: { [VERSION_HEADER]: build.manifest.package.version },
+                }),
             );
             expect([response.status, await response.json()]).toEqual([200, { path: "/notes" }]);
-            await instance.run(module.reminders, AbortSignal.timeout(1000));
+            await instance.deliver(
+                module.reminders,
+                { scheduledAt: Date.now() },
+                AbortSignal.timeout(1000),
+            );
         }
-    } else if (fixture.name === "resource") {
+    }
+    // read the declared database from the bundle
+    else if (fixture.name === "resource") {
         const module = await import(
             pathToFileURL(join(destination, build.manifest.outputs.library.exports["."])).href
         );
 
         // distribute the declared tables with the database, so the bundle plans its own migration
         expect(module.database.tables).toEqual([module.note]);
-    } else if (fixture.name === "stack") {
+    }
+    // read the declared stack from the bundle
+    else if (fixture.name === "stack") {
         const module = await import(
             pathToFileURL(join(destination, build.manifest.outputs.stack.exports["."])).href
         );
 
         // retain the shared database's description in the space definition
         const { package: owner, name, kind, version, spec } = module.database;
-        expect(module.personal.resources).toEqual({
+        expect(module.personal.definition.resources).toEqual({
             main: {
                 declaration: { package: owner, name, kind, version, spec },
                 retention: "retain",
                 tags: {},
             },
         });
-        expect(module.personal.installations).toEqual({
+        expect(module.personal.definition.installations).toEqual({
             notes: {
                 package: {
                     id: module.stack.id,
                     name: "@example/stack",
-                    version: "1.0.0",
+                    version: "2026.9.0",
                 },
                 status: "enabled",
                 alias: "stack",
-                resources: {
+                bindings: {
                     [module.database.package.id]: {
                         main: {
-                            resource: "main",
+                            target: { type: "resource", name: "main" },
                             state: { tables: { sqlite: [], postgresql: [] } },
                         },
                     },
                 },
-                secrets: {},
                 compute: {},
                 tags: {},
             },
@@ -160,62 +179,44 @@ test.concurrent.for(fixtures)("build $name $expected", async (fixture, { expect 
     }
 });
 
-/** Invalid declarations rejected before framework compilation or rendering. */
-const invalid = [
-    {
-        file: "unused.ts",
-        source: "export {};\n",
-        code: "BUILD_FAILED",
-        message: "unknown browser view: missing",
-        application: { ...requests.browser, view: "missing" },
-    },
-    {
-        file: "unused.ts",
-        source: "export {};\n",
-        code: "BUILD_FAILED",
-        message: "select a view or an app source path",
-        application: { ...requests.browser, app: "src/app.tsx" },
-    },
-    {
-        file: "server.ts",
-        source: "/** Render the page title. */\nexport function render(): string {\n    return document.title;\n}\n",
-        code: "BUILD_FAILED",
-        message: "unsupported bun API: document.title at server.ts:76",
-        application: { ...requests.static, entryServer: "server.ts", entryClient: "client.ts" },
-    },
-];
-
-test.concurrent.for(invalid)("reject $message", async (fixture, { expect }) => {
+test.concurrent("reject unsupported bun API: document.title at server.ts:76", async ({
+    expect,
+}) => {
+    // write a server entry reading a browser global, beside the configuration compiling it
     await using input = await Fixture.open("web");
-    await writeFile(join(input.source, fixture.file), fixture.source);
-    if ("entryServer" in fixture.application) {
-        await writeFile(join(input.source, "client.ts"), "export {};\n");
-        await writeFile(
-            join(input.source, "tsconfig.json"),
-            JSON.stringify({
-                compilerOptions: {
-                    target: "ESNext",
-                    module: "ESNext",
-                    moduleResolution: "bundler",
-                    allowImportingTsExtensions: true,
-                    noEmit: true,
-                    strict: true,
-                    skipLibCheck: true,
-                    jsx: "preserve",
-                    jsxImportSource: "@destack/view",
-                },
-                include: ["src/**/*.ts", "src/**/*.tsx"],
-            }),
-        );
-    }
-    const actual = await input.build({ outputs: { website: fixture.application } }).then(
+    await writeFile(
+        join(input.source, "server.ts"),
+        "/** Render the page title. */\nexport function render(): string {\n    return document.title;\n}\n",
+    );
+    await writeFile(join(input.source, "client.ts"), "export {};\n");
+    await writeFile(
+        join(input.source, "tsconfig.json"),
+        JSON.stringify({
+            compilerOptions: {
+                target: "ESNext",
+                module: "ESNext",
+                moduleResolution: "bundler",
+                allowImportingTsExtensions: true,
+                noEmit: true,
+                strict: true,
+                skipLibCheck: true,
+                jsx: "preserve",
+                jsxImportSource: "@destack/view",
+            },
+            include: ["src/**/*.ts", "src/**/*.tsx"],
+        }),
+    );
+
+    // refuse the build before framework compilation or rendering
+    const application = { ...requests.static, entryServer: "server.ts", entryClient: "client.ts" };
+    const actual = await input.build({ outputs: { website: application } }).then(
         () => {
             throw new Error("expected fixture rejection");
         },
         (error) => ({ code: error.code, message: error.message }),
     );
     expect(actual).toEqual({
-        code: fixture.code,
-        message: fixture.message,
+        code: "BUILD_FAILED",
+        message: "unsupported bun API: document.title at server.ts:76",
     });
 });

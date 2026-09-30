@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep, posix } from "node:path";
 import { type Plugin } from "vite";
 import { type DependencyResolution } from "@destack/package";
+import { comparePath } from "../build/serialization.ts";
 import { BuildError } from "../error/index.ts";
 import { type PackageSource } from "../source/index.ts";
 import { describeFile } from "@destack/package/file";
@@ -196,9 +197,7 @@ export function dependencyPlugin(
                     );
                     snapshot.files.push(file);
                 }
-                snapshot.files.sort((left, right) =>
-                    left.path < right.path ? -1 : left.path > right.path ? 1 : 0,
-                );
+                snapshot.files.sort(comparePath);
                 return;
             }
             if (
@@ -265,9 +264,7 @@ export function dependencyPlugin(
                     if (!previous) {
                         snapshot.files.push(file);
                     }
-                    snapshot.files.sort((left, right) =>
-                        left.path < right.path ? -1 : left.path > right.path ? 1 : 0,
-                    );
+                    snapshot.files.sort(comparePath);
                 }
             }
 
@@ -375,7 +372,7 @@ export function resolutionPlugin(
                 // enforce compatibility for the exact imported Destack export
                 const declared = await resolver.definition(owner.directory);
                 const entry = specifier === name ? "." : `.${specifier.slice(name.length)}`;
-                const required = declared?.exports?.[entry]?.runtimes ?? declared?.runtimes;
+                const required = declared && PackageDefinition.runtimes(declared, entry);
                 if (required) {
                     const previous = runtimes.get(resolved.id);
                     runtimes.set(

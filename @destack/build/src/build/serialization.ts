@@ -64,3 +64,11 @@ function checkValue(value: unknown, path: string, ancestors: Set<object>): void 
     }
     ancestors.delete(value);
 }
+
+/** Order two files by package path, equal paths as equal. */
+export function comparePath(
+    left: { readonly path: string },
+    right: { readonly path: string },
+): number {
+    return left.path < right.path ? -1 : left.path > right.path ? 1 : 0;
+}

@@ -31,7 +31,7 @@
         },
         "source": {
             "file": "src/server.ts",
-            "line": 32,
+            "line": 31,
             "column": 21
         },
         "description": {
@@ -72,12 +72,11 @@
         },
         "source": {
             "file": "src/server.ts",
-            "line": 34,
+            "line": 33,
             "column": 21
         },
         "description": {
-            "name": "mail-token",
-            "version": 1
+            "name": "mail-token"
         }
     }
 ]

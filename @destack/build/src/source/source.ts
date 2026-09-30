@@ -2,10 +2,10 @@ import { mkdtemp, realpath, rm, stat, writeFile, readFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join, resolve, isAbsolute } from "node:path";
 import { type InspectOptions } from "../inspect/inspection.ts";
-import { runtimeConditions } from "../compile/runtime.ts";
+import { runtimeConditions } from "@destack/package/build";
 import { linkDependencies } from "./dependency.ts";
 import { PackageError } from "@destack/package/error";
-import { PackageDescription, type Target } from "@destack/package";
+import { PackageDefinition, PackageDescription, Publication } from "@destack/package";
 import { schema } from "@destack/schema";
 import { PackagePath } from "@destack/package/file";
 import { type Runtime } from "@destack/package/runtime";
@@ -27,7 +27,7 @@ export interface PackageSource extends AsyncDisposable {
 }
 
 /** Open package inputs and prepare one compiler configuration for inspection and compilation. */
-export async function openPackage(
+export async function openSource(
     options: InspectOptions & {
         /** Public modules selected for this output. */
         entries?: Readonly<Record<string, string>>;
@@ -38,9 +38,8 @@ export async function openPackage(
     // read the package declaration
     const definition = await readPackageDeclaration(
         options.directory,
-        options.target,
-        options.entries,
         options.runtime,
+        options.entries,
     );
     const authored = resolve(definition.directory, options.configuration ?? "tsconfig.json");
 
@@ -115,95 +114,25 @@ export async function openPackage(
     };
 }
 
-/** Read package manifests and select exports for one target. */
-export async function readPackageDeclaration(
+/** Read package manifests and select exports for one runtime. */
+async function readPackageDeclaration(
     directory: string,
-    target: Target,
+    runtime: Runtime,
     entries?: Readonly<Record<string, string>>,
-    runtime: Runtime = target === "browser" ? "browser" : "bun",
 ): Promise<Omit<PackageSource, "configuration" | typeof Symbol.asyncDispose>> {
-    if ((target === "browser") !== (runtime === "browser")) {
-        throw new PackageError(
-            "UNSUPPORTED_TARGET",
-            `runtime ${runtime} cannot compile target ${target}`,
-        );
-    }
+    // read the package's manifests
     directory = await realpath(directory);
-    const metadata = schema
-        .record(schema.string(), schema.json())
-        .parse(JSON.parse(await readFile(resolve(directory, "package.json"), "utf8")));
-    const configuration = JSON.parse(await readFile(resolve(directory, "destack.json"), "utf8"));
-    const declaration = PackageDescription.parse({
-        package: { id: configuration.id, name: metadata.name, version: metadata.version },
-        definition: configuration,
-        exports: metadata.exports,
-        dependencies: metadata.dependencies === undefined ? {} : metadata.dependencies,
-        peerDependencies: metadata.peerDependencies === undefined ? {} : metadata.peerDependencies,
-        peerDependenciesMeta:
-            metadata.peerDependenciesMeta === undefined ? {} : metadata.peerDependenciesMeta,
-        optionalDependencies:
-            metadata.optionalDependencies === undefined ? {} : metadata.optionalDependencies,
-        devDependencies: metadata.devDependencies === undefined ? {} : metadata.devDependencies,
-    });
+    const declaration = await readPackageDescription(directory);
     const definition = declaration.definition;
-    if (definition.language !== "typescript") {
-        throw new PackageError(
-            "UNSUPPORTED_LANGUAGE",
-            "building TypeScript++ packages requires the language toolchain",
-        );
-    }
 
-    // associate peer metadata with authored dependency requirements
-    for (const name of Object.keys(declaration.peerDependenciesMeta)) {
-        if (!Object.hasOwn(declaration.peerDependencies, name)) {
-            throw new PackageError("INVALID_DEPENDENCY", `undeclared peer dependency: ${name}`);
-        }
-    }
-
-    // check view selection against authored exports before applying target filters
-    const declaredExports = declaration.exports;
-    const names =
-        declaredExports &&
-        typeof declaredExports === "object" &&
-        !Array.isArray(declaredExports) &&
-        Object.keys(declaredExports).some((name) => name.startsWith("."))
-            ? Object.keys(declaredExports)
-            : declaredExports === undefined || declaredExports === null
-              ? []
-              : ["."];
-
-    // require named views to reference explicit browser exports
-    for (const [name, view] of Object.entries(definition.views ?? {})) {
-        const targets = definition.exports?.[view.entrypoint]?.targets ?? definition.targets;
-        if (!names.includes(view.entrypoint) || !targets?.includes("browser")) {
-            throw new PackageError(
-                "INVALID_DEFINITION",
-                `view ${name} requires a browser export: ${view.entrypoint}`,
-            );
-        }
-    }
-
-    // select package exports using the target's standard conditions
+    // select package exports using the runtime's standard conditions
     const conditions = new Set(["import", "default", ...runtimeConditions(runtime)]);
     const typeConditions = new Set(["types", ...conditions]);
-    const authored = entries
+    const authoredEntries = entries
         ? Object.fromEntries(
               Object.entries(entries).map(([name, path]) => [name, `./${PackagePath.parse(path)}`]),
           )
-        : declaration.exports;
-    if (authored === undefined) {
-        throw new PackageError(
-            "INVALID_DEFINITION",
-            "a package build requires package.json exports",
-        );
-    }
-    const authoredEntries =
-        typeof authored === "object" &&
-        authored !== null &&
-        !Array.isArray(authored) &&
-        (entries || Object.keys(authored).some((name) => name.startsWith(".")))
-            ? authored
-            : { ".": authored };
+        : mapExports(declaration);
     const exports: Record<string, string> = {};
     const types: Record<string, string> = {};
     for (const [name, entry] of Object.entries(authoredEntries)) {
@@ -216,25 +145,11 @@ export async function readPackageDeclaration(
                 `build exports must name concrete modules: ${name}`,
             );
         }
-        const targets = definition.exports?.[name]?.targets ?? definition.targets;
-        const runtimes = definition.exports?.[name]?.runtimes ?? definition.runtimes;
-        if (runtimes && !runtimes.includes(runtime)) {
+        if (!PackageDefinition.runtimes(definition, name).includes(runtime)) {
             if (entries) {
                 throw new PackageError(
                     "UNSUPPORTED_TARGET",
                     `unsupported entry runtime: ${name} -> ${runtime}`,
-                );
-            }
-            continue;
-        }
-        if (!targets) {
-            throw new PackageError("INVALID_DEFINITION", `no targets declared for export: ${name}`);
-        }
-        if (!targets.includes(target)) {
-            if (entries) {
-                throw new PackageError(
-                    "UNSUPPORTED_TARGET",
-                    `unsupported entry target: ${name} -> ${target}`,
                 );
             }
             continue;
@@ -260,7 +175,7 @@ export async function readPackageDeclaration(
 
     // require at least one runtime or type export
     if (!Object.keys(exports).length && !Object.keys(types).length) {
-        throw new PackageError("UNSUPPORTED_TARGET", `no runtime exports for target: ${target}`);
+        throw new PackageError("UNSUPPORTED_TARGET", `no exports for runtime: ${runtime}`);
     }
 
     return {
@@ -270,6 +185,69 @@ export async function readPackageDeclaration(
         types,
         runtime,
     };
+}
+
+/** Read a package's manifests into its description. */
+export async function readPackageDescription(directory: string): Promise<PackageDescription> {
+    // read package.json and destack.json
+    const metadata = schema
+        .record(schema.string(), schema.json())
+        .parse(JSON.parse(await readFile(resolve(directory, "package.json"), "utf8")));
+    const configuration = PackageDefinition.read(
+        await readFile(resolve(directory, "destack.json"), "utf8"),
+    );
+    const declaration = PackageDescription.parse({
+        package: { id: configuration.id, name: metadata.name, version: metadata.version },
+        definition: configuration,
+        exports: metadata.exports,
+        dependencies: metadata.dependencies === undefined ? {} : metadata.dependencies,
+        peerDependencies: metadata.peerDependencies === undefined ? {} : metadata.peerDependencies,
+        peerDependenciesMeta:
+            metadata.peerDependenciesMeta === undefined ? {} : metadata.peerDependenciesMeta,
+        optionalDependencies:
+            metadata.optionalDependencies === undefined ? {} : metadata.optionalDependencies,
+        devDependencies: metadata.devDependencies === undefined ? {} : metadata.devDependencies,
+    });
+    const definition = declaration.definition;
+
+    // require a publishable TypeScript package
+    if (definition.publication !== undefined) {
+        Publication.require(definition.publication);
+    }
+    if (definition.language !== "typescript") {
+        throw new PackageError(
+            "UNSUPPORTED_LANGUAGE",
+            "building TypeScript++ packages requires the language toolchain",
+        );
+    }
+
+    // associate peer metadata with authored dependency requirements
+    for (const name of Object.keys(declaration.peerDependenciesMeta)) {
+        if (!Object.hasOwn(declaration.peerDependencies, name)) {
+            throw new PackageError("INVALID_DEPENDENCY", `undeclared peer dependency: ${name}`);
+        }
+    }
+
+    return declaration;
+}
+
+/** Key a package's exports by export name, such as `.` and `./server`. */
+export function mapExports(declaration: PackageDescription): Readonly<Record<string, unknown>> {
+    // require exports
+    const authored = declaration.exports;
+    if (authored === undefined) {
+        throw new PackageError(
+            "INVALID_DEFINITION",
+            "a package build requires package.json exports",
+        );
+    }
+    const isMap =
+        typeof authored === "object" &&
+        authored !== null &&
+        !Array.isArray(authored) &&
+        Object.keys(authored).some((name) => name.startsWith("."));
+
+    return isMap ? authored : { ".": authored };
 }
 
 /** Select a package export using declaration-order conditional resolution. */

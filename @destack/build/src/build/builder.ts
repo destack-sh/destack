@@ -35,14 +35,14 @@ export class PackageBuilder implements AsyncDisposable {
     readonly directory: string;
     /** Temporary compiler files removed on shutdown. */
     readonly #temporary: string;
-    /** The isolated production compiler process. */
-    readonly #child: ChildProcessWithoutNullStreams;
+    /** The isolated production compiler process, started again after a failed one. */
+    #child!: ChildProcessWithoutNullStreams;
     /** Process completion, including native compiler shutdown. */
-    readonly #closed: Promise<void>;
+    #closed!: Promise<void>;
     /** The build currently awaiting a response. */
     #pending?: { resolve: (result: BuildResponse) => void; reject: (error: unknown) => void };
-    /** A terminal process failure. */
-    #failure?: Error;
+    /** The failure that stopped the current compiler process. */
+    #failure: Error | undefined;
     /** Whether process-tree termination has already been requested. */
     #stopping = false;
     /** Whether the caller has closed this compiler. */
@@ -56,9 +56,15 @@ export class PackageBuilder implements AsyncDisposable {
 
     /** Start the isolated process and receive build results. */
     private constructor(directory: string, temporary: string) {
-        // start the compiler process with a production environment
         this.directory = resolve(directory);
         this.#temporary = temporary;
+        this.#start();
+    }
+
+    /** Start a compiler process, the first or the one replacing a failed process. */
+    #start(): void {
+        // start the compiler process with a production environment
+        const temporary = this.#temporary;
         const environment: Record<string, string> = {
             NODE_ENV: "production",
             TMPDIR: temporary,
@@ -73,7 +79,11 @@ export class PackageBuilder implements AsyncDisposable {
         }
 
         // retain one production environment across sequential build requests
-        this.#child = spawn(
+        this.#failure = undefined;
+        this.#stopping = false;
+        this.#exitCode = null;
+        this.#stderr = "";
+        const child = spawn(
             process.execPath,
             [
                 "run",
@@ -89,8 +99,9 @@ export class PackageBuilder implements AsyncDisposable {
                 stdio: ["pipe", "pipe", "pipe"],
             },
         );
+        this.#child = child;
         this.#closed = new Promise((resolve) => {
-            this.#child.once("close", (code) => {
+            child.once("close", (code) => {
                 // record the exit and fail unexpected exits
                 this.#exitCode = code;
                 if (code !== 0 || !this.#disposed) {
@@ -103,26 +114,31 @@ export class PackageBuilder implements AsyncDisposable {
                 resolve();
             });
         });
-        this.#child.on("error", (error) => this.#fail(error));
-        this.#child.stdin.on("error", (error) => this.#fail(error));
+        const fail = (error: Error) => {
+            // leave a later process alone once this one was replaced
+            if (this.#child === child) {
+                this.#fail(error);
+            }
+        };
+        child.on("error", fail);
+        child.stdin.on("error", fail);
 
         // bound diagnostics retained from compiler tools
-        this.#child.stderr.setEncoding("utf8");
-        this.#child.stderr.on("data", (chunk: string) => {
+        child.stderr.setEncoding("utf8");
+        child.stderr.on("data", (chunk: string) => {
             this.#stderr += chunk;
             if (this.#stderr.length > 1_048_576) {
-                this.#fail(new BuildError("BUILD_FAILED", "build diagnostics exceeded 1 MiB"));
+                fail(new BuildError("BUILD_FAILED", "build diagnostics exceeded 1 MiB"));
             }
         });
-        const stdout = this.#child.stdout;
         void (async () => {
-            for await (const response of readMessages(stdout)) {
+            for await (const response of readMessages(child.stdout)) {
                 if (!this.#pending) {
                     throw new BuildError("BUILD_FAILED", "unexpected compiler response");
                 }
                 this.#pending.resolve(response as BuildResponse);
             }
-        })().catch((error) => this.#fail(error));
+        })().catch(fail);
     }
 
     /** Start a reusable compiler for one source package. */
@@ -187,14 +203,17 @@ export class PackageBuilder implements AsyncDisposable {
         if (!Number.isSafeInteger(timeout) || timeout <= 0 || timeout > 2 ** 31 - 1) {
             throw new BuildError("BUILD_FAILED", "invalid compiler timeout");
         }
-        if (this.#failure) {
-            throw this.#failure;
-        }
         if (this.#pending) {
             throw new BuildError("BUILD_FAILED", "a build is already running");
         }
         if (signal?.aborted) {
             throw new BuildError("BUILD_FAILED", "build cancelled", { cause: signal.reason });
+        }
+
+        // start a compiler again once a cancelled, late or crashed one has stopped
+        if (this.#failure) {
+            await this.#closed;
+            this.#start();
         }
         const abort = () =>
             this.#fail(
