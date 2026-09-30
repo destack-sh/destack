@@ -1,5 +1,6 @@
 import { expect, test } from "@destack/test";
-import { alias, defineTable, Table, TABLE } from "./table.ts";
+import { Package } from "@destack/package";
+import { alias, defineTable, TABLE } from "./table.ts";
 import { text } from "./column.ts";
 import { primaryKey } from "./constraint.ts";
 
@@ -29,13 +30,6 @@ test("key an alias by the properties of its source's compound key", () => {
     ]);
 });
 
-test("read the package declaring a table, and none for other values", () => {
-    // read the stamped package of the table, a structural copy and other values
-    const copy = { [Symbol.for("destack.table")]: membership[TABLE] };
-    expect([
-        Table.package(membership),
-        Table.package(copy),
-        Table.package({ package: membership[TABLE].package }),
-        Table.package(undefined),
-    ]).toEqual([membership[TABLE].package, membership[TABLE].package, undefined, undefined]);
+test("carry the declaring package under the shared package key", () => {
+    expect(Package.declaring(membership)).toEqual(membership[TABLE].package);
 });

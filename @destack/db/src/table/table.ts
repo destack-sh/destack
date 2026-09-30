@@ -2,7 +2,7 @@ import { type SQL, sql, type SQLWrapper } from "drizzle-orm";
 import { Column, type ColumnBuilder } from "./column.ts";
 import { check, ForeignKey, type PrimaryKey, type TableConstraint } from "./constraint.ts";
 import type { Dialect } from "../dialect/dialect.ts";
-import { declaringModule, type ModuleMetadata, type Package } from "@destack/package";
+import { declaringModule, type ModuleMetadata, PACKAGE, type Package } from "@destack/package";
 import { Version } from "@destack/schema";
 import { Expression } from "../expression/expression.ts";
 import { qualify } from "./namespace.ts";
@@ -125,11 +125,9 @@ export class Table<
         return built;
     }
 
-    /** Read the package declaring a value that is a table, from any copy of this module. */
-    static package(value: unknown): Package | undefined {
-        return typeof value === "object" && value !== null && TABLE in value
-            ? (value as Table)[TABLE].package
-            : undefined;
+    /** The declaring package, under the key every declaration kind shares. */
+    get [PACKAGE](): Package {
+        return this[TABLE].package;
     }
 
     /** Return the table identifier. */
