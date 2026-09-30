@@ -150,7 +150,17 @@ export function objectSchema(object: ObjectType): ObjectSchema {
             Object.fromEntries(
                 (names ?? object.written).map((name) => {
                     // take each written column's schema
-                    const declared = inserted[name];
+                    const field = object.fields[name];
+                    const column = object.table[TABLE].columns[name]?.definition;
+                    const value = column === undefined ? undefined : (column.json ?? column.schema);
+                    const isRequired = field?.required === true && field.access?.read !== undefined;
+
+                    // require a guarded field its nullable column would leave optional
+                    const declared = !isRequired
+                        ? inserted[name]
+                        : field.initial === undefined
+                          ? value
+                          : value?.optional();
                     if (declared === undefined) {
                         throw new TypeError(`${object.name} writes no column ${name}`);
                     }

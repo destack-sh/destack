@@ -609,17 +609,10 @@ export class ObjectType<
             .filter(([, column]) => column.definition.classification === "sensitive")
             .map(([name]) => name as Sensitive);
 
-        // guard only optional fields
+        // collect guarded fields
         this.guarded = Object.entries(this.fields)
             .filter(([, declared]) => declared.access?.read !== undefined)
             .map(([name]) => name as Guarded);
-        for (const name of this.guarded) {
-            if (this.fields[name]!.required) {
-                throw new TypeError(
-                    `object ${this.name} guards required field ${name}, which copies hold missing where concealed`,
-                );
-            }
-        }
 
         // require readable scope types
         for (const scope of this.scopes) {

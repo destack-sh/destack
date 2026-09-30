@@ -192,8 +192,8 @@ export class Field<
             column = column.default(this.initial.value);
         }
 
-        // require a value
-        if (this.required) {
+        // require a value, except where copies hold a guarded value concealed
+        if (this.required && this.access?.read === undefined) {
             column = column.notNull();
         }
 
@@ -233,7 +233,11 @@ export class Field<
         return this.#with<Required, true, Guarded, false, Sensitive>({ isCaller: true });
     }
 
-    /** Require extra permissions to read or write the value. */
+    /**
+     * Require extra permissions to read or write the value.
+     *
+     * A field guarded to read stays required to write, while its column is nullable: readers without the permission and copies in other databases hold it concealed.
+     */
     guard<const Access extends FieldAccess>(
         access: Access,
     ): Field<

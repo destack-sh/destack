@@ -160,17 +160,53 @@ await server.executeAsSystem(upload, "finish", calls, Date.now());
 
 ## Controllers
 
-A type's `controller` reconciles its pending objects by key as the system, and the object server runs it.
+A type's controller reconciles its pending objects by key as the system, and the object server runs it.
 
 ```ts
-export const reminder = defineObject({ ..., controller: {
+export const reminder = base.reminder.control({
     pending: Condition.missing("sentAt"),
     key: (row) => ({ topic: row.topic }),
+    watches: [{ table: topic.table, keys: (row) => [{ topic: row.id }] }],   // other rows selecting keys again
     async reconcile({ rows, now, execute }) {
         await execute("send", rows.filter((row) => row.dueAt <= now));
         return nextDue(rows, now);   // the wait until the next look, or undefined
     },
-} });
+});
+```
+
+A controller in `follow` mode keeps a process running for each key until its objects leave the pending ones.
+
+```ts
+export const host = base.host.control({
+    pending: Condition.eq("status", "enrolled"),
+    mode: "follow",
+    reconcile: async ({ rows, signal }) => (await serve(rows[0], signal), undefined),
+});
+```
+
+## Replicas
+
+A server keeps the copies it requests current from a source, and relays its own rows to the databases below it.
+
+```ts
+const server = new ObjectServer({
+    objects,
+    database,
+    journal,
+    audit,
+    replicas: { source, requests: () => server.replicaRequests(spaceId, { isHome: false }) },
+    relay: async (request, context) => ({ context }),   // who a relayed copy is decided for
+});
+```
+
+`replicaRequests` lists the requests of a scope's chain and of one copy of the global rows its principal may read, such as the users who joined a space.
+
+## Fields
+
+A guarded field is required to write and optional to read: a reader without the permission, and a copy in another database, hold it concealed.
+
+```ts
+email: field.string().guard({ read: "update" }),
 ```
 
 ## Copies
@@ -246,11 +282,11 @@ const notes = tab.client.subscribe(note);
 
 ## Stacks
 
-`Reconciliation` writes a stack's declared records and deletes undeclared ones.
+`declare` sets how a stack's declarations of a type become its records, and `Stack.apply` writes a stack's declared records and retires undeclared ones.
 
 ```ts
-const notes = defineReconciler(note, { values: (_name, declared) => ({ title: declared.title }) });
-const { changes, waiting } = await Reconciliation.apply({ database, reconcilers: [notes], manager, scope: spaceId, document });
+export const note = base.note.declare({ values: (_name, declared) => ({ title: declared.title }) });
+const { steps, deferred } = await Stack.apply({ database, objects: [note], manager, scope: spaceId, document });
 ```
 
 ## Claims

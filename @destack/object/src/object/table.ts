@@ -26,8 +26,8 @@ import type { ScopeIdentity } from "../method/procedure.ts";
 type FieldBuilderMap<Fields extends Readonly<Record<string, Field>>> = {
     [
         Property in keyof Fields as Fields[Property] extends TextField ? never : Property
-    ]: Fields[Property] extends Field<infer Value, infer Required, infer Default>
-        ? ColumnBuilder<Value, Required, Default>
+    ]: Fields[Property] extends Field<infer Value, infer Required, infer Default, infer Guarded>
+        ? ColumnBuilder<Value, [Guarded] extends [true] ? false : Required, Default>
         : never;
 };
 
