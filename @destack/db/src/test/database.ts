@@ -14,7 +14,6 @@ import { PostgresDatabase } from "../postgres/database.ts";
 import { LOG_EPOCH } from "../log/schema.ts";
 import { relayNotifier } from "../log/notifier.ts";
 import { relayHub } from "./relay.ts";
-import { planMigration } from "../migration/database.ts";
 import { readState, STATE, type TableState } from "../migration/state.ts";
 
 /** The test dialects: SQLite, and PostgreSQL when DESTACK_TEST_POSTGRES names a server. */
@@ -288,7 +287,7 @@ class TestServer {
         // migrate it on a pool the schema keeps
         const pools: postgres.Sql[] = [];
         const database = new LentDatabase(this.connect(name), tables, pools);
-        await database.apply(await planMigration(database, state));
+        await database.apply(await database.plan({ declared: state }));
         await database.close();
 
         return this.#adopt(name, pools);
@@ -349,7 +348,7 @@ class TestServer {
             names.every((table) => managed.has(table) || table.startsWith("__destack_"));
 
         // adopt the schema only with an empty plan
-        const isCurrent = isUsable && (await planMigration(database, state)).steps.length === 0;
+        const isCurrent = isUsable && (await database.plan({ declared: state })).steps.length === 0;
         await database.close();
         if (!isCurrent) {
             await this.#drop(name, pools);

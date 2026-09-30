@@ -107,12 +107,13 @@ await database.select({ value: Expression.render(converted, setting) }).from(set
 
 ## Migrations
 
-A connection plans and applies the changes from its tables to the declared ones, where column values narrow only by a release's conversion.
+A connection plans the steps from its applied tables to declared ones, addressed `table/<name>` and its parts.
 
 ```ts
 await database.migrate([note]);
 
-const plan = await database.plan(desiredStates);
+const plan = await database.plan(mergeStates(releases.map((state) => state.tables.sqlite)));
+// { steps: [{ action: "create", target: "table/note/column/priority", risk: "safe", detail: "add column priority" }] }
 await database.apply(plan);
 ```
 

@@ -12,7 +12,7 @@ import { bridgeTriggers } from "./bridge.ts";
 import type { Triggers } from "./trigger.ts";
 import type { MergedState } from "./merge.ts";
 import { canonicalize } from "@destack/schema/json";
-import { Plan, type Risk, type Step } from "@destack/resource";
+import { Address, Plan, type Action, type Risk, type Step } from "@destack/resource";
 import { Version } from "@destack/schema";
 import { PlanError } from "@destack/resource/error";
 
@@ -25,33 +25,8 @@ const TRIGGERS: readonly Triggers[] = [
     bridgeTriggers,
 ];
 
-/** What a table step changes. */
-export type TableStepKind =
-    | "createTable"
-    | "dropTable"
-    | "renameTable"
-    | "rebuildTable"
-    | "addColumn"
-    | "dropColumn"
-    | "renameColumn"
-    | "alterColumn"
-    | "alterConstraint"
-    | "createIndex"
-    | "dropIndex"
-    | "convertRows"
-    | "widenColumn"
-    | "bridgeColumn"
-    | "rebuildTree"
-    | "updateLog"
-    | "recomputeAggregate"
-    | "dropAggregate"
-    | "addDependent"
-    | "dropDependent";
-
-/** One change of a database plan to one table. */
+/** One change of a database plan to one table, addressed as `table/<name>` and its parts. */
 export interface TableStep extends Step {
-    /** What the step changes. */
-    readonly kind: TableStepKind;
     /** The step's SQL, empty for tree rebuilds and log updates. */
     readonly statements: readonly string[];
     /** The tree a rebuild step reconstructs. */
@@ -95,7 +70,7 @@ export function planTables(input: PlanInput): TablePlan {
     const { applied, existing, declared, dialect } = input;
     const remaining = new Map(applied.map((state) => [state.table.name, state]));
     const problems: Problem[] = (input.conflicts ?? []).map((conflict) => ({
-        target: conflict.table,
+        target: Address.join("table", conflict.table),
         detail: conflict.reason,
     }));
     const steps: TableStep[] = [];
@@ -124,19 +99,20 @@ export function planTables(input: PlanInput): TablePlan {
             // refuse a table a newer release renamed, which the rollback would create again empty
             if (renamed !== undefined) {
                 const detail = `rollback to ${state.package.version} cannot read the table ${renamed.package.version} renamed to ${renamed.table.name}`;
-                problems.push({ target: name, detail });
+                problems.push({ target: Address.join("table", name), detail });
             }
             // refuse a name an unmanaged table holds
             else if (existing.includes(name)) {
-                problems.push({ target: name, detail: "table exists without applied state" });
+                const target = Address.join("table", name);
+                problems.push({ target, detail: "table exists without applied state" });
             }
             // create the table
             else {
                 steps.push(
                     step(
-                        "createTable",
+                        "create",
+                        Address.join("table", name),
                         "safe",
-                        name,
                         "create table",
                         createStatements(state.table),
                     ),
@@ -150,7 +126,7 @@ export function planTables(input: PlanInput): TablePlan {
         if (Version.compare(state.package.version, previous.package.version) < 0) {
             if (!holdsState(previous, state)) {
                 const detail = `rollback to ${state.package.version} cannot hold the table as ${previous.package.version} applied it`;
-                problems.push({ target: name, detail });
+                problems.push({ target: Address.join("table", name), detail });
             }
             continue;
         }
@@ -159,9 +135,9 @@ export function planTables(input: PlanInput): TablePlan {
         if (previous.table.name !== name) {
             steps.push(
                 step(
-                    "renameTable",
+                    "rename",
+                    Address.join("table", name),
                     "backward-incompatible",
-                    name,
                     `rename table from ${previous.table.name}`,
                     [statement.renameTable(previous.table.name, name)],
                 ),
@@ -191,9 +167,9 @@ export function planTables(input: PlanInput): TablePlan {
             if (!bridged.has(bridge.to)) {
                 changes.push(
                     step(
-                        "bridgeColumn",
+                        "convert",
+                        Address.join("table", name, "column", bridge.to),
                         "data-dependent",
-                        name,
                         `copy ${bridge.from} into ${bridge.to}`,
                         [`UPDATE ${quote(name)} SET ${quote(bridge.to)} = ${quote(bridge.from)}`],
                     ),
@@ -204,7 +180,13 @@ export function planTables(input: PlanInput): TablePlan {
         // rebuild a changed tree's index
         if (state.tree && canonicalize(state.tree) !== canonicalize(previous.tree ?? null)) {
             changes.push({
-                ...step("rebuildTree", "safe", name, "rebuild the ancestor index", []),
+                ...step(
+                    "update",
+                    Address.join("table", name, "tree"),
+                    "safe",
+                    "rebuild the ancestor index",
+                    [],
+                ),
                 tree: state.tree,
             });
         }
@@ -216,9 +198,9 @@ export function planTables(input: PlanInput): TablePlan {
         ) {
             changes.push(
                 step(
-                    "updateLog",
+                    "update",
+                    Address.join("table", name, "log"),
                     "safe",
-                    name,
                     `log changes with retention ${state.log?.retention ?? "none"}`,
                     [],
                 ),
@@ -237,9 +219,9 @@ export function planTables(input: PlanInput): TablePlan {
             if (!isKnown) {
                 steps.push(
                     step(
-                        "recomputeAggregate",
+                        "create",
+                        Address.join("table", aggregate.table, "aggregate", aggregate.column),
                         "safe",
-                        aggregate.table,
                         `compute ${aggregate.column} from ${aggregate.source}`,
                         [recomputeAggregate(aggregate, dialect)],
                     ),
@@ -258,9 +240,9 @@ export function planTables(input: PlanInput): TablePlan {
             if (!isKept) {
                 steps.push(
                     step(
-                        "dropAggregate",
+                        "delete",
+                        Address.join("table", aggregate.table, "aggregate", aggregate.column),
                         "safe",
-                        aggregate.table,
                         `stop keeping ${aggregate.column} from ${aggregate.source}`,
                         [],
                     ),
@@ -279,9 +261,9 @@ export function planTables(input: PlanInput): TablePlan {
             if (!isKnown) {
                 steps.push(
                     step(
-                        "addDependent",
+                        "create",
+                        Address.join("table", dependent.table, "dependent", dependent.source),
                         "safe",
-                        dependent.table,
                         `${dependent.onDelete} deletes into ${dependent.source}`,
                         [],
                     ),
@@ -298,9 +280,9 @@ export function planTables(input: PlanInput): TablePlan {
             if (!isKept) {
                 steps.push(
                     step(
-                        "dropDependent",
+                        "delete",
+                        Address.join("table", dependent.table, "dependent", dependent.source),
                         "safe",
-                        dependent.table,
                         `stop ${dependent.onDelete} deletes into ${dependent.source}`,
                         [],
                     ),
@@ -313,14 +295,14 @@ export function planTables(input: PlanInput): TablePlan {
     if (dialect === "postgresql") {
         for (const table of created) {
             const keys = table.constraints.filter((constraint) => constraint.kind === "foreignKey");
-            if (keys.length > 0) {
+            for (const key of keys) {
                 steps.push(
                     step(
-                        "alterConstraint",
+                        "create",
+                        Address.join("table", table.name, "constraint", key.name),
                         "safe",
-                        table.name,
-                        "add foreign keys",
-                        keys.map((key) => statement.addConstraint(table.name, key)),
+                        `add foreign key ${key.name}`,
+                        [statement.addConstraint(table.name, key)],
                     ),
                 );
             }
@@ -344,7 +326,7 @@ export function planTables(input: PlanInput): TablePlan {
         .map((previous) => previous.table.name);
     for (const name of dropped) {
         steps.push(
-            step("dropTable", "destructive", name, "drop table", [
+            step("delete", Address.join("table", name), "destructive", "drop table", [
                 statement.dropTable(name),
                 deleteState(name),
             ]),
@@ -397,9 +379,9 @@ function changeTable(
         if (renamed && !columns.has(column.name)) {
             steps.push(
                 step(
-                    "renameColumn",
+                    "rename",
+                    Address.join("table", next.name, "column", column.name),
                     "backward-incompatible",
-                    next.name,
                     `rename column ${from} to ${column.name}`,
                     [statement.renameColumn(next.name, from!, column.name)],
                 ),
@@ -431,7 +413,7 @@ function changeTable(
     );
     for (const column of unfilled) {
         problems.push({
-            target: next.name,
+            target: Address.join("table", next.name),
             detail: `declare a default for the required column ${column.name}`,
         });
     }
@@ -495,9 +477,9 @@ function changeSQLiteTable(
 
         return [
             step(
-                "rebuildTable",
+                "replace",
+                Address.join("table", next.name),
                 isLossy ? "destructive" : isChecked ? "data-dependent" : "safe",
-                next.name,
                 `rebuild table: ${detail || "constraints"}`,
                 statement.rebuildTable(next, copied),
             ),
@@ -507,9 +489,13 @@ function changeSQLiteTable(
     // add columns and replace changed indexes
     return [
         ...added.map((column) =>
-            step("addColumn", "safe", next.name, `add column ${column.name}`, [
-                statement.addColumn(next.name, column, "sqlite"),
-            ]),
+            step(
+                "create",
+                Address.join("table", next.name, "column", column.name),
+                "safe",
+                `add column ${column.name}`,
+                [statement.addColumn(next.name, column, "sqlite")],
+            ),
         ),
         ...changeIndexes(previous, next),
     ];
@@ -526,14 +512,22 @@ function changePostgresTable(
     // add and drop columns
     const steps: TableStep[] = [
         ...added.map((column) =>
-            step("addColumn", "safe", next.name, `add column ${column.name}`, [
-                statement.addColumn(next.name, column, "postgresql"),
-            ]),
+            step(
+                "create",
+                Address.join("table", next.name, "column", column.name),
+                "safe",
+                `add column ${column.name}`,
+                [statement.addColumn(next.name, column, "postgresql")],
+            ),
         ),
         ...removed.map((column) =>
-            step("dropColumn", "destructive", next.name, `drop column ${column.name}`, [
-                statement.dropColumn(next.name, column.name),
-            ]),
+            step(
+                "delete",
+                Address.join("table", next.name, "column", column.name),
+                "destructive",
+                `drop column ${column.name}`,
+                [statement.dropColumn(next.name, column.name)],
+            ),
         ),
     ];
 
@@ -542,21 +536,27 @@ function changePostgresTable(
         const old = previous.columns.find((entry) => entry.name === column.name)!;
         if (old.generated || column.generated) {
             steps.push(
-                step("alterColumn", "safe", next.name, `recreate column ${column.name}`, [
-                    statement.dropColumn(next.name, column.name),
-                    statement.addColumn(next.name, column, "postgresql"),
-                ]),
+                step(
+                    "replace",
+                    Address.join("table", next.name, "column", column.name),
+                    "safe",
+                    `recreate column ${column.name}`,
+                    [
+                        statement.dropColumn(next.name, column.name),
+                        statement.addColumn(next.name, column, "postgresql"),
+                    ],
+                ),
             );
         } else {
             steps.push(
                 step(
-                    "alterColumn",
+                    "update",
+                    Address.join("table", next.name, "column", column.name),
                     old.type !== column.type
                         ? "destructive"
                         : old.nullable && !column.nullable
                           ? "data-dependent"
                           : "safe",
-                    next.name,
                     `change column ${column.name}`,
                     statement.alterColumn(next.name, old, column),
                 ),
@@ -578,17 +578,21 @@ function changeConstraints(previous: TableDescription, next: TableDescription): 
         ...previous.constraints
             .filter((constraint) => after.get(constraint.name) !== before.get(constraint.name))
             .map((constraint) =>
-                step("alterConstraint", "safe", next.name, `drop constraint ${constraint.name}`, [
-                    statement.dropConstraint(next.name, constraint.name),
-                ]),
+                step(
+                    "delete",
+                    Address.join("table", next.name, "constraint", constraint.name),
+                    "safe",
+                    `drop constraint ${constraint.name}`,
+                    [statement.dropConstraint(next.name, constraint.name)],
+                ),
             ),
         ...next.constraints
             .filter((constraint) => before.get(constraint.name) !== after.get(constraint.name))
             .map((constraint) =>
                 step(
-                    "alterConstraint",
+                    "create",
+                    Address.join("table", next.name, "constraint", constraint.name),
                     "data-dependent",
-                    next.name,
                     `add constraint ${constraint.name}`,
                     [statement.addConstraint(next.name, constraint)],
                 ),
@@ -606,17 +610,21 @@ function changeIndexes(previous: TableDescription, next: TableDescription): Tabl
         ...previous.indexes
             .filter((index) => after.get(index.name) !== before.get(index.name))
             .map((index) =>
-                step("dropIndex", "safe", next.name, `drop index ${index.name}`, [
-                    statement.dropIndex(index.name),
-                ]),
+                step(
+                    "delete",
+                    Address.join("table", next.name, "index", index.name),
+                    "safe",
+                    `drop index ${index.name}`,
+                    [statement.dropIndex(index.name)],
+                ),
             ),
         ...next.indexes
             .filter((index) => before.get(index.name) !== after.get(index.name))
             .map((index) =>
                 step(
-                    "createIndex",
+                    "create",
+                    Address.join("table", next.name, "index", index.name),
                     index.unique ? "data-dependent" : "safe",
-                    next.name,
                     `create index ${index.name}`,
                     [statement.createIndex(next.name, index)],
                 ),
@@ -640,9 +648,13 @@ function convertRows(state: TableState, release: Version): TableStep {
         .map(([column, expression]) => `${quote(column)} = ${expression}`)
         .join(", ");
 
-    return step("convertRows", "data-dependent", name, `convert rows to ${release}`, [
-        `UPDATE ${quote(name)} SET ${set}`,
-    ]);
+    return step(
+        "convert",
+        Address.join("table", name),
+        "data-dependent",
+        `convert rows to ${release}`,
+        [`UPDATE ${quote(name)} SET ${set}`],
+    );
 }
 
 /** Check each kept column's values: widened values are safe, narrowed ones need a conversion. */
@@ -669,16 +681,16 @@ function changeValues(
             (release) => state.conversions![release]![column.name] !== undefined,
         );
         try {
-            const planned = Plan.schema({
-                target: `${name}.${column.name}`,
+            const planned = Plan.values({
+                target: Address.join("table", name, "column", column.name),
                 before: old.value,
                 after: column.value,
                 release: state.package.version,
                 compatibility: "backward",
                 isConverted,
             });
-            for (const change of planned.steps.filter((entry) => entry.kind === "wider")) {
-                steps.push(step("widenColumn", change.risk, name, change.detail, []));
+            for (const change of planned.steps.filter((entry) => entry.action === "update")) {
+                steps.push(step("update", change.target, change.risk, change.detail, []));
             }
         } catch (error) {
             if (!(error instanceof PlanError)) {
@@ -693,11 +705,11 @@ function changeValues(
 
 /** Build a step. */
 function step(
-    kind: TableStepKind,
+    action: Action,
+    target: Address,
     risk: Risk,
-    target: string,
     detail: string,
     statements: readonly string[],
 ): TableStep {
-    return { kind, risk, target, detail, statements };
+    return { action, target, risk, detail, statements };
 }

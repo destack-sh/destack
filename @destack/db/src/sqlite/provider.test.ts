@@ -63,9 +63,9 @@ test("provision, plan and apply a SQLite database file, connect a workload to it
         () => false,
         () => true,
     );
-    expect({ early, steps: plan.steps.map((step) => step.kind), applied, isGone }).toEqual({
+    expect({ early, steps: plan.steps.map((step) => step.action), applied, isGone }).toEqual({
         early: `database notes has not applied ${qualified}`,
-        steps: ["createTable"],
+        steps: ["create"],
         applied: "connected",
         isGone: true,
     });

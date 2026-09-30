@@ -4,7 +4,7 @@ import { schema } from "@destack/schema";
 import { TABLE, type Table } from "../table/table.ts";
 import { qualify } from "../table/namespace.ts";
 import { defineDatabase } from "../declare/database.ts";
-import { planMigration, planStates } from "./database.ts";
+import { mergeStates } from "./merge.ts";
 import { applyPlan } from "./apply.ts";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
 import type { Dialect } from "../dialect/dialect.ts";
@@ -131,7 +131,7 @@ async function open(dialect: Dialect, tables: readonly Table[]) {
 
 /** Summarize a plan's steps. */
 function review(plan: TablePlan) {
-    return plan.steps.map((step) => `${step.risk} ${step.kind} ${step.target}: ${step.detail}`);
+    return plan.steps.map((step) => `${step.risk} ${step.action} ${step.target}: ${step.detail}`);
 }
 
 test.for(TEST_DIALECTS)(
@@ -141,8 +141,10 @@ test.for(TEST_DIALECTS)(
 
         // create the table, then find the database current
         const plan = await database.migrate([taskOne]);
-        expect(review(plan)).toEqual([`safe createTable ${table(taskOne)}: create table`]);
-        expect(review(await planMigration(database, declareState([taskOne], dialect)))).toEqual([]);
+        expect(review(plan)).toEqual([`safe create table/${table(taskOne)}: create table`]);
+        expect(review(await database.plan({ declared: declareState([taskOne], dialect) }))).toEqual(
+            [],
+        );
     },
 );
 
@@ -156,18 +158,18 @@ test.for(TEST_DIALECTS)(
         );
 
         // classify the rename, addition and dropped note
-        const plan = await planMigration(database, declareState([taskTwo], dialect));
+        const plan = await database.plan({ declared: declareState([taskTwo], dialect) });
         expect(review(plan)).toEqual(
             dialect === "sqlite"
                 ? [
-                      `backward-incompatible renameColumn ${table(taskTwo)}: rename column name to title`,
-                      `destructive rebuildTable ${table(taskTwo)}: rebuild table: add due_at, drop note`,
+                      `backward-incompatible rename table/${table(taskTwo)}/column/title: rename column name to title`,
+                      `destructive replace table/${table(taskTwo)}: rebuild table: add due_at, drop note`,
                   ]
                 : [
-                      `backward-incompatible renameColumn ${table(taskTwo)}: rename column name to title`,
-                      `safe addColumn ${table(taskTwo)}: add column due_at`,
-                      `destructive dropColumn ${table(taskTwo)}: drop column note`,
-                      `safe createIndex ${table(taskTwo)}: create index ${indexName(taskTwo, "task_due")}`,
+                      `backward-incompatible rename table/${table(taskTwo)}/column/title: rename column name to title`,
+                      `safe create table/${table(taskTwo)}/column/due_at: add column due_at`,
+                      `destructive delete table/${table(taskTwo)}/column/note: drop column note`,
+                      `safe create table/${table(taskTwo)}/index/${indexName(taskTwo, "task_due")}: create index ${indexName(taskTwo, "task_due")}`,
                   ],
         );
 
@@ -176,7 +178,9 @@ test.for(TEST_DIALECTS)(
         expect(await database.select().from(taskTwo)).toEqual([
             { id: "a", scope: "inbox", title: "Plan", urgent: 1, dueAt: null },
         ]);
-        expect(review(await planMigration(database, declareState([taskTwo], dialect)))).toEqual([]);
+        expect(review(await database.plan({ declared: declareState([taskTwo], dialect) }))).toEqual(
+            [],
+        );
     },
 );
 
@@ -193,8 +197,8 @@ test.for(TEST_DIALECTS)(
         // convert every row by the next release's conversion
         const plan = await database.migrate([taskThree]);
         expect(review(plan)).toEqual([
-            `safe addColumn ${table(taskThree)}: add column priority`,
-            `data-dependent convertRows ${table(taskThree)}: convert rows to 2026.10.0`,
+            `safe create table/${table(taskThree)}/column/priority: add column priority`,
+            `data-dependent convert table/${table(taskThree)}: convert rows to 2026.10.0`,
         ]);
         expect(await database.select().from(taskThree).orderBy(taskThree.id)).toEqual([
             { id: "a", scope: "inbox", title: "Plan", urgent: 1, priority: "high", dueAt: null },
@@ -223,15 +227,18 @@ test.for(TEST_DIALECTS)(
 
         // name the unfillable column and the unmanaged table
         await expect(
-            planMigration(database, declareState([taskUnfilled, labelPlain], dialect)),
+            database.plan({ declared: declareState([taskUnfilled, labelPlain], dialect) }),
         ).rejects.toMatchObject({
             name: "PlanError",
             problems: [
                 {
-                    target: table(taskUnfilled),
+                    target: `table/${table(taskUnfilled)}`,
                     detail: "declare a default for the required column owner",
                 },
-                { target: table(labelPlain), detail: "table exists without applied state" },
+                {
+                    target: `table/${table(labelPlain)}`,
+                    detail: "table exists without applied state",
+                },
             ],
         });
     },
@@ -290,24 +297,24 @@ test.for(TEST_DIALECTS)(
         );
 
         // accept the widened mode, refuse the unconverted narrowing, and convert the declared one
-        const wide = await planMigration(database, declareState([preferenceWide], dialect));
+        const wide = await database.plan({ declared: declareState([preferenceWide], dialect) });
         expect(review(wide)).toEqual([
-            `safe widenColumn ${table(preferenceWide)}: wider ${table(preferenceWide)}.mode`,
+            `safe update table/${table(preferenceWide)}/column/mode: wider values`,
         ]);
         await expect(
-            planMigration(database, declareState([preferenceNarrow], dialect)),
+            database.plan({ declared: declareState([preferenceNarrow], dialect) }),
         ).rejects.toMatchObject({
             name: "PlanError",
             problems: [
                 {
-                    target: `${table(preferenceNarrow)}.mode`,
+                    target: `table/${table(preferenceNarrow)}/column/mode`,
                     detail: "declare a conversion for 2026.10.0",
                 },
             ],
         });
         const converted = await database.migrate([preferenceConverted]);
         expect(review(converted)).toEqual([
-            `data-dependent convertRows ${table(preferenceConverted)}: convert rows to 2026.10.0`,
+            `data-dependent convert table/${table(preferenceConverted)}: convert rows to 2026.10.0`,
         ]);
         expect(
             await database.select().from(preferenceConverted).orderBy(preferenceConverted.id),
@@ -370,13 +377,13 @@ test.for(TEST_DIALECTS)(
             rolledBack: [],
             refused: [
                 {
-                    target: table(preferenceOne),
+                    target: `table/${table(preferenceOne)}`,
                     detail: `rollback to 2026.9.0 cannot hold the table as ${NEXT_RELEASE.package.version} applied it`,
                 },
             ],
             renamed: [
                 {
-                    target: table(folderOne),
+                    target: `table/${table(folderOne)}`,
                     detail: `rollback to 2026.9.0 cannot read the table ${NEXT_RELEASE.package.version} renamed to ${table(directoryTable)}`,
                 },
             ],
@@ -464,18 +471,20 @@ test.for(TEST_DIALECTS)("make a column unique and enforce it on %s", async (dial
     await database.migrate([labelPlain]);
 
     // add the unique constraint
-    const plan = await planMigration(database, declareState([labelUnique], dialect));
+    const plan = await database.plan({ declared: declareState([labelUnique], dialect) });
     expect(review(plan)).toEqual(
         dialect === "sqlite"
-            ? [`data-dependent rebuildTable ${table(labelUnique)}: rebuild table: constraints`]
+            ? [`data-dependent replace table/${table(labelUnique)}: rebuild table: constraints`]
             : [
-                  `data-dependent alterConstraint ${table(labelUnique)}: add constraint ${table(labelUnique)}_code_unique`,
+                  `data-dependent create table/${table(labelUnique)}/constraint/${table(labelUnique)}_code_unique: add constraint ${table(labelUnique)}_code_unique`,
               ],
     );
     await applyPlan(database, plan);
 
     // plan nothing more
-    expect(review(await planMigration(database, declareState([labelUnique], dialect)))).toEqual([]);
+    expect(review(await database.plan({ declared: declareState([labelUnique], dialect) }))).toEqual(
+        [],
+    );
     const name = sql.identifier(table(labelUnique));
     await database.execute(
         sql`INSERT INTO ${name} (id, code) VALUES ('a', 'x'), ('b', 'x') ON CONFLICT DO NOTHING`,
@@ -490,19 +499,21 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const database = await open(dialect, [taskOne]);
         const state = (tables: readonly Table[]) =>
-            defineDatabase({ name: "main", tables }).state();
+            defineDatabase({ name: "main", tables }).state().tables[dialect];
 
         // create a shared table once
-        const plan = await planStates(database, [state([taskOne]), state([taskOne])]);
-        expect(review(plan)).toEqual([`safe createTable ${table(taskOne)}: create table`]);
+        const plan = await database.plan(mergeStates([state([taskOne]), state([taskOne])]));
+        expect(review(plan)).toEqual([`safe create table/${table(taskOne)}: create table`]);
         await applyPlan(database, plan);
 
         // refuse conflicting column types
         await expect(
-            planStates(database, [state([taskOne]), state([taskText])]),
+            database.plan(mergeStates([state([taskOne]), state([taskText])])),
         ).rejects.toMatchObject({
             name: "PlanError",
-            problems: [{ target: table(taskOne), detail: "releases disagree on column urgent" }],
+            problems: [
+                { target: `table/${table(taskOne)}`, detail: "releases disagree on column urgent" },
+            ],
         });
     },
 );
@@ -512,34 +523,31 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const database = await open(dialect, [taskOne]);
         const state = (tables: readonly Table[]) =>
-            defineDatabase({
-                name: "main",
-                tables,
-            }).state();
+            defineDatabase({ name: "main", tables }).state().tables[dialect];
         await database.migrate([taskOne]);
         await database.execute(
             sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent, note) VALUES ('a', 'inbox', 'Plan', 1, 'old')`,
         );
 
         // expand the table for both releases and bridge the renamed column
-        const expand = await planStates(database, [state([taskOne]), state([taskTwo])]);
+        const expand = await database.plan(mergeStates([state([taskOne]), state([taskTwo])]));
         expect(review(expand)).toEqual(
             dialect === "sqlite"
                 ? [
-                      `safe rebuildTable ${table(taskTwo)}: rebuild table: add title, add due_at, change name`,
-                      `data-dependent bridgeColumn ${table(taskTwo)}: copy name into title`,
+                      `safe replace table/${table(taskTwo)}: rebuild table: add title, add due_at, change name`,
+                      `data-dependent convert table/${table(taskTwo)}/column/title: copy name into title`,
                   ]
                 : [
-                      `safe addColumn ${table(taskTwo)}: add column title`,
-                      `safe addColumn ${table(taskTwo)}: add column due_at`,
-                      `safe alterColumn ${table(taskTwo)}: change column name`,
-                      `safe createIndex ${table(taskTwo)}: create index ${indexName(taskTwo, "task_due")}`,
-                      `data-dependent bridgeColumn ${table(taskTwo)}: copy name into title`,
+                      `safe create table/${table(taskTwo)}/column/title: add column title`,
+                      `safe create table/${table(taskTwo)}/column/due_at: add column due_at`,
+                      `safe update table/${table(taskTwo)}/column/name: change column name`,
+                      `safe create table/${table(taskTwo)}/index/${indexName(taskTwo, "task_due")}: create index ${indexName(taskTwo, "task_due")}`,
+                      `data-dependent convert table/${table(taskTwo)}/column/title: copy name into title`,
                   ],
         );
-        expect(review(await planStates(database, [state([taskTwo]), state([taskOne])]))).toEqual(
-            review(expand),
-        );
+        expect(
+            review(await database.plan(mergeStates([state([taskTwo]), state([taskOne])]))),
+        ).toEqual(review(expand));
         await applyPlan(database, expand);
 
         // connect both releases
@@ -565,16 +573,16 @@ test.for(TEST_DIALECTS)(
         ]);
 
         // drop the old release's columns
-        const contract = await planStates(database, [state([taskTwo])]);
+        const contract = await database.plan(mergeStates([state([taskTwo])]));
         expect(review(contract)).toEqual(
             dialect === "sqlite"
                 ? [
-                      `destructive rebuildTable ${table(taskTwo)}: rebuild table: drop name, drop note, change title`,
+                      `destructive replace table/${table(taskTwo)}: rebuild table: drop name, drop note, change title`,
                   ]
                 : [
-                      `destructive dropColumn ${table(taskTwo)}: drop column name`,
-                      `destructive dropColumn ${table(taskTwo)}: drop column note`,
-                      `data-dependent alterColumn ${table(taskTwo)}: change column title`,
+                      `destructive delete table/${table(taskTwo)}/column/name: drop column name`,
+                      `destructive delete table/${table(taskTwo)}/column/note: drop column note`,
+                      `data-dependent update table/${table(taskTwo)}/column/title: change column title`,
                   ],
         );
         await applyPlan(database, contract);

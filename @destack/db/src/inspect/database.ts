@@ -1,4 +1,5 @@
-import type { Compare, Step } from "@destack/resource";
+import { Address, type Compare, type Plan, type Step } from "@destack/resource";
+import { PlanError } from "@destack/resource/error";
 import { defineSchema, type schema } from "@destack/schema";
 import { DatabaseKind, type Database } from "../declare/database.ts";
 import { planTables } from "../migration/plan.ts";
@@ -27,20 +28,35 @@ export const compareDatabase: Compare = (before, after) => {
     const earlier = DatabaseDeclaration.parse(before.description);
     const later = DatabaseDeclaration.parse(after.description);
 
-    // plan the earlier release's tables to the later release's in each dialect
+    // plan the tables in each dialect under the database's address
+    const database = Address.join("database", later.name);
     const steps = new Map<string, Step>();
     for (const dialect of ["sqlite", "postgresql"] as const) {
         const applied = earlier.tables[dialect];
-        const plan = planTables({
-            applied,
-            existing: applied.map((state) => state.table.name),
-            declared: later.tables[dialect],
-            dialect,
-        });
+        let plan: Plan;
+        try {
+            plan = planTables({
+                applied,
+                existing: applied.map((state) => state.table.name),
+                declared: later.tables[dialect],
+                dialect,
+            });
+        } catch (error) {
+            throw error instanceof PlanError
+                ? new PlanError(
+                      error.problems.map((problem) => ({
+                          ...problem,
+                          target: Address.join(database, problem.target),
+                      })),
+                  )
+                : error;
+        }
 
         // keep each step once across dialects
-        for (const { kind, risk, target, detail } of plan.steps) {
-            steps.set(JSON.stringify([kind, target, detail]), { kind, risk, target, detail });
+        for (const { action, risk, target, detail } of plan.steps) {
+            const addressed = Address.join(database, target);
+            const key = JSON.stringify([action, addressed, detail]);
+            steps.set(key, { action, target: addressed, risk, detail });
         }
     }
 

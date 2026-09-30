@@ -17,6 +17,7 @@ import type { Table } from "../table/table.ts";
 import { DatabaseError } from "../error/error.ts";
 import { Replication } from "../replication/replication.ts";
 import { DatabaseKind } from "../declare/database.ts";
+import { mergeStates } from "../migration/merge.ts";
 
 /** Provide databases as SQLite files, one folder per space. */
 export function sqliteProvider(
@@ -46,7 +47,9 @@ export function sqliteProvider(
             // diff the applied state against the desired states
             const connection = await open(record, []);
             try {
-                return await connection.plan(desired);
+                return await connection.plan(
+                    mergeStates(desired.map((state) => state.tables.sqlite)),
+                );
             } finally {
                 await connection.close();
             }
@@ -55,7 +58,9 @@ export function sqliteProvider(
             // apply the reviewed plan
             const connection = await open(record, []);
             try {
-                const plan = await connection.plan(desired);
+                const plan = await connection.plan(
+                    mergeStates(desired.map((state) => state.tables.sqlite)),
+                );
                 if ((await Plan.digest(plan)) !== digest) {
                     throw new DatabaseError(
                         "PLAN_CHANGED",

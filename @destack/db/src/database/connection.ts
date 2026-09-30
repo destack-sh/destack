@@ -1,4 +1,3 @@
-import type { DatabaseState } from "../migration/state.ts";
 import { assertNever, classifyError, DatabaseError } from "../error/error.ts";
 import { DatabaseDriver, type NativeDatabase } from "./driver.ts";
 import type { SchemaCompiler } from "../dialect/compiler.ts";
@@ -10,12 +9,13 @@ import { MutationQuery } from "../query/mutation.ts";
 import {
     declareState,
     readState,
+    readTables,
     unappliedTables,
     type DeclareOptions,
 } from "../migration/state.ts";
-import { planMigration, planStates } from "../migration/database.ts";
 import { applyPlan } from "../migration/apply.ts";
-import type { TablePlan } from "../migration/plan.ts";
+import { planTables, type TablePlan } from "../migration/plan.ts";
+import type { MergedState } from "../migration/merge.ts";
 import type { Selection } from "../query/selection.ts";
 import { type TransactionOptions, TransactionState } from "./transaction.ts";
 import { closeTransaction, openTransaction } from "../log/transaction.ts";
@@ -200,7 +200,7 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
 
     /** Plan and apply tables at once. */
     async migrate(tables: readonly Table[], options: DeclareOptions = {}): Promise<TablePlan> {
-        const plan = await planMigration(this, declareState(tables, this.dialect, options));
+        const plan = await this.plan({ declared: declareState(tables, this.dialect, options) });
         await this.apply(plan);
 
         return plan;
@@ -211,9 +211,15 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         return unappliedTables(await readState(this), declareState(tables, this.dialect, options));
     }
 
-    /** Plan the union of the desired states. */
-    plan(desired: readonly DatabaseState[]): Promise<TablePlan> {
-        return planStates(this, desired);
+    /** Plan the migration from the applied tables to declared ones. */
+    async plan(state: Pick<MergedState, "declared"> & Partial<MergedState>): Promise<TablePlan> {
+        return planTables({
+            applied: await readState(this),
+            existing: await readTables(this),
+            declared: state.declared,
+            conflicts: state.conflicts ?? [],
+            dialect: this.dialect,
+        });
     }
 
     /** Apply a plan in one transaction and record the declared state. */

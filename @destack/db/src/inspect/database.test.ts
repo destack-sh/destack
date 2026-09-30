@@ -44,14 +44,18 @@ test("plan a database's table changes between releases once across dialects", ()
     const after = describeDatabase(defineDatabase({ name: "notes", tables: [laterNote] }));
 
     // add the body column and drop the drafts
-    expect(
-        compareDatabase(entry(before, "2026.8.0"), entry(after, "2026.9.0")).steps.map((step) => [
-            step.kind,
-            step.risk,
-            step.target,
-        ]),
-    ).toEqual([
-        ["addColumn", "safe", "destack__db__note"],
-        ["dropTable", "destructive", "destack__db__draft"],
+    expect(compareDatabase(entry(before, "2026.8.0"), entry(after, "2026.9.0")).steps).toEqual([
+        {
+            action: "create",
+            target: "database/notes/table/destack__db__note/column/body",
+            risk: "safe",
+            detail: "add column body",
+        },
+        {
+            action: "delete",
+            target: "database/notes/table/destack__db__draft",
+            risk: "destructive",
+            detail: "drop table",
+        },
     ]);
 });

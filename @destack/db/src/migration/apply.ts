@@ -5,13 +5,6 @@ import { DatabaseError } from "../error/error.ts";
 import { STATE, writeState } from "./state.ts";
 import type { TablePlan, TableStep } from "./plan.ts";
 
-/** The step kinds applied after the triggers for the log to record their writes. */
-const LOGGED_KINDS: ReadonlySet<TableStep["kind"]> = new Set([
-    "convertRows",
-    "bridgeColumn",
-    "rebuildTree",
-]);
-
 /** Apply a plan in one transaction and record the declared state. */
 export async function applyPlan(database: DatabaseConnection, plan: TablePlan): Promise<void> {
     // skip empty plans
@@ -27,15 +20,13 @@ export async function applyPlan(database: DatabaseConnection, plan: TablePlan): 
     const changes = [
         lock,
         ...plan.before,
-        ...plan.steps
-            .filter((step) => !LOGGED_KINDS.has(step.kind))
-            .flatMap((step) => step.statements),
+        ...plan.steps.filter((step) => !isLogged(step)).flatMap((step) => step.statements),
         ...plan.after,
     ];
 
-    // turn foreign keys off to rebuild SQLite tables
+    // turn foreign keys off while SQLite rebuilds tables
     const isRebuilt =
-        plan.dialect === "sqlite" && plan.steps.some((step) => step.kind === "rebuildTable");
+        plan.dialect === "sqlite" && plan.steps.some((step) => step.action === "replace");
     if (isRebuilt) {
         await database.executeScript("PRAGMA foreign_keys = OFF");
     }
@@ -66,7 +57,7 @@ async function applySteps(
 
         // convert rows and rebuild trees after the triggers
         let pending: string[] = [];
-        for (const step of plan.steps.filter((entry) => LOGGED_KINDS.has(entry.kind))) {
+        for (const step of plan.steps.filter(isLogged)) {
             // flush the batch and rebuild the tree
             if (step.tree) {
                 await runScript(transaction, pending);
@@ -126,4 +117,9 @@ async function runScript(
         const message = cause instanceof Error ? cause.message : String(cause);
         throw new DatabaseError("MIGRATION_FAILED", `migration failed: ${message}`, { cause });
     }
+}
+
+/** Decide whether a step writes rows the log records. */
+function isLogged(step: TableStep): boolean {
+    return step.action === "convert" || step.tree !== undefined;
 }
