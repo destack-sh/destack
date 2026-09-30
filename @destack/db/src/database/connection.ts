@@ -54,6 +54,11 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         return this.state.tier;
     }
 
+    /** The tables the database declares, in declaration order. */
+    get tables(): readonly Table[] {
+        return this.compiler.declared;
+    }
+
     /** Decide whether the database keeps a table's rows as copies from their home: the tables of a wider tier than its own. */
     copies(table: Table): boolean {
         const tiers = DatabaseTier.options;

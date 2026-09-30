@@ -20,6 +20,8 @@ export abstract class SchemaCompiler<Driver extends Dialect = Dialect> {
     readonly columns = new WeakMap<Column, drizzle.Column>();
     /** The physical tables by declaration. */
     readonly declarations = new WeakMap<Table, sqlite.SQLiteTable | postgres.PgTable>();
+    /** The declared tables in declaration order. */
+    readonly declared: Table[] = [];
 
     /** Compile each declared table once. */
     constructor(dialect: Driver, declarations: readonly Table[]) {
@@ -38,6 +40,7 @@ export abstract class SchemaCompiler<Driver extends Dialect = Dialect> {
             const physical = this.compileTable(declaration);
             this.tables.set(definition.sqlName, physical);
             this.declarations.set(declaration, physical);
+            this.declared.push(declaration);
 
             // map the declared columns to physical ones
             const columns = getTableColumns(physical);
