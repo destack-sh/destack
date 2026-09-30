@@ -4,7 +4,7 @@ Instrument Destack packages with logs, spans and metrics over [OpenTelemetry](ht
 
 ## Logs
 
-A package emits structured records named by literal event names, and keeps sensitive values under `sensitive.` keys.
+A package emits structured records under literal event names, and keeps sensitive values under `sensitive.` keys.
 
 ```ts
 import { telemetry } from "@destack/telemetry";
