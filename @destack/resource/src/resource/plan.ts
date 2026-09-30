@@ -6,6 +6,7 @@ import {
     type Version,
 } from "@destack/schema";
 import { digest } from "@destack/schema/json";
+import type { DeclarationDescription } from "@destack/package/inspect";
 import { PlanError } from "../error/error.ts";
 
 /** How consequential a step is, from least to most. */
@@ -36,8 +37,11 @@ export interface Plan<Change extends Step = Step> {
 /** Which readers must accept a changed schema: newer readers of older values, or older readers of newer values. */
 export type Compatibility = "backward" | "forward";
 
-/** Compare two releases' descriptions of one declaration, throwing a PlanError for changes the later release must declare. */
-export type Compare<Description = unknown> = (before: Description, after: Description) => Plan;
+/** Compare two releases' manifest entries of one declaration, throwing a PlanError for changes the later release must declare. */
+export type Compare = (
+    before: Pick<DeclarationDescription, "description" | "symbol">,
+    after: Pick<DeclarationDescription, "description" | "symbol">,
+) => Plan;
 
 /** A schema change between two releases of a declaration. */
 export interface SchemaChange {
