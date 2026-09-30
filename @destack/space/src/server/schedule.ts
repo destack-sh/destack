@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, ne } from "@destack/db";
 import { Condition } from "@destack/db/query";
-import type { Call, ObjectControl } from "@destack/object";
+import type { Call, ObjectReconciliation } from "@destack/object";
 import type { Identifier } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { describeTiming } from "@destack/service/inspect";
@@ -45,8 +45,8 @@ export function serveSchedules(now: () => number) {
                                 ),
                     },
                 ],
-                reconcile: (control) =>
-                    fire(control.rows[0] as Schedule, { ...control, now: now() }),
+                reconcile: (reconciliation) =>
+                    fire(reconciliation.rows[0]!, { ...reconciliation, now: now() }),
             }),
     };
 }
@@ -86,15 +86,18 @@ async function timed(
 }
 
 /** Record a schedule's due occurrences, returning the wait until its next one. */
-async function fire(current: Schedule, control: ObjectControl): Promise<number | undefined> {
+async function fire(
+    current: Schedule,
+    reconciliation: ObjectReconciliation,
+): Promise<number | undefined> {
     // leave the schedule of an installation this cell does not serve now
-    const database = control.database;
+    const database = reconciliation.database;
     if ((await Installation.serving(database, current.installation)) === undefined) {
         return undefined;
     }
 
     // find the latest occurrences due since the latest recorded one, or within the deadline
-    const now = control.now;
+    const now = reconciliation.now;
     const [latest] = await database
         .select({ scheduledAt: run.table.scheduledAt })
         .from(run.table)
@@ -112,7 +115,7 @@ async function fire(current: Schedule, control: ObjectControl): Promise<number |
         .map((scheduledAt, index) => ({ scheduledAt, index }))
         .filter(({ scheduledAt }) => !isDue(scheduledAt));
     if (skipped.length > 0) {
-        await control.server.executeAsSystem(
+        await reconciliation.server.executeAsSystem(
             run,
             "create",
             skipped.map(({ scheduledAt, index }) => ({
@@ -130,7 +133,7 @@ async function fire(current: Schedule, control: ObjectControl): Promise<number |
 
     // record the latest occurrence within its deadline for an attempt
     if (last !== undefined && isDue(last)) {
-        await occur(current, last, control);
+        await occur(current, last, reconciliation);
     }
 
     // look again at the next occurrence
@@ -143,10 +146,10 @@ async function fire(current: Schedule, control: ObjectControl): Promise<number |
 async function occur(
     current: Schedule,
     scheduledAt: number,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
 ): Promise<void> {
-    const now = control.now;
-    await control.database.transaction(
+    const now = reconciliation.now;
+    await reconciliation.database.transaction(
         async (transaction) => {
             // find the run claiming a schedule refusing overlaps
             const [claimant] =
@@ -165,7 +168,7 @@ async function occur(
 
             // skip an occurrence overlapping the run claiming the schedule
             const invoke = (name: string, input: Readonly<Record<string, unknown>>) =>
-                control.server.invoke(transaction, current.scope, run, name, input, now);
+                reconciliation.server.invoke(transaction, current.scope, run, name, input, now);
             if (claimant !== undefined && current.concurrency === "forbid") {
                 await invoke("create", {
                     ...occurrence(current, scheduledAt),

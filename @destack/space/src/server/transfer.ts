@@ -4,7 +4,7 @@ import { Condition } from "@destack/db/query";
 import type { Directory, Zone } from "@destack/directory";
 import type { ObjectType } from "@destack/object";
 import type { ObjectServer } from "@destack/object/server";
-import { zone, type ZoneRow } from "@destack/account/object";
+import { zone } from "@destack/account/object";
 import {
     type Copy,
     Plan,
@@ -25,7 +25,6 @@ import {
     space,
     SpaceCell,
     transfer,
-    type Transfer,
 } from "../object/index.ts";
 import { appliedStates, type ProviderIndex } from "./resource.ts";
 import { requireCreation } from "./space.ts";
@@ -102,10 +101,10 @@ export function serveTransfers(options: TransferOptions) {
                 Condition.missing("completedAt"),
                 Condition.eq("source", SpaceCell.id(options.cell)),
             ),
-            reconcile: async (control) => {
+            reconcile: async (reconciliation) => {
                 // act on a transfer of a space this cell serves still
-                const record = control.rows[0] as unknown as Transfer;
-                const [served] = await control.database
+                const record = reconciliation.rows[0]!;
+                const [served] = await reconciliation.database
                     .select({ accountId: space.table.scope })
                     .from(space.table)
                     .where(and(eq(space.table.id, record.scope), SpaceCell.served()));
@@ -134,11 +133,11 @@ export function serveZones(options: TransferOptions) {
     return zone.control({
         pending: Condition.eq("target", SpaceCell.id(options.cell)),
         concurrency: TRANSFER_CONCURRENCY,
-        reconcile: async (control) => {
+        reconcile: async (reconciliation) => {
             // read the zone as the directory places it, in its account
-            const row = control.rows[0] as unknown as ZoneRow;
+            const row = reconciliation.rows[0]!;
             const moving = { id: row.id, scope: row.parent, cell: row.cell, epoch: row.epoch };
-            await receive(moving, control.signal, options);
+            await receive(moving, reconciliation.signal, options);
 
             return undefined;
         },

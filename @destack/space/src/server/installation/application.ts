@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNotNull, type DatabaseConnection } from "@destack/db";
-import type { ObjectControl } from "@destack/object";
+import type { ObjectReconciliation } from "@destack/object";
 import { SystemCall } from "@destack/object/server";
 import type { PackageId } from "@destack/package";
 import type { ResourceState } from "@destack/package/declare";
@@ -55,11 +55,11 @@ export interface ApplicationOptions {
 /** Deploy an enabled application, drain a suspended one, remove a drained deleted one, and relate it as reader of what its live deployments captured. */
 export async function reconcileApplication(
     id: Identifier<"installation">,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
     options: ApplicationOptions,
 ): Promise<undefined> {
     // read the application of a served space and the revision it follows
-    const database = control.database;
+    const database = reconciliation.database;
     const [served] = await database
         .select({ installation: installation.table, revision: installationRevision.table })
         .from(installation.table)
@@ -83,7 +83,7 @@ export async function reconcileApplication(
         .select()
         .from(deployment.table)
         .where(and(eq(deployment.table.installationId, target.id), Deployment.live()));
-    const now = control.now;
+    const now = reconciliation.now;
 
     // drain every deployment of a deleted or suspended application, or of one following no revision
     const isDeleted = target.deletionRequestedAt !== null;
@@ -91,19 +91,19 @@ export async function reconcileApplication(
         await drain(
             live.filter((entry) => entry.status === "active"),
             now,
-            control,
+            reconciliation,
         );
 
         // remove a deleted application once none of its deployments runs
         if (isDeleted && live.length === 0) {
-            await finalize(target, now, control, options);
+            await finalize(target, now, reconciliation, options);
 
             return undefined;
         }
     }
     // deploy the revision until each workload runs from the output the cell chooses
     else {
-        await release(target, revision, live, now, control, options);
+        await release(target, revision, live, now, reconciliation, options);
     }
 
     // relate the application as reader of exactly what its live deployments captured
@@ -120,7 +120,7 @@ async function release(
     revision: InstallationRevision,
     live: readonly Deployment[],
     now: number,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
     options: ApplicationOptions,
 ): Promise<void> {
     // read the workloads the cell runs and refuse a build with an unrunnable workload
@@ -128,23 +128,23 @@ async function release(
     const { workloads, stranded } = workloadsOf(build, options.runtimes);
     if (stranded.length > 0) {
         const message = `workloads ${stranded.join(", ")} have no output on ${options.runtimes.join(", ")}`;
-        await refuse(target, "NoRuntime", message, now, control);
+        await refuse(target, "NoRuntime", message, now, reconciliation);
 
         return;
     }
 
     // wait for an approval of the upgrade from the applied release, refusing a broken upgrade chain
     if (target.appliedRevisionId !== null && target.appliedRevisionId !== revision.id) {
-        const [applied] = await control.database
+        const [applied] = await reconciliation.database
             .select({ build: installationRevision.table.build })
             .from(installationRevision.table)
             .where(eq(installationRevision.table.id, target.appliedRevisionId));
         const upgrade = await upgradeOf(options.openBuild, target, applied!.build, build);
         if (typeof upgrade === "string") {
-            await refuse(target, "NoUpgrade", upgrade, now, control);
+            await refuse(target, "NoUpgrade", upgrade, now, reconciliation);
 
             return;
-        } else if (await Approval.awaits(target, upgrade, control)) {
+        } else if (await Approval.awaits(target, upgrade, reconciliation)) {
             return;
         }
     }
@@ -156,7 +156,7 @@ async function release(
         workloads.some(
             (workload) => workload.name === entry.workload && workload.output === entry.output,
         );
-    const isRebound = await rebound(target, active, control.database);
+    const isRebound = await rebound(target, active, reconciliation.database);
     const kept = isRebound ? [] : active.filter(isChosen);
     const fresh = workloads.filter(
         (workload) => !kept.some((entry) => entry.workload === workload.name),
@@ -173,7 +173,7 @@ async function release(
     const pins = await pinsOf(build, needs);
 
     // refuse service needs without a bound address
-    const bound = await control.database
+    const bound = await reconciliation.database
         .select({ packageId: binding.table.packageId, name: binding.table.name })
         .from(binding.table)
         .where(
@@ -191,16 +191,16 @@ async function release(
             "MissingBinding",
             `bind services ${names} to their addresses`,
             now,
-            control,
+            reconciliation,
         );
 
         return;
     }
 
     // attach, drain the replaced deployments, then prepare, capture and activate the fresh ones in one transaction
-    await control.database.transaction(async (transaction) => {
+    await reconciliation.database.transaction(async (transaction) => {
         // attach the resources the installation owns
-        const call = system(transaction, target, now, control);
+        const call = system(transaction, target, now, reconciliation);
         const { invoke } = call;
         await options.binder.attach(call, target, needs);
 
@@ -353,12 +353,12 @@ function pick(entry: Schedule) {
 async function finalize(
     target: Installation,
     now: number,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
     options: ApplicationOptions,
 ): Promise<void> {
-    await control.database.transaction(async (transaction) => {
+    await reconciliation.database.transaction(async (transaction) => {
         // release the resources it owns to their retention
-        const call = system(transaction, target, now, control);
+        const call = system(transaction, target, now, reconciliation);
         const { invoke } = call;
         await options.binder.attach(call, target, []);
 
@@ -396,12 +396,12 @@ function system(
     transaction: DatabaseConnection,
     target: Installation,
     now: number,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
 ): { readonly database: DatabaseConnection; readonly invoke: Invoke } {
     return {
         database: transaction,
         invoke: (object, name, input) =>
-            control.server.invoke(transaction, target.scope, object, name, input, now),
+            reconciliation.server.invoke(transaction, target.scope, object, name, input, now),
     };
 }
 
@@ -449,7 +449,7 @@ async function refuse(
     reason: "NoRuntime" | "MissingBinding" | "NoUpgrade",
     message: string,
     now: number,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
 ): Promise<void> {
     const ready = target.conditions.ready;
     const isObserved =
@@ -457,7 +457,7 @@ async function refuse(
         ready.reason === reason &&
         ready.message === message;
     if (!isObserved) {
-        await control.server.executeAsSystem(
+        await reconciliation.server.executeAsSystem(
             installation,
             "observe",
             [
@@ -480,10 +480,10 @@ async function refuse(
 async function drain(
     active: readonly Deployment[],
     now: number,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
 ): Promise<void> {
     if (active.length > 0) {
-        await control.server.executeAsSystem(
+        await reconciliation.server.executeAsSystem(
             deployment,
             "update",
             active.map((entry) => SystemCall.of(entry, { status: "draining" })),

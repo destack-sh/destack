@@ -14,7 +14,7 @@ import {
 import { DatabaseError } from "@destack/db/error";
 import { Condition } from "@destack/db/query";
 import type { Router } from "@destack/host/router";
-import { type Call, type ObjectControl, PushResult } from "@destack/object";
+import { type Call, type ObjectReconciliation, PushResult } from "@destack/object";
 import { SystemCall } from "@destack/object/server";
 import { identifierUuid, schema, type Identifier } from "@destack/schema";
 import {
@@ -159,8 +159,12 @@ export function serveRuns(options: RunOptions, now: () => number) {
                 { table: installation.table, keys: waiting },
                 { table: instance.table, keys: served },
             ],
-            reconcile: (control) =>
-                attempt(control.rows[0] as Run, { ...control, now: resolved.now() }, resolved),
+            reconcile: (reconciliation) =>
+                attempt(
+                    reconciliation.rows[0]!,
+                    { ...reconciliation, now: resolved.now() },
+                    resolved,
+                ),
         }),
     };
 }
@@ -424,29 +428,29 @@ async function served(
 /** Attempt a due run once, in the trace it records, returning the wait until it is due. */
 async function attempt(
     current: Run,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
     options: Resolved,
 ): Promise<number | undefined> {
     // leave a run whose installation this cell does not serve now or that runs no instance, and wait for one not due
-    const target = await Installation.serving(control.database, current.installation);
+    const target = await Installation.serving(reconciliation.database, current.installation);
     const endpoints =
-        target === undefined ? [] : await Instance.endpoints(control.database, target.id);
+        target === undefined ? [] : await Instance.endpoints(reconciliation.database, target.id);
     if (target === undefined || endpoints.length === 0) {
         return undefined;
-    } else if (current.at > control.now) {
-        return current.at - control.now;
+    } else if (current.at > reconciliation.now) {
+        return current.at - reconciliation.now;
     }
 
     // leave a queued run behind an earlier one of its watch
-    if (current.concurrency === "queue" && (await isBehind(control.database, current))) {
+    if (current.concurrency === "queue" && (await isBehind(reconciliation.database, current))) {
         return undefined;
     }
 
     // fail a run whose attempts ran out, even ones that never returned
     if (current.attempts >= options.maximumAttempts) {
-        await update(control, current, {
+        await update(reconciliation, current, {
             state: "failed",
-            finishedAt: control.now,
+            finishedAt: reconciliation.now,
             error: current.error ?? {
                 code: "ATTEMPTS_EXHAUSTED",
                 message: `${current.attempts} attempts started without finishing`,
@@ -478,7 +482,7 @@ async function attempt(
         parent,
         async (span): Promise<undefined> => {
             try {
-                await push(current, target, span, control, options);
+                await push(current, target, span, reconciliation, options);
 
                 return undefined;
             } finally {
@@ -493,14 +497,14 @@ async function push(
     current: Run,
     target: Installation,
     span: Span,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
     options: Resolved,
 ): Promise<void> {
     // start the attempt, fenced by the revision read: a host that took the run over since wins
-    const started = await update(control, current, {
+    const started = await update(reconciliation, current, {
         state: "running",
         attempts: current.attempts + 1,
-        startedAt: current.startedAt ?? control.now,
+        startedAt: current.startedAt ?? reconciliation.now,
         traceId: current.traceId ?? traceIdOf(span),
     });
     if (started === undefined) {
@@ -510,8 +514,8 @@ async function push(
     // push the call once under the run's own request, aborted once the run is cancelled or replaced
     const ended = new AbortController();
     const settled = new AbortController();
-    const ending = endedElsewhere(control, started, ended, settled.signal);
-    const signal = AbortSignal.any([ended.signal, control.signal]);
+    const ending = endedElsewhere(reconciliation, started, ended, settled.signal);
+    const signal = AbortSignal.any([ended.signal, reconciliation.signal]);
     const mutation = { id: identifierUuid(started.id), calls: [started.call] };
     let outcome: PushOutcome | undefined;
     let thrown: unknown;
@@ -527,13 +531,13 @@ async function push(
     // record the call's result, or its final failure
     const now = options.now();
     if (outcome !== undefined && "value" in outcome) {
-        await update(control, started, { state: "succeeded", finishedAt: now, error: null });
+        await update(reconciliation, started, { state: "succeeded", finishedAt: now, error: null });
 
         return;
     } else if (outcome !== undefined) {
         const error = { code: outcome.error.code, message: outcome.error.message };
         span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
-        await update(control, started, { state: "failed", error, finishedAt: now });
+        await update(reconciliation, started, { state: "failed", error, finishedAt: now });
 
         return;
     }
@@ -544,13 +548,13 @@ async function push(
     if (signal.aborted) {
         return;
     } else if (started.attempts >= options.maximumAttempts) {
-        await update(control, started, { state: "failed", error, finishedAt: now });
+        await update(reconciliation, started, { state: "failed", error, finishedAt: now });
 
         return;
     }
 
     // wait for the next attempt through the control loop's backoff
-    await update(control, started, { state: "pending", error });
+    await update(reconciliation, started, { state: "pending", error });
     throw thrown;
 }
 
@@ -593,7 +597,7 @@ async function isBehind(database: DatabaseConnection, current: Run): Promise<boo
 
 /** Abort an attempt once its run is no longer active. */
 async function endedElsewhere(
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
     started: Run,
     ended: AbortController,
     settled: AbortSignal,
@@ -603,13 +607,13 @@ async function endedElsewhere(
         settled.addEventListener("abort", () => resolve(), { once: true }),
     );
     while (!settled.aborted) {
-        await Promise.race([control.changed(), settling]);
+        await Promise.race([reconciliation.changed(), settling]);
         if (settled.aborted) {
             return;
         }
 
         // abort once another host changed or removed the run
-        const [current] = await control.database
+        const [current] = await reconciliation.database
             .select({ revision: run.table.revision })
             .from(run.table)
             .where(eq(run.table.id, started.id));
@@ -623,16 +627,16 @@ async function endedElsewhere(
 
 /** Change a run still at the revision read, returning it unless another host changed or removed it since. */
 async function update(
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
     current: Run,
     values: Partial<Run>,
 ): Promise<Run | undefined> {
     try {
-        const [updated] = await control.server.executeAsSystem(
+        const [updated] = await reconciliation.server.executeAsSystem(
             run,
             "update",
             [{ ...SystemCall.of(current), input: values }],
-            control.now,
+            reconciliation.now,
         );
 
         return updated as Run;

@@ -1,7 +1,7 @@
 import type { Identifier } from "@destack/schema";
 import { and, type DatabaseConnection, eq, type Table } from "@destack/db";
 import { Condition } from "@destack/db/query";
-import type { ObjectControl, ObjectType } from "@destack/object";
+import type { ObjectReconciliation, ObjectType } from "@destack/object";
 import { SystemCall } from "@destack/object/server";
 import {
     Address,
@@ -176,18 +176,19 @@ export function serveResources(providers: ProviderIndex) {
                             .where(eq(resource.table.scope, row.id as Identifier<"space">)),
                 },
             ],
-            reconcile: (control) => reconcile(control.rows[0] as Resource, control, providers),
+            reconcile: (reconciliation) =>
+                reconcile(reconciliation.rows[0]!, reconciliation, providers),
         });
 }
 
 /** Reconcile one resource: provision, retire, and apply the desired states of its bindings. */
 async function reconcile(
     row: Resource,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
     providers: ProviderIndex,
 ): Promise<undefined> {
     // act only while this cell serves the space, at its approval threshold
-    const [served] = await control.database
+    const [served] = await reconciliation.database
         .select({ approval: space.table.approval })
         .from(space.table)
         .where(and(eq(space.table.id, row.scope), SpaceCell.served()));
@@ -197,22 +198,22 @@ async function reconcile(
 
     // retire a resource whose deletion was requested
     if (row.deletionRequestedAt !== null) {
-        await retire(row, control, providers);
+        await retire(row, reconciliation, providers);
     }
     // observe a resource whose stack declares its reference ready as declared
     else if (row.origin === "declared") {
-        await observe(row, control, {}, "true", "Declared", `declared at ${row.reference}`);
+        await observe(row, reconciliation, {}, "true", "Declared", `declared at ${row.reference}`);
     }
     // provision a resource whose declaration changed, then apply its desired states
     else if (row.generation > row.observedGeneration || row.reference === null) {
-        const provisioned = await provision(row, control, providers);
+        const provisioned = await provision(row, reconciliation, providers);
         if (provisioned) {
-            await apply(provisioned, served.approval, control, providers);
+            await apply(provisioned, served.approval, reconciliation, providers);
         }
     }
     // apply the desired states of a provisioned resource whose bindings changed
     else {
-        await apply(row, served.approval, control, providers);
+        await apply(row, served.approval, reconciliation, providers);
     }
 
     return undefined;
@@ -221,18 +222,25 @@ async function reconcile(
 /** Provision a resource through its provider, recording the outcome and returning the provisioned row. */
 async function provision(
     row: Resource,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
     providers: ProviderIndex,
 ): Promise<Resource | undefined> {
     // select the requested provider, or the first one providing the kind
     const provider = providers.select(row);
     if (!provider) {
-        await observe(row, control, {}, "false", "NoProvider", `no provider for ${row.kind}`);
+        await observe(
+            row,
+            reconciliation,
+            {},
+            "false",
+            "NoProvider",
+            `no provider for ${row.kind}`,
+        );
 
         return undefined;
     } else if (!Provider.provisions(provider)) {
         const message = `provider ${provider.code} of ${row.kind} provisions nothing`;
-        await observe(row, control, {}, "false", "NoProvisioning", message);
+        await observe(row, reconciliation, {}, "false", "NoProvisioning", message);
 
         return undefined;
     }
@@ -240,7 +248,7 @@ async function provision(
     // record the provider reference for this generation, or the failure before retrying it
     try {
         const provisioned = await provider.provision(provider.kind.record(row));
-        await createFacet(provider, row, control);
+        await createFacet(provider, row, reconciliation);
         const fields = {
             providerCode: provider.code,
             reference: provisioned.reference,
@@ -248,10 +256,17 @@ async function provision(
             hostId: SpaceCell.host(providers.cell),
         };
 
-        return await observe(row, control, fields, "false", "Provisioned", provisioned.reference);
+        return await observe(
+            row,
+            reconciliation,
+            fields,
+            "false",
+            "Provisioned",
+            provisioned.reference,
+        );
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        await observe(row, control, {}, "false", "ProvisioningFailed", message);
+        await observe(row, reconciliation, {}, "false", "ProvisioningFailed", message);
         throw error;
     }
 }
@@ -260,19 +275,26 @@ async function provision(
 async function apply(
     row: Resource,
     approval: Risk,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
     providers: ProviderIndex,
 ): Promise<void> {
     // require the resource's provider
     const provider = providers.select(row);
     if (!provider) {
-        await observe(row, control, {}, "false", "NoProvider", `no provider for ${row.kind}`);
+        await observe(
+            row,
+            reconciliation,
+            {},
+            "false",
+            "NoProvider",
+            `no provider for ${row.kind}`,
+        );
 
         return;
     }
 
     // skip resources whose bindings' desired states applied already
-    const database = control.database;
+    const database = reconciliation.database;
     const desired = await desiredStates(database, row);
     const stateDigest = await digest(desired);
     const applied = row.status.state;
@@ -309,7 +331,14 @@ async function apply(
         if (recreated === undefined) {
             const isBlocked = error instanceof PlanError;
             const message = error instanceof Error ? error.message : String(error);
-            await observe(row, control, {}, "false", isBlocked ? "Blocked" : "PlanFailed", message);
+            await observe(
+                row,
+                reconciliation,
+                {},
+                "false",
+                isBlocked ? "Blocked" : "PlanFailed",
+                message,
+            );
             if (!isBlocked) {
                 throw error;
             }
@@ -337,21 +366,28 @@ async function apply(
     // wait for an approval of this exact plan when its risk reaches the space's approval threshold
     if (Plan.reaches(plan, approval) && row.approvedPlan !== planDigest) {
         const message = `approve plan ${planDigest} with ${plan.steps.length} steps`;
-        await observe(row, control, { status }, "false", "AwaitingApproval", message);
+        await observe(row, reconciliation, { status }, "false", "AwaitingApproval", message);
 
         return;
     }
 
     // stop the draining releases of an approved recreation, applying the rest once they retire
     if (stopped.length > 0) {
-        await control.server.executeAsSystem(
+        await reconciliation.server.executeAsSystem(
             deployment,
             "update",
             stopped.map((entry) => SystemCall.of(entry, { status: "stopping" })),
-            control.now,
+            reconciliation.now,
         );
         const message = `stopping ${stopped.length} releases before the release replacing them`;
-        await observe(row, control, { status, approvedPlan: null }, "false", "Recreating", message);
+        await observe(
+            row,
+            reconciliation,
+            { status, approvedPlan: null },
+            "false",
+            "Recreating",
+            message,
+        );
 
         return;
     }
@@ -367,7 +403,7 @@ async function apply(
         }
         await observe(
             row,
-            control,
+            reconciliation,
             { status: { state: { digest: stateDigest } }, approvedPlan: null },
             "true",
             "Applied",
@@ -375,7 +411,7 @@ async function apply(
         );
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        await observe(row, control, { status }, "false", "ApplyFailed", message);
+        await observe(row, reconciliation, { status }, "false", "ApplyFailed", message);
         throw error;
     }
 }
@@ -383,22 +419,29 @@ async function apply(
 /** Remove a resource once unbound, destroying its content only when retention allows. */
 async function retire(
     row: Resource,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
     providers: ProviderIndex,
 ): Promise<void> {
     // keep the record and content of retained resources until they are declared again
     if (row.retention === "retain") {
         if (row.conditions.ready?.reason !== "Retained") {
-            await observe(row, control, {}, "false", "Retained", "content retained after removal");
+            await observe(
+                row,
+                reconciliation,
+                {},
+                "false",
+                "Retained",
+                "content retained after removal",
+            );
         }
 
         return;
     }
 
     // wait until no installation binds the resource and no live deployment runs with it
-    const use = await Binding.inUse(control.database, row);
+    const use = await Binding.inUse(reconciliation.database, row);
     if (use !== undefined) {
-        await observe(row, control, {}, "false", "InUse", use);
+        await observe(row, reconciliation, {}, "false", "InUse", use);
 
         return;
     }
@@ -408,31 +451,31 @@ async function retire(
     if (row.reference !== null && provider && Provider.provisions(provider)) {
         try {
             await provider.destroy(provider.kind.record(row));
-            await deleteFacet(provider, row, control);
+            await deleteFacet(provider, row, reconciliation);
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            await observe(row, control, {}, "false", "DestroyFailed", message);
+            await observe(row, reconciliation, {}, "false", "DestroyFailed", message);
             throw error;
         }
     }
 
     // finish the record's deletion
-    await control.execute("finalize", [row]);
+    await reconciliation.execute("finalize", [row]);
 }
 
 /** Create the facet sharing a provisioned resource's identity, once. */
 async function createFacet(
     provider: Provider<ResourceKind, ObjectType>,
     row: Resource,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
 ): Promise<void> {
     const facet = provider.facet;
-    if (facet !== undefined && (await facetOf(facet, row, control.database)) === undefined) {
-        await control.server.executeAsSystem(
+    if (facet !== undefined && (await facetOf(facet, row, reconciliation.database)) === undefined) {
+        await reconciliation.server.executeAsSystem(
             facet,
             "create",
             [{ scope: row.scope, id: row.id, input: {} }],
-            control.now,
+            reconciliation.now,
         );
     }
 }
@@ -441,12 +484,18 @@ async function createFacet(
 async function deleteFacet(
     provider: Provider<ResourceKind, ObjectType>,
     row: Resource,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
 ): Promise<void> {
     const facet = provider.facet;
-    const found = facet === undefined ? undefined : await facetOf(facet, row, control.database);
+    const found =
+        facet === undefined ? undefined : await facetOf(facet, row, reconciliation.database);
     if (facet !== undefined && found !== undefined) {
-        await control.server.executeAsSystem(facet, "delete", [SystemCall.of(found)], control.now);
+        await reconciliation.server.executeAsSystem(
+            facet,
+            "delete",
+            [SystemCall.of(found)],
+            reconciliation.now,
+        );
     }
 }
 
@@ -468,7 +517,7 @@ async function facetOf(
 /** Observe provider fields and the ready condition for the current generation and return the observed row. */
 async function observe(
     row: Resource,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
     fields: Partial<typeof resource.table.$inferInsert>,
     status: "true" | "false",
     reason: string,
@@ -490,7 +539,7 @@ async function observe(
     }
 
     // observe the generation, the ready condition and the fields as the system
-    const [observed] = await control.server.executeAsSystem(
+    const [observed] = await reconciliation.server.executeAsSystem(
         resource,
         "observe",
         [

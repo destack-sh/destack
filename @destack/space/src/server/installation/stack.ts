@@ -1,5 +1,5 @@
 import { and, type DatabaseConnection, eq } from "@destack/db";
-import { ObjectError, type ObjectControl, type ObjectType } from "@destack/object";
+import { ObjectError, type ObjectReconciliation, type ObjectType } from "@destack/object";
 import type { Directory } from "@destack/directory";
 import { Stack, type ObjectServer, SystemCall } from "@destack/object/server";
 import type { Identifier } from "@destack/schema";
@@ -34,11 +34,11 @@ export interface StackOptions {
 /** Apply the revision a served space's stack follows, then observe it applied or waiting. */
 export async function reconcileStack(
     spaceId: Identifier<"space">,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
     options: StackOptions,
 ): Promise<undefined> {
     // read the stack of a served space and the revision it follows
-    const database = control.database;
+    const database = reconciliation.database;
     const [served] = await database
         .select({ stack: installation.table, revision: installationRevision.table })
         .from(installation.table)
@@ -60,7 +60,7 @@ export async function reconcileStack(
     const { stack, revision } = served;
     const apply = (transaction: DatabaseConnection, isDry: boolean) =>
         applyStack(transaction, stack, revision, options.declared(), {
-            server: control.server,
+            server: reconciliation.server,
             directory: options.directory,
             release: (packageId, installationId) =>
                 openRelease(transaction, options.openBuild, spaceId, packageId, installationId),
@@ -75,7 +75,7 @@ export async function reconcileStack(
             planned = await apply(transaction, true);
             transaction.rollback();
         });
-        if (await Approval.awaits(stack, planned, control)) {
+        if (await Approval.awaits(stack, planned, reconciliation)) {
             return undefined;
         }
 
@@ -87,7 +87,7 @@ export async function reconcileStack(
             (error instanceof SpaceError && error.code === "INVALID_DEFINITION") ||
             (error instanceof ObjectError && error.code === "INVALID_DECLARATION");
         const message = error instanceof Error ? error.message : String(error);
-        await observe(stack, isBlocked ? "Blocked" : "ApplyFailed", message, {}, control);
+        await observe(stack, isBlocked ? "Blocked" : "ApplyFailed", message, {}, reconciliation);
         if (!isBlocked) {
             throw error;
         }
@@ -99,9 +99,9 @@ export async function reconcileStack(
     const fields = { plan: null, approvedPlan: null };
     if (deferred === undefined) {
         const applied = { ...fields, appliedRevisionId: revision.id };
-        await observe(stack, "Applied", "every declaration applied", applied, control);
+        await observe(stack, "Applied", "every declaration applied", applied, reconciliation);
     } else {
-        await observe(stack, "WaitingForResources", deferred, fields, control);
+        await observe(stack, "WaitingForResources", deferred, fields, reconciliation);
     }
 
     return undefined;
@@ -113,7 +113,7 @@ async function observe(
     reason: StackReason,
     message: string,
     fields: Readonly<Record<string, unknown>>,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
 ): Promise<void> {
     // skip an observation the stack has
     const status = reason === "Applied" ? "true" : "false";
@@ -127,7 +127,7 @@ async function observe(
             ([name, value]) => stack[name as keyof Installation] === value,
         );
     if (!isObserved) {
-        await control.server.executeAsSystem(
+        await reconciliation.server.executeAsSystem(
             installation,
             "observe",
             [
@@ -137,7 +137,7 @@ async function observe(
                     fields,
                 }),
             ],
-            control.now,
+            reconciliation.now,
         );
     }
 }

@@ -7,7 +7,6 @@ import * as base from "../../object/index.ts";
 import {
     binding,
     deployment,
-    type Installation,
     installationRevision,
     resource,
     Submission,
@@ -76,13 +75,13 @@ export function serveInstallations(options: InstallationOptions) {
         .handle({
             plan: async (call) => {
                 // join the plans the installation and what it manages, owns or binds wait on
-                const target = call.target as unknown as Installation;
+                const target = call.target!;
 
                 return (await Approval.of(call.database, target)).plan();
             },
             submit: async (call) => {
                 // refuse a build of another package than the installation's, whose identity stays
-                const target = call.target as unknown as Installation;
+                const target = call.target!;
                 const submission = Submission.parse(call.input);
                 const reader = await options.openBuild(target.packageId, submission.build);
                 const built = reader.manifest.package.id;
@@ -106,7 +105,7 @@ export function serveInstallations(options: InstallationOptions) {
             },
             approve: async (call) => {
                 // accept each plan waiting as the approver reviewed them
-                const target = call.target as unknown as Installation;
+                const target = call.target!;
                 const { plan } = call.input as { readonly plan: string };
                 const invoke: Invoke = (object, name, input) => call.invoke(object, name, input);
 
@@ -143,12 +142,12 @@ export function serveInstallations(options: InstallationOptions) {
                 { table: deployment.table, keys: (row) => [{ id: row.installationId }] },
                 { table: binding.table, keys: (row) => [{ id: row.installationId }] },
             ],
-            reconcile: (control) => {
-                const target = control.rows[0] as unknown as Installation;
+            reconcile: (reconciliation) => {
+                const target = reconciliation.rows[0]!;
 
                 return target.role === "stack"
-                    ? reconcileStack(target.scope, control, options)
-                    : reconcileApplication(target.id, control, options);
+                    ? reconcileStack(target.scope, reconciliation, options)
+                    : reconcileApplication(target.id, reconciliation, options);
             },
         });
 }

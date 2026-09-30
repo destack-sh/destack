@@ -1,5 +1,5 @@
 import { and, type DatabaseConnection, eq, inArray, or } from "@destack/db";
-import type { ObjectControl } from "@destack/object";
+import type { ObjectReconciliation } from "@destack/object";
 import { SystemCall } from "@destack/object/server";
 import { Address, Plan } from "@destack/resource";
 import { ServiceError } from "@destack/service/error";
@@ -115,10 +115,10 @@ export class Approval {
     static async awaits(
         target: Installation,
         plan: Plan,
-        control: ObjectControl,
+        reconciliation: ObjectReconciliation,
     ): Promise<boolean> {
         // pass a plan below the space's threshold or approved as it stands
-        const [scoped] = await control.database
+        const [scoped] = await reconciliation.database
             .select({ approval: space.table.approval })
             .from(space.table)
             .where(eq(space.table.id, target.scope));
@@ -135,7 +135,7 @@ export class Approval {
             ready.message === message &&
             ready.observedGeneration === target.generation;
         if (!isObserved) {
-            await control.server.executeAsSystem(
+            await reconciliation.server.executeAsSystem(
                 installation,
                 "observe",
                 [
@@ -147,7 +147,7 @@ export class Approval {
                         fields: { plan },
                     }),
                 ],
-                control.now,
+                reconciliation.now,
             );
         }
 

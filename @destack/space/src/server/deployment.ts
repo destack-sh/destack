@@ -1,6 +1,6 @@
 import { and, type DatabaseConnection, eq, inArray, isNull, or } from "@destack/db";
 import { Condition } from "@destack/db/query";
-import type { ObjectControl, StatusCondition } from "@destack/object";
+import type { ObjectReconciliation, StatusCondition } from "@destack/object";
 import { SystemCall } from "@destack/object/server";
 import { RetryPolicy } from "@destack/service/timer";
 import { identifier, type Identifier, Version } from "@destack/schema";
@@ -47,7 +47,7 @@ export function serveDeployments(options: DeploymentOptions) {
             .handle({
                 start: async (call) => {
                     // record an instance starting on the host
-                    const target = call.target as unknown as Deployment;
+                    const target = call.target!;
                     const { hostId } = call.input as { readonly hostId: Identifier<"host"> };
 
                     return call.invoke(instance, "create", {
@@ -111,8 +111,8 @@ export function serveDeployments(options: DeploymentOptions) {
                                 ),
                     },
                 ],
-                reconcile: (control) =>
-                    reconcileDeployment(control.rows[0]!.id as string, control, options),
+                reconcile: (reconciliation) =>
+                    reconcileDeployment(reconciliation.rows[0]!.id, reconciliation, options),
             }),
         instance: instance.handle({
             stop: (call) =>
@@ -124,11 +124,11 @@ export function serveDeployments(options: DeploymentOptions) {
 /** Run the instance of an active deployment, stop the instances of one no longer active, and retire a drained one. */
 async function reconcileDeployment(
     id: string,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
     options: DeploymentOptions,
 ): Promise<number | undefined> {
     // read the deployment of a served space that the cell runs, and its recorded instances
-    const database = control.database;
+    const database = reconciliation.database;
     const [served] = await database
         .select({ deployment: deployment.table })
         .from(deployment.table)
@@ -153,14 +153,14 @@ async function reconcileDeployment(
                 inArray(instance.table.status, [...RECORDED]),
             ),
         );
-    const now = control.now;
+    const now = reconciliation.now;
 
     // run the active deployment's instance, and stop the instances of other hosts
     if (current.status === "active") {
         const host = SpaceCell.host(options.cell);
         const foreign = host === null ? [] : recorded.filter((entry) => entry.hostId !== host);
         if (foreign.length > 0) {
-            await control.server.executeAsSystem(
+            await reconciliation.server.executeAsSystem(
                 instance,
                 "stop",
                 foreign.map((row) => SystemCall.of(row)),
@@ -171,9 +171,9 @@ async function reconcileDeployment(
 
         return run(
             current,
-            own ?? (await start(current, now, control, options)),
+            own ?? (await start(current, now, reconciliation, options)),
             now,
-            control,
+            reconciliation,
             options,
         );
     }
@@ -181,7 +181,7 @@ async function reconcileDeployment(
     else if (
         current.status === "draining" &&
         recorded.length > 0 &&
-        !(await isReplaced(current, control))
+        !(await isReplaced(current, reconciliation))
     ) {
         return undefined;
     }
@@ -190,7 +190,7 @@ async function reconcileDeployment(
         for (const stopped of recorded) {
             await runtime(current, options).stop(stopped.id);
         }
-        await control.server.executeAsSystem(
+        await reconciliation.server.executeAsSystem(
             instance,
             "stop",
             recorded.map((row) => SystemCall.of(row)),
@@ -199,7 +199,7 @@ async function reconcileDeployment(
     }
     // retire a draining or stopping deployment once none of its instances runs
     else if (current.status === "draining" || current.status === "stopping") {
-        await control.server.executeAsSystem(
+        await reconciliation.server.executeAsSystem(
             deployment,
             "update",
             [{ ...SystemCall.of(current), input: { status: "retired", retiredAt: now } }],
@@ -240,9 +240,12 @@ async function replacedBy(
 }
 
 /** Report whether a draining deployment may stop: nothing replaces its workload, or its replacement runs and serves every release a caller in its space pins. */
-async function isReplaced(current: Deployment, control: ObjectControl): Promise<boolean> {
+async function isReplaced(
+    current: Deployment,
+    reconciliation: ObjectReconciliation,
+): Promise<boolean> {
     // stop once no active deployment replaces the workload, as after a suspension
-    const database = control.database;
+    const database = reconciliation.database;
     const [replacing] = await database
         .select({ id: deployment.table.id, since: deployment.table.since })
         .from(deployment.table)
@@ -302,7 +305,7 @@ async function isReplaced(current: Deployment, control: ObjectControl): Promise<
 async function start(
     current: Deployment,
     now: number,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
     options: DeploymentOptions,
 ): Promise<Instance> {
     // TODO #Incomplete: schedule a region's instances onto the hosts serving it
@@ -315,7 +318,7 @@ async function start(
     }
 
     // record the instance starting
-    const [started] = await control.server.executeAsSystem(
+    const [started] = await reconciliation.server.executeAsSystem(
         deployment,
         "start",
         [{ ...SystemCall.of(current), input: { hostId } }],
@@ -330,7 +333,7 @@ async function run(
     current: Deployment,
     recorded: Instance,
     now: number,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
     options: DeploymentOptions,
 ): Promise<number | undefined> {
     // leave a running instance running while its process runs, and a failed one until its backoff passes
@@ -344,7 +347,7 @@ async function run(
     }
 
     // wait, observing why, until every captured resource applied its current generation
-    const resources = await captured(current, control);
+    const resources = await captured(current, reconciliation);
     const waiting = resources.filter(
         (entry) =>
             entry.conditions.ready?.status !== "true" ||
@@ -358,7 +361,7 @@ async function run(
                 status: recorded.status === "failed" ? "starting" : recorded.status,
                 ready: ["false", "WaitingForResources", `resources ${names} are not applied`],
             },
-            control,
+            reconciliation,
         );
 
         return undefined;
@@ -366,7 +369,7 @@ async function run(
 
     // run the workload, restarting a failed instance in place
     const restarts = recorded.status === "failed" ? recorded.restarts + 1 : recorded.restarts;
-    const [revision] = await control.database
+    const [revision] = await reconciliation.database
         .select({ build: installationRevision.table.build })
         .from(installationRevision.table)
         .where(eq(installationRevision.table.id, current.revisionId));
@@ -394,7 +397,7 @@ async function run(
                     },
                 ),
             },
-            (code) => exited(recorded.id, code, control),
+            (code) => exited(recorded.id, code, reconciliation),
         );
     } catch (error) {
         // record the failure on the instance, restarting it after its backoff
@@ -408,7 +411,7 @@ async function run(
                 stoppedAt: failedAt,
                 ready: ["false", "StartFailed", message],
             },
-            control,
+            reconciliation,
         );
 
         return RetryPolicy.interval(RESTART, restarts + 1);
@@ -425,7 +428,7 @@ async function run(
             stoppedAt: null,
             ready: ["true", "Running", ""],
         },
-        control,
+        reconciliation,
     );
 
     return undefined;
@@ -435,9 +438,9 @@ async function run(
 async function exited(
     instanceId: Identifier<"instance">,
     code: number,
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
 ): Promise<void> {
-    const [recorded] = await control.database
+    const [recorded] = await reconciliation.database
         .select()
         .from(instance.table)
         .where(eq(instance.table.id, instanceId));
@@ -449,7 +452,7 @@ async function exited(
                 stoppedAt: Date.now(),
                 ready: ["false", "Exited", `the workload exited with code ${code}`],
             },
-            control,
+            reconciliation,
         );
     }
 }
@@ -465,8 +468,8 @@ function runtime(current: Deployment, options: DeploymentOptions): Runtime {
 }
 
 /** Read the resources a deployment captured, with their readiness. */
-function captured(current: Deployment, control: ObjectControl) {
-    return control.database
+function captured(current: Deployment, reconciliation: ObjectReconciliation) {
+    return reconciliation.database
         .select({
             packageId: capture.table.packageId,
             name: capture.table.name,
@@ -499,7 +502,7 @@ async function observe(
         /** The finish or failure time. */
         readonly stoppedAt?: number | null;
     },
-    control: ObjectControl,
+    reconciliation: ObjectReconciliation,
 ): Promise<void> {
     // skip an observation the instance has
     const {
@@ -517,7 +520,7 @@ async function observe(
     }
 
     // record the fields and the condition with its transition time kept while the status stays
-    const now = control.now;
+    const now = reconciliation.now;
     const ready: StatusCondition = {
         status,
         reason,
@@ -525,7 +528,7 @@ async function observe(
         observedGeneration: DEPLOYMENT_GENERATION,
         lastTransitionAt: previous?.status === status ? previous.lastTransitionAt : now,
     };
-    await control.server.executeAsSystem(
+    await reconciliation.server.executeAsSystem(
         instance,
         "update",
         [
