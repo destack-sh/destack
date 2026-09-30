@@ -6,7 +6,7 @@ import { Egress, ServiceMount } from "@destack/service";
 import { ServiceKind } from "@destack/service/declare";
 import type { Caller } from "@destack/service/authentication";
 import { ServiceError } from "@destack/service/error";
-import { WorkloadReady, type WorkloadStart } from "@destack/service/workload";
+import { WEBHOOK_PATH, WorkloadReady, type WorkloadStart } from "@destack/service/workload";
 import type { InstanceSpec, Runtime } from "./runtime.ts";
 
 /** How long a runner may take to serve, in milliseconds: a Bun start and a workload's migrations under load. */
@@ -124,7 +124,7 @@ export class BunRuntime implements Runtime {
         // require the instance's runner
         const child = this.#children.get(instanceId);
         if (child === undefined) {
-            throw new ServiceError("UNAVAILABLE", {
+            throw new ServiceError("SERVICE_UNAVAILABLE", {
                 message: `instance ${instanceId} is not running`,
             });
         }
@@ -136,6 +136,30 @@ export class BunRuntime implements Runtime {
         const headers = new Headers(request.headers);
         headers.set("authorization", `Bearer ${child.secret}`);
         caller.forward(headers);
+        headers.delete("cookie");
+
+        return fetch(new Request(target, new Request(request, { headers, redirect: "manual" })));
+    }
+
+    /** Forward a webhook request below an instance's webhooks to its runner, which verifies it. */
+    async receive(
+        instanceId: Identifier<"instance">,
+        path: string,
+        request: Request,
+    ): Promise<Response> {
+        // require the instance's runner
+        const child = this.#children.get(instanceId);
+        if (child === undefined) {
+            throw new ServiceError("SERVICE_UNAVAILABLE", {
+                message: `instance ${instanceId} is not running`,
+            });
+        }
+
+        // forward the request below the runner's webhook path with the host's secret
+        const url = new URL(request.url);
+        const target = `http://127.0.0.1:${child.port}${WEBHOOK_PATH}${path}${url.search}`;
+        const headers = new Headers(request.headers);
+        headers.set("authorization", `Bearer ${child.secret}`);
         headers.delete("cookie");
 
         return fetch(new Request(target, new Request(request, { headers, redirect: "manual" })));
@@ -278,7 +302,7 @@ export class BunRuntime implements Runtime {
             while (!line.includes("\n")) {
                 const chunk = await Promise.race([reader.read(), deadline]);
                 if (chunk === undefined || chunk.done) {
-                    throw new ServiceError("UNAVAILABLE", {
+                    throw new ServiceError("SERVICE_UNAVAILABLE", {
                         message: "the workload runner did not serve",
                     });
                 }

@@ -4,7 +4,7 @@ import { PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { identifier, Version } from "@destack/schema";
 import { Egress } from "@destack/service";
-import { Caller } from "@destack/service/authentication";
+import { Caller, Lending } from "@destack/service/authentication";
 import { VERSION_HEADER } from "@destack/service/request";
 import { Scope } from "@destack/sync";
 import { type Endpoint, Router } from "../src/router/index.ts";
@@ -48,6 +48,10 @@ class RecordingRuntime implements Runtime {
     readonly name = "bun";
     /** The forwarded calls: instance, path, caller subject and authorization. */
     readonly forwarded: [string, string, string, string | null][] = [];
+    /** The forwarded callers. */
+    readonly callers: Caller[] = [];
+    /** The forwarded webhook requests: instance, path and authorization. */
+    readonly received: [string, string, string | null][] = [];
 
     /** Start nothing. */
     async start(): Promise<void> {}
@@ -72,6 +76,7 @@ class RecordingRuntime implements Runtime {
         request: Request,
         caller: Caller,
     ): Promise<Response> {
+        this.callers.push(caller);
         this.forwarded.push([
             instanceId,
             path,
@@ -81,12 +86,20 @@ class RecordingRuntime implements Runtime {
 
         return Response.json({ instanceId });
     }
+
+    /** Record a forwarded webhook request. */
+    async receive(instanceId: string, path: string, request: Request): Promise<Response> {
+        this.received.push([instanceId, path, request.headers.get("authorization")]);
+
+        return new Response(null, { status: 202 });
+    }
 }
 
 /** Two deployments of the called installation: the earlier release, and one serving only releases since its own. */
 const endpoints: Endpoint[] = [
     {
         instanceId: identifier("instance").parse("instance-01996ab0-0000-7000-8000-0000000000c1"),
+        scope,
         deploymentId: identifier("deployment").parse(
             "deployment-01996ab0-0000-7000-8000-0000000000c2",
         ),
@@ -95,6 +108,7 @@ const endpoints: Endpoint[] = [
     },
     {
         instanceId: identifier("instance").parse("instance-01996ab0-0000-7000-8000-0000000000c3"),
+        scope,
         deploymentId: identifier("deployment").parse(
             "deployment-01996ab0-0000-7000-8000-0000000000c4",
         ),
@@ -152,7 +166,7 @@ test("route each call to the newest deployment serving the caller's release, and
         endpoints[0]!.instanceId,
         endpoints[0]!.instanceId,
         endpoints[1]!.instanceId,
-        `UNAVAILABLE: no running deployment of ${notes} serves release 2026.11.0`,
+        `SERVICE_UNAVAILABLE: no running deployment of ${notes} serves release 2026.11.0`,
         "BAD_REQUEST: requires Destack-Version",
         "BAD_REQUEST: invalid Destack-Version: next",
     ]);
@@ -236,4 +250,82 @@ test("send a workload's calls to its addresses as its installation, scoped to th
             ],
         ],
     });
+});
+
+test("forward a webhook request to the newest running deployment, and refuse one without a deployment", async () => {
+    // route over the two deployments, then over none
+    const runtime = new RecordingRuntime();
+    const route = (listed: readonly Endpoint[]) =>
+        new Router({
+            runtimes: [runtime],
+            routes: {
+                endpoints: async () => listed,
+                resolve: async () => ({ kind: "remote", scope, url: "", audience: NOTES_PACKAGE }),
+            },
+            sign: async () => "unused",
+            fetch: async () => new Response(null, { status: 500 }),
+        });
+    const request = () =>
+        new Request("https://notes.personal.acme.destack.space/.destack/webhook/pushes/notes", {
+            method: "POST",
+            body: "{}",
+        });
+    const installation = tasks.installationId;
+    const accepted = await route(endpoints).receive(installation, "/pushes/notes", request());
+
+    expect([accepted.status, runtime.received]).toEqual([
+        202,
+        [[endpoints[1]!.instanceId, "/pushes/notes", null]],
+    ]);
+    await expect(route([]).receive(installation, "/pushes/notes", request())).rejects.toMatchObject(
+        {
+            code: "SERVICE_UNAVAILABLE",
+            message: `no running deployment of ${installation} receives webhooks`,
+        },
+    );
+});
+
+test("lend each caller's authority to the installation it calls, as a lending the holder's cells verify", async () => {
+    // route with the holder's lending
+    const lending = await Lending.generate();
+    const runtime = new RecordingRuntime();
+    const router = new Router({
+        runtimes: [runtime],
+        routes: {
+            endpoints: async () => endpoints,
+            resolve: async () => ({ kind: "remote", scope, url: "", audience: NOTES_PACKAGE }),
+        },
+        sign: async () => "unused",
+        fetch: async () => new Response(null, { status: 500 }),
+        lending,
+    });
+    const owner = principal.user.reference(Scope.universe.id, "user-owner");
+    const caller = new Caller({
+        credential: { kind: "session", id: "fixture" },
+        audience: NOTES_PACKAGE,
+        subject: owner,
+        subjects: [owner],
+        verifiedAt: Date.now(),
+        expiresAt: Date.now() + 60_000,
+    });
+    await router.ingress(
+        notes,
+        "/notes/list",
+        new Request("http://notes.test/", { headers: { [VERSION_HEADER]: "2026.10.0" } }),
+        caller,
+    );
+
+    // forward the caller with a lending of its authority to the installation in its space
+    const forwarded = runtime.callers[0]!.authentication;
+    const { expiresAt, ...claim } = await lending.verify(forwarded.delegation!);
+    expect([forwarded.audience, claim, expiresAt > Date.now()]).toEqual([
+        NOTES_PACKAGE,
+        {
+            subject: owner,
+            subjects: [owner],
+            installation: principal.installation.reference(scope, notes),
+            scope,
+        },
+        true,
+    ]);
 });

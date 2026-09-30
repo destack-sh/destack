@@ -1,9 +1,13 @@
-import { principal } from "@destack/access";
+import { principal, sameSubject } from "@destack/access";
 import type { PackageId } from "@destack/package";
 import type { ServerRuntime } from "@destack/package/runtime";
 import { type Identifier, Version } from "@destack/schema";
 import { Egress } from "@destack/service";
-import { Caller, CALLER_LIFETIME_MILLISECONDS } from "@destack/service/authentication";
+import {
+    Caller,
+    CALLER_LIFETIME_MILLISECONDS,
+    type Lending,
+} from "@destack/service/authentication";
 import { ServiceError } from "@destack/service/error";
 import { copyRequest, VERSION_HEADER } from "@destack/service/request";
 import type { InstanceSpec, Runtime } from "../runtime/index.ts";
@@ -12,6 +16,8 @@ import type { InstanceSpec, Runtime } from "../runtime/index.ts";
 export interface Endpoint {
     /** The instance. */
     readonly instanceId: Identifier<"instance">;
+    /** The space the installation serves. */
+    readonly scope: Identifier<"space">;
     /** The deployment it runs. */
     readonly deploymentId: Identifier<"deployment">;
     /** The server runtime it runs on. */
@@ -71,6 +77,8 @@ export class Router {
     readonly #sign: (caller: Caller) => Promise<string>;
     /** The fetch reaching other origins. */
     readonly #fetch: (request: Request) => Promise<Response>;
+    /** The lendings of callers' authority to the installations they call, which the holder's cells verify. */
+    readonly #lending?: Lending;
 
     /** Route through a host's runtimes and its spaces' routes. */
     constructor(options: {
@@ -82,12 +90,17 @@ export class Router {
         readonly sign: (caller: Caller) => Promise<string>;
         /** The fetch reaching other origins. */
         readonly fetch: (request: Request) => Promise<Response>;
+        /** Lend each caller's authority to the installation it calls, for the calls it sends, as the holder's cells verify. */
+        readonly lending?: Lending;
     }) {
         // index the runtimes, and hold the routes, the signer and the fetch
         this.#runtimes = new Map(options.runtimes.map((runtime) => [runtime.name, runtime]));
         this.#routes = options.routes;
         this.#sign = options.sign;
         this.#fetch = options.fetch;
+        if (options.lending !== undefined) {
+            this.#lending = options.lending;
+        }
     }
 
     /** Serve a call below an installation's service on the newest deployment serving the caller's release. */
@@ -118,12 +131,54 @@ export class Router {
             )
             .sort((left, right) => Version.compare(right.release, left.release));
         if (serving === undefined) {
-            throw new ServiceError("UNAVAILABLE", {
+            throw new ServiceError("SERVICE_UNAVAILABLE", {
                 message: `no running deployment of ${installationId} serves release ${version}`,
             });
         }
 
-        return this.#runtime(serving.runtime).fetch(serving.instanceId, path, request, caller);
+        // lend the caller's authority to the installation for the calls it sends, and forward the call
+        const delegated = await this.#delegate(caller, installationId, serving.scope);
+
+        return this.#runtime(serving.runtime).fetch(serving.instanceId, path, request, delegated);
+    }
+
+    /** Lend a caller's authority to the installation it calls, as a lending the holder's cells verify. */
+    async #delegate(
+        caller: Caller,
+        installationId: Identifier<"installation">,
+        spaceId: Identifier<"space">,
+    ): Promise<Caller> {
+        // lend nothing where the holder lends no authority, nor an installation to itself
+        const installation = principal.installation.reference(spaceId, installationId);
+        const lending = this.#lending;
+        if (lending === undefined || sameSubject(caller.authentication.subject, installation)) {
+            return caller;
+        }
+
+        // sign the caller's authority lent to the installation in its space
+        const delegation = await lending.sign(caller, installation, spaceId);
+
+        return new Caller({ ...caller.authentication, delegation });
+    }
+
+    /** Forward a webhook request to the newest running deployment of an installation, whose workload verifies it. */
+    async receive(
+        installationId: Identifier<"installation">,
+        path: string,
+        request: Request,
+    ): Promise<Response> {
+        // pick the newest running deployment
+        const endpoints = await this.#routes.endpoints(installationId);
+        const [newest] = [...endpoints].sort((left, right) =>
+            Version.compare(right.release, left.release),
+        );
+        if (newest === undefined) {
+            throw new ServiceError("SERVICE_UNAVAILABLE", {
+                message: `no running deployment of ${installationId} receives webhooks`,
+            });
+        }
+
+        return this.#runtime(newest.runtime).receive(newest.instanceId, path, request);
     }
 
     /** Serve a workload's call to an address below the host's egress, as its installation. */
@@ -180,7 +235,9 @@ export class Router {
     #runtime(name: ServerRuntime): Runtime {
         const runtime = this.#runtimes.get(name);
         if (runtime === undefined) {
-            throw new ServiceError("UNAVAILABLE", { message: `this host runs no ${name} runtime` });
+            throw new ServiceError("SERVICE_UNAVAILABLE", {
+                message: `this host runs no ${name} runtime`,
+            });
         }
 
         return runtime;

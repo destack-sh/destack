@@ -31,7 +31,7 @@ const server = Bun.serve({
             body: await request.text(),
             path: new URL(request.url).pathname,
             isForwarded: request.headers.get("authorization") === "Bearer " + start.secret,
-            caller: JSON.parse(request.headers.get("x-destack-caller")).subject.id,
+            caller: JSON.parse(request.headers.get("x-destack-caller") ?? "null")?.subject.id ?? null,
             scope: start.scope,
             installation: start.installation,
             bindings: start.bindings,
@@ -43,7 +43,7 @@ const server = Bun.serve({
 console.log(JSON.stringify({ port: server.port }));
 `;
 
-test("spec an instance as a Bun process: bind services at the egress with its secret, serve forwarded callers, identify it by its secret, report a crash, and stop it", async () => {
+test("spec an instance as a Bun process: bind services at the egress with its secret, serve forwarded callers and webhooks, identify it by its secret, report a crash, and stop it", async () => {
     // spec instances below a scratch directory
     const directory = await mkdtemp(join(tmpdir(), "destack-runtime-"));
     onTestFinished(() => rm(directory, { recursive: true }));
@@ -141,6 +141,16 @@ test("spec an instance as a Bun process: bind services at the egress with its se
     await runtime.start(spec, exited);
     const { secret, ...answered } = await echo("/replica/sync");
     const identified = [runtime.identify(secret)?.instanceId, runtime.identify("other")];
+    const webhook = (await (
+        await runtime.receive(
+            instanceId,
+            "/pushes/notes",
+            new Request("http://notes.test/.destack/webhook/pushes/notes", {
+                method: "POST",
+                body: "{}",
+            }),
+        )
+    ).json()) as Readonly<Record<string, unknown>>;
 
     // report a crash to the holder and serve nothing afterwards
     await expect(
@@ -169,7 +179,13 @@ test("spec an instance as a Bun process: bind services at the egress with its se
                 "resource resource-01996ab0-0000-7000-8000-0000000000e5 binds no provisioned resource of package-01996ab0-0000-7000-8000-0000000000e7",
         }),
     );
-    expect({ answered, identified, isRunning }).toEqual({
+    expect({
+        webhook: [webhook.path, webhook.isForwarded, webhook.caller],
+        answered,
+        identified,
+        isRunning,
+    }).toEqual({
+        webhook: ["/.destack/webhook/pushes/notes", true, null],
         answered: {
             method: "POST",
             body: '{"after":1}',

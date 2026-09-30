@@ -24,6 +24,8 @@ export interface Runtime {
         request: Request,
         caller: Caller,
     ): Promise<Response>;
+    /** Forward a webhook request below an instance's webhooks to it, verified by the workload itself. */
+    receive(instanceId: Identifier<"instance">, path: string, request: Request): Promise<Response>;
 }
 
 /** What a runtime runs for one instance: its deployment's build, output and workload, and the resources it runs with. */
