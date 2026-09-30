@@ -9,7 +9,8 @@ import { defineDatabase } from "../declare/database.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { defineTable, TABLE, text } from "../index.ts";
 import type { SqliteDatabase } from "./database.ts";
-import { sqliteConnector, sqliteProvider } from "./provider.ts";
+import { sqliteConnector } from "./connector.ts";
+import { sqliteProvider } from "./provider.ts";
 
 /** Notes with a title. */
 const note = defineTable("note", { id: text("id").primaryKey(), title: text("title") });

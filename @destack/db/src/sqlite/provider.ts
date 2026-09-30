@@ -1,19 +1,8 @@
 import { mkdir, rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import {
-    Plan,
-    type Connector,
-    type Copying,
-    type Provider,
-    type Provisioning,
-    type ResourceBinding,
-    type ResourceRecord,
-} from "@destack/resource";
-import type { DatabaseConnection } from "../database/connection.ts";
-import { Database } from "../declare/database.ts";
+import { Plan, type Copying, type Provider, type Provisioning } from "@destack/resource";
 import { connect } from "./bun/connection.ts";
-import type { SqliteDatabase } from "./database.ts";
-import type { Table } from "../table/table.ts";
+import { open, requireReference } from "./connector.ts";
 import { DatabaseError } from "../error/error.ts";
 import { Replication } from "../replication/replication.ts";
 import { DatabaseKind } from "../declare/database.ts";
@@ -106,50 +95,4 @@ export function sqliteProvider(
             }
         },
     };
-}
-
-/** Open SQLite database files inside a workload, refusing one lacking its declaration's tables. */
-export const sqliteConnector: Connector<DatabaseConnection> = {
-    code: "sqlite",
-    connect: async (binding, declaration) => {
-        // refuse a database lacking its tables
-        const database = requireDatabase(declaration);
-        const connection = await open(binding, database.tables);
-        const unapplied = await database.check(connection);
-        if (unapplied.length > 0) {
-            await connection.close();
-            throw new DatabaseError(
-                "NOT_APPLIED",
-                `database ${database.name} has not applied ${unapplied.join(", ")}`,
-            );
-        }
-
-        return connection;
-    },
-};
-
-/** Require a provisioned resource reference. */
-function requireReference(reference: string | null): string {
-    if (reference === null) {
-        throw new TypeError("resource is not provisioned");
-    }
-
-    return reference;
-}
-
-/** Require a database declaration. */
-function requireDatabase(declaration: unknown): Database {
-    if (!(declaration instanceof Database)) {
-        throw new TypeError("not a database declaration");
-    }
-
-    return declaration;
-}
-
-/** Open a provisioned database file. */
-function open(
-    resource: Pick<ResourceRecord | ResourceBinding, "reference">,
-    tables: readonly Table[],
-): Promise<SqliteDatabase> {
-    return connect(fileURLToPath(requireReference(resource.reference)), tables);
 }

@@ -8,7 +8,7 @@ import { LOG_CHANNEL } from "../log/schema.ts";
 import { DatabaseDriver } from "../database/driver.ts";
 import { PostgresSchemaCompiler } from "./compiler.ts";
 import { expandTrees } from "../tree/tree.ts";
-import * as declaration from "../declare/database.ts";
+import type * as declaration from "../declare/database.ts";
 import type { Table } from "../table/table.ts";
 
 /** A PostgreSQL database with its own pool. */
@@ -26,7 +26,7 @@ export class PostgresDatabase extends DatabaseConnection<"postgresql"> {
     ) {
         // compile the tables with their tree tables
         const compiler = new PostgresSchemaCompiler(
-            tables instanceof declaration.Database ? tables.tables : expandTrees(tables),
+            "tables" in tables ? tables.tables : expandTrees(tables),
         );
         const native = drizzle({ ...options, client });
         super(

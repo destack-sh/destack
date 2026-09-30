@@ -8,7 +8,7 @@ import type { CommitNotifier } from "../log/notifier.ts";
 import { DatabaseDriver } from "../database/driver.ts";
 import { SqliteSchemaCompiler } from "./compiler.ts";
 import { expandTrees } from "../tree/tree.ts";
-import * as declaration from "../declare/database.ts";
+import type * as declaration from "../declare/database.ts";
 import type { Table } from "../table/table.ts";
 import type { SQL } from "drizzle-orm";
 
@@ -31,7 +31,7 @@ export class SqliteDatabase<
     ) {
         // compile the tables with their tree tables
         const compiler = new SqliteSchemaCompiler(
-            tables instanceof declaration.Database ? tables.tables : expandTrees(tables),
+            "tables" in tables ? tables.tables : expandTrees(tables),
         );
         const native = new SqliteNative(client, options);
         super(
