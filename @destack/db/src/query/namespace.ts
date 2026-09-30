@@ -1,7 +1,7 @@
 import type { SQLWrapper } from "drizzle-orm";
 import type { ColumnDefinition } from "../table/column.ts";
 import type { Condition } from "./condition.ts";
-import type { Expression, Rollup } from "./expression.ts";
+import type { Expression, Rollup } from "../expression/expression.ts";
 
 /** The computed values of a row, by name. */
 export type Computed = Readonly<Record<string, Expression>>;

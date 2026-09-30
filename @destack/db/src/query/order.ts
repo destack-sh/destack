@@ -5,7 +5,7 @@ import { Column } from "../table/column.ts";
 import { TABLE, type Table } from "../table/table.ts";
 import { Key } from "./key.ts";
 import type { Row } from "../table/row.ts";
-import { Expression } from "./expression.ts";
+import { Expression } from "../expression/expression.ts";
 import type { Namespace } from "./namespace.ts";
 import { DatabaseError } from "../error/error.ts";
 

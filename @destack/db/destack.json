@@ -24,7 +24,8 @@
             "describes": [
                 {
                     "kind": "resource",
-                    "function": "./inspect#describeDatabase"
+                    "function": "./inspect#describeDatabase",
+                    "compare": "./inspect#compareDatabase"
                 }
             ]
         },

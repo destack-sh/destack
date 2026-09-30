@@ -1,7 +1,7 @@
 import { canonicalize } from "@destack/schema/json";
 import { sql } from "drizzle-orm";
 import { defineSchema, schema, Version } from "@destack/schema";
-import { Expression } from "../query/expression.ts";
+import { Expression } from "../expression/expression.ts";
 import { Package } from "@destack/package";
 import { TABLE, type Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";

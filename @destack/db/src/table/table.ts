@@ -4,7 +4,7 @@ import { check, ForeignKey, type PrimaryKey, type TableConstraint } from "./cons
 import type { Dialect } from "../dialect/dialect.ts";
 import { declaringModule, type ModuleMetadata, type Package } from "@destack/package";
 import { Version } from "@destack/schema";
-import type { Expression } from "../query/expression.ts";
+import { Expression } from "../expression/expression.ts";
 import { qualify } from "./namespace.ts";
 import type { ChangeRetention } from "../inspect/log.ts";
 import type { DatabaseTier } from "../declare/database.ts";
@@ -372,15 +372,7 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
     }
 
     // require conversions keyed by releases up to the declaring one
-    for (const release of Object.keys(options.convert ?? {})) {
-        if (!Version.safeParse(release).success) {
-            throw new TypeError(`conversion key of ${name} is no release: ${release}`);
-        } else if (Version.compare(release, owner.version) > 0) {
-            throw new TypeError(
-                `conversion of ${name} is keyed by ${release}, after its release ${owner.version}`,
-            );
-        }
-    }
+    Version.requireUpTo(options.convert ?? {}, owner.version, name);
 
     // attach the columns in order
     const columns = Object.fromEntries(

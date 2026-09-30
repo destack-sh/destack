@@ -10,7 +10,7 @@ import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { declareState } from "./state.ts";
 import type { TablePlan } from "./plan.ts";
-import { Expression } from "../query/expression.ts";
+import { Expression } from "../expression/expression.ts";
 import { PlanError } from "@destack/resource/error";
 
 /** Folders holding documents, as first released. */

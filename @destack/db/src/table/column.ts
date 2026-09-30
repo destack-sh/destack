@@ -3,6 +3,7 @@ import { type SQL, sql, type SQLWrapper } from "drizzle-orm";
 import { defineSchema, schema } from "@destack/schema";
 import * as identifiers from "@destack/schema/identifier";
 import type { Dialect } from "../dialect/dialect.ts";
+import type { JsonValue } from "@destack/schema/json";
 
 /** The logical value types of columns. */
 export const COLUMN_KINDS = [
@@ -214,8 +215,7 @@ export interface ColumnDefinition<Value = unknown> {
     fromJson(value: unknown): Value;
 }
 
-/** A value in JSON. */
-export type JsonValue = schema.Infer<ReturnType<typeof schema.json>>;
+export type { JsonValue };
 
 /** Referential actions. */
 export interface ReferenceAction {

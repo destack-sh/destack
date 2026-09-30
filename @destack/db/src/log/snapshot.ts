@@ -5,7 +5,7 @@ import { CHAIN_TERMS } from "../query/predicate.ts";
 import { Key } from "../query/key.ts";
 import { Order } from "../query/order.ts";
 import type { Computed, Namespace } from "../query/namespace.ts";
-import { Expression, type Related } from "../query/expression.ts";
+import { Expression, type Related } from "../expression/expression.ts";
 import { TABLE, type Table } from "../table/table.ts";
 import { latestOf, selectHead, type LogPosition } from "./position.ts";
 import { fromDriver, type Row } from "../table/row.ts";

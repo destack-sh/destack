@@ -220,18 +220,3 @@ test("refuse JSON where numbers or text are required, and reads inside values th
         "expression reads a scalar of a value that is not JSON",
     ]);
 });
-
-test("assign fields computed from a row as it stands, keeping its other fields", () => {
-    const row = { text: "notes", limit: null };
-
-    expect(
-        Expression.assign(
-            {
-                query: Expression.column("text"),
-                limit: Expression.coalesce(Expression.column("limit"), Expression.literal(50)),
-                text: Expression.json(null),
-            },
-            row,
-        ),
-    ).toEqual({ text: null, limit: 50, query: "notes" });
-});

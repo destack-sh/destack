@@ -9,6 +9,7 @@
     "exports": {
         "./log": "./src/log/index.ts",
         "./query": "./src/query/index.ts",
+        "./expression": "./src/expression/index.ts",
         "./tree": "./src/tree/index.ts",
         "./error": "./src/error/index.ts",
         "./declare": "./src/declare/index.ts",
