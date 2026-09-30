@@ -446,3 +446,58 @@ test.for(TEST_DIALECTS)(
         });
     },
 );
+
+test.for(TEST_DIALECTS)(
+    "match the rows each copy includes, and keep a row two copies include until neither does, on %s",
+    async (dialect) => {
+        const copy = await openCopy(dialect);
+        const epoch = "01996ab0-0000-7000-8000-000000000001";
+        const insert = (id: string) => ({
+            table: note[TABLE].sqlName,
+            operation: "insert" as const,
+            row: encodeRow(note, { ...first, id }),
+        });
+        const snapshot = (sequence: number, ids: readonly string[]): QueryPage[] => [
+            {
+                reset: true,
+                complete: true,
+                changes: ids.map(insert),
+                position: { epoch, sequence },
+            },
+        ];
+        const stored = async () =>
+            (await copy.select({ id: note.id }).from(note).orderBy(asc(note.id))).map(
+                (row) => row.id,
+            );
+
+        // include a shared row in two copies of the same scope
+        const left = new Replica({ name: "left", scope: "inbox", tables: [note] });
+        const right = new Replica({ name: "right", scope: "inbox", tables: [note] });
+        await replicate(left, copy, snapshot(1, ["a", "shared"]));
+        await replicate(right, copy, snapshot(1, ["shared", "z"]));
+
+        // match the rows each copy includes
+        const included = async (name: string) =>
+            (
+                await copy
+                    .select({ id: note.id })
+                    .from(note)
+                    .where(Replica.includes(name, note))
+                    .orderBy(asc(note.id))
+            ).map((row) => row.id);
+        expect([await included("left"), await included("right"), await included("other")]).toEqual([
+            ["a", "shared"],
+            ["shared", "z"],
+            [],
+        ]);
+
+        // keep the shared row while one copy still includes it, then delete it
+        await replicate(left, copy, snapshot(2, ["a"]));
+        const kept = await stored();
+        await replicate(right, copy, snapshot(2, ["z"]));
+        expect([kept, await stored()]).toEqual([
+            ["a", "shared", "z"],
+            ["a", "z"],
+        ]);
+    },
+);

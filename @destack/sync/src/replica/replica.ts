@@ -5,12 +5,14 @@ import {
     defineTable,
     eq,
     gte,
+    index,
     integer,
     json,
     inArray,
     Key,
     lt,
     primaryKey,
+    sql,
     text,
     TABLE,
     type DatabaseConnection,
@@ -134,8 +136,32 @@ export const replicaResult = defineTable(
     },
 );
 
+/** The rows of each copy, so a row several copies include stays until none includes it. */
+export const replicaRow = defineTable(
+    "replica_row",
+    {
+        /** The copy's name. */
+        name: text("name").notNull(),
+        /** The copy's scope. */
+        scope: text("scope").notNull(),
+        /** The row's table, by SQL name. */
+        table: text("table").notNull(),
+        /** The row's key. */
+        key: text("key").notNull(),
+    },
+    {
+        constraints: (row) => [
+            primaryKey({
+                name: "replica_row_key",
+                columns: [row.name, row.scope, row.table, row.key],
+            }),
+            index("replica_row_table").on(row.table, row.key),
+        ],
+    },
+);
+
 /** The tables of a database holding copies. */
-export const replicaTables: readonly Table[] = [replica, replicaPage, replicaResult];
+export const replicaTables: readonly Table[] = [replica, replicaPage, replicaResult, replicaRow];
 
 /** A local copy of one scope's rows in a remote database's tables. */
 export class Replica {
@@ -192,6 +218,38 @@ export class Replica {
                 { table: replica, scopes: [this.scope], where: Condition.eq("name", this.name) },
             ],
         ]);
+    }
+
+    /** Match the rows of a table keyed by a text `id` that a named copy includes, as SQL. */
+    static includes(name: string, table: Table): SQL {
+        const { sqlName, columns } = table[TABLE];
+        const key = sql`'["' || ${sqlName} || '","' || ${columns.id} || '"]'`;
+
+        return sql`EXISTS (SELECT 1 FROM ${replicaRow} WHERE ${replicaRow.name} = ${name} AND ${replicaRow.table} = ${sqlName} AND ${replicaRow.key} = ${key})`;
+    }
+
+    /** List the keys of some rows of a table that a named copy includes. */
+    static async keysIncluded(
+        database: DatabaseConnection,
+        name: string,
+        table: Table,
+        rows: readonly Row[],
+    ): Promise<ReadonlySet<string>> {
+        const included = await database
+            .select({ key: replicaRow.key })
+            .from(replicaRow)
+            .where(
+                and(
+                    eq(replicaRow.name, name),
+                    eq(replicaRow.table, table[TABLE].sqlName),
+                    inArray(
+                        replicaRow.key,
+                        rows.map((row) => Key.name(table, row)),
+                    ),
+                ),
+            );
+
+        return new Set(included.map((row) => row.key));
     }
 
     /** Report whether a database copies a scope. */
@@ -511,10 +569,16 @@ export class Replica {
             }
 
             // drop the copy's record, staged pages and groups
-            const own = (table: typeof replica | typeof replicaPage | typeof replicaResult) =>
-                and(eq(table.name, this.name), eq(table.scope, this.scope));
+            const own = (
+                table:
+                    | typeof replica
+                    | typeof replicaPage
+                    | typeof replicaResult
+                    | typeof replicaRow,
+            ) => and(eq(table.name, this.name), eq(table.scope, this.scope));
             await transaction.delete(replicaPage).where(own(replicaPage));
             await transaction.delete(replicaResult).where(own(replicaResult));
+            await transaction.delete(replicaRow).where(own(replicaRow));
             await transaction.delete(replica).where(own(replica));
         });
     }
@@ -539,6 +603,7 @@ export class Replica {
         database: DatabaseConnection,
         pages: AsyncIterable<QueryPage> | Iterable<QueryPage>,
         outbox?: Outbox,
+        request?: unknown,
     ): AsyncGenerator<QueryPage> {
         // drop an earlier stream's staged pages
         await database.delete(replicaPage).where(this.#staged());
@@ -556,7 +621,7 @@ export class Replica {
 
             // apply the run a page completes
             if (page.complete) {
-                await this.#complete(database, page, { staged, isSnapshot }, outbox);
+                await this.#complete(database, page, { staged, isSnapshot }, outbox, request);
                 staged = 0;
             }
             // stage a page within a run
@@ -570,19 +635,35 @@ export class Replica {
         }
     }
 
-    /** Apply a source's pages from the recorded position until the signal aborts, resuming each stream that ends. */
+    /** Apply a source's pages until the signal aborts, resuming each stream that ends, from scratch after a changed request. */
     async follow(
         database: DatabaseConnection,
         source: (after: LogPosition | undefined, signal: AbortSignal) => AsyncIterable<QueryPage>,
         signal: AbortSignal,
-        outbox?: Outbox,
+        options: {
+            /** The client's predictions to rebase. */
+            readonly outbox?: Outbox;
+            /** What the copy asks its source for, recorded as it completes a run. */
+            readonly request?: unknown;
+        } = {},
     ): Promise<void> {
         // apply each stream from the recorded position until aborted
         await this.register(database);
         while (!signal.aborted) {
+            // resume only the request the copy completed
+            const isResumed =
+                options.request === undefined ||
+                canonicalize((await this.holding(database)) ?? null) ===
+                    canonicalize(options.request);
+            const after = isResumed ? await this.position(database) : undefined;
             let isReceived = false;
-            const pages = source(await this.position(database), signal);
-            for await (const _page of this.apply(database, pages, outbox)) {
+            const pages = source(after, signal);
+            for await (const _page of this.apply(
+                database,
+                pages,
+                options.outbox,
+                options.request,
+            )) {
                 isReceived = true;
             }
 
@@ -602,6 +683,7 @@ export class Replica {
         page: QueryPage,
         run: { readonly staged: number; readonly isSnapshot: boolean },
         outbox: Outbox | undefined,
+        request: unknown,
     ): Promise<void> {
         // apply and rebase in one transaction
         const { staged, isSnapshot } = run;
@@ -705,6 +787,7 @@ export class Replica {
                         ...page.position,
                         ...origin,
                         ...(page.scopes === undefined ? {} : { scopes: page.scopes }),
+                        ...(request === undefined ? {} : { queries: schema.json().parse(request) }),
                         shape: await this.#shape,
                     };
                     await transaction
@@ -776,8 +859,13 @@ export class Replica {
             }
         }
         for (const [table, batch] of batches) {
-            await transaction.remove(table, batch.removed);
+            await this.#exclude(
+                transaction,
+                table,
+                batch.removed.map((row) => Key.name(table, row)),
+            );
             await transaction.upsert(table, batch.held);
+            await this.#include(transaction, table, batch.held);
         }
 
         // hold the groups
@@ -839,16 +927,16 @@ export class Replica {
         return and(eq(replicaPage.name, this.name), eq(replicaPage.scope, this.scope))!;
     }
 
-    /** Delete the rows a completed snapshot left out, a batch at a time in key order. */
+    /** Let go of the rows a completed snapshot left out in the copy's scope, a batch at a time in key order. */
     async #prune(database: DatabaseConnection, table: Table, delivered: ReadonlySet<string>) {
-        // read the held keys in batches
+        // read the rows of the copy's scope and condition in batches
         const columns = table[TABLE].columns;
         const key = table[TABLE].key;
         const order = Order.complete([], table);
         const fields = Object.fromEntries(key.map((name) => [name, columns[name]!]));
         let last: Record<string, unknown> | undefined;
         do {
-            const held = (await database
+            const rows = (await database
                 .select(fields)
                 .from(table)
                 .where(
@@ -865,14 +953,70 @@ export class Replica {
                 )
                 .orderBy(...Order.render(order, table))
                 .limit(PRUNE_BATCH)) as Record<string, unknown>[];
-            last = held.at(-1);
+            last = rows.at(-1);
 
-            // delete the stale rows
+            // let go of the rows the snapshot left out
+            const stale = rows
+                .map((row) => Key.name(table, row))
+                .filter((name) => !delivered.has(name));
+            await this.#exclude(database, table, stale);
+        } while (last !== undefined);
+    }
+
+    /** Record the rows the copy includes. */
+    async #include(
+        database: DatabaseConnection,
+        table: Table,
+        rows: readonly Row[],
+    ): Promise<void> {
+        const name = table[TABLE].sqlName;
+        for (let start = 0; start < rows.length; start += PRUNE_BATCH) {
+            const values = rows.slice(start, start + PRUNE_BATCH).map((row) => ({
+                name: this.name,
+                scope: this.scope,
+                table: name,
+                key: Key.name(table, row),
+            }));
+            await database.insert(replicaRow).values(values).onConflictDoNothing();
+        }
+    }
+
+    /** Take some rows out of the copy, deleting those no copy includes any longer. */
+    async #exclude(
+        database: DatabaseConnection,
+        table: Table,
+        keys: readonly string[],
+    ): Promise<void> {
+        // take the rows out of the copy
+        const name = table[TABLE].sqlName;
+        for (let start = 0; start < keys.length; start += PRUNE_BATCH) {
+            const batch = keys.slice(start, start + PRUNE_BATCH);
+            await database
+                .delete(replicaRow)
+                .where(
+                    and(
+                        this.#included(),
+                        eq(replicaRow.table, name),
+                        inArray(replicaRow.key, batch),
+                    ),
+                );
+
+            // delete the rows no other copy includes
+            const kept = await database
+                .select({ key: replicaRow.key })
+                .from(replicaRow)
+                .where(and(eq(replicaRow.table, name), inArray(replicaRow.key, batch)));
+            const included = new Set(kept.map((row) => row.key));
             await database.remove(
                 table,
-                held.filter((row) => !delivered.has(Key.name(table, row))),
+                batch.filter((key) => !included.has(key)).map((key) => Key.parse(table, key)),
             );
-        } while (last !== undefined);
+        }
+    }
+
+    /** Match the rows the copy includes. */
+    #included(): SQL {
+        return and(eq(replicaRow.name, this.name), eq(replicaRow.scope, this.scope))!;
     }
 }
 

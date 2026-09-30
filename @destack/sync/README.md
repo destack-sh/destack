@@ -88,8 +88,21 @@ A `Replica` copies one scope's query results into another database.
 
 ```ts
 const copy = new Replica({ name: "board", scope: spaceId, tables: [project, task] });
-await copy.follow(local, (after, signal) => feed.subscribe({ board }, after, signal), signal, outbox);
+await copy.follow(local, (after, signal) => feed.subscribe({ board }, after, signal), signal, { outbox });
 const projects = await copy.rows(local, "board", board, outbox);
+```
+
+Several replicas may include one row, which stays until none includes it.
+
+```ts
+const tasks = await local.select().from(task).where(Replica.includes("board", task));
+```
+
+A database copying another server's rows sends a `ReplicaRequest` to a `ReplicaSource`, and resumes only the request it completed.
+
+```ts
+const request = { name: "chain", scope: accountId, below: spaceId, access: true, held: [], copied: [], rows: [] };
+await copy.follow(local, (after, signal) => source.stream({ ...request, after }, signal), signal, { request });
 ```
 
 ## Outboxes
