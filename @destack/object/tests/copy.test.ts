@@ -16,7 +16,7 @@ import { Bookmark } from "@destack/service/bookmark";
 import { Journal } from "@destack/service/database";
 import { RequestId } from "@destack/service/request";
 import type { ServiceContext } from "@destack/service/server";
-import { Scope, Feed, Replica, type ChainRelay } from "@destack/sync";
+import { Scope, Feed, Replica } from "@destack/sync";
 import { v7 } from "uuid";
 import { defineObject, field, method } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
@@ -111,11 +111,24 @@ test.each(TEST_DIALECTS)(
             ),
         );
 
-        // serve the documents of one space over the workload's database to each call's user
+        // serve the documents of one space over the workload's database to each call's user, copying its chain from the home database
         let caller: { user: string; restricted?: string } = { user: "alice" };
-        const server = new ObjectServer({
+        const feed = new Feed(home.database, accessTables);
+        const server: ObjectServer<{ document: typeof document }> = new ObjectServer({
             objects: { document },
             database: workload.database,
+            replicas: {
+                source: {
+                    stream: (request, signal) =>
+                        feed.subscribe(
+                            server.authorizer.replicaOf(request).queries,
+                            request.after,
+                            signal,
+                        ),
+                },
+                requests: () =>
+                    server.authorizer.chain(workload.database, spaceId, { isHome: false }),
+            },
             context: () => ({
                 subject: principal.user.reference("universe", caller.user),
                 subjects: [principal.user.reference("universe", caller.user)],
@@ -137,23 +150,8 @@ test.each(TEST_DIALECTS)(
             }),
         });
 
-        // copy the space's chain into the workload's database from a relay of the home database
-        const feed = new Feed(home.database, accessTables);
-        const relay: ChainRelay = {
-            scope: spaceId,
-            watch: (watched, signal) =>
-                feed.subscribe(
-                    server.authorizer.replicaOf(watched.scope, watched.held, watched.copied)
-                        .queries,
-                    watched.after,
-                    signal,
-                ),
-        };
-        const follower = server.authorizer.follower(
-            workload.database,
-            server.authorizer.held,
-            relay,
-        );
+        // follow the space's chain up to the universe
+        const follower = server.controllers().find((each) => each.name === "replica")!;
         const controller = new AbortController();
         const following: Promise<void>[] = [];
         onTestFinished(async () => {
@@ -161,11 +159,19 @@ test.each(TEST_DIALECTS)(
             await Promise.allSettled(following);
         });
         const head = await home.database.log.position();
+        const scopeOf = (key: string) => key.split(" ")[1];
         for (const scope of [spaceId, accountId, Scope.universe.id]) {
-            following.push(follower.follow(scope, controller.signal));
+            const key = (await follower.list()).find((entry) => scopeOf(entry) === scope)!;
+            following.push(
+                follower.reconcile(key, { signal: controller.signal }).then(() => undefined),
+            );
             await Replica.reach(workload.database, scope, head, controller.signal);
         }
-        expect(await follower.list()).toEqual([spaceId, accountId, Scope.universe.id]);
+        expect((await follower.list()).map(scopeOf)).toEqual([
+            spaceId,
+            accountId,
+            Scope.universe.id,
+        ]);
 
         // create through credentials restricted to the space or another one, and unrestricted, then list as alice
         const context = {

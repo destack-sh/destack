@@ -1,5 +1,5 @@
 import * as access from "@destack/access";
-import { Scope, type ObjectReference } from "@destack/sync";
+import { Replica, Scope, type ObjectReference } from "@destack/sync";
 import {
     AccessError,
     delegationChain,
@@ -13,6 +13,7 @@ import {
 import {
     and,
     eq,
+    Key,
     ne,
     or,
     sql,
@@ -50,12 +51,16 @@ export class Authorization extends access.Authorization {
             return "memory";
         }
 
-        // match held rows, and the copies an enclosing scope hands down to every caller inside it
-        const held = this.authorizer.where(permission, this.access, object.table as Table);
+        // match held rows, the copies an enclosing scope hands down, and the copies of global rows kept for the scope
+        const table = object.table as Table;
+        const held = this.authorizer.where(permission, this.access, table);
+        const columns = table[TABLE].columns;
+        const isCopy = ne(columns.scope!, this.access.scope);
+        const included = Replica.includes(this.access.scope, table);
 
         return object.inherited === undefined
-            ? held
-            : or(ne(object.table[TABLE].columns.scope!, this.access.scope), held)!;
+            ? or(and(isCopy, included), held)!
+            : or(isCopy, held)!;
     }
 
     /** Decide which rows the caller may list: those it holds the permission on, and the copies an enclosing scope hands down. */
@@ -66,12 +71,29 @@ export class Authorization extends access.Authorization {
         rows: readonly Readonly<Record<string, unknown>>[],
         reader?: GrantReader,
     ): Promise<access.Admission> {
-        // admit the inherited copies of enclosing scopes
-        const copies = new Set(
-            object.inherited === undefined
-                ? []
-                : [...rows.keys()].filter((position) => rows[position]!.scope !== scope),
-        );
+        // admit the inherited copies of enclosing scopes wholesale
+        const table = object.table as Table;
+        const others = [...rows.keys()].filter((position) => rows[position]!.scope !== scope);
+        let copies: ReadonlySet<number>;
+        if (object.inherited !== undefined) {
+            copies = new Set(others);
+        }
+        // admit the durable copies of global rows kept for the scope
+        else if (object.storage === "durable" && others.length > 0) {
+            const included = await Replica.keysIncluded(
+                this.database,
+                scope,
+                table,
+                others.map((position) => rows[position]!),
+            );
+            copies = new Set(
+                others.filter((position) => included.has(Key.name(table, rows[position]!))),
+            );
+        }
+        // admit no other scope's rows
+        else {
+            copies = new Set();
+        }
 
         // check the caller's permission on the scope's own rows
         const own = [...rows.keys()].filter((position) => !copies.has(position));
@@ -420,10 +442,26 @@ export class SystemAuthorization extends Authorization {
         return new SystemAuthorization(authorizer, database, bind, resolved);
     }
 
+    /** Authorize the system within a transaction. */
+    override within(transaction: DatabaseConnection): SystemAuthorization {
+        return new SystemAuthorization(
+            this.authorizer,
+            transaction,
+            (scope) => this.context(scope),
+            this.access,
+        );
+    }
+
     /** Admit every permission on every object. */
     override async check(): Promise<access.Decision> {
         return { isAllowed: true };
     }
+
+    /** Admit every grant, including the relations only the system grants. */
+    protected override async authorizeGrant(): Promise<void> {}
+
+    /** Admit every revocation, including the relations only the system grants. */
+    protected override async authorizeRevoke(): Promise<void> {}
 
     /** Admit every permission on every row. */
     override async checkRows(

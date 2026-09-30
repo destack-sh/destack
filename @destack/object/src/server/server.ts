@@ -2,14 +2,15 @@ import {
     Authorizer,
     objectKey,
     principalOf,
+    type Subject,
     type AccessContext,
     type GrantReader,
     Policy,
     type Access,
     type TableMapping,
 } from "@destack/access";
-import { Scope, type ScopeLink, type ObjectReference, type ChainRelay } from "@destack/sync";
-import { LogPosition, Snapshot } from "@destack/db/log";
+import { Scope, type ScopeLink, type ObjectReference } from "@destack/sync";
+import { type Change, LogPosition, Snapshot } from "@destack/db/log";
 import { AuditRecorder } from "@destack/audit";
 import {
     encodeRow,
@@ -20,7 +21,7 @@ import {
     type Table,
 } from "@destack/db";
 import { Condition, type Scalar } from "@destack/db/query";
-import { canonicalize } from "@destack/schema/json";
+import { canonicalize, digest } from "@destack/schema/json";
 import { DatabaseError } from "@destack/db/error";
 import { schema } from "@destack/schema";
 import type { Watermark } from "@destack/service/bookmark";
@@ -67,7 +68,8 @@ import { tracked } from "../trait/tracked.ts";
 import { recoverable } from "../trait/recoverable.ts";
 import { expiring } from "../trait/expiring.ts";
 import { addressed } from "../trait/addressed.ts";
-import type { Controller, Follower } from "@destack/service/control";
+import type { Controller } from "@destack/service/control";
+import { until } from "@destack/service/timer";
 import { Settlement } from "./settlement.ts";
 import { telemetry } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
@@ -109,6 +111,24 @@ export interface SyncOptions {
     readonly client?: string;
 }
 
+/** Who a relayed copy is decided for: a principal where its rows live, or the calling principal. */
+export type ReplicaFollower =
+    | {
+          /** The principal the copy is decided for. */
+          readonly subject: Subject;
+          /** The scope containing the follower's scope, when this database holds no copy of it. */
+          readonly parent?: string;
+      }
+    | { readonly context: ServiceContext };
+
+/** The copies a database keeps, and the source streaming them. */
+export interface ObjectReplicas {
+    /** The source streaming each copy's pages. */
+    readonly source: sync.ReplicaSource;
+    /** List the requests of the copies the database keeps now. */
+    requests(): Promise<readonly Omit<sync.ReplicaRequest, "after">[]>;
+}
+
 /** The work a call prepared outside its transaction. */
 type Prepared = { readonly value: unknown; readonly call: Call } | undefined;
 
@@ -135,6 +155,13 @@ export class ObjectServer<
     readonly directory?: Directory;
     /** The memory store holding the served ephemeral objects. */
     readonly ephemeral?: EphemeralStorage;
+    /** The copies the database keeps, and the source streaming them. */
+    readonly replicas?: ObjectReplicas;
+    /** Decide who a copy the server relays is for, refusing callers it relays none to. */
+    readonly relay?: (
+        request: sync.ReplicaRequest,
+        context: ServiceContext,
+    ) => Promise<ReplicaFollower>;
     /** Derive a request's verified authorization inputs within a scope. */
     readonly #context: (context: ServiceContext, scope: string) => AccessContext;
     /** Open an audit recorder for a scope and request. */
@@ -168,6 +195,13 @@ export class ObjectServer<
         readonly directory?: Directory;
         /** The memory store holding the served ephemeral objects. */
         readonly ephemeral?: EphemeralStorage;
+        /** The copies the database keeps, and the source streaming them. */
+        readonly replicas?: ObjectReplicas;
+        /** Decide who a copy the server relays is for, refusing callers it relays none to. */
+        readonly relay?: (
+            request: sync.ReplicaRequest,
+            context: ServiceContext,
+        ) => Promise<ReplicaFollower>;
         /** Open an audit recorder for a scope and request. */
         readonly audit: (
             scope: string,
@@ -207,6 +241,12 @@ export class ObjectServer<
         }
         if (options.directory !== undefined) {
             this.directory = options.directory;
+        }
+        if (options.replicas !== undefined) {
+            this.replicas = options.replicas;
+        }
+        if (options.relay !== undefined) {
+            this.relay = options.relay;
         }
 
         // require a store for ephemeral objects
@@ -255,7 +295,7 @@ export class ObjectServer<
             });
         this.feed = new sync.Feed(options.database, [
             ...new Set(
-                this.objects
+                [...this.objects, ...others.filter((other) => other instanceof ObjectType)]
                     .filter((object) => object.storage === "durable")
                     .flatMap((object) => object.tables),
             ),
@@ -284,41 +324,36 @@ export class ObjectServer<
             /** The memory store holding the ephemeral objects. */
             readonly ephemeral?: EphemeralStorage;
             /** Further controllers running alongside the objects'. */
-            readonly controllers?: readonly (Controller | Follower)[];
-            /** The relay of the access of the objects' space and its containing scopes. */
-            readonly access?: ChainRelay;
+            readonly controllers?: readonly Controller[];
+            /** The source of the copies of the objects' space: its chain, and what its objects point at. */
+            readonly replicas?: { readonly scope: string; readonly source: sync.ReplicaSource };
         },
     ): ServiceImplementation {
-        // serve the service's objects
-        const objects = new ObjectServer({
+        // serve the service's objects, keeping the copies of their space
+        const replicas = options.replicas;
+        const objects: ObjectServer = new ObjectServer({
             objects: service.objects as Readonly<Record<string, ObjectType>>,
             database: options.database,
             audit: options.audit,
             journal: new Journal(options.journal),
             ...(options.directory === undefined ? {} : { directory: options.directory }),
             ...(options.ephemeral === undefined ? {} : { ephemeral: options.ephemeral }),
+            ...(replicas === undefined
+                ? {}
+                : {
+                      replicas: {
+                          source: replicas.source,
+                          requests: () =>
+                              objects.replicaRequests(replicas.scope, { isHome: false }),
+                      },
+                  }),
         });
 
-        // copy the rows the space's chain hands down alongside the further controllers
-        const followers =
-            options.access === undefined
-                ? []
-                : [
-                      objects.authorizer.follower(
-                          options.database,
-                          objects.authorizer.held,
-                          options.access,
-                      ),
-                  ];
-
-        return objects.implement(service, [...followers, ...(options.controllers ?? [])]);
+        return objects.implement(service, options.controllers);
     }
 
     /** Implement a service with the served objects' access, audit, controllers and router, running further controllers alongside. */
-    implement(
-        service: Service,
-        controllers: readonly (Controller | Follower)[] = [],
-    ): ServiceImplementation {
+    implement(service: Service, controllers: readonly Controller[] = []): ServiceImplementation {
         return {
             service,
             access: this.access,
@@ -399,7 +434,23 @@ export class ObjectServer<
 
                 return {};
             }),
+            stream: replica.stream.handler(({ input, context }) => this.#relayed(input, context)),
         });
+    }
+
+    /** Stream a copy the server relays to a caller, for the follower its relay decides. */
+    async *#relayed(
+        request: sync.ReplicaRequest,
+        context: ServiceContext,
+    ): AsyncGenerator<sync.QueryPage> {
+        // refuse a server relaying no copies
+        if (this.relay === undefined) {
+            throw new ServiceError("FORBIDDEN", { message: "this server relays no copies" });
+        }
+
+        // stream the copy for the follower the relay decides
+        const follower = await this.relay(request, context);
+        yield* this.replicate(request, follower, context.request.signal, context.signal);
     }
 
     /** Execute one method as a single-call mutation or a query. */
@@ -1062,19 +1113,19 @@ export class ObjectServer<
                 ? [addressed.controller(this)]
                 : []),
             ...(isSettled ? [Settlement.controller(this)] : []),
+            ...(this.replicas === undefined ? [] : [this.#replicate(this.replicas)]),
             ...this.objects.flatMap((object) =>
                 object.controller === undefined ? [] : [this.#control(object, object.controller)],
             ),
         ];
     }
 
-    /** Build the controller a type declares, reconciling its pending objects by key. */
+    /** Build the controller a type declares, reconciling or following its pending objects by key. */
     #control(object: ObjectType, declared: ObjectController): Controller {
         // key each pending object by its declared fields
         const table = object.table as Table;
         const match = Condition.compile(declared.pending, table);
-        const keyOf = (row: Readonly<Record<string, unknown>>) =>
-            canonicalize(declared.key?.(row) ?? { id: row.id });
+        const keyOf = (fields: Readonly<Record<string, unknown>>) => canonicalize(fields);
         const pending = (key: string) => {
             const fields = Object.entries(JSON.parse(key) as Readonly<Record<string, Scalar>>);
 
@@ -1083,24 +1134,36 @@ export class ObjectServer<
                 ...fields.map(([name, value]) => Condition.eq(name, value)),
             );
         };
+        const watches = new Map((declared.watches ?? []).map((watch) => [watch.table, watch]));
+        const keys = async (change: Change) => {
+            // select the keys of a watched row, or the key of a changed object left pending
+            const row = (change.after ?? change.before) as Readonly<Record<string, unknown>>;
+            const watch = watches.get(change.table);
+            const selected =
+                watch !== undefined
+                    ? await watch.keys(row, this.database)
+                    : change.after !== undefined && Condition.matches(match, row)
+                      ? [declared.key?.(row) ?? { id: row.id }]
+                      : [];
+
+            return selected.map(keyOf);
+        };
 
         return {
             name: object.name,
-            watches: [table],
+            watches: [table, ...watches.keys()],
             ...(declared.concurrency === undefined ? {} : { concurrency: declared.concurrency }),
-            keys: (change) => {
-                // reconcile a changed object left pending
-                const row = change.after as Readonly<Record<string, unknown>> | undefined;
-
-                return row !== undefined && Condition.matches(match, row) ? [keyOf(row)] : [];
-            },
+            ...(declared.mode === undefined ? {} : { mode: declared.mode }),
+            keys,
             list: async () => {
                 // list the keys of every pending object
                 const rows = await Snapshot.live(this.database).rows(table, declared.pending);
 
-                return [...new Set(rows.map(keyOf))];
+                return [
+                    ...new Set(rows.map((row) => keyOf(declared.key?.(row) ?? { id: row.id }))),
+                ];
             },
-            reconcile: async (key) => {
+            reconcile: async (key, reconciliation) => {
                 // reconcile the key's pending objects, if any are left
                 const rows = await Snapshot.live(this.database).rows(table, pending(key));
                 if (rows.length === 0) {
@@ -1112,6 +1175,8 @@ export class ObjectServer<
                     rows,
                     now,
                     database: this.database,
+                    server: this as ObjectServer,
+                    signal: reconciliation.signal,
                     execute: (method, targets) =>
                         this.executeAsSystem(
                             object,
@@ -1120,6 +1185,47 @@ export class ObjectServer<
                             now,
                         ),
                 });
+            },
+        };
+    }
+
+    /** Build the controller following each requested copy from its source, one key per request. */
+    #replicate(replicas: ObjectReplicas): Controller {
+        // list the requests again once the scopes above change
+        const keyOf = async (request: Omit<sync.ReplicaRequest, "after">) =>
+            `${request.name} ${request.scope} ${await digest(request)}`;
+
+        return {
+            name: "replica",
+            mode: "follow",
+            watches: [Scope.table],
+            concurrency: Infinity,
+            list: async () => Promise.all((await replicas.requests()).map(keyOf)),
+            reconcile: async (key, { signal }) => {
+                // find the key's request, waiting for the loop to stop one no longer listed
+                const requests = await replicas.requests();
+                const keys = await Promise.all(requests.map(keyOf));
+                const request = requests[keys.indexOf(key)];
+                if (request === undefined) {
+                    await until(signal);
+
+                    return undefined;
+                }
+
+                // follow the copy from the position it reached for the same request
+                const replica = this.authorizer.replicaOf(request);
+                await replica.follow(
+                    this.database,
+                    (after, stream) =>
+                        replicas.source.stream(
+                            { ...request, ...(after === undefined ? {} : { after }) },
+                            stream,
+                        ),
+                    signal,
+                    { request },
+                );
+
+                return undefined;
             },
         };
     }
@@ -1165,6 +1271,114 @@ export class ObjectServer<
         );
 
         return new Authorization(this.authorizer, database, bind, access);
+    }
+
+    /** Authorize a principal in a scope, as a follow of its copies does. */
+    async authorizeSubject(
+        database: DatabaseConnection,
+        scope: string,
+        subject: Subject,
+    ): Promise<Authorization> {
+        const bind = (): AccessContext => ({
+            subjects: [subject],
+            now: Date.now(),
+            attributes: {},
+        });
+        const access = await this.authorizer.resolve(Snapshot.live(database), scope, bind());
+
+        return new Authorization(this.authorizer, database, bind, access);
+    }
+
+    /** List the global rows a scope reads: every row of each global object type served here that its principal may read. */
+    globals(): sync.ReplicaRequest["rows"] {
+        return this.#durable
+            .filter((object) => object.table[TABLE].tier === "global")
+            .map((object) => ({
+                type: {
+                    packageId: object.policy.definition.packageId,
+                    type: object.policy.definition.name,
+                },
+                where: Condition.all(),
+            }));
+    }
+
+    /** List the requests of the copies a database keeps for a scope: its chain, and the global rows it reads. */
+    async replicaRequests(
+        below: string,
+        options: { readonly isHome: boolean },
+    ): Promise<Omit<sync.ReplicaRequest, "after">[]> {
+        // copy the chain, then the global rows the scope reads
+        const chain = await this.authorizer.chain(this.database, below, options);
+        const global = this.globalRequest(below);
+
+        return global === undefined ? chain : [...chain, global];
+    }
+
+    /** Build the request of the copy of the global rows a scope or cell reads, absent when no global type is served. */
+    globalRequest(below: string): Omit<sync.ReplicaRequest, "after"> | undefined {
+        // request nothing where no global object type is served
+        const rows = this.globals();
+        if (rows.length === 0) {
+            return undefined;
+        }
+
+        // copy the universe's rows the scope or cell may read, under its own name
+        return {
+            name: below,
+            scope: Scope.universe.id,
+            below,
+            access: false,
+            held: [],
+            copied: [],
+            rows,
+        };
+    }
+
+    /** Stream a copy's pages to a database below: a chain decided by containment, global rows decided for their reader. */
+    async *replicate(
+        request: sync.ReplicaRequest,
+        follower: ReplicaFollower,
+        signal: AbortSignal,
+        drain?: AbortSignal,
+    ): AsyncGenerator<sync.QueryPage> {
+        // require the copied scope to contain the follower's for a chain, through its parent when held elsewhere
+        if (request.access) {
+            const parent = "subject" in follower ? follower.parent : undefined;
+            const chain = await Scope.chain(Snapshot.live(this.database), parent ?? request.below);
+            const scopes = [
+                ...(parent === undefined ? [] : [request.below]),
+                ...chain.map((link) => link.object.id),
+            ];
+            if (!scopes.includes(request.scope)) {
+                throw new ServiceError("NOT_FOUND", {
+                    message: `${request.scope} does not contain ${request.below}`,
+                });
+            }
+        }
+
+        // relay a copied scope only once its copy holds a position
+        try {
+            await sync.Replica.requireRelayable(this.database, request.name, request.scope);
+        } catch (error) {
+            if (error instanceof sync.SyncError && error.code === "STALE") {
+                throw new ServiceError("SERVICE_UNAVAILABLE", { message: error.message });
+            }
+            throw error;
+        }
+
+        // decide global rows for a principal where they live, or for a caller of the space it relays them to
+        const audience = request.access
+            ? sync.EVERYONE
+            : "subject" in follower
+              ? await ObjectAudience.of(this, request.scope, follower.subject)
+              : await ObjectAudience.open(this, request.below, follower.context);
+
+        // stream the copy, ending at a completed page once drained
+        const copy = this.authorizer.replicaOf(request);
+        yield* this.feed.subscribe(copy.queries, request.after, signal, {
+            audience,
+            ...(drain === undefined ? {} : { drain }),
+        });
     }
 
     /** Admit a caller: resolve its access and require an unmoved, visible scope. */

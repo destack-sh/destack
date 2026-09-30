@@ -1,5 +1,11 @@
-import type { ObjectReference, RowKey, Audience, Watch } from "@destack/sync";
-import { accessRelationship, earliest, type Permission } from "@destack/access";
+import {
+    type ObjectReference,
+    type RowKey,
+    type Audience,
+    type Watch,
+    replica,
+} from "@destack/sync";
+import { accessRelationship, earliest, type Permission, type Subject } from "@destack/access";
 import { and, eq, gt, or, sql, TABLE, type Row, type SQL, type Table } from "@destack/db";
 import type { Change, LogPosition } from "@destack/db/log";
 import { schema } from "@destack/schema";
@@ -22,8 +28,8 @@ export class ObjectAudience implements Audience {
     readonly #server: Omit<ObjectServer, "router">;
     /** The scope the stream follows. */
     readonly #scope: string;
-    /** The subscriber's request. */
-    readonly #context: ServiceContext;
+    /** Admit the subscriber again, as it resolves access once access changes. */
+    readonly #admit: () => Promise<Authorization>;
     /** The object types by table. */
     readonly #objects: ListedObjects;
     /** The caller's access, resolved again once access changes. */
@@ -43,7 +49,7 @@ export class ObjectAudience implements Audience {
     private constructor(
         server: Omit<ObjectServer, "router">,
         scope: string,
-        context: ServiceContext,
+        admit: () => Promise<Authorization>,
         authorization: Authorization,
         storage: ObjectStorage,
         decided: LogPosition | undefined,
@@ -51,7 +57,7 @@ export class ObjectAudience implements Audience {
         // keep the inputs and watch access
         this.#server = server;
         this.#scope = scope;
-        this.#context = context;
+        this.#admit = admit;
         this.#objects = new ListedObjects(server.objects);
         this.#authorization = authorization;
         this.#until = authorization.access.until;
@@ -71,9 +77,20 @@ export class ObjectAudience implements Audience {
         const decided = storage === "ephemeral" ? await server.database.log.position() : undefined;
 
         // admit the follower
-        const authorization = await server.admit(server.database, scope, context);
+        const admit = () => server.admit(server.database, scope, context);
 
-        return new ObjectAudience(server, scope, context, authorization, storage, decided);
+        return new ObjectAudience(server, scope, admit, await admit(), storage, decided);
+    }
+
+    /** Resolve a principal's access to a scope's durable objects, as the copies kept for it are decided. */
+    static async of(
+        server: Omit<ObjectServer, "router">,
+        scope: string,
+        subject: Subject,
+    ): Promise<ObjectAudience> {
+        const admit = () => server.authorizeSubject(server.database, scope, subject);
+
+        return new ObjectAudience(server, scope, admit, await admit(), "durable", undefined);
     }
 
     /** The scope's own object, absent for a scope the database does not know. */
@@ -85,7 +102,7 @@ export class ObjectAudience implements Audience {
     where(table: Table): SQL | "memory" {
         const listed = this.#listed(table);
 
-        return listed === "journal"
+        return listed === "query"
             ? sql`true`
             : this.#authorization.listable(listed.object, listed.permission);
     }
@@ -106,9 +123,9 @@ export class ObjectAudience implements Audience {
         rows: readonly Row[],
         position: LogPosition,
     ): Promise<ReadonlySet<number>> {
-        // admit every journal row
+        // admit every row left to its query
         const listed = this.#listed(table);
-        if (listed === "journal") {
+        if (listed === "query") {
             return new Set(rows.keys());
         }
         const { permission } = listed;
@@ -137,9 +154,9 @@ export class ObjectAudience implements Audience {
         rows: readonly Row[],
         position: LogPosition,
     ): Promise<readonly (readonly string[])[]> {
-        // conceal nothing of the journal
+        // conceal nothing of the rows left to their query
         const listed = this.#listed(table);
-        if (listed === "journal") {
+        if (listed === "query") {
             return rows.map(() => []);
         }
         const { object } = listed;
@@ -294,11 +311,7 @@ export class ObjectAudience implements Audience {
     /** Resolve the caller's access again and reset derived state. */
     async #authorize(): Promise<void> {
         // admit again and reset
-        this.#authorization = await this.#server.admit(
-            this.#server.database,
-            this.#scope,
-            this.#context,
-        );
+        this.#authorization = await this.#admit();
         this.#key = undefined;
         this.#until = this.#authorization.access.until;
         if (this.#storage === "ephemeral") {
@@ -320,10 +333,10 @@ export class ObjectAudience implements Audience {
     /** Read the listing permission deciding a table's rows. */
     #listed(
         table: Table,
-    ): { readonly object: ObjectType; readonly permission: Permission } | "journal" {
-        // leave the journal to its query
-        if (table === this.#server.journal.table) {
-            return "journal";
+    ): { readonly object: ObjectType; readonly permission: Permission } | "query" {
+        // leave the journal and the copies' records to their queries
+        if (table === this.#server.journal.table || table === replica) {
+            return "query";
         }
 
         // read the listing permission

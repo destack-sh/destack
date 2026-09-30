@@ -6,7 +6,14 @@ import { Outcome } from "@destack/service/database";
 import { defineProcedure } from "@destack/service/procedure";
 import { Condition, Order, Scalar, type Computed } from "@destack/db/query";
 import { Expression } from "@destack/schema/expression";
-import { Aggregate, Call, Mutation, QueryPage, ObjectReference } from "@destack/sync";
+import {
+    Aggregate,
+    Call,
+    Mutation,
+    QueryPage,
+    ObjectReference,
+    ReplicaRequest,
+} from "@destack/sync";
 import { Duration } from "../object/duration.ts";
 
 /** Rows an include adds, or their aggregates. */
@@ -107,7 +114,7 @@ export const PushResult = schema.object({
 /** The outcomes of a push and the watermark holding their changes. */
 export type PushResult = schema.Infer<typeof PushResult>;
 
-/** The procedures a client replica uses. */
+/** The procedures a client replica or a database copying the served one uses. */
 export const replicaProcedures = {
     push: defineProcedure({ authentication: "identity", permission: null, audit: false })
         .route({ method: "POST", path: "/replica/push" })
@@ -165,7 +172,11 @@ export const replicaProcedures = {
             }),
         )
         .output(schema.object({})),
+    stream: defineProcedure({ authentication: "identity", permission: null, audit: false })
+        .route({ method: "POST", path: "/replica/stream" })
+        .input(ReplicaRequest)
+        .output(eventIterator(QueryPage)),
 };
 
-/** The procedures a client replica uses. */
+/** The procedures a client replica or a database copying the served one uses. */
 export type ReplicaProcedures = typeof replicaProcedures;
