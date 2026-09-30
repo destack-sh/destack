@@ -195,8 +195,14 @@ const server = new ObjectServer({
     journal,
     audit,
     replicas: { source, requests: () => server.replicaRequests(spaceId, { isHome: false }) },
-    relay: async (request, context) => ({ context }),   // who a relayed copy is decided for
 });
+```
+
+A copy is decided for the principal a served object stands for where the caller holds `represent` on it, and otherwise for the caller, which copies a chain with `replicate` on itself or on the scope.
+
+```ts
+export const zone = defineObject({ ..., permissions: { represent: relation("cell") } });       // the cell serving a space acts as the space
+export const account = defineObject({ ..., permissions: { replicate: relation("host") } });    // an account's hosts copy its chain
 ```
 
 `replicaRequests` lists the requests of a scope's chain and of one copy of the universe's rows its principal may read, such as the users who joined a space.

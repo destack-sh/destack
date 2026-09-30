@@ -99,6 +99,16 @@ const RECORD_KINDS: ReadonlySet<string> = new Set(["create", "update", "delete",
 /** The permission on a scope's own object that shows the scope. */
 export const SCOPE_READ = "read";
 
+/**
+ * The permission to act as the principal an object stands for, such as the cell serving a space's zone.
+ *
+ * The object's identifier is the principal's, and its `parent` column, like a scope row's, is the scope containing the principal.
+ */
+export const REPRESENT = "represent";
+
+/** The permission to copy the access rows of the scopes above a scope: on the caller's own object living in it, or on the scope's own object. */
+export const REPLICATE = "replicate";
+
 /** Every trait, in application order. */
 const TRAITS: readonly Trait<any>[] = [
     record,

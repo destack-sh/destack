@@ -24,7 +24,7 @@ const person = defineObject({
     scope: "universe",
     isScope: true,
     fields: { name: field.string() },
-    relations: { joined: { subjects: [principal.space], grantedBy: null } },
+    relations: { joined: { subjects: [principal.cell], grantedBy: null } },
     permissions: { read: relation("joined") },
     methods: { list: method.list("read") },
 });
@@ -115,7 +115,7 @@ test.each(TEST_DIALECTS)(
             system.grant({
                 object: person.reference(Scope.universe.id, id),
                 relation: "joined",
-                subject: principal.space.reference(Scope.universe.id, spaceId),
+                subject: principal.cell.reference(Scope.universe.id, spaceId),
             });
         const joined = await join(ada!);
         await join(cy!);
@@ -128,7 +128,7 @@ test.each(TEST_DIALECTS)(
                     stream: (asked, signal) =>
                         source.replicate(
                             asked,
-                            { subject: principal.space.reference(Scope.universe.id, asked.below) },
+                            { subject: principal.cell.reference(Scope.universe.id, asked.below) },
                             signal,
                         ),
                 },

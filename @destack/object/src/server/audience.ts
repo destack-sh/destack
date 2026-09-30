@@ -103,10 +103,16 @@ export class ObjectAudience implements Audience {
     /** Resolve a follower below the scopes it copies: it keeps every row of their chains, with the guarded fields its principal may not read concealed. */
     static async contained(
         server: Omit<ObjectServer, "router">,
-        subject: Subject,
+        follower: Subject | ServiceContext,
+        below: string,
     ): Promise<ObjectAudience> {
-        const scope = Scope.universe.id;
-        const admit = () => server.authorizeSubject(server.database, scope, subject);
+        // decide a principal's fields from the universe, and a caller's from the scope it acts in
+        const isCaller = !("packageId" in follower);
+        const scope = isCaller ? below : Scope.universe.id;
+        const admit = () =>
+            isCaller
+                ? server.authorize(server.database, scope, follower)
+                : server.authorizeSubject(server.database, scope, follower);
 
         return new ObjectAudience(server, scope, admit, await admit(), "durable", undefined, true);
     }

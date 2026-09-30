@@ -53,7 +53,7 @@ import {
     type PushResult,
     type ReplicaProcedures,
 } from "../replica/replica.ts";
-import { ObjectType } from "../object/object.ts";
+import { ObjectType, REPLICATE, REPRESENT } from "../object/object.ts";
 import type { ObjectController } from "../object/controller.ts";
 import { Chunk, CHUNKS } from "../text/chunk.ts";
 import { camelCase } from "../object/name.ts";
@@ -157,11 +157,6 @@ export class ObjectServer<
     readonly ephemeral?: EphemeralStorage;
     /** The copies the database keeps, and the source streaming them. */
     readonly replicas?: ObjectReplicas;
-    /** Decide who a copy the server relays is for, refusing callers it relays none to. */
-    readonly relay?: (
-        request: sync.ReplicaRequest,
-        context: ServiceContext,
-    ) => Promise<ReplicaFollower>;
     /** Derive a request's verified authorization inputs within a scope. */
     readonly #context: (context: ServiceContext, scope: string) => AccessContext;
     /** Open an audit recorder for a scope and request. */
@@ -197,11 +192,6 @@ export class ObjectServer<
         readonly ephemeral?: EphemeralStorage;
         /** The copies the database keeps, and the source streaming them. */
         readonly replicas?: ObjectReplicas;
-        /** Decide who a copy the server relays is for, refusing callers it relays none to. */
-        readonly relay?: (
-            request: sync.ReplicaRequest,
-            context: ServiceContext,
-        ) => Promise<ReplicaFollower>;
         /** Open an audit recorder for a scope and request. */
         readonly audit: (
             scope: string,
@@ -244,9 +234,6 @@ export class ObjectServer<
         }
         if (options.replicas !== undefined) {
             this.replicas = options.replicas;
-        }
-        if (options.relay !== undefined) {
-            this.relay = options.relay;
         }
 
         // require a store for ephemeral objects
@@ -439,19 +426,117 @@ export class ObjectServer<
         });
     }
 
-    /** Stream a copy the server relays to a caller, for the follower its relay decides. */
+    /**
+     * Stream a copy to the caller asking for it.
+     *
+     * The copy is decided for the principal a served object stands for, where the caller may represent it.
+     * Any other copy is decided for the caller, which copies a chain only with the scope's `replicate` permission.
+     */
     async *#relayed(
         request: sync.ReplicaRequest,
         context: ServiceContext,
     ): AsyncGenerator<sync.QueryPage> {
-        // refuse a server relaying no copies
-        if (this.relay === undefined) {
-            throw new ServiceError("FORBIDDEN", { message: "this server relays no copies" });
+        // decide the copy for the principal a served object stands for, which the caller represents
+        const standing = await this.#standing(request.below);
+        let follower: ReplicaFollower;
+        if (standing !== undefined) {
+            const { object, reference, subject, parent } = standing;
+            const authorization = await this.authorize(this.database, reference.scope, context);
+            await authorization.require(object.permission(REPRESENT), reference);
+            follower = { subject, ...(parent === undefined ? {} : { parent }) };
+        }
+        // decide any other copy for the caller, which is the scope's principal or lives in the scope
+        else {
+            const { subjects } = this.#context(context, request.below);
+            const kept = subjects.filter(
+                (subject) => subject.id === request.below || subject.scope === request.below,
+            );
+            if (kept.length === 0) {
+                throw new ServiceError("FORBIDDEN", {
+                    message: `the caller keeps no copies for ${request.below}`,
+                });
+            }
+
+            // copy a chain only with the permission on the caller's own object, or else on the scope's
+            if (request.access) {
+                const authorization = await this.authorize(this.database, request.below, context);
+                const own = kept.flatMap((subject) =>
+                    this.#durable
+                        .filter(
+                            (object) =>
+                                object.policy.is(subject) &&
+                                (object.permissions as readonly string[]).includes(REPLICATE),
+                        )
+                        .map((object) => ({
+                            permission: object.permission(REPLICATE),
+                            target: object.reference(subject.scope, subject.id),
+                        })),
+                );
+                const scope = await Scope.object(Snapshot.live(this.database), request.below);
+                const policy = this.authorizer.policy(scope);
+                const granting = [
+                    ...own,
+                    ...(Object.hasOwn(policy.definition.permissions, REPLICATE)
+                        ? [{ permission: policy.permission(REPLICATE), target: scope }]
+                        : []),
+                ];
+                const [first] = granting;
+                if (first === undefined) {
+                    throw new ServiceError("FORBIDDEN", {
+                        message: `no ${scope.type} keeps copies of its chain`,
+                    });
+                }
+                await authorization.require(first.permission, first.target);
+            }
+            follower = { context };
+        }
+        yield* this.replicate(request, follower, context.request.signal, context.signal);
+    }
+
+    /** Find the object standing for a scope as a principal among the served types the database is home of, with the scope containing it. */
+    async #standing(below: string): Promise<
+        | {
+              readonly object: ObjectType;
+              readonly reference: ObjectReference;
+              readonly subject: Subject;
+              readonly parent: string | undefined;
+          }
+        | undefined
+    > {
+        for (const object of this.#durable) {
+            // skip the types nobody represents, copies, and the types with other identifiers
+            const table = object.table as Table;
+            const identifier = table[TABLE].columns.id?.definition.schema;
+            if (
+                !(object.permissions as readonly string[]).includes(REPRESENT) ||
+                this.database.copies(table) ||
+                identifier?.safeParse(below).success !== true
+            ) {
+                continue;
+            }
+
+            // read the object and the scope containing what it stands for, as a scope row's parent
+            const [row] = await Snapshot.live(this.database).select(table, ["id"], [[below]]);
+            const parent = row?.parent;
+            // stand for the principal the object's identifier is, as a user's `self` is
+            const held = Object.entries(object.mapping.relations).find(
+                ([, field]) => field.column === object.mapping.id,
+            );
+            const stood =
+                row === undefined || held === undefined
+                    ? undefined
+                    : this.authorizer.related(object.mapping, held[0], row);
+            if (row !== undefined && stood !== undefined) {
+                return {
+                    object,
+                    reference: object.reference(String(row.scope), below),
+                    subject: stood,
+                    parent: typeof parent === "string" ? parent : undefined,
+                };
+            }
         }
 
-        // stream the copy for the follower the relay decides
-        const follower = await this.relay(request, context);
-        yield* this.replicate(request, follower, context.request.signal, context.signal);
+        return undefined;
     }
 
     /** Execute one method as a single-call mutation or a query. */
@@ -1402,15 +1487,23 @@ export class ObjectServer<
         // decide a chain by containment, and the universe's rows for a principal where they live or for a caller of the space it relays them to
         let audience: sync.Audience;
         if (request.access) {
-            audience =
-                "subject" in follower
-                    ? await ObjectAudience.contained(this, follower.subject)
-                    : sync.EVERYONE;
-        } else {
+            audience = await ObjectAudience.contained(
+                this,
+                "subject" in follower ? follower.subject : follower.context,
+                request.below,
+            );
+        }
+        // decide a caller where the rows live: in the scope a relayed copy is kept for, or in the copied scope at its home
+        else {
+            const isRelayed = await sync.Replica.isCopied(this.database, request.scope);
             audience =
                 "subject" in follower
                     ? await ObjectAudience.of(this, request.scope, follower.subject)
-                    : await ObjectAudience.open(this, request.below, follower.context);
+                    : await ObjectAudience.open(
+                          this,
+                          isRelayed ? request.below : request.scope,
+                          follower.context,
+                      );
         }
 
         // stream the copy, ending at a completed page once drained
