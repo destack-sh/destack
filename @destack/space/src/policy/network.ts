@@ -1,5 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
-import { ResourceName } from "@destack/resource";
+import { DeclarationName } from "@destack/package";
 
 /** A destination selected independently of its protocol and port. */
 export const NetworkDestination = defineSchema(
@@ -48,15 +48,13 @@ export const NetworkRule = defineSchema(
 /** A named network rule. */
 export type NetworkRule = schema.Infer<typeof NetworkRule>;
 
-/**
- * Outbound network restrictions for an account, space, installation, or workload.
- */
+/** Outbound network restrictions for an account, space, installation, or workload. */
 export const NetworkPolicyDefinition = defineSchema(
     schema.object({
         /** The decision for unmatched public destinations. */
         default: schema.enum(["allow", "deny"]),
         /** Named rules; nonpublic destinations require an explicit IP network allow rule. */
-        rules: schema.record(ResourceName, NetworkRule),
+        rules: schema.record(DeclarationName, NetworkRule),
     }),
 );
 /** A declared outbound network policy. */

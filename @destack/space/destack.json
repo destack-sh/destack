@@ -1,5 +1,32 @@
 {
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
+    "id": "package-01a0c80b-614e-739c-9b50-70e5119010b1",
     "language": "typescript",
-    "targets": ["browser", "server"],
-    "runtimes": ["browser", "deno", "workerd"]
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        "./server": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./stack": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./runner": {
+            "runtimes": ["bun"]
+        },
+        "./build": {
+            "runtimes": ["bun"]
+        }
+    },
+    "build": "./build#spaceBuild",
+    "declarations": {
+        "defineSpace": {
+            "module": 1,
+            "describes": [
+                {
+                    "kind": "space",
+                    "function": "./inspect#describeSpace"
+                }
+            ]
+        }
+    }
 }

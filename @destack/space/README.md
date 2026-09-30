@@ -1,72 +1,45 @@
-Declare resources, installations, policies, permissions, and routes for a space.
+Declare and serve spaces: their resources, installations, stacks, policies, roles and relationships.
 
-## Usage
+## Declaring a space
 
-Stack exports compose space configuration without provisioning resources.
+A stack exports space definitions that declare resources and install packages without provisioning anything.
 
 ```ts
-import { defineSpace, type SpaceDefinition } from "@destack/space";
-import { defineDatabase } from "@destack/db/declare";
-import { PackageId } from "@destack/package";
-import type {} from "@destack/package/import-meta";
+import { defineSpace, install } from "@destack/space";
+import { database } from "@template/stack";
+import notes from "@destack/notes/package";
 
-export const database = defineDatabase({
-    name: "main",
-    spec: { dialect: "sqlite" },
-});
-
-const personal = {
+export const personal = defineSpace({
     resources: { main: { declaration: database, retention: "retain", tags: {} } },
-    installations: {
-        notes: {
-            package: {
-                id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000001"),
-                name: "@florian/notes",
-                version: "2026.9.0",
-            },
-            alias: "notes",
-            status: "enabled",
-            resources: { [import.meta.destack.package.id]: { main: { resource: "main" } } },
-            secrets: {},
-            compute: {},
-            tags: {},
-        },
-    },
-} satisfies SpaceDefinition;
+    installations: { notes: install(notes, { main: "main" }) },
+});
+```
 
-export const local = defineSpace(personal);
-export const cloud = defineSpace({ ...personal });
+A parameterised export takes explicit values and exports its input schema.
+
+```ts
+export const Parameters = defineSchema(schema.object({ alias: schema.string().min(1) }));
+
+export function preview(input: schema.Infer<typeof Parameters>) {
+    const { alias } = Parameters.parse(input);
+
+    return defineSpace({ installations: { notes: install(notes, { main: "main" }, { alias }) } });
+}
 ```
 
 ## Policies
 
-Declare package admission and outbound connections independently.
+A space declares package admission and outbound connections independently.
 
 ```ts
 export const restricted = defineSpace({
-    ...personal,
     policies: {
-        packages: {
-            admission: {
-                default: "deny",
-                rules: {
-                    destack: { package: { kind: "destack" }, decision: "allow" },
-                    npm: {
-                        package: { kind: "npm", registry: "https://registry.npmjs.org/" },
-                        decision: "allow",
-                    },
-                },
-            },
-        },
+        packages: { admission: { default: "deny", rules: { destack: { package: { kind: "destack" }, decision: "allow" } } } },
         network: {
             default: "deny",
             rules: {
                 api: {
-                    destination: {
-                        kind: "hostname",
-                        hostname: "api.example.com",
-                        subdomains: false,
-                    },
+                    destination: { kind: "hostname", hostname: "api.example.com", subdomains: false },
                     protocol: "https",
                     decision: "allow",
                 },
@@ -76,56 +49,106 @@ export const restricted = defineSpace({
 });
 ```
 
-- Package rules cover the root package and every dependency, using their original registry identities.
-- Deny rules take precedence within a policy; every applicable policy must permit the operation.
-- Account and space policies apply together; installation and workload network policies add restrictions.
-- Hostnames grant access to public addresses; private addresses require explicit CIDR grants.
-- HTTPS and WSS default to port 443; HTTP and WS default to port 80.
-- Raw TCP and UDP grants permit arbitrary protocols on the selected ports.
-- Hosts check resolved addresses and redirects and reject policies they cannot enforce.
-- Resource bindings authorise database and bucket access separately.
+## Roles and relationships
 
-Omitted declarations leave independently managed policies unchanged.
-
-## References
-
-Independent objects remain managed through the space API. References can select configuration keys
-or existing objects in the destination space.
+Relationships refer to objects, installations and roles by their key in the stack or by their identifier in the same space.
 
 ```ts
-export const routing = defineSpace({
-    routes: {
-        pages: {
-            domain: "domain-01995688-0000-7000-8000-000000000001",
-            path: "/pages",
-            match: "prefix",
-            destination: {
-                installation: {
-                    id: "installation-01995688-0000-7000-8000-000000000001",
-                },
-                entrypoint: ".",
-            },
-        },
+export const shared = defineSpace({
+    roles: { editor: { description: "Edit notes", permissions: [note.permission("update")] } },
+    relationships: {
+        notes: { subject: { installation: "notes" }, role: "editor" },
+        members: { subject: { accountMembers: true }, role: { id: "role-01995688-0000-7000-8000-000000000001" } },
     },
 });
 ```
 
-Parameterised space configuration exports accept explicit values and export their input schema.
+## Submitting and approving
+
+An installation follows the builds submitted to it, and its controller applies each one.
+
+| Object | Plans | Waits with |
+|---|---|---|
+| stack installation | its declarations | `plan`, `AwaitingApproval` |
+| application installation | the upgrade steps from its applied release | `plan`, `AwaitingApproval` |
+| resource | its provider's plan, recreating over draining releases when they conflict | `status.state.plan`, `AwaitingApproval` |
+
+A plan waits once its risk reaches the space's `approval` threshold, and `installation.plan` joins what an installation and what it manages, owns or binds wait on.
 
 ```ts
-import { defineSchema, schema } from "@destack/schema";
+await client.installation.submit({ spaceId, id: stack.id, requestId, selection, build, evaluation });
+const waiting = await client.installation.plan({ spaceId, id: stack.id });
+await client.installation.approve({ spaceId, id: stack.id, requestId, plan: await Plan.digest(waiting) });
+```
 
-export const Parameters = defineSchema(schema.object({ alias: schema.string().min(1) }));
+The CLI submits a checkout's stack and approves what waits with `--yes`.
 
-export function preview(input: schema.Infer<typeof Parameters>) {
-    const parameters = Parameters.parse(input);
+```sh
+destack stack apply --space work.acme --export personal --yes
+destack stack approve --space work.acme --plan <digest>
+```
 
-    return defineSpace({
-        ...personal,
-        installations: {
-            ...personal.installations,
-            notes: { ...personal.installations.notes, alias: parameters.alias },
-        },
-    });
-}
+## Views
+
+A client opens a view the revision of an installation declares.
+
+```ts
+const { build, definition } = await client.installation.open({ spaceId, id, view: "home", path: "/" });
+```
+
+## Workloads
+
+Each workload runs on Bun from its own `./workload/<name>` entry with the resources its deployment captured.
+
+```ts
+import { run } from "@destack/space/runner";
+
+await run(workload, { main: database });
+```
+
+## Runs and schedules
+
+A run is one object method call that an installation's cell makes later, recorded once per cause.
+
+| Cause | Recorded by | Once per |
+|---|---|---|
+| `send` | the workload, through `context.runs` or a method's outbox | request |
+| `schedule` | the cell, from a schedule's timing, at most once a minute | occurrence |
+| `webhook` | the workload, after verifying the delivery | route path and delivery |
+| `watch` | the workload's object server, following its log | log position and row |
+
+The cell pushes each run through the host's router as the installation or on the authority lent to it.
+
+```ts
+const service = implementService({ ...options, runs: { push: pushThrough(router), verify: (token) => lending.verify(token) } });
+```
+
+## Serving spaces
+
+A host or region serves its spaces' objects, controllers and zone relay through `implementService`.
+
+```ts
+import { implementService } from "@destack/space/server";
+
+const service = implementService({
+    database,
+    audit,
+    global: { directory, replicas, relay: (cell) => peer(cell).zone },
+    cell: { hostId },
+    served: [accountId],
+    providers,
+    declared: [],
+    openBuild: (packageId, build) => builds.open(packageId, build),
+    bindables: [],
+    runtimes,
+    runs: { push: pushThrough(router), verify: (token) => lending.verify(token) },
+});
+```
+
+## Transfers
+
+A space moves to a host of its account or to a region with every row its cell database keeps in the space and its resources.
+
+```ts
+await client.transfer.create({ spaceId, requestId, target: hostId });
 ```

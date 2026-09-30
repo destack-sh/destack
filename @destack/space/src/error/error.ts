@@ -1,10 +1,18 @@
-/** An invalid space configuration. */
+/** A failure code for space configurations and their administration. */
+export type SpaceErrorCode =
+    | "INVALID_DEFINITION"
+    | "UNSUPPORTED_DEFINITION"
+    | "NOT_READY"
+    | "NOT_IMPLEMENTED"
+    | "FENCED";
+
+/** An invalid or unsupported space configuration, or a write its cell may no longer make. */
 export class SpaceError extends Error {
     /** Stable failure code. */
-    readonly code: "INVALID_DEFINITION";
+    readonly code: SpaceErrorCode;
 
     /** Create a configuration failure. */
-    constructor(code: "INVALID_DEFINITION", message: string, options?: ErrorOptions) {
+    constructor(code: SpaceErrorCode, message: string, options?: ErrorOptions) {
         super(message, options);
         this.name = "SpaceError";
         this.code = code;

@@ -1,7 +1,8 @@
 export { SpaceDefinition } from "../declare/space.ts";
 export {
-    InstallationPolicies,
+    InstallationPolicy,
     NetworkPolicyDefinition,
     PackagePolicyDefinition,
-    SpacePolicies,
+    SpacePolicy,
 } from "../policy/index.ts";
+export * from "./space.ts";

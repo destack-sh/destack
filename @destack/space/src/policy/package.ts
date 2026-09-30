@@ -1,5 +1,4 @@
-import { DependencyName } from "@destack/package/package";
-import { ResourceName } from "@destack/resource";
+import { DeclarationName, DependencyName } from "@destack/package";
 import { defineSchema, schema } from "@destack/schema";
 
 /** The decision applied to a matching package. */
@@ -41,22 +40,22 @@ export const PackageRule = defineSchema(
 export type PackageRule = schema.Infer<typeof PackageRule>;
 
 /** Decisions for a complete resolved package graph. */
-export const PackageRules = defineSchema(
+export const PackageAdmission = defineSchema(
     schema.object({
         /** The decision when no rule matches. */
         default: PackageDecision,
         /** Rules keyed by stable names used in diagnostics and audit records. */
-        rules: schema.record(ResourceName, PackageRule),
+        rules: schema.record(DeclarationName, PackageRule),
     }),
 );
 /** Package rules evaluated without rule ordering. */
-export type PackageRules = schema.Infer<typeof PackageRules>;
+export type PackageAdmission = schema.Infer<typeof PackageAdmission>;
 
 /** Package admission for a space and its installations. */
 export const PackagePolicyDefinition = defineSchema(
     schema.object({
         /** Rules for the root package and every resolved dependency. */
-        admission: PackageRules,
+        admission: PackageAdmission,
     }),
 );
 /** A source-authored or interactively managed package policy. */
