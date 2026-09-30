@@ -1,45 +1,52 @@
 ---
 title: "Introducing Destack"
-subtitle: "TypeScript, the final stack, and software you can own."
-date: "2026-09-21"
+subtitle: "The final stack for personal software (for real this time)."
+date: "2026-10-05"
 author: "Florian"
 ---
 
-Software is entering a Cambrian Explosion, and, it is worth remembering, that means most specimen will go extinct, and the survivors will look very different.
-Both products and processes will undergo intense evolutionary pressure, with fast migrations enabling an exhaustive exploration of the hitherto underexplored space of all possible software.
-Eventually, we will arrive at some new final form, a more global optima, resembling the familiar old only in name.
+Software is entering another Cambrian Explosion, and, it is worth remembering, that means most specimen will go extinct, and the survivors will look very different.
+Both products and processes will evolve under intense competition, with free migrations enabling the full exploration of the space of all possible software, until a new optima is found.
 
 <!-- Publication license pending: Christian Jégou / Science Source. -->
 :::figure width="600" src="./cambrian-sea.jpg" alt="Illustration of Cambrian marine life, with Opabinia swimming above trilobites, spiny animals, and sponges."
 [Cambrian marine life](https://es.knowablemagazine.org/content/articulo/alimentos-ambiente/2026/como-los-herbivoros-obtienen-aminoacidos-esenciales) — Christian Jégou, Science Source.
 :::
 
-Thus, we have a rare opportunity to explore and establish entirely new software production processes: probabilistic computing enables new kinds of useful software, which drives demand for new use cases and approaches, simultaenously, AI drastically reduces the cost of software production and migration.
-In other words, now is the time to reconsider the entire stack.
+It's good timing, because the current stack is fundamentally broken:
+we've got a thousand little software silos, each with their own slightly incompatible slice of the stack, each with its own control and data and auth and compute and telemetry, each encapsulated from its user and impossible to modify or even properly integrate.
+
+<!--Now, we have a rare opportunity to explore new software production processes as probabilistic computing enables new kinds of useful software, which drives demand for new use cases and approaches, while, simultaneously, AI drastically reduces the cost of software production and migration.-->
+<!--It is the time to reconsider the entire stack.-->
 
 > To put it quite bluntly: as long as there were no machines, programming was no problem at all; when we had a few weak computers, programming became a mild problem, and now we have gigantic computers, programming has become an equally gigantic problem.
 >
 > — Edsger Dijkstra, *The Humble Programmer* (1972)
 
-Over half a century later, the existing software stack is once again buckling under the weight, volume and speed of a new kind of more powerful machine.
-Once again, we will have to retrace from the beginning, reconsider what programming even means, and reshape what software should look like.
-And it is quite ironic, because the original dream for software directly anticipated this moment.
+Over half a century later, our software stack is once again buckling under the weight, volume and speed of a new kind of more powerful machine.
+Once more, we will have to retrace from the beginning, reconsider what programming even means, and reshape what software should look like for the next century.
 
 # The Software That Could Be
 
 Software was never meant to be like _this_.
 The pioneers meant for software to be open, hackable, remixable - and fast.
-Hardware has advanced far beyond the capabilities envisiaged all those decades ago, and yet, a duller, infinitely fragmented version of software has settled in and stayed stuck by sheer inertia.
+Hardware has advanced far beyond the capabilities envisioned all those decades ago, and yet, a duller, infinitely fragmented version of software has settled in and stayed stuck by sheer inertia.
+
+Of course, "malleable software" and "end-user programming" have been valiantly tried many times - only to die again, every time.
+The closest to malleable software we have today are heavily constrained environments like Excel and Notion and Roblox, which _are_ great, but not _general_, and so we are stuck with a thousand little rented software silos.
 
 :::figure width="600" src="./tiny-glade.gif" alt="In Tiny Glade, drawing a path through a wall creates an archway automatically."
 [Path editing in Tiny Glade](https://www.youtube.com/watch?v=CdWpq2efN8Y) — Pounce Light, trailer excerpt.
 :::
 
-Sure, "malleable software" and "end-user programming" have been valiantly resurrected many times to die again and again.
-Mostly, anyway - malleable software does sort of exist, we just call it Excel and Notion and Roblox. 
-But those are not _general_, not integrated, not expressive, and so we have thousand SaaS with their own vertical slice of stack.
+Yet, our new, alien machine users - agents - really, really want the broadest possilbe access to your software stack, with as many degrees of freedom as we can safely manage. 
+Agents are well on pace to outnumber human users by an order of magnitude or two very soon, they're still very expensive and slow, but already useful - even though they are caged in by last century's software stack.
 
-To actually _own_ your software suite, to properly integrate it, to customize it; well - you would need to get each vendor's sources, enforce compatible stores and interfaces, and unify enough of the stack to join "reminders in Notion" with "leads in Salesforce" and "events in Outlook".
+In general, up till now, the key issue with "malleable software" has been that approximately nobody _wants_ to build their own software.
+It's difficult, it's a hassle, it never works quite as well, and so there was little reason to even attempt to own the stack.
+To get the most out of agents, and to get the most out of software requires the same thing - a fully integrated, standardised, open stack.
+
+Of course, to fully _own_ your software stack, you would need to get each vendor's sources, enforce compatible stores and interfaces, and unify enough of the stack to join "reminders in Notion" with "leads in Salesforce" and "events in Outlook".
 With the current stack, this is just not a serious option, so instead we have "connectors".
 
 :::figure width="640" src="./tower-of-babel.jpg" alt="Bruegel's Tower of Babel under construction, with tiers of arches, exposed rock, scaffolding, and workers above a crowded city."
@@ -135,19 +142,18 @@ Our tools for building, interacting with, understanding software are astoundingl
 I want to understand shape of software and the space of all possible software that solves all the problems I'm interested in, and then navigate that efficiently.
 If software is going to run _everything_, faster than anyone can verify, how do we make sure it's the right software, built the right way?
 
-# Destack
+# The Destack
 
 Software should be open, hackable, rexmiable - and fast.
 Software you can actually own, _without_ giving up on the benefits of modern stacks and the "cloud".
-How?
 How do we get there, from here?
-Even if we could magically replace the stack, replace with what?
+Even if we could magically replace the stack, replace it with what?
 
-And besides, where to even begin with a "brand new stack"?
+And besides, what even is the ideal "brand new stack"?
 It can't be too different, or nobody - humans nor agents - would know how to use it.
-Paradoxically, this is not the time to figure out an "ideal second system" _from scratch_; whatever follows must trace the shapes we already have.
+Paradoxically, then, now is not the time to figure out an "ideal second system" _from scratch_; whatever follows must trace the shapes we already have (for better and worse).
 
-Fortunately, the web is pretty great.
+Fortunately, the web is already pretty great.
 TypeScript is also pretty great.
 Everybody knows the web, everybody knows TypeScript, and web standards evolved over decades.
 Oh, and the internet is also the largest application platform ever.
