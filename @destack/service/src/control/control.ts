@@ -9,33 +9,25 @@ import { LEASE_MILLISECONDS, Leases } from "./lease.ts";
 /** The control loop's spans. */
 const { span } = telemetry.scope(import.meta.destack.package);
 
-/** The retry of a failed reconciliation, doubling from a second up to 5 minutes as in controller-runtime. */
+/** The retry of a failed reconciliation, doubling from a second up to 5 minutes. */
 const RETRY = RetryPolicy.of({ maximumInterval: 5 * 60_000 });
 
-/** The keys a controller or follower works on: the tables selecting them, and every key. */
-interface Keyed {
+/** A loop keeping the actual state of each listed key matching its rows. */
+export interface Controller {
     /** The controller's name in reports. */
     readonly name: string;
     /** The tables with changes or commits that select keys or list them again. */
     readonly watches?: readonly Table[];
-    /** List the keys a watched change affects. */
-    keys?(change: Change): readonly string[];
+    /** List the keys a watched change affects, when reconciling. */
+    keys?(change: Change): readonly string[] | Promise<readonly string[]>;
     /** List every key. */
     list(): Promise<readonly string[]>;
     /** The most keys it works on at once, one by default. */
     readonly concurrency?: number;
-}
-
-/** A level-triggered controller that reconciles each key until settled. */
-export interface Controller extends Keyed {
-    /** Reconcile one key, returning the delay before looking again. */
+    /** Whether a key converges and returns, or keeps its process running until stopped, reconcile by default. */
+    readonly mode?: "reconcile" | "follow";
+    /** Converge one key and return the delay before looking again, or follow it until stopped. */
     reconcile(key: string, reconciliation: Reconciliation): Promise<number | undefined>;
-}
-
-/** A follower of each key, for as long as its list names the key and its lease holds. */
-export interface Follower extends Keyed {
-    /** Follow one key until the signal aborts. */
-    follow(key: string, signal: AbortSignal): Promise<void>;
 }
 
 /** One running reconciliation of a key. */
@@ -49,7 +41,7 @@ export interface Reconciliation {
 /** One key a controller reconciles, due at a time. */
 interface Work {
     /** The controller reconciling the key. */
-    readonly controller: Controller | Follower;
+    readonly controller: Controller;
     /** The key. */
     readonly key: string;
 }
@@ -59,19 +51,19 @@ export class ControlLoop {
     /** The database with the log that selects keys. */
     readonly database: DatabaseConnection;
     /** The controllers run. */
-    readonly controllers: readonly (Controller | Follower)[];
+    readonly controllers: readonly Controller[];
     /** Report a failed reconciliation. */
-    readonly #report: (controller: Controller | Follower, key: string, error: unknown) => void;
+    readonly #report: (controller: Controller, key: string, error: unknown) => void;
     /** How a failed key retries. */
     readonly #retry: RetryPolicy;
     /** The keys due, by controller and key, with the time each is due at. */
-    readonly #due = new Map<Controller | Follower, Map<string, number>>();
+    readonly #due = new Map<Controller, Map<string, number>>();
     /** The due keys, earliest first. */
     readonly #queue = new DueQueue();
     /** The consecutive failures by controller and key. */
-    readonly #failures = new Map<Controller | Follower, Map<string, number>>();
+    readonly #failures = new Map<Controller, Map<string, number>>();
     /** The keys reconciling now by controller with their abort controllers. */
-    readonly #running = new Map<Controller | Follower, Map<string, AbortController>>();
+    readonly #running = new Map<Controller, Map<string, AbortController>>();
     /** The running reconciliations. */
     readonly #reconciling = new Set<Promise<void>>();
     /** The lease holder and duration, when instances share the loop. */
@@ -82,14 +74,10 @@ export class ControlLoop {
     /** Create the loop. */
     constructor(
         database: DatabaseConnection,
-        controllers: readonly (Controller | Follower)[],
+        controllers: readonly Controller[],
         options: {
             /** Report a failed reconciliation. */
-            readonly report: (
-                controller: Controller | Follower,
-                key: string,
-                error: unknown,
-            ) => void;
+            readonly report: (controller: Controller, key: string, error: unknown) => void;
             /** How a failed key retries. */
             readonly retry?: Partial<RetryPolicy>;
             /** Lease each key to this instance. */
@@ -125,7 +113,7 @@ export class ControlLoop {
     }
 
     /** Name a key due. */
-    enqueue(controller: Controller | Follower, key: string, at = Date.now()): void {
+    enqueue(controller: Controller, key: string, at = Date.now()): void {
         // keep the earliest due time
         const due = this.#due.get(controller)!;
         const current = due.get(key);
@@ -163,8 +151,8 @@ export class ControlLoop {
                             watched.includes(change.table),
                         );
 
-                        // list a follower again once its tables changed
-                        if ("follow" in controller) {
+                        // list a following controller again once its tables changed
+                        if (controller.mode === "follow") {
                             if (changes.length > 0) {
                                 await this.#relist(controller);
                             }
@@ -172,7 +160,7 @@ export class ControlLoop {
                         // enqueue the keys each change names
                         else {
                             for (const change of changes) {
-                                for (const key of controller.keys?.(change) ?? []) {
+                                for (const key of (await controller.keys?.(change)) ?? []) {
                                     this.enqueue(controller, key);
                                 }
                             }
@@ -198,8 +186,8 @@ export class ControlLoop {
         }
         await this.database.log.until(async () => {
             for (const controller of listed) {
-                // stop and start a follower's keys
-                if ("follow" in controller) {
+                // stop and start a following controller's keys
+                if (controller.mode === "follow") {
                     await this.#relist(controller);
                 }
                 // enqueue each listed key not failing
@@ -217,8 +205,8 @@ export class ControlLoop {
         }, signal);
     }
 
-    /** Stop the keys a follower's list dropped, and enqueue the listed ones not running. */
-    async #relist(controller: Follower): Promise<void> {
+    /** Stop the keys a controller's list dropped, and enqueue the listed ones not running. */
+    async #relist(controller: Controller): Promise<void> {
         // stop the running keys the list dropped
         const listed = new Set(await controller.list());
         const running = this.#running.get(controller)!;
@@ -236,9 +224,10 @@ export class ControlLoop {
             }
         }
 
-        // start the listed keys not running
+        // start the listed keys neither running nor failing
+        const failures = this.#failures.get(controller)!;
         for (const key of listed) {
-            if (!running.has(key)) {
+            if (!running.has(key) && !failures.has(key)) {
                 this.enqueue(controller, key);
             }
         }
@@ -311,7 +300,7 @@ export class ControlLoop {
         this.#reconciling.add(reconciling);
     }
 
-    /** Reconcile or follow one key until the loop stops it, retrying failures. */
+    /** Reconcile one key until settled, or follow it until stopped, retrying failures. */
     async #reconcile(work: Work, stopped: AbortSignal): Promise<void> {
         // reconcile under the lease and requeue when asked, or follow again once a follow ends
         const { controller, key } = work;
@@ -319,8 +308,8 @@ export class ControlLoop {
         try {
             const delay = await this.#leased(work, stopped, async (reconciliation) => {
                 // follow until stopped, retrying a lost lease at once and a follow that ended as a failure
-                if ("follow" in controller) {
-                    await controller.follow(key, reconciliation.signal);
+                if (controller.mode === "follow") {
+                    await controller.reconcile(key, reconciliation);
                     if (!reconciliation.signal.aborted) {
                         throw new Error(`${controller.name} stopped following ${key} unasked`);
                     }
@@ -340,9 +329,11 @@ export class ControlLoop {
                 this.enqueue(work.controller, work.key, Date.now() + delay);
             }
         }
-        // end a reconciliation the loop stopped without a failure
+        // end a reconciliation the loop stopped without a failure, forgetting earlier ones
         catch (error) {
             if (stopped.aborted) {
+                failures.delete(work.key);
+
                 return;
             }
 

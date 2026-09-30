@@ -223,7 +223,7 @@ Each trigger kind delivers one event type.
 
 ## Controllers
 
-A `ControlLoop` runs level-triggered `Controller`s, which reconcile the keys of a database's committed changes.
+A `ControlLoop` runs `Controller`s, which keep the state of each listed key matching a database's rows: `reconcile` mode converges a key and returns, `follow` mode keeps its process running until its list drops it.
 
 ```ts
 import { ControlLoop, type Controller } from "@destack/service/control";
@@ -235,7 +235,14 @@ const expiry: Controller = {
     list: async () => ["expiry"],
     reconcile: async () => ((await removeExpired()) ? 0 : undefined),
 };
-await new ControlLoop(database, [expiry], { report, lease: { holder: instanceId } }).run(signal);
+const stream: Controller = {
+    name: "stream",
+    mode: "follow",
+    watches: [subscription],
+    list: async () => subscriptions(),
+    reconcile: async (key, { signal }) => (await follow(key, signal), undefined),
+};
+await new ControlLoop(database, [expiry, stream], { report, lease: { holder: instanceId } }).run(signal);
 ```
 
 ## Outbox

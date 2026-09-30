@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineTable, eq, integer, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { ControlLoop, type Controller, type Follower } from "./control.ts";
+import { ControlLoop, type Controller } from "./control.ts";
 import { controllerLease } from "./lease.ts";
 
 /** The jobs a controller reconciles. */
@@ -179,12 +179,13 @@ test("follow each listed key until its list drops it or the loop stops", async (
     const started: string[] = [];
     const stopped: string[] = [];
     const reported: string[] = [];
-    const controller: Follower = {
+    const controller: Controller = {
         name: "follow",
+        mode: "follow",
         watches: [job],
         list: async () => (await database.select({ id: job.id }).from(job)).map((row) => row.id),
         concurrency: 8,
-        follow: async (key, signal) => {
+        reconcile: async (key, { signal }) => {
             started.push(key);
             await new Promise<void>((resolve) =>
                 signal.addEventListener("abort", () => resolve(), { once: true }),
@@ -222,12 +223,15 @@ test("report a follow that ends unasked and retry it after a backoff", async () 
     // end each follow at once, as a broken follower does
     const started: number[] = [];
     const reported: string[] = [];
-    const controller: Follower = {
+    const controller: Controller = {
         name: "brief",
+        mode: "follow",
         watches: [job],
         list: async () => ["brief"],
-        follow: async () => {
+        reconcile: async () => {
             started.push(Date.now());
+
+            return undefined;
         },
     };
     const stopping = new AbortController();
@@ -246,4 +250,48 @@ test("report a follow that ends unasked and retry it after a backoff", async () 
         isBackedOff: true,
         reported: [failure, failure],
     });
+});
+
+test("follow a key again once its list names it after it failed and was dropped", async () => {
+    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await database.insert(job).values({ id: "flaky", scope: "space", runs: 1 });
+
+    // fail the first follow, then follow until stopped, throwing the abort reason as streams do
+    const started: string[] = [];
+    const controller: Controller = {
+        name: "flaky",
+        mode: "follow",
+        watches: [job],
+        concurrency: 8,
+        list: async () => (await database.select({ id: job.id }).from(job)).map((row) => row.id),
+        reconcile: async (key, { signal }) => {
+            started.push(key);
+            if (started.length === 1) {
+                throw new Error("the first follow fails");
+            }
+            await new Promise<void>((resolve) =>
+                signal.addEventListener("abort", () => resolve(), { once: true }),
+            );
+            throw signal.reason;
+        },
+    };
+    const stopping = new AbortController();
+    const running = new ControlLoop(database, [controller], {
+        report: () => {},
+        retry: { initialInterval: 10 },
+    }).run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+
+    // retry the failed follow, drop the key, then follow it again once listed
+    await expect.poll(() => started).toEqual(["flaky", "flaky"]);
+    await database.delete(job);
+    await database.insert(job).values({ id: "other", scope: "space", runs: 1 });
+    await expect.poll(() => started).toEqual(["flaky", "flaky", "other"]);
+    await database.insert(job).values({ id: "flaky", scope: "space", runs: 1 });
+    await expect.poll(() => started).toEqual(["flaky", "flaky", "other", "flaky"]);
 });

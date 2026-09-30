@@ -1,5 +1,5 @@
 import { telemetry, trace } from "@destack/telemetry";
-import type { Controller, Follower } from "../control/index.ts";
+import type { Controller } from "../control/index.ts";
 import { ValidationError } from "@orpc/contract";
 import { ServiceError } from "../error/index.ts";
 import { AccessError } from "@destack/access";
@@ -108,11 +108,7 @@ export function domainFailure(error: unknown): ServiceError<string, unknown> | u
 }
 
 /** Log a failed reconciliation. */
-export function reportReconciliation(
-    controller: Controller | Follower,
-    key: string,
-    error: unknown,
-): void {
+export function reportReconciliation(controller: Controller, key: string, error: unknown): void {
     log.warn("controller.reconcile.failed", {
         "destack.controller": controller.name,
         "destack.key": key,

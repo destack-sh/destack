@@ -12,7 +12,7 @@ import { BOOKMARK_HEADER, type Bookmark } from "../bookmark/index.ts";
 import { CAPABILITY_HEADER, ServiceContext, type ServiceAccess } from "./context.ts";
 import type { ProcedureCall } from "./access.ts";
 import { reportError, reportReconciliation } from "./error.ts";
-import { ControlLoop, type Controller, type Follower } from "../control/index.ts";
+import { ControlLoop, type Controller } from "../control/index.ts";
 import { MAX_TIMER_DELAY } from "../timer/index.ts";
 import { copyRequest } from "../request/index.ts";
 
@@ -423,7 +423,7 @@ export interface ServiceImplementation extends Omit<HandlerOptions<ServiceContex
     /** Serve another HTTP protocol for an authenticated request, or return undefined. */
     route?(request: Request, context: ServiceContext): Promise<Response | undefined>;
     /** The service's controllers. */
-    readonly controllers?: readonly (Controller | Follower)[];
+    readonly controllers?: readonly Controller[];
 }
 
 /** Attach the request's watermarks to its response. */
