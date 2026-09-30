@@ -13,23 +13,20 @@ Both products and processes will evolve under intense competition, with free mig
 [Cambrian marine life](https://es.knowablemagazine.org/content/articulo/alimentos-ambiente/2026/como-los-herbivoros-obtienen-aminoacidos-esenciales) — Christian Jégou, Science Source.
 :::
 
-It's good timing too, because the current stack is fundamentally broken:
+It's about time too, because the current stack is fundamentally broken:
 we've got a thousand little software silos, each with their own slightly incompatible slice of the stack, wrapping its own control and data and auth and compute and telemetry planes, awkwardly encapsulated from its users, and all but impossible to modify or even properly integrate.
-
-<!--Now, we have a rare opportunity to explore new software production processes as probabilistic computing enables new kinds of useful software, which drives demand for new use cases and approaches, while, simultaneously, AI drastically reduces the cost of software production and migration.-->
-<!--It is the time to reconsider the entire stack.-->
 
 > To put it quite bluntly: as long as there were no machines, programming was no problem at all; when we had a few weak computers, programming became a mild problem, and now we have gigantic computers, programming has become an equally gigantic problem.
 >
 > — Edsger Dijkstra, *The Humble Programmer* (1972)
 
-Half a century later since the last software crisis, the software stack is once again buckling under the weight, volume and speed of a more powerful machine.
+Half a century since the last software crisis, the software stack is once again buckling under the weight, volume and speed of a more powerful machine.
 Once more, we will have to retrace from the beginning, reconsider what programming even means, and reshape what software should look like for the next century.
 
 # The Software That Could Be
 
 Software was never meant to be like _this_.
-The pioneers meant for software to be open, hackable, remixable - and fast.
+From the very beginning, software to be open, hackable, remixable - and fast.
 Hardware has advanced far beyond the capabilities envisioned all those decades ago, and yet, a duller, infinitely fragmented version of software has settled in and stayed stuck by sheer inertia.
 
 Of course, "malleable software" and "end-user programming" have been valiantly again and again - only to die again and again.
@@ -40,7 +37,7 @@ The closest to malleable software we have today are constrained sandboxes like E
 [Path editing in Tiny Glade](https://www.youtube.com/watch?v=CdWpq2efN8Y) — Pounce Light, trailer excerpt.
 :::
 
-Yet, our new alien machine users urgently demand the broadest possilbe access to the entire software stack, with as many degrees of freedom as we can safely provide, up and down and left and right. 
+Yet, our new machine users urgently demand the broadest possilbe access to the entire software stack, with as many degrees of freedom as we can safely provide, up and down and left and right. 
 Agents are on pace to outnumber human users by an order of magnitude or two very soon, but they are awkwardly caged in by last century's software stack.
 
 The key issue with "malleable software" has been that approximately nobody _wants_ to build their own software.
@@ -49,17 +46,18 @@ Building custom software was enticing but difficult, it never ends, rarely works
 Now, the equation has flipped, and it is almost trivially easy to build your own software, but nothing quite fits together yet.
 Just like it's hard to build custom software that works well across all systems, it is difficult to deploy agents if software is fragmented across thousands of little silos you do not own or control.
 
-For example, how do you join "reminders in Notion" with "leads in Salesforce" and "events in Outlook"?
-With real, transactional guarantees, in real time, at scale?
-It simply does not compute - the depth of integration we need is impossible with the current approach.
+Consider: how do you join "reminders in Notion" with "leads in Salesforce" and "events in Outlook"?
+We can "connect" these silos with data pipelines spanning a few minute delay, perhaps.
+But with real, transactional guarantees, in real time, at scale?
+It simply does not compute - the depth of integration needed is impossible with the current stack.
 
 :::figure width="640" src="./wright-flyer-wind-tunnel.jpg" alt="A full-size Wright Flyer replica mounted on a test stand inside the Ames wind tunnel, with two engineers standing beside it."
 [Wright Flyer replica in the Ames wind tunnel](https://www.nasa.gov/image-article/wright-flyer/) — NASA, public domain.
 :::
 
-The predicament of the current software stack goes far beyond a mere lack of integration:
+Anyone who has interacted with softwre recently knows that the issue is far bigger:
 it's not just that things don't work well _together_, it's that they don't work well _at all_.
-If software is solved, why is there still so much bad software?
+Why, if software is solved, is there still so much bad software?
 How do we put the "engineering" into "software engineering"?
 
 The brute "acceleration" of old processes with "self-driving factories" will not magically yield a better stack with better software, just more of the same stack.
@@ -94,23 +92,22 @@ Then, eventually, we figured out how to package the hard bits into reusable comp
 [Character editing in UbiArt](https://www.youtube.com/watch?v=B_QhZYTukac&t=35s) — Ubisoft, demonstration excerpt.
 :::-->
 
-Initially, developers using game engines didn't get quite the same level of control, or hit _quite_ the same high notes as those without.
-But it was a lot more productive, and it enabled a scale of project and a type of contributor that was impossible before - designers, writers, and artists, could now contribute _directly_, be it via Lua, visual scripting, material editors, or more advanced in-game level designers.
+Initially, like many abstractions, game engines didn't provide quite the same level breadth and depth as just controlling the underlying level directly.
+But building a typical game with an engine is much more productive, it enables a new scale of project, and it empowers a type of contributor that was impossible before - designers, writers, and artists, could now contribute _directly_.
 
-Games never superseded code, even as a lot of code was abstracted away for use cases that previously required it.
-It's still important, but, thanks to modern game engines, you can now build commercial games without thinking in code.
+Over all these years, games never superseded code per se, even as a lot of code was abstracted away for use cases that previously required it.
+It's still important, but, thanks to modern game engines, you can now build and ship real commercial games without thinking in code.
 
-The analogy of the game engine also applies to the iterative deployment of software, especially as we bifurcate into stable "platform software" building blocks that serve "userland software". 
-When building a game (or piece of software), sometimes you "play" the game, sometimes you edit the game, sometimes you build new tools to help you edit the game, sometimes you watch others play the game.
+Similarly, we now also need a "software engine": a "game engine"-like separation between _integrated_ "platform software" building blocks and "userland software" and extensions. 
+Sometimes, when building a game, you playtest the game, sometimes you edit the game, sometimes you build new tools to help you edit the game - but it's all part of _one_ integrated process.
 
 # The System and The Scaffolding
 
 Fundamentally, there is not a single test, certificate, proof, or "gate" that you can run to convince me that some non-trivial software program is correct.
-The correctness of any complex software systems span many granuliarities, and, human written or not, misalignment can hide in any of them.
-Mathematical proof, passing tests, and green gates all mean nothing if it's not what I actually _meant_.
+The correctness of any complex software systems spans many granuliarities, and mathematical "proof", green tests, smoke tests, and passing gates all mean nothing if it's not what I actually _meant_ (and that may evolve! ).
 
-The primary objective of "software factories" seems to be about _remove_ oneself from the details, which makes it even harder to figure out what I even want to be doing when staring through a peephole from 10 thousand feet high.
-The temptation to let agents swarm out on a hunch adds a whole new dimension of yak shaving, and yet it's almost never rewarded with anything useful.
+Yet, the primary objective of "software factories" seems to be about _removing_ oneself from _all_ the details without any sufficient higher order specification to anchor the process.
+In very short order, steering exclusively through a chatbox makes it almost impossible to figure out where to go next and how to get there.
 
 :::figure width="480" src="./vault-centering.png" alt="Cutaway drawing of a masonry vault under construction, with curved timber frames supporting the unfinished vault."
 [Timber centering supporting a masonry vault, 1856](https://commons.wikimedia.org/wiki/File:Construction.voute.romaine.png) — Eugène Viollet-le-Duc, public domain.
@@ -118,7 +115,7 @@ The temptation to let agents swarm out on a hunch adds a whole new dimension of 
 
 To only way to judge the correctness of general purpose software is to look, to see the software in motion under many different angles and granularities.
 Notably, this is not an intelligence problem! 
-It's a human problem; I just don't know what I want until I see it, and I also don't know what I _don't_ want until I see that, too.
+It's a human problem, and it's a real world problem - I just don't know what I want until I see it.
 
 The correctness of a system is an iterative process; its alignment must be continuous as the shape of the problem shifts.
 This has always been true for any real symbolic software, but it is especially true for probabilstic software, and it's also prticularly difficult with a large, fragmented stack.
@@ -130,41 +127,31 @@ If software is going to run _everything_, faster than anyone can verify, how do 
 # The Destack
 
 Software should be open, hackable, rexmiable - and fast.
-Software you can actually own, _without_ giving up on the benefits of modern stacks and the "cloud".
-How do we get there, from here?
-Even if we could magically replace the stack, replace it with what?
+We need a "software engine", a platform of _integrated_ building blocks designed for iteration and "higher order" programming to get software we can actually own, _without_ giving up on the benefits of modern stacks and the "cloud".
 
-And besides, what even is the ideal "brand new stack"?
+So. How do we get there, from here?
+What even is this ideal "brand new stack"?
 It can't be too different, or nobody - humans nor agents - would know how to use it.
 Paradoxically, then, now is not the time to figure out an "ideal second system" _from scratch_; whatever follows must trace the shapes we already have (for better and worse).
 
 Fortunately, the web is already pretty great.
 TypeScript is also pretty great.
-Everybody knows the web, everybody knows TypeScript, and web standards evolved over decades.
+Everybody knows the web, everybody knows TypeScript, and web standards have evolved over decades.
 Oh, and the internet is also the largest application platform ever.
 It's not _perfect_, sure, but what is?
 
-:::figure src="./picasso-bull.jpg" alt="Eleven versions of Picasso’s bull, progressing from a detailed animal to a few essential lines."
+:::figure src="./picasso-bull.jpg" alt="Eleven versions of Picasso's bull, progressing from a detailed animal to a few essential lines."
 [The Bull, 1945–46](https://drawpaintacademy.com/the-bull/) — Pablo Picasso, reproduction via Draw Paint Academy.
 :::
 
-We have long figured out that opinionated formatters are a great idea as they remove unproductive syntax debates and standardize the _appearence_ of code to just one right way.
-Sure, maybe the brackets aren't _perfect_ by everyone's personal standards, but it is _standardised_ and who cares anyway, there is software to ship.
- <!--and meta-frameworks serves a similar need.-->
-
-What formatters did to the appearance of code, we should now to do the _shape_ of code:
-fully standardize far beyond syntax, language choice, and other trivialities.
-We need exact schematics to fill in and follow for the p95 of solved use cases (think shadcn++), so we can then focus on the higher order bits that matter.
+Instead of building a theoretically perfect second system, we can just _standardize_ - to an absurd degree - around the best parts of the modern stack, and integrate them very deeply.
+We have long figured out that opinionated formatters are a great idea, so now we need to  exact schematics to fill in and follow for the p95 of solved use cases (think shadcn++), so we can then focus on the higher order bits that matter.
 <!--we want _exact_ prescribed module and file layouts, type shapes, call trees, services, dependencies, entire architectures.-->
-
-With a sufficiently standardized stack, we can finally have truly personal software that can actually be owned.
-And the most pragmatic way to standardise is to pick the best of the modern web stack, package that in a common format, integrate all the boring parts of the iceberg.
-And then grow from there.
 
 <!-- TODO: demo #1 -->
 
 That is Destack: an open source, hackable, personal software platform.
-Basically, it's just a personal Git + NPM + database + compute, but with all the synchronisation, infrastructure, and just all the boring bits to make it work nicely together with unified auth, styling, models, telemetry, and such.
+Basically, think of Destack as a personal Git + NPM + SQlite + worker with all the auth, schemas, synchronisation, telemetry, infra, and just all the boring bits to make it work nicely.
 
 <!-- TODO: demo #2 -->
 
