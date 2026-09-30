@@ -1,4 +1,4 @@
-import { type ChainRelay } from "@destack/sync";
+import { type ReplicaSource } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { defineWorkload } from "./workload.ts";
 import { WorkloadInstance } from "./instance.ts";
@@ -19,12 +19,14 @@ const history = {
     },
 };
 
-/** A relay of the access of a space without fixture workload followers. */
-const access: ChainRelay = {
+/** The copies of a space, from a source streaming none to fixture workloads. */
+const replicas = {
     scope: "space-01996ab0-0000-7000-8000-000000000001",
-    watch: () => {
-        throw new Error("the fixture relay streams no access");
-    },
+    source: {
+        stream: () => {
+            throw new Error("the fixture source streams no copies");
+        },
+    } satisfies ReplicaSource,
 };
 
 /** A declared fixture schedule. */
@@ -57,7 +59,7 @@ test("release startup resources when the workload shuts down during startup", as
             {
                 resources: hosting.resources,
                 history,
-                access,
+                replicas,
                 service: () => ({ ...hosting, drainTimeout: 100 }),
             },
         ),
@@ -98,7 +100,7 @@ test("start two services and drain accepted requests before shared cleanup", asy
         {
             resources: hosting.resources,
             history,
-            access,
+            replicas,
             service: () => ({ ...hosting, drainTimeout: 1000 }),
         },
     );
@@ -154,7 +156,7 @@ test("retain shared resources until an overdue request observes cancellation", a
         {
             resources: hosting.resources,
             history,
-            access,
+            replicas,
             service: () => ({ ...hosting, drainTimeout: 5 }),
         },
     );
@@ -198,7 +200,7 @@ test("reject a service implemented twice and release startup resources", async (
             {
                 resources: hosting.resources,
                 history,
-                access,
+                replicas,
                 service: () => ({ ...hosting, drainTimeout: 1000 }),
             },
         ),
@@ -239,7 +241,7 @@ test("deliver a schedule's occurrence and a webhook's delivery through the workl
         {
             resources: hosting.resources,
             history,
-            access,
+            replicas,
             service: () => ({ ...hosting, drainTimeout: 1000 }),
         },
     );
@@ -293,7 +295,7 @@ test("reject a trigger implemented twice and release startup resources", async (
             {
                 resources: hosting.resources,
                 history,
-                access,
+                replicas,
                 service: () => ({ ...hosting, drainTimeout: 1000 }),
             },
         ),
@@ -301,15 +303,15 @@ test("reject a trigger implemented twice and release startup resources", async (
     expect(events).toEqual(["resources"]);
 }, 1500);
 
-test("give a starting workload the host's audit history and its space's access relay", async () => {
-    // start a workload that delivers one batch to the history it receives and keeps the relay
-    let relay: ChainRelay | undefined;
+test("give a starting workload the host's audit history and its space's source of copies", async () => {
+    // start a workload that delivers one batch to the history it receives and keeps the source
+    let received: { readonly scope: string; readonly source: ReplicaSource } | undefined;
     await using instance = await WorkloadInstance.start(
         defineWorkload({
             name: "fixture",
             start: async (context) => {
                 await context.history.ingest({ events: ["started"] });
-                relay = context.access;
+                received = context.replicas;
 
                 return { services: [] };
             },
@@ -317,13 +319,13 @@ test("give a starting workload the host's audit history and its space's access r
         {
             resources: hosting.resources,
             history,
-            access,
+            replicas,
             service: () => ({ ...hosting, drainTimeout: 100 }),
         },
     );
-    expect([instance.triggers, history.batches.at(-1), relay]).toEqual([
+    expect([instance.triggers, history.batches.at(-1), received]).toEqual([
         [],
         { events: ["started"] },
-        access,
+        replicas,
     ]);
 });

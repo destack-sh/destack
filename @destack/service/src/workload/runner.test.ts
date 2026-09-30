@@ -1,4 +1,4 @@
-import { type ChainRelay } from "@destack/sync";
+import { type ReplicaSource } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal } from "@destack/access";
 import { identifier } from "@destack/schema";
@@ -55,10 +55,9 @@ test("serve a forwarded caller below the package's mount, and export telemetry t
     });
 
     // start a workload with a service that answers with the path and the caller
-    const relay: ChainRelay = {
-        scope: spaceId,
-        watch: () => {
-            throw new Error("the fixture relay streams no access");
+    const source: ReplicaSource = {
+        stream: () => {
+            throw new Error("the fixture source streams no copies");
         },
     };
     const runner = await WorkloadRunner.start(
@@ -84,7 +83,7 @@ test("serve a forwarded caller below the package's mount, and export telemetry t
             ),
             resources: {},
             history: () => ({ ingest: async () => ({ events: 0 }) }),
-            access: () => relay,
+            replicas: () => source,
         },
         start,
         startTelemetry,

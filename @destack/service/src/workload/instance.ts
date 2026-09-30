@@ -1,4 +1,4 @@
-import { type ChainRelay } from "@destack/sync";
+import { type ReplicaSource } from "@destack/sync";
 import type { ResourceContext } from "@destack/resource/context";
 import { reference } from "@destack/package/declare";
 import { Server, type ServerOptions, type ServiceImplementation } from "../server/index.ts";
@@ -38,7 +38,7 @@ export class WorkloadInstance implements AsyncDisposable {
             const implementation = await workload.start({
                 resources: options.resources,
                 history: options.history,
-                ...(options.access === undefined ? {} : { access: options.access }),
+                ...(options.replicas === undefined ? {} : { replicas: options.replicas }),
                 signal: instance.#controller.signal,
                 shutdown: () => instance.shutdown(),
                 defer: (dispose) => instance.#cleanup.defer(dispose),
@@ -185,8 +185,8 @@ export interface WorkloadInstanceOptions {
     readonly resources: ResourceContext;
     /** The audit history the workload's outboxes deliver to. */
     readonly history: AuditHistory;
-    /** The relay of the access of the installation's space and its containing scopes. */
-    readonly access?: ChainRelay;
+    /** The source of the copies of the installation's space: its chain, and the global rows it reads. */
+    readonly replicas?: { readonly scope: string; readonly source: ReplicaSource };
     /** Select the options of one service. */
     service(
         service: Service,

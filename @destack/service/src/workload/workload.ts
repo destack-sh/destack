@@ -1,4 +1,4 @@
-import { type ChainRelay } from "@destack/sync";
+import { type ReplicaSource } from "@destack/sync";
 import { type ComputeDefinition, declaringModule, type ModuleMetadata } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
 import { WorkloadDefinition } from "@destack/package/workload";
@@ -32,8 +32,8 @@ export interface WorkloadContext {
     readonly resources: ResourceContext;
     /** The audit history the workload's outboxes deliver to. */
     readonly history: AuditHistory;
-    /** The relay of the access of the installation's space and its containing scopes. */
-    readonly access?: ChainRelay;
+    /** The source of the copies of the installation's space: its chain, and the global rows it reads. */
+    readonly replicas?: { readonly scope: string; readonly source: ReplicaSource };
     /** The shutdown signal. */
     readonly signal: AbortSignal;
     /** Request shutdown. */

@@ -1,7 +1,6 @@
-import { type ChainRelay } from "@destack/sync";
+import { type ReplicaSource } from "@destack/sync";
 import type { Resource } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
-import type { Identifier } from "@destack/schema";
 import { telemetry } from "@destack/telemetry";
 import type { Telemetry, TelemetryOptions } from "@destack/telemetry/sdk";
 import { OtlpExporter } from "@destack/telemetry/otlp";
@@ -38,15 +37,8 @@ export interface RunnerOptions {
     readonly resources: Readonly<Record<string, Resource<unknown>>>;
     /** Connect to an audit service through the host's egress with the runner's secret. */
     history(url: string, secret: string): AuditHistory;
-    /** Connect to the relay of an installation's space access through the host's egress with the runner's secret. */
-    access(
-        url: string,
-        installation: {
-            readonly spaceId: Identifier<"space">;
-            readonly installationId: Identifier<"installation">;
-        },
-        secret: string,
-    ): ChainRelay;
+    /** Connect to the source of an installation's copies, its space's cell, through the host's egress with the runner's secret. */
+    replicas(url: string, secret: string): ReplicaSource;
 }
 
 /** A workload instance a host started, serving its package below its mount on any runtime. */
@@ -101,11 +93,10 @@ export class WorkloadRunner implements AsyncDisposable {
             const instance = await WorkloadInstance.start(runner.workload, {
                 resources,
                 history: runner.history(Egress.url(start.egress, AUDIT_ADDRESS), start.secret),
-                access: runner.access(
-                    Egress.url(start.egress, SPACE_ADDRESS),
-                    { spaceId: start.scope, installationId: start.installation },
-                    start.secret,
-                ),
+                replicas: {
+                    scope: start.scope,
+                    source: runner.replicas(Egress.url(start.egress, SPACE_ADDRESS), start.secret),
+                },
                 service: () => WorkloadRunner.#serve(runner, start),
             });
 
