@@ -10,6 +10,7 @@ import type { Service } from "../declare/service.ts";
 import { ServiceError } from "../error/index.ts";
 import { Egress } from "../service/egress.ts";
 import { ServiceMount } from "../service/mount.ts";
+import type { Alarm } from "../control/index.ts";
 import { WorkloadInstance } from "./instance.ts";
 import type { WorkloadStart } from "./start.ts";
 import type { AuditHistory, Workload } from "./workload.ts";
@@ -39,6 +40,9 @@ export interface RunnerOptions {
     history(url: string, secret: string): AuditHistory;
     /** Connect to the source of an installation's copies, its space's cell, through the host's egress with the runner's secret. */
     replicas(url: string, secret: string): ReplicaSource;
+    // TODO #Incomplete: pass the Durable Object's storage as the alarm from a workerd entry, awaiting `idle()` in its alarm handler
+    /** Keep a wake-up for the workload's earliest due controller key, such as the Durable Object's alarm running it. */
+    readonly alarm?: Alarm;
 }
 
 /** A workload instance a host started, serving its package below its mount on any runtime. */
@@ -98,6 +102,7 @@ export class WorkloadRunner implements AsyncDisposable {
                     source: runner.replicas(Egress.url(start.egress, SPACE_ADDRESS), start.secret),
                 },
                 service: () => WorkloadRunner.#serve(runner, start),
+                ...(runner.alarm === undefined ? {} : { alarm: runner.alarm }),
             });
 
             // require the package's one service
@@ -155,6 +160,11 @@ export class WorkloadRunner implements AsyncDisposable {
     /** Request shutdown. */
     shutdown(): void {
         this.instance.shutdown();
+    }
+
+    /** Settle once no controller key is due now or reconciling, as an alarm's handler waits before its instance may be evicted. */
+    idle(): Promise<void> {
+        return this.instance.idle();
     }
 
     /** Drain the instance, then export the telemetry left and stop it. */

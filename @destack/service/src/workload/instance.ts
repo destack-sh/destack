@@ -9,6 +9,7 @@ import type {
     TriggerHandler,
     TriggerImplementation,
 } from "../trigger/index.ts";
+import { type Alarm, AlarmClock } from "../control/index.ts";
 import { Health } from "../health/index.ts";
 import { ServiceError } from "../error/index.ts";
 import type { AuditHistory, Workload } from "./workload.ts";
@@ -31,8 +32,9 @@ export class WorkloadInstance implements AsyncDisposable {
         workload: Workload,
         options: WorkloadInstanceOptions,
     ): Promise<WorkloadInstance> {
-        // clean up a failed start
+        // clean up a failed start, keeping the services' alarms on the host's one wake-up
         const instance = new WorkloadInstance();
+        const clock = options.alarm === undefined ? undefined : new AlarmClock(options.alarm);
         try {
             // start the workload
             const implementation = await workload.start({
@@ -58,6 +60,7 @@ export class WorkloadInstance implements AsyncDisposable {
                     ...options.service(service.service),
                     health: new Health(service.service.name),
                     resources: options.resources,
+                    ...(clock === undefined ? {} : { alarm: clock.alarm() }),
                 });
                 instance.#services.set(key, { service: service.service, server });
             }
@@ -109,6 +112,11 @@ export class WorkloadInstance implements AsyncDisposable {
     /** Request shutdown. */
     shutdown(): void {
         this.#controller.abort();
+    }
+
+    /** Settle once no service's controller key is due now or reconciling. */
+    async idle(): Promise<void> {
+        await Promise.all([...this.#services.values()].map((served) => served.server.idle()));
     }
 
     /** Dispatch a request to a service. */
@@ -187,6 +195,8 @@ export interface WorkloadInstanceOptions {
     readonly history: AuditHistory;
     /** The source of the copies of the installation's space: its chain, and the global rows it reads. */
     readonly replicas?: { readonly scope: string; readonly source: ReplicaSource };
+    /** Keep a wake-up for the services' earliest due controller key, such as a Durable Object's alarm. */
+    readonly alarm?: Alarm;
     /** Select the options of one service. */
     service(
         service: Service,

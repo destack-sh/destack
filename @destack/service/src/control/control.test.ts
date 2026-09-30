@@ -295,3 +295,53 @@ test("follow a key again once its list names it after it failed and was dropped"
     await database.insert(job).values({ id: "flaky", scope: "space", runs: 1 });
     await expect.poll(() => started).toEqual(["flaky", "flaky", "other", "flaky"]);
 });
+
+test("keep the host's alarm at the earliest due or held key, clear it once nothing is due, and settle idle waiters, also after the loop stopped", async () => {
+    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    onTestFinished(() => storage.close());
+
+    // look at "later" again after a moment, and at "soon" never again
+    const alarms: (number | null)[] = [];
+    const reconciled: string[] = [];
+    const controller: Controller = {
+        name: "job",
+        list: async () => ["later", "soon"],
+        reconcile: async (key) => {
+            reconciled.push(key);
+
+            return key === "later" && reconciled.filter((entry) => entry === "later").length === 1
+                ? 50
+                : undefined;
+        },
+    };
+    const started = Date.now();
+    const loop = new ControlLoop(storage.database, [controller], {
+        report: (_controller, _key, error) => {
+            throw error;
+        },
+        alarm: {
+            setAlarm: async (at) => {
+                alarms.push(at);
+            },
+            deleteAlarm: async () => {
+                alarms.push(null);
+            },
+        },
+    });
+    const stopping = new AbortController();
+    const running = loop.run(stopping.signal);
+
+    // settle once both keys ran: the alarm held for "soon" while "later" ran, then waking the instance for "later"
+    await loop.idle();
+    const settled = [[...reconciled].sort(), alarms.length];
+
+    // clear the alarm once "later" ran again and nothing is due
+    await expect.poll(() => alarms.at(-1), { interval: 5 }).toBeNull();
+    stopping.abort();
+    await running;
+    expect([settled, reconciled.length, alarms.length]).toEqual([[["later", "soon"], 2], 3, 3]);
+    expect([alarms[0]! - started < 50, alarms[1]! - started >= 50]).toEqual([true, true]);
+
+    // settle a waiter at once after the loop stopped
+    await expect(loop.idle()).resolves.toBeUndefined();
+});

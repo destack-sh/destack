@@ -4,6 +4,7 @@ import type { Change } from "@destack/db/log";
 import { telemetry } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { RetryPolicy, wait } from "../timer/index.ts";
+import type { Alarm } from "./alarm.ts";
 import { LEASE_MILLISECONDS, Leases } from "./lease.ts";
 
 /** The control loop's spans. */
@@ -36,6 +37,8 @@ export interface Reconciliation {
     readonly signal: AbortSignal;
     /** The lease's takeover count, when instances share the loop. */
     readonly epoch?: number;
+    /** Wait for the key to change again while it reconciles, as its controller's keys select it. */
+    changed(): Promise<void>;
 }
 
 /** One key a controller reconciles, due at a time. */
@@ -68,6 +71,18 @@ export class ControlLoop {
     readonly #reconciling = new Set<Promise<void>>();
     /** The lease holder and duration, when instances share the loop. */
     readonly #lease?: { readonly holder: string; readonly duration: number };
+    /** The wake-up the host keeps for the earliest due key. */
+    readonly #alarm?: Alarm;
+    /** The earliest due time the alarm holds, absent for none. */
+    #alarmed?: number;
+    /** The callers waiting until no key is due now or reconciling. */
+    #idle: (() => void)[] = [];
+    /** Whether every controller was listed once since the loop started. */
+    #isListed = false;
+    /** Whether the loop stopped, after which nothing more runs. */
+    #isStopped = false;
+    /** The waiters for a change of each reconciling key, by controller. */
+    readonly #changes = new Map<Controller, Map<string, (() => void)[]>>();
     /** Wake the worker waiting for due work. */
     #wake: () => void = () => {};
 
@@ -82,6 +97,8 @@ export class ControlLoop {
             readonly retry?: Partial<RetryPolicy>;
             /** Lease each key to this instance. */
             readonly lease?: { readonly holder: string; readonly duration?: number };
+            /** Keep a wake-up for the earliest due key, so an evicted instance runs it. */
+            readonly alarm?: Alarm;
         },
     ) {
         // start with no key due and no failure
@@ -89,6 +106,9 @@ export class ControlLoop {
         this.controllers = controllers;
         this.#report = options.report;
         this.#retry = { ...RETRY, ...options.retry };
+        if (options.alarm !== undefined) {
+            this.#alarm = options.alarm;
+        }
         if (options.lease !== undefined) {
             this.#lease = {
                 holder: options.lease.holder,
@@ -104,16 +124,53 @@ export class ControlLoop {
 
     /** Run the controllers until the signal aborts. */
     async run(signal: AbortSignal): Promise<void> {
-        await Promise.all([this.#follow(signal), this.#list(signal), this.#work(signal)]);
-
-        // release this instance's leases
-        if (this.#lease !== undefined) {
-            await Leases.release(this.database, this.#lease.holder);
+        // stop every part once one fails
+        const failed = new AbortController();
+        const running = AbortSignal.any([signal, failed.signal]);
+        const stopping = (part: Promise<void>) =>
+            part.catch((error: unknown) => {
+                failed.abort(error);
+                throw error;
+            });
+        try {
+            await Promise.all(
+                [this.#follow(running), this.#list(running), this.#work(running)].map(stopping),
+            );
         }
+        // release this instance's leases, and settle the idle waiters of a loop that runs nothing more
+        finally {
+            this.#isStopped = true;
+            for (const resolve of this.#idle.splice(0)) {
+                resolve();
+            }
+            if (this.#lease !== undefined) {
+                await Leases.release(this.database, this.#lease.holder);
+            }
+        }
+    }
+
+    /** Settle once no key is due now or reconciling, as an alarm's handler waits before its instance may be evicted. */
+    idle(): Promise<void> {
+        // settle at once once the loop stopped
+        if (this.#isStopped) {
+            return Promise.resolve();
+        }
+
+        // wait for the loop to report itself idle once woken
+        const { promise, resolve } = Promise.withResolvers<void>();
+        this.#idle.push(resolve);
+        this.#wake();
+
+        return promise;
     }
 
     /** Name a key due. */
     enqueue(controller: Controller, key: string, at = Date.now()): void {
+        // tell a reconciliation of the key that it changed
+        for (const resolve of this.#changes.get(controller)?.get(key)?.splice(0) ?? []) {
+            resolve();
+        }
+
         // keep the earliest due time
         const due = this.#due.get(controller)!;
         const current = due.get(key);
@@ -137,6 +194,8 @@ export class ControlLoop {
                     this.enqueue(controller, key);
                 }
             }
+            this.#isListed = true;
+            this.#wake();
             if (tables.length === 0) {
                 return;
             }
@@ -238,12 +297,18 @@ export class ControlLoop {
         while (!signal.aborted) {
             // start the earliest runnable key
             const now = Date.now();
-            const { runnable, due } = this.#take(now);
+            const { runnable, due, held } = this.#take(now);
             if (runnable !== undefined) {
                 this.#start(runnable);
             }
-            // sleep until due or woken
+            // keep the host's wake-up at the next due or held key, settle the idle waiters, and sleep until due or woken
             else {
+                await this.#keep(due ?? held);
+                if (this.#isListed && this.#reconciling.size === 0) {
+                    for (const resolve of this.#idle.splice(0)) {
+                        resolve();
+                    }
+                }
                 await this.#sleep(due === undefined ? undefined : Math.max(0, due - now), signal);
             }
         }
@@ -258,10 +323,10 @@ export class ControlLoop {
     }
 
     /** Take the earliest runnable key, or the next due time. */
-    #take(now: number): { readonly runnable?: Due; readonly due?: number } {
+    #take(now: number): { readonly runnable?: Due; readonly due?: number; readonly held?: number } {
         // skip running keys and keys of a full controller
         const held: Due[] = [];
-        let found: { readonly runnable?: Due; readonly due?: number } = {};
+        let found: { readonly runnable?: Due; readonly due?: number; readonly held?: number } = {};
         for (let next = this.#next(); next !== undefined; next = this.#next()) {
             const running = this.#running.get(next.controller)!;
             const isFull = running.size >= (next.controller.concurrency ?? 1);
@@ -283,7 +348,12 @@ export class ControlLoop {
             this.#queue.push(entry);
         }
 
-        return found;
+        // name the earliest held key, which the host's wake-up keeps while it waits
+        const [earliest] = held;
+
+        return earliest === undefined || found.runnable !== undefined
+            ? found
+            : { ...found, held: earliest.at };
     }
 
     /** Start a reconciliation. */
@@ -293,7 +363,9 @@ export class ControlLoop {
         const stop = new AbortController();
         running.set(work.key, stop);
         const reconciling = this.#reconcile(work, stop.signal).finally(() => {
+            // free the key and its change waiters, and look for more work
             running.delete(work.key);
+            this.#changes.get(work.controller)?.delete(work.key);
             this.#reconciling.delete(reconciling);
             this.#wake();
         });
@@ -355,10 +427,21 @@ export class ControlLoop {
         stopped: AbortSignal,
         reconcile: (reconciliation: Reconciliation) => Promise<number | undefined>,
     ): Promise<number | undefined> {
+        // wait for the key's changes while it reconciles
+        const changed = () => {
+            // add a waiter the key's next change resolves
+            const waiting = this.#changes.get(work.controller) ?? new Map<string, (() => void)[]>();
+            this.#changes.set(work.controller, waiting);
+            const { promise, resolve } = Promise.withResolvers<void>();
+            waiting.set(work.key, [...(waiting.get(work.key) ?? []), resolve]);
+
+            return promise;
+        };
+
         // reconcile without a lease
         const options = this.#lease;
         if (options === undefined) {
-            return reconcile({ signal: stopped });
+            return reconcile({ signal: stopped, changed });
         }
 
         // take the lease or wait for it to lapse
@@ -385,10 +468,23 @@ export class ControlLoop {
         try {
             const signal = AbortSignal.any([stopped, lost.signal]);
 
-            return await reconcile({ epoch: acquired.epoch, signal });
+            return await reconcile({ epoch: acquired.epoch, signal, changed });
         } finally {
             clearInterval(renewing);
         }
+    }
+
+    /** Keep the host's wake-up at the earliest due time, once per change. */
+    async #keep(due: number | undefined): Promise<void> {
+        // leave an unchanged wake-up
+        const alarm = this.#alarm;
+        if (alarm === undefined || due === this.#alarmed) {
+            return;
+        }
+
+        // move the wake-up, or clear it once nothing is due
+        this.#alarmed = due;
+        await (due === undefined ? alarm.deleteAlarm() : alarm.setAlarm(due));
     }
 
     /** Find the earliest due key. */

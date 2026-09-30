@@ -12,7 +12,7 @@ import { BOOKMARK_HEADER, type Bookmark } from "../bookmark/index.ts";
 import { CAPABILITY_HEADER, ServiceContext, type ServiceAccess } from "./context.ts";
 import type { ProcedureCall } from "./access.ts";
 import { reportError, reportReconciliation } from "./error.ts";
-import { ControlLoop, type Controller } from "../control/index.ts";
+import { type Alarm, ControlLoop, type Controller } from "../control/index.ts";
 import { MAX_TIMER_DELAY } from "../timer/index.ts";
 import { copyRequest } from "../request/index.ts";
 
@@ -36,6 +36,8 @@ export class Server implements AsyncDisposable {
     readonly #reconciling = new AbortController();
     /** The running controllers. */
     readonly #controlled?: Promise<void>;
+    /** The loop running the controllers, absent without controllers. */
+    readonly #loop?: ControlLoop;
 
     /** Wait until the server stopped. */
     get stopped(): Promise<void> {
@@ -81,10 +83,24 @@ export class Server implements AsyncDisposable {
             const loop = new ControlLoop(options.access!.database, controllers, {
                 report: reportReconciliation,
                 ...(options.instance === undefined ? {} : { lease: { holder: options.instance } }),
+                ...(options.alarm === undefined ? {} : { alarm: options.alarm }),
             });
+            this.#loop = loop;
             this.#controlled = loop.run(this.#reconciling.signal);
-            this.#controlled.catch(reportError);
+
+            // stop serving once the controllers stop unasked, as a failure the host sees
+            this.#controlled.catch((error: unknown) => {
+                reportError(error);
+                if (!this.#reconciling.signal.aborted) {
+                    this.health.set("not-serving");
+                }
+            });
         }
+    }
+
+    /** Settle once no controller key is due now or reconciling. */
+    idle(): Promise<void> {
+        return this.#loop === undefined ? Promise.resolve() : this.#loop.idle();
     }
 
     /** Start the server. */
@@ -410,6 +426,8 @@ export interface ServerOptions extends ServiceImplementation {
     drainTimeout: number;
     /** This instance's lease holder name. */
     instance?: string;
+    /** Keep a wake-up for the controllers' earliest due key, so an evicted instance runs it. */
+    alarm?: Alarm;
 }
 
 /** The procedures and enforcement of a service. */
