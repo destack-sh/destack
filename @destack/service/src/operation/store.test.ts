@@ -262,7 +262,7 @@ test("enforce deadlines, expire completed operations, and cancel work on shutdow
     await store.close();
     expect(isInvoked).toBe(false);
     expect(() => store.start("alice", 0, async () => "unexpected")).toThrow(
-        expect.objectContaining({ code: "UNAVAILABLE" }),
+        expect.objectContaining({ code: "SERVICE_UNAVAILABLE" }),
     );
     await store.close();
 });

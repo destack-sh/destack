@@ -954,7 +954,7 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
         requestId: RequestId.create(),
     };
     await expect(server.call(versions, "create", version, context)).rejects.toMatchObject({
-        code: "UNAVAILABLE",
+        code: "SERVICE_UNAVAILABLE",
         message: "task-version.create outlasted its settlement grace",
     });
 

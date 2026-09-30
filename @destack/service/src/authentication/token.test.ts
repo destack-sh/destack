@@ -163,7 +163,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     });
     await expect(
         disconnected.authenticate(request, spaceId, issuedAt * 1000),
-    ).rejects.toMatchObject({ code: "UNAVAILABLE" });
+    ).rejects.toMatchObject({ code: "SERVICE_UNAVAILABLE" });
 
     // keep workload identity and delegates through signing and verification
     const actor: Subject = principal.installation.reference(spaceId, "software-example");

@@ -117,7 +117,7 @@ export class TokenVerifier {
             }
 
             // report other failures as unavailable
-            throw new ServiceError("UNAVAILABLE", {
+            throw new ServiceError("SERVICE_UNAVAILABLE", {
                 message: "authentication keys are unavailable",
                 cause: error,
             });

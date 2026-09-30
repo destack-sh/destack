@@ -53,7 +53,7 @@ export const Settlement = {
             )
             .returning({ id: settlement.id });
         if (committed.length === 0) {
-            throw new ServiceError("UNAVAILABLE", {
+            throw new ServiceError("SERVICE_UNAVAILABLE", {
                 message: `${call.object.name}.${call.name} outlasted its settlement grace`,
             });
         }

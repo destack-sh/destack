@@ -61,7 +61,9 @@ export class OperationStore<Result, Progress> implements AsyncDisposable {
 
         // refuse work after close
         if (this.#isClosed) {
-            throw new ServiceError("UNAVAILABLE", { message: "the operation store is closed" });
+            throw new ServiceError("SERVICE_UNAVAILABLE", {
+                message: "the operation store is closed",
+            });
         }
 
         // count active runners
