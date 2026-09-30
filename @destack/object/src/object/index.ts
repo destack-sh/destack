@@ -10,6 +10,6 @@ export {
     type ObjectScope,
     type ObjectStorage,
 } from "./object.ts";
-export type { ObjectControl, ObjectController } from "./controller.ts";
+export type { ObjectControl, ObjectController, ObjectWatch } from "./controller.ts";
 export { Duration } from "./duration.ts";
 export { INTRINSIC, Intrinsic } from "./intrinsic.ts";

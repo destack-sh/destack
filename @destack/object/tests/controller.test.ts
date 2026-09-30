@@ -112,11 +112,11 @@ test.each(TEST_DIALECTS)(
         const keys = await controller.list();
         expect([
             keys,
-            controller.keys!({
+            await controller.keys!({
                 table: reminder.table,
                 after: row("cake", null),
             } as never),
-            controller.keys!({ table: reminder.table, after: row("cake", now) } as never),
+            await controller.keys!({ table: reminder.table, after: row("cake", now) } as never),
         ]).toEqual([['{"topic":"tea"}'], ['{"topic":"cake"}'], []]);
 
         // send the due tea reminders together and look again when the last one is due

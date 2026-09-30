@@ -371,7 +371,7 @@ export function updateMany<
             // refuse tracked, declarable, versioned objects and guarded fields
             if (
                 object.tracked !== undefined ||
-                object.declaration !== undefined ||
+                object.declarationSchema !== undefined ||
                 object.versioned
             ) {
                 throw new TypeError(

@@ -131,7 +131,9 @@ export function describeObject(object: ObjectType): ObjectDescription {
         table: object.table[TABLE].sqlName,
         permissions: [...object.permissions],
         policy: describePolicy(object.policy),
-        ...(object.declaration ? { declaration: toJsonSchema(object.declaration) } : {}),
+        ...(object.declarationSchema
+            ? { declaration: toJsonSchema(object.declarationSchema) }
+            : {}),
         methods,
         ...(object.isReadAudited
             ? { watch: describeAuditAction(object.audit("watch", "collection")) }

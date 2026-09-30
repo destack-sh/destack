@@ -5,7 +5,7 @@ import { identifier } from "@destack/schema";
 import { v7 } from "uuid";
 import { defineObject, field, Manager, method } from "../src/index.ts";
 import { principal, relation, through, union } from "@destack/access";
-import { defineReconciler, Reconciliation } from "../src/server/index.ts";
+import { Stack } from "../src/server/index.ts";
 import { label, note, objectDatabase, team } from "./schema.ts";
 import { space } from "./fixture/space.ts";
 
@@ -24,9 +24,9 @@ test.each(TEST_DIALECTS)(
         const storage = await TestDatabase.create(dialect, objectDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());
         const database = storage.database;
-        const reconcilers = [
+        const objects = [
             // list labels before notes
-            defineReconciler(label, {
+            label.declare({
                 after: [note],
                 resolve: async (_name, declared, context) => {
                     if (declared.note === "later") {
@@ -40,12 +40,12 @@ test.each(TEST_DIALECTS)(
                 },
                 values: (_name, resolved) => resolved,
             }),
-            defineReconciler(note, {
+            note.declare({
                 values: (_name, declared) => ({ title: declared.title }),
             }),
         ];
         const apply = (document: Readonly<Record<string, unknown>>) =>
-            Reconciliation.apply({ database, reconcilers, manager, scope: spaceId, document });
+            Stack.apply({ database, objects, manager, scope: spaceId, document });
         const titles = async () =>
             (await database.select().from(note.table).orderBy(note.table.managerName)).map(
                 (row) => [row.managerName, row.title],
@@ -143,17 +143,17 @@ test("refuse aggregates that measure rows some readers of their holder may not l
 
 test("refuse declarations that depend on themselves, also next to one depending on every other", async () => {
     // make notes and labels depend on each other, with a third type depending on every other
-    const reconcilers = [
-        defineReconciler(label, { after: [note], values: () => ({}) }),
-        defineReconciler(note, { after: [label], values: () => ({}) }),
-        defineReconciler(team, { after: "every", values: () => ({}) }),
+    const objects = [
+        label.declare({ after: [note], values: () => ({}) }),
+        note.declare({ after: [label], values: () => ({}) }),
+        team.declare({ after: "every", values: () => ({}) }),
     ];
 
     // report the cycle instead of overflowing the stack
     await expect(
-        Reconciliation.apply({
+        Stack.apply({
             database: undefined as never,
-            reconcilers,
+            objects,
             manager,
             scope: spaceId,
             document: {},

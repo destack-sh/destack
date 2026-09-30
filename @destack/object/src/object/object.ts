@@ -86,6 +86,7 @@ import type { GateOf, Gated, Trait, TraitObject } from "../trait/trait.ts";
 import { INTRINSIC, type Intrinsic } from "./intrinsic.ts";
 import { serverTables } from "../stack/db.ts";
 import type { ObjectController } from "./controller.ts";
+import type { ObjectDeclaration, DeclarationOf } from "../server/stack.ts";
 import { camelCase, kebabCase, pascalCase } from "./name.ts";
 import { deriveTable, type ConstraintColumns, type ObjectTable, type TraitOf } from "./table.ts";
 
@@ -290,7 +291,7 @@ export class ObjectType<
     /** The permission names callers may hold on the object. */
     readonly permissions: readonly Permissions[];
     /** The schema of one declaration in a stack, when stacks may declare the object. */
-    readonly declaration?: schema.Schema<Declared>;
+    readonly declarationSchema?: schema.Schema<Declared>;
     /** The operations callers may execute, keyed by method name. */
     readonly methods: Methods;
     /** How deleted objects stay restorable, for recoverable objects. */
@@ -299,6 +300,8 @@ export class ObjectType<
     readonly expiring?: readonly ExpiryRule[];
     /** The system controller reconciling the objects with work waiting. */
     readonly controller?: ObjectController;
+    /** How a stack's declarations of the objects become their managed records. */
+    readonly declaration?: ObjectDeclaration;
     /** How addressed objects name their recipient. */
     readonly addressed?: AddressedDefinition;
     /** Whether the objects are numbered versions of their parent. */
@@ -360,7 +363,7 @@ export class ObjectType<
             definition.scope as ObjectScope | readonly ObjectScope[],
         ].flat();
         this.scopes = scopes.filter((scope): scope is ObjectType => scope !== Scope.universe.id);
-        this.declaration = definition.declarable?.schema;
+        this.declarationSchema = definition.declarable?.schema;
         this.recoverable = definition.recoverable;
         this.expiring = definition.expiring;
         this.controller = definition.controller;
@@ -921,10 +924,28 @@ export class ObjectType<
         return this.with({ methods: methods as Self["methods"] });
     }
 
+    /** Set how a stack's declarations of the objects become their managed records. */
+    declare<Self extends ObjectType, Collected = DeclarationOf<Self>, Resolved = Collected>(
+        this: Self,
+        declaration: ObjectDeclaration<Self, Collected, Resolved>,
+    ): Self {
+        return this.with({ declaration: declaration as ObjectDeclaration });
+    }
+
+    /** Reconcile or follow the objects with work waiting as the system. */
+    control<Self extends ObjectType>(this: Self, controller: ObjectController): Self {
+        return this.with({ controller });
+    }
+
     /** Copy the object type with some members changed, sharing its table. */
     with<Self extends ObjectType>(
         this: Self,
-        changes: Partial<Pick<Self, "methods" | "recoverable" | "expiring" | "traits">>,
+        changes: Partial<
+            Pick<
+                Self,
+                "methods" | "recoverable" | "expiring" | "traits" | "controller" | "declaration"
+            >
+        >,
     ): Self {
         return Object.assign(
             Object.create(Object.getPrototypeOf(this) as object) as Self,
