@@ -41,7 +41,8 @@ test.each(TEST_DIALECTS)(
             Stack.apply({
                 database: storage.database,
                 objects,
-                release,
+                release: (packageId, installationId) =>
+                    release(spaceId, packageId, installationId),
                 manager,
                 scope: spaceId,
                 document: { settings },

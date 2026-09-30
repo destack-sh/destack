@@ -14,8 +14,9 @@ import { servedObjects } from "./value.ts";
 export interface SettingServiceOptions {
     /** The database holding the values. */
     readonly database: DatabaseConnection;
-    /** Open the build of a package's release, the installation's when given. */
+    /** Open the build of a package's release in a scope, the installation's when given. */
     readonly release: (
+        scope: string,
         packageId: PackageId,
         installation?: Identifier<"installation">,
     ) => Promise<BuildReader>;

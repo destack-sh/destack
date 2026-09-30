@@ -61,7 +61,11 @@ async function requireDeclared(
 
     // check it against the release its placement selects
     try {
-        const reader = await release(placement.package ?? value.packageId, placement.installation);
+        const reader = await release(
+            call.scope,
+            placement.package ?? value.packageId,
+            placement.installation,
+        );
         const catalog = await SettingCatalog.read(reader);
         catalog
             .get({ packageId: value.packageId, name: value.name })
