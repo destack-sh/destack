@@ -3,6 +3,7 @@ import { DatabaseDriver, type NativeDatabase } from "./driver.ts";
 import type { SchemaCompiler } from "../dialect/compiler.ts";
 import type { DrizzleDatabase } from "../dialect/drizzle.ts";
 import type { Table } from "../table/table.ts";
+import { DatabaseTier } from "../declare/tier.ts";
 import { SelectBuilder, type SelectedSubquery, type SelectQuery } from "../query/select.ts";
 import { or, sql, type SQL, type WithSubquery } from "drizzle-orm";
 import { MutationQuery } from "../query/mutation.ts";
@@ -46,6 +47,23 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         this.state = driver.state;
         this.driver = driver;
         this.compiler = compiler;
+    }
+
+    /** The tier of the database, absent for a connection over bare tables. */
+    get tier(): DatabaseTier | undefined {
+        return this.state.tier;
+    }
+
+    /** Decide whether the database keeps a table's rows as copies from their home: the tables of a wider tier than its own. */
+    copies(table: Table): boolean {
+        const tiers = DatabaseTier.options;
+        const declared = table[TABLE].tier;
+
+        return (
+            this.tier !== undefined &&
+            declared !== undefined &&
+            tiers.indexOf(declared) < tiers.indexOf(this.tier)
+        );
     }
 
     /** The database's SQL dialect. */
@@ -347,6 +365,8 @@ export type Locality = "embedded" | "networked";
 export class ConnectionState {
     /** Where the connection's database runs. */
     readonly locality: Locality;
+    /** The tier of the database, absent for a connection over bare tables. */
+    readonly tier: DatabaseTier | undefined;
     /** The commits this connection's readers wait for. */
     readonly commits: CommitWatch;
     /** Whether the database holds a log. */
@@ -361,8 +381,9 @@ export class ConnectionState {
     #closing?: Promise<void>;
 
     /** Create the state of a new connection. */
-    constructor(locality: Locality, notifier: CommitNotifier) {
+    constructor(locality: Locality, notifier: CommitNotifier, tier?: DatabaseTier) {
         this.locality = locality;
+        this.tier = tier;
         this.commits = new CommitWatch(notifier);
     }
 

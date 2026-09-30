@@ -7,12 +7,10 @@ import { connectors } from "#connector";
 import { TABLE, type Table } from "../table/table.ts";
 import { expandTrees } from "../tree/tree.ts";
 import { DatabaseState, declareState } from "../migration/state.ts";
+import { DatabaseTier } from "./tier.ts";
 export type { DatabaseConnection } from "../database/connection.ts";
 
-/** Where a database lives: once in the universe, once per region, or within one zone. */
-export const DatabaseTier = defineSchema(schema.enum(["global", "regional", "zonal"]));
-/** Where a database lives. */
-export type DatabaseTier = schema.Infer<typeof DatabaseTier>;
+export { DatabaseTier } from "./tier.ts";
 
 /** A database's resource settings. */
 export const DatabaseSpec = defineSchema(schema.object({ tier: DatabaseTier }));

@@ -37,7 +37,11 @@ export class SqliteDatabase<
         super(
             new DatabaseDriver(
                 { dialect: "sqlite", database: native },
-                new ConnectionState(locality, notifier),
+                new ConnectionState(
+                    locality,
+                    notifier,
+                    "tables" in tables ? tables.spec.tier : undefined,
+                ),
             ),
             compiler,
         );

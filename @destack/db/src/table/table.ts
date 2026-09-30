@@ -7,7 +7,7 @@ import { Version } from "@destack/schema";
 import { Expression } from "../expression/expression.ts";
 import { qualify } from "./namespace.ts";
 import type { ChangeRetention } from "../inspect/log.ts";
-import type { DatabaseTier } from "../declare/database.ts";
+import type { DatabaseTier } from "../declare/tier.ts";
 import { Tree } from "../tree/tree.ts";
 
 /** The key of a table's declaration, shared by every copy of this module. */

@@ -32,7 +32,11 @@ export class PostgresDatabase extends DatabaseConnection<"postgresql"> {
         super(
             new DatabaseDriver(
                 { dialect: "postgresql", database: native },
-                new ConnectionState("networked", postgresNotifier(client)),
+                new ConnectionState(
+                    "networked",
+                    postgresNotifier(client),
+                    "tables" in tables ? tables.spec.tier : undefined,
+                ),
             ),
             compiler,
         );
