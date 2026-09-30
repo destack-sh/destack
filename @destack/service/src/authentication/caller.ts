@@ -72,6 +72,8 @@ export const CallerAuthentication = schema.object({
     deployments: schema.array(CallerDeployment).optional(),
     /** The trusted attributes access policies read. */
     attributes: schema.record(schema.string(), Attribute).optional(),
+    /** A lending of the caller's authority to the installation it called, which its holder signed, for the calls that installation sends. */
+    delegation: schema.string().min(1).optional(),
 });
 
 /** The header carrying the caller a host forwards to a runner. */
