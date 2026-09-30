@@ -25,7 +25,7 @@ import {
     decodeRow,
 } from "@destack/db";
 import { Condition } from "@destack/db/query";
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, schema, Version } from "@destack/schema";
 import type { LogPosition } from "@destack/db/log";
 import { RowChange, type MutationOutcome } from "../query/page.ts";
 
@@ -39,8 +39,8 @@ export const Call = defineSchema(
         method: schema.string().min(1),
         /** The method's input, with its scope and target. */
         input: schema.record(schema.string(), schema.json()),
-        /** The object type version of the call, the first when absent. */
-        version: schema.number().int().min(2).optional(),
+        /** The release of the object type's package the call was made against. */
+        release: Version,
     }),
 );
 /** One method call within a mutation. */

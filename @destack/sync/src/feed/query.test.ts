@@ -1,7 +1,8 @@
 import { expect, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { eq, sql, type Table } from "@destack/db";
-import { Condition, Expression } from "@destack/db/query";
+import { Condition } from "@destack/db/query";
+import { Expression } from "@destack/db/expression";
 import type { Change } from "@destack/db/log";
 import { Feed } from "./feed.ts";
 import { EVERYONE, type Audience } from "./audience.ts";

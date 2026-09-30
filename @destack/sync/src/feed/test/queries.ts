@@ -1,5 +1,6 @@
 import { type Table } from "@destack/db";
-import { Condition, Expression, type Computed } from "@destack/db/query";
+import { Condition, type Computed } from "@destack/db/query";
+import { Expression } from "@destack/db/expression";
 import type { Query } from "../../query/query.ts";
 import { comment, page, project, tag, task, taskTag } from "../../test/fixture.ts";
 import type { Path, Relation } from "../../query/query.ts";

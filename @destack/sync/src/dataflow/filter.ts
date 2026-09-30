@@ -1,5 +1,6 @@
 import type { Row } from "@destack/db";
-import { Condition, Expression, type Match, type Related, type Scalar } from "@destack/db/query";
+import { Condition, type Match, type Scalar } from "@destack/db/query";
+import { Expression, type Related } from "@destack/db/expression";
 import { DatabaseError } from "@destack/db/error";
 import { measureName, type Node } from "../query/node.ts";
 import type { Run } from "./run.ts";

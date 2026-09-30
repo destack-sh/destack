@@ -11,13 +11,13 @@ import {
 } from "@destack/db";
 import {
     Condition,
-    Expression,
     Order,
     type Binding,
     type Computed,
     type Namespace,
     type Scalar,
 } from "@destack/db/query";
+import { Expression } from "@destack/db/expression";
 import { describeLog } from "@destack/db/log";
 import { DatabaseError } from "@destack/db/error";
 import { sql } from "@destack/db";

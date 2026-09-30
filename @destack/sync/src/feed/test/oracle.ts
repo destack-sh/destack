@@ -1,5 +1,6 @@
 import { encodeRow, Key, TABLE, type DatabaseConnection, type Table } from "@destack/db";
-import { Condition, type Rollup, Expression, Order, type Scalar } from "@destack/db/query";
+import { Condition, Order, type Scalar } from "@destack/db/query";
+import { type Rollup, Expression } from "@destack/db/expression";
 import { canonicalize } from "@destack/schema/json";
 import type { Include, Measure, Query, Relation } from "../../query/query.ts";
 import type { Row } from "@destack/db";

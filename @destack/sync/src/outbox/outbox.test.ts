@@ -7,6 +7,9 @@ import type { Query } from "../query/query.ts";
 import { first, note, open, replicate, tag } from "../test/fixture.ts";
 import { mutation, outboxTables, Outbox, type Mutation } from "./outbox.ts";
 
+/** The release the calls were made against. */
+const RELEASE = "2026.9.0";
+
 /** The source log's epoch. */
 const EPOCH = "01996ab0-0000-7000-8000-000000000001";
 
@@ -58,7 +61,7 @@ test("rebase predicted mutations onto source pages until the source executes or 
     for (const [index, id] of IDS.entries()) {
         const input = { id: ["a", "b", "c"][index]!, title: "Local" };
         await outbox.add(client, id, "tab-1", async (transaction) => {
-            const calls = [{ method: "note.create", input }];
+            const calls = [{ method: "note.create", release: RELEASE, input }];
             await predict(transaction, { id, calls });
 
             return { calls, result: undefined };
@@ -149,7 +152,10 @@ test("drop a group every predicted row left, without a count measuring it", asyn
     await outbox.add(client, IDS[0], "tab-1", async (transaction) => {
         await transaction.update(note).set({ title: "Local" }).where(eq(note.id, "a"));
 
-        return { calls: [{ method: "note.update", input: { id: "a" } }], result: undefined };
+        return {
+            calls: [{ method: "note.update", release: RELEASE, input: { id: "a" } }],
+            result: undefined,
+        };
     });
     expect(await notes.results(client, "titles", titles, outbox)).toEqual([
         { group: { title: "Local" }, values: { last: "a" } },
@@ -182,7 +188,9 @@ test("rebase predictions only onto pages changing a table they reach", async () 
 
     // predict a note
     await outbox.add(client, IDS[0], "tab-1", async (transaction) => {
-        const calls = [{ method: "note.create", input: { id: "a", title: "Local" } }];
+        const calls = [
+            { method: "note.create", release: RELEASE, input: { id: "a", title: "Local" } },
+        ];
         await predict(transaction, { id: IDS[0], calls });
 
         return { calls, result: undefined };
@@ -215,7 +223,9 @@ test("read pending mutations up to a limit, and count each state leaving branche
     await replicate(notes, client, [page(1, [], { reset: true })], outbox);
     const add = (id: string, key: string) =>
         outbox.add(client, id, "tab-1", async (transaction) => {
-            const calls = [{ method: "note.create", input: { id: key, title: "Local" } }];
+            const calls = [
+                { method: "note.create", release: RELEASE, input: { id: key, title: "Local" } },
+            ];
             await predict(transaction, { id, calls });
 
             return { calls, result: undefined };
