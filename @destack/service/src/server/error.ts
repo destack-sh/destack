@@ -64,6 +64,13 @@ export function reportError(error: unknown): ServiceError<string, unknown> {
     });
 }
 
+/** Answer a failure with its status and the body clients read errors from. */
+export function refusal(error: unknown): Response {
+    const reported = reportError(error);
+
+    return Response.json(reported.toJSON(), { status: reported.status });
+}
+
 /** Map a domain failure to a service failure. */
 export function domainFailure(error: unknown): ServiceError<string, unknown> | undefined {
     // challenge for stronger authentication

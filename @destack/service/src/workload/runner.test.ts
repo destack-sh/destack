@@ -130,7 +130,10 @@ test("serve a forwarded caller below the package's mount, and export telemetry t
         other: other.status,
         exported: exported.filter((request) => request.events.length > 0),
     }).toEqual({
-        unauthorized: [401, { code: "UNAUTHORIZED", message: "invalid host secret" }],
+        unauthorized: [
+            401,
+            { defined: false, code: "UNAUTHORIZED", status: 401, message: "invalid host secret" },
+        ],
         served: { path: "/notes", caller: "alice" },
         other: 404,
         exported: [
@@ -220,9 +223,20 @@ test("verify a webhook's deliveries with each route's secret and record each del
         await post("/pushes/notes", signed),
     ]).toEqual([
         [202, null],
-        [401, { code: "UNAUTHORIZED", message: "webhook signature does not match" }],
-        [404, { code: "NOT_FOUND", message: "no webhook releases" }],
-        [401, { code: "UNAUTHORIZED", message: "invalid host secret" }],
+        [
+            401,
+            {
+                defined: false,
+                code: "UNAUTHORIZED",
+                status: 401,
+                message: "webhook signature does not match",
+            },
+        ],
+        [404, { defined: false, code: "NOT_FOUND", status: 404, message: "no webhook releases" }],
+        [
+            401,
+            { defined: false, code: "UNAUTHORIZED", status: 401, message: "invalid host secret" },
+        ],
     ]);
     const digest = signed.get("x-hub-signature-256")!.slice("sha256=".length);
     expect(recorded).toEqual([

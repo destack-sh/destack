@@ -14,7 +14,7 @@ import { WorkloadInstance } from "./instance.ts";
 import { WEBHOOK_PATH, type WorkloadStart } from "./start.ts";
 import type { PackageId } from "@destack/package";
 import type { RunClient } from "../trigger/index.ts";
-import { reportError } from "../server/error.ts";
+import { refusal } from "../server/error.ts";
 import type { Alarm } from "../control/index.ts";
 import type { AuditHistory, Workload } from "./workload.ts";
 
@@ -161,9 +161,9 @@ export class WorkloadRunner implements AsyncDisposable {
     fetch(request: Request): Promise<Response> {
         // refuse a request without the host's secret before anything serves it
         if (request.headers.get("authorization") !== `Bearer ${this.start.secret}`) {
-            const refusal = { code: "UNAUTHORIZED", message: "invalid host secret" };
-
-            return Promise.resolve(Response.json(refusal, { status: 401 }));
+            return Promise.resolve(
+                refusal(new ServiceError("UNAUTHORIZED", { message: "invalid host secret" })),
+            );
         }
 
         // verify and record a webhook's delivery
@@ -198,9 +198,7 @@ export class WorkloadRunner implements AsyncDisposable {
         const name = slash === -1 ? below : below.slice(0, slash);
         const webhook = this.instance.webhook(this.#packageId, name);
         if (webhook === undefined) {
-            const refusal = { code: "NOT_FOUND", message: `no webhook ${name}` };
-
-            return Response.json(refusal, { status: 404 });
+            return refusal(new ServiceError("NOT_FOUND", { message: `no webhook ${name}` }));
         }
 
         // verify the delivery below the webhook's route, and record its call once per route path and delivery
@@ -219,10 +217,7 @@ export class WorkloadRunner implements AsyncDisposable {
         }
         // answer a refusal as it is, and report an unexpected failure without its details
         catch (error) {
-            const reported = reportError(error);
-            const refusal = { code: reported.code, message: reported.message };
-
-            return Response.json(refusal, { status: reported.status });
+            return refusal(error);
         }
     }
 

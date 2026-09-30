@@ -120,6 +120,13 @@ export class Caller<Credential extends CredentialReference = CredentialReference
         return Math.min(now, this.lapsesAt - 1);
     }
 
+    /** Read the verified deployment a workload identity among the caller's runs in, absent for none. */
+    deployment(subject: Subject): string | undefined {
+        const deployments = this.authentication.deployments ?? [];
+
+        return deployments.find((entry) => sameSubject(entry.subject, subject))?.id;
+    }
+
     /** The retry identity of the subject and the sending principal. */
     get id(): string {
         const { delegates, subject } = this.authentication;
