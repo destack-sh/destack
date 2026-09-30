@@ -1,7 +1,6 @@
 import type { Plugin, PluginOption } from "vite";
 import type { ModuleDescription } from "../code/index.ts";
 import type { Package } from "../definition/package.ts";
-import type { Target } from "../definition/target.ts";
 import type { DeclarationDescription } from "../inspect/index.ts";
 import type { PackageOutput } from "../manifest/index.ts";
 import type { Runtime } from "../runtime/index.ts";
@@ -10,9 +9,9 @@ export type { Plugin, PluginOption };
 
 /** A dependency's part in building the packages that use it, set in its destack.json build field. */
 export interface BuildExtension {
-    /** Return the plugins compiling one output of a package that uses the dependency. */
+    /** Return the plugins compiling one module output of a package that uses the dependency. */
     compile?(compilation: Compilation): readonly PluginOption[];
-    /** Describe the workloads and views of one compiled output. */
+    /** Describe the workloads and views of one compiled module output. */
     describe?(compilation: Compilation, compiled: CompiledOutput): OutputDescription;
     /** The output kinds this dependency compiles in a pass of its own, such as web applications. */
     readonly outputs?: Readonly<Record<string, OutputKind>>;
@@ -22,12 +21,12 @@ export interface BuildExtension {
 export interface OutputKind {
     /** Expand a request into the outputs it compiles, by output name. */
     expand(name: string, request: OutputRequest): Readonly<Record<string, ExpandedOutput>>;
-    /** Compile the expanded outputs together, returning each one's manifest output. */
+    /** Compile the expanded outputs together and describe each one's manifest output, workloads and views included. */
     compile(
         name: string,
         request: OutputRequest,
         compilations: Readonly<Record<string, Compilation>>,
-        context: OutputContext,
+        pass: Pass,
     ): Promise<Readonly<Record<string, PackageOutput>>>;
 }
 
@@ -41,8 +40,6 @@ export interface OutputRequest {
 
 /** An output a kind expands a request into, inspected like a module output. */
 export interface ExpandedOutput {
-    /** The execution target. */
-    readonly target: Target;
     /** The runtime the output runs on. */
     readonly runtime: Runtime;
     /** Package-relative modules compiled as the package's exports. */
@@ -52,7 +49,7 @@ export interface ExpandedOutput {
 }
 
 /** What a build lends an output kind's pass: its standard plugins, files and checks. */
-export interface OutputContext {
+export interface Pass {
     /** Return the plugins retaining sources, directories and module metadata for every output. */
     plugins(): Plugin[];
     /** Return the plugin recording what one Vite environment compiles, into an output when it has one. */
@@ -79,8 +76,6 @@ export interface Compilation {
     readonly package: Package;
     /** The package's source directory. */
     readonly directory: string;
-    /** The execution target. */
-    readonly target: Target;
     /** The runtime the output runs on. */
     readonly runtime: Runtime;
     /** The declarations of the package and of the dependencies its modules import. */

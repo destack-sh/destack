@@ -1,11 +1,11 @@
 import { defineSchema, schema } from "@destack/schema";
 import { Language } from "./language.ts";
-import { Target } from "./target.ts";
 import { Runtime } from "../runtime/index.ts";
 import { TemplateDefinition } from "../template/index.ts";
 import { PackageId } from "./package.ts";
 import { DeclarationConstructorMap, FunctionReference } from "./constructor.ts";
 import { Publication } from "./publication.ts";
+import { PackageError } from "../error/index.ts";
 
 /** The declarations authored in destack.json. */
 const definition = defineSchema(
@@ -18,9 +18,7 @@ const definition = defineSchema(
         language: Language,
         /** Source generation settings for a registry template package. */
         template: TemplateDefinition.optional(),
-        /** Supported targets inherited by package exports. */
-        targets: schema.array(Target).min(1).optional(),
-        /** Reviewed runtime compatibility shared by all exports. */
+        /** The runtimes the package's exports compile for. */
         runtimes: schema.array(Runtime).min(1).optional(),
         /** The declaration constructors the package exports, by name. */
         declarations: DeclarationConstructorMap.optional(),
@@ -28,15 +26,13 @@ const definition = defineSchema(
         build: FunctionReference.optional(),
         /** How the registry publishes the package. */
         publication: Publication.schema.optional(),
-        /** Compatibility overrides keyed by the names in package.json exports. */
+        /** Runtime overrides keyed by the names in package.json exports. */
         exports: schema
             .record(
                 schema.string(),
                 schema.object({
-                    /** Supported targets replacing the package declaration for this export. */
-                    targets: schema.array(Target).min(1).optional(),
-                    /** Reviewed runtime compatibility replacing package defaults. */
-                    runtimes: schema.array(Runtime).min(1).optional(),
+                    /** The runtimes this export compiles for, replacing the package's. */
+                    runtimes: schema.array(Runtime).min(1),
                 }),
             )
             .optional(),
@@ -48,6 +44,18 @@ export const PackageDefinition = Object.assign(definition, {
     /** Parse the text of a destack.json. */
     read(text: string): PackageDefinition {
         return definition.parse(JSON.parse(text));
+    },
+    /** List the runtimes an export compiles for: its own, or else the package's. */
+    runtimes(value: PackageDefinition, name: string): Runtime[] {
+        const runtimes = value.exports?.[name]?.runtimes ?? value.runtimes;
+        if (runtimes === undefined) {
+            throw new PackageError(
+                "INVALID_DEFINITION",
+                `no runtimes declared for export: ${name}`,
+            );
+        }
+
+        return runtimes;
     },
 });
 

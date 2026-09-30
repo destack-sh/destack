@@ -42,17 +42,6 @@
             ],
             "additionalProperties": false
         },
-        "targets": {
-            "minItems": 1,
-            "type": "array",
-            "items": {
-                "type": "string",
-                "enum": [
-                    "browser",
-                    "server"
-                ]
-            }
-        },
         "runtimes": {
             "minItems": 1,
             "type": "array",
@@ -134,13 +123,6 @@
                     "additionalProperties": {
                         "type": "object",
                         "properties": {
-                            "target": {
-                                "type": "string",
-                                "enum": [
-                                    "browser",
-                                    "server"
-                                ]
-                            },
                             "runtime": {
                                 "type": "string",
                                 "enum": [
@@ -151,7 +133,7 @@
                             }
                         },
                         "required": [
-                            "target"
+                            "runtime"
                         ],
                         "additionalProperties": false
                     }
@@ -182,17 +164,6 @@
             "additionalProperties": {
                 "type": "object",
                 "properties": {
-                    "targets": {
-                        "minItems": 1,
-                        "type": "array",
-                        "items": {
-                            "type": "string",
-                            "enum": [
-                                "browser",
-                                "server"
-                            ]
-                        }
-                    },
                     "runtimes": {
                         "minItems": 1,
                         "type": "array",
@@ -206,6 +177,9 @@
                         }
                     }
                 },
+                "required": [
+                    "runtimes"
+                ],
                 "additionalProperties": false
             }
         }

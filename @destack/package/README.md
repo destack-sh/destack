@@ -4,13 +4,12 @@ Define Destack packages, transform their modules, and read their built manifests
 
 ## Definitions
 
-A package's `destack.json` holds its identity, targets, runtimes and declaration constructors.
+A package's `destack.json` holds its identity, runtimes and declaration constructors.
 
 ```json
 {
     "id": "package-01a0e95b-c8db-7258-a257-e7661dbc93c3",
     "language": "typescript",
-    "targets": ["browser", "server"],
     "runtimes": ["browser", "bun", "workerd"],
     "declarations": {
         "defineNotification": {

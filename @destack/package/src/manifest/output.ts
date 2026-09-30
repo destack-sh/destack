@@ -1,17 +1,15 @@
 import { defineSchema, schema } from "@destack/schema";
-import { DependencyName, DependencyRelease, Target } from "../definition/index.ts";
+import { DependencyName, DependencyRelease } from "../definition/index.ts";
 import { PackagePath } from "../file/index.ts";
 import { Runtime } from "../runtime/index.ts";
 import { WorkloadDescription } from "../workload/index.ts";
 import { ViewDescription } from "../view/index.ts";
 import { DeclarationName } from "../definition/package.ts";
 
-/** Compiled files and dependencies for one execution target. */
+/** Compiled files and dependencies for one runtime. */
 export const PackageOutput = defineSchema(
     schema.object({
-        /** The execution target. */
-        target: Target,
-        /** The concrete compiler runtime selected for this output. */
+        /** The runtime the output is compiled for. */
         runtime: Runtime,
         /** Whether this output is distributed for execution. */
         emit: schema.boolean(),

@@ -37,8 +37,11 @@ export const DependencyPackage = defineSchema(
 /** A named dependency version. */
 export type DependencyPackage = schema.Infer<typeof DependencyPackage>;
 
-/** The immutable identity, current name and version declared by a Destack package. */
-export const Package = defineSchema(
+/** The key of the declaring package on a declaration whose properties are taken, such as a table's columns. */
+export const PACKAGE = Symbol.for("destack.package");
+
+/** The schema of a package's identity. */
+const packageSchema = defineSchema(
     schema.object({
         /** The identity retained across renames and releases. */
         id: PackageId,
@@ -49,8 +52,22 @@ export const Package = defineSchema(
     }),
 );
 
+/** The immutable identity, current name and version declared by a Destack package. */
+export const Package = Object.assign(packageSchema, {
+    /** Read the package a declaration carries, under the package key or its `package` property. */
+    declaring(value: unknown): Package | undefined {
+        // read no package from a value that is no object
+        if (typeof value !== "object" || value === null) {
+            return undefined;
+        }
+        const declaration = value as { [PACKAGE]?: Package; package?: Package };
+
+        return PACKAGE in declaration ? declaration[PACKAGE] : declaration.package;
+    },
+});
+
 /** A named, versioned package. */
-export type Package = Readonly<schema.Infer<typeof Package>>;
+export type Package = Readonly<schema.Infer<typeof packageSchema>>;
 
 /** An immutable Destack release and the manifest identifying its distributed contents. */
 export const PackageRelease = defineSchema(

@@ -3,7 +3,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import MagicString from "magic-string";
 import { parseAst } from "rolldown/parseAst";
 import { parseSync } from "rolldown/utils";
-import type { Target } from "../definition/target.ts";
+import type { Target } from "../runtime/index.ts";
 
 /** The source of each relative static import or re-export. */
 const RELATIVE_SOURCE = /\bfrom\s*["'](\.[^"']*)["']/g;

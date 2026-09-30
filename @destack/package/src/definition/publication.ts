@@ -1,7 +1,6 @@
 import { defineSchema, schema } from "@destack/schema";
 import { Runtime } from "../runtime/index.ts";
 import { DeclarationName } from "./package.ts";
-import { Target } from "./target.ts";
 import { PackageError } from "../error/error.ts";
 
 /** An npm export condition, such as `default`, `node` or `browser`. */
@@ -16,10 +15,8 @@ const publicationSchema = defineSchema(
         outputs: schema.record(
             DeclarationName,
             schema.object({
-                /** The execution target the output is built for. */
-                target: Target,
-                /** The runtime the output is built for, or the target's default. */
-                runtime: Runtime.optional(),
+                /** The runtime the output is built for. */
+                runtime: Runtime,
             }),
         ),
         /** The output each npm export condition loads, in priority order with `default` last. */

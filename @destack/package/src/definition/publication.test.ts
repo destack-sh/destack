@@ -13,7 +13,7 @@ function failure(publish: unknown): string | undefined {
 }
 
 test("require the default export condition last and every condition to load a published output", () => {
-    const outputs = { server: { target: "server" }, browser: { target: "browser" } };
+    const outputs = { server: { runtime: "bun" }, browser: { runtime: "browser" } };
 
     // accept default last, and refuse default elsewhere, no default and an undeclared output
     expect([
