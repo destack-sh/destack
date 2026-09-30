@@ -223,7 +223,7 @@ Each trigger kind delivers one event type.
 
 ## Controllers
 
-A `ControlLoop` runs level-triggered `Controller`s, which reconcile keys named by a database's committed changes.
+A `ControlLoop` runs level-triggered `Controller`s, which reconcile the keys of a database's committed changes.
 
 ```ts
 import { ControlLoop, type Controller } from "@destack/service/control";

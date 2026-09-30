@@ -71,9 +71,7 @@ test("plan a service's changes between releases, converting narrowed inputs and 
     const unconverted = release(procedure());
     const outcome = (after: ReturnType<typeof describeService>) => {
         try {
-            return compareService(entry(before, "2026.8.0"), entry(after, RELEASE)).steps.map(
-                (step) => [step.kind, step.risk, step.target],
-            );
+            return compareService(entry(before, "2026.8.0"), entry(after, RELEASE)).steps;
         } catch (error) {
             return (error as Error).message;
         }
@@ -83,13 +81,43 @@ test("plan a service's changes between releases, converting narrowed inputs and 
     expect([outcome(before), outcome(converted), outcome(unconverted)]).toEqual([
         [],
         [
-            ["raiseSince", "backward-incompatible", "service search"],
-            ["convert", "data-dependent", "procedure search.count input"],
-            ["convert", "data-dependent", "procedure search.search input"],
-            ["incompatible", "backward-incompatible", "procedure search.search output"],
-            ["addProcedure", "safe", "procedure search.suggest"],
-            ["removeProcedure", "backward-incompatible", "procedure search.retired"],
+            {
+                action: "update",
+                target: "service/search",
+                risk: "backward-incompatible",
+                detail: "serve callers from 2026.9.0: earlier callers keep their release",
+            },
+            {
+                action: "convert",
+                target: "service/search/procedure/count/input",
+                risk: "data-dependent",
+                detail: "convert values to 2026.9.0",
+            },
+            {
+                action: "convert",
+                target: "service/search/procedure/search/input",
+                risk: "data-dependent",
+                detail: "convert values to 2026.9.0",
+            },
+            {
+                action: "update",
+                target: "service/search/procedure/search/output",
+                risk: "backward-incompatible",
+                detail: "incompatible values: earlier readers keep their release",
+            },
+            {
+                action: "create",
+                target: "service/search/procedure/suggest",
+                risk: "safe",
+                detail: "add procedure suggest",
+            },
+            {
+                action: "delete",
+                target: "service/search/procedure/retired",
+                risk: "backward-incompatible",
+                detail: "remove procedure retired: earlier callers keep their release",
+            },
         ],
-        "procedure search.count input: declare a conversion for 2026.9.0",
+        "service/search/procedure/count/input: declare a conversion for 2026.9.0",
     ]);
 });
