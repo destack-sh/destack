@@ -8,7 +8,6 @@ import {
     type Zone,
 } from "@destack/directory";
 import type { Identifier } from "@destack/schema";
-import { Observable } from "@destack/service/observable";
 import { Resolver } from "../directory/resolver.ts";
 import type { connect } from "./client.ts";
 
@@ -46,14 +45,6 @@ export class DirectoryClient extends Directory {
     /** Mark a zone the host's cell serves as moving to a target cell. */
     async move(zone: Zone, target: string): Promise<void> {
         await this.#client.directory.move({ zone, target });
-    }
-
-    /** Follow the zones moving to a cell the host acts for until the signal aborts, resuming each stream that ends. */
-    async *incoming(cell: string, signal: AbortSignal): AsyncGenerator<readonly Zone[]> {
-        yield* Observable.observe(
-            (stream) => this.#client.directory.incoming({ cell }, { signal: stream }),
-            signal,
-        );
     }
 
     /** Record the URL a cell the host acts for answers at. */

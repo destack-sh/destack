@@ -1,6 +1,6 @@
 import { Cell, Claim, ClaimOwner, ObjectClaims, Zone } from "@destack/directory";
 import { identifier, schema } from "@destack/schema";
-import { defineProcedure, eventIterator } from "@destack/service";
+import { defineProcedure } from "@destack/service";
 import { AccountHandle } from "../../object/handle.ts";
 
 /** The request whose write reserved claims. */
@@ -37,11 +37,6 @@ export const directory = {
         .route({ method: "POST", path: "/directory/zones/move" })
         .input(schema.object({ zone: Zone, target: schema.string().min(1) }))
         .output(schema.object({})),
-    /** Follow the zones moving to a cell the calling host acts for. */
-    incoming: procedure("access")
-        .route({ method: "POST", path: "/directory/cells/{cell}/incoming" })
-        .input(schema.object({ cell: schema.string().min(1) }))
-        .output(eventIterator(schema.array(Zone))),
     /** Record the URL a cell the calling host acts for answers at. */
     publish: procedure("activity")
         .route({ method: "PUT", path: "/directory/cells/{cell}" })

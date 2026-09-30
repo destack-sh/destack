@@ -1,18 +1,16 @@
-import type { Table } from "@destack/db";
+import { principal } from "@destack/access";
 import { Snapshot } from "@destack/db/log";
 import { identifier, schema } from "@destack/schema";
 import { AuditRecorder } from "@destack/audit";
 import { type AuditDestination, AuditOutbox } from "@destack/audit/outbox";
 import { ObjectServer } from "@destack/object/server";
-import { DirectoryDatabase } from "@destack/directory";
 import { Journal } from "@destack/service/database";
 import type { ServiceContext, ServiceImplementation } from "@destack/service/server";
-import { accessTables, Authorizer } from "@destack/access";
 import type { ObjectType } from "@destack/object";
-import { Feed, Scope } from "@destack/sync";
-import { replicaRouter } from "./access/index.ts";
+import { Scope } from "@destack/sync";
 import { account } from "./account/index.ts";
 import { user } from "./user/index.ts";
+import { membership } from "./membership/index.ts";
 import { oauthClient, oauthConsent } from "./oauth/index.ts";
 import { device, deviceKey } from "./device/index.ts";
 import { personalAccessToken, serviceToken } from "./token/index.ts";
@@ -65,10 +63,23 @@ export function implementService(
             oauthClient,
             oauthConsent,
             connection: options.connections.handle(),
+            membership,
         },
+        policies: options.inherited,
         database,
         audit,
         journal: new Journal(accountJournal),
+        context: (context, scope) => {
+            // let a host act for the cells it is: itself and the regions it serves
+            const access = context.access(scope);
+            const cells = access.subjects
+                .filter((subject) => principal.host.is(subject) || principal.region.is(subject))
+                .map((subject) => principal.cell.reference(Scope.universe.id, subject.id));
+
+            return cells.length === 0
+                ? access
+                : { ...access, subjects: [...access.subjects, ...cells] };
+        },
     });
 
     return {
@@ -88,20 +99,8 @@ export function implementService(
             // serve the object methods, and their shared replica procedures
             ...objects.router(),
 
-            // serve authentication, access replication, the key index and the directory
+            // serve authentication, the key index and the directory
             authentication: authenticationRouter(authentication, objects.authorizer),
-            access: replicaRouter(
-                new Feed(database, [
-                    ...accessTables,
-                    ...options.inherited.map((object) => object.table as Table),
-                ]),
-                new DirectoryDatabase(database),
-                database,
-                new Authorizer(
-                    options.inherited.map((object) => object.policy),
-                    options.inherited.map((object) => object.mapping),
-                ),
-            ),
             directory: directoryRouter(database, objects.authorizer),
         },
         audit: AuditRecorder.procedure(({ context }) => audit(Scope.universe.id, context)),

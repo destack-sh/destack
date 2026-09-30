@@ -72,14 +72,6 @@ export function directoryRouter(database: DatabaseConnection, authorizer: Author
 
             return {};
         }),
-        incoming: implementation.incoming.handler(async function* ({ input, context }) {
-            // follow the zones moving to a cell the caller acts for
-            const sender = await Sender.of(context, database);
-            sender.requireCell(input.cell);
-            for await (const moving of cells.incoming(input.cell, context.signal)) {
-                yield [...moving];
-            }
-        }),
         publish: implementation.publish.handler(async ({ input, context }) => {
             // publish the endpoint of a cell the calling host acts for, in the cell's own scope
             const sender = await Sender.of(context, database);

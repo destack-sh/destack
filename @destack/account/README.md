@@ -90,6 +90,8 @@ const { availability } = await accounts.user.checkHandle({ id: subject.id, handl
 await accounts.account.create({ scope: subject.id, requestId, handle: typed, name, kind: "personal" });
 ```
 
+A space reads the personal account of each user who joined it: its handle, name and kind.
+
 ## Objects
 
 The account service serves users, accounts, organisations and their sign-in records as objects.
@@ -164,35 +166,36 @@ const caller = await new AccountIntrospection(hostAccountClient, accountId, vaul
 
 ## Directory
 
-A `Directory` names the holder of each zone and where each holder answers.
+A `Directory` records the cell serving each zone and the address the cell answers at.
 
 | Verb | Effect |
 |---|---|
-| `delegate`, `withdraw`, `locate` | The zone of a scope's database, by epoch |
-| `announce`, `incoming` | Zones moving to a holder |
-| `publish`, `holder` | A holder's endpoint |
+| `place`, `withdraw`, `locate`, `list` | The zone of a scope's databases, by epoch |
+| `move` | Mark a zone as moving to a target cell, which copies the zones moving to it |
+| `publish`, `cell` | A cell's endpoint |
+| `claim`, `confirm`, `release`, `replace`, `expired`, `owner` | The names unique across databases |
 | `account`, `resolve` | An address `<name>.<handle>` to its zone and endpoint |
 
 Hosts reach the directory through the account service, and the global tier reads its database.
 
 ```ts
 import { DirectoryClient } from "@destack/account/client";
-import { DirectoryDatabase } from "@destack/account/directory";
+import { DirectoryDatabase } from "@destack/directory";
 
 const directory = new DirectoryClient(connect({ url: issuer, fetch: identity.fetch(fetch) }));
-await directory.delegate({ id: spaceId, scope: accountId, holder: hostId, epoch: 1 });
-const { holder, epoch, endpoint } = await directory.resolve(space, "notes.ada");
+await directory.place({ id: spaceId, scope: accountId, cell: hostId, epoch: 1 });
+const { cell, epoch, endpoint } = await directory.resolver().resolve(space, "notes.ada");
 const global = new DirectoryDatabase(database);
 ```
 
 | Procedure | Allowed for |
 |---|---|
-| `keys.reserve`, `keys.confirm`, `keys.release`, `keys.hold`, `keys.expired` | keys of objects in zones the calling host holds |
-| `directory.delegate` | a zone the host holds, or a new zone in its account |
-| `directory.withdraw`, `directory.announce` | a zone the host holds |
-| `directory.incoming`, `directory.publish` | the host itself, or its region |
-| `keys.resolve`, `directory.locate`, `directory.account`, `directory.holder` | every verified caller |
-| `access.watch`, `access.profiles` | the holder of the space |
+| `directory.claim`, `directory.confirm`, `directory.release`, `directory.replace`, `directory.expired` | claims of objects in zones the calling host's cells serve |
+| `directory.place` | a zone the host's cell serves, or a new zone in its account |
+| `directory.withdraw`, `directory.move` | a zone the host's cell serves |
+| `directory.publish` | the host itself, or a region it serves |
+| `directory.locate`, `directory.list`, `directory.cell`, `directory.owner`, `directory.account` | every verified caller |
+| `replica.stream` | the cell serving a space's zone, by `represent` on the zone; a cell for the zones moving to it; a host of the account, by `replicate` on the account |
 
 ## Serving
 

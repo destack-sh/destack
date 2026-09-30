@@ -15,3 +15,4 @@ export * from "./environment.ts";
 export * from "./handle.ts";
 export * from "./sudo.ts";
 export * from "./membership.ts";
+export * from "./zone.ts";

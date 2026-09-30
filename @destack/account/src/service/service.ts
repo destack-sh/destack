@@ -1,7 +1,6 @@
 import { defineService } from "@destack/service";
 import * as object from "../object/index.ts";
 import { authentication } from "./authentication.ts";
-import { replica } from "./access/index.ts";
 import { directory } from "./directory/index.ts";
 
 /** The object types the account service serves. */
@@ -26,6 +25,7 @@ export const accountObjects = {
     twoFactor: object.twoFactor,
     oauthClient: object.oauthClient,
     oauthConsent: object.oauthConsent,
+    zone: object.zone,
 } as const;
 
 /** The account service. */
@@ -35,8 +35,7 @@ export const accountService = defineService("account", {
     // objects with sharing methods that grant, propose and explain access
     objects: accountObjects,
 
-    // access replication for the hosts and regions serving the account's spaces
-    access: replica,
+    // the universe's copies for the cells of spaces and the hosts of accounts
 
     // the universe's directory for cells to place zones and claim unique names
     directory,

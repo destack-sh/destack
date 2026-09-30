@@ -2,11 +2,16 @@ import { Snapshot } from "@destack/db/log";
 import { identifier } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
 import { expect, test } from "@destack/test";
-import type { QueryPage } from "@destack/sync";
+import { type QueryPage, Scope } from "@destack/sync";
+import { Condition } from "@destack/db/query";
+import { TABLE } from "@destack/db";
+import { zoneTable } from "@destack/directory";
+import { zone } from "../src/object/index.ts";
 import { v7 } from "uuid";
 import { DirectoryClient } from "../src/client/index.ts";
 import { Resolver } from "../src/directory/index.ts";
 import { accountPackage } from "../src/audit/index.ts";
+import { account } from "../src/object/index.ts";
 import { AccountFixture, outcome, place, type Host } from "./fixture.ts";
 
 test("place zones in the hosts creating them, keep names in them, let exactly their cell copy a space's access, refuse hosts exchanging tokens, and let each host copy the access of the account it serves", async () => {
@@ -31,21 +36,21 @@ test("place zones in the hosts creating them, keep names in them, let exactly th
     const laptop = identifier("space").parse(`space-${v7()}`);
     const cloud = identifier("space").parse(`space-${v7()}`);
     const foreign = identifier("space").parse(`space-${v7()}`);
-    const zone = (cell: string, epoch = 1) => ({ id: laptop, scope: accountId, cell, epoch });
+    const zoneAt = (cell: string, epoch = 1) => ({ id: laptop, scope: accountId, cell, epoch });
 
     // create a zone as a host of the account and one as the region, and refuse the peer and the outsider
     expect([
-        await outcome(directory(local).place(zone(local.id))),
-        await outcome(directory(peer).place(zone(peer.id))),
-        await outcome(directory(outsider).place({ ...zone(outsider.id), id: foreign })),
-        await outcome(directory(regional).place({ ...zone(regionId), id: cloud })),
+        await outcome(directory(local).place(zoneAt(local.id))),
+        await outcome(directory(peer).place(zoneAt(peer.id))),
+        await outcome(directory(outsider).place({ ...zoneAt(outsider.id), id: foreign })),
+        await outcome(directory(regional).place({ ...zoneAt(regionId), id: cloud })),
     ]).toEqual([
         "executed",
         `FORBIDDEN: ${laptop} is served by another host or region`,
         `FORBIDDEN: this host creates no zone ${foreign} in ${accountId} for ${outsider.id}`,
         "executed",
     ]);
-    expect(await directory(peer).locate(laptop)).toEqual(zone(local.id));
+    expect(await directory(peer).locate(laptop)).toEqual(zoneAt(local.id));
 
     // reserve and confirm the laptop place's name as its cell and refuse the peer
     const row = { id: laptop, scope: accountId, name: "notes" };
@@ -61,12 +66,20 @@ test("place zones in the hosts creating them, keep names in them, let exactly th
         place.reference(accountId, laptop),
     );
 
-    // let exactly the cell of each place copy the access above it, and each host the account it serves
+    // let exactly the cell of each place copy the chain above it, and each host the account it serves
     const copies = async (host: Host, spaceId?: typeof laptop, scope: string = accountId) => {
         const controller = new AbortController();
         try {
-            const pages = await host.client.access.watch(
-                { ...(spaceId === undefined ? {} : { spaceId }), scope, held: [], copied: [] },
+            const pages = await host.client.replica.stream(
+                {
+                    name: "chain",
+                    scope,
+                    below: spaceId ?? scope,
+                    access: true,
+                    held: [],
+                    copied: [],
+                    rows: [],
+                },
                 { signal: controller.signal },
             );
             await (pages as AsyncIterable<QueryPage>)[Symbol.asyncIterator]().next();
@@ -90,35 +103,43 @@ test("place zones in the hosts creating them, keep names in them, let exactly th
         ["copied", "FORBIDDEN"],
     ]);
 
-    // stream the members' public profiles and handles to the cell alone: nothing but name, image and handle
-    const profiles = async (host: Host) => {
-        const controller = new AbortController();
-        try {
-            const pages = await host.client.access.profiles(
-                { spaceId: laptop, users: [owner.id] },
-                { signal: controller.signal },
-            );
-            const { value } = await pages[Symbol.asyncIterator]().next();
-
-            return value;
-        } catch (error) {
-            return (error as { code: string }).code;
-        } finally {
-            controller.abort();
-        }
-    };
-    const streamed = [await profiles(local), await profiles(peer)];
-    expect(streamed).toEqual([
+    // carry the account's own row in the chain copy of a cell keeping accounts, with the fields guarded from the space concealed
+    const following = new AbortController();
+    const chain = await local.client.replica.stream(
         {
-            reset: true,
-            complete: true,
-            position: await fixture.opened.database.log.position(),
-            profiles: [{ id: owner.id, name: "owner@example.com", image: null }],
-            removed: [],
-            handles: [{ accountId, userId: owner.id, handle }],
-            unhandled: [],
+            name: "chain",
+            scope: accountId,
+            below: laptop,
+            access: true,
+            held: [],
+            copied: [
+                {
+                    packageId: account.policy.definition.packageId,
+                    type: account.policy.definition.name,
+                },
+            ],
+            rows: [],
         },
-        "FORBIDDEN",
+        { signal: following.signal },
+    );
+    const first = (await (chain as AsyncIterable<QueryPage>)[Symbol.asyncIterator]().next())
+        .value as QueryPage;
+    following.abort();
+    expect(
+        first.changes
+            .filter((change) => change.table === "destack__account__account")
+            .map((change) => [change.row.id, change.concealed]),
+    ).toEqual([
+        [
+            accountId,
+            [
+                "defaultResidency",
+                "packagePolicyId",
+                "packagePolicyRegion",
+                "networkPolicyId",
+                "networkPolicyRegion",
+            ],
+        ],
     ]);
 
     // refuse exchanging tokens for hosts, which the host service grants
@@ -129,9 +150,9 @@ test("place zones in the hosts creating them, keep names in them, let exactly th
     ).toBe("UNAUTHORIZED: the caller is not an account caller");
 
     // place the laptop place in the region at the next epoch, after which only the region copies its access
-    await directory(local).place(zone(regionId, 2));
+    await directory(local).place(zoneAt(regionId, 2));
     expect([
-        await outcome(directory(local).place(zone(local.id, 3))),
+        await outcome(directory(local).place(zoneAt(local.id, 3))),
         await copies(local, laptop),
         await copies(regional, laptop),
     ]).toEqual([`FORBIDDEN: ${laptop} is served by another host or region`, "FORBIDDEN", "copied"]);
@@ -180,26 +201,59 @@ test("place zones in the hosts creating them, keep names in them, let exactly th
     ]).toEqual([
         { id: local.id, scope: accountId, endpoint: "https://local.test/" },
         { id: regionId, scope: "universe", endpoint: "https://region.test/" },
-        { ...zone(regionId, 2), endpoint: "https://region.test/" },
+        { ...zoneAt(regionId, 2), endpoint: "https://region.test/" },
         `NOT_FOUND: nothing answers at missing.${handle}`,
     ]);
 
-    // move, follow and withdraw only the zones a host's cells serve or receive
+    // move and withdraw only the zones a host's cells serve, and let a cell copy the zones moving to it alone
+    const zones = async (host: Host, cell: string) => {
+        const controller = new AbortController();
+        try {
+            const pages = await host.client.replica.stream(
+                {
+                    name: cell,
+                    scope: Scope.universe.id,
+                    below: cell,
+                    access: false,
+                    held: [],
+                    copied: [],
+                    rows: [
+                        {
+                            type: {
+                                packageId: zone.policy.definition.packageId,
+                                type: zone.policy.definition.name,
+                            },
+                            where: Condition.all(),
+                        },
+                    ],
+                },
+                { signal: controller.signal },
+            );
+            const { value } = await pages[Symbol.asyncIterator]().next();
+
+            return (value as QueryPage).changes
+                .filter((change) => change.table === zoneTable[TABLE].sqlName)
+                .map((change) => [change.row.id, change.row.target]);
+        } catch (error) {
+            return (error as { code: string }).code;
+        } finally {
+            controller.abort();
+        }
+    };
     expect([
-        await outcome(directory(local).move(zone(regionId, 2), local.id)),
-        await outcome(directory(regional).move(zone(regionId, 2), local.id)),
-        await outcome(
-            directory(local)
-                .incoming(regionId, AbortSignal.timeout(1000))
-                [Symbol.asyncIterator]()
-                .next(),
-        ),
-        await outcome(directory(peer).withdraw(zone(regionId, 2))),
-        await outcome(directory(regional).withdraw(zone(regionId, 2))),
+        await outcome(directory(local).move(zoneAt(regionId, 2), local.id)),
+        await outcome(directory(regional).move(zoneAt(regionId, 2), local.id)),
+        await zones(local, local.id),
+        await zones(peer, peer.id),
+        await zones(local, regionId),
+        await outcome(directory(peer).withdraw(zoneAt(regionId, 2))),
+        await outcome(directory(regional).withdraw(zoneAt(regionId, 2))),
     ]).toEqual([
         `FORBIDDEN: ${laptop} is served by another host or region`,
         "executed",
-        `FORBIDDEN: this host acts for no cell ${regionId}`,
+        [[laptop, local.id]],
+        [],
+        "FORBIDDEN",
         `FORBIDDEN: ${laptop} is served by another host or region`,
         "executed",
     ]);
