@@ -1,3 +1,8 @@
+import type * as schema from "../validate/index.ts";
+
+/** A JSON value. */
+export type JsonValue = schema.Infer<ReturnType<typeof schema.json>>;
+
 /** Serialize a JSON value with object keys sorted by UTF-16 code units, omitting undefined fields. */
 export function canonicalize(value: unknown): string {
     // write strings, booleans, null and finite numbers directly
