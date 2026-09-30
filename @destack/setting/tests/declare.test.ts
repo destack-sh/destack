@@ -3,12 +3,12 @@ import { Scope } from "@destack/sync";
 import { copyScope } from "@destack/access/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { asc, eq } from "@destack/db";
-import { Reconciliation } from "@destack/object/server";
+import { Stack } from "@destack/object/server";
 import { identifier } from "@destack/schema";
 import { space } from "@destack/space/object";
 import { defineSetting } from "../src/declare/index.ts";
 import { setting } from "../src/object/index.ts";
-import { settingReconcilers } from "../src/reconcile/index.ts";
+import { servedObjects } from "../src/server/index.ts";
 import { editor, notes } from "./fixture/settings/editor.ts";
 import { Storage } from "./fixture/storage.ts";
 
@@ -35,11 +35,13 @@ test.each(TEST_DIALECTS)(
         const storage = await Storage.open(dialect, [editor, template]);
         onTestFinished(() => storage.close());
         await copyScope(storage.database, space.reference(Scope.universe.id, spaceId));
-        const reconcilers = settingReconcilers(storage.options.release);
+        const { release } = storage.options;
+        const objects = [servedObjects(release).setting];
         const apply = (settings: Readonly<Record<string, unknown>>) =>
-            Reconciliation.apply({
+            Stack.apply({
                 database: storage.database,
-                reconcilers,
+                objects,
+                release,
                 manager,
                 scope: spaceId,
                 document: { settings },

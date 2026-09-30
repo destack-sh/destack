@@ -99,12 +99,11 @@ export const keymap = defineSetting({
 
 ## Hosting
 
-A host serves setting values as objects and reconciles the values stacks place in their spaces.
+A host serves setting values as objects, and the served `setting` applies the values stacks place in their spaces.
 
 ```ts
-import { settingReconcilers } from "@destack/setting/reconcile";
-import { implementService } from "@destack/setting/server";
+import { implementService, servedObjects } from "@destack/setting/server";
 
 const service = implementService({ database, release, audit });
-const reconcilers = settingReconcilers(release);
+const { setting } = servedObjects(release);   // declared by stacks under `settings`
 ```

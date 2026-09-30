@@ -15,7 +15,6 @@
         "./client": "./src/client/index.ts",
         "./stack": "./src/stack/index.ts",
         "./server": "./src/server/index.ts",
-        "./reconcile": "./src/reconcile/index.ts",
         "./object": "./src/object/index.ts"
     },
     "scripts": {
