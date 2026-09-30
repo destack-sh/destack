@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
-import { Expression } from "@destack/db/query";
+import { Expression } from "@destack/schema/expression";
 import { defineService } from "../declare/index.ts";
 import { Health } from "../health/index.ts";
 import { defineProcedure } from "../service/index.ts";

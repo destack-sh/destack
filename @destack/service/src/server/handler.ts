@@ -11,7 +11,7 @@ import {
 } from "@orpc/server";
 import type { ServiceRouter } from "../service/index.ts";
 import { ProcedureMeta } from "../procedure/procedure.ts";
-import { Expression } from "@destack/db/query";
+import { Expression } from "@destack/schema/expression";
 import type { JsonValue } from "@destack/db";
 import { Version } from "@destack/schema";
 import type { Service } from "../declare/service.ts";
@@ -159,8 +159,7 @@ export class ServiceHandler<State extends ServiceState> extends OpenAPIHandler<S
     ): unknown {
         // keep an input of this release as it is
         const convert = ProcedureMeta.of(procedure).convert ?? {};
-        const releases = Version.between(Object.keys(convert), caller, served);
-        if (releases.length === 0) {
+        if (Version.between(Object.keys(convert), caller, served).length === 0) {
             return input;
         }
 
@@ -170,9 +169,11 @@ export class ServiceHandler<State extends ServiceState> extends OpenAPIHandler<S
                 message: "a converted input must be an object",
             });
         }
-        const converted = releases.reduce(
-            (record, release) => Expression.assign(convert[release]!, record),
+        const converted = Expression.upgrade(
+            convert,
             input as Readonly<Record<string, JsonValue>>,
+            caller,
+            served,
         );
 
         // keep only the fields this release declares, the earlier ones the conversions read

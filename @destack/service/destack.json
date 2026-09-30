@@ -34,7 +34,8 @@
             "describes": [
                 {
                     "kind": "service",
-                    "function": "./inspect#describeService"
+                    "function": "./inspect#describeService",
+                    "compare": "./inspect#compareService"
                 }
             ]
         },

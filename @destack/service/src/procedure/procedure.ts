@@ -1,6 +1,6 @@
 import { oc } from "@orpc/contract";
 import { schema, Version } from "@destack/schema";
-import { Expression } from "@destack/db/query";
+import { Expression } from "@destack/schema/expression";
 import { PermissionReference, type Permission } from "@destack/access/declare";
 
 /** The access and audit requirements of a procedure. */
