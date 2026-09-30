@@ -52,6 +52,8 @@ export const PackageManifest = defineSchema(
         descriptions: schema.record(schema.string(), DescriptionReference),
         /** Static test declarations qualified by the package defining their format. */
         tests: DescriptionReference.optional(),
+        /** The upgrade from the package's previous release, qualified by the package defining its format. */
+        upgrade: DescriptionReference.optional(),
         /** Named outputs compiled from the package. */
         outputs: schema.record(DeclarationName, PackageOutput),
         /** The inventory of source, executable and asset files. */

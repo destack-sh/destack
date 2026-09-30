@@ -23,6 +23,8 @@ export const DeclarationConstructor = defineSchema(
                     function: FunctionReference,
                     /** The function comparing two releases' descriptions into changes. */
                     compare: FunctionReference.optional(),
+                    /** The function listing a description's terms with their definitions. */
+                    vocabulary: FunctionReference.optional(),
                 }),
             )
             .min(1)

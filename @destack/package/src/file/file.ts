@@ -17,6 +17,8 @@ export const Digest = defineSchema(
         .length(64)
         .regex(/^[a-f0-9]{64}$/),
 );
+/** A SHA-256 digest encoded as lowercase hexadecimal. */
+export type Digest = schema.Infer<typeof Digest>;
 
 /** A source or generated file in a package. */
 export const PackageFile = defineSchema(

@@ -4,7 +4,7 @@ Define Destack packages, transform their modules, and read their built manifests
 
 ## Definitions
 
-A package's `destack.json` names its identity, targets, runtimes and declaration constructors.
+A package's `destack.json` holds its identity, targets, runtimes and declaration constructors.
 
 ```json
 {
@@ -16,13 +16,25 @@ A package's `destack.json` names its identity, targets, runtimes and declaration
         "defineNotification": {
             "module": 1,
             "describes": [
-                { "kind": "notification", "function": "./inspect#describeNotification" },
+                {
+                    "kind": "notification",
+                    "function": "./inspect#describeNotification",
+                    "vocabulary": "./inspect#notificationVocabulary"
+                },
                 { "kind": "setting", "package": "@destack/setting", "function": "./inspect#describePreference" }
             ]
         }
     }
 }
 ```
+
+A kind's own entry declares up to three functions over its descriptions.
+
+| Function | Answers | Used by |
+|---|---|---|
+| `function` | what a declaration is | the build, into the manifest |
+| `compare` | what changed between two releases | the build's upgrade |
+| `vocabulary` | which terms stored data holds, such as `object/note/relation/editor` | the build, the registry and spaces |
 
 ## Packages
 

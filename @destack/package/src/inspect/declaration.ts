@@ -2,6 +2,7 @@ import { defineSchema, schema } from "@destack/schema";
 import { SourceLocation } from "../source/location.ts";
 import { DependencySymbol } from "../code/reference.ts";
 import { DeclarationName, Package } from "../definition/package.ts";
+import { Digest } from "../file/file.ts";
 
 /** A declaration described by its domain inspector. */
 export const DeclarationDescription = defineSchema(
@@ -20,6 +21,8 @@ export const DeclarationDescription = defineSchema(
         source: SourceLocation,
         /** The description validated by its domain inspector. */
         description: schema.record(schema.string(), schema.json()),
+        /** The declaration's terms, such as `object/note/relation/editor`, with the digest of each definition. */
+        vocabulary: schema.record(schema.string(), Digest).optional(),
     }),
 );
 /** A declaration described by its domain inspector. */

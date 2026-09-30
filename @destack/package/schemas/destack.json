@@ -96,6 +96,10 @@
                                 "compare": {
                                     "type": "string",
                                     "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$(?![\\s\\S])"
+                                },
+                                "vocabulary": {
+                                    "type": "string",
+                                    "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$(?![\\s\\S])"
                                 }
                             },
                             "required": [

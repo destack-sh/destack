@@ -120,3 +120,48 @@ test("read declarations of every collection owner beside test declarations of th
         await reader.read(manifest.tests!.file, schema.array(schema.json())),
     ]).toEqual([[{ name: "language" }], tests]);
 });
+
+test("read a build's own declarations across its domains, and reference its upgrade", async () => {
+    // hold the build's declaration beside a dependency's in two domains, and its upgrade
+    const files = new Map<string, Uint8Array<ArrayBuffer>>();
+    const store = async (path: string, value: unknown) => {
+        const bytes = new TextEncoder().encode(JSON.stringify(value));
+        files.set(path, bytes);
+
+        return { package: owner, file: await describeFile(path, "application/json", bytes) };
+    };
+    const own = declaration(owner, owner, "setting", "language", { name: "language" });
+    const dependency = {
+        ...declaration(owner, owner, "setting", "theme", { name: "theme" }),
+        symbol: { package: owner, symbol: { module: "src/index.ts", name: "theme" } },
+    };
+    const inventory = async (name: string) =>
+        (await store(`manifest/${name}.json`, name === "dependencies" ? {} : [])).file;
+    const manifest = {
+        package: other,
+        dependencies: await inventory("dependencies"),
+        files: await inventory("files"),
+        sourceMaps: await inventory("sourceMaps"),
+        descriptions: {
+            setting: await store("manifest/setting.json", [own]),
+            theme: await store("manifest/theme.json", [dependency]),
+        },
+        upgrade: await store("manifest/upgrade.json", { from: "2026.8.0", steps: [] }),
+    };
+    const reader = new BuildReader(manifest as unknown as PackageManifest, async (path) =>
+        files.get(path)!,
+    );
+
+    // keep the build's own declaration, and reference the upgrade after the collections
+    expect([await reader.declarations(), reader.references().map((file) => file.path)]).toEqual([
+        [own],
+        [
+            "manifest/dependencies.json",
+            "manifest/files.json",
+            "manifest/sourceMaps.json",
+            "manifest/setting.json",
+            "manifest/theme.json",
+            "manifest/upgrade.json",
+        ],
+    ]);
+});

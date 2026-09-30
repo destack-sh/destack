@@ -54,12 +54,13 @@ export class BuildReader {
 
     /** List the files the manifest names directly. */
     references(): PackageFile[] {
-        // collect inventories, declaration collections and the test file
+        // collect inventories, declaration collections, the test file and the upgrade
         const manifest = this.manifest;
         const collections = Object.values(manifest.descriptions).map(
             (collection) => collection.file,
         );
         const tests = manifest.tests ? [manifest.tests.file] : [];
+        const upgrade = manifest.upgrade ? [manifest.upgrade.file] : [];
 
         return [
             manifest.dependencies,
@@ -67,6 +68,7 @@ export class BuildReader {
             manifest.sourceMaps,
             ...collections,
             ...tests,
+            ...upgrade,
         ];
     }
 
@@ -97,6 +99,17 @@ export class BuildReader {
         }
 
         return this.read(collection.file, schema.array(DeclarationDescription));
+    }
+
+    /** Read the package's own declarations across its domains. */
+    async declarations(): Promise<DeclarationDescription[]> {
+        const domains = await Promise.all(
+            Object.keys(this.manifest.descriptions).map((domain) => this.domain(domain)),
+        );
+
+        return domains
+            .flat()
+            .filter((declaration) => declaration.symbol.package.id === this.manifest.package.id);
     }
 
     /** Read the declarations of one kind a package's constructors make, parsing each description. */
