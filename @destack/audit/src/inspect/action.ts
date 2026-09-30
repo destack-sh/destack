@@ -1,6 +1,7 @@
 import { defineSchema, schema, toJsonSchema } from "@destack/schema";
 import { AuditActionName, type AuditAction } from "../action/index.ts";
 import { Package } from "@destack/package";
+import type { JsonValue } from "@destack/schema/json";
 
 /** A serializable action declaration. */
 export const AuditActionDescription = defineSchema(
@@ -29,4 +30,11 @@ export function describeAuditAction(action: AuditAction): AuditActionDescription
         targets: toJsonSchema(action.targets),
         details: toJsonSchema(action.details),
     });
+}
+
+/** List an action's term: its name, with the shapes of its events. */
+export function auditActionVocabulary(input: Record<string, JsonValue>): Record<string, JsonValue> {
+    const description = AuditActionDescription.parse(input);
+
+    return { [description.name]: { targets: description.targets, details: description.details } };
 }

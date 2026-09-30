@@ -24,7 +24,8 @@
             "describes": [
                 {
                     "kind": "audit-action",
-                    "function": "./inspect#describeAuditAction"
+                    "function": "./inspect#describeAuditAction",
+                    "vocabulary": "./inspect#auditActionVocabulary"
                 }
             ]
         }
