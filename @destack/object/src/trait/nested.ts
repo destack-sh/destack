@@ -80,7 +80,7 @@ export const nested: Trait<NestedDefinition> = {
     key: "nested",
     options: (definition) => definition.nested,
     columns: (options, object): Record<string, ColumnBuilder<any, boolean, boolean>> => {
-        // name a parent of any type by package, type and identifier
+        // refer to a parent of any type by package, type and identifier
         if (options.in === "any") {
             const columns = {
                 parentPackageId: identifier("parent_package_id", "package"),

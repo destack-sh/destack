@@ -24,6 +24,7 @@ import {
     eq,
     type DatabaseConnection,
     type DatabaseTier,
+    type Select,
     type SQL,
     TABLE,
     type Table,
@@ -971,8 +972,11 @@ export class ObjectType<
     }
 
     /** Reconcile or follow the objects with work waiting as the system. */
-    control<Self extends ObjectType>(this: Self, controller: ObjectController): Self {
-        return this.with({ controller });
+    control<Self extends ObjectType>(
+        this: Self,
+        controller: ObjectController<Select<Self["table"]>>,
+    ): Self {
+        return this.with({ controller: controller as unknown as ObjectController });
     }
 
     /** Copy the object type with some members changed, sharing its table. */

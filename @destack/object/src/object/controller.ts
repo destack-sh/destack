@@ -1,13 +1,17 @@
 import type { DatabaseConnection, Table } from "@destack/db";
 import type { Condition } from "@destack/db/query";
+import type { Reconciliation } from "@destack/service/control";
 import type { ObjectServer } from "../server/server.ts";
 
+/** A row as a controller reads it. */
+type Row = Readonly<Record<string, unknown>>;
+
 /** A controller declared on an object type: the objects with work waiting, and how to reconcile them. */
-export interface ObjectController {
+export interface ObjectController<Selected extends Row = Row> {
     /** The objects with work waiting. */
     readonly pending: Condition;
     /** The fields grouping objects reconciled together, the identifier by default. */
-    readonly key?: (row: Readonly<Record<string, unknown>>) => Readonly<Record<string, unknown>>;
+    readonly key?: (row: Selected) => Row;
     /** The other tables whose changed rows select keys again. */
     readonly watches?: readonly ObjectWatch[];
     /** Whether a key converges and returns, or follows until its objects leave the pending ones. */
@@ -15,7 +19,7 @@ export interface ObjectController {
     /** The keys reconciled at once, one by default. */
     readonly concurrency?: number;
     /** Reconcile the pending objects of one key, returning the wait until the next look. */
-    reconcile(control: ObjectControl): Promise<number | undefined>;
+    reconcile(reconciliation: ObjectReconciliation<Selected>): Promise<number | undefined>;
 }
 
 /** Another table whose changed rows select a controller's keys. */
@@ -31,20 +35,16 @@ export interface ObjectWatch {
         | Promise<readonly Readonly<Record<string, unknown>>[]>;
 }
 
-/** The pending objects of one key, and the system methods reconciling them. */
-export interface ObjectControl {
+/** One key's reconciliation: its pending objects, and the system methods reconciling them. */
+export interface ObjectReconciliation<Selected extends Row = Row> extends Reconciliation {
     /** The pending objects of the key. */
-    readonly rows: readonly Readonly<Record<string, unknown>>[];
+    readonly rows: readonly Selected[];
     /** The reconcile time, in UTC epoch milliseconds. */
     readonly now: number;
     /** The objects' database. */
     readonly database: DatabaseConnection;
     /** The object server running the controller. */
     readonly server: ObjectServer;
-    /** Abort once the loop stops, the lease is lost or the key leaves the pending ones. */
-    readonly signal: AbortSignal;
-    /** Wait for the key's objects to change again while they reconcile. */
-    changed(): Promise<void>;
     /** Run one system method on some objects in one transaction. */
-    execute(method: string, rows: readonly Readonly<Record<string, unknown>>[]): Promise<unknown[]>;
+    execute(method: string, rows: readonly Row[]): Promise<unknown[]>;
 }

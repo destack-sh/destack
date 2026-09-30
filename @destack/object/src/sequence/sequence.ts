@@ -366,7 +366,7 @@ export class Sequence {
         return merged;
     }
 
-    /** Decide whether two lists name the same annotations in the same order. */
+    /** Decide whether two lists refer to the same annotations in the same order. */
     static #same(
         left: readonly Annotation<unknown>[],
         right: readonly Annotation<unknown>[],

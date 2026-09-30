@@ -1301,6 +1301,7 @@ export class ObjectServer<
                     database: this.database,
                     server: this as ObjectServer,
                     signal: reconciliation.signal,
+                    ...(reconciliation.epoch === undefined ? {} : { epoch: reconciliation.epoch }),
                     changed: () => reconciliation.changed(),
                     execute: (method, targets) =>
                         this.executeAsSystem(

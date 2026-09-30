@@ -31,7 +31,7 @@ export const Observation = defineSchema(
     schema.object({
         /** The desired generation the controller evaluated. */
         observedGeneration: schema.number().int().min(0),
-        /** The conditions by name, their transition times kept while their status holds. */
+        /** The conditions by name, their transition times kept while their status stays. */
         conditions: schema.record(
             schema.string().min(1),
             StatusCondition.omit({ observedGeneration: true, lastTransitionAt: true }),
@@ -46,7 +46,7 @@ export type Observation = schema.Infer<typeof Observation>;
 /** Record a controller's observation of its target at its generation. */
 const observe = method({ permission: null, isSystem: true, input: Observation }).handle(
     async (call) => {
-        // merge the conditions and keep transition times while their status holds
+        // merge the conditions and keep transition times while their status stays
         const target = call.target as {
             readonly conditions: Readonly<Record<string, StatusCondition>>;
         };

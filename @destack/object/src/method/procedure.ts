@@ -211,12 +211,12 @@ export function scopeRoute(object: ObjectType): ScopeRoute {
     if (scope === Scope.universe.id) {
         return { prefix: "" };
     }
-    // name the scope in a field for objects in several
+    // carry the scope in a field for objects in several
     else if (Array.isArray(scope)) {
         return { prefix: "", field: "scope" };
     }
 
-    // name the scope in its type's route and identifier field
+    // carry the scope in its type's route and identifier field
     const single = scope as ObjectType;
 
     return {
