@@ -1,158 +1,172 @@
 import { expect, test } from "@destack/test";
+import { Expression } from "@destack/db/query";
 import { identifier, schema } from "@destack/schema";
-import { defineSetting, defineSettingAssignment } from "../src/declare/index.ts";
-import { describeSetting, SettingDescription } from "../src/inspect/index.ts";
-import { resolveSetting } from "../src/setting/resolution.ts";
-import { SettingEdit } from "../src/setting/edit.ts";
-import { SettingTarget, SettingSelection } from "../src/setting/target.ts";
-import { target, personal, device, required, snapshot } from "./fixture/index.ts";
-import { editor, notes } from "./fixture/settings/index.ts";
 import { PackageId } from "@destack/package";
+import { Scope } from "@destack/sync";
+import { defineSetting } from "../src/declare/index.ts";
+import { SettingError } from "../src/error/index.ts";
+import {
+    compareSetting,
+    describeSetting,
+    SettingCatalog,
+    SettingDescription,
+} from "../src/inspect/index.ts";
+import type { SettingRow } from "../src/object/index.ts";
+import { SettingResolution, SettingSelection } from "../src/setting/index.ts";
+import { Setting } from "../src/setting/index.ts";
+import {
+    account,
+    alice,
+    chain,
+    named,
+    override,
+    personal,
+    required,
+    selection,
+    source,
+    space,
+} from "./fixture/index.ts";
+import { editor, notes, release } from "./fixture/settings/index.ts";
 
-test("resolve personal, device, policy and reset values independently of input order", () => {
-    // retain the complete explanation of personal and device precedence
+/** The resolution of the editor mode to its default for the fixture's selection. */
+const standard = {
+    setting: editor.reference,
+    selection,
+    value: "standard",
+    sources: [{ kind: "default", package: notes }],
+    overridden: [],
+    enforcement: "ordinary",
+};
+
+/** Report a setting failure as its code and message, or as accepted. */
+function failure(run: () => unknown): { code: string; message: string } | "accepted" {
+    try {
+        run();
+
+        return "accepted";
+    } catch (error) {
+        if (!(error instanceof SettingError)) {
+            throw error;
+        }
+
+        return { code: error.code, message: error.message };
+    }
+}
+
+test("resolve personal, device and required values independently of their order", () => {
+    // take the device override over the personal value, in either order
     const ordinary = {
-        setting: editor.reference,
-        target,
-        value: "standard",
-        sources: [
-            {
-                kind: "assignment",
-                id: device.id,
-                revision: "019f5530-8000-7000-8000-000000000001",
-                target: device.target,
-            },
-        ],
-        overridden: [
-            { kind: "default", package: notes },
-            {
-                kind: "assignment",
-                id: personal.id,
-                revision: "019f5530-8000-7000-8000-000000000001",
-                target: personal.target,
-            },
-        ],
-        enforcement: "ordinary",
-        validUntil: 2000,
+        ...standard,
+        sources: [source(override)],
+        overridden: [{ kind: "default", package: notes }, source(personal)],
     };
-    expect(resolveSetting(editor, snapshot, 1500)).toEqual(ordinary);
-    expect(resolveSetting(editor, { ...snapshot, assignments: [personal, device] }, 1500)).toEqual(
-        ordinary,
-    );
+    expect([
+        editor.resolve(selection, [override, personal], chain),
+        editor.resolve(selection, [personal, override], chain),
+    ]).toEqual([ordinary, ordinary]);
 
-    // remove the device override to expose the personal base again
-    expect(
-        resolveSetting(
-            editor,
-            {
-                ...snapshot,
-                assignments: [personal],
-            },
-            1500,
-        ),
-    ).toEqual({
-        ...ordinary,
+    // expose the personal value once the override goes
+    expect(editor.resolve(selection, [personal], chain)).toEqual({
+        ...standard,
         value: "vim",
-        sources: [
-            {
-                kind: "assignment",
-                id: personal.id,
-                revision: "019f5530-8000-7000-8000-000000000001",
-                target: personal.target,
-            },
-        ],
+        sources: [source(personal)],
         overridden: [{ kind: "default", package: notes }],
     });
 
-    // apply mandatory policy without erasing lower-priority choices
-    expect(resolveSetting(editor, { ...snapshot, policies: [required] }, 1500)).toEqual({
-        ...ordinary,
+    // take a requirement over every ordinary value
+    expect(editor.resolve(selection, [override, personal, required], chain)).toEqual({
+        ...standard,
         value: "vim",
         enforcement: "required",
-        sources: [
-            { kind: "policy", id: required.id, revision: "019f5530-8000-7000-8000-000000000001" },
-        ],
+        sources: [source(required)],
         overridden: [...ordinary.overridden, ...ordinary.sources],
     });
 });
 
-test("separate identities and shared runtimes while rejecting invalid and stale selections", () => {
-    // an unrelated person's settings do not affect Alice's view
-    const other = {
-        ...personal,
-        target: {
-            kind: "user" as const,
-            user: { kind: "user" as const, authority: "global", id: "user-bob" },
-        },
+test("refuse values set in other scopes or outside the chain, and disagreeing requirements", () => {
+    // refuse another user's value, and resolve the default for an anonymous visitor
+    const anonymous = SettingSelection.parse({ scope: null });
+    const misplaced = {
+        code: "INVALID_PLACEMENT",
+        message: "a value set in another scope reached the resolution",
     };
-    expect(resolveSetting(editor, { ...snapshot, assignments: [other] }, 1500)).toEqual({
-        setting: editor.reference,
-        target,
-        value: "standard",
-        sources: [{ kind: "default", package: notes }],
-        overridden: [],
-        enforcement: "ordinary",
-        validUntil: 2000,
-    });
-
-    // anonymous visitors retain defaults without borrowing any signed-in user's assignment
-    const anonymous = SettingSelection.parse({ kind: "user", user: null });
-    expect(resolveSetting(editor, { ...snapshot, target: anonymous }, 1500)).toEqual({
-        setting: editor.reference,
-        target: anonymous,
-        value: "standard",
-        sources: [{ kind: "default", package: notes }],
-        overridden: [],
-        enforcement: "ordinary",
-        validUntil: 2000,
-    });
-
-    // authority unavailability cannot erase an enforced setting
-    expect(() => resolveSetting(editor, snapshot, 2000)).toThrowError(
-        "setting policy selection has expired",
-    );
-    expect(() =>
-        resolveSetting(
-            editor,
-            { ...snapshot, policies: [required, { ...required, value: "standard" }] },
-            1500,
+    expect([
+        failure(() => editor.resolve(selection, [{ ...personal, scope: "user-bob" }], chain)),
+        failure(() => editor.resolve(anonymous, [personal], chain)),
+        failure(() =>
+            editor.resolve(selection, [{ ...required, scope: "space-elsewhere" }], chain),
         ),
-    ).toThrowError("required setting policies disagree");
-    expect(() =>
-        resolveSetting(editor, { ...snapshot, assignments: [{ ...personal, value: 42 }] }, 1500),
-    ).toThrowError("stored value is incompatible with the setting declaration");
+    ]).toEqual([
+        misplaced,
+        misplaced,
+        {
+            code: "INVALID_PLACEMENT",
+            message: "a value from outside the selection's scope chain reached the resolution",
+        },
+    ]);
+    expect(editor.resolve(anonymous, [], chain)).toEqual({ ...standard, selection: anonymous });
 
-    // shared background work selects its installation without a human subject
-    const shared = defineSetting(
+    // refuse disagreeing requirements and a selection of another scope than the setting's
+    expect([
+        failure(() =>
+            editor.resolve(selection, [required, { ...required, value: "standard" }], chain),
+        ),
+        failure(() => editor.resolve(SettingSelection.parse({ scope: space }), [], chain)),
+    ]).toEqual([
+        { code: "CONFLICT", message: "required setting values disagree" },
+        {
+            code: "INVALID_PLACEMENT",
+            message: "setting scope does not match the selected scope",
+        },
+    ]);
+});
+
+test("compare required structured values independently of key order", () => {
+    const layout = defineSetting(
         {
             ...editor.definition,
-            name: "defaultTemplate",
-            scope: "space",
-            overrides: ["installation"],
+            name: "layout",
+            schema: schema.object({ width: schema.number(), compact: schema.boolean() }),
+            default: { width: 80, compact: false },
         },
         { package: notes },
     );
-    const sharedTarget = SettingTarget.parse({
-        kind: "space",
-        location: { spaceId: "space-019f5530-8000-7000-8000-000000000003" },
-    });
-    expect(
-        resolveSetting(shared, { ...snapshot, target: sharedTarget, assignments: [] }, 1500),
-    ).toEqual({
-        setting: shared.reference,
-        target: sharedTarget,
-        value: "standard",
-        sources: [{ kind: "default", package: notes }],
-        overridden: [],
-        enforcement: "ordinary",
-        validUntil: 2000,
+    const requirement: SettingRow = {
+        ...required,
+        ...named(layout),
+        value: { width: 80, compact: true },
+    };
+    const equivalent: SettingRow = {
+        ...requirement,
+        id: identifier("setting").parse("setting-019f5530-8000-7000-8000-000000000010"),
+        scope: account,
+        value: { compact: true, width: 80 },
+    };
+    expect(layout.resolve(selection, [equivalent, requirement], chain)).toEqual({
+        ...standard,
+        setting: layout.reference,
+        value: { width: 80, compact: true },
+        sources: [source(requirement), source(equivalent)],
+        overridden: [{ kind: "default", package: notes }],
+        enforcement: "required",
     });
 });
 
-test("describe typed declarations and retain exact conditional edit preconditions", () => {
-    // inspection retains the native schema's complete serializable description
-    const description = describeSetting(editor);
-    expect(SettingDescription.parse(JSON.parse(JSON.stringify(description)))).toEqual({
+test("describe a setting and read the settings a build declares", async () => {
+    // describe the value schema as JSON Schema
+    const layout = defineSetting(
+        {
+            ...editor.definition,
+            name: "layout",
+            schema: schema.object({
+                width: schema.number().int().min(1),
+                compact: schema.boolean(),
+            }),
+            default: { width: 80, compact: false },
+        },
+        { package: notes },
+    );
+    expect(SettingDescription.parse(JSON.parse(JSON.stringify(describeSetting(editor))))).toEqual({
         package: notes,
         name: "editor.mode",
         title: "Editor mode",
@@ -168,112 +182,84 @@ test("describe typed declarations and retain exact conditional edit precondition
         apply: "immediate",
     });
 
-    // a reset retains the original write identity and observed revision across serialization
-    const mutation = {
-        requestId: "019f5530-8000-7000-8000-000000000009",
-        setting: editor.reference,
-        target,
-        expectedRevision: "019f5530-8000-7000-8000-000000000001",
-    };
-    expect(SettingEdit.parse(JSON.parse(JSON.stringify(mutation)))).toEqual(mutation);
+    // read both settings back, validating values by their described schemas
+    const catalog = await SettingCatalog.read(await release([editor, layout]));
+    const read = catalog.get(layout.reference);
+    expect([
+        catalog.settings.map(describeSetting),
+        catalog.settings[0]!.definition.schema.safeParse("vim").success,
+        catalog.settings[0]!.definition.schema.safeParse("emacs").success,
+        read.definition.schema.safeParse({ width: 100, compact: true }).success,
+        read.definition.schema.safeParse({ width: 0, compact: true }).success,
+    ]).toEqual([[describeSetting(editor), describeSetting(layout)], true, false, true, false]);
 
-    // equal required structured values do not depend on object insertion order
-    const structured = defineSetting(
-        {
-            ...editor.definition,
-            name: "layout",
-            schema: schema.object({ width: schema.number(), compact: schema.boolean() }),
-            default: { width: 80, compact: false },
-        },
-        { package: notes },
-    );
-    const policy = {
-        ...required,
-        setting: structured.reference,
-        value: { width: 80, compact: true },
-    };
-    const equivalent = {
-        ...policy,
-        id: "setting-policy-019f5530-8000-7000-8000-000000000010" as typeof policy.id,
-        value: { compact: true, width: 80 },
-    };
-    expect(
-        resolveSetting(
-            structured,
-            { ...snapshot, assignments: [], policies: [equivalent, policy] },
-            1500,
-        ),
-    ).toEqual({
-        setting: structured.reference,
-        target,
-        value: { width: 80, compact: true },
-        sources: [
-            { kind: "policy", id: policy.id, revision: "019f5530-8000-7000-8000-000000000001" },
-            { kind: "policy", id: equivalent.id, revision: "019f5530-8000-7000-8000-000000000001" },
-        ],
-        overridden: [{ kind: "default", package: notes }],
-        enforcement: "required",
-        validUntil: 2000,
+    // refuse a setting the build does not declare
+    expect(failure(() => catalog.get({ ...editor.reference, name: "theme" }))).toEqual({
+        code: "UNDECLARED",
+        message: `setting ${notes.id}/theme is not declared`,
     });
 });
 
-test("isolate shared installation configuration and host-local paths", () => {
-    // two installations share a declaration while retaining independent values
-    const shared = defineSetting(
-        {
-            ...editor.definition,
-            name: "defaultTemplate",
-            scope: "space",
-            overrides: ["installation"],
-        },
-        { package: notes },
-    );
-    const first = SettingTarget.parse({
-        kind: "space",
-        location: {
-            spaceId: "space-019f5530-8000-7000-8000-000000000003",
-            installationId: "installation-019f5530-8000-7000-8000-000000000004",
-        },
+test("read a setting another package's constructor describes, such as a notification's preference", async () => {
+    // describe a preference the notification constructor derives for the notes package
+    const preference = new Setting(notes, {
+        ...editor.definition,
+        name: "notification.mention",
+        title: "Mentions",
+        description: "Someone mentions you in a remark.",
     });
-    const second = SettingTarget.parse({
-        kind: "space",
-        location: {
-            spaceId: "space-019f5530-8000-7000-8000-000000000003",
-            installationId: "installation-019f5530-8000-7000-8000-000000000014",
-        },
-    });
-    const assignment = { ...personal, setting: shared.reference, target: first };
-    expect(
-        resolveSetting(shared, { ...snapshot, target: first, assignments: [assignment] }, 1500),
-    ).toEqual({
-        setting: shared.reference,
-        target: first,
-        value: "vim",
-        sources: [
-            {
-                kind: "assignment",
-                id: assignment.id,
-                revision: "019f5530-8000-7000-8000-000000000001",
-                target: assignment.target,
-            },
-        ],
-        overridden: [{ kind: "default", package: notes }],
-        enforcement: "ordinary",
-        validUntil: 2000,
-    });
-    expect(
-        resolveSetting(shared, { ...snapshot, target: second, assignments: [assignment] }, 1500),
-    ).toEqual({
-        setting: shared.reference,
-        target: second,
-        value: "standard",
-        sources: [{ kind: "default", package: notes }],
-        overridden: [],
-        enforcement: "ordinary",
-        validUntil: 2000,
+    const notification = {
+        id: PackageId.parse("package-01a0e95b-c8db-7258-a257-e7661dbc93c3"),
+        name: "@destack/notification",
+        version: "2026.9.0",
+    };
+    const reader = await release([preference], {
+        package: notification,
+        name: "defineNotification",
     });
 
-    // a cache path from one host never configures a different host
+    // read it among the build's settings
+    expect((await SettingCatalog.read(reader)).settings.map(describeSetting)).toEqual([
+        describeSetting(preference),
+    ]);
+});
+
+test("resolve space settings per installation and host settings per host", () => {
+    // resolve one space setting independently for two installations
+    const template = defineSetting(
+        { ...editor.definition, name: "template", scope: "space", overrides: ["installation"] },
+        { package: notes },
+    );
+    const first = SettingSelection.parse({
+        scope: space,
+        installation: "installation-019f5530-8000-7000-8000-000000000004",
+    });
+    const second = SettingSelection.parse({
+        scope: space,
+        installation: "installation-019f5530-8000-7000-8000-000000000014",
+    });
+    const value: SettingRow = {
+        ...personal,
+        ...named(template),
+        scope: space,
+        installation: first.installation!,
+    };
+    expect([
+        template.resolve(first, [value], chain),
+        template.resolve(second, [value], chain),
+    ]).toEqual([
+        {
+            ...standard,
+            setting: template.reference,
+            selection: first,
+            value: "vim",
+            sources: [source(value)],
+            overridden: [{ kind: "default", package: notes }],
+        },
+        { ...standard, setting: template.reference, selection: second },
+    ]);
+
+    // resolve a host setting on its host, and refuse one set on another host
     const cache = defineSetting(
         {
             ...editor.definition,
@@ -286,94 +272,182 @@ test("isolate shared installation configuration and host-local paths", () => {
         },
         { package: notes },
     );
-    const local = SettingTarget.parse({
-        kind: "host",
-        hostId: "host-019f5530-8000-7000-8000-000000000015",
-    });
-    const remote = SettingTarget.parse({
-        kind: "host",
-        hostId: "host-019f5530-8000-7000-8000-000000000016",
-    });
-    const path = {
+    const host = "host-019f5530-8000-7000-8000-000000000015";
+    const path: SettingRow = {
         ...personal,
-        setting: cache.reference,
-        target: local,
+        ...named(cache),
+        scope: host,
         value: "/Users/alice/cache",
     };
-    expect(
-        resolveSetting(cache, { ...snapshot, target: remote, assignments: [path] }, 1500),
-    ).toEqual({
+    const hostChain = [host, account, Scope.universe.id];
+    const onHost = SettingSelection.parse({ scope: host });
+    expect(cache.resolve(onHost, [path], hostChain)).toEqual({
         setting: cache.reference,
-        target: remote,
-        value: "/cache",
-        sources: [{ kind: "default", package: notes }],
-        overridden: [],
-        enforcement: "ordinary",
-        validUntil: 2000,
-    });
-});
-
-test("apply the same declaration restrictions to source assignments and retained values", () => {
-    // source authoring rejects shared targets and unsupported personal refinements
-    const personalOnly = defineSetting({ ...editor.definition, overrides: [] }, { package: notes });
-    expect(() => defineSettingAssignment(personalOnly, target, "vim")).toThrowError(
-        "assignment uses an unsupported setting override",
-    );
-    const shared = SettingTarget.parse({
-        kind: "space",
-        location: { spaceId: "space-019f5530-8000-7000-8000-000000000003" },
-    });
-    expect(() => defineSettingAssignment(editor, shared, "vim")).toThrowError(
-        "assignment scope does not match the setting declaration",
-    );
-    expect(() => resolveSetting(personalOnly, snapshot, 1500)).toThrowError(
-        "assignment uses an unsupported setting override",
-    );
-
-    // removing policy restores retained choices without rewriting their revisions
-    expect(
-        resolveSetting(
-            editor,
-            {
-                ...snapshot,
-                assignments: [personal],
-                policies: [],
-            },
-            1500,
-        ),
-    ).toEqual({
-        setting: editor.reference,
-        target,
-        value: "vim",
-        sources: [
-            {
-                kind: "assignment",
-                id: personal.id,
-                revision: "019f5530-8000-7000-8000-000000000001",
-                target: personal.target,
-            },
-        ],
+        selection: onHost,
+        value: "/Users/alice/cache",
+        sources: [source(path)],
         overridden: [{ kind: "default", package: notes }],
         enforcement: "ordinary",
-        validUntil: 2000,
     });
-
-    // changing a package schema reports incompatible retained values explicitly
-    const upgraded = defineSetting(
-        {
-            ...editor.definition,
-            schema: schema.enum(["standard", "emacs"]),
-            default: "standard",
-        },
-        { package: { ...notes, version: "2026.10.0" } },
-    );
-    expect(() =>
-        resolveSetting(upgraded, { ...snapshot, assignments: [personal] }, 1500),
-    ).toThrowError("stored value is incompatible with the setting declaration");
+    expect(
+        failure(() =>
+            cache.resolve(
+                SettingSelection.parse({ scope: "host-019f5530-8000-7000-8000-000000000016" }),
+                [path],
+                hostChain,
+            ),
+        ),
+    ).toEqual({
+        code: "INVALID_PLACEMENT",
+        message: "a value set in another scope reached the resolution",
+    });
 });
 
-test("retain offline choices and qualify shared settings by the consuming package", () => {
-    // reuse one declaration in two apps without conflating the declaring and consuming packages
+test("refuse placements and writes a setting does not permit", () => {
+    // refuse overrides the setting does not declare, and set values outside its scope
+    const plain = defineSetting({ ...editor.definition, overrides: [] }, { package: notes });
+    const unsupported = {
+        code: "INVALID_PLACEMENT",
+        message: "setting value uses an unsupported setting override",
+    };
+    expect([
+        failure(() =>
+            plain.requirePlacement(
+                { installation: selection.installation, device: selection.device, mode: "set" },
+                "own",
+            ),
+        ),
+        failure(() => plain.resolve(selection, [override], chain)),
+        failure(() => editor.requirePlacement({ mode: "set" }, "enclosing")),
+        failure(() => editor.requirePlacement({ mode: "recommend" }, "own")),
+        failure(() =>
+            editor.requirePlacement(
+                { space: selection.space, installation: selection.installation, mode: "set" },
+                "own",
+            ),
+        ),
+    ]).toEqual([
+        unsupported,
+        unsupported,
+        {
+            code: "INVALID_PLACEMENT",
+            message: "setting value outside its declared scope must recommend or require",
+        },
+        {
+            code: "INVALID_PLACEMENT",
+            message: "setting value in its declared scope must be set",
+        },
+        {
+            code: "INVALID_PLACEMENT",
+            message: "setting value carries both an installation and its space",
+        },
+    ]);
+
+    // accept a current write in its scope, and refuse one of a later release or with an invalid value
+    const write = { mode: "set" as const, value: "vim", release: "2026.9.0" };
+    expect([
+        failure(() => editor.requireWrite(write, alice)),
+        failure(() => editor.requireWrite({ ...write, release: "2026.10.0" }, alice)),
+        failure(() => editor.requireWrite({ ...write, value: "emacs" }, alice)),
+        failure(() => editor.requireWrite({ ...write, mode: "recommend" }, space)),
+    ]).toEqual([
+        "accepted",
+        {
+            code: "INVALID_VALUE",
+            message: "setting value is at release 2026.10.0, its declaration at 2026.9.0",
+        },
+        { code: "INVALID_VALUE", message: "setting value does not match its declaration" },
+        "accepted",
+    ]);
+});
+
+test("skip stored values a changed schema rejects, falling through to the next source", () => {
+    // skip Alice's value for the recommendation, then the default, and list it as invalid
+    const upgraded = defineSetting(
+        { ...editor.definition, schema: schema.enum(["standard", "emacs"]), default: "standard" },
+        { package: { ...notes, version: "2026.10.0" } },
+    );
+    const recommendation: SettingRow = { ...required, mode: "recommend", value: "emacs" };
+    expect([
+        upgraded.resolve(selection, [personal, recommendation], chain),
+        upgraded.resolve(selection, [personal], chain),
+    ]).toEqual([
+        {
+            ...standard,
+            setting: upgraded.reference,
+            value: "emacs",
+            sources: [source(recommendation), source(personal, "invalid")],
+            overridden: [{ kind: "default", package: { ...notes, version: "2026.10.0" } }],
+        },
+        {
+            ...standard,
+            setting: upgraded.reference,
+            sources: [
+                { kind: "default", package: { ...notes, version: "2026.10.0" } },
+                source(personal, "invalid"),
+            ],
+        },
+    ]);
+
+    // find the invalid value at its placement, and nothing where no value is placed
+    const resolution = upgraded.resolve(selection, [personal], chain);
+    expect([
+        SettingResolution.observed(resolution, { scope: alice }),
+        SettingResolution.observed(resolution, { scope: alice, device: selection.device }),
+    ]).toEqual([{ id: personal.id, revision: personal.revision }, null]);
+});
+
+test("convert stored values of earlier releases, and skip values of later releases and ones no conversion reaches", () => {
+    // convert the editor mode to a named keymap in the setting's release
+    const keymap = defineSetting(
+        {
+            ...editor.definition,
+            schema: schema.object({ keymap: schema.enum(["standard", "vim"]) }),
+            default: { keymap: "standard" },
+            convert: { "2026.9.0": Expression.object({ keymap: Expression.column("value") }) },
+        },
+        { package: notes },
+    );
+    const unconverted = new Setting(notes, { ...keymap.definition, convert: {} });
+    const earlier: SettingRow = { ...personal, release: "2026.8.0" };
+    const current: SettingRow = { ...override, value: { keymap: "vim" } };
+    const expected = {
+        ...standard,
+        setting: keymap.reference,
+        value: { keymap: "vim" },
+        sources: [source(earlier)],
+        overridden: [{ kind: "default", package: notes }],
+    };
+    expect([
+        keymap.resolve(selection, [earlier], chain),
+        keymap.resolve(selection, [{ ...earlier, release: "2026.10.0" }], chain).sources,
+        unconverted.resolve(selection, [earlier], chain).sources,
+        keymap.resolve(selection, [current], chain).value,
+    ]).toEqual([
+        expected,
+        [
+            { kind: "default", package: notes },
+            source({ ...earlier, release: "2026.10.0" }, "invalid"),
+        ],
+        [{ kind: "default", package: notes }, source(earlier, "invalid")],
+        { keymap: "vim" },
+    ]);
+
+    // refuse a conversion keyed by a release after the setting's release
+    expect(() =>
+        defineSetting(
+            { ...editor.definition, convert: { "2026.10.0": Expression.column("value") } },
+            { package: notes },
+        ),
+    ).toThrow(
+        new TypeError(
+            "conversion of editor.mode is keyed by 2026.10.0, after its release 2026.9.0",
+        ),
+    );
+});
+
+test("resolve a value for its consuming package, and rank recommendations by the nearness of their scope", () => {
+    // apply a value for the consuming package in any space, and nowhere else
     const shared = defineSetting(
         {
             ...editor.definition,
@@ -383,66 +457,112 @@ test("retain offline choices and qualify shared settings by the consuming packag
         { package: notes },
     );
     const homeId = PackageId.parse("package-019f5530-8000-7000-8000-000000000020");
-    const home = SettingTarget.parse({ ...target, packageId: homeId });
-    const appAssignment = {
-        ...personal,
-        target: SettingTarget.parse({ ...personal.target, packageId: homeId }),
-    };
-    const local = { ...snapshot, target: home, assignments: [appAssignment], validUntil: null };
-    const expected = {
+    const home = SettingSelection.parse({ ...selection, package: homeId });
+    const elsewhere = SettingSelection.parse({
+        scope: alice,
+        package: homeId,
+        space: "space-019f5530-8000-7000-8000-000000000021",
+    });
+    const app: SettingRow = { ...personal, package: homeId };
+    const applied = {
+        ...standard,
         setting: shared.reference,
-        target: home,
         value: "vim",
-        sources: [
+        sources: [source(app)],
+        overridden: [{ kind: "default", package: notes }],
+    };
+    expect([
+        shared.resolve(home, [app], chain),
+        shared.resolve(elsewhere, [app], chain),
+        shared.resolve(selection, [app], chain),
+    ]).toEqual([
+        { ...applied, selection: home },
+        { ...applied, selection: elsewhere },
+        { ...standard, setting: shared.reference },
+    ]);
+
+    // take the space's recommendation over the account's disagreeing one
+    const nearer: SettingRow = { ...required, mode: "recommend" };
+    const farther: SettingRow = {
+        ...nearer,
+        id: identifier("setting").parse("setting-019f5530-8000-7000-8000-000000000022"),
+        scope: account,
+        value: "standard",
+    };
+    expect(shared.resolve(home, [farther, nearer], chain)).toEqual({
+        ...applied,
+        selection: home,
+        sources: [source(nearer)],
+        overridden: [{ kind: "default", package: notes }, source(farther)],
+    });
+
+    // refuse disagreeing recommendations of one scope
+    const sibling: SettingRow = {
+        ...nearer,
+        id: identifier("setting").parse("setting-019f5530-8000-7000-8000-000000000024"),
+        value: "standard",
+    };
+    expect(failure(() => shared.resolve(home, [nearer, sibling], chain))).toEqual({
+        code: "CONFLICT",
+        message: "multiple setting values have the same precedence",
+    });
+});
+
+test("plan a setting's value change between releases: safe widenings, converted narrowings, and a refused unconverted narrowing", () => {
+    // describe the editor mode, a wider mode, and a keymap narrowing it
+    const release = "2026.9.0";
+    const before = describeSetting(editor);
+    const wider = describeSetting(
+        defineSetting(
+            { ...editor.definition, schema: schema.enum(["standard", "vim", "emacs"]) },
+            { package: notes },
+        ),
+    );
+    const narrower = defineSetting(
+        { ...editor.definition, schema: schema.enum(["vim"]), default: "vim" },
+        { package: notes },
+    );
+    const converted = describeSetting(
+        defineSetting(
             {
-                kind: "assignment",
-                id: personal.id,
-                revision: "019f5530-8000-7000-8000-000000000001",
-                target: appAssignment.target,
+                ...narrower.definition,
+                convert: { [release]: Expression.literal("vim") },
+            },
+            { package: notes },
+        ),
+    );
+    const outcome = (after: SettingDescription) => {
+        try {
+            return compareSetting(before, after, release).steps;
+        } catch (error) {
+            return (error as Error).message;
+        }
+    };
+
+    // widen safely, convert a narrowing with a conversion, and refuse one without
+    expect([
+        outcome(before),
+        outcome(wider),
+        outcome(converted),
+        outcome(describeSetting(narrower)),
+    ]).toEqual([
+        [],
+        [
+            {
+                kind: "wider",
+                risk: "safe",
+                target: "setting editor.mode",
+                detail: "wider setting editor.mode",
             },
         ],
-        overridden: [{ kind: "default", package: notes }],
-        enforcement: "ordinary",
-        validUntil: null,
-    };
-    expect(resolveSetting(shared, local, 100000)).toEqual(expected);
-
-    // the same Home choice follows it to another installation, while another app retains defaults
-    const elsewhere = SettingTarget.parse({
-        ...home,
-        location: { spaceId: "space-019f5530-8000-7000-8000-000000000021" },
-    });
-    expect(resolveSetting(shared, { ...local, target: elsewhere }, 100000)).toEqual({
-        ...expected,
-        target: elsewhere,
-    });
-    expect(resolveSetting(shared, { ...local, target }, 100000)).toEqual({
-        ...expected,
-        target,
-        value: "standard",
-        sources: [{ kind: "default", package: notes }],
-        overridden: [],
-    });
-
-    // expired remote authority cannot become locally authoritative merely because its cache is empty
-    expect(() => resolveSetting(shared, { ...local, validUntil: 2000 }, 100000)).toThrowError(
-        "setting policy selection has expired",
-    );
-
-    // equally specific administrators cannot silently override one another
-    const recommendation = { ...required, mode: "recommended" as const };
-    const account = {
-        ...recommendation,
-        id: identifier("setting-policy").parse(
-            "setting-policy-019f5530-8000-7000-8000-000000000022",
-        ),
-        authority: {
-            kind: "account" as const,
-            accountId: identifier("account").parse("account-019f5530-8000-7000-8000-000000000023"),
-        },
-        value: "standard",
-    };
-    expect(() =>
-        resolveSetting(shared, { ...local, policies: [recommendation, account] }, 100000),
-    ).toThrowError("multiple setting values have the same precedence");
+        [
+            {
+                kind: "convert",
+                risk: "data-dependent",
+                target: "setting editor.mode",
+                detail: `convert setting editor.mode to ${release}`,
+            },
+        ],
+        "setting editor.mode: declare a conversion for 2026.9.0",
+    ]);
 });

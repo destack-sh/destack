@@ -1,6 +1,24 @@
 {
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-019f5530-8000-7000-8000-000000000001",
     "language": "typescript",
     "targets": ["browser", "server"],
-    "runtimes": ["browser", "bun", "workerd"]
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        "./reconcile": {
+            "targets": ["server"]
+        }
+    },
+    "declarations": {
+        "defineSetting": {
+            "module": 1,
+            "describes": [
+                {
+                    "kind": "setting",
+                    "function": "./inspect#describeSetting",
+                    "compare": "./inspect#compareSetting"
+                }
+            ]
+        }
+    }
 }

@@ -1,80 +1,87 @@
-import { declaringModule, type ModuleMetadata } from "@destack/package";
-import { defineSchema, schema } from "@destack/schema";
+import { Expression } from "@destack/db/query";
+import { declaringModule, Package, type ModuleMetadata } from "@destack/package";
+import { defineSchema, schema, type Version } from "@destack/schema";
 import { Setting, SettingName } from "../setting/setting.ts";
 
-/** Supported base scopes and their permitted refinements. */
+/** The scope a setting belongs to and the overrides it permits. */
 export const SettingScope = defineSchema(
     schema.discriminatedUnion("scope", [
         schema.object({
-            /** Personal values resolved for the represented user. */
+            /** A value of each user. */
             scope: schema.literal("user"),
-            /** Refinements enabled for this declaration. */
+            /** The overrides the setting permits. */
             overrides: schema.array(schema.enum(["package", "space", "installation", "device"])),
         }),
         schema.object({
-            /** Shared values resolved for the receiving space. */
+            /** A value of each space. */
             scope: schema.literal("space"),
-            /** Installation-specific configuration, when supported. */
+            /** The overrides the setting permits. */
             overrides: schema.array(schema.literal("installation")),
         }),
         schema.object({
-            /** Values retained on one execution host. */
+            /** A value of each host. */
             scope: schema.literal("host"),
-            /** Host settings have no implicit child scope. */
+            /** The overrides the setting permits: none. */
             overrides: schema.tuple([]),
         }),
     ]),
 );
-/** Supported base scope and refinements. */
+/** The scope a setting belongs to and the overrides it permits. */
 export type SettingScope = schema.Infer<typeof SettingScope>;
 
-/** Setting metadata shared by authoring and inspection. */
+/** The serializable fields of a setting declaration. */
 export const SettingMetadata = defineSchema(
     schema.object({
-        /** The stable package-local name. */
+        /** The package-local name. */
         name: SettingName,
-        /** The label used in settings views. */
+        /** The label settings views show. */
         title: schema.string().min(1),
-        /** The behavior controlled by the value. */
+        /** The behavior the value controls. */
         description: schema.string().min(1),
-        /** An optional presentation group within the declaring package. */
+        /** The group settings views show it in. */
         group: schema.string().min(1).optional(),
-        /** When a consumer applies a changed effective value. */
+        /** When a consumer applies a changed value. */
         apply: schema.enum(["immediate", "restart"]),
-        /** Migration guidance for a declaration retained for compatibility. */
+        /** The migration guidance of a deprecated setting. */
         deprecated: schema.string().min(1).optional(),
     }),
 );
 
-/** A setting as authored: metadata, scopes, the native value schema and its default. */
+/** A setting as authored. */
 export type SettingDefinition<Value extends schema.Schema = schema.Schema> = schema.Infer<
     typeof SettingMetadata
 > &
     SettingScope & {
-        /** The native validator shared by writes and consumers. */
+        /** The value schema. */
         readonly schema: Value;
-        /** The complete value used when no assignment or policy supplies one. */
+        /** The value when no placed value applies. */
         readonly default: schema.Infer<Value>;
+        /** The value each release computes from a value of an earlier release, read as the column `value`, by the release introducing it. */
+        readonly convert?: Readonly<Record<Version, Expression>>;
     };
 
-/** Declare a typed setting without reading or writing assignments. */
+/** Declare a typed setting. */
 export function defineSetting<Value extends schema.Schema>(
     definition: SettingDefinition<Value>,
     module?: ModuleMetadata,
 ): Setting<Value> {
-    // stamp the declaring package supplied by the module transform
-    const owner = declaringModule(module, "defineSetting").package;
+    // stamp the declaring package
+    const owner = Package.parse(declaringModule(module, "defineSetting").package);
 
-    // validate serializable metadata independently of the native schema
+    // validate the serializable fields
     const {
         schema: valueSchema,
         default: defaultValue,
         scope,
         overrides,
+        convert,
         ...metadata
     } = definition;
     SettingMetadata.parse(metadata);
     SettingScope.parse({ scope, overrides });
+
+    // require conversions keyed by releases up to the declaring one
+    Expression.requireReleases(convert ?? {}, owner.version, definition.name);
 
     // require a declarative value schema and a valid JSON default
     defineSchema(valueSchema);

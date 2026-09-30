@@ -5,7 +5,7 @@
     "type": "module",
     "license": "MIT",
     "sideEffects": false,
-    "description": "Declare, resolve and administer scoped settings.",
+    "description": "Declare, place and resolve scoped settings.",
     "exports": {
         ".": "./src/index.ts",
         "./destack.json": "./destack.json",
@@ -14,22 +14,26 @@
         "./service": "./src/service/index.ts",
         "./client": "./src/client/index.ts",
         "./stack": "./src/stack/index.ts",
-        "./database": "./src/database/index.ts",
-        "./server": "./src/server/index.ts"
+        "./server": "./src/server/index.ts",
+        "./reconcile": "./src/reconcile/index.ts",
+        "./object": "./src/object/index.ts"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
+        "@destack/sync": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/host": "workspace:*",
         "@destack/audit": "workspace:*",
         "@destack/db": "workspace:*",
-        "uuid": "14.0.2",
         "@destack/access": "workspace:*",
-        "@destack/model": "workspace:*",
+        "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@destack/service": "workspace:*"
+        "@destack/service": "workspace:*",
+        "@destack/space": "workspace:*"
     },
     "devDependencies": {
         "@destack/resource": "workspace:*",

@@ -1,3 +1,2 @@
 export * from "./setting.ts";
-export * from "./assignment.ts";
-export * from "./policy.ts";
+export * from "./space.ts";

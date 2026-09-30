@@ -1,12 +1,27 @@
-/** An explicit setting resolution failure without private assignment contents. */
-export class SettingError extends Error {
-    /** Machine-readable failure category. */
-    readonly code: "INVALID_TARGET" | "INVALID_VALUE" | "CONFLICT" | "STALE_POLICY";
+import { ServiceError } from "@destack/service/error";
 
-    /** Report a declaration or resolution failure. */
+/** The service error code of each setting failure. */
+const SERVICE_CODES = {
+    UNDECLARED: "NOT_FOUND",
+    INVALID_VALUE: "BAD_REQUEST",
+    INVALID_PLACEMENT: "BAD_REQUEST",
+    CONFLICT: "CONFLICT",
+} as const;
+
+/** A setting declaration, placement or resolution failure. */
+export class SettingError extends Error {
+    /** The failure category. */
+    readonly code: keyof typeof SERVICE_CODES;
+
+    /** Report a setting failure. */
     constructor(code: SettingError["code"], message: string) {
         super(message);
         this.name = "SettingError";
         this.code = code;
+    }
+
+    /** Convert the failure to the service error a caller receives. */
+    toServiceError() {
+        return new ServiceError(SERVICE_CODES[this.code], { message: this.message, cause: this });
     }
 }

@@ -1,98 +1,122 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { connect } from "@destack/db/turso";
-import * as postgres from "@destack/db/postgres";
-import { orderSchemas } from "@destack/db";
-import { migrate } from "@destack/db/migration";
+import { outbox } from "@destack/service/outbox";
+import { copyOwner, copyScope } from "@destack/access/test";
+import { Scope, type ObjectReference } from "@destack/sync";
+import { TestDatabase } from "@destack/db/test";
 import { AuditRecorder } from "@destack/audit";
 import { AuditOutbox } from "@destack/audit/outbox";
-import { settingSchema } from "../../src/stack/index.ts";
-import { SettingStore, type SettingWrite } from "../../src/database/index.ts";
-import { notes } from "./settings/index.ts";
-import { Subject } from "@destack/access";
-import { identifier } from "@destack/schema";
+import { Bookmark } from "@destack/service/bookmark";
+import { RequestId } from "@destack/service/request";
+import type { ServiceContext } from "@destack/service/server";
+import { accessTables, principal, Subject } from "@destack/access";
+import { device, type Device } from "@destack/account/object";
+import type { DatabaseConnection, Dialect } from "@destack/db";
+import type { ObjectType } from "@destack/object";
+import { ObjectServer } from "@destack/object/server";
+import { Journal } from "@destack/service/database";
+import { settingJournal, settingTables } from "../../src/stack/index.ts";
+import { servedObjects, type SettingServiceOptions } from "../../src/server/index.ts";
+import type { Setting } from "../../src/setting/index.ts";
+import { editor, lineNumbers, notes, release } from "./settings/index.ts";
+import { alice } from "./value.ts";
 
-/** Real settings persistence using the package's committed migrations. */
+/** Setting values and Alice's devices served from a migrated test database. */
 export class Storage {
-    /** Isolated database directory removed after the scenario. */
-    readonly directory: string;
-    /** Embedded asynchronous SQL connection. */
-    readonly database:
-        | Awaited<ReturnType<typeof connect>>
-        | Awaited<ReturnType<typeof postgres.connect>>;
-    /** Isolated PostgreSQL database name, when exercising the hosted dialect. */
-    readonly name?: string;
-    /** Store under examination. */
-    readonly store: SettingStore;
-    /** Verified local attribution and transactional audit writer. */
-    readonly context: SettingWrite;
+    /** The isolated database. */
+    readonly test: TestDatabase;
+    /** The database's connection. */
+    readonly database: TestDatabase["database"];
+    /** Alice, who owns the scopes she writes in. */
+    readonly subject: Subject;
+    /** The database, releases and audit serving values. */
+    readonly options: SettingServiceOptions;
+    /** The served setting values and devices. */
+    readonly objects: ObjectServer<ReturnType<typeof servedObjects> & { device: typeof device }>;
 
-    /** Bind persistence and audit to the same database. */
-    constructor(directory: string, database: Storage["database"], name?: string) {
-        this.directory = directory;
-        this.database = database;
-        this.name = name;
-        this.store = new SettingStore(database);
-        this.context = {
-            subject: Subject.parse({
-                kind: "user",
-                authority: "global",
-                id: "user-019f5530-8000-7000-8000-000000000003",
-            }),
-            audit: new AuditRecorder(
-                {
-                    actor: {
-                        type: "user",
-                        authority: "global",
-                        id: identifier("user").parse("user-019f5530-8000-7000-8000-000000000003"),
-                    },
-                    delegation: [],
-                    package: notes,
-                    service: "setting",
-                },
-                new AuditOutbox(database),
-            ),
+    /** Serve values checked against a release declaring some settings. */
+    constructor(test: TestDatabase, declarations: readonly Setting[]) {
+        this.test = test;
+        this.database = test.database;
+        this.subject = Subject.parse(principal.user.reference(Scope.universe.id, alice));
+        const reader = release(declarations);
+        this.options = {
+            database: test.database,
+            release: () => reader,
+            audit: (scope) => this.audit(scope),
         };
+        this.objects = new ObjectServer({
+            objects: { ...servedObjects(this.options.release), device },
+            database: test.database,
+            context: (context, scope) => context.access(scope),
+            journal: new Journal(settingJournal),
+            audit: this.options.audit,
+        });
     }
 
-    /** Open a migrated database without handwritten test DDL. */
-    static async open(): Promise<Storage> {
-        const directory = await mkdtemp(join(tmpdir(), "destack-setting-"));
-        let database: Storage["database"];
-        let name: string | undefined;
-        if (process.env.DESTACK_TEST_POSTGRES) {
-            const administration = await postgres.connect(process.env.DESTACK_TEST_POSTGRES);
-            name = `setting_${crypto.randomUUID().replaceAll("-", "")}`;
-            try {
-                await administration.$client.unsafe(`CREATE DATABASE "${name}"`);
-            } finally {
-                await administration.close();
-            }
-            const url = new URL(process.env.DESTACK_TEST_POSTGRES);
-            url.pathname = `/${name}`;
-            database = await postgres.connect(url.href, settingSchema);
-        } else {
-            database = await connect(join(directory, "setting.db"), settingSchema);
-        }
-        for (const definition of orderSchemas([settingSchema])) {
-            await migrate(database, definition);
-        }
-
-        return new Storage(directory, database, name);
+    /** Record Alice's audit events in a scope. */
+    audit(scope: string): AuditRecorder<DatabaseConnection> {
+        return new AuditRecorder(
+            {
+                actor: { type: "subject", subject: this.subject },
+                delegation: [],
+                scope,
+                package: notes,
+                service: "setting",
+            },
+            new AuditOutbox(this.test.database),
+        );
     }
 
-    /** Release database handles before removing the scenario's files. */
-    async close(): Promise<void> {
-        await this.database.close();
-        if (this.name) {
-            const administration = await postgres.connect(process.env.DESTACK_TEST_POSTGRES!);
-            try {
-                await administration.$client.unsafe(`DROP DATABASE "${this.name}"`);
-            } finally {
-                await administration.close();
-            }
-        }
-        await rm(this.directory, { recursive: true });
+    /** Let Alice own a scope. */
+    async own(scope: ObjectReference): Promise<void> {
+        await copyScope(this.database, scope);
+        await copyOwner(this.database, scope, this.subject);
+    }
+
+    /** Call a method as Alice in a scope. */
+    call(
+        object: ObjectType,
+        name: string,
+        scope: string,
+        input: Readonly<Record<string, unknown>>,
+    ): Promise<unknown> {
+        const context = {
+            scope,
+            requestId: RequestId.create(),
+            requireCaller: () => ({ id: alice }),
+            access: () => ({ subjects: [this.subject], now: Date.now(), attributes: {} }),
+            bookmark: new Bookmark(),
+            observed: new Bookmark(),
+            signal: new AbortController().signal,
+        } as unknown as ServiceContext;
+
+        return this.objects.call(
+            object,
+            name,
+            { [object.route.field!]: scope, requestId: RequestId.create(), ...input },
+            context,
+        );
+    }
+
+    /** Register a device of Alice's. */
+    register(name: string): Promise<Device> {
+        return this.call(device, "create", alice, { name }) as Promise<Device>;
+    }
+
+    /** Open a database of a dialect with Alice's own personal scope. */
+    static async open(
+        dialect: Dialect,
+        declarations: readonly Setting[] = [editor, lineNumbers],
+    ): Promise<Storage> {
+        const tables = [...accessTables, ...settingTables, device.table, outbox];
+        const test = await TestDatabase.create(dialect, tables, { isMigrated: true });
+        const storage = new Storage(test, declarations);
+        await storage.own(principal.user.reference(Scope.universe.id, alice));
+
+        return storage;
+    }
+
+    /** Close the connection and remove the database. */
+    close(): Promise<void> {
+        return this.test.close();
     }
 }
