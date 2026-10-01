@@ -2,7 +2,7 @@ import { principal } from "@destack/access";
 import type { Subject } from "@destack/sync";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { Caller } from "../../authentication/index.ts";
+import { Authentication } from "../../authentication/index.ts";
 import { ServiceError } from "../../error/index.ts";
 import { defineService } from "../../declare/index.ts";
 
@@ -18,17 +18,17 @@ export const hosting = {
             throw new ServiceError("UNAUTHORIZED", { message: "invalid caller name" });
         }
 
-        return createCaller(name);
+        return createAuthentication(name);
     },
     authorizeHost: async () => {},
 };
 
 /** Create a verified caller for a fixture user. */
-export function createCaller(name: string): Caller {
+export function createAuthentication(name: string): Authentication {
     const subject: Subject = principal.user.reference("universe", name);
     const now = Date.now();
 
-    return new Caller({
+    return new Authentication({
         subject,
         subjects: [subject],
         credential: { kind: "user", id: name },

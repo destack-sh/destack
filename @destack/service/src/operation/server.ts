@@ -14,17 +14,19 @@ export function implementOperation<Result, Progress>(
 
     return implementation.router({
         get: implementation.get.handler(({ input, context }) =>
-            store.get(context.requireCaller().id, input.id),
+            store.get(context.requireAuthentication().id, input.id),
         ),
-        list: implementation.list.handler(({ context }) => store.list(context.requireCaller().id)),
+        list: implementation.list.handler(({ context }) =>
+            store.list(context.requireAuthentication().id),
+        ),
         watch: implementation.watch.handler(({ input, context, signal }) =>
-            store.watch(context.requireCaller().id, input.id, signal),
+            store.watch(context.requireAuthentication().id, input.id, signal),
         ),
         cancel: implementation.cancel.handler(({ input, context }) =>
-            store.cancel(context.requireCaller().id, input.id),
+            store.cancel(context.requireAuthentication().id, input.id),
         ),
         delete: implementation.delete.handler(({ input, context }) => {
-            store.delete(context.requireCaller().id, input.id);
+            store.delete(context.requireAuthentication().id, input.id);
 
             return null;
         }),

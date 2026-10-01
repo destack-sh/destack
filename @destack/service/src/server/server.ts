@@ -3,9 +3,9 @@ import type { Health } from "../health/health.ts";
 import { ServiceHandler, type HandlerOptions, type Router } from "./handler.ts";
 import { isProcedure } from "@orpc/server";
 import { ProcedureMeta } from "../procedure/procedure.ts";
-import { Capability, AccessContext } from "@destack/access";
+import { Capability, Caller } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
-import type { Caller } from "../authentication/index.ts";
+import type { Authentication } from "../authentication/index.ts";
 import type { ServiceRouter } from "../service/index.ts";
 import { ServiceError } from "../error/index.ts";
 import { BOOKMARK_HEADER, type Bookmark } from "../bookmark/index.ts";
@@ -191,16 +191,16 @@ export class Server implements AsyncDisposable {
     /** Authenticate a request and build its context. */
     static async #authenticate(request: Request, options: ServerOptions): Promise<ServiceContext> {
         // authenticate the request
-        let caller: Caller | null = null;
+        let authentication: Authentication | null = null;
         let authenticationError: unknown;
         try {
             const authenticated = await options.authenticate(request);
             authenticated?.requireCurrent(
                 options.audience,
                 Date.now(),
-                options.scope ?? authenticated.authentication.scope,
+                options.scope ?? authenticated.claims.scope,
             );
-            caller = authenticated;
+            authentication = authenticated;
         } catch (error) {
             authenticationError =
                 error ?? new ServiceError("UNAUTHORIZED", { message: "authentication failed" });
@@ -219,8 +219,8 @@ export class Server implements AsyncDisposable {
 
         return new ServiceContext(request, {
             audience: options.audience,
-            scope: options.scope ?? caller?.authentication.scope,
-            caller,
+            scope: options.scope ?? authentication?.claims.scope,
+            authentication,
             resources: options.resources,
             access: options.access,
             authenticationError,
@@ -236,7 +236,7 @@ export class Server implements AsyncDisposable {
     ): Promise<void> {
         // require identity on protected routes
         if (call.access.authentication !== "public") {
-            call.context.requireCaller();
+            call.context.requireAuthentication();
         }
 
         // renew the call's access
@@ -251,7 +251,7 @@ export class Server implements AsyncDisposable {
         }
         // check the caller in the service's scope
         else {
-            AccessContext.delegation(call.context.access());
+            Caller.delegation(call.context.access());
         }
 
         // let the host authorize the call
@@ -420,7 +420,7 @@ export interface ServerOptions extends ServiceImplementation {
     /** The installation's resource clients. */
     resources: ResourceContext;
     /** Verify credentials, returning null without a credential. */
-    authenticate(request: Request): Promise<Caller | null>;
+    authenticate(request: Request): Promise<Authentication | null>;
     /** Enforce installation and host-only requirements. */
     authorizeHost(call: ProcedureCall<ServiceContext>): Promise<void>;
     /** The longest drain, in milliseconds. */

@@ -6,12 +6,12 @@ import { createClient } from "../client/index.ts";
 import { defineService } from "../declare/index.ts";
 import { eventIterator, defineProcedure } from "../service/index.ts";
 import { implement, Server, type ServerOptions } from "./index.ts";
-import { createCaller, hosting } from "./tests/fixture.ts";
+import { createAuthentication, hosting } from "./tests/fixture.ts";
 import { Observable } from "../observable/index.ts";
 import { ServiceError } from "../error/index.ts";
 import type { ServiceContext } from "./context.ts";
 import { Bookmark, Watermark } from "../bookmark/index.ts";
-import { Caller } from "../authentication/index.ts";
+import { Authentication } from "../authentication/index.ts";
 
 /** The authentication lifetime of the lapsing callers, short enough for a fast test. */
 const LAPSE_MILLISECONDS = 200;
@@ -41,7 +41,7 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
         },
         router: implementation.router({
             watch: implementation.watch.handler(async function* ({ context }) {
-                expect(context.requireCaller().authentication.subject.id).toBe("alice");
+                expect(context.requireAuthentication().claims.subject.id).toBe("alice");
                 expect(context.access().subject?.id).toBe("alice");
                 expect(context.application).toBe("snapshot");
                 yield requests;
@@ -98,10 +98,10 @@ test.for([
             health: new Health("lapse"),
             drainTimeout: 1000,
             authenticate: async () => {
-                const { authentication } = createCaller("alice");
+                const { claims } = createAuthentication("alice");
 
-                return new Caller({
-                    ...authentication,
+                return new Authentication({
+                    ...claims,
                     expiresAt: Date.now() + LAPSE_MILLISECONDS,
                 });
             },

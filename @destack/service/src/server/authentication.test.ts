@@ -19,7 +19,7 @@ import { boolean, defineTable, eq, text } from "@destack/db";
 import { Condition } from "@destack/db/query";
 import { TestDatabase } from "@destack/db/test";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
-import { Caller, TokenIssuer, TokenVerifier } from "../authentication/index.ts";
+import { Authentication, TokenIssuer, TokenVerifier } from "../authentication/index.ts";
 import { Health } from "../health/index.ts";
 import { ServiceError } from "../error/index.ts";
 import { defineProcedure, eventIterator } from "../service/index.ts";
@@ -28,7 +28,7 @@ import { defineService } from "../declare/index.ts";
 import { implement } from "./handler.ts";
 import { Server } from "./server.ts";
 import type { ServiceContext } from "./context.ts";
-import { createCaller, hosting } from "./tests/fixture.ts";
+import { createAuthentication, hosting } from "./tests/fixture.ts";
 
 test.each(["universe", "host-local", "account-personal", "space-personal"])(
     "enforce the configured %s authorization scope",
@@ -47,7 +47,10 @@ test.each(["universe", "host-local", "account-personal", "space-personal"])(
             health: new Health("scope"),
             drainTimeout: 100,
             authenticate: async () =>
-                new Caller({ ...createCaller("alice").authentication, scope: credentialScope }),
+                new Authentication({
+                    ...createAuthentication("alice").claims,
+                    scope: credentialScope,
+                }),
             router: implementation.router({
                 read: implementation.read.handler(({ context }) => context.scope!),
             }),
@@ -134,7 +137,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     for (const subject of [owner, guest]) {
         const now = Date.now();
         const token = await issuer.issue(
-            new Caller({
+            new Authentication({
                 subject,
                 subjects: [subject],
                 credential: { kind: "user", id: subject.id },
@@ -207,7 +210,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
         },
         router: implementation.router({
             me: implementation.me.handler(
-                ({ context }) => context.requireCaller().authentication.subject.id,
+                ({ context }) => context.requireAuthentication().claims.subject.id,
             ),
             read: implementation.read.handler(({ context }) => {
                 invocations++;
@@ -254,7 +257,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     // restrict an owner's credential to one object
     const now = Date.now();
     const restricted = await issuer.issue(
-        new Caller({
+        new Authentication({
             subject: owner,
             subjects: [owner],
             credential: { kind: "personal", id: "restricted-token" },

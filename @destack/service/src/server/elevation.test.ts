@@ -4,7 +4,7 @@ import { schema } from "@destack/schema";
 import { accessTables, Authorizer, Policy, principal, relation } from "@destack/access";
 import { defineTable, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { Caller } from "../authentication/index.ts";
+import { Authentication } from "../authentication/index.ts";
 import { Health } from "../health/index.ts";
 import { defineProcedure } from "../service/index.ts";
 import { createClient } from "../client/index.ts";
@@ -84,7 +84,7 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
             const subject = principal.user.reference("universe", "alice");
             const now = Date.now();
 
-            return new Caller({
+            return new Authentication({
                 subject,
                 subjects: [subject],
                 credential: { kind: "user", id: "alice" },

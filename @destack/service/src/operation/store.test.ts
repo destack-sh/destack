@@ -5,7 +5,7 @@ import { createClient } from "../client/index.ts";
 import { defineOperation, defineOperationProcedures } from "./index.ts";
 import { ServiceError } from "../error/index.ts";
 import { implementOperation, OperationStore, Server } from "../server/index.ts";
-import { hosting, createCaller } from "../server/tests/fixture.ts";
+import { hosting, createAuthentication } from "../server/tests/fixture.ts";
 import { defineService } from "../declare/index.ts";
 import { VERSION_HEADER } from "../request/index.ts";
 
@@ -26,7 +26,7 @@ test.for([undefined, "/builds"] as const)(
         // serve the procedures
         const service = defineService("operations", defineOperationProcedures(definition, path));
         const router = implementOperation(store, path);
-        const alice = createCaller("alice");
+        const alice = createAuthentication("alice");
         await using server = Server.start({
             ...hosting,
             service,

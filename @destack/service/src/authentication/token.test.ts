@@ -3,8 +3,8 @@ import type { Subject } from "@destack/sync";
 import { exportJWK, generateKeyPair, SignJWT, type JWTPayload } from "jose";
 import { TokenVerifier } from "./token.ts";
 import { TokenIssuer } from "./issuer.ts";
-import { Caller } from "./caller.ts";
-import { principal, Restriction, AccessContext } from "@destack/access";
+import { Authentication } from "./authentication.ts";
+import { principal, Restriction, Caller } from "@destack/access";
 import { PackageId } from "@destack/package";
 import { identifier } from "@destack/schema";
 
@@ -173,8 +173,8 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     );
     const read = { packageId: PackageId.parse(audience), type: "note", name: "read" };
     const selection = { ...read, scope: spaceId, objectId: "note-one" };
-    const delegated = new Caller({
-        ...caller.authentication,
+    const delegated = new Authentication({
+        ...caller.claims,
         deployments: [{ subject: actor, id: deploymentId }],
         delegates: [{ subject: actor, authority: "lent" }],
         permissions: [selection],
@@ -198,14 +198,14 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         spaceId,
         issuedAt * 1000,
     );
-    expect(represented.authentication.deployments).toEqual([{ subject: actor, id: deploymentId }]);
-    expect(represented.authentication.delegates).toEqual([{ subject: actor, authority: "lent" }]);
+    expect(represented.claims.deployments).toEqual([{ subject: actor, id: deploymentId }]);
+    expect(represented.claims.delegates).toEqual([{ subject: actor, authority: "lent" }]);
     const access = represented.context(audience, issuedAt * 1000, spaceId);
     expect([access.assurance, access.identifiers]).toEqual([
         { level: 2, authenticatedAt: issuedAt * 1000 },
         ["email:alice@example.com"],
     ]);
-    expect(AccessContext.delegation(access)).toEqual([
+    expect(Caller.delegation(access)).toEqual([
         { delegate: actor, delegator: subject, authority: "lent" },
     ]);
     expect(
@@ -217,8 +217,8 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     const secondDeployment = identifier("deployment").parse(
         "deployment-019f7480-0000-7000-8000-000000000005",
     );
-    const chain = new Caller({
-        ...delegated.authentication,
+    const chain = new Authentication({
+        ...delegated.claims,
         deployments: [
             { subject: actor, id: deploymentId },
             { subject: secondActor, id: secondDeployment },
@@ -236,17 +236,15 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         spaceId,
         issuedAt * 1000,
     );
-    expect(chainedCaller.authentication.deployments).toEqual(chain.authentication.deployments);
-    expect(
-        AccessContext.delegation(chainedCaller.context(audience, issuedAt * 1000, spaceId)),
-    ).toEqual([
+    expect(chainedCaller.claims.deployments).toEqual(chain.claims.deployments);
+    expect(Caller.delegation(chainedCaller.context(audience, issuedAt * 1000, spaceId))).toEqual([
         { delegate: actor, delegator: subject, authority: "lent" },
         { delegate: secondActor, delegator: actor, authority: "lent" },
     ]);
     await expect(
         authority.issue(
-            new Caller({
-                ...chain.authentication,
+            new Authentication({
+                ...chain.claims,
                 deployments: [{ subject: secondActor, id: secondDeployment }],
             }),
             issuedAt * 1000,
@@ -298,8 +296,8 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
 
     // accept only the space's own deployed software
-    const workload = new Caller({
-        ...caller.authentication,
+    const workload = new Authentication({
+        ...caller.claims,
         credential: { kind: "workload", id: "credential-example" },
         subject: actor,
         subjects: [actor],
@@ -313,11 +311,11 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         spaceId,
         issuedAt * 1000,
     );
-    expect(received.authentication.subject).toEqual(actor);
-    expect(received.authentication.deployments).toEqual([{ subject: actor, id: deploymentId }]);
+    expect(received.claims.subject).toEqual(actor);
+    expect(received.claims.deployments).toEqual([{ subject: actor, id: deploymentId }]);
     await expect(
         local.issue(
-            new Caller({ ...workload.authentication, deployments: undefined }),
+            new Authentication({ ...workload.claims, deployments: undefined }),
             issuedAt * 1000,
         ),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });

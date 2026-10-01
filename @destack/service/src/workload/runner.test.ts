@@ -2,7 +2,7 @@ import { type ReplicaSource } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal } from "@destack/access";
 import { identifier } from "@destack/schema";
-import { Caller } from "../authentication/index.ts";
+import { Authentication } from "../authentication/index.ts";
 import { defineService } from "../declare/service.ts";
 import { ServiceMount } from "../service/mount.ts";
 import { startTelemetry } from "@destack/telemetry/host";
@@ -77,7 +77,7 @@ test("serve a forwarded caller below the package's mount, and export telemetry t
                                 route: async (request, context) =>
                                     Response.json({
                                         path: new URL(request.url).pathname,
-                                        caller: context.caller?.authentication.subject.id ?? null,
+                                        caller: context.authentication?.claims.subject.id ?? null,
                                     }),
                             },
                         ],
@@ -108,7 +108,7 @@ test("serve a forwarded caller below the package's mount, and export telemetry t
     const now = Date.now();
     const alice = principal.user.reference("universe", "alice");
     const headers = new Headers({ authorization: "Bearer forwarding" });
-    new Caller({
+    new Authentication({
         subject: alice,
         subjects: [alice],
         credential: { kind: "session", id: "session" },

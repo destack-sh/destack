@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import { principal } from "@destack/access";
 import { PackageId } from "@destack/package";
 import { identifier } from "@destack/schema";
-import { Caller } from "./caller.ts";
+import { Authentication } from "./authentication.ts";
 import { Lending } from "./lending.ts";
 
 /** The space the lent-to installation serves. */
@@ -18,10 +18,10 @@ const installation = principal.installation.reference(
 const NOTES = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000b3");
 
 /** An agent acting for the owner on lent authority, narrowed to reading notes. */
-function agentCaller(now: number): Caller {
+function agentCaller(now: number): Authentication {
     const owner = principal.user.reference("universe", "user-owner");
 
-    return new Caller({
+    return new Authentication({
         credential: { kind: "session", id: "session-1" },
         audience: NOTES,
         subject: owner,
@@ -58,7 +58,7 @@ test("lend a caller's whole authority until it lapses, readable by the holder's 
         );
     const [body, mac] = token.split(".");
     const altered = `${body!.slice(0, -2)}AA.${mac!}`;
-    const { subject, subjects, delegates, permissions } = caller.authentication;
+    const { subject, subjects, delegates, permissions } = caller.claims;
     expect([
         await kept.verify(token, now + 60_000),
         await refused(lending.verify(token, now + 60 * 60_000)),

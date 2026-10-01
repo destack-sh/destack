@@ -1,9 +1,9 @@
 import { type ObjectReference } from "@destack/sync";
 import type { PackageId } from "@destack/package";
-import { Authorization, AccessContext, type Authorizer } from "@destack/access";
+import { Authorization, AccessContext, type Authorizer, Caller } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import type { ResourceContext } from "@destack/resource/context";
-import type { Caller } from "../authentication/index.ts";
+import type { Authentication } from "../authentication/index.ts";
 import { ServiceError } from "../error/index.ts";
 import type { ProcedureCall } from "./access.ts";
 import { BOOKMARK_HEADER, Bookmark } from "../bookmark/index.ts";
@@ -19,8 +19,8 @@ export class ServiceContext {
     readonly audience: PackageId;
     /** The call's scope. */
     readonly scope: string | undefined;
-    /** The authenticated caller, or null. */
-    readonly caller: Caller | null;
+    /** The caller's authentication, or null for an anonymous request. */
+    readonly authentication: Authentication | null;
     /** The installation's resource clients. */
     readonly resources: ResourceContext;
     /** The credential failure. */
@@ -45,19 +45,19 @@ export class ServiceContext {
     /** Create the context of a request. */
     constructor(request: Request, options: ServiceContextOptions) {
         // read the host state
-        const { audience, scope, caller, resources, access, authenticationError } = options;
+        const { audience, scope, authentication, resources, access, authenticationError } = options;
         const capabilities = options.capabilities ?? [];
 
         // require no caller after a failed authentication
-        if (caller !== null && authenticationError !== undefined) {
-            throw new TypeError("a failed authentication has no caller");
+        if (authentication !== null && authenticationError !== undefined) {
+            throw new TypeError("a failed authentication leaves no authentication");
         }
 
         // keep the request and caller
         this.request = request;
         this.audience = audience;
         this.scope = scope;
-        this.caller = caller;
+        this.authentication = authentication;
         this.resources = resources;
         this.authenticationError = authenticationError;
         this.capabilities = capabilities;
@@ -69,39 +69,45 @@ export class ServiceContext {
             access &&
             new Authorization(access.authorizer, access.database, (scope) => {
                 const context = this.access(scope);
-                AccessContext.delegation(context);
+                Caller.delegation(context);
 
                 return context;
             });
 
         // bind methods for middleware context copies
-        this.requireCaller = this.requireCaller.bind(this);
+        this.requireAuthentication = this.requireAuthentication.bind(this);
         this.access = this.access.bind(this);
 
         // keep the signal as an own property
         this.signal =
-            caller === null
+            authentication === null
                 ? this.request.signal
                 : AbortSignal.any([
                       this.request.signal,
-                      AbortSignal.timeout(Math.max(0, Math.ceil(caller.lapsesAt - Date.now()))),
+                      AbortSignal.timeout(
+                          Math.max(0, Math.ceil(authentication.lapsesAt - Date.now())),
+                      ),
                   ]);
     }
 
-    /** Require an authenticated caller, current as of its lapse at latest. */
-    requireCaller(): Caller {
+    /** Require the caller's authentication, current as of its lapse at latest. */
+    requireAuthentication(): Authentication {
         // report a credential failure
         if (this.authenticationError !== undefined) {
             throw this.authenticationError;
         }
 
         // require a current caller
-        if (!this.caller) {
+        if (!this.authentication) {
             throw new ServiceError("UNAUTHORIZED", { message: "missing caller credential" });
         }
-        this.caller.requireCurrent(this.audience, this.caller.within(Date.now()), this.scope);
+        this.authentication.requireCurrent(
+            this.audience,
+            this.authentication.within(Date.now()),
+            this.scope,
+        );
 
-        return this.caller;
+        return this.authentication;
     }
 
     /** Read the access context at the current time, held at the caller's lapse once passed. */
@@ -112,8 +118,12 @@ export class ServiceContext {
         }
 
         // read the caller's or an anonymous context with capabilities
-        const context = this.caller
-            ? this.caller.context(this.audience, this.caller.within(this.clock()), scope)
+        const context = this.authentication
+            ? this.authentication.context(
+                  this.audience,
+                  this.authentication.within(this.clock()),
+                  scope,
+              )
             : { subjects: [], attributes: {}, now: this.clock() };
 
         return this.capabilities.length === 0
@@ -128,8 +138,8 @@ export interface ServiceContextOptions {
     readonly audience: PackageId;
     /** The call's scope. */
     readonly scope?: string;
-    /** The authenticated caller, or null. */
-    readonly caller: Caller | null;
+    /** The caller's authentication, or null for an anonymous request. */
+    readonly authentication: Authentication | null;
     /** The resource clients bound by the host. */
     readonly resources: ResourceContext;
     /** The service's policies. */

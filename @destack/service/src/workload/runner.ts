@@ -5,7 +5,7 @@ import { telemetry } from "@destack/telemetry";
 import type { Telemetry, TelemetryOptions } from "@destack/telemetry/sdk";
 import { OtlpExporter } from "@destack/telemetry/otlp";
 import type {} from "@destack/package/import-meta";
-import { Caller } from "../authentication/index.ts";
+import { Authentication } from "../authentication/index.ts";
 import type { Service } from "../declare/service.ts";
 import { ServiceError } from "../error/index.ts";
 import { Egress } from "../service/egress.ts";
@@ -281,7 +281,7 @@ export class WorkloadRunner implements AsyncDisposable {
             drainTimeout: DRAIN_MILLISECONDS,
             authenticate: async (request: Request) => {
                 // read the caller the host forwards, the secret checked before serving
-                const caller = Caller.forwarded(request);
+                const caller = Authentication.forwarded(request);
                 caller?.requireCurrent(audience, Date.now(), start.scope);
 
                 return caller;

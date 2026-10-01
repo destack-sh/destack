@@ -1,5 +1,5 @@
 import type { JWTPayload } from "jose";
-import { Caller } from "./caller.ts";
+import { Authentication } from "./authentication.ts";
 import { TokenAuthentication, type TokenIssuerAuthority } from "./token.ts";
 import { ServiceError } from "../error/index.ts";
 
@@ -14,9 +14,9 @@ export class TokenIssuer {
     }
 
     /** Sign an access token for a caller within its verified lifetime. */
-    async issue(caller: Caller<{ kind: string; id: string }>, now = Date.now()) {
+    async issue(caller: Authentication<{ kind: string; id: string }>, now = Date.now()) {
         // keep the original verification deadline
-        const current = caller.authentication;
+        const current = caller.claims;
         caller.requireCurrent(current.audience, now, current.scope);
         const expiresAt = Math.floor(caller.lapsesAt / 1000);
         const issuedAt = Math.floor(current.verifiedAt / 1000);

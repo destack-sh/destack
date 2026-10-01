@@ -1,12 +1,12 @@
 import { identifier, Instant, schema } from "@destack/schema";
 import { ServiceError } from "../error/index.ts";
-import { type Caller, CallerAuthentication } from "./caller.ts";
+import { type Authentication, AuthenticationClaims } from "./authentication.ts";
 
 /** How long a lending holds, in milliseconds: an hour, far above the milliseconds an outbox takes to deliver a sent call. */
 const LENDING_MILLISECONDS = 60 * 60_000;
 
 /** The authority a caller lends: its subject, the subject sets it belongs to, the principals acting for it and the permissions it narrowed to. */
-export const LentAuthority = CallerAuthentication.pick({
+export const LentAuthority = AuthenticationClaims.pick({
     subject: true,
     subjects: true,
     delegates: true,
@@ -18,7 +18,7 @@ export type LentAuthority = schema.Infer<typeof LentAuthority>;
 /** A caller's authority lent to the installation it called, for the calls that installation sends. */
 export const LendingClaim = LentAuthority.extend({
     /** The installation called. */
-    installation: CallerAuthentication.shape.subject,
+    installation: AuthenticationClaims.shape.subject,
     /** The space the installation serves. */
     scope: identifier("space"),
     /** When the lending lapses, in UTC epoch milliseconds. */
@@ -71,13 +71,13 @@ export class Lending {
 
     /** Sign a caller's authority lent to an installation of a space, lapsing after an hour. */
     async sign(
-        caller: Caller,
+        caller: Authentication,
         installation: LendingClaim["installation"],
         scope: LendingClaim["scope"],
         now = Date.now(),
     ): Promise<string> {
         // sign the claim's JSON with the holder's key
-        const { subject, subjects, delegates, permissions } = caller.authentication;
+        const { subject, subjects, delegates, permissions } = caller.claims;
         const claim: LendingClaim = {
             subject,
             subjects,

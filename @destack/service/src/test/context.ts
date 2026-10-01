@@ -1,7 +1,7 @@
 import { PackageId } from "@destack/package";
 import type { Subject } from "@destack/sync";
 import { ResourceContext } from "@destack/resource/context";
-import { Caller } from "../authentication/index.ts";
+import { Authentication } from "../authentication/index.ts";
 import type { Reconciliation } from "../control/index.ts";
 import { type CallKey } from "../request/index.ts";
 import { ServiceContext } from "../server/index.ts";
@@ -26,7 +26,7 @@ export function subjectContext(
 ): ServiceContext {
     // sign the subject in for a minute
     const now = Date.now();
-    const caller = new Caller({
+    const authentication = new Authentication({
         credential: { kind: "session", id: subject.id },
         audience: AUDIENCE,
         subject,
@@ -39,7 +39,7 @@ export function subjectContext(
     return new ServiceContext(request, {
         audience: AUDIENCE,
         scope,
-        caller,
+        authentication,
         resources: new ResourceContext(),
     });
 }

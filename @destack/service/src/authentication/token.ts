@@ -10,11 +10,11 @@ import {
 } from "jose";
 import { schema, identifier } from "@destack/schema";
 import {
-    Caller,
-    CallerAuthentication,
-    CALLER_LIFETIME_MILLISECONDS,
-    CALLER_CLOCK_TOLERANCE_MILLISECONDS,
-} from "./caller.ts";
+    Authentication,
+    AuthenticationClaims,
+    AUTHENTICATION_LIFETIME_MILLISECONDS,
+    AUTHENTICATION_CLOCK_TOLERANCE_MILLISECONDS,
+} from "./authentication.ts";
 import { ServiceError } from "../error/index.ts";
 
 /** The longest interval between public key refreshes, in milliseconds. */
@@ -23,7 +23,7 @@ const KEY_CACHE_MILLISECONDS = 60000;
 const KEY_TIMEOUT_MILLISECONDS = 5000;
 
 /** The signed identity and restrictions of a caller in one space or the universe: its authentication without its receiver and times. */
-export const TokenAuthentication = CallerAuthentication.omit({
+export const TokenAuthentication = AuthenticationClaims.omit({
     scope: true,
     audience: true,
     verifiedAt: true,
@@ -76,7 +76,7 @@ export class TokenVerifier {
         request: Request,
         spaceId?: string,
         now = Date.now(),
-    ): Promise<Caller<schema.Infer<typeof TokenAuthentication>["credential"]>> {
+    ): Promise<Authentication<schema.Infer<typeof TokenAuthentication>["credential"]>> {
         // require one bearer token
         const token = Bearer.read(request.headers);
         if (token === undefined) {
@@ -91,8 +91,8 @@ export class TokenVerifier {
                 audience: this.options.audience,
                 algorithms: ["ES256"],
                 requiredClaims: ["iss", "aud", "sub", "iat", "exp", "jti"],
-                maxTokenAge: CALLER_LIFETIME_MILLISECONDS / 1000,
-                clockTolerance: CALLER_CLOCK_TOLERANCE_MILLISECONDS / 1000,
+                maxTokenAge: AUTHENTICATION_LIFETIME_MILLISECONDS / 1000,
+                clockTolerance: AUTHENTICATION_CLOCK_TOLERANCE_MILLISECONDS / 1000,
                 currentDate: new Date(now),
             }));
         } catch (error) {
@@ -133,13 +133,13 @@ export class TokenVerifier {
             !Number.isInteger(payload.iat) ||
             !Number.isInteger(payload.exp) ||
             payload.exp! <= payload.iat! ||
-            (payload.exp! - payload.iat!) * 1000 > CALLER_LIFETIME_MILLISECONDS
+            (payload.exp! - payload.iat!) * 1000 > AUTHENTICATION_LIFETIME_MILLISECONDS
         ) {
             throw new ServiceError("UNAUTHORIZED", { message: "invalid access token claims" });
         }
 
         // build the caller and check it
-        const caller = new Caller({
+        const caller = new Authentication({
             ...parsed.data,
             scope: parsed.data.spaceId,
             audience: this.options.audience,
