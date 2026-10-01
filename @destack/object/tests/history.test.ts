@@ -14,6 +14,7 @@ import { defineObject, field, Intrinsic, method, type ObjectType } from "../src/
 import { ObjectServer } from "../src/server/index.ts";
 import { request, user } from "./schema.ts";
 import { openSpace, space } from "./fixture/space.ts";
+import { testJournalKey } from "@destack/service/test";
 
 /** The space containing the pages. */
 const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000007");
@@ -129,7 +130,7 @@ test.for(TEST_DIALECTS)(
 
         // read the page before each later session, and find nothing before it existed
         const read = async (at: object) => {
-            const row = (await call(page, "history", { id: created.id, at })) as unknown as {
+            const row = (await call(page, "get", { id: created.id, at })) as unknown as {
                 title: string;
                 body: string;
             };
@@ -142,8 +143,17 @@ test.for(TEST_DIALECTS)(
         ]);
         await expect(read(sessions[0]!.from)).rejects.toMatchObject({ code: "NOT_FOUND" });
 
-        // find nothing for bob before he was granted the page, nor for carol ever
+        // list the pages at a position as each caller could read them then and now
+        const listed = async (at: object) =>
+            (
+                (await call(page, "list", { at })) as unknown as { items: { title: string }[] }
+            ).items.map((item) => item.title);
+        const aliceListed = await listed(beforeGrant);
         as("bob");
+        const bobListed = await listed(beforeGrant);
+        expect([aliceListed, bobListed]).toEqual([["Plan"], []]);
+
+        // find nothing for bob before he was granted the page, nor for carol ever
         await expect(read(beforeGrant)).rejects.toMatchObject({ code: "NOT_FOUND" });
         expect(await read(sessions[2]!.from)).toEqual(["Roadmap", "outline"]);
         as("carol");
@@ -219,7 +229,7 @@ test("refuse serving history that reads through an object keeping none", () => {
                 objects: { activity, folder, sheet },
                 database: { copies: () => false } as unknown as DatabaseConnection,
                 context: () => ({ subjects: [], now: 0, attributes: {} }),
-                journal: new Journal(request),
+                journal: new Journal(request, testJournalKey),
                 audit: () => ({}) as AuditRecorder<DatabaseConnection>,
             }),
     ).toThrow(
@@ -253,7 +263,7 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
             now,
             attributes: {},
         }),
-        journal: new Journal(request),
+        journal: new Journal(request, testJournalKey),
         audit: AuditRecorder.service(new AuditOutbox(storage.database), {
             package: activity.package,
             service: "test",

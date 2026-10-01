@@ -56,7 +56,7 @@ import {
 } from "../method/procedure.ts";
 import { kebabCase } from "../object/name.ts";
 import { Listing } from "../query/listing.ts";
-import { ListedShape, QueryShape, type ObjectInclude } from "../replica/replica.ts";
+import { ListedShape, QueryShape, ViewShape, type ObjectInclude } from "../replica/replica.ts";
 import type { ObjectType } from "../object/object.ts";
 import { versioned } from "./versioned.ts";
 import { Manager } from "./declarable.ts";
@@ -145,7 +145,7 @@ export function get<const Permission extends string>(
         result: "object",
         procedure: (_name, shapes) => ({
             route: { method: "GET", path: "/{id}" },
-            input: shapes.target,
+            input: shapes.target.extend(ViewShape),
             output: shapes.row,
         }),
         effect: async (call) => call.target,
@@ -164,7 +164,7 @@ export function list<const Permission extends string>(
         result: "page",
         procedure: (_name, shapes) => ({
             route: { method: "POST", path: "/query" },
-            input: shapes.scope.extend({ ...QueryShape, ...PageShape }),
+            input: shapes.scope.extend({ ...QueryShape, ...PageShape, ...ViewShape }),
             output: page(shapes.row).extend(ListedShape),
         }),
         effect: listObjects,
@@ -773,9 +773,17 @@ async function createdId(call: Call): Promise<string> {
 /** Read a page of a query's rows or its aggregate groups. */
 async function listObjects(call: Call) {
     // bind the cursor to the query
-    const { cursor, limit, ...shape } = call.input as ObjectInclude & {
+    const {
+        cursor,
+        limit,
+        at: _at,
+        branch: _branch,
+        ...shape
+    } = call.input as ObjectInclude & {
         readonly cursor?: string;
         readonly limit?: number;
+        readonly at?: unknown;
+        readonly branch?: unknown;
     };
     const listing = new Page(
         { ...(cursor === undefined ? {} : { cursor }), ...(limit === undefined ? {} : { limit }) },
@@ -799,13 +807,31 @@ async function listObjects(call: Call) {
     );
     const node = dataflow.roots[0]!;
 
-    // read groups or rows
+    // read groups at the latest position, or rows
+    const position = call.snapshot?.position;
     const after = listing.after === undefined ? undefined : decodeRow(node.table, listing.after);
-    await dataflow.fill(await View.latest(call.database), after);
-    if (node.aggregate !== undefined) {
+    await dataflow.fill(await View.of(call.database, call.snapshot), after);
+    if (node.aggregate !== undefined && position !== undefined) {
+        throw new ServiceError("BAD_REQUEST", {
+            message: "aggregates read the latest position, whose access decides them",
+        });
+    } else if (node.aggregate !== undefined) {
         return { items: [], cursor: null, groups: await dataflow.read("list") };
     }
-    const rows = await dataflow.read("list");
+
+    // keep, at a position, the rows the caller could also read then
+    const read = await dataflow.read("list");
+    const rows =
+        position === undefined
+            ? read
+            : await call
+                  .served()
+                  .keepAt(
+                      read,
+                      call.object.permission(call.method.permission!),
+                      call.snapshot!,
+                      call.scope,
+                  );
     const ordered = node.order.flatMap((key) => node.columnsOf(key.column));
     const listed = listing.result(rows, (row) =>
         encodeRow(node.table, Object.fromEntries(ordered.map((name) => [name, row[name]]))),
@@ -865,9 +891,9 @@ function missingHandler(call: Call): never {
 
 /** The procedure each record method derives. */
 export type RecordProcedures<Object extends ObjectType, Declared extends Method> = {
-    get: Procedure<schema.Object<TargetShape<Object>>, RowSchema<Object>>;
+    get: Procedure<schema.Object<TargetShape<Object> & typeof ViewShape>, RowSchema<Object>>;
     list: Procedure<
-        schema.Object<ScopeShape<Object> & typeof QueryShape & typeof PageShape>,
+        schema.Object<ScopeShape<Object> & typeof QueryShape & typeof PageShape & typeof ViewShape>,
         schema.Object<ReturnType<typeof page<RowSchema<Object>>>["shape"] & typeof ListedShape>
     >;
     create: Procedure<

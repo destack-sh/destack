@@ -36,6 +36,14 @@ export type ObjectInclude = {
     readonly deleted?: "exclude" | "include" | "only";
 };
 
+/** The view a read sees: a log position, a branch over the main line, or both. */
+export const ViewShape = {
+    /** The log position the read sees, the latest when absent. */
+    at: LogPosition.optional(),
+    /** The branch whose rows the read sees over the main line, absent for the main line. */
+    branch: schema.string().min(1).optional(),
+};
+
 /** The fields of a query of one object type's rows. */
 export const QueryShape = {
     /** Values computed from each row's fields, read like fields. */

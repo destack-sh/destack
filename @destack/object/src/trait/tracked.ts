@@ -7,7 +7,6 @@ import {
 import { and, desc, eq, TABLE, type Insert, type Table } from "@destack/db";
 import { LogPosition } from "@destack/db/log";
 import type { schema } from "@destack/schema";
-import { ServiceError } from "@destack/service/error";
 import { v7 } from "uuid";
 import type { Call } from "../method/call.ts";
 import { defineMethod, type Method } from "../method/method.ts";
@@ -31,14 +30,12 @@ export interface TrackedDefinition<Permissions extends string = string> extends 
 /** The methods history derives. */
 export type TrackedMethodMap<History> = History extends TrackedDefinition
     ? {
-          readonly history: Method<"history", string, never, never, false>;
           readonly revert: Method<"revert", History["by"], never, never, true>;
       }
     : {};
 
 /** The procedures history derives. */
 export type TrackedProcedures<Object extends ObjectType> = {
-    history: Procedure<schema.Object<TargetShape<Object> & PositionField>, RowSchema<Object>>;
     revert: Procedure<
         schema.Object<TargetShape<Object> & ReplayShape<Object> & PositionField>,
         RowSchema<Object>
@@ -74,7 +71,7 @@ export const tracked: Trait<TrackedDefinition> & {
             throw new TypeError("an object keeping history needs a get or list method");
         }
 
-        return { history: historyMethod(reading), revert: revertMethod(options.by) };
+        return { revert: revertMethod(options.by) };
     },
     validate: (options, object) => {
         // require the activity attachment and a valid session
@@ -156,24 +153,6 @@ export const tracked: Trait<TrackedDefinition> & {
     },
 };
 
-/** Read an object as it was at a position. */
-function historyMethod(permission: string): Method {
-    return defineMethod<Method<"history">>({
-        kind: "history",
-        permission,
-        mutates: false,
-        isPredicted: false,
-        target: true,
-        result: "object",
-        procedure: (_name, shapes) => ({
-            route: { method: "POST", path: "/{id}/history" },
-            input: shapes.target.extend({ at: LogPosition }),
-            output: shapes.row,
-        }),
-        effect: (call) => earlier(call, call.object.permission(call.method.permission!)),
-    });
-}
-
 /** Revert an object's written fields to a position. */
 function revertMethod(permission: string): Method {
     return defineMethod<Method<"revert">>({
@@ -224,35 +203,11 @@ function revertMethod(permission: string): Method {
     });
 }
 
-/** Read the call's object at the input's position. */
-async function earlier(call: Call, permission: Permission): Promise<Record<string, unknown>> {
-    // read the object as it was
-    const at = LogPosition.parse(call.input.at);
-    const authorization = call.served();
-    const snapshot = call.database.log.at(at);
-    const row = await snapshot.row(call.object.table as Table, { id: call.id! });
-    if (row === undefined) {
-        throw new ServiceError("NOT_FOUND", { message: `no ${call.object.name} ${call.id!}` });
-    }
+/** Read the call's object at the input's position, where the caller may read it then and now. */
+function earlier(call: Call, permission: Permission): Promise<Record<string, unknown>> {
+    const snapshot = call.database.log.at(LogPosition.parse(call.input.at));
 
-    // check the permission as of then
-    const scope = authorization.authorizer.governingScope(call.reference());
-    const access = await authorization.authorizer.resolve(
-        snapshot,
-        scope,
-        authorization.context(scope),
-    );
-    const decision = await authorization.authorizer.check(
-        snapshot,
-        permission,
-        call.reference(),
-        access,
-    );
-    if (!decision.isAllowed) {
-        throw new ServiceError("NOT_FOUND", { message: `no ${call.object.name} ${call.id!}` });
-    }
-
-    return row;
+    return call.served().readIn(call, call.id!, snapshot, permission);
 }
 
 /** Require the objects a permission reads through to keep their history. */

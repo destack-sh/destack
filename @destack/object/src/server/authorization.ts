@@ -137,6 +137,43 @@ export class Authorization extends access.Authorization {
         return [...new Set([this.access.scope, ...this.access.scopes.map((entry) => entry.id)])];
     }
 
+    /** Read a call's target as a snapshot shows it, where the caller holds a permission now and, at a position, then. */
+    async readIn(
+        call: Call,
+        id: string,
+        snapshot: Snapshot,
+        permission: Permission = call.object.permission(call.method.permission!),
+    ): Promise<Record<string, unknown>> {
+        // read the row the view shows, admitted with the caller's grants now
+        const { object, scope } = call;
+        const row = await snapshot.row(object.table as Table, { id });
+        const isAdmitted =
+            row !== undefined &&
+            (await this.admitRows(object, permission, scope, [row])).held.has(0);
+
+        // decide the permission as of a position too
+        const reference = object.reference(scope, id);
+        const governing = this.authorizer.governingScope(reference);
+        const isAllowed =
+            isAdmitted &&
+            (snapshot.position === undefined ||
+                (
+                    await this.authorizer.check(
+                        snapshot,
+                        permission,
+                        reference,
+                        await this.authorizer.resolve(snapshot, governing, this.context(governing)),
+                    )
+                ).isAllowed);
+
+        // hide a row the caller may not read
+        if (!isAllowed) {
+            throw new ServiceError("NOT_FOUND", { message: `no ${object.name} ${id}` });
+        }
+
+        return row!;
+    }
+
     /** Read a call's target where the caller holds the method's permission. */
     async read(call: Call, id: string): Promise<Record<string, unknown>> {
         // read where the caller holds the permission
@@ -383,6 +420,19 @@ export class Authorization extends access.Authorization {
         >[];
 
         return this.keep(rows, permission, evaluated);
+    }
+
+    /** Keep the rows the caller also held a permission on at a snapshot's position. */
+    async keepAt<Row extends Record<string, unknown>>(
+        rows: readonly Row[],
+        permission: access.PermissionReference,
+        snapshot: Snapshot,
+        scope: string,
+    ): Promise<Row[]> {
+        const then = await this.authorizer.resolve(snapshot, scope, this.context(scope));
+        const { held } = await this.authorizer.checkRows(snapshot, permission, then, rows);
+
+        return rows.filter((_, position) => held.has(position));
     }
 
     /** Keep the rows an access holds a permission on, decided in memory. */

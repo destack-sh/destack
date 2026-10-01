@@ -91,30 +91,7 @@ const TRASH_METHODS: ReadonlySet<MethodKind> = new Set([
 /** How long a request waits for its caller's watermarks, in milliseconds: 5 s, above sub-second copy lag. */
 const BOOKMARK_TIMEOUT_MILLISECONDS = 5000;
 
-/** Where a sync starts and what it follows. */
-export interface SyncOptions {
-    /** The position the subscriber holds, absent before its first snapshot. */
-    readonly after?: LogPosition;
-    /** The queries to follow by name, every listed object type when absent. */
-    readonly queries?: Readonly<Record<string, ObjectQuery>>;
-    /** The queries the subscriber followed before. */
-    readonly previous?: Readonly<Record<string, ObjectQuery>>;
-    /** How often merged pages arrive. */
-    readonly refresh?: { readonly every: Duration };
-    /** The client following ephemeral objects, absent for durable ones. */
-    readonly client?: string;
-}
-
-/** Who a relayed copy is decided for: a principal where its rows live, or the calling principal. */
-export type ReplicaFollower =
-    | {
-          /** The principal the copy is decided for. */
-          readonly subject: Subject;
-          /** The scope containing the follower's scope, when this database holds no copy of it. */
-          readonly parent?: string;
-      }
-    | { readonly context: ServiceContext };
-
+/** The work a call prepared outside its transaction. */
 /** The copies a database keeps, and the source streaming them. */
 export interface ObjectReplicas {
     /** The source streaming each copy's pages. */

@@ -20,7 +20,6 @@ export const METHOD_KINDS = [
     "decline",
     "explain",
     "detach",
-    "history",
     "revert",
     "edit",
 ] as const;
