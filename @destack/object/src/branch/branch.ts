@@ -114,7 +114,7 @@ export class Branch {
         return calls.map((entry) => ({ ...entry, author }));
     }
 
-    /** Replay calls over rows and store the rows they leave changed, returning the branch's reach and build position. */
+    /** Replay calls over rows and store the rows they change. */
     async build(
         call: Call,
         state: BranchState,

@@ -251,6 +251,10 @@ export interface ObjectIndex {
     readonly across: ObjectScope;
 }
 
+/** An instance of an object type, as its table stores it and its methods see it. */
+export type InstanceOf<Type extends ObjectType> =
+    Type extends ObjectType<infer Definition> ? Select<Definition> : never;
+
 /** A declared object type with its storage, permissions, methods and declaration schema. */
 export class ObjectType<
     Definition extends Table = Table,

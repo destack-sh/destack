@@ -40,7 +40,7 @@ export interface BranchChange {
 
 /** The rows branches change: captured from writes, written over a database, and read as overlays and changes. */
 export const BranchRow = {
-    /** Capture the rows some writes leave changed, each with the main line's row it replaces, from a transaction's changes. */
+    /** Capture the rows a transaction's changes leave different from the main line. */
     capture(written: readonly Omit<Change<Table>, "sequence">[]): BranchRow[] {
         // keep each key's first image and last change
         const first = new Map<string, Row | null>();
