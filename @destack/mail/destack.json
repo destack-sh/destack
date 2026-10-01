@@ -1,0 +1,14 @@
+{
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
+    "id": "package-01a0ee08-fea5-7208-954b-121fae2d63d1",
+    "language": "typescript",
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        "./smtp": {
+            "runtimes": ["bun"]
+        },
+        "./test": {
+            "runtimes": ["bun"]
+        }
+    }
+}
