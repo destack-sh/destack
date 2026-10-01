@@ -18,7 +18,7 @@ export interface CatalogDistribution {
     /** Complete archive consumed by the authenticated updater. */
     archive?: CatalogDownload;
     /** Native installers keyed by their file format. */
-    installers: Partial<Record<"dmg" | "exe", CatalogDownload>>;
+    installers: Partial<Record<"dmg", CatalogDownload>>;
 }
 
 /** One public archive or installer authenticated by targets metadata. */
@@ -44,7 +44,7 @@ export async function writeCatalog(
     const cases: string[] = [];
     const versions = new Set<string>();
     for (const [path, file] of Object.entries(targets.signed.targets)) {
-        const match = /^([a-z0-9_-]+)\.(tar\.gz|dmg|exe)$/.exec(path);
+        const match = /^([a-z0-9_-]+)\.(tar\.gz|dmg)$/.exec(path);
         if (!match) {
             throw new Error(`invalid target path: ${path}`);
         }
@@ -63,7 +63,7 @@ export async function writeCatalog(
         }
         // retain every native format without replacing its platform's updater archive
         else {
-            distribution.installers[match[2] as "dmg" | "exe"] = entry;
+            distribution.installers[match[2] as "dmg"] = entry;
         }
         if (match[2] === "tar.gz") {
             cases.push(`    ${target}/${match[2]}) url='${download}'; sha256='${sha256}' ;;`);
@@ -81,13 +81,8 @@ export async function writeCatalog(
     // publish the catalog for browser selection and the installers for terminal setup
     await writeFile(join(directory, "downloads.json"), JSON.stringify(catalog, null, 4) + "\n");
     const shell = await readFile(new URL("../installer/install.sh", import.meta.url), "utf8");
-    const powershell = await readFile(new URL("../installer/install.ps1", import.meta.url), "utf8");
     await writeFile(
         join(directory, "install"),
         shell.replace("# __DISTRIBUTIONS__", cases.join("\n")),
-    );
-    await writeFile(
-        join(directory, "install.ps1"),
-        powershell.replaceAll("__REPOSITORY__", url.href),
     );
 }

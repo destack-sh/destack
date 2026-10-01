@@ -13,9 +13,7 @@ const directory = await mkdtemp(join(tmpdir(), "destack-release-check-"));
 /** Native CLI built for this runner. */
 const executable = fileURLToPath(
     new URL(
-        `../../../../dist/${version}/${target}/bin/${
-            process.platform === "win32" ? "destack.exe" : "destack"
-        }`,
+        `../../../../dist/${version}/${target}/bin/destack`,
         import.meta.url,
     ),
 );
@@ -46,19 +44,18 @@ async function verifyDistribution(): Promise<void> {
     // select the packaged application and its platform-specific executable paths
     const root = dirname(dirname(executable));
     const isMac = target.endsWith("apple-darwin");
-    const suffix = target.endsWith("windows-msvc") ? ".exe" : "";
     const application = join(root, isMac ? "Destack.app/Contents" : "Destack");
     const commands = isMac ? "Helpers" : "helpers";
     const files = [
-        join(application, isMac ? "MacOS/Destack" : `Destack${suffix}`),
-        join(application, commands, `destack-desktop-host${suffix}`),
+        join(application, isMac ? "MacOS/Destack" : "Destack"),
+        join(application, commands, "destack-desktop-host"),
         join(application, "view/launch.json"),
     ];
 
     // require the standalone commands and the copies used by native desktop startup
     for (const name of ["destack", "destack-daemon", "destack-sandbox"]) {
-        files.push(join(root, "bin", `${name}${suffix}`));
-        files.push(join(application, commands, `${name}${suffix}`));
+        files.push(join(root, "bin", name));
+        files.push(join(application, commands, name));
     }
 
     // reject empty files, links and missing executable permissions before runtime checks
@@ -67,7 +64,7 @@ async function verifyDistribution(): Promise<void> {
         if (!file.isFile() || file.size === 0) {
             throw new Error(`missing packaged file: ${path}`);
         }
-        if (!suffix && !path.endsWith(".json") && (file.mode & 0o111) === 0) {
+        if (!path.endsWith(".json") && (file.mode & 0o111) === 0) {
             throw new Error(`packaged command is not executable: ${path}`);
         }
     }

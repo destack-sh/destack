@@ -31,11 +31,10 @@ export async function buildExecutable(options: ExecutableOptions): Promise<void>
     await mkdir(dirname(options.outfile), { recursive: true });
     const directory = await mkdtemp(join(dirname(options.outfile), ".executable-"));
     const assets = new Set<string>();
-    const platform = options.target.includes("apple")
-        ? "darwin"
-        : options.target.includes("windows")
-          ? "win32"
-          : "linux";
+    if (!options.target.endsWith("apple-darwin") && !options.target.endsWith("unknown-linux-gnu")) {
+        throw new Error(`unsupported distribution target: ${options.target}`);
+    }
+    const platform = options.target.includes("apple") ? "darwin" : "linux";
     const architecture = options.target.startsWith("aarch64") ? "arm64" : "x64";
     try {
         // let source transforms discover assets from the actual bundled module graph

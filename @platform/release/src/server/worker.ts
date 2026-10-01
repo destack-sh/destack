@@ -19,7 +19,7 @@ interface PublicationEnvironment {
 async function fetch(request: Request, environment: PublicationEnvironment): Promise<Response> {
     // select one fixed repository without accepting arbitrary bucket names or object paths
     const url = new URL(request.url);
-    const pathName = ["/install", "/install.ps1", "/downloads.json"].includes(url.pathname)
+    const pathName = ["/install", "/downloads.json"].includes(url.pathname)
         ? `/stable${url.pathname}`
         : url.pathname;
     const match = /^\/(stable|nightly)\/(.+)$/.exec(pathName);
@@ -51,7 +51,7 @@ async function fetch(request: Request, environment: PublicationEnvironment): Pro
         return new Response("method not allowed", { status: 405, headers: { allow: "GET, HEAD" } });
     }
     if (
-        !/^(metadata\/(?:[1-9]\d*\.(?:root|targets|snapshot)|timestamp)\.json|targets\/[0-9a-f]{64}\.[a-z0-9_-]+\.(?:tar\.gz|dmg|exe)|downloads\.json|install(?:\.ps1)?)$/.test(
+        !/^(metadata\/(?:[1-9]\d*\.(?:root|targets|snapshot)|timestamp)\.json|targets\/[0-9a-f]{64}\.[a-z0-9_-]+\.(?:tar\.gz|dmg)|downloads\.json|install)$/.test(
             path,
         )
     ) {

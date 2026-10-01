@@ -11,7 +11,7 @@ const directory = join(root, "dist", version, Release.target());
 const executable =
     process.platform === "darwin"
         ? join(directory, "Destack.app/Contents/MacOS/Destack")
-        : join(directory, "Destack", process.platform === "win32" ? "Destack.exe" : "Destack");
+        : join(directory, "Destack", "Destack");
 /** Interactive local desktop process. */
 const child = Bun.spawn([executable], { stdin: "inherit", stdout: "inherit", stderr: "inherit" });
 process.exitCode = await child.exited;

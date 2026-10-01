@@ -53,15 +53,6 @@ if (
         format: "dmg",
     });
 }
-// authenticate the graphical Windows installer independently of its updater archive
-if (process.argv.slice(2).includes("x86_64-pc-windows-msvc")) {
-    distributions.push({
-        target: "x86_64-pc-windows-msvc",
-        version,
-        archive: join(directory, `destack-${version}-x86_64-pc-windows-msvc.exe`),
-        format: "exe",
-    });
-}
 await createRepository(
     join(ROOT, "dist/update"),
     Date.now(),

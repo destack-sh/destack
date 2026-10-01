@@ -66,8 +66,6 @@ jobs:
                       target: x86_64-unknown-linux-gnu
                     - runner: ubuntu-24.04-arm
                       target: aarch64-unknown-linux-gnu
-                    - runner: windows-2025
-                      target: x86_64-pc-windows-msvc
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 30
         steps:
@@ -85,12 +83,6 @@ jobs:
               run: |
                   rustup toolchain install stable --profile minimal
                   rustup default stable
-            - name: Install Windows installer compiler
-              if: runner.os == 'Windows'
-              shell: pwsh
-              run: |
-                  choco install nsis --version=3.12 -y --no-progress
-                  "${env:ProgramFiles(x86)}\NSIS" >> $env:GITHUB_PATH
             - name: Install dependencies
               run: bun install --frozen-lockfile
             - name: Check out the matching Turso native source
@@ -106,11 +98,6 @@ jobs:
               run: bun run @platform/release/src/distribution/turso.ts dist/turso
             - name: Build distribution
               run: bun run @platform/release/src/distribution/build.ts ${{ matrix.target }}
-            - name: Build Windows Setup
-              if: runner.os == 'Windows'
-              run: |
-                  bun run @platform/release/src/installer/build.ts windows-prepare
-                  bun run @platform/release/src/installer/build.ts windows
             - name: Verify distribution
               run: bun run @platform/release/src/distribution/verify.ts ${{ matrix.target }}
             - name: Pack distribution
@@ -123,9 +110,7 @@ jobs:
               with:
                   name: unsigned-${{ matrix.target }}
                   retention-days: 14
-                  path: |
-                      dist/*/*.tar.gz
-                      dist/*/*.exe
+                  path: dist/*/*.tar.gz
                   if-no-files-found: error
 
     sign:
@@ -133,9 +118,6 @@ jobs:
         if: needs.prepare.outputs.publish == 'true'
         needs: [prepare, build]
         environment: release-${{ needs.prepare.outputs.channel }}
-        permissions:
-            contents: read
-            id-token: write
         strategy:
             fail-fast: false
             matrix:
@@ -144,8 +126,6 @@ jobs:
                       target: aarch64-apple-darwin
                     - runner: macos-15-intel
                       target: x86_64-apple-darwin
-                    - runner: windows-2025
-                      target: x86_64-pc-windows-msvc
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 40
         env:
@@ -168,17 +148,8 @@ jobs:
                   path: dist/${{ needs.prepare.outputs.version }}
             - name: Unpack distribution
               run: bun run @platform/release/src/signing/sign.ts unpack ${{ matrix.target }}
-            - name: Prepare Windows uninstaller for signing
-              if: runner.os == 'Windows'
-              shell: pwsh
-              run: |
-                  choco install nsis --version=3.12 -y --no-progress
-                  $env:PATH = "${env:ProgramFiles(x86)}\NSIS;$env:PATH"
-                  "${env:ProgramFiles(x86)}\NSIS" >> $env:GITHUB_PATH
-                  bun run @platform/release/src/installer/build.ts windows-prepare
             - name: Prepare Apple signing credentials
               uses: ./.github/actions/setup-apple
-              if: runner.os == 'macOS'
               with:
                   certificate: ${{ secrets.APPLE_CERTIFICATE }}
                   password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -187,78 +158,20 @@ jobs:
                   key-id: ${{ vars.APPLE_NOTARY_KEY_ID }}
                   issuer: ${{ vars.APPLE_NOTARY_ISSUER }}
             - name: Sign and notarize macOS distribution
-              if: runner.os == 'macOS'
               run: bun run @platform/release/src/signing/sign.ts sign ${{ matrix.target }}
-            - name: Authenticate with Azure
-              uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6
-              if: runner.os == 'Windows'
-              with:
-                  client-id: ${{ vars.AZURE_SIGNING_CLIENT_ID }}
-                  tenant-id: ${{ vars.AZURE_TENANT_ID }}
-                  subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-            - name: Sign Windows executables
-              uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82
-              if: runner.os == 'Windows'
-              with:
-                  endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
-                  signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
-                  certificate-profile-name: ${{ vars.AZURE_SIGNING_PROFILE }}
-                  files-folder: ${{ github.workspace }}/dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}
-                  files-folder-filter: exe,dll
-                  files-folder-recurse: true
-                  file-digest: SHA256
-                  timestamp-rfc3161: http://timestamp.acs.microsoft.com
-                  timestamp-digest: SHA256
-            - name: Verify Windows signatures
-              if: runner.os == 'Windows'
-              shell: pwsh
-              env:
-                  DISTRIBUTION: dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}
-              run: |
-                  $files = Get-ChildItem -LiteralPath $env:DISTRIBUTION -Recurse -File |
-                    Where-Object { $_.Extension -in '.exe', '.dll' }
-                  if (-not $files) { throw 'no Windows executables to verify' }
-                  foreach ($file in $files) {
-                    $signature = Get-AuthenticodeSignature -LiteralPath $file.FullName
-                    if ($signature.Status -ne 'Valid') { throw "invalid signature: $($file.FullName)" }
-                  }
             - name: Verify distribution
               run: bun run @platform/release/src/distribution/verify.ts ${{ matrix.target }}
             - name: Pack distribution
               run: bun run @platform/release/src/distribution/pack.ts ${{ matrix.target }}
-            - name: Embed the signed Windows uninstaller and application
-              if: runner.os == 'Windows'
-              run: bun run @platform/release/src/installer/build.ts windows
-            - name: Sign Windows installer
-              uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82
-              if: runner.os == 'Windows'
-              with:
-                  endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
-                  signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
-                  certificate-profile-name: ${{ vars.AZURE_SIGNING_PROFILE }}
-                  files-folder: ${{ github.workspace }}/dist/${{ needs.prepare.outputs.version }}
-                  files-folder-filter: exe
-                  files-folder-recurse: false
-                  file-digest: SHA256
-                  timestamp-rfc3161: http://timestamp.acs.microsoft.com
-                  timestamp-digest: SHA256
-            - name: Verify Windows Setup signature
-              if: runner.os == 'Windows'
-              shell: pwsh
-              run: |
-                  $setup = "dist/${{ needs.prepare.outputs.version }}/destack-${{ needs.prepare.outputs.version }}-${{ matrix.target }}.exe"
-                  if ((Get-AuthenticodeSignature -LiteralPath $setup).Status -ne 'Valid') { throw 'invalid Windows Setup signature' }
             - name: Upload signed distributions
               uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
               with:
                   name: signed-${{ matrix.target }}
                   retention-days: 14
-                  path: |
-                      dist/*/*.tar.gz
-                      dist/*/*.exe
+                  path: dist/*/*.tar.gz
                   if-no-files-found: error
             - name: Remove Apple signing credentials
-              if: always() && runner.os == 'macOS'
+              if: always()
               run: bun run @platform/release/src/signing/credential.ts remove
 
     installer:
@@ -357,7 +270,7 @@ jobs:
                   DESTACK_TIMESTAMP_KEY: ${{ secrets.DESTACK_TIMESTAMP_KEY }}
             - name: Sign and publish updates
               run: |
-                  bun run @platform/release/src/repository/sign.ts aarch64-apple-darwin x86_64-apple-darwin x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-pc-windows-msvc
+                  bun run @platform/release/src/repository/sign.ts aarch64-apple-darwin x86_64-apple-darwin x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
                   bun run @platform/release/src/repository/upload.ts
                   bun run @platform/release/src/repository/verify.ts
               env:
@@ -375,7 +288,7 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                runner: [macos-15, macos-15-intel, ubuntu-24.04, ubuntu-24.04-arm, windows-2025]
+                runner: [macos-15, macos-15-intel, ubuntu-24.04, ubuntu-24.04-arm]
         env:
             DESTACK_RELEASE_CHANNEL: ${{ needs.prepare.outputs.channel }}
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}

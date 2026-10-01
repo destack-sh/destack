@@ -16,7 +16,7 @@ export async function publish(directory: string): Promise<void> {
     const files = await inventory(directory);
     for (const path of files) {
         if (
-            !/^(metadata\/(?:[1-9]\d*\.(?:root|targets|snapshot)|timestamp)\.json|targets\/[0-9a-f]{64}\.[a-z0-9_-]+\.(?:tar\.gz|dmg|exe)|downloads\.json|install(?:\.ps1)?)$/.test(
+            !/^(metadata\/(?:[1-9]\d*\.(?:root|targets|snapshot)|timestamp)\.json|targets\/[0-9a-f]{64}\.[a-z0-9_-]+\.(?:tar\.gz|dmg)|downloads\.json|install)$/.test(
                 path,
             )
         ) {
@@ -121,7 +121,7 @@ export async function publish(directory: string): Promise<void> {
     }
 
     // upload each immutable object without permitting different content at the same URL
-    const mutable = [timestamp, "downloads.json", "install", "install.ps1"];
+    const mutable = [timestamp, "downloads.json", "install"];
     const revisions = new Map<string, string | undefined>([[timestamp, revision ?? undefined]]);
     for (const path of mutable.slice(1)) {
         if (files.includes(path)) {
@@ -155,14 +155,13 @@ function contentType(path: string): string {
         ".json": "application/json",
         ".tar.gz": "application/gzip",
         ".dmg": "application/x-apple-diskimage",
-        ".exe": "application/vnd.microsoft.portable-executable",
     };
     for (const [suffix, type] of Object.entries(types)) {
         if (path.endsWith(suffix)) {
             return type;
         }
     }
-    if (path === "install" || path === "install.ps1") {
+    if (path === "install") {
         return "text/plain; charset=utf-8";
     }
 

@@ -21,10 +21,9 @@ release-check  → check metadata expiry
 download.destack.sh/{stable,nightly}/
 ├── metadata/{version}.{root,targets,snapshot}.json
 ├── metadata/timestamp.json
-├── targets/{sha256}.{target}.{tar.gz,dmg,exe}
+├── targets/{sha256}.{target}.{tar.gz,dmg}
 ├── downloads.json
-├── install
-└── install.ps1
+└── install
 
 destack-release-publication → destack-releases-{stable,nightly} (R2)
 ```
@@ -38,7 +37,6 @@ destack-release-publication → destack-releases-{stable,nightly} (R2)
 | Download | Contents |
 | --- | --- |
 | macOS DMG | Universal application; first launch registers CLI and daemon |
-| Windows Setup | Per-user installation and uninstaller |
 | Linux archive | Distribution installed by the shell script |
 | Update archive | Complete distribution for one OS/CPU |
 
@@ -98,18 +96,8 @@ age -d -i /absolute/recovery-identity.txt /absolute/destack-signing.age | tar -x
 | Platform | GitHub secrets | GitHub variables |
 | --- | --- | --- |
 | Apple | `APPLE_CERTIFICATE` (base64 P12), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_NOTARY_KEY` (P8) | `APPLE_SIGNING_IDENTITY`, `APPLE_NOTARY_KEY_ID`, `APPLE_NOTARY_ISSUER` |
-| Windows | None; GitHub OIDC | `AZURE_SIGNING_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_SIGNING_ENDPOINT`, `AZURE_SIGNING_ACCOUNT`, `AZURE_SIGNING_PROFILE` |
 
 | Setup | Reference |
 | --- | --- |
 | Apple Developer ID Application certificate | [Create certificate](https://developer.apple.com/help/account/certificates/create-developer-id-certificates) |
 | Apple App Store Connect key and notarization | [Notarize](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution) |
-| Azure Public Trust profile; Certificate Profile Signer scoped to that profile | [Configure Artifact Signing](https://learn.microsoft.com/en-us/azure/artifact-signing/quickstart) |
-
-```text
-OIDC issuer:   https://token.actions.githubusercontent.com
-OIDC audience: api://AzureADTokenExchange
-OIDC subjects:
-  repo:destack-sh/destack:environment:release-stable
-  repo:destack-sh/destack:environment:release-nightly
-```

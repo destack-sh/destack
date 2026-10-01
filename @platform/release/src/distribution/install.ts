@@ -1,6 +1,6 @@
 import { ReleaseIdentity } from "./identity.ts";
 import { Updater, Release } from "@destack/update";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -15,7 +15,6 @@ async function verifyInstallation(): Promise<void> {
     const state = join(directory, "state");
     let executable: string | undefined;
     let isRunning = false;
-    let nativeApplication: string | undefined;
     let failure: unknown;
     try {
         let version: string;
@@ -46,7 +45,7 @@ async function verifyInstallation(): Promise<void> {
             executable = join(
                 staged.directory,
                 "bin",
-                process.platform === "win32" ? "destack.exe" : "destack",
+                "destack",
             );
         }
 
@@ -56,22 +55,8 @@ async function verifyInstallation(): Promise<void> {
             DESTACK_DIRECTORY: state,
             DESTACK_UPDATE_URL: configuration.url.href,
         };
-        if (process.platform === "win32") {
-            if (process.env.CI !== "true") {
-                throw new Error("verify Windows Setup on a disposable CI runner");
-            }
-            const setup = await downloadSetup(directory, configuration, version);
-            const application = join(directory, "Destack");
-            await command(setup, ["/S", `/D=${application}`], environment);
-            nativeApplication = application;
-            await command(setup, ["/S", `/D=${nativeApplication}`], environment);
-            executable = join(nativeApplication, "helpers/destack.exe");
-        }
-        // exercise the per-user archive installation on macOS and Linux
-        else {
-            await command(executable, ["install", "--archive", archive], environment);
-            await command(executable, ["install", "--archive", archive], environment);
-        }
+        await command(executable, ["install", "--archive", archive], environment);
+        await command(executable, ["install", "--archive", archive], environment);
         await command(executable, ["daemon", "start", "--json"], environment);
         isRunning = true;
         const before = JSON.parse(
@@ -110,13 +95,6 @@ async function verifyInstallation(): Promise<void> {
                 DESTACK_DIRECTORY: state,
             });
         }
-        if (nativeApplication) {
-            await command(
-                join(nativeApplication, "Uninstall.exe"),
-                ["/S", `_?=${nativeApplication}`],
-                { ...process.env, DESTACK_DIRECTORY: state },
-            );
-        }
 
         // retain failed installations for runner diagnostics
         if (!failure) {
@@ -134,35 +112,6 @@ async function verifyInstallation(): Promise<void> {
     if (failure) {
         throw failure;
     }
-}
-
-/** Download the native Windows installer using the same embedded TUF root as the updater. */
-async function downloadSetup(
-    directory: string,
-    configuration: RepositoryConfiguration,
-    version: string,
-): Promise<string> {
-    // authenticate the installer independently of the archive staged by the updater
-    const tuf = await import("tuf-js");
-    const metadata = join(directory, "setup-metadata");
-    await mkdir(metadata);
-    await writeFile(
-        join(metadata, "root.json"),
-        JSON.stringify((await configuration.root()).toJSON()),
-    );
-    const updater = new tuf.Updater({
-        metadataDir: metadata,
-        metadataBaseUrl: new URL("metadata/", configuration.url).href,
-        targetDir: join(directory, "setup"),
-        targetBaseUrl: new URL("targets/", configuration.url).href,
-    });
-    await updater.refresh();
-    const target = await updater.getTargetInfo("x86_64-pc-windows-msvc.exe");
-    if (!target || target.custom.version !== version) {
-        throw new Error("setup does not match the verified archive release");
-    }
-
-    return await updater.downloadTarget(target);
 }
 
 /** Execute a shipped command with bounded runtime and complete diagnostics. */

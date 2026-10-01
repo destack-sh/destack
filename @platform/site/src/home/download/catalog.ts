@@ -3,7 +3,6 @@ export const platforms = {
     "universal-apple-darwin": "macOS",
     "aarch64-apple-darwin": "macOS · Apple Silicon",
     "x86_64-apple-darwin": "macOS · Intel",
-    "x86_64-pc-windows-msvc": "Windows",
     "x86_64-unknown-linux-gnu": "Linux · x64",
     "aarch64-unknown-linux-gnu": "Linux · ARM64",
 } as const;
@@ -53,10 +52,10 @@ export async function readDownloads(): Promise<Download[]> {
         return Object.entries(choices).map(([format, { url, version }]) => {
             // check each entry's target, address, and version
             if (
-                !["dmg", "exe", "tar.gz"].includes(format) ||
+                !["dmg", "tar.gz"].includes(format) ||
                 typeof url !== "string" ||
                 typeof version !== "string" ||
-                !/^\d{4}\.\d+\.\d+$/.test(version)
+                !/^\d{4}\.\d+\.\d+(?:-nightly\.\d+)?$/.test(version)
             ) {
                 throw new Error("invalid download catalog");
             }
@@ -65,7 +64,7 @@ export async function readDownloads(): Promise<Download[]> {
                 address.origin !== "https://download.destack.sh" ||
                 address.search ||
                 address.hash ||
-                !/^\/stable\/targets\/[a-f0-9]{64}\.[a-z0-9_-]+\.(dmg|exe|tar\.gz)$/.test(
+                !/^\/(?:stable|nightly)\/targets\/[a-f0-9]{64}\.[a-z0-9_-]+\.(dmg|tar\.gz)$/.test(
                     address.pathname,
                 )
             ) {
@@ -102,9 +101,6 @@ export function selectDownload(downloads: Download[], agent: string): Download |
     }
     if (/Macintosh/.test(agent)) {
         return downloads.find((download) => download.target === "universal-apple-darwin");
-    }
-    if (/Windows/.test(agent) && /Win64|x64/.test(agent)) {
-        return downloads.find((download) => download.target === "x86_64-pc-windows-msvc");
     }
     if (/Linux/.test(agent) && /x86_64/.test(agent)) {
         return downloads.find((download) => download.target === "x86_64-unknown-linux-gnu");

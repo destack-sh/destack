@@ -18,7 +18,7 @@ async function build(): Promise<void> {
     // build every identity from its corresponding authored artwork
     try {
         for (const suffix of ["", "-nightly", "-dev"]) {
-            // generate standard raster sizes and the Windows icon container
+            // generate standard raster sizes
             const name = `destack${suffix}`;
             const source = join(ROOT, `platform/brand/icon/icon${suffix}-rounded.svg`);
             const directory = join(temporary, name);
@@ -29,7 +29,6 @@ async function build(): Promise<void> {
             );
             await cp(source, join(output, `${name}.svg`));
             await cp(join(directory, "icon.png"), join(output, `${name}.png`));
-            await cp(join(directory, "icon.ico"), join(output, `${name}.ico`));
 
             // refresh the checked-in brand variants when requested
             if (process.argv.includes("--brand")) {

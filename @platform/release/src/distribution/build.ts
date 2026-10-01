@@ -14,12 +14,11 @@ import { version } from "./index.ts";
 /** Repository containing all distribution entrypoints. */
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 /** Bun executable targets corresponding to distribution targets. */
-const TARGETS: Record<Target, Bun.Build.CompileTarget> = {
+const TARGETS: Partial<Record<Target, Bun.Build.CompileTarget>> = {
     "aarch64-apple-darwin": "bun-darwin-arm64",
     "x86_64-apple-darwin": "bun-darwin-x64",
     "aarch64-unknown-linux-gnu": "bun-linux-arm64",
     "x86_64-unknown-linux-gnu": "bun-linux-x64",
-    "x86_64-pc-windows-msvc": "bun-windows-x64",
 };
 
 /** Build the native window, TypeScript host, and CLI as one distribution. */
@@ -35,8 +34,11 @@ async function build(): Promise<void> {
     const identity = process.env.DESTACK_RELEASE_CHANNEL ?? "dev";
     const selection = new ReleaseIdentity(identity);
     const isMac = target.includes("apple");
-    const isWindows = target.includes("windows");
-    if (isMac !== (process.platform === "darwin") || isWindows !== (process.platform === "win32")) {
+    const runtime = TARGETS[target];
+    if (!runtime) {
+        throw new Error(`unsupported distribution target: ${target}`);
+    }
+    if (isMac ? process.platform !== "darwin" : process.platform !== "linux") {
         throw new Error("build desktop distributions on their target operating system");
     }
 
@@ -54,10 +56,10 @@ async function build(): Promise<void> {
     );
 
     // compile the CLI and desktop host from the installed workspace graph
-    const cli = join(directory, "bin", isWindows ? "destack.exe" : "destack");
-    const daemon = join(directory, "bin", isWindows ? "destack-daemon.exe" : "destack-daemon");
-    const sandbox = join(directory, "bin", isWindows ? "destack-sandbox.exe" : "destack-sandbox");
-    const host = join(directory, isWindows ? "destack-desktop-host.exe" : "destack-desktop-host");
+    const cli = join(directory, "bin", "destack");
+    const daemon = join(directory, "bin", "destack-daemon");
+    const sandbox = join(directory, "bin", "destack-sandbox");
+    const host = join(directory, "destack-desktop-host");
     await mkdir(dirname(cli), { recursive: true });
     for (const [entrypoint, outfile] of [
         ["@destack/cli/src/main.ts", cli],
@@ -70,7 +72,7 @@ async function build(): Promise<void> {
             entrypoint: join(ROOT, entrypoint),
             outfile,
             target,
-            runtime: TARGETS[target],
+            runtime,
             version,
             identity: selection.channel,
             plugins: outfile === cli ? [solidPlugin] : [],
@@ -101,8 +103,8 @@ async function build(): Promise<void> {
     } else {
         await mkdir(application);
         await cp(
-            join(compiled, isWindows ? "Destack.exe" : "Destack"),
-            join(application, isWindows ? "Destack.exe" : "Destack"),
+            join(compiled, "Destack"),
+            join(application, "Destack"),
         );
     }
     await rm(icons, { recursive: true });
@@ -124,12 +126,12 @@ async function build(): Promise<void> {
     const commands = join(application, isMac ? "Contents/Helpers" : "helpers");
     await mkdir(commands, { recursive: true });
     await rename(view, join(application, isMac ? "Contents/view" : "view"));
-    await cp(cli, join(commands, isWindows ? "destack.exe" : "destack"));
-    await cp(daemon, join(commands, isWindows ? "destack-daemon.exe" : "destack-daemon"));
-    await cp(sandbox, join(commands, isWindows ? "destack-sandbox.exe" : "destack-sandbox"));
+    await cp(cli, join(commands, "destack"));
+    await cp(daemon, join(commands, "destack-daemon"));
+    await cp(sandbox, join(commands, "destack-sandbox"));
     await rename(
         host,
-        join(commands, isWindows ? "destack-desktop-host.exe" : "destack-desktop-host"),
+        join(commands, "destack-desktop-host"),
     );
     if (isMac) {
         const signing = new MacSigning();

@@ -5,8 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { writeCatalog } from "./catalog.ts";
 
-test("retain updater archives beside every native installer in the download catalog", async () => {
-    // describe the same Windows release in its two independently authenticated formats
+test("publish platform archives and the universal macOS installer in the download catalog", async () => {
+    // describe the same macOS release in its two independently authenticated formats
     const directory = await mkdtemp(join(tmpdir(), "destack-catalog-"));
     const targets = new Metadata(
         new Targets({ version: 1, specVersion: "1.0.31", expires: "2099-01-01T00:00:00Z" }),
@@ -15,7 +15,7 @@ test("retain updater archives beside every native installer in the download cata
     const installer = "b".repeat(64);
     targets.signed.addTarget(
         new TargetFile({
-            path: "x86_64-pc-windows-msvc.tar.gz",
+            path: "aarch64-apple-darwin.tar.gz",
             length: 100,
             hashes: { sha256: archive },
             unrecognizedFields: { custom: { version: "2026.9.1" } },
@@ -23,7 +23,7 @@ test("retain updater archives beside every native installer in the download cata
     );
     targets.signed.addTarget(
         new TargetFile({
-            path: "x86_64-pc-windows-msvc.exe",
+            path: "universal-apple-darwin.dmg",
             length: 200,
             hashes: { sha256: installer },
             unrecognizedFields: { custom: { version: "2026.9.1" } },
@@ -36,28 +36,32 @@ test("retain updater archives beside every native installer in the download cata
             version: "2026.9.1",
             channel: "stable",
             downloads: {
-                "x86_64-pc-windows-msvc": {
+                "aarch64-apple-darwin": {
                     archive: {
                         version: "2026.9.1",
                         sha256: archive,
                         size: 100,
-                        url: `https://download.destack.sh/stable/targets/${archive}.x86_64-pc-windows-msvc.tar.gz`,
+                        url: `https://download.destack.sh/stable/targets/${archive}.aarch64-apple-darwin.tar.gz`,
                     },
+                    installers: {},
+                },
+                "universal-apple-darwin": {
                     installers: {
-                        exe: {
+                        dmg: {
                             version: "2026.9.1",
                             sha256: installer,
                             size: 200,
-                            url: `https://download.destack.sh/stable/targets/${installer}.x86_64-pc-windows-msvc.exe`,
+                            url: `https://download.destack.sh/stable/targets/${installer}.universal-apple-darwin.dmg`,
                         },
                     },
                 },
             },
         });
-        const script = await readFile(new URL("../installer/install.ps1", import.meta.url), "utf8");
-        expect(await readFile(join(directory, "install.ps1"), "utf8")).toBe(
-            script.replaceAll("__REPOSITORY__", "https://download.destack.sh/stable/"),
+        const script = await readFile(join(directory, "install"), "utf8");
+        expect(script).toContain(
+            `https://download.destack.sh/stable/targets/${archive}.aarch64-apple-darwin.tar.gz`,
         );
+        expect(script).not.toContain("# __DISTRIBUTIONS__");
     } finally {
         await rm(directory, { recursive: true, force: true });
     }
