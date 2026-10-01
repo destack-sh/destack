@@ -179,11 +179,29 @@ tester.run("error-message-style", rules["error-message-style"], {
             code: 'const failure = new ServiceError("FORBIDDEN", { ...options });',
             filename: SOURCE,
         },
+        'throw new UpdateError("INSTALL", "invalid staged release digest");',
+        "const failure = new NoteError(message);",
+        'const notes = new Map([["Note", "Draft."]]);',
     ],
     invalid: [
         {
             code: 'throw new Error("Note not found.");',
             output: 'throw new Error("note not found");',
+            errors: [{ messageId: "style" }],
+        },
+        {
+            code: 'reject(new TypeError("Missing note."));',
+            output: 'reject(new TypeError("missing note"));',
+            errors: [{ messageId: "style" }],
+        },
+        {
+            code: 'throw new UpdateError("INSTALL", `Unsafe archive path: ${path}.`);',
+            output: 'throw new UpdateError("INSTALL", `unsafe archive path: ${path}`);',
+            errors: [{ messageId: "style" }],
+        },
+        {
+            code: 'throw new UpdateError("INSTALL", "Invalid staged release digest.");',
+            output: 'throw new UpdateError("INSTALL", "invalid staged release digest");',
             errors: [{ messageId: "style" }],
         },
         {
