@@ -42,7 +42,7 @@ export const RUNS = {
     name: "runs",
     message: SentCall,
 
-    /** Deliver the sent calls to a cell a batch at a time, reporting and letting go of one it refuses for good. */
+    /** Deliver the sent calls to a cell in batches, reporting and dropping one it refuses for good. */
     to(client: RunClient, report: (error: unknown) => void): Destination<SentCall> {
         return {
             name: RUNS.name,
@@ -56,7 +56,7 @@ export const RUNS = {
                     ),
                 );
 
-                // report a call the cell refuses for good and let it go, and deliver the batch again after another failure
+                // drop a call the cell refuses for good, and retry the batch after any other failure
                 const failures = delivered.flatMap((result) =>
                     result.status === "rejected" ? [result.reason as unknown] : [],
                 );
@@ -71,6 +71,9 @@ export const RUNS = {
         };
     },
 } satisfies Address<SentCall> & Readonly<Record<string, unknown>>;
+
+/** The input schemas of methods as clients call them, by method and whether pushed or read. */
+const INPUTS = new WeakMap<Method, Map<boolean, schema.Object<Record<string, schema.Schema>>>>();
 
 /** One call of a method inside its transaction, served or predicted. */
 export class Call<Definition extends Table = Table> {
@@ -110,8 +113,12 @@ export class Call<Definition extends Table = Table> {
     readonly client?: string;
     /** Run another method in the call's transaction as its caller. */
     readonly run?: Run;
-    /** The outbox delivering the calls the call sends to the cell recording its runs, absent where no cell records them. */
+    /** The outbox delivering this call's sends to the cell recording runs, absent without one. */
     readonly sends?: Outbox;
+    /** The view the call reads, as of a position or over a branch, the live database when absent. */
+    readonly snapshot?: Snapshot;
+    /** The calls the method's expansion ran before it in its mutation. */
+    readonly expansion?: readonly BranchCall[];
 
     /** Hold one call's fields. */
     constructor(fields: CallFields<Definition>) {
@@ -175,7 +182,7 @@ export class Call<Definition extends Table = Table> {
         };
     }
 
-    /** Convert a recorded call's input of an earlier release to the object's release, dropping the fields a shape no longer declares. */
+    /** Convert a recorded call's input to the object's release, dropping fields it no longer declares. */
     static upgrade(
         object: ObjectType,
         name: string,
@@ -353,7 +360,7 @@ export class Call<Definition extends Table = Table> {
             );
         }
 
-        // record the send in the call's transaction under the request recording its run once, lending the caller's authority when the host delegated it
+        // record the send once in the call's transaction, lending the caller's authority when delegated
         const requestId = RequestId.create();
         const delegation = this.authorization?.delegation;
         const message: SentCall = {
@@ -478,7 +485,7 @@ export interface Phases<Definition extends Table = Table> {
     ) => Promise<void>;
 }
 
-/** Report whether a failure is the cell's final refusal: a client error other than a timeout or throttle. */
+/** Report whether a failure is the cell's final refusal: a client error, not a timeout or throttle. */
 function isRefusal(error: unknown): boolean {
     const status = (error as { readonly status?: unknown } | undefined)?.status;
 
