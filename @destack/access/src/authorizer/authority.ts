@@ -1,6 +1,6 @@
 import { sql, type SQL, type SQLWrapper } from "@destack/db";
+import type { Subject } from "@destack/sync";
 import { ACCESS_PACKAGE_ID, anyone } from "../policy/principal.ts";
-import type { Subject } from "../policy/subject.ts";
 import type { RelationshipColumnMap } from "../relationship/table.ts";
 import type { Access } from "./access.ts";
 import type { GrantFailure } from "./decision.ts";

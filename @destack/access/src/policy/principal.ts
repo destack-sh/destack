@@ -1,10 +1,7 @@
 import type {} from "@destack/package/import-meta";
-import { SYNC_PACKAGE } from "@destack/sync";
+import { SYNC_PACKAGE, type Subject } from "@destack/sync";
 import { grants, none, relation, union } from "./expression.ts";
 import { Policy } from "./policy.ts";
-import { AccessError } from "../error/index.ts";
-import type { Subject } from "./subject.ts";
-import type { AccessContext } from "../context/context.ts";
 
 /** The package declaring access's own types. */
 const OWNER = import.meta.destack.package;
@@ -88,28 +85,4 @@ export const INTRINSIC_POLICIES: readonly Policy[] = [
 /** Determine whether a subject is one principal rather than a set or another object. */
 export function isPrincipal(subject: Subject): boolean {
     return Object.values(principal).some((kind) => kind.is(subject));
-}
-
-/** Read the principal acting in a request. */
-export function principalOf(context: AccessContext): Subject | undefined {
-    const acting = context.delegates?.findLast((delegate) => delegate.authority === "lent");
-
-    return acting?.subject ?? context.subject ?? context.subjects.find(isPrincipal);
-}
-
-/** Read the principal sending a request: its last delegate, else its subject. */
-export function senderOf(
-    context: Pick<AccessContext, "subject" | "delegates">,
-): Subject | undefined {
-    return context.delegates?.at(-1)?.subject ?? context.subject;
-}
-
-/** Require the principal acting in a request. */
-export function requirePrincipal(context: AccessContext): Subject {
-    const acting = principalOf(context);
-    if (acting === undefined) {
-        throw new AccessError("FORBIDDEN", "the request needs an authenticated principal");
-    }
-
-    return acting;
 }

@@ -1,8 +1,9 @@
 import { expect, onTestFinished, test } from "@destack/test";
+import { Subject } from "@destack/sync";
 import { Snapshot } from "@destack/db/log";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { v7 } from "uuid";
-import { accessRelationship, principal, Relationship, subjectKey, type Subject } from "../index.ts";
+import { accessRelationship, principal, Relationship } from "../index.ts";
 import { group, node } from "../test/fixture.ts";
 import { openFixture } from "../test/database.ts";
 
@@ -68,7 +69,7 @@ test.for(TEST_DIALECTS)(
                 { ...(after === undefined ? {} : { after }), limit: 2 },
             );
         const first = await page();
-        const second = await page(subjectKey(first.at(-1)!));
+        const second = await page(Subject.key(first.at(-1)!));
         expect([first.map((subject) => subject.id), second.map((subject) => subject.id)]).toEqual([
             ["alice", "carol"],
             ["dave"],

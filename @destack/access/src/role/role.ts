@@ -1,10 +1,9 @@
-import { type ObjectReference } from "@destack/sync";
+import type { ObjectReference, Subject } from "@destack/sync";
 import { and, asc, eq, type DatabaseConnection, type Select } from "@destack/db";
 import { defineSchema, identifier, schema } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
 import { PermissionReference } from "../policy/policy.ts";
-import type { Subject } from "../policy/subject.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
 import { accessRole, accessRolePermission } from "./table.ts";

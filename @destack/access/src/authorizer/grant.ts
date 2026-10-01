@@ -1,13 +1,13 @@
-import { type ObjectReference } from "@destack/sync";
+import { AccessContext } from "../context/context.ts";
+import { ObjectReference, Subject } from "@destack/sync";
 import type { Snapshot } from "@destack/db/log";
 import { Condition, type Match } from "@destack/db/query";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
-import { requireAttribute } from "../context/context.ts";
 import { AccessError } from "../error/index.ts";
 import type { AccessExpression } from "../policy/expression.ts";
-import { objectKey, type PermissionReference } from "../policy/policy.ts";
-import { accepts, keySubject, type Subject } from "../policy/subject.ts";
+import { type PermissionReference } from "../policy/policy.ts";
+import { accepts } from "../policy/subject.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import type { RelationshipRow } from "../relationship/table.ts";
 import type { Access } from "./access.ts";
@@ -117,7 +117,7 @@ export class GrantReader {
 
     /** Note an object a call creates and the relationships its creation writes. */
     creating(object: ObjectReference, relationships: readonly RelationshipRow[]): void {
-        this.#read.set(objectKey(object), Promise.resolve([...relationships]));
+        this.#read.set(ObjectReference.key(object), Promise.resolve([...relationships]));
     }
 
     /** Read one object as a row of its type, absent where none exists. */
@@ -205,14 +205,14 @@ export class GrantReader {
 
         // read in one query the relationships of the rows, their ancestors, and their scope chains
         const objects = [
-            ...new Map(reached.map((object) => [objectKey(object), object])).values(),
-        ].filter((object) => !this.#read.has(objectKey(object)));
+            ...new Map(reached.map((object) => [ObjectReference.key(object), object])).values(),
+        ].filter((object) => !this.#read.has(ObjectReference.key(object)));
         const found = new Map<string, RelationshipRow[]>(
-            objects.map((object) => [objectKey(object), []]),
+            objects.map((object) => [ObjectReference.key(object), []]),
         );
         for (const chunk of chunks(objects)) {
             for (const entry of await Relationship.readByObject(this.#snapshot, chunk)) {
-                found.get(objectKey(relatedObject(entry)))!.push(entry);
+                found.get(ObjectReference.key(relatedObject(entry)))!.push(entry);
             }
         }
         for (const [key, entries] of found) {
@@ -347,7 +347,7 @@ export class GrantReader {
             const heldRelation =
                 columns?.relation === undefined ? undefined : row[columns.relation];
             const subject: Subject = field.isKey
-                ? keySubject(schema.string().parse(held))
+                ? Subject.read(schema.string().parse(held))
                 : columns === undefined
                   ? {
                         packageId: type!.packageId,
@@ -580,7 +580,7 @@ export class GrantReader {
     /** Read every relationship on one object once. */
     #relationships(object: ObjectReference): Promise<RelationshipRow[]> {
         // reuse the relationships read before
-        const key = objectKey(object);
+        const key = ObjectReference.key(object);
         const known = this.#read.get(key);
         if (known) {
             return known;
@@ -750,7 +750,7 @@ export const GrantTree = {
                 return (
                     tree.match({
                         column: (name) => tree.row[name],
-                        parameter: (name) => requireAttribute(access.context, name),
+                        parameter: (name) => AccessContext.attribute(access.context, name),
                         exists: (via) => {
                             throw new AccessError(
                                 "INVALID_DECLARATION",

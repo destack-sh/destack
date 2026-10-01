@@ -1,6 +1,7 @@
 import { check, dialectSQL, sql, type Column } from "@destack/db";
 import type { Condition } from "@destack/db/query";
 import { schema } from "@destack/schema";
+import { AccessName } from "@destack/sync";
 
 /** A scalar request attribute that permission conditions compare. */
 export const Attribute = schema.union([
@@ -10,9 +11,6 @@ export const Attribute = schema.union([
 ]);
 /** A scalar request attribute that permission conditions compare. */
 export type Attribute = schema.Infer<typeof Attribute>;
-
-/** A stable declaration-local name used by access rules. */
-export const AccessName = schema.string().regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/);
 
 /** Constrain a column holding access names to their lowercase kebab case. */
 export function nameCheck(name: string, column: Column) {

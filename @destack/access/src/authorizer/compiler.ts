@@ -1,11 +1,11 @@
-import { type ObjectReference } from "@destack/sync";
+import { ObjectReference, Subject } from "@destack/sync";
 import { alias, inArray, sql, type SQL, type SQLWrapper, type Table } from "@destack/db";
 import { Condition, type Binding } from "@destack/db/query";
 import { AccessError } from "../error/index.ts";
-import { objectKey, type PermissionReference } from "../policy/policy.ts";
+import { type PermissionReference } from "../policy/policy.ts";
 import type { AccessExpression } from "../policy/expression.ts";
-import { accepts, subjectKey, type RelationDefinition } from "../policy/subject.ts";
-import { requireAttribute, type AccessContext } from "../context/context.ts";
+import { accepts, type RelationDefinition } from "../policy/subject.ts";
+import { AccessContext } from "../context/context.ts";
 import { Restriction } from "../context/restriction.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship, type RelationshipColumnMap } from "../relationship/table.ts";
@@ -113,7 +113,8 @@ export class Compiler {
     ): SQL {
         // require the target in the resolved scope or to be the scope, and evaluate each authority on its row
         const own = access.scopes[0];
-        const isScope = own !== undefined && objectKey(own) === objectKey(target);
+        const isScope =
+            own !== undefined && ObjectReference.key(own) === ObjectReference.key(target);
         if (target.scope !== access.scope && !isScope) {
             throw new AccessError("INVALID_CONTEXT", "target lies outside the resolved scope");
         }
@@ -373,7 +374,7 @@ export class Compiler {
         else if (field?.isKey) {
             const keys = authority.subjects
                 .filter((subject) => accepts(relation, subject))
-                .map((subject) => subjectKey(subject));
+                .map((subject) => Subject.key(subject));
 
             return keys.length === 0
                 ? sql`false`
@@ -598,6 +599,6 @@ function bindAttributes(
             );
         },
         column: (name) => column(source, mapping.attributes[name]!),
-        parameter: (name) => requireAttribute(context, name),
+        parameter: (name) => AccessContext.attribute(context, name),
     };
 }

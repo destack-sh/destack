@@ -1,9 +1,8 @@
 import { eq, type DatabaseConnection } from "@destack/db";
-import { Scope, type ObjectReference } from "@destack/sync";
+import { Scope, type ObjectReference, type Subject } from "@destack/sync";
 import { identifier } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
-import type { Subject } from "../policy/subject.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
 import { Role, type RoleRequest } from "../role/role.ts";

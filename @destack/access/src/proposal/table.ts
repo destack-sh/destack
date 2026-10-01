@@ -1,5 +1,5 @@
 import { check, defineTable, identifier, index, integer, json, sql, text } from "@destack/db";
-import { Subject } from "../policy/subject.ts";
+import { Subject } from "@destack/sync";
 import { accessRole } from "../role/table.ts";
 import { defineSchema, type schema } from "@destack/schema";
 import { Relationship } from "../relationship/relationship.ts";

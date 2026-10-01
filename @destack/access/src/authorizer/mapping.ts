@@ -37,7 +37,7 @@ export interface TableMapping {
                 readonly subject?: Omit<ReferenceColumns, "id"> & {
                     readonly relation?: string;
                 };
-                /** Whether the column holds whole subject keys of any type, as `subjectKey` writes them. */
+                /** Whether the column holds whole subject keys of any type, as `Subject.key` writes them. */
                 readonly isKey?: true;
             }
         >

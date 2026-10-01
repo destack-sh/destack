@@ -1,12 +1,7 @@
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import type { Subject } from "@destack/sync";
 import { fixtureDatabase, item, mappings, node, policies, rows } from "./fixture.ts";
-import {
-    Authorizer,
-    principal,
-    type AccessContext,
-    type Subject,
-    Authorization,
-} from "../index.ts";
+import { Authorizer, principal, type AccessContext, Authorization } from "../index.ts";
 
 /** Open a migrated application database, PostgreSQL when configured, with independent users and one explicit grant. */
 export async function openFixture(dialect = TEST_DIALECTS.at(-1)!) {

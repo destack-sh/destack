@@ -12,22 +12,12 @@ import {
     type Watch,
     type ObjectReference,
     type ObjectTypeReference,
+    Subject,
 } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
-import {
-    permissionKey,
-    relationsOf,
-    type PermissionReference,
-    type Policy,
-} from "../policy/policy.ts";
+import { relationsOf, PermissionReference, type Policy } from "../policy/policy.ts";
 import type { AccessExpression } from "../policy/expression.ts";
-import {
-    accepts,
-    type RelationDefinition,
-    type Subject,
-    subjectKey,
-    type SubjectType,
-} from "../policy/subject.ts";
+import { accepts, type RelationDefinition, type SubjectType } from "../policy/subject.ts";
 import { INTRINSIC_POLICIES } from "../policy/principal.ts";
 import { type AccessContext } from "../context/context.ts";
 import { HIGHEST_ASSURANCE, type Elevation, type StepUp } from "../context/elevation.ts";
@@ -193,7 +183,7 @@ export class Authorizer {
         this.elevated = new Map(
             types.flatMap((type) =>
                 Object.entries(type.definition.elevated ?? {}).map(([name, elevation]) => [
-                    permissionKey(type.permission(name)),
+                    PermissionReference.key(type.permission(name)),
                     elevation,
                 ]),
             ),
@@ -894,7 +884,7 @@ export class Authorizer {
     ): Promise<StepUp | undefined> {
         // start from the caller's own level and the elevation's, whichever is higher
         const context = access.context;
-        const elevation = this.elevated.get(permissionKey(permission));
+        const elevation = this.elevated.get(PermissionReference.key(permission));
         const lowest = Math.max(context.assurance?.level ?? 1, elevation?.assurance ?? 1);
 
         // decide again at each level as if the caller authenticated just now
@@ -950,7 +940,7 @@ export class Authorizer {
         ) {
             const sets: Subject[] = [];
             for (const subject of frontier) {
-                const key = subjectKey(subject);
+                const key = Subject.key(subject);
                 if (seen.has(key) || subject.id === "*") {
                     continue;
                 }
@@ -1199,7 +1189,7 @@ export class Authorizer {
     /** Resolve all expressions and keep recursion in explicit ancestor traversal. */
     #validate(reference: PermissionReference, parents: ReadonlySet<string>): void {
         // detect recursion by the complete permission reference
-        const key = permissionKey(reference);
+        const key = PermissionReference.key(reference);
         if (parents.has(key)) {
             throw new AccessError("INVALID_DECLARATION", `cyclic permission: ${reference.name}`);
         }
@@ -1344,7 +1334,7 @@ function listedPermissions(
     return new Set(
         types.flatMap((type) =>
             (type.definition[list] ?? []).map((name) =>
-                permissionKey({
+                PermissionReference.key({
                     packageId: type.definition.packageId,
                     type: type.definition.name,
                     name,
@@ -1362,7 +1352,7 @@ async function members(snapshot: Snapshot, sets: readonly Subject[]): Promise<Su
     }
 
     // read the relationships of each set's relation
-    const wanted = new Set(sets.map((set) => subjectKey(set)));
+    const wanted = new Set(sets.map((set) => Subject.key(set)));
     const rows = await Relationship.readByObject(
         snapshot,
         sets.map((set) => ({
@@ -1376,7 +1366,7 @@ async function members(snapshot: Snapshot, sets: readonly Subject[]): Promise<Su
     return rows
         .map((row) => Relationship.decode(row))
         .filter((relationship) =>
-            wanted.has(subjectKey({ ...relationship.object, relation: relationship.relation! })),
+            wanted.has(Subject.key({ ...relationship.object, relation: relationship.relation! })),
         )
         .map((relationship) => relationship.subject);
 }

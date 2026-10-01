@@ -1,4 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
+import { Subject } from "@destack/sync";
 import { Snapshot } from "@destack/db/log";
 import { asc, eq } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
@@ -12,7 +13,6 @@ import {
     proposal,
     Relationship,
     relationship,
-    subjectKey,
     type AccessContext,
 } from "../index.ts";
 import { mappings, node, policies } from "../test/fixture.ts";
@@ -100,7 +100,7 @@ test.for(TEST_DIALECTS)(
 
         // show both to alice as grantor, and each other caller only its own
         const [carol, dave, alice] = ["carol", "dave", "alice"].map((id) =>
-            subjectKey(principal.user.reference("universe", id)),
+            Subject.key(principal.user.reference("universe", id)),
         );
         expect(await visible(fixture.alice)).toEqual([`${carol}>${carol}`, `${alice}>${dave}`]);
         expect(await visible(as("carol"))).toEqual([`${carol}>${carol}`]);

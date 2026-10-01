@@ -1,4 +1,4 @@
-import { permissionKey, type PermissionReference } from "../policy/policy.ts";
+import { PermissionReference } from "../policy/policy.ts";
 
 /** What a role grants: every permission but reserved ones, or its own and its included roles' permissions. */
 export interface RoleGrant {
@@ -48,7 +48,7 @@ export function close(
             // take its permissions and follow its inclusions
             isUniversal ||= next.isUniversal;
             for (const permission of next.permissions) {
-                permissions.set(permissionKey(permission), permission);
+                permissions.set(PermissionReference.key(permission), permission);
             }
             pending.push(...(included.get(next.id) ?? []));
         }

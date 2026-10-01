@@ -1,12 +1,13 @@
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, Instant, schema } from "@destack/schema";
+import { Subject } from "@destack/sync";
 import type { Scalar } from "@destack/db/query";
 import { AccessError } from "../error/index.ts";
-import { sameSubject, Subject } from "../policy/subject.ts";
+import { isPrincipal } from "../policy/principal.ts";
 import type { Restriction } from "./restriction.ts";
 import type { Attribute } from "../policy/expression.ts";
 
-/** An identifier a principal proves control of, such as `email:bob@acme.com`, written `scheme:value`. */
-export const VerifiedIdentifier = defineSchema(
+/** The schema of a verified identifier. */
+const verifiedIdentifier = defineSchema(
     schema
         .string()
         .min(3)
@@ -14,7 +15,15 @@ export const VerifiedIdentifier = defineSchema(
         .regex(/^[a-z][a-z0-9-]*:\S+$(?![\s\S])/),
 );
 /** An identifier a principal proves control of, such as `email:bob@acme.com`, written `scheme:value`. */
-export type VerifiedIdentifier = schema.Infer<typeof VerifiedIdentifier>;
+export type VerifiedIdentifier = schema.Infer<typeof verifiedIdentifier>;
+
+/** An identifier a principal proves control of, such as `email:bob@acme.com`, written `scheme:value`. */
+export const VerifiedIdentifier = Object.assign(verifiedIdentifier, {
+    /** Write an email address as the identifier its verified owner controls. */
+    fromEmail(address: string): VerifiedIdentifier {
+        return verifiedIdentifier.parse(`email:${address.trim().toLowerCase()}`);
+    },
+});
 
 /** One principal acting in a request, for the principal before it in the chain, the first for the represented subject. */
 export const Delegate = defineSchema(
@@ -27,11 +36,6 @@ export const Delegate = defineSchema(
 );
 /** One principal acting in a request, for the principal before it in the chain, the first for the represented subject. */
 export type Delegate = schema.Infer<typeof Delegate>;
-
-/** Write an email address as the identifier its verified owner controls. */
-export function emailIdentifier(address: string): VerifiedIdentifier {
-    return VerifiedIdentifier.parse(`email:${address.trim().toLowerCase()}`);
-}
 
 /** Verified identities and attributes supplied by the authoritative caller. */
 export interface AccessContext {
@@ -65,57 +69,89 @@ export const AuthenticationAssurance = defineSchema(
         /** The assurance level: 1 for one factor, 2 for several, 3 for phishing-resistant factors. */
         level: schema.number().int().min(1).max(3),
         /** The authentication time in UTC epoch milliseconds. */
-        authenticatedAt: schema.number().int().nonnegative(),
+        authenticatedAt: Instant,
     }),
 );
 /** How strongly and how recently a caller authenticated. */
 export type AuthenticationAssurance = schema.Infer<typeof AuthenticationAssurance>;
 
-/** Pair each delegate with the principal it acts for, from the represented subject to the principal sending the request. */
-export function delegationChain(
-    context: AccessContext,
-): { delegate: Subject; delegator: Subject; authority: Delegate["authority"] }[] {
-    // allow direct calls
-    const delegates = context.delegates ?? [];
-    if (delegates.length === 0) {
-        return [];
-    }
+/** Read the principals, delegation, identifiers and attributes of a request's access context. */
+export const AccessContext = {
+    /** Read the principal acting in a request. */
+    principal(context: AccessContext): Subject | undefined {
+        const acting = context.delegates?.findLast((delegate) => delegate.authority === "lent");
 
-    // require the represented subject among the authenticated subjects
-    const represented = context.subject;
-    if (!represented || !context.subjects.some((subject) => sameSubject(subject, represented))) {
-        throw new AccessError("INVALID_CONTEXT", "delegation chain is inconsistent");
-    }
+        return acting?.subject ?? context.subject ?? context.subjects.find(isPrincipal);
+    },
 
-    // pair each delegate with the principal it acts for, whom a full delegate acts as
-    let delegator = represented;
-
-    return delegates.map(({ subject, authority }) => {
-        const link = { delegate: subject, delegator, authority };
-        if (authority === "lent") {
-            delegator = subject;
+    /** Require the principal acting in a request. */
+    requirePrincipal(context: AccessContext): Subject {
+        const acting = AccessContext.principal(context);
+        if (acting === undefined) {
+            throw new AccessError("FORBIDDEN", "the request needs an authenticated principal");
         }
 
-        return link;
-    });
-}
+        return acting;
+    },
 
-/** Read the identifiers the represented subject proved, empty under lent authority. */
-export function verifiedIdentifiers(context: AccessContext): readonly string[] {
-    const isLent = context.delegates?.some((delegate) => delegate.authority === "lent") ?? false;
+    /** Read the principal sending a request: its last delegate, else its subject. */
+    sender(context: Pick<AccessContext, "subject" | "delegates">): Subject | undefined {
+        return context.delegates?.at(-1)?.subject ?? context.subject;
+    },
 
-    return isLent ? [] : (context.identifiers ?? []);
-}
+    /** Pair each delegate with the principal it acts for, from the represented subject to the principal sending the request. */
+    delegation(
+        context: AccessContext,
+    ): { delegate: Subject; delegator: Subject; authority: Delegate["authority"] }[] {
+        // allow direct calls
+        const delegates = context.delegates ?? [];
+        if (delegates.length === 0) {
+            return [];
+        }
 
-/** Read a request attribute for a policy condition and refuse a missing or non-finite one. */
-export function requireAttribute(context: AccessContext, name: string): Scalar {
-    const value = context.attributes[name];
-    if (
-        !Object.hasOwn(context.attributes, name) ||
-        (typeof value === "number" && !Number.isFinite(value))
-    ) {
-        throw new AccessError("INVALID_CONTEXT", `missing or invalid context attribute: ${name}`);
-    }
+        // require the represented subject among the authenticated subjects
+        const represented = context.subject;
+        if (
+            !represented ||
+            !context.subjects.some((subject) => Subject.same(subject, represented))
+        ) {
+            throw new AccessError("INVALID_CONTEXT", "delegation chain is inconsistent");
+        }
 
-    return value!;
-}
+        // pair each delegate with the principal it acts for, whom a full delegate acts as
+        let delegator = represented;
+
+        return delegates.map(({ subject, authority }) => {
+            const link = { delegate: subject, delegator, authority };
+            if (authority === "lent") {
+                delegator = subject;
+            }
+
+            return link;
+        });
+    },
+
+    /** Read the identifiers the represented subject proved, empty under lent authority. */
+    identifiers(context: AccessContext): readonly string[] {
+        const isLent =
+            context.delegates?.some((delegate) => delegate.authority === "lent") ?? false;
+
+        return isLent ? [] : (context.identifiers ?? []);
+    },
+
+    /** Read a request attribute for a policy condition and refuse a missing or non-finite one. */
+    attribute(context: AccessContext, name: string): Scalar {
+        const value = context.attributes[name];
+        if (
+            !Object.hasOwn(context.attributes, name) ||
+            (typeof value === "number" && !Number.isFinite(value))
+        ) {
+            throw new AccessError(
+                "INVALID_CONTEXT",
+                `missing or invalid context attribute: ${name}`,
+            );
+        }
+
+        return value!;
+    },
+};

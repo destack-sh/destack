@@ -1,8 +1,9 @@
 import type { Policy } from "../policy/policy.ts";
+import { AccessName } from "@destack/sync";
 import { defineSchema, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { Condition } from "@destack/db/query";
-import { AccessName, type AccessExpression } from "../policy/expression.ts";
+import { type AccessExpression } from "../policy/expression.ts";
 import { SubjectType } from "../policy/subject.ts";
 import { Elevation } from "../context/elevation.ts";
 

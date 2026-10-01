@@ -1,4 +1,4 @@
-import { ObjectReference, type ObjectTypeReference } from "@destack/sync";
+import { ObjectReference, type ObjectTypeReference, AccessName, Subject } from "@destack/sync";
 import {
     and,
     eq,
@@ -11,11 +11,8 @@ import {
     type SQL,
 } from "@destack/db";
 import type { Snapshot } from "@destack/db/log";
-import { defineSchema, identifier, schema } from "@destack/schema";
+import { defineSchema, identifier, Instant, schema } from "@destack/schema";
 import { v7 } from "uuid";
-import { AccessName } from "../policy/expression.ts";
-import { objectKey } from "../policy/policy.ts";
-import { keySubject, Subject, subjectKey } from "../policy/subject.ts";
 import { accessRelationship, type RelationshipColumnMap, type RelationshipRow } from "./table.ts";
 
 /** What a request must satisfy for a relationship to apply, beyond its lifetime. */
@@ -55,9 +52,9 @@ const relationshipSchema = defineSchema(
         /** The subject, subject set or wildcard related to the object. */
         subject: Subject,
         /** The creation time in Unix milliseconds. */
-        createdAt: schema.number().int(),
+        createdAt: Instant,
         /** The exclusive expiry time in Unix milliseconds, or null for no expiry. */
-        expiresAt: schema.number().int().nullable(),
+        expiresAt: Instant.nullable(),
         /** What a request must satisfy for the relationship to apply. */
         conditions: RelationshipCondition.optional(),
     }),
@@ -130,7 +127,7 @@ function encode(relationship: Relationship, scope: string) {
         onBehalfOf:
             relationship.conditions?.onBehalfOf === undefined
                 ? null
-                : subjectKey(relationship.conditions.onBehalfOf),
+                : Subject.key(relationship.conditions.onBehalfOf),
     };
 }
 
@@ -153,7 +150,7 @@ function decode(row: Select<typeof accessRelationship>): Relationship {
         ...(row.capability === null ? {} : { capability: row.capability }),
         ...(row.assurance === null ? {} : { assurance: row.assurance }),
         ...(row.maxAge === null ? {} : { maxAge: row.maxAge }),
-        ...(row.onBehalfOf === null ? {} : { onBehalfOf: keySubject(row.onBehalfOf) }),
+        ...(row.onBehalfOf === null ? {} : { onBehalfOf: Subject.read(row.onBehalfOf) }),
     };
 
     return {
@@ -287,11 +284,11 @@ async function replace(
         );
 
     // remove the relationships to objects no longer wanted
-    const missing = new Map(wanted.map((object) => [objectKey(object), object]));
+    const missing = new Map(wanted.map((object) => [ObjectReference.key(object), object]));
     const stale = held.filter(
         (row) =>
             !missing.delete(
-                objectKey({
+                ObjectReference.key({
                     scope: row.objectScope,
                     packageId: row.packageId,
                     type: row.type,

@@ -1,4 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
+import type { Subject } from "@destack/sync";
 import { Snapshot } from "@destack/db/log";
 import { and, asc, eq, sql } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
@@ -13,7 +14,6 @@ import {
     type AccessContext,
     type PermissionReference,
     type RelationshipCondition,
-    type Subject,
 } from "../index.ts";
 import {
     cell,

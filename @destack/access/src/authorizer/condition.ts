@@ -1,6 +1,6 @@
 import { jsonElements, sql, type SQL, type SQLWrapper } from "@destack/db";
+import { Subject } from "@destack/sync";
 import { ACCESS_PACKAGE_ID, anyone } from "../policy/principal.ts";
-import { subjectKey, type Subject } from "../policy/subject.ts";
 import type { AccessContext } from "../context/context.ts";
 import type { RelationshipColumnMap, RelationshipRow } from "../relationship/table.ts";
 import type { GrantFailure } from "./decision.ts";
@@ -111,7 +111,7 @@ export class GrantCondition {
         const isLent =
             delegator === undefined
                 ? this.onBehalfOf === null
-                : this.onBehalfOf === subjectKey(delegator) ||
+                : this.onBehalfOf === Subject.key(delegator) ||
                   (this.onBehalfOf === null && subject !== undefined && anyone.is(subject));
 
         return isLent ? undefined : "delegation";
@@ -201,7 +201,7 @@ export class GrantCondition {
             capabilities: JSON.stringify((context.capabilities ?? []).map((digest) => [digest])),
             level: context.assurance?.level ?? null,
             authenticatedAt: context.assurance?.authenticatedAt ?? null,
-            delegator: delegator === undefined ? null : subjectKey(delegator),
+            delegator: delegator === undefined ? null : Subject.key(delegator),
         };
     }
 

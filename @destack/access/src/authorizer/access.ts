@@ -1,13 +1,13 @@
 import type { DatabaseConnection, Select } from "@destack/db";
 import type { Snapshot } from "@destack/db/log";
 import type { PackageId } from "@destack/package";
-import { Replica, type ScopeLink, Scope, type ObjectReference } from "@destack/sync";
+import { Replica, type ScopeLink, Scope, type ObjectReference, Subject } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
-import { permissionKey, type PermissionReference } from "../policy/policy.ts";
-import { subjectKey, type Subject, type SubjectType } from "../policy/subject.ts";
+import { PermissionReference } from "../policy/policy.ts";
+import { type SubjectType } from "../policy/subject.ts";
 import { ACCESS_PACKAGE_ID } from "../policy/principal.ts";
 import * as principal from "../policy/principal.ts";
-import { delegationChain, type AccessContext } from "../context/context.ts";
+import { AccessContext } from "../context/context.ts";
 import { Elevation } from "../context/elevation.ts";
 import { Restriction } from "../context/restriction.ts";
 import { Relationship } from "../relationship/relationship.ts";
@@ -86,7 +86,7 @@ export class Access {
             // index any other role under each permission it grants
             else {
                 for (const permission of grant.permissions) {
-                    const key = permissionKey(permission);
+                    const key = PermissionReference.key(permission);
                     roles.set(key, [...(roles.get(key) ?? []), role]);
                 }
             }
@@ -118,7 +118,7 @@ export class Access {
         const chain = [scope, ...links.map((link) => link.object.id).filter((id) => id !== scope)];
 
         // read the roles and the subject sets of the caller and every lent delegate
-        const lent = delegationChain(context).filter((link) => link.authority === "lent");
+        const lent = AccessContext.delegation(context).filter((link) => link.authority === "lent");
         const [roles, , represented, delegates] = await Promise.all([
             readRoles(snapshot, chain, context),
             snapshot.position === undefined
@@ -263,7 +263,7 @@ export class Access {
         // seed with identities and verified subject sets
         const fields = authorizer?.fields ?? [];
         const expanded = [...subjects];
-        const known = new Set(expanded.map(subjectKey));
+        const known = new Set(expanded.map(Subject.key));
         const boundaries: (number | undefined)[] = [];
         let frontier = [...expanded];
         while (frontier.length > 0) {
@@ -289,7 +289,7 @@ export class Access {
                 ...held.flat(),
             ];
             for (const subject of found) {
-                const key = subjectKey(subject);
+                const key = Subject.key(subject);
                 if (!known.has(key)) {
                     known.add(key);
                     expanded.push(subject);
@@ -303,7 +303,7 @@ export class Access {
 
     /** List the roles along the scope chain that grant a permission. */
     granting(permission: PermissionReference): readonly string[] {
-        const key = permissionKey(permission);
+        const key = PermissionReference.key(permission);
 
         return this.#authorizer.reserved.has(key)
             ? []
@@ -367,7 +367,7 @@ export class Access {
 
     /** Read the gate a request fails on any object: its elevation or the scope's suspension. */
     blocked(permission: PermissionReference): Gate | undefined {
-        const key = permissionKey(permission);
+        const key = PermissionReference.key(permission);
 
         // require the authentication an elevated permission asks for
         if (!this.elevates(permission)) {
@@ -383,7 +383,7 @@ export class Access {
 
     /** Report whether the caller meets a permission's elevation. */
     elevates(permission: PermissionReference): boolean {
-        const elevation = this.#authorizer.elevated.get(permissionKey(permission));
+        const elevation = this.#authorizer.elevated.get(PermissionReference.key(permission));
 
         return elevation === undefined || Elevation.admits(elevation, this.context);
     }
@@ -517,7 +517,7 @@ async function fieldSets(
 
     // keep the rows holding a subject of their scope, or of any scope the field names
     const definition = mapping.policy.definition;
-    const held = new Set(holders.map(subjectKey));
+    const held = new Set(holders.map(Subject.key));
 
     return rows.flatMap((row) => {
         const scope = TableMapping.scope(mapping, row);
@@ -527,7 +527,7 @@ async function fieldSets(
             id: String(row[field.column]),
         };
 
-        return held.has(subjectKey(subject))
+        return held.has(Subject.key(subject))
             ? [
                   {
                       packageId: definition.packageId,

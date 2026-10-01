@@ -1,3 +1,4 @@
+import { Digest } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 
 /** The form of a capability secret: 32 bytes as lowercase hexadecimal. */
@@ -39,8 +40,6 @@ export class Capability {
         }
 
         // hash the secret
-        const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(secret));
-
-        return new Uint8Array(digest).toHex();
+        return Digest.of(secret);
     }
 }

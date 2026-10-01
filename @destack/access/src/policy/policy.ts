@@ -1,8 +1,8 @@
 import { defineSchema, schema } from "@destack/schema";
 import { PackageId, type Package } from "@destack/package";
-import { ObjectReference } from "@destack/sync";
-import { AccessName, type AccessExpression } from "./expression.ts";
-import { type RelationDefinition, type Subject, SubjectType } from "./subject.ts";
+import { ObjectReference, AccessName, type Subject } from "@destack/sync";
+import { type AccessExpression } from "./expression.ts";
+import { type RelationDefinition, SubjectType } from "./subject.ts";
 import { AccessError } from "../error/index.ts";
 import { PolicyDescription } from "../inspect/policy.ts";
 import type { Elevation } from "../context/elevation.ts";
@@ -62,7 +62,7 @@ export class Policy<Name extends string = string> {
                     name,
                     {
                         subjects: relation.subjects.map((subject) =>
-                            subjectType(owner.id, subject),
+                            Policy.subjectType(owner.id, subject),
                         ),
                         ...(grantedBy === undefined || grantedBy === null ? {} : { grantedBy }),
                         ...(relation.open ? { open: true } : {}),
@@ -171,6 +171,35 @@ export class Policy<Name extends string = string> {
     all(): PolicySubject {
         return new PolicySubject(this, undefined, true);
     }
+
+    /** Qualify a declared subject type with the package declaring it. */
+    static subjectType(packageId: PackageId, subject: SubjectTypeInput): SubjectType {
+        // accept a policy's objects
+        if (subject instanceof Policy) {
+            return { packageId: subject.definition.packageId, type: subject.definition.name };
+        }
+        // accept a policy's members or all of its objects
+        else if (subject instanceof PolicySubject) {
+            return subject.type();
+        }
+        // accept a qualified subject type
+        else if (typeof subject !== "string") {
+            return SubjectType.parse(subject);
+        }
+
+        // parse `type`, `type#relation` and `type:*`
+        const match = /^([a-z][a-z0-9-]*)(?:#([a-z][a-z0-9-]*)|(:\*))?$(?![\s\S])/.exec(subject);
+        if (!match) {
+            throw new AccessError("INVALID_DECLARATION", `invalid subject type: ${subject}`);
+        }
+
+        return SubjectType.parse({
+            packageId,
+            type: match[1],
+            ...(match[2] === undefined ? {} : { relation: match[2] }),
+            ...(match[3] === undefined ? {} : { wildcard: true }),
+        });
+    }
 }
 
 /** A subject type taken from a policy: the members of one of its relations, or all of its objects. */
@@ -201,7 +230,7 @@ export class PolicySubject {
 }
 
 /** A stable reference to a declared permission, independent of a package version. */
-export const PermissionReference = defineSchema(
+const permissionReference = defineSchema(
     schema.object({
         /** The package that declares the permission. */
         packageId: PackageId,
@@ -212,7 +241,15 @@ export const PermissionReference = defineSchema(
     }),
 );
 /** A stable reference to a declared permission, independent of a package version. */
-export type PermissionReference = schema.Infer<typeof PermissionReference>;
+export type PermissionReference = schema.Infer<typeof permissionReference>;
+
+/** A permission of an object type, and its key. */
+export const PermissionReference = Object.assign(permissionReference, {
+    /** Key a permission without collisions. */
+    key(permission: Pick<PermissionReference, "packageId" | "type" | "name">): string {
+        return JSON.stringify([permission.packageId, permission.type, permission.name]);
+    },
+});
 
 /** Marks the permission references a policy produced. */
 declare const DECLARED: unique symbol;
@@ -261,47 +298,6 @@ export interface PolicyInput<Name extends string> {
     readonly isGlobal?: boolean;
     /** The open relations of other types this type's objects may be subjects of, such as an attachment's parent. */
     readonly contributes?: readonly { readonly policy: Policy; readonly relation: string }[];
-}
-
-/** Qualify a declared subject type with the package declaring it. */
-export function subjectType(packageId: PackageId, subject: SubjectTypeInput): SubjectType {
-    // accept a policy's objects
-    if (subject instanceof Policy) {
-        return { packageId: subject.definition.packageId, type: subject.definition.name };
-    }
-    // accept a policy's members or all of its objects
-    else if (subject instanceof PolicySubject) {
-        return subject.type();
-    }
-    // accept a qualified subject type
-    else if (typeof subject !== "string") {
-        return SubjectType.parse(subject);
-    }
-
-    // parse `type`, `type#relation` and `type:*`
-    const match = /^([a-z][a-z0-9-]*)(?:#([a-z][a-z0-9-]*)|(:\*))?$(?![\s\S])/.exec(subject);
-    if (!match) {
-        throw new AccessError("INVALID_DECLARATION", `invalid subject type: ${subject}`);
-    }
-
-    return SubjectType.parse({
-        packageId,
-        type: match[1],
-        ...(match[2] === undefined ? {} : { relation: match[2] }),
-        ...(match[3] === undefined ? {} : { wildcard: true }),
-    });
-}
-
-/** Construct a collision-free permission key. */
-export function permissionKey(
-    permission: Pick<PermissionReference, "packageId" | "type" | "name">,
-): string {
-    return JSON.stringify([permission.packageId, permission.type, permission.name]);
-}
-
-/** Construct a collision-free reference key. */
-export function objectKey(reference: ObjectReference): string {
-    return JSON.stringify([reference.packageId, reference.type, reference.scope, reference.id]);
 }
 
 /** Freeze every declaration node after copying it. */

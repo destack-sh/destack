@@ -1,9 +1,8 @@
-import { type ObjectReference } from "@destack/sync";
+import { type ObjectReference, Subject } from "@destack/sync";
 import { and, eq, gt, type DatabaseConnection, type Select } from "@destack/db";
-import { defineSchema, identifier, schema } from "@destack/schema";
+import { defineSchema, identifier, Instant, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
-import { sameSubject, Subject, subjectKey } from "../policy/subject.ts";
-import { VerifiedIdentifier, verifiedIdentifiers, type AccessContext } from "../context/context.ts";
+import { VerifiedIdentifier, AccessContext } from "../context/context.ts";
 import type { RelationshipRequest } from "../relationship/relationship.ts";
 import { accessProposal, ProposedRelationship } from "./table.ts";
 
@@ -27,9 +26,9 @@ const proposalSchema = defineSchema(
         /** Why the proposer asks for or offers the relationship. */
         purpose: schema.string().min(1).optional(),
         /** The creation time in Unix milliseconds. */
-        createdAt: schema.number().int(),
+        createdAt: Instant,
         /** The exclusive time the proposal lapses, in Unix milliseconds. */
-        expiresAt: schema.number().int(),
+        expiresAt: Instant,
     }),
 );
 /** A relationship that its subject requests or a grantor offers, applied after acceptance. */
@@ -123,7 +122,7 @@ async function read(
 function asksForItself(proposal: Proposal): boolean {
     const subject = proposal.relationship.subject;
 
-    return subject !== undefined && sameSubject(subject, proposal.proposer);
+    return subject !== undefined && Subject.same(subject, proposal.proposer);
 }
 
 /** Determine whether an offer addresses a principal directly or through a verified identifier. */
@@ -131,8 +130,8 @@ function addresses(proposal: Proposal, principal: Subject, context: AccessContex
     const subject = proposal.relationship.subject;
 
     return subject === undefined
-        ? verifiedIdentifiers(context).includes(proposal.recipient!)
-        : sameSubject(subject, principal);
+        ? AccessContext.identifiers(context).includes(proposal.recipient!)
+        : Subject.same(subject, principal);
 }
 
 /** Write a proposal as its row, keyed for listing by proposer, addressee and lender. */
@@ -152,10 +151,10 @@ function encode(proposal: Proposal, scope: string) {
         roleId: proposed.role === undefined ? null : identifier("role").parse(proposed.role),
         relationship: proposed,
         proposer: proposal.proposer,
-        proposerKey: subjectKey(proposal.proposer),
+        proposerKey: Subject.key(proposal.proposer),
         addressee:
-            proposed.subject === undefined ? proposal.recipient! : subjectKey(proposed.subject),
-        lender: lender === undefined ? null : subjectKey(lender),
+            proposed.subject === undefined ? proposal.recipient! : Subject.key(proposed.subject),
+        lender: lender === undefined ? null : Subject.key(lender),
         purpose: proposal.purpose ?? null,
         expiresAt: proposal.expiresAt,
     };
