@@ -8,6 +8,7 @@ import type { MethodProcedure, ObjectSchema } from "./procedure.ts";
 import { create, custom, get, list, remove, update, updateMany } from "../trait/record.ts";
 import type { MethodKind } from "./kind.ts";
 import type { Step } from "./step.ts";
+import type { BranchCall } from "../branch/branch.ts";
 
 export { METHOD_KINDS, type MethodKind } from "./kind.ts";
 
@@ -58,6 +59,8 @@ export interface Method<
     execute(call: Call): Promise<unknown>;
     /** Authorize a call before its external work. */
     readonly authorize?: (call: Call) => Promise<void>;
+    /** List the calls a mutation runs before this one, each as its caller, read before the transaction. */
+    readonly expand?: (call: Call) => Promise<readonly BranchCall[]>;
     /** Do external work before the transaction, on the server only. */
     readonly prepare?: (call: Call) => Promise<unknown>;
     /** Confirm or cancel the prepared work. */
@@ -132,6 +135,7 @@ export function defineMethod<Declared extends Method>(
                     ? {}
                     : { prepare: handling.prepare, isPredicted: false }),
                 ...(handling.settle === undefined ? {} : { settle: handling.settle }),
+                ...(handling.expand === undefined ? {} : { expand: handling.expand }),
                 ...(handling.key === undefined ? {} : { key: handling.key }),
                 ...(handling.authorize === undefined
                     ? {}

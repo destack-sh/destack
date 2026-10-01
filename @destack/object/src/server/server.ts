@@ -488,15 +488,9 @@ export class ObjectServer<
                         context,
                     );
 
-                    return this.#execute(
-                        transaction,
-                        authorization,
-                        object,
-                        name,
-                        input,
-                        context,
+                    return this.#execute(transaction, authorization, object, name, input, context, {
                         prepared,
-                    );
+                    });
                 },
                 { isReadOnly: true },
             );
@@ -539,9 +533,28 @@ export class ObjectServer<
         context: ServiceContext,
         client?: string,
     ): Promise<unknown[]> {
-        // resolve each call and mint prepared creations' identifiers
-        const calls = mutation.calls.map((entry) => {
-            const call = this.#resolve(entry, true);
+        // resolve each call in one scope
+        const originals = mutation.calls.map((entry) => this.#resolve(entry, true));
+        const scope = this.#scope(originals[0]!.object, originals[0]!.input);
+        if (originals.some((call) => this.#scope(call.object, call.input) !== scope)) {
+            throw new ServiceError("BAD_REQUEST", {
+                message: "a mutation's calls act in one scope",
+            });
+        }
+        await this.enter(context, scope);
+
+        // write ephemeral objects apart
+        const ephemeral = originals.filter((call) => call.object.storage === "ephemeral").length;
+        if (ephemeral === originals.length) {
+            return this.#mutateEphemeral(originals, scope, context, client);
+        } else if (ephemeral > 0) {
+            throw new ServiceError("BAD_REQUEST", {
+                message: "a mutation writes durable or ephemeral objects, not both",
+            });
+        }
+
+        // expand calls into the calls they run after, and mint prepared creations' identifiers
+        const calls = (await this.#expand(originals, scope, context)).map((call) => {
             const method = (call.object.methods as Readonly<Record<string, Method>>)[call.name]!;
 
             return method.kind === "create" &&
@@ -550,23 +563,6 @@ export class ObjectServer<
                 ? { ...call, input: { ...call.input, id: `${call.object.identity}-${v7()}` } }
                 : call;
         });
-        const scope = this.#scope(calls[0]!.object, calls[0]!.input);
-        if (calls.some((call) => this.#scope(call.object, call.input) !== scope)) {
-            throw new ServiceError("BAD_REQUEST", {
-                message: "a mutation's calls act in one scope",
-            });
-        }
-        await this.#enter(context, scope);
-
-        // write ephemeral objects apart
-        const ephemeral = calls.filter((call) => call.object.storage === "ephemeral").length;
-        if (ephemeral === calls.length) {
-            return this.#mutateEphemeral(calls, scope, context, client);
-        } else if (ephemeral > 0) {
-            throw new ServiceError("BAD_REQUEST", {
-                message: "a mutation writes durable or ephemeral objects, not both",
-            });
-        }
 
         // identify the mutation by caller, scope and request identifier
         const request = {
@@ -574,13 +570,21 @@ export class ObjectServer<
             scope,
             requestId: mutation.id,
         };
-        const fingerprint = await RequestFingerprint.hash(schema.json(), {
-            id: mutation.id,
-            calls: mutation.calls.map((entry) => ({
-                method: entry.method,
-                input: schema.redact(this.#inputs.get(entry.method)!, entry.input),
-            })),
-        });
+        const sensitive: unknown[] = [];
+        const fingerprint = await this.journal.fingerprint(
+            {
+                id: mutation.id,
+                calls: mutation.calls.map((entry, index) => ({
+                    method: entry.method,
+                    input: schema.redact(
+                        Call.input(originals[index]!.object, originals[index]!.name, true),
+                        entry.input,
+                        (found) => sensitive.push(found),
+                    ),
+                })),
+            },
+            sensitive,
+        );
 
         // prepare external work
         const prepared = await this.#prepare(calls, scope, context, request);
@@ -625,8 +629,12 @@ export class ObjectServer<
                                 call.name,
                                 call.input,
                                 context,
-                                prepared[index],
-                                from,
+                                {
+                                    prepared: prepared[index],
+                                    from,
+                                    as: call.as,
+                                    expansion: call.expansion,
+                                },
                             ),
                         );
                     }
@@ -764,7 +772,6 @@ export class ObjectServer<
             name,
             scoped(object, input, scope),
             undefined,
-            undefined,
         );
     }
 
@@ -819,7 +826,6 @@ export class ObjectServer<
                         invoked,
                         invokedName,
                         scoped(invoked, invokedInput, entry.scope),
-                        undefined,
                         undefined,
                     ),
             });
@@ -1296,6 +1302,7 @@ export class ObjectServer<
         object: ObjectType,
         name: string,
         input: Record<string, unknown>,
+        options: Pick<CallOptions, "as" | "expansion"> = {},
     ): Promise<{ call: Call; method: Method; scope: string; targetId: string | undefined }> {
         // refuse changing the rows of a type kept as copies from its home
         const method = (object.methods as Readonly<Record<string, Method>>)[name]!;
@@ -1321,20 +1328,24 @@ export class ObjectServer<
             input: fields,
             ...(targetId === undefined ? {} : { id: targetId }),
             database,
-            ...callerOf(authorization),
+            ...(options.as === undefined ? callerOf(authorization) : { caller: options.as }),
+            ...(options.expansion === undefined ? {} : { expansion: options.expansion }),
             now: authorization.access.context.now,
             isPredicted: false,
             authorization,
             objects: this.objects,
             ...(this.#sends === undefined ? {} : { sends: this.#sends }),
+            ...(snapshot === undefined ? {} : { snapshot }),
         });
 
-        // load the permitted target at the named revision
+        // load the permitted target at the named revision, through the view a read names
         const target =
             method.target &&
             (method.permission !== null || method.isSystem) &&
             targetId !== undefined
-                ? await authorization.read(call, targetId)
+                ? snapshot === undefined
+                    ? await authorization.read(call, targetId)
+                    : await authorization.readIn(call, targetId, snapshot)
                 : undefined;
         if (revision !== undefined && target?.revision !== revision) {
             throw new ServiceError("CONFLICT", { message: `${object.name} revision has changed` });
@@ -1471,24 +1482,12 @@ export class ObjectServer<
         name: string,
         input: Record<string, unknown>,
         context: ServiceContext | undefined,
-        prepared: Prepared,
-        from?: LogPosition,
-        client?: string,
+        options: CallOptions = {},
     ): Promise<unknown> {
         const attributes = { "destack.object.type": object.name, "destack.object.method": name };
 
         return span("object.call", attributes, () =>
-            this.#perform(
-                transaction,
-                authorization,
-                object,
-                name,
-                input,
-                context,
-                prepared,
-                from,
-                client,
-            ),
+            this.#perform(transaction, authorization, object, name, input, context, options),
         );
     }
 
@@ -1500,17 +1499,17 @@ export class ObjectServer<
         name: string,
         input: Record<string, unknown>,
         context: ServiceContext | undefined,
-        prepared: Prepared,
-        from?: LogPosition,
-        client?: string,
+        options: CallOptions,
     ): Promise<unknown> {
         // build the call on the served type to run its handlers
+        const { prepared, from, client } = options;
         const { call, method, scope, targetId } = await this.#call(
             transaction,
             authorization,
             this.served(object),
             name,
             input,
+            options,
         );
         span.current()?.setAttributes({
             "destack.scope": scope,
@@ -1523,29 +1522,34 @@ export class ObjectServer<
             ...(prepared === undefined ? {} : { prepared: prepared.value }),
             ...(prepared?.call.key === undefined ? {} : { key: prepared.call.key }),
             ...(client === undefined ? {} : { client }),
-            run: async (invoked, invokedName, invokedInput) =>
-                this.#execute(
+            run: async (invoked, invokedName, invokedInput, invoking) => {
+                // run system methods and system-authority calls as the system
+                const isSystem =
+                    invoking.authority === "system" ||
+                    (invoked.methods as Readonly<Record<string, Method>>)[invokedName]?.isSystem;
+                const running = isSystem
+                    ? await (system ??= SystemAuthorization.open(
+                          this.authorizer,
+                          transaction,
+                          scope,
+                          call.now,
+                      ))
+                    : authorization;
+
+                return this.#execute(
                     transaction,
-                    (invoked.methods as Readonly<Record<string, Method>>)[invokedName]?.isSystem
-                        ? await (system ??= SystemAuthorization.open(
-                              this.authorizer,
-                              transaction,
-                              scope,
-                              call.now,
-                          ))
-                        : authorization,
+                    running,
                     invoked,
                     invokedName,
                     scoped(invoked, invokedInput, scope),
                     context,
-                    undefined,
-                    from,
-                    client,
-                ),
+                    { from, client, ...(invoking.as === undefined ? {} : { as: invoking.as }) },
+                );
+            },
         });
 
-        // authorize unless prepared, then execute
-        if (prepared === undefined) {
+        // authorize a caller unless prepared, then execute
+        if (prepared === undefined && !(authorization instanceof SystemAuthorization)) {
             await method.authorize?.(called);
         }
         const executed = await method.execute(called);

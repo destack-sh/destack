@@ -167,6 +167,81 @@ export class Call<Definition extends Table = Table> {
         if (fields.sends !== undefined) {
             this.sends = fields.sends;
         }
+        if (fields.snapshot !== undefined) {
+            this.snapshot = fields.snapshot;
+        }
+        if (fields.expansion !== undefined) {
+            this.expansion = fields.expansion;
+        }
+    }
+
+    /** Resolve a recorded call against the served types, validating its input. */
+    static resolve(
+        objects: readonly ObjectType[],
+        entry: sync.Call,
+        mutates: boolean,
+    ): {
+        readonly object: ObjectType;
+        readonly name: string;
+        readonly input: Record<string, unknown>;
+    } {
+        // find the object type and a method clients may call
+        const separator = entry.method.lastIndexOf(".");
+        const object = objects.find((served) => served.name === entry.method.slice(0, separator));
+        const name = entry.method.slice(separator + 1);
+        const method = (object?.methods as Readonly<Record<string, Method>> | undefined)?.[name];
+        if (
+            object === undefined ||
+            method === undefined ||
+            method.isSystem === true ||
+            (mutates && !method.mutates)
+        ) {
+            throw new ServiceError("BAD_REQUEST", {
+                message: `no ${mutates ? "mutating " : ""}method ${entry.method}`,
+            });
+        } else if (!mutates && method.mutates) {
+            throw new ServiceError("BAD_REQUEST", {
+                message: `${entry.method} changes objects, so a client pushes it`,
+            });
+        }
+
+        // convert the input to the served release and validate it
+        const input = Call.input(object, name, mutates);
+        const parsed = input.safeParse(Call.upgrade(object, name, entry, input.shape));
+        if (!parsed.success) {
+            throw new ServiceError("BAD_REQUEST", {
+                message: `invalid input to ${entry.method}`,
+                data: { issues: parsed.error.issues },
+            });
+        }
+
+        return { object, name, input: parsed.data as Record<string, unknown> };
+    }
+
+    /** Read a method's input schema as clients call it, without a pushed call's replay field. */
+    static input(
+        object: ObjectType,
+        name: string,
+        mutates: boolean,
+    ): schema.Object<Record<string, schema.Schema>> {
+        // build each method's schema once
+        const method = (object.methods as Readonly<Record<string, Method>>)[name]!;
+        const built = INPUTS.get(method) ?? new Map();
+        INPUTS.set(method, built);
+        const kept = built.get(mutates);
+        if (kept !== undefined) {
+            return kept;
+        }
+
+        // leave out the field naming the request a pushed call replays under
+        const procedure = method.procedure(name, object.schema).input as schema.Object<
+            Record<string, schema.Schema>
+        >;
+        const replay = object.storage === "ephemeral" ? { client: true } : { requestId: true };
+        const input = mutates ? procedure.omit(replay as never) : procedure;
+        built.set(mutates, input);
+
+        return input;
     }
 
     /** Record a call of an object's method, against the release of the object's package. */
@@ -218,11 +293,15 @@ export class Call<Definition extends Table = Table> {
         return typeof id === "string" ? id : undefined;
     }
 
-    /** Call another object's method in this call's scope and transaction. */
+    /** Call another object's method in this call's scope and transaction, as this call's caller or another principal. */
     async invoke(
         object: ObjectType,
         name: string,
         input: Readonly<Record<string, unknown>>,
+        options: {
+            /** The principal the call records as its caller, this call's caller when absent. */
+            readonly as?: Subject;
+        } = {},
     ): Promise<unknown> {
         // require a method without external work in the same storage
         const method = (object.methods as Readonly<Record<string, Method>>)[name];
@@ -240,7 +319,7 @@ export class Call<Definition extends Table = Table> {
             throw new TypeError(`${this.object.name}.${this.name} runs no invoked calls`);
         }
 
-        return this.run(object, name, input);
+        return this.run(object, name, input, options);
     }
 
     /** Copy the call with some fields changed. */
@@ -452,13 +531,21 @@ export type CallFields<Definition extends Table = Table> = Pick<
     | "client"
     | "run"
     | "sends"
+    | "snapshot"
+    | "expansion"
 >;
 
-/** Run a method of an object in a call's scope and transaction, as its caller. */
+/** Run a method of an object in a call's scope and transaction, as its caller or another principal. */
 export type Run = (
     object: ObjectType,
     name: string,
     input: Readonly<Record<string, unknown>>,
+    options: {
+        /** The principal the call records as its caller, the invoking call's caller when absent. */
+        readonly as?: Subject;
+        /** Whose authority decides the call's permissions, the invoking call's when absent; branch previews use the system's. */
+        readonly authority?: "caller" | "system";
+    },
 ) => Promise<unknown>;
 
 /** An object's own behaviour for a method, wrapping next. */
@@ -473,6 +560,8 @@ export interface Phases<Definition extends Table = Table> {
     readonly authorize?: (call: Call<Definition>) => Promise<void>;
     /** Do external work before the transaction, returning `call.prepared`. */
     readonly prepare?: (call: Call<Definition>) => Promise<unknown>;
+    /** List the calls a mutation runs before this one, each as its caller, read before the transaction. */
+    readonly expand?: (call: Call<Definition>) => Promise<readonly BranchCall[]>;
     /** Derive the idempotency key of the call's external work. */
     readonly key?: (call: Call<Definition>) => string;
     /** Change rows inside the transaction, wrapping next. */
