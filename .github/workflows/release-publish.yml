@@ -34,7 +34,7 @@ jobs:
             channel: ${{ steps.release.outputs.channel }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
                   fetch-depth: 0
@@ -70,7 +70,7 @@ jobs:
         timeout-minutes: 30
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Install Bun
@@ -87,7 +87,7 @@ jobs:
               run: bun install --frozen-lockfile
             - name: Check out the matching Turso native source
               if: matrix.target == 'x86_64-apple-darwin'
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   repository: tursodatabase/turso
                   ref: 046e9cbf67d22491e8ecc941ec2891b02a9f3cad
@@ -134,7 +134,7 @@ jobs:
             DESTACK_RELEASE_CHANNEL: ${{ needs.prepare.outputs.channel }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Install Bun
@@ -187,7 +187,7 @@ jobs:
             DESTACK_RELEASE_CHANNEL: ${{ needs.prepare.outputs.channel }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Install Bun
@@ -238,7 +238,7 @@ jobs:
             cancel-in-progress: false
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Install Bun
@@ -294,7 +294,7 @@ jobs:
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Install Bun
