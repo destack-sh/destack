@@ -6,6 +6,7 @@ import { defineService } from "../declare/service.ts";
 import { defineWebhook } from "../webhook/index.ts";
 import type { RunClient } from "../trigger/index.ts";
 import { hosting } from "../server/tests/fixture.ts";
+import { testJournalKey } from "../test/context.ts";
 
 /** The first declared fixture service. */
 const first = defineService("first", {});
@@ -67,6 +68,7 @@ test("release startup resources when the workload shuts down during startup", as
                 },
             }),
             {
+                journalKey: testJournalKey,
                 resources: hosting.resources,
                 history,
                 replicas,
@@ -109,6 +111,7 @@ test("start two services and drain accepted requests before shared cleanup", asy
             },
         }),
         {
+            journalKey: testJournalKey,
             resources: hosting.resources,
             history,
             replicas,
@@ -166,6 +169,7 @@ test("retain shared resources until an overdue request observes cancellation", a
             },
         }),
         {
+            journalKey: testJournalKey,
             resources: hosting.resources,
             history,
             replicas,
@@ -211,6 +215,7 @@ test("reject a service implemented twice and release startup resources", async (
                 },
             }),
             {
+                journalKey: testJournalKey,
                 resources: hosting.resources,
                 history,
                 replicas,
@@ -226,6 +231,7 @@ test("list the webhooks a workload receives and find each by its package and nam
     await using instance = await WorkloadInstance.start(
         defineWorkload({ name: "fixture", start: () => ({ services: [], webhooks: [github] }) }),
         {
+            journalKey: testJournalKey,
             resources: hosting.resources,
             history,
             replicas,
@@ -256,6 +262,7 @@ test("reject a webhook received twice and release startup resources", async () =
                 },
             }),
             {
+                journalKey: testJournalKey,
                 resources: hosting.resources,
                 history,
                 replicas,
@@ -283,6 +290,7 @@ test("give a starting workload the host's audit history, its space's source of c
             },
         }),
         {
+            journalKey: testJournalKey,
             resources: hosting.resources,
             history,
             replicas,

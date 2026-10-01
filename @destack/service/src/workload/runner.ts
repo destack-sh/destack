@@ -17,6 +17,7 @@ import type { RunClient } from "../trigger/index.ts";
 import { refusal } from "../server/error.ts";
 import type { Alarm } from "../control/index.ts";
 import type { AuditHistory, Workload } from "./workload.ts";
+import { Journal } from "../database/index.ts";
 
 /** How long a stopping runner drains its requests: below the host's fifteen-second stop timeout. */
 const DRAIN_MILLISECONDS = 10_000;
@@ -107,6 +108,7 @@ export class WorkloadRunner implements AsyncDisposable {
         // start the instance on the bound resources, stopping telemetry when it fails
         try {
             const resources = await WorkloadRunner.#connect(runner, start);
+            const journalKey = Journal.importKey(Uint8Array.fromHex(start.journalKey));
             const space = Egress.url(start.egress, SPACE_ADDRESS);
             const runs = runner.runs(space, start);
             const instance = await WorkloadInstance.start(runner.workload, {
@@ -117,6 +119,7 @@ export class WorkloadRunner implements AsyncDisposable {
                     source: runner.replicas(space, start.secret),
                 },
                 runs,
+                journalKey: () => journalKey,
                 ...(runner.alarm === undefined ? {} : { alarm: runner.alarm }),
                 service: () => WorkloadRunner.#serve(runner, start),
             });

@@ -6,6 +6,7 @@ import type { ResourceContext } from "@destack/resource/context";
 import type { ServiceImplementation } from "../server/index.ts";
 import type { RunClient } from "../trigger/index.ts";
 import type { Webhook } from "../webhook/index.ts";
+import type { JournalKey } from "../database/index.ts";
 
 /** A declared unit of deployment. */
 export interface Workload extends Declaration {
@@ -37,6 +38,8 @@ export interface WorkloadContext {
     readonly replicas?: { readonly scope: string; readonly source: ReplicaSource };
     /** The cell recording the installation's runs: sent calls and the calls of its triggers' causes. */
     readonly runs: RunClient;
+    /** Read the key the workload's journals fingerprint sensitive inputs under. */
+    readonly journalKey: JournalKey;
     /** The shutdown signal. */
     readonly signal: AbortSignal;
     /** Request shutdown. */

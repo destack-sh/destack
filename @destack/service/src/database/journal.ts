@@ -15,6 +15,7 @@ import {
 import type { DatabaseTier } from "@destack/db";
 import { declaringModule, type ModuleMetadata } from "@destack/package";
 import { schema } from "@destack/schema";
+import { canonicalize, digest } from "@destack/schema/json";
 import { ServiceError } from "../error/index.ts";
 import { domainFailure } from "../server/error.ts";
 import { RequestId, type RequestFingerprint, type RequestIdentity } from "../request/index.ts";
@@ -52,14 +53,54 @@ export const Outcome = schema.union([
 /** The outcome of a request. */
 export type Outcome = schema.Infer<typeof Outcome>;
 
-/** The outcomes of executed requests. */
+/** Read the deployment's key that sensitive inputs are fingerprinted under, the same on every instance. */
+export type JournalKey = () => Promise<CryptoKey>;
+
+/** The outcomes of executed requests, found again by their request identifier and input fingerprint. */
 export class Journal {
     /** The journal table. */
     readonly table: ReturnType<typeof defineJournal>;
+    /** Read the key sensitive inputs are fingerprinted under, only when a request carries them. */
+    readonly #key: JournalKey;
 
-    /** Create the journal. */
-    constructor(table: ReturnType<typeof defineJournal>) {
+    /** Keep a journal table, fingerprinting sensitive inputs under the deployment's key. */
+    constructor(table: ReturnType<typeof defineJournal>, key: JournalKey) {
         this.table = table;
+        this.#key = key;
+    }
+
+    /** Import a deployment's key from 32 secret bytes. */
+    static importKey(bytes: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
+        return crypto.subtle.importKey("raw", bytes, { name: "HMAC", hash: "SHA-256" }, false, [
+            "sign",
+        ]);
+    }
+
+    /** Derive the key of one installation from the host's key, so no installation reads another's. */
+    static async derive(key: CryptoKey, installation: string): Promise<Uint8Array<ArrayBuffer>> {
+        const label = new TextEncoder().encode(`journal:${installation}`);
+
+        return new Uint8Array(await crypto.subtle.sign("HMAC", key, label));
+    }
+
+    /** Fingerprint a redacted input and the sensitive values it left out, the latter under the key. */
+    async fingerprint(
+        redacted: unknown,
+        sensitive: readonly unknown[],
+    ): Promise<RequestFingerprint> {
+        // digest the sensitive values under the deployment's key, absent for none
+        const keyed =
+            sensitive.length === 0
+                ? undefined
+                : new Uint8Array(
+                      await crypto.subtle.sign(
+                          "HMAC",
+                          await this.#key(),
+                          new TextEncoder().encode(canonicalize(sensitive)),
+                      ),
+                  ).toHex();
+
+        return { digest: await digest(keyed === undefined ? redacted : { redacted, keyed }) };
     }
 
     /** Execute a request once in one transaction and record its outcome. */

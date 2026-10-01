@@ -1,4 +1,3 @@
-import { digest } from "@destack/schema/json";
 import { schema } from "@destack/schema";
 import { v7 } from "uuid";
 import { ServiceError } from "../error/index.ts";
@@ -70,11 +69,3 @@ export interface RequestFingerprint {
     /** The digest, as lowercase hexadecimal. */
     readonly digest: string;
 }
-
-/** A fingerprint of a request's input. */
-export const RequestFingerprint = {
-    /** Digest an input's canonical JSON without its sensitive values. */
-    async hash(input: schema.Schema, value: unknown): Promise<RequestFingerprint> {
-        return { digest: await digest(schema.redact(input, value) ?? null) };
-    },
-};

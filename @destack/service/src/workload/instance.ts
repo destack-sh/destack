@@ -9,6 +9,7 @@ import type { Webhook } from "../webhook/index.ts";
 import { Health } from "../health/index.ts";
 import { ServiceError } from "../error/index.ts";
 import type { AuditHistory, Workload } from "./workload.ts";
+import type { JournalKey } from "../database/index.ts";
 
 /** A running workload instance. */
 export class WorkloadInstance implements AsyncDisposable {
@@ -38,6 +39,7 @@ export class WorkloadInstance implements AsyncDisposable {
                 history: options.history,
                 ...(options.replicas === undefined ? {} : { replicas: options.replicas }),
                 runs: options.runs,
+                journalKey: options.journalKey,
                 signal: instance.#controller.signal,
                 shutdown: () => instance.shutdown(),
                 defer: (dispose) => instance.#cleanup.defer(dispose),
@@ -183,6 +185,8 @@ export interface WorkloadInstanceOptions {
     readonly replicas?: { readonly scope: string; readonly source: ReplicaSource };
     /** The cell recording the installation's runs. */
     readonly runs: RunClient;
+    /** Read the key the workload's journals fingerprint sensitive inputs under. */
+    readonly journalKey: JournalKey;
     /** Keep a wake-up for the services' earliest due controller key, such as a Durable Object's alarm. */
     readonly alarm?: Alarm;
     /** Select the options of one service. */

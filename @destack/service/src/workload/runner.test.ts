@@ -21,6 +21,7 @@ const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-0000000
 
 /** The host's start message. */
 const start: WorkloadStart = {
+    journalKey: "00".repeat(32),
     instance: identifier("instance").parse("instance-01996ab0-0000-7000-8000-000000000002"),
     scope: spaceId,
     installation: identifier("installation").parse(
