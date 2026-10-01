@@ -2,7 +2,7 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 import { defineProcedure, defineService, ServiceMount } from "@destack/service";
 import { expect, onTestFinished, test } from "@destack/test";
-import { directoryTables, DirectoryDatabase, Zone, zoneTable } from "../src/index.ts";
+import { directoryTables, DirectoryStore, Zone, zoneTable } from "../src/index.ts";
 
 /** A service a cell mounts, answering a zone's location. */
 const zones = defineService("zones", {
@@ -17,7 +17,7 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
-        const directory = new DirectoryDatabase(storage.database);
+        const directory = new DirectoryStore(storage.database);
         const zone = { id: "space-1", scope: "account-1", cell: "host-1", epoch: 1 };
 
         // place a zone in its host, again without change, and find nothing for other scopes
@@ -56,7 +56,7 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
-        const directory = new DirectoryDatabase(storage.database);
+        const directory = new DirectoryStore(storage.database);
         const zone = { id: "space-1", scope: "account-1", cell: "host-1", epoch: 1 };
         await directory.place(zone);
 
@@ -91,7 +91,7 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
-        const directory = new DirectoryDatabase(storage.database);
+        const directory = new DirectoryStore(storage.database);
         const placed = [
             { id: "space-2", scope: "account-1", cell: "host-1", epoch: 1 },
             { id: "space-1", scope: "account-1", cell: "region-1", epoch: 1 },
@@ -113,7 +113,7 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
-        const directory = new DirectoryDatabase(storage.database);
+        const directory = new DirectoryStore(storage.database);
         const index = "package-1/place/name";
         const claim = (key: string, objectId: string) => ({
             index,
@@ -121,29 +121,37 @@ test.each(TEST_DIALECTS)(
             objectId,
             scope: "account-1",
         });
-        const now = Date.now();
 
-        // reserve a name, refuse it to another object, and confirm it once the write committed
-        await directory.claim([claim("notes", "space-1")], "request-1", now);
-        await expect(
-            directory.claim([claim("notes", "space-2")], "request-2", now),
-        ).rejects.toMatchObject({ code: "CONFLICT", message: "name is taken" });
+        // reserve a name, return it as taken to another object, and confirm it once the write committed
+        expect([
+            await directory.claim([claim("notes", "space-1")], "request-1"),
+            await directory.claim([claim("notes", "space-2")], "request-2"),
+        ]).toEqual([[], [claim("notes", "space-2")]]);
         const reserved = await directory.owner(index, "notes");
         await directory.confirm("request-1", [
             { indexes: [index], objectId: "space-1", claims: [claim("notes", "space-1")] },
         ]);
 
-        // rename the object by replacing its claims, releasing the old name
+        // refuse another object's replacement, then rename the object, releasing the old name
+        const taken = await directory.replace(
+            { indexes: [index], objectId: "space-2", claims: [claim("notes", "space-2")] },
+            "request-3",
+        );
         await directory.replace(
             { indexes: [index], objectId: "space-1", claims: [claim("archive", "space-1")] },
-            "request-3",
-            now,
+            "request-4",
         );
         expect([
             reserved,
+            taken,
             await directory.owner(index, "notes"),
             await directory.owner(index, "archive"),
-        ]).toEqual([undefined, undefined, { objectId: "space-1", scope: "account-1" }]);
+        ]).toEqual([
+            undefined,
+            [claim("notes", "space-2")],
+            undefined,
+            { objectId: "space-1", scope: "account-1" },
+        ]);
     },
 );
 
@@ -152,7 +160,7 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
-        const directory = new DirectoryDatabase(storage.database);
+        const directory = new DirectoryStore(storage.database);
         await directory.publish("host-1", "account-1", "https://host-1.test/");
         await directory.publish("host-2", "account-1", "https://host-2.test");
 

@@ -1,7 +1,7 @@
 import { ServiceMount, type Service, type ServiceRouter } from "@destack/service";
 import { createClient } from "@destack/service/client";
 import { ServiceError } from "@destack/service/error";
-import type { Claim, ClaimOwner, Expiry, ObjectClaims } from "../claim/claim.ts";
+import type { Claim, Expiry, ObjectClaims } from "../claim/claim.ts";
 import { Moved } from "../moved/moved.ts";
 import type { Cell, Zone } from "../zone/zone.ts";
 
@@ -32,8 +32,8 @@ export abstract class Directory {
 
     // claims
 
-    /** Reserve a request's claims until its write commits and refuse names of other objects. */
-    abstract claim(claims: readonly Claim[], requestId: string, now: number): Promise<void>;
+    /** Reserve a request's claims until its write commits, returning the names other objects own. */
+    abstract claim(claims: readonly Claim[], requestId: string): Promise<readonly Claim[]>;
 
     /** Confirm a request's reserved claims and release the names its objects dropped. */
     abstract confirm(requestId: string, owned: readonly ObjectClaims[]): Promise<void>;
@@ -41,14 +41,17 @@ export abstract class Directory {
     /** Release the reservations of a request with a failed write. */
     abstract release(requestId: string): Promise<void>;
 
-    /** Replace an object's claims after a write without reservations and refuse names of other objects. */
-    abstract replace(owned: ObjectClaims, requestId: string, now: number): Promise<void>;
+    /** Replace an object's claims after a write without reservations, unless other objects own some of its names, which it returns. */
+    abstract replace(owned: ObjectClaims, requestId: string): Promise<readonly Claim[]>;
 
     /** Find the object owning a confirmed name. */
-    abstract owner(index: string, key: string): Promise<ClaimOwner | undefined>;
+    abstract owner(
+        index: string,
+        key: string,
+    ): Promise<Pick<Claim, "objectId" | "scope"> | undefined>;
 
-    /** List the expired reservations of some indexes, and the next deadline. */
-    abstract expired(indexes: readonly string[], now: number): Promise<Expiry>;
+    /** List the expired reservations of some indexes, and the next deadline, by the directory's clock. */
+    abstract expired(indexes: readonly string[]): Promise<Expiry>;
 
     // clients
 
@@ -79,7 +82,7 @@ export abstract class Directory {
                 const body = sent.body === null ? null : await sent.clone().arrayBuffer();
                 const from = await endpoint();
                 const response = await fetch(sent);
-                const moved = response.status === 421 ? await movedTo(response) : undefined;
+                const moved = await Moved.read(response);
                 if (moved === undefined) {
                     return response;
                 }
@@ -94,12 +97,4 @@ export abstract class Directory {
             },
         });
     }
-}
-
-/** Read the cell a MOVED response points to, absent for other responses. */
-async function movedTo(response: Response): Promise<Moved | undefined> {
-    const body = (await response.clone().json()) as { code?: unknown; data?: unknown };
-    const moved = Moved.schema.safeParse(body.data);
-
-    return body.code === "MOVED" && moved.success ? moved.data : undefined;
 }

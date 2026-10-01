@@ -34,12 +34,6 @@ export const Cell = defineSchema(
 /** A region or host serving the zones placed in it. */
 export type Cell = schema.Infer<typeof Cell>;
 
-/** A zone and the URL its cell answers at. */
-export interface Location extends Zone {
-    /** The URL the cell's services answer at. */
-    readonly endpoint: string;
-}
-
 /** The zones placed in the cells that serve their databases. */
 export const zoneTable = defineTable(
     "zone",

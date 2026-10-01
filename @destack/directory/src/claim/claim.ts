@@ -1,5 +1,5 @@
 import { defineTable, index, integer, primaryKey, text } from "@destack/db";
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, Instant, schema } from "@destack/schema";
 
 /** How long a reservation waits for its write to commit, in milliseconds: a minute, above any write. */
 export const RESERVATION_MILLISECONDS = 60_000;
@@ -34,25 +34,13 @@ export const ObjectClaims = defineSchema(
 /** The claims one object holds in its type's indexes after a write. */
 export type ObjectClaims = schema.Infer<typeof ObjectClaims>;
 
-/** The object owning a confirmed claim. */
-export const ClaimOwner = defineSchema(
-    schema.object({
-        /** The object. */
-        objectId: schema.string().min(1),
-        /** The scope it lives in. */
-        scope: schema.string().min(1),
-    }),
-);
-/** The object owning a confirmed claim. */
-export type ClaimOwner = schema.Infer<typeof ClaimOwner>;
-
 /** The expired reservations of some indexes and the next deadline. */
 export const Expiry = defineSchema(
     schema.object({
         /** The expired reservations. */
         claims: schema.array(Claim),
         /** When the next reservation expires, in UTC epoch milliseconds. */
-        next: schema.number().int().optional(),
+        next: Instant.optional(),
     }),
 );
 /** The expired reservations of some indexes and the next deadline. */

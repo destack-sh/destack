@@ -7,9 +7,9 @@ The universe's cell router: which cell serves each zone, where each cell answers
 A zone is a scope with its own databases, placed in the cell (a region or host) serving them at an epoch.
 
 ```ts
-import { DirectoryDatabase } from "@destack/directory";
+import { DirectoryStore } from "@destack/directory";
 
-const directory = new DirectoryDatabase(globalDatabase);
+const directory = new DirectoryStore(globalDatabase);
 await directory.publish("region-eu", "universe", "https://eu.destack.app");
 await directory.place({ id: spaceId, scope: accountId, cell: "region-eu", epoch: 1 });
 const zone = await directory.locate(spaceId); // { id, scope, cell: "region-eu", epoch: 1 }
@@ -30,18 +30,18 @@ throw Moved.error({ scope: spaceId, cell: "host-01a0…" }); // how a cell answe
 A claim reserves a unique name for an object while its write runs, then the write confirms or releases it.
 
 ```ts
-await directory.claim([{ index, key, objectId, scope }], requestId, now);
+const taken = await directory.claim([{ index, key, objectId, scope }], requestId); // names other objects own; the rest are reserved for a minute
 await directory.confirm(requestId, owned); // or directory.release(requestId) after a failed write
 const owner = await directory.owner(index, key); // { objectId, scope }
 ```
 
 ## Caching
 
-A `DirectoryCache` keeps zone, cell and owner reads until the log shows a change to their rows.
+A `DirectoryStore` keeps zone, cell and owner reads while it follows the log, forgetting each read its rows' changes affect.
 
 ```ts
-const cache = new DirectoryCache(directory);
-void cache.follow(signal);
+const directory = new DirectoryStore(globalDatabase);
+void directory.follow(signal);
 ```
 
 ## Tables
