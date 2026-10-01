@@ -1,16 +1,15 @@
-import { defineSchema, identifier, schema, type Identifier } from "@destack/schema";
+import { defineSchema, schema, type Identifier } from "@destack/schema";
+import { ResourceId } from "./resource.ts";
 import type { Chunk, Copy } from "./copy.ts";
 import type { Plan } from "./plan.ts";
-import type { Resource, ResourceKind } from "./resource.ts";
+import type { ResourceDeclaration, ResourceKind } from "./resource.ts";
 
 /** A resource as its space records it, its specification read by its kind. */
 export interface ResourceRecord<Kind extends ResourceKind = ResourceKind> {
     /** The persistent resource identifier. */
-    readonly id: Identifier<"resource">;
+    readonly id: ResourceId;
     /** The space the resource lives in. */
     readonly scope: Identifier<"space">;
-    /** The resource kind, such as database. */
-    readonly kind: Kind["name"];
     /** The declared specification. */
     readonly spec: schema.Infer<Kind["spec"]>;
     /** The provider's reference once provisioned. */
@@ -26,7 +25,7 @@ export type KindState<Kind extends ResourceKind> = Kind["state"] extends schema.
 export const ResourceBinding = defineSchema(
     schema.object({
         /** The resource. */
-        resource: identifier("resource"),
+        resource: ResourceId,
         /** The resource kind, such as database. */
         kind: schema.string().min(1),
         /** The provider holding the resource, whose connector the workload opens it with, such as sqlite. */
@@ -45,7 +44,7 @@ export interface Connector<Client = unknown> {
     /** The provider code the connector connects to, such as sqlite. */
     readonly code: string;
     /** Open a client for a bound resource holding the declaration's desired state, refusing otherwise. */
-    connect(binding: ResourceBinding, declaration: Resource<Client>): Promise<Client>;
+    connect(binding: ResourceBinding, declaration: ResourceDeclaration<Client>): Promise<Client>;
 }
 
 /** Where a provider placed a resource. */
@@ -57,13 +56,13 @@ export interface Provision {
 }
 
 /** A technology a host manages one kind's resources with, having the capabilities its kind and technology allow. */
-export type Provider<Kind extends ResourceKind = ResourceKind, Facet = never> = {
+export type Provider<Kind extends ResourceKind = ResourceKind, Object = unknown> = {
     /** The resource kind managed. */
     readonly kind: Kind;
     /** The provider code recorded on resources and bindings, such as sqlite. */
     readonly code: string;
-    /** The object type sharing the resource's identity in its space, such as a vault. */
-    readonly facet?: Facet;
+    /** The object type the kind's resources are in their space, such as a vault. */
+    readonly object: Object;
 } & (Kind["state"] extends schema.Schema ? Reconciling<Kind> : unknown) &
     (Provisioning<Kind> | { readonly provision?: never; readonly destroy?: never }) &
     (Copying<Kind> | { readonly export?: never; readonly import?: never });
@@ -100,7 +99,7 @@ export interface Copying<Kind extends ResourceKind = ResourceKind> {
     import(copy: Copy<Kind>, chunk: Chunk): Promise<void>;
 }
 
-/** The fields of any provider the capability checks read, whatever its kind and facet. */
+/** The fields of any provider the capability checks read, whatever its kind and object. */
 type ProviderShape = { readonly kind: ResourceKind; readonly code: string };
 
 /** The capabilities of providers. */

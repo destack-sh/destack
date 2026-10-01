@@ -1,8 +1,9 @@
 import { expect, test } from "@destack/test";
+import { ResourceId } from "./resource.ts";
 import { identifier, schema } from "@destack/schema";
 import { Package } from "@destack/package";
 import { ResourceContext } from "../context/index.ts";
-import { Plan, Provider, Resource, defineResourceKind, type Step } from "./index.ts";
+import { Plan, Provider, ResourceDeclaration, defineResourceKind, type Step } from "./index.ts";
 
 /** The package declaring the example resources. */
 const owner = Package.parse({
@@ -12,12 +13,12 @@ const owner = Package.parse({
 });
 
 test("bind one client per declaration and refuse missing or repeated bindings", () => {
-    const notes = new Resource<string>(owner, {
+    const notes = new ResourceDeclaration<string>(owner, {
         name: "notes",
         kind: "database",
         spec: {},
     });
-    const tasks = new Resource<string>(owner, {
+    const tasks = new ResourceDeclaration<string>(owner, {
         name: "tasks",
         kind: "database",
         spec: {},
@@ -83,18 +84,34 @@ test("require reconciling from providers of kinds with a state, and whole capabi
 
     // refuse a stateful kind's provider without reconciling, half a capability, and reconciling without a state
     // @ts-expect-error a provider of a kind with a state plans and applies
-    const unreconciled: Provider<typeof database> = { kind: database, code: "memory" };
+    const unreconciled: Provider<typeof database> = {
+        kind: database,
+        code: "memory",
+        object: "database",
+    };
     // @ts-expect-error a provider provisions and destroys, or does neither
-    const half: Provider<typeof bucket> = { kind: bucket, code: "memory", provision };
+    const half: Provider<typeof bucket> = {
+        kind: bucket,
+        code: "memory",
+        object: "bucket",
+        provision,
+    };
     const stateless: Provider<typeof bucket> = {
         kind: bucket,
         code: "memory",
+        object: "bucket",
         // @ts-expect-error a provider of a kind without a state reconciles nothing
         plan: async () => ({ steps: [] }),
     };
 
     // report each provider's capabilities
-    const hosted: Provider<typeof bucket> = { kind: bucket, code: "memory", provision, destroy };
+    const hosted: Provider<typeof bucket> = {
+        kind: bucket,
+        code: "memory",
+        object: "bucket",
+        provision,
+        destroy,
+    };
     expect(
         [unreconciled, half, stateless, hosted].map((provider) => [
             Provider.reconciles(provider),
@@ -109,16 +126,15 @@ test("require reconciling from providers of kinds with a state, and whole capabi
     ]);
 });
 
-test("read stored resources and desired states through their kind, refusing other kinds, invalid values and states of a stateless kind", () => {
+test("read stored resources and desired states through their kind, refusing another kind's specification, invalid values and states of a stateless kind", () => {
     const database = defineResourceKind("database", {
         spec: schema.object({ tier: schema.enum(["zone", "global"]) }),
         state: schema.object({ tables: schema.array(schema.string()) }),
     });
     const bucket = defineResourceKind("bucket", { spec: schema.object({}) });
     const stored = {
-        id: identifier("resource").parse("resource-01996ab0-0000-7000-8000-000000000001"),
+        id: ResourceId.parse("database-01996ab0-0000-7000-8000-000000000001"),
         scope: identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002"),
-        kind: "database",
         spec: { tier: "zone" },
         reference: null,
     };
@@ -130,7 +146,7 @@ test("read stored resources and desired states through their kind, refusing othe
         }
     };
 
-    // read a database and its states, and refuse a bucket reading it, an invalid spec and states of a stateless kind
+    // read a database and its states, and refuse a bucket reading its specification, an invalid spec and states of a stateless kind
     expect([
         outcome(() => database.record(stored).spec),
         outcome(() => database.states([{ tables: ["note"] }])),
@@ -142,7 +158,7 @@ test("read stored resources and desired states through their kind, refusing othe
     ]).toEqual([
         { tier: "zone" },
         [{ tables: ["note"] }],
-        "TypeError",
+        "ZodError",
         "ZodError",
         "ZodError",
         [],
