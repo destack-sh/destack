@@ -273,6 +273,51 @@ export class Outbox {
         });
     }
 
+    /** Read a branch's calls in order, as one line of calls a shared branch keeps. */
+    async calls(database: DatabaseConnection, branch: string): Promise<Call[]> {
+        const rows = await database
+            .select({ calls: mutation.calls })
+            .from(mutation)
+            .where(eq(mutation.branch, branch))
+            .orderBy(asc(mutation.position));
+
+        return rows.flatMap((row) => row.calls);
+    }
+
+    /** Replace a branch's mutations with one mutation of a shared branch's calls. */
+    async receive(
+        database: DatabaseConnection,
+        branch: string,
+        id: string,
+        origin: string,
+        calls: readonly Call[],
+    ): Promise<void> {
+        await this.#rebase(database, async (transaction) => {
+            // drop the branch's own mutations
+            await transaction.delete(mutation).where(eq(mutation.branch, branch));
+            if (calls.length === 0) {
+                return;
+            }
+
+            // append the shared calls after every other mutation, predicted on replay
+            const [last] = await transaction
+                .select({ position: max(mutation.position) })
+                .from(mutation);
+            await transaction.insert(mutation).values({
+                id,
+                origin,
+                position: (last?.position ?? 0) + 1,
+                calls: [...calls],
+                changes: "[]",
+                reach: "[]",
+                sequence: null,
+                epoch: null,
+                error: null,
+                branch,
+            });
+        });
+    }
+
     /** Remove a branch's mutations. */
     async discard(database: DatabaseConnection, branch: string): Promise<void> {
         await this.#rebase(database, async (transaction) => {
