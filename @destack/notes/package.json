@@ -26,14 +26,17 @@
         "@destack/account": "workspace:*",
         "@destack/style": "workspace:*",
         "@destack/theme": "workspace:*",
-        "@destack/view": "workspace:*"
+        "@destack/view": "workspace:*",
+        "@destack/sync": "workspace:*"
     },
     "devDependencies": {
         "@destack/resource": "workspace:*",
         "@destack/build": "workspace:*",
-        "@destack/test": "workspace:*"
+        "@destack/test": "workspace:*",
+        "uuid": "14.0.2"
     },
     "scripts": {
-        "check": "tsc --project tsconfig.json"
+        "check": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
     }
 }
