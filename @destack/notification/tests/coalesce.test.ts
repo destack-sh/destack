@@ -15,7 +15,7 @@ test.for(TEST_DIALECTS)(
         await call("create", host(plan.id), subscription);
         const box = inbox("alice");
 
-        // publish as bob, whose later status replaces the owner's notification by its key
+        // publish as bob and replace the owner's notification by its key
         as("bob");
         await call("publish", { id: plan.id, state: "publishing" });
         await dispatch();
@@ -25,7 +25,7 @@ test.for(TEST_DIALECTS)(
         as("bob");
         wait(1);
         await call("publish", { id: plan.id, state: "published" });
-        await box.until((held) => held.unread === 1);
+        await box.until((state) => state.unread === 1);
         await dispatch();
         const [replaced] = await notifications();
         expect([
@@ -51,7 +51,7 @@ test.for(TEST_DIALECTS)(
         await call("edit", { id: plan.id, summary: "Third" });
         wait(6);
         await call("edit", { id: plan.id, summary: "Fourth" });
-        await box.until((held) => held.unread === 3);
+        await box.until((state) => state.unread === 3);
         expect(
             (await notifications()).map((row) => [row.name, row.payload, row.count, row.reason]),
         ).toEqual([

@@ -9,9 +9,9 @@ import { actors, serveSpace } from "./fixture/space.ts";
 const PHONE = "push-endpoint-019f5530-8000-7000-8000-00000000000b";
 
 test.for(TEST_DIALECTS)(
-    "answer a review request from its notification, which breaks through a focus that holds back a change until a snooze ends, on %s",
+    "answer a review request from its notification, which breaks through a focus that defers a change until a snooze ends, on %s",
     async (dialect) => {
-        const { call, as, homes, pushes, mutate, dispatch, inbox, deliveries, wait, now, host } =
+        const { call, as, homes, pushes, dispatch, inbox, deliveries, wait, now, host } =
             await serveSpace(dialect);
 
         // give bob a phone and a focus for the next two hours, and let him subscribe to a document he edits
@@ -44,7 +44,7 @@ test.for(TEST_DIALECTS)(
         as("alice");
         await call("request", { id: plan.id, reviewer: actors.bob });
         await call("edit", { id: plan.id, summary: "Rewrote the intro" });
-        await box.until((held) => held.unread === 2);
+        await box.until((state) => state.unread === 2);
         await dispatch();
         const rows = [...box.rows.values()];
         const request = rows.find((row) => review.is(row))!;
@@ -60,22 +60,25 @@ test.for(TEST_DIALECTS)(
             ],
         ]);
 
-        // approve from the notification: the action's call and reading it, as one mutation
+        // approve from the notification on the server: the action's call and reading it, as one call
         as("bob");
-        expect(() => review.respond(request, "approve", "looks good")).toThrow(
-            "action approve of review takes text only where it asks for it",
-        );
-        await mutate(review.respond(request, "approve"));
-        await box.until((held) => held.unread === 1);
+        await expect(
+            call("act", { id: request.id, action: "approve", text: "looks good" }, notification),
+        ).rejects.toMatchObject({
+            code: "BAD_REQUEST",
+            message: "action approve of review takes text only where it asks for it",
+        });
+        await call("act", { id: request.id, action: "approve" }, notification);
+        await box.until((state) => state.unread === 1);
         expect([
             (await call("get", { id: plan.id }, document)).approvedBy,
             (await call("get", { id: request.id }, notification)).readAt,
         ]).toEqual([subjectKey(actors.bob), now()]);
 
-        // snooze the change past the focus, holding it back from the badge and the phone
+        // snooze the change past the focus and keep it from the badge and the phone
         const until = end + 60 * 60_000;
         await call("snooze", { id: change.id, until }, notification);
-        await box.until((held) => held.unread === 0);
+        await box.until((state) => state.unread === 0);
         wait(120);
         await dispatch();
         expect([
@@ -92,7 +95,7 @@ test.for(TEST_DIALECTS)(
         // wake the change once the snooze ends, badging and alerting again
         wait(60);
         await dispatch();
-        await box.until((held) => held.unread === 1);
+        await box.until((state) => state.unread === 1);
         expect([
             pushes.requests.map((pushed) => pushed.urgency),
             (await deliveries(change.id)).map((row) => [row.channel, row.state, row.reason]),

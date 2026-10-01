@@ -30,7 +30,7 @@ test.for(TEST_DIALECTS)(
             await call("create", host(document.id), subscription);
         }
 
-        // change the plan twice and the draft once, holding each email for the summary at 16:00 UTC
+        // change the plan twice and the draft once and defer each email to the summary at 16:00 UTC
         as("bob");
         await call("edit", { id: plan.id, summary: "Rewrote the intro" });
         await call("edit", { id: plan.id, summary: "Added a timeline" });

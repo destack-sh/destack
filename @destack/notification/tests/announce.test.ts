@@ -39,7 +39,7 @@ test.for(TEST_DIALECTS)(
         await dispatch();
         const members = await states();
 
-        // announce it to the users holding edit, found through their grants, in batches of two
+        // announce it to the users with edit, found through their grants, in batches of two
         for (const editor of ["dave", "erin"] as const) {
             await call("grant", { id: plan.id, relation: "editor", subject: actors[editor] });
         }

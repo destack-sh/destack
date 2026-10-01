@@ -1,5 +1,8 @@
 import { expect, test } from "@destack/test";
-import { type Circumstances, decide, EMAIL_DELAY, focus, summary, TimeZone } from "../src/index.ts";
+import { type Circumstances, decide, focus, summary, TimeZone } from "../src/index.ts";
+
+/** How long an email waits in the scenarios: a quarter hour. */
+const EMAIL_DELAY = 15 * 60_000;
 import { notes } from "./fixture/document.ts";
 
 /** Saturday 24 October 2026, 12:00 UTC, the day before Vienna leaves summer time at 01:00 UTC. */
@@ -13,7 +16,7 @@ test("place summary times and quiet hours in a time zone across the end and star
     const sunday = TimeZone.next("Europe/Vienna", ["08:00"], SATURDAY);
     const later = TimeZone.next("Europe/Vienna", ["08:00", "18:00"], SATURDAY);
 
-    // end quiet hours from 22:00 to 07:00 after the night the clocks go back, and hold none at noon
+    // end quiet hours from 22:00 to 07:00 after the night the clocks go back, and defer none at noon
     const night = { days: [6], from: "22:00", to: "07:00" };
     const inside = TimeZone.end("Europe/Vienna", [night], Date.UTC(2026, 9, 25, 1, 30));
     const outside = TimeZone.end("Europe/Vienna", [night], SATURDAY);
@@ -34,6 +37,7 @@ test("decide each channel by the first rule that applies, from access down to pr
     // start from an unread, active mention the recipient receives everywhere, with nothing quiet
     const base: Circumstances = {
         channel: "push",
+        emailDelay: EMAIL_DELAY,
         notification: {
             parentPackageId: notes.id,
             occurredAt: SATURDAY,

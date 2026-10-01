@@ -18,7 +18,14 @@ export const mention = defineNotification({
     preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
     content: (payload) => ({ title: `${payload.author} mentioned you`, body: payload.excerpt }),
     summary: (count) => `${count} mentions`,
-    actions: { reply: { title: "Reply", text: { placeholder: "Reply", button: "Send" }, call: ({ source }, text) => replyTo(source, text) } },
+    actions: {
+        reply: {
+            title: "Reply",
+            text: { placeholder: "Reply", button: "Send" },
+            effect: ({ source }, call, text) =>
+                call.invoke(remark, "create", replyTo(source, text)),
+        },
+    },
 });
 ```
 
@@ -62,12 +69,10 @@ create: async (call, next) => {
 
 ## Object types
 
-The package defines five object types.
-
-| Type | Holds |
+| Type | What it is |
 |---|---|
 | `notification` | One recipient's notification, with `read`, `unread`, `readAll` and `snooze` |
-| `announcement` | A notification to the source's `subscribers`, the space's `members`, or the holders of a `permission` |
+| `announcement` | A notification to the source's `subscribers`, the space's `members`, or the users with a `permission` |
 | `delivery` | One attempt to deliver a notification on a channel |
 | `subscription` | A principal's subscription to a source, with its `Reason` |
 | `pushEndpoint` | A browser's Web Push endpoint in the user's scope |
@@ -77,8 +82,10 @@ The package defines five object types.
 A client answers an action and reads a thread.
 
 ```ts
-await client.submit(mention.respond(row, "reply", "On it")).confirmed;
-await client.mutate(notification).readAll({ where: { thread: row.thread, readAt: null }, readAt: Date.now() });
+await client.mutate(notification).act({ id: row.id, action: "reply", text: "On it" }).confirmed;
+await client
+    .mutate(notification)
+    .readAll({ where: { thread: row.thread, readAt: null }, readAt: Date.now() });
 ```
 
 ## Inbox
@@ -86,8 +93,7 @@ await client.mutate(notification).readAll({ where: { thread: row.thread, readAt:
 `NOTIFICATIONS` lists a person's notifications and `UNREAD` counts them per space and app.
 
 ```ts
-const { object: _object, ...query } = UNREAD;
-const badges = home.subscribe(notification, query);
+const badges = home.subscribe(notification, UNREAD);
 for await (const groups of badges.watch(signal)) {
     renderBadges(groups);
 }
@@ -95,19 +101,26 @@ for await (const groups of badges.watch(signal)) {
 
 ## Delivery
 
-A `Dispatcher` sends push and email from one controller.
+A `NotificationServer` serves the notification objects, each under its own controller.
 
 ```ts
-import { Dispatcher, Vapid, WebPushTransport } from "@destack/notification/server";
-
-const dispatcher = new Dispatcher({ notifications: [mention], recipients, push: new WebPushTransport(new Vapid(keys, "mailto:push@destack.app")), mail });
-const server = new ObjectServer({ objects: { ...objects, subscription, ...dispatcher.objects }, database, context, journal, audit });
-await new ControlLoop(database, [...server.controllers(), dispatcher.controller(server)], { report }).run(signal);
+const push = new WebPushTransport(new Vapid(keys, "mailto:push@destack.app"));
+const server = new ObjectServer({
+    objects: {
+        ...new NotificationServer({ notifications: [mention], recipients, push, mail }).objects(),
+        subscription,
+    },
+    database,
+    context,
+    journal,
+    audit,
+});
+await new ControlLoop(database, server.controllers(), { report }).run(signal);
 ```
 
 ## Decisions
 
-`decide` sends, defers or skips one delivery, on the server and the desktop.
+`decide` sends, defers or skips one delivery.
 
 ```ts
 const decision = decide({ channel: "push", notification: row, ...circumstances });

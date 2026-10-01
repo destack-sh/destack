@@ -1,8 +1,17 @@
+import type { InterruptionLevel } from "../preference/preference.ts";
 import type { Outcome } from "../delivery/outcome.ts";
 import type { Vapid } from "./vapid.ts";
 
 /** A push message's urgency, as RFC 8030 names it. */
 export type Urgency = "very-low" | "low" | "normal" | "high";
+
+/** How urgently each interruption level's push goes out, as RFC 8030's urgencies. */
+export const URGENCY: Readonly<Record<InterruptionLevel, Urgency>> = {
+    passive: "very-low",
+    active: "normal",
+    timeSensitive: "high",
+    critical: "high",
+};
 
 /** One encrypted push message, as RFC 8030 sends it. */
 export interface PushRequest {

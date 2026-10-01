@@ -27,10 +27,11 @@
         "@destack/service": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/space": "workspace:*",
-        "@destack/sync": "workspace:*"
+        "jose": "6.2.12"
     },
     "devDependencies": {
         "@destack/audit": "workspace:*",
+        "@destack/sync": "workspace:*",
         "@destack/test": "workspace:*"
     }
 }

@@ -1,52 +1,25 @@
-import { type ObjectReference, sameSubject, type Subject, subjectKey } from "@destack/access";
+import type { InstanceOf } from "@destack/object";
+import { type ObjectReference } from "@destack/sync";
+import { ServiceError } from "@destack/service/error";
+import { sameSubject, type Subject, subjectKey } from "@destack/access";
 import { and, eq, gte, inArray, isNull } from "@destack/db";
-import { Call, type ObjectType } from "@destack/object";
+import { Call, Duration, type ObjectType } from "@destack/object";
+import type { Action, Content } from "./content.ts";
+import type { Notice } from "./notice.ts";
 import type { Package } from "@destack/package";
 import { type DeclarationReference, reference } from "@destack/package/declare";
 import { schema } from "@destack/schema";
 import { Setting } from "@destack/setting";
-import type * as sync from "@destack/sync";
-import { EMAIL_DELAY } from "../delivery/decide.ts";
-import { type Audience, announcement, type AnnouncementRow } from "../object/announcement.ts";
-import { NOTIFY_RECIPIENTS, notification, type NotificationRow } from "../object/notification.ts";
-import type { Reason } from "../object/subscription.ts";
+import { type Audience, announcement, type Announcement } from "../object/announcement.ts";
+import { NOTIFY_RECIPIENTS, notification } from "../object/notification.ts";
+
 import { type InterruptionLevel, Preference } from "../preference/preference.ts";
 
 /** The largest payload as JSON, in bytes: half of a push message's 4096, beside content and encryption. */
 const PAYLOAD_BYTES = 2048;
 
-/** How long an unread notification collapses later ones of its thread, in milliseconds. */
-const COLLAPSE_WINDOW = EMAIL_DELAY;
-
-/** The text every channel shows. */
-export interface Content {
-    /** The headline. */
-    readonly title: string;
-    /** The line below the headline. */
-    readonly subtitle?: string;
-    /** The text. */
-    readonly body: string;
-}
-
-/** An action beside a notification: one call the recipient makes. */
-export interface Action<Payload = unknown> {
-    /** The button's label. */
-    readonly title: string;
-    /** Whether the action destroys or declines. */
-    readonly isDestructive?: boolean;
-    /** The text field it asks for. */
-    readonly text?: {
-        /** The field's placeholder. */
-        readonly placeholder: string;
-        /** The send button's label. */
-        readonly button: string;
-    };
-    /** Build the call the action makes. */
-    call(
-        notification: { readonly source: ObjectReference; readonly payload: Payload },
-        text?: string,
-    ): sync.Call;
-}
+/** The default collapse window: a quarter hour, the default email delay. */
+const COLLAPSE: Duration = { minutes: 15 };
 
 /** A notification's declaration. */
 export interface NotificationDefinition<Payload extends schema.Schema = schema.Schema> {
@@ -68,20 +41,8 @@ export interface NotificationDefinition<Payload extends schema.Schema = schema.S
     summary(count: number): string;
     /** The actions, by name. */
     readonly actions?: Readonly<Record<string, Action<schema.Infer<Payload>>>>;
-}
-
-/** What a notifier posts about a source. */
-export interface Notice<Payload> {
-    /** The object it is about. */
-    readonly source: ObjectReference;
-    /** Why its recipients receive it. */
-    readonly reason: Reason;
-    /** The payload. */
-    readonly payload: Payload;
-    /** The identity a later notice with the same key replaces. */
-    readonly key?: string;
-    /** The thread, the source's identifier by default. */
-    readonly thread?: string;
+    /** How long an unread notification collapses later ones of its thread, 15 minutes by default. */
+    readonly collapse?: Duration;
 }
 
 /** A declared notification. */
@@ -97,9 +58,9 @@ export class Notification<Payload extends schema.Schema = schema.Schema> {
     /** The recipient's preference setting. */
     readonly preference: Setting<typeof Preference>;
 
-    /** Hold a declaration and derive its preference setting. */
+    /** Keep a declaration and derive its preference setting. */
     constructor(owner: Package, definition: NotificationDefinition<Payload>) {
-        // hold the declaration
+        // keep the declaration
         this.package = owner;
         this.name = definition.name;
         this.definition = definition;
@@ -124,7 +85,7 @@ export class Notification<Payload extends schema.Schema = schema.Schema> {
     }
 
     /** Report whether a row belongs to this declaration. */
-    is(row: Pick<NotificationRow, "packageId" | "name">): boolean {
+    is(row: Pick<InstanceOf<typeof notification>, "packageId" | "name">): boolean {
         return row.packageId === this.reference.packageId && row.name === this.name;
     }
 
@@ -132,7 +93,7 @@ export class Notification<Payload extends schema.Schema = schema.Schema> {
     async notify(
         call: Call,
         notice: Notice<schema.Infer<Payload>> & { readonly recipients: readonly Subject[] },
-    ): Promise<readonly NotificationRow[]> {
+    ): Promise<readonly InstanceOf<typeof notification>[]> {
         // require a served call, a source, a small payload and few recipients
         call.served();
         this.#requireSource(call, notice.source, notification);
@@ -173,7 +134,11 @@ export class Notification<Payload extends schema.Schema = schema.Schema> {
                         ? and(
                               eq(table.thread, thread),
                               isNull(table.readAt),
-                              gte(table.createdAt, call.now - COLLAPSE_WINDOW),
+                              gte(
+                                  table.createdAt,
+                                  call.now -
+                                      Duration.milliseconds(this.definition.collapse ?? COLLAPSE),
+                              ),
                           )
                         : and(
                               eq(table.parentPackageId, source.packageId),
@@ -184,12 +149,12 @@ export class Notification<Payload extends schema.Schema = schema.Schema> {
                 ),
             )
             .orderBy(table.createdAt);
-        const held = new Map(current.map((row) => [row.recipient, row]));
+        const existing = new Map(current.map((row) => [row.recipient, row]));
 
-        // replace or join each held notification, and post the others
-        const rows: NotificationRow[] = [];
+        // replace or join each existing notification, and post the others
+        const rows: InstanceOf<typeof notification>[] = [];
         for (const recipient of recipients) {
-            const known = held.get(recipient);
+            const known = existing.get(recipient);
             const row =
                 known === undefined
                     ? await call.invoke(notification, "post", {
@@ -204,7 +169,7 @@ export class Notification<Payload extends schema.Schema = schema.Schema> {
                           occurredAt: call.now,
                       })
                     : await this.#occur(call, known, notice, payload, thread);
-            rows.push(row as NotificationRow);
+            rows.push(row as InstanceOf<typeof notification>);
         }
 
         return rows;
@@ -219,7 +184,7 @@ export class Notification<Payload extends schema.Schema = schema.Schema> {
             /** The principals it skips beside the caller, such as those the call notified already. */
             readonly excluded?: readonly Subject[];
         },
-    ): Promise<AnnouncementRow> {
+    ): Promise<Announcement> {
         // require a served call, a source, a declared permission and a small payload
         this.#requireSource(call, notice.source, announcement);
         const { audience } = notice;
@@ -232,7 +197,7 @@ export class Notification<Payload extends schema.Schema = schema.Schema> {
         const payload = this.#payload(notice.payload);
         const author = call.caller;
         if (author === undefined) {
-            throw new TypeError("an announcement names the principal whose call made it");
+            throw new TypeError("an announcement excludes the principal whose call made it");
         }
 
         // read the announcement a keyed one replaces
@@ -269,12 +234,12 @@ export class Notification<Payload extends schema.Schema = schema.Schema> {
             expandedAt: null,
         };
 
-        // replace the held announcement, expanding it again from the first entry
+        // replace the existing announcement, expanding it again from the first entry
         if (known !== undefined) {
             return (await call.invoke(announcement, "replace", {
                 id: known.id,
                 ...values,
-            })) as AnnouncementRow;
+            })) as Announcement;
         }
 
         // post one otherwise
@@ -284,34 +249,30 @@ export class Notification<Payload extends schema.Schema = schema.Schema> {
             packageId: this.reference.packageId,
             name: this.name,
             ...(notice.key === undefined ? {} : { key: notice.key }),
-        })) as AnnouncementRow;
+        })) as Announcement;
     }
 
     /** Render a notification's text. */
-    render(row: Pick<NotificationRow, "payload">): Content {
+    render(row: Pick<InstanceOf<typeof notification>, "payload">): Content {
         return this.definition.content(this.definition.payload.parse(row.payload));
     }
 
-    /** Build the calls answering a notification with an action and reading it. */
-    respond(
-        row: Pick<
-            NotificationRow,
-            "id" | "scope" | "parentPackageId" | "parentType" | "parentId" | "payload"
-        >,
-        action: string,
-        text?: string,
-    ): readonly sync.Call[] {
+    /** Answer a notification with an action as its recipient, then read it. */
+    async act(call: Call, action: string, text?: string): Promise<unknown> {
         // require a declared action and its text
         const declared = this.definition.actions?.[action];
         if (declared === undefined) {
-            throw new TypeError(`notification ${this.name} has no action ${action}`);
+            throw new ServiceError("BAD_REQUEST", {
+                message: `notification ${this.name} has no action ${action}`,
+            });
         } else if ((declared.text === undefined) !== (text === undefined)) {
-            throw new TypeError(
-                `action ${action} of ${this.name} takes text only where it asks for it`,
-            );
+            throw new ServiceError("BAD_REQUEST", {
+                message: `action ${action} of ${this.name} takes text only where it asks for it`,
+            });
         }
 
-        // make the action's call and read the notification
+        // make the action's effect and read the notification
+        const row = call.target as InstanceOf<typeof notification>;
         const source: ObjectReference = {
             packageId: row.parentPackageId!,
             type: row.parentType!,
@@ -319,32 +280,32 @@ export class Notification<Payload extends schema.Schema = schema.Schema> {
             id: row.parentId!,
         };
         const payload = this.definition.payload.parse(row.payload);
-        const read = Call.record(notification, "read", {
+        await declared.effect({ source, payload }, call, text);
+
+        return call.invoke(notification, "read", {
             [notification.route.field!]: row.scope,
             id: row.id,
         });
-
-        return [declared.call({ source, payload }, text), read];
     }
 
-    /** Replace or join a held notification, leaving it unread. */
+    /** Replace or join an existing notification and leave it unread. */
     async #occur(
         call: Call,
-        held: NotificationRow,
+        existing: InstanceOf<typeof notification>,
         notice: Notice<unknown>,
         payload: unknown,
         thread: string,
     ): Promise<unknown> {
         // replan replaced and snoozed notifications
         const isReplaced = notice.key !== undefined;
-        const isPlanned = !isReplaced && held.snoozedUntil === null;
+        const isPlanned = !isReplaced && existing.snoozedUntil === null;
 
         return call.invoke(notification, "occur", {
-            id: held.id,
+            id: existing.id,
             reason: notice.reason,
             payload,
             thread,
-            count: isReplaced ? 1 : held.count + 1,
+            count: isReplaced ? 1 : existing.count + 1,
             occurredAt: call.now,
             readAt: null,
             snoozedUntil: null,
@@ -356,7 +317,7 @@ export class Notification<Payload extends schema.Schema = schema.Schema> {
     #requireSource(call: Call, source: ObjectReference, attachment: ObjectType): void {
         const type = call.objects.find((object) => object.policy.is(source));
         if (source.scope !== call.scope) {
-            throw new TypeError(`notification ${this.name} names a source in another scope`);
+            throw new TypeError(`notification ${this.name} has a source in another scope`);
         } else if (!type?.attachments.some((attached) => attachment.same(attached.object))) {
             throw new TypeError(`object ${source.type} takes no ${this.name} notifications`);
         }

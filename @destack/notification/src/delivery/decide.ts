@@ -1,16 +1,8 @@
-import type { SkipReason } from "../object/delivery.ts";
-import type { NotificationRow } from "../object/notification.ts";
-import type {
-    Channel,
-    Focus,
-    InterruptionLevel,
-    Preference,
-    Summary,
-} from "../preference/preference.ts";
+import type { InstanceOf } from "@destack/object";
+import type { notification } from "../object/notification.ts";
+import type { Channel, SkipReason } from "../object/delivery.ts";
+import type { Focus, InterruptionLevel, Preference, Summary } from "../preference/preference.ts";
 import { TimeZone } from "../preference/zone.ts";
-
-/** How long an email waits for the notification to be read elsewhere, as Slack and Linear do, in milliseconds. */
-export const EMAIL_DELAY = 15 * 60_000;
 
 /** What a channel does with a notification now. */
 export type Decision =
@@ -24,7 +16,7 @@ export interface Circumstances {
     readonly channel: Channel;
     /** The notification. */
     readonly notification: Pick<
-        NotificationRow,
+        InstanceOf<typeof notification>,
         "parentPackageId" | "occurredAt" | "readAt" | "snoozedUntil"
     >;
     /** The interruption level. */
@@ -45,6 +37,8 @@ export interface Circumstances {
     readonly isPresent: boolean;
     /** Whether the summary goes out now. */
     readonly isSummaryDue: boolean;
+    /** How long an email waits for the notification to be read elsewhere, in milliseconds. */
+    readonly emailDelay: number;
     /** The time of the decision, in UTC epoch milliseconds. */
     readonly now: number;
 }
@@ -102,10 +96,10 @@ export function decide(circumstances: Circumstances): Decision {
         return { action: "defer", until: end, isSummarized: false };
     }
     // email once unread for a while
-    else if (channel === "email" && notification.occurredAt + EMAIL_DELAY > now) {
+    else if (channel === "email" && notification.occurredAt + circumstances.emailDelay > now) {
         return {
             action: "defer",
-            until: notification.occurredAt + EMAIL_DELAY,
+            until: notification.occurredAt + circumstances.emailDelay,
             isSummarized: false,
         };
     }
