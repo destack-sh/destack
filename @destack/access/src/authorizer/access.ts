@@ -7,7 +7,7 @@ import { PermissionReference } from "../policy/policy.ts";
 import { type SubjectType } from "../policy/subject.ts";
 import { ACCESS_PACKAGE_ID } from "../policy/principal.ts";
 import * as principal from "../policy/principal.ts";
-import { AccessContext } from "../context/context.ts";
+import { AccessContext, Caller } from "../context/context.ts";
 import { Elevation } from "../context/elevation.ts";
 import { Restriction } from "../context/restriction.ts";
 import { Relationship } from "../relationship/relationship.ts";
@@ -118,7 +118,7 @@ export class Access {
         const chain = [scope, ...links.map((link) => link.object.id).filter((id) => id !== scope)];
 
         // read the roles and the subject sets of the caller and every lent delegate
-        const lent = AccessContext.delegation(context).filter((link) => link.authority === "lent");
+        const lent = Caller.delegation(context).filter((link) => link.authority === "lent");
         const [roles, , represented, delegates] = await Promise.all([
             readRoles(snapshot, chain, context),
             snapshot.position === undefined

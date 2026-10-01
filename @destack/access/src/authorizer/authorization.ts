@@ -7,7 +7,7 @@ import { AccessError } from "../error/index.ts";
 import type { PermissionReference } from "../policy/policy.ts";
 import * as principal from "../policy/principal.ts";
 import { anyone, isPrincipal } from "../policy/principal.ts";
-import { VerifiedIdentifier, AccessContext } from "../context/context.ts";
+import { VerifiedIdentifier, AccessContext, Caller } from "../context/context.ts";
 import { Relationship, type RelationshipRequest } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
 import { Capability, type Link } from "../relationship/link.ts";
@@ -322,7 +322,7 @@ export class Authorization {
             const proposed = request.relationship;
             await this.authorizer.requireHeld(transaction, proposed.object);
             const context = this.context(this.authorizer.governingScope(proposed.object));
-            const proposer = AccessContext.requirePrincipal(context);
+            const proposer = Caller.requirePrincipal(context);
             if (
                 (proposed.subject === undefined) === (request.recipient === undefined) ||
                 (request.recipient !== undefined &&
@@ -403,7 +403,7 @@ export class Authorization {
             }
             // require the addressed principal for an offer
             else {
-                const accepting = AccessContext.requirePrincipal(context);
+                const accepting = Caller.requirePrincipal(context);
                 if (!Proposal.addresses(proposal, accepting, context)) {
                     throw new AccessError("FORBIDDEN", "proposal is addressed to someone else");
                 }
@@ -437,7 +437,7 @@ export class Authorization {
             const authorization = this.within(transaction);
             const context = this.context(this.authorizer.governingScope(object));
             const proposal = await Proposal.read(transaction, object, id);
-            const acting = AccessContext.principal(context);
+            const acting = Caller.principal(context);
             if (
                 acting === undefined ||
                 (!Subject.same(acting, proposal.proposer) &&
@@ -486,7 +486,7 @@ export class Authorization {
     async addressed(scope: string, page: ProposalPage): Promise<Proposal[]> {
         // match the caller as proposer, lender, subject, or through a verified identifier
         const context = this.context(scope);
-        const own = Subject.key(AccessContext.requirePrincipal(context));
+        const own = Subject.key(Caller.requirePrincipal(context));
         const rows = await this.database
             .select()
             .from(accessProposal)
@@ -495,7 +495,7 @@ export class Authorization {
                     or(
                         eq(accessProposal.proposerKey, own),
                         eq(accessProposal.lender, own),
-                        ...[own, ...AccessContext.identifiers(context)].map((addressee) =>
+                        ...[own, ...Caller.identifiers(context)].map((addressee) =>
                             eq(accessProposal.addressee, addressee),
                         ),
                     ),
@@ -731,7 +731,7 @@ export class Authorization {
     /** Determine whether the caller is the principal a delegation lends authority from. */
     #lends(request: Grantable): boolean {
         const onBehalfOf = request.conditions?.onBehalfOf;
-        const caller = AccessContext.principal(
+        const caller = Caller.principal(
             this.context(this.authorizer.governingScope(request.object)),
         );
 

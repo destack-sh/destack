@@ -2,7 +2,7 @@ import { type ObjectReference, Subject } from "@destack/sync";
 import { and, eq, gt, type DatabaseConnection, type Select } from "@destack/db";
 import { defineSchema, identifier, Instant, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
-import { VerifiedIdentifier, AccessContext } from "../context/context.ts";
+import { VerifiedIdentifier, AccessContext, Caller } from "../context/context.ts";
 import type { RelationshipRequest } from "../relationship/relationship.ts";
 import { accessProposal, ProposedRelationship } from "./table.ts";
 
@@ -130,7 +130,7 @@ function addresses(proposal: Proposal, principal: Subject, context: AccessContex
     const subject = proposal.relationship.subject;
 
     return subject === undefined
-        ? AccessContext.identifiers(context).includes(proposal.recipient!)
+        ? Caller.identifiers(context).includes(proposal.recipient!)
         : Subject.same(subject, principal);
 }
 
