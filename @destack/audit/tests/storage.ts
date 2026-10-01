@@ -1,9 +1,9 @@
-import { outbox } from "@destack/service/outbox";
+import type { Duration } from "@destack/schema";
+import { testCallKey } from "@destack/service/test";
 import { schema } from "@destack/schema";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import type { DatabaseConnection } from "@destack/db";
-import { AuditRecorder, defineAuditAction } from "../src/index.ts";
-import { AuditOutbox } from "../src/outbox/index.ts";
+import { AuditRecorder, defineAuditAction, Journal, journal } from "../src/index.ts";
 import { AuditHistory, auditTables } from "../src/history/index.ts";
 import { accountRecord, document } from "./stack/index.ts";
 import { PackageId } from "@destack/package";
@@ -12,7 +12,7 @@ import { accessTables } from "@destack/access";
 /** A document rename action. */
 export const renameDocument = defineAuditAction(
     {
-        name: "Document.rename",
+        name: "document.rename",
         targets: schema.object({
             document: schema.object({ type: schema.literal("document"), id: schema.string() }),
         }),
@@ -28,7 +28,7 @@ export const renameDocument = defineAuditAction(
 );
 
 /** The tables the audit scenarios use. */
-const TABLES = [document, accountRecord, outbox, ...auditTables, ...accessTables];
+const TABLES = [document, accountRecord, journal, ...auditTables, ...accessTables];
 
 /** The storage of the audit scenarios. */
 export class AuditStorage {
@@ -36,18 +36,22 @@ export class AuditStorage {
     readonly test: TestDatabase;
     /** The current connection. */
     database: DatabaseConnection & { close(): Promise<void> };
-    /** The pending delivery queue. */
-    outbox: AuditOutbox;
+    /** The journal recording calls and delivering them. */
+    journal: Journal;
     /** The accepted history. */
     history: AuditHistory;
-    /** The recorder writing into the outbox. */
+    /** The recorder writing into the journal. */
     recorder: AuditRecorder<DatabaseConnection>;
 
-    /** Bind the storage to a connection. */
-    constructor(test: TestDatabase, database: AuditStorage["database"]) {
+    /** Bind the storage to a connection, keeping delivered calls for a lifetime. */
+    constructor(test: TestDatabase, database: AuditStorage["database"], lifetime?: Duration) {
         this.test = test;
         this.database = database;
-        this.outbox = new AuditOutbox(database);
+        this.journal = new Journal(
+            database,
+            testCallKey,
+            lifetime === undefined ? {} : { lifetime },
+        );
         this.history = new AuditHistory(database);
         this.recorder = new AuditRecorder(
             {
@@ -57,15 +61,15 @@ export class AuditStorage {
                 service: "document",
                 scope: "universe",
             },
-            this.outbox,
+            this.journal,
         );
     }
 
-    /** Create migrated storage. */
-    static async open(): Promise<AuditStorage> {
+    /** Create migrated storage, keeping delivered calls for a lifetime. */
+    static async open(lifetime?: Duration): Promise<AuditStorage> {
         const test = await TestDatabase.create(TEST_DIALECTS.at(-1)!, TABLES, { isMigrated: true });
 
-        return new AuditStorage(test, test.database);
+        return new AuditStorage(test, test.database, lifetime);
     }
 
     /** Reopen the storage on a new connection. */

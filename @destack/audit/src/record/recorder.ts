@@ -1,10 +1,11 @@
+import { AuditActor } from "./actor.ts";
+import { AuditCall } from "./call.ts";
+import { AuditContext } from "./context.ts";
+import { AuditExecution } from "./execution.ts";
 import { v7 } from "uuid";
-import { schema } from "@destack/schema";
-import type { AuditAction } from "../action/action.ts";
-import { AuditEvent, AuditResult } from "../event/event.ts";
+import { identifier, schema } from "@destack/schema";
 import { canonicalize } from "@destack/schema/json";
-import { AuditContext } from "../event/context.ts";
-import { AuditError } from "../error/index.ts";
+import { Failure, Outcome, Subject } from "@destack/sync";
 import { denialOf, ServiceError } from "@destack/service";
 import type { Caller } from "@destack/service/authentication";
 import {
@@ -13,28 +14,72 @@ import {
     type ProcedureCall,
     type ServiceContext,
 } from "@destack/service/server";
-import { sameSubject, type Subject } from "@destack/access";
 import { context, trace, isSpanContextValid } from "@destack/telemetry";
-import type { AuditActor } from "../event/actor.ts";
+import type { AuditAction } from "../action/action.ts";
+import { AuditError } from "../error/index.ts";
 import { invokeService } from "./action.ts";
 
-/** The host-selected origin of events. */
+/** The host-selected origin of calls. */
 export type AuditOrigin = Omit<
     AuditContext,
     "actor" | "subject" | "delegation" | "deploymentId" | "traceId"
 >;
 
-/** The durable store of recorded events. */
+/** The durable store of recorded calls. */
 export interface AuditWriter<Transaction = never> {
-    /** Append an event, inside a transaction when given. */
-    append(event: AuditEvent, transaction?: Transaction): Promise<void>;
+    /** Record a call, or its outcome once it ends, inside a transaction when given. */
+    record(
+        call: AuditCall,
+        options: {
+            readonly isAudited: boolean;
+            readonly caller?: string;
+            readonly position?: number;
+        },
+        transaction?: Transaction,
+    ): Promise<void>;
 }
 
-/** Record actions under a fixed context. */
+/** The request a recorded call belongs to, and what a retry replays. */
+export interface CallRequest {
+    /** The request identifier retries repeat. */
+    readonly requestId: string;
+    /** The caller a retry repeats the request as. */
+    readonly caller: string;
+    /** The call's place in its request. */
+    readonly position: number;
+    /** The digest of the request's input. */
+    readonly digest: string;
+    /** The call's input, sensitive values redacted. */
+    readonly input?: Readonly<Record<string, unknown>>;
+    /** The release of the method's package the caller made the call against. */
+    readonly release?: string;
+    /** The transaction identity of the call's logged changes. */
+    readonly transaction?: string;
+}
+
+/** The ended call values a recorder takes. */
+type Ended<Targets extends schema.Schema, Details extends schema.Schema> = {
+    /** The named affected objects. */
+    readonly targets: schema.Input<Targets>;
+    /** The details the action schema accepts. */
+    readonly details: schema.Input<Details>;
+    /** How the call ended. */
+    readonly outcome: Outcome;
+};
+
+/** The outcome of a cancelled call. */
+const CANCELLED: Outcome = {
+    kind: "cancelled",
+    error: { code: "CANCELLED", status: 499, message: "cancelled" },
+};
+
+/** Record calls under a fixed context. */
 export class AuditRecorder<Transaction = never> {
-    /** The context of every event. */
+    /** The context of every call. */
     readonly #context: AuditContext;
-    /** The writer events go to. */
+    /** The request every call belongs to, absent outside a request. */
+    readonly #requestId?: string;
+    /** The writer calls go to. */
     readonly #writer: AuditWriter<Transaction>;
 
     /** Record under a verified caller, or none, with the active trace. */
@@ -42,6 +87,7 @@ export class AuditRecorder<Transaction = never> {
         caller: Caller | null,
         writer: AuditWriter<Transaction>,
         origin: AuditOrigin,
+        requestId?: string,
     ): AuditRecorder<Transaction> {
         // split the caller into subject, delegation and acting principal
         const authentication = caller?.authentication;
@@ -52,10 +98,13 @@ export class AuditRecorder<Transaction = never> {
                 ? [authentication.subject, ...delegates.slice(0, -1)]
                 : [];
 
-        // select the acting principal's deployment
+        // select the acting principal's deployment, and the session or token the caller presented
         const deploymentId = acting
-            ? authentication?.deployments?.find((entry) => sameSubject(entry.subject, acting))?.id
+            ? authentication?.deployments?.find((entry) => Subject.same(entry.subject, acting))?.id
             : undefined;
+        const presented = caller?.credential.id;
+        const session = identifier("session").safeParse(presented);
+        const token = identifier("token").safeParse(presented);
         const span = trace.getSpanContext(context.active());
 
         return new AuditRecorder(
@@ -65,25 +114,29 @@ export class AuditRecorder<Transaction = never> {
                 subject: authentication?.subject,
                 delegation: delegation.map(actorOf),
                 deploymentId,
+                sessionId: session.success ? session.data : origin.sessionId,
+                tokenId: token.success ? token.data : origin.tokenId,
                 traceId: span && isSpanContextValid(span) ? span.traceId : undefined,
             },
             writer,
+            requestId,
         );
     }
 
-    /** Record a service's calls in the verified caller's scope, or the service's own. */
+    /** Open a recorder of a service's calls in a scope, for a request's caller or the service itself. */
     static service<Transaction>(
         writer: AuditWriter<Transaction>,
-        origin: Omit<AuditOrigin, "scope" | "requestId">,
+        origin: Omit<AuditOrigin, "scope">,
     ): (scope: string, context?: ServiceContext) => AuditRecorder<Transaction> {
         return (scope, context) =>
             context === undefined
                 ? AuditRecorder.system(writer, { ...origin, scope })
-                : AuditRecorder.from(context.caller, writer, {
-                      ...origin,
-                      scope,
-                      requestId: context.requestId,
-                  });
+                : AuditRecorder.from(
+                      context.authenticationError === undefined ? context.caller : null,
+                      writer,
+                      { ...origin, scope },
+                      context.requestId,
+                  );
     }
 
     /** Record as the service itself, with the active trace. */
@@ -123,19 +176,15 @@ export class AuditRecorder<Transaction = never> {
                 return;
             }
 
-            // map the outcome and failure code to the result, recording a concealed denial's own code
-            const errorCode =
-                event.error instanceof ServiceError
-                    ? (denialOf(event.error) ?? event.error).code
-                    : event.outcome === "cancelled"
-                      ? "CANCELLED"
-                      : "INTERNAL_SERVER_ERROR";
-            const result: AuditResult =
+            // map how the procedure ended to an outcome, recording a concealed denial's own code
+            const outcome: Outcome =
                 event.outcome === "success"
-                    ? { outcome: "success" }
-                    : { outcome: event.outcome, errorCode };
+                    ? { kind: "success" }
+                    : event.outcome === "cancelled"
+                      ? CANCELLED
+                      : AuditRecorder.outcome(event.error);
 
-            // record the call as one event
+            // record the call
             const writer = await recorder(event.call);
             await writer.record(
                 undefined,
@@ -143,109 +192,146 @@ export class AuditRecorder<Transaction = never> {
                 {
                     targets: { procedure: { type: "procedure", id: event.call.path.join(".") } },
                     details: { authentication: access.authentication },
-                    ...result,
+                    outcome,
                 },
                 category,
             );
         };
     }
 
-    /** Read the result a failed action ends with: a denial for rejected access, a failure otherwise. */
-    static result(error: unknown): AuditResult {
-        return resultOf(error);
+    /** Read the outcome a failed call ends with: a denial for rejected access, a failure otherwise. */
+    static outcome(error: unknown): Exclude<Outcome, { kind: "success" }> {
+        // map domain failures to service failures
+        const known = domainFailure(error) ?? error;
+        const denial = known instanceof ServiceError ? denialOf(known) : undefined;
+
+        // report rejected access as a denial
+        if (denial !== undefined) {
+            return { kind: "denied", error: Failure.of(denial) };
+        }
+        // report a service or audit failure
+        else if (known instanceof ServiceError || known instanceof AuditError) {
+            return { kind: "failure", error: Failure.of(known) };
+        }
+
+        return {
+            kind: "failure",
+            error: { code: "INTERNAL_SERVER_ERROR", status: 500, message: "internal error" },
+        };
     }
 
     /** Create the recorder. */
-    constructor(context: AuditContext, writer: AuditWriter<Transaction>) {
+    constructor(context: AuditContext, writer: AuditWriter<Transaction>, requestId?: string) {
         this.#context = structuredClone(AuditContext.parse(context));
+        this.#requestId = requestId;
         this.#writer = writer;
     }
 
-    /** Record a completed action, a committed write unless named otherwise. */
+    /** Record an ended call, a committed write unless named otherwise. */
     async record<Targets extends schema.Schema, Details extends schema.Schema>(
         transaction: Transaction | undefined,
         action: AuditAction<Targets, Details>,
-        values: { targets: schema.Input<Targets>; details: schema.Input<Details> } & AuditResult,
-        category: AuditEvent["category"] = "activity",
-    ): Promise<AuditEvent> {
-        // append the result event
-        const { targets, details, ...result } = values;
-        const event = this.#event(
-            action,
-            { targets, details },
-            { stage: "result", ...AuditResult.parse(result) },
-            category,
-        );
-        await this.#writer.append(event, transaction);
-
-        return event;
+        values: Ended<Targets, Details>,
+        category: AuditExecution["category"] = "activity",
+        request?: CallRequest,
+    ): Promise<AuditCall> {
+        return this.#ended(transaction, action, values, category, true, request);
     }
 
-    /** Prepare an attempt. */
+    /** Record an executed call only retries read, such as an ephemeral write no history receives. */
+    async keep<Targets extends schema.Schema, Details extends schema.Schema>(
+        transaction: Transaction | undefined,
+        action: AuditAction<Targets, Details>,
+        values: Ended<Targets, Details>,
+        request: CallRequest,
+    ): Promise<AuditCall> {
+        return this.#ended(transaction, action, values, "activity", false, request);
+    }
+
+    /** Prepare a running call, recorded before its external effect runs. */
     begin<Targets extends schema.Schema, Details extends schema.Schema>(
         action: AuditAction<Targets, Details>,
-        values: { targets: schema.Input<Targets>; details: schema.Input<Details> },
-    ): AuditEvent {
-        return this.#event(action, values, { stage: "attempt" }, "activity");
+        values: Omit<Ended<Targets, Details>, "outcome">,
+    ): AuditCall {
+        return this.#call(action, values, "activity", { startedAt: Date.now() });
     }
 
-    /** Prepare the result of an attempt, merging any result details. */
-    complete(
-        attempt: AuditEvent,
-        result: AuditResult,
+    /** Prepare the end of a running call, merging any result details. */
+    finish(
+        running: AuditCall,
+        outcome: Outcome,
         details?: Readonly<Record<string, unknown>>,
-    ): AuditEvent {
-        // require an attempt of this context
-        attempt = AuditEvent.parse(attempt);
+    ): AuditCall {
+        // require a running call of this context
+        const call = AuditCall.parse(running);
+        const execution = call.execution;
         if (
-            attempt.result.stage !== "attempt" ||
-            canonicalize(attempt.context) !== canonicalize(this.#context)
+            execution.outcome !== undefined ||
+            canonicalize(execution.context) !== canonicalize(this.#context)
         ) {
             throw new AuditError(
                 "INVALID_EVENT",
-                "audit completion requires an attempt from this context",
+                "finishing a call requires a running call from this context",
             );
         }
 
-        return AuditEvent.parse({
-            ...attempt,
-            id: `audit-event-${v7()}`,
-            attemptId: attempt.id,
-            occurredAt: Date.now(),
-            ...(details === undefined
-                ? {}
-                : { details: { ...(attempt.details as Record<string, unknown>), ...details } }),
-            result: { stage: "result", ...AuditResult.parse(result) },
+        return AuditCall.parse({
+            ...call,
+            execution: {
+                ...execution,
+                ...(details === undefined
+                    ? {}
+                    : {
+                          details: {
+                              ...(execution.details as Record<string, unknown>),
+                              ...details,
+                          },
+                      }),
+                outcome,
+                finishedAt: Date.now(),
+            },
         });
     }
 
-    /** Persist an attempt, run an external effect, and persist its result. */
+    /** Record a prepared call of this context, running or ended. */
+    async append(call: AuditCall): Promise<void> {
+        // require this recorder's context
+        if (canonicalize(call.execution.context) !== canonicalize(this.#context)) {
+            throw new AuditError("INVALID_EVENT", "call belongs to another context");
+        }
+
+        await this.#writer.record(call, { isAudited: true });
+    }
+
+    /** Record a running call, run an external effect, and record how it ended. */
     async attempt<Targets extends schema.Schema, Details extends schema.Schema, Value>(
         action: AuditAction<Targets, Details>,
-        values: { targets: schema.Input<Targets>; details: schema.Input<Details> },
+        values: Omit<Ended<Targets, Details>, "outcome">,
         execute: () => Promise<Value>,
     ): Promise<Value> {
-        // persist the attempt before executing
-        const attempt = this.begin(action, values);
-        await this.append(attempt);
+        // record the call before executing
+        const running = this.begin(action, values);
+        await this.append(running);
 
-        // persist the result of the execution
+        // record how the execution ended
         let value: Value;
         try {
             value = await execute();
         } catch (error) {
-            await this.#keep(error, () => this.append(this.complete(attempt, resultOf(error))));
+            await this.#persist(error, () =>
+                this.append(this.finish(running, AuditRecorder.outcome(error))),
+            );
             throw error;
         }
-        await this.append(this.complete(attempt, { outcome: "success" }));
+        await this.append(this.finish(running, { kind: "success" }));
 
         return value;
     }
 
-    /** Run a read and record it as one access event, with the details its result names. */
+    /** Run a read and record it as one access call, with the details its result holds. */
     async read<Targets extends schema.Schema, Details extends schema.Schema, Value>(
         action: AuditAction<Targets, Details>,
-        values: { targets: schema.Input<Targets>; details: schema.Input<Details> },
+        values: Omit<Ended<Targets, Details>, "outcome">,
         execute: () => Promise<Value>,
         detail?: (value: Value) => schema.Input<Details>,
     ): Promise<Value> {
@@ -254,10 +340,10 @@ export class AuditRecorder<Transaction = never> {
         try {
             value = await execute();
         } catch (error) {
-            const result = resultOf(error);
-            if (result.outcome !== "denied") {
-                await this.#keep(error, () =>
-                    this.record(undefined, action, { ...values, ...result }, "access"),
+            const outcome = AuditRecorder.outcome(error);
+            if (outcome.kind !== "denied") {
+                await this.#persist(error, () =>
+                    this.record(undefined, action, { ...values, outcome }, "access"),
                 );
             }
             throw error;
@@ -268,83 +354,119 @@ export class AuditRecorder<Transaction = never> {
         await this.record(
             undefined,
             action,
-            { targets: values.targets, details, outcome: "success" },
+            { targets: values.targets, details, outcome: { kind: "success" } },
             "access",
         );
 
         return value;
     }
 
-    /** Pass on a stream's values and record it as one access event when it ends. */
+    /** Pass on a stream's values and record it as one access call when it ends. */
     async *stream<Targets extends schema.Schema, Details extends schema.Schema, Value>(
         action: AuditAction<Targets, Details>,
-        values: { targets: schema.Input<Targets>; details: schema.Input<Details> },
+        values: Omit<Ended<Targets, Details>, "outcome">,
         source: () => AsyncIterable<Value>,
     ): AsyncGenerator<Value> {
         // count the stream cancelled until it ends
-        let result: AuditResult = { outcome: "cancelled", errorCode: "CANCELLED" };
+        let outcome: Outcome = CANCELLED;
         let cause: unknown;
 
         // pass on the values, then record how the stream ended
         try {
             yield* source();
-            result = { outcome: "success" };
+            outcome = { kind: "success" };
         } catch (error) {
             cause = error;
-            result = resultOf(error);
+            outcome = AuditRecorder.outcome(error);
             throw error;
         } finally {
             // leave a denial to the procedure that refused it
-            if (result.outcome !== "denied") {
-                await this.#keep(cause, () =>
-                    this.record(undefined, action, { ...values, ...result }, "access"),
+            if (outcome.kind !== "denied") {
+                await this.#persist(cause, () =>
+                    this.record(undefined, action, { ...values, outcome }, "access"),
                 );
             }
         }
     }
 
-    /** Append a prepared event of this context. */
-    async append(event: AuditEvent): Promise<void> {
-        // require this recorder's context
-        if (canonicalize(event.context) !== canonicalize(this.#context)) {
-            throw new AuditError("INVALID_EVENT", "audit event belongs to another context");
-        }
+    /** Build and write an ended call. */
+    async #ended<Targets extends schema.Schema, Details extends schema.Schema>(
+        transaction: Transaction | undefined,
+        action: AuditAction<Targets, Details>,
+        values: Ended<Targets, Details>,
+        category: AuditExecution["category"],
+        isAudited: boolean,
+        request?: CallRequest,
+    ): Promise<AuditCall> {
+        // build the call, ended now
+        const now = Date.now();
+        const call = this.#call(
+            action,
+            values,
+            category,
+            {
+                ...(request === undefined ? {} : { digest: request.digest }),
+                ...(request?.transaction === undefined ? {} : { transaction: request.transaction }),
+                outcome: values.outcome,
+                startedAt: now,
+                finishedAt: now,
+            },
+            request,
+        );
 
-        // append through the writer
-        await this.#writer.append(event);
+        // write it, keyed for retries within a request
+        await this.#writer.record(
+            call,
+            {
+                isAudited,
+                ...(request === undefined
+                    ? {}
+                    : { caller: request.caller, position: request.position }),
+            },
+            transaction,
+        );
+
+        return call;
     }
 
-    /** Persist a result and keep the action's failure beside a failed write. */
-    async #keep(cause: unknown, persist: () => Promise<unknown>): Promise<void> {
+    /** Record an outcome, and keep the call's failure beside a failed recording. */
+    async #persist(cause: unknown, write: () => Promise<unknown>): Promise<void> {
         try {
-            await persist();
+            await write();
         } catch (error) {
             if (cause !== undefined) {
-                throw new AggregateError(
-                    [cause, error],
-                    "audit action and result recording failed",
-                );
+                throw new AggregateError([cause, error], "call and its recording failed");
             }
             throw error;
         }
     }
 
-    /** Build an event, redacting sensitive details. */
-    #event<Targets extends schema.Schema, Details extends schema.Schema>(
+    /** Build a call of this context, redacting sensitive details. */
+    #call<Targets extends schema.Schema, Details extends schema.Schema>(
         action: AuditAction<Targets, Details>,
-        values: { targets: schema.Input<Targets>; details: schema.Input<Details> },
-        result: AuditEvent["result"],
-        category: AuditEvent["category"],
-    ): AuditEvent {
-        return AuditEvent.parse({
-            id: `audit-event-${v7()}`,
-            action: { name: action.name, package: action.package },
-            category,
-            occurredAt: Date.now(),
-            context: this.#context,
-            targets: action.targets.parse(values.targets),
-            details: schema.redact(action.details, action.details.parse(values.details)),
-            result,
+        values: Omit<Ended<Targets, Details>, "outcome">,
+        category: AuditExecution["category"],
+        execution: Omit<
+            AuditExecution,
+            "id" | "requestId" | "category" | "context" | "targets" | "details"
+        >,
+        request?: CallRequest,
+    ): AuditCall {
+        return AuditCall.parse({
+            method: action.name,
+            input: request?.input ?? {},
+            release: request?.release ?? action.package.version,
+            execution: {
+                id: `call-${v7()}`,
+                ...((request?.requestId ?? this.#requestId) === undefined
+                    ? {}
+                    : { requestId: request?.requestId ?? this.#requestId }),
+                category,
+                context: this.#context,
+                targets: action.targets.parse(values.targets),
+                details: schema.redact(action.details, action.details.parse(values.details)),
+                ...execution,
+            },
         });
     }
 }
@@ -352,23 +474,7 @@ export class AuditRecorder<Transaction = never> {
 /** The recorder methods a procedure's audit uses. */
 type ProcedureRecorder = Pick<AuditRecorder<unknown>, "record">;
 
-/** Map an error to a result. */
-function resultOf(error: unknown): AuditResult {
-    // map domain failures to service failures
-    const known = domainFailure(error) ?? error;
-    const denial = known instanceof ServiceError ? denialOf(known) : undefined;
-
-    // report rejected access, concealed or not, as a denial with its own code
-    if (denial !== undefined) {
-        return { outcome: "denied", errorCode: denial.code };
-    } else if (known instanceof ServiceError || known instanceof AuditError) {
-        return { outcome: "failure", errorCode: known.code };
-    }
-
-    return { outcome: "failure", errorCode: "INTERNAL_SERVER_ERROR" };
-}
-
-/** Name a verified subject as the actor it records. */
+/** Describe a verified subject as the actor it records. */
 function actorOf(subject: Subject): AuditActor {
     return { type: "subject", subject };
 }

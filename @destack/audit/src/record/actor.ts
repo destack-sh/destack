@@ -1,7 +1,7 @@
 import { defineSchema, schema } from "@destack/schema";
-import { Subject } from "@destack/access";
+import { Subject } from "@destack/sync";
 
-/** The authenticated identity captured when an action occurs. */
+/** The identity that performed a call. */
 export const AuditActor = defineSchema(
     schema.discriminatedUnion("type", [
         schema.object({
@@ -24,5 +24,5 @@ export const AuditActor = defineSchema(
         }),
     ]),
 );
-/** The identity captured when an action occurs. */
+/** The identity that performed a call. */
 export type AuditActor = schema.Infer<typeof AuditActor>;

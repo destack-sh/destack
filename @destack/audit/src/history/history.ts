@@ -1,3 +1,5 @@
+import { AuditActor } from "../record/actor.ts";
+import { AuditCall } from "../record/call.ts";
 import { v7 } from "uuid";
 import {
     and,
@@ -7,23 +9,19 @@ import {
     lt,
     gte,
     inArray,
-    notInArray,
-    isNotNull,
+    isNull,
     asc,
     type DatabaseConnection,
     type SQL,
 } from "@destack/db";
-import { AuditEvent, type AuditActor } from "../event/index.ts";
-import { subjectKey } from "@destack/access";
+import { Subject } from "@destack/sync";
 import { canonicalize } from "@destack/schema/json";
 import { identifier } from "@destack/schema/identifier";
-import { encodeEvent } from "../event/encode.ts";
-import { AuditBatch } from "../outbox/delivery.ts";
 import { AuditError } from "../error/index.ts";
-import { AuditPrune, AuditQuery, type AuditPage, type AuditScope } from "./query.ts";
-import { auditEvent, auditTarget } from "./stack/index.ts";
+import { AuditBatch, AuditPrune, AuditQuery, type AuditPage, type AuditScope } from "./query.ts";
+import { auditCall, auditTarget } from "./stack/index.ts";
 
-/** The stored audit events of each scope. */
+/** The audited calls of each scope. */
 export class AuditHistory {
     /** The history database. */
     readonly database: DatabaseConnection;
@@ -33,121 +31,122 @@ export class AuditHistory {
         this.database = database;
     }
 
-    /** Store a batch's events once in one transaction and return the stored count. */
+    /** Store a batch's calls once in one transaction and return the stored count. */
     async ingest(value: AuditBatch): Promise<number> {
-        // parse the batch and insert each event
+        // parse the batch, keeping no result values
         const batch = AuditBatch.parse(value);
-        const events = batch.events.map((event) => encodeEvent(event).event);
+        const calls = batch.calls.map((call) => AuditHistory.kept(call));
         await this.database.transaction(
             async (transaction) => {
-                for (const event of events) {
-                    await this.#insert(event, transaction);
+                for (const call of calls) {
+                    await this.#upsert(call, transaction);
                 }
             },
             { isolationLevel: "read committed" },
         );
 
-        return events.length;
+        return calls.length;
     }
 
-    /** Insert one event. */
-    async #insert(event: AuditEvent, transaction: DatabaseConnection): Promise<void> {
-        // reject a second outcome of an attempt
-        if (event.attemptId) {
-            const attempt = await transaction
-                .select({ event: auditEvent.event })
-                .from(auditEvent)
-                .where(eq(auditEvent.id, event.attemptId))
-                .get();
-            if (attempt) {
-                const {
-                    id: _attemptId,
-                    occurredAt: _attemptTime,
-                    result: _attemptResult,
-                    ...origin
-                } = attempt.event;
-                const {
-                    id: _eventId,
-                    occurredAt: _eventTime,
-                    result: _eventResult,
-                    attemptId: _reference,
-                    ...completion
-                } = event;
-                if (
-                    attempt.event.result.stage !== "attempt" ||
-                    canonicalize(origin) !== canonicalize(completion)
-                ) {
-                    throw new AuditError("CONFLICT", "audit result differs from its attempt");
-                }
-            }
-        }
-
-        // insert the event with its query columns
-        const actor = actorKey(event.context.actor);
-        const scope = event.context.scope;
+    /** Insert a call, or the outcome of a running one. */
+    async #upsert(call: AuditCall, transaction: DatabaseConnection): Promise<void> {
+        // insert the call with its query columns, once
+        const execution = call.execution;
+        const scope = execution.context.scope;
         const inserted = await transaction
-            .insert(auditEvent)
+            .insert(auditCall)
             .values({
-                id: event.id,
+                id: execution.id,
                 scope,
-                attemptId: event.attemptId ?? null,
-                action: event.action.name,
-                packageId: event.action.package.id,
-                actor,
-                category: event.category,
-                stage: event.result.stage,
-                outcome: "outcome" in event.result ? event.result.outcome : null,
-                occurredAt: event.occurredAt,
+                method: call.method,
+                packageId: execution.context.package.id,
+                actor: actorKey(execution.context.actor),
+                category: execution.category,
+                outcome: execution.outcome?.kind ?? null,
+                startedAt: execution.startedAt,
                 recordedAt: Date.now(),
-                event,
+                call,
             })
             .onConflictDoNothing()
-            .returning({ id: auditEvent.id });
+            .returning({ id: auditCall.id });
 
-        // resolve a conflict against the stored event
-        if (!inserted.length) {
-            const existing = await transaction
-                .select({ event: auditEvent.event })
-                .from(auditEvent)
-                .where(eq(auditEvent.id, event.id))
-                .get();
-            if (existing && canonicalize(existing.event) === canonicalize(event)) {
-                return;
+        // index the named targets of a new call
+        if (inserted.length > 0) {
+            const targets = Object.entries(execution.targets).map(([role, target]) => ({
+                id: identifier("audit-target").parse(`audit-target-${v7()}`),
+                call: execution.id,
+                scope,
+                role,
+                type: target.type,
+                objectId: target.id,
+            }));
+            if (targets.length) {
+                await transaction.insert(auditTarget).values(targets);
             }
 
-            // reject a changed event or a second result
-            throw new AuditError(
-                "CONFLICT",
-                existing
-                    ? "audit event identifier has conflicting contents"
-                    : "audit attempt already has a result",
-            );
+            return;
         }
 
-        // index the named targets
-        const targets = Object.entries(event.targets).map(([role, target]) => ({
-            id: identifier("audit-target").parse(`audit-target-${v7()}`),
-            event: event.id,
-            scope,
-            role,
-            type: target.type,
-            objectId: target.id,
-        }));
-        if (targets.length) {
-            await transaction.insert(auditTarget).values(targets);
+        // accept a repeat, or the outcome of a running call with the same origin
+        const [existing] = await transaction
+            .select({ call: auditCall.call })
+            .from(auditCall)
+            .where(eq(auditCall.id, execution.id));
+        const isRepeat = canonicalize(existing!.call) === canonicalize(call);
+        const isOutcome =
+            existing!.call.execution.outcome === undefined &&
+            canonicalize(AuditHistory.#origin(existing!.call)) ===
+                canonicalize(AuditHistory.#origin(call));
+        if (!isRepeat && !isOutcome) {
+            throw new AuditError("CONFLICT", "audited call has conflicting contents");
+        }
+        if (isOutcome) {
+            await transaction
+                .update(auditCall)
+                .set({ outcome: execution.outcome?.kind ?? null, call })
+                .where(eq(auditCall.id, execution.id));
         }
     }
 
-    /** Read one event of a scope's history. */
-    async get(scope: AuditScope, id: AuditEvent["id"]) {
-        // read the event within its scope
+    /** Copy a call without its input and result value. */
+    static kept(value: AuditCall): AuditCall {
+        // drop the input and a success's value
+        const call = AuditCall.parse(value);
+        const outcome = call.execution.outcome;
+        const kept = outcome?.kind === "success" ? { kind: "success" as const } : outcome;
+
+        return {
+            ...call,
+            input: {},
+            execution: {
+                ...call.execution,
+                ...(kept === undefined ? {} : { outcome: kept }),
+            },
+        };
+    }
+
+    /** Read what a call's outcome may not change: everything but how and when it ended. */
+    static #origin(call: AuditCall) {
+        const {
+            outcome: _outcome,
+            finishedAt: _finishedAt,
+            details: _details,
+            ...origin
+        } = call.execution;
+
+        return { ...call, execution: origin };
+    }
+
+    /** Read one call of a scope's history. */
+    async get(scope: AuditScope, id: string) {
+        // read the call within its scope
         const row = await this.database
-            .select({ event: auditEvent.event, recordedAt: auditEvent.recordedAt })
-            .from(auditEvent)
-            .where(and(eq(auditEvent.scope, scope), eq(auditEvent.id, id)))
+            .select({ call: auditCall.call, recordedAt: auditCall.recordedAt })
+            .from(auditCall)
+            .where(and(eq(auditCall.scope, scope), eq(auditCall.id, identifier("call").parse(id))))
             .get();
         if (!row) {
-            throw new AuditError("NOT_FOUND", "audit event not found");
+            throw new AuditError("NOT_FOUND", "audited call not found");
         }
 
         return row;
@@ -157,61 +156,52 @@ export class AuditHistory {
     async list(request: AuditQuery): Promise<AuditPage> {
         // parse the query and filter by scope
         const query = AuditQuery.parse(request);
-        const filters: (SQL | undefined)[] = [eq(auditEvent.scope, query.scope)];
+        const filters: (SQL | undefined)[] = [eq(auditCall.scope, query.scope)];
 
-        // filter by action and package
-        if (query.action) {
-            filters.push(eq(auditEvent.action, query.action));
+        // filter by method and package
+        if (query.method) {
+            filters.push(eq(auditCall.method, query.method));
         }
         if (query.packageId) {
-            filters.push(eq(auditEvent.packageId, query.packageId));
+            filters.push(eq(auditCall.packageId, query.packageId));
         }
 
-        // filter by actor or attempt
+        // filter by actor
         if (query.actor) {
-            filters.push(eq(auditEvent.actor, actorKey(query.actor)));
-        }
-        if (query.attemptId) {
-            filters.push(
-                or(eq(auditEvent.id, query.attemptId), eq(auditEvent.attemptId, query.attemptId)),
-            );
+            filters.push(eq(auditCall.actor, actorKey(query.actor)));
         }
 
         // filter by category
         if (query.category) {
-            filters.push(eq(auditEvent.category, query.category));
+            filters.push(eq(auditCall.category, query.category));
         }
 
         // filter by outcome
         if (query.outcome) {
-            filters.push(eq(auditEvent.outcome, query.outcome));
+            filters.push(eq(auditCall.outcome, query.outcome));
         }
 
-        // find attempts without a result
-        if (query.unresolved) {
-            const completed = this.database
-                .select({ id: auditEvent.attemptId })
-                .from(auditEvent)
-                .where(and(eq(auditEvent.scope, query.scope), isNotNull(auditEvent.attemptId)));
-            filters.push(eq(auditEvent.stage, "attempt"), notInArray(auditEvent.id, completed));
+        // find calls still running
+        if (query.isRunning) {
+            filters.push(isNull(auditCall.outcome));
         }
 
         // filter by acceptance time
         if (query.from !== undefined) {
-            filters.push(gte(auditEvent.recordedAt, query.from));
+            filters.push(gte(auditCall.recordedAt, query.from));
         }
         if (query.before !== undefined) {
-            filters.push(lt(auditEvent.recordedAt, query.before));
+            filters.push(lt(auditCall.recordedAt, query.before));
         }
 
         // continue after the cursor
         if (query.cursor) {
             filters.push(
                 or(
-                    gt(auditEvent.recordedAt, query.cursor.recordedAt),
+                    gt(auditCall.recordedAt, query.cursor.recordedAt),
                     and(
-                        eq(auditEvent.recordedAt, query.cursor.recordedAt),
-                        gt(auditEvent.id, query.cursor.id),
+                        eq(auditCall.recordedAt, query.cursor.recordedAt),
+                        gt(auditCall.id, query.cursor.id),
                     ),
                 ),
             );
@@ -220,7 +210,7 @@ export class AuditHistory {
         // filter by target
         if (query.target) {
             const targets = this.database
-                .select({ id: auditTarget.event })
+                .select({ id: auditTarget.call })
                 .from(auditTarget)
                 .where(
                     and(
@@ -228,15 +218,15 @@ export class AuditHistory {
                         eq(auditTarget.objectId, query.target.id),
                     ),
                 );
-            filters.push(inArray(auditEvent.id, targets));
+            filters.push(inArray(auditCall.id, targets));
         }
 
         // fetch one extra record to detect the last page
         const rows = await this.database
-            .select({ event: auditEvent.event, recordedAt: auditEvent.recordedAt })
-            .from(auditEvent)
+            .select({ call: auditCall.call, recordedAt: auditCall.recordedAt })
+            .from(auditCall)
             .where(and(...filters))
-            .orderBy(asc(auditEvent.recordedAt), asc(auditEvent.id))
+            .orderBy(asc(auditCall.recordedAt), asc(auditCall.id))
             .limit(query.limit + 1);
         const items = rows.slice(0, query.limit);
         const last = items.at(-1);
@@ -245,32 +235,32 @@ export class AuditHistory {
             items,
             cursor:
                 rows.length > query.limit && last
-                    ? { recordedAt: last.recordedAt, id: last.event.id }
+                    ? { recordedAt: last.recordedAt, id: last.call.execution.id }
                     : null,
         };
     }
 
-    /** Remove a scope's oldest events accepted before a time, returning how many. */
+    /** Remove a scope's oldest calls accepted before a time, returning how many. */
     async prune(request: AuditPrune): Promise<number> {
         // parse the request
         const { scope, before, limit } = AuditPrune.parse(request);
 
-        // remove the oldest expired events with their targets
+        // remove the oldest expired calls with their targets
         const expired = this.database
-            .select({ id: auditEvent.id })
-            .from(auditEvent)
-            .where(and(eq(auditEvent.scope, scope), lt(auditEvent.recordedAt, before)))
-            .orderBy(asc(auditEvent.recordedAt), asc(auditEvent.id))
+            .select({ id: auditCall.id })
+            .from(auditCall)
+            .where(and(eq(auditCall.scope, scope), lt(auditCall.recordedAt, before)))
+            .orderBy(asc(auditCall.recordedAt), asc(auditCall.id))
             .limit(limit);
         const removed = await this.database
-            .delete(auditEvent)
-            .where(inArray(auditEvent.id, expired))
-            .returning({ id: auditEvent.id });
+            .delete(auditCall)
+            .where(inArray(auditCall.id, expired))
+            .returning({ id: auditCall.id });
 
         return removed.length;
     }
 
-    /** Stream the pages of events accepted before the export started. */
+    /** Stream the pages of calls accepted before the export started. */
     async *export(request: AuditQuery, signal?: AbortSignal): AsyncGenerator<AuditPage["items"]> {
         // fix the end of the export
         const query = AuditQuery.parse({
@@ -295,7 +285,7 @@ export class AuditHistory {
 function actorKey(actor: AuditActor): string {
     // key a subject by its access key
     if (actor.type === "subject") {
-        return subjectKey(actor.subject);
+        return Subject.key(actor.subject);
     }
     // key a system component by its name
     else if (actor.type === "system") {

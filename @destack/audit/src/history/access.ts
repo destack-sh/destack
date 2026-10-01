@@ -1,16 +1,16 @@
 import { none, Policy, through } from "@destack/access";
 import type {} from "@destack/package/import-meta";
 
-/** The audit events of a scope. */
-export const event = new Policy(import.meta.destack.package, {
-    name: "event",
+/** The audited calls of a scope. */
+export const call = new Policy(import.meta.destack.package, {
+    name: "call",
     relations: {},
     permissions: { ingest: none(), read: none(), prune: none() },
 });
 
-/** An object an audit event names, read with its event. */
+/** An object an audited call names, read with its call. */
 export const target = new Policy(import.meta.destack.package, {
     name: "target",
-    relations: { event: { subjects: [event] } },
-    permissions: { read: through("event", "read") },
+    relations: { call: { subjects: [call] } },
+    permissions: { read: through("call", "read") },
 });

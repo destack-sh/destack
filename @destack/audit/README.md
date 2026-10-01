@@ -1,16 +1,16 @@
 # @destack/audit
 
-Declare audit actions, record them with the changes they describe, and query a scope's history.
+Declare audit actions, record every executed call once in a journal, and query a scope's history.
 
 ## Actions
 
-`defineAuditAction` declares a `Noun.verb` action with its affected objects and recorded details.
+`defineAuditAction` declares a `noun.verb` action with its affected objects and recorded details.
 
 ```ts
 import { defineAuditAction } from "@destack/audit";
 
 export const renameNote = defineAuditAction({
-    name: "Note.rename",
+    name: "note.rename",
     targets: schema.object({
         note: schema.object({ type: schema.literal("note"), id: schema.string() }),
     }),
@@ -18,51 +18,64 @@ export const renameNote = defineAuditAction({
 });
 ```
 
+## Calls
+
+Every executed call is one `Call` from `@destack/sync`: the method, its input and release, and its `Execution`.
+
+| Field | Holds |
+|---|---|
+| `execution.context` | The actor, subject, delegation, scope, package, service, session or token, and trace. |
+| `execution.category` | `activity` for a write or an external effect, `access` for an audited read, `denial` for a refusal. |
+| `execution.outcome` | `{ kind: "success", value? }`, or a failure, denial or cancellation with its error. |
+
+## Journal
+
+A `Journal` keeps the calls of one database, runs each request once in one transaction, and replays its outcome to retries.
+
+```ts
+import { Journal, journal } from "@destack/audit";
+
+const calls = new Journal(database, callKey);
+const results = await calls.execute(request, fingerprint, {
+    authorize: (transaction) => authorization.within(transaction).require(permission, target),
+    run: (transaction) => updateAccount(transaction, input),
+});
+
+export const main = defineDatabase({ name: "main", tables: [journal, ...note.tables] });
+```
+
+An `ObjectServer` builds its own journal from its database and call key, so most services never construct one.
+
 ## Recorders
 
-An `AuditRecorder` attributes events to the verified caller and writes them to an `AuditOutbox`.
+An `AuditRecorder` attributes calls to the verified caller and writes them to a journal.
 
 ```ts
 import { AuditRecorder } from "@destack/audit";
-import { AuditOutbox } from "@destack/audit/outbox";
 
-const audit = AuditRecorder.from(context.caller, new AuditOutbox(database), {
-    package: import.meta.destack.package,
-    service: "notes",
-    scope: spaceId,
-    requestId: context.requestId,
-});
+const audit = AuditRecorder.service(calls, { package: notes.package, service: "notes" });
+const recorder = audit(spaceId, context);
 ```
 
-## Recording
-
-A recorder writes a database change's event in its transaction, an external effect's event as an attempt and its result, and a read as one access event.
+A recorder records a write in its transaction, an external effect as a running call and its outcome, and a read as one access.
 
 ```ts
 await database.transaction(async (transaction) => {
     await transaction.update(note).set({ title }).where(eq(note.id, id));
-    await audit.record(transaction, renameNote, {
+    await recorder.record(transaction, renameNote, {
         targets: { note: { type: "note", id } },
         details: { title },
-        outcome: "success",
+        outcome: { kind: "success" },
     });
 });
 
-await audit.attempt(sendInvitation, { targets, details: {} }, () => invitations.send(id));
-const secret = await audit.read(openSecret, { targets, details: {} }, () => secrets.get(id));
+await recorder.attempt(sendInvitation, { targets, details: {} }, () => invitations.send(id));
+const secret = await recorder.read(openSecret, { targets, details: {} }, () => secrets.get(id));
 ```
-
-Each event carries its category.
-
-| Category | Records |
-|---|---|
-| `activity` | A committed write or an external effect. |
-| `access` | A read of data, when the scope audits reads or the object type always does. |
-| `denial` | A refused call. |
 
 ## Procedures
 
-`AuditRecorder.procedure` records each procedure call of a server as one event when it ends, by the category the procedure declares, and every denial.
+`AuditRecorder.procedure` records each procedure call of a server as one call when it ends, by the category the procedure declares, and every denial.
 
 ```ts
 Server.start({
@@ -73,24 +86,23 @@ Server.start({
 
 ## Delivery
 
-An `AuditOutbox` delivers committed events to a history in batches through a `ControlLoop`.
+A journal delivers its audited calls to a history in batches, without their input and result values.
 
 ```ts
 import { createAuditClient } from "@destack/audit/client";
 import { ControlLoop } from "@destack/service/control";
 
-const outbox = new AuditOutbox(database);
-await new ControlLoop(database, [outbox.controller(createAuditClient({ url, headers }))], {
+await new ControlLoop(database, [calls.controller(createAuditClient({ url, headers }))], {
     report,
 }).run(signal);
 ```
 
 ## History
 
-An `AuditHistory` stores each event once and lists, exports and prunes a scope's events.
+An `AuditHistory` stores each call once and lists, exports and prunes a scope's calls.
 
 ```ts
-import { AuditHistory } from "@destack/audit/history";
+import { AuditHistory, auditTables } from "@destack/audit/history";
 import { implementService } from "@destack/audit/server";
 
 const history = new AuditHistory(historyDatabase);
@@ -98,13 +110,6 @@ Server.start({ ...implementService(history, { access, record }), ...hosting });
 
 const page = await history.list({ scope: spaceId, limit: 100 });
 await history.prune({ scope: spaceId, before: cutoff, limit: 100 });
-```
 
-## Storage
-
-A service database holds the `outbox` every object type's tables include, and a history database holds `auditTables`.
-
-```ts
-export const main = defineDatabase({ name: "main", tables: note.tables });
-export const history = defineDatabase({ name: "history", tables: auditTables });
+export const histories = defineDatabase({ name: "history", tables: auditTables });
 ```

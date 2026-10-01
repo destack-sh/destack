@@ -9,12 +9,12 @@
         ".": "./src/index.ts",
         "./declare": "./src/action/index.ts",
         "./inspect": "./src/inspect/index.ts",
-        "./outbox": "./src/outbox/index.ts",
         "./history": "./src/history/index.ts",
         "./service": "./src/service/index.ts",
         "./client": "./src/client/index.ts",
         "./server": "./src/server/index.ts",
-        "./error": "./src/error/index.ts"
+        "./error": "./src/error/index.ts",
+        "./journal": "./src/journal/index.ts"
     },
     "scripts": {
         "check": "tsc -p tsconfig.json",

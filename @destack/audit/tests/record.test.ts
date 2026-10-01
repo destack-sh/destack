@@ -6,10 +6,10 @@ import { document } from "./stack/index.ts";
 import { identifier, schema } from "@destack/schema";
 import { AuditRecorder } from "../src/record/recorder.ts";
 
-test("keep each event in the history of its scope", async () => {
+test("keep each call in the history of its scope", async () => {
     const storage = await AuditStorage.open();
     try {
-        // record an event of a space
+        // record a running call of a space
         const scope = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
         const recorder = new AuditRecorder(
             {
@@ -19,15 +19,15 @@ test("keep each event in the history of its scope", async () => {
                 service: "document",
                 scope,
             },
-            storage.outbox,
+            storage.journal,
         );
         const recorded = recorder.begin(renameDocument, rename);
         await recorder.append(recorded);
-        expect(await storage.outbox.deliver(storage.history)).toBe(1);
+        expect(await storage.journal.deliver(storage.history)).toBe(1);
 
         // read it in the space's history and nowhere else
         expect([
-            (await storage.history.list({ scope, limit: 100 })).items.map((record) => record.event),
+            (await storage.history.list({ scope, limit: 100 })).items.map((record) => record.call),
             await storage.history.list({ scope: "universe", limit: 100 }),
         ]).toEqual([[recorded], { items: [], cursor: null }]);
     } finally {
@@ -35,72 +35,70 @@ test("keep each event in the history of its scope", async () => {
     }
 });
 
-test("commit and roll back application changes with their audit events", async () => {
+test("commit and roll back application changes with their recorded calls", async () => {
     let storage = await AuditStorage.open();
     try {
-        // roll back application state and audit records together
+        // roll back application state and recorded calls together
         const failure = new AuditError("CONFLICT", "cancel change");
         await expect(
             storage.database.transaction(async (transaction) => {
                 await transaction.insert(document).values({ name: "rolled back" });
                 await storage.recorder.record(transaction, renameDocument, {
                     ...rename,
-                    outcome: "success",
+                    outcome: { kind: "success" },
                 });
                 throw failure;
             }),
         ).rejects.toBe(failure);
         expect(await storage.database.select().from(document)).toEqual([]);
-        expect(await storage.outbox.read()).toEqual([]);
+        expect(await storage.journal.read()).toEqual([]);
 
-        // keep committed changes and events across a restart
-        const event = await storage.database.transaction(async (transaction) => {
+        // keep committed changes and calls across a restart
+        const call = await storage.database.transaction(async (transaction) => {
             await transaction.insert(document).values({ name: "renamed" });
 
             return storage.recorder.record(transaction, renameDocument, {
                 ...rename,
-                outcome: "success",
+                outcome: { kind: "success" },
             });
         });
         storage = await storage.reopen();
         expect(await storage.database.select().from(document)).toEqual([{ name: "renamed" }]);
-        expect(await storage.outbox.read()).toEqual([event]);
-        expect(event.attemptId).toBeUndefined();
+        expect(await storage.journal.read()).toEqual([call]);
     } finally {
         await storage.close();
     }
 });
 
-test("persist prepared attempts and outcomes without recreating events on retry", async () => {
+test("record a running call, then its outcome once, accepting repeats and refusing changes", async () => {
     let storage = await AuditStorage.open();
     try {
-        // persist prepared events only on append
-        const attempt = storage.recorder.begin(renameDocument, rename);
-        expect(await storage.outbox.read()).toEqual([]);
-        await storage.recorder.append(attempt);
-        const result = storage.recorder.complete(attempt, { outcome: "success" });
-        await storage.recorder.append(result);
+        // persist a prepared call only on append, then its outcome in the same record
+        const running = storage.recorder.begin(renameDocument, rename);
+        expect(await storage.journal.read()).toEqual([]);
+        await storage.recorder.append(running);
+        const finished = storage.recorder.finish(running, { kind: "success" });
+        await storage.recorder.append(finished);
         storage = await storage.reopen();
-        await storage.recorder.append(JSON.parse(JSON.stringify(result)));
-        expect(await storage.outbox.read()).toEqual([attempt, result]);
-        expect(result.attemptId).toBe(attempt.id);
+        await storage.recorder.append(JSON.parse(JSON.stringify(finished)));
+        expect(await storage.journal.read()).toEqual([finished]);
 
-        // reject a reused identity with other contents
+        // refuse a finished call with other contents
         await expect(
-            storage.recorder.append({ ...result, details: { name: "different" } }),
+            storage.recorder.append({
+                ...finished,
+                execution: { ...finished.execution, details: { name: "different" } },
+            }),
         ).rejects.toMatchObject({
             code: "CONFLICT",
-            message: `audit message ${result.id} has conflicting contents`,
+            message: `call ${finished.execution.id} has conflicting contents`,
         });
-        await expect(storage.outbox.append(result, storage.database)).rejects.toThrow(
-            new TypeError("outbox appends need a transaction on the outbox's database"),
-        );
     } finally {
         await storage.close();
     }
 });
 
-test("record a read as one access event naming what only its value tells", async () => {
+test("record a read as one access call naming what only its value tells", async () => {
     const storage = await AuditStorage.open();
     try {
         // read a document with its name from the value
@@ -110,23 +108,27 @@ test("record a read as one access event naming what only its value tells", async
             async () => ({ name: "chosen" }),
             (renamed) => ({ name: renamed.name }),
         );
-        const events = await storage.outbox.read();
+        const calls = await storage.journal.read();
         expect([
             value,
-            events.map((event) => [event.category, event.result.stage, event.details]),
-        ]).toEqual([{ name: "chosen" }, [["access", "result", { name: "chosen" }]]]);
+            calls.map((call) => [
+                call.execution.category,
+                call.execution.outcome,
+                call.execution.details,
+            ]),
+        ]).toEqual([{ name: "chosen" }, [["access", { kind: "success" }, { name: "chosen" }]]]);
     } finally {
         await storage.close();
     }
 });
 
-test("leave sensitive values out of attempt and read details", async () => {
+test("leave sensitive values out of running and read details", async () => {
     const storage = await AuditStorage.open();
     try {
         // declare a sign-in with a sensitive code and an account result
         const signIn = defineAuditAction(
             {
-                name: "Account.signIn",
+                name: "account.signIn",
                 targets: renameDocument.targets,
                 details: schema.object({
                     method: schema.string(),
@@ -139,13 +141,13 @@ test("leave sensitive values out of attempt and read details", async () => {
             { package: renameDocument.package },
         );
 
-        // keep the method in the attempt's details
+        // keep the method in the running call's details
         const targets = rename.targets;
-        const attempt = storage.recorder.begin(signIn, {
+        const running = storage.recorder.begin(signIn, {
             targets,
             details: { method: "code", code: "123456" },
         });
-        expect(attempt.details).toEqual({ method: "code" });
+        expect(running.execution.details).toEqual({ method: "code" });
 
         // keep the account's identifier in the read's details
         const read = await storage.recorder.read(
@@ -154,8 +156,8 @@ test("leave sensitive values out of attempt and read details", async () => {
             async () => ({ id: "account-2", secret: "hunter3" }),
             (account) => ({ method: "code", account }),
         );
-        const events = await storage.outbox.read();
-        expect([read, events.map((event) => event.details)]).toEqual([
+        const calls = await storage.journal.read();
+        expect([read, calls.map((call) => call.execution.details)]).toEqual([
             { id: "account-2", secret: "hunter3" },
             [{ method: "code", account: { id: "account-2" } }],
         ]);

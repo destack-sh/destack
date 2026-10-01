@@ -1,3 +1,4 @@
+import { AuditCall } from "../../record/call.ts";
 import {
     identifier,
     integer,
@@ -8,70 +9,57 @@ import {
     uniqueIndex,
     type Table,
 } from "@destack/db";
-import { AuditEvent, AuditOutcome } from "../../event/index.ts";
 
-/** The audit events. */
-export const auditEvent = defineTable(
-    "event",
+/** The audited calls of each scope. */
+export const auditCall = defineTable(
+    "call",
     {
-        /** The event identity. */
-        id: identifier("id", "audit-event").primaryKey().notNull(),
-        /** The attempt a result completes. */
-        attemptId: identifier("attempt_id", "audit-event"),
-        /** The scope whose history holds the event. */
+        /** The call's identity. */
+        id: identifier("id", "call").primaryKey().notNull(),
+        /** The scope whose history keeps the call. */
         scope: text("scope").notNull(),
-        /** The action's name. */
-        action: text("action").notNull(),
-        /** The package declaring the action. */
+        /** The object type and method, such as page.create. */
+        method: text("method").notNull(),
+        /** The package serving the call. */
         packageId: identifier("package_id", "package").notNull(),
         /** The actor's key. */
         actor: text("actor").notNull(),
-        /** A committed write, a read of data, or a refused call. */
+        /** A write, a read of data, or a refused call. */
         category: text("category", { enum: ["activity", "access", "denial"] }).notNull(),
-        /** Whether the event records an attempt or its result. */
-        stage: text("stage", { enum: ["attempt", "result"] }).notNull(),
-        /** The result's outcome. */
-        outcome: text("outcome", {
-            enum: AuditOutcome.options as [AuditOutcome, ...AuditOutcome[]],
-        }),
-        /** The producer's time of the event, in UTC milliseconds. */
-        occurredAt: integer("occurred_at").notNull(),
+        /** How the call ended, absent while it runs. */
+        outcome: text("outcome", { enum: ["success", "failure", "denied", "cancelled"] }),
+        /** The start time, in UTC milliseconds. */
+        startedAt: integer("started_at").notNull(),
         /** The acceptance time, in UTC milliseconds. */
         recordedAt: integer("recorded_at").notNull(),
-        /** The complete validated event. */
-        event: json("event", AuditEvent).notNull(),
+        /** The complete call, without its result value. */
+        call: json("call", AuditCall).notNull(),
     },
     {
         log: { retention: "window" },
-        constraints: (event) => [
-            uniqueIndex("event_attempt_result").on(event.attemptId),
-            index("event_scope_time").on(event.scope, event.recordedAt, event.id),
-            index("event_category_time").on(
-                event.scope,
-                event.category,
-                event.recordedAt,
-                event.id,
-            ),
-            index("event_action_time").on(event.action, event.recordedAt, event.id),
-            index("event_package_time").on(event.packageId, event.recordedAt, event.id),
-            index("event_actor_time").on(event.actor, event.recordedAt, event.id),
+        constraints: (entry) => [
+            index("call_scope_time").on(entry.scope, entry.recordedAt, entry.id),
+            index("call_category_time").on(entry.scope, entry.category, entry.recordedAt, entry.id),
+            index("call_method_time").on(entry.method, entry.recordedAt, entry.id),
+            index("call_package_time").on(entry.packageId, entry.recordedAt, entry.id),
+            index("call_actor_time").on(entry.actor, entry.recordedAt, entry.id),
         ],
     },
 );
 
-/** The objects audit events name. */
+/** The objects audited calls name. */
 export const auditTarget = defineTable(
     "target",
     {
         /** The target identity. */
         id: identifier("id", "audit-target").primaryKey().notNull(),
-        /** The event naming the target. */
-        event: identifier("event_id", "audit-event")
+        /** The call naming the target. */
+        call: identifier("call_id", "call")
             .notNull()
-            .references(() => auditEvent.id, { onDelete: "cascade" }),
-        /** The scope of the event's history. */
+            .references(() => auditCall.id, { onDelete: "cascade" }),
+        /** The scope of the call's history. */
         scope: text("scope").notNull(),
-        /** The name of the target within its event. */
+        /** The name of the target within its call. */
         role: text("role").notNull(),
         /** The object's type. */
         type: text("type").notNull(),
@@ -81,11 +69,11 @@ export const auditTarget = defineTable(
     {
         log: { retention: "window" },
         constraints: (target) => [
-            uniqueIndex("target_role").on(target.event, target.role),
-            index("target_object").on(target.type, target.objectId, target.event),
+            uniqueIndex("target_role").on(target.call, target.role),
+            index("target_object").on(target.type, target.objectId, target.call),
         ],
     },
 );
 
 /** The audit history tables. */
-export const auditTables: readonly Table[] = [auditEvent, auditTarget];
+export const auditTables: readonly Table[] = [auditCall, auditTarget];

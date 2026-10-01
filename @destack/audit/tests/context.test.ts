@@ -37,7 +37,7 @@ test("persist verified caller identities and tell apart identities of different 
             },
             { subject: principal.installation.reference("space-example", "share") },
         ];
-        const events = [];
+        const calls = [];
         const credential = { kind: "token", id: "token-1", secret: "must never be recorded" };
         for (const authentication of requests) {
             const caller = new Caller({
@@ -54,13 +54,15 @@ test("persist verified caller identities and tell apart identities of different 
                 caller,
                 resources: new ResourceContext(),
             });
-            const recorder = AuditRecorder.from(request.caller, storage.outbox, {
-                ...origin,
-                requestId: request.requestId,
-            });
+            const recorder = AuditRecorder.from(
+                request.caller,
+                storage.journal,
+                origin,
+                request.requestId,
+            );
             const event = recorder.begin(renameDocument, rename);
             await recorder.append(event);
-            events.push(event);
+            calls.push(event);
         }
 
         // attribute an attempt without authentication to no caller
@@ -73,13 +75,15 @@ test("persist verified caller identities and tell apart identities of different 
                 message: "invalid bearer credential",
             }),
         });
-        const recorder = AuditRecorder.from(rejected.caller, storage.outbox, {
-            ...origin,
-            requestId: rejected.requestId,
-        });
+        const recorder = AuditRecorder.from(
+            rejected.caller,
+            storage.journal,
+            origin,
+            rejected.requestId,
+        );
         const anonymous = recorder.begin(renameDocument, rename);
         await recorder.append(anonymous);
-        events.push(anonymous);
+        calls.push(anonymous);
 
         // compare the full recorded identity
         const person = { type: "subject", subject: represented };
@@ -89,31 +93,29 @@ test("persist verified caller identities and tell apart identities of different 
             type: "subject",
             subject: principal.installation.reference("space-example", "share"),
         };
-        expect(events.map(({ context: { requestId: _requestId, ...context } }) => context)).toEqual(
-            [
-                { ...origin, actor: person, subject: person.subject, delegation: [] },
-                { ...origin, actor: local, subject: local.subject, delegation: [] },
-                {
-                    ...origin,
-                    actor: software,
-                    subject: person.subject,
-                    delegation: [person],
-                    deploymentId,
-                },
-                { ...origin, actor: share, subject: share.subject, delegation: [] },
-                { ...origin, actor: { type: "anonymous" }, delegation: [] },
-            ],
-        );
+        expect(calls.map((call) => call.execution.context)).toEqual([
+            { ...origin, actor: person, subject: person.subject, delegation: [] },
+            { ...origin, actor: local, subject: local.subject, delegation: [] },
+            {
+                ...origin,
+                actor: software,
+                subject: person.subject,
+                delegation: [person],
+                deploymentId,
+            },
+            { ...origin, actor: share, subject: share.subject, delegation: [] },
+            { ...origin, actor: { type: "anonymous" }, delegation: [] },
+        ]);
 
         // read the identities back through delivery and history queries
-        expect(await storage.outbox.deliver(storage.history)).toBe(5);
-        for (const event of events) {
+        expect(await storage.journal.deliver(storage.history)).toBe(5);
+        for (const event of calls) {
             const page = await storage.history.list({
                 scope: "universe",
-                actor: event.context.actor,
+                actor: event.execution.context.actor,
                 limit: 10,
             });
-            expect(page.items.map((record) => record.event)).toEqual([event]);
+            expect(page.items.map((record) => record.call)).toEqual([event]);
             expect(page.cursor).toBeNull();
         }
     } finally {

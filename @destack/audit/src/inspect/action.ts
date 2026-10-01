@@ -6,7 +6,7 @@ import type { JsonValue } from "@destack/schema/json";
 /** A serializable action declaration. */
 export const AuditActionDescription = defineSchema(
     schema.object({
-        /** The package-local Noun.verb action name. */
+        /** The package-local noun.verb action name. */
         name: AuditActionName,
         /** The declaring package. */
         package: Package,
@@ -32,7 +32,7 @@ export function describeAuditAction(action: AuditAction): AuditActionDescription
     });
 }
 
-/** List an action's term: its name, with the shapes of its events. */
+/** List an action's term: its name, with the shapes of its calls. */
 export function auditActionVocabulary(input: Record<string, JsonValue>): Record<string, JsonValue> {
     const description = AuditActionDescription.parse(input);
 

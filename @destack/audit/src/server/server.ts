@@ -7,7 +7,7 @@ import {
     type ServiceContext,
     type ServiceImplementation,
 } from "@destack/service/server";
-import { event } from "../history/access.ts";
+import { call } from "../history/access.ts";
 import { ServiceError } from "@destack/service";
 import { AuditHistory } from "../history/history.ts";
 import { AuditRecorder } from "../record/index.ts";
@@ -49,7 +49,7 @@ export function implementService(
                             });
                         }
                         await context.authorization!.require(
-                            event.permission(permission),
+                            call.permission(permission),
                             link.object,
                         );
                     },
@@ -63,18 +63,18 @@ export function implementService(
         audit: AuditRecorder.procedure(({ context }) => options.record(context)),
         router: implementation.router({
             ingest: implementation.ingest.handler(async ({ input, context }) => {
-                // reject events of the universe and authorize each scope
-                const scopes = new Set(input.events.map((event) => event.context.scope));
+                // reject calls of the universe and authorize each scope
+                const scopes = new Set(input.calls.map((call) => call.execution.context.scope));
                 if (scopes.has(Scope.universe.id)) {
                     throw new ServiceError("BAD_REQUEST", {
-                        message: "only the universe records its own audit events",
+                        message: "only the universe records its own audited calls",
                     });
                 }
                 for (const scope of scopes) {
                     await context.authorizeAudit("ingest", scope);
                 }
 
-                return { events: await auditHistory.ingest(input) };
+                return { calls: await auditHistory.ingest(input) };
             }),
             export: implementation.export.handler(({ input, context, signal }) =>
                 // recheck read access before each page
@@ -95,7 +95,7 @@ export function implementService(
                     await context.authorizeAudit("prune", input.scope);
 
                     return {
-                        events: await auditHistory.prune(input),
+                        calls: await auditHistory.prune(input),
                     };
                 }),
             ),

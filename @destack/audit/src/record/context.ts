@@ -1,23 +1,23 @@
 import { defineSchema, schema } from "@destack/schema";
 import { identifier } from "@destack/schema/identifier";
 import { Package } from "@destack/package";
-import { Subject } from "@destack/access";
 import { AuditActor } from "./actor.ts";
+import { Subject } from "@destack/sync";
 
-/** The host-supplied authority and origin of an event. */
+/** The authority and origin of an executed call, as its host supplied them. */
 export const AuditContext = defineSchema(
     schema.object({
-        /** The authenticated actor performing the action. */
+        /** The authenticated actor performing the call. */
         actor: AuditActor,
         /** The subject the actor acts for. */
         subject: Subject.optional(),
         /** The delegators, from the initiator to the immediate delegator. */
         delegation: schema.array(AuditActor),
-        /** The scope whose history receives the event. */
+        /** The scope whose history receives the call. */
         scope: schema.string().min(1),
-        /** The package producing the event. */
+        /** The package serving the call. */
         package: Package,
-        /** The service producing the event. */
+        /** The service serving the call. */
         service: schema.string().min(1),
         /** The deployment executing the service. */
         deploymentId: identifier("deployment").optional(),
@@ -31,13 +31,9 @@ export const AuditContext = defineSchema(
         sessionId: identifier("session").optional(),
         /** The caller's token, without its secret. */
         tokenId: identifier("token").optional(),
-        /** The request the event belongs to. */
-        requestId: schema.string().min(1).optional(),
-        /** The operation the event belongs to. */
-        operationId: schema.string().min(1).optional(),
-        /** The event that caused this one. */
-        causeId: identifier("audit-event").optional(),
-        /** The trace the event belongs to, as 32 lowercase hexadecimal digits. */
+        /** The call that caused this one. */
+        causeId: identifier("call").optional(),
+        /** The trace the call belongs to, as 32 lowercase hexadecimal digits. */
         traceId: schema
             .string()
             .regex(/^[0-9a-f]{32}$/)
@@ -48,5 +44,5 @@ export const AuditContext = defineSchema(
         userAgent: schema.string().optional(),
     }),
 );
-/** The context of an event. */
+/** The authority and origin of an executed call, as its host supplied them. */
 export type AuditContext = schema.Infer<typeof AuditContext>;

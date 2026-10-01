@@ -1,23 +1,11 @@
+import { AuditTarget } from "../record/execution.ts";
 import { defineSchema, schema } from "@destack/schema";
-import { AuditTarget } from "../event/target.ts";
-import { declaringModule, Package, type ModuleMetadata } from "@destack/package";
+import { ModuleMetadata, Package } from "@destack/package";
 
-/** A package-local action name of the form Noun.verb. */
+/** A package-local action name in the form noun.verb. */
 export const AuditActionName = defineSchema(
-    schema.string().regex(/^[A-Z][A-Za-z0-9]*(?:\.[A-Z][A-Za-z0-9]*)*\.[a-z][A-Za-z0-9]*$/),
+    schema.string().regex(/^[a-z][A-Za-z0-9]*(?:\.[a-z][A-Za-z0-9]*)+$/),
 );
-
-/** A reference to an action of a package release, whose schemas read its targets and details. */
-export const AuditActionReference = defineSchema(
-    schema.object({
-        /** The declaring package at the release that recorded the event. */
-        package: Package,
-        /** The package-local Noun.verb action name. */
-        name: AuditActionName,
-    }),
-);
-/** A serializable action declaration reference. */
-export type AuditActionReference = schema.Infer<typeof AuditActionReference>;
 
 /** A typed action declared by a package. */
 export interface AuditAction<
@@ -26,7 +14,7 @@ export interface AuditAction<
 > {
     /** The declaring package. */
     readonly package: Package;
-    /** The package-local Noun.verb action name. */
+    /** The package-local noun.verb action name. */
     readonly name: string;
     /** A short description for inspection. */
     readonly description?: string;
@@ -49,6 +37,6 @@ export function defineAuditAction<
 
     return Object.freeze({
         ...definition,
-        package: Package.parse(declaringModule(module, "defineAuditAction").package),
+        package: Package.parse(ModuleMetadata.require(module, "defineAuditAction").package),
     });
 }

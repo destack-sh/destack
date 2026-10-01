@@ -10,14 +10,14 @@ const historyDetails = schema.object({});
 
 /** Export audit history. */
 export const auditExport = defineAuditAction({
-    name: "Audit.export",
+    name: "audit.export",
     targets: historyTarget,
     details: historyDetails,
 });
 
 /** Prune audit history. */
 export const auditPrune = defineAuditAction({
-    name: "Audit.prune",
+    name: "audit.prune",
     targets: historyTarget,
     details: historyDetails,
 });
