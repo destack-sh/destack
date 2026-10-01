@@ -44,6 +44,7 @@ const STORAGE_ERROR_CODE: Partial<Record<StorageErrorCode, S3ErrorCode>> = {
     INVALID_PART: "InvalidPart",
     INVALID_CHECKSUM: "BadDigest",
     INVALID_STORAGE_CLASS: "InvalidStorageClass",
+    INVALID_CUSTOMER_KEY: "InvalidRequest",
     INCOMPLETE_BODY: "IncompleteBody",
     NO_SUCH_KEY: "NoSuchKey",
     NO_SUCH_UPLOAD: "NoSuchUpload",

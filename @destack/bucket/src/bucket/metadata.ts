@@ -22,3 +22,42 @@ export interface BucketHttpMetadata {
     /** The expiration time. */
     cacheExpiry?: Date;
 }
+
+/** Stored HTTP metadata: written as headers, and encoded as strings for transfers. */
+export const BucketHttpMetadata = {
+    /** Write the metadata as the headers a file is served or uploaded with. */
+    write(metadata: BucketHttpMetadata, headers: Headers): void {
+        // write only the headers the metadata has
+        for (const field of Object.keys(
+            HTTP_METADATA_FIELDS,
+        ) as (keyof typeof HTTP_METADATA_FIELDS)[]) {
+            const value = metadata[field];
+            if (value !== undefined) {
+                headers.set(HTTP_METADATA_FIELDS[field], value);
+            }
+        }
+        if (metadata.cacheExpiry !== undefined) {
+            headers.set("expires", metadata.cacheExpiry.toUTCString());
+        }
+    },
+
+    /** Encode the metadata as strings, its expiry as an ISO time. */
+    encode(metadata: BucketHttpMetadata): Record<string, string> {
+        const { cacheExpiry, ...rest } = metadata;
+
+        return {
+            ...(rest as Record<string, string>),
+            ...(cacheExpiry === undefined ? {} : { cacheExpiry: cacheExpiry.toISOString() }),
+        };
+    },
+
+    /** Decode metadata encoded as strings. */
+    decode(encoded: Readonly<Record<string, string>>): BucketHttpMetadata {
+        const { cacheExpiry, ...rest } = encoded;
+
+        return {
+            ...rest,
+            ...(cacheExpiry === undefined ? {} : { cacheExpiry: new Date(cacheExpiry) }),
+        };
+    },
+};

@@ -27,8 +27,9 @@ import { ContentReader } from "./reader.ts";
 import { LocalMultipartUpload } from "./multipart.ts";
 import { LocalStorage } from "./storage.ts";
 import { LocalFile } from "./file.ts";
+import { CustomerKey } from "./encryption.ts";
 
-/** Persistent file storage backed by a Turso catalogue and immutable content files. */
+/** Persistent file storage backed by a SQLite catalogue and immutable content files. */
 export class LocalBucket implements S3Bucket, AsyncDisposable {
     /** The host's open storage. */
     readonly #storage: LocalStorage;
@@ -66,19 +67,20 @@ export class LocalBucket implements S3Bucket, AsyncDisposable {
         key: string,
         options: BucketGetOptions = {},
     ): Promise<BucketFileBody | BucketFile | null> {
-        // validate the requested key and byte selection before entering the catalogue lock
+        // validate the requested key, customer key and byte selection before entering the catalogue lock
         BucketKey.check(key);
-        LocalFile.rejectCustomerKey(options.ssecKey);
+        const customerKey = await CustomerKey.read(options.ssecKey);
         if (options.range) {
             BucketRange.check(options.range);
         }
 
         return await this.#storage.exclusive(async () => {
-            // evaluate preconditions against the current file
+            // require the file's customer key, then evaluate preconditions against the current file
             const entry = await this.#storage.entry(key);
             if (!entry) {
                 return null;
             }
+            CustomerKey.require(customerKey, entry.ssecKeyMd5);
             const current = LocalFile.describe(entry);
             if (!BucketCondition.matches(current, options.onlyIf)) {
                 return current;
@@ -102,6 +104,7 @@ export class LocalBucket implements S3Bucket, AsyncDisposable {
                         this.#storage.release(selected.content);
                     }
                 },
+                customerKey,
             );
             try {
                 return new BucketFileBody(current, reader.stream, range);
@@ -128,9 +131,85 @@ export class LocalBucket implements S3Bucket, AsyncDisposable {
         body: BucketBody,
         options: BucketPutOptions = {},
     ): Promise<BucketFile | null> {
+        return this.#write(key, body, options);
+    }
+
+    /** Write a file with the entity tag, version and upload time another bucket gave it. */
+    async restore(
+        key: string,
+        body: BucketBody,
+        file: Pick<BucketFile, "etag" | "version" | "uploaded"> & Omit<BucketPutOptions, "onlyIf">,
+    ): Promise<BucketFile> {
+        const { etag, version, uploaded, ...options } = file;
+
+        return this.#write(key, body, options, { etag, version, uploaded });
+    }
+
+    /** Fetch a file from a URL with the identity another bucket gave it, unless the bucket has it at that version. */
+    async fetch(
+        url: string,
+        file: Pick<BucketFile, "key" | "etag" | "version" | "uploaded"> &
+            Omit<BucketPutOptions, "onlyIf">,
+    ): Promise<void> {
+        // skip a file the bucket has at the same version
+        const { key, ...identity } = file;
+        const present = await this.head(key);
+        if (present?.etag === file.etag && present.version === file.version) {
+            return;
+        }
+
+        // stream the file from its source
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new StorageError("WRITE_FAILED", `fetching ${key} answered ${response.status}`);
+        }
+        await this.restore(key, response.body, identity);
+    }
+
+    /** List the keys in a range: after one key, up to and including another, by UTF-8 bytes as listings sort them. */
+    async keys(range: { readonly after?: string; readonly last?: string }): Promise<string[]> {
+        // list pages after the first key until one passes the last
+        const isAfter = (key: string, other: string) =>
+            Buffer.compare(Buffer.from(key), Buffer.from(other)) > 0;
+        const { after, last } = range;
+        const keys: string[] = [];
+        let cursor: string | undefined;
+        do {
+            const page = await this.list({
+                ...(cursor === undefined ? {} : { cursor }),
+                ...(after === undefined ? {} : { startAfter: after }),
+            });
+            keys.push(...page.files.map((file) => file.key));
+            cursor = page.cursor;
+        } while (cursor !== undefined && (last === undefined || !isAfter(keys.at(-1)!, last)));
+
+        return last === undefined ? keys : keys.filter((key) => !isAfter(key, last));
+    }
+
+    /** Write and publish a file with no precondition. */
+    #write(
+        key: string,
+        body: BucketBody,
+        options: BucketPutOptions & { onlyIf?: undefined },
+        identity?: Pick<BucketFile, "etag" | "version" | "uploaded">,
+    ): Promise<BucketFile>;
+    /** Write and publish a file when its precondition matches, else answer null. */
+    #write(
+        key: string,
+        body: BucketBody,
+        options: BucketPutOptions,
+        identity?: Pick<BucketFile, "etag" | "version" | "uploaded">,
+    ): Promise<BucketFile | null>;
+    /** Write immutable contents, then publish their catalogue entry under its own or a restored identity. */
+    async #write(
+        key: string,
+        body: BucketBody,
+        options: BucketPutOptions,
+        identity?: Pick<BucketFile, "etag" | "version" | "uploaded">,
+    ): Promise<BucketFile | null> {
         // retain the storage while writing unpublished content
         BucketKey.check(key);
-        LocalFile.rejectCustomerKey(options.ssecKey);
+        const customerKey = await CustomerKey.read(options.ssecKey);
         const storageClass = StorageClass.read(options.storageClass ?? "Standard");
         await this.#storage.beginUpload();
         let isPublished = false;
@@ -140,25 +219,28 @@ export class LocalBucket implements S3Bucket, AsyncDisposable {
                 join(this.#storage.directory, "files"),
                 body,
                 options,
+                customerKey,
             );
 
             // describe the file its immutable content becomes
             const segments = [{ content: content.version, size: content.size }];
             const entry = {
                 key,
-                version: content.version,
-                etag: content.etag,
+                version: identity?.version ?? content.version,
+                etag: identity?.etag ?? content.etag,
                 checksums: content.checksums,
                 size: content.size,
-                uploaded: Date.now(),
+                uploaded: identity?.uploaded.getTime() ?? Date.now(),
                 httpMetadata: LocalFile.encodeHttpMetadata(options.httpMetadata ?? {}),
                 customMetadata: options.customMetadata ?? {},
                 storageClass,
+                ssecKeyMd5: customerKey?.md5 ?? null,
             };
 
-            // replace the catalogue entry only when its precondition still holds
+            // replace the catalogue entry only when its precondition still matches
             return await this.#storage.exclusive(async () => {
-                // check the precondition against the current entry
+                // reclaim earlier writes, then check the precondition against the current entry
+                await this.#storage.collect();
                 const previous = await this.#storage.entry(key);
                 if (
                     !BucketCondition.matches(
@@ -305,7 +387,7 @@ export class LocalBucket implements S3Bucket, AsyncDisposable {
         return LocalMultipartUpload.list(this.#storage, options);
     }
 
-    /** Close the catalogue, rejecting while readers or writers hold content files. */
+    /** Close the catalogue, rejecting while readers or writers have content files open. */
     async [Symbol.asyncDispose](): Promise<void> {
         await this.#storage[Symbol.asyncDispose]();
     }

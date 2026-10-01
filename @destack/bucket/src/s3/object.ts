@@ -381,7 +381,7 @@ function fileHeaders(file: BucketFile): Headers {
 
 /** Describe a stored file in a write response. */
 function writeHeaders(call: S3Request, file: BucketFile): Headers {
-    // name the stored version, and echo the digest of a customer key
+    // answer the stored version, and echo the digest of a customer key
     const headers = new Headers({ etag: file.httpEtag });
     const md5 = call.headers.get("x-amz-server-side-encryption-customer-key-md5");
     if (md5 !== null) {

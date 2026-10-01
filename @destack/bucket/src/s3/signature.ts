@@ -137,13 +137,13 @@ export class SignatureV4 {
         return copyRequest(request, { headers });
     }
 
-    /** Presign a request's URL, hoisting its x-amz headers into the query and signing its other headers. */
+    /** Presign a request, hoisting its x-amz headers into the query and keeping the headers it sends. */
     async presign(
         request: Request,
         credentials: S3Credentials,
         expiresIn: number,
         now: number,
-    ): Promise<URL> {
+    ): Promise<Request> {
         // refuse lifetimes S3 refuses
         if (!Number.isInteger(expiresIn) || expiresIn < 1 || expiresIn > MAX_EXPIRES) {
             throw new RangeError("presigned URLs expire after 1 second to 7 days");
@@ -184,7 +184,7 @@ export class SignatureV4 {
         const signature = await signRequest(signed, date, scope, signingKey);
         url.search = `${canonicalQuery(query)}&X-Amz-Signature=${signature}`;
 
-        return url;
+        return new Request(url.href, { method: request.method, headers });
     }
 
     /** Verify a request's header or query signature and return what later chunk signatures need. */
@@ -475,7 +475,7 @@ async function signRequest(
     return await signString(signingKey, stringToSign);
 }
 
-/** Name the host and every signable header, lowercase and sorted. */
+/** List the host and every signable header, lowercase and sorted. */
 function signedHeaderNames(headers: Headers): string[] {
     const names = new Set(["host"]);
     for (const name of headers.keys()) {

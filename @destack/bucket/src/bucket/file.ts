@@ -1,5 +1,4 @@
-import { HTTP_METADATA_FIELDS } from "./metadata.ts";
-import type { BucketHttpMetadata } from "./metadata.ts";
+import { BucketHttpMetadata } from "./metadata.ts";
 import { BucketChecksums } from "./checksum.ts";
 import { StorageError } from "../error/index.ts";
 
@@ -68,18 +67,7 @@ export class BucketFile {
 
     /** Apply the stored HTTP metadata to response headers. */
     writeHttpMetadata(headers: Headers): void {
-        // apply only the headers supplied with this file
-        for (const field of Object.keys(
-            HTTP_METADATA_FIELDS,
-        ) as (keyof typeof HTTP_METADATA_FIELDS)[]) {
-            const value = this.httpMetadata[field];
-            if (value !== undefined) {
-                headers.set(HTTP_METADATA_FIELDS[field], value);
-            }
-        }
-        if (this.httpMetadata.cacheExpiry) {
-            headers.set("expires", this.httpMetadata.cacheExpiry.toUTCString());
-        }
+        BucketHttpMetadata.write(this.httpMetadata, headers);
     }
 }
 

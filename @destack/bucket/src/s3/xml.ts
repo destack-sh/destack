@@ -23,7 +23,7 @@ const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"'
 const TOKEN =
     /<\?[\s\S]*?\?>|<!--[\s\S]*?-->|<!\[CDATA\[([\s\S]*?)\]\]>|(<![^>]*>)|<\/([^\s>]+)\s*>|<([^\s/>]+)(?:\s+[^\s=/>]+\s*=\s*(?:"[^"]*"|'[^']*'))*\s*(\/?)>|([^<]+)/y;
 
-/** A value an XML element holds: text, nested elements, or nothing. */
+/** A value an XML element has: text, nested elements, or nothing. */
 export type XmlValue = string | number | boolean | Date | XmlElement | undefined;
 
 /** An element with its children, written in order. */
@@ -90,7 +90,7 @@ export class XmlNode {
         if (open.length !== 1 || root.children.length !== 1) {
             throw new S3Error(
                 "MalformedXML",
-                "the XML document must hold exactly one root element",
+                "the XML document must have exactly one root element",
             );
         }
 
@@ -158,7 +158,7 @@ function decodeText(text: string): string {
         (reference, name: string | undefined) => {
             // refuse a bare ampersand and unknown entities
             if (name === undefined) {
-                throw new S3Error("MalformedXML", "the XML text holds a bare ampersand");
+                throw new S3Error("MalformedXML", "the XML text has a bare ampersand");
             }
             // decode character references
             else if (name.startsWith("#")) {

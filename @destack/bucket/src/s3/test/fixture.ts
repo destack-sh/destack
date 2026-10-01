@@ -19,7 +19,7 @@ export class S3Fixture implements AsyncDisposable {
     readonly server: S3Server;
     /** The payload hashes of the requests SDK clients sent, in order. */
     readonly payloadHashes: string[] = [];
-    /** The directory holding the buckets. */
+    /** The directory with the buckets. */
     readonly #directory: string;
 
     /** Serve the buckets. */

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@destack/test";
 import { mkdir, mkdtemp, readdir, rename, rm, writeFile } from "node:fs/promises";
@@ -130,7 +131,7 @@ test("recover multiple batches of abandoned files without deleting files or uplo
             selected = await upload.uploadPart(1, "retained part");
         }
 
-        // leave more unreferenced files than one recovery query can hold
+        // leave more unreferenced files than one recovery query can take
         for (let index = 0; index < 501; index++) {
             await writeFile(join(directory, "files", crypto.randomUUID()), "abandoned");
         }
@@ -235,7 +236,7 @@ test("copy files by sharing their contents until the last reference goes", async
     }
 });
 
-test("record storage classes and refuse customer encryption keys", async () => {
+test("record storage classes and refuse storage classes R2 does not offer", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-bucket-class-"));
     try {
         await using bucket = await LocalBucket.open(directory);
@@ -256,21 +257,71 @@ test("record storage classes and refuse customer encryption keys", async () => {
             code: "INVALID_STORAGE_CLASS",
             message: "unknown storage class Glacier",
         });
+    } finally {
+        await rm(directory, { recursive: true });
+    }
+});
 
-        // refuse customer keys on every operation that takes one
-        const failure = {
-            code: "UNSUPPORTED",
-            message: "local buckets do not support customer-provided encryption keys",
-        };
-        const ssecKey = "0".repeat(64);
-        await expect(bucket.put("secret", "hidden", { ssecKey })).rejects.toMatchObject(failure);
-        await expect(bucket.get("cold", { ssecKey })).rejects.toMatchObject(failure);
-        await expect(bucket.createMultipartUpload("secret", { ssecKey })).rejects.toMatchObject(
-            failure,
+test("encrypt files under customer keys, reading ranges with the key and refusing any other", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "destack-bucket-customer-"));
+    try {
+        await using bucket = await LocalBucket.open(directory);
+        const ssecKey = "a1".repeat(32);
+        const md5 = createHash("md5").update(Uint8Array.fromHex(ssecKey)).digest("base64");
+        const text = "customer encrypted contents, longer than one AES block";
+
+        // store the file encrypted, and keep no plaintext on disk
+        const stored = await bucket.put("sealed", text, { ssecKey });
+        const onDisk = await Promise.all(
+            (await readdir(join(directory, "files"))).map((name) =>
+                Bun.file(join(directory, "files", name)).text(),
+            ),
         );
-        const upload = await bucket.createMultipartUpload("secret");
-        await expect(upload.uploadPart(1, "hidden", { ssecKey })).rejects.toMatchObject(failure);
-        await upload.abort();
+        expect([
+            stored.ssecKeyMd5,
+            (await bucket.head("sealed"))!.ssecKeyMd5,
+            onDisk.includes(text),
+        ]).toEqual([md5, md5, false]);
+
+        // read the whole file and an unaligned range with the key
+        const whole = await bucket.get("sealed", { ssecKey });
+        const range = await bucket.get("sealed", { ssecKey, range: { offset: 21, length: 13 } });
+        expect([await whole!.text(), await range!.text()]).toEqual([text, text.slice(21, 34)]);
+
+        // refuse reading without the key, with another key, and a plain file with a key
+        await bucket.put("plain", "open");
+        const refusals = await Promise.all(
+            [
+                bucket.get("sealed"),
+                bucket.get("sealed", { ssecKey: "b2".repeat(32) }),
+                bucket.get("plain", { ssecKey }),
+                bucket.put("short", "x", { ssecKey: "00" }),
+            ].map((pending) =>
+                pending.then(
+                    () => undefined,
+                    (error: { code: string; message: string }) => [error.code, error.message],
+                ),
+            ),
+        );
+        expect(refusals).toEqual([
+            ["INVALID_CUSTOMER_KEY", "the file is encrypted with another customer key"],
+            ["INVALID_CUSTOMER_KEY", "the file is encrypted with another customer key"],
+            ["INVALID_CUSTOMER_KEY", "the file is not encrypted with a customer key"],
+            ["INVALID_CUSTOMER_KEY", "a customer key is 32 bytes or 64 hexadecimal digits"],
+        ]);
+
+        // upload parts under the upload's key, refusing a part without it
+        const upload = await bucket.createMultipartUpload("parts", { ssecKey });
+        await expect(upload.uploadPart(1, "first")).rejects.toMatchObject({
+            code: "INVALID_CUSTOMER_KEY",
+            message: "the file is encrypted with another customer key",
+        });
+        const part = await upload.uploadPart(1, "parted contents", { ssecKey });
+        const completed = await upload.complete([part]);
+        expect([
+            completed.ssecKeyMd5,
+            await (await bucket.get("parts", { ssecKey }))!.text(),
+        ]).toEqual([md5, "parted contents"]);
     } finally {
         await rm(directory, { recursive: true });
     }

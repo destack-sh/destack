@@ -123,7 +123,7 @@ function directTag(tags: EntityTag[] | "*"): string {
     return tags === "*" ? "*" : tags[0]!.etag;
 }
 
-/** Whether a tag list names a file's tag, where strong comparison never matches weak tags. */
+/** Whether a tag list includes a file's tag, where strong comparison never matches weak tags. */
 function includes(tags: EntityTag[] | "*", etag: string, isWeakComparison: boolean): boolean {
     return (
         tags === "*" || tags.some((tag) => tag.etag === etag && (isWeakComparison || !tag.isWeak))

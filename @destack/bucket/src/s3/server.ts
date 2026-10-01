@@ -50,7 +50,7 @@ export class S3Server {
 
     /** Answer one S3 request. */
     async fetch(request: Request): Promise<Response> {
-        // name the request and run it
+        // read the request and run it
         const requestId = crypto.getRandomValues(new Uint8Array(8)).toHex().toUpperCase();
         const url = new URL(request.url);
         let response: Response;
@@ -65,7 +65,7 @@ export class S3Server {
             response = failureResponse(failure, request, url.pathname, requestId);
         }
 
-        // name the request and apply the CORS rules to every answer
+        // read the request and apply the CORS rules to every answer
         const headers = new Headers(response.headers);
         headers.set("x-amz-request-id", requestId);
         if (request.method !== "OPTIONS") {

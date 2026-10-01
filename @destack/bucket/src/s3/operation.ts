@@ -7,7 +7,7 @@ import { writeXml, type XmlElement } from "./xml.ts";
 
 /** The bucket and key a copy reads, with its source conditions resolved. */
 export interface CopySource {
-    /** The bucket holding the source. */
+    /** The bucket with the source. */
     bucket: S3Bucket;
     /** The source key. */
     key: string;
