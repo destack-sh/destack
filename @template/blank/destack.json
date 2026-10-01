@@ -16,5 +16,5 @@
         ],
         "dependencies": ["@template/stack"]
     },
-    "targets": ["browser", "server"]
+    "runtimes": ["browser", "bun", "workerd"]
 }

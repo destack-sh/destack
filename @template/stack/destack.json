@@ -13,6 +13,5 @@
             ".oxfmtrc.json"
         ]
     },
-    "targets": ["server"],
     "runtimes": ["bun", "workerd"]
 }
