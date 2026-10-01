@@ -14,11 +14,11 @@ deploy:
 
 # format
 format:
-    bun run destack-check format src build scripts
+    bun run destack-check format src build
 
 # check formatting
 format-check:
-    bun run destack-check format-check src build scripts
+    bun run destack-check format-check src build
 
 # generate
 generate:
