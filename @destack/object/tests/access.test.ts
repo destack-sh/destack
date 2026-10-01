@@ -1,17 +1,15 @@
-import { AuditOutbox } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Authorization, principal, type AccessContext } from "@destack/access";
-import { AuditRecorder } from "@destack/audit";
+import { journal } from "@destack/audit";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier } from "@destack/schema";
 import type { QueryPage } from "@destack/sync";
-import { Journal } from "@destack/service/database";
-import { subjectContext, testJournalKey } from "@destack/service/test";
+
+import { subjectContext, testCallKey } from "@destack/service/test";
 import { RequestId } from "@destack/service/request";
 import { ObjectServer } from "../src/server/index.ts";
 import { defineObject, Intrinsic } from "../src/index.ts";
-import { request } from "./schema.ts";
 import { space } from "./fixture/space.ts";
 
 /** The space whose roles and members the test follows. */
@@ -29,7 +27,7 @@ test.for(TEST_DIALECTS)(
             dialect,
             defineDatabase({
                 name: "main",
-                tables: [...role.tables, space.table, request],
+                tables: [...role.tables, space.table, journal],
             }),
             { isMigrated: true },
         );
@@ -46,11 +44,11 @@ test.for(TEST_DIALECTS)(
             policies: [space],
             database,
             context: (): AccessContext => ({ subjects: [owner], now: Date.now(), attributes: {} }),
-            journal: new Journal(request, testJournalKey),
-            audit: AuditRecorder.service(new AuditOutbox(database), {
+            callKey: testCallKey,
+            origin: {
                 package: role.package,
                 service: "test",
-            }),
+            },
         });
         await database
             .insert(space.table)

@@ -1,5 +1,5 @@
-import { ObjectReference } from "@destack/sync";
-import { type GrantReader, type Subject } from "@destack/access";
+import { ObjectReference, Subject } from "@destack/sync";
+import { type GrantReader } from "@destack/access";
 import {
     and,
     eq,
@@ -13,7 +13,7 @@ import type { Snapshot } from "@destack/db/log";
 import type { BranchCall } from "../branch/branch.ts";
 import { schema, Version } from "@destack/schema";
 import { Expression } from "@destack/schema/expression";
-import { ServiceError } from "@destack/service/error";
+import { ServiceError, TRANSIENT_STATUSES } from "@destack/service/error";
 import { type Address, type Destination, Outbox } from "@destack/service/outbox";
 import { RequestId } from "@destack/service/request";
 import { type RunClient, RunRequest } from "@destack/service/trigger";
@@ -35,9 +35,6 @@ export type SentCall = schema.Infer<typeof SentCall>;
 
 /** The sent calls one delivery records: 100 small calls, sent to the cell at once. */
 const SEND_BATCH = 100;
-
-/** The client errors worth delivering again: a timeout, an early request, and a throttle. */
-const RETRIED_STATUSES: ReadonlySet<number> = new Set([408, 425, 429]);
 
 /** The outbox address of the calls methods send, delivered to the cell recording their runs. */
 export const RUNS = {
@@ -446,11 +443,7 @@ export class Call<Definition extends Table = Table> {
         const delegation = this.authorization?.delegation;
         const message: SentCall = {
             requestId,
-            request: {
-                cause: "send",
-                ...request,
-                ...(delegation === undefined ? {} : { delegation }),
-            },
+            request: { ...request, ...(delegation === undefined ? {} : { delegation }) },
         };
         await this.sends.append(RUNS, requestId, message, this.database);
     }
@@ -498,6 +491,7 @@ export class Call<Definition extends Table = Table> {
                 ...changes,
                 revision: (target.revision as number) + 1,
                 updatedAt: this.now,
+                updatedBy: this.caller === undefined ? null : Subject.key(this.caller),
             } as Partial<Insert<Table>>)
             .where(and(eq(table.id, target.id), eq(table.revision, target.revision)))
             .returning()) as Record<string, unknown>[];
@@ -581,6 +575,9 @@ function isRefusal(error: unknown): boolean {
     const status = (error as { readonly status?: unknown } | undefined)?.status;
 
     return (
-        typeof status === "number" && status >= 400 && status < 500 && !RETRIED_STATUSES.has(status)
+        typeof status === "number" &&
+        status >= 400 &&
+        status < 500 &&
+        !TRANSIENT_STATUSES.has(status)
     );
 }

@@ -1,20 +1,19 @@
-import { schema } from "@destack/schema";
+import { schema, Duration } from "@destack/schema";
 import { eventIterator } from "@destack/service";
 import { LogPosition } from "@destack/db/log";
 import { Watermark } from "@destack/service/bookmark";
-import { Outcome } from "@destack/service/database";
 import { defineProcedure } from "@destack/service/procedure";
 import { Condition, Order, Scalar, type Computed } from "@destack/db/query";
 import { Expression } from "@destack/schema/expression";
 import {
     Aggregate,
     Call,
+    Failure,
     Mutation,
-    QueryPage,
     ObjectReference,
+    QueryPage,
     ReplicaRequest,
 } from "@destack/sync";
-import { Duration } from "../object/duration.ts";
 
 /** Rows an include adds, or their aggregates. */
 export type ObjectInclude = {
@@ -113,7 +112,16 @@ export const PushResult = schema.object({
             /** The mutation's request identifier. */
             id: schema.string(),
             /** The results of its calls in order, or its final failure. */
-            outcome: Outcome,
+            outcome: schema.union([
+                schema.object({
+                    /** The results of the calls in order. */
+                    value: schema.json(),
+                }),
+                schema.object({
+                    /** The final failure. */
+                    error: Failure,
+                }),
+            ]),
         }),
     ),
     /** The server log sequence holding every executed mutation's changes. */

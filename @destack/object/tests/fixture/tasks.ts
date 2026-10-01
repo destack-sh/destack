@@ -1,8 +1,8 @@
 import { schema } from "@destack/schema";
+import { journal } from "@destack/audit";
 import { relation, through, union, principal } from "@destack/access";
 import { defineDatabase } from "@destack/db/declare";
 import { defineService } from "@destack/service";
-import { defineJournal } from "@destack/service/database";
 import { defineObject, field, method } from "../../src/index.ts";
 import { user } from "../schema.ts";
 import { space } from "./space.ts";
@@ -100,11 +100,8 @@ export const comment = defineObject({
 /** Projects, tasks and comments, with their sharing and sync. */
 export const tasksService = defineService("tasks", { objects: { project, task, comment } });
 
-/** Replayable method requests. */
-export const tasksJournal = defineJournal("journal");
-
 /** The database of one space's projects, tasks and comments. */
 export const tasksDatabase = defineDatabase({
     name: "main",
-    tables: [...project.tables, ...task.tables, ...comment.tables, tasksJournal],
+    tables: [...project.tables, ...task.tables, ...comment.tables, journal],
 });

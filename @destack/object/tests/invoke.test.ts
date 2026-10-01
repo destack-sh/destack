@@ -1,19 +1,18 @@
-import { AuditOutbox } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import { AuditRecorder } from "@destack/audit";
+import { journal } from "@destack/audit";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier, schema } from "@destack/schema";
 import { Bookmark } from "@destack/service/bookmark";
-import { defineJournal, Journal } from "@destack/service/database";
+
 import { RequestId } from "@destack/service/request";
 import type { ServiceContext } from "@destack/service/server";
 import { defineObject, field, method } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { openSpace, space } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
-import { testJournalKey } from "@destack/service/test";
+import { testCallKey } from "@destack/service/test";
 
 /** The space containing the shelves. */
 const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000011");
@@ -95,9 +94,6 @@ const shelf = defineObject({
     },
 });
 
-/** Replayable shelf requests. */
-const journal = defineJournal("journal");
-
 /** The database holding the shelves, the books, their access and the journal. */
 const shelfDatabase = defineDatabase({
     name: "main",
@@ -119,15 +115,15 @@ test.each(TEST_DIALECTS)(
                 now: Date.now(),
                 attributes: {},
             }),
-            journal: new Journal(journal, testJournalKey),
-            audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+            callKey: testCallKey,
+            origin: {
                 package: book.package,
                 service: "test",
-            }),
+            },
         });
         const context = {
             scope: spaceId,
-            requireCaller: () => ({ id: current }),
+            requireAuthentication: () => ({ id: current }),
             bookmark: new Bookmark(),
             observed: new Bookmark(),
         } as unknown as ServiceContext;
@@ -166,7 +162,7 @@ test.each(TEST_DIALECTS)(
         const summary = rows.map((row) => `${String(row.owner)} ${String(row.isTidy)}`).sort();
         expect([tidied, auditedTidy, summary]).toEqual([
             { count: 2 },
-            ["Book.tidy", "Shelf.tidy"],
+            ["book.tidy", "shelf.tidy"],
             ["user-1 true", "user-1 true", "user-2 false"],
         ]);
     },
@@ -198,15 +194,15 @@ test.each(TEST_DIALECTS)(
                 now: Date.now(),
                 attributes: {},
             }),
-            journal: new Journal(journal, testJournalKey),
-            audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+            callKey: testCallKey,
+            origin: {
                 package: book.package,
                 service: "test",
-            }),
+            },
         });
         const context = {
             scope: spaceId,
-            requireCaller: () => ({ id: "user-1" }),
+            requireAuthentication: () => ({ id: "user-1" }),
             bookmark: new Bookmark(),
             observed: new Bookmark(),
         } as unknown as ServiceContext;

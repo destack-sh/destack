@@ -1,10 +1,4 @@
-import {
-    createInsertSchema,
-    createSelectSchema,
-    type Insert,
-    type Select,
-    TABLE,
-} from "@destack/db";
+import { type Insert, type Select, TABLE } from "@destack/db";
 import { Scope } from "@destack/sync";
 import type * as sync from "@destack/sync";
 import { identifier, schema, type Identifier } from "@destack/schema";
@@ -119,7 +113,7 @@ export function objectSchema(object: ObjectType): ObjectSchema {
         throw new TypeError(`object ${object.name} is held in a table without an id column`);
     }
     const id = idColumn.definition.schema;
-    const columns = createSelectSchema(object.table, "json");
+    const columns = object.table.selectSchema("json");
     const selected = schema.object(
         Object.fromEntries(
             Object.entries(columns.shape as Record<string, schema.Schema>).filter(
@@ -140,10 +134,7 @@ export function objectSchema(object: ObjectType): ObjectSchema {
     });
 
     // read the written columns' JSON schemas
-    const inserted = createInsertSchema(object.table, "json").shape as Record<
-        string,
-        schema.Schema
-    >;
+    const inserted = object.table.insertSchema("json").shape as Record<string, schema.Schema>;
 
     return {
         row,

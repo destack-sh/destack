@@ -1,23 +1,21 @@
-import { schema } from "@destack/schema";
+import { identifier, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { intersection, principal, relation, through, union } from "@destack/access";
-import { AuditRecorder } from "@destack/audit";
-import { AuditOutbox } from "@destack/audit/outbox";
+import { journal } from "@destack/audit";
 import { asc, eq, unique, type Dialect } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { identifier } from "@destack/schema";
 import { v7 } from "uuid";
 import type { QueryPage } from "@destack/sync";
 import { Bookmark } from "@destack/service/bookmark";
-import { Journal } from "@destack/service/database";
+
 import { RequestId } from "@destack/service/request";
 import type { ServiceContext } from "@destack/service/server";
 import { defineObject, field, method, type ObjectType } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
-import { request, user } from "./schema.ts";
+import { user } from "./schema.ts";
 import { openSpace, space } from "./fixture/space.ts";
-import { testJournalKey } from "@destack/service/test";
+import { testCallKey } from "@destack/service/test";
 
 /** The space containing the objects. */
 const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
@@ -326,7 +324,7 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
         dialect,
         defineDatabase({
             name: "main",
-            tables: [request, ...Object.values(objects).flatMap((object) => object.tables)],
+            tables: [journal, ...Object.values(objects).flatMap((object) => object.tables)],
         }),
         { isMigrated: true },
     );
@@ -343,17 +341,17 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
             now: Date.now(),
             attributes: {},
         }),
-        journal: new Journal(request, testJournalKey),
-        audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+        callKey: testCallKey,
+        origin: {
             package: Object.values(objects)[0]!.package,
             service: "test",
-        }),
+        },
     });
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
     const context = {
         scope: spaceId,
-        requireCaller: () => ({ id: current }),
+        requireAuthentication: () => ({ id: current }),
         bookmark: new Bookmark(),
         observed: new Bookmark(),
         signal: controller.signal,

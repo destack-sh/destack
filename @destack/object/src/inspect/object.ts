@@ -1,5 +1,5 @@
 import { describePayload, PayloadDescription } from "@destack/service/inspect";
-import { Scope } from "@destack/sync";
+import { Scope, AccessName } from "@destack/sync";
 import { PolicyDescription, describePolicy } from "@destack/access/inspect";
 import { AuditActionDescription, describeAuditAction } from "@destack/audit/inspect";
 import { TABLE } from "@destack/db";
@@ -7,7 +7,6 @@ import { defineSchema, schema, toJsonSchema } from "@destack/schema";
 import type { Method } from "../method/method.ts";
 import { METHOD_KINDS } from "../method/kind.ts";
 import type { ObjectType } from "../object/object.ts";
-import { AccessName } from "@destack/access";
 import type { JsonValue } from "@destack/schema/json";
 
 /** One method as the manifest describes it. */

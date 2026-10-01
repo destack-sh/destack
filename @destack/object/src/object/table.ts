@@ -54,6 +54,7 @@ type TraitBuilderMap = {
     parentType: ColumnBuilder<string, true, false>;
     parentId: ColumnBuilder<string, true, false>;
     deletionRequestedAt: ColumnBuilder<number, false, false>;
+    deletedBy: ColumnBuilder<string, false, false>;
     purgedAt: ColumnBuilder<number, false, false>;
     number: ColumnBuilder<number, true, false>;
 } & ReturnType<typeof controlledColumns> &

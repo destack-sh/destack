@@ -1,5 +1,4 @@
-import { AuditOutbox } from "@destack/audit/outbox";
-import { reconciliation, testJournalKey } from "@destack/service/test";
+import { reconciliation, testCallKey } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import {
     accessTables,
@@ -9,19 +8,18 @@ import {
     relation,
     Relationship,
 } from "@destack/access";
-import { AuditRecorder } from "@destack/audit";
+import { journal } from "@destack/audit";
 import { copyOwner, copyRole, copyScope } from "@destack/access/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier, schema } from "@destack/schema";
 import { Bookmark } from "@destack/service/bookmark";
-import { Journal } from "@destack/service/database";
+
 import { RequestId } from "@destack/service/request";
 import type { ServiceContext } from "@destack/service/server";
 import { Scope, Feed, Replica } from "@destack/sync";
 import { v7 } from "uuid";
 import { defineObject, field, method } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
-import { request } from "./schema.ts";
 
 /** The account holding the space. */
 const accountId = identifier("account").parse("account-01996ab0-0000-7000-8000-000000000001");
@@ -70,7 +68,7 @@ test.each(TEST_DIALECTS)(
     "decide calls over a relayed copy of access as the holder does, through the account's members and restricted credentials, on %s",
     async (dialect) => {
         const home = await TestDatabase.create(dialect, accessTables, { isMigrated: true });
-        const workload = await TestDatabase.create(dialect, [...document.tables, request], {
+        const workload = await TestDatabase.create(dialect, [...document.tables, journal], {
             isMigrated: true,
         });
         onTestFinished(async () => {
@@ -144,11 +142,11 @@ test.each(TEST_DIALECTS)(
                 now: Date.now(),
                 attributes: {},
             }),
-            journal: new Journal(request, testJournalKey),
-            audit: AuditRecorder.service(new AuditOutbox(workload.database), {
+            callKey: testCallKey,
+            origin: {
                 package: document.package,
                 service: "test",
-            }),
+            },
         });
 
         // follow the space's chain up to the universe
@@ -177,7 +175,7 @@ test.each(TEST_DIALECTS)(
         // create through credentials restricted to the space or another one, and unrestricted, then list as alice
         const context = {
             scope: spaceId,
-            requireCaller: () => ({ id: caller.user }),
+            requireAuthentication: () => ({ id: caller.user }),
             bookmark: new Bookmark(),
             observed: new Bookmark(),
         } as unknown as ServiceContext;

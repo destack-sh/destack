@@ -4,22 +4,22 @@ import { method } from "../method/method.ts";
 import { INTRINSIC } from "./intrinsic.ts";
 import type { ObjectScope, ObjectType } from "./object.ts";
 
-/** Define a scope type's audit events as objects. */
-export function auditEvent<const Scope extends ObjectScope>(scope: Scope) {
+/** Define a scope type's audited calls as objects. */
+export function auditCall<const Scope extends ObjectScope>(scope: Scope) {
     return {
-        name: "event",
-        plural: "events",
-        [INTRINSIC]: { table: audit.auditEvent },
+        name: "call",
+        plural: "calls",
+        [INTRINSIC]: { table: audit.auditCall },
         scope,
-        represents: audit.event,
-        permissions: audit.event.definition.permissions,
+        represents: audit.call,
+        permissions: audit.call.definition.permissions,
         audited: { reads: true },
         methods: { get: method.get("read"), list: method.list("read") },
     } as const;
 }
 
-/** Define the objects a scope type's audit events name. */
-export function auditTarget<const Scope extends ObjectScope>(scope: Scope, event: ObjectType) {
+/** Define the objects a scope type's audited calls name. */
+export function auditTarget<const Scope extends ObjectScope>(scope: Scope, call: ObjectType) {
     return {
         name: "target",
         plural: "targets",
@@ -27,7 +27,7 @@ export function auditTarget<const Scope extends ObjectScope>(scope: Scope, event
         scope,
         represents: audit.target,
         permissions: audit.target.definition.permissions,
-        fields: { event: field.reference(event) },
+        fields: { call: field.reference(call) },
         audited: { reads: true },
         methods: { list: method.list("read") },
     } as const;

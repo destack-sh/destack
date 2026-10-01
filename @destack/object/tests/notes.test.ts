@@ -1,13 +1,14 @@
 import { expect, test } from "@destack/test";
+import { journal } from "@destack/audit";
 import { eq, type DatabaseConnection } from "@destack/db";
 import { Condition } from "@destack/db/query";
-import { relayHub, TEST_DIALECTS } from "@destack/db/test";
+import { channelHub, TEST_DIALECTS } from "@destack/db/test";
 import { BrowserTab, ObjectClient, type BrowserHost } from "../src/client/index.ts";
 import { serveDatabase, type Message } from "@destack/db/shared";
 import { WasmClient } from "@destack/db/wasm";
 import { identifier } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
-import { note, notebook, notesJournal } from "./fixture/notes.ts";
+import { note, notebook } from "./fixture/notes.ts";
 import { principal } from "@destack/access";
 
 import { Device, serveNotes, spaceId } from "./fixture/device.ts";
@@ -262,7 +263,7 @@ test.each(TEST_DIALECTS)(
             .poll(async () => await device.client.outbox.pending(device.client.database))
             .toEqual([]);
         await database.delete(note.table).where(eq(note.table.id, lostId));
-        await database.delete(notesJournal);
+        await database.delete(journal);
         await database.log.renew();
         device.follow();
         await lost.confirmed;
@@ -402,12 +403,12 @@ test("share one browser database between tabs, handing it over when the owning t
     const { connect, endpoint } = await serveNotes("sqlite");
     const alice = connect("alice");
 
-    // share one relay, worker and lock queue between tabs
-    const join = relayHub<Message>();
+    // share one channel, worker and lock queue between tabs
+    const join = channelHub<Message>();
     const database = await WasmClient.memory();
     const locks = new Map<string, Promise<void>>();
     const host = (): BrowserHost => ({
-        relay: join(),
+        channel: join(),
         request: (name, hold, signal) =>
             new Promise<void>((resolve, reject) => {
                 // reject an aborted wait

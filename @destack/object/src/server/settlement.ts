@@ -1,5 +1,5 @@
 import { and, eq, isNull, lte, or, type DatabaseConnection, type Table } from "@destack/db";
-import { schema } from "@destack/schema";
+import { schema, Duration } from "@destack/schema";
 import { ServiceError } from "@destack/service";
 import type { Controller } from "@destack/service/control";
 import { Call } from "../method/call.ts";
@@ -7,7 +7,6 @@ import { settlement } from "../method/settlement.ts";
 import type { Method } from "../method/method.ts";
 import type { ObjectServer } from "./server.ts";
 import { SystemAuthorization } from "./authorization.ts";
-import { Duration } from "../object/duration.ts";
 
 /** The settlement and claim grace, in milliseconds: a minute, above any live server's settling. */
 const SETTLE_GRACE_MILLISECONDS = 60_000;

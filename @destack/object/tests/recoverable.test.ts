@@ -1,15 +1,15 @@
 import type { Change } from "@destack/db/log";
-import { reconciliation, testJournalKey } from "@destack/service/test";
+import { Subject } from "@destack/sync";
+import { reconciliation, testCallKey } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import { AuditRecorder } from "@destack/audit";
-import { AuditOutbox } from "@destack/audit/outbox";
+import { journal } from "@destack/audit";
 import { eq } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier } from "@destack/schema";
 import { Bookmark } from "@destack/service/bookmark";
-import { defineJournal, Journal } from "@destack/service/database";
+
 import { RequestId } from "@destack/service/request";
 import type { ServiceContext } from "@destack/service/server";
 import { defineObject, field, method, type ObjectType } from "../src/index.ts";
@@ -42,9 +42,6 @@ const credential = defineObject({
         create: method.create("write", { fields: ["custodian", "value"] }),
     },
 });
-
-/** Replayable credential requests. */
-const journal = defineJournal("journal");
 
 /** The database holding the credentials, their access and the journal. */
 const credentialDatabase = defineDatabase({
@@ -86,15 +83,15 @@ test.each(TEST_DIALECTS)(
                     now: Date.now(),
                     attributes: {},
                 }),
-                journal: new Journal(journal, testJournalKey),
-                audit: AuditRecorder.service(new AuditOutbox(database), {
+                callKey: testCallKey,
+                origin: {
                     package: credential.package,
                     service: "test",
-                }),
+                },
             });
         const context = {
             scope: spaceId,
-            requireCaller: () => ({ id: current }),
+            requireAuthentication: () => ({ id: current }),
             bookmark: new Bookmark(),
             observed: new Bookmark(),
         } as unknown as ServiceContext;
@@ -143,12 +140,15 @@ test.each(TEST_DIALECTS)(
             .select()
             .from(credential.table)
             .where(eq(credential.table.id, created.id));
+        // name the owner as the deleter and the custodian as the last writer
         expect(purged).toEqual({
             ...created,
             value: null,
             revision: 5,
             updatedAt: expect.any(Number),
+            updatedBy: Subject.key(principal.user.reference("universe", "user-2")),
             deletionRequestedAt: expect.any(Number),
+            deletedBy: Subject.key(principal.user.reference("universe", "user-1")),
             purgedAt: expect.any(Number),
         });
 
@@ -175,7 +175,7 @@ test.each(TEST_DIALECTS)(
             await recoverable.purge(server, later),
             await recoverable.purge(server, later),
         ]).toEqual([1, 0]);
-        expect(await auditedActions(database, "system")).toEqual(["Credential.purge"]);
+        expect(await auditedActions(database, "system")).toEqual(["credential.purge"]);
         const [kept] = await database
             .select({ value: credential.table.value, purgedAt: credential.table.purgedAt })
             .from(credential.table)
@@ -208,8 +208,8 @@ test.each(TEST_DIALECTS)(
             await controller.reconcile("trash", reconciliation(AbortSignal.timeout(5000))),
         ).toBeUndefined();
         expect(await auditedActions(database, "system")).toEqual([
-            "Credential.purge",
-            "Credential.purge",
+            "credential.purge",
+            "credential.purge",
         ]);
     },
 );

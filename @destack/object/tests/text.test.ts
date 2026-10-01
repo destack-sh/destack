@@ -1,15 +1,13 @@
-import { AuditOutbox } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation, union } from "@destack/access";
-import { AuditRecorder } from "@destack/audit";
+import { journal } from "@destack/audit";
 import type { DatabaseConnection, Dialect } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { Caller } from "@destack/service/authentication";
+import { Authentication } from "@destack/service/authentication";
 import { createClient, type ClientOptions } from "@destack/service/client";
-import { defineJournal } from "@destack/service/database";
 import { Health } from "@destack/service/health";
 import { defineService } from "@destack/service";
 import { RequestId } from "@destack/service/request";
@@ -30,7 +28,7 @@ import {
 import { ObjectServer } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, unmoved } from "./fixture/space.ts";
-import { testJournalKey } from "@destack/service/test";
+import { testCallKey } from "@destack/service/test";
 
 /** The space holding the documents. */
 const spaceId = "space-01996ab0-0000-7000-8000-000000000014";
@@ -65,9 +63,6 @@ const document = defineObject({
 /** The documents service. */
 const documentsService = defineService("documents", { objects: { document } });
 
-/** Replayable method requests. */
-const journal = defineJournal("journal");
-
 /** The database of one space's documents. */
 const documentsDatabase = defineDatabase({
     name: "main",
@@ -85,13 +80,8 @@ async function serveDocuments(dialect: Dialect) {
     // authenticate each request as the user its bearer credential names
     const server = Server.start({
         ...ObjectServer.serve(documentsService, {
-            journalKey: testJournalKey,
-            journal,
+            callKey: testCallKey,
             database,
-            audit: AuditRecorder.service(new AuditOutbox(database), {
-                package: documentsService.package,
-                service: "test",
-            }),
         }),
         audience,
         scope: spaceId,
@@ -104,7 +94,7 @@ async function serveDocuments(dialect: Dialect) {
             const subject = principal.user.reference("universe", id);
             const now = Date.now();
 
-            return new Caller({
+            return new Authentication({
                 subject,
                 subjects: [subject],
                 credential: { kind: "user", id },

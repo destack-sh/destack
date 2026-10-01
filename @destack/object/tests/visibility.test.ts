@@ -1,4 +1,3 @@
-import { AuditOutbox } from "@destack/audit/outbox";
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import {
@@ -10,20 +9,19 @@ import {
     relation,
     type Delegate,
 } from "@destack/access";
-import { AuditRecorder } from "@destack/audit";
+import { journal } from "@destack/audit";
 import { copyScope } from "@destack/access/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier, schema } from "@destack/schema";
 import { Bookmark } from "@destack/service/bookmark";
-import { Journal } from "@destack/service/database";
+
 import { RequestId } from "@destack/service/request";
 import type { ServiceContext } from "@destack/service/server";
 import { v7 } from "uuid";
 import { defineObject, field, method } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { openSpace, space } from "./fixture/space.ts";
-import { request } from "./schema.ts";
-import { testJournalKey } from "@destack/service/test";
+import { testCallKey } from "@destack/service/test";
 
 /** A private space nobody reads. */
 const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -68,7 +66,7 @@ const document = defineObject({
 test.each(TEST_DIALECTS)(
     "show a private space to readers of one object in it, forbid their writes, and hide it from strangers on %s",
     async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [...document.tables, request], {
+        const storage = await TestDatabase.create(dialect, [...document.tables, journal], {
             isMigrated: true,
         });
         onTestFinished(() => storage.close());
@@ -112,15 +110,15 @@ test.each(TEST_DIALECTS)(
                 now: Date.now(),
                 attributes: {},
             }),
-            journal: new Journal(request, testJournalKey),
-            audit: AuditRecorder.service(new AuditOutbox(database), {
+            callKey: testCallKey,
+            origin: {
                 package: document.package,
                 service: "test",
-            }),
+            },
         });
         const context = {
             scope: spaceId,
-            requireCaller: () => ({ id: caller.user }),
+            requireAuthentication: () => ({ id: caller.user }),
             bookmark: new Bookmark(),
             observed: new Bookmark(),
         } as unknown as ServiceContext;
@@ -184,7 +182,7 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const storage = await TestDatabase.create(
             dialect,
-            [...document.tables, ...desk.tables, request],
+            [...document.tables, ...desk.tables, journal],
             { isMigrated: true },
         );
         onTestFinished(() => storage.close());
@@ -217,14 +215,14 @@ test.each(TEST_DIALECTS)(
                 now: Date.now(),
                 attributes: {},
             }),
-            journal: new Journal(request, testJournalKey),
-            audit: AuditRecorder.service(new AuditOutbox(database), {
+            callKey: testCallKey,
+            origin: {
                 package: document.package,
                 service: "test",
-            }),
+            },
         });
         const context = {
-            requireCaller: () => ({ id: "alice" }),
+            requireAuthentication: () => ({ id: "alice" }),
             bookmark: new Bookmark(),
             observed: new Bookmark(),
         } as unknown as ServiceContext;

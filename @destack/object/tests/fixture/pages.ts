@@ -1,8 +1,8 @@
 import { schema } from "@destack/schema";
+import { journal } from "@destack/audit";
 import { anyone, permission, relation, through, union, principal } from "@destack/access";
 import { defineDatabase } from "@destack/db/declare";
 import { defineService } from "@destack/service";
-import { defineJournal } from "@destack/service/database";
 import { defineObject, field, method } from "../../src/index.ts";
 import { user } from "../schema.ts";
 import { space } from "./space.ts";
@@ -49,11 +49,8 @@ export const page = defineObject({
 /** Pages, their trees, sharing, links, trash and sync. */
 export const pagesService = defineService("pages", { objects: { page } });
 
-/** Replayable method requests. */
-export const pagesJournal = defineJournal("journal");
-
 /** The database of one space's pages. */
 export const pageDatabase = defineDatabase({
     name: "main",
-    tables: [...page.tables, pagesJournal],
+    tables: [...page.tables, journal],
 });

@@ -1,16 +1,15 @@
-import { AuditOutbox } from "@destack/audit/outbox";
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import { AuditRecorder } from "@destack/audit";
+import { journal } from "@destack/audit";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier, schema } from "@destack/schema";
-import { defineJournal, Journal } from "@destack/service/database";
+
 import { defineObject, field, method } from "../src/index.ts";
 import { ObjectServer, SystemCall } from "../src/server/index.ts";
 import { openSpace, space } from "./fixture/space.ts";
-import { testJournalKey } from "@destack/service/test";
+import { testCallKey } from "@destack/service/test";
 
 /** The space holding the machines. */
 const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000031");
@@ -38,9 +37,6 @@ const machine = defineObject({
     },
 });
 
-/** Replayable machine requests. */
-const journal = defineJournal("journal");
-
 /** The database holding the machines, their access and the journal. */
 const machineDatabase = defineDatabase({
     name: "main",
@@ -57,11 +53,11 @@ test.each(TEST_DIALECTS)(
             objects: { machine },
             database: storage.database,
             context: () => ({ subjects: [], now: 0, attributes: {} }),
-            journal: new Journal(journal, testJournalKey),
-            audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+            callKey: testCallKey,
+            origin: {
                 package: machine.package,
                 service: "test",
-            }),
+            },
         });
         const read = async () => {
             const [row] = await storage.database.select().from(machine.table);

@@ -1,21 +1,19 @@
-import { AuditOutbox } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import { AuditRecorder } from "@destack/audit";
+import { journal } from "@destack/audit";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Expression } from "@destack/schema/expression";
 import { schema } from "@destack/schema";
 import { Bookmark } from "@destack/service/bookmark";
-import { Journal } from "@destack/service/database";
+
 import { RequestId } from "@destack/service/request";
 import type { ServiceContext } from "@destack/service/server";
 import { defineObject, field, method } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
-import { request } from "./schema.ts";
 import { openSpace, space } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
-import { testJournalKey } from "@destack/service/test";
+import { testCallKey } from "@destack/service/test";
 
 /** Cards whose `title` became `name`. */
 const card = defineObject({
@@ -42,7 +40,7 @@ test.for(TEST_DIALECTS)(
             dialect,
             defineDatabase({
                 name: "main",
-                tables: [request, ...card.tables],
+                tables: [journal, ...card.tables],
             }),
             { isMigrated: true },
         );
@@ -56,15 +54,15 @@ test.for(TEST_DIALECTS)(
                 now: Date.now(),
                 attributes: {},
             }),
-            journal: new Journal(request, testJournalKey),
-            audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+            callKey: testCallKey,
+            origin: {
                 package: card.package,
                 service: "test",
-            }),
+            },
         });
         const context = {
             scope: spaceId,
-            requireCaller: () => ({ id: "alice" }),
+            requireAuthentication: () => ({ id: "alice" }),
             bookmark: new Bookmark(),
             observed: new Bookmark(),
         } as unknown as ServiceContext;

@@ -5,8 +5,9 @@ import {
     type Watch,
     replica,
     Scope,
+    type Subject,
 } from "@destack/sync";
-import { accessRelationship, earliest, type Permission, type Subject } from "@destack/access";
+import { accessRelationship, earliest, type Permission } from "@destack/access";
 import { and, eq, gt, or, sql, TABLE, type Row, type SQL, type Table } from "@destack/db";
 import type { Change, LogPosition } from "@destack/db/log";
 import { schema } from "@destack/schema";

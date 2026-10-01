@@ -1,17 +1,16 @@
 import type { TrackerMessage } from "@destack/sync";
-import { AuditOutbox } from "@destack/audit/outbox";
-import { schema } from "@destack/schema";
+import { identifier, schema } from "@destack/schema";
 import { Condition } from "@destack/db/query";
 import { expect, onTestFinished, test } from "@destack/test";
 import { vi } from "vitest";
 import { intersection, principal, relation, through, union } from "@destack/access";
-import { AuditRecorder } from "@destack/audit";
+import { journal } from "@destack/audit";
 import { unique, type Dialect } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
-import { relayHub, TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { identifier } from "@destack/schema";
-import { Journal } from "@destack/service/database";
-import { subjectContext, testJournalKey } from "@destack/service/test";
+import { channelHub, TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import * as sqlite from "@destack/db/bun";
+
+import { subjectContext, testCallKey } from "@destack/service/test";
 import { RequestId } from "@destack/service/request";
 import { defineObject, field, method, type ObjectType } from "../src/index.ts";
 import { EphemeralStorage, ObjectServer } from "../src/server/index.ts";
@@ -19,7 +18,7 @@ import { ObjectClient } from "../src/client/index.ts";
 import type { ClientOptions } from "@destack/service/client";
 import { defineService } from "@destack/service/declare";
 import { serveObjects } from "./fixture/device.ts";
-import { request, user } from "./schema.ts";
+import { user } from "./schema.ts";
 import { openSpace, space, unmoved } from "./fixture/space.ts";
 
 /** How long a check may take to hold, in milliseconds: well within the 5 s test timeout. */
@@ -429,7 +428,7 @@ test("refuse durability on ephemeral objects and ephemeral objects outside their
     onTestFinished(() => memory.close());
     expect(
         () =>
-            new EphemeralStorage(memory.database, [board], relayHub<TrackerMessage>()(), {
+            new EphemeralStorage(memory.database, [board], channelHub<TrackerMessage>()(), {
                 report: (error) => {
                     throw error;
                 },
@@ -444,36 +443,37 @@ async function serveBoards(dialect: Dialect) {
         dialect,
         defineDatabase({
             name: "main",
-            tables: [request, ...board.tables, ...profile.tables],
+            tables: [journal, ...board.tables, ...profile.tables],
         }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
 
-    // serve them from two instances sharing presence over a relay
-    const join = relayHub<TrackerMessage>();
+    // serve them from two instances sharing presence over their database's channel
     const instance = async () => {
-        const memory = await TestDatabase.create("sqlite", presence.tables, { isMigrated: true });
-        const store = new EphemeralStorage(memory.database, [presence], join(), {
-            heartbeat: 1000,
-            report: (error) => {
-                throw error;
+        const durable = await storage.connect(storage.database.tables);
+        const store = (await EphemeralStorage.open(
+            [presence, board, profile],
+            durable,
+            (tables) => sqlite.connect(":memory:", tables),
+            {
+                heartbeat: 1000,
+                report: (error) => {
+                    throw error;
+                },
             },
-        });
-        onTestFinished(async () => {
-            store.close();
-            await memory.close();
-        });
+        ))!;
+        onTestFinished(() => store[Symbol.asyncDispose]());
         const server = new ObjectServer({
             objects: { presence, board, profile },
-            database: storage.database,
+            database: durable,
             ephemeral: store,
-            journal: new Journal(request, testJournalKey),
-            audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+            callKey: testCallKey,
+            origin: {
                 package: presence.package,
                 service: "test",
-            }),
+            },
         });
 
         const served = serveObjects(server.implement(boardsService), spaceId);

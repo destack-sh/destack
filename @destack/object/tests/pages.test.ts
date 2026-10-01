@@ -1,7 +1,5 @@
-import { AuditOutbox } from "@destack/audit/outbox";
 import { ObjectServer } from "../src/server/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { AuditRecorder } from "@destack/audit";
 import { isNull, type Dialect } from "@destack/db";
 import { Condition } from "@destack/db/query";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -9,16 +7,16 @@ import { ObjectClient } from "../src/client/index.ts";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { identifier } from "@destack/schema";
-import { Caller } from "@destack/service/authentication";
+import { Authentication } from "@destack/service/authentication";
 import { createClient, type ClientOptions } from "@destack/service/client";
 import { Health } from "@destack/service/health";
 import { RequestId } from "@destack/service/request";
 import { Server } from "@destack/service/server";
 import { v7 } from "uuid";
 import { anyone, Capability, principal } from "@destack/access";
-import { page, pageDatabase, pagesService, pagesJournal } from "./fixture/pages.ts";
+import { page, pageDatabase, pagesService } from "./fixture/pages.ts";
 import { openSpace, unmoved } from "./fixture/space.ts";
-import { testJournalKey } from "@destack/service/test";
+import { testCallKey } from "@destack/service/test";
 
 /** The space holding the pages. */
 const spaceId = identifier("space").parse(`space-${v7()}`);
@@ -36,13 +34,8 @@ async function servePages(dialect: Dialect) {
     // serve the space's pages
     const server = Server.start({
         ...ObjectServer.serve(pagesService, {
-            journal: pagesJournal,
-            journalKey: testJournalKey,
+            callKey: testCallKey,
             database,
-            audit: AuditRecorder.service(new AuditOutbox(database), {
-                package: pagesService.package,
-                service: "test",
-            }),
         }),
         audience,
         scope: spaceId,
@@ -59,7 +52,7 @@ async function servePages(dialect: Dialect) {
             const subject = principal.user.reference("universe", id);
             const now = Date.now();
 
-            return new Caller({
+            return new Authentication({
                 subject,
                 subjects: [subject],
                 credential: { kind: "user", id },

@@ -1,13 +1,12 @@
-import { AuditOutbox } from "@destack/audit/outbox";
-import { reconciliation, testJournalKey } from "@destack/service/test";
+import { reconciliation, testCallKey } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import { AuditRecorder } from "@destack/audit";
+import { journal } from "@destack/audit";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier } from "@destack/schema";
 import { Bookmark } from "@destack/service/bookmark";
-import { defineJournal, Journal } from "@destack/service/database";
+
 import { outbox } from "@destack/service/outbox";
 import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
@@ -44,9 +43,6 @@ const member = defineObject({
     },
 });
 
-/** Replayable member requests. */
-const journal = defineJournal("journal");
-
 /** The database holding the members, the journal and the outbox. */
 const memberDatabase = defineDatabase({
     name: "main",
@@ -70,11 +66,11 @@ test.each(TEST_DIALECTS)(
                 now: Date.now(),
                 attributes: {},
             }),
-            journal: new Journal(journal, testJournalKey),
-            audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+            callKey: testCallKey,
+            origin: {
                 package: member.package,
                 service: "test",
-            }),
+            },
             report: (error) => reports.push((error as Error).message),
             runs: {
                 // refuse the welcome of the bounced name for good
@@ -88,7 +84,7 @@ test.each(TEST_DIALECTS)(
         });
         const context = {
             scope: spaceId,
-            requireCaller: () => ({ id: "user-1" }),
+            requireAuthentication: () => ({ id: "user-1" }),
             bookmark: new Bookmark(),
             observed: new Bookmark(),
         } as unknown as ServiceContext;
@@ -119,7 +115,6 @@ test.each(TEST_DIALECTS)(
             [
                 [
                     {
-                        cause: "send",
                         call: member.calls().welcome({ id: "member-1", name: "Ada" }),
                     },
                     "string",

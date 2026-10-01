@@ -1,17 +1,17 @@
-import type { Subject } from "@destack/access";
-import { broadcastRelay, type Relay } from "@destack/db/relay";
+import { broadcastChannel, type Channel } from "@destack/db/channel";
+import type { Duration } from "@destack/schema";
+import type { Subject } from "@destack/sync";
 import { connectShared, type Message } from "@destack/db/shared";
 import type { Table } from "@destack/db";
 import type { ClientOptions } from "@destack/service/client";
 import { RequestId } from "@destack/service/request";
 import type { ObjectType } from "../object/object.ts";
 import { ObjectClient } from "./client.ts";
-import type { Duration } from "../object/duration.ts";
 
 /** The browser capabilities tabs share. */
 export interface BrowserHost {
-    /** The relay every tab and the database worker share. */
-    readonly relay: Relay<Message>;
+    /** The channel every tab and the database worker share. */
+    readonly channel: Channel<Message>;
     /** Hold a named lock while a callback runs. */
     request(name: string, hold: () => Promise<void>, signal?: AbortSignal): Promise<void>;
     /** Start the worker holding the database, returning how to stop it. */
@@ -101,7 +101,7 @@ export class BrowserTab {
         const host = options.host ?? BrowserTab.host(options.name);
         const origin = RequestId.create();
         const tables = ObjectClient.tables(options.objects);
-        const database = connectShared(host.relay, origin, tables);
+        const database = connectShared(host.channel, origin, tables);
         const client = await ObjectClient.open({ ...options, database, origin, isMigrated: true });
 
         // settle once the tables exist
@@ -119,10 +119,10 @@ export class BrowserTab {
         });
     }
 
-    /** Bind the page's Web Locks, broadcast relay and database worker. */
+    /** Bind the page's Web Locks, broadcast channel and database worker. */
     static host(name: string): BrowserHost {
         return {
-            relay: broadcastRelay<Message>(`destack:${name}`),
+            channel: broadcastChannel<Message>(`destack:${name}`),
             request: (lock, hold, signal) =>
                 navigator.locks.request(lock, signal === undefined ? {} : { signal }, hold),
             start: async () => {

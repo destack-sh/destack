@@ -12,5 +12,4 @@ export {
     type ObjectStorage,
 } from "./object.ts";
 export type { ObjectController, ObjectReconciliation, ObjectWatch } from "./controller.ts";
-export { Duration } from "./duration.ts";
 export { INTRINSIC, Intrinsic } from "./intrinsic.ts";

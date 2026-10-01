@@ -1,19 +1,17 @@
-import { AuditOutbox } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
-import { AuditRecorder } from "@destack/audit";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier } from "@destack/schema";
-import { Journal } from "@destack/service/database";
+
 import { RequestId } from "@destack/service/request";
 import { Bookmark } from "@destack/service/bookmark";
 import type { ServiceContext } from "@destack/service/server";
 import { v7 } from "uuid";
 import { defineObject, field, method } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
-import { objectDatabase, request, task, taskVersion } from "./schema.ts";
+import { objectDatabase, task, taskVersion } from "./schema.ts";
 import { principal } from "@destack/access";
 import { openSpace, space } from "./fixture/space.ts";
-import { testJournalKey } from "@destack/service/test";
+import { testCallKey } from "@destack/service/test";
 
 /** The space containing the objects. */
 const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -44,15 +42,15 @@ test.each(TEST_DIALECTS)(
                 now: Date.now(),
                 attributes: {},
             }),
-            journal: new Journal(request, testJournalKey),
-            audit: AuditRecorder.service(new AuditOutbox(database), {
+            callKey: testCallKey,
+            origin: {
                 package: task.package,
                 service: "test",
-            }),
+            },
         });
         const context = {
             scope: spaceId,
-            requireCaller: () => ({ id: "user-1" }),
+            requireAuthentication: () => ({ id: "user-1" }),
             bookmark: new Bookmark(),
             observed: new Bookmark(),
         } as unknown as ServiceContext;

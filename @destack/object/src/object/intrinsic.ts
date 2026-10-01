@@ -1,7 +1,7 @@
 import type { TableMapping } from "@destack/access";
 import type { Table } from "@destack/db";
 import { proposal, relationship, role } from "./access.ts";
-import { auditEvent, auditTarget } from "./audit.ts";
+import { auditCall, auditTarget } from "./audit.ts";
 import { activity, checkpoint } from "./history.ts";
 
 /** The definition key holding an intrinsic object's table. */
@@ -20,7 +20,7 @@ export const Intrinsic = {
     role,
     relationship,
     proposal,
-    auditEvent,
+    auditCall,
     auditTarget,
     activity,
     checkpoint,

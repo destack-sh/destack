@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { createInsertSchema, eq } from "@destack/db";
+import { eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier } from "@destack/schema";
 import { v7 } from "uuid";
@@ -33,7 +33,7 @@ test.each(TEST_DIALECTS)(
 
         // reject a reference to an object of another type
         expect(
-            createInsertSchema(task.table).shape.origin.safeParse({
+            task.table.insertSchema().shape.origin.safeParse({
                 scope: origin.scope,
                 id: `comment-${v7()}`,
             }).success,

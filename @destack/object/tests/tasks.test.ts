@@ -1,22 +1,22 @@
-import { AuditOutbox } from "@destack/audit/outbox";
 import { ObjectServer } from "../src/server/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { AuditRecorder } from "@destack/audit";
 import { Condition } from "@destack/db/query";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { identifier } from "@destack/schema";
-import { Caller } from "@destack/service/authentication";
+import { Authentication } from "@destack/service/authentication";
 import { createClient } from "@destack/service/client";
 import { Health } from "@destack/service/health";
 import { RequestId } from "@destack/service/request";
 import { Server } from "@destack/service/server";
 import { v7 } from "uuid";
-import { tasksDatabase, tasksService, tasksJournal } from "./fixture/tasks.ts";
+import { project, tasksDatabase, tasksService } from "./fixture/tasks.ts";
+import { user } from "./schema.ts";
+import { ServiceError } from "@destack/service/error";
 import { principal } from "@destack/access";
 import { openSpace } from "./fixture/space.ts";
-import { testJournalKey } from "@destack/service/test";
+import { testCallKey } from "@destack/service/test";
 
 /** The space holding the projects. */
 const spaceId = identifier("space").parse(`space-${v7()}`);
@@ -35,13 +35,8 @@ test.each(TEST_DIALECTS)(
         // serve the space's tasks to users named by their bearer credential
         const server = Server.start({
             ...ObjectServer.serve(tasksService, {
-                journal: tasksJournal,
-                journalKey: testJournalKey,
+                callKey: testCallKey,
                 database,
-                audit: AuditRecorder.service(new AuditOutbox(database), {
-                    package: tasksService.package,
-                    service: "test",
-                }),
             }),
             audience,
             scope: spaceId,
@@ -54,7 +49,7 @@ test.each(TEST_DIALECTS)(
                 const subject = principal.user.reference("universe", id);
                 const now = Date.now();
 
-                return new Caller({
+                return new Authentication({
                     subject,
                     subjects: [subject],
                     credential: { kind: "user", id },
@@ -204,3 +199,62 @@ test.each(TEST_DIALECTS)(
         });
     },
 );
+
+test("serve a handled type in place of the service's own, and refuse one the service lacks", async () => {
+    const storage = await TestDatabase.create("sqlite", tasksDatabase, { isMigrated: true });
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, spaceId);
+
+    // run the handled project's create in place of the plain one
+    const frozen = project.handle({
+        create: async () => {
+            throw new ServiceError("CONFLICT", { message: "projects are frozen" });
+        },
+    });
+    const served = ObjectServer.serve(tasksService, {
+        callKey: testCallKey,
+        database: storage.database,
+        handled: [frozen],
+    });
+    const server = Server.start({
+        ...served,
+        audience,
+        scope: spaceId,
+        resources: new ResourceContext(),
+        health: new Health("tasks"),
+        drainTimeout: 1000,
+        authorizeHost: async () => {},
+        authenticate: async () => {
+            const subject = principal.user.reference("universe", "alice");
+
+            return new Authentication({
+                subject,
+                subjects: [subject],
+                credential: { kind: "user", id: "alice" },
+                audience,
+                scope: spaceId,
+                verifiedAt: Date.now(),
+                expiresAt: Date.now() + 60_000,
+            });
+        },
+    });
+    onTestFinished(() => server.close());
+    const alice = createClient(tasksService, {
+        url: "https://tasks.test",
+        fetch: (request: Request) => server.fetch(request),
+    });
+    await expect(
+        alice.project.create({ spaceId, requestId: RequestId.create(), name: "Launch" }),
+    ).rejects.toEqual(
+        new ServiceError("CONFLICT", { defined: true, message: "projects are frozen" }),
+    );
+
+    // refuse a handled type of no object the service serves
+    expect(() =>
+        ObjectServer.serve(tasksService, {
+            callKey: testCallKey,
+            database: storage.database,
+            handled: [user],
+        }),
+    ).toThrow(new TypeError("service tasks serves no object user"));
+});

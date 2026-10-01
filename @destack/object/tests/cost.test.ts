@@ -1,19 +1,17 @@
-import { AuditOutbox } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal } from "@destack/access";
-import { AuditRecorder } from "@destack/audit";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Bookmark } from "@destack/service/bookmark";
-import { Journal } from "@destack/service/database";
+
 import { RequestId } from "@destack/service/request";
 import type { ServiceContext } from "@destack/service/server";
 import { v7 } from "uuid";
 import type { ObjectType } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
-import { notebook, note, notesDatabase, notesJournal } from "./fixture/notes.ts";
+import { notebook, note, notesDatabase } from "./fixture/notes.ts";
 import { openSpace } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
-import { testJournalKey } from "@destack/service/test";
+import { testCallKey } from "@destack/service/test";
 
 test.for(TEST_DIALECTS)(
     "execute each kind of mutation within its statement budget on %s",
@@ -29,15 +27,15 @@ test.for(TEST_DIALECTS)(
                 now: Date.now(),
                 attributes: {},
             }),
-            journal: new Journal(notesJournal, testJournalKey),
-            audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+            callKey: testCallKey,
+            origin: {
                 package: notebook.package,
                 service: "test",
-            }),
+            },
         });
         const context = {
             scope: spaceId,
-            requireCaller: () => ({ id: "alice" }),
+            requireAuthentication: () => ({ id: "alice" }),
             bookmark: new Bookmark(),
             observed: new Bookmark(),
         } as unknown as ServiceContext;

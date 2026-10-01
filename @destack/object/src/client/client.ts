@@ -1,4 +1,5 @@
-import { objectKey, type Subject } from "@destack/access";
+import { ObjectReference } from "@destack/sync";
+import type { Subject } from "@destack/sync";
 import {
     and,
     asc,
@@ -24,14 +25,14 @@ import {
 import { Condition, Order, type Scalar } from "@destack/db/query";
 import { Expression } from "@destack/schema/expression";
 import { DatabaseError } from "@destack/db/error";
-import { schema } from "@destack/schema";
-import { canonicalize, digest } from "@destack/schema/json";
+import { Digest, Duration, schema } from "@destack/schema";
+import { canonicalize } from "@destack/schema/json";
 import type { Client } from "@destack/service";
 import { createClient, type ClientOptions } from "@destack/service/client";
 import type { Package } from "@destack/package";
 import { ServiceError } from "@destack/service/error";
 import { Moved } from "@destack/directory";
-import { Failure, Journal } from "@destack/service/database";
+import { Journal } from "@destack/audit";
 import { RequestId } from "@destack/service/request";
 import { Observable } from "@destack/service/observable";
 import { RetryPolicy } from "@destack/service/timer";
@@ -51,7 +52,6 @@ import {
     type ObjectInclude,
     type ReplicaProcedures,
 } from "../replica/replica.ts";
-import { Duration } from "../object/duration.ts";
 import { ObjectType, type ObjectStorage } from "../object/object.ts";
 
 import { Chunk } from "../text/chunk.ts";
@@ -219,7 +219,7 @@ export class ObjectClient {
     readonly #waiting = new Map<
         string,
         {
-            readonly resolve: (outcome: sync.Outcome) => void;
+            readonly resolve: (outcome: sync.MutationState) => void;
             readonly reject: (error: Error) => void;
         }
     >();
@@ -635,7 +635,7 @@ export class ObjectClient {
         signal: AbortSignal,
     ): AsyncGenerator<JsonValue> {
         // collect arriving events
-        const topic = objectKey(object.reference(this.scope, id));
+        const topic = ObjectReference.key(object.reference(this.scope, id));
         const arrived: JsonValue[] = [];
         let wake = () => {};
         const listener = (event: JsonValue) => {
@@ -764,7 +764,7 @@ export class ObjectClient {
                 );
                 let isHeld = false;
                 let isGrown = false;
-                for await (const page of replica.apply(this.database, pages, prediction)) {
+                for await (const page of replica.apply(this.database, pages, { prediction })) {
                     // reset failures and deliver broadcasts
                     failures = 0;
                     for (const { topic, event } of page.broadcasts ?? []) {
@@ -942,7 +942,7 @@ export class ObjectClient {
     ): Promise<void> {
         // find the query's closed subscriptions
         const part = this.#part(object, query);
-        const name = (await digest(part.query)).slice(0, QUERY_NAME_LENGTH);
+        const name = (await Digest.json(part.query)).slice(0, QUERY_NAME_LENGTH);
         const closed = await this.database
             .select({ id: subscription.id })
             .from(subscription)
@@ -997,7 +997,7 @@ export class ObjectClient {
         edits: ReadonlySet<string>,
     ): Promise<void> {
         // sort outcomes
-        const rejected: { readonly id: string; readonly error: unknown }[] = [];
+        const rejected: { readonly id: string; readonly error: sync.Failure }[] = [];
         for (const { id, outcome } of outcomes) {
             // acknowledge an executed mutation
             if ("value" in outcome) {
@@ -1023,7 +1023,7 @@ export class ObjectClient {
                     transaction,
                     rejected.map((entry) => entry.id),
                 );
-                await transaction.log.copying(() => this.prediction.revert(transaction));
+                await transaction.log.asReplica(() => this.prediction.revert(transaction));
                 await this.prediction.replay(transaction, []);
             });
         }
@@ -1032,7 +1032,7 @@ export class ObjectClient {
     /** Wait for a mutation's outcome, failing with the server's rejection. */
     async outcome(id: string): Promise<void> {
         // wait for the settle loop
-        const outcome = await new Promise<sync.Outcome>((resolve, reject) => {
+        const outcome = await new Promise<sync.MutationState>((resolve, reject) => {
             this.#waiting.set(id, { resolve, reject });
             if (this.#settling === undefined) {
                 this.#settling = this.#settle();
@@ -1042,8 +1042,7 @@ export class ObjectClient {
         // throw a rejection once
         if (outcome.kind === "rejected") {
             await this.outbox.forget(this.database, this.origin, id);
-            const { code, status, message, data } = Failure.parse(outcome.error);
-            throw new ServiceError(code, { status, message, data });
+            throw new ServiceError(outcome.error.code, outcome.error);
         }
     }
 
@@ -1381,7 +1380,7 @@ export class ObjectClient {
         // subscribe the part's query
         const id = RequestId.create();
         const named = (async () => {
-            const name = (await digest(part.query)).slice(0, QUERY_NAME_LENGTH);
+            const name = (await Digest.json(part.query)).slice(0, QUERY_NAME_LENGTH);
             await this.database.insert(subscription).values({
                 id,
                 origin: this.origin,
@@ -1647,8 +1646,7 @@ export class ObjectClient {
         // throw a failure or return the result
         const outcome = outcomes[0]!.outcome;
         if (!("value" in outcome)) {
-            const { code, status, message, data } = Failure.parse(outcome.error);
-            throw new ServiceError(code, { status, message, data });
+            throw new ServiceError(outcome.error.code, outcome.error);
         }
 
         return (outcome.value as unknown[])[0];

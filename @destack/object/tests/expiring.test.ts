@@ -1,15 +1,14 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { reconciliation, testJournalKey } from "@destack/service/test";
+import { reconciliation, testCallKey } from "@destack/service/test";
 import { principal, relation } from "@destack/access";
-import { AuditRecorder } from "@destack/audit";
-import { AuditOutbox } from "@destack/audit/outbox";
+import { journal } from "@destack/audit";
 import { eq } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { Condition } from "@destack/db/query";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier } from "@destack/schema";
 import { Bookmark } from "@destack/service/bookmark";
-import { defineJournal, Journal } from "@destack/service/database";
+
 import { RequestId } from "@destack/service/request";
 import type { ServiceContext } from "@destack/service/server";
 import { defineObject, expiring, field, method } from "../src/index.ts";
@@ -41,9 +40,6 @@ const alert = defineObject({
     methods: { get: method.get("read"), create: method.create("write", { fields: ["title"] }) },
 });
 
-/** Replayable alert requests. */
-const journal = defineJournal("journal");
-
 /** The database holding the alerts, their access and the journal. */
 const alertDatabase = defineDatabase({
     name: "main",
@@ -65,15 +61,15 @@ test.each(TEST_DIALECTS)(
                 now: Date.now(),
                 attributes: {},
             }),
-            journal: new Journal(journal, testJournalKey),
-            audit: AuditRecorder.service(new AuditOutbox(database), {
+            callKey: testCallKey,
+            origin: {
                 package: alert.package,
                 service: "test",
-            }),
+            },
         });
         const context = {
             scope: spaceId,
-            requireCaller: () => ({ id: "user-1" }),
+            requireAuthentication: () => ({ id: "user-1" }),
             bookmark: new Bookmark(),
             observed: new Bookmark(),
         } as unknown as ServiceContext;
@@ -113,7 +109,7 @@ test.each(TEST_DIALECTS)(
             left.map((row) => row.id),
             await auditedActions(database, "system"),
             delay! > 28 * DAY && delay! <= 29 * DAY,
-        ]).toEqual([[kept], ["Alert.expire", "Alert.expire"], true]);
+        ]).toEqual([[kept], ["alert.expire", "alert.expire"], true]);
     },
 );
 

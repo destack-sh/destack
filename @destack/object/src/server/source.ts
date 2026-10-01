@@ -1,14 +1,12 @@
-import { objectKey, type Subject } from "@destack/access";
-import { Scope, type ObjectReference } from "@destack/sync";
+import { AuditCall } from "@destack/audit";
+import { Scope, ObjectReference, type Subject } from "@destack/sync";
 import { LogPosition, Snapshot } from "@destack/db/log";
 
 import { TABLE, type JsonValue, type Table } from "@destack/db";
 import { Condition } from "@destack/db/query";
-import { digest } from "@destack/schema/json";
 
-import { schema } from "@destack/schema";
+import { Digest, Duration, schema } from "@destack/schema";
 
-import { Outcome } from "@destack/service/database";
 import { ServiceError } from "@destack/service/error";
 
 import { type ServiceContext } from "@destack/service/server";
@@ -21,7 +19,6 @@ import { ObjectType, REPLICATE, REPRESENT } from "../object/object.ts";
 import { Authorization } from "./authorization.ts";
 
 import { EphemeralStorage } from "./ephemeral.ts";
-import { Duration } from "../object/duration.ts";
 import { ObjectAudience } from "./audience.ts";
 
 import type { Controller } from "@destack/service/control";
@@ -195,7 +192,7 @@ export class ObjectSource {
         const audience = await ObjectAudience.open(this.server, scope, context);
 
         // follow the caller's journal
-        const caller = context.caller?.id;
+        const caller = context.authentication?.id;
         const journal: Record<string, sync.Query> =
             caller === undefined
                 ? {}
@@ -349,7 +346,7 @@ export class ObjectSource {
     controller(replicas: ObjectReplicas): Controller {
         // list the requests again once the scopes above change
         const keyOf = async (request: Omit<sync.ReplicaRequest, "after">) =>
-            `${request.name} ${request.scope} ${await digest(request)}`;
+            `${request.name} ${request.scope} ${await Digest.json(request)}`;
 
         return {
             name: "replica",
@@ -591,7 +588,7 @@ export class ObjectSource {
                 const broadcasts: sync.Broadcast[] = [];
                 for (const sent of received.splice(0)) {
                     const { event, ...reference } = sent as ObjectReference & { event: JsonValue };
-                    const topic = objectKey(reference);
+                    const topic = ObjectReference.key(reference);
                     let isRead = readable.get(topic);
                     if (isRead === undefined) {
                         isRead = await this.#lists(authorization, reference);
@@ -683,20 +680,20 @@ function withOutcomes(
         : settledPage;
 }
 
-/** Read the mutation outcome a journal change records. */
+/** Read the mutation outcome a journal change records: its first call's success, or its final failure. */
 function settled(change: sync.RowChange): sync.MutationOutcome[] {
-    // skip removed entries and claims without an outcome
-    if (
-        change.operation === "delete" ||
-        change.row.outcome === null ||
-        change.row.outcome === undefined
-    ) {
+    // skip removed calls and calls no retry replays
+    if (change.operation === "delete" || change.row.request === null) {
         return [];
     }
 
-    // read the outcome
-    const outcome = Outcome.parse(change.row.outcome);
-    const id = schema.string().parse(change.row.requestId);
+    // read the outcome once per mutation
+    const call = AuditCall.parse(change.row.call);
+    const { requestId, outcome } = call.execution;
+    const id = schema.string().parse(requestId);
+    if (outcome?.kind === "success") {
+        return change.row.position === 0 ? [{ id }] : [];
+    }
 
-    return "error" in outcome ? [{ id, error: outcome.error }] : [{ id }];
+    return outcome === undefined ? [] : [{ id, error: outcome.error }];
 }

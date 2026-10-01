@@ -1,19 +1,17 @@
-import { AuditOutbox } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import { AuditRecorder } from "@destack/audit";
+import { journal } from "@destack/audit";
 import { unique } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier, schema } from "@destack/schema";
-import { Journal } from "@destack/service/database";
+
 import { RequestId } from "@destack/service/request";
 import { Bookmark } from "@destack/service/bookmark";
 import type { ServiceContext } from "@destack/service/server";
 import { defineObject, field, method } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
-import { request } from "./schema.ts";
 import { openSpace, space } from "./fixture/space.ts";
-import { testJournalKey } from "@destack/service/test";
+import { testCallKey } from "@destack/service/test";
 
 /** The public space containing the handles. */
 const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -42,7 +40,7 @@ const handle = defineObject({
 test.each(TEST_DIALECTS)(
     "report a create's conflicts only to callers the create permission admits, inside spaces they read, on %s",
     async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [...handle.tables, request], {
+        const storage = await TestDatabase.create(dialect, [...handle.tables, journal], {
             isMigrated: true,
         });
         onTestFinished(() => storage.close());
@@ -61,17 +59,17 @@ test.each(TEST_DIALECTS)(
                 attributes: {},
                 assurance: { level, authenticatedAt: Date.now() },
             }),
-            journal: new Journal(request, testJournalKey),
-            audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+            callKey: testCallKey,
+            origin: {
                 package: handle.package,
                 service: "test",
-            }),
+            },
         });
         const create = (user: string, input: Record<string, unknown>, scope = spaceId) => {
             current = user;
             const context = {
                 scope,
-                requireCaller: () => ({ id: user }),
+                requireAuthentication: () => ({ id: user }),
                 bookmark: new Bookmark(),
                 observed: new Bookmark(),
             } as unknown as ServiceContext;
@@ -150,7 +148,7 @@ const team = defineObject({
 });
 
 test("create an object the caller holds the permission on only as the creator its creation relates", async () => {
-    const storage = await TestDatabase.create("sqlite", [request, ...team.tables], {
+    const storage = await TestDatabase.create("sqlite", [journal, ...team.tables], {
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
@@ -163,15 +161,15 @@ test("create an object the caller holds the permission on only as the creator it
             now: Date.now(),
             attributes: {},
         }),
-        journal: new Journal(request, testJournalKey),
-        audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+        callKey: testCallKey,
+        origin: {
             package: team.package,
             service: "test",
-        }),
+        },
     });
     const context = {
         scope: spaceId,
-        requireCaller: () => ({ id: "alice" }),
+        requireAuthentication: () => ({ id: "alice" }),
         bookmark: new Bookmark(),
         observed: new Bookmark(),
     } as unknown as ServiceContext;

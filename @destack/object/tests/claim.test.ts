@@ -1,33 +1,32 @@
 import { outbox } from "@destack/service/outbox";
-import { AuditOutbox } from "@destack/audit/outbox";
 import { Scope } from "@destack/sync";
 import { Snapshot } from "@destack/db/log";
 import { ClaimController, ObjectServer } from "../src/server/index.ts";
 import { defineObject, field } from "../src/index.ts";
 import {
     directoryTables,
-    DirectoryDatabase,
+    DirectoryStore,
     RESERVATION_MILLISECONDS,
     type Directory,
 } from "@destack/directory";
 import { expect, onTestFinished, test } from "@destack/test";
-import { AuditRecorder } from "@destack/audit";
+import { vi } from "vitest";
 import type { Dialect } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { identifier } from "@destack/schema";
-import { Caller } from "@destack/service/authentication";
+import { Authentication } from "@destack/service/authentication";
 import { createClient } from "@destack/service/client";
 import { Health } from "@destack/service/health";
 import { RequestId } from "@destack/service/request";
 import { Server } from "@destack/service/server";
 import { v7 } from "uuid";
-import { profile, profilesDatabase, profilesJournal, profilesService } from "./fixture/profiles.ts";
+import { profile, profilesDatabase, profilesService } from "./fixture/profiles.ts";
 import { none, principal } from "@destack/access";
 import { copyScope } from "@destack/access/test";
 import { openSpace } from "./fixture/space.ts";
-import { testJournalKey } from "@destack/service/test";
+import { testCallKey } from "@destack/service/test";
 
 /** The package serving the profiles. */
 const audience = PackageId.parse("package-01a0d5eb-fb8a-74f4-ba37-8a4d6970e239");
@@ -39,7 +38,7 @@ test.each(TEST_DIALECTS)(
             isMigrated: true,
         });
         onTestFinished(() => storage.close());
-        const directory = new DirectoryDatabase(storage.database);
+        const directory = new DirectoryStore(storage.database);
         const east = await serveProfiles(dialect, directory);
         const west = await serveProfiles(dialect, directory);
         const handle = async (name: string) =>
@@ -92,9 +91,7 @@ test.each(TEST_DIALECTS)(
         expect(await handle("ada")).toBeUndefined();
 
         // keep no reservation once every owner let go: the failed claim left none behind
-        expect(await directory.expired([profile.index("handle")], Number.MAX_SAFE_INTEGER)).toEqual(
-            { claims: [] },
-        );
+        expect(await directory.expired([profile.index("handle")])).toEqual({ claims: [] });
     },
 );
 
@@ -105,7 +102,7 @@ test.each(TEST_DIALECTS)(
             isMigrated: true,
         });
         onTestFinished(() => storage.close());
-        const directory = new DirectoryDatabase(storage.database);
+        const directory = new DirectoryStore(storage.database);
         const east = await serveProfiles(dialect, directory);
         const handle = async (name: string) =>
             (await profile.lookup(directory, "handle", [name]))?.id;
@@ -135,33 +132,38 @@ test.each(TEST_DIALECTS)(
                 row,
                 Snapshot.live(east.database),
             );
-            await directory.replace(owned, `change-${change.sequence}`, change.changedAt);
+
+            return directory.replace(owned, `change-${change.sequence}`);
         };
         await replace(0);
         expect(await handle("carol")).toBe(changes[0]!.key.id);
-        await expect(replace(1)).rejects.toMatchObject({
-            code: "CONFLICT",
-            message: `handle of profile ${changes[1]!.key.id} is taken by ${changes[0]!.key.id}`,
-        });
+        expect(await replace(1)).toEqual([
+            {
+                index: profile.index("handle"),
+                key: '[null,"carol"]',
+                objectId: changes[1]!.key.id,
+                scope: east.spaceId,
+            },
+        ]);
 
         // keep an existing object's claim, release a failed one, and wait for the later one
         const kept = identifier("profile").parse(`profile-${v7()}`);
         await east.database.insert(profile.table).values({ ...row, id: kept, handle: "kept" });
         const reserved = { index: profile.index("handle"), scope: east.spaceId };
-        const expired = now - RESERVATION_MILLISECONDS;
+        vi.useFakeTimers({ toFake: ["Date"], now: now - RESERVATION_MILLISECONDS });
         await directory.claim(
             [
                 { ...reserved, key: '[null,"kept"]', objectId: kept },
                 { ...reserved, key: '[null,"lost"]', objectId: `profile-${v7()}` },
             ],
             "request",
-            expired,
         );
+        vi.setSystemTime(now - RESERVATION_MILLISECONDS + 1000);
         await directory.claim(
             [{ ...reserved, key: '[null,"later"]', objectId: `profile-${v7()}` }],
             "request",
-            expired + 1000,
         );
+        vi.useRealTimers();
 
         // finish the expired reservations through the controller, looking again at the later one
         const controller = new ClaimController(directory, east.database, [profile]);
@@ -187,14 +189,9 @@ async function serveProfiles(dialect: Dialect, directory: Directory) {
     // authenticate each request as the user its bearer credential names
     const server = Server.start({
         ...ObjectServer.serve(profilesService, {
-            journal: profilesJournal,
-            journalKey: testJournalKey,
+            callKey: testCallKey,
             database: storage.database,
             directory,
-            audit: AuditRecorder.service(new AuditOutbox(storage.database), {
-                package: profilesService.package,
-                service: "test",
-            }),
         }),
         audience,
         scope: spaceId,
@@ -207,7 +204,7 @@ async function serveProfiles(dialect: Dialect, directory: Directory) {
             const subject = principal.user.reference("universe", id);
             const now = Date.now();
 
-            return new Caller({
+            return new Authentication({
                 subject,
                 subjects: [subject],
                 credential: { kind: "user", id },

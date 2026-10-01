@@ -1,18 +1,16 @@
-import { AuditOutbox } from "@destack/audit/outbox";
-import { reconciliation, testJournalKey } from "@destack/service/test";
+import { reconciliation, testCallKey } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { none, principal, relation, through } from "@destack/access";
-import { AuditRecorder } from "@destack/audit";
+import { journal } from "@destack/audit";
 import { copyScope, suspendCopy } from "@destack/access/test";
 import { asc, type DatabaseConnection } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier } from "@destack/schema";
-import { Journal } from "@destack/service/database";
+
 import { Replica, Scope } from "@destack/sync";
 import { defineObject, field, method } from "../src/index.ts";
 import { ObjectServer, SystemAuthorization } from "../src/server/index.ts";
-import { request } from "./schema.ts";
 
 /** The space the copies are kept for. */
 const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
@@ -53,18 +51,18 @@ function serve(
         objects: { person, profile },
         database,
         ...(replicas === undefined ? {} : { replicas }),
-        journal: new Journal(request, testJournalKey),
-        audit: AuditRecorder.service(new AuditOutbox(database), {
+        callKey: testCallKey,
+        origin: {
             package: person.package,
             service: "test",
-        }),
+        },
     });
 }
 
 test.each(TEST_DIALECTS)(
     "copy the profiles in the scopes of the people a space reads, each decided in its person's scope, on %s",
     async (dialect) => {
-        const tables = [...person.tables, ...profile.tables, request];
+        const tables = [...person.tables, ...profile.tables, journal];
         const home = await TestDatabase.create(dialect, tables, { isMigrated: true });
         const regional = defineDatabase({ name: "cell", tier: "regional", tables });
         const cell = await TestDatabase.create(dialect, regional, { isMigrated: true });

@@ -1,22 +1,20 @@
-import { AuditOutbox } from "@destack/audit/outbox";
 import { ObjectServer } from "../../src/server/index.ts";
 import { onTestFinished } from "@destack/test";
-import { AuditRecorder } from "@destack/audit";
 import { isNull, type Dialect } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../../src/client/index.ts";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { identifier } from "@destack/schema";
-import { Caller } from "@destack/service/authentication";
+import { Authentication } from "@destack/service/authentication";
 import { createClient, type ClientOptions } from "@destack/service/client";
 import { Health } from "@destack/service/health";
 import { Server, type ServiceImplementation } from "@destack/service/server";
 import { v7 } from "uuid";
-import { note, notebook, notesDatabase, notesService, notesJournal } from "./notes.ts";
+import { note, notebook, notesDatabase, notesService } from "./notes.ts";
 import { principal } from "@destack/access";
 import { openSpace, unmoved } from "./space.ts";
-import { testJournalKey } from "@destack/service/test";
+import { testCallKey } from "@destack/service/test";
 
 /** The space holding the notes. */
 export const spaceId = identifier("space").parse(`space-${v7()}`);
@@ -35,13 +33,8 @@ export async function serveNotes(dialect: Dialect) {
     // serve the notes over HTTP to bearer-named users
     const served = serveObjects(
         ObjectServer.serve(notesService, {
-            journal: notesJournal,
-            journalKey: testJournalKey,
+            callKey: testCallKey,
             database,
-            audit: AuditRecorder.service(new AuditOutbox(database), {
-                package: notesService.package,
-                service: "test",
-            }),
         }),
         spaceId,
     );
@@ -67,7 +60,7 @@ export function serveObjects(implementation: ServiceImplementation, scope: strin
             const subject = principal.user.reference("universe", id);
             const now = Date.now();
 
-            return new Caller({
+            return new Authentication({
                 subject,
                 subjects: [subject],
                 credential: { kind: "user", id },

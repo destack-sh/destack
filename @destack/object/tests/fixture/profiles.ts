@@ -1,8 +1,8 @@
 import { schema } from "@destack/schema";
+import { journal } from "@destack/audit";
 import { principal, relation } from "@destack/access";
 import { defineDatabase } from "@destack/db/declare";
 import { defineService } from "@destack/service";
-import { defineJournal } from "@destack/service/database";
 import { defineObject, field, method } from "../../src/index.ts";
 import { space } from "./space.ts";
 
@@ -28,11 +28,8 @@ export const profile = defineObject({
 /** Profiles, with handles the directory keeps unique. */
 export const profilesService = defineService("profiles", { objects: { profile } });
 
-/** Replayable method requests. */
-export const profilesJournal = defineJournal("journal");
-
 /** The database of one space's profiles. */
 export const profilesDatabase = defineDatabase({
     name: "main",
-    tables: [...profile.tables, profilesJournal],
+    tables: [...profile.tables, journal],
 });

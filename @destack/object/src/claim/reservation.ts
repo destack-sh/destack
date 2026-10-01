@@ -24,13 +24,12 @@ export class Reservation {
         transaction: DatabaseConnection,
         objects: readonly ObjectType[],
         requestId: string,
-        now: number,
     ): Promise<Reservation> {
         // reserve every written object's claims
         const owned = await ObjectType.written(transaction, objects);
         const claims = owned.flatMap((entry) => entry.claims);
         if (claims.length > 0) {
-            await directory.claim(claims, requestId, now);
+            ObjectType.refuse(objects, await directory.claim(claims, requestId));
         }
 
         return new Reservation(directory, requestId, owned);

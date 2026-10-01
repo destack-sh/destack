@@ -1,20 +1,18 @@
-import { AuditOutbox } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
-import { AuditRecorder } from "@destack/audit";
 import { eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import type { QueryPage } from "@destack/sync";
 import { identifier } from "@destack/schema";
-import { Journal } from "@destack/service/database";
+
 import { RequestId } from "@destack/service/request";
 import { Bookmark } from "@destack/service/bookmark";
 import type { ServiceContext } from "@destack/service/server";
 import { v7 } from "uuid";
 import { ObjectServer } from "../src/server/index.ts";
-import { comment, folder, objectDatabase, request, task, taskVersion, team } from "./schema.ts";
+import { comment, folder, objectDatabase, task, taskVersion, team } from "./schema.ts";
 import { principal } from "@destack/access";
 import { openSpace } from "./fixture/space.ts";
-import { testJournalKey } from "@destack/service/test";
+import { testCallKey } from "@destack/service/test";
 
 /** How long a short grant lasts, in milliseconds. */
 const GRANT_MILLISECONDS = 300;
@@ -57,17 +55,17 @@ async function serveTasks(dialect: (typeof TEST_DIALECTS)[number]) {
             now: Date.now(),
             attributes: {},
         }),
-        journal: new Journal(request, testJournalKey),
-        audit: AuditRecorder.service(new AuditOutbox(database), {
+        callKey: testCallKey,
+        origin: {
             package: task.package,
             service: "test",
-        }),
+        },
     });
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
     const context = {
         scope: spaceId,
-        requireCaller: () => ({ id: current }),
+        requireAuthentication: () => ({ id: current }),
         bookmark: new Bookmark(),
         observed: new Bookmark(),
         signal: controller.signal,

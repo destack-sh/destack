@@ -1,34 +1,28 @@
 import {
     Authorizer,
-    principalOf,
-    type Subject,
-    type AccessContext,
+    AccessContext,
     type GrantReader,
     Policy,
     type Access,
     type TableMapping,
+    Caller,
 } from "@destack/access";
-import { Scope, type ScopeLink } from "@destack/sync";
+import { Scope, type ScopeLink, type Subject } from "@destack/sync";
 import { LogPosition, Snapshot } from "@destack/db/log";
-import { AuditRecorder } from "@destack/audit";
 import {
-    encodeRow,
-    eq,
-    TABLE,
-    type DatabaseConnection,
-    type JsonValue,
-    type Table,
-} from "@destack/db";
+    AuditRecorder,
+    Journal,
+    type AuditDestination,
+    type AuditOrigin,
+    type CallRequest,
+} from "@destack/audit";
+import type { CallKey } from "@destack/service/request";
+import { eq, TABLE, type DatabaseConnection, type JsonValue, type Table } from "@destack/db";
 
 import { DatabaseError } from "@destack/db/error";
 import { schema } from "@destack/schema";
 import type { Watermark } from "@destack/service/bookmark";
-import {
-    CompactionController,
-    Journal,
-    type JournalKey,
-    type defineJournal,
-} from "@destack/service/database";
+import { CompactionController } from "@destack/service/database";
 import { ServiceError } from "@destack/service/error";
 import { type RequestIdentity } from "@destack/service/request";
 import { v7 } from "uuid";
@@ -38,6 +32,7 @@ import {
     type ServiceAccess,
     type ServiceContext,
     type ServiceImplementation,
+    type ProcedureCall,
 } from "@destack/service/server";
 import { type Service } from "@destack/service";
 import * as sync from "@destack/sync";
@@ -54,12 +49,11 @@ import {
 import { ObjectType } from "../object/object.ts";
 import { ObjectController } from "../object/controller.ts";
 import { Chunk, CHUNKS } from "../text/chunk.ts";
-import { camelCase } from "../object/name.ts";
 import { Authorization, SystemAuthorization } from "./authorization.ts";
-import { WatchController } from "./watch.ts";
+import { ChangeController } from "./change.ts";
 import { Outbox } from "@destack/service/outbox";
 import type { Directory } from "@destack/directory";
-import { DirectoryDatabase } from "@destack/directory";
+import { DirectoryStore } from "@destack/directory";
 import { ClaimController, Reservation } from "../claim/index.ts";
 import { EphemeralStorage } from "./ephemeral.ts";
 import { ObjectSource } from "./source.ts";
@@ -69,7 +63,7 @@ import { recoverable } from "../trait/recoverable.ts";
 import { expiring } from "../trait/expiring.ts";
 import { addressed } from "../trait/addressed.ts";
 import type { Controller } from "@destack/service/control";
-import type { RunClient, TriggerOf } from "@destack/service/trigger";
+import { Trigger, type ChangeTrigger, type RunClient } from "@destack/service/trigger";
 
 import { Settlement } from "./settlement.ts";
 import { telemetry } from "@destack/telemetry";
@@ -115,6 +109,8 @@ type CallOptions = {
     readonly as?: Subject;
     /** The calls the method's expansion ran before it. */
     readonly expansion?: readonly BranchCall[];
+    /** The request the call belongs to. */
+    readonly request?: CallRequest;
 };
 
 /** The routers of served object types by name, and the replica procedures. */
@@ -142,10 +138,12 @@ export class ObjectServer<
     readonly ephemeral?: EphemeralStorage;
     /** The copies the database keeps, and the source streaming them. */
     readonly replicas?: ObjectReplicas;
-    /** The cell recording the objects' runs: the calls methods send, and the calls of the objects' watches. */
+    /** The cell recording the objects' runs: the calls methods send, and the calls of their change triggers. */
     readonly runs?: RunClient;
-    /** The watches of the served objects, each change they admit recorded as a run. */
-    readonly watches: readonly TriggerOf<"watch">[];
+    /** The change triggers of the served objects, each change they admit recorded as a run. */
+    readonly triggers: readonly ChangeTrigger[];
+    /** The audit history the journal delivers calls to, absent where another server delivers them. */
+    readonly #history?: AuditDestination;
     /** The outbox delivering the calls methods send, absent where no cell records runs. */
     readonly #sends?: Outbox;
     /** Derive a request's verified authorization inputs within a scope. */
@@ -179,23 +177,22 @@ export class ObjectServer<
         readonly database: DatabaseConnection;
         /** Derive a request's verified authorization inputs within a scope, the request's own access by default. */
         readonly context?: (context: ServiceContext, scope: string) => AccessContext;
-        /** The record of every mutation executed. */
-        readonly journal: Journal;
+        /** The key sensitive call inputs are fingerprinted under in the journal. */
+        readonly callKey: CallKey;
+        /** The package and service recording the calls. */
+        readonly origin: Omit<AuditOrigin, "scope">;
+        /** The audit history the journal delivers calls to, absent where another server delivers them. */
+        readonly history?: AuditDestination;
         /** The directory holding the claims of unique indexes, in the global database. */
         readonly directory?: Directory;
         /** The memory store holding the served ephemeral objects. */
         readonly ephemeral?: EphemeralStorage;
         /** The copies the database keeps, and the source streaming them. */
         readonly replicas?: ObjectReplicas;
-        /** The cell recording the objects' runs: the calls methods send, and the calls of the objects' watches. */
+        /** The cell recording the objects' runs: the calls methods send, and the calls of their change triggers. */
         readonly runs?: RunClient;
-        /** The watches of the served objects, which need a cell recording their runs. */
-        readonly watches?: readonly TriggerOf<"watch">[];
-        /** Open an audit recorder for a scope and request. */
-        readonly audit: (
-            scope: string,
-            context?: ServiceContext,
-        ) => AuditRecorder<DatabaseConnection>;
+        /** The triggers of the served objects' package, whose change triggers need a cell recording their runs. */
+        readonly triggers?: readonly Trigger[];
         /** Report failed settlements, thrown when absent. */
         readonly report?: (error: unknown) => void;
         /** Whether reads of the objects record access events, as the space's audit setting asks. */
@@ -207,7 +204,7 @@ export class ObjectServer<
     }) {
         // require each object type under its own name
         for (const [key, object] of Object.entries(options.objects)) {
-            if (key !== camelCase(object.name)) {
+            if (key !== object.key) {
                 throw new TypeError(`object ${object.name} is served under ${key}`);
             } else if (Object.hasOwn(object.shared, key)) {
                 throw new TypeError(
@@ -225,7 +222,7 @@ export class ObjectServer<
                 `object ${indexed.name} declares indexes but no directory keeps their claims`,
             );
         } else if (
-            options.directory instanceof DirectoryDatabase &&
+            options.directory instanceof DirectoryStore &&
             options.directory.database === options.database
         ) {
             throw new TypeError(
@@ -242,9 +239,11 @@ export class ObjectServer<
             this.runs = options.runs;
             this.#sends = new Outbox(options.database);
         }
-        this.watches = options.watches ?? [];
-        if (this.watches.length > 0 && options.runs === undefined) {
-            throw new TypeError("watches need a cell recording their runs");
+        this.triggers = (options.triggers ?? []).flatMap(
+            (trigger) => Trigger.of(trigger, "change") ?? [],
+        );
+        if (this.triggers.length > 0 && options.runs === undefined) {
+            throw new TypeError("change triggers need a cell recording their runs");
         }
 
         // require a store for ephemeral objects
@@ -283,9 +282,10 @@ export class ObjectServer<
             { copies: (table) => options.database.copies(table) },
         );
         tracked.require(this.objects, this.authorizer);
-        this.journal = options.journal;
+        this.journal = new Journal(options.database, options.callKey);
         this.accessContext = options.context ?? ((context, scope) => context.access(scope));
-        this.audit = options.audit;
+        this.audit = AuditRecorder.service(this.journal, options.origin);
+        this.#history = options.history;
         this.isAccessAudited = options.isAccessAudited ?? false;
         this.source = new ObjectSource(this as ObjectServer);
         this.clock = options.clock ?? Date.now;
@@ -301,7 +301,7 @@ export class ObjectServer<
                     .filter((object) => object.storage === "durable")
                     .flatMap((object) => object.tables),
             ),
-            options.journal.table,
+            this.journal.table,
         ]);
         this.#schemas = new Map(
             this.objects.map((object) => [object.name, { object, schema: object.schema }]),
@@ -314,15 +314,10 @@ export class ObjectServer<
         options: {
             /** The database holding the objects. */
             readonly database: DatabaseConnection;
-            /** The service's journal. */
-            readonly journal: ReturnType<typeof defineJournal>;
-            /** Read the deployment's key that sensitive inputs are fingerprinted under. */
-            readonly journalKey: JournalKey;
-            /** Open an audit recorder for a scope and request. */
-            readonly audit: (
-                scope: string,
-                context?: ServiceContext,
-            ) => AuditRecorder<DatabaseConnection>;
+            /** The key sensitive call inputs are fingerprinted under in the journal. */
+            readonly callKey: CallKey;
+            /** The audit history the journal delivers calls to. */
+            readonly history?: AuditDestination;
             /** The directory holding the claims of the objects' unique indexes. */
             readonly directory?: Directory;
             /** The memory store holding the ephemeral objects. */
@@ -331,21 +326,24 @@ export class ObjectServer<
             readonly controllers?: readonly Controller[];
             /** The source of the copies of the objects' space: its chain, and what its objects point at. */
             readonly replicas?: { readonly scope: string; readonly source: sync.ReplicaSource };
-            /** The cell recording the objects' runs: the calls methods send, and the calls of the objects' watches. */
+            /** The cell recording the objects' runs: the calls methods send, and the calls of their change triggers. */
             readonly runs?: RunClient;
-            /** The watches of the served objects. */
-            readonly watches?: readonly TriggerOf<"watch">[];
+            /** The triggers of the served objects' package. */
+            readonly triggers?: readonly Trigger[];
             /** The scope's branch types, among the served objects. */
             readonly branch?: BranchType;
+            /** The handled types served in place of the service's own of the same tables. */
+            readonly handled?: readonly ObjectType[];
         },
     ): ServiceImplementation {
-        // serve the service's objects, keeping the copies of their space
+        // serve the service's objects with their handlers, keeping the copies of their space
         const replicas = options.replicas;
         const objects: ObjectServer = new ObjectServer({
-            objects: service.objects as Readonly<Record<string, ObjectType>>,
+            objects: ObjectServer.#handle(service, options.handled ?? []),
             database: options.database,
-            audit: options.audit,
-            journal: new Journal(options.journal, options.journalKey),
+            callKey: options.callKey,
+            origin: { package: service.package, service: service.name },
+            ...(options.history === undefined ? {} : { history: options.history }),
             ...(options.branch === undefined ? {} : { branch: options.branch }),
             ...(options.directory === undefined ? {} : { directory: options.directory }),
             ...(options.ephemeral === undefined ? {} : { ephemeral: options.ephemeral }),
@@ -359,10 +357,30 @@ export class ObjectServer<
                       },
                   }),
             ...(options.runs === undefined ? {} : { runs: options.runs }),
-            ...(options.watches === undefined ? {} : { watches: options.watches }),
+            ...(options.triggers === undefined ? {} : { triggers: options.triggers }),
         });
 
         return objects.implement(service, options.controllers);
+    }
+
+    /** Replace a service's object types with the handled ones of the same tables, refusing handled types it lacks. */
+    static #handle(
+        service: Service,
+        handled: readonly ObjectType[],
+    ): Readonly<Record<string, ObjectType>> {
+        // refuse a handled type the service does not serve
+        const own = service.objects as Readonly<Record<string, ObjectType>>;
+        const stray = handled.find((type) => !Object.values(own).some((each) => each.same(type)));
+        if (stray !== undefined) {
+            throw new TypeError(`service ${service.name} serves no object ${stray.name}`);
+        }
+
+        return Object.fromEntries(
+            Object.entries(own).map(([key, type]) => [
+                key,
+                handled.find((each) => each.same(type)) ?? type,
+            ]),
+        );
     }
 
     /** Implement a service with the served objects' access, audit, controllers and router, running further controllers alongside. */
@@ -370,8 +388,8 @@ export class ObjectServer<
         return {
             service,
             access: this.access,
-            audit: AuditRecorder.procedure(({ context }) =>
-                this.audit(context.scope ?? Scope.universe.id, context),
+            audit: AuditRecorder.procedure((call) =>
+                this.audit(this.#procedureScope(call) ?? Scope.universe.id, call.context),
             ),
             controllers: [...this.controllers(), ...controllers],
             router: this.router(),
@@ -388,7 +406,7 @@ export class ObjectServer<
     router(): ObjectRouter<Objects> {
         const routers: Record<string, unknown> = { replica: this.#replica() };
         for (const object of this.#routed) {
-            routers[camelCase(object.name)] = this.#route(object);
+            routers[object.key] = this.#route(object);
         }
 
         return routers as ObjectRouter<Objects>;
@@ -594,7 +612,7 @@ export class ObjectServer<
 
         // identify the mutation by caller, scope and request identifier
         const request = {
-            caller: context.requireCaller().id,
+            caller: context.requireAuthentication().id,
             scope,
             requestId: mutation.id,
         };
@@ -614,6 +632,15 @@ export class ObjectServer<
             sensitive,
         );
 
+        // redact each executed call's input as its record keeps it
+        const redacted = calls.map(
+            (call) =>
+                schema.redact(Call.input(call.object, call.name, true), call.input) as Record<
+                    string,
+                    unknown
+                >,
+        );
+
         // prepare external work
         const prepared = await this.#prepare(calls, scope, context, request);
 
@@ -624,7 +651,7 @@ export class ObjectServer<
         let isExecuted = false;
         let results: unknown[];
         try {
-            results = (await this.journal.execute(this.database, request, fingerprint, {
+            results = await this.journal.execute(request, fingerprint, {
                 authorize: async (transaction) => {
                     // guard the scope chain and admit the caller
                     const chain = await Scope.chain(Snapshot.live(transaction), scope);
@@ -641,8 +668,9 @@ export class ObjectServer<
                     );
                 },
                 run: async (transaction) => {
-                    // execute the calls in order
+                    // execute the calls in order, recording each for retries
                     isExecuted = true;
+                    const stamp = await transaction.log.transaction();
                     const from = calls.some((call) => call.object.tracked !== undefined)
                         ? await transaction.log.position()
                         : undefined;
@@ -662,6 +690,14 @@ export class ObjectServer<
                                     from,
                                     as: call.as,
                                     expansion: call.expansion,
+                                    request: {
+                                        requestId: request.requestId,
+                                        caller: request.caller,
+                                        position: index,
+                                        digest: fingerprint,
+                                        input: redacted[index]!,
+                                        ...(stamp === undefined ? {} : { transaction: stamp }),
+                                    },
                                 },
                             ),
                         );
@@ -682,12 +718,11 @@ export class ObjectServer<
                             transaction,
                             this.objects,
                             mutation.id,
-                            authorization!.access.context.now,
                         ));
 
                     return executed;
                 },
-            })) as unknown[];
+            });
         } catch (error) {
             // release keys and cancel prepared work
             await this.directory?.release(mutation.id).catch((failure: unknown) => {
@@ -695,19 +730,28 @@ export class ObjectServer<
             });
             await this.#settle(prepared, false);
 
-            // record the failed call, leaving denials to the procedure layer
+            // record the failed call for audit and retries, leaving denials to the procedure layer
             const failed = running === undefined ? undefined : calls[running];
-            const result = AuditRecorder.result(error);
-            if (failed !== undefined && result.outcome !== "denied") {
+            const outcome = AuditRecorder.outcome(error);
+            if (failed !== undefined && outcome.kind !== "denied") {
                 const { action, values } = failed.object.auditCall(
                     failed.name,
                     failed.input,
                     scope,
                 );
-                await this.audit(scope, context).record(undefined, action, {
-                    ...values,
-                    ...result,
-                });
+                await this.audit(scope, context).record(
+                    undefined,
+                    action,
+                    { ...values, outcome },
+                    "activity",
+                    {
+                        requestId: request.requestId,
+                        caller: request.caller,
+                        position: running!,
+                        digest: fingerprint,
+                        input: redacted[running!]!,
+                    },
+                );
             }
             throw error;
         }
@@ -801,7 +845,7 @@ export class ObjectServer<
                 if (failure === undefined) {
                     throw error;
                 }
-                outcomes.push({ id: mutation.id, outcome: failure });
+                outcomes.push({ id: mutation.id, outcome: { error: failure.error } });
             }
         }
 
@@ -950,13 +994,13 @@ export class ObjectServer<
                     const id = call.id ?? Call.resultId(result);
                     await this.audit(call.scope).record(transaction, served.audit(name), {
                         targets: {
-                            [served.auditTarget]:
+                            [served.key]:
                                 id === undefined
                                     ? { type: "scope", id: call.scope }
                                     : { type: object.name, id },
                         },
                         details: {},
-                        outcome: "success",
+                        outcome: { kind: "success" },
                     });
                 }
 
@@ -965,13 +1009,7 @@ export class ObjectServer<
 
                 return (
                     this.directory &&
-                    Reservation.open(
-                        this.directory,
-                        transaction,
-                        this.objects,
-                        crypto.randomUUID(),
-                        now,
-                    )
+                    Reservation.open(this.directory, transaction, this.objects, crypto.randomUUID())
                 );
             });
         } catch (error) {
@@ -999,21 +1037,22 @@ export class ObjectServer<
 
         return [
             new CompactionController(this.database),
+            this.journal.controller(this.#history),
             ...(this.directory === undefined
                 ? []
                 : [new ClaimController(this.directory, this.database, this.objects)]),
             ...(isRecoverable ? [recoverable.controller(this)] : []),
             ...(isExpiring ? [expiring.controller(this)] : []),
             ...(this.objects.some((object) => object.addressed !== undefined)
-                ? [addressed.controller(this)]
+                ? [addressed.controller(this), addressed.delivery(this)]
                 : []),
             ...(isSettled ? [Settlement.controller(this)] : []),
             ...(this.#sends === undefined || this.runs === undefined
                 ? []
                 : [this.#sends.controller(RUNS.to(this.runs, this.#report))]),
-            ...(this.runs === undefined || this.watches.length === 0
+            ...(this.runs === undefined || this.triggers.length === 0
                 ? []
-                : [new WatchController(this.database, this.watches, this.runs, this.#report)]),
+                : [new ChangeController(this.database, this.triggers, this.runs, this.#report)]),
             ...(this.replicas === undefined ? [] : [this.source.controller(this.replicas)]),
             ...this.objects.flatMap((object) =>
                 object.controller === undefined
@@ -1077,7 +1116,7 @@ export class ObjectServer<
             database,
             bind,
             access,
-            context.caller?.authentication.delegation,
+            context.authentication?.claims.delegation,
         );
     }
 
@@ -1259,6 +1298,19 @@ export class ObjectServer<
         return { ...call, input: { ...call.input, [field]: scope } };
     }
 
+    /** Read the scope a procedure call acts in: an object method's own scope, else the decided target's or the context's. */
+    #procedureScope(call: ProcedureCall<ServiceContext>): string | undefined {
+        // read the routed object's scope field from the input
+        const object = this.#routed.find((each) => each.key === call.path[0]);
+        const input = call.input as Record<string, unknown> | undefined;
+        const field = object?.route.field;
+        const named = field === undefined ? undefined : input?.[field];
+
+        return typeof named === "string"
+            ? named
+            : (call.context.target?.scope ?? call.context.scope);
+    }
+
     /** Read the scope a call names in its route field. */
     #scope(object: ObjectType, input: Record<string, unknown>): string {
         // read the field, or the universe
@@ -1410,8 +1462,7 @@ export class ObjectServer<
         );
         if (
             methods.every((method) => method.prepare === undefined) ||
-            (request !== undefined &&
-                (await this.journal.outcome(this.database, request)) !== undefined)
+            (request !== undefined && (await this.journal.outcome(request)) !== undefined)
         ) {
             return calls.map(() => undefined);
         }
@@ -1587,7 +1638,7 @@ export class ObjectServer<
                 ...page,
                 ...(included === undefined ? {} : { included: rest }),
                 items: (await authorization.redact(object, items)).map((row) => ({
-                    ...encodeRow(table, row),
+                    ...table.encode(row),
                     ...(chunks === undefined
                         ? {}
                         : Chunk.text(object, chunks[String(row.id)] as never)),
@@ -1599,7 +1650,7 @@ export class ObjectServer<
                 object.text.length === 0
                     ? undefined
                     : await Chunk.texts(transaction, object, scope, [String(row!.id)]);
-            presented = { ...encodeRow(table, row!), ...texts?.get(String(row!.id)) };
+            presented = { ...table.encode(row!), ...texts?.get(String(row!.id)) };
         }
 
         // track changes
@@ -1614,16 +1665,32 @@ export class ObjectServer<
             }
         }
 
-        // audit durable changes
-        if (method.mutates && object.storage === "durable") {
-            await this.audit(scope, context).record(transaction, object.audit(name), {
-                targets: {
-                    [object.auditTarget]:
-                        id === undefined ? { type: "scope", id: scope } : { type: object.name, id },
-                },
-                details: {},
-                outcome: "success",
-            });
+        // record the call: audit durable changes, and keep every call of a request for retries
+        const isAudited = method.mutates && object.storage === "durable";
+        const recorded: { targets: Record<string, unknown>; details: {}; outcome: sync.Outcome } = {
+            targets: {
+                [object.key]:
+                    id === undefined ? { type: "scope", id: scope } : { type: object.name, id },
+            },
+            details: {},
+            outcome: {
+                kind: "success",
+                ...(options.request === undefined
+                    ? {}
+                    : { value: schema.json().parse(presented ?? null) }),
+            },
+        };
+        const recorder = this.audit(scope, context);
+        if (isAudited) {
+            await recorder.record(
+                transaction,
+                object.audit(name),
+                recorded,
+                "activity",
+                options.request,
+            );
+        } else if (options.request !== undefined) {
+            await recorder.keep(transaction, object.audit(name), recorded, options.request);
         }
 
         return presented;
@@ -1679,7 +1746,7 @@ function resumed(
 /** Read the calling principal from an authorization. */
 function callerOf(authorization: Authorization): Pick<Call, "caller"> {
     const context = authorization.access.context;
-    const caller = context.subject ?? principalOf(context);
+    const caller = context.subject ?? Caller.principal(context);
 
     return caller === undefined ? {} : { caller };
 }

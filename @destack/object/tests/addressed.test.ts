@@ -1,28 +1,21 @@
-import { AuditOutbox } from "@destack/audit/outbox";
+import { Subject } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
-import {
-    accessRelationship,
-    intersection,
-    principal,
-    relation,
-    subjectKey,
-    union,
-} from "@destack/access";
-import { AuditRecorder } from "@destack/audit";
+import { accessRelationship, intersection, principal, relation, union } from "@destack/access";
+import { journal } from "@destack/audit";
 import { eq, isNotNull } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier, schema } from "@destack/schema";
 import { Bookmark } from "@destack/service/bookmark";
 import { ControlLoop } from "@destack/service/control";
-import { defineJournal, Journal } from "@destack/service/database";
+
 import { Outbox } from "@destack/service/outbox";
 import { RequestId } from "@destack/service/request";
 import type { ServiceContext } from "@destack/service/server";
-import { addressed, defineObject, field, INBOX, method } from "../src/index.ts";
+import { addressed, defineObject, field, HOME, method } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { openSpace, space } from "./fixture/space.ts";
-import { testJournalKey } from "@destack/service/test";
+import { testCallKey } from "@destack/service/test";
 
 /** How long copies may take to arrive, in milliseconds: well within the 5 s test timeout. */
 const UNTIL_MILLISECONDS = 2000;
@@ -59,9 +52,6 @@ const memo = defineObject({
     },
 });
 
-/** Replayable memo requests. */
-const journal = defineJournal("journal");
-
 /** The database holding both spaces' memos, their access, the journal and the outbox. */
 const memoDatabase = defineDatabase({
     name: "main",
@@ -83,15 +73,15 @@ test.each(TEST_DIALECTS)(
                 now: Date.now(),
                 attributes: {},
             }),
-            journal: new Journal(journal, testJournalKey),
-            audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+            callKey: testCallKey,
+            origin: {
                 package: memo.package,
                 service: "test",
-            }),
+            },
         });
         const context = {
             scope: spaceId,
-            requireCaller: () => ({ id: "alice" }),
+            requireAuthentication: () => ({ id: "alice" }),
             bookmark: new Bookmark(),
             observed: new Bookmark(),
         } as unknown as ServiceContext;
@@ -103,9 +93,9 @@ test.each(TEST_DIALECTS)(
                 context,
             )) as { id: string };
 
-        // deliver the copies into the recipient's home
-        const inbox = {
-            ...INBOX,
+        // deliver the copies into the recipient's home, in place of the server's delivery
+        const delivery = {
+            ...HOME,
             batch: 100,
             accept: async (copies: Parameters<typeof addressed.accept>[1]) => {
                 await addressed.accept(server, copies, async () => homeId);
@@ -114,7 +104,10 @@ test.each(TEST_DIALECTS)(
         const stopping = new AbortController();
         const loop = new ControlLoop(
             storage.database,
-            [...server.controllers(), new Outbox(storage.database).controller(inbox)],
+            [
+                ...server.controllers().filter((controller) => controller.name !== HOME.name),
+                new Outbox(storage.database).controller(delivery),
+            ],
             {
                 report: (_controller, _key, error) => {
                     throw error;
@@ -153,7 +146,7 @@ test.each(TEST_DIALECTS)(
 
         // address a memo to bob, copied only once he may read it
         const created = await call("create", {
-            recipient: subjectKey(bob),
+            recipient: Subject.key(bob),
             text: "Lunch?",
             note: "only for the author",
         });

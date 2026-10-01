@@ -2,13 +2,13 @@ import * as access from "@destack/access";
 import { Replica, Scope, type ObjectReference } from "@destack/sync";
 import {
     AccessError,
-    delegationChain,
     earliest,
-    type AccessContext,
+    AccessContext,
     type Authorizer,
     type GrantReader,
     type Access,
     type Permission,
+    Caller,
 } from "@destack/access";
 import {
     and,
@@ -218,7 +218,7 @@ export class Authorization extends access.Authorization {
         // challenge a lent delegate for a missing grant
         const context = governing.context;
         const delegates = context.delegates ?? [];
-        const chain = delegationChain(context);
+        const chain = Caller.delegation(context);
         for (let position = 0; position < delegates.length; position++) {
             if (delegates[position]!.authority === "full") {
                 continue;

@@ -1,13 +1,11 @@
-import { AuditOutbox } from "@destack/audit/outbox";
-import { reconciliation, testJournalKey } from "@destack/service/test";
+import { Subject } from "@destack/sync";
+import { reconciliation, testCallKey } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { ServiceError } from "@destack/service/error";
-import type { Subject } from "@destack/access";
-import { AuditRecorder } from "@destack/audit";
 import { type Dialect, eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier, schema } from "@destack/schema";
-import { Journal } from "@destack/service/database";
+
 import { RequestId } from "@destack/service/request";
 import { Bookmark } from "@destack/service/bookmark";
 import type { ServiceContext } from "@destack/service/server";
@@ -23,7 +21,7 @@ import {
     type ObjectProcedures,
 } from "../src/index.ts";
 import { describeObject } from "../src/inspect/index.ts";
-import { comment, folder, objectDatabase, request, task, taskVersion } from "./schema.ts";
+import { comment, folder, objectDatabase, task, taskVersion } from "./schema.ts";
 import { principal } from "@destack/access";
 import { openSpace, space } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
@@ -100,7 +98,7 @@ test("derive typed routes and describe each method with its permission, input an
         input: expect.any(Object),
         output: { kind: "value", schema: expect.any(Object) },
         audit: {
-            name: "Task.archive",
+            name: "task.archive",
             package: {
                 id: task.policy.definition.packageId,
                 name: "@destack/object",
@@ -142,11 +140,11 @@ test.each(TEST_DIALECTS)(
                     objects: { replica },
                     database,
                     context: () => as("user-1"),
-                    journal: new Journal(request, testJournalKey),
-                    audit: AuditRecorder.service(new AuditOutbox(database), {
+                    callKey: testCallKey,
+                    origin: {
                         package: task.package,
                         service: "test",
-                    }),
+                    },
                 }),
         ).toThrow(new TypeError("object replica takes the name of the shared replica procedures"));
 
@@ -180,10 +178,10 @@ test.each(TEST_DIALECTS)(
 
         // audit each creation once
         expect(await events()).toEqual([
-            "Task.create",
-            "Task.create",
-            "Task.create CONFLICT",
-            "Task.create",
+            "task.create",
+            "task.create",
+            "task.create CONFLICT",
+            "task.create",
         ]);
     },
 );
@@ -245,7 +243,7 @@ test.each(TEST_DIALECTS)(
         ]);
 
         // audit each change once
-        expect(await events()).toEqual(["Task.create", "Task.update", "Task.update CONFLICT"]);
+        expect(await events()).toEqual(["task.create", "task.update", "task.update CONFLICT"]);
     },
 );
 
@@ -438,14 +436,14 @@ test.each(TEST_DIALECTS)(
 
         // audit each change once
         expect(await events()).toEqual([
-            "Task.create",
-            "Task.grant",
-            "Task.revoke",
-            "Task.grant",
-            "Task.propose",
-            "Task.accept",
-            "Task.propose",
-            "Task.accept",
+            "task.create",
+            "task.grant",
+            "task.revoke",
+            "task.grant",
+            "task.propose",
+            "task.accept",
+            "task.propose",
+            "task.accept",
         ]);
     },
 );
@@ -524,14 +522,14 @@ test.each(TEST_DIALECTS)(
 
         // audit each change once
         expect(await events()).toEqual([
-            "Task.create",
-            "Task.update",
-            "Task.grant",
-            "Task.grant",
-            "Task.update",
-            "Task.complete",
-            "Task.complete CONFLICT",
-            "Task.reopen",
+            "task.create",
+            "task.update",
+            "task.grant",
+            "task.grant",
+            "task.update",
+            "task.complete",
+            "task.complete CONFLICT",
+            "task.reopen",
         ]);
     },
 );
@@ -627,17 +625,17 @@ test.each(TEST_DIALECTS)(
         expect(await recoverable.purge(server, Date.now() + 60_000)).toBe(100);
 
         // audit each purge as the system's, and each caller's change once
-        expect(await purges()).toEqual(Array.from({ length: 101 }, () => "Task.purge"));
+        expect(await purges()).toEqual(Array.from({ length: 101 }, () => "task.purge"));
         expect(await events()).toEqual([
-            "Task.create",
-            "Task.archive",
-            "Task.delete MANAGED",
-            "Task.delete",
-            "Task.restore",
-            "Task.delete",
-            "Task.purge",
-            "Task.create",
-            "Task.delete",
+            "task.create",
+            "task.archive",
+            "task.delete MANAGED",
+            "task.delete",
+            "task.restore",
+            "task.delete",
+            "task.purge",
+            "task.create",
+            "task.delete",
         ]);
     },
 );
@@ -692,15 +690,15 @@ test("prepare external work after the access check, settle it after commit, comp
             now: Date.now(),
             attributes: {},
         }),
-        journal: new Journal(request, testJournalKey),
-        audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+        callKey: testCallKey,
+        origin: {
             package: task.package,
             service: "test",
-        }),
+        },
     });
     const context = {
         scope: spaceId,
-        requireCaller: () => ({ id: current }),
+        requireAuthentication: () => ({ id: current }),
         bookmark: new Bookmark(),
         observed: new Bookmark(),
     } as unknown as ServiceContext;
@@ -731,10 +729,14 @@ test("prepare external work after the access check, settle it after commit, comp
     external.length = 0;
     const archive = { requestId: RequestId.create(), id: created.id };
     const archived = await execute("archive", archive);
+    const author = Subject.key(principal.user.reference("universe", "user-1"));
     expect(archived).toEqual({
         id: created.id,
         createdAt: expect.any(Number),
+        createdBy: author,
         updatedAt: expect.any(Number),
+        updatedBy: author,
+        deletedBy: null,
         revision: 2,
         tags: {},
         scope: spaceId,
@@ -836,16 +838,16 @@ test("authorize a creation before its external work, and settle committed work t
             now: Date.now(),
             attributes: {},
         }),
-        journal: new Journal(request, testJournalKey),
-        audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+        callKey: testCallKey,
+        origin: {
             package: task.package,
             service: "test",
-        }),
+        },
         report: (error) => reported.push(error),
     });
     const context = {
         scope: spaceId,
-        requireCaller: () => ({ id: current }),
+        requireAuthentication: () => ({ id: current }),
         bookmark: new Bookmark(),
         observed: new Bookmark(),
     } as unknown as ServiceContext;
@@ -923,15 +925,15 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
             now: Date.now(),
             attributes: {},
         }),
-        journal: new Journal(request, testJournalKey),
-        audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+        callKey: testCallKey,
+        origin: {
             package: task.package,
             service: "test",
-        }),
+        },
     });
     const context = {
         scope: spaceId,
-        requireCaller: () => ({ id: "user-1" }),
+        requireAuthentication: () => ({ id: "user-1" }),
         bookmark: new Bookmark(),
         observed: new Bookmark(),
     } as unknown as ServiceContext;
@@ -1063,16 +1065,16 @@ async function serveTasks(dialect: Dialect) {
                   }
                 : direct;
         },
-        journal: new Journal(request, testJournalKey),
-        audit: AuditRecorder.service(new AuditOutbox(database), {
+        callKey: testCallKey,
+        origin: {
             package: task.package,
             service: "test",
-        }),
+        },
     });
     const observed = new Bookmark();
     const context = {
         scope: spaceId,
-        requireCaller: () => ({ id: current }),
+        requireAuthentication: () => ({ id: current }),
         bookmark: new Bookmark(),
         observed,
     } as unknown as ServiceContext;
@@ -1146,15 +1148,15 @@ test("carry a key the method derives from its work, the same for every retry of 
             now: Date.now(),
             attributes: {},
         }),
-        journal: new Journal(request, testJournalKey),
-        audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+        callKey: testCallKey,
+        origin: {
             package: task.package,
             service: "test",
-        }),
+        },
     });
     const context = {
         scope: spaceId,
-        requireCaller: () => ({ id: "user-1" }),
+        requireAuthentication: () => ({ id: "user-1" }),
         bookmark: new Bookmark(),
         observed: new Bookmark(),
     } as unknown as ServiceContext;

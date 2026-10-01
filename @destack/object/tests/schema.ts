@@ -1,6 +1,6 @@
 import { defineObject, field, method, type ObjectType } from "../src/index.ts";
+import { journal } from "@destack/audit";
 import { relation, through, union, principal } from "@destack/access";
-import { defineJournal } from "@destack/service/database";
 import { defineDatabase } from "@destack/db/declare";
 import { schema } from "@destack/schema";
 import { space } from "./fixture/space.ts";
@@ -121,16 +121,13 @@ export const folder = defineObject({
     permissions: ["read", "write"],
 });
 
-/** Replayable method requests. */
-export const request = defineJournal("journal");
-
-/** The example database holding the objects, their access and the request journal. */
+/** The example database holding the objects, their access and the journal journal. */
 export const objectDatabase = defineDatabase({
     name: "main",
     tables: [
         note.table,
         label.table,
-        request,
+        journal,
         ...task.tables,
         ...team.tables,
         ...comment.tables,

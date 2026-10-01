@@ -1,25 +1,24 @@
+import { AuditTarget } from "@destack/audit";
 import {
     Policy,
     none,
-    subjectType,
     type AccessExpression,
     type Elevation,
     type RelationInput,
-    type Subject,
     type PolicySubject,
     principal,
     relationsOf,
     type Permission,
     type TableMapping,
 } from "@destack/access";
-import { Scope, type ObjectReference, type Query } from "@destack/sync";
+import { Scope, type ObjectReference, type Query, type Subject } from "@destack/sync";
 import { Snapshot } from "@destack/db/log";
 import { canonicalize } from "@destack/schema/json";
 import { ServiceError } from "@destack/service/error";
 import type { Claim, Directory, ObjectClaims } from "@destack/directory";
 import { Condition } from "@destack/db/query";
 import { Expression } from "@destack/schema/expression";
-import { type AuditAction, AuditTarget } from "@destack/audit";
+import type { AuditAction } from "@destack/audit";
 import {
     eq,
     type DatabaseConnection,
@@ -31,18 +30,14 @@ import {
     type TableConstraint,
 } from "@destack/db";
 import type { Tree } from "@destack/db/tree";
-import {
-    declaringModule,
-    type ModuleMetadata,
-    type Package,
-    type PackageId,
-} from "@destack/package";
-import { schema, Version } from "@destack/schema";
+import { ModuleMetadata, type Package, type PackageId } from "@destack/package";
+import { identifier, schema, Version, Duration } from "@destack/schema";
 import type { AggregateFunction, Field, TextField } from "../field/field.ts";
 import { Call, type Handler, type Phases } from "../method/call.ts";
 import type { Calls } from "../method/procedure.ts";
 import type { Method, MethodKind } from "../method/method.ts";
-import type { ServiceRouter } from "@destack/service";
+import type { Client, Service, ServiceRouter } from "@destack/service";
+import { createClient, type ClientOptions } from "@destack/service/client";
 import {
     objectProcedures,
     objectSchema,
@@ -65,7 +60,6 @@ import {
     type DeclarableDefinition,
     type DetachableMethodMap,
 } from "../trait/declarable.ts";
-import { Duration } from "./duration.ts";
 import { controlled, type ControlledMethodMap } from "../trait/controlled.ts";
 import { nested, type NestedMethodMap, type NestedDefinition } from "../trait/nested.ts";
 import { transitions, type TransitionMethodMap } from "../trait/transition.ts";
@@ -89,8 +83,11 @@ import { INTRINSIC, type Intrinsic } from "./intrinsic.ts";
 import { serverTables } from "../stack/db.ts";
 import type { ObjectController } from "./controller.ts";
 import type { ObjectDeclaration, DeclarationOf } from "../server/stack.ts";
-import { camelCase, kebabCase, pascalCase } from "./name.ts";
+import { camelCase, kebabCase } from "./name.ts";
 import { deriveTable, type ConstraintColumns, type ObjectTable, type TraitOf } from "./table.ts";
+
+/** The schemas of the identities object types identify by, one per identity, shared by derived copies of a type. */
+const IDENTIFIERS = new Map<string, ReturnType<typeof identifier>>();
 
 /** The default ephemeral linger, in milliseconds: 10 s spans two 1–3 s reconnects. */
 const LINGER_MILLISECONDS = 10_000;
@@ -249,6 +246,8 @@ export interface ObjectIndex {
     readonly unique: true;
     /** The scope the keys are unique within. */
     readonly across: ObjectScope;
+    /** The namespace the keys share with other object types' indexes of the same name, the type's own when absent. */
+    readonly namespace?: string;
 }
 
 /** An instance of an object type, as its table stores it and its methods see it. */
@@ -437,7 +436,7 @@ export class ObjectType<
                     subject instanceof ObjectType
                         ? subject.policy
                         : typeof subject === "string"
-                          ? subjectType(owner.id, subject)
+                          ? Policy.subjectType(owner.id, subject)
                           : subject,
                 ),
                 ...(relation.grantedBy === undefined ? {} : { grantedBy: relation.grantedBy }),
@@ -741,19 +740,19 @@ export class ObjectType<
         return releases;
     }
 
-    /** The audit target name of the objects' method events. */
-    get auditTarget(): string {
+    /** The name the type is served, routed and audited under: its name in camel case. */
+    get key(): string {
         return camelCase(this.name);
     }
 
     /** Derive the audit action `Noun.method` recording one method. */
-    audit(method: string, target: string = this.auditTarget): AuditAction {
+    audit(method: string, target: string = this.key): AuditAction {
         // read the method's audit details
         const declared = (this.methods as Readonly<Record<string, Method>>)[method]?.audit;
 
         return {
             package: this.package,
-            name: `${pascalCase(this.name)}.${method}`,
+            name: `${this.name}.${method}`,
             targets: schema.object({ [target]: AuditTarget }),
             details: declared === undefined ? schema.object({}) : declared.details.partial(),
         };
@@ -765,7 +764,7 @@ export class ObjectType<
         const declared = (this.methods as Readonly<Record<string, Method>>)[method];
         if (declared?.target === true) {
             const id = schema.string().parse(input.id);
-            const targets = { [this.auditTarget]: { type: this.name, id } };
+            const targets = { [this.key]: { type: this.name, id } };
 
             return { action: this.audit(method), values: { targets, details: {} } };
         }
@@ -1034,9 +1033,20 @@ export class ObjectType<
         return ancestors;
     }
 
-    /** Read the directory's identity of one of the type's unique indexes. */
+    /** Whether an identifier has the type's identity. */
+    identifies(id: string): boolean {
+        const known = IDENTIFIERS.get(this.identity) ?? identifier(this.identity);
+        IDENTIFIERS.set(this.identity, known);
+
+        return known.safeParse(id).success;
+    }
+
+    /** Read the directory's identity of one of the type's unique indexes: its shared namespace, or the type's own. */
     index(name: string): string {
-        return `${this.policy.definition.packageId}/${this.name}/${name}`;
+        return (
+            this.indexes[name]?.namespace ??
+            `${this.policy.definition.packageId}/${this.name}/${name}`
+        );
     }
 
     /** Key values in one of the type's indexes, within the scope the index is unique across. */
@@ -1090,6 +1100,22 @@ export class ObjectType<
             objectId,
             claims: row === undefined ? [] : await this.claims(row, snapshot),
         };
+    }
+
+    /** Refuse a write whose names other objects own, naming the index of the first. */
+    static refuse(objects: readonly ObjectType[], taken: readonly Claim[]): void {
+        // refuse the first taken name by its index's declared name
+        const [first] = taken;
+        if (first !== undefined) {
+            const name = objects
+                .flatMap((object) =>
+                    Object.keys(object.indexes).filter(
+                        (name) => object.index(name) === first.index,
+                    ),
+                )
+                .at(0)!;
+            throw new ServiceError("CONFLICT", { message: `${name} is taken` });
+        }
     }
 
     /** Look up the object owning values in one of the type's indexes. */
@@ -1190,6 +1216,17 @@ export class ObjectType<
     /** The procedures of the object's methods. */
     get procedures(): ServiceRouter {
         return objectProcedures(this);
+    }
+
+    /** Connect to the object's methods at a service serving them, speaking the service's release. */
+    connect<Self extends ObjectType>(
+        this: Self,
+        service: Pick<Service, "package">,
+        options: ClientOptions,
+    ): Client<ObjectProcedures<Self>> {
+        const procedures = this.procedures as ObjectProcedures<Self>;
+
+        return createClient({ package: service.package, router: procedures }, options);
     }
 
     /** List object types with the chunk type their text fields need. */
@@ -1353,7 +1390,7 @@ export function defineObject(
     module?: ModuleMetadata,
 ): ObjectType {
     // collect the traits
-    const owner = declaringModule(module, "defineObject").package;
+    const owner = ModuleMetadata.require(module, "defineObject").package;
     const intrinsic = definition[INTRINSIC];
     const traits = TRAITS.flatMap((trait) => {
         const options = intrinsic === undefined ? trait.options(definition) : undefined;

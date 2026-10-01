@@ -4,7 +4,7 @@ import { Snapshot } from "@destack/db/log";
 import { CHAIN_TERMS } from "@destack/db/query";
 import type { Directory } from "@destack/directory";
 import type { Controller } from "@destack/service/control";
-import type { ObjectType } from "../object/object.ts";
+import { ObjectType } from "../object/object.ts";
 
 /** Finishes the expired reservations of a database's indexed objects with their current names. */
 export class ClaimController implements Controller {
@@ -51,7 +51,7 @@ export class ClaimController implements Controller {
                 Object.keys(object.indexes).map((name) => [object.index(name), object] as const),
             ),
         );
-        const expiry = await this.#directory.expired([...byIndex.keys()], now);
+        const expiry = await this.#directory.expired([...byIndex.keys()]);
 
         // finish one chain per run with enclosing scopes from one snapshot
         const due = expiry.claims.slice(0, CHAIN_TERMS);
@@ -70,7 +70,10 @@ export class ClaimController implements Controller {
             // claim each object's names as its row holds them now
             for (const id of ids) {
                 const owned = await object.owned(id, present.get(id), snapshot);
-                await this.#directory.replace(owned, `finish-${id}`, now);
+                ObjectType.refuse(
+                    this.#objects,
+                    await this.#directory.replace(owned, `finish-${id}`),
+                );
             }
         }
 

@@ -1,34 +1,37 @@
 import { expect, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { Condition } from "@destack/db/query";
-import type { RunRequest } from "@destack/service/trigger";
-import { defineWatch } from "@destack/service/watch";
+import { defineTrigger, type ChangeTrigger, type RunRequest } from "@destack/service/trigger";
 import { RequestId } from "@destack/service/request";
 import { v7 } from "uuid";
-import { WatchController } from "../src/server/watch.ts";
+import { ChangeController } from "../src/server/change.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/notes.ts";
 
 /** Pin each note entering or changing among the titled ones. */
-const titled = defineWatch({
+const titled = defineTrigger({
     name: "titled",
-    object: note,
-    where: Condition.ne("title", ""),
-    on: ["create", "update"],
-    from: "snapshot",
+    on: {
+        change: {
+            object: note,
+            where: Condition.ne("title", ""),
+            operations: ["create", "update"],
+            from: "snapshot",
+        },
+    },
     call: (change) => note.calls().update({ id: String(change.after!.id), pinned: true }),
-});
+}) as ChangeTrigger;
 
-/** Read the key a watch controller follows a watch under. */
-function keyOf(watch: {
+/** Read the key a change controller follows a trigger under. */
+function keyOf(trigger: {
     readonly package: { readonly id: string };
     readonly name: string;
 }): string {
-    return `${watch.package.id}/${watch.name}`;
+    return `${trigger.package.id}/${trigger.name}`;
 }
 
-/** A watched change's run request. */
-type Watched = Extract<RunRequest, { readonly cause: "watch" }>;
+/** A change trigger's run request. */
+type Fired = Extract<RunRequest, { readonly triggerName: string }>;
 
 test("build a call of an object's method, leaving the scope to the one it is pushed to", async () => {
     const { connect } = await serveNotes("sqlite");
@@ -54,9 +57,9 @@ test("build a call of an object's method, leaving the scope to the one it is pus
 });
 
 test.each(TEST_DIALECTS)(
-    "record a run for each matching row of a watch's snapshot and each admitted change after it, once, resuming after its slot on %s",
+    "record a run for each matching row of a trigger's snapshot and each admitted change after it, once, resuming after its slot on %s",
     async (dialect) => {
-        // keep two notes before the watch starts, one of them untitled
+        // keep two notes before the trigger starts, one of them untitled
         const { connect, database } = await serveNotes(dialect);
         const alice = connect("alice");
         const first = await alice.note.create({
@@ -67,11 +70,12 @@ test.each(TEST_DIALECTS)(
         await alice.note.create({ spaceId, title: "", requestId: RequestId.create() });
 
         // record the snapshot's titled note, failing one send to retry it
-        const recorded: Watched[] = [];
+        const recorded: Fired[] = [];
         let isFailing = true;
         const runs = {
-            send: async (request: Watched) => {
-                if (isFailing && request.key === undefined) {
+            send: async (request: Fired) => {
+                const change = "change" in request.event ? request.event.change : undefined;
+                if (isFailing && change?.key === undefined) {
                     isFailing = false;
                     throw new TypeError("the cell is unreachable");
                 }
@@ -80,9 +84,8 @@ test.each(TEST_DIALECTS)(
         };
         const reports: unknown[] = [];
         const report = (error: unknown) => reports.push(error);
-        const controller = new WatchController(database, [titled], runs, report);
+        const controller = new ChangeController(database, [titled], runs, report);
         await controller.reconcile(keyOf(titled));
-        const [snapshot] = recorded;
 
         // record a change entering the titled notes, retrying after a failed send
         const second = await alice.note.create({
@@ -96,36 +99,42 @@ test.each(TEST_DIALECTS)(
         await controller.reconcile(keyOf(titled));
 
         // continue after the slot in a new controller, recording nothing twice
-        await new WatchController(database, [titled], runs, report).reconcile(keyOf(titled));
+        await new ChangeController(database, [titled], runs, report).reconcile(keyOf(titled));
 
-        const cause = { cause: "watch", packageId: note.package.id, trigger: "titled" };
+        const changes = recorded.map((request) =>
+            "change" in request.event ? request.event.change : undefined,
+        );
         expect(
-            recorded.map(({ cause: kind, packageId, trigger, call, key }) => [
-                { cause: kind, packageId, trigger },
+            recorded.map(({ triggerName, call }, index) => [
+                triggerName,
                 call,
-                key ?? null,
+                changes[index]?.key ?? null,
             ]),
         ).toEqual([
-            [cause, note.calls().update({ id: first.id, pinned: true }), first.id],
-            [cause, note.calls().update({ id: second.id, pinned: true }), null],
+            ["titled", note.calls().update({ id: first.id, pinned: true }), first.id],
+            ["titled", note.calls().update({ id: second.id, pinned: true }), null],
         ]);
-        expect(recorded[1]!.sequence! > snapshot!.sequence!).toBe(true);
+        expect(changes[1]!.position.sequence > changes[0]!.position.sequence).toBe(true);
         expect(reports).toEqual([]);
     },
 );
 
 test.each(TEST_DIALECTS)(
-    "see rows entering a watch's condition as created, changing within it as updated and leaving it as deleted, in log order on %s",
+    "see rows entering a trigger's condition as created, changing within it as updated and leaving it as deleted, in log order on %s",
     async (dialect) => {
-        // watch the titled notes from now on, keeping each change the watch builds a call of
+        // follow the titled notes from now on, keeping each change the trigger builds a call of
         const { connect, database } = await serveNotes(dialect);
         const alice = connect("alice");
         const seen: [string, string | null, string | null][] = [];
-        const watch = defineWatch({
+        const trigger = defineTrigger({
             name: "retitled",
-            object: note,
-            where: Condition.ne("title", ""),
-            on: ["create", "update", "delete"],
+            on: {
+                change: {
+                    object: note,
+                    where: Condition.ne("title", ""),
+                    operations: ["create", "update", "delete"],
+                },
+            },
             call: (change) => {
                 seen.push([
                     change.operation,
@@ -135,16 +144,16 @@ test.each(TEST_DIALECTS)(
 
                 return note.calls().update({ id: String((change.after ?? change.before)!.id) });
             },
-        });
-        const controller = new WatchController(
+        }) as ChangeTrigger;
+        const controller = new ChangeController(
             database,
-            [watch],
+            [trigger],
             { send: async () => {} },
             (error) => {
                 throw error;
             },
         );
-        await controller.reconcile(keyOf(watch));
+        await controller.reconcile(keyOf(trigger));
 
         // title a note, retitle it, clear its title, and write an untitled note
         const { id, revision } = await alice.note.create({
@@ -157,7 +166,7 @@ test.each(TEST_DIALECTS)(
         await update("Tickets", revision);
         await update("", revision + 1);
         await alice.note.create({ spaceId, title: "", requestId: RequestId.create() });
-        await controller.reconcile(keyOf(watch));
+        await controller.reconcile(keyOf(trigger));
 
         expect(seen).toEqual([
             ["create", null, "Packing"],
@@ -168,16 +177,14 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "advance a quiet watch's slot, pass over a change it builds no call of, and continue at the head once its lag lost changes on %s",
+    "advance a quiet trigger's slot, pass over a change it builds no call of, and continue at the head once its lag lost changes on %s",
     async (dialect) => {
-        // watch every note from now on, a minute of lag, failing to build a call of an untitled note
+        // follow every note from now on, a minute of lag, failing to build a call of an untitled note
         const { connect, database } = await serveNotes(dialect);
         const alice = connect("alice");
-        const lagging = defineWatch({
+        const lagging = defineTrigger({
             name: "lagging",
-            object: note,
-            on: ["create"],
-            maxLag: 60_000,
+            on: { change: { object: note, operations: ["create"], maxLag: 60_000 } },
             call: (change) => {
                 if (change.after!.title === "") {
                     throw new TypeError("an untitled note has nothing to pin");
@@ -185,11 +192,11 @@ test.each(TEST_DIALECTS)(
 
                 return note.calls().update({ id: String(change.after!.id), pinned: true });
             },
-        });
+        }) as ChangeTrigger;
         const recorded: string[] = [];
         const reports: string[] = [];
         let now = Date.now();
-        const controller = new WatchController(
+        const controller = new ChangeController(
             database,
             [lagging],
             {
@@ -203,7 +210,7 @@ test.each(TEST_DIALECTS)(
         const create = async (title: string) =>
             (await alice.note.create({ spaceId, title, requestId: RequestId.create() })).id;
 
-        // advance the slot of a quiet watch before it lapses, so compaction keeps the changes after it
+        // advance the slot of a quiet trigger before it lapses, so compaction keeps the changes after it
         const delay = await controller.reconcile(keyOf(lagging));
         now += 50_000;
         await controller.reconcile(keyOf(lagging));
@@ -211,7 +218,7 @@ test.each(TEST_DIALECTS)(
         await database.log.compact(Date.now() + 1, now + 20_000);
         await controller.reconcile(keyOf(lagging));
 
-        // pass over a change the watch builds no call of, reporting it
+        // pass over a change the trigger builds no call of, reporting it
         const untitled = await create("");
         await controller.reconcile(keyOf(lagging));
 
@@ -224,17 +231,17 @@ test.each(TEST_DIALECTS)(
 
         expect([delay, recorded]).toEqual([20_000, [kept, next]]);
         expect(reports.map((message) => message.replace(/\d+/g, "N"))).toEqual([
-            "watch lagging builds no call of change N",
-            "watch lagging lost the changes after N to compaction",
+            "trigger lagging builds no call of change N",
+            "trigger lagging lost the changes after N to compaction",
         ]);
         expect([untitled, lost].some((id) => recorded.includes(id))).toBe(false);
     },
 );
 
-test("refuse two watches of one package under one name", async () => {
+test("refuse two change triggers of one package under one name", async () => {
     const { database } = await serveNotes("sqlite");
 
     expect(
-        () => new WatchController(database, [titled, titled], { send: async () => {} }, () => {}),
-    ).toThrow(`${titled.package.name} declares two watches named titled`);
+        () => new ChangeController(database, [titled, titled], { send: async () => {} }, () => {}),
+    ).toThrow(`${titled.package.name} declares two triggers named titled`);
 });

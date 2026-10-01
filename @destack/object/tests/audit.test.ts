@@ -1,8 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { Authorization, principal, relation, type AccessContext } from "@destack/access";
-import { AuditRecorder, defineAuditAction, type AuditEvent } from "@destack/audit";
+import { AuditCall, AuditRecorder, defineAuditAction, Journal, journal } from "@destack/audit";
 import { AuditHistory, auditTables } from "@destack/audit/history";
-import { AuditOutbox } from "@destack/audit/outbox";
 import { type DatabaseConnection } from "@destack/db";
 import { Condition } from "@destack/db/query";
 import { defineDatabase } from "@destack/db/declare";
@@ -10,14 +9,13 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { PackageId } from "@destack/package";
 import { identifier, schema } from "@destack/schema";
 import type { QueryPage } from "@destack/sync";
-import { Journal } from "@destack/service/database";
-import { subjectContext, testJournalKey } from "@destack/service/test";
+
+import { subjectContext, testCallKey } from "@destack/service/test";
 import { Bookmark } from "@destack/service/bookmark";
 import type { ServiceContext } from "@destack/service/server";
 import { v7 } from "uuid";
 import { ObjectServer } from "../src/server/index.ts";
 import { defineObject, field, Intrinsic, method } from "../src/index.ts";
-import { request } from "./schema.ts";
 import { openSpace, space } from "./fixture/space.ts";
 
 /** The package declaring the test's space and action. */
@@ -30,15 +28,15 @@ const PACKAGE = {
 /** The space whose history the test follows. */
 const SPACE_ID = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
 
-/** A space's audit events. */
-const event = defineObject(Intrinsic.auditEvent(space));
-/** The objects a space's audit events name. */
-const target = defineObject(Intrinsic.auditTarget(space, event));
+/** A space's audited calls. */
+const call = defineObject(Intrinsic.auditCall(space));
+/** The objects a space's audited calls name. */
+const target = defineObject(Intrinsic.auditTarget(space, call));
 
-/** Rename a document as the event's target. */
+/** Rename a document as the call's target. */
 const renameDocument = defineAuditAction(
     {
-        name: "Document.rename",
+        name: "document.rename",
         targets: schema.object({
             document: schema.object({ type: schema.literal("document"), id: schema.string() }),
         }),
@@ -53,40 +51,41 @@ async function serveHistory(dialect: (typeof TEST_DIALECTS)[number]) {
         dialect,
         defineDatabase({
             name: "main",
-            tables: [...auditTables, ...event.tables, space.table, request],
+            tables: [...auditTables, ...call.tables, space.table, journal],
         }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const database = storage.database;
 
-    // deliver every event the space records straight into its history
+    // deliver every call the space records straight into its history
     const history = new AuditHistory(database);
     const recorder = new AuditRecorder<DatabaseConnection>(
         {
-            actor: { type: "system", name: "document" },
-            delegation: [],
+            caller: { type: "system", name: "document" },
             package: PACKAGE,
             service: "document",
             scope: SPACE_ID,
         },
         {
-            append: async (recorded) => {
-                await history.ingest({ events: [recorded] });
+            record: async (recorded) => {
+                await history.ingest({ calls: [recorded] });
             },
         },
     );
-    const rename = async (id: string): Promise<AuditEvent> =>
-        recorder.record(database, renameDocument, {
-            targets: { document: { type: "document", id } },
-            details: {},
-            outcome: "success",
-        });
+    const rename = async (id: string): Promise<string> =>
+        (
+            await recorder.record(database, renameDocument, {
+                targets: { document: { type: "document", id } },
+                details: {},
+                outcome: { kind: "success" },
+            })
+        ).execution.id;
 
-    // serve the space's events as the calling user
+    // serve the space's calls as the calling user
     let current = "owner";
     const server = new ObjectServer({
-        objects: { event, target },
+        objects: { call, target },
         policies: [space],
         database,
         context: (): AccessContext => ({
@@ -94,8 +93,8 @@ async function serveHistory(dialect: (typeof TEST_DIALECTS)[number]) {
             now: Date.now(),
             attributes: {},
         }),
-        journal: new Journal(request, testJournalKey),
-        audit: () => recorder,
+        callKey: testCallKey,
+        origin: { package: PACKAGE, service: "document" },
     });
 
     // create the space, owned by the first user, in the database holding it
@@ -120,16 +119,16 @@ async function serveHistory(dialect: (typeof TEST_DIALECTS)[number]) {
 }
 
 test.for(TEST_DIALECTS)(
-    "follow a space's audit events about one document as they arrive on %s",
+    "follow a space's audited calls about one document as they arrive on %s",
     async (dialect) => {
         const { server, context, rename } = await serveHistory(dialect);
         await rename("draft");
 
-        // follow the owner's events about the plan, from a snapshot holding the earlier one
+        // follow the owner's calls about the plan, from a snapshot holding the earlier one
         const pages = server.source.sync(SPACE_ID, context("owner"), {
             queries: {
                 plan: {
-                    object: "event",
+                    object: "call",
                     where: Condition.exists("targets", Condition.eq("objectId", "plan")),
                 },
             },
@@ -140,16 +139,16 @@ test.for(TEST_DIALECTS)(
                 page = (await pages.next()).value as QueryPage;
             }
 
-            // name each event by its identifier
+            // name each call by its identifier
             return page.changes.map((change) => [change.table, change.operation, change.row.id]);
         };
         const first = await rename("plan");
-        expect(await next()).toEqual([["destack__audit__event", "insert", first.id]]);
+        expect(await next()).toEqual([["destack__audit__call", "insert", first]]);
 
-        // hold later events about the plan alone
+        // hold later calls about the plan alone
         await rename("draft");
         const second = await rename("plan");
-        expect(await next()).toEqual([["destack__audit__event", "insert", second.id]]);
+        expect(await next()).toEqual([["destack__audit__call", "insert", second]]);
     },
 );
 
@@ -163,7 +162,7 @@ test.for(TEST_DIALECTS)(
         const controller = new AbortController();
         const pages = server.source.sync(SPACE_ID, context("owner", controller.signal), {
             queries: {
-                events: { object: "event", order: [{ column: "recordedAt", direction: "asc" }] },
+                calls: { object: "call", order: [{ column: "recordedAt", direction: "asc" }] },
             },
         });
         const snapshot: QueryPage[] = [];
@@ -175,25 +174,33 @@ test.for(TEST_DIALECTS)(
         // record the watch end and a listing without a stranger's refused read
         controller.abort();
         await pages.return(undefined);
-        await server.query(event, "list", { spaceId: SPACE_ID }, context("owner"));
+        await server.query(call, "list", { spaceId: SPACE_ID }, context("owner"));
         await expect(
-            server.query(event, "get", { spaceId: SPACE_ID, id: renamed.id }, context("stranger")),
+            server.query(call, "get", { spaceId: SPACE_ID, id: renamed }, context("stranger")),
         ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no scope ${SPACE_ID}` });
+        await server.journal.deliver(history);
         const recorded = await history.list({
             scope: SPACE_ID,
             limit: 100,
         });
-        expect(held).toEqual([renamed.id]);
+        expect(held).toEqual([renamed]);
         expect(
-            recorded.items.map(({ event: read }) => [read.action.name, read.category, read.result]),
+            recorded.items.map(({ call: read }: { call: AuditCall }) => [
+                read.method,
+                read.execution.category,
+                read.execution.outcome,
+            ]),
         ).toEqual([
-            ["Document.rename", "activity", { stage: "result", outcome: "success" }],
+            ["document.rename", "activity", { kind: "success" }],
             [
-                "Event.watch",
+                "call.watch",
                 "access",
-                { stage: "result", outcome: "cancelled", errorCode: "CANCELLED" },
+                {
+                    kind: "cancelled",
+                    error: { code: "CANCELLED", status: 499, message: "cancelled" },
+                },
             ],
-            ["Event.list", "access", { stage: "result", outcome: "success" }],
+            ["call.list", "access", { kind: "success" }],
         ]);
     },
 );
@@ -216,8 +223,8 @@ const locker = defineObject({
     },
 });
 
-test("name the version a read disclosed in its audit event, apart from its value", async () => {
-    const storage = await TestDatabase.create("sqlite", [...locker.tables, request], {
+test("name the version a read disclosed in its recorded call, apart from its value", async () => {
+    const storage = await TestDatabase.create("sqlite", [...locker.tables, journal], {
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
@@ -235,7 +242,7 @@ test("name the version a read disclosed in its audit event, apart from its value
         })
         .returning();
 
-    // record each audited read in the outbox
+    // record each audited read in the journal
     const handled = locker.handle({
         open: async (call) => ({ version: call.target!.version, value: "secret" }),
     });
@@ -247,11 +254,11 @@ test("name the version a read disclosed in its audit event, apart from its value
             now: Date.now(),
             attributes: {},
         }),
-        journal: new Journal(request, testJournalKey),
-        audit: AuditRecorder.service(new AuditOutbox(database), {
+        callKey: testCallKey,
+        origin: {
             package: locker.package,
             service: "test",
-        }),
+        },
     });
     const context = {
         scope: SPACE_ID,
@@ -266,10 +273,15 @@ test("name the version a read disclosed in its audit event, apart from its value
             value: "secret",
         },
     );
-    const recorded = await new AuditOutbox(database).read();
+    const recorded = await new Journal(database, testCallKey).read();
     expect(
-        recorded.map((read) => [read.action.name, read.category, read.targets, read.details]),
+        recorded.map((read) => [
+            read.method,
+            read.execution.category,
+            read.execution.targets,
+            read.execution.details,
+        ]),
     ).toEqual([
-        ["Locker.open", "access", { locker: { type: "locker", id: row!.id } }, { version: 3 }],
+        ["locker.open", "access", { locker: { type: "locker", id: row!.id } }, { version: 3 }],
     ]);
 });

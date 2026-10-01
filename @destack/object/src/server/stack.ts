@@ -174,12 +174,26 @@ export class Stack {
             );
         }
 
-        // reject unread collections
+        // reject collections and entries that no declaration collects, and entries several collect
         const ordered = order(declared);
-        const keys = new Set(ordered.flatMap((entry) => entry.keys ?? [entry.object.plural]));
-        for (const key of Object.keys(options.document)) {
-            if (!keys.has(key)) {
+        for (const [key, value] of Object.entries(options.document)) {
+            const readers = ordered.filter((entry) =>
+                (entry.keys ?? [entry.object.plural]).includes(key),
+            );
+            if (readers.length === 0) {
                 throw new ObjectError("UNSUPPORTED_DECLARATION", `this host cannot apply ${key}`);
+            }
+            const collected = readers.map((entry) => Object.keys(collect(entry, options.document)));
+            for (const name of Object.keys(value as Record<string, unknown>)) {
+                const count = collected.filter((names) => names.includes(name)).length;
+                if (count === 0) {
+                    throw new ObjectError(
+                        "UNSUPPORTED_DECLARATION",
+                        `this host cannot apply ${key} ${name}`,
+                    );
+                } else if (count > 1) {
+                    throw new TypeError(`several object types collect ${key} ${name}`);
+                }
             }
         }
 
@@ -313,9 +327,10 @@ export class Stack {
 
     /** Run a step in a transaction on an object type's database, reserving and confirming its index keys. */
     async #transact(declaration: Declared, step: (stack: Stack) => Promise<void>): Promise<void> {
-        // pick the database
+        // pick the database and the directory
         const options = this.#options;
         const root = declaration.database ?? options.database;
+        const directory = options.isDry === true ? undefined : options.directory;
         const requestId = crypto.randomUUID();
         let reservation: Reservation | undefined;
         try {
@@ -345,19 +360,13 @@ export class Stack {
 
                 // reserve the names the written objects claim
                 return (
-                    options.directory &&
-                    (await Reservation.open(
-                        options.directory,
-                        database,
-                        options.objects,
-                        requestId,
-                        this.now,
-                    ))
+                    directory &&
+                    (await Reservation.open(directory, database, options.objects, requestId))
                 );
             });
         } catch (error) {
             // release the reserved names
-            await options.directory?.release(requestId);
+            await directory?.release(requestId);
             throw error;
         }
 
@@ -463,7 +472,7 @@ export class Stack {
                             ...("generation" in table[TABLE].columns
                                 ? { generation: (row.generation as number) + 1 }
                                 : {}),
-                            ...(isDeletable ? { deletionRequestedAt: null } : {}),
+                            ...(isDeletable ? { deletionRequestedAt: null, deletedBy: null } : {}),
                             ...(declaration.touch?.(row as never, now) ?? {
                                 revision: (row.revision as number) + 1,
                                 updatedAt: now,
@@ -513,7 +522,9 @@ export class Stack {
             } else if (isDeletable) {
                 await database
                     .update(table)
-                    .set({ deletionRequestedAt: this.now } as Partial<Insert<Table>>)
+                    .set({ deletionRequestedAt: this.now, deletedBy: null } as Partial<
+                        Insert<Table>
+                    >)
                     .where(eq(table.id, row.id));
             } else {
                 await database.delete(table).where(eq(table.id, row.id));

@@ -1,20 +1,20 @@
-import { AuditOutbox } from "@destack/audit/outbox";
+import { Subject } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
-import { principal, relation, subjectKey, through, union } from "@destack/access";
-import { AuditRecorder } from "@destack/audit";
+import { principal, relation, through, union } from "@destack/access";
+import { journal } from "@destack/audit";
 import type { DatabaseConnection } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier } from "@destack/schema";
 import { Bookmark } from "@destack/service/bookmark";
-import { Journal } from "@destack/service/database";
+
 import { RequestId } from "@destack/service/request";
 import type { ServiceContext } from "@destack/service/server";
 import { defineObject, field, Intrinsic, method, type ObjectType } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
-import { request, user } from "./schema.ts";
+import { user } from "./schema.ts";
 import { openSpace, space } from "./fixture/space.ts";
-import { testJournalKey } from "@destack/service/test";
+import { testCallKey } from "@destack/service/test";
 
 /** The space containing the pages. */
 const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000007");
@@ -106,21 +106,21 @@ test.for(TEST_DIALECTS)(
             })),
         ).toEqual([
             {
-                caller: subjectKey(principal.user.reference("universe", "alice")),
+                caller: Subject.key(principal.user.reference("universe", "alice")),
                 startedAt: 0,
                 endedAt: 1 * MINUTE,
                 fields: ["owner", "title", "body"],
                 changes: 3,
             },
             {
-                caller: subjectKey(principal.user.reference("universe", "bob")),
+                caller: Subject.key(principal.user.reference("universe", "bob")),
                 startedAt: 2 * MINUTE,
                 endedAt: 2 * MINUTE,
                 fields: ["title"],
                 changes: 1,
             },
             {
-                caller: subjectKey(principal.user.reference("universe", "alice")),
+                caller: Subject.key(principal.user.reference("universe", "alice")),
                 startedAt: 30 * MINUTE,
                 endedAt: 30 * MINUTE,
                 fields: ["body"],
@@ -166,7 +166,7 @@ test.for(TEST_DIALECTS)(
             title: "Final",
         })) as unknown as { position: object; createdBy: string };
         expect([named.createdBy, await read(named.position)]).toEqual([
-            subjectKey(principal.user.reference("universe", "alice")),
+            Subject.key(principal.user.reference("universe", "alice")),
             ["Roadmap", "final"],
         ]);
 
@@ -229,8 +229,8 @@ test("refuse serving history that reads through an object keeping none", () => {
                 objects: { activity, folder, sheet },
                 database: { copies: () => false } as unknown as DatabaseConnection,
                 context: () => ({ subjects: [], now: 0, attributes: {} }),
-                journal: new Journal(request, testJournalKey),
-                audit: () => ({}) as AuditRecorder<DatabaseConnection>,
+                callKey: testCallKey,
+                origin: { package: activity.package, service: "test" },
             }),
     ).toThrow(
         new TypeError("object sheet keeps history but reads through folder, which keeps none"),
@@ -245,7 +245,7 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
         dialect,
         defineDatabase({
             name: "main",
-            tables: [request, ...Object.values(objects).flatMap((object) => object.tables)],
+            tables: [journal, ...Object.values(objects).flatMap((object) => object.tables)],
         }),
         { isMigrated: true },
     );
@@ -263,17 +263,17 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
             now,
             attributes: {},
         }),
-        journal: new Journal(request, testJournalKey),
-        audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+        callKey: testCallKey,
+        origin: {
             package: activity.package,
             service: "test",
-        }),
+        },
     });
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
     const context = {
         scope: spaceId,
-        requireCaller: () => ({ id: current }),
+        requireAuthentication: () => ({ id: current }),
         bookmark: new Bookmark(),
         observed: new Bookmark(),
         signal: controller.signal,
