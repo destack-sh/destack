@@ -1,3 +1,4 @@
+import { UpdateError } from "../error/index.ts";
 import { expect, test } from "@destack/test";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -69,7 +70,7 @@ test("recover interrupted activation and retain both distributions", async () =>
             }),
         );
         await expect(installer.recover()).rejects.toThrow(
-            "Refusing to activate an older or incompatible release.",
+            new UpdateError("INSTALL", "refusing to activate an older or incompatible release"),
         );
         expect(await installer.current()).toEqual(second);
     } finally {
@@ -81,32 +82,32 @@ test.each([
     {
         name: "parent path",
         entry: { path: "../outside", type: "File" },
-        message: "Unsafe archive path: ../outside",
+        message: "unsafe archive path: ../outside",
     },
     {
         name: "absolute path",
         entry: { path: "/outside", type: "File" },
-        message: "Unsafe archive path: /outside",
+        message: "unsafe archive path: /outside",
     },
     {
         name: "relative symlink",
         entry: { path: "escape", type: "SymbolicLink", linkpath: "../../outside" },
-        message: "Archive link escapes the distribution: escape",
+        message: "archive link escapes the distribution: escape",
     },
     {
         name: "absolute symlink",
         entry: { path: "escape", type: "SymbolicLink", linkpath: "/outside" },
-        message: "Archive link escapes the distribution: escape",
+        message: "archive link escapes the distribution: escape",
     },
     {
         name: "hard link",
         entry: { path: "escape", type: "Link", linkpath: "../outside" },
-        message: "Unsupported archive entry: escape (Link)",
+        message: "unsupported archive entry: escape (Link)",
     },
     {
         name: "device",
         entry: { path: "device", type: "CharacterDevice" },
-        message: "Unsupported archive entry: device (CharacterDevice)",
+        message: "unsupported archive entry: device (CharacterDevice)",
     },
 ] satisfies { name: string; entry: HeaderData; message: string }[])(
     "reject $name without extracting or activating files",
@@ -132,7 +133,7 @@ test.each([
                         throw new Error("unsafe archive reached executable verification");
                     },
                 ),
-            ).rejects.toThrow(message);
+            ).rejects.toThrow(new UpdateError("INSTALL", message));
             expect(await installer.current()).toBeUndefined();
             expect(await readdir(join(installer.directory, "versions"))).toEqual([]);
         } finally {

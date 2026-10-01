@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { generateKeyPairSync } from "node:crypto";
 import { SigningKey } from "./key.ts";
-import { createRoot, verifyRoot } from "./root.ts";
+import { TrustedRoot } from "./root.ts";
 import { Metadata, MetadataKind } from "@tufjs/models";
 
 test("require independent RSA root signatures and both quorums during rotation", () => {
@@ -17,20 +17,20 @@ test("require independent RSA root signatures and both quorums during rotation",
         timestamp: SigningKey.generate().public,
     };
     const expires = new Date(Date.now() + 365 * 86_400_000).toISOString();
-    const root = createRoot(
+    const root = TrustedRoot.create(
         1,
         roots.map((key) => key.public),
         keys,
         expires,
     );
-    expect(() => verifyRoot(root)).toThrow("root was signed by 0/2 keys");
+    expect(() => TrustedRoot.verify(root)).toThrow("root was signed by 0/2 keys");
 
     // a repeated signature from one key never satisfies the quorum
     root.sign((bytes) => roots[0]!.sign(bytes));
     root.sign((bytes) => roots[0]!.sign(bytes));
-    expect(() => verifyRoot(root)).toThrow("root was signed by 1/2 keys");
+    expect(() => TrustedRoot.verify(root)).toThrow("root was signed by 1/2 keys");
     root.sign((bytes) => roots[1]!.sign(bytes));
-    verifyRoot(root);
+    TrustedRoot.verify(root);
     expect(root.signed.roles.root?.threshold).toBe(2);
     expect(Object.keys(root.signatures).sort()).toEqual(
         roots
@@ -41,7 +41,7 @@ test("require independent RSA root signatures and both quorums during rotation",
 
     // replacing one lost key requires two surviving keys and the replacement quorum
     const replacement = SigningKey.generate();
-    const rotated = createRoot(
+    const rotated = TrustedRoot.create(
         2,
         [roots[1]!.public, roots[2]!.public, replacement.public],
         keys,
@@ -49,10 +49,10 @@ test("require independent RSA root signatures and both quorums during rotation",
     );
     rotated.sign((bytes) => roots[1]!.sign(bytes));
     rotated.sign((bytes) => replacement.sign(bytes));
-    expect(() => verifyRoot(rotated, root)).toThrow("root was signed by 1/2 keys");
+    expect(() => TrustedRoot.verify(rotated, root)).toThrow("root was signed by 1/2 keys");
     rotated.sign((bytes) => roots[2]!.sign(bytes));
-    verifyRoot(rotated, root);
-    expect(() => verifyRoot(rotated)).toThrow("expected root version 1");
+    TrustedRoot.verify(rotated, root);
+    expect(() => TrustedRoot.verify(rotated)).toThrow("expected root version 1");
 
     // changing signed content invalidates every signature
     const changed = Metadata.fromJSON(MetadataKind.Root, {
@@ -62,8 +62,13 @@ test("require independent RSA root signatures and both quorums during rotation",
             expires: new Date(Date.now() + 366 * 86_400_000).toISOString(),
         },
     });
-    expect(() => verifyRoot(changed, root)).toThrow("root was signed by 0/2 keys");
+    expect(() => TrustedRoot.verify(changed, root)).toThrow("root was signed by 0/2 keys");
     expect(() =>
-        createRoot(1, [roots[0]!.public, roots[0]!.public, roots[2]!.public], keys, expires),
+        TrustedRoot.create(
+            1,
+            [roots[0]!.public, roots[0]!.public, roots[2]!.public],
+            keys,
+            expires,
+        ),
     ).toThrow("root requires three independent keys and three distinct online keys");
 }, 5000);

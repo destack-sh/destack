@@ -44,7 +44,7 @@ export class UpdateProcess implements AsyncDisposable {
         await mkdir(directory, { recursive: true, mode: 0o700 });
         const lock = await FileLock.tryAcquire(join(directory, "desktop.lock"));
         if (!lock) {
-            throw new UpdateError("BUSY", "Destack desktop is already running.");
+            throw new UpdateError("BUSY", "the Destack desktop is already running");
         }
         try {
             // publish the endpoint atomically without exposing credentials to the webview
@@ -121,7 +121,7 @@ export class UpdateProcess implements AsyncDisposable {
                 typeof endpoint.token !== "string" ||
                 !/^[0-9a-f]{64}$/.test(endpoint.token)
             ) {
-                throw new UpdateError("INSTALL", "Invalid desktop update endpoint.");
+                throw new UpdateError("INSTALL", "invalid desktop update endpoint");
             }
             const response = await fetch(`http://127.0.0.1:${endpoint.port}${STOP_PATH}`, {
                 method: "POST",
@@ -131,7 +131,7 @@ export class UpdateProcess implements AsyncDisposable {
             });
             await response.body?.cancel();
             if (response.status !== 202) {
-                throw new UpdateError("INSTALL", `Desktop refused shutdown: ${response.status}.`);
+                throw new UpdateError("INSTALL", `desktop refused shutdown: ${response.status}`);
             }
 
             // require resource release without terminating a persisted process identifier

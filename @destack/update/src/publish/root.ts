@@ -11,8 +11,16 @@ export interface ReleasePublicKey {
     timestamp: Key;
 }
 
+/** The signed root metadata clients pin, as Sigstore's trusted root: the keys and quorums of every role. */
+export const TrustedRoot = {
+    create: createRoot,
+    verify: verifyRoot,
+    authenticate: authenticateRoot,
+    read: readRoot,
+};
+
 /** Create unsigned two-of-three root metadata using only public keys. */
-export function createRoot(
+function createRoot(
     version: number,
     roots: Key[],
     keys: ReleasePublicKey,
@@ -62,7 +70,7 @@ export function createRoot(
 }
 
 /** Verify initial trust or a consecutive root rotation against both required quorums. */
-export function verifyRoot(root: Metadata<Root>, previous?: Metadata<Root>): void {
+function verifyRoot(root: Metadata<Root>, previous?: Metadata<Root>): void {
     // require current authorization for completed signing ceremonies
     if (root.signed.isExpired()) {
         throw new Error("root has expired");
@@ -71,7 +79,7 @@ export function verifyRoot(root: Metadata<Root>, previous?: Metadata<Root>): voi
 }
 
 /** Authenticate bootstrap trust or a consecutive rotation, including expired historical roots. */
-export function authenticateRoot(root: Metadata<Root>, previous?: Metadata<Root>): void {
+function authenticateRoot(root: Metadata<Root>, previous?: Metadata<Root>): void {
     // preserve the agreed root quorum independently of signature validity
     const role = root.signed.roles.root;
     if (role?.threshold !== 2 || role.keyIDs.length !== 3 || new Set(role.keyIDs).size !== 3) {
@@ -93,6 +101,6 @@ export function authenticateRoot(root: Metadata<Root>, previous?: Metadata<Root>
 }
 
 /** Read a public root document, including partially signed ceremony documents. */
-export async function readRoot(path: string): Promise<Metadata<Root>> {
+async function readRoot(path: string): Promise<Metadata<Root>> {
     return Metadata.fromJSON(MetadataKind.Root, JSON.parse(await readFile(path, "utf8")));
 }

@@ -1,3 +1,4 @@
+import { UpdateError } from "../error/index.ts";
 import { expect, test } from "@destack/test";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -60,7 +61,7 @@ test("authenticate desktop shutdown and wait for process exit", async () => {
         }
         await expect(
             UpdateProcess.register(directory, endpoint.port, async () => {}),
-        ).rejects.toThrow("Destack desktop is already running.");
+        ).rejects.toThrow(new UpdateError("BUSY", "the Destack desktop is already running"));
 
         // authenticate shutdown and ignore stale registration after the process exits
         expect(await UpdateProcess.stop(directory)).toBe(true);

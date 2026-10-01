@@ -1,3 +1,4 @@
+import { Digest } from "@destack/schema";
 import { UpdateError } from "../error/error.ts";
 import {
     lstat,
@@ -69,12 +70,10 @@ export class Installer {
         const record = JSON.parse(source);
         const release = new Release(record.version, record.target);
         if (
-            typeof record.sha256 !== "string" ||
-            !/^[0-9a-f]{64}$/.test(record.sha256) ||
-            (record.previous !== undefined &&
-                (typeof record.previous !== "string" || !/^[0-9a-f]{64}$/.test(record.previous)))
+            !Digest.safeParse(record.sha256).success ||
+            (record.previous !== undefined && !Digest.safeParse(record.previous).success)
         ) {
-            throw new UpdateError("INSTALL", "Invalid staged release digest.");
+            throw new UpdateError("INSTALL", "invalid staged release digest");
         }
 
         return {
@@ -99,8 +98,8 @@ export class Installer {
         }
         const record = JSON.parse(source);
         const release = new Release(record.version, record.target);
-        if (typeof record.sha256 !== "string" || !/^[0-9a-f]{64}$/.test(record.sha256)) {
-            throw new UpdateError("INSTALL", "Invalid installed release digest.");
+        if (!Digest.safeParse(record.sha256).success) {
+            throw new UpdateError("INSTALL", "invalid installed release digest");
         }
 
         return { release, sha256: record.sha256, directory: this.path(release) };
@@ -114,14 +113,14 @@ export class Installer {
         // reject downgrades and reuse only an identical authenticated release
         const current = await this.current();
         if (current && current.release.target !== download.release.target) {
-            throw new UpdateError("INSTALL", "Cannot change the installed platform.");
+            throw new UpdateError("INSTALL", "cannot change the installed platform");
         }
         if (current && download.release.compare(current.release) < 0) {
-            throw new UpdateError("INSTALL", "Refusing to install an older release.");
+            throw new UpdateError("INSTALL", "refusing to install an older release");
         }
         if (current && download.release.compare(current.release) === 0) {
             if (current.sha256 !== download.sha256) {
-                throw new UpdateError("INSTALL", "Published release changed.");
+                throw new UpdateError("INSTALL", "published release changed");
             }
             await check(current.directory);
             return current;
@@ -172,7 +171,7 @@ export class Installer {
                 if ((await readFile(join(destination, "receipt.json"), "utf8")) !== receipt) {
                     throw new UpdateError(
                         "INSTALL",
-                        "Installed release directory contains different content.",
+                        "installed release directory contains different content",
                     );
                 }
                 await check(destination);
@@ -218,7 +217,7 @@ export class Installer {
         } catch (error) {
             throw new UpdateError(
                 "ACTIVATION",
-                "Activation did not finish. Retry destack update --activate before restarting applications.",
+                "activation did not finish. Retry destack update --activate before restarting applications",
                 { cause: error },
             );
         }
@@ -244,12 +243,12 @@ export class Installer {
         const receipt = JSON.parse(await readFile(join(directory, "receipt.json"), "utf8"));
         if (
             typeof record.sha256 !== "string" ||
-            !/^[0-9a-f]{64}$/.test(record.sha256) ||
+            !Digest.safeParse(record.sha256).success ||
             receipt.sha256 !== record.sha256
         ) {
             throw new UpdateError(
                 "INSTALL",
-                "Activation receipt does not match the staged release.",
+                "activation receipt does not match the staged release",
             );
         }
         await this.checkActivation(release, record.sha256);
@@ -300,11 +299,11 @@ export class Installer {
         ) {
             throw new UpdateError(
                 "INSTALL",
-                "Refusing to activate an older or incompatible release.",
+                "refusing to activate an older or incompatible release",
             );
         }
         if (current && current.release.compare(release) === 0 && current.sha256 !== sha256) {
-            throw new UpdateError("INSTALL", "Published release changed.");
+            throw new UpdateError("INSTALL", "published release changed");
         }
     }
 }
@@ -319,7 +318,7 @@ async function verifyLinks(root: string, directory: string): Promise<void> {
             const destination = resolve(directory, link);
             const relation = relative(root, destination);
             if (isAbsolute(link) || relation === ".." || relation.startsWith(`..${sep}`)) {
-                throw new UpdateError("INSTALL", `Archive link escapes the distribution: ${path}`);
+                throw new UpdateError("INSTALL", `archive link escapes the distribution: ${path}`);
             }
         } else if (stat.isDirectory()) {
             await verifyLinks(root, path);
@@ -330,23 +329,23 @@ async function verifyLinks(root: string, directory: string): Promise<void> {
 /** Reject archive paths and entry types that can write outside the staged distribution. */
 function verifyEntry(path: string, entry: Stats | ReadEntry, root: string): void {
     if (!("type" in entry)) {
-        throw new UpdateError("INSTALL", "Expected an archive entry.");
+        throw new UpdateError("INSTALL", "expected an archive entry");
     }
     const components = path.replaceAll("\\", "/").split("/");
     if (isAbsolute(path) || components.includes("..") || /^[A-Za-z]:/.test(path)) {
-        throw new UpdateError("INSTALL", `Unsafe archive path: ${path}`);
+        throw new UpdateError("INSTALL", `unsafe archive path: ${path}`);
     }
     if (!["File", "Directory", "SymbolicLink"].includes(entry.type)) {
-        throw new UpdateError("INSTALL", `Unsupported archive entry: ${path} (${entry.type})`);
+        throw new UpdateError("INSTALL", `unsupported archive entry: ${path} (${entry.type})`);
     }
     if (entry.type === "SymbolicLink") {
         if (!entry.linkpath) {
-            throw new UpdateError("INSTALL", `Missing archive link target: ${path}`);
+            throw new UpdateError("INSTALL", `missing archive link target: ${path}`);
         }
         const target = resolve(root, path, "..", entry.linkpath);
         const relation = relative(root, target);
         if (isAbsolute(entry.linkpath) || relation === ".." || relation.startsWith(`..${sep}`)) {
-            throw new UpdateError("INSTALL", `Archive link escapes the distribution: ${path}`);
+            throw new UpdateError("INSTALL", `archive link escapes the distribution: ${path}`);
         }
     }
 }

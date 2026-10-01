@@ -28,7 +28,7 @@ export class DownloadFetcher extends BaseFetcher {
         const response = await fetch(url, { signal });
         if (!response.ok || !response.body) {
             await response.body?.cancel();
-            throw new UpdateError("DOWNLOAD", `Archive request failed: HTTP ${response.status}.`);
+            throw new UpdateError("DOWNLOAD", `archive request failed: HTTP ${response.status}`);
         }
 
         // report the signed length rather than trusting the HTTP content length

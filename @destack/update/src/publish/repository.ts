@@ -14,7 +14,7 @@ import {
     Timestamp,
 } from "@tufjs/models";
 import type { SigningKey } from "./key.ts";
-import { authenticateRoot } from "./root.ts";
+import { TrustedRoot } from "./root.ts";
 
 /** Keys authorized to publish routine release metadata. */
 export interface ReleaseKeys extends RenewalKeys {
@@ -42,8 +42,17 @@ export interface Distribution {
     format?: "dmg" | "exe";
 }
 
+/** A signed release repository on disk: its root rotations, targets, snapshot and timestamp, as clients download them. */
+export const SignedRepository = {
+    read: readRepository,
+    create: createRepository,
+    write: writeMetadata,
+    renew: renewMetadata,
+    encode,
+};
+
 /** Authenticate local metadata against the embedded root before publication. */
-export async function readRepository(directory: string, root: Metadata<Root>) {
+async function readRepository(directory: string, root: Metadata<Root>) {
     // follow consecutive rotations from the root already trusted by installed clients
     const metadata = join(directory, "metadata");
     const files = await readdir(metadata);
@@ -65,7 +74,7 @@ export async function readRepository(directory: string, root: Metadata<Root>) {
         }
         // verify each replacement against the previous quorum
         else {
-            authenticateRoot(next, root);
+            TrustedRoot.authenticate(next, root);
             root = next;
         }
     }
@@ -112,7 +121,7 @@ export async function readRepository(directory: string, root: Metadata<Root>) {
 }
 
 /** Write a complete signed repository, returning its signed targets; publish timestamp.json after its referenced files. */
-export async function createRepository(
+async function createRepository(
     directory: string,
     revision: number,
     root: Metadata<Root>,
@@ -162,7 +171,7 @@ export async function createRepository(
 }
 
 /** Authorize targets and write the corresponding snapshot and timestamp, returning the signed targets. */
-export async function writeMetadata(
+async function writeMetadata(
     directory: string,
     revision: number,
     root: Metadata<Root>,
@@ -188,7 +197,7 @@ export async function writeMetadata(
 }
 
 /** Renew freshness without changing the bytes or signatures of targets metadata. */
-export async function renewMetadata(
+async function renewMetadata(
     directory: string,
     revision: number,
     root: Metadata<Root>,
@@ -242,7 +251,7 @@ export async function renewMetadata(
 }
 
 /** Encode signed metadata for transport. */
-export function encode(metadata: Metadata<Root | Targets | Snapshot | Timestamp>): Buffer {
+function encode(metadata: Metadata<Root | Targets | Snapshot | Timestamp>): Buffer {
     return Buffer.from(JSON.stringify(metadata.toJSON()) + "\n");
 }
 

@@ -1,4 +1,5 @@
 /* oxlint-disable destack/prevent-abbreviations -- tuf-js names its directory options metadataDir and targetDir */
+import { Digest } from "@destack/schema";
 import { UpdateError } from "../error/error.ts";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -43,10 +44,10 @@ export class UpdateRepository {
         // permit plaintext only for local release verification
         const isLoopback = ["127.0.0.1", "[::1]", "localhost"].includes(url.hostname);
         if (url.protocol !== "https:" && !(url.protocol === "http:" && isLoopback)) {
-            throw new UpdateError("REPOSITORY", "Update repositories require HTTPS.");
+            throw new UpdateError("REPOSITORY", "update repositories require HTTPS");
         }
         if (url.username || url.password || url.search || url.hash || !url.pathname.endsWith("/")) {
-            throw new UpdateError("REPOSITORY", "Invalid update repository URL.");
+            throw new UpdateError("REPOSITORY", "invalid update repository URL");
         }
 
         // retain previously verified metadata across process and release changes
@@ -74,7 +75,7 @@ export class UpdateRepository {
             if ((await readFile(source, "utf8")) !== url.href) {
                 throw new UpdateError(
                     "REPOSITORY",
-                    "Update cache belongs to a different repository.",
+                    "update cache belongs to a different repository",
                 );
             }
         }
@@ -92,14 +93,14 @@ export class UpdateRepository {
         await updater.refresh();
         const artifact = await updater.getTargetInfo(`${target}.tar.gz`);
         if (!artifact) {
-            throw new UpdateError("REPOSITORY", `No published release for ${target}.`);
+            throw new UpdateError("REPOSITORY", `no published release for ${target}`);
         }
 
         // retain the exact signed target even if the repository publishes another release
         const release = new Release(artifact.custom.version, target);
         const previous = this.selected.get(release.directory);
         if (previous && !previous.equals(artifact)) {
-            throw new UpdateError("REPOSITORY", "Published release changed.");
+            throw new UpdateError("REPOSITORY", "published release changed");
         }
         this.selected.set(release.directory, artifact);
 
@@ -110,12 +111,12 @@ export class UpdateRepository {
     digest(release: Release): string {
         // read the digest selected by the update check
         const artifact = this.selected.get(release.directory);
-        const digest = artifact?.hashes.sha256;
-        if (typeof digest !== "string" || !/^[0-9a-f]{64}$/.test(digest)) {
-            throw new UpdateError("REPOSITORY", "Invalid release archive digest.");
+        const digest = Digest.safeParse(artifact?.hashes.sha256);
+        if (!digest.success) {
+            throw new UpdateError("REPOSITORY", "invalid release archive digest");
         }
 
-        return digest;
+        return digest.data;
     }
 
     /** Download an archive and verify its signed size and digest before returning it. */
@@ -128,14 +129,14 @@ export class UpdateRepository {
         options.signal?.throwIfAborted();
         const artifact = this.selected.get(release.directory);
         if (!artifact || artifact.custom.version !== release.version) {
-            throw new UpdateError("REPOSITORY", "Release changed after selection.");
+            throw new UpdateError("REPOSITORY", "release changed after selection");
         }
         if (
             artifact.length > 2 * 1024 ** 3 ||
             artifact.hashes.sha256 === undefined ||
-            !/^[0-9a-f]{64}$/.test(artifact.hashes.sha256)
+            !Digest.safeParse(artifact.hashes.sha256).success
         ) {
-            throw new UpdateError("REPOSITORY", "Invalid release archive metadata.");
+            throw new UpdateError("REPOSITORY", "invalid release archive metadata");
         }
 
         // authenticate an installer archive using the same signed length and hashes
@@ -145,7 +146,7 @@ export class UpdateRepository {
         });
         const cached = await downloader.findCachedTarget(artifact, candidate);
         if (candidate && !cached) {
-            throw new UpdateError("REPOSITORY", "Installer archive failed verification.");
+            throw new UpdateError("REPOSITORY", "installer archive failed verification");
         }
         const archive = cached ?? (await downloader.downloadTarget(artifact));
         options.signal?.throwIfAborted();

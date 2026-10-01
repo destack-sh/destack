@@ -1,3 +1,4 @@
+import { UpdateError } from "../error/index.ts";
 import { afterAll, beforeAll, expect, test } from "@destack/test";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
@@ -10,7 +11,7 @@ import { Metadata, Timestamp } from "@tufjs/models";
 import { Repository, createRootKey } from "./tests/repository.ts";
 import { Updater } from "./updater.ts";
 import { Release } from "../release/release.ts";
-import { createRoot, SigningKey, createRepository, encode } from "../publish/index.ts";
+import { SignedRepository, SigningKey, TrustedRoot } from "../publish/index.ts";
 
 /** Native executable filename expected by the selected archive format. */
 const COMMAND = process.platform === "win32" ? "destack.exe" : "destack";
@@ -68,11 +69,15 @@ test("retain staging across sessions and reject concurrent or stale activation",
     // stage the complete archive under an exclusive updater session
     {
         await using updater = await Updater.open(options);
-        await expect(Updater.open(options)).rejects.toThrow("Another Destack update is running.");
+        await expect(Updater.open(options)).rejects.toThrow(
+            new UpdateError("BUSY", "another Destack update is running"),
+        );
 
         // serialize operations within the same session
         const checking = updater.check();
-        await expect(updater.check()).rejects.toThrow("An update operation is already running.");
+        await expect(updater.check()).rejects.toThrow(
+            new UpdateError("BUSY", "an update operation is already running"),
+        );
         const update = await checking;
         expect(update?.release).toEqual(new Release("2026.9.1", target));
 
@@ -94,7 +99,10 @@ test("retain staging across sessions and reject concurrent or stale activation",
         });
         const staged = await updater.staged();
         await expect(updater.activate(staged!)).rejects.toThrow(
-            "Refusing to activate a release older than the running version.",
+            new UpdateError(
+                "RELEASE",
+                "refusing to activate a release older than the running version",
+            ),
         );
         expect(await updater.current()).toBeUndefined();
         expect(await updater.staged()).toEqual(staged);
@@ -120,9 +128,9 @@ test("retry cancelled downloads and reject tampered archives before staging", as
     await using updater = await Updater.open(options);
     const update = await updater.check();
     const cancelled = new AbortController();
-    cancelled.abort(new Error("Cancelled download."));
+    cancelled.abort(new Error("cancelled download"));
     await expect(update!.download({ signal: cancelled.signal })).rejects.toThrow(
-        "Cancelled download.",
+        new Error("cancelled download"),
     );
 
     // cancel after bytes arrive and require the next attempt to download successfully
@@ -130,9 +138,9 @@ test("retry cancelled downloads and reject tampered archives before staging", as
     await expect(
         update!.download({
             signal: interrupted.signal,
-            onProgress: () => interrupted.abort(new Error("Interrupted download.")),
+            onProgress: () => interrupted.abort(new Error("interrupted download")),
         }),
-    ).rejects.toThrow("Interrupted download.");
+    ).rejects.toThrow(new Error("interrupted download"));
     expect(await updater.current()).toBeUndefined();
     expect(await updater.staged()).toBeUndefined();
 
@@ -149,7 +157,7 @@ test("retry cancelled downloads and reject tampered archives before staging", as
     const modified = join(directory, "modified.tar.gz");
     await writeFile(modified, "tampered");
     await expect(updater.stage({ ...download, archive: modified })).rejects.toThrow(
-        "Installer archive failed verification.",
+        new UpdateError("REPOSITORY", "installer archive failed verification"),
     );
 
     // retain a verified archive after the rejected attempt
@@ -178,7 +186,7 @@ test("retain rotated trust across sessions and reject expired or rolled-back met
         timestamp: SigningKey.generate(),
     };
     const replacement = Array.from({ length: 3 }, () => SigningKey.generate());
-    repository.root = createRoot(
+    repository.root = TrustedRoot.create(
         2,
         replacement.map((key) => key.public),
         {
@@ -191,7 +199,7 @@ test("retain rotated trust across sessions and reject expired or rolled-back met
     for (const key of [...rootKeys.slice(0, 2), ...replacement.slice(0, 2)]) {
         repository.root.sign((bytes) => key.sign(bytes));
     }
-    await createRepository(repository.path, 2, repository.root, repository.keys, [
+    await SignedRepository.create(repository.path, 2, repository.root, repository.keys, [
         {
             target,
             version: "2026.9.1",
@@ -215,7 +223,7 @@ test("retain rotated trust across sessions and reject expired or rolled-back met
         }),
     );
     timestamp.sign((bytes) => repository.keys.timestamp.sign(bytes));
-    await writeFile(timestampPath, encode(timestamp));
+    await writeFile(timestampPath, SignedRepository.encode(timestamp));
     {
         await using updater = await Updater.open(options);
         await expect(updater.check()).rejects.toThrow("Final timestamp.json is expired");
@@ -225,7 +233,7 @@ test("retain rotated trust across sessions and reject expired or rolled-back met
     // a valid signature must not permit rollback of persisted metadata
     const rollback = new Metadata(Timestamp.fromJSON(JSON.parse(firstTimestamp.toString()).signed));
     rollback.sign((bytes) => repository.keys.timestamp.sign(bytes));
-    await writeFile(timestampPath, encode(rollback));
+    await writeFile(timestampPath, SignedRepository.encode(rollback));
     {
         await using updater = await Updater.open(options);
         await expect(updater.check()).rejects.toThrow(
@@ -250,7 +258,7 @@ test("preserve the installed release when signed replacements contradict its ide
     }
 
     // a signed archive with the wrong executable version must leave the installation unchanged
-    await createRepository(repository.path, 3, repository.root, repository.keys, [
+    await SignedRepository.create(repository.path, 3, repository.root, repository.keys, [
         {
             target,
             version: "2026.9.2",
@@ -262,7 +270,7 @@ test("preserve the installed release when signed replacements contradict its ide
         const update = await updater.check();
         const download = await update!.download();
         await expect(updater.stage(download)).rejects.toThrow(
-            "Downloaded CLI version does not match the signed release.",
+            new UpdateError("RELEASE", "downloaded CLI version does not match the signed release"),
         );
         expect(await updater.current()).toEqual(installed);
         expect(await updater.staged()).toBeUndefined();
@@ -271,7 +279,7 @@ test("preserve the installed release when signed replacements contradict its ide
     // reject changed bytes published under the installed version across sessions
     await writeFile(join(source, "Destack/changed"), "changed release contents");
     await create({ file: archive, gzip: { level: 1 }, cwd: source }, ["bin", "Destack"]);
-    await createRepository(repository.path, 4, repository.root, repository.keys, [
+    await SignedRepository.create(repository.path, 4, repository.root, repository.keys, [
         {
             target,
             version: "2026.9.1",
@@ -280,7 +288,9 @@ test("preserve the installed release when signed replacements contradict its ide
     ]);
     {
         await using updater = await Updater.open(options);
-        await expect(updater.check()).rejects.toThrow("Published release changed.");
+        await expect(updater.check()).rejects.toThrow(
+            new UpdateError("RELEASE", "published release changed"),
+        );
         expect(await updater.current()).toEqual(installed);
         expect(await updater.staged()).toBeUndefined();
     }

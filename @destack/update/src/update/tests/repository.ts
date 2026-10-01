@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { UpdaterOptions } from "../updater.ts";
-import { createRoot, SigningKey, createRepository, encode } from "../../publish/index.ts";
+import { SignedRepository, SigningKey, TrustedRoot } from "../../publish/index.ts";
 
 /** A real signed repository and isolated installation served over loopback. */
 export class Repository implements AsyncDisposable {
@@ -26,7 +26,7 @@ export class Repository implements AsyncDisposable {
         timestamp: SigningKey.generate(),
     };
     /** Root metadata that may be rotated by the scenario. */
-    root: ReturnType<typeof createRoot>;
+    root: ReturnType<typeof TrustedRoot.create>;
     /** Public updater inputs, retaining the initial root through rotation. */
     readonly options: UpdaterOptions;
     /** Loopback server owned by this repository. */
@@ -44,7 +44,7 @@ export class Repository implements AsyncDisposable {
         this.rootKeys = rootKeys;
 
         // establish independent online trust with the shared offline signers
-        this.root = createRoot(
+        this.root = TrustedRoot.create(
             1,
             rootKeys.map((key) => key.public),
             {
@@ -71,7 +71,7 @@ export class Repository implements AsyncDisposable {
         this.options = {
             directory: join(directory, "installation"),
             repository: new URL("http://127.0.0.1/"),
-            root: encode(this.root).toString(),
+            root: SignedRepository.encode(this.root).toString(),
             target: this.target,
         };
     }
@@ -88,7 +88,7 @@ export class Repository implements AsyncDisposable {
         try {
             await cp(join(fixture, "source"), repository.source, { recursive: true });
             await cp(join(fixture, "release.tar.gz"), repository.archive);
-            await createRepository(repository.path, 1, repository.root, repository.keys, [
+            await SignedRepository.create(repository.path, 1, repository.root, repository.keys, [
                 { target: repository.target, version, archive: repository.archive },
             ]);
 

@@ -4,8 +4,8 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SigningKey } from "./key.ts";
-import { createRoot } from "./root.ts";
-import { createRepository, readRepository, renewMetadata } from "./repository.ts";
+import { TrustedRoot } from "./root.ts";
+import { SignedRepository } from "./repository.ts";
 
 test("renew freshness while preserving exact targets authorization", async () => {
     // prepare independent roles and a quorum using disposable keys
@@ -15,7 +15,7 @@ test("renew freshness while preserving exact targets authorization", async () =>
         snapshot: SigningKey.generate(),
         timestamp: SigningKey.generate(),
     };
-    const root = createRoot(
+    const root = TrustedRoot.create(
         1,
         roots.map((key) => key.public),
         {
@@ -33,7 +33,7 @@ test("renew freshness while preserving exact targets authorization", async () =>
     try {
         const archive = join(directory, "archive");
         await writeFile(archive, "distribution");
-        await createRepository(directory, 1, root, keys, [
+        await SignedRepository.create(directory, 1, root, keys, [
             {
                 target: "aarch64-apple-darwin",
                 version: "2026.9.1",
@@ -42,7 +42,7 @@ test("renew freshness while preserving exact targets authorization", async () =>
         ]);
         const original = await readFile(join(directory, "metadata/1.targets.json"));
         const renewal = { snapshot: keys.snapshot, timestamp: keys.timestamp };
-        await renewMetadata(directory, 2, root, renewal, original);
+        await SignedRepository.renew(directory, 2, root, renewal, original);
 
         // preserve signatures, version and bytes while advancing freshness versions
         expect(await readFile(join(directory, "metadata/1.targets.json"))).toEqual(original);
@@ -62,7 +62,7 @@ test("renew freshness while preserving exact targets authorization", async () =>
         snapshot.signed.meta["targets.json"]!.verify(original);
 
         // authenticate the complete outgoing graph before allowing publication
-        const verified = await readRepository(directory, root);
+        const verified = await SignedRepository.read(directory, root);
         expect(verified.timestamp.toJSON()).toEqual(timestamp.toJSON());
         expect(verified.snapshot.toJSON()).toEqual(snapshot.toJSON());
         expect(verified.targets.toJSON()).toEqual(JSON.parse(original.toString("utf8")));
@@ -71,7 +71,13 @@ test("renew freshness while preserving exact targets authorization", async () =>
         const changed = JSON.parse(original.toString());
         changed.signed.version = 3;
         await expect(
-            renewMetadata(directory, 3, root, renewal, Buffer.from(JSON.stringify(changed))),
+            SignedRepository.renew(
+                directory,
+                3,
+                root,
+                renewal,
+                Buffer.from(JSON.stringify(changed)),
+            ),
         ).rejects.toThrow("targets was signed by 0/1 keys");
     } finally {
         await rm(directory, { recursive: true, force: true });
