@@ -1,0 +1,40 @@
+{
+    "name": "@destack/monitor",
+    "version": "2026.9.0",
+    "private": true,
+    "type": "module",
+    "license": "MIT",
+    "sideEffects": false,
+    "description": "Store, search and follow the telemetry of Destack scopes.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./service": "./src/service/index.ts",
+        "./server": "./src/server/index.ts"
+    },
+    "scripts": {
+        "check": "tsc -p tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "dependencies": {
+        "@destack/sync": "workspace:*",
+        "@destack/access": "workspace:*",
+        "@destack/audit": "workspace:*",
+        "@destack/bucket": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/service": "workspace:*",
+        "@destack/setting": "workspace:*",
+        "@destack/space": "workspace:*",
+        "@destack/telemetry": "workspace:*",
+        "hyparquet": "1.31.2",
+        "hyparquet-writer": "0.16.10",
+        "uuid": "14.0.2"
+    },
+    "devDependencies": {
+        "@destack/object": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/test": "workspace:*"
+    }
+}
