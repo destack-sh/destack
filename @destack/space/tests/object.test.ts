@@ -10,6 +10,9 @@ test("describe every space object and its methods for the manifest", () => {
     expect(descriptions.map((description) => description.name).sort()).toEqual([
         "activity",
         "binding",
+        "branch",
+        "branch-call",
+        "branch-row",
         "capture",
         "checkpoint",
         "deployment",

@@ -145,6 +145,23 @@ const service = implementService({
 });
 ```
 
+## Branches
+
+Every app serves `branchObjects` beside its own objects and keeps `branchTables` in its database; `branchType` brings them together for servers and clients.
+
+```ts
+export const notesService = defineService("notes", { objects: { notebook, note, ...branchObjects } });
+```
+
+| Method | Permission | Effect |
+|---|---|---|
+| `branch.create` | `push` | create a branch under a title, readable by its author |
+| `branch.push` | `push` | append calls as the caller's, and replay them into the branch's rows |
+| `branch.merge` | `merge` | replay every call with the merger's permission, each as its author, in one mutation |
+| `branch.discard` | `discard` | close the branch without replaying it |
+| `branch.rebuild` | system | replay every call again once the main line changes a table the branch reaches |
+| `branch.grant` | `share` | let a collaborator read, push and merge |
+
 ## Transfers
 
 A space moves to a host of its account or to a region with every row its cell database keeps in the space and its resources.

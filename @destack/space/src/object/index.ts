@@ -12,3 +12,4 @@ export * from "./instance.ts";
 export * from "./transfer.ts";
 export * from "./snapshot.ts";
 export * from "./history.ts";
+export * from "./branch.ts";
