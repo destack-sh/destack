@@ -8,7 +8,7 @@ import { StorageError } from "../error/index.ts";
 import { catalogueDatabase, file, part, segment, upload } from "./stack/index.ts";
 import { LocalFile } from "./file.ts";
 import type { Segment } from "./reader.ts";
-import { connect } from "@destack/db/turso";
+import { connect } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
 import { syncDirectory } from "./directory.ts";
 import { FileLock } from "@destack/fs";
@@ -27,7 +27,7 @@ export class LocalStorage implements AsyncDisposable {
     readonly directory: string;
     /** The private catalogue connection. */
     readonly database: SqliteDatabase;
-    /** The operating-system lock held by this host. */
+    /** The operating-system lock this host has taken. */
     readonly #lock: FileLock;
     /** Operations that select or replace content files. */
     #pending: Promise<void> = Promise.resolve();
@@ -210,7 +210,7 @@ export class LocalStorage implements AsyncDisposable {
         await this.#collectFiles();
     }
 
-    /** Delete retired files no reader holds and no file segment or part still references. */
+    /** Delete retired files no reader has open and no file segment or part still references. */
     async #collectFiles(): Promise<void> {
         // keep every file an active reader retains
         const released = [...this.retired].filter((content) => !this.#readers.has(content));
@@ -251,12 +251,12 @@ export class LocalStorage implements AsyncDisposable {
         });
     }
 
-    /** Read the catalogue entry of a key while the caller holds the catalogue lock. */
+    /** Read the catalogue entry of a key while the caller has the catalogue lock. */
     async entry(key: string): Promise<LocalFile | undefined> {
         return await this.database.select().from(file).where(eq(file.key, key)).get();
     }
 
-    /** Read the content segments of a file version in order while the caller holds the catalogue lock. */
+    /** Read the content segments of a file version in order while the caller has the catalogue lock. */
     async segments(version: string): Promise<Segment[]> {
         return await this.database
             .select({ content: segment.content, size: segment.size })
@@ -305,7 +305,7 @@ export class LocalStorage implements AsyncDisposable {
         return detached.map((selected) => selected.content);
     }
 
-    /** Select a page of files while the caller holds the catalogue lock. */
+    /** Select a page of files while the caller has the catalogue lock. */
     async list(options: BucketListOptions): Promise<BucketListing> {
         // validate the optional prefix as a key
         const prefix = options.prefix ?? "";
@@ -336,6 +336,7 @@ export class LocalStorage implements AsyncDisposable {
             uploaded: file.uploaded,
             checksums: file.checksums,
             storageClass: file.storageClass,
+            ssecKeyMd5: file.ssecKeyMd5,
             ...(options.include?.includes("httpMetadata")
                 ? { httpMetadata: file.httpMetadata }
                 : {}),
@@ -425,7 +426,7 @@ export class LocalStorage implements AsyncDisposable {
 
     /** Serialize catalogue changes and opening their selected content files. */
     async exclusive<Value>(operation: () => Promise<Value>): Promise<Value> {
-        // wait for the previous operation and hold the lock while this one runs
+        // wait for the previous operation and keep the lock while this one runs
         const previous = this.#pending;
         const next = Promise.withResolvers<void>();
         this.#pending = next.promise;

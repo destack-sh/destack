@@ -3,7 +3,7 @@ import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sql } from "@destack/db";
-import { connect } from "@destack/db/turso";
+import { connect } from "@destack/db/bun";
 import { catalogueDatabase, upload } from "./stack/db.ts";
 import type { UploadedPart } from "../bucket/index.ts";
 import { LocalBucket } from "./index.ts";

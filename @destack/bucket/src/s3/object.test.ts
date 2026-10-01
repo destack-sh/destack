@@ -7,6 +7,7 @@ import {
     ListObjectsV2Command,
     PutObjectCommand,
 } from "@aws-sdk/client-s3";
+import { createHash } from "node:crypto";
 import { expect, test } from "@destack/test";
 import { failure, S3Fixture } from "./test/fixture.ts";
 
@@ -110,7 +111,7 @@ test("apply conditional headers and byte ranges through the AWS SDK", async () =
         await (await get({ IfMatch: etag, IfUnmodifiedSince: earlier })).Body!.transformToString(),
     ).toBe("abcdef");
 
-    // refuse conditional writes that do not hold
+    // refuse conditional writes whose preconditions fail
     expect(
         await failure(
             client.send(
@@ -330,7 +331,7 @@ test("match If-Match entity-tag lists on reads and writes through the AWS SDK", 
             }),
         );
 
-    // read and write when the list names the current tag
+    // read and write when the list includes the current tag
     expect(await (await get(`"other", ${etag}`)).Body!.transformToString()).toBe("abcdef");
     const stored = await put(`${etag}, "other"`, "ghijkl");
     const file = await fixture.buckets.get("files")!.head("report.txt");
@@ -380,7 +381,7 @@ test("compare weak If-None-Match tags weakly on reads and refuse them on writes"
         new PutObjectCommand({ Bucket: "files", Key: "report.txt", Body: "abcdef" }),
     );
 
-    // answer a read with 304 when the weak tag names the current file
+    // answer a read with 304 when the weak tag matches the current file
     expect(
         await failure(
             client.send(
@@ -427,7 +428,7 @@ test("match copy-source entity-tag lists against the current source through the 
             }),
         );
 
-    // copy when the list names the current tag
+    // copy when the list includes the current tag
     const { ETag: older } = await put("first");
     const copy = await copyTo("copy.txt", { CopySourceIfMatch: `"other", ${older}` });
     expect(copy.CopyObjectResult!.ETag).toBe(older);
@@ -448,4 +449,34 @@ test("match copy-source entity-tag lists against the current source through the 
     // store none of the refused copies
     const listed = await fixture.buckets.get("files")!.list();
     expect(listed.files.map((file) => file.key)).toEqual(["copy.txt", "source.txt"]);
+});
+
+test("store and read objects under customer keys through the AWS SDK", async () => {
+    await using fixture = await S3Fixture.open();
+    const client = fixture.client();
+    const key = new Uint8Array(32).fill(7);
+    const customer = {
+        SSECustomerAlgorithm: "AES256",
+        SSECustomerKey: key.toBase64(),
+        SSECustomerKeyMD5: createHash("md5").update(key).digest("base64"),
+    };
+
+    // store an object under the key, which its metadata names
+    await client.send(
+        new PutObjectCommand({ Bucket: "files", Key: "sealed.txt", Body: "hidden", ...customer }),
+    );
+    const head = await client.send(new HeadObjectCommand({ Bucket: "files", Key: "sealed.txt" }));
+    expect([head.SSECustomerAlgorithm, head.SSECustomerKeyMD5]).toEqual([
+        "AES256",
+        customer.SSECustomerKeyMD5,
+    ]);
+
+    // read it with the key, and refuse reading it without
+    const read = await client.send(
+        new GetObjectCommand({ Bucket: "files", Key: "sealed.txt", ...customer }),
+    );
+    expect(await read.Body!.transformToString()).toBe("hidden");
+    expect(
+        await failure(client.send(new GetObjectCommand({ Bucket: "files", Key: "sealed.txt" }))),
+    ).toEqual({ name: "InvalidRequest", status: 400 });
 });

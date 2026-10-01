@@ -7,6 +7,7 @@ export type StorageErrorCode =
     | "INVALID_PART"
     | "INVALID_CHECKSUM"
     | "INVALID_STORAGE_CLASS"
+    | "INVALID_CUSTOMER_KEY"
     | "INCOMPLETE_BODY"
     | "WRITE_FAILED"
     | "NO_SUCH_KEY"

@@ -5,6 +5,7 @@ import type { BucketBody, BucketPutOptions, StringChecksums } from "../bucket/in
 import { CHECKSUM_ALGORITHMS } from "../bucket/index.ts";
 import { StorageError } from "../error/index.ts";
 import { syncDirectory } from "./directory.ts";
+import type { CustomerKey } from "./encryption.ts";
 
 /** A complete immutable content file. */
 export class ContentFile {
@@ -26,11 +27,12 @@ export class ContentFile {
         this.checksums = checksums;
     }
 
-    /** Stream, hash, and flush contents before publishing any catalogue reference. */
+    /** Write contents to disk before the catalogue refers to them. */
     static async write(
         directory: string,
         body: BucketBody,
         options: BucketPutOptions = {},
+        key?: CustomerKey,
     ): Promise<ContentFile> {
         // accept at most one supplied checksum
         const supplied = CHECKSUM_ALGORITHMS.filter(
@@ -42,14 +44,17 @@ export class ContentFile {
         const algorithm = supplied[0];
         const expected = algorithm === undefined ? undefined : options[algorithm]!;
         const checksum =
-            algorithm === undefined || algorithm === "md5" ? undefined : createHash(algorithm);
+            algorithm === undefined || (algorithm === "md5" && key === undefined)
+                ? undefined
+                : createHash(algorithm);
         const version = crypto.randomUUID();
+        const cipher = await key?.cipher(version);
         const path = join(directory, version);
         const hash = createHash("md5");
         let size = 0;
         let isCreated = false;
         try {
-            // write complete chunks and hash exactly the bytes stored
+            // write complete chunks, hashing the bytes stored and checking the bytes given
             {
                 await using file = await open(path, "wx", 0o600);
                 isCreated = true;
@@ -61,9 +66,10 @@ export class ContentFile {
                         ? body
                         : new Response(content ?? new Uint8Array()).body!;
                 for await (const chunk of stream) {
+                    const stored = cipher === undefined ? chunk : await cipher(chunk, size);
                     let offset = 0;
-                    while (offset < chunk.byteLength) {
-                        const { bytesWritten } = await file.write(chunk, offset);
+                    while (offset < stored.byteLength) {
+                        const { bytesWritten } = await file.write(stored, offset);
                         if (bytesWritten === 0) {
                             throw new StorageError(
                                 "WRITE_FAILED",
@@ -72,7 +78,7 @@ export class ContentFile {
                         }
                         offset += bytesWritten;
                     }
-                    hash.update(chunk);
+                    hash.update(stored);
                     checksum?.update(chunk);
                     size += chunk.byteLength;
                 }
@@ -100,10 +106,12 @@ export class ContentFile {
                         "object checksum does not match its contents",
                     );
                 }
-                digests[algorithm] = actual;
+                if (key === undefined) {
+                    digests[algorithm] = actual;
+                }
             }
 
-            // persist the directory entry before the catalogue can name the file
+            // persist the directory entry before the catalogue can refer to the file
             await syncDirectory(directory);
 
             return new ContentFile(version, size, etag, digests);

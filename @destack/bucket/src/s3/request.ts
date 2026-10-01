@@ -32,6 +32,18 @@ const CUSTOMER_KEY_HEADERS = {
     md5: "x-amz-server-side-encryption-customer-key-md5",
 } as const;
 
+/** Write the SSE-C headers that send a base64 customer key with a request. */
+export function customerKeyHeaders(key: string): Record<string, string> {
+    const digest = new HashDigest("md5");
+    digest.update(readCustomerKey(key));
+
+    return {
+        [CUSTOMER_KEY_HEADERS.algorithm]: "AES256",
+        [CUSTOMER_KEY_HEADERS.key]: key,
+        [CUSTOMER_KEY_HEADERS.md5]: digest.digest().toBase64(),
+    };
+}
+
 /** An authenticated S3 request, addressed path-style to a bucket and optionally a key. */
 export class S3Request {
     /** The HTTP request. */
@@ -195,7 +207,7 @@ export class S3Request {
         const source = decodeUri(path!.replace(/^\//, ""));
         const separator = source.indexOf("/");
         if (separator <= 0 || separator === source.length - 1) {
-            throw new S3Error("InvalidArgument", "x-amz-copy-source must name a bucket and a key");
+            throw new S3Error("InvalidArgument", "x-amz-copy-source must give a bucket and a key");
         }
 
         return { bucketName: source.slice(0, separator), key: source.slice(separator + 1) };

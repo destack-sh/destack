@@ -26,6 +26,7 @@ import { part, upload } from "./stack/index.ts";
 import { ContentFile } from "./content.ts";
 import type { LocalStorage } from "./storage.ts";
 import { LocalFile } from "./file.ts";
+import { CustomerKey } from "./encryption.ts";
 
 /** Retain incomplete uploads for seven days. */
 const UPLOAD_RETENTION = 7 * 24 * 60 * 60 * 1000;
@@ -62,7 +63,7 @@ export class LocalMultipartUpload implements S3MultipartUpload {
     ): Promise<LocalMultipartUpload> {
         // validate the upload before registering it
         BucketKey.check(key);
-        LocalFile.rejectCustomerKey(options.ssecKey);
+        const customerKey = await CustomerKey.read(options.ssecKey);
         const storageClass = StorageClass.read(options.storageClass ?? "Standard");
         const uploadId = crypto.randomUUID();
 
@@ -75,6 +76,7 @@ export class LocalMultipartUpload implements S3MultipartUpload {
                 state: "active",
                 expires: Date.now() + UPLOAD_RETENTION,
                 storageClass,
+                ssecKeyMd5: customerKey?.md5 ?? null,
                 options: {
                     httpMetadata: LocalFile.encodeHttpMetadata(options.httpMetadata ?? {}),
                     customMetadata: options.customMetadata ?? {},
@@ -85,7 +87,7 @@ export class LocalMultipartUpload implements S3MultipartUpload {
         return new LocalMultipartUpload(storage, bucket, key, uploadId);
     }
 
-    /** List active uploads in key and upload identifier order while holding the catalogue lock. */
+    /** List active uploads in key and upload identifier order while having the catalogue lock. */
     static async list(storage: LocalStorage, options: UploadListOptions): Promise<UploadListing> {
         // validate the prefix and page size
         const prefix = options.prefix ?? "";
@@ -144,9 +146,11 @@ export class LocalMultipartUpload implements S3MultipartUpload {
         body: BucketBody,
         options: UploadPartOptions = {},
     ): Promise<Part> {
-        // validate the part before reading its body
+        // validate the part and require the upload's customer key before reading its body
         UploadedPart.checkNumber(partNumber);
-        LocalFile.rejectCustomerKey(options.ssecKey);
+        const customerKey = await CustomerKey.read(options.ssecKey);
+        const active = await this.#storage.exclusive(() => this.#upload());
+        CustomerKey.require(customerKey, active.ssecKeyMd5);
 
         // retain storage throughout the streamed upload
         await this.#storage.beginUpload();
@@ -154,7 +158,12 @@ export class LocalMultipartUpload implements S3MultipartUpload {
         let isPublished = false;
         try {
             // write immutable contents before publishing the part
-            content = await ContentFile.write(join(this.#storage.directory, "files"), body);
+            content = await ContentFile.write(
+                join(this.#storage.directory, "files"),
+                body,
+                {},
+                customerKey,
+            );
             const entry = {
                 uploadId: this.uploadId,
                 partNumber,
@@ -331,6 +340,7 @@ export class LocalMultipartUpload implements S3MultipartUpload {
                 httpMetadata: metadata.options.httpMetadata ?? {},
                 customMetadata: metadata.options.customMetadata ?? {},
                 storageClass: metadata.storageClass,
+                ssecKeyMd5: metadata.ssecKeyMd5,
             };
 
             // publish the file and complete its upload in one transaction
@@ -400,7 +410,7 @@ export class LocalMultipartUpload implements S3MultipartUpload {
         });
     }
 
-    /** Read a live upload for the requested key while holding the catalogue lock. */
+    /** Read a live upload for the requested key while having the catalogue lock. */
     async #upload(): Promise<typeof upload.$inferSelect> {
         const entry = await this.#storage.database
             .select()

@@ -2,6 +2,7 @@ import { open, type FileHandle } from "node:fs/promises";
 import { join } from "node:path";
 import { StorageError } from "../error/index.ts";
 import type { segment } from "./stack/index.ts";
+import type { ContentCipher, CustomerKey } from "./encryption.ts";
 
 /** Read at most 64 KiB per filesystem request. */
 const READ_SIZE = 64 * 1024;
@@ -13,13 +14,15 @@ export type Segment = Pick<typeof segment.$inferSelect, "content" | "size">;
 export class ContentReader {
     /** The selected content stream. */
     readonly stream: ReadableStream<Uint8Array>;
-    /** The directory holding the content files. */
+    /** The directory with the content files. */
     readonly #directory: string;
     /** The file's content segments in order. */
     readonly #segments: Segment[];
     /** Release the bucket's references to the segments. */
     readonly #release: () => void;
-    /** The segment holding the next byte. */
+    /** The customer key decrypting the segments, absent for plain content. */
+    readonly #key: CustomerKey | undefined;
+    /** The segment with the next byte. */
     #index = 0;
     /** The next byte to read within the current segment. */
     #offset: number;
@@ -27,23 +30,27 @@ export class ContentReader {
     #remaining: number;
     /** The open content file of the current segment. */
     #file?: FileHandle;
+    /** The cipher of the current segment, absent for plain content. */
+    #cipher: ContentCipher | undefined;
     /** The pending or completed closure. */
     #closing?: Promise<void>;
     /** Whether the consumer cancelled this stream. */
     #isCancelled = false;
 
-    /** Read one selected range of retained segments and release them exactly once. */
+    /** Read one range of retained segments, releasing them once. */
     constructor(
         directory: string,
         segments: Segment[],
         offset: number,
         length: number,
         release: () => void,
+        key?: CustomerKey,
     ) {
-        // retain the segments and skip to the one holding the first selected byte
+        // retain the segments and skip to the one with the first selected byte
         this.#directory = directory;
         this.#segments = segments;
         this.#release = release;
+        this.#key = key;
         this.#offset = offset;
         this.#remaining = length;
         while (this.#index < segments.length && this.#offset >= segments[this.#index]!.size) {
@@ -65,6 +72,7 @@ export class ContentReader {
                 // open the current segment unless the consumer cancelled meanwhile
                 const segment = this.#segments[this.#index]!;
                 if (this.#file === undefined) {
+                    const cipher = await this.#key?.cipher(segment.content);
                     const file = await open(join(this.#directory, segment.content), "r");
                     if (this.#isCancelled) {
                         await file.close();
@@ -72,6 +80,7 @@ export class ContentReader {
                         return;
                     }
                     this.#file = file;
+                    this.#cipher = cipher;
                 }
 
                 // read within the segment and the selection
@@ -87,9 +96,15 @@ export class ContentReader {
                         "stored file is shorter than its recorded size",
                     );
                 }
+                const read = buffer.subarray(0, bytesRead);
+                const bytes =
+                    this.#cipher === undefined ? read : await this.#cipher(read, this.#offset);
+                if (this.#isCancelled) {
+                    return;
+                }
                 this.#offset += bytesRead;
                 this.#remaining -= bytesRead;
-                controller.enqueue(buffer.subarray(0, bytesRead));
+                controller.enqueue(bytes);
 
                 // close a finished segment and continue with the next one
                 if (this.#offset === segment.size) {

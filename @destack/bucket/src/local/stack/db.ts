@@ -39,6 +39,8 @@ export const file = defineTable("file", {
     ).notNull(),
     /** The storage class. */
     storageClass: text("storage_class", { enum: STORAGE_CLASSES }).notNull(),
+    /** The base64 MD5 digest of the customer key encrypting the content, absent for plain content. */
+    ssecKeyMd5: text("ssec_key_md5"),
 });
 
 /** The ordered immutable content files of each file version; copies share their source's. */
@@ -76,6 +78,8 @@ export const upload = defineTable(
         expires: integer("expires").notNull(),
         /** The storage class of the completed file. */
         storageClass: text("storage_class", { enum: STORAGE_CLASSES }).notNull(),
+        /** The base64 MD5 digest of the customer key encrypting the parts, absent for plain content. */
+        ssecKeyMd5: text("ssec_key_md5"),
         /** HTTP and application metadata, with expiration encoded as an ISO date. */
         options: json(
             "options",
