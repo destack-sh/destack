@@ -7,7 +7,7 @@ import { PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { identifier } from "@destack/schema";
 import { ServiceError } from "@destack/service";
-import { Caller } from "@destack/service/authentication";
+import { Caller, CALLER_HEADER } from "@destack/service/authentication";
 import { Scope } from "@destack/sync";
 import { BunRuntime } from "../src/runtime/bun.ts";
 import type { InstanceSpec } from "../src/runtime/index.ts";
@@ -44,7 +44,7 @@ const server = Bun.serve({
 console.log(JSON.stringify({ port: server.port }));
 `;
 
-test("spec an instance as a Bun process: bind services at the egress with its secret, serve forwarded callers and webhooks, identify it by its secret, report a crash, and stop it", async () => {
+test("spec an instance as a Bun process: bind services at the egress with its secret, serve forwarded callers and webhooks without forged callers, identify it by its secret, report a crash, and stop it", async () => {
     // spec instances below a scratch directory
     const directory = await mkdtemp(join(tmpdir(), "destack-runtime-"));
     onTestFinished(() => rm(directory, { recursive: true }));
@@ -135,7 +135,7 @@ test("spec an instance as a Bun process: bind services at the egress with its se
             )
         ).json() as Promise<{ secret: string }>;
 
-    // start twice, serving one process, and identify it by the secret its runner holds
+    // start twice, serving one process, and identify it by its runner's secret
     const exited = async (code: number) => {
         exits.push(code);
     };
@@ -149,12 +149,13 @@ test("spec an instance as a Bun process: bind services at the egress with its se
             "/pushes/notes",
             new Request("http://notes.test/.destack/webhook/pushes/notes", {
                 method: "POST",
+                headers: { [CALLER_HEADER]: JSON.stringify(caller), cookie: "session=forged" },
                 body: "{}",
             }),
         )
     ).json()) as Readonly<Record<string, unknown>>;
 
-    // report a crash to the holder and serve nothing afterwards
+    // report a crash to the cell and serve nothing afterwards
     await expect(
         runtime.fetch(instanceId, "/crash", new Request("http://notes.test/crash"), caller),
     ).rejects.toThrow(TypeError);

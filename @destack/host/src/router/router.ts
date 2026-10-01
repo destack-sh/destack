@@ -5,6 +5,7 @@ import { type Identifier, Version } from "@destack/schema";
 import { Egress } from "@destack/service";
 import {
     Caller,
+    CALLER_HEADER,
     CALLER_LIFETIME_MILLISECONDS,
     type Lending,
 } from "@destack/service/authentication";
@@ -33,7 +34,7 @@ export type Destination =
     | {
           /** An installation's service served by this host's instances. */
           readonly kind: "installation";
-          /** The space holding the installation, which the call targets. */
+          /** The space of the installation, which the call targets. */
           readonly scope: Identifier<"space">;
           /** The installation. */
           readonly installationId: Identifier<"installation">;
@@ -77,8 +78,8 @@ export class Router {
     readonly #sign: (caller: Caller) => Promise<string>;
     /** The fetch reaching other origins. */
     readonly #fetch: (request: Request) => Promise<Response>;
-    /** The lendings of callers' authority to the installations they call, which the holder's cells verify. */
-    readonly #lending?: Lending;
+    /** The lendings of callers' authority to the installations they call, which the called cells verify. */
+    readonly #lending?: Pick<Lending, "sign">;
 
     /** Route through a host's runtimes and its spaces' routes. */
     constructor(options: {
@@ -90,10 +91,10 @@ export class Router {
         readonly sign: (caller: Caller) => Promise<string>;
         /** The fetch reaching other origins. */
         readonly fetch: (request: Request) => Promise<Response>;
-        /** Lend each caller's authority to the installation it calls, for the calls it sends, as the holder's cells verify. */
-        readonly lending?: Lending;
+        /** Lend each caller's authority to the installation it calls, for the calls it sends, as the called cells verify. */
+        readonly lending?: Pick<Lending, "sign">;
     }) {
-        // index the runtimes, and hold the routes, the signer and the fetch
+        // index the runtimes, and keep the routes, the signer and the fetch
         this.#runtimes = new Map(options.runtimes.map((runtime) => [runtime.name, runtime]));
         this.#routes = options.routes;
         this.#sign = options.sign;
@@ -142,13 +143,13 @@ export class Router {
         return this.#runtime(serving.runtime).fetch(serving.instanceId, path, request, delegated);
     }
 
-    /** Lend a caller's authority to the installation it calls, as a lending the holder's cells verify. */
+    /** Lend a caller's authority to the installation it calls, as a lending the called cell verifies. */
     async #delegate(
         caller: Caller,
         installationId: Identifier<"installation">,
         spaceId: Identifier<"space">,
     ): Promise<Caller> {
-        // lend nothing where the holder lends no authority, nor an installation to itself
+        // lend nothing where the host lends no authority, nor an installation to itself
         const installation = principal.installation.reference(spaceId, installationId);
         const lending = this.#lending;
         if (lending === undefined || sameSubject(caller.authentication.subject, installation)) {
@@ -194,11 +195,13 @@ export class Router {
             throw new ServiceError("UNAUTHORIZED", { message: "invalid instance secret" });
         }
 
-        // resolve the address, and call as the installation without the instance's secret
+        // resolve the address, and call as the installation without the instance's secret or its own identity claims
         const destination = await this.#routes.resolve(spec, routed.address);
         const caller = Router.#caller(spec, destination);
         const headers = new Headers(routed.request.headers);
         headers.delete("authorization");
+        headers.delete(CALLER_HEADER);
+        headers.delete("cookie");
         const call = copyRequest(routed.request, { headers });
         const url = new URL(call.url);
 

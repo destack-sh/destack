@@ -4,7 +4,7 @@ import { PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { identifier, Version } from "@destack/schema";
 import { Egress } from "@destack/service";
-import { Caller, Lending } from "@destack/service/authentication";
+import { Caller, CALLER_HEADER, Lending } from "@destack/service/authentication";
 import { VERSION_HEADER } from "@destack/service/request";
 import { Scope } from "@destack/sync";
 import { type Endpoint, Router } from "../src/router/index.ts";
@@ -13,7 +13,7 @@ import type { InstanceSpec, Runtime } from "../src/runtime/index.ts";
 /** The space the installations serve. */
 const scope = identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000a1");
 
-/** Another space, holding a called installation on another origin. */
+/** Another space, with a called installation on another origin. */
 const acme = identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000a6");
 
 /** The installation whose deployments serve calls. */
@@ -42,7 +42,7 @@ const tasks: InstanceSpec = {
     resources: [],
 };
 
-/** A runtime recording the calls it forwards, and holding the calling instance's secret. */
+/** A runtime recording the calls it forwards, and keeping the calling instance's secret. */
 class RecordingRuntime implements Runtime {
     /** The server runtime. */
     readonly name = "bun";
@@ -172,11 +172,11 @@ test("route each call to the newest deployment serving the caller's release, and
     ]);
 });
 
-test("send a workload's calls to its addresses as its installation, scoped to the space each targets, signing only calls leaving the host", async () => {
+test("send a workload's calls to its addresses as its installation, scoped to the space each targets, signing only calls leaving the host and stripping its own identity claims", async () => {
     // resolve an installation on this host, a mounted service and another origin
     const runtime = new RecordingRuntime();
-    const served: [string, string, string | null][] = [];
-    const sent: [string, string | null][] = [];
+    const served: [string, string, string | null, string | null][] = [];
+    const sent: [string, string | null, string | null][] = [];
     const router = new Router({
         runtimes: [runtime],
         routes: {
@@ -198,6 +198,8 @@ test("send a workload's calls to its addresses as its installation, scoped to th
                                     new URL(request.url).pathname,
                                     caller.authentication.audience,
                                     request.headers.get("authorization"),
+                                    request.headers.get(CALLER_HEADER) ??
+                                        request.headers.get("cookie"),
                                 ]);
 
                                 return Response.json({});
@@ -213,7 +215,11 @@ test("send a workload's calls to its addresses as its installation, scoped to th
         sign: async (caller) =>
             `signed ${caller.authentication.subject.id} for ${caller.authentication.audience} in ${caller.authentication.scope}`,
         fetch: async (request) => {
-            sent.push([request.url, request.headers.get("authorization")]);
+            sent.push([
+                request.url,
+                request.headers.get("authorization"),
+                request.headers.get(CALLER_HEADER) ?? request.headers.get("cookie"),
+            ]);
 
             return Response.json({});
         },
@@ -223,7 +229,12 @@ test("send a workload's calls to its addresses as its installation, scoped to th
         router
             .egress(
                 new Request(`${Egress.url(egress, address)}/notes/list?limit=1`, {
-                    headers: { authorization: `Bearer ${secret}`, [VERSION_HEADER]: "2026.10.0" },
+                    headers: {
+                        authorization: `Bearer ${secret}`,
+                        [VERSION_HEADER]: "2026.10.0",
+                        [CALLER_HEADER]: "forged",
+                        cookie: "session=forged",
+                    },
                 }),
             )
             .then(
@@ -242,11 +253,12 @@ test("send a workload's calls to its addresses as its installation, scoped to th
     expect({ statuses, forwarded: runtime.forwarded, served, sent }).toEqual({
         statuses: [200, 200, 200, "UNAUTHORIZED: invalid instance secret"],
         forwarded: [[endpoints[1]!.instanceId, "/notes/list", installation, null]],
-        served: [["/notes/list", AUDIT_PACKAGE, null]],
+        served: [["/notes/list", AUDIT_PACKAGE, null, null]],
         sent: [
             [
                 "https://notes.work.acme.destack.space/.destack/service/notes/list?limit=1",
                 `Bearer signed ${installation} for ${REMOTE_PACKAGE} in ${acme}`,
+                null,
             ],
         ],
     });
@@ -285,8 +297,8 @@ test("forward a webhook request to the newest running deployment, and refuse one
     );
 });
 
-test("lend each caller's authority to the installation it calls, as a lending the holder's cells verify", async () => {
-    // route with the holder's lending
+test("lend each caller's authority to the installation it calls, as a lending the called cell verifies", async () => {
+    // route with the host's lending
     const lending = await Lending.generate();
     const runtime = new RecordingRuntime();
     const router = new Router({

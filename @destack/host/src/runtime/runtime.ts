@@ -5,7 +5,7 @@ import type { ResourceRecord } from "@destack/resource";
 import type { Identifier } from "@destack/schema";
 import type { Caller } from "@destack/service/authentication";
 
-/** The instances a host runs on one server runtime: it starts, stops and serves them as its holders assign them. */
+/** The instances a host runs on one server runtime: it starts, stops and serves them as their spaces' cells assign them. */
 export interface Runtime {
     /** The server runtime, such as bun. */
     readonly name: ServerRuntime;
@@ -40,7 +40,7 @@ export interface InstanceSpec {
     readonly deploymentId: Identifier<"deployment">;
     /** The build the deployment runs. */
     readonly build: BuildReader;
-    /** The build output holding the workload. */
+    /** The build output with the workload. */
     readonly output: string;
     /** The package-local workload. */
     readonly workload: string;
@@ -54,6 +54,6 @@ export interface WorkloadResource extends ResourceRecord {
     readonly packageId: PackageId;
     /** The declaration's name within its package. */
     readonly name: string;
-    /** The provider holding the resource. */
+    /** The provider of the resource. */
     readonly providerCode: string;
 }

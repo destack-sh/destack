@@ -101,7 +101,7 @@ export class HostIdentity {
         return DeviceProof.sign(pair.privateKey, pair.publicKey, this.hostId, now, request);
     }
 
-    /** Sign a JSON Web Token's claims with this host's key, as the authority of the spaces it holds. */
+    /** Sign a JSON Web Token's claims with this host's key, as the authority of the spaces it serves. */
     async signToken(claims: Readonly<Record<string, unknown>>): Promise<string> {
         const pair = await this.#load();
         const kid = await DeviceProof.thumbprint(pair.publicKey);
@@ -170,7 +170,7 @@ export class HostIdentity {
         // read the private half from the store
         const kept = await this.#keys.load(this.hostId);
         if (kept === undefined) {
-            throw new TypeError(`host ${this.hostId} holds no key`);
+            throw new TypeError(`host ${this.hostId} has no key`);
         }
         this.#pair = await HostIdentity.#import(JSON.parse(kept) as PrivateJwk);
 

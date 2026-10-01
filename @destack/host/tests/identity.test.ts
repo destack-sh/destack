@@ -367,7 +367,7 @@ test("disable, drain and enable a host, refusing its token grants while disabled
 });
 
 test("refuse host procedures to callers acting as no host, and pass the rest", async () => {
-    // hold a host's caller and a user's caller
+    // keep a host's caller and a user's caller
     const hostSubject = principal.host.reference(
         ids.account,
         "host-01996ab0-0000-7000-8000-00000000000c",

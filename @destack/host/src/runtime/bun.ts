@@ -4,7 +4,7 @@ import type { Subprocess } from "bun";
 import type { Identifier } from "@destack/schema";
 import { Egress, ServiceMount } from "@destack/service";
 import { ServiceKind } from "@destack/service/declare";
-import type { Caller } from "@destack/service/authentication";
+import { CALLER_HEADER, type Caller } from "@destack/service/authentication";
 import { ServiceError } from "@destack/service/error";
 import { Journal, type JournalKey } from "@destack/service/database";
 import { WEBHOOK_PATH, WorkloadReady, type WorkloadStart } from "@destack/service/workload";
@@ -34,7 +34,7 @@ interface Child {
 export class BunRuntime implements Runtime {
     /** The server runtime. */
     readonly name = "bun";
-    /** The directory holding each instance's files. */
+    /** The directory of each instance's files. */
     readonly #directory: string;
     /** The host's egress, below which the instances reach addresses. */
     readonly #egress: string;
@@ -54,7 +54,7 @@ export class BunRuntime implements Runtime {
 
     /** Run instances below a directory, reaching addresses through the host's egress. */
     constructor(options: {
-        /** The directory holding each instance's files. */
+        /** The directory of each instance's files. */
         readonly directory: string;
         /** The host's egress, below which the instances reach addresses. */
         readonly egress: string;
@@ -88,7 +88,7 @@ export class BunRuntime implements Runtime {
         return this.#children.has(instanceId);
     }
 
-    /** Find the spec of the instance whose runner holds a secret. */
+    /** Find the spec of the instance whose runner has a secret. */
     identify(secret: string): InstanceSpec | undefined {
         return this.#secrets.get(secret)?.spec;
     }
@@ -166,6 +166,7 @@ export class BunRuntime implements Runtime {
         const target = `http://127.0.0.1:${child.port}${WEBHOOK_PATH}${path}${url.search}`;
         const headers = new Headers(request.headers);
         headers.set("authorization", `Bearer ${child.secret}`);
+        headers.delete(CALLER_HEADER);
         headers.delete("cookie");
 
         return fetch(new Request(target, new Request(request, { headers, redirect: "manual" })));
@@ -203,10 +204,10 @@ export class BunRuntime implements Runtime {
             secret,
             egress: this.#egress,
             sampling: await this.#sampling(spec.scope, spec.installationId),
-        };
             journalKey: (
                 await Journal.derive(await this.#journalKey(), spec.installationId)
             ).toHex(),
+        };
 
         // start the runner with its input, its errors going to the host's output
         const process = Bun.spawn([globalThis.process.execPath, join(directory, runner)], {
@@ -236,7 +237,7 @@ export class BunRuntime implements Runtime {
         void process.exited.then((code) => this.#exited(child, code));
     }
 
-    /** Report a runner's exit to its holder when its instance should still spec. */
+    /** Report a runner's exit to its cell when its instance should still run. */
     async #exited(child: Child, code: number): Promise<void> {
         if (this.#children.get(child.spec.instanceId) === child) {
             this.#forget(child);

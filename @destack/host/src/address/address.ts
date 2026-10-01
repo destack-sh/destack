@@ -62,7 +62,7 @@ export interface InstallationOrigin {
     readonly branch?: string;
     /** The space's name within its account. */
     readonly space: string;
-    /** The handle of the account holding the space. */
+    /** The handle of the space's account. */
     readonly handle: string;
 }
 

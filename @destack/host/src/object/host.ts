@@ -65,7 +65,7 @@ const seeing = method({
     }),
 });
 
-/** A host key and the proof that the host holds its private half. */
+/** A host key and the proof that the host has its private half. */
 const KeyInput = schema.object({
     /** The public key. */
     publicKey: DevicePublicKey,
@@ -305,7 +305,7 @@ async function freeName(
     return name;
 }
 
-/** Register another key a host proves it holds. */
+/** Register another key a host proves it has. */
 async function register(call: Call, next: (call?: Call) => Promise<unknown>): Promise<unknown> {
     // refuse keys of a withdrawn host
     const [owner] = await call.database

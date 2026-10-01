@@ -6,7 +6,7 @@ import { type Caller, TokenAuthentication, TokenVerifier } from "@destack/servic
 import { ServiceError } from "@destack/service/error";
 import type { HostKey } from "../object/host.ts";
 
-/** The installation tokens the holders of spaces sign with their host keys. */
+/** The installation tokens the cells of spaces sign with their host keys. */
 export class SpaceToken {
     /** Report whether a request carries a space token: a bearer token whose issuer is a host. */
     static accepts(request: Request): boolean {
@@ -27,7 +27,7 @@ export class SpaceToken {
         }
     }
 
-    /** Verify an installation token its space's holder signed, for a package's service in a space. */
+    /** Verify an installation token its space's cell signed, for a package's service in a space. */
     static async verify(
         request: Request,
         options: {
@@ -51,7 +51,7 @@ export class SpaceToken {
         const signer = identifier("host").parse(claims.iss);
         const installation = claims.caller.subject;
 
-        // require an installation whose space the signer holds
+        // require an installation whose space the signer serves
         if (!principal.installation.is(installation)) {
             throw new ServiceError("UNAUTHORIZED", {
                 message: "the token's caller is no installation",
@@ -61,7 +61,7 @@ export class SpaceToken {
         const cell = zone?.cell === signer ? await options.directory.cell(signer) : undefined;
         if (cell === undefined) {
             throw new ServiceError("UNAUTHORIZED", {
-                message: "the token's signer holds no space of its installation",
+                message: "the token's signer serves no space of its installation",
             });
         }
 

@@ -24,26 +24,26 @@ afterAll(async () => {
     await global[Symbol.asyncDispose]();
 });
 
-test("verify an installation token its space's holder signed for another space, and refuse other signers, audiences and spaces", async () => {
-    // enroll a holder and a stranger, and place the calling space in the holder
-    const holder = await global.enroll(ids.account);
+test("verify an installation token its space's cell signed for another space, and refuse other signers, audiences and spaces", async () => {
+    // enroll a cell and a stranger, and place the calling space in the cell
+    const cell = await global.enroll(ids.account);
     const stranger = await global.enroll(ids.account);
     const directory = new DirectoryDatabase(global.database);
     const home = identifier("space").parse(`space-${v7()}`);
     const target = identifier("space").parse(`space-${v7()}`);
-    await directory.publish(holder.hostId, ids.account, "https://holder.test");
+    await directory.publish(cell.hostId, ids.account, "https://cell.test");
     await directory.publish(stranger.hostId, ids.account, "https://stranger.test");
-    await directory.place({ id: home, scope: ids.account, cell: holder.hostId, epoch: 1 });
+    await directory.place({ id: home, scope: ids.account, cell: cell.hostId, epoch: 1 });
 
     // sign a call of an installation of the home space to the target space, as a host
     const installation = principal.installation.reference(home, `installation-${v7()}`);
-    const sign = (identity: typeof holder, audience = AUDIENCE, scope: string = target) =>
+    const sign = (identity: typeof cell, audience = AUDIENCE, scope: string = target) =>
         signInstallation(identity, installation, audience, scope);
     const verify = (request: Request) =>
         SpaceToken.verify(request, {
             directory,
             keys: async (accountId, hostId, now) => {
-                const keys = await global.host(holder).hostKey.list({
+                const keys = await global.host(cell).hostKey.list({
                     accountId,
                     where: Condition.all(
                         Condition.eq("parentId", hostId),
@@ -60,28 +60,28 @@ test("verify an installation token its space's holder signed for another space, 
             (error: { code: string; message: string }) => `${error.code}: ${error.message}`,
         );
 
-    // accept the holder's token for the target space, and refuse a stranger's, another audience's and another space's
+    // accept the cell's token for the target space, and refuse a stranger's, another audience's and another space's
     const other = PackageId.parse("package-019f7480-0000-7000-8000-00000000e004");
     expect([
-        await verify(await sign(holder)),
+        await verify(await sign(cell)),
         await verify(await sign(stranger)),
-        await verify(await sign(holder, other)),
-        await verify(await sign(holder, AUDIENCE, home)),
+        await verify(await sign(cell, other)),
+        await verify(await sign(cell, AUDIENCE, home)),
     ]).toEqual([
         [installation.id, target],
-        "UNAUTHORIZED: the token's signer holds no space of its installation",
+        "UNAUTHORIZED: the token's signer serves no space of its installation",
         "UNAUTHORIZED: invalid access token",
         "UNAUTHORIZED: invalid access token claims",
     ]);
 });
 
 test("verify an installation token to a universe service against stored keys, scoped to its own space, and recognize space tokens by their issuer", async () => {
-    // enroll a holder and place the calling space in it
-    const holder = await global.enroll(ids.account);
+    // enroll a cell and place the calling space in it
+    const cell = await global.enroll(ids.account);
     const directory = new DirectoryDatabase(global.database);
     const home = identifier("space").parse(`space-${v7()}`);
-    await directory.publish(holder.hostId, ids.account, "https://holder.test");
-    await directory.place({ id: home, scope: ids.account, cell: holder.hostId, epoch: 1 });
+    await directory.publish(cell.hostId, ids.account, "https://cell.test");
+    await directory.place({ id: home, scope: ids.account, cell: cell.hostId, epoch: 1 });
     const installation = principal.installation.reference(home, `installation-${v7()}`);
     const verify = (request: Request) =>
         SpaceToken.verify(request, {
@@ -95,8 +95,8 @@ test("verify an installation token to a universe service against stored keys, sc
         );
 
     // accept a token scoped to the installation's own space, refuse one scoped to another space
-    const own = await signInstallation(holder, installation, AUDIENCE, home);
-    const other = await signInstallation(holder, installation, AUDIENCE, `space-${v7()}`);
+    const own = await signInstallation(cell, installation, AUDIENCE, home);
+    const other = await signInstallation(cell, installation, AUDIENCE, `space-${v7()}`);
     const user = new Request("https://notes.test", {
         headers: { authorization: `Bearer ${await fakeToken({ iss: "https://universe.test" })}` },
     });
@@ -115,7 +115,7 @@ test("verify an installation token to a universe service against stored keys, sc
     ]);
 });
 
-/** Sign an installation's call to a package in a space, as the host holding the installation's space. */
+/** Sign an installation's call to a package in a space, as the cell of the installation's space. */
 async function signInstallation(
     identity: HostIdentity,
     installation: ReturnType<typeof principal.installation.reference>,

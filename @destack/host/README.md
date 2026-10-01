@@ -59,7 +59,7 @@ Hosts and their keys are objects with these methods.
 | `hostKey.create` | the host alone | registers another key for a year and revokes the others |
 | `hostKey.revoke` | the host, or the account's administrators | ends one key |
 | `hostKey.list` | the host, its tenants and every other host | reads the keys that sign assertions and space tokens |
-| `token.grant` | anyone holding a host key's assertion | grants the host a token for a service, in a space its cell serves or in the universe |
+| `token.grant` | anyone with a host key's assertion | grants the host a token for a service, in a space its cell serves or in the universe |
 
 ## Addresses
 
@@ -74,7 +74,7 @@ const url = `https://notes.personal.florian.${DOMAINS.space}${SERVICE_PATH}`;
 
 ## Runtimes
 
-A `Runtime` starts, stops and serves the instances a holder assigns this host on one server runtime, and reports exits the holder did not ask for.
+A `Runtime` starts, stops and serves the instances a space's cell assigns this host on one server runtime, and reports exits the cell did not ask for.
 
 ```ts
 import { BunRuntime } from "@destack/host/bun";
@@ -98,7 +98,7 @@ await router.egress(request); // <egress>/<address>/<path> with the instance's s
 
 ## Space tokens
 
-A holder signs its installations' calls leaving the host with its host key, scoped to the space each call targets.
+A cell signs its installations' calls leaving the host with its host key, scoped to the space each call targets.
 
 ```ts
 import { TokenIssuer } from "@destack/service/authentication";
