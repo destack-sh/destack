@@ -14,7 +14,8 @@
         "./error": "./src/error/index.ts",
         "./object": "./src/object/index.ts",
         "./stack": "./src/stack/index.ts",
-        "./s3": "./src/s3/index.ts"
+        "./s3": "./src/s3/index.ts",
+        "./provider": "./src/provider/index.ts"
     },
     "dependencies": {
         "@destack/fs": "workspace:*",
@@ -24,8 +25,10 @@
         "@cloudflare/workers-types": "5.20260917.1",
         "@destack/package": "workspace:*",
         "@destack/access": "workspace:*",
+        "@destack/object": "workspace:*",
         "@destack/space": "workspace:*",
-        "@destack/service": "workspace:*"
+        "@destack/service": "workspace:*",
+        "@destack/host": "workspace:*"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",
