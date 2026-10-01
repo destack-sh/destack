@@ -1,7 +1,10 @@
 import type { DatabaseConnection, Table } from "@destack/db";
-import type { Condition } from "@destack/db/query";
-import type { Reconciliation } from "@destack/service/control";
-import type { ObjectServer } from "../server/server.ts";
+import { Condition, type Scalar } from "@destack/db/query";
+import type { Controller, Reconciliation } from "@destack/service/control";
+import { type Change, Snapshot } from "@destack/db/log";
+import { canonicalize } from "@destack/schema/json";
+import type { ObjectType } from "./object.ts";
+import { type ObjectServer, SystemCall } from "../server/server.ts";
 
 /** A row as a controller reads it. */
 type Row = Readonly<Record<string, unknown>>;
@@ -48,3 +51,77 @@ export interface ObjectReconciliation<Selected extends Row = Row> extends Reconc
     /** Run one system method on some objects in one transaction. */
     execute(method: string, rows: readonly Row[]): Promise<unknown[]>;
 }
+
+/** Build the controllers object types declare. */
+export const ObjectController = {
+    /** Build the controller a type declares, reconciling or following its pending objects by key. */
+    control(server: ObjectServer, object: ObjectType, declared: ObjectController): Controller {
+        // key each pending object by its declared fields
+        const table = object.table as Table;
+        const match = Condition.compile(declared.pending, table);
+        const keyOf = (fields: Readonly<Record<string, unknown>>) => canonicalize(fields);
+        const pending = (key: string) => {
+            const fields = Object.entries(JSON.parse(key) as Readonly<Record<string, Scalar>>);
+
+            return Condition.all(
+                declared.pending,
+                ...fields.map(([name, value]) => Condition.eq(name, value)),
+            );
+        };
+        const watches = new Map((declared.watches ?? []).map((watch) => [watch.table, watch]));
+        const keys = async (change: Change) => {
+            // select the keys of a watched row, or the key of a changed object left pending
+            const row = (change.after ?? change.before) as Readonly<Record<string, unknown>>;
+            const watch = watches.get(change.table);
+            const selected =
+                watch !== undefined
+                    ? await watch.keys(row, server.database)
+                    : change.after !== undefined && Condition.matches(match, row)
+                      ? [declared.key?.(row) ?? { id: row.id }]
+                      : [];
+
+            return selected.map(keyOf);
+        };
+
+        return {
+            name: object.name,
+            watches: [table, ...watches.keys()],
+            ...(declared.concurrency === undefined ? {} : { concurrency: declared.concurrency }),
+            ...(declared.mode === undefined ? {} : { mode: declared.mode }),
+            keys,
+            list: async () => {
+                // list the keys of every pending object
+                const rows = await Snapshot.live(server.database).rows(table, declared.pending);
+
+                return [
+                    ...new Set(rows.map((row) => keyOf(declared.key?.(row) ?? { id: row.id }))),
+                ];
+            },
+            reconcile: async (key, reconciliation) => {
+                // reconcile the key's pending objects, if any are left
+                const rows = await Snapshot.live(server.database).rows(table, pending(key));
+                if (rows.length === 0) {
+                    return undefined;
+                }
+                const now = server.clock();
+
+                return declared.reconcile({
+                    rows,
+                    now,
+                    database: server.database,
+                    server,
+                    signal: reconciliation.signal,
+                    ...(reconciliation.epoch === undefined ? {} : { epoch: reconciliation.epoch }),
+                    changed: () => reconciliation.changed(),
+                    execute: (method, targets) =>
+                        server.executeAsSystem(
+                            object,
+                            method,
+                            targets.map((row) => SystemCall.of(row)),
+                            now,
+                        ),
+                });
+            },
+        };
+    },
+};

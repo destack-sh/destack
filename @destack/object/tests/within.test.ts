@@ -1,5 +1,5 @@
 import { AuditOutbox } from "@destack/audit/outbox";
-import { reconciliation } from "@destack/service/test";
+import { reconciliation, testJournalKey } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { none, principal, relation, through } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
@@ -53,7 +53,7 @@ function serve(
         objects: { person, profile },
         database,
         ...(replicas === undefined ? {} : { replicas }),
-        journal: new Journal(request),
+        journal: new Journal(request, testJournalKey),
         audit: AuditRecorder.service(new AuditOutbox(database), {
             package: person.package,
             service: "test",
@@ -105,9 +105,9 @@ test.each(TEST_DIALECTS)(
         await suspendCopy(home.database, cy!, now);
 
         // let the space read ada and the suspended cy
-        const source = serve(home.database);
+        const served = serve(home.database);
         const system = await SystemAuthorization.open(
-            source.authorizer,
+            served.authorizer,
             home.database,
             Scope.universe.id,
             now,
@@ -127,13 +127,13 @@ test.each(TEST_DIALECTS)(
             {
                 source: {
                     stream: (asked, signal) =>
-                        source.replicate(
+                        served.source.replicate(
                             asked,
                             { subject: principal.cell.reference(Scope.universe.id, asked.below) },
                             signal,
                         ),
                 },
-                requests: async () => [copying.universeRequest(spaceId)!],
+                requests: async () => [copying.source.universeRequest(spaceId)!],
             },
         );
         const follower = copying.controllers().find((each) => each.name === "replica")!;

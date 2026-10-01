@@ -7,7 +7,7 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier } from "@destack/schema";
 import type { QueryPage } from "@destack/sync";
 import { Journal } from "@destack/service/database";
-import { subjectContext } from "@destack/service/test";
+import { subjectContext, testJournalKey } from "@destack/service/test";
 import { RequestId } from "@destack/service/request";
 import { ObjectServer } from "../src/server/index.ts";
 import { defineObject, Intrinsic } from "../src/index.ts";
@@ -46,7 +46,7 @@ test.for(TEST_DIALECTS)(
             policies: [space],
             database,
             context: (): AccessContext => ({ subjects: [owner], now: Date.now(), attributes: {} }),
-            journal: new Journal(request),
+            journal: new Journal(request, testJournalKey),
             audit: AuditRecorder.service(new AuditOutbox(database), {
                 package: role.package,
                 service: "test",
@@ -69,7 +69,7 @@ test.for(TEST_DIALECTS)(
         );
 
         // hold the owner role and its binding from the snapshot
-        const pages = server.sync(SPACE_ID, context, {
+        const pages = server.source.sync(SPACE_ID, context, {
             queries: {
                 roles: { object: "role" },
                 members: { object: "relationship" },

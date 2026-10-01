@@ -5,7 +5,7 @@ import { AuditRecorder } from "@destack/audit";
 import type { DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Journal } from "@destack/service/database";
-import { subjectContext } from "@destack/service/test";
+import { subjectContext, testJournalKey } from "@destack/service/test";
 import { RequestId } from "@destack/service/request";
 import type { ServiceContext } from "@destack/service/server";
 import type { QueryPage } from "@destack/sync";
@@ -27,7 +27,7 @@ test.for(TEST_DIALECTS)(
         // follow the notebooks on the west instance, snapshot first
         const controller = new AbortController();
         onTestFinished(() => controller.abort());
-        const pages = west.sync(spaceId, context(controller.signal), {
+        const pages = west.source.sync(spaceId, context(controller.signal), {
             queries: { notebooks: { object: "notebook" } },
         });
         const snapshot = (await pages.next()).value as QueryPage;
@@ -62,7 +62,7 @@ function serve(database: DatabaseConnection) {
             now: Date.now(),
             attributes: {},
         }),
-        journal: new Journal(notesJournal),
+        journal: new Journal(notesJournal, testJournalKey),
         audit: AuditRecorder.service(new AuditOutbox(database), {
             package: notebook.package,
             service: "test",

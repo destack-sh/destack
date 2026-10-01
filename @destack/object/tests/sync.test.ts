@@ -14,6 +14,7 @@ import { ObjectServer } from "../src/server/index.ts";
 import { comment, folder, objectDatabase, request, task, taskVersion, team } from "./schema.ts";
 import { principal } from "@destack/access";
 import { openSpace } from "./fixture/space.ts";
+import { testJournalKey } from "@destack/service/test";
 
 /** How long a short grant lasts, in milliseconds. */
 const GRANT_MILLISECONDS = 300;
@@ -56,7 +57,7 @@ async function serveTasks(dialect: (typeof TEST_DIALECTS)[number]) {
             now: Date.now(),
             attributes: {},
         }),
-        journal: new Journal(request),
+        journal: new Journal(request, testJournalKey),
         audit: AuditRecorder.service(new AuditOutbox(database), {
             package: task.package,
             service: "test",
@@ -85,7 +86,7 @@ async function serveTasks(dialect: (typeof TEST_DIALECTS)[number]) {
         return result as { id: string };
     };
     current = "user-2";
-    const pages = server.sync(spaceId, context);
+    const pages = server.source.sync(spaceId, context);
     const next = async (): Promise<[boolean, string, unknown, unknown][]> => {
         // skip the bare pages that only move the position and read the next page of changes
         let page = (await pages.next()).value as QueryPage;

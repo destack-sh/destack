@@ -17,6 +17,7 @@ import { defineObject, field, method, type ObjectType } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { request, user } from "./schema.ts";
 import { openSpace, space } from "./fixture/space.ts";
+import { testJournalKey } from "@destack/service/test";
 
 /** The space containing the objects. */
 const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
@@ -171,7 +172,7 @@ test.for(TEST_DIALECTS)(
         as("alice");
 
         // include each article's remarks, and only its own, sharing identifiers with no photo
-        const pages = server.sync(spaceId, context, {
+        const pages = server.source.sync(spaceId, context, {
             queries: {
                 articles: {
                     object: "article",
@@ -342,7 +343,7 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
             now: Date.now(),
             attributes: {},
         }),
-        journal: new Journal(request),
+        journal: new Journal(request, testJournalKey),
         audit: AuditRecorder.service(new AuditOutbox(storage.database), {
             package: Object.values(objects)[0]!.package,
             service: "test",

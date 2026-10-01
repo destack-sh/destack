@@ -11,7 +11,7 @@ import { PackageId } from "@destack/package";
 import { identifier, schema } from "@destack/schema";
 import type { QueryPage } from "@destack/sync";
 import { Journal } from "@destack/service/database";
-import { subjectContext } from "@destack/service/test";
+import { subjectContext, testJournalKey } from "@destack/service/test";
 import { Bookmark } from "@destack/service/bookmark";
 import type { ServiceContext } from "@destack/service/server";
 import { v7 } from "uuid";
@@ -94,7 +94,7 @@ async function serveHistory(dialect: (typeof TEST_DIALECTS)[number]) {
             now: Date.now(),
             attributes: {},
         }),
-        journal: new Journal(request),
+        journal: new Journal(request, testJournalKey),
         audit: () => recorder,
     });
 
@@ -126,7 +126,7 @@ test.for(TEST_DIALECTS)(
         await rename("draft");
 
         // follow the owner's events about the plan, from a snapshot holding the earlier one
-        const pages = server.sync(SPACE_ID, context("owner"), {
+        const pages = server.source.sync(SPACE_ID, context("owner"), {
             queries: {
                 plan: {
                     object: "event",
@@ -161,7 +161,7 @@ test.for(TEST_DIALECTS)(
 
         // hold the rename and the watch's own record after it ends
         const controller = new AbortController();
-        const pages = server.sync(SPACE_ID, context("owner", controller.signal), {
+        const pages = server.source.sync(SPACE_ID, context("owner", controller.signal), {
             queries: {
                 events: { object: "event", order: [{ column: "recordedAt", direction: "asc" }] },
             },
@@ -247,7 +247,7 @@ test("name the version a read disclosed in its audit event, apart from its value
             now: Date.now(),
             attributes: {},
         }),
-        journal: new Journal(request),
+        journal: new Journal(request, testJournalKey),
         audit: AuditRecorder.service(new AuditOutbox(database), {
             package: locker.package,
             service: "test",

@@ -1,3 +1,4 @@
+import type { ServiceContext } from "@destack/service/server";
 import { TABLE, type DatabaseConnection, type Table } from "@destack/db";
 import type { Relay } from "@destack/db/relay";
 import * as sync from "@destack/sync";
@@ -95,6 +96,11 @@ export class EphemeralStorage {
         }
 
         return value;
+    }
+
+    /** Key a client by its caller and identifier. */
+    static clientKey(context: ServiceContext, client: string): string {
+        return JSON.stringify([context.caller?.id ?? null, client]);
     }
 
     /** Hold a client's rows while one of its streams is open, returning the release. */

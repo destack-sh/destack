@@ -11,7 +11,7 @@ import { defineDatabase } from "@destack/db/declare";
 import { relayHub, TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier } from "@destack/schema";
 import { Journal } from "@destack/service/database";
-import { subjectContext } from "@destack/service/test";
+import { subjectContext, testJournalKey } from "@destack/service/test";
 import { RequestId } from "@destack/service/request";
 import { defineObject, field, method, type ObjectType } from "../src/index.ts";
 import { EphemeralStorage, ObjectServer } from "../src/server/index.ts";
@@ -102,7 +102,7 @@ test.for(TEST_DIALECTS)(
             subject: principal.user.reference("universe", "bob"),
         });
         // follow every durable type of the space next to the ephemeral one
-        const durable = east.server.sync(spaceId, context("alice").context);
+        const durable = east.server.source.sync(spaceId, context("alice").context);
         expect((await durable.next()).value?.complete).toBe(true);
         await durable.return(undefined);
 
@@ -469,7 +469,7 @@ async function serveBoards(dialect: Dialect) {
             objects: { presence, board, profile },
             database: storage.database,
             ephemeral: store,
-            journal: new Journal(request),
+            journal: new Journal(request, testJournalKey),
             audit: AuditRecorder.service(new AuditOutbox(storage.database), {
                 package: presence.package,
                 service: "test",
@@ -498,7 +498,7 @@ async function serveBoards(dialect: Dialect) {
             follow: (as: string, client: string) => {
                 // read the pages in the background into the rows held, waking whoever waits for the next
                 const { context: followed, controller } = context(as);
-                const pages = server.sync(spaceId, followed, {
+                const pages = server.source.sync(spaceId, followed, {
                     client,
                     queries: { presences: { object: "presence" } },
                 });
