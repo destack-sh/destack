@@ -1,64 +1,98 @@
-Declare, store and access versioned secrets.
+Declare, store and read versioned secrets.
 
 ## Usage
 
-```ts
-import { defineSecret, defineVault } from "@destack/vault/declare";
+A package declares a vault and the secrets it reads.
 
+```ts
 export const credentials = defineVault({ name: "credentials", spec: {} });
 export const githubToken = defineSecret({ name: "github-token" });
 
 const { value, version } = await githubToken.get(context).read();
 ```
 
-```ts
-import { connect, BoundSecret } from "@destack/vault/client";
+## Bindings
 
-const client = connect({ url: vaultUrl, headers: authenticatedHeaders });
-const token = new BoundSecret(client, { space: spaceId, secret: secretId });
-const { value, version } = await token.read();
+A stack binds each secret declaration to one of its secrets, optionally pinned to a version.
+
+```ts
+export const personal = defineSpace({
+    resources: { credentials: { declaration: credentials, retention: "retain", tags: {} } },
+    secrets: { github: { vault: "credentials", name: "github" } },
+    installations: { notes: install(notes, { "github-token": { secret: "github", version: 2 } }) },
+});
 ```
 
-## Administration
+An installation reads the version each live deployment captured.
+
+| Binding | Captured version |
+|---|---|
+| pinned | that version |
+| unpinned | the current version when the deployment was created |
+
+## Runtime
+
+The runtime binds a captured secret through a vault client authenticated as the installation.
 
 ```ts
-import { createRequestId } from "@destack/service/request";
+context.bind(
+    githubToken,
+    new Secret(connect({ url: vaultUrl, headers: installationHeaders }), capture),
+);
+```
 
+## Objects
+
+| Object | Methods |
+|---|---|
+| `vault` | `get`, `list` |
+| `secret` | `get`, `list`, `create`, `update`, `disable`, `enable`, `promote`, `read`, `delete`, `restore`, `purge` |
+| `version` | `get`, `list`, `create`, `disable`, `enable`, `destroy` |
+
+An administrator creates a secret, then writes its first version.
+
+```ts
 const secret = await client.secret.create({
     spaceId,
-    vaultId,
+    parentId: vaultId,
     name: "github",
-    requestId: createRequestId(),
+    requestId: RequestId.create(),
 });
-const written = await client.version.write({
+await client.version.create({
     spaceId,
-    secretId: secret.id,
-    revision: secret.revision,
-    requestId: createRequestId(),
+    parentId: secret.id,
     value: { encoding: "text", value: credential },
-    promote: true,
+    requestId: RequestId.create(),
+});
+```
+
+## Account connections
+
+`RemoteVault` keeps connections' OAuth credentials as secrets in space vaults.
+
+```ts
+const connections = new Connections({
+    providers,
+    vault: new RemoteVault(async (spaceId, subject) =>
+        connect({ url: vaultUrl(spaceId), headers: await vaultHeaders(spaceId, subject) }),
+    ),
 });
 ```
 
 ## Hosting
 
+A host keeps its root keys in a keychain and shares one `ValueStore` between the service and the provider.
+
 ```ts
-import { LocalKeyring, EnvelopeEncryption } from "@destack/vault/encryption";
-import { implementService } from "@destack/vault/server";
-import { Vault } from "@destack/vault/vault";
-import { defineWorkload } from "@destack/service/workload";
+const values = new ValueStore(await LocalKeyring.open(keychain, hostId), hostId);
+const service = implementService({ database, values, recovery: { days: 30 } });
+const provider = vaultProvider(database, values);
+```
 
-export const workload = defineWorkload({
-    name: "vault",
-    start: async (context) => {
-        const keys = await LocalKeyring.import("2026-09", rootKeys);
-        const vault = new Vault(database.get(context.resources), new EnvelopeEncryption(keys), "eu");
+A stopped host rotates its root key: it adds an active key, rewraps the vault keys under the old one, then retires it.
 
-        return { services: [implementService(vault)] };
-    },
-});
-
-// invoke with a separately authorized maintenance client
-await client.secret.purge({ spaceId, limit: 100 });
-await client.request.rewrap({ spaceId, keyId: "2026-08", limit: 100 });
+```ts
+const rotated = new ValueStore(await LocalKeyring.rotate(keychain, hostId), hostId);
+await rotated.rewrapUnder(database, previousKeyId);
+await ValueStore.retire(database, keychain, hostId, previousKeyId);
 ```

@@ -64,8 +64,8 @@ export interface ConnectionRevocation {
     readonly credential?: string;
 }
 
-/** The vaults holding connections' OAuth credentials. */
-export interface ConnectionVault {
+/** The vault keeping connections' OAuth credentials as secrets. */
+export interface Vault {
     /** Keep a credential as a secret. */
     write(secret: {
         readonly id: string;

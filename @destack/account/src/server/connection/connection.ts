@@ -5,7 +5,7 @@ import { DirectoryDatabase } from "@destack/directory";
 import { ServiceError } from "@destack/service/error";
 import { connection, type Connection } from "../../object/connection.ts";
 import { Digest } from "../../object/digest.ts";
-import type { ConnectionGrant, ConnectionProvider, ConnectionVault } from "./provider.ts";
+import type { ConnectionGrant, ConnectionProvider, Vault } from "./provider.ts";
 
 /** How long an authorization waits, GitHub's and Google's ten minute codes. */
 const AUTHORIZATION_MILLISECONDS = 10 * 60 * 1000;
@@ -49,12 +49,12 @@ export class Connections {
     /** The configured providers, by name. */
     readonly providers: ReadonlyMap<string, ConnectionProvider>;
     /** The vaults holding OAuth credentials. */
-    readonly vault: ConnectionVault;
+    readonly vault: Vault;
 
     /** Serve connections to the configured providers. */
     constructor(options: {
         readonly providers: readonly ConnectionProvider[];
-        readonly vault: ConnectionVault;
+        readonly vault: Vault;
     }) {
         this.providers = new Map(options.providers.map((provider) => [provider.name, provider]));
         this.vault = options.vault;
