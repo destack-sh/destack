@@ -26,7 +26,7 @@ import {
     type ConnectionProvider,
     type ConnectionRequest,
     type ConnectionRevocation,
-    type ConnectionVault,
+    type Vault,
 } from "../src/server/index.ts";
 import type { User } from "../src/object/user.ts";
 import { account } from "../src/object/account.ts";
@@ -37,6 +37,7 @@ import type { AuditEvent } from "@destack/audit";
 import { AuditOutbox } from "@destack/audit/outbox";
 import { Browser } from "./browser.ts";
 import { openAccountDatabase } from "./database.ts";
+import { testJournalKey } from "@destack/service/test";
 
 /** The origin the fixture's account service answers on. */
 const ORIGIN = "http://localhost:3210";
@@ -155,7 +156,12 @@ export class AccountFixture implements AsyncDisposable {
         // verify the hosts a test enrolls, and everyone else by their account credential
         const hosts = new Map<string, Caller>();
         const server = Server.start({
-            ...implementService(authentication, { connections, history, inherited: [] }),
+            ...implementService(authentication, {
+                journalKey: testJournalKey,
+                connections,
+                history,
+                inherited: [],
+            }),
             audience: accountPackage.id,
             resources: new ResourceContext(),
             health: new Health("account"),
@@ -392,7 +398,7 @@ export class MemoryProvider implements ConnectionProvider {
 }
 
 /** Vaults holding secrets in memory, as the account service reaches them. */
-export class MemoryVault implements ConnectionVault {
+export class MemoryVault implements Vault {
     /** The held secrets, by identifier. */
     readonly secrets = new Map<
         string,

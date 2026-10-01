@@ -23,6 +23,7 @@ import * as object from "../src/object/index.ts";
 import { accountPackage } from "../src/audit/index.ts";
 import { openAccountDatabase } from "./database.ts";
 import { id } from "./fixture.ts";
+import { testJournalKey } from "@destack/service/test";
 
 /** Let an account's root own it, its members read it, and groups and service accounts read it through a role. */
 test("decide account access for its root, members, group members and service accounts", async () => {
@@ -65,7 +66,7 @@ test("decide account access for its root, members, group members and service acc
                     },
                     new AuditOutbox(database),
                 ),
-            journal: new Journal(accountJournal),
+            journal: new Journal(accountJournal, testJournalKey),
         });
 
         // create two accounts under the owner's root that own their scopes

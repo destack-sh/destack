@@ -4,7 +4,7 @@ import { identifier, schema } from "@destack/schema";
 import { AuditRecorder } from "@destack/audit";
 import { type AuditDestination, AuditOutbox } from "@destack/audit/outbox";
 import { ObjectServer } from "@destack/object/server";
-import { Journal } from "@destack/service/database";
+import { Journal, type JournalKey } from "@destack/service/database";
 import type { ServiceContext, ServiceImplementation } from "@destack/service/server";
 import type { ObjectType } from "@destack/object";
 import { Scope } from "@destack/sync";
@@ -34,6 +34,8 @@ export function implementService(
         readonly connections: Connections;
         /** The audit history the outbox delivers to. */
         readonly history: AuditDestination;
+        /** Read the deployment's key that sensitive inputs are fingerprinted under. */
+        readonly journalKey: JournalKey;
         /** The other object types with inherited rows the database holds and relays. */
         readonly inherited: readonly ObjectType[];
     },
@@ -68,7 +70,7 @@ export function implementService(
         policies: options.inherited,
         database,
         audit,
-        journal: new Journal(accountJournal),
+        journal: new Journal(accountJournal, options.journalKey),
         context: (context, scope) => {
             // let a host act for the cells it is: itself and the regions it serves
             const access = context.access(scope);

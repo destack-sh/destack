@@ -35,4 +35,4 @@ export const zone = defineObject({
     methods: { get: method.get("read"), list: method.list("read") },
 });
 /** A zone as the directory places it. */
-export type ZoneRow = Select<typeof zone.table>;
+export type Zone = Select<typeof zone.table>;
