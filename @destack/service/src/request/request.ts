@@ -31,9 +31,9 @@ export const RequestId = {
     /** The schema of a request identifier, a UUIDv7. */
     schema: schema.uuidv7(),
 
-    /** Create a request identifier. */
+    /** Create a request identifier stamped with the current time, which its retry period starts from. */
     create(): string {
-        return v7();
+        return v7({ msecs: Date.now() });
     },
 
     /** Read the retry deadline of a request identifier. */
