@@ -4,7 +4,7 @@
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
-    "description": "Define portable validation schemas for Destack.",
+    "description": "Define Destack's portable values: validation schemas, identifiers, versions, durations, canonical JSON, and the condition and expression language.",
     "scripts": {
         "check": "tsc --project tsconfig.json",
         "publish:dry": "npm publish --dry-run --access public",
@@ -13,7 +13,6 @@
     },
     "exports": {
         ".": "./src/index.ts",
-        "./validate": "./src/validate/index.ts",
         "./inspect": "./src/inspect/index.ts",
         "./identifier": "./src/identifier/index.ts",
         "./json": "./src/json/index.ts",

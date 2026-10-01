@@ -34,13 +34,6 @@ export function canonicalize(value: unknown): string {
     return `{${fields.map(([key, field]) => `${JSON.stringify(key)}:${canonicalize(field)}`).join(",")}}`;
 }
 
-/** Hash the canonical form of a JSON value as lowercase hexadecimal SHA-256. */
-export async function digest(value: unknown): Promise<string> {
-    const bytes = new TextEncoder().encode(canonicalize(value));
-
-    return new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)).toHex();
-}
-
 /** Name a value that is not JSON for an error message. */
 function describe(value: unknown): string {
     return typeof value === "object" ? (value?.constructor?.name ?? "object") : typeof value;

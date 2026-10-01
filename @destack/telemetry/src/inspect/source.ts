@@ -1,5 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
-import { Digest } from "@destack/package/file";
+import { defineSchema, Digest, schema } from "@destack/schema";
 import { SymbolLocation } from "@destack/package/code";
 import {
     ATTR_DESTACK_BUILD_MANIFEST,
