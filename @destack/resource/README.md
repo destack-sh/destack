@@ -52,7 +52,12 @@ if (Provider.reconciles(provider)) {
 A declaration's `Connector` for a provider opens a client inside a workload for the `ResourceBinding` its host sends.
 
 ```ts
-const binding = { resource, kind: "database", provider: "sqlite", reference: "file:///spaces/space-…/resource-….db" };
+const binding = {
+    resource,
+    kind: "database",
+    provider: "sqlite",
+    reference: "file:///spaces/space-…/resource-….db",
+};
 const connection = await notes.connectors.sqlite!.connect(binding, notes);
 ```
 
@@ -75,7 +80,12 @@ A `Plan` lists `Step`s, each an action on an address.
 ```ts
 const plan: Plan = {
     steps: [
-        { action: "create", target: "resource/main/table/note/column/priority", risk: "safe", detail: "add column priority" },
+        {
+            action: "create",
+            target: "resource/main/table/note/column/priority",
+            risk: "safe",
+            detail: "add column priority",
+        },
         { action: "delete", target: "role/viewer", risk: "destructive", detail: "retire" },
     ],
 };

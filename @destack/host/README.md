@@ -5,7 +5,11 @@ A host belongs to one account, and members of other accounts place workloads on 
 ```ts
 import { host } from "@destack/host";
 
-await authorization.grant({ object: host.reference(accountId, hostId), relation: "tenant", subject: { ...tenantAccount, relation: "member" } });
+await authorization.grant({
+    object: host.reference(accountId, hostId),
+    relation: "tenant",
+    subject: { ...tenantAccount, relation: "member" },
+});
 ```
 
 ## Identity
@@ -16,14 +20,23 @@ A host enrolls under an account through a signed-in user, with a key pair whose 
 import { HostIdentity } from "@destack/host/identity";
 
 const identity = new HostIdentity(hostId, keychain);
-await identity.enroll(connect({ url: issuer, headers: { authorization: `Bearer ${session}` } }), { accountId, requestId, name: "laptop", kind: "device", device });
+await identity.enroll(connect({ url: issuer, headers: { authorization: `Bearer ${session}` } }), {
+    accountId,
+    requestId,
+    name: "laptop",
+    kind: "device",
+    device,
+});
 ```
 
 A host calls services with 60-second universe tokens its issuer's host service grants for a key-signed assertion, spending each assertion once.
 
 ```ts
 const hosts = ServiceMount.url(issuer, hostService.package.id);
-const accounts = accountClient.connect({ url, fetch: identity.fetch(fetch, accountService.package.id, hosts) });
+const accounts = accountClient.connect({
+    url,
+    fetch: identity.fetch(fetch, accountService.package.id, hosts),
+});
 const { accessToken } = await identity.token(relayService.package.id, hosts, fetch); // cached until shortly before expiry
 ```
 
@@ -90,7 +103,11 @@ A holder signs its installations' calls leaving the host with its host key, scop
 ```ts
 import { TokenIssuer } from "@destack/service/authentication";
 
-const issuer = new TokenIssuer({ authority: { kind: "space", spaceId }, issuer: hostId, sign: (claims) => identity.signToken(claims) });
+const issuer = new TokenIssuer({
+    authority: { kind: "space", spaceId },
+    issuer: hostId,
+    sign: (claims) => identity.signToken(claims),
+});
 const { accessToken } = await issuer.issue(caller);
 ```
 

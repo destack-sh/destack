@@ -43,13 +43,22 @@ Expressions define who holds a permission.
 An `Authorizer` decides permissions on the objects in one database.
 
 ```ts
-const authorizer = new Authorizer([note], [
-    { policy: note, table: notes, id: "id", scope: "scope", attributes: {}, relations: {} },
-]);
+const authorizer = new Authorizer(
+    [note],
+    [{ policy: note, table: notes, id: "id", scope: "scope", attributes: {}, relations: {} }],
+);
 const snapshot = Snapshot.live(database);
 const access = await authorizer.resolve(snapshot, spaceId, context);
-await database.select().from(notes).where(authorizer.where(note.permission("read"), access));
-const decision = await authorizer.check(snapshot, note.permission("share"), note.reference(spaceId, id), access);
+await database
+    .select()
+    .from(notes)
+    .where(authorizer.where(note.permission("read"), access));
+const decision = await authorizer.check(
+    snapshot,
+    note.permission("share"),
+    note.reference(spaceId, id),
+    access,
+);
 ```
 
 ## Decisions
@@ -74,10 +83,15 @@ An `Authorization` decides and changes access as one caller.
 
 ```ts
 const authorization = new Authorization(authorizer, database, (scope) => caller.context(scope));
-await authorization.create(page, { relationships: [{ relation: "owner", subject: caller.subject }] });
+await authorization.create(page, {
+    relationships: [{ relation: "owner", subject: caller.subject }],
+});
 await authorization.grant({ object: page, relation: "editor", subject });
 const link = await authorization.link({ object: page, relation: "viewer" });
-const offer = await authorization.propose({ relationship: { object: page, relation: "editor" }, recipient });
+const offer = await authorization.propose({
+    relationship: { object: page, relation: "editor" },
+    recipient,
+});
 ```
 
 ## Changes

@@ -40,7 +40,13 @@ open(authorize); // the callback receives code, state and iss
 const { access_token } = await (
     await fetch(new URL("/auth/native/token", issuer), {
         method: "POST",
-        body: new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri, client_id: "destack-daemon", code_verifier: verifier }),
+        body: new URLSearchParams({
+            grant_type: "authorization_code",
+            code,
+            redirect_uri,
+            client_id: "destack-daemon",
+            code_verifier: verifier,
+        }),
     })
 ).json();
 ```
@@ -73,7 +79,12 @@ const client = await accounts.oauthClient.create({
     grantTypes: ["authorization_code", "refresh_token"],
 });
 const { items } = await accounts.oauthConsent.list({ userId });
-await accounts.oauthConsent.revoke({ userId, id: items[0].id, requestId, revision: items[0].revision });
+await accounts.oauthConsent.revoke({
+    userId,
+    id: items[0].id,
+    requestId,
+    revision: items[0].revision,
+});
 ```
 
 ## Handles
@@ -87,7 +98,13 @@ const accounts = connect({ url: endpoint, headers: { cookie } });
 const { subject, profile } = await accounts.authentication.current();
 const { handle } = await accounts.user.suggestHandle({ id: subject.id });
 const { availability } = await accounts.user.checkHandle({ id: subject.id, handle: typed });
-await accounts.account.create({ scope: subject.id, requestId, handle: typed, name, kind: "personal" });
+await accounts.account.create({
+    scope: subject.id,
+    requestId,
+    handle: typed,
+    name,
+    kind: "personal",
+});
 ```
 
 A space reads the personal account of each user who joined it: its handle, name and kind.
@@ -98,8 +115,21 @@ The account service serves users, accounts, organisations and their sign-in reco
 
 ```ts
 const page = await accounts.account.list({ scope: userId, limit: 50 });
-await accounts.user.update({ id: userId, requestId, revision, name: "Ada", locale: "de-AT", timeZone: "Europe/Vienna" });
-await accounts.user.grant({ id: userId, requestId, relation: "delegate", subject: helper, expiresAt });
+await accounts.user.update({
+    id: userId,
+    requestId,
+    revision,
+    name: "Ada",
+    locale: "de-AT",
+    timeZone: "Europe/Vienna",
+});
+await accounts.user.grant({
+    id: userId,
+    requestId,
+    relation: "delegate",
+    subject: helper,
+    expiresAt,
+});
 const devices = await accounts.device.list({ userId });
 ```
 
@@ -137,7 +167,14 @@ await accounts.device.revoke({ userId, id: device.id, requestId });
 A user authorizes an external account on the provider's page, then completes it with the callback parameters.
 
 ```ts
-const pending = await accounts.connection.authorize({ accountId, requestId, provider: "github", scopes: ["repo"], secretSpaceId, vaultId });
+const pending = await accounts.connection.authorize({
+    accountId,
+    requestId,
+    provider: "github",
+    scopes: ["repo"],
+    secretSpaceId,
+    vaultId,
+});
 location.assign(pending.authorizationUrl);
 await accounts.connection.complete({ accountId, id: pending.id, requestId, state, parameters });
 ```
@@ -152,7 +189,12 @@ import { TokenVerifier } from "@destack/service/authentication";
 
 const token = new AccountToken(accounts, { audience: vaultPackageId, spaceId });
 const headers = await token.headers();
-const verifier = new TokenVerifier({ authority: { kind: "global" }, issuer, audience: vaultPackageId, keys: new URL("/auth/jwks", issuer) });
+const verifier = new TokenVerifier({
+    authority: { kind: "global" },
+    issuer,
+    audience: vaultPackageId,
+    keys: new URL("/auth/jwks", issuer),
+});
 const caller = await verifier.authenticate(request, spaceId);
 ```
 
@@ -161,7 +203,11 @@ A host rechecks a caller against current global records.
 ```ts
 import { AccountIntrospection } from "@destack/account/client";
 
-const caller = await new AccountIntrospection(hostAccountClient, accountId, vaultPackageId).authenticate(request, spaceId);
+const caller = await new AccountIntrospection(
+    hostAccountClient,
+    accountId,
+    vaultPackageId,
+).authenticate(request, spaceId);
 ```
 
 ## Directory
@@ -205,9 +251,27 @@ The server takes the platform sign-in, the connection providers and the audit hi
 import { AccountCaller, createAuthentication } from "@destack/account/authentication";
 import { Connections, implementService } from "@destack/account/server";
 
-const authentication = createAuthentication({ origin, trustedOrigins, ipAddress, secret, database, providers, signInUri, consentUri, verificationUri, secondFactorUri, handleUri, service, sendMagicLink, sendCode });
+const authentication = createAuthentication({
+    origin,
+    trustedOrigins,
+    ipAddress,
+    secret,
+    database,
+    providers,
+    signInUri,
+    consentUri,
+    verificationUri,
+    secondFactorUri,
+    handleUri,
+    service,
+    sendMagicLink,
+    sendCode,
+});
 const server = Server.start({
-    ...implementService(authentication, { connections: new Connections({ providers, vault }), history }),
+    ...implementService(authentication, {
+        connections: new Connections({ providers, vault }),
+        history,
+    }),
     audience: accountPackageId,
     resources,
     health,

@@ -11,7 +11,9 @@ import { defineAuditAction } from "@destack/audit";
 
 export const renameNote = defineAuditAction({
     name: "Note.rename",
-    targets: schema.object({ note: schema.object({ type: schema.literal("note"), id: schema.string() }) }),
+    targets: schema.object({
+        note: schema.object({ type: schema.literal("note"), id: schema.string() }),
+    }),
     details: schema.object({ title: schema.string() }),
 });
 ```
@@ -39,7 +41,11 @@ A recorder writes a database change's event in its transaction, an external effe
 ```ts
 await database.transaction(async (transaction) => {
     await transaction.update(note).set({ title }).where(eq(note.id, id));
-    await audit.record(transaction, renameNote, { targets: { note: { type: "note", id } }, details: { title }, outcome: "success" });
+    await audit.record(transaction, renameNote, {
+        targets: { note: { type: "note", id } },
+        details: { title },
+        outcome: "success",
+    });
 });
 
 await audit.attempt(sendInvitation, { targets, details: {} }, () => invitations.send(id));
@@ -59,7 +65,10 @@ Each event carries its category.
 `AuditRecorder.procedure` records each procedure call of a server as one event when it ends, by the category the procedure declares, and every denial.
 
 ```ts
-Server.start({ ...options, audit: AuditRecorder.procedure(({ context }) => recorderOf(context), { isAccessAudited }) });
+Server.start({
+    ...options,
+    audit: AuditRecorder.procedure(({ context }) => recorderOf(context), { isAccessAudited }),
+});
 ```
 
 ## Delivery
@@ -71,7 +80,9 @@ import { createAuditClient } from "@destack/audit/client";
 import { ControlLoop } from "@destack/service/control";
 
 const outbox = new AuditOutbox(database);
-await new ControlLoop(database, [outbox.controller(createAuditClient({ url, headers }))], { report }).run(signal);
+await new ControlLoop(database, [outbox.controller(createAuditClient({ url, headers }))], {
+    report,
+}).run(signal);
 ```
 
 ## History

@@ -14,7 +14,12 @@ A note is private to its owner until the owner shares it or its notebook.
 A note's `body` is text its editors write together, and a deleted note stays in the trash for 30 days.
 
 ```ts
-const created = await client.note.create({ spaceId, requestId, parentId: notebookId, title: "Plan" });
+const created = await client.note.create({
+    spaceId,
+    requestId,
+    parentId: notebookId,
+    title: "Plan",
+});
 await client.note.grant({ spaceId, id: created.id, requestId, relation: "editor", subject: bob });
 ```
 

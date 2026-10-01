@@ -7,7 +7,7 @@ import { VerifiedIdentifier, verifiedIdentifiers, type AccessContext } from "../
 import type { RelationshipRequest } from "../relationship/relationship.ts";
 import { accessProposal, ProposedRelationship } from "./table.ts";
 
-/** How long a proposal stays acceptable unless it names its own lapse, in milliseconds. */
+/** How long a proposal stays acceptable unless it sets its own lapse, in milliseconds. */
 export const PROPOSAL_LIFETIME_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
 
 /** The most proposals one page lists, a screen of pending requests at a few hundred bytes each. */

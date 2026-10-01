@@ -42,7 +42,10 @@ A kind's own entry declares up to three functions over its descriptions.
 ```ts
 import { definePackage } from "@destack/package/declare";
 
-export default definePackage({ resources: { main: notesDatabase }, secrets: { "github-webhook": webhookSecret } });
+export default definePackage({
+    resources: { main: notesDatabase },
+    secrets: { "github-webhook": webhookSecret },
+});
 ```
 
 ## Modules
@@ -80,7 +83,10 @@ A dependency's `BuildExtension` compiles and describes the outputs of the packag
 ```ts
 import { type BuildExtension, runtimeConditions } from "@destack/package/build";
 
-export const spaceBuild: BuildExtension = { compile: (compilation) => [workloadPlugin(compilation)], describe: (compilation, compiled) => ({ workloads }) };
+export const spaceBuild: BuildExtension = {
+    compile: (compilation) => [workloadPlugin(compilation)],
+    describe: (compilation, compiled) => ({ workloads }),
+};
 ```
 
 ## Manifests
@@ -92,5 +98,9 @@ import { openPackage } from "@destack/package/manifest";
 
 const reader = await openPackage(location, { fetch });
 const files = await reader.files();
-const settings = await reader.declared(import.meta.destack.package.id, "setting", SettingDescription);
+const settings = await reader.declared(
+    import.meta.destack.package.id,
+    "setting",
+    SettingDescription,
+);
 ```

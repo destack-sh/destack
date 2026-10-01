@@ -23,7 +23,7 @@ export const accessRole = defineTable(
         createdAt: integer("created_at").notNull(),
         /** Last modification time in UTC epoch milliseconds. */
         updatedAt: integer("updated_at").notNull(),
-        /** The revision conditional updates name. */
+        /** The revision that conditional updates compare against. */
         revision: integer("revision").notNull().default(1),
         /** The installation whose declaration manages the role, absent for roles defined at runtime. */
         managerInstallationId: identifier("manager_installation_id", "installation"),

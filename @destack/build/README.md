@@ -44,7 +44,11 @@ await build.write(destination);
 `readOutputs` lists one module output per runtime the package's exports declare.
 
 ```ts
-await using build = await buildPackage({ directory, dependencies: await readDependencies(directory), outputs: await readOutputs(directory) });
+await using build = await buildPackage({
+    directory,
+    dependencies: await readDependencies(directory),
+    outputs: await readOutputs(directory),
+});
 ```
 
 An export compiles for the `runtimes` its destack.json declares, and the build refuses an export without them.
@@ -58,8 +62,14 @@ An export compiles for the `runtimes` its destack.json declares, and the build r
 ```ts
 import { History, Upgrade } from "@destack/resource";
 
-await using build = await buildPackage({ directory, dependencies, outputs, history: await History.read(latest, vocabulary) });
-const upgrade = build.manifest.upgrade && (await build.reader.read(build.manifest.upgrade, Upgrade));
+await using build = await buildPackage({
+    directory,
+    dependencies,
+    outputs,
+    history: await History.read(latest, vocabulary),
+});
+const upgrade =
+    build.manifest.upgrade && (await build.reader.read(build.manifest.upgrade, Upgrade));
 ```
 
 A `PackageBuilder` keeps one compiler process warm across builds of one checkout.
@@ -116,7 +126,9 @@ import { PackageBuild } from "@destack/build";
 const reader = await PackageBuild.open(destination);
 const files = await reader.files();
 const services = await reader.domain("service");
-const description = files.find((file) => file.path === "src/index.ts")?.descriptions?.find((description) => description.kind === "module");
+const description = files
+    .find((file) => file.path === "src/index.ts")
+    ?.descriptions?.find((description) => description.kind === "module");
 const module = description && (await reader.module(description.file));
 ```
 
@@ -174,7 +186,10 @@ for await (const operation of await client.build.watch({ id: build.id })) {
 import { implementService } from "@destack/build/server";
 
 const implementation = implementService(
-    { builds: { open: openImmutableSource, inspect: openInspectionSource, store: storePackage }, limits: { concurrency: 4, capacity: 100, timeout: 60_000, retention: 3_600_000 } },
+    {
+        builds: { open: openImmutableSource, inspect: openInspectionSource, store: storePackage },
+        limits: { concurrency: 4, capacity: 100, timeout: 60_000, retention: 3_600_000 },
+    },
     { access, audit },
     context,
 );
@@ -185,5 +200,11 @@ Hosts register the `build` policy with their authorizer.
 ```ts
 import { BUILD_POLICIES } from "@destack/build/access";
 
-const objects = new ObjectServer({ policies: [...BUILD_POLICIES], database, context, audit, journal });
+const objects = new ObjectServer({
+    policies: [...BUILD_POLICIES],
+    database,
+    context,
+    audit,
+    journal,
+});
 ```

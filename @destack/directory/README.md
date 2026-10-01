@@ -12,8 +12,8 @@ import { DirectoryDatabase } from "@destack/directory";
 const directory = new DirectoryDatabase(globalDatabase);
 await directory.publish("region-eu", "universe", "https://eu.destack.app");
 await directory.place({ id: spaceId, scope: accountId, cell: "region-eu", epoch: 1 });
-const zone = await directory.locate(spaceId);                  // { id, scope, cell: "region-eu", epoch: 1 }
-await directory.move(zone!, "host-01a0…");                     // the target cell copies the zones moving to it
+const zone = await directory.locate(spaceId); // { id, scope, cell: "region-eu", epoch: 1 }
+await directory.move(zone!, "host-01a0…"); // the target cell copies the zones moving to it
 ```
 
 ## Clients
@@ -22,7 +22,7 @@ A directory client reaches a service where a cell mounts it, and follows a 421 `
 
 ```ts
 const client = directory.client(notesService, zone!.cell, fetch);
-throw Moved.error({ scope: spaceId, cell: "host-01a0…" });   // how a cell answers for a scope that moved
+throw Moved.error({ scope: spaceId, cell: "host-01a0…" }); // how a cell answers for a scope that moved
 ```
 
 ## Claims
@@ -31,8 +31,8 @@ A claim reserves a unique name for an object while its write runs, then the writ
 
 ```ts
 await directory.claim([{ index, key, objectId, scope }], requestId, now);
-await directory.confirm(requestId, owned);                     // or directory.release(requestId) after a failed write
-const owner = await directory.owner(index, key);               // { objectId, scope }
+await directory.confirm(requestId, owned); // or directory.release(requestId) after a failed write
+const owner = await directory.owner(index, key); // { objectId, scope }
 ```
 
 ## Caching
@@ -51,5 +51,9 @@ The global database holds `directoryTables`: zones, cells and claims.
 ```ts
 import { directoryTables } from "@destack/directory";
 
-export const global = defineDatabase({ name: "global", tier: "global", tables: [...directoryTables] });
+export const global = defineDatabase({
+    name: "global",
+    tier: "global",
+    tables: [...directoryTables],
+});
 ```

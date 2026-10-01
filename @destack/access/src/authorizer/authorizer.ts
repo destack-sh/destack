@@ -1184,7 +1184,7 @@ export class Authorizer {
         }
     }
 
-    /** Require a subject type to name a registered type and one of its relations. */
+    /** Require a subject type to refer to a registered type and one of its relations. */
     #validateSubject(subject: SubjectType): void {
         // resolve the relation of a subject set
         const type = this.policy(subject);

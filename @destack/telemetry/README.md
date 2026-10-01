@@ -34,7 +34,10 @@ A package declares the values each metric attribute takes, so the compiler bound
 
 ```ts
 const { metric } = telemetry.scope(import.meta.destack.package);
-const saves = metric.counter("note.saves", { unit: "{save}", attributes: { notebook: ["personal", "shared"] } });
+const saves = metric.counter("note.saves", {
+    unit: "{save}",
+    attributes: { notebook: ["personal", "shared"] },
+});
 
 saves.add(1, { notebook: "shared" });
 ```
@@ -58,7 +61,12 @@ import { startTelemetry } from "@destack/telemetry/host";
 import { OtlpExporter } from "@destack/telemetry/otlp";
 
 const exporter = OtlpExporter.http(start.monitor, () => `Bearer ${credential}`, report);
-const running = await startTelemetry(exporter.options(runner.package, { attributes: { "service.instance.id": instance }, ratio: 0.1 }));
+const running = await startTelemetry(
+    exporter.options(runner.package, {
+        attributes: { "service.instance.id": instance },
+        ratio: 0.1,
+    }),
+);
 ```
 
 ## Runtimes

@@ -12,7 +12,12 @@ A `viewer` may be anyone presenting a link's secret, which publishes the page an
 
 ```ts
 const root = await client.page.create({ spaceId, requestId, title: "Handbook" });
-const child = await client.page.create({ spaceId, requestId, parentId: root.id, title: "Onboarding" });
+const child = await client.page.create({
+    spaceId,
+    requestId,
+    parentId: root.id,
+    title: "Onboarding",
+});
 const link = await Capability.create();
 await client.page.grant({
     spaceId,

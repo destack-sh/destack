@@ -15,7 +15,15 @@ Each name goes to a cell.
 `RelayServer` runs a relay in one process.
 
 ```ts
-const relay = RelayServer.start({ origin: "https://relay.destack.space", listener: { hostname: "0.0.0.0", port: 443, tls }, database, resolver: new ResolverCache(database), tokens: universe(RELAY_PACKAGE.id), certificate: { cert, key }, report });
+const relay = RelayServer.start({
+    origin: "https://relay.destack.space",
+    listener: { hostname: "0.0.0.0", port: 443, tls },
+    database,
+    resolver: new ResolverCache(database),
+    tokens: universe(RELAY_PACKAGE.id),
+    certificate: { cert, key },
+    report,
+});
 ```
 
 ## Tunnels
@@ -23,7 +31,12 @@ const relay = RelayServer.start({ origin: "https://relay.destack.space", listene
 A host keeps its tunnel open with `TunnelClient`.
 
 ```ts
-const tunnel = TunnelClient.open({ url: "https://relay.destack.space/tunnel", token: async () => (await identity.token(RELAY_PACKAGE.id, hosts, fetch)).accessToken, fetch: (request) => views.fetch(request, "relay"), report });
+const tunnel = TunnelClient.open({
+    url: "https://relay.destack.space/tunnel",
+    token: async () => (await identity.token(RELAY_PACKAGE.id, hosts, fetch)).accessToken,
+    fetch: (request) => views.fetch(request, "relay"),
+    report,
+});
 ```
 
 ## Limits
