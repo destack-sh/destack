@@ -39,20 +39,20 @@ import {
     type ServiceContext,
     type ServiceImplementation,
 } from "@destack/service/server";
-import { withEventMeta, type Service } from "@destack/service";
+import { type Service } from "@destack/service";
 import * as sync from "@destack/sync";
+import { Branch, type BranchCall, type BranchType } from "../branch/index.ts";
 import { Call, RUNS } from "../method/call.ts";
 import type { Method, MethodKind } from "../method/method.ts";
 import type { ObjectProcedures, ObjectSchema } from "../method/procedure.ts";
 import {
     ClientId,
     replicaProcedures,
-    type ObjectQuery,
     type PushResult,
     type ReplicaProcedures,
 } from "../replica/replica.ts";
-import { ObjectType, REPLICATE, REPRESENT } from "../object/object.ts";
-import type { ObjectController } from "../object/controller.ts";
+import { ObjectType } from "../object/object.ts";
+import { ObjectController } from "../object/controller.ts";
 import { Chunk, CHUNKS } from "../text/chunk.ts";
 import { camelCase } from "../object/name.ts";
 import { Authorization, SystemAuthorization } from "./authorization.ts";
@@ -100,8 +100,22 @@ export interface ObjectReplicas {
     requests(): Promise<readonly Omit<sync.ReplicaRequest, "after">[]>;
 }
 
-/** The work a call prepared outside its transaction. */
+/** A call's prepared external work, with the call that prepared it, absent without any. */
 type Prepared = { readonly value: unknown; readonly call: Call } | undefined;
+
+/** How one call runs within its mutation. */
+type CallOptions = {
+    /** The call's prepared external work. */
+    readonly prepared?: Prepared;
+    /** The log position before the mutation, for tracked objects. */
+    readonly from?: LogPosition;
+    /** The client writing ephemeral objects. */
+    readonly client?: string;
+    /** The principal the call records as its caller, the authorization's when absent. */
+    readonly as?: Subject;
+    /** The calls the method's expansion ran before it. */
+    readonly expansion?: readonly BranchCall[];
+};
 
 /** The routers of served object types by name, and the replica procedures. */
 export type ObjectRouter<Objects extends Readonly<Record<string, ObjectType>>> = {
@@ -135,17 +149,21 @@ export class ObjectServer<
     /** The outbox delivering the calls methods send, absent where no cell records runs. */
     readonly #sends?: Outbox;
     /** Derive a request's verified authorization inputs within a scope. */
-    readonly #context: (context: ServiceContext, scope: string) => AccessContext;
+    readonly accessContext: (context: ServiceContext, scope: string) => AccessContext;
     /** Open an audit recorder for a scope and request. */
-    readonly #audit: (scope: string, context?: ServiceContext) => AuditRecorder<DatabaseConnection>;
+    readonly audit: (scope: string, context?: ServiceContext) => AuditRecorder<DatabaseConnection>;
     /** Report failed settlements. */
     readonly #report: (error: unknown) => void;
+    /** Read the current time calls run and controllers reconcile at, in UTC epoch milliseconds. */
+    readonly clock: () => number;
+    /** The scope's branch types, absent for a server without branches. */
+    readonly branch: BranchType | undefined;
     /** Whether reads of the objects record access events. */
     readonly isAccessAudited: boolean;
+    /** The copies the objects stream to clients and databases below. */
+    readonly source: ObjectSource;
     /** The shared grant readers, by scope and page position. */
     readonly #readers = new Map<string, GrantReader>();
-    /** The input schemas of pushed calls, by method. */
-    readonly #inputs = new Map<string, schema.Object<Record<string, schema.Schema>>>();
     /** The object types routed by name, without the chunk types serving them. */
     readonly #routed: readonly ObjectType[];
     /** The object schemas, by object name. */
@@ -182,6 +200,10 @@ export class ObjectServer<
         readonly report?: (error: unknown) => void;
         /** Whether reads of the objects record access events, as the space's audit setting asks. */
         readonly isAccessAudited?: boolean;
+        /** Read the current time calls run and controllers reconcile at, the system clock by default. */
+        readonly clock?: () => number;
+        /** The scope's branch types, among the objects, whose branches reads can see. */
+        readonly branch?: BranchType;
     }) {
         // require each object type under its own name
         for (const [key, object] of Object.entries(options.objects)) {
@@ -262,9 +284,12 @@ export class ObjectServer<
         );
         tracked.require(this.objects, this.authorizer);
         this.journal = options.journal;
-        this.#context = options.context ?? ((context, scope) => context.access(scope));
-        this.#audit = options.audit;
+        this.accessContext = options.context ?? ((context, scope) => context.access(scope));
+        this.audit = options.audit;
         this.isAccessAudited = options.isAccessAudited ?? false;
+        this.source = new ObjectSource(this as ObjectServer);
+        this.clock = options.clock ?? Date.now;
+        this.branch = options.branch;
         this.#report =
             options.report ??
             ((error) => {
@@ -310,6 +335,8 @@ export class ObjectServer<
             readonly runs?: RunClient;
             /** The watches of the served objects. */
             readonly watches?: readonly TriggerOf<"watch">[];
+            /** The scope's branch types, among the served objects. */
+            readonly branch?: BranchType;
         },
     ): ServiceImplementation {
         // serve the service's objects, keeping the copies of their space
@@ -318,7 +345,8 @@ export class ObjectServer<
             objects: service.objects as Readonly<Record<string, ObjectType>>,
             database: options.database,
             audit: options.audit,
-            journal: new Journal(options.journal),
+            journal: new Journal(options.journal, options.journalKey),
+            ...(options.branch === undefined ? {} : { branch: options.branch }),
             ...(options.directory === undefined ? {} : { directory: options.directory }),
             ...(options.ephemeral === undefined ? {} : { ephemeral: options.ephemeral }),
             ...(replicas === undefined
@@ -694,6 +722,55 @@ export class ObjectServer<
         return results;
     }
 
+    /** Expand calls whose methods list the calls they run after, each run as its author. */
+    async #expand(
+        calls: readonly ReturnType<typeof Call.resolve>[],
+        scope: string,
+        context: ServiceContext,
+    ): Promise<
+        (ReturnType<typeof Call.resolve> & {
+            readonly as?: Subject;
+            readonly expansion?: readonly BranchCall[];
+        })[]
+    > {
+        // keep calls whose methods expand into nothing
+        const methods = calls.map(
+            (call) =>
+                (this.served(call.object).methods as Readonly<Record<string, Method>>)[call.name]!,
+        );
+        if (methods.every((method) => method.expand === undefined)) {
+            return [...calls];
+        }
+
+        // list each expanding call's calls before it, as the caller reads them now
+        const authorization = await this.admit(this.database, scope, context);
+        const expanded: (ReturnType<typeof Call.resolve> & {
+            readonly as?: Subject;
+            readonly expansion?: readonly BranchCall[];
+        })[] = [];
+        for (const [index, call] of calls.entries()) {
+            const expand = methods[index]!.expand;
+            if (expand === undefined) {
+                expanded.push(call);
+                continue;
+            }
+            const built = await this.#call(
+                this.database,
+                authorization,
+                call.object,
+                call.name,
+                call.input,
+            );
+            const listed = await expand(built.call);
+            for (const { author, ...entry } of listed) {
+                expanded.push({ ...this.#resolve(this.#within(entry, scope), true), as: author });
+            }
+            expanded.push({ ...call, expansion: listed });
+        }
+
+        return expanded;
+    }
+
     /** Execute pushed mutations in order, stopping at a transient failure. */
     async push(
         scope: string,
@@ -937,123 +1014,22 @@ export class ObjectServer<
             ...(this.runs === undefined || this.watches.length === 0
                 ? []
                 : [new WatchController(this.database, this.watches, this.runs, this.#report)]),
-            ...(this.replicas === undefined ? [] : [this.#replicate(this.replicas)]),
+            ...(this.replicas === undefined ? [] : [this.source.controller(this.replicas)]),
             ...this.objects.flatMap((object) =>
-                object.controller === undefined ? [] : [this.#control(object, object.controller)],
+                object.controller === undefined
+                    ? []
+                    : [ObjectController.control(this as ObjectServer, object, object.controller)],
             ),
+            ...(this.branch === undefined
+                ? []
+                : [
+                      ObjectController.control(
+                          this as ObjectServer,
+                          this.branch.object,
+                          this.branch.controller(this.objects),
+                      ),
+                  ]),
         ];
-    }
-
-    /** Build the controller a type declares, reconciling or following its pending objects by key. */
-    #control(object: ObjectType, declared: ObjectController): Controller {
-        // key each pending object by its declared fields
-        const table = object.table as Table;
-        const match = Condition.compile(declared.pending, table);
-        const keyOf = (fields: Readonly<Record<string, unknown>>) => canonicalize(fields);
-        const pending = (key: string) => {
-            const fields = Object.entries(JSON.parse(key) as Readonly<Record<string, Scalar>>);
-
-            return Condition.all(
-                declared.pending,
-                ...fields.map(([name, value]) => Condition.eq(name, value)),
-            );
-        };
-        const watches = new Map((declared.watches ?? []).map((watch) => [watch.table, watch]));
-        const keys = async (change: Change) => {
-            // select the keys of a watched row, or the key of a changed object left pending
-            const row = (change.after ?? change.before) as Readonly<Record<string, unknown>>;
-            const watch = watches.get(change.table);
-            const selected =
-                watch !== undefined
-                    ? await watch.keys(row, this.database)
-                    : change.after !== undefined && Condition.matches(match, row)
-                      ? [declared.key?.(row) ?? { id: row.id }]
-                      : [];
-
-            return selected.map(keyOf);
-        };
-
-        return {
-            name: object.name,
-            watches: [table, ...watches.keys()],
-            ...(declared.concurrency === undefined ? {} : { concurrency: declared.concurrency }),
-            ...(declared.mode === undefined ? {} : { mode: declared.mode }),
-            keys,
-            list: async () => {
-                // list the keys of every pending object
-                const rows = await Snapshot.live(this.database).rows(table, declared.pending);
-
-                return [
-                    ...new Set(rows.map((row) => keyOf(declared.key?.(row) ?? { id: row.id }))),
-                ];
-            },
-            reconcile: async (key, reconciliation) => {
-                // reconcile the key's pending objects, if any are left
-                const rows = await Snapshot.live(this.database).rows(table, pending(key));
-                if (rows.length === 0) {
-                    return undefined;
-                }
-                const now = Date.now();
-
-                return declared.reconcile({
-                    rows,
-                    now,
-                    database: this.database,
-                    server: this as ObjectServer,
-                    signal: reconciliation.signal,
-                    ...(reconciliation.epoch === undefined ? {} : { epoch: reconciliation.epoch }),
-                    changed: () => reconciliation.changed(),
-                    execute: (method, targets) =>
-                        this.executeAsSystem(
-                            object,
-                            method,
-                            targets.map((row) => SystemCall.of(row)),
-                            now,
-                        ),
-                });
-            },
-        };
-    }
-
-    /** Build the controller following each requested copy from its source, one key per request. */
-    #replicate(replicas: ObjectReplicas): Controller {
-        // list the requests again once the scopes above change
-        const keyOf = async (request: Omit<sync.ReplicaRequest, "after">) =>
-            `${request.name} ${request.scope} ${await digest(request)}`;
-
-        return {
-            name: "replica",
-            mode: "follow",
-            watches: [Scope.table],
-            concurrency: Infinity,
-            list: async () => Promise.all((await replicas.requests()).map(keyOf)),
-            reconcile: async (key, { signal }) => {
-                // find the key's request, waiting for the loop to stop one no longer listed
-                const requests = await replicas.requests();
-                const keys = await Promise.all(requests.map(keyOf));
-                const request = requests[keys.indexOf(key)];
-                if (request === undefined) {
-                    await until(signal);
-
-                    return undefined;
-                }
-
-                // follow the copy from the position it reached for the same request
-                const replica = this.authorizer.replicaOf(request);
-                await replica.follow(
-                    this.database,
-                    (after, stream) =>
-                        replicas.source.stream(
-                            { ...request, ...(after === undefined ? {} : { after }) },
-                            stream,
-                        ),
-                    signal,
-                    { request },
-                );
-
-                return undefined;
-            },
-        };
     }
 
     /** Share one grant reader per scope and page position. */
@@ -1312,13 +1288,19 @@ export class ObjectServer<
             });
         }
 
-        // split off routing fields
+        // split off routing fields, and the view a read names
         const { field } = object.route;
-        const { id, revision, ...rest } = input;
+        const isViewed = method.kind === "get" || method.kind === "list";
+        const { id, revision, ...named } = input;
+        const { at, branch, ...viewed } = isViewed
+            ? named
+            : { ...named, at: undefined, branch: undefined };
+        const rest = isViewed ? viewed : named;
         const fields = Object.fromEntries(Object.entries(rest).filter(([name]) => name !== field));
         const scope = this.#scope(object, input);
         authorization.requireScopeOf(object);
         const targetId = id === undefined ? undefined : schema.string().parse(id);
+        const snapshot = await this.#view(database, authorization, scope, at, branch);
         const call = new Call({
             object,
             name,
@@ -1377,6 +1359,42 @@ export class ObjectServer<
             scope,
             targetId,
         };
+    }
+
+    /** Build the view a read names: the database at a position, under a branch's rows, or none for the live main line. */
+    async #view(
+        database: DatabaseConnection,
+        authorization: Authorization,
+        scope: string,
+        at: unknown,
+        branch: unknown,
+    ): Promise<Snapshot | undefined> {
+        // read the live main line, or the database at the position
+        if (at === undefined && branch === undefined) {
+            return undefined;
+        }
+        const base =
+            at === undefined ? Snapshot.live(database) : database.log.at(LogPosition.parse(at));
+        if (branch === undefined) {
+            return base;
+        }
+
+        // require the served branch types and the caller's read of the branch
+        const types = this.branch;
+        if (types === undefined) {
+            throw new ServiceError("BAD_REQUEST", { message: "this service serves no branches" });
+        }
+        const id = schema.string().parse(branch);
+        const row = await Snapshot.live(database).row(types.object.table as Table, { id });
+        const permission = types.object.permission("read");
+        if (
+            row === undefined ||
+            !(await authorization.admitRows(types.object, permission, scope, [row])).held.has(0)
+        ) {
+            throw new ServiceError("NOT_FOUND", { message: `no branch ${id}` });
+        }
+
+        return base.layer(await new Branch(types, database, id).overlay(base, this.objects));
     }
 
     /** Prepare each call's external work outside the transaction. */

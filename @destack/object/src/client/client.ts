@@ -24,22 +24,25 @@ import {
 import { Condition, Order, type Scalar } from "@destack/db/query";
 import { Expression } from "@destack/schema/expression";
 import { DatabaseError } from "@destack/db/error";
-import { schema, type Version } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { canonicalize, digest } from "@destack/schema/json";
 import type { Client } from "@destack/service";
 import { createClient, type ClientOptions } from "@destack/service/client";
+import type { Package } from "@destack/package";
 import { ServiceError } from "@destack/service/error";
 import { Moved } from "@destack/directory";
 import { Failure, Journal } from "@destack/service/database";
 import { RequestId } from "@destack/service/request";
 import { Observable } from "@destack/service/observable";
 import { RetryPolicy } from "@destack/service/timer";
-import type { LogPosition } from "@destack/db/log";
+import { type LogPosition, Snapshot } from "@destack/db/log";
 import * as sync from "@destack/sync";
 import { v7 } from "uuid";
+import { Branch, type BranchChange, type BranchType } from "../branch/index.ts";
+import { type StoredStep, UndoStack, undoEntry } from "./undo.ts";
 import { Call } from "../method/call.ts";
 import type { Method } from "../method/method.ts";
-import type { Step } from "../method/step.ts";
+
 import type { CallableName, CallInput, CallOutput, MutatingName } from "../method/procedure.ts";
 import {
     ObjectQuery,
@@ -82,6 +85,18 @@ export interface LiveQuery {
     /** Read the query again after every local commit until the signal aborts. */
     watch(signal: AbortSignal): AsyncGenerator<readonly Readonly<Record<string, unknown>>[]>;
     /** Stop following the query. */
+    close(): Promise<void>;
+}
+
+/** The changes a branch makes over the main line, as a client follows them. */
+export interface BranchDiff {
+    /** Settles once the copy has the branch's rows. */
+    readonly ready: Promise<void>;
+    /** Read the changes, one per object. */
+    read(): Promise<BranchChange[]>;
+    /** Read the changes again after every change of the branch's rows, until the signal aborts. */
+    watch(signal: AbortSignal): AsyncGenerator<BranchChange[]>;
+    /** Stop following the branch. */
     close(): Promise<void>;
 }
 
@@ -162,8 +177,14 @@ export class ObjectClient {
     readonly ephemeral: sync.Replica | undefined;
     /** The client's own identifier, owning its ephemeral objects. */
     readonly clientId: string;
-    /** The mutations waiting for the server. */
-    readonly outbox: sync.Outbox;
+    /** What the copy shows over the server's rows: queued mutations and the checked-out branch. */
+    readonly prediction: sync.Prediction;
+    /** The scope's branch types, absent for a client without branches. */
+    readonly branch: BranchType | undefined;
+    /** The checked-out branch and its rows, followed into the copy. */
+    #branchFollows: readonly LiveQuery[] = [];
+    /** The party's undo and redo stacks. */
+    readonly #undoStack: UndoStack;
     /** The party sharing the database, such as one browser tab. */
     readonly origin: string;
     /** The replica procedures of the cell serving the scope now. */
@@ -213,6 +234,8 @@ export class ObjectClient {
     private constructor(options: {
         readonly database: DatabaseConnection;
         readonly objects: readonly ObjectType[];
+        readonly package?: Package;
+        readonly branch?: BranchType;
         readonly scope: string;
         readonly caller: Subject;
         readonly endpoint: ClientOptions;
@@ -260,10 +283,14 @@ export class ObjectClient {
             .filter((object) => object.storage === "durable")
             .map((object) => object.table as Table);
         this.replica = new sync.Replica({ name: "objects", scope: options.scope, tables });
-        this.outbox = new sync.Outbox(
+        this.branch = options.branch;
+        this.prediction = new sync.Prediction(
             tables,
             (transaction, pending) => this.#replay(transaction, pending),
             (call) => this.#reach(call, tables),
+            options.branch === undefined
+                ? undefined
+                : ObjectClient.#branchSource(options.branch, this.objects),
         );
         // copy ephemeral objects apart
         const ephemeral = this.objects
@@ -287,7 +314,7 @@ export class ObjectClient {
     #upstream(objects: readonly ObjectType[]): sync.Upstream {
         // map tables to storages and copies
         const storages = new Map(objects.map((object) => [object.table as Table, object.storage]));
-        const durable = this.replica.upstream(this.database, this.outbox);
+        const durable = this.replica.upstream(this.database, this.prediction);
         const ephemeral = this.ephemeral?.upstream(this.database, undefined);
         const rootOf = (node: sync.Node): sync.Node =>
             node.parent === undefined ? node : rootOf(node.parent);
@@ -318,6 +345,10 @@ export class ObjectClient {
         readonly database: DatabaseConnection;
         /** The object types to hold. */
         readonly objects: readonly Object[];
+        /** The package serving the objects, required when they span packages. */
+        readonly package?: Package;
+        /** The scope's branch types, among the objects, to check out and edit branches. */
+        readonly branch?: BranchType;
         /** The scope whose objects to hold. */
         readonly scope: string;
         /** The calling principal. */
@@ -354,19 +385,40 @@ export class ObjectClient {
         });
     }
 
-    /** Call the replica procedures of the service serving the objects, speaking their package's release. */
-    static #replica(
-        objects: readonly ObjectType[],
-        endpoint: ClientOptions,
-    ): Client<ReplicaProcedures> {
-        // require the objects of one package
-        const packages = new Set(objects.map((object) => object.package.id));
-        if (packages.size !== 1) {
-            throw new TypeError("a client holds the objects of one package");
+    /** Read the package serving the objects: the one they share, or the one the client sets. */
+    static #served(objects: readonly ObjectType[], named: Package | undefined): Package {
+        const packages = new Map(objects.map((object) => [object.package.id, object.package]));
+        if (named !== undefined) {
+            return named;
+        } else if (packages.size !== 1) {
+            throw new TypeError(
+                "a client holding objects of several packages names the serving one",
+            );
         }
+
+        return objects[0]!.package;
+    }
+
+    /** Write a branch's rows from the client's copy over its other rows. */
+    static #branchSource(types: BranchType, objects: readonly ObjectType[]): sync.BranchSource {
+        const branches = types.object.table as Table;
+
+        return {
+            tables: [branches[TABLE].sqlName, (types.row.table as Table)[TABLE].sqlName],
+            isOpen: async (transaction, id) => {
+                const row = await Snapshot.live(transaction).row(branches, { id });
+
+                return row === undefined || row.state === "open";
+            },
+            apply: (transaction, id) => new Branch(types, transaction, id).apply(objects),
+        };
+    }
+
+    /** Call the replica procedures of the serving package's service, speaking its release. */
+    static #replica(served: Package, endpoint: ClientOptions): Client<ReplicaProcedures> {
         const router = { replica: replicaProcedures };
 
-        return createClient({ package: objects[0]!.package, router }, endpoint).replica;
+        return createClient({ package: served, router }, endpoint).replica;
     }
 
     /** List the tables a client's local database holds for some object types. */
@@ -374,7 +426,7 @@ export class ObjectClient {
         return [
             ...ObjectType.served(objects).map((object) => object.table as Table),
             ...sync.replicaTables,
-            ...sync.outboxTables,
+            ...sync.predictionTables,
             subscription,
             undoEntry,
         ];
@@ -392,13 +444,13 @@ export class ObjectClient {
         }
 
         return this.#methods(object, true, (name, input) => {
-            // predict the call alone
+            // predict the call alone, on the main line for a branch's own methods
             let result: unknown;
-            const pending = this.mutation(async (mutation) => {
+            const pending = this.#mutation(async (mutation) => {
                 result = await (
                     mutation.call(object) as Record<string, (input: unknown) => Promise<unknown>>
                 )[name]!(input);
-            });
+            }, this.#isBranchType(object));
 
             return {
                 predicted: pending.predicted.then(() => result),
@@ -409,38 +461,59 @@ export class ObjectClient {
 
     /** Predict several calls together and add them to the outbox as one mutation. */
     mutation<Result>(run: (mutation: Mutation) => Promise<Result>): Submission<Result> {
+        return this.#mutation(run, false);
+    }
+
+    /** Predict several calls together, on the main line when asked, and add them as one mutation. */
+    #mutation<Result>(
+        run: (mutation: Mutation) => Promise<Result>,
+        isMainLine: boolean,
+    ): Submission<Result> {
         // predict every call
         const id = RequestId.create();
-        const predicted = this.outbox.add(this.database, id, this.origin, async (database) => {
-            // collect calls and steps
-            const calls: sync.Call[] = [];
-            const steps: StoredStep[] = [];
-            const result = await run({
-                call: (object) =>
-                    this.#methods(object, true, async (name, input) => {
-                        // reject ephemeral objects
-                        if (object.storage === "ephemeral") {
-                            throw new TypeError(
-                                `ephemeral object ${object.name} is written one call at a time`,
-                            );
-                        }
-                        const entry = this.#recordCall(object, name, input);
-                        calls.push(entry);
-                        const predicted = await this.#step(database, object, name, entry.input);
-                        steps.push(predicted.step);
+        const predicted = this.prediction.add(
+            this.database,
+            id,
+            this.origin,
+            async (database) => {
+                // collect calls and steps
+                const calls: sync.Call[] = [];
+                const steps: StoredStep[] = [];
+                const checkedOut = isMainLine
+                    ? undefined
+                    : await this.prediction.checkedOut(database);
+                const result = await run({
+                    call: (object) =>
+                        this.#methods(object, true, async (name, input) => {
+                            // reject ephemeral objects, and branch calls on a branch
+                            if (object.storage === "ephemeral") {
+                                throw new TypeError(
+                                    `ephemeral object ${object.name} is written one call at a time`,
+                                );
+                            } else if (checkedOut !== undefined && this.#isBranchType(object)) {
+                                throw new TypeError(
+                                    `${object.name} is written through mutate, on the main line`,
+                                );
+                            }
+                            const entry = this.#recordCall(object, name, input);
+                            calls.push(entry);
+                            const predicted = await this.step(database, object, name, entry.input);
+                            steps.push(predicted.step);
 
-                        return predicted.result;
-                    }) as MutationCalls<typeof object>,
-            });
+                            return predicted.result;
+                        }) as MutationCalls<typeof object>,
+                });
 
-            // remember for undo
-            await this.#remember(database, id, steps);
+                // remember for undo
+                await this.#undoStack.remember(database, id, steps);
 
-            return { calls, result };
-        });
+                return { calls, result };
+            },
+            { isMainLine },
+        );
 
         // confirm with the server's outcome
-        const confirmed = predicted.then(() => this.#outcome(id));
+        const confirmed = predicted.then(() => this.outcome(id));
         confirmed.catch(() => {});
 
         return { predicted, confirmed };
@@ -469,39 +542,73 @@ export class ObjectClient {
         ) as Reader<Object>;
     }
 
-    /** Check out a branch, or the main line when undefined. */
-    checkout(branch: string | undefined): Promise<void> {
-        return this.outbox.checkout(this.database, branch);
+    /** Check out a branch by its identifier, following its rows, or the main line when undefined. */
+    async checkout(branch: string | undefined): Promise<void> {
+        // follow the branch's rows into the copy
+        const types = this.branch;
+        if (branch !== undefined && types === undefined) {
+            throw new TypeError("a client without branch types checks out no branch");
+        }
+        await Promise.all(this.#branchFollows.map((follow) => follow.close()));
+        this.#branchFollows =
+            branch === undefined || types === undefined
+                ? []
+                : [
+                      this.subscribe(types.object, { where: Condition.eq("id", branch) }),
+                      this.subscribe(types.row, { where: Condition.eq("parentId", branch) }),
+                  ];
+
+        // show it over the main line
+        await this.prediction.checkout(this.database, branch);
     }
 
-    /** Move a branch's mutations onto the main line. */
-    merge(branch: string): Promise<void> {
-        return this.outbox.merge(this.database, branch);
-    }
-
-    /** Remove a branch's mutations. */
-    discard(branch: string): Promise<void> {
-        return this.outbox.discard(this.database, branch);
-    }
-
-    /** List the branches holding mutations, and the one checked out. */
-    async branches(): Promise<{ readonly names: readonly string[]; readonly checkedOut?: string }> {
-        const checkedOut = await this.outbox.checkedOut(this.database);
+    /** Follow the changes a branch makes over the main line, one per object. */
+    diff(branch: string): BranchDiff {
+        // follow the branch's rows into the copy
+        const types = this.branch;
+        if (types === undefined) {
+            throw new TypeError("a client without branch types follows no branch");
+        }
+        const rows = this.subscribe(types.row, { where: Condition.eq("parentId", branch) });
+        const read = () => new Branch(types, this.database, branch).changes(this.objects);
 
         return {
-            names: await this.outbox.branches(this.database),
-            ...(checkedOut === undefined ? {} : { checkedOut }),
+            ready: rows.ready,
+            read,
+            async *watch(signal) {
+                for await (const _rows of rows.watch(signal)) {
+                    yield await read();
+                }
+            },
+            close: () => rows.close(),
         };
+    }
+
+    /** Read the checked-out branch, absent on the main line. */
+    checkedOut(): Promise<string | undefined> {
+        return this.prediction.checkedOut(this.database);
+    }
+
+    /** The mutations waiting for the server. */
+    get outbox(): sync.Outbox {
+        return this.prediction.outbox;
+    }
+
+    /** Report whether an object type keeps branches, whose calls stay on the main line. */
+    #isBranchType(object: ObjectType): boolean {
+        const types = this.branch;
+
+        return types !== undefined && types.keeps(object);
     }
 
     /** Undo this party's latest mutation, predicting false when none is left. */
     undo(): Submission<boolean> {
-        return this.#toggle("done", "undone");
+        return this.#undoStack.toggle("done", "undone");
     }
 
     /** Redo this party's latest undo, predicting false when none is left. */
     redo(): Submission<boolean> {
-        return this.#toggle("undone", "done");
+        return this.#undoStack.toggle("undone", "done");
     }
 
     /** Close the client and fail unsettled mutations. */
@@ -566,12 +673,14 @@ export class ObjectClient {
                 limit: this.#pushMutations,
             });
 
-            // push them
+            // push them, a branch's edits as one push to the branch
+            const mutations = pending.map((entry) => this.#pushed(entry));
+            const edits = new Set(pending.flatMap((entry) => (entry.branch ? [entry.id] : [])));
             try {
                 const result = await this.#call((service) =>
-                    service.push({ scope: this.scope, mutations: pending }, { signal }),
+                    service.push({ scope: this.scope, mutations }, { signal }),
                 );
-                await this.#record(result.outcomes, result.watermark);
+                await this.#record(result.outcomes, result.watermark, edits);
                 failures = 0;
             } catch (error) {
                 // stop on abort or a final failure, retrying a concurrent writer's conflict
@@ -610,7 +719,7 @@ export class ObjectClient {
         // pick the storage's replica and outbox
         const isDurable = storage === "durable";
         const replica = isDurable ? this.replica : this.ephemeral!;
-        const outbox = isDurable ? this.outbox : undefined;
+        const prediction = isDurable ? this.prediction : undefined;
         await replica.register(this.database);
         let failures = 0;
         while (!signal.aborted) {
@@ -655,7 +764,7 @@ export class ObjectClient {
                 );
                 let isHeld = false;
                 let isGrown = false;
-                for await (const page of replica.apply(this.database, pages, outbox)) {
+                for await (const page of replica.apply(this.database, pages, prediction)) {
                     // reset failures and deliver broadcasts
                     failures = 0;
                     for (const { topic, event } of page.broadcasts ?? []) {
@@ -750,7 +859,7 @@ export class ObjectClient {
                       this.database,
                       name,
                       compiled,
-                      isDurable ? this.outbox : undefined,
+                      isDurable ? this.prediction : undefined,
                   );
         };
 
@@ -868,38 +977,34 @@ export class ObjectClient {
         await this.outbox.forget(this.database, origin);
     }
 
-    /** Fill an executed mutation's missing step results from the server. */
-    async #settleSteps(mutationId: string, value: unknown): Promise<void> {
-        // read the mutation's entry
-        const [entry] = await this.database
-            .select()
-            .from(undoEntry)
-            .where(eq(undoEntry.mutationId, mutationId));
-        if (entry === undefined || !Array.isArray(value)) {
-            return;
+    /** Wrap a branch's edit as one call appending its calls to the branch. */
+    #pushed(entry: sync.Mutation & { readonly branch?: string }): sync.Mutation {
+        if (entry.branch === undefined) {
+            return { id: entry.id, calls: entry.calls };
         }
+        const push = this.#recordCall(this.branch!.object, "push", {
+            id: entry.branch,
+            calls: entry.calls,
+        });
 
-        // fill missing results in call order
-        const steps = (entry.steps as StoredStep[]).map((step, position) =>
-            step.result === undefined && value[position] !== undefined
-                ? { ...step, result: value[position] }
-                : step,
-        );
-        await this.database
-            .update(undoEntry)
-            .set({ steps: steps as never })
-            .where(eq(undoEntry.id, entry.id));
+        return { id: entry.id, calls: [push] };
     }
 
-    /** Record pushed mutations' outcomes and revert rejected predictions. */
-    async #record(outcomes: readonly PushedOutcome[], watermark: LogPosition): Promise<void> {
+    /** Record pushed mutations' outcomes and revert rejected predictions, leaving a branch edit's steps unsettled. */
+    async #record(
+        outcomes: readonly PushedOutcome[],
+        watermark: LogPosition,
+        edits: ReadonlySet<string>,
+    ): Promise<void> {
         // sort outcomes
         const rejected: { readonly id: string; readonly error: unknown }[] = [];
         for (const { id, outcome } of outcomes) {
             // acknowledge an executed mutation
             if ("value" in outcome) {
                 await this.outbox.acknowledge(this.database, id, watermark);
-                await this.#settleSteps(id, outcome.value);
+                if (!edits.has(id)) {
+                    await this.#undoStack.settle(id, outcome.value);
+                }
             }
             // collect a rejected one
             else {

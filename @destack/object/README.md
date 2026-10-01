@@ -271,17 +271,39 @@ for await (const rows of books.watch(signal)) {
 }
 ```
 
-## Undo and branches
+## Undo
 
-`undo` and `redo` apply inverse mutations, and `merge` sends a branch's mutations.
+`undo` and `redo` apply inverse mutations.
 
 ```ts
 await client.undo().predicted;
 client.redo();
+```
 
-await client.checkout("draft");
-client.mutate(page).update({ id, title: "Plan B" });
-await client.merge("draft");
+## Branches
+
+A client with the scope's `branch` types edits a checked-out branch live: its edits push to the branch, and the branch's rows show under them.
+
+```ts
+const client = await ObjectClient.open({ database, objects, package: notesService.package, branch: branchType, scope, caller, endpoint, reconnect });
+const { id } = await client.mutate(branch).create({ title: "Packing list" }).predicted;
+await client.checkout(id);
+client.mutate(note).create({ parentId, title: "Socks" });
+await client.mutate(branch).merge({ id }).confirmed;          // the device shows the main line again
+```
+
+Reads take a view: a branch over the main line, a log position, or both.
+
+```ts
+await client.read(note).list({ branch: id });
+await client.read(note).get({ id: noteId, at: position });    // readable then and now
+```
+
+A diff follows the changes a branch makes, one per object, with the written fields that differ.
+
+```ts
+const diff = client.diff(id);
+for await (const changes of diff.watch(signal)) render(changes); // [{ object, id, change, before, after, fields }]
 ```
 
 ## Browser tabs

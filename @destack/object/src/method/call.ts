@@ -9,6 +9,8 @@ import {
     type Select,
     type Table,
 } from "@destack/db";
+import type { Snapshot } from "@destack/db/log";
+import type { BranchCall } from "../branch/branch.ts";
 import { schema, Version } from "@destack/schema";
 import { Expression } from "@destack/schema/expression";
 import { ServiceError } from "@destack/service/error";
