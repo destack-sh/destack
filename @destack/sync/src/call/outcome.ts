@@ -33,7 +33,7 @@ export const Failure = Object.assign(failureSchema, {
                     : INTERNAL_STATUS;
             const data =
                 "data" in error && error.data !== undefined
-                    ? { data: schema.json().parse(error.data) }
+                    ? { data: schema.json().parse(JSON.parse(JSON.stringify(error.data))) }
                     : {};
 
             return { code, status, message: error.message, ...data };

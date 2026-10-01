@@ -3,8 +3,8 @@ import { defineSchema, identifier, schema } from "@destack/schema";
 /** The lowercase kebab case of declared type names. */
 const TYPE_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/;
 
-/** An object: its type, the scope containing it, and its identifier there. */
-export const ObjectReference = defineSchema(
+/** The schema of an object reference. */
+const objectReference = defineSchema(
     schema.object({
         /** The package that declares the object type. */
         packageId: identifier("package"),
@@ -17,11 +17,19 @@ export const ObjectReference = defineSchema(
     }),
 );
 /** An object: its type, the scope containing it, and its identifier there. */
-export type ObjectReference = schema.Infer<typeof ObjectReference>;
+export type ObjectReference = schema.Infer<typeof objectReference>;
+
+/** An object: its type, the scope containing it, and its identifier there, and its key. */
+export const ObjectReference = Object.assign(objectReference, {
+    /** Key an object without collisions. */
+    key(reference: ObjectReference): string {
+        return JSON.stringify([reference.packageId, reference.type, reference.scope, reference.id]);
+    },
+});
 
 /** A package-qualified object type. */
 export const ObjectTypeReference = defineSchema(
-    ObjectReference.pick({ packageId: true, type: true }),
+    objectReference.pick({ packageId: true, type: true }),
 );
 /** A package-qualified object type. */
 export type ObjectTypeReference = schema.Infer<typeof ObjectTypeReference>;
