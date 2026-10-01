@@ -5,8 +5,8 @@
 <p>
     <a href="package.json"><img src="https://img.shields.io/badge/version-2026.9.0-2ea44f?style=for-the-badge" alt="Version"></a>
     <a href="LICENSE.txt"><img src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge" alt="MIT License"></a>
-    <a href="https://github.com/destack-sh/destack/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/destack-sh/destack/release.yml?branch=main&label=Release&logo=github&style=for-the-badge" alt="Release"></a>
-    <a title="Discord" target="_blank" href="https://discord.gg/xUFQ45TWYd"><img alt="Chat with Destack people on Discord" src="https://img.shields.io/discord/1079840654466752606?label=Discord&logo=discord&logoColor=white&style=for-the-badge"></a>
+    <a href="https://github.com/destack-sh/destack/actions/workflows/release-publish.yml"><img src="https://img.shields.io/github/actions/workflow/status/destack-sh/destack/release-publish.yml?branch=main&label=Release&logo=github&style=for-the-badge" alt="Release"></a>
+    <a title="Discord" target="_blank" href="https://discord.gg/xUFQ45TWYd"><img alt="Chat with Destack people on Discord" src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white&style=for-the-badge"></a>
 </p>
 
 </div>
