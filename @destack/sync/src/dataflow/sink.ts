@@ -1,4 +1,4 @@
-import { encodeColumns, encodeRow, Key, TABLE, type Row, type Table } from "@destack/db";
+import { encodeColumns, Key, TABLE, type Row, type Table } from "@destack/db";
 import type { LogPosition } from "@destack/db/log";
 import type { Scalar } from "@destack/db/query";
 import type { Node } from "../query/node.ts";
@@ -205,7 +205,7 @@ export class Patch {
                         ? {
                               table: table[TABLE].sqlName,
                               operation: "delete",
-                              row: encodeRow(table, keyOf(table, decision.row)),
+                              row: table.encode(keyOf(table, decision.row)),
                           }
                         : encode(table, key, decision, hidden[index++]!, position, cache),
                 );

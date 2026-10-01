@@ -8,7 +8,6 @@ import {
     integer,
     json,
     text,
-    timestamp,
     type DatabaseConnection,
     type Table,
 } from "@destack/db";
@@ -35,7 +34,7 @@ export const note = defineTable(
         /** Structured labels. */
         labels: json("labels", schema.array(schema.string())).notNull(),
         /** The last edit time. */
-        editedAt: timestamp("edited_at").notNull(),
+        editedAt: integer("edited_at").notNull(),
         /** Attached bytes, left out of the log. */
         attachment: binary("attachment"),
     },
@@ -209,7 +208,7 @@ export const first = {
     summary: null,
     views: 9_007_199_254_740_993n,
     labels: ["draft"],
-    editedAt: new Date("2026-09-24T10:00:00.123Z"),
+    editedAt: 1790244000123,
     attachment: new Uint8Array([1, 2, 3]),
 };
 
@@ -236,7 +235,7 @@ export async function replicate(
     pages: readonly QueryPage[],
     prediction?: Prediction,
 ): Promise<void> {
-    for await (const _page of copy.apply(database, pages, prediction)) {
+    for await (const _page of copy.apply(database, pages, { prediction })) {
         // apply each page in order
     }
 }

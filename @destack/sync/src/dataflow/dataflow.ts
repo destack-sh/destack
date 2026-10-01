@@ -1,7 +1,7 @@
 import { Key, TABLE, type DatabaseConnection, type Row, type Table } from "@destack/db";
 import type { Scalar } from "@destack/db/query";
 import { DatabaseError } from "@destack/db/error";
-import type { Change, LogPosition } from "@destack/db/log";
+import type { LogPosition } from "@destack/db/log";
 import { canonicalize } from "@destack/schema/json";
 import { watchedScopes, type Audience, type Watch } from "../feed/audience.ts";
 import { Node } from "../query/node.ts";
@@ -610,37 +610,23 @@ function isPresent(value: unknown): boolean {
     return value !== null && value !== undefined;
 }
 
-/** Read the watched changes between two sequences from a database's log. */
+/** Read the watched changes between two sequences from a database's log, absent once compacted. */
 export function changesThroughLog(database: DatabaseConnection): Context["changesThrough"] {
     return async (watches, after, through) => {
         // read the scopes the watches read, every scope when one reads them all
         const scopes = watchedScopes(watches);
-        const changes: Change[] = [];
-        for (let sequence = after; sequence < through;) {
-            // read a page, absent once compacted
-            let read;
-            try {
-                read = await database.log.read({
-                    tables: [...new Set(watches.map((entry) => entry.table))],
-                    after: sequence,
-                    ...(scopes === undefined ? {} : { scopes }),
-                });
-            } catch (error) {
-                if (error instanceof DatabaseError && error.code === "CHANGES_COMPACTED") {
-                    return undefined;
-                }
-                throw error;
+        const tables = [...new Set(watches.map((entry) => entry.table))];
+        try {
+            return await database.log.range(
+                { tables, after, ...(scopes === undefined ? {} : { scopes }) },
+                through,
+            );
+        } catch (error) {
+            if (error instanceof DatabaseError && error.code === "CHANGES_COMPACTED") {
+                return undefined;
             }
-
-            // keep the changes up to the end sequence
-            changes.push(...read.changes.filter((change) => change.sequence <= through));
-            if (read.sequence <= sequence) {
-                break;
-            }
-            sequence = read.sequence;
+            throw error;
         }
-
-        return changes;
     };
 }
 

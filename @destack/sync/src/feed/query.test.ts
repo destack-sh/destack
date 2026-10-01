@@ -229,7 +229,7 @@ test.for(TEST_DIALECTS)(
             summary: null,
             views: 0n,
             labels: [],
-            editedAt: new Date(0),
+            editedAt: 0,
         };
         const pages = feed.subscribe(
             { tasks: { table: task, scopes: ["inbox"] } },
@@ -284,7 +284,7 @@ test.for(TEST_DIALECTS)(
             summary: null,
             views: 0n,
             labels: [],
-            editedAt: new Date(0),
+            editedAt: 0,
         });
         const [snapshot] = await again;
         expect([snapshot!.reset, snapshot!.changes.map((change) => change.row.id)]).toEqual([

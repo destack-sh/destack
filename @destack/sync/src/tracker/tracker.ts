@@ -1,6 +1,4 @@
 import {
-    decodeRow,
-    encodeRow,
     Key,
     or,
     TABLE,
@@ -10,7 +8,7 @@ import {
     type Table,
 } from "@destack/db";
 import { CHAIN_TERMS } from "@destack/db/query";
-import type { Relay } from "@destack/db/relay";
+import type { Channel } from "@destack/db/channel";
 
 /**
  * The heartbeat interval, in milliseconds.
@@ -72,8 +70,8 @@ export class Tracker {
     readonly database: DatabaseConnection;
     /** The tracked tables by SQL name. */
     readonly #tables: ReadonlyMap<string, Table>;
-    /** The relay reaching the other instances. */
-    readonly #relay: Relay<TrackerMessage>;
+    /** The channel reaching the other instances. */
+    readonly #channel: Channel<TrackerMessage>;
     /** Each owner's rows and their last writing instance. */
     readonly #owners = new Map<string, { instance: string; keys: Set<string> }>();
     /** The owner of each row, by row name. */
@@ -90,16 +88,16 @@ export class Tracker {
     readonly #heartbeat: number;
     /** The heartbeat timer. */
     readonly #beat: ReturnType<typeof setInterval>;
-    /** Stop listening to the relay. */
+    /** Stop listening to the channel. */
     readonly #stop: () => void;
     /** The pending applications of other instances' messages. */
     #applied: Promise<void> = Promise.resolve();
 
-    /** Track tables of a database on a relay. */
+    /** Track tables of a database on a channel. */
     constructor(
         database: DatabaseConnection,
         tables: readonly Table[],
-        relay: Relay<TrackerMessage>,
+        channel: Channel<TrackerMessage>,
         options: TrackerOptions = {},
     ) {
         // require every column in the log
@@ -117,20 +115,20 @@ export class Tracker {
         this.instance = options.instance ?? crypto.randomUUID();
         this.database = database;
         this.#tables = new Map(tables.map((table) => [table[TABLE].sqlName, table]));
-        this.#relay = relay;
+        this.#channel = channel;
         this.#heartbeat = options.heartbeat ?? HEARTBEAT_MILLISECONDS;
 
         // apply messages in order and ask for live rows on each start or resume
-        this.#stop = relay.listen(
+        this.#stop = channel.listen(
             (message) => {
                 this.#applied = this.#applied.then(() => this.#receive(message));
             },
-            () => relay.post({ kind: "hello", instance: this.instance }),
+            () => channel.notify({ kind: "hello", instance: this.instance }),
         );
 
         // announce this instance and drop silent ones
         this.#beat = setInterval(() => {
-            relay.post({ kind: "heartbeat", instance: this.instance });
+            channel.notify({ kind: "heartbeat", instance: this.instance });
             const deadline = Date.now() - this.#heartbeat * MISSED_HEARTBEATS;
             for (const [instance, seen] of this.#instances) {
                 if (seen < deadline) {
@@ -150,7 +148,7 @@ export class Tracker {
         for (const change of await transaction.log.written([...this.#tables.values()])) {
             const key = Key.name(change.table, change.key);
             const row =
-                change.after === undefined ? null : encodeRow(change.table, change.after as Row);
+                change.after === undefined ? null : change.table.encode(change.after as Row);
             images.set(key, {
                 table: change.table[TABLE].sqlName,
                 key,
@@ -170,25 +168,25 @@ export class Tracker {
         for (const row of rows) {
             this.#own(row, this.instance);
         }
-        this.#relay.post({ kind: "write", instance: this.instance, rows });
+        this.#channel.notify({ kind: "write", instance: this.instance, rows });
     }
 
     /** End an owner everywhere. */
     async end(owner: string): Promise<void> {
         await this.#end(owner);
-        this.#relay.post({ kind: "end", instance: this.instance, owner });
+        this.#channel.notify({ kind: "end", instance: this.instance, owner });
     }
 
     /** Hold an owner on this instance. */
     hold(owner: string): void {
         this.#hold(owner, this.instance);
-        this.#relay.post({ kind: "hold", instance: this.instance, owner });
+        this.#channel.notify({ kind: "hold", instance: this.instance, owner });
     }
 
     /** Release an owner this instance held. */
     release(owner: string): void {
         this.#release(owner, this.instance);
-        this.#relay.post({ kind: "release", instance: this.instance, owner });
+        this.#channel.notify({ kind: "release", instance: this.instance, owner });
     }
 
     /** Decide whether any instance holds an owner alive. */
@@ -211,7 +209,7 @@ export class Tracker {
     /** Send an event to a topic on every instance. */
     broadcast(topic: string, event: JsonValue): void {
         this.#deliver(topic, event);
-        this.#relay.post({ kind: "broadcast", instance: this.instance, topic, event });
+        this.#channel.notify({ kind: "broadcast", instance: this.instance, topic, event });
     }
 
     /** Listen to a topic until stopped. */
@@ -235,7 +233,7 @@ export class Tracker {
     /** Stop tracking and tell the others to drop this instance's rows. */
     close(): void {
         clearInterval(this.#beat);
-        this.#relay.post({ kind: "stop", instance: this.instance });
+        this.#channel.notify({ kind: "stop", instance: this.instance });
         this.#stop();
     }
 
@@ -268,7 +266,7 @@ export class Tracker {
             const holds = [...this.#holds]
                 .filter(([, instances]) => instances.has(this.instance))
                 .map(([owner]) => owner);
-            this.#relay.post({
+            this.#channel.notify({
                 kind: "state",
                 instance: this.instance,
                 rows: await this.#state(),
@@ -292,7 +290,7 @@ export class Tracker {
                         .delete(table)
                         .where(Key.match(table, Key.parse(table, tracked.key)));
                 } else {
-                    await transaction.upsert(table, [decodeRow(table, tracked.row)]);
+                    await transaction.upsert(table, [table.decode(tracked.row)]);
                 }
             }
         });
@@ -388,7 +386,7 @@ export class Tracker {
                 rows.push({
                     table: table[TABLE].sqlName,
                     key,
-                    row: encodeRow(table, row as Row),
+                    row: table.encode(row as Row),
                     owner,
                 });
             }

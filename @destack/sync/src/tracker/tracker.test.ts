@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineTable, eq, integer, text, type DatabaseConnection } from "@destack/db";
-import type { Relay } from "@destack/db/relay";
-import { relayHub, TestDatabase } from "@destack/db/test";
+import type { Channel } from "@destack/db/channel";
+import { channelHub, TestDatabase } from "@destack/db/test";
 import { Tracker, type TrackerMessage } from "./tracker.ts";
 
 /** Cursors of sessions on a board, held in memory. */
@@ -19,7 +19,7 @@ const cursor = defineTable(
 );
 
 test("replicate rows between instances, and remove them with their owner", async () => {
-    const join = relayHub<TrackerMessage>();
+    const join = channelHub<TrackerMessage>();
     const east = await open(join());
     const west = await open(join());
 
@@ -61,7 +61,7 @@ test("replicate rows between instances, and remove them with their owner", async
 });
 
 test("hand a late instance the rows, and drop those of stopped and silent instances", async () => {
-    const join = relayHub<TrackerMessage>();
+    const join = channelHub<TrackerMessage>();
     const east = await open(join());
     await write(east, "alice", (database) =>
         database.insert(cursor).values({ id: "a", scope: "space", position: 0 }),
@@ -77,10 +77,10 @@ test("hand a late instance the rows, and drop those of stopped and silent instan
 
     // drop a silent instance's rows after three missed heartbeats
     let isCrashed = false;
-    const relay = join();
+    const channel = join();
     const crashing = await open({
-        post: (message) => !isCrashed && relay.post(message),
-        listen: (receive, resume) => relay.listen(receive, resume),
+        notify: (message) => !isCrashed && channel.notify(message),
+        listen: (receive, resume) => channel.listen(receive, resume),
     });
     await write(crashing, "bob", (database) =>
         database.insert(cursor).values({ id: "b", scope: "space", position: 1 }),
@@ -91,7 +91,7 @@ test("hand a late instance the rows, and drop those of stopped and silent instan
 });
 
 test("replicate which instance holds an owner, released everywhere once its instance stops", async () => {
-    const join = relayHub<TrackerMessage>();
+    const join = channelHub<TrackerMessage>();
     const east = await open(join());
     const west = await open(join());
     const changes: [string, boolean][] = [];
@@ -116,10 +116,10 @@ test("replicate which instance holds an owner, released everywhere once its inst
     ]);
 });
 
-/** Track the cursors of an in-memory database on a relay. */
-async function open(relay: Relay<TrackerMessage>): Promise<Tracker> {
+/** Track the cursors of an in-memory database on a channel. */
+async function open(channel: Channel<TrackerMessage>): Promise<Tracker> {
     const storage = await TestDatabase.create("sqlite", [cursor], { isMigrated: true });
-    const tracker = new Tracker(storage.database, [cursor], relay, { heartbeat: 5 });
+    const tracker = new Tracker(storage.database, [cursor], channel, { heartbeat: 5 });
     onTestFinished(async () => {
         tracker.close();
         await storage.close();
@@ -141,7 +141,7 @@ async function write(
     });
     tracker.publish(rows);
 
-    // let the relay deliver the queued message
+    // let the channel deliver the queued message
     await new Promise<void>((resolve) => queueMicrotask(resolve));
 }
 

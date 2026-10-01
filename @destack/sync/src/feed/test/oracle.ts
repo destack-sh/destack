@@ -1,4 +1,4 @@
-import { encodeRow, Key, TABLE, type DatabaseConnection, type Table } from "@destack/db";
+import { Key, TABLE, type DatabaseConnection, type Table } from "@destack/db";
 import { Condition, Order, type Scalar } from "@destack/db/query";
 import { type Rollup, Expression } from "@destack/db/expression";
 import { canonicalize } from "@destack/schema/json";
@@ -130,7 +130,7 @@ function hold(
     for (const row of held) {
         const hidden = audience.hidden(table, row);
         holding.rows.set(Key.name(table, row), {
-            ...encodeRow(table, loggedOf(table, row)),
+            ...table.encode(loggedOf(table, row)),
             ...Object.fromEntries(hidden.map((column) => [column, null])),
         });
     }
@@ -167,7 +167,7 @@ function hold(
                 const joins = include.on as { readonly table: Table };
                 holding.rows.set(
                     Key.name(joins.table, join),
-                    encodeRow(joins.table, loggedOf(joins.table, join)),
+                    joins.table.encode(loggedOf(joins.table, join)),
                 );
             }
             const members = hold(
@@ -200,7 +200,7 @@ function hold(
                         audience,
                     )) {
                         holding.rows.set(Key.name(table, between), {
-                            ...encodeRow(table, loggedOf(table, between)),
+                            ...table.encode(loggedOf(table, between)),
                             ...Object.fromEntries(
                                 audience.hidden(table, between).map((column) => [column, null]),
                             ),
