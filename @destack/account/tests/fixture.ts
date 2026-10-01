@@ -1,21 +1,21 @@
-import { principal, type Restriction, type Subject } from "@destack/access";
+import { principal, type Restriction } from "@destack/access";
 import { defineObject, field } from "@destack/object";
-import { Scope } from "@destack/sync";
+import { Scope, type Subject } from "@destack/sync";
 import type { TestDatabase } from "@destack/db/test";
 import { ResourceContext } from "@destack/resource/context";
 import { identifier } from "@destack/schema";
 import { Health } from "@destack/service/health";
 import { RequestId } from "@destack/service/request";
 import { Server } from "@destack/service/server";
-import { Caller } from "@destack/service/authentication";
-import { DirectoryDatabase } from "@destack/directory";
+import { Authentication } from "@destack/service/authentication";
+import { DirectoryStore } from "@destack/directory";
 import { v7 } from "uuid";
 import { accountPackage } from "../src/audit/index.ts";
 import {
-    AccountCaller,
-    createAuthentication,
-    type Authentication,
-    type AuthenticationOptions,
+    AccountAuthentication,
+    createAuthenticator,
+    type Authenticator,
+    type AuthenticatorOptions,
 } from "../src/authentication/index.ts";
 import { connect } from "../src/client/client.ts";
 import {
@@ -33,11 +33,10 @@ import { account } from "../src/object/account.ts";
 import { session } from "../src/object/authentication.ts";
 import { Digest } from "../src/object/digest.ts";
 import { eq } from "@destack/db";
-import type { AuditEvent } from "@destack/audit";
-import { AuditOutbox } from "@destack/audit/outbox";
+import { AuditCall, Journal } from "@destack/audit";
 import { Browser } from "./browser.ts";
 import { openAccountDatabase } from "./database.ts";
-import { testJournalKey } from "@destack/service/test";
+import { testCallKey } from "@destack/service/test";
 
 /** The origin the fixture's account service answers on. */
 const ORIGIN = "http://localhost:3210";
@@ -67,8 +66,8 @@ export const place = defineObject({
 export class AccountFixture implements AsyncDisposable {
     /** The isolated database. */
     readonly opened: TestDatabase;
-    /** The platform authentication over the database. */
-    readonly authentication: Authentication;
+    /** The platform authenticator over the database. */
+    readonly authenticator: Authenticator;
     /** The account service. */
     readonly server: Server;
     /** The sign-in links delivered so far. */
@@ -80,14 +79,14 @@ export class AccountFixture implements AsyncDisposable {
     /** The connection providers, by name. */
     readonly providers: ReadonlyMap<string, MemoryProvider>;
     /** The verified callers of the hosts tests act as, by host. */
-    readonly hosts: Map<string, Caller>;
-    /** The audit events the outbox delivered. */
-    readonly audited: AuditEvent[];
+    readonly hosts: Map<string, Authentication>;
+    /** The audited calls the journal delivered, each version as delivered. */
+    readonly audited: AuditCall[];
 
     /** Hold an opened, migrated and served database. */
     private constructor(
         opened: TestDatabase,
-        authentication: Authentication,
+        authenticator: Authenticator,
         server: Server,
         delivered: Pick<
             AccountFixture,
@@ -95,7 +94,7 @@ export class AccountFixture implements AsyncDisposable {
         >,
     ) {
         this.opened = opened;
-        this.authentication = authentication;
+        this.authenticator = authenticator;
         this.server = server;
         this.links = delivered.links;
         this.codes = delivered.codes;
@@ -106,15 +105,16 @@ export class AccountFixture implements AsyncDisposable {
     }
 
     /** Open, migrate and serve an account database, with the sign-in options a test changes. */
-    static async open(options: Partial<AuthenticationOptions> = {}): Promise<AccountFixture> {
+    static async open(options: Partial<AuthenticatorOptions> = {}): Promise<AccountFixture> {
         // open an isolated, migrated database
         const opened = await openAccountDatabase();
 
         // configure sign-in delivering its messages to the fixture
         const links: AccountFixture["links"] = [];
         const codes: AccountFixture["codes"] = [];
-        const authentication = createAuthentication({
+        const authenticator = createAuthenticator({
             database: opened.database,
+            callKey: testCallKey,
             origin: ORIGIN,
             trustedOrigins: [ORIGIN],
             ipAddress: { disableIpTracking: true },
@@ -145,22 +145,28 @@ export class AccountFixture implements AsyncDisposable {
         );
         const connections = new Connections({ providers: [...providers.values()], vault });
 
-        // keep the delivered audit events
-        const audited: AuditEvent[] = [];
+        // keep the delivered calls
+        const audited: AuditCall[] = [];
         const history = {
-            ingest: async (batch: { readonly events: readonly AuditEvent[] }) => {
-                audited.push(...batch.events);
+            ingest: async (batch: { readonly calls: readonly AuditCall[] }) => {
+                audited.push(...batch.calls);
             },
         };
 
         // verify the hosts a test enrolls, and everyone else by their account credential
-        const hosts = new Map<string, Caller>();
+        const hosts = new Map<string, Authentication>();
         const server = Server.start({
-            ...implementService(authentication, {
-                journalKey: testJournalKey,
+            ...implementService(authenticator, {
+                callKey: testCallKey,
                 connections,
                 history,
                 inherited: [],
+                resolver: { txt: async () => [] },
+                tokens: {
+                    issuer: authenticator.options.baseURL as string,
+                    sign: async (payload) =>
+                        (await authenticator.api.signJWT({ body: { payload } })).token,
+                },
             }),
             audience: accountPackage.id,
             resources: new ResourceContext(),
@@ -169,14 +175,14 @@ export class AccountFixture implements AsyncDisposable {
                 const host = request.headers.get(HOST_HEADER);
 
                 return host === null
-                    ? AccountCaller.authenticate(request, authentication)
+                    ? AccountAuthentication.authenticate(request, authenticator)
                     : hosts.get(host)!;
             },
             authorizeHost: async () => {},
             drainTimeout: 1000,
         });
 
-        return new AccountFixture(opened, authentication, server, {
+        return new AccountFixture(opened, authenticator, server, {
             links,
             codes,
             vault,
@@ -187,14 +193,21 @@ export class AccountFixture implements AsyncDisposable {
     }
 
     /** Wait until the outbox delivered every event, returning the delivered events. */
-    async delivered(): Promise<readonly AuditEvent[]> {
-        const outbox = new AuditOutbox(this.opened.database);
+    async delivered(): Promise<readonly AuditCall[]> {
+        // wait until the journal delivered every audited call
+        const journal = new Journal(this.opened.database, testCallKey);
         await this.opened.database.log.until(
-            async () => (await outbox.read()).length === 0,
+            async () => (await journal.read({ isPending: true })).length === 0,
             AbortSignal.timeout(DELIVERY_MILLISECONDS),
         );
 
-        return this.audited;
+        // keep the latest delivered version of each call
+        const latest = new Map<string, AuditCall>();
+        for (const call of this.audited) {
+            latest.set(call.execution.id, call);
+        }
+
+        return [...latest.values()];
     }
 
     /** Sign a person in through a delivered link in a browser of its own. */
@@ -255,7 +268,7 @@ export class AccountFixture implements AsyncDisposable {
         // place a space in it in a region
         const spaceId = identifier("space").parse(`space-${v7()}`);
         const regionId = identifier("region").parse(`region-${v7()}`);
-        await new DirectoryDatabase(this.opened.database).place({
+        await new DirectoryStore(this.opened.database).place({
             id: spaceId,
             scope: created.id,
             cell: regionId,
@@ -275,7 +288,7 @@ export class AccountFixture implements AsyncDisposable {
         const now = Date.now();
         this.hosts.set(
             id,
-            new Caller({
+            new Authentication({
                 credential: { kind: "host-key", id },
                 audience: accountPackage.id,
                 verifiedAt: now,

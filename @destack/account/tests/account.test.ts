@@ -1,10 +1,11 @@
 import { session } from "../src/object/authentication.ts";
+import { Subject } from "@destack/sync";
+import { journal, AuditCaller } from "@destack/audit";
 import { account } from "../src/object/account.ts";
 import { expect, test } from "@destack/test";
 import { RequestId } from "@destack/service/request";
-import { eq } from "@destack/db";
+import { eq, isNotNull } from "@destack/db";
 import { accountPackage } from "../src/audit/index.ts";
-import { accountJournal } from "../src/stack/index.ts";
 import { AccountFixture, claims, outcome, type Person } from "./fixture.ts";
 import { identifier } from "@destack/schema";
 
@@ -31,6 +32,7 @@ test("administer accounts with sessions and transactional audit", async () => {
         residency: "eu",
         revision: 2,
         updatedAt: renamed.updatedAt,
+        updatedBy: Subject.key(owner.subject),
     });
     expect(await client.user.update(profile)).toEqual(renamed);
 
@@ -47,7 +49,10 @@ test("administer accounts with sessions and transactional audit", async () => {
     expect(first).toEqual({
         id: first.id,
         createdAt: first.createdAt,
+        createdBy: Subject.key(owner.subject),
         updatedAt: first.createdAt,
+        updatedBy: Subject.key(owner.subject),
+        deletedBy: null,
         revision: 1,
         tags: {},
         handle: "florian",
@@ -124,52 +129,54 @@ test("administer accounts with sessions and transactional audit", async () => {
         `NOT_FOUND: no scope ${owner.id}`,
     ]);
 
-    // journal the executed requests and the final failures, auditing the executed ones and the failed calls
-    const entries = await database.select({ outcome: accountJournal.outcome }).from(accountJournal);
+    // journal each request's executed calls and final failures for retries, leaving refusals to decide again
+    const entries = await database
+        .select({ call: journal.call })
+        .from(journal)
+        .where(isNotNull(journal.request));
     expect(
         entries
-            .map((entry) =>
-                entry.outcome === null || "value" in entry.outcome
+            .map(({ call }) =>
+                call.execution.outcome!.kind === "success"
                     ? "executed"
-                    : entry.outcome.error.code,
+                    : call.execution.outcome!.error.code,
             )
             .sort(),
-    ).toEqual([
-        "CONFLICT",
-        "CONFLICT",
-        "NOT_FOUND",
-        "NOT_FOUND",
-        "executed",
-        "executed",
-        "executed",
-        "executed",
-    ]);
-    const events = await fixture.delivered();
+    ).toEqual(["CONFLICT", "CONFLICT", "executed", "executed", "executed", "executed"]);
+    const calls = await fixture.delivered();
     const actor = { type: "subject", subject: owner.subject };
-    const success = { stage: "result", outcome: "success" };
-    const conflict = { stage: "result", outcome: "failure", errorCode: "CONFLICT" };
-    const audited = events
-        .filter((event) =>
-            ["User.update", "Account.create", "Account.update"].includes(event.action.name),
-        )
-        .map((event) => ({
-            action: event.action.name,
-            scope: event.context.scope,
-            actor: event.context.actor,
-            details: event.details,
-            result: event.result,
+    const success = { kind: "success" };
+    const duplicate = {
+        kind: "failure",
+        error: {
+            code: "CONFLICT",
+            status: 409,
+            message: "a record with the same unique key exists",
+        },
+    };
+    const stale = {
+        kind: "failure",
+        error: { code: "CONFLICT", status: 409, message: "account revision has changed" },
+    };
+    const audited = calls
+        .filter((call) => ["user.update", "account.create", "account.update"].includes(call.method))
+        .map((call) => ({
+            method: call.method,
+            scope: call.execution.context.scope,
+            actor: AuditCaller.actor(call.execution.context.caller),
+            details: call.execution.details,
+            outcome: call.execution.outcome,
         }));
 
-    // order the concurrent failures by action
-    const key = (event: (typeof audited)[number]) =>
-        `${event.action} ${"outcome" in event.result ? event.result.outcome : event.result.stage}`;
+    // order the concurrent failures by method and outcome
+    const key = (call: (typeof audited)[number]) => `${call.method} ${call.outcome!.kind}`;
     expect(audited.toSorted((left, right) => key(left).localeCompare(key(right)))).toEqual([
-        { action: "Account.create", scope: owner.id, actor, details: {}, result: conflict },
-        { action: "Account.create", scope: owner.id, actor, details: {}, result: success },
-        { action: "Account.create", scope: owner.id, actor, details: {}, result: success },
-        { action: "Account.update", scope: owner.id, actor, details: {}, result: conflict },
-        { action: "Account.update", scope: owner.id, actor, details: {}, result: success },
-        { action: "User.update", scope: "universe", actor, details: {}, result: success },
+        { method: "account.create", scope: owner.id, actor, details: {}, outcome: duplicate },
+        { method: "account.create", scope: owner.id, actor, details: {}, outcome: success },
+        { method: "account.create", scope: owner.id, actor, details: {}, outcome: success },
+        { method: "account.update", scope: owner.id, actor, details: {}, outcome: stale },
+        { method: "account.update", scope: owner.id, actor, details: {}, outcome: success },
+        { method: "user.update", scope: "universe", actor, details: {}, outcome: success },
     ]);
 
     // revoke the session before a replay and preserve the previously committed account
@@ -348,7 +355,10 @@ test("create accounts in an organisation, administered by its owners", async () 
     expect(created).toEqual({
         id: created.id,
         createdAt: created.createdAt,
+        createdBy: Subject.key(founder.subject),
         updatedAt: created.createdAt,
+        updatedBy: Subject.key(founder.subject),
+        deletedBy: null,
         revision: 1,
         tags: {},
         handle: "acme",
@@ -386,5 +396,6 @@ test("create accounts in an organisation, administered by its owners", async () 
         name: "Acme Inc",
         revision: 2,
         updatedAt: renamed.updatedAt,
+        updatedBy: Subject.key(partner.subject),
     });
 });

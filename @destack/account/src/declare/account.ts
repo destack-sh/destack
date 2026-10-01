@@ -1,12 +1,7 @@
 import { TagMap } from "@destack/object";
 import { PermissionReference } from "@destack/access/declare";
-import {
-    DeclarationName,
-    declaringModule,
-    type ModuleMetadata,
-    type Package,
-} from "@destack/package";
-import { defineSchema, identifier, schema } from "@destack/schema";
+import { DeclarationName, ModuleMetadata, type Package } from "@destack/package";
+import { defineSchema, identifier, Instant, schema } from "@destack/schema";
 import { AccountError } from "../error/error.ts";
 
 /** An account-defined environment. */
@@ -41,7 +36,7 @@ export const AccountRoleBinding = defineSchema(
         /** The space the role is bound on. */
         spaceId: identifier("space").optional(),
         /** Optional expiry in UTC epoch milliseconds. */
-        expiresAt: schema.number().int().nonnegative().optional(),
+        expiresAt: Instant.optional(),
     }),
 );
 
@@ -74,7 +69,7 @@ export function defineAccount(
     module?: ModuleMetadata,
 ): AccountDeclaration {
     // stamp the declaring package and validate the records
-    const owner = declaringModule(module, "defineAccount").package;
+    const owner = ModuleMetadata.require(module, "defineAccount").package;
     const account = AccountDefinition.parse(definition);
 
     // require named roles to exist in the same declaration

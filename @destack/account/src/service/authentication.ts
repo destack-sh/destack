@@ -1,6 +1,6 @@
-import { schema, identifier } from "@destack/schema";
-import { CallerAuthentication } from "@destack/service/authentication";
-import { Subject } from "@destack/access";
+import { identifier, Instant, schema } from "@destack/schema";
+import { Subject } from "@destack/sync";
+import { AuthenticationClaims } from "@destack/service/authentication";
 import { PackageId } from "@destack/package";
 import { defineProcedure } from "@destack/service/procedure";
 import { account } from "../object/account.ts";
@@ -22,7 +22,7 @@ export const authentication = {
     /** Describe the caller's own authentication and profile. */
     current: defineProcedure({ authentication: "identity", audit: false, permission: null })
         .route({ method: "GET", path: "/authentication" })
-        .output(CallerAuthentication.extend({ profile: CallerProfile })),
+        .output(AuthenticationClaims.extend({ profile: CallerProfile })),
     /** Exchange an authenticated session or API credential for a scoped access token. */
     exchange: defineProcedure({ authentication: "identity", audit: "activity", permission: null })
         .route({ method: "POST", path: "/authentication/exchange" })
@@ -43,7 +43,7 @@ export const authentication = {
                 /** HTTP authorization scheme. */
                 tokenType: schema.literal("Bearer"),
                 /** Exclusive expiry in epoch milliseconds. */
-                expiresAt: schema.number().int(),
+                expiresAt: Instant,
             }),
         ),
     /** Verify a presented bearer credential using current global records. */
@@ -65,5 +65,5 @@ export const authentication = {
                 token: schema.sensitive(schema.string().min(1).max(8192)),
             }),
         )
-        .output(CallerAuthentication),
+        .output(AuthenticationClaims),
 };

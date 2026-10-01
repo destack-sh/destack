@@ -4,7 +4,7 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { identifier } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { v7 } from "uuid";
-import { ResolverCache } from "../src/directory/index.ts";
+import { Resolver } from "../src/directory/index.ts";
 import { account } from "../src/object/account.ts";
 import { user } from "../src/object/user.ts";
 import { globalTables } from "./database.ts";
@@ -32,12 +32,12 @@ test.each(TEST_DIALECTS)(
             name: "Acme",
             defaultResidency: "eu",
         });
-        const resolver = new ResolverCache(database);
+        const resolver = Resolver.global(database);
         const { directory } = resolver;
         const row = { id: "space-1", scope: accountId, name: "notes" };
         const owned = async (name: string) =>
             place.owned("space-1", { ...row, name }, Snapshot.live(database));
-        await directory.replace(await owned("notes"), "claim", now);
+        await directory.replace(await owned("notes"), "claim");
         const zone = { id: "space-1", scope: accountId, cell: "host-1", epoch: 1 };
         await directory.place(zone);
         await directory.publish("host-1", accountId, "https://host-1.test/");
@@ -67,7 +67,7 @@ test.each(TEST_DIALECTS)(
             .set({ handle: "acme-renamed" })
             .where(eq(account.table.id, accountId));
         await expect.poll(() => resolver.find(place, "notes.acme")).toBeUndefined();
-        await directory.replace(await owned("archive"), "rename", Date.now());
+        await directory.replace(await owned("archive"), "rename");
         await expect
             .poll(async () => [
                 await resolver.find(place, "notes.acme-renamed"),

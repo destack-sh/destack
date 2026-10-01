@@ -2,7 +2,6 @@ import {
     Directory,
     type Cell,
     type Claim,
-    type ClaimOwner,
     type Expiry,
     type ObjectClaims,
     type Zone,
@@ -57,9 +56,9 @@ export class DirectoryClient extends Directory {
         return (await this.#client.directory.cell({ cell: id })) ?? undefined;
     }
 
-    /** Reserve a request's claims until its write commits. */
-    async claim(claims: readonly Claim[], requestId: string): Promise<void> {
-        await this.#client.directory.claim({ requestId, claims: [...claims] });
+    /** Reserve a request's claims until its write commits, returning the names other objects own. */
+    async claim(claims: readonly Claim[], requestId: string): Promise<readonly Claim[]> {
+        return (await this.#client.directory.claim({ requestId, claims: [...claims] })).taken;
     }
 
     /** Confirm a request's reserved claims. */
@@ -72,13 +71,16 @@ export class DirectoryClient extends Directory {
         await this.#client.directory.release({ requestId });
     }
 
-    /** Replace an object's claims after a write that reserved none. */
-    async replace(owned: ObjectClaims, requestId: string): Promise<void> {
-        await this.#client.directory.replace({ requestId, owned: plain(owned) });
+    /** Replace an object's claims after a write that reserved none, unless other objects own some of its names. */
+    async replace(owned: ObjectClaims, requestId: string): Promise<readonly Claim[]> {
+        return (await this.#client.directory.replace({ requestId, owned: plain(owned) })).taken;
     }
 
     /** Find the object owning a confirmed name. */
-    async owner(index: string, key: string): Promise<ClaimOwner | undefined> {
+    async owner(
+        index: string,
+        key: string,
+    ): Promise<Pick<Claim, "objectId" | "scope"> | undefined> {
         return (await this.#client.directory.owner({ index, key })) ?? undefined;
     }
 

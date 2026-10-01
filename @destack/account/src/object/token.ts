@@ -1,7 +1,7 @@
 import { Restriction } from "@destack/access";
 import { unique, type Select } from "@destack/db";
 import { defineObject, field, method } from "@destack/object";
-import { schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { account } from "./account.ts";
 import { serviceAccount } from "./service.ts";
 import { user } from "./user.ts";
@@ -16,7 +16,7 @@ const TOKEN_FIELDS = {
     /** The holder's name for the token. */
     name: field.string(schema.string().min(1).max(200)),
     /** The SHA-256 digest of the token's secret. */
-    digest: field.string(schema.string().regex(/^[0-9a-f]{64}$/)).sensitive(),
+    digest: field.string(Digest).sensitive(),
     /** The permissions the token allows. */
     restrictions: field.json(schema.array(Restriction.schema).max(RESTRICTIONS)),
     /** The time the token stops authenticating. */

@@ -286,7 +286,7 @@ export const device = defineObject({
         update: method.update("update", { fields: ["name"] }),
         attach,
         revoke,
-        see: method({ permission: null, isSystem: true }).handle((call) =>
+        report: method({ permission: null, isSystem: true }).handle((call) =>
             // record the device's proven contact now
             call.revise({ lastSeenAt: call.now }),
         ),

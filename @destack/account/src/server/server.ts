@@ -1,11 +1,10 @@
 import { principal } from "@destack/access";
 import { Snapshot } from "@destack/db/log";
 import { identifier, schema } from "@destack/schema";
-import { AuditRecorder } from "@destack/audit";
-import { type AuditDestination, AuditOutbox } from "@destack/audit/outbox";
+import type { AuditDestination } from "@destack/audit";
 import { ObjectServer } from "@destack/object/server";
-import { Journal, type JournalKey } from "@destack/service/database";
-import type { ServiceContext, ServiceImplementation } from "@destack/service/server";
+import { type CallKey } from "@destack/service/request";
+import type { ServiceImplementation } from "@destack/service/server";
 import type { ObjectType } from "@destack/object";
 import { Scope } from "@destack/sync";
 import { account } from "./account/index.ts";
@@ -17,40 +16,38 @@ import { personalAccessToken, serviceToken } from "./token/index.ts";
 import { directoryRouter } from "./directory/index.ts";
 import type { Connections } from "./connection/index.ts";
 import { authenticationRouter } from "./authentication/verification.ts";
-import type { Authentication } from "../authentication/authentication.ts";
-import type { Caller } from "@destack/service/authentication";
-import { accountAudit, accountPackage } from "../audit/index.ts";
+import type { Authenticator } from "../authentication/authentication.ts";
+import { accountPackage } from "../audit/index.ts";
 import { accountObjects, accountService } from "../service/service.ts";
-import { accountJournal } from "../stack/journal.ts";
+import type { DnsResolver } from "../dns/index.ts";
+import { DomainVerifier } from "./domain/index.ts";
+import type { TokenIssuerOptions } from "@destack/service/authentication";
+import { hostRouter } from "./host/index.ts";
+import { host, hostKey, region } from "../object/index.ts";
 
 /** The account a protected procedure on its contents selects. */
 const AccountSelection = schema.object({ accountId: identifier("account") }).passthrough();
 
 /** Serve the account service. */
 export function implementService(
-    authentication: Authentication,
+    authenticator: Authenticator,
     options: {
         /** The connection authorization flow over the configured providers and vaults. */
         readonly connections: Connections;
-        /** The audit history the outbox delivers to. */
+        /** The audit history the journal delivers calls to. */
         readonly history: AuditDestination;
+        /** The resolver reading domains' challenge records. */
+        readonly resolver: DnsResolver;
+        /** The universe's token issuer and its signing key, granting hosts access tokens. */
+        readonly tokens: Pick<TokenIssuerOptions, "issuer" | "sign">;
         /** Read the deployment's key that sensitive inputs are fingerprinted under. */
-        readonly journalKey: JournalKey;
+        readonly callKey: CallKey;
         /** The other object types with inherited rows the database holds and relays. */
         readonly inherited: readonly ObjectType[];
     },
 ): ServiceImplementation {
     // decide every call through the account policies
-    const database = authentication.database;
-    const outbox = new AuditOutbox(database);
-    const audit = (scope: string, context?: ServiceContext) =>
-        context === undefined
-            ? AuditRecorder.system(outbox, {
-                  package: accountPackage,
-                  service: "account",
-                  scope,
-              })
-            : accountAudit(readCaller(context), database, context.requestId, scope);
+    const database = authenticator.database;
 
     // serve the objects, with the server behaviour of those needing it
     const objects = new ObjectServer({
@@ -66,11 +63,15 @@ export function implementService(
             oauthConsent,
             connection: options.connections.handle(),
             membership,
+            domain: new DomainVerifier(options.resolver).handle(),
+            host,
+            hostKey,
         },
-        policies: options.inherited,
+        policies: [...options.inherited, region],
         database,
-        audit,
-        journal: new Journal(accountJournal, options.journalKey),
+        callKey: options.callKey,
+        origin: { package: accountPackage, service: accountService.name },
+        history: options.history,
         context: (context, scope) => {
             // let a host act for the cells it is: itself and the regions it serves
             const access = context.access(scope);
@@ -96,25 +97,21 @@ export function implementService(
                 return Scope.object(Snapshot.live(database), accountId);
             },
         },
-        controllers: [...objects.controllers(), outbox.controller(options.history)],
+        controllers: objects.controllers(),
         router: {
             // serve the object methods, and their shared replica procedures
             ...objects.router(),
 
             // serve authentication, the key index and the directory
-            authentication: authenticationRouter(authentication, objects.authorizer),
+            authentication: authenticationRouter(authenticator, objects.authorizer),
             directory: directoryRouter(database, objects.authorizer),
+            hostToken: hostRouter(database, options.tokens),
         },
-        audit: AuditRecorder.procedure(({ context }) => audit(Scope.universe.id, context)),
+        audit: objects.implement(accountService).audit,
         route: async (request) =>
-            authentication.handles(new URL(request.url).pathname)
-                ? authentication.handler(request)
+            authenticator.handles(new URL(request.url).pathname)
+                ? authenticator.handler(request)
                 : undefined,
         responseHeaders: { "Cache-Control": "no-store" },
     };
-}
-
-/** Read the verified caller of a request, a user's or a host's, absent when verification failed. */
-function readCaller(context: ServiceContext): Caller | null {
-    return context.authenticationError === undefined ? context.caller : null;
 }

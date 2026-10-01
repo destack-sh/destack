@@ -1,7 +1,7 @@
 import { principal, relation, union } from "@destack/access";
 import { unique, type Select } from "@destack/db";
 import { defineObject, field, method } from "@destack/object";
-import { defineSchema, identifier, schema } from "@destack/schema";
+import { defineSchema, identifier, schema, TimeZone } from "@destack/schema";
 import { AccountHandle, HandleAvailability } from "./handle.ts";
 import { RESIDENCIES } from "./region.ts";
 import { sudo } from "./sudo.ts";
@@ -9,25 +9,12 @@ import { sudo } from "./sudo.ts";
 /** The longest text a handle check accepts, beyond which nothing is a handle. */
 const HANDLE_INPUT = 256;
 
-/** The longest IANA time zone name, America/Argentina/ComodRivadavia with room to spare. */
-const TIME_ZONE_LENGTH = 64;
-
 /** A BCP 47 language tag, such as en-US. */
 export const Locale = defineSchema(
     schema.string().regex(/^[a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-(?:[A-Z]{2}|\d{3}))?$/),
 );
 /** A BCP 47 language tag. */
 export type Locale = schema.Infer<typeof Locale>;
-
-/** An IANA time zone name, such as Europe/Vienna. */
-export const TimeZone = defineSchema(
-    schema
-        .string()
-        .max(TIME_ZONE_LENGTH)
-        .regex(/^[A-Za-z][A-Za-z0-9_+-]*(?:\/[A-Za-z0-9_+-]+)*$/),
-);
-/** An IANA time zone name. */
-export type TimeZone = schema.Infer<typeof TimeZone>;
 
 /** A person, the user principal. */
 export const user = defineObject({

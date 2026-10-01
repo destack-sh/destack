@@ -1,17 +1,17 @@
-import { Authorization, type Authorizer, principal, senderOf, type Subject } from "@destack/access";
+import { Authorization, type Authorizer, principal, Caller } from "@destack/access";
 import { eq, inArray, type DatabaseConnection } from "@destack/db";
 import { Snapshot } from "@destack/db/log";
 import {
     type Claim,
     claimTable,
-    DirectoryDatabase,
+    DirectoryStore,
     type ObjectClaims,
     type Zone,
     zoneTable,
 } from "@destack/directory";
 import { conceal, ServiceError } from "@destack/service/error";
 import { implement, type ServiceContext } from "@destack/service/server";
-import { Scope, SyncError, type ObjectReference } from "@destack/sync";
+import { Scope, SyncError, type ObjectReference, type Subject } from "@destack/sync";
 import { Resolver } from "../../directory/index.ts";
 import { account } from "../../object/account.ts";
 import { directory } from "../../service/directory/index.ts";
@@ -21,7 +21,7 @@ const implementation = implement(directory).$context<ServiceContext>();
 
 /** Serve the universe's directory to hosts, and an account's zones to its members. */
 export function directoryRouter(database: DatabaseConnection, authorizer: Authorizer) {
-    const cells = new DirectoryDatabase(database);
+    const cells = new DirectoryStore(database);
 
     return implementation.router({
         // zones and cells
@@ -43,7 +43,7 @@ export function directoryRouter(database: DatabaseConnection, authorizer: Author
         }),
         locate: implementation.locate.handler(async ({ input, context }) => {
             // locate any zone for a host, else a zone of an account the caller reads, hiding the rest as unplaced
-            const sending = senderOf(context.requireCaller().authentication);
+            const sending = Caller.sender(context.requireAuthentication().claims);
             const zone = await cells.locate(input.scope);
             const isVisible =
                 zone !== undefined &&
@@ -54,7 +54,7 @@ export function directoryRouter(database: DatabaseConnection, authorizer: Author
         }),
         list: implementation.list.handler(async ({ input, context }) => {
             // answer an account the caller cannot read as an unknown one
-            context.requireCaller();
+            context.requireAuthentication();
             if (!(await readsAccount(database, authorizer, context, input.scope))) {
                 const denial = new ServiceError("FORBIDDEN", {
                     message: `permission denied: read account ${input.scope}`,
@@ -87,7 +87,7 @@ export function directoryRouter(database: DatabaseConnection, authorizer: Author
         }),
         cell: implementation.cell.handler(async ({ input, context }) => {
             // read a cell for any verified caller
-            context.requireCaller();
+            context.requireAuthentication();
 
             return (await cells.cell(input.cell)) ?? null;
         }),
@@ -97,9 +97,9 @@ export function directoryRouter(database: DatabaseConnection, authorizer: Author
             // reserve claims of objects in zones the caller's cells serve
             const sender = await Sender.of(context, database);
             await sender.requireClaims(input.claims);
-            await cells.claim(input.claims, input.requestId, Date.now());
+            const taken = await cells.claim(input.claims, input.requestId);
 
-            return {};
+            return { taken: [...taken] };
         }),
         confirm: implementation.confirm.handler(async ({ input, context }) => {
             // confirm the caller's own reservations and the names its objects claim
@@ -122,21 +122,21 @@ export function directoryRouter(database: DatabaseConnection, authorizer: Author
             // replace the claims of an object in a zone the caller's cells serve
             const sender = await Sender.of(context, database);
             await sender.requireOwned([input.owned]);
-            await cells.replace(input.owned, input.requestId, Date.now());
+            const taken = await cells.replace(input.owned, input.requestId);
 
-            return {};
+            return { taken: [...taken] };
         }),
         expired: implementation.expired.handler(async ({ input, context }) => {
             // list the expired reservations in zones the caller's cells serve
             const sender = await Sender.of(context, database);
-            const expiry = await cells.expired(input.indexes, Date.now());
+            const expiry = await cells.expired(input.indexes);
             const claims = await sender.served(expiry.claims);
 
             return expiry.next === undefined ? { claims } : { claims, next: expiry.next };
         }),
         owner: implementation.owner.handler(async ({ input, context }) => {
             // find a name's owner for any verified caller
-            context.requireCaller();
+            context.requireAuthentication();
 
             return (await cells.owner(input.index, input.key)) ?? null;
         }),
@@ -144,7 +144,7 @@ export function directoryRouter(database: DatabaseConnection, authorizer: Author
         // accounts
         account: implementation.account.handler(async ({ input, context }) => {
             // find a handle's account for any verified caller
-            context.requireCaller();
+            context.requireAuthentication();
 
             return (await Resolver.account(database, input.handle)) ?? null;
         }),
@@ -200,8 +200,8 @@ export class Sender {
     /** Read the host that sends a request and refuse other callers. */
     static async of(context: ServiceContext, database: DatabaseConnection): Promise<Sender> {
         // require a host sending the request
-        const authentication = context.requireCaller().authentication;
-        const sending = senderOf(authentication);
+        const authentication = context.requireAuthentication().claims;
+        const sending = Caller.sender(authentication);
         if (sending === undefined || !principal.host.is(sending)) {
             throw new ServiceError("FORBIDDEN", { message: "only hosts reach the directory" });
         }

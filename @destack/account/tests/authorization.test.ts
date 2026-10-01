@@ -1,4 +1,5 @@
 import { user } from "../src/object/user.ts";
+import type { Subject } from "@destack/sync";
 import { Snapshot } from "@destack/db/log";
 import { serviceAccount } from "../src/object/service.ts";
 import { copyScope } from "@destack/access/test";
@@ -9,21 +10,16 @@ import {
     principal,
     type AccessContext,
     type Permission,
-    type Subject,
     Authorization,
 } from "@destack/access";
 import { identifier } from "@destack/schema";
-import { Journal } from "@destack/service/database";
-import { Caller } from "@destack/service/authentication";
-import { AuditRecorder } from "@destack/audit";
-import { AuditOutbox } from "@destack/audit/outbox";
+import { Authentication } from "@destack/service/authentication";
 import { ObjectServer } from "@destack/object/server";
-import { accountJournal } from "../src/stack/index.ts";
 import * as object from "../src/object/index.ts";
 import { accountPackage } from "../src/audit/index.ts";
 import { openAccountDatabase } from "./database.ts";
 import { id } from "./fixture.ts";
-import { testJournalKey } from "@destack/service/test";
+import { testCallKey } from "@destack/service/test";
 
 /** Let an account's root own it, its members read it, and groups and service accounts read it through a role. */
 test("decide account access for its root, members, group members and service accounts", async () => {
@@ -55,18 +51,8 @@ test("decide account access for its root, members, group members and service acc
             },
             database,
             context: () => ({ subjects: [], now: time, attributes: {} }),
-            audit: () =>
-                new AuditRecorder(
-                    {
-                        actor: { type: "system", name: "test" },
-                        delegation: [],
-                        package: accountPackage,
-                        service: "account",
-                        scope: "universe",
-                    },
-                    new AuditOutbox(database),
-                ),
-            journal: new Journal(accountJournal, testJournalKey),
+            callKey: testCallKey,
+            origin: { package: accountPackage, service: "account" },
         });
 
         // create two accounts under the owner's root that own their scopes
@@ -145,7 +131,7 @@ test("decide account access for its root, members, group members and service acc
 
         // decide reading and updating the account, and reading the other account, as each subject
         const decide = async (subject: Subject, permission: Permission, target: string) => {
-            const context = new Caller({
+            const context = new Authentication({
                 credential: { kind: "test", id: "test-1" },
                 audience: accountPackage.id,
                 subject,

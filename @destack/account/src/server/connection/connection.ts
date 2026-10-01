@@ -1,7 +1,8 @@
-import { principal, type Subject } from "@destack/access";
+import { principal } from "@destack/access";
+import type { Subject } from "@destack/sync";
 import { and, eq, isNotNull, isNull, type DatabaseConnection } from "@destack/db";
 import type { Call } from "@destack/object";
-import { DirectoryDatabase } from "@destack/directory";
+import { DirectoryStore } from "@destack/directory";
 import { ServiceError } from "@destack/service/error";
 import { connection, type Connection } from "../../object/connection.ts";
 import { Digest } from "../../object/digest.ts";
@@ -160,7 +161,7 @@ export class Connections {
 
         // require the vault's space to lie in the connection's account
         const zone = isVaulted
-            ? await new DirectoryDatabase(call.database).locate(input.secretSpaceId!)
+            ? await new DirectoryStore(call.database).locate(input.secretSpaceId!)
             : undefined;
         if (isVaulted && zone?.scope !== call.scope) {
             throw new ServiceError("BAD_REQUEST", {

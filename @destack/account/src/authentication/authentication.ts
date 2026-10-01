@@ -1,4 +1,6 @@
 import { betterAuth, type BetterAuthOptions } from "better-auth/minimal";
+import { Journal } from "@destack/audit";
+import type { CallKey } from "@destack/service/request";
 import { Authorizer } from "@destack/access";
 import { and, eq, type DatabaseConnection } from "@destack/db";
 import { magicLink, emailOTP, bearer, jwt } from "better-auth/plugins";
@@ -96,7 +98,7 @@ const PREFIXES: Readonly<Record<string, string>> = {
 };
 
 /** Deployment inputs for Destack platform sign-in. */
-export interface AuthenticationOptions {
+export interface AuthenticatorOptions {
     /** The canonical platform origin, including its scheme. */
     origin: string;
     /** Exact browser origins allowed to use platform sessions. */
@@ -109,6 +111,8 @@ export interface AuthenticationOptions {
     secrets?: BetterAuthOptions["secrets"];
     /** The migrated global account database. */
     database: DatabaseConnection;
+    /** Read the deployment's key that sensitive call inputs are fingerprinted under. */
+    callKey: CallKey;
     /** The sign-in applications the deployment configures, such as GitHub, Google or Microsoft. */
     providers: NonNullable<BetterAuthOptions["socialProviders"]>;
     /** The browser page where users sign in. */
@@ -134,10 +138,10 @@ export interface AuthenticationOptions {
 }
 
 /** The configured platform authentication service. */
-export type Authentication = ReturnType<typeof createAuthentication>;
+export type Authenticator = ReturnType<typeof createAuthenticator>;
 
 /** Configure platform sessions and provider sign-in through Better Auth. */
-export function createAuthentication(options: AuthenticationOptions) {
+export function createAuthenticator(options: AuthenticatorOptions) {
     // require the sign-in pages on the platform origin
     const origin = new URL(options.origin).origin;
     const signIn = new URL(options.signInUri, origin);
@@ -152,7 +156,7 @@ export function createAuthentication(options: AuthenticationOptions) {
     }
 
     // configure Better Auth with audited sessions and the platform plugins
-    const audit = new AuthenticationAudit(options.database);
+    const audit = new AuthenticationAudit(new Journal(options.database, options.callKey));
     const users = new Authorizer([user.policy], [user.mapping]);
     const authentication = betterAuth({
         appName: "Destack",
@@ -324,7 +328,7 @@ export function createAuthentication(options: AuthenticationOptions) {
             }
         }
 
-        return audit.invoke(request, AuthenticationAudit.actor(current), routes, handler);
+        return audit.invoke(request, AuthenticationAudit.caller(current), routes, handler);
     };
 
     // serve the sign-in pages over the protocol
@@ -364,8 +368,8 @@ export function createAuthentication(options: AuthenticationOptions) {
 
 /** Keep the provider login that suggests a new user's handle. */
 function withLogins(
-    providers: AuthenticationOptions["providers"],
-): AuthenticationOptions["providers"] {
+    providers: AuthenticatorOptions["providers"],
+): AuthenticatorOptions["providers"] {
     // leave providers without logins as they are
     const github = providers.github;
     if (github === undefined) {

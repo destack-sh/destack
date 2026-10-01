@@ -1,4 +1,5 @@
 import type { Restriction } from "@destack/access";
+import { Subject } from "@destack/sync";
 import { PackageId } from "@destack/package";
 import { RequestId } from "@destack/service/request";
 import { expect, test } from "@destack/test";
@@ -47,6 +48,8 @@ test("issue, use and revoke personal access tokens", async () => {
     expect(issued).toEqual({
         id: issued.id,
         createdAt: issued.createdAt,
+        createdBy: Subject.key(owner.subject),
+        updatedBy: Subject.key(owner.subject),
         updatedAt: issued.createdAt,
         revision: 1,
         tags: {},

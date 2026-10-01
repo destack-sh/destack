@@ -1,10 +1,13 @@
 import type { Table } from "@destack/db";
+import { journal } from "@destack/audit";
 import { account } from "../object/account.ts";
 import { group } from "../object/group.ts";
 import { organisation } from "../object/organisation.ts";
 import { serviceAccount } from "../object/service.ts";
 import { personalAccessToken, serviceToken } from "../object/token.ts";
 import { user } from "../object/user.ts";
+import { domain } from "../object/domain.ts";
+import { host, hostKey } from "../object/host.ts";
 import { deviceAuthorization } from "./authentication/device.ts";
 import { signingKey, authenticationReplay } from "./authentication/key.ts";
 import {
@@ -20,7 +23,6 @@ import { identity, passkey, session, twoFactor } from "../object/authentication.
 import { membership } from "../object/membership.ts";
 import { oauthClient, oauthConsent } from "../object/oauth.ts";
 import { region } from "../object/region.ts";
-import { accountJournal } from "./journal.ts";
 import { verification, rateLimit } from "./verification.ts";
 
 /** The account service's tables: accounts, sign-in and the OpenID provider. */
@@ -37,7 +39,10 @@ export const accountTables: readonly Table[] = [
     ...device.tables,
     ...deviceKey.tables,
     ...region.tables,
-    accountJournal,
+    ...domain.tables,
+    ...host.tables,
+    ...hostKey.tables,
+    journal,
 
     // sign-in
     ...user.tables,

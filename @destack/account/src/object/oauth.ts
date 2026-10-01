@@ -1,7 +1,7 @@
 import { principal } from "@destack/access";
 import { check, foreignKey, index, sql, unique, type Select } from "@destack/db";
 import { defineObject, field, method } from "@destack/object";
-import { schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { account } from "./account.ts";
 import { user } from "./user.ts";
 
@@ -48,10 +48,7 @@ export const oauthClient = defineObject({
         /** How the client authenticates at the token endpoint. */
         tokenEndpointAuthMethod: field.enum(OAUTH_CLIENT_AUTHENTICATIONS),
         /** The SHA-256 digest of a confidential client's secret. */
-        clientSecret: field
-            .string(schema.string().regex(/^[0-9a-f]{64}$/))
-            .sensitive()
-            .optional(),
+        clientSecret: field.string(Digest).sensitive().optional(),
         /** The grants the client may use. */
         grantTypes: field.json(schema.array(schema.enum(OAUTH_GRANT_TYPES)).min(1)),
         /** The scopes the client may request, every provider scope when absent. */

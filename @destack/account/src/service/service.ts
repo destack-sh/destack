@@ -2,10 +2,12 @@ import { defineService } from "@destack/service";
 import * as object from "../object/index.ts";
 import { authentication } from "./authentication.ts";
 import { directory } from "./directory/index.ts";
+import { hostToken } from "./host.ts";
 
 /** The object types the account service serves. */
 export const accountObjects = {
     user: object.user,
+    domain: object.domain,
     account: object.account,
     organisation: object.organisation,
     group: object.group,
@@ -17,6 +19,8 @@ export const accountObjects = {
     serviceToken: object.serviceToken,
     device: object.device,
     deviceKey: object.deviceKey,
+    host: object.host,
+    hostKey: object.hostKey,
     connection: object.connection,
     environment: object.environment,
     session: object.session,
@@ -35,8 +39,9 @@ export const accountService = defineService("account", {
     // objects with sharing methods that grant, propose and explain access
     objects: accountObjects,
 
-    // the universe's copies for the cells of spaces and the hosts of accounts
-
     // the universe's directory for cells to place zones and claim unique names
     directory,
+
+    // hosts proving their keys for access tokens
+    hostToken,
 });

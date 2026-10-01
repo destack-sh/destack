@@ -3,7 +3,7 @@ import { Scope } from "@destack/sync";
 import { account } from "../src/object/account.ts";
 import { device } from "../src/object/device.ts";
 import { user } from "../src/object/user.ts";
-import { DirectoryDatabase } from "@destack/directory";
+import { DirectoryStore } from "@destack/directory";
 import { copyScope } from "@destack/access/test";
 import { expect, test } from "@destack/test";
 import { eq } from "@destack/db";
@@ -20,7 +20,7 @@ import {
     accessRolePermission,
     principal,
 } from "@destack/access";
-import { TokenVerifier, TokenIssuer, Caller } from "@destack/service/authentication";
+import { TokenVerifier, TokenIssuer, Authentication } from "@destack/service/authentication";
 import * as accountObject from "@destack/account/object";
 import { serviceAccount } from "../src/object/service.ts";
 import { Credential } from "../src/object/credential.ts";
@@ -34,7 +34,7 @@ import type {} from "@destack/package/import-meta";
 test("verify scoped callers and reject revoked credentials across services", async () => {
     await using fixture = await AccountFixture.open();
     const database = fixture.opened.database;
-    const authentication = fixture.authentication;
+    const authenticator = fixture.authenticator;
     const server = fixture.server;
     const now = Date.now();
     const record = { createdAt: now, updatedAt: now };
@@ -69,7 +69,7 @@ test("verify scoped callers and reject revoked credentials across services", asy
     const onAccount = accountObject.account.reference(userId, accountId);
 
     // place the space under the same account in a region cell
-    await new DirectoryDatabase(database).place({
+    await new DirectoryStore(database).place({
         id: spaceId,
         scope: accountId,
         cell: regionId,
@@ -201,9 +201,7 @@ test("verify scoped callers and reject revoked credentials across services", asy
         headers: { authorization: `Bearer ${issued.accessToken}` },
     });
     const signed = await tokens.authenticate(signedRequest, spaceId);
-    expect(signed.authentication.permissions).toEqual([
-        { ...read, scope: spaceId, objectId: secretId },
-    ]);
+    expect(signed.claims.permissions).toEqual([{ ...read, scope: spaceId, objectId: secretId }]);
     await tokens.authenticate(signedRequest, spaceId);
     expect(keyReads).toBe(1);
 
@@ -257,19 +255,19 @@ test("verify scoped callers and reject revoked credentials across services", asy
         },
     });
     const rechecked = await verifier.authenticate(signedRequest, spaceId);
-    expect(rechecked.authentication.expiresAt).toBe(issued.expiresAt);
-    expect(rechecked.authentication.permissions).toEqual(signed.authentication.permissions);
+    expect(rechecked.claims.expiresAt).toBe(issued.expiresAt);
+    expect(rechecked.claims.permissions).toEqual(signed.claims.permissions);
 
     // preserve delegated authority when the account service rechecks its primary credential
     const actor = serviceAccount.reference(accountId, softwareId);
     const issuer = new TokenIssuer({
         authority: { kind: "universe" },
         issuer: "http://localhost:3210",
-        sign: async (payload) => (await authentication.api.signJWT({ body: { payload } })).token,
+        sign: async (payload) => (await authenticator.api.signJWT({ body: { payload } })).token,
     });
     const delegated = await issuer.issue(
-        new Caller({
-            ...signed.authentication,
+        new Authentication({
+            ...signed.claims,
             delegates: [{ subject: actor, authority: "lent" }],
         }),
     );
@@ -277,19 +275,17 @@ test("verify scoped callers and reject revoked credentials across services", asy
         headers: { authorization: `Bearer ${delegated.accessToken}` },
     });
     const delegationCheck = await verifier.authenticate(delegatedRequest, spaceId);
-    expect(delegationCheck.authentication.delegates).toEqual([
-        { subject: actor, authority: "lent" },
-    ]);
-    expect(delegationCheck.authentication.expiresAt).toBe(issued.expiresAt);
+    expect(delegationCheck.claims.delegates).toEqual([{ subject: actor, authority: "lent" }]);
+    expect(delegationCheck.claims.expiresAt).toBe(issued.expiresAt);
 
     // retain the signed object restriction after the original credential receives broader access
     await database
         .update(personalAccessToken.table)
         .set({ restrictions: [{ ...read, scope: spaceId }] })
         .where(eq(personalAccessToken.table.id, personalId));
-    expect(
-        (await verifier.authenticate(signedRequest, spaceId)).authentication.permissions,
-    ).toEqual(signed.authentication.permissions);
+    expect((await verifier.authenticate(signedRequest, spaceId)).claims.permissions).toEqual(
+        signed.claims.permissions,
+    );
     await database
         .update(personalAccessToken.table)
         .set({ restrictions: [userRestriction] })
@@ -300,7 +296,7 @@ test("verify scoped callers and reject revoked credentials across services", asy
     await database
         .insert(device.table)
         .values({ ...record, id: deviceId, scope: userId, name: "laptop" });
-    const login = await (await authentication.$context).internalAdapter.createSession(userId);
+    const login = await (await authenticator.$context).internalAdapter.createSession(userId);
     await database
         .update(session.table)
         .set({ deviceId })
@@ -323,9 +319,7 @@ test("verify scoped callers and reject revoked credentials across services", asy
     const nativeRequest = new Request("https://vault.example", {
         headers: { authorization: `Bearer ${login.token}` },
     });
-    expect((await verifier.authenticate(nativeRequest, spaceId)).authentication.subject.id).toBe(
-        userId,
-    );
+    expect((await verifier.authenticate(nativeRequest, spaceId)).claims.subject.id).toBe(userId);
     expect(
         (
             await rotatedVerifier.authenticate(
@@ -334,7 +328,7 @@ test("verify scoped callers and reject revoked credentials across services", asy
                 }),
                 spaceId,
             )
-        ).authentication.subject.id,
+        ).claims.subject.id,
     ).toBe(userId);
     await database
         .update(device.table)
@@ -365,28 +359,24 @@ test("verify scoped callers and reject revoked credentials across services", asy
         }),
         spaceId,
     );
-    expect(softwareCaller.authentication.subject).toEqual(
-        serviceAccount.reference(accountId, softwareId),
-    );
-    expect(softwareCaller.authentication.subjects).toEqual([softwareCaller.authentication.subject]);
+    expect(softwareCaller.claims.subject).toEqual(serviceAccount.reference(accountId, softwareId));
+    expect(softwareCaller.claims.subjects).toEqual([softwareCaller.claims.subject]);
     const request = new Request("https://vault.example/secret", {
         headers: { authorization: `Bearer ${userKey.secret}` },
     });
     const caller = await verifier.authenticate(request, spaceId);
-    expect(
-        caller.context(audience, caller.authentication.verifiedAt - 1000, spaceId).subject,
-    ).toEqual(caller.authentication.subject);
-    expect(() =>
-        caller.context(audience, caller.authentication.verifiedAt - 5001, spaceId),
-    ).toThrow("caller authentication is expired or has a different audience or scope");
-    expect(caller.authentication.subjects).toEqual([
+    expect(caller.context(audience, caller.claims.verifiedAt - 1000, spaceId).subject).toEqual(
+        caller.claims.subject,
+    );
+    expect(() => caller.context(audience, caller.claims.verifiedAt - 5001, spaceId)).toThrow(
+        "caller authentication is expired or has a different audience or scope",
+    );
+    expect(caller.claims.subjects).toEqual([
         principal.user.reference(Scope.universe.id, userId),
         { ...accountObject.account.reference(userId, accountId), relation: "member" },
         { ...accountObject.account.reference(userId, accountId), relation: "root" },
     ]);
-    expect(caller.authentication.permissions).toEqual([
-        { ...read, scope: spaceId, objectId: secretId },
-    ]);
+    expect(caller.claims.permissions).toEqual([{ ...read, scope: spaceId, objectId: secretId }]);
     expect(
         Restriction.allows(
             read,
@@ -404,7 +394,7 @@ test("verify scoped callers and reject revoked credentials across services", asy
 
     // invalidate current membership without a caller cache
     await database.delete(accessRelationship).where(eq(accessRelationship.id, membershipId));
-    expect((await verifier.authenticate(request, spaceId)).authentication.subjects).toEqual([
+    expect((await verifier.authenticate(request, spaceId)).claims.subjects).toEqual([
         principal.user.reference(Scope.universe.id, userId),
         { ...onAccount, relation: "root" },
     ]);

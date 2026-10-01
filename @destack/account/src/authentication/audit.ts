@@ -1,6 +1,5 @@
-import { AuditRecorder, defineAuditAction, type AuditActor } from "@destack/audit";
+import { AuditCaller, AuditRecorder, defineAuditAction, type Journal } from "@destack/audit";
 import { Scope } from "@destack/sync";
-import { AuditOutbox } from "@destack/audit/outbox";
 import { identifier, schema } from "@destack/schema";
 import {
     SpanKind,
@@ -12,7 +11,6 @@ import {
     isSpanContextValid,
     type Span,
 } from "@destack/telemetry";
-import type { DatabaseConnection } from "@destack/db";
 import type { BetterAuthPlugin } from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
 import { principal } from "@destack/access";
@@ -38,7 +36,7 @@ const SEVERITIES = {
 
 /** One authentication protocol request, without credentials or provider payloads. */
 export const authenticationRequest = defineAuditAction({
-    name: "Authentication.request",
+    name: "authentication.request",
     targets: schema.object({
         endpoint: schema.object({
             type: schema.literal("authentication-endpoint"),
@@ -50,7 +48,7 @@ export const authenticationRequest = defineAuditAction({
 
 /** A session issued after all required authentication ceremonies complete. */
 export const sessionCreated = defineAuditAction({
-    name: "Session.create",
+    name: "session.create",
     targets: schema.object({
         user: schema.object({ type: schema.literal("user"), id: identifier("user") }),
         session: schema.object({ type: schema.literal("session"), id: identifier("session") }),
@@ -61,18 +59,18 @@ export const sessionCreated = defineAuditAction({
     }),
 });
 
-/** Record authentication HTTP outcomes through the persistent account outbox. */
+/** Record authentication HTTP outcomes in the account database's journal. */
 export class AuthenticationAudit {
-    /** The durable event writer, migrated by the host. */
-    readonly outbox: AuditOutbox;
+    /** The journal of the account database's calls. */
+    readonly journal: Journal;
 
-    /** Bind authentication records to the migrated account database. */
-    constructor(database: DatabaseConnection) {
-        this.outbox = new AuditOutbox(database);
+    /** Record authentication calls in the account database's journal. */
+    constructor(journal: Journal) {
+        this.journal = journal;
     }
 
-    /** Resolve the audit actor of a request. */
-    static actor(current: { user: { id: string } } | null): AuditActor {
+    /** Resolve the recorded caller of a request. */
+    static caller(current: { user: { id: string } } | null): AuditCaller {
         return current
             ? {
                   type: "subject",
@@ -110,24 +108,23 @@ export class AuthenticationAudit {
                             const sessionId = identifier("session").parse(current.session.id);
                             const recorder = new AuditRecorder(
                                 {
-                                    actor: {
+                                    caller: {
                                         type: "subject",
                                         subject: principal.user.reference(
                                             Scope.universe.id,
                                             userId,
                                         ),
                                     },
-                                    delegation: [],
                                     package: accountPackage,
                                     service: "account",
                                     scope: userId,
                                     sessionId,
                                 },
-                                this.outbox,
+                                this.journal,
                             );
 
                             // record the issued session's verified identity
-                            await this.outbox.database.transaction((transaction) =>
+                            await this.journal.database.transaction((transaction) =>
                                 recorder.record(transaction, sessionCreated, {
                                     targets: {
                                         user: { type: "user", id: userId },
@@ -135,7 +132,7 @@ export class AuthenticationAudit {
                                     },
                                     details:
                                         context.path === undefined ? {} : { method: context.path },
-                                    outcome: "success",
+                                    outcome: { kind: "success" },
                                 }),
                             );
                         }),
@@ -148,7 +145,7 @@ export class AuthenticationAudit {
     /** Trace a request and persist required audit attempts and outcomes. */
     async invoke(
         request: Request,
-        actor: AuditActor,
+        caller: AuditCaller,
         routes: readonly string[],
         handler: (request: Request) => Promise<Response>,
     ): Promise<Response> {
@@ -181,7 +178,7 @@ export class AuthenticationAudit {
                 },
                 async (span) => {
                     try {
-                        return await this.#record(request, route, actor, handler, span);
+                        return await this.#record(request, route, caller, handler, span);
                     } finally {
                         span.end();
                     }
@@ -194,22 +191,21 @@ export class AuthenticationAudit {
     async #record(
         request: Request,
         route: string,
-        actor: AuditActor,
+        caller: AuditCaller,
         handler: (request: Request) => Promise<Response>,
         span: Span,
     ): Promise<Response> {
-        // associate durable records with the verified actor and active trace
+        // associate durable records with the verified caller and active trace
         const trace = span.spanContext();
         const recorder = new AuditRecorder(
             {
-                actor,
-                delegation: [],
+                caller,
                 package: accountPackage,
                 service: "account",
-                scope: actor.type === "subject" ? actor.subject.id : Scope.universe.id,
+                scope: caller.type === "subject" ? caller.subject.id : Scope.universe.id,
                 traceId: isSpanContextValid(trace) ? trace.traceId : undefined,
             },
-            this.outbox,
+            this.journal,
         );
         const attempt = READS.has(route)
             ? undefined
@@ -232,9 +228,13 @@ export class AuthenticationAudit {
             if (attempt) {
                 try {
                     await recorder.append(
-                        recorder.complete(attempt, {
-                            outcome: "failure",
-                            errorCode: "INTERNAL_SERVER_ERROR",
+                        recorder.finish(attempt, {
+                            kind: "failure",
+                            error: {
+                                code: "INTERNAL_SERVER_ERROR",
+                                status: 500,
+                                message: "internal error",
+                            },
                         }),
                     );
                 } catch (auditError) {
@@ -261,11 +261,18 @@ export class AuthenticationAudit {
         // acknowledge the response only after its durable outcome
         if (attempt) {
             await recorder.append(
-                recorder.complete(
+                recorder.finish(
                     attempt,
                     rejected
-                        ? { outcome: "failure", errorCode: "AUTHENTICATION_REJECTED" }
-                        : { outcome: "success" },
+                        ? {
+                              kind: "failure",
+                              error: {
+                                  code: "AUTHENTICATION_REJECTED",
+                                  status: response.status,
+                                  message: "authentication rejected",
+                              },
+                          }
+                        : { kind: "success" },
                 ),
             );
         }

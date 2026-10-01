@@ -1,9 +1,9 @@
-import { Caller } from "@destack/service/authentication";
+import { Authentication } from "@destack/service/authentication";
 import { ServiceError } from "@destack/service/error";
 import type { Identifier } from "@destack/schema";
 import type { PackageId } from "@destack/package";
 import type { connect } from "./client.ts";
-import { readBearer } from "../authentication/bearer.ts";
+import { Bearer } from "@destack/service/authentication";
 
 /** Recheck credentials with AccountService when an operation requires current global state. */
 export class AccountIntrospection {
@@ -26,9 +26,9 @@ export class AccountIntrospection {
     }
 
     /** Verify a request's bearer credential and current memberships for the selected space. */
-    async authenticate(request: Request, spaceId: Identifier<"space">): Promise<Caller> {
+    async authenticate(request: Request, spaceId: Identifier<"space">): Promise<Authentication> {
         // require one bearer token without cookies
-        const token = readBearer(request.headers);
+        const token = Bearer.read(request.headers);
         if (token === undefined) {
             throw new ServiceError("UNAUTHORIZED", { message: "invalid bearer credential" });
         }
@@ -45,7 +45,7 @@ export class AccountIntrospection {
         );
 
         // require the verified caller to hold for this audience and space now
-        const caller = new Caller(authentication);
+        const caller = new Authentication(authentication);
         caller.context(this.audience, Date.now(), spaceId);
 
         return caller;

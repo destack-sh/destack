@@ -1,10 +1,10 @@
 import { account } from "../object/account.ts";
 import { Scope } from "@destack/sync";
 import { type User, user } from "../object/user.ts";
-import { emailIdentifier, principal, type Restriction } from "@destack/access";
+import { principal, type Restriction, VerifiedIdentifier } from "@destack/access";
 import { identifier } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
-import type { Authentication } from "./authentication.ts";
+import type { Authenticator } from "./authentication.ts";
 import { isAPIError } from "better-auth/api";
 import { ActiveSession } from "./session.ts";
 import { and, eq, gt, isNull, type DatabaseConnection } from "@destack/db";
@@ -16,11 +16,11 @@ import {
     type ServiceToken,
 } from "../object/token.ts";
 import { Credential, type TokenKind } from "../object/credential.ts";
-import { readBearer } from "./bearer.ts";
+import { Bearer } from "@destack/service/authentication";
 import { Digest } from "../object/digest.ts";
 import { type Session } from "../object/authentication.ts";
 import { type Account } from "../object/account.ts";
-import { Caller } from "@destack/service/authentication";
+import { Authentication } from "@destack/service/authentication";
 import { accountPackage } from "../audit/record.ts";
 import type { PackageId } from "@destack/package";
 
@@ -54,16 +54,16 @@ export type AccountCredential =
       };
 
 /** A caller the account service verified. */
-export class AccountCaller extends Caller<AccountCredential> {
+export class AccountAuthentication extends Authentication<AccountCredential> {
     /** Verify a request's token or session. */
     static async authenticate(
         request: Request,
-        authentication: Authentication,
+        authenticator: Authenticator,
         audience: PackageId = accountPackage.id,
-    ): Promise<AccountCaller> {
+    ): Promise<AccountAuthentication> {
         // require an unambiguous native bearer credential
         const hasAuthorization = request.headers.has("authorization");
-        const bearer = readBearer(request.headers);
+        const bearer = Bearer.read(request.headers);
         if (hasAuthorization && bearer === undefined) {
             throw new ServiceError("UNAUTHORIZED", { message: "invalid bearer credential" });
         }
@@ -75,10 +75,10 @@ export class AccountCaller extends Caller<AccountCredential> {
                 message: "a client secret cannot authenticate a request",
             });
         } else if (bearer !== undefined && kind !== undefined) {
-            return AccountCaller.#token(
+            return AccountAuthentication.#token(
                 kind,
                 { digest: await Digest.hex(bearer) },
-                authentication.database,
+                authenticator.database,
                 audience,
             );
         }
@@ -86,7 +86,7 @@ export class AccountCaller extends Caller<AccountCredential> {
         // require an allowed origin before accepting a cookie authenticated mutation
         if (!hasAuthorization && !["GET", "HEAD", "OPTIONS"].includes(request.method)) {
             const origin = request.headers.get("origin");
-            const origins = authentication.options.trustedOrigins;
+            const origins = authenticator.options.trustedOrigins;
             if (!origin || !Array.isArray(origins) || !origins.includes(origin)) {
                 throw new ServiceError("FORBIDDEN", { message: "untrusted request origin" });
             }
@@ -95,7 +95,7 @@ export class AccountCaller extends Caller<AccountCredential> {
         // read the session Better Auth resolves
         let result;
         try {
-            result = await authentication.api.getSession({ headers: request.headers });
+            result = await authenticator.api.getSession({ headers: request.headers });
         } catch (error) {
             if (isAPIError(error) && error.statusCode === 401) {
                 throw new ServiceError("UNAUTHORIZED", { message: "the person is not signed in" });
@@ -107,7 +107,7 @@ export class AccountCaller extends Caller<AccountCredential> {
         }
         const current = ActiveSession.of(result);
 
-        return AccountCaller.#create(
+        return AccountAuthentication.#create(
             { kind: "session", id: current.id, userId: current.userId },
             current.expiresAt,
             audience,
@@ -119,10 +119,10 @@ export class AccountCaller extends Caller<AccountCredential> {
     static async read(
         credential: { readonly kind: string; readonly id: string },
         database: DatabaseConnection,
-    ): Promise<AccountCaller> {
+    ): Promise<AccountAuthentication> {
         // recheck a token by its identifier
         if (credential.kind === "personal-access-token" || credential.kind === "service-token") {
-            return AccountCaller.#token(
+            return AccountAuthentication.#token(
                 credential.kind,
                 { id: credential.id },
                 database,
@@ -134,7 +134,7 @@ export class AccountCaller extends Caller<AccountCredential> {
             try {
                 const current = await ActiveSession.read(credential.id, database);
 
-                return AccountCaller.#create(
+                return AccountAuthentication.#create(
                     {
                         kind: "session",
                         id: identifier("session").parse(credential.id),
@@ -160,8 +160,8 @@ export class AccountCaller extends Caller<AccountCredential> {
     }
 
     /** Narrow a verified caller to an account caller. */
-    static require(caller: Caller): AccountCaller {
-        if (!(caller instanceof AccountCaller)) {
+    static require(caller: Authentication): AccountAuthentication {
+        if (!(caller instanceof AccountAuthentication)) {
             throw new ServiceError("UNAUTHORIZED", {
                 message: "the caller is not an account caller",
             });
@@ -171,16 +171,16 @@ export class AccountCaller extends Caller<AccountCredential> {
     }
 
     /** Recheck the caller's credential within a transaction. */
-    async verify(database: DatabaseConnection): Promise<AccountCaller> {
+    async verify(database: DatabaseConnection): Promise<AccountAuthentication> {
         this.context(accountPackage.id);
 
-        return AccountCaller.read(this.credential, database);
+        return AccountAuthentication.read(this.credential, database);
     }
 
     /** Read the caller's public profile: a user's name and personal handle, or a service account's name. */
     async readProfile(transaction: DatabaseConnection) {
         // read the service account's name
-        const subject = this.authentication.subject;
+        const subject = this.claims.subject;
         if (!principal.user.is(subject)) {
             const software = await transaction
                 .select({ name: serviceAccount.table.name })
@@ -219,7 +219,7 @@ export class AccountCaller extends Caller<AccountCredential> {
         key: { readonly id: string } | { readonly digest: string },
         database: DatabaseConnection,
         audience: PackageId,
-    ): Promise<AccountCaller> {
+    ): Promise<AccountAuthentication> {
         // read the unrevoked, unexpired personal token of an active user
         if (kind === "personal-access-token") {
             const table = personalAccessToken.table;
@@ -250,7 +250,7 @@ export class AccountCaller extends Caller<AccountCredential> {
                 });
             }
 
-            return AccountCaller.#create(
+            return AccountAuthentication.#create(
                 { kind, id: row.id, userId: row.userId },
                 row.expiresAt,
                 audience,
@@ -292,7 +292,7 @@ export class AccountCaller extends Caller<AccountCredential> {
                 throw new ServiceError("UNAUTHORIZED", { message: "invalid service token" });
             }
 
-            return AccountCaller.#create(
+            return AccountAuthentication.#create(
                 {
                     kind,
                     id: row.id,
@@ -314,16 +314,18 @@ export class AccountCaller extends Caller<AccountCredential> {
         audience: PackageId,
         session?: ActiveSession,
         restrictions?: readonly Restriction[],
-    ): AccountCaller {
+    ): AccountAuthentication {
         // carry a session's assurance and email, and a token's restrictions
         const assurance = session?.assurance;
-        const identifiers = session?.emailVerified ? [emailIdentifier(session.email)] : undefined;
+        const identifiers = session?.emailVerified
+            ? [VerifiedIdentifier.fromEmail(session.email)]
+            : undefined;
         const subject =
             credential.kind === "service-token"
                 ? serviceAccount.reference(credential.accountId, credential.serviceAccountId)
                 : principal.user.reference(Scope.universe.id, credential.userId);
 
-        return new AccountCaller({
+        return new AccountAuthentication({
             credential,
             audience,
             verifiedAt: Date.now(),

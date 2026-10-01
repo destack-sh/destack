@@ -1,14 +1,16 @@
+import { AuditCaller } from "@destack/audit";
 import { identity, passkey, session, twoFactor } from "../src/object/authentication.ts";
+import { testCallKey } from "@destack/service/test";
 import { user } from "../src/object/user.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { eq } from "@destack/db";
 import { identifier } from "@destack/schema";
 import {
-    createAuthentication,
-    type AuthenticationOptions,
+    createAuthenticator,
+    type AuthenticatorOptions,
 } from "../src/authentication/authentication.ts";
 import { parseEnvelope } from "better-auth/crypto";
-import { AccountCaller } from "../src/authentication/caller.ts";
+import { AccountAuthentication } from "../src/authentication/caller.ts";
 import { ActiveSession } from "../src/authentication/session.ts";
 import { verification } from "../src/stack/index.ts";
 import { openAccountDatabase } from "./database.ts";
@@ -21,11 +23,11 @@ import { RequestId } from "@destack/service/request";
 test("sign in and revoke a session", async () => {
     await using fixture = await AccountFixture.open();
     const database = fixture.opened.database;
-    const authentication = fixture.authentication;
+    const authenticator = fixture.authenticator;
     const messages = fixture.links;
 
     // request a sign-in link through the HTTP route a browser calls
-    const requested = await authentication.handler(
+    const requested = await authenticator.handler(
         new Request("http://localhost:3210/auth/sign-in/magic-link", {
             method: "POST",
             headers: { "content-type": "application/json", origin: "http://localhost:3210" },
@@ -44,13 +46,13 @@ test("sign in and revoke a session", async () => {
     const challenges = await database.select().from(verification);
     expect(challenges).toHaveLength(1);
     expect(challenges[0].identifier).not.toBe(token);
-    const verified = await authentication.handler(new Request(messages[0].url));
+    const verified = await authenticator.handler(new Request(messages[0].url));
     expect(verified.status).toBe(302);
     const cookies = verified.headers
         .getSetCookie()
         .map((cookie) => cookie.split(";")[0])
         .join("; ");
-    const replay = await authentication.handler(new Request(messages[0].url));
+    const replay = await authenticator.handler(new Request(messages[0].url));
     expect(
         new URL(replay.headers.get("location")!, "http://localhost:3210").searchParams.get("error"),
     ).toBe("INVALID_TOKEN");
@@ -72,7 +74,7 @@ test("sign in and revoke a session", async () => {
         verified: true,
         userId: person.id,
     });
-    const result = await authentication.api.getSession({
+    const result = await authenticator.api.getSession({
         headers: new Headers({ cookie: cookies }),
     });
     expect(result?.user.id).toBe(person.id);
@@ -87,7 +89,7 @@ test("sign in and revoke a session", async () => {
     });
 
     // reject foreign browser origins before changing persistent state
-    const foreign = await authentication.handler(
+    const foreign = await authenticator.handler(
         new Request("http://localhost:3210/auth/sign-out", {
             method: "POST",
             headers: { cookie: cookies, origin: "https://attacker.example" },
@@ -106,7 +108,7 @@ test("sign in and revoke a session", async () => {
         .update(session.table)
         .set({ revokedAt: Date.now() })
         .where(eq(session.table.id, login.id));
-    const revoked = await authentication.handler(
+    const revoked = await authenticator.handler(
         new Request("http://localhost:3210/auth/get-session", {
             headers: { cookie: cookies },
         }),
@@ -117,7 +119,7 @@ test("sign in and revoke a session", async () => {
     ]);
 
     // sign out through the browser protocol and reject the previously valid cookie
-    const signedOut = await authentication.handler(
+    const signedOut = await authenticator.handler(
         new Request("http://localhost:3210/auth/sign-out", {
             method: "POST",
             headers: { cookie: cookies, origin: "http://localhost:3210" },
@@ -125,62 +127,66 @@ test("sign in and revoke a session", async () => {
     );
     expect([signedOut.status, await signedOut.json()]).toEqual([200, { success: true }]);
     expect(
-        await authentication.api.getSession({ headers: new Headers({ cookie: cookies }) }),
+        await authenticator.api.getSession({ headers: new Headers({ cookie: cookies }) }),
     ).toBeNull();
     expect(await database.select().from(session.table)).toEqual([]);
 
-    // retain each authentication attempt and outcome without credential contents
-    const events = await fixture.delivered();
+    // retain each authentication request and its outcome without credential contents
+    const calls = await fixture.delivered();
     expect(
-        events
-            .filter((event) => event.action.name === "Authentication.request")
-            .map((event) => ({ endpoint: event.targets.endpoint.id, result: event.result })),
+        calls
+            .filter((call) => call.method === "authentication.request")
+            .map((call) => ({
+                endpoint: call.execution.targets.endpoint!.id,
+                outcome: call.execution.outcome,
+            })),
     ).toEqual([
-        { endpoint: "/sign-in/magic-link", result: { stage: "attempt" } },
-        { endpoint: "/sign-in/magic-link", result: { stage: "result", outcome: "success" } },
-        { endpoint: "/magic-link/verify", result: { stage: "attempt" } },
-        { endpoint: "/magic-link/verify", result: { stage: "result", outcome: "success" } },
-        { endpoint: "/magic-link/verify", result: { stage: "attempt" } },
+        { endpoint: "/sign-in/magic-link", outcome: { kind: "success" } },
+        { endpoint: "/magic-link/verify", outcome: { kind: "success" } },
         {
             endpoint: "/magic-link/verify",
-            result: {
-                stage: "result",
-                outcome: "failure",
-                errorCode: "AUTHENTICATION_REJECTED",
+            outcome: {
+                kind: "failure",
+                error: {
+                    code: "AUTHENTICATION_REJECTED",
+                    status: 302,
+                    message: "authentication rejected",
+                },
             },
         },
-        { endpoint: "/sign-out", result: { stage: "attempt" } },
         {
             endpoint: "/sign-out",
-            result: {
-                stage: "result",
-                outcome: "failure",
-                errorCode: "AUTHENTICATION_REJECTED",
+            outcome: {
+                kind: "failure",
+                error: {
+                    code: "AUTHENTICATION_REJECTED",
+                    status: 403,
+                    message: "authentication rejected",
+                },
             },
         },
-        { endpoint: "/sign-out", result: { stage: "attempt" } },
-        { endpoint: "/sign-out", result: { stage: "result", outcome: "success" } },
+        { endpoint: "/sign-out", outcome: { kind: "success" } },
     ]);
     expect(
-        events
-            .filter((event) => event.action.name !== "Authentication.request")
-            .map((event) => ({
-                action: event.action.name,
-                actor: event.context.actor,
-                targets: event.targets,
-                details: event.details,
-                result: event.result,
+        calls
+            .filter((call) => call.method !== "authentication.request")
+            .map((call) => ({
+                method: call.method,
+                actor: AuditCaller.actor(call.execution.context.caller),
+                targets: call.execution.targets,
+                details: call.execution.details,
+                outcome: call.execution.outcome,
             })),
     ).toEqual([
         {
-            action: "Session.create",
+            method: "session.create",
             actor: { type: "subject", subject: principal.user.reference("universe", person.id) },
             targets: {
                 user: { type: "user", id: person.id },
                 session: { type: "session", id: login.id },
             },
             details: { method: "/magic-link/verify" },
-            result: { stage: "result", outcome: "success" },
+            outcome: { kind: "success" },
         },
     ]);
 });
@@ -191,8 +197,9 @@ test("require the second factor after passwordless sign-in", async () => {
     const messages: { email: string; url: string }[] = [];
     const codes: { email: string; otp: string; type: string }[] = [];
     const key = { version: 1, value: "first-account-encryption-key-32-characters-minimum" };
-    const options: AuthenticationOptions = {
+    const options: AuthenticatorOptions = {
         database: opened.database,
+        callKey: testCallKey,
         origin: "http://localhost:3210",
         trustedOrigins: ["http://localhost:3210"],
         ipAddress: { disableIpTracking: true },
@@ -214,8 +221,8 @@ test("require the second factor after passwordless sign-in", async () => {
             codes.push(message);
         },
     };
-    let authentication = createAuthentication(options);
-    let browser = new Browser(options.origin, authentication.handler);
+    let authenticator = createAuthenticator(options);
+    let browser = new Browser(options.origin, authenticator.handler);
 
     try {
         // sign in using a delivered email code and enroll a real authenticator
@@ -245,14 +252,14 @@ test("require the second factor after passwordless sign-in", async () => {
             parseEnvelope(factor.secret)?.version,
             parseEnvelope(factor.backupCodes)?.version,
         ]).toEqual([1, 1]);
-        authentication = createAuthentication({
+        authenticator = createAuthenticator({
             ...options,
             secrets: [
                 { version: 2, value: "second-account-encryption-key-32-characters-minimum" },
                 key,
             ],
         });
-        browser = new Browser(options.origin, authentication.handler);
+        browser = new Browser(options.origin, authenticator.handler);
 
         // stop a magic link at the second factor, carrying its callback, without a usable session
         await browser.fetch("/auth/sign-in/magic-link", {
@@ -268,8 +275,8 @@ test("require the second factor after passwordless sign-in", async () => {
 
         // race two valid challenges against one recovery code in the shared database
         const contenders = [
-            new Browser(options.origin, authentication.handler),
-            new Browser(options.origin, authentication.handler),
+            new Browser(options.origin, authenticator.handler),
+            new Browser(options.origin, authenticator.handler),
         ];
         for (const contender of contenders) {
             await contender.fetch("/auth/sign-in/magic-link", {
@@ -323,7 +330,7 @@ test("require the second factor after passwordless sign-in", async () => {
         );
 
         // approve a native client and redeem its browser-confirmed grant exactly once
-        const native = new Browser(options.origin, authentication.handler);
+        const native = new Browser(options.origin, authenticator.handler);
         const offered = await native.fetch("/auth/device/code", { client_id: "destack-daemon" });
         expect(offered.status, await offered.clone().text()).toBe(200);
         const grant = await offered.json();
@@ -356,11 +363,11 @@ test("require the second factor after passwordless sign-in", async () => {
             .where(eq(session.table.token, credential.access_token));
         expect(
             (
-                await AccountCaller.authenticate(
+                await AccountAuthentication.authenticate(
                     new Request("http://localhost:3210/accounts", {
                         headers: { authorization: `Bearer ${credential.access_token}` },
                     }),
-                    authentication,
+                    authenticator,
                 )
             ).credential,
         ).toEqual({ kind: "session", id: nativeSession.id, userId: nativeSession.userId });
@@ -376,11 +383,11 @@ test("require the second factor after passwordless sign-in", async () => {
             .set({ revokedAt: Date.now() })
             .where(eq(session.table.id, nativeSession.id));
         await expect(
-            AccountCaller.authenticate(
+            AccountAuthentication.authenticate(
                 new Request("http://localhost:3210/accounts", {
                     headers: { authorization: `Bearer ${credential.access_token}` },
                 }),
-                authentication,
+                authenticator,
             ),
         ).rejects.toMatchObject({
             code: "UNAUTHORIZED",

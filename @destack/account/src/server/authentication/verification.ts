@@ -1,33 +1,24 @@
 import { account, type Account } from "../../object/account.ts";
-import { Scope } from "@destack/sync";
+import { Scope, Subject } from "@destack/sync";
 import { Snapshot } from "@destack/db/log";
-import { DirectoryDatabase } from "@destack/directory";
+import { DirectoryStore } from "@destack/directory";
 import { serviceAccount, ServiceAccountStanding } from "../../object/service.ts";
-import {
-    Authorization,
-    principal,
-    sameSubject,
-    Authorizer,
-    type Restriction,
-    type Subject,
-    Access,
-    subjectKey,
-} from "@destack/access";
+import { Authorization, principal, Authorizer, type Restriction, Access } from "@destack/access";
 import { and, eq, isNull, type DatabaseConnection } from "@destack/db";
 import * as object from "../../object/index.ts";
 import { ServiceError } from "@destack/service/error";
 import {
-    CALLER_LIFETIME_MILLISECONDS,
+    AUTHENTICATION_LIFETIME_MILLISECONDS,
     TokenIssuer,
-    Caller,
+    Authentication,
     TokenVerifier,
 } from "@destack/service/authentication";
 import type { PackageId } from "@destack/package";
 import { identifier, type Identifier } from "@destack/schema";
 import { implement, type ServiceContext } from "@destack/service/server";
 import { accountPackage } from "../../audit/index.ts";
-import type { Authentication } from "../../authentication/authentication.ts";
-import { AccountCaller } from "../../authentication/caller.ts";
+import type { Authenticator } from "../../authentication/authentication.ts";
+import { AccountAuthentication } from "../../authentication/caller.ts";
 import { accountService } from "../../service/service.ts";
 
 /** Typed implementations of the authentication procedures. */
@@ -87,7 +78,7 @@ class SpaceVerification {
     }
 
     /** Describe an account caller, or the subject it represents, in the space. */
-    async caller(caller: AccountCaller, subject: Subject = caller.authentication.subject) {
+    async caller(caller: AccountAuthentication, subject: Subject = caller.claims.subject) {
         // select the account that owns the space for the service token to belong to
         const credential = caller.credential;
         const accountId = await this.#account();
@@ -111,10 +102,10 @@ class SpaceVerification {
                     (entry.scope === accountId ||
                         (entry.type === object.account.name && entry.id === accountId)),
             )
-            .toSorted((left, right) => (subjectKey(left) < subjectKey(right) ? -1 : 1));
+            .toSorted((left, right) => (Subject.key(left) < Subject.key(right) ? -1 : 1));
 
         // carry a token's restrictions in the account or the space into the space
-        const permissions = caller.authentication.permissions
+        const permissions = caller.claims.permissions
             ?.filter((entry) => entry.scope === accountId || entry.scope === this.spaceId)
             .map((entry) => ({ ...entry, scope: this.spaceId }));
 
@@ -126,31 +117,30 @@ class SpaceVerification {
             audience: this.audience,
             verifiedAt,
             expiresAt: Math.min(
-                caller.authentication.expiresAt,
-                verifiedAt + CALLER_LIFETIME_MILLISECONDS,
+                caller.claims.expiresAt,
+                verifiedAt + AUTHENTICATION_LIFETIME_MILLISECONDS,
             ),
             credential: { kind: credential.kind, id: credential.id },
             subject,
-            ...(caller.authentication.assurance === undefined
+            ...(caller.claims.assurance === undefined
                 ? {}
-                : { assurance: caller.authentication.assurance }),
-            ...(caller.authentication.identifiers === undefined ||
-            subject !== caller.authentication.subject
+                : { assurance: caller.claims.assurance }),
+            ...(caller.claims.identifiers === undefined || subject !== caller.claims.subject
                 ? {}
-                : { identifiers: [...caller.authentication.identifiers] }),
+                : { identifiers: [...caller.claims.identifiers] }),
             subjects: [subject, ...sets],
             permissions,
         };
     }
 
     /** Describe a user acting as another user in the space. */
-    async impersonation(caller: AccountCaller, subject: Subject, authorizer: Authorizer) {
+    async impersonation(caller: AccountAuthentication, subject: Subject, authorizer: Authorizer) {
         // require a user acting as another user
-        const acting = caller.authentication.subject;
+        const acting = caller.claims.subject;
         if (
             !principal.user.is(acting) ||
             !principal.user.is(subject) ||
-            sameSubject(acting, subject)
+            Subject.same(acting, subject)
         ) {
             throw new ServiceError("FORBIDDEN", { message: "only a user acts as another user" });
         }
@@ -189,7 +179,7 @@ class SpaceVerification {
     /** Read the live account that owns the space. */
     async #account(): Promise<Account["id"]> {
         // locate the space's zone, then require its account to stand
-        const zone = await new DirectoryDatabase(this.transaction).locate(this.spaceId);
+        const zone = await new DirectoryStore(this.transaction).locate(this.spaceId);
         const selected =
             zone === undefined
                 ? undefined
@@ -214,28 +204,28 @@ class SpaceVerification {
 }
 
 /** Serve the authentication procedures. */
-export function authenticationRouter(authentication: Authentication, authorizer: Authorizer) {
+export function authenticationRouter(authenticator: Authenticator, authorizer: Authorizer) {
     return implementation.router({
         current: implementation.current.handler(async ({ context }) => {
             // read the profile and credential under the same authoritative transaction
-            return authentication.database.transaction(
+            return authenticator.database.transaction(
                 async (transaction) => {
                     // verify the caller and read its profile
-                    const caller = await AccountCaller.require(context.requireCaller()).verify(
-                        transaction,
-                    );
+                    const caller = await AccountAuthentication.require(
+                        context.requireAuthentication(),
+                    ).verify(transaction);
                     const { kind, id } = caller.credential;
                     const profile = await caller.readProfile(transaction);
 
-                    return { ...caller.authentication, credential: { kind, id }, profile };
+                    return { ...caller.claims, credential: { kind, id }, profile };
                 },
                 { signal: context.request.signal },
             );
         }),
         exchange: implementation.exchange.handler(async ({ input, context }) => {
             // recheck the caller
-            const verified = context.requireCaller();
-            const identity = await authentication.database.transaction(
+            const verified = context.requireAuthentication();
+            const identity = await authenticator.database.transaction(
                 async (transaction) => {
                     // describe callers in the space for the receiving service
                     const verification = new SpaceVerification(
@@ -245,7 +235,8 @@ export function authenticationRouter(authentication: Authentication, authorizer:
                     );
 
                     // describe the rechecked caller, or the user it acts as
-                    const caller = await AccountCaller.require(verified).verify(transaction);
+                    const caller =
+                        await AccountAuthentication.require(verified).verify(transaction);
 
                     return input.subject === undefined
                         ? verification.caller(caller)
@@ -257,15 +248,15 @@ export function authenticationRouter(authentication: Authentication, authorizer:
             // sign with Better Auth's keys
             const issuer = new TokenIssuer({
                 authority: { kind: "universe" },
-                issuer: authentication.options.baseURL as string,
+                issuer: authenticator.options.baseURL as string,
                 sign: async (payload) => {
-                    const result = await authentication.api.signJWT({ body: { payload } });
+                    const result = await authenticator.api.signJWT({ body: { payload } });
 
                     return result.token;
                 },
             });
 
-            return issuer.issue(new Caller(identity));
+            return issuer.issue(new Authentication(identity));
         }),
         verify: implementation.verify.handler(async ({ input, context }) => {
             // resolve signing keys before the transaction
@@ -273,12 +264,12 @@ export function authenticationRouter(authentication: Authentication, authorizer:
                 headers: { authorization: `Bearer ${input.token}` },
             });
             let verified: Awaited<ReturnType<TokenVerifier["authenticate"]>> | undefined;
-            let original: AccountCaller | undefined;
+            let original: AccountAuthentication | undefined;
             if (input.token.split(".").length === 3) {
-                const keys = await authentication.api.getJwks();
+                const keys = await authenticator.api.getJwks();
                 const verifier = new TokenVerifier({
                     authority: { kind: "universe" },
-                    issuer: authentication.options.baseURL as string,
+                    issuer: authenticator.options.baseURL as string,
                     audience: input.audience,
                     keys,
                 });
@@ -286,23 +277,25 @@ export function authenticationRouter(authentication: Authentication, authorizer:
             }
             // authenticate before the transaction
             else {
-                original = await AccountCaller.authenticate(request, authentication);
+                original = await AccountAuthentication.authenticate(request, authenticator);
             }
 
-            return authentication.database.transaction(
+            return authenticator.database.transaction(
                 async (transaction) => {
                     // recheck the receiving service's credential, and confine it to the account's spaces
-                    await AccountCaller.require(context.requireCaller()).verify(transaction);
-                    const zone = await new DirectoryDatabase(transaction).locate(input.spaceId);
+                    await AccountAuthentication.require(context.requireAuthentication()).verify(
+                        transaction,
+                    );
+                    const zone = await new DirectoryStore(transaction).locate(input.spaceId);
                     if (zone?.scope !== input.accountId) {
                         throw new ServiceError("FORBIDDEN", {
                             message: `${input.spaceId} is not a space of ${input.accountId}`,
                         });
                     }
-                    let caller: AccountCaller;
+                    let caller: AccountAuthentication;
                     // recheck the original credential
                     if (verified) {
-                        caller = await AccountCaller.read(verified.credential, transaction);
+                        caller = await AccountAuthentication.read(verified.credential, transaction);
                     }
                     // recheck the opaque credential
                     else {
@@ -316,8 +309,8 @@ export function authenticationRouter(authentication: Authentication, authorizer:
                         transaction,
                     );
                     const impersonated =
-                        verified?.authentication.delegates?.[0]?.authority === "full"
-                            ? verified.authentication.subject
+                        verified?.claims.delegates?.[0]?.authority === "full"
+                            ? verified.claims.subject
                             : undefined;
                     const described =
                         impersonated === undefined
@@ -325,12 +318,12 @@ export function authenticationRouter(authentication: Authentication, authorizer:
                             : await verification.impersonation(caller, impersonated, authorizer);
                     if (verified) {
                         // recheck service account actors
-                        if (!sameSubject(described.subject, verified.authentication.subject)) {
+                        if (!Subject.same(described.subject, verified.claims.subject)) {
                             throw new ServiceError("UNAUTHORIZED", {
                                 message: "the caller changed during verification",
                             });
                         }
-                        for (const { subject: actor } of verified.authentication.delegates ?? []) {
+                        for (const { subject: actor } of verified.claims.delegates ?? []) {
                             if (!serviceAccount.policy.is(actor)) {
                                 continue;
                             }
@@ -348,20 +341,17 @@ export function authenticationRouter(authentication: Authentication, authorizer:
 
                         return {
                             ...described,
-                            delegates: verified.authentication.delegates
-                                ? [...verified.authentication.delegates]
+                            delegates: verified.claims.delegates
+                                ? [...verified.claims.delegates]
                                 : undefined,
-                            deployments: verified.authentication.deployments
-                                ? [...verified.authentication.deployments]
+                            deployments: verified.claims.deployments
+                                ? [...verified.claims.deployments]
                                 : undefined,
-                            attributes: verified.authentication.attributes,
-                            expiresAt: Math.min(
-                                described.expiresAt,
-                                verified.authentication.expiresAt,
-                            ),
+                            attributes: verified.claims.attributes,
+                            expiresAt: Math.min(described.expiresAt, verified.claims.expiresAt),
                             permissions: SpaceVerification.intersect(
                                 described.permissions,
-                                verified.authentication.permissions,
+                                verified.claims.permissions,
                             ),
                         };
                     }

@@ -3,7 +3,7 @@ import { inArray, type Table } from "@destack/db";
 import { type Call, type Handler, SCOPE_READ } from "@destack/object";
 import { identifier } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
-import { DirectoryDatabase, type Zone } from "@destack/directory";
+import { DirectoryStore, type Zone } from "@destack/directory";
 import { account } from "../../object/account.ts";
 import { organisation } from "../../object/organisation.ts";
 import { ServiceAccountStanding } from "../../object/service.ts";
@@ -119,7 +119,7 @@ async function serviceAccountScopes(
 
 /** Locate the named spaces in the directory. */
 async function zones(call: Call, scopes: readonly string[]): Promise<Zone[]> {
-    const directory = new DirectoryDatabase(call.database);
+    const directory = new DirectoryStore(call.database);
     const located = await Promise.all(
         identifiers("space", scopes).map((scope) => directory.locate(scope)),
     );

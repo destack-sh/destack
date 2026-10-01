@@ -1,5 +1,5 @@
-import { Cell, Claim, ClaimOwner, ObjectClaims, Zone } from "@destack/directory";
-import { identifier, schema } from "@destack/schema";
+import { Cell, Claim, ObjectClaims, Zone } from "@destack/directory";
+import { identifier, Instant, schema } from "@destack/schema";
 import { defineProcedure } from "@destack/service";
 import { AccountHandle } from "../../object/handle.ts";
 
@@ -62,7 +62,12 @@ export const directory = {
     claim: procedure("activity")
         .route({ method: "POST", path: "/directory/claims" })
         .input(Request.extend({ claims: schema.array(Claim).min(1) }))
-        .output(schema.object({})),
+        .output(
+            schema.object({
+                /** The names other objects own. */
+                taken: schema.array(Claim),
+            }),
+        ),
     /** Confirm a request's reserved claims. */
     confirm: procedure("activity")
         .route({ method: "POST", path: "/directory/claims/confirm" })
@@ -77,7 +82,12 @@ export const directory = {
     replace: procedure("activity")
         .route({ method: "PUT", path: "/directory/claims" })
         .input(Request.extend({ owned: ObjectClaims }))
-        .output(schema.object({})),
+        .output(
+            schema.object({
+                /** The names other objects own. */
+                taken: schema.array(Claim),
+            }),
+        ),
     /** List the expired reservations of some indexes. */
     expired: procedure("access")
         .route({ method: "POST", path: "/directory/claims/expired" })
@@ -87,14 +97,14 @@ export const directory = {
                 /** The expired reservations in zones the caller's cells serve. */
                 claims: schema.array(Claim),
                 /** When the next reservation expires, in UTC epoch milliseconds. */
-                next: schema.number().int().optional(),
+                next: Instant.optional(),
             }),
         ),
     /** Find the object owning a confirmed name. */
     owner: procedure("access")
         .route({ method: "POST", path: "/directory/claims/owner" })
         .input(schema.object({ index: schema.string().min(1), key: schema.string() }))
-        .output(ClaimOwner.nullable()),
+        .output(Claim.pick({ objectId: true, scope: true }).nullable()),
 
     // accounts
     /** Find the account with a handle, absent once its deletion was requested. */

@@ -1,4 +1,5 @@
 import { eq } from "@destack/db";
+import { Subject } from "@destack/sync";
 import { RequestId } from "@destack/service/request";
 import { expect, test } from "@destack/test";
 import { session } from "../src/object/authentication.ts";
@@ -27,6 +28,8 @@ test("register devices with proven keys and revoke them with their sessions", as
     expect(laptop).toEqual({
         id: laptop.id,
         createdAt: laptop.createdAt,
+        createdBy: Subject.key(owner.subject),
+        updatedBy: Subject.key(owner.subject),
         updatedAt: laptop.createdAt,
         revision: 1,
         tags: {},
@@ -61,6 +64,8 @@ test("register devices with proven keys and revoke them with their sessions", as
     expect(registered).toEqual({
         id: registered.id,
         createdAt: registered.createdAt,
+        createdBy: Subject.key(owner.subject),
+        updatedBy: Subject.key(owner.subject),
         updatedAt: registered.createdAt,
         revision: 1,
         tags: {},

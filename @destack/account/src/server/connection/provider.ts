@@ -1,4 +1,4 @@
-import type { Subject } from "@destack/access";
+import type { Subject } from "@destack/sync";
 
 /** An external service accounts connect to. */
 export interface ConnectionProvider {

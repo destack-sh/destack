@@ -17,7 +17,8 @@
         "./declare": "./src/declare/index.ts",
         "./error": "./src/error/index.ts",
         "./object": "./src/object/index.ts",
-        "./directory": "./src/directory/index.ts"
+        "./directory": "./src/directory/index.ts",
+        "./dns": "./src/dns/index.ts"
     },
     "dependencies": {
         "@destack/package": "workspace:*",

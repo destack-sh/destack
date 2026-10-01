@@ -10,7 +10,7 @@ import {
     session,
     type Session,
 } from "../object/authentication.ts";
-import { readBearer } from "./bearer.ts";
+import { Bearer } from "@destack/service/authentication";
 import type { BetterAuthPlugin } from "better-auth";
 
 /** The maximum age of a ceremony used to change authentication credentials. */
@@ -87,7 +87,7 @@ function sessionGuard(database: DatabaseConnection) {
         }
         // resolve opaque native tokens directly before checking shared session policy
         const headers = context.request?.headers ?? context.headers;
-        const bearer = headers === undefined ? undefined : readBearer(headers);
+        const bearer = headers === undefined ? undefined : Bearer.read(headers);
         if (headers?.has("authorization") && bearer === undefined) {
             throw new APIError("UNAUTHORIZED", { message: "invalid session credential" });
         }

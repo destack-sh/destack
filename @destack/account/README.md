@@ -226,12 +226,12 @@ Hosts reach the directory through the account service, and the global tier reads
 
 ```ts
 import { DirectoryClient } from "@destack/account/client";
-import { DirectoryDatabase } from "@destack/directory";
+import { DirectoryStore } from "@destack/directory";
 
 const directory = new DirectoryClient(connect({ url: issuer, fetch: identity.fetch(fetch) }));
 await directory.place({ id: spaceId, scope: accountId, cell: hostId, epoch: 1 });
 const { cell, epoch, endpoint } = await directory.resolver().resolve(space, "notes.ada");
-const global = new DirectoryDatabase(database);
+const global = new DirectoryStore(database);
 ```
 
 | Procedure | Allowed for |
@@ -248,7 +248,7 @@ const global = new DirectoryDatabase(database);
 The server takes the platform sign-in, the connection providers and the audit history.
 
 ```ts
-import { AccountCaller, createAuthentication } from "@destack/account/authentication";
+import { AccountAuthentication, createAuthentication } from "@destack/account/authentication";
 import { Connections, implementService } from "@destack/account/server";
 
 const authentication = createAuthentication({
@@ -275,7 +275,7 @@ const server = Server.start({
     audience: accountPackageId,
     resources,
     health,
-    authenticate: (request) => AccountCaller.authenticate(request, authentication),
+    authenticate: (request) => AccountAuthentication.authenticate(request, authentication),
     authorizeHost,
     drainTimeout: 10000,
 });

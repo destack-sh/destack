@@ -117,12 +117,12 @@ async function registerKey(
     }
     requireUnrevoked(owner, "device");
 
-    // verify the proof with the written key and mark the device seen
+    // verify the proof with the written key and report the device's contact
     const publicKey = DevicePublicKey.parse(call.input.publicKey);
     const proof = DeviceProof.read(schema.string().parse(call.input.proof));
     await proof.verify(publicKey, owner.id, call.now);
     await proof.consume(call.database, call.now);
-    await call.invoke(base.device, "see", { id: owner.id });
+    await call.invoke(base.device, "report", { id: owner.id });
 
     // keep the proven key with its thumbprint
     return next(
