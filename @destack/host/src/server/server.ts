@@ -12,7 +12,7 @@ import {
     TokenIssuer,
     type TokenIssuerOptions,
 } from "@destack/service/authentication";
-import { Journal } from "@destack/service/database";
+import { Journal, type JournalKey } from "@destack/service/database";
 import { ServiceError } from "@destack/service/error";
 import { originalRequest } from "@destack/service/request";
 import {
@@ -27,8 +27,10 @@ import { hostJournal } from "../stack/index.ts";
 
 /** What the global tier serves hosts with. */
 export interface HostServiceOptions {
-    /** The global database holding hosts, their keys, the directory and the audit outbox its composer delivers. */
+    /** The global database of hosts, their keys, the directory and the audit outbox. */
     readonly database: DatabaseConnection;
+    /** Read the deployment's key that sensitive inputs are fingerprinted under. */
+    readonly journalKey: JournalKey;
     /** The universe's token issuer and its signing key. */
     readonly tokens: Pick<TokenIssuerOptions, "issuer" | "sign">;
 }
@@ -48,7 +50,7 @@ export function implementService(options: HostServiceOptions): ServiceImplementa
         policies: [account.policy, region],
         database: options.database,
         audit,
-        journal: new Journal(hostJournal),
+        journal: new Journal(hostJournal, options.journalKey),
     });
 
     return {

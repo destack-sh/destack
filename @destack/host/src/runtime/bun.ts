@@ -6,6 +6,7 @@ import { Egress, ServiceMount } from "@destack/service";
 import { ServiceKind } from "@destack/service/declare";
 import type { Caller } from "@destack/service/authentication";
 import { ServiceError } from "@destack/service/error";
+import { Journal, type JournalKey } from "@destack/service/database";
 import { WEBHOOK_PATH, WorkloadReady, type WorkloadStart } from "@destack/service/workload";
 import type { InstanceSpec, Runtime } from "./runtime.ts";
 
@@ -44,6 +45,8 @@ export class BunRuntime implements Runtime {
     ) => Promise<number>;
     /** Record a line a runner writes to standard error. */
     readonly #output: (spec: InstanceSpec, line: string) => void;
+    /** Read the host's journal key. */
+    readonly #journalKey: JournalKey;
     /** The running processes, by instance. */
     readonly #children = new Map<string, Child>();
     /** The running processes, by the secret they prove requests with. */
@@ -62,12 +65,15 @@ export class BunRuntime implements Runtime {
         ) => Promise<number>;
         /** Record a line a runner writes to standard error. */
         readonly output: (spec: InstanceSpec, line: string) => void;
+        /** Read the host's journal key, which each installation's own key derives from. */
+        readonly journalKey: JournalKey;
     }) {
-        // hold the directory, the egress and the output
+        // keep the directory, the egress, the output and the journal key
         this.#directory = options.directory;
         this.#egress = options.egress;
         this.#sampling = options.sampling;
         this.#output = options.output;
+        this.#journalKey = options.journalKey;
     }
 
     /** Start an instance's runner and resolve when it serves, leaving a serving one as it is. */
@@ -198,6 +204,9 @@ export class BunRuntime implements Runtime {
             egress: this.#egress,
             sampling: await this.#sampling(spec.scope, spec.installationId),
         };
+            journalKey: (
+                await Journal.derive(await this.#journalKey(), spec.installationId)
+            ).toHex(),
 
         // start the runner with its input, its errors going to the host's output
         const process = Bun.spawn([globalThis.process.execPath, join(directory, runner)], {

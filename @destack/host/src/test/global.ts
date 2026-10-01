@@ -30,6 +30,7 @@ import { MemoryKeychain } from "../keychain/index.ts";
 import { implementService } from "../server/index.ts";
 import { HostKey } from "../object/index.ts";
 import { hostTables } from "../stack/index.ts";
+import { testJournalKey } from "@destack/service/test";
 
 /** The global tier's origin, the issuer of enrolled hosts. */
 export const ISSUER = "https://global.destack.test";
@@ -47,7 +48,7 @@ export const HOSTS_URL = "https://hosts.test";
 /** How long a fixture session lasts, a day in milliseconds. */
 const SESSION_MILLISECONDS = 24 * 60 * 60 * 1000;
 
-/** The identities the global tier holds. */
+/** The identities the global tier keeps. */
 export const ids = {
     owner: identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000a"),
     stranger: identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000b"),
@@ -81,7 +82,7 @@ export class GlobalFixture implements AsyncDisposable {
         accounts: Server,
         keys: JSONWebKeySet,
     ) {
-        // hold the database, both services and the token authority's keys
+        // keep the database, both services and the token authority's keys
         this.storage = storage;
         this.database = storage.database;
         this.hosts = hosts;
@@ -94,7 +95,7 @@ export class GlobalFixture implements AsyncDisposable {
         definition: Database = globalDatabase,
         inherited: readonly ObjectType[] = [],
     ): Promise<GlobalFixture> {
-        // hold the global database
+        // keep the global database
         const storage = await TestDatabase.create(TEST_DIALECTS.at(-1)!, definition, {
             isMigrated: true,
         });
@@ -188,7 +189,11 @@ export class GlobalFixture implements AsyncDisposable {
         };
 
         // serve hosts to users and to hosts by their tokens
-        const hosts = GlobalFixture.serve(implementService({ database, tokens }), database, keys);
+        const hosts = GlobalFixture.serve(
+            implementService({ journalKey: testJournalKey, database, tokens }),
+            database,
+            keys,
+        );
 
         // serve the account service to hosts by their tokens
         const authentication = createAuthentication({
@@ -222,6 +227,7 @@ export class GlobalFixture implements AsyncDisposable {
             },
         });
         const accountImplementation = accountServer.implementService(authentication, {
+            journalKey: testJournalKey,
             connections,
             history: GlobalFixture.history,
             inherited,
@@ -291,7 +297,7 @@ export class GlobalFixture implements AsyncDisposable {
         });
     }
 
-    /** Relate a subject to an object by a relation or a role, as a grant held in a scope. */
+    /** Relate a subject to an object by a relation or a role, as a grant in a scope. */
     static async relate(
         database: DatabaseConnection,
         scope: string,

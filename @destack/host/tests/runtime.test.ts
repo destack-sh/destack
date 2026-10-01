@@ -11,6 +11,7 @@ import { Caller } from "@destack/service/authentication";
 import { Scope } from "@destack/sync";
 import { BunRuntime } from "../src/runtime/bun.ts";
 import type { InstanceSpec } from "../src/runtime/index.ts";
+import { testJournalKey } from "@destack/service/test";
 
 /** The package the runner's build belongs to. */
 const PACKAGE = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000e7");
@@ -48,6 +49,7 @@ test("spec an instance as a Bun process: bind services at the egress with its se
     const directory = await mkdtemp(join(tmpdir(), "destack-runtime-"));
     onTestFinished(() => rm(directory, { recursive: true }));
     const runtime = new BunRuntime({
+        journalKey: testJournalKey,
         directory,
         egress: "http://127.0.0.1:7470/.destack/egress",
         sampling: async () => 1,
