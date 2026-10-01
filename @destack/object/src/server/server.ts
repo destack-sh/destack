@@ -1414,7 +1414,7 @@ export class ObjectServer<
     ): Promise<Authorization> {
         const bind = (): AccessContext => ({
             subjects: [subject],
-            now: Date.now(),
+            now: this.clock(),
             attributes: {},
         });
         const access = await this.authorizer.resolve(Snapshot.live(database), scope, bind());
