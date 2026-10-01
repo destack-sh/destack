@@ -97,7 +97,7 @@ function run(task: ContentTask, server: ViteDevServer) {
         return;
     }
 
-    task.process = spawn("bun", ["run", "-A", task.script], {
+    task.process = spawn("bun", ["run", task.script], {
         cwd: task.workingDirectory,
         stdio: "inherit",
     });
