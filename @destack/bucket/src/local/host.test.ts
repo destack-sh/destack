@@ -34,14 +34,14 @@ test("serve a host's buckets over S3 by name, presigned with credentials its key
     });
     const reference = {
         scope: identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001"),
-        resourceId: identifier("resource").parse("resource-01996ab0-0000-7000-8000-000000000002"),
+        bucketId: identifier("bucket").parse("bucket-01996ab0-0000-7000-8000-000000000002"),
     };
-    const other = identifier("resource").parse("resource-01996ab0-0000-7000-8000-000000000003");
+    const other = identifier("bucket").parse("bucket-01996ab0-0000-7000-8000-000000000003");
     expect([await buckets.named(other), await buckets.named("files")]).toEqual([
         undefined,
         undefined,
     ]);
-    await (await buckets.open(reference)).put("notes/a.txt", "first");
+    await (await buckets.open(reference, "space-test")).put("notes/a.txt", "first");
 
     // read the file through a URL presigned at the located endpoint
     const { location } = await buckets.locate(reference);

@@ -1,6 +1,6 @@
 import { defineSchema, schema } from "@destack/schema";
-import { declaringModule, type ModuleMetadata } from "@destack/package";
-import { defineResourceKind, Resource } from "@destack/resource";
+import { ModuleMetadata } from "@destack/package";
+import { defineResourceKind, ResourceDeclaration } from "@destack/resource";
 import type { Bucket } from "../bucket/index.ts";
 
 /** A file namespace bound to managed storage. */
@@ -14,9 +14,9 @@ export type BucketDescription = schema.Infer<typeof BucketKind.description>;
 export function defineBucket(
     declaration: Omit<BucketDescription, "kind">,
     module?: ModuleMetadata,
-): Resource<Bucket, BucketDescription> {
-    const owner = declaringModule(module, "defineBucket").package;
+): ResourceDeclaration<Bucket, BucketDescription> {
+    const owner = ModuleMetadata.require(module, "defineBucket").package;
     const description = BucketKind.description.parse({ ...declaration, kind: "bucket" });
 
-    return new Resource<Bucket, BucketDescription>(owner, description);
+    return new ResourceDeclaration<Bucket, BucketDescription>(owner, description);
 }

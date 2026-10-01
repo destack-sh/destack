@@ -10,12 +10,18 @@ import { LocalBucket } from "./index.ts";
 test("retain local files across reopen and failed streamed uploads", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-bucket-reopen-"));
     try {
+        // refuse creating a bucket without the scope it belongs to
+        await expect(LocalBucket.open(directory)).rejects.toMatchObject({
+            code: "NO_SUCH_BUCKET",
+            message: `no bucket at ${directory}`,
+        });
+
         {
-            await using bucket = await LocalBucket.open(directory);
+            await using bucket = await LocalBucket.open(directory, "space-test");
             await bucket.put("document", "original", {
                 httpMetadata: { contentType: "text/plain" },
             });
-            const failure = new Error("Upload interrupted");
+            const failure = new Error("upload interrupted");
             const body = new ReadableStream<Uint8Array>({
                 start(controller) {
                     controller.enqueue(new TextEncoder().encode("partial"));
@@ -30,11 +36,11 @@ test("retain local files across reopen and failed streamed uploads", async () =>
                 message: "object checksum does not match its contents",
             });
         }
-        await using restored = await LocalBucket.open(directory);
+        await using restored = await LocalBucket.open(directory, "space-test");
         const document = await restored.get("document");
         expect(await new Response(document!.body).text()).toBe("original");
         expect(document!.httpMetadata.contentType).toBe("text/plain");
-        expect(await readdir(join(directory, "files"))).toEqual([document!.version]);
+        expect(await readdir(join(directory, "files"))).toEqual([digestOf("original")]);
     } finally {
         await rm(directory, { recursive: true });
     }
@@ -53,7 +59,7 @@ test("recover the catalogue and reclaim an upload after terminating its host", a
             `
             import { LocalBucket } from ${JSON.stringify(module)};
             setInterval(() => {}, 1000);
-            const bucket = await LocalBucket.open(${JSON.stringify(directory)});
+            const bucket = await LocalBucket.open(${JSON.stringify(directory)}, "space-test");
             await bucket.put("document", "committed");
             let sent = false;
             await bucket.put("document", new ReadableStream({
@@ -87,10 +93,10 @@ test("recover the catalogue and reclaim an upload after terminating its host", a
         await child.stdout.cancel();
 
         // reopen the bucket once the operating system releases the lock, removing uncommitted contents
-        await using restored = await LocalBucket.open(directory);
+        await using restored = await LocalBucket.open(directory, "space-test");
         const document = await restored.get("document");
         expect(await new Response(document!.body).text()).toBe("committed");
-        expect(await readdir(join(directory, "files"))).toEqual([document!.version]);
+        expect(await readdir(join(directory, "files"))).toEqual([digestOf("committed")]);
     } finally {
         if (!isTerminated) {
             child.kill("SIGKILL");
@@ -104,7 +110,7 @@ test("close storage immediately after consuming or cancelling a body", async () 
     const directory = await mkdtemp(join(tmpdir(), "destack-bucket-close-"));
     try {
         for (const operation of ["consume", "cancel"] as const) {
-            await using bucket = await LocalBucket.open(directory);
+            await using bucket = await LocalBucket.open(directory, "space-test");
             await bucket.put("document", new Uint8Array(128 * 1024));
             const file = await bucket.get("document");
             if (operation === "consume") {
@@ -124,18 +130,19 @@ test("recover multiple batches of abandoned files without deleting files or uplo
         let uploadId: string;
         let selected: UploadedPart;
         {
-            await using bucket = await LocalBucket.open(directory);
+            await using bucket = await LocalBucket.open(directory, "space-test");
             await bucket.put("document", "retained");
             const upload = await bucket.createMultipartUpload("multipart");
             uploadId = upload.uploadId;
             selected = await upload.uploadPart(1, "retained part");
         }
 
-        // leave more unreferenced files than one recovery query can take
+        // leave more unreferenced blobs than one recovery query can take, and an interrupted write
         for (let index = 0; index < 501; index++) {
-            await writeFile(join(directory, "files", crypto.randomUUID()), "abandoned");
+            await writeFile(join(directory, "files", digestOf(`abandoned ${index}`)), "abandoned");
         }
-        await using bucket = await LocalBucket.open(directory);
+        await writeFile(join(directory, "files", `.${crypto.randomUUID()}`), "interrupted");
+        await using bucket = await LocalBucket.open(directory, "space-test");
         expect(await (await bucket.get("document"))!.text()).toBe("retained");
         expect((await readdir(join(directory, "files"))).length).toBe(2);
         await bucket.resumeMultipartUpload("multipart", uploadId).complete([selected]);
@@ -148,9 +155,9 @@ test("recover multiple batches of abandoned files without deleting files or uplo
 test("report reclamation failures separately from committed file replacements", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-bucket-collect-"));
     try {
-        await using bucket = await LocalBucket.open(directory);
-        const original = await bucket.put("document", "original");
-        const path = join(directory, "files", original.version);
+        await using bucket = await LocalBucket.open(directory, "space-test");
+        await bucket.put("document", "original");
+        const path = join(directory, "files", digestOf("original"));
         const retained = `${path}.retained`;
 
         // prevent unlinking the old version without changing the published replacement
@@ -172,8 +179,7 @@ test("report reclamation failures separately from committed file replacements", 
         }
 
         await bucket.collect();
-        const current = await bucket.head("document");
-        expect(await readdir(join(directory, "files"))).toEqual([current!.version]);
+        expect(await readdir(join(directory, "files"))).toEqual([digestOf("replacement")]);
         await Promise.all([bucket[Symbol.asyncDispose](), bucket[Symbol.asyncDispose]()]);
     } finally {
         await rm(directory, { recursive: true });
@@ -183,7 +189,7 @@ test("report reclamation failures separately from committed file replacements", 
 test("copy files by sharing their contents until the last reference goes", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-bucket-copy-"));
     try {
-        await using bucket = await LocalBucket.open(directory);
+        await using bucket = await LocalBucket.open(directory, "space-test");
         const source = await bucket.put("source", "shared", {
             httpMetadata: { contentType: "text/plain" },
             customMetadata: { author: "alice" },
@@ -223,10 +229,10 @@ test("copy files by sharing their contents until the last reference goes", async
             null,
         );
 
-        // keep the one content file while any copy references it
+        // keep the one blob, named by its digest, while any copy references it
         await bucket.delete(["source", "copy"]);
         await bucket.collect();
-        expect(await readdir(join(directory, "files"))).toEqual([source.version]);
+        expect(await readdir(join(directory, "files"))).toEqual([digestOf("shared")]);
         expect(await (await bucket.get("replaced"))!.text()).toBe("shared");
         await bucket.delete("replaced");
         await bucket.collect();
@@ -239,7 +245,7 @@ test("copy files by sharing their contents until the last reference goes", async
 test("record storage classes and refuse storage classes R2 does not offer", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-bucket-class-"));
     try {
-        await using bucket = await LocalBucket.open(directory);
+        await using bucket = await LocalBucket.open(directory, "space-test");
         const cold = await bucket.put("cold", "rarely read", { storageClass: "InfrequentAccess" });
         expect({ put: cold.storageClass, head: (await bucket.head("cold"))!.storageClass }).toEqual(
             {
@@ -265,7 +271,7 @@ test("record storage classes and refuse storage classes R2 does not offer", asyn
 test("encrypt files under customer keys, reading ranges with the key and refusing any other", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-bucket-customer-"));
     try {
-        await using bucket = await LocalBucket.open(directory);
+        await using bucket = await LocalBucket.open(directory, "space-test");
         const ssecKey = "a1".repeat(32);
         const md5 = createHash("md5").update(Uint8Array.fromHex(ssecKey)).digest("base64");
         const text = "customer encrypted contents, longer than one AES block";
@@ -326,3 +332,8 @@ test("encrypt files under customer keys, reading ranges with the key and refusin
         await rm(directory, { recursive: true });
     }
 });
+
+/** Name a blob by the SHA-256 digest of its text. */
+function digestOf(text: string): string {
+    return createHash("sha256").update(text).digest("hex");
+}

@@ -27,7 +27,7 @@ const cases = [
 test.each(cases)("$name through local and R2 buckets", async ({ run }) => {
     const directory = await mkdtemp(join(tmpdir(), "destack-bucket-"));
     try {
-        await using local = await LocalBucket.open(join(directory, "local"));
+        await using local = await LocalBucket.open(join(directory, "local"), "space-test");
         await run(local);
         await runR2(run.name);
     } finally {

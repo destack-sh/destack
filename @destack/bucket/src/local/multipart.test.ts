@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { expect, test } from "@destack/test";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -14,7 +15,7 @@ test("resume multipart uploads after restart and retain files when completion fa
     let selected: UploadedPart;
     try {
         {
-            await using bucket = await LocalBucket.open(directory);
+            await using bucket = await LocalBucket.open(directory, "space-test");
             await bucket.put("document", "original");
             const upload = await bucket.createMultipartUpload("document", {
                 httpMetadata: {
@@ -27,7 +28,7 @@ test("resume multipart uploads after restart and retain files when completion fa
             selected = await upload.uploadPart(1, "replacement");
         }
         {
-            await using bucket = await LocalBucket.open(directory);
+            await using bucket = await LocalBucket.open(directory, "space-test");
             const upload = bucket.resumeMultipartUpload("document", uploadId);
             await expect(upload.complete([{ ...selected, etag: "changed" }])).rejects.toMatchObject(
                 {
@@ -49,15 +50,15 @@ test("resume multipart uploads after restart and retain files when completion fa
             });
         }
         {
-            await using bucket = await LocalBucket.open(directory);
+            await using bucket = await LocalBucket.open(directory, "space-test");
             const file = await bucket.head("document");
-            expect(await readdir(join(directory, "files"))).toEqual([file!.version]);
+            expect(await readdir(join(directory, "files"))).toEqual([digestOf("replacement")]);
             const aborted = await bucket.createMultipartUpload("document");
             await aborted.uploadPart(1, "discard");
             await aborted.abort();
             expect(await bucket.head("document")).toEqual(file);
             await bucket.collect();
-            expect(await readdir(join(directory, "files"))).toEqual([file!.version]);
+            expect(await readdir(join(directory, "files"))).toEqual([digestOf("replacement")]);
         }
     } finally {
         await rm(directory, { recursive: true });
@@ -68,7 +69,7 @@ test("reject undersized completion and an upload part that finishes after abort"
     const directory = await mkdtemp(join(tmpdir(), "destack-multipart-abort-"));
     try {
         {
-            await using bucket = await LocalBucket.open(directory);
+            await using bucket = await LocalBucket.open(directory, "space-test");
             const original = await bucket.put("document", "original");
             const upload = await bucket.createMultipartUpload("document");
             const uploaded = [
@@ -105,9 +106,8 @@ test("reject undersized completion and an upload part that finishes after abort"
             });
             expect(await bucket.head("document")).toEqual(original);
         }
-        await using bucket = await LocalBucket.open(directory);
-        const file = await bucket.head("document");
-        expect(await readdir(join(directory, "files"))).toEqual([file!.version]);
+        await using bucket = await LocalBucket.open(directory, "space-test");
+        expect(await readdir(join(directory, "files"))).toEqual([digestOf("original")]);
     } finally {
         await rm(directory, { recursive: true });
     }
@@ -117,7 +117,7 @@ test("reclaim expired multipart contents when reopening a bucket", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-multipart-expire-"));
     try {
         {
-            await using bucket = await LocalBucket.open(directory);
+            await using bucket = await LocalBucket.open(directory, "space-test");
             await bucket.put("document", "retained");
             const upload = await bucket.createMultipartUpload("document");
             await upload.uploadPart(1, "expired");
@@ -131,10 +131,10 @@ test("reclaim expired multipart contents when reopening a bucket", async () => {
             await database.close();
         }
 
-        await using bucket = await LocalBucket.open(directory);
+        await using bucket = await LocalBucket.open(directory, "space-test");
         const file = await bucket.get("document");
         expect(await file!.text()).toBe("retained");
-        expect(await readdir(join(directory, "files"))).toEqual([file!.version]);
+        expect(await readdir(join(directory, "files"))).toEqual([digestOf("retained")]);
     } finally {
         await rm(directory, { recursive: true });
     }
@@ -143,8 +143,8 @@ test("reclaim expired multipart contents when reopening a bucket", async () => {
 test("read a completed multipart file across part boundaries and collect its parts once deleted", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-multipart-segments-"));
     try {
-        await using bucket = await LocalBucket.open(directory);
-        const retained = await bucket.put("retained", "kept");
+        await using bucket = await LocalBucket.open(directory, "space-test");
+        await bucket.put("retained", "kept");
         const upload = await bucket.createMultipartUpload("document");
 
         // publish a full-size first part and a short final part without copying their bytes
@@ -171,7 +171,7 @@ test("read a completed multipart file across part boundaries and collect its par
         expect(file.size).toBe(contents.length);
         await bucket.delete("document");
         await bucket.collect();
-        expect(await readdir(join(directory, "files"))).toEqual([retained.version]);
+        expect(await readdir(join(directory, "files"))).toEqual([digestOf("kept")]);
     } finally {
         await rm(directory, { recursive: true });
     }
@@ -180,7 +180,7 @@ test("read a completed multipart file across part boundaries and collect its par
 test("list uploads and parts, and copy parts from files", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-multipart-list-"));
     try {
-        await using bucket = await LocalBucket.open(directory);
+        await using bucket = await LocalBucket.open(directory, "space-test");
         await bucket.put("source", "0123456789");
         const first = await bucket.createMultipartUpload("media/a", {
             storageClass: "InfrequentAccess",
@@ -235,3 +235,8 @@ test("list uploads and parts, and copy parts from files", async () => {
         await rm(directory, { recursive: true });
     }
 });
+
+/** Name a blob by the SHA-256 digest of its text. */
+function digestOf(text: string): string {
+    return createHash("sha256").update(text).digest("hex");
+}

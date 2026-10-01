@@ -13,6 +13,7 @@
         "./r2": "./src/r2/index.ts",
         "./error": "./src/error/index.ts",
         "./object": "./src/object/index.ts",
+        "./server": "./src/server/index.ts",
         "./stack": "./src/stack/index.ts",
         "./s3": "./src/s3/index.ts",
         "./provider": "./src/provider/index.ts"
@@ -37,9 +38,12 @@
     },
     "devDependencies": {
         "@destack/test": "workspace:*",
+        "@destack/sync": "workspace:*",
         "esbuild": "~0.28.1",
         "miniflare": "4.20260730.0",
         "@aws-sdk/client-s3": "3.1141.0",
-        "@aws-sdk/s3-request-presigner": "3.1141.0"
+        "@aws-sdk/s3-request-presigner": "3.1141.0",
+        "@destack/audit": "workspace:*",
+        "@destack/directory": "workspace:*"
     }
 }

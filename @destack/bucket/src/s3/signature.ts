@@ -1,3 +1,4 @@
+import { Digest } from "@destack/schema";
 import { copyRequest } from "@destack/service/request";
 import type { S3Credentials } from "./credentials.ts";
 import { S3Error } from "./error.ts";
@@ -442,13 +443,6 @@ export async function signString(signingKey: CryptoKey, value: string): Promise<
     return new Uint8Array(signature).toHex();
 }
 
-/** Hash text with SHA-256 and return the hexadecimal digest. */
-export async function hashText(value: string): Promise<string> {
-    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-
-    return new Uint8Array(digest).toHex();
-}
-
 /** Sign the canonical form of a request. */
 async function signRequest(
     signed: SignedRequest,
@@ -470,7 +464,7 @@ async function signRequest(
     ].join("\n");
 
     // sign the string naming the algorithm, time, scope and canonical request hash
-    const stringToSign = [ALGORITHM, date, scope, await hashText(canonical)].join("\n");
+    const stringToSign = [ALGORITHM, date, scope, await Digest.of(canonical)].join("\n");
 
     return await signString(signingKey, stringToSign);
 }

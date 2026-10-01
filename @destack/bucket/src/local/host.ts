@@ -68,16 +68,16 @@ export class LocalBucketHost implements BucketHost, AsyncDisposable {
     }
 
     /** Build the directory of a bucket. */
-    path(bucket: Pick<BucketReference, "resourceId">): string {
-        return join(this.directory, bucket.resourceId);
+    path(bucket: Pick<BucketReference, "bucketId">): string {
+        return join(this.directory, bucket.bucketId);
     }
 
-    /** Open a bucket, creating its directory, or reuse the one opened before. */
-    open(bucket: Pick<BucketReference, "resourceId">): Promise<LocalBucket> {
-        let opened = this.#opened.get(bucket.resourceId);
+    /** Open a bucket, or create it in the scope it belongs to, reusing the one opened before. */
+    open(bucket: Pick<BucketReference, "bucketId">, scope?: string): Promise<LocalBucket> {
+        let opened = this.#opened.get(bucket.bucketId);
         if (opened === undefined) {
-            opened = LocalBucket.open(this.path(bucket));
-            this.#opened.set(bucket.resourceId, opened);
+            opened = LocalBucket.open(this.path(bucket), scope);
+            this.#opened.set(bucket.bucketId, opened);
         }
 
         return opened;
@@ -85,12 +85,12 @@ export class LocalBucketHost implements BucketHost, AsyncDisposable {
 
     /** Open the bucket an S3 request addresses by its resource, absent when the host has none. */
     async named(name: string): Promise<LocalBucket | undefined> {
-        // refuse a name no resource takes, and a bucket without a directory
-        const resourceId = identifier("resource").safeParse(name);
-        if (!resourceId.success) {
+        // refuse a name no bucket takes, and a bucket without a directory
+        const bucketId = identifier("bucket").safeParse(name);
+        if (!bucketId.success) {
             return undefined;
         }
-        const isPresent = await stat(this.path({ resourceId: resourceId.data })).then(
+        const isPresent = await stat(this.path({ bucketId: bucketId.data })).then(
             (found) => found.isDirectory(),
             (error: NodeJS.ErrnoException) => {
                 if (error.code === "ENOENT") {
@@ -100,34 +100,34 @@ export class LocalBucketHost implements BucketHost, AsyncDisposable {
             },
         );
 
-        return isPresent ? this.open({ resourceId: resourceId.data }) : undefined;
+        return isPresent ? this.open({ bucketId: bucketId.data }) : undefined;
     }
 
     /** Locate a bucket at the host's S3 endpoint, with the credentials presigning its transfers. */
     async locate(bucket: BucketReference): Promise<BucketEndpoint> {
         return {
-            location: { endpoint: this.endpoint, bucket: bucket.resourceId, region: this.region },
+            location: { endpoint: this.endpoint, bucket: bucket.bucketId, region: this.region },
             credentials: this.credentials,
         };
     }
 
     /** Close a bucket and remove its directory with its files. */
-    async destroy(bucket: Pick<BucketReference, "resourceId">): Promise<void> {
+    async destroy(bucket: Pick<BucketReference, "bucketId">): Promise<void> {
         await this.close(bucket);
         await rm(this.path(bucket), { recursive: true, force: true });
     }
 
     /** Close a bucket opened before. */
-    async close(bucket: Pick<BucketReference, "resourceId">): Promise<void> {
-        const opened = this.#opened.get(bucket.resourceId);
-        this.#opened.delete(bucket.resourceId);
+    async close(bucket: Pick<BucketReference, "bucketId">): Promise<void> {
+        const opened = this.#opened.get(bucket.bucketId);
+        this.#opened.delete(bucket.bucketId);
         await (await opened)?.[Symbol.asyncDispose]();
     }
 
     /** Close every opened bucket. */
     async [Symbol.asyncDispose](): Promise<void> {
-        for (const resourceId of this.#opened.keys()) {
-            await this.close({ resourceId: identifier("resource").parse(resourceId) });
+        for (const bucketId of this.#opened.keys()) {
+            await this.close({ bucketId: identifier("bucket").parse(bucketId) });
         }
     }
 }

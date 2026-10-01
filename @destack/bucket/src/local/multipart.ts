@@ -1,4 +1,3 @@
-import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { and, asc, eq, gt, gte, lt, or } from "@destack/db";
 import type {
@@ -23,7 +22,7 @@ import type {
 } from "../s3/bucket.ts";
 import { StorageError } from "../error/index.ts";
 import { part, upload } from "./stack/index.ts";
-import { ContentFile } from "./content.ts";
+import { Content } from "./content.ts";
 import type { LocalStorage } from "./storage.ts";
 import { LocalFile } from "./file.ts";
 import { CustomerKey } from "./encryption.ts";
@@ -154,20 +153,16 @@ export class LocalMultipartUpload implements S3MultipartUpload {
 
         // retain storage throughout the streamed upload
         await this.#storage.beginUpload();
-        let content: ContentFile | undefined;
+        let content: Content | undefined;
         let isPublished = false;
         try {
             // write immutable contents before publishing the part
-            content = await ContentFile.write(
-                join(this.#storage.directory, "files"),
-                body,
-                {},
-                customerKey,
-            );
+            content = await Content.write(this.#storage.blobs, body, {}, customerKey);
             const entry = {
                 uploadId: this.uploadId,
                 partNumber,
-                content: content.version,
+                blob: content.blob,
+                nonce: content.nonce,
                 size: content.size,
                 etag: content.version,
                 md5: content.etag,
@@ -196,7 +191,7 @@ export class LocalMultipartUpload implements S3MultipartUpload {
                 // retire replaced contents after committing their replacement
                 isPublished = true;
                 if (previous) {
-                    this.#storage.retired.add(previous.content);
+                    this.#storage.retired.add(previous.blob);
                 }
             });
 
@@ -209,7 +204,7 @@ export class LocalMultipartUpload implements S3MultipartUpload {
         } finally {
             // release the active writer and retain abandoned files for collection
             if (content && !isPublished) {
-                this.#storage.retired.add(content.version);
+                this.#storage.retired.add(content.blob);
             }
             this.#storage.uploads--;
         }
@@ -329,10 +324,10 @@ export class LocalMultipartUpload implements S3MultipartUpload {
                 hash.update(Uint8Array.fromHex(entry.md5));
             }
 
-            // describe the file its parts' contents become, named after its first content file
+            // describe the file its parts' blobs become, versioned as its first part's write
             const entry = {
                 key: this.key,
-                version: ordered[0]!.content,
+                version: ordered[0]!.etag,
                 size: ordered.reduce((size, entry) => size + entry.size, 0),
                 etag: `${hash.digest("hex")}-${ordered.length}`,
                 checksums: {},
@@ -356,12 +351,12 @@ export class LocalMultipartUpload implements S3MultipartUpload {
                 return detached;
             });
 
-            // retire the replaced contents and every part, which collection keeps while a segment references it
-            for (const name of detached) {
-                this.#storage.retired.add(name);
+            // retire the replaced blobs and every part's, which collection keeps while a segment references them
+            for (const digest of detached) {
+                this.#storage.retired.add(digest);
             }
             for (const entry of entries) {
-                this.#storage.retired.add(entry.content);
+                this.#storage.retired.add(entry.blob);
             }
 
             return LocalFile.describe(entry);
@@ -396,7 +391,7 @@ export class LocalMultipartUpload implements S3MultipartUpload {
                 const deleted = await transaction
                     .delete(part)
                     .where(eq(part.uploadId, this.uploadId))
-                    .returning({ content: part.content });
+                    .returning({ blob: part.blob });
                 await transaction
                     .update(upload)
                     .set({ state: "aborted" })
@@ -405,7 +400,7 @@ export class LocalMultipartUpload implements S3MultipartUpload {
                 return deleted;
             });
             for (const entry of removed) {
-                this.#storage.retired.add(entry.content);
+                this.#storage.retired.add(entry.blob);
             }
         });
     }

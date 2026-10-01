@@ -1,4 +1,5 @@
-import { Crc32, Crc32c, type Digest, HashDigest } from "./digest.ts";
+import { Digest } from "@destack/schema";
+import { Crc32, Crc32c, CryptoHasher, type Hasher } from "./hasher.ts";
 import { S3Error } from "./error.ts";
 import { EMPTY_HASH, type S3Authorization, signString, UNSIGNED_PAYLOAD } from "./signature.ts";
 
@@ -20,7 +21,7 @@ const MAX_LINE_BYTES = 1024;
 const CHECKSUMS = {
     "x-amz-checksum-crc32": { create: () => new Crc32(), length: 4 },
     "x-amz-checksum-crc32c": { create: () => new Crc32c(), length: 4 },
-    "x-amz-checksum-sha256": { create: () => new HashDigest("sha256"), length: 32 },
+    "x-amz-checksum-sha256": { create: () => new CryptoHasher("sha256"), length: 32 },
     "x-amz-checksum-sha1": undefined,
     "x-amz-checksum-crc64nvme": undefined,
 } as const;
@@ -30,7 +31,7 @@ interface Check {
     /** The header or trailer naming the expected value. */
     readonly name: string;
     /** The running digest. */
-    readonly digest: Digest;
+    readonly digest: Hasher;
     /** The expected base64 value, or undefined until the trailer supplies it. */
     expected?: string;
 }
@@ -45,7 +46,7 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
     /** The expected hexadecimal SHA-256 of a signed plain body. */
     readonly #payloadHash?: string;
     /** The SHA-256 of a signed plain body. */
-    readonly #payloadDigest?: HashDigest;
+    readonly #payloadDigest?: CryptoHasher;
     /** The declared checksums. */
     readonly #checks: Check[];
     /** The declared decoded length, when the request declares one. */
@@ -65,7 +66,7 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
     /** The signature the current chunk declares. */
     #chunkSignature = "";
     /** The SHA-256 of the current chunk's data. */
-    #chunkDigest = new HashDigest("sha256");
+    #chunkDigest = new CryptoHasher("sha256");
     /** The signature of the previous chunk, seeded by the request signature. */
     #previousSignature: string;
     /** The trailing headers by lowercase name. */
@@ -82,9 +83,9 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
         if (payloadHash === SIGNED_CHUNKS || payloadHash === UNSIGNED_CHUNKS_WITH_TRAILER) {
             this.#chunks = payloadHash === SIGNED_CHUNKS ? "signed" : "unsigned";
             this.#length = readLength(headers.get("x-amz-decoded-content-length"));
-        } else if (/^[0-9a-f]{64}$/.test(payloadHash)) {
+        } else if (Digest.safeParse(payloadHash).success) {
             this.#payloadHash = payloadHash;
-            this.#payloadDigest = new HashDigest("sha256");
+            this.#payloadDigest = new CryptoHasher("sha256");
         } else if (payloadHash === SIGNED_CHUNKS_WITH_TRAILER) {
             throw new S3Error("NotImplemented", `the payload hash ${payloadHash} is not supported`);
         } else if (payloadHash !== UNSIGNED_PAYLOAD) {
@@ -284,7 +285,7 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
         }
         this.#remaining = Number.parseInt(match[1]!, 16);
         this.#chunkSignature = match[2] ?? "";
-        this.#chunkDigest = new HashDigest("sha256");
+        this.#chunkDigest = new CryptoHasher("sha256");
 
         // read data, or end with the empty chunk
         if (this.#remaining > 0) {
@@ -330,7 +331,7 @@ function readChecks(headers: Headers): Check[] {
     if (md5 !== null) {
         checks.push({
             name: "content-md5",
-            digest: new HashDigest("md5"),
+            digest: new CryptoHasher("md5"),
             expected: readBase64(md5, 16, "content-md5"),
         });
     }
@@ -350,7 +351,7 @@ function readChecks(headers: Headers): Check[] {
 }
 
 /** Select the digest of a checksum header, refusing algorithms this server does not compute. */
-function readChecksum(name: string): { create: () => Digest; length: number } {
+function readChecksum(name: string): { create: () => Hasher; length: number } {
     if (!(name in CHECKSUMS)) {
         throw new S3Error("InvalidRequest", `the checksum ${name} is not an S3 checksum`);
     }

@@ -1,4 +1,4 @@
-import { check, index, integer, json, primaryKey, sql, defineTable, text } from "@destack/db";
+import { blob, check, index, integer, json, primaryKey, sql, defineTable, text } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { schema } from "@destack/schema";
 import { CHECKSUM_ALGORITHMS, STORAGE_CLASSES } from "../../bucket/index.ts";
@@ -14,36 +14,40 @@ const HttpMetadata = schema.object({
 });
 
 /** The currently published file at each key. */
-export const file = defineTable("file", {
-    /** The caller's UTF-8 key. */
-    key: text("key").primaryKey().notNull(),
-    /** The unique upload identifier, the name of its first content file unless copied. */
-    version: text("version").notNull(),
-    /** The entity tag. */
-    etag: text("etag").notNull(),
-    /** The stored content checksums. */
-    checksums: json(
-        "checksums",
-        schema.partialRecord(schema.enum(CHECKSUM_ALGORITHMS), schema.string()),
-    ).notNull(),
-    /** The stored byte count. */
-    size: integer("size").notNull(),
-    /** The publication time. */
-    uploaded: integer("uploaded").notNull(),
-    /** HTTP headers, with expiration encoded as an ISO date. */
-    httpMetadata: json("http_metadata", HttpMetadata).notNull(),
-    /** Application metadata. */
-    customMetadata: json(
-        "custom_metadata",
-        schema.record(schema.string(), schema.string()),
-    ).notNull(),
-    /** The storage class. */
-    storageClass: text("storage_class", { enum: STORAGE_CLASSES }).notNull(),
-    /** The base64 MD5 digest of the customer key encrypting the content, absent for plain content. */
-    ssecKeyMd5: text("ssec_key_md5"),
-});
+export const file = defineTable(
+    "file",
+    {
+        /** The caller's UTF-8 key. */
+        key: text("key").primaryKey().notNull(),
+        /** The random identifier of the write that made the version. */
+        version: text("version").notNull(),
+        /** The entity tag. */
+        etag: text("etag").notNull(),
+        /** The stored content checksums. */
+        checksums: json(
+            "checksums",
+            schema.partialRecord(schema.enum(CHECKSUM_ALGORITHMS), schema.string()),
+        ).notNull(),
+        /** The stored byte count. */
+        size: integer("size").notNull(),
+        /** The publication time. */
+        uploaded: integer("uploaded").notNull(),
+        /** HTTP headers, with expiration encoded as an ISO date. */
+        httpMetadata: json("http_metadata", HttpMetadata).notNull(),
+        /** Application metadata. */
+        customMetadata: json(
+            "custom_metadata",
+            schema.record(schema.string(), schema.string()),
+        ).notNull(),
+        /** The storage class. */
+        storageClass: text("storage_class", { enum: STORAGE_CLASSES }).notNull(),
+        /** The base64 MD5 digest of the customer key encrypting the content, absent for plain content. */
+        ssecKeyMd5: text("ssec_key_md5"),
+    },
+    { log: {} },
+);
 
-/** The ordered immutable content files of each file version; copies share their source's. */
+/** The ordered blobs of each file version; copies share their source's. */
 export const segment = defineTable(
     "segment",
     {
@@ -51,15 +55,18 @@ export const segment = defineTable(
         version: text("version").notNull(),
         /** The position within the file, from 0. */
         position: integer("position").notNull(),
-        /** The immutable content filename. */
-        content: text("content").notNull(),
+        /** The stored content. */
+        blob: blob("blob").notNull(),
+        /** The customer key's counter nonce as hexadecimal, absent for plain content. */
+        nonce: text("nonce"),
         /** The content length. */
         size: integer("size").notNull(),
     },
     {
+        log: {},
         constraints: (table) => [
             primaryKey({ columns: [table.version, table.position] }),
-            index("segment_content").on(table.content),
+            index("segment_blob").on(table.blob),
         ],
     },
 );
@@ -90,6 +97,7 @@ export const upload = defineTable(
         ).notNull(),
     },
     {
+        log: {},
         constraints: (table) => [
             index("upload_expiration").on(table.expires),
             check("upload_state", sql`${table.state} IN ('active', 'completed', 'aborted')`),
@@ -97,7 +105,7 @@ export const upload = defineTable(
     },
 );
 
-/** The current immutable file for each numbered upload part. */
+/** The current blob of each numbered upload part. */
 export const part = defineTable(
     "part",
     {
@@ -105,8 +113,10 @@ export const part = defineTable(
         uploadId: text("upload_id").notNull(),
         /** The part number. */
         partNumber: integer("part_number").notNull(),
-        /** The immutable content filename. */
-        content: text("content").notNull(),
+        /** The stored content. */
+        blob: blob("blob").notNull(),
+        /** The customer key's counter nonce as hexadecimal, absent for plain content. */
+        nonce: text("nonce"),
         /** The content length. */
         size: integer("size").notNull(),
         /** The part entity tag. */
@@ -117,9 +127,10 @@ export const part = defineTable(
         uploaded: integer("uploaded").notNull(),
     },
     {
+        log: {},
         constraints: (table) => [
             primaryKey({ columns: [table.uploadId, table.partNumber] }),
-            index("part_content").on(table.content),
+            index("part_blob").on(table.blob),
         ],
     },
 );

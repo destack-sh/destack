@@ -1,39 +1,81 @@
-import { none } from "@destack/access";
-import { foreignKey, unique } from "@destack/db";
-import { defineObject, field, method } from "@destack/object";
-import { resource, space } from "@destack/space/object";
+import { relation } from "@destack/access";
+import { schema } from "@destack/schema";
+import { defineObject, method } from "@destack/object";
+import { SpaceResource } from "@destack/space/declare";
+import { Resource, space } from "@destack/space/object";
+import { BucketKind } from "../declare/bucket.ts";
+import { Lease } from "@destack/resource";
+import { FileInput, FileMetadata, FilePage } from "./file.ts";
 
-/** A space's bucket, the facet of a bucket resource with files. */
+/** A space's bucket of files: a resource of the bucket kind. */
 export const bucket = defineObject({
     name: "bucket",
-    identity: "resource",
     plural: "buckets",
     scope: space,
-    fields: {
-        /** The fixed resource kind, which the underlying resource must have. */
-        kind: field.enum(["bucket"]).default("bucket"),
-    },
-    constraints: (entry) => [
-        unique("bucket_scope_id").on(entry.scope, entry.id),
-        foreignKey({
-            columns: [entry.scope, entry.id, entry.kind],
-            foreignColumns: [resource.table.scope, resource.table.id, resource.table.kind],
-        }).onDelete("restrict"),
-    ],
+    controlled: true,
+    declarable: { schema: SpaceResource },
+    fields: Resource.fields(BucketKind),
+    indexes: Resource.indexes,
+    constraints: Resource.constraints("bucket"),
+    relations: Resource.relations,
     permissions: {
-        get: none(),
-        list: none(),
+        ...Resource.permissions,
 
-        files: none(),
-        download: none(),
-        upload: none(),
-        remove: none(),
+        files: relation("user"),
+        download: relation("user"),
+        upload: relation("user"),
+        remove: relation("user"),
     },
-    administration: ["get", "list"],
+    administration: ["read"],
     methods: {
-        get: method.get("get"),
-        list: method.list("list"),
-        create: method.create(null, { isSystem: true }),
-        delete: method.delete(null, { isSystem: true }),
+        ...Resource.methods,
+
+        // read files, and presign their transfers
+        files: method({
+            permission: "files",
+            mutates: false,
+            input: FileInput.files,
+            output: FilePage,
+        }),
+        file: method({
+            permission: "files",
+            mutates: false,
+            input: FileInput.file,
+            output: FileMetadata.nullable(),
+        }),
+        open: method({
+            permission: "download",
+            mutates: false,
+            input: FileInput.open,
+            output: Lease,
+        }),
+        uploadPart: method({
+            permission: "upload",
+            mutates: false,
+            input: FileInput.uploadPart,
+            output: Lease,
+        }),
+
+        // change files, directly or in parts
+        remove: method({
+            permission: "remove",
+            input: FileInput.remove,
+            output: schema.object({}),
+        }),
+        createUpload: method({
+            permission: "upload",
+            input: FileInput.createUpload,
+            output: schema.object({ uploadId: schema.string(), key: schema.string() }),
+        }),
+        completeUpload: method({
+            permission: "upload",
+            input: FileInput.completeUpload,
+            output: FileMetadata,
+        }),
+        abortUpload: method({
+            permission: "upload",
+            input: FileInput.abortUpload,
+            output: schema.object({}),
+        }),
     },
 });

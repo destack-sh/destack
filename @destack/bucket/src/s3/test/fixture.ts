@@ -49,8 +49,8 @@ export class S3Fixture implements AsyncDisposable {
     static async open(): Promise<S3Fixture> {
         const directory = await mkdtemp(join(tmpdir(), "destack-s3-"));
         const buckets = new Map([
-            ["files", await LocalBucket.open(join(directory, "files"))],
-            ["archive", await LocalBucket.open(join(directory, "archive"))],
+            ["files", await LocalBucket.open(join(directory, "files"), "space-test")],
+            ["archive", await LocalBucket.open(join(directory, "archive"), "space-test")],
         ]);
 
         return new S3Fixture(directory, buckets);

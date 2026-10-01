@@ -1,7 +1,7 @@
 import type { BucketHttpMetadata, BucketRange, StorageClass } from "../bucket/index.ts";
 import { HTTP_METADATA_FIELDS, UploadedPart } from "../bucket/index.ts";
 import { EntityTag, type S3Condition } from "./condition.ts";
-import { HashDigest } from "./digest.ts";
+import { CryptoHasher } from "./hasher.ts";
 import { S3Error } from "./error.ts";
 import { Payload } from "./payload.ts";
 import { PRESIGN_PARAMETERS, type S3Authorization } from "./signature.ts";
@@ -34,7 +34,7 @@ const CUSTOMER_KEY_HEADERS = {
 
 /** Write the SSE-C headers that send a base64 customer key with a request. */
 export function customerKeyHeaders(key: string): Record<string, string> {
-    const digest = new HashDigest("md5");
+    const digest = new CryptoHasher("md5");
     digest.update(readCustomerKey(key));
 
     return {
@@ -315,7 +315,7 @@ export class S3Request {
 
         // require a 256-bit key and its matching digest
         const bytes = readCustomerKey(key ?? "");
-        const digest = new HashDigest("md5");
+        const digest = new CryptoHasher("md5");
         digest.update(bytes);
         if (digest.digest().toBase64() !== md5) {
             throw new S3Error("InvalidArgument", "the customer key MD5 does not match the key");

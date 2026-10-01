@@ -1,6 +1,6 @@
-import { mkdir, opendir, unlink } from "node:fs/promises";
+import { mkdir, opendir, stat, unlink } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
-import { and, asc, eq, gt, gte, inArray, lt, lte } from "@destack/db";
+import { and, asc, eq, gt, gte, inArray, lt, lte, type Table } from "@destack/db";
 import type { BucketFile, BucketListOptions } from "../bucket/index.ts";
 import { BucketKey } from "../bucket/key.ts";
 import { BucketListing, MAX_BATCH_FILES } from "../bucket/list.ts";
@@ -12,47 +12,72 @@ import { connect } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
 import { syncDirectory } from "./directory.ts";
 import { FileLock } from "@destack/fs";
+import { Digest } from "@destack/schema";
+import { LocalBlobStore } from "@destack/db/blob/local";
 
-/** Bound content reference queries and their SQL parameter counts. */
+/** Bound blob reference queries and their SQL parameter counts. */
 const REFERENCE_BATCH_SIZE = 500;
-/** The name of a content file, the random UUID of the upload that wrote it. */
-const CONTENT_NAME = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/;
 
 /** A catalogue transaction. */
 export type CatalogueTransaction = Parameters<Parameters<SqliteDatabase["transaction"]>[0]>[0];
 
-/** A bucket's catalogue, content references, and exclusive host lock. */
+/** A bucket's catalogue, the blobs its files keep, and the exclusive host lock. */
 export class LocalStorage implements AsyncDisposable {
     /** The bucket directory. */
     readonly directory: string;
-    /** The private catalogue connection. */
-    readonly database: SqliteDatabase;
+    /** The private catalogue connection, reopened when the catalogue gains tables. */
+    #database: SqliteDatabase;
+    /** The blobs of the bucket's files and parts. */
+    readonly blobs: LocalBlobStore;
     /** The operating-system lock this host has taken. */
     readonly #lock: FileLock;
-    /** Operations that select or replace content files. */
+    /** Operations that select or replace blobs. */
     #pending: Promise<void> = Promise.resolve();
-    /** Open download streams by content filename. */
+    /** Open download streams by blob. */
     readonly #readers = new Map<string, number>();
-    /** Content files detached from their keys. */
+    /** Blobs detached from their keys. */
     readonly retired = new Set<string>();
-    /** The number of uploads writing contents they have not yet published. */
+    /** The number of uploads writing blobs they have not yet published. */
     uploads = 0;
     /** Whether the bucket has released its database and lock. */
     #isClosed = false;
     /** Share an in-progress close between concurrent callers. */
     #closing?: Promise<void>;
 
-    /** Retain an opened catalogue. */
-    private constructor(directory: string, database: SqliteDatabase, lock: FileLock) {
+    /** Retain an opened catalogue and its blobs. */
+    private constructor(
+        directory: string,
+        database: SqliteDatabase,
+        blobs: LocalBlobStore,
+        lock: FileLock,
+    ) {
+        // keep the opened catalogue, blobs and lock
         this.directory = directory;
-        this.database = database;
+        this.#database = database;
+        this.blobs = blobs;
         this.#lock = lock;
     }
 
     /** Open or create a bucket without contacting a remote service. */
-    static async open(directory: string): Promise<LocalStorage> {
-        // create the content directory before publishing any catalogue entries
+    static async open(directory: string, scope?: string): Promise<LocalStorage> {
+        // refuse creating a bucket without the scope it belongs to
         directory = resolve(directory);
+        const catalogue = join(directory, "bucket.db");
+        const isNew = await stat(catalogue).then(
+            () => false,
+            (error: NodeJS.ErrnoException) => {
+                if (error.code !== "ENOENT") {
+                    throw error;
+                }
+
+                return true;
+            },
+        );
+        if (isNew && scope === undefined) {
+            throw new StorageError("NO_SUCH_BUCKET", `no bucket at ${directory}`);
+        }
+
+        // create the blob directory before publishing any catalogue entries
         const contents = join(directory, "files");
         const created = await mkdir(contents, { recursive: true, mode: 0o700 });
 
@@ -73,14 +98,18 @@ export class LocalStorage implements AsyncDisposable {
 
         // prepare the private catalogue through the shared database lifecycle
         try {
-            database = await connect(join(directory, "bucket.db"), catalogueDatabase);
+            database = await connect(catalogue, catalogueDatabase);
+            if (isNew) {
+                await database.log.create(scope);
+            }
             await database.migrate(catalogueDatabase.tables);
 
             // persist the initial catalogue and lock entries before accepting writes
             await syncDirectory(directory);
 
             // reclaim files left by interrupted uploads or a terminated host
-            const bucket = new LocalStorage(directory, database, lock);
+            const blobs = await LocalBlobStore.open(contents);
+            const bucket = new LocalStorage(directory, database, blobs, lock);
             await bucket.#recover();
             await bucket.collect();
 
@@ -104,48 +133,71 @@ export class LocalStorage implements AsyncDisposable {
         }
     }
 
-    /** Recover unreferenced files with bounded directory and catalogue reads. */
+    /** Recover unreferenced blobs and interrupted writes with bounded directory and catalogue reads. */
     async #recover(): Promise<void> {
-        // collect content filenames in bounded batches
-        const directory = await opendir(join(this.directory, "files"));
-        let contents: string[] = [];
+        // collect blob digests in bounded batches
+        const directory = await opendir(this.blobs.directory);
+        let digests: string[] = [];
         for await (const entry of directory) {
-            if (!entry.isFile() || !CONTENT_NAME.test(entry.name)) {
+            if (!entry.isFile()) {
                 continue;
             }
-            contents.push(entry.name);
-            if (contents.length === REFERENCE_BATCH_SIZE) {
-                await this.#unlinkUnreferenced(contents);
-                contents = [];
+            // delete a write a terminated host left behind
+            if (entry.name.startsWith(".")) {
+                await unlink(join(this.blobs.directory, entry.name));
+            }
+            // check a blob's references
+            else if (Digest.safeParse(entry.name).success) {
+                digests.push(entry.name);
+                if (digests.length === REFERENCE_BATCH_SIZE) {
+                    await this.#deleteUnreferenced(digests);
+                    digests = [];
+                }
             }
         }
-        if (contents.length) {
-            await this.#unlinkUnreferenced(contents);
+        if (digests.length) {
+            await this.#deleteUnreferenced(digests);
         }
     }
 
-    /** Delete the content files no file or part references, at most one batch of them. */
-    async #unlinkUnreferenced(contents: string[]): Promise<void> {
-        const referenced = await this.#referenced(contents);
-        for (const content of contents) {
-            if (!referenced.has(content)) {
-                await unlink(join(this.directory, "files", content));
+    /** Delete the blobs no segment or part references, at most one batch of them. */
+    async #deleteUnreferenced(digests: string[]): Promise<void> {
+        const referenced = await this.#referenced(digests);
+        for (const digest of digests) {
+            if (!referenced.has(digest)) {
+                await this.blobs.delete(digest);
             }
         }
     }
 
-    /** Select the contents a file segment or a part references, at most one batch of them. */
-    async #referenced(contents: string[]): Promise<Set<string>> {
+    /** Select the blobs a segment or a part references, at most one batch of them. */
+    async #referenced(digests: string[]): Promise<Set<string>> {
         const segments = await this.database
-            .select({ content: segment.content })
+            .select({ blob: segment.blob })
             .from(segment)
-            .where(inArray(segment.content, contents));
+            .where(inArray(segment.blob, digests));
         const parts = await this.database
-            .select({ content: part.content })
+            .select({ blob: part.blob })
             .from(part)
-            .where(inArray(part.content, contents));
+            .where(inArray(part.blob, digests));
 
-        return new Set([...segments, ...parts].map((entry) => entry.content));
+        return new Set([...segments, ...parts].map((entry) => entry.blob));
+    }
+
+    /** The private catalogue connection. */
+    get database(): SqliteDatabase {
+        return this.#database;
+    }
+
+    /** Migrate the catalogue to its tables and some tables beside them, then reopen it over all of them. */
+    async migrate(beside: readonly Table[]): Promise<void> {
+        await this.exclusive(async () => {
+            // migrate, then reopen the connection declaring every table
+            const tables = [...catalogueDatabase.tables, ...beside];
+            await this.#database.migrate(tables);
+            await this.#database.close();
+            this.#database = await connect(join(this.directory, "bucket.db"), tables);
+        });
     }
 
     /** Close the private database connection. */
@@ -179,7 +231,7 @@ export class LocalStorage implements AsyncDisposable {
         });
     }
 
-    /** Reclaim detached contents after their last reader closes. */
+    /** Reclaim detached blobs after their last reader closes. */
     async collect(): Promise<void> {
         // expire one upload at a time, each bounded by the 10000-part limit
         while (true) {
@@ -196,13 +248,13 @@ export class LocalStorage implements AsyncDisposable {
                 const entries = await transaction
                     .delete(part)
                     .where(eq(part.uploadId, expired.id))
-                    .returning({ content: part.content });
+                    .returning({ blob: part.blob });
                 await transaction.delete(upload).where(eq(upload.id, expired.id));
 
                 return entries;
             });
             for (const entry of removed) {
-                this.retired.add(entry.content);
+                this.retired.add(entry.blob);
             }
             await this.#collectFiles();
         }
@@ -210,40 +262,40 @@ export class LocalStorage implements AsyncDisposable {
         await this.#collectFiles();
     }
 
-    /** Delete retired files no reader has open and no file segment or part still references. */
+    /** Delete retired blobs no reader has open and no segment or part still references. */
     async #collectFiles(): Promise<void> {
-        // keep every file an active reader retains
-        const released = [...this.retired].filter((content) => !this.#readers.has(content));
+        // keep every blob an active reader retains
+        const released = [...this.retired].filter((digest) => !this.#readers.has(digest));
         for (let start = 0; start < released.length; start += REFERENCE_BATCH_SIZE) {
-            // keep files a copy or a completed upload still shares, which retire again with their last reference
+            // keep blobs a copy, another file or a completed upload still shares, which retire again with their last reference
             const batch = released.slice(start, start + REFERENCE_BATCH_SIZE);
             const referenced = await this.#referenced(batch);
-            for (const content of batch) {
-                if (!referenced.has(content)) {
-                    await unlink(join(this.directory, "files", content));
+            for (const digest of batch) {
+                if (!referenced.has(digest)) {
+                    await this.blobs.delete(digest);
                 }
-                this.retired.delete(content);
+                this.retired.delete(digest);
             }
         }
     }
 
-    /** Retain a content file until its reader finishes. */
-    retain(content: string): void {
-        const count = this.#readers.get(content);
-        this.#readers.set(content, count === undefined ? 1 : count + 1);
+    /** Retain a blob until its reader finishes. */
+    retain(digest: string): void {
+        const count = this.#readers.get(digest);
+        this.#readers.set(digest, count === undefined ? 1 : count + 1);
     }
 
-    /** Release a retained content file. */
-    release(content: string): void {
-        const remaining = this.#readers.get(content)! - 1;
+    /** Release a retained blob. */
+    release(digest: string): void {
+        const remaining = this.#readers.get(digest)! - 1;
         if (remaining === 0) {
-            this.#readers.delete(content);
+            this.#readers.delete(digest);
         } else {
-            this.#readers.set(content, remaining);
+            this.#readers.set(digest, remaining);
         }
     }
 
-    /** Reclaim earlier writes and prevent closure while an upload writes its contents. */
+    /** Reclaim earlier writes and prevent closure while an upload writes its blobs. */
     async beginUpload(): Promise<void> {
         await this.exclusive(async () => {
             await this.collect();
@@ -256,16 +308,16 @@ export class LocalStorage implements AsyncDisposable {
         return await this.database.select().from(file).where(eq(file.key, key)).get();
     }
 
-    /** Read the content segments of a file version in order while the caller has the catalogue lock. */
+    /** Read the segments of a file version in order while the caller has the catalogue lock. */
     async segments(version: string): Promise<Segment[]> {
         return await this.database
-            .select({ content: segment.content, size: segment.size })
+            .select({ blob: segment.blob, nonce: segment.nonce, size: segment.size })
             .from(segment)
             .where(eq(segment.version, version))
             .orderBy(asc(segment.position));
     }
 
-    /** Publish a file version and its segments, returning the contents the replaced version detaches. */
+    /** Publish a file version and its segments, returning the blobs the replaced version detaches. */
     async publish(
         entry: LocalFile,
         segments: Segment[],
@@ -287,13 +339,14 @@ export class LocalStorage implements AsyncDisposable {
                 : await transaction
                       .delete(segment)
                       .where(eq(segment.version, previous.version))
-                      .returning({ content: segment.content });
+                      .returning({ blob: segment.blob });
 
         // write the new version's segments in bounded batches
         const rows = segments.map((selected, position) => ({
             version: entry.version,
             position,
-            content: selected.content,
+            blob: selected.blob,
+            nonce: selected.nonce,
             size: selected.size,
         }));
         for (let start = 0; start < rows.length; start += REFERENCE_BATCH_SIZE) {
@@ -302,7 +355,7 @@ export class LocalStorage implements AsyncDisposable {
                 .values(rows.slice(start, start + REFERENCE_BATCH_SIZE));
         }
 
-        return detached.map((selected) => selected.content);
+        return detached.map((selected) => selected.blob);
     }
 
     /** Select a page of files while the caller has the catalogue lock. */
@@ -424,7 +477,7 @@ export class LocalStorage implements AsyncDisposable {
         }
     }
 
-    /** Serialize catalogue changes and opening their selected content files. */
+    /** Serialize catalogue changes and opening their selected blobs. */
     async exclusive<Value>(operation: () => Promise<Value>): Promise<Value> {
         // wait for the previous operation and keep the lock while this one runs
         const previous = this.#pending;

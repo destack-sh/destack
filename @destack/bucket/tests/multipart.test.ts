@@ -9,7 +9,7 @@ import { LocalBucket } from "../src/local/index.ts";
 test("replace multipart parts and publish identical local and R2 files", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-multipart-"));
     try {
-        await using local = await LocalBucket.open(join(directory, "local"));
+        await using local = await LocalBucket.open(join(directory, "local"), "space-test");
         await exerciseMultipart(local);
         await runR2("exerciseMultipart");
     } finally {

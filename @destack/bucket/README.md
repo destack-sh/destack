@@ -91,7 +91,9 @@ Roles in a space grant the `bucket` object's permissions on each bucket.
 |---|---|
 | `get`, `list` | The bucket records |
 | `files` | File keys and metadata |
-| `download`, `upload`, `remove` | File bodies and their removal |
+| `download` | `open` in `read` mode: a presigned lease on a file's body |
+| `upload` | `open` in `write` mode, and multipart uploads |
+| `remove` | Removing files |
 
 ## S3
 

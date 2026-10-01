@@ -4,8 +4,8 @@ import { crc32 } from "node:zlib";
 /** The byte table of the reversed CRC-32C (Castagnoli) polynomial, which node:zlib does not offer. */
 const CRC32C_TABLE = createTable(0x82f63b78);
 
-/** An incremental digest of a byte stream, spent by its one digest call. */
-export interface Digest {
+/** An incremental hash of a byte stream, spent by its one digest call. */
+export interface Hasher {
     /** Add bytes to the digest. */
     update(bytes: Uint8Array): void;
     /** Finish the digest and return its bytes. */
@@ -13,7 +13,7 @@ export interface Digest {
 }
 
 /** An incremental MD5 or SHA-256 digest from node:crypto. */
-export class HashDigest implements Digest {
+export class CryptoHasher implements Hasher {
     /** The running hash. */
     readonly #hash: Hash;
 
@@ -34,7 +34,7 @@ export class HashDigest implements Digest {
 }
 
 /** An incremental CRC-32 (ISO-HDLC) from node:zlib, digested big-endian as S3 encodes it. */
-export class Crc32 implements Digest {
+export class Crc32 implements Hasher {
     /** The running checksum. */
     #crc = 0;
 
@@ -53,7 +53,7 @@ export class Crc32 implements Digest {
 }
 
 /** An incremental CRC-32C (Castagnoli), digested big-endian as S3 encodes it. */
-export class Crc32c implements Digest {
+export class Crc32c implements Hasher {
     /** The running remainder. */
     #crc = -1;
 

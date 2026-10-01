@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import type { DatabaseHandle } from "@destack/db/blob";
 import { inArray } from "@destack/db";
 import type {
     BucketBody,
@@ -22,19 +22,19 @@ import type {
 } from "../s3/bucket.ts";
 import { StorageError } from "../error/index.ts";
 import { file, segment } from "./stack/index.ts";
-import { ContentFile } from "./content.ts";
+import { Content } from "./content.ts";
 import { ContentReader } from "./reader.ts";
 import { LocalMultipartUpload } from "./multipart.ts";
 import { LocalStorage } from "./storage.ts";
 import { LocalFile } from "./file.ts";
 import { CustomerKey } from "./encryption.ts";
 
-/** Persistent file storage backed by a SQLite catalogue and immutable content files. */
+/** Persistent file storage: a SQLite catalogue of files over a store of their blobs. */
 export class LocalBucket implements S3Bucket, AsyncDisposable {
     /** The host's open storage. */
     readonly #storage: LocalStorage;
 
-    /** Retain the opened catalogue and content directory. */
+    /** Retain the opened catalogue and blobs. */
     private constructor(storage: LocalStorage) {
         this.#storage = storage;
     }
@@ -44,9 +44,23 @@ export class LocalBucket implements S3Bucket, AsyncDisposable {
         return this.#storage.directory;
     }
 
-    /** Open or create a bucket without contacting a remote service. */
-    static async open(directory: string): Promise<LocalBucket> {
-        return new LocalBucket(await LocalStorage.open(directory));
+    /** Open a bucket, or create it in the scope it belongs to, such as its space or host. */
+    static async open(directory: string, scope?: string): Promise<LocalBucket> {
+        return new LocalBucket(await LocalStorage.open(directory, scope));
+    }
+
+    /** Share the catalogue and the bucket's blobs for copying the bucket between hosts. */
+    database(): DatabaseHandle {
+        const storage = this.#storage;
+
+        return {
+            get database() {
+                return storage.database;
+            },
+            blobs: storage.blobs,
+            migrate: (beside) => storage.migrate(beside),
+            close: async () => {},
+        };
     }
 
     /** Read the current metadata. */
@@ -92,16 +106,16 @@ export class LocalBucket implements S3Bucket, AsyncDisposable {
                 : undefined;
             const segments = await this.#storage.segments(entry.version);
             for (const selected of segments) {
-                this.#storage.retain(selected.content);
+                this.#storage.retain(selected.blob);
             }
             const reader = new ContentReader(
-                join(this.#storage.directory, "files"),
+                this.#storage.blobs,
                 segments,
                 range?.offset ?? 0,
                 range?.length ?? entry.size,
                 () => {
                     for (const selected of segments) {
-                        this.#storage.release(selected.content);
+                        this.#storage.release(selected.blob);
                     }
                 },
                 customerKey,
@@ -213,17 +227,12 @@ export class LocalBucket implements S3Bucket, AsyncDisposable {
         const storageClass = StorageClass.read(options.storageClass ?? "Standard");
         await this.#storage.beginUpload();
         let isPublished = false;
-        let content: ContentFile | undefined;
+        let content: Content | undefined;
         try {
-            content = await ContentFile.write(
-                join(this.#storage.directory, "files"),
-                body,
-                options,
-                customerKey,
-            );
+            content = await Content.write(this.#storage.blobs, body, options, customerKey);
 
-            // describe the file its immutable content becomes
-            const segments = [{ content: content.version, size: content.size }];
+            // describe the file its blob becomes
+            const segments = [{ blob: content.blob, nonce: content.nonce, size: content.size }];
             const entry = {
                 key,
                 version: identity?.version ?? content.version,
@@ -256,19 +265,19 @@ export class LocalBucket implements S3Bucket, AsyncDisposable {
                     this.#storage.publish(entry, segments, transaction),
                 );
 
-                // retire the previous contents after the database commit
+                // retire the previous blobs after the database commit
                 isPublished = true;
-                for (const name of detached) {
-                    this.#storage.retired.add(name);
+                for (const digest of detached) {
+                    this.#storage.retired.add(digest);
                 }
 
                 return LocalFile.describe(entry);
             });
         } finally {
-            // retain failed upload files for collection and crash recovery
+            // retire the blob of a failed upload for collection
             this.#storage.uploads--;
             if (content && !isPublished) {
-                this.#storage.retired.add(content.version);
+                this.#storage.retired.add(content.blob);
             }
         }
     }
@@ -352,12 +361,12 @@ export class LocalBucket implements S3Bucket, AsyncDisposable {
                             deleted.map((entry) => entry.version),
                         ),
                     )
-                    .returning({ content: segment.content });
+                    .returning({ blob: segment.blob });
             });
 
-            // preserve detached contents until their open readers finish
+            // preserve detached blobs until their open readers finish
             for (const entry of detached) {
-                this.#storage.retired.add(entry.content);
+                this.#storage.retired.add(entry.blob);
             }
         });
     }
@@ -387,7 +396,7 @@ export class LocalBucket implements S3Bucket, AsyncDisposable {
         return LocalMultipartUpload.list(this.#storage, options);
     }
 
-    /** Close the catalogue, rejecting while readers or writers have content files open. */
+    /** Close the catalogue, rejecting while readers or writers have blobs open. */
     async [Symbol.asyncDispose](): Promise<void> {
         await this.#storage[Symbol.asyncDispose]();
     }

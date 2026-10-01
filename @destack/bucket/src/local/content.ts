@@ -1,16 +1,34 @@
-import { open, unlink } from "node:fs/promises";
-import { join } from "node:path";
-import { createHash } from "node:crypto";
+import { createHash, type Hash } from "node:crypto";
+import type { BlobStore } from "@destack/db/blob";
 import type { BucketBody, BucketPutOptions, StringChecksums } from "../bucket/index.ts";
 import { CHECKSUM_ALGORITHMS } from "../bucket/index.ts";
 import { StorageError } from "../error/index.ts";
-import { syncDirectory } from "./directory.ts";
-import type { CustomerKey } from "./encryption.ts";
+import { type ContentCipher, CustomerKey } from "./encryption.ts";
 
-/** A complete immutable content file. */
-export class ContentFile {
-    /** The unique filename. */
+/** The hashes of a body on its way into the blob store. */
+interface ContentHashes {
+    /** The MD5 hash of the stored bytes. */
+    readonly md5: Hash;
+    /** The hash of the given bytes under the supplied checksum's algorithm, absent when the MD5 hash serves. */
+    readonly checksum: Hash | undefined;
+    /** The supplied checksum, as lowercase hexadecimal. */
+    readonly expected: string | undefined;
+    /** The given byte count so far. */
+    size: number;
+    /** The MD5 entity tag, once the body ended. */
+    etag?: string;
+    /** The checked checksum, once the body ended. */
+    actual?: string;
+}
+
+/** The immutable content one write kept as a blob. */
+export class Content {
+    /** The write's random identifier. */
     readonly version: string;
+    /** The digest of the stored bytes in the blob store. */
+    readonly blob: string;
+    /** The customer key's counter nonce as hexadecimal, absent for plain content. */
+    readonly nonce: string | null;
     /** The length in bytes. */
     readonly size: number;
     /** The MD5 entity tag. */
@@ -18,22 +36,31 @@ export class ContentFile {
     /** The stored content checksums. */
     readonly checksums: StringChecksums;
 
-    /** Retain the written content's identifier, length, and digest. */
-    constructor(version: string, size: number, etag: string, checksums: StringChecksums) {
+    /** Retain the written content's identifier, blob, length, and digest. */
+    constructor(
+        version: string,
+        blob: string,
+        nonce: string | null,
+        size: number,
+        etag: string,
+        checksums: StringChecksums,
+    ) {
         // retain the content description
         this.version = version;
+        this.blob = blob;
+        this.nonce = nonce;
         this.size = size;
         this.etag = etag;
         this.checksums = checksums;
     }
 
-    /** Write contents to disk before the catalogue refers to them. */
+    /** Write contents into the blob store before the catalogue refers to them. */
     static async write(
-        directory: string,
+        blobs: BlobStore,
         body: BucketBody,
         options: BucketPutOptions = {},
         key?: CustomerKey,
-    ): Promise<ContentFile> {
+    ): Promise<Content> {
         // accept at most one supplied checksum
         const supplied = CHECKSUM_ALGORITHMS.filter(
             (algorithm) => options[algorithm] !== undefined,
@@ -43,88 +70,66 @@ export class ContentFile {
         }
         const algorithm = supplied[0];
         const expected = algorithm === undefined ? undefined : options[algorithm]!;
-        const checksum =
-            algorithm === undefined || (algorithm === "md5" && key === undefined)
-                ? undefined
-                : createHash(algorithm);
-        const version = crypto.randomUUID();
-        const cipher = await key?.cipher(version);
-        const path = join(directory, version);
-        const hash = createHash("md5");
-        let size = 0;
-        let isCreated = false;
-        try {
-            // write complete chunks, hashing the bytes stored and checking the bytes given
-            {
-                await using file = await open(path, "wx", 0o600);
-                isCreated = true;
-                const content = ArrayBuffer.isView(body)
-                    ? new Uint8Array(body.buffer, body.byteOffset, body.byteLength)
-                    : body;
-                const stream =
-                    body instanceof ReadableStream
-                        ? body
-                        : new Response(content ?? new Uint8Array()).body!;
-                for await (const chunk of stream) {
-                    const stored = cipher === undefined ? chunk : await cipher(chunk, size);
-                    let offset = 0;
-                    while (offset < stored.byteLength) {
-                        const { bytesWritten } = await file.write(stored, offset);
-                        if (bytesWritten === 0) {
-                            throw new StorageError(
-                                "WRITE_FAILED",
-                                "the filesystem stopped accepting file contents",
-                            );
-                        }
-                        offset += bytesWritten;
-                    }
-                    hash.update(stored);
-                    checksum?.update(chunk);
-                    size += chunk.byteLength;
-                }
-                await file.sync();
-            }
 
-            // verify the supplied digest before making the file available to the catalogue
-            const etag = hash.digest("hex");
-            const digests: StringChecksums = { md5: etag };
-            if (algorithm !== undefined && expected !== undefined) {
-                const actual = checksum === undefined ? etag : checksum.digest("hex");
-                const hex =
-                    typeof expected === "string"
-                        ? expected.toLowerCase()
-                        : expected instanceof ArrayBuffer
-                          ? new Uint8Array(expected).toHex()
-                          : new Uint8Array(
-                                expected.buffer,
-                                expected.byteOffset,
-                                expected.byteLength,
-                            ).toHex();
-                if (actual !== hex) {
-                    throw new StorageError(
-                        "INVALID_CHECKSUM",
-                        "object checksum does not match its contents",
-                    );
-                }
-                if (key === undefined) {
-                    digests[algorithm] = actual;
-                }
-            }
+        // stream the stored bytes into the store, which keeps none of a mismatched body
+        const nonce = key === undefined ? null : CustomerKey.nonce();
+        const hashes: ContentHashes = {
+            md5: createHash("md5"),
+            checksum:
+                algorithm === undefined || (algorithm === "md5" && key === undefined)
+                    ? undefined
+                    : createHash(algorithm),
+            expected: expected === undefined ? undefined : hexadecimal(expected),
+            size: 0,
+        };
+        const cipher = nonce === null ? undefined : key!.cipher(nonce);
+        const blob = await blobs.write(encode(body, cipher, hashes));
 
-            // persist the directory entry before the catalogue can refer to the file
-            await syncDirectory(directory);
-
-            return new ContentFile(version, size, etag, digests);
-        } catch (error) {
-            if (!isCreated) {
-                throw error;
-            }
-            try {
-                await unlink(path);
-            } catch (cleanup) {
-                throw new AggregateError([error, cleanup], "file upload and file cleanup failed");
-            }
-            throw error;
+        // keep the checked checksum of plain content
+        const checksums: StringChecksums = { md5: hashes.etag! };
+        if (algorithm !== undefined && key === undefined) {
+            checksums[algorithm] = hashes.actual!;
         }
+
+        return new Content(crypto.randomUUID(), blob, nonce, hashes.size, hashes.etag!, checksums);
     }
+}
+
+/** Encrypt a body's chunks for storage while hashing them, refusing a mismatched checksum at its end. */
+async function* encode(
+    body: BucketBody,
+    cipher: ContentCipher | undefined,
+    hashes: ContentHashes,
+): AsyncIterable<Uint8Array> {
+    // read buffers and strings through a stream
+    const content = ArrayBuffer.isView(body)
+        ? new Uint8Array(body.buffer, body.byteOffset, body.byteLength)
+        : body;
+    const stream =
+        body instanceof ReadableStream ? body : new Response(content ?? new Uint8Array()).body!;
+
+    // hash the bytes stored and the bytes given
+    for await (const chunk of stream) {
+        const stored = cipher === undefined ? chunk : await cipher(chunk, hashes.size);
+        hashes.md5.update(stored);
+        hashes.checksum?.update(chunk);
+        hashes.size += chunk.byteLength;
+        yield stored;
+    }
+
+    // verify the supplied checksum before the store keeps the bytes
+    hashes.etag = hashes.md5.digest("hex");
+    hashes.actual = hashes.checksum === undefined ? hashes.etag : hashes.checksum.digest("hex");
+    if (hashes.expected !== undefined && hashes.actual !== hashes.expected) {
+        throw new StorageError("INVALID_CHECKSUM", "object checksum does not match its contents");
+    }
+}
+
+/** Read a supplied checksum as lowercase hexadecimal. */
+function hexadecimal(checksum: string | ArrayBuffer | ArrayBufferView): string {
+    return typeof checksum === "string"
+        ? checksum.toLowerCase()
+        : checksum instanceof ArrayBuffer
+          ? new Uint8Array(checksum).toHex()
+          : new Uint8Array(checksum.buffer, checksum.byteOffset, checksum.byteLength).toHex();
 }

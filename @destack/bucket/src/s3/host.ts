@@ -6,8 +6,8 @@ import type { BucketEndpoint } from "./location.ts";
 export interface BucketReference {
     /** The space of the bucket. */
     readonly scope: Identifier<"space">;
-    /** The bucket's resource. */
-    readonly resourceId: Identifier<"resource">;
+    /** The bucket. */
+    readonly bucketId: Identifier<"bucket">;
 }
 
 /** The host keeping buckets: it opens them and locates the S3 endpoints serving them. */

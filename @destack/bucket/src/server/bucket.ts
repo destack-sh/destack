@@ -1,0 +1,284 @@
+import type { Call } from "@destack/object";
+import { identifier, type schema } from "@destack/schema";
+import { ServiceError } from "@destack/service/error";
+import { BucketHttpMetadata, type BucketFile } from "../bucket/index.ts";
+import { StorageError, type StorageErrorCode } from "../error/index.ts";
+import type { Lease, LeaseMode } from "@destack/resource";
+import { bucket, FileInput, type FileMetadata } from "../object/index.ts";
+import {
+    type BucketHost,
+    type BucketReference,
+    customerKeyHeaders,
+    S3Location,
+    SignatureV4,
+} from "../s3/index.ts";
+
+/** How long a presigned lease stays valid in seconds: fifteen minutes, the AWS SDK's default. */
+export const LEASE_LIFETIME = 15 * 60;
+
+/** The most bytes of custom metadata names and values together, S3's 2 KB limit. */
+const MAX_METADATA_BYTES = 2048;
+
+/** The service failure of each storage failure a request causes. */
+const REQUEST_FAILURES: Partial<Record<StorageErrorCode, "BAD_REQUEST" | "NOT_FOUND">> = {
+    INVALID_KEY: "BAD_REQUEST",
+    INVALID_RANGE: "BAD_REQUEST",
+    INVALID_CURSOR: "BAD_REQUEST",
+    INVALID_LIMIT: "BAD_REQUEST",
+    INVALID_PART: "BAD_REQUEST",
+    INVALID_CHECKSUM: "BAD_REQUEST",
+    INVALID_CUSTOMER_KEY: "BAD_REQUEST",
+    NO_SUCH_UPLOAD: "NOT_FOUND",
+};
+
+/** The HTTP method a lease of each mode signs: GET reads a body, PUT writes one. */
+const LEASE_METHODS: Readonly<Record<LeaseMode, "GET" | "PUT">> = { read: "GET", write: "PUT" };
+
+/** One S3 request a presigned lease grants. */
+interface LeaseRequest {
+    /** What the lease lets its holder do. */
+    readonly mode: LeaseMode;
+    /** The file key. */
+    readonly key: string;
+    /** The headers the signature binds. */
+    readonly headers: Headers;
+    /** The query parameters selecting a multipart part. */
+    readonly query?: Record<string, string>;
+}
+
+/** Serve the files of a host's buckets: their metadata, and presigned leases on their bodies. */
+export function serveBucket(host: BucketHost) {
+    return bucket.handle({
+        files: (call) =>
+            files(host, call, async (opened) => {
+                // list a page of files with their metadata
+                const input = call.input as Input<"files">;
+                const page = await opened.list({
+                    ...(input.prefix === undefined ? {} : { prefix: input.prefix }),
+                    ...(input.delimiter === undefined ? {} : { delimiter: input.delimiter }),
+                    ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
+                    limit: input.limit,
+                    include: ["httpMetadata", "customMetadata"],
+                });
+
+                return {
+                    files: page.files.map((file) => describe(file)),
+                    delimitedPrefixes: page.delimitedPrefixes,
+                    cursor: page.truncated ? page.cursor : null,
+                };
+            }),
+        file: (call) =>
+            files(host, call, async (opened) => {
+                const file = await opened.head((call.input as Input<"file">).key);
+
+                return file === null ? null : describe(file);
+            }),
+        open: {
+            authorize: async (call) => {
+                // require the right to upload for a write
+                if ((call.input as Input<"open">).mode === "write") {
+                    await call.authorization!.require(
+                        bucket.permission("upload"),
+                        call.reference(),
+                    );
+                }
+            },
+            effect: (call) => {
+                // bind a read's range and entity tag
+                const input = call.input as Input<"open">;
+                const headers = new Headers();
+                if (input.mode === "read") {
+                    if (input.range !== undefined) {
+                        headers.set("range", input.range);
+                    }
+                }
+                // bind a write's body length, stored metadata and replacement precondition
+                else {
+                    if (input.size === undefined) {
+                        throw new ServiceError("BAD_REQUEST", {
+                            message: "a write states its body's size",
+                        });
+                    }
+                    const customMetadata = input.customMetadata ?? {};
+                    requireMetadata(customMetadata);
+                    headers.set("content-length", String(input.size));
+                    BucketHttpMetadata.write(httpMetadata(input.httpMetadata ?? {}), headers);
+                    for (const [name, value] of Object.entries(customMetadata)) {
+                        headers.set(`x-amz-meta-${name}`, value);
+                    }
+                    if (input.ifNoneMatch !== undefined) {
+                        headers.set("if-none-match", input.ifNoneMatch);
+                    }
+                }
+
+                // bind the entity tag the file must have, and the customer key
+                if (input.ifMatch !== undefined) {
+                    headers.set("if-match", input.ifMatch);
+                }
+                encrypt(headers, input.customerKey);
+
+                return presign(host, call, { mode: input.mode, key: input.key, headers });
+            },
+        },
+        remove: (call) =>
+            files(host, call, async (opened) => {
+                await opened.delete((call.input as Input<"remove">).keys);
+
+                return {};
+            }),
+        createUpload: (call) =>
+            files(host, call, async (opened) => {
+                // create the upload with the metadata its file receives
+                const input = call.input as Input<"createUpload">;
+                requireMetadata(input.customMetadata);
+                const upload = await opened.createMultipartUpload(input.key, {
+                    httpMetadata: httpMetadata(input.httpMetadata),
+                    customMetadata: input.customMetadata,
+                    ...(input.customerKey === undefined
+                        ? {}
+                        : { ssecKey: Uint8Array.fromBase64(input.customerKey).buffer }),
+                });
+
+                return { uploadId: upload.uploadId, key: upload.key };
+            }),
+        uploadPart: (call) => {
+            // bind the part's length and number
+            const input = call.input as Input<"uploadPart">;
+            const headers = new Headers({ "content-length": String(input.size) });
+            encrypt(headers, input.customerKey);
+
+            return presign(host, call, {
+                mode: "write",
+                key: input.key,
+                headers,
+                query: { partNumber: String(input.partNumber), uploadId: input.uploadId },
+            });
+        },
+        completeUpload: (call) =>
+            files(host, call, async (opened) => {
+                // assemble the parts by the opaque tags their quoted entity tags carry
+                const input = call.input as Input<"completeUpload">;
+                const upload = opened.resumeMultipartUpload(input.key, input.uploadId);
+                const parts = input.parts.map((part) => ({
+                    partNumber: part.partNumber,
+                    etag: part.etag.replace(/^"(.*)"$/, "$1"),
+                }));
+
+                return describe(await upload.complete(parts));
+            }),
+        abortUpload: (call) =>
+            files(host, call, async (opened) => {
+                const input = call.input as Input<"abortUpload">;
+                await opened.resumeMultipartUpload(input.key, input.uploadId).abort();
+
+                return {};
+            }),
+    });
+}
+
+/** A file method's input. */
+type Input<Name extends keyof typeof FileInput> = schema.Infer<(typeof FileInput)[Name]>;
+
+/** Read the bucket a call targets. */
+function reference(call: Call): BucketReference {
+    return {
+        scope: identifier("space").parse(call.scope),
+        bucketId: identifier("bucket").parse(call.target!.id),
+    };
+}
+
+/** Work on the bucket a call targets, reporting storage failures the request caused. */
+async function files<Value>(
+    host: BucketHost,
+    call: Call,
+    work: (opened: Awaited<ReturnType<BucketHost["open"]>>) => Promise<Value>,
+): Promise<Value> {
+    try {
+        return await work(await host.open(reference(call)));
+    } catch (error) {
+        const code = error instanceof StorageError ? REQUEST_FAILURES[error.code] : undefined;
+        if (code === undefined) {
+            throw error;
+        }
+        throw new ServiceError(code, { message: (error as StorageError).message, cause: error });
+    }
+}
+
+/** Presign one S3 request on the bucket a call targets. */
+async function presign(host: BucketHost, call: Call, lease: LeaseRequest): Promise<Lease> {
+    // address the key, and the part the query selects, at the bucket's S3 location
+    const { location, credentials } = await host.locate(reference(call));
+    const url = S3Location.url(location, lease.key);
+    for (const [name, value] of Object.entries(lease.query ?? {})) {
+        url.searchParams.set(name, value);
+    }
+
+    // refuse a URL that left the bucket's path, which only a malformed key causes
+    const bucketPath = `${S3Location.url(location).pathname}/`;
+    if (!url.pathname.startsWith(bucketPath)) {
+        throw new TypeError(`key ${lease.key} leaves its bucket's path`);
+    }
+
+    // sign the request, keeping the headers the caller sends
+    const now = Date.now();
+    const method = LEASE_METHODS[lease.mode];
+    const request = new Request(url.href, { method, headers: lease.headers });
+    const signature = new SignatureV4({ region: location.region });
+    const presigned = await signature.presign(request, credentials, LEASE_LIFETIME, now);
+
+    return {
+        url: presigned.url,
+        mode: lease.mode,
+        headers: Object.fromEntries(presigned.headers),
+        expiresAt: now + LEASE_LIFETIME * 1000,
+    };
+}
+
+/** Describe a file's metadata for callers, with times in UTC milliseconds. */
+function describe(file: BucketFile): FileMetadata {
+    const { cacheExpiry, ...headers } = file.httpMetadata;
+
+    return {
+        key: file.key,
+        version: file.version,
+        size: file.size,
+        etag: file.etag,
+        uploaded: file.uploaded.getTime(),
+        httpMetadata:
+            cacheExpiry === undefined
+                ? headers
+                : { ...headers, cacheExpiry: cacheExpiry.getTime() },
+        customMetadata: file.customMetadata,
+    };
+}
+
+/** Read HTTP metadata from its wire form, with the expiry in UTC milliseconds. */
+function httpMetadata(metadata: FileMetadata["httpMetadata"]): BucketFile["httpMetadata"] {
+    const { cacheExpiry, ...headers } = metadata;
+
+    return cacheExpiry === undefined ? headers : { ...headers, cacheExpiry: new Date(cacheExpiry) };
+}
+
+/** Refuse custom metadata beyond S3's limit, counting names and values in UTF-8 bytes. */
+function requireMetadata(metadata: Readonly<Record<string, string>>): void {
+    const encoder = new TextEncoder();
+    const size = Object.entries(metadata).reduce(
+        (total, [name, value]) =>
+            total + encoder.encode(name).byteLength + encoder.encode(value).byteLength,
+        0,
+    );
+    if (size > MAX_METADATA_BYTES) {
+        throw new ServiceError("BAD_REQUEST", {
+            message: `custom metadata is at most ${MAX_METADATA_BYTES} bytes`,
+        });
+    }
+}
+
+/** Bind a customer key as SSE-C headers, when the caller sent one. */
+function encrypt(headers: Headers, customerKey: string | undefined): void {
+    if (customerKey !== undefined) {
+        for (const [name, value] of Object.entries(customerKeyHeaders(customerKey))) {
+            headers.set(name, value);
+        }
+    }
+}

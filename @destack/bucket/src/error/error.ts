@@ -12,6 +12,7 @@ export type StorageErrorCode =
     | "WRITE_FAILED"
     | "NO_SUCH_KEY"
     | "NO_SUCH_UPLOAD"
+    | "NO_SUCH_BUCKET"
     | "UNSUPPORTED"
     | "CLOSED"
     | "BUSY";

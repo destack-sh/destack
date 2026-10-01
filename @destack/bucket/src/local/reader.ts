@@ -1,5 +1,5 @@
 import { open, type FileHandle } from "node:fs/promises";
-import { join } from "node:path";
+import type { LocalBlobStore } from "@destack/db/blob/local";
 import { StorageError } from "../error/index.ts";
 import type { segment } from "./stack/index.ts";
 import type { ContentCipher, CustomerKey } from "./encryption.ts";
@@ -7,15 +7,15 @@ import type { ContentCipher, CustomerKey } from "./encryption.ts";
 /** Read at most 64 KiB per filesystem request. */
 const READ_SIZE = 64 * 1024;
 
-/** One content file of a stored file and its length. */
-export type Segment = Pick<typeof segment.$inferSelect, "content" | "size">;
+/** One blob of a stored file, its nonce and its length. */
+export type Segment = Pick<typeof segment.$inferSelect, "blob" | "nonce" | "size">;
 
 /** A ranged stream across a file's content segments that closes them before reporting completion. */
 export class ContentReader {
     /** The selected content stream. */
     readonly stream: ReadableStream<Uint8Array>;
-    /** The directory with the content files. */
-    readonly #directory: string;
+    /** The blobs of the segments. */
+    readonly #blobs: LocalBlobStore;
     /** The file's content segments in order. */
     readonly #segments: Segment[];
     /** Release the bucket's references to the segments. */
@@ -28,7 +28,7 @@ export class ContentReader {
     #offset: number;
     /** The remaining selected bytes. */
     #remaining: number;
-    /** The open content file of the current segment. */
+    /** The open blob file of the current segment. */
     #file?: FileHandle;
     /** The cipher of the current segment, absent for plain content. */
     #cipher: ContentCipher | undefined;
@@ -39,7 +39,7 @@ export class ContentReader {
 
     /** Read one range of retained segments, releasing them once. */
     constructor(
-        directory: string,
+        blobs: LocalBlobStore,
         segments: Segment[],
         offset: number,
         length: number,
@@ -47,7 +47,7 @@ export class ContentReader {
         key?: CustomerKey,
     ) {
         // retain the segments and skip to the one with the first selected byte
-        this.#directory = directory;
+        this.#blobs = blobs;
         this.#segments = segments;
         this.#release = release;
         this.#key = key;
@@ -72,8 +72,9 @@ export class ContentReader {
                 // open the current segment unless the consumer cancelled meanwhile
                 const segment = this.#segments[this.#index]!;
                 if (this.#file === undefined) {
-                    const cipher = await this.#key?.cipher(segment.content);
-                    const file = await open(join(this.#directory, segment.content), "r");
+                    const cipher =
+                        segment.nonce === null ? undefined : this.#key?.cipher(segment.nonce);
+                    const file = await open(this.#blobs.path(segment.blob), "r");
                     if (this.#isCancelled) {
                         await file.close();
 

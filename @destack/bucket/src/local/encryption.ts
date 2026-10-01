@@ -7,10 +7,10 @@ const KEY_BYTES = 32;
 /** The bytes of an AES block, which the counter advances by. */
 const BLOCK_BYTES = 16;
 
-/** The bytes of a content file's nonce, the counter block's first half. */
+/** The bytes of a write's counter nonce, the counter block's first half. */
 const NONCE_BYTES = 8;
 
-/** Encrypt or decrypt bytes at an offset of one content file. */
+/** Encrypt or decrypt bytes at an offset of one write's content. */
 export type ContentCipher = (bytes: Uint8Array, offset: number) => Promise<Uint8Array<ArrayBuffer>>;
 
 /** A customer key encrypting file content with AES-256 in counter mode, so reads start at any byte. */
@@ -67,21 +67,25 @@ export class CustomerKey {
         }
     }
 
-    /** Bind the key to one content file, under the first bytes of its name's SHA-256 digest as nonce. */
-    async cipher(content: string): Promise<ContentCipher> {
-        const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(content));
-        const nonce = new Uint8Array(digest, 0, NONCE_BYTES);
-
-        return (bytes, offset) => this.#apply(nonce, bytes, offset);
+    /** Draw a random counter nonce for one write, as hexadecimal. */
+    static nonce(): string {
+        return crypto.getRandomValues(new Uint8Array(NONCE_BYTES)).toHex();
     }
 
-    /** Encrypt or decrypt bytes at an offset of the content file a nonce names. */
+    /** Bind the key to one write's content under its counter nonce. */
+    cipher(nonce: string): ContentCipher {
+        const bytes = Uint8Array.fromHex(nonce);
+
+        return (content, offset) => this.#apply(bytes, content, offset);
+    }
+
+    /** Encrypt or decrypt bytes at an offset of the content under a nonce. */
     async #apply(
         nonce: Uint8Array,
         bytes: Uint8Array,
         offset: number,
     ): Promise<Uint8Array<ArrayBuffer>> {
-        // start the counter at the block with the offset, under the content file's nonce
+        // start the counter at the block with the offset, under the write's nonce
         const counter = new Uint8Array(BLOCK_BYTES);
         counter.set(nonce);
         new DataView(counter.buffer).setBigUint64(
