@@ -16,5 +16,8 @@
     },
     "devDependencies": {
         "@destack/test": "workspace:*"
+    },
+    "dependencies": {
+        "@destack/schema": "workspace:*"
     }
 }

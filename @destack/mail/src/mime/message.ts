@@ -1,3 +1,4 @@
+import { Digest } from "@destack/schema";
 import { MimeError } from "./error.ts";
 import { Header } from "./header.ts";
 import { Mailbox } from "./mailbox.ts";
@@ -128,10 +129,9 @@ export class MimeMessage {
 /** Digest a sender's address and a key with SHA-256, as a Message-ID and a boundary carry. */
 async function digestKey(address: string, key: string): Promise<string> {
     // join the two with a space, which no address contains
-    const bytes = new TextEncoder().encode(`${address} ${key}`);
-    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    const digest = await Digest.of(`${address} ${key}`);
 
-    return new Uint8Array(digest).toHex().slice(0, DIGEST_HEX_LENGTH);
+    return digest.slice(0, DIGEST_HEX_LENGTH);
 }
 
 /** Write header fields in order. */
