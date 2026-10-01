@@ -1,6 +1,6 @@
 import { defineSchema, schema } from "@destack/schema";
-import { declaringModule, type ModuleMetadata, type Package } from "@destack/package";
-import { defineResourceKind, Resource } from "@destack/resource";
+import { ModuleMetadata, type Package } from "@destack/package";
+import { defineResourceKind, ResourceDeclaration } from "@destack/resource";
 import type { ResourceContext } from "@destack/resource/context";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { connectors } from "#connector";
@@ -26,7 +26,7 @@ export const DatabaseKind = defineResourceKind("database", {
 export type DatabaseDescription = schema.Infer<typeof DatabaseKind.description>;
 
 /** A database declaration. */
-export class Database extends Resource<DatabaseConnection, DatabaseDescription> {
+export class Database extends ResourceDeclaration<DatabaseConnection, DatabaseDescription> {
     /** The tables the database holds, referencing tables held elsewhere without foreign keys. */
     readonly tables: readonly Table[];
 
@@ -79,7 +79,7 @@ export interface DatabaseDefinition {
  */
 export function defineDatabase(definition: DatabaseDefinition, module?: ModuleMetadata): Database {
     // reject duplicate SQL names and tables of a narrower tier
-    const owner = declaringModule(module, "defineDatabase").package;
+    const owner = ModuleMetadata.require(module, "defineDatabase").package;
     const tier = definition.tier ?? "zonal";
     const tiers = DatabaseTier.options;
     const names = new Map<string, Table>();

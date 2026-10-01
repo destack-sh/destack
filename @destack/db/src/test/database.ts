@@ -12,8 +12,8 @@ import * as sqlite from "../sqlite/bun/connection.ts";
 import * as postgresql from "../postgres/connection.ts";
 import { PostgresDatabase } from "../postgres/database.ts";
 import { LOG_EPOCH, LOG_TABLES } from "../log/schema.ts";
-import { relayNotifier } from "../log/notifier.ts";
-import { relayHub } from "./relay.ts";
+import type { Channel } from "../channel/channel.ts";
+import { channelHub } from "./channel.ts";
 import { readState, STATE, type TableState } from "../migration/state.ts";
 
 /** The test dialects: SQLite, and PostgreSQL when DESTACK_TEST_POSTGRES names a server. */
@@ -131,10 +131,16 @@ export class TestDatabase {
                 await copyFile(await sqliteTemplate(declared, options.isReplica ?? false), file);
             }
 
-            // share commits through one relay
-            const relay = relayHub<{ readonly kind: string }>();
+            // share each named channel through one hub
+            const hubs = new Map<string, () => Channel<unknown>>();
+            const openChannel = <Message>(name: string) => {
+                const party = hubs.get(name) ?? channelHub<unknown>();
+                hubs.set(name, party);
+
+                return party() as Channel<Message>;
+            };
             const open = (connected: declaration.Database | readonly Table[]) =>
-                sqlite.connect(file, connected, { notifier: relayNotifier(relay()) });
+                sqlite.connect(file, connected, { openChannel });
 
             return new TestDatabase(await open(tables), open, () =>
                 rm(directory, { recursive: true }),

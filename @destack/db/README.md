@@ -61,9 +61,12 @@ Each entry point opens one kind of database.
 |---|---|
 | `@destack/db/bun` | `connect`: a SQLite file or memory database on Bun |
 | `@destack/db/postgres` | `connect`: a PostgreSQL pool or URL |
-| `@destack/db/wasm` | `serveBrowserDatabase`: an OPFS SQLite database served to a relay |
+| `@destack/db/wasm` | `serveBrowserDatabase`: an OPFS SQLite database served on a channel |
 | `@destack/db/shared` | `connectShared`: a database another party serves |
-| `@destack/db/relay` | `broadcastRelay`: the channel between parties and the owner |
+| `@destack/db/channel` | `Channel`, `broadcastChannel`: messages between the parties of one topic |
+| `@destack/db/channel/socket` | `socketChannel`: the processes sharing a SQLite file on one machine |
+| `@destack/db/blob` | `BlobStore`, `DatabaseHandle`: the content blob columns reference |
+| `@destack/db/blob/local` | `LocalBlobStore`: blobs as files named by digest |
 | `@destack/db/test` | `TestDatabase`: an isolated database per dialect |
 
 ## Writes
@@ -155,6 +158,12 @@ await database.log.advance("notes/published", consumed, Date.now() + maxLag);
 await database.log.drop("notes/published");
 ```
 
+A change files under its row's scope column, or under the database's scope for a table without one.
+
+```ts
+await database.log.create(spaceId); // once, when a space's resource database is created
+```
+
 ## Snapshots
 
 A `Snapshot` reads the logged columns as they were at a log position.
@@ -171,15 +180,30 @@ A snapshot under an `Overlay` reads another layer's rows in place of the databas
 const branched = Snapshot.live(database).layer(async (table) => rowsByKey.get(table) ?? new Map());
 ```
 
-## Commit notifiers
+## Channels
 
-A `CommitNotifier` wakes log readers when another writer commits.
+A connection wakes its log readers on the commits other writers announce on its `Channel`, as PostgreSQL's `LISTEN` and `NOTIFY` do.
 
-| Notifier | Use |
+| Channel | Writers |
 |---|---|
-| `soleWriter` | A database with one writing process, the SQLite default |
-| `relayNotifier(relay)` | Writers sharing a relay |
-| PostgreSQL | Built in, through `LISTEN` and `pg_notify` |
+| none | one connection, such as a Durable Object's storage |
+| `broadcastChannel(name)` | tabs and workers of one origin |
+| `socketChannel(path)` | processes on one machine sharing a SQLite file |
+| `postgresChannel(client, name)` | PostgreSQL, announced by the log's commit trigger |
+
+```ts
+const database = await connect(path, main, { channel: socketChannel(path) });
+```
+
+## Blobs
+
+A `blob` column keeps the SHA-256 digest of content a `BlobStore` keeps.
+
+```ts
+const attachment = defineTable("attachment", { id: text("id").primaryKey(), content: blob("content") });
+const stored = await blobs.write(body);
+await database.insert(attachment).values({ id, content: stored.digest });
+```
 
 ## Aggregates
 
@@ -210,25 +234,14 @@ export const folder = defineTable("folder", columns, {
 });
 ```
 
-## Replication
-
-`Replication` copies a database's tables into another database as chunks, exactly across dialects.
-
-```ts
-const replication = Replication.of(desiredStates, source.dialect);
-for await (const chunk of replication.export(source, name, "live", cursor, signal)) {
-    await replication.import(target, chunk);
-}
-```
-
 ## Shared databases
 
-A browser tab serves its SQLite database to other parties over a relay.
+A browser tab serves its SQLite database to other parties on a channel.
 
 ```ts
-const relay = broadcastRelay("notes");
-const stop = await serveBrowserDatabase("notes", relay);
-const database = connectShared(relay, party, main);
+const channel = broadcastChannel("notes");
+const stop = await serveBrowserDatabase("notes", channel);
+const database = connectShared(channel, party, main);
 ```
 
 ## Tests

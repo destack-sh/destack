@@ -1,9 +1,14 @@
-import type { CommitNotifier } from "./notifier.ts";
+import type { Channel, Commit } from "../channel/channel.ts";
+
+/** Who announces a connection's commits on its channel: the connection once committed, or the database inside the commit. */
+export type Announcer = "connection" | "database";
 
 /** The commits one physical connection's readers wait for. */
 export class CommitWatch {
-    /** The notifications exchanged with the other writers. */
-    readonly #notifier: CommitNotifier;
+    /** The channel other writers announce their commits on, absent for a sole writer. */
+    readonly #channel: Channel<Commit> | undefined;
+    /** Who announces this connection's commits. */
+    readonly #announcer: Announcer;
     /** The readers waiting for the next commit. */
     readonly #waiting = new Set<(failure?: unknown) => void>();
     /** Stop listening for other writers' commits. */
@@ -11,9 +16,10 @@ export class CommitWatch {
     /** The failure that ended listening. */
     #failure?: { readonly error: unknown };
 
-    /** Create the watch. */
-    constructor(notifier: CommitNotifier) {
-        this.#notifier = notifier;
+    /** Watch the commits announced on a channel, or only this connection's without one. */
+    constructor(channel?: Channel<Commit>, announcer: Announcer = "connection") {
+        this.#channel = channel;
+        this.#announcer = announcer;
     }
 
     /** Whether readers wait for a commit. */
@@ -30,10 +36,12 @@ export class CommitWatch {
         }
     }
 
-    /** Wake this connection's readers and notify the other writers. */
+    /** Wake this connection's readers and announce the commit to the other writers. */
     notify(): void {
         this.wake();
-        this.#notifier.notify();
+        if (this.#announcer === "connection") {
+            this.#channel?.notify({ kind: "commit" });
+        }
     }
 
     /** Fail every waiting and later reader. */
@@ -83,7 +91,7 @@ export class CommitWatch {
         if (this.#failure) {
             return Promise.reject(this.#failure.error);
         }
-        this.#stop ??= this.#notifier.listen(this);
+        this.#stop ??= this.#listen();
 
         return new Promise((resolve, reject) => {
             // end at once when already aborted
@@ -109,5 +117,20 @@ export class CommitWatch {
             this.#waiting.add(wake);
             signal.addEventListener("abort", abort, { once: true });
         });
+    }
+
+    /** Wake the readers on each commit the channel announces and on each resumed delivery. */
+    #listen(): () => Promise<void> {
+        const stop = this.#channel?.listen(
+            (message) => {
+                if (message.kind === "commit") {
+                    this.wake();
+                }
+            },
+            () => this.wake(),
+            (error) => this.fail(error),
+        );
+
+        return async () => stop?.();
     }
 }

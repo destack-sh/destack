@@ -1,20 +1,24 @@
 import type { ChangeDescription } from "../inspect/log.ts";
 import { literal, quote } from "../dialect/quote.ts";
-import { createEpoch, LOG, LOG_CHANNEL, LOG_HORIZON, type LogDialect } from "./schema.ts";
+import {
+    createEpoch,
+    LOG,
+    LOG_CHANNEL,
+    LOG_EPOCH,
+    LOG_HORIZON,
+    type LogDialect,
+} from "./schema.ts";
 
 /** The transaction-local setting naming the already stamped transaction. */
 const STAMPED_SETTING = "destack.stamped";
 
-/**
- * The advisory lock class serialising PostgreSQL commit stamping, keyed by the log's schema.
- *
- * NOTE #Architecture: one lock per log caps logging commits at about 500 to 1000 a second; following only transactions below the snapshot's xmin, as PgQ does, would drop it.
- */
+// TODO #Architecture: one lock per log caps logged commits at about 500 to 1000 a second; replace it with a sequencer numbering committed changes below the snapshot's xmin, as PgQ does
+/** The advisory lock class serialising PostgreSQL commit stamping, keyed by the log's schema. */
 const COMMIT_LOCK = 471_026_381;
 
 /** The PostgreSQL log: its tables, functions and triggers. */
 export const postgresLog: LogDialect = {
-    create: () => createPostgresLog(),
+    create: (scope) => createPostgresLog(scope),
     install: (description) => postgresLogTriggers(description),
     remove: (description) => [
         `DROP TRIGGER IF EXISTS ${quote("destack_change")} ON ${quote(description.table)}`,
@@ -22,7 +26,7 @@ export const postgresLog: LogDialect = {
 };
 
 /** Create the PostgreSQL log, its horizon and its functions. */
-function createPostgresLog(): readonly string[] {
+function createPostgresLog(scope?: string): readonly string[] {
     const log = quote(LOG);
 
     // stamp sequences at commit under one lock, in commit order
@@ -49,7 +53,7 @@ function createPostgresLog(): readonly string[] {
             slot INTEGER PRIMARY KEY CHECK (slot = 1),
             sequence BIGINT NOT NULL
         )`,
-        ...createEpoch(),
+        ...createEpoch(scope),
         `CREATE OR REPLACE FUNCTION ${quote(`${LOG}_stamp`)}() RETURNS trigger LANGUAGE plpgsql AS $$
         DECLARE
             unstamped BIGINT;
@@ -67,7 +71,7 @@ function createPostgresLog(): readonly string[] {
             ) AS numbered
             WHERE ${log}.id = numbered.id;
             PERFORM set_config('${STAMPED_SETTING}', NEW."transaction", true);
-            PERFORM pg_notify('${LOG_CHANNEL}', '');
+            PERFORM pg_notify('${LOG_CHANNEL}', '{"kind":"commit"}');
             RETURN NULL;
         END $$`,
         `DO $$ BEGIN
@@ -83,6 +87,7 @@ function createPostgresLog(): readonly string[] {
             recorded TEXT[] := TG_ARGV[2]::TEXT[];
             exact TEXT[] := TG_ARGV[3]::TEXT[];
             scope_column TEXT := TG_ARGV[4];
+            database_scope TEXT;
             old_scope TEXT;
             new_scope TEXT;
             previous JSONB;
@@ -121,8 +126,17 @@ function createPostgresLog(): readonly string[] {
                     END IF;
                 END LOOP;
             END IF;
-            old_scope := old_row ->> scope_column;
-            new_scope := new_row ->> scope_column;
+            IF scope_column = '' THEN
+                SELECT scope INTO database_scope FROM ${quote(LOG_EPOCH)} WHERE slot = 1;
+                IF database_scope IS NULL THEN
+                    RAISE EXCEPTION 'the database has no scope for the rows of %', TG_TABLE_NAME;
+                END IF;
+                IF old_row IS NOT NULL THEN old_scope := database_scope; END IF;
+                IF new_row IS NOT NULL THEN new_scope := database_scope; END IF;
+            ELSE
+                old_scope := old_row ->> scope_column;
+                new_scope := new_row ->> scope_column;
+            END IF;
             IF TG_OP = 'UPDATE' AND old_key = new_key AND old_scope IS NOT DISTINCT FROM new_scope THEN
                 SELECT jsonb_object_agg(entry.key, entry.value) INTO previous
                 FROM jsonb_each(old_recorded) AS entry
@@ -156,7 +170,7 @@ function postgresLogTriggers(description: ChangeDescription): string[] {
         literal(array(description.key)),
         literal(array(description.columns)),
         literal(array(description.exact)),
-        literal(description.scope),
+        literal(description.scope ?? ""),
     ];
 
     return [

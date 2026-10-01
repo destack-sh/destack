@@ -1,6 +1,13 @@
 import type { ChangeDescription } from "../inspect/log.ts";
 import { literal, quote } from "../dialect/quote.ts";
-import { createEpoch, LOG, LOG_HORIZON, LOG_TRANSACTION, type LogDialect } from "./schema.ts";
+import {
+    createEpoch,
+    LOG,
+    LOG_EPOCH,
+    LOG_HORIZON,
+    LOG_TRANSACTION,
+    type LogDialect,
+} from "./schema.ts";
 
 /** The most arguments of one SQLite function call, SQLITE_MAX_FUNCTION_ARG since SQLite 3.48. */
 const FUNCTION_ARGUMENT_LIMIT = 1000;
@@ -10,7 +17,7 @@ const JSON_PAIR_LIMIT = Math.floor((FUNCTION_ARGUMENT_LIMIT - 1) / 2);
 
 /** The SQLite log: its tables and a table's change triggers. */
 export const sqliteLog: LogDialect = {
-    create: () => createSQLiteLog(),
+    create: (scope) => createSQLiteLog(scope),
     install: (description) => sqliteLogTriggers(description),
     remove: (description) =>
         ["insert", "update", "move", "delete"].map(
@@ -19,7 +26,7 @@ export const sqliteLog: LogDialect = {
 };
 
 /** Create the SQLite log, its horizon and the transaction identity. */
-function createSQLiteLog(): readonly string[] {
+function createSQLiteLog(scope?: string): readonly string[] {
     return [
         `CREATE TABLE IF NOT EXISTS ${quote(LOG)} (
             sequence INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,7 +51,7 @@ function createSQLiteLog(): readonly string[] {
             slot INTEGER PRIMARY KEY CHECK (slot = 1),
             id TEXT NOT NULL
         )`,
-        ...createEpoch(),
+        ...createEpoch(scope),
     ];
 }
 
@@ -72,7 +79,15 @@ function sqliteLogTriggers(description: ChangeDescription): string[] {
     const log = quote(LOG);
     const transaction = `(SELECT id FROM ${quote(LOG_TRANSACTION)} WHERE slot = 1)`;
     const now = "CAST(unixepoch('subsec') * 1000 AS INTEGER)";
-    const scope = (source: "NEW" | "OLD") => `CAST(${source}.${quote(description.scope)} AS TEXT)`;
+    const databaseScope = `(SELECT scope FROM ${quote(LOG_EPOCH)} WHERE slot = 1)`;
+    const scope = (source: "NEW" | "OLD") =>
+        description.scope === undefined
+            ? databaseScope
+            : `CAST(${source}.${quote(description.scope)} AS TEXT)`;
+    const scoped =
+        description.scope === undefined
+            ? `SELECT RAISE(ABORT, ${literal(`the database has no scope for the rows of ${description.table}`)}) WHERE ${databaseScope} IS NULL;`
+            : "";
 
     // record each changed column's old value
     const previous = `json_remove(${chunks(
@@ -101,7 +116,10 @@ function sqliteLogTriggers(description: ChangeDescription): string[] {
     const changed = description.compared
         .map((name) => `NEW.${quote(name)} IS NOT OLD.${quote(name)}`)
         .join(" OR ");
-    const moved = [...description.key, description.scope]
+    const moved = [
+        ...description.key,
+        ...(description.scope === undefined ? [] : [description.scope]),
+    ]
         .map((name) => `NEW.${quote(name)} IS NOT OLD.${quote(name)}`)
         .join(" OR ");
     const prefix = `${description.table}__change`;
@@ -109,16 +127,20 @@ function sqliteLogTriggers(description: ChangeDescription): string[] {
     // record a key or scope change as a deletion and an insertion
     return [
         `CREATE TRIGGER ${quote(`${prefix}_insert`)} AFTER INSERT ON ${table} BEGIN
+            ${scoped}
             ${entry("'insert'", "NEW")}
         END`,
         `CREATE TRIGGER ${quote(`${prefix}_update`)} AFTER UPDATE ON ${table} WHEN (${changed}) AND NOT (${moved}) BEGIN
+            ${scoped}
             ${entry("'update'", "NEW", "1 = 1", previous)}
         END`,
         `CREATE TRIGGER ${quote(`${prefix}_move`)} AFTER UPDATE ON ${table} WHEN ${moved} BEGIN
+            ${scoped}
             ${entry("'delete'", "OLD")}
             ${entry("'insert'", "NEW")}
         END`,
         `CREATE TRIGGER ${quote(`${prefix}_delete`)} AFTER DELETE ON ${table} BEGIN
+            ${scoped}
             ${entry("'delete'", "OLD")}
         END`,
     ];

@@ -17,7 +17,9 @@ export type DatabaseErrorCode =
     | "DUPLICATE"
     | "BROKEN_REFERENCE"
     | "INVALID_RECORD"
-    | "INVALID_QUERY";
+    | "INVALID_QUERY"
+    | "INVALID_BLOB"
+    | "NO_CHANNEL";
 
 /** A database failure with a stable code. */
 export class DatabaseError extends Error {

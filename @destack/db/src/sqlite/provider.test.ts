@@ -1,19 +1,23 @@
 import { mkdtemp, rm, stat } from "node:fs/promises";
+import { ResourceId } from "@destack/resource";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { expect, onTestFinished, test } from "@destack/test";
-import { Plan, Recipient } from "@destack/resource";
+import { Plan } from "@destack/resource";
 import { identifier } from "@destack/schema";
 import { defineDatabase } from "../declare/database.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
-import { defineTable, TABLE, text } from "../index.ts";
+import { defineTable, sql, TABLE, text } from "../index.ts";
 import type { SqliteDatabase } from "./database.ts";
 import { sqliteConnector } from "./connector.ts";
 import { sqliteProvider } from "./provider.ts";
 
 /** Notes with a title. */
 const note = defineTable("note", { id: text("id").primaryKey(), title: text("title") });
+
+/** A table a copy keeps beside the notes. */
+const beside = defineTable("beside", { id: text("id").primaryKey() });
 
 /** The database holding the notes. */
 const notes = defineDatabase({ name: "notes", tables: [note] });
@@ -22,9 +26,9 @@ test("provision, plan and apply a SQLite database file, connect a workload to it
     // provide databases below a scratch directory
     const directory = await mkdtemp(join(tmpdir(), "destack-sqlite-"));
     onTestFinished(() => rm(directory, { recursive: true }));
-    const provider = sqliteProvider(pathToFileURL(`${directory}/`));
+    const provider = sqliteProvider(pathToFileURL(`${directory}/`), "database");
     const record = {
-        id: identifier("resource").parse("resource-01996ab0-0000-7000-8000-000000000001"),
+        id: ResourceId.parse("resource-01996ab0-0000-7000-8000-000000000001"),
         scope: identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002"),
         kind: "database" as const,
         spec: { tier: "zonal" as const },
@@ -72,45 +76,41 @@ test("provision, plan and apply a SQLite database file, connect a workload to it
     });
 });
 
-test("copy a provisioned SQLite database with no tables applied through its log", async () => {
-    // provision a source and a target file
+test("open a provisioned SQLite database over its desired tables, migrating tables beside them in and out", async () => {
+    // provision and apply the notes on a database file
     const directory = await mkdtemp(join(tmpdir(), "destack-sqlite-"));
     onTestFinished(() => rm(directory, { recursive: true }));
-    const provider = sqliteProvider(pathToFileURL(`${directory}/`));
-    const record = (id: string) => ({
-        id: identifier("resource").parse(id),
+    const provider = sqliteProvider(pathToFileURL(`${directory}/`), "database");
+    const empty = {
+        id: ResourceId.parse("resource-01996ab0-0000-7000-8000-000000000003"),
         scope: identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002"),
         kind: "database" as const,
         spec: { tier: "zonal" as const },
         reference: null,
-    });
-    const provision = async (id: string) => {
-        const empty = record(id);
-        const { reference } = await provider.provision(empty);
-
-        return { ...empty, reference };
     };
-    const source = await provision("resource-01996ab0-0000-7000-8000-000000000003");
-    const target = await provision("resource-01996ab0-0000-7000-8000-000000000004");
+    const record = { ...empty, ...(await provider.provision(empty)) };
+    const desired = [notes.state()];
+    await provider.apply(record, desired, await Plan.digest(await provider.plan(record, desired)));
 
-    // export the empty source at both stages and import each chunk into the target
-    const recipient = await Recipient.generate();
-    const stages = [];
-    for (const stage of ["live", "fenced"] as const) {
-        const chunks = [];
-        const copy = { desired: [], recipient, stage };
-        for await (const chunk of provider.export(
-            { ...copy, record: source },
-            undefined,
-            AbortSignal.timeout(5000),
-        )) {
-            await provider.import({ ...copy, record: target }, chunk);
-            chunks.push(chunk);
-        }
-        stages.push([stage, chunks.length]);
-    }
-    expect(stages).toEqual([
-        ["live", 0],
-        ["fenced", 0],
+    // migrate a table beside the notes, and write into both through the handle
+    const handle = await provider.open(record, desired);
+    onTestFinished(() => handle.close());
+    await handle.migrate([beside]);
+    await handle.database.insert(beside).values({ id: "a" });
+    const notesTable = handle.database.tables.find(
+        (table) => table[TABLE].sqlName === note[TABLE].sqlName,
+    ) as typeof note;
+    await handle.database.insert(notesTable).values({ id: "n1", title: "First" });
+
+    // drop the table beside once migrated without it, keeping the notes
+    await handle.migrate([]);
+    const tables = (
+        await handle.database.execute<{ name: string }>(
+            sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE '\\_\\_%' ESCAPE '\\' AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\' ORDER BY name`,
+        )
+    ).map((row) => row.name);
+    expect([tables, await handle.database.select().from(notesTable)]).toEqual([
+        [note[TABLE].sqlName],
+        [{ id: "n1", title: "First" }],
     ]);
 });

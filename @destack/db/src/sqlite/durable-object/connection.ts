@@ -2,7 +2,7 @@ import type { EmptyRelations } from "drizzle-orm/relations";
 import type { DrizzleSQLiteConfig } from "drizzle-orm/sqlite-core/utils";
 import type * as declaration from "../../declare/database.ts";
 import type { Table } from "../../table/table.ts";
-import { soleWriter, type CommitNotifier } from "../../log/notifier.ts";
+import type { OpenChannel } from "../../channel/channel.ts";
 import { SqliteDatabase } from "../database.ts";
 import { DurableObjectClient, type DurableObjectStorage } from "./client.ts";
 
@@ -12,19 +12,19 @@ export function connect(
     tables: declaration.Database | readonly Table[] = [],
     options: ConnectOptions = {},
 ): SqliteDatabase<DurableObjectClient> {
-    const { notifier = soleWriter, ...drizzle } = options;
+    const { openChannel, ...drizzle } = options;
 
     return new SqliteDatabase(
         new DurableObjectClient(storage),
         tables,
         "embedded",
-        notifier,
+        openChannel,
         drizzle,
     );
 }
 
 /** The options of a Durable Object connection. */
 export type ConnectOptions = Omit<DrizzleSQLiteConfig<EmptyRelations>, "relations"> & {
-    /** The commit notifications of other writers, none by default. */
-    readonly notifier?: CommitNotifier;
+    /** Open a channel of a name to the database's other connections, absent for a sole writer. */
+    readonly openChannel?: OpenChannel;
 };

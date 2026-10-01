@@ -6,14 +6,14 @@ import type { DatabaseConnection } from "../database/connection.ts";
 import { TABLE, type Select, type Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever, DatabaseError } from "../error/error.ts";
-import { LOG_EPOCH, LOG_SLOT, LOG_HORIZON, LOG_COPYING, LOG, LOG_TRANSACTION } from "./schema.ts";
+import { LOG_EPOCH, LOG_SLOT, LOG_HORIZON, LOG_REPLICA, LOG, LOG_TRANSACTION } from "./schema.ts";
+import { createLog } from "./trigger.ts";
 import { latestOf, selectHead, type LogPosition } from "./position.ts";
 import { Snapshot, type Rewind } from "./snapshot.ts";
 import type { Row } from "../table/row.ts";
 import type { Column } from "../table/column.ts";
 import { Key } from "../query/key.ts";
-import { toJsonSchema } from "@destack/schema";
-import { digest } from "@destack/schema/json";
+import { Digest, toJsonSchema } from "@destack/schema";
 
 /**
  * The default page size of a log read, in changes.
@@ -129,6 +129,11 @@ export class Log {
         this.database = database;
     }
 
+    /** Create the log once, with the scope of the rows in tables without a scope column, such as a resource's space. */
+    async create(scope?: string): Promise<void> {
+        await this.database.executeScript(createLog(this.database.dialect, scope).join(";\n"));
+    }
+
     /** Digest the shape tables' changes carry: each one's logged columns with their kinds and values. */
     static async shape(tables: readonly Table[]): Promise<string> {
         // describe each table's logged columns once
@@ -147,12 +152,12 @@ export class Log {
             return [table[TABLE].sqlName, columns];
         });
 
-        return (await digest(described)).slice(0, SHAPE_LENGTH);
+        return (await Digest.json(described)).slice(0, SHAPE_LENGTH);
     }
 
     /** Read the images a table's rows had before their first change between two sequences, by key. */
     async images(table: Table, after: number, upto: number): Promise<Map<string, Row | null>> {
-        return imagesOf(table, await this.#changes(table, after, upto));
+        return imagesOf(table, await this.range({ tables: [table], after }, upto));
     }
 
     /** Read images through one shared memory of each table's changes. */
@@ -162,8 +167,12 @@ export class Log {
         return async (table, after, upto) => {
             // read the missing changes
             const read = known.get(table) ?? { after, upto: after, changes: [] };
-            const earlier = after < read.after ? await this.#changes(table, after, read.after) : [];
-            const later = upto > read.upto ? await this.#changes(table, read.upto, upto) : [];
+            const earlier =
+                after < read.after ? await this.range({ tables: [table], after }, read.after) : [];
+            const later =
+                upto > read.upto
+                    ? await this.range({ tables: [table], after: read.upto }, upto)
+                    : [];
             const changes = [...earlier, ...read.changes, ...later];
             known.set(table, {
                 after: Math.min(after, read.after),
@@ -180,15 +189,51 @@ export class Log {
         };
     }
 
-    /** Read a table's changes between two sequences. */
-    async #changes(table: Table, after: number, upto: number): Promise<Change[]> {
-        // read page by page
-        const changes: Change[] = [];
-        for (let reached = after; reached < upto;) {
-            const read = await this.read({ tables: [table], after: reached });
-            changes.push(...read.changes.filter((change) => change.sequence <= upto));
+    /** Forget the reads each change of some tables affects until the signal aborts, clearing them all at the start and after compaction. */
+    async invalidate<Definition extends Table>(
+        tables: readonly Definition[],
+        reads: {
+            /** Forget every read. */
+            readonly clear: () => void;
+            /** Forget the reads one change affects. */
+            readonly forget: (change: Change<Definition>) => void;
+        },
+        signal: AbortSignal,
+    ): Promise<void> {
+        while (!signal.aborted) {
+            // forget every read, and follow the changes committed since
+            const after = (await this.position()).sequence;
+            reads.clear();
+            try {
+                for await (const page of this.follow({ tables, after }, signal)) {
+                    for (const change of page.changes) {
+                        reads.forget(change);
+                    }
+                }
+            } catch (error) {
+                // start over once the changes were compacted away
+                if (!(error instanceof DatabaseError && error.code === "CHANGES_COMPACTED")) {
+                    throw error;
+                }
+            }
+        }
+    }
+
+    /** Read the changes after a sequence through another, page by page, refusing a range past the log's head. */
+    async range<Definition extends Table>(
+        selection: Omit<ChangeSelection<Definition>, "limit">,
+        through: number,
+    ): Promise<Change<Definition>[]> {
+        const changes: Change<Definition>[] = [];
+        for (let reached = selection.after; reached < through;) {
+            // read the next page, keeping its changes through the end
+            const read = await this.read({ ...selection, after: reached });
+            changes.push(...read.changes.filter((change) => change.sequence <= through));
             if (read.sequence <= reached) {
-                break;
+                throw new DatabaseError(
+                    "INVALID_QUERY",
+                    `the log ends at ${read.sequence}, before ${through}`,
+                );
             }
             reached = read.sequence;
         }
@@ -258,13 +303,13 @@ export class Log {
         }
     }
 
-    /** Write rows a source already derived, without deriving aggregates again. */
-    async copying<Value>(run: () => Promise<Value>): Promise<Value> {
+    /** Write as a replica: log the rows a source already derived, deriving nothing again. */
+    async asReplica<Value>(run: () => Promise<Value>): Promise<Value> {
         // mark the open transaction
         if (!this.database.driver.transaction) {
-            throw new TypeError("copy rows inside a transaction");
+            throw new TypeError("write as a replica inside a transaction");
         }
-        const marker = sql.identifier(LOG_COPYING);
+        const marker = sql.identifier(LOG_REPLICA);
         await this.database.execute(sql`INSERT INTO ${marker} (slot) VALUES (1)`);
         const result = await run();
         await this.database.execute(sql`DELETE FROM ${marker} WHERE slot = 1`);
@@ -336,6 +381,15 @@ export class Log {
         return { changes, sequence };
     }
 
+    /** Read the open transaction's identity, absent outside a writing transaction. */
+    async transaction(): Promise<string | undefined> {
+        const [current] = await this.database.execute<{ id: string | null }>(
+            sql`SELECT ${this.stamp()} AS id`,
+        );
+
+        return current?.id ?? undefined;
+    }
+
     /** Read the open transaction's changes before commit. */
     async written<Definition extends Table>(
         tables: readonly Definition[],
@@ -344,11 +398,8 @@ export class Log {
         if (this.database.dialect === "sqlite" && !this.database.state.isLogged) {
             throw new TypeError("read written changes of a logged database");
         }
-        const [current] = await this.database.execute<{ id: string | null }>(
-            sql`SELECT ${this.stamp()} AS id`,
-        );
-        const transaction = current?.id ?? null;
-        if (transaction === null) {
+        const transaction = await this.transaction();
+        if (transaction === undefined) {
             return [];
         }
 

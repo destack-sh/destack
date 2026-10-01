@@ -1,17 +1,52 @@
 import { type SQL, sql, type SQLWrapper } from "drizzle-orm";
-import { Column, type ColumnBuilder } from "./column.ts";
-import { check, ForeignKey, type PrimaryKey, type TableConstraint } from "./constraint.ts";
+import {
+    bigint,
+    binary,
+    blob,
+    boolean,
+    Column,
+    integer,
+    json,
+    numeric,
+    real,
+    text,
+    timestamp,
+    type ColumnBuilder,
+} from "./column.ts";
+import {
+    check,
+    ForeignKey,
+    primaryKey,
+    type PrimaryKey,
+    type TableConstraint,
+} from "./constraint.ts";
 import type { Dialect } from "../dialect/dialect.ts";
-import { declaringModule, type ModuleMetadata, PACKAGE, type Package } from "@destack/package";
-import { Version } from "@destack/schema";
+import { ModuleMetadata, PACKAGE, type Package } from "@destack/package";
+import { schema, Version } from "@destack/schema";
 import { Expression } from "../expression/expression.ts";
 import { qualify } from "./namespace.ts";
 import type { ChangeRetention } from "../inspect/log.ts";
 import type { DatabaseTier } from "../declare/tier.ts";
 import { Tree } from "../tree/tree.ts";
+import type { ColumnDescription } from "../inspect/table.ts";
+import type { TableState } from "../migration/state.ts";
 
 /** The key of a table's declaration, shared by every copy of this module. */
 export const TABLE = Symbol.for("destack.table");
+
+/** The column builder of each described kind. */
+const COLUMNS: Readonly<Record<ColumnDescription["kind"], (name: string) => ColumnBuilder<any>>> = {
+    text: (name) => text(name),
+    integer,
+    real,
+    boolean,
+    json: (name) => json(name, schema.json()),
+    binary,
+    blob,
+    bigint,
+    numeric,
+    timestamp,
+};
 
 /** One logical SQL table. */
 export class Table<
@@ -123,6 +158,65 @@ export class Table<
         this.#statements.set(name, built);
 
         return built;
+    }
+
+    /** Build the table a state describes, such as a database another host declared, marking its unlogged columns sensitive. */
+    static describe(state: TableState): Table {
+        // build each column by kind
+        const description = state.table;
+        const logged = new Set(state.log?.columns ?? []);
+        const columns = Object.fromEntries(
+            description.columns.map((column) => {
+                const isUnlogged =
+                    state.log !== undefined && column.kind !== "binary" && !logged.has(column.name);
+                const definition = {
+                    ...COLUMNS[column.kind](column.name).definition,
+                    nullable: column.nullable,
+                    ...(isUnlogged ? { classification: "sensitive" as const } : {}),
+                    ...(column.generated === undefined
+                        ? {}
+                        : {
+                              generated: {
+                                  expression: sql.raw(column.generated.expression),
+                                  mode: column.generated.mode ?? "virtual",
+                              },
+                          }),
+                };
+
+                return [column.name, new Column(description.name, definition)];
+            }),
+        );
+
+        // key and log the table
+        const key = description.constraints.find(
+            (
+                constraint,
+            ): constraint is Extract<typeof constraint, { kind: "primaryKey" | "unique" }> =>
+                constraint.kind === "primaryKey",
+        );
+
+        return new Table(
+            { package: state.package, name: description.name, sqlName: description.name },
+            columns,
+            {
+                constraints: () =>
+                    key === undefined
+                        ? []
+                        : [
+                              primaryKey({
+                                  columns: key.columns.map((name) => columns[name]!) as [
+                                      Column,
+                                      ...Column[],
+                                  ],
+                              }),
+                          ],
+                retention: state.log?.retention ?? "none",
+                moved: {},
+                convert: {},
+                aggregates: [],
+                dependents: [],
+            },
+        );
     }
 
     /** The declaring package, under the key every declaration kind shares. */
@@ -265,13 +359,11 @@ export interface TableOptions<Columns> {
     readonly tier?: DatabaseTier;
     /** The constraints and indexes. */
     readonly constraints?: (columns: Columns) => readonly TableConstraint[];
-    /** Log committed changes under the scope column. */
-    readonly log?: "scope" extends keyof Columns
-        ? {
-              /** How long the log keeps the changes, the window by default. */
-              readonly retention?: Exclude<ChangeRetention, "none">;
-          }
-        : never;
+    /** Log committed changes under the scope column, or the database's scope for a table without one. */
+    readonly log?: {
+        /** How long the log keeps the changes, the window by default. */
+        readonly retention?: Exclude<ChangeRetention, "none">;
+    };
     /** The properties of a single-parent tree per scope. */
     readonly tree?: TreeColumns<keyof Columns & string>;
     /** The previous names of the table and its columns. */
@@ -348,7 +440,7 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
     module?: ModuleMetadata,
 ): Table<Name, TableColumnMap<Builders, Name>> & TableColumnMap<Builders, Name> {
     // qualify the table by its package
-    const owner = declaringModule(module, "defineTable").package;
+    const owner = ModuleMetadata.require(module, "defineTable").package;
     const sqlName = qualify(owner, name);
 
     // reject generated defaults and duplicate names

@@ -16,6 +16,7 @@ const POSTGRES_CODECS: Record<ColumnDefinition["kind"], PostgresColumnType> = {
     boolean: "bool",
     json: "jsonb",
     binary: "bytea",
+    blob: "text",
     bigint: "bigint",
     numeric: "numeric",
     timestamp: "timestamptz",

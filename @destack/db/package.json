@@ -18,11 +18,14 @@
         "./postgres": "./src/postgres/index.ts",
         "./bun": "./src/sqlite/bun/index.ts",
         "./test": "./src/test/index.ts",
-        "./relay": "./src/relay/index.ts",
+        "./channel": "./src/channel/index.ts",
+        "./channel/socket": "./src/channel/socket.ts",
         "./shared": "./src/sqlite/shared/index.ts",
         "./sqlite": "./src/sqlite/index.ts",
         "./wasm": "./src/sqlite/wasm/index.ts",
-        "./durable-object": "./src/sqlite/durable-object/index.ts"
+        "./durable-object": "./src/sqlite/durable-object/index.ts",
+        "./blob": "./src/blob/index.ts",
+        "./blob/local": "./src/blob/local.ts"
     },
     "imports": {
         "#connector": {
@@ -42,7 +45,8 @@
         "@sqlite.org/sqlite-wasm": "3.53.4-build1",
         "drizzle-orm": "1.0.0-rc.4",
         "postgres": "3.4.9",
-        "uuid": "14.0.2"
+        "uuid": "14.0.2",
+        "@destack/fs": "workspace:*"
     },
     "devDependencies": {
         "@destack/test": "workspace:*",

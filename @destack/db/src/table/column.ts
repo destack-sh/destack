@@ -1,6 +1,6 @@
 import { assertNever } from "../error/error.ts";
 import { type SQL, sql, type SQLWrapper } from "drizzle-orm";
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, Digest, schema } from "@destack/schema";
 import * as identifiers from "@destack/schema/identifier";
 import type { Dialect } from "../dialect/dialect.ts";
 import type { JsonValue } from "@destack/schema/json";
@@ -13,6 +13,7 @@ export const COLUMN_KINDS = [
     "boolean",
     "json",
     "binary",
+    "blob",
     "bigint",
     "numeric",
     "timestamp",
@@ -427,6 +428,22 @@ export function binary(name: string): ColumnBuilder<Uint8Array> {
 
             return new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
         },
+    });
+}
+
+/** Define a reference to content a blob store keeps: the SHA-256 digest of its bytes, as hexadecimal. */
+export function blob(name: string): ColumnBuilder<string> {
+    return new ColumnBuilder({
+        name,
+        kind: "blob",
+        types: { sqlite: "text", postgresql: "text" },
+        schema: Digest,
+        json: Digest,
+        nullable: true,
+        toJson: (value) => value,
+        fromJson: (value) => Digest.parse(value),
+        encode: (value) => Digest.parse(value),
+        decode: (value) => value as string,
     });
 }
 

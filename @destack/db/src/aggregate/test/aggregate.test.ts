@@ -58,7 +58,7 @@ test.for(TEST_DIALECTS)(
 
         // leave aggregates alone while copying derived rows
         await database.transaction(async (transaction) => {
-            await transaction.log.copying(async () => {
+            await transaction.log.asReplica(async () => {
                 await transaction
                     .insert(item)
                     .values({ id: "4", listId: "a", points: 1, isDone: true });

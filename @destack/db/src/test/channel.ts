@@ -1,14 +1,14 @@
-import type { Relay } from "../relay/relay.ts";
+import type { Channel } from "../channel/channel.ts";
 
 /** Connect parties to an in-process hub, delivering each message after the current task. */
-export function relayHub<Payload>(): () => Relay<Payload> {
+export function channelHub<Payload>(): () => Channel<Payload> {
     const listeners = new Set<(message: Payload) => void>();
 
     return () => {
         const own = new Set<(message: Payload) => void>();
 
         return {
-            post: (message) => {
+            notify: (message) => {
                 // deliver to every other party
                 for (const listener of listeners) {
                     if (!own.has(listener)) {

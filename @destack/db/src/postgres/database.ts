@@ -3,8 +3,8 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type { EmptyRelations } from "drizzle-orm/relations";
 import type { DrizzlePgConfig } from "drizzle-orm/pg-core/utils";
 import { ConnectionState, DatabaseConnection } from "../database/connection.ts";
-import type { CommitNotifier } from "../log/notifier.ts";
-import { LOG_CHANNEL } from "../log/schema.ts";
+import type { Channel } from "../channel/channel.ts";
+import { CHANNEL_PREFIX } from "../log/schema.ts";
 import { DatabaseDriver } from "../database/driver.ts";
 import { PostgresSchemaCompiler } from "./compiler.ts";
 import { expandTrees } from "../tree/tree.ts";
@@ -34,7 +34,8 @@ export class PostgresDatabase extends DatabaseConnection<"postgresql"> {
                 { dialect: "postgresql", database: native },
                 new ConnectionState(
                     "networked",
-                    postgresNotifier(client),
+                    (name) => postgresChannel(client, `${CHANNEL_PREFIX}${name}`),
+                    "database",
                     "tables" in tables ? tables.spec.tier : undefined,
                 ),
             ),
@@ -50,28 +51,25 @@ export class PostgresDatabase extends DatabaseConnection<"postgresql"> {
     }
 }
 
-/** Listen for logged commits on the notification channel. */
-function postgresNotifier(client: postgres.Sql): CommitNotifier {
+/** Reach every party of a PostgreSQL notification channel, carrying messages as JSON. */
+export function postgresChannel<Message>(client: postgres.Sql, name: string): Channel<Message> {
     return {
-        listen(commits) {
-            // wake readers once listening
+        notify: (message) => void client.notify(name, JSON.stringify(message)),
+        listen: (receive, resume, fail) => {
+            // deliver each notification once listening, resuming on each reconnect
             const listening = client.listen(
-                LOG_CHANNEL,
-                () => commits.wake(),
-                () => commits.wake(),
+                name,
+                (payload) => receive(JSON.parse(payload) as Message),
+                () => resume?.(),
             );
-
-            // fail the readers when listening fails
-            listening.catch((error: unknown) => commits.fail(error));
+            listening.catch((error: unknown) => fail?.(error));
 
             // stop listening
-            return async () => {
-                const listener = await listening.catch(() => undefined);
-                await listener?.unlisten();
-            };
-        },
-        notify() {
-            // leave notification to the change trigger
+            return () =>
+                void listening.then(
+                    (listener) => listener.unlisten(),
+                    () => undefined,
+                );
         },
     };
 }

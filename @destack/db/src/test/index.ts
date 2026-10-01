@@ -1,2 +1,2 @@
-export * from "./relay.ts";
+export * from "./channel.ts";
 export * from "./database.ts";

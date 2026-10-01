@@ -1,8 +1,8 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { asc, defineTable, eq, integer, text } from "../../index.ts";
 import { connect } from "../bun/connection.ts";
-import { relayHub } from "../../test/relay.ts";
-import { relayNotifier } from "../../log/notifier.ts";
+import type { Channel } from "../../channel/channel.ts";
+import { channelHub } from "../../test/channel.ts";
 import { connectShared, Party, serveDatabase, type Message } from "./shared.ts";
 
 /** Notes a party writes. */
@@ -15,8 +15,10 @@ const note = defineTable("shared_note", {
 
 test("run a party's statements and transactions on the owner's connection, notifying its commits", async () => {
     // serve the owner's database to a party
-    const join = relayHub<Message>();
-    const owner = await connect(":memory:", [note], { notifier: relayNotifier(join()) });
+    const join = channelHub<Message>();
+    const owner = await connect(":memory:", [note], {
+        openChannel: <Channelled>() => join() as unknown as Channel<Channelled>,
+    });
     onTestFinished(() => owner.close());
     await owner.migrate([note]);
     const stop = serveDatabase(owner.$client, join());
@@ -62,7 +64,7 @@ test("run a party's statements and transactions on the owner's connection, notif
 
 test("hold requests until an owner serves, and fail requests a replaced owner left unanswered", async () => {
     // ask before an owner serves
-    const join = relayHub<Message>();
+    const join = channelHub<Message>();
     const first = await connect(":memory:", [note]);
     onTestFinished(() => first.close());
     await first.migrate([note]);

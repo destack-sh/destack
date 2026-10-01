@@ -3,14 +3,14 @@ import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever } from "../error/error.ts";
 import { condition, quote } from "../dialect/quote.ts";
 import type { AggregateDescription } from "../inspect/aggregate.ts";
-import { LOG_COPYING } from "../log/schema.ts";
+import { LOG_REPLICA } from "../log/schema.ts";
 import { boundedName } from "../table/namespace.ts";
 
 /** Generate the triggers keeping an aggregate current. */
 function install(aggregate: AggregateDescription, dialect: Dialect): string[] {
     // name the triggers and skip replica copies
     const prefix = triggerPrefix(aggregate);
-    const idle = `NOT EXISTS (SELECT 1 FROM ${quote(LOG_COPYING)})`;
+    const idle = `NOT EXISTS (SELECT 1 FROM ${quote(LOG_REPLICA)})`;
 
     // adjust counts and sums by difference, and recompute extremes
     if (dialect === "sqlite") {
@@ -30,7 +30,7 @@ function install(aggregate: AggregateDescription, dialect: Dialect): string[] {
     else if (dialect === "postgresql") {
         return [
             `CREATE OR REPLACE FUNCTION ${quote(`${prefix}_maintain`)}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
-                IF EXISTS (SELECT 1 FROM ${quote(LOG_COPYING)}) THEN RETURN NULL; END IF;
+                IF EXISTS (SELECT 1 FROM ${quote(LOG_REPLICA)}) THEN RETURN NULL; END IF;
                 IF TG_OP = 'UPDATE' AND NOT (${changed(aggregate, "IS DISTINCT FROM")}) THEN RETURN NULL; END IF;
                 IF TG_OP <> 'INSERT' THEN ${adjust(aggregate, "OLD", -1, dialect)} END IF;
                 IF TG_OP <> 'DELETE' THEN ${adjust(aggregate, "NEW", 1, dialect)} END IF;

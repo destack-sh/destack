@@ -17,14 +17,20 @@ export const LOG_SLOT = "__destack_log_slot";
 /** The SQL name of the log's epoch. */
 export const LOG_EPOCH = "__destack_log_epoch";
 
-/** The SQL name of the marker of a transaction writing derived rows. */
-export const LOG_COPYING = "__destack_log_copying";
+/** The SQL name of the marker of a transaction writing as a replica. */
+export const LOG_REPLICA = "__destack_log_replica";
 
 /** The SQL name of the open SQLite transaction's identity. */
 export const LOG_TRANSACTION = "__destack_log_transaction";
 
+/** The channel name of logged commits. */
+export const LOG_TOPIC = "log";
+
+/** The prefix of the PostgreSQL notification channels of a database's connections. */
+export const CHANNEL_PREFIX = "destack_";
+
 /** The PostgreSQL notification channel of logged commits. */
-export const LOG_CHANNEL = "destack_log";
+export const LOG_CHANNEL = `${CHANNEL_PREFIX}${LOG_TOPIC}`;
 
 /** The SQL names of every table the log keeps. */
 export const LOG_TABLES = [
@@ -32,7 +38,7 @@ export const LOG_TABLES = [
     LOG_HORIZON,
     LOG_SLOT,
     LOG_EPOCH,
-    LOG_COPYING,
+    LOG_REPLICA,
     LOG_TRANSACTION,
 ] as const;
 
@@ -44,12 +50,12 @@ export function describeLog(table: Table): ChangeDescription | undefined {
         return undefined;
     }
 
-    // file each change under the row's scope
+    // file each change under the row's scope, or the database's for a table without one
     const scope = definition.columns.scope;
-    if (scope === undefined || scope.definition.nullable) {
+    if (scope?.definition.nullable) {
         throw new DatabaseError(
             "INVALID_MIGRATION",
-            `logged table has no required scope column: ${definition.name}`,
+            `logged table has an optional scope column: ${definition.name}`,
         );
     }
 
@@ -74,7 +80,7 @@ export function describeLog(table: Table): ChangeDescription | undefined {
             .filter((column) => column.kind === "bigint" || column.kind === "numeric")
             .map((column) => column.name),
         compared: columns.map((column) => column.name),
-        scope: scope.definition.name,
+        ...(scope === undefined ? {} : { scope: scope.definition.name }),
     };
 }
 
@@ -92,28 +98,30 @@ export function primaryKey(table: Table): readonly Column[] {
     return columns;
 }
 
-/** Create the log's epoch once and keep existing state. */
-export function createEpoch(): readonly string[] {
+/** Create the log's epoch once, with the scope of the rows in tables without a scope column, and keep existing state. */
+export function createEpoch(scope?: string): readonly string[] {
     return [
         `CREATE TABLE IF NOT EXISTS ${quote(LOG_SLOT)} (
             name TEXT PRIMARY KEY,
             sequence BIGINT NOT NULL,
             expires_at BIGINT NOT NULL
         )`,
-        `CREATE TABLE IF NOT EXISTS ${quote(LOG_COPYING)} (slot INTEGER PRIMARY KEY CHECK (slot = 1))`,
+        `CREATE TABLE IF NOT EXISTS ${quote(LOG_REPLICA)} (slot INTEGER PRIMARY KEY CHECK (slot = 1))`,
         `CREATE TABLE IF NOT EXISTS ${quote(LOG_EPOCH)} (
             slot INTEGER PRIMARY KEY CHECK (slot = 1),
-            epoch TEXT NOT NULL
+            epoch TEXT NOT NULL,
+            scope TEXT
         )`,
-        `INSERT INTO ${quote(LOG_EPOCH)} (slot, epoch) VALUES (1, ${literal(v7())})
+        `INSERT INTO ${quote(LOG_EPOCH)} (slot, epoch, scope)
+            VALUES (1, ${literal(v7())}, ${scope === undefined ? "NULL" : literal(scope)})
             ON CONFLICT (slot) DO NOTHING`,
     ];
 }
 
 /** The log of one dialect: its tables and change triggers. */
 export interface LogDialect {
-    /** Create the log once per database. */
-    create(): readonly string[];
+    /** Create the log once per database, with the scope of the rows in tables without a scope column. */
+    create(scope?: string): readonly string[];
     /** Generate the triggers recording one table's changes. */
     install(description: ChangeDescription): string[];
     /** Remove the triggers recording one table's changes. */

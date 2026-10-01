@@ -4,7 +4,7 @@ import type { DrizzleSQLiteConfig } from "drizzle-orm/sqlite-core/utils";
 import type { EmptyRelations } from "drizzle-orm/relations";
 import { SqliteNative, type RunResult } from "./native.ts";
 import { ConnectionState, DatabaseConnection, type Locality } from "../database/connection.ts";
-import type { CommitNotifier } from "../log/notifier.ts";
+import type { OpenChannel } from "../channel/channel.ts";
 import { DatabaseDriver } from "../database/driver.ts";
 import { SqliteSchemaCompiler } from "./compiler.ts";
 import { expandTrees } from "../tree/tree.ts";
@@ -26,7 +26,7 @@ export class SqliteDatabase<
         client: Client,
         tables: declaration.Database | readonly Table[],
         locality: Locality,
-        notifier: CommitNotifier,
+        openChannel: OpenChannel | undefined,
         options: Omit<DrizzleSQLiteConfig<EmptyRelations>, "relations"> = {},
     ) {
         // compile the tables with their tree tables
@@ -39,7 +39,8 @@ export class SqliteDatabase<
                 { dialect: "sqlite", database: native },
                 new ConnectionState(
                     locality,
-                    notifier,
+                    openChannel,
+                    "connection",
                     "tables" in tables ? tables.spec.tier : undefined,
                 ),
             ),

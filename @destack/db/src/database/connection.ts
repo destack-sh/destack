@@ -13,16 +13,18 @@ import {
     readTables,
     unappliedTables,
     type DeclareOptions,
+    type TableState,
 } from "../migration/state.ts";
 import { applyPlan } from "../migration/apply.ts";
 import { planTables, type TablePlan } from "../migration/plan.ts";
-import type { MergedState } from "../migration/merge.ts";
+import { mergeStates, type MergedState } from "../migration/merge.ts";
 import type { Selection } from "../query/selection.ts";
 import { type TransactionOptions, TransactionState } from "./transaction.ts";
 import { closeTransaction, openTransaction } from "../log/transaction.ts";
 import { Log } from "../log/log.ts";
-import type { CommitNotifier } from "../log/notifier.ts";
-import { CommitWatch } from "../log/watch.ts";
+import { type Announcer, CommitWatch } from "../log/watch.ts";
+import { LOG_TOPIC } from "../log/schema.ts";
+import type { Channel, OpenChannel } from "../channel/channel.ts";
 import { PARAMETER_BUDGET, type Dialect } from "../dialect/dialect.ts";
 import { Key } from "../query/key.ts";
 import { CHAIN_TERMS } from "../query/predicate.ts";
@@ -52,6 +54,19 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
     /** The tier of the database, absent for a connection over bare tables. */
     get tier(): DatabaseTier | undefined {
         return this.state.tier;
+    }
+
+    /** Open a channel of a name to the database's other connections, refusing a sole writer's. */
+    channel<Message>(name: string): Channel<Message> {
+        const open = this.state.openChannel;
+        if (open === undefined) {
+            throw new DatabaseError(
+                "NO_CHANNEL",
+                `the connection is its database's sole writer, without a channel ${name}`,
+            );
+        }
+
+        return open(name);
     }
 
     /** The tables the database declares, in declaration order. */
@@ -221,9 +236,14 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         return this.driver.all<Row>(this.driver.render(this.compiler.expression(statement)));
     }
 
-    /** Plan and apply tables at once. */
-    async migrate(tables: readonly Table[], options: DeclareOptions = {}): Promise<TablePlan> {
-        const plan = await this.plan({ declared: declareState(tables, this.dialect, options) });
+    /** Plan and apply tables at once, beside the tables of declared states, such as a database resource's desired ones. */
+    async migrate(
+        tables: readonly Table[],
+        options: DeclareOptions & { readonly states?: readonly (readonly TableState[])[] } = {},
+    ): Promise<TablePlan> {
+        // plan the declared tables beside the given states, then apply the plan
+        const declared = declareState(tables, this.dialect, options);
+        const plan = await this.plan(mergeStates([...(options.states ?? []), declared]));
         await this.apply(plan);
 
         return plan;
@@ -374,6 +394,8 @@ export class ConnectionState {
     readonly tier: DatabaseTier | undefined;
     /** The commits this connection's readers wait for. */
     readonly commits: CommitWatch;
+    /** Open a channel of a name to the database's other connections, absent for a sole writer. */
+    readonly openChannel: OpenChannel | undefined;
     /** Whether the database holds a log. */
     isLogged = false;
     /** The submitted statements and transactions. */
@@ -386,10 +408,17 @@ export class ConnectionState {
     #closing?: Promise<void>;
 
     /** Create the state of a new connection. */
-    constructor(locality: Locality, notifier: CommitNotifier, tier?: DatabaseTier) {
+    constructor(
+        locality: Locality,
+        openChannel: OpenChannel | undefined,
+        announcer: Announcer,
+        tier?: DatabaseTier,
+    ) {
+        // keep the channels, and watch commits on the log channel
         this.locality = locality;
         this.tier = tier;
-        this.commits = new CommitWatch(notifier);
+        this.openChannel = openChannel;
+        this.commits = new CommitWatch(openChannel?.(LOG_TOPIC), announcer);
     }
 
     /** Submit an operation. */

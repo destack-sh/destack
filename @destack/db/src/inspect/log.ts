@@ -20,8 +20,8 @@ export const ChangeDescription = defineSchema(
         exact: schema.array(schema.string().min(1)),
         /** Every SQL column name, to skip updates that change nothing. */
         compared: schema.array(schema.string().min(1)),
-        /** The SQL column holding each row's scope. */
-        scope: schema.string().min(1),
+        /** The SQL column holding each row's scope, absent when every row takes the database's scope. */
+        scope: schema.string().min(1).optional(),
     }),
 );
 /** The columns a table's change triggers record. */

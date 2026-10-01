@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 import {
-    Resource,
+    ResourceDeclaration,
     type Connector,
     type ResourceBinding,
     type ResourceRecord,
@@ -9,6 +9,7 @@ import type { DatabaseConnection } from "../database/connection.ts";
 import type { Database } from "../declare/database.ts";
 import { DatabaseError } from "../error/error.ts";
 import type { Table } from "../table/table.ts";
+import { socketChannel } from "../channel/socket.ts";
 import { connect } from "./bun/connection.ts";
 import type { SqliteDatabase } from "./database.ts";
 
@@ -43,17 +44,19 @@ export function requireReference(reference: string | null): string {
 
 /** Require a database declaration. */
 function requireDatabase(declaration: unknown): Database {
-    if (!(declaration instanceof Resource) || declaration.kind !== "database") {
+    if (!(declaration instanceof ResourceDeclaration) || declaration.kind !== "database") {
         throw new TypeError("not a database declaration");
     }
 
     return declaration as Database;
 }
 
-/** Open a provisioned database file. */
+/** Open a provisioned database file, announcing commits to the file's other writers on its channel. */
 export function open(
     resource: Pick<ResourceRecord | ResourceBinding, "reference">,
     tables: readonly Table[],
 ): Promise<SqliteDatabase> {
-    return connect(fileURLToPath(requireReference(resource.reference)), tables);
+    const path = fileURLToPath(requireReference(resource.reference));
+
+    return connect(path, tables, { openChannel: (name) => socketChannel(`${path}#${name}`) });
 }
