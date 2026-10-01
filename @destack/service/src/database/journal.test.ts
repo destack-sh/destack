@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { TestDatabase } from "@destack/db/test";
+import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 import { canonicalize } from "@destack/schema/json";
 import { RequestId } from "../request/index.ts";
@@ -68,3 +68,51 @@ test("journal requests by a digest no reader can recompute, replay retries on ev
         [false, false],
     ]);
 });
+
+test.each(TEST_DIALECTS)(
+    "answer two concurrent copies of a request with the one outcome that commits on %s",
+    async (dialect) => {
+        const storage = await TestDatabase.create(dialect, [journal], { isMigrated: true });
+        onTestFinished(() => storage.close());
+        const instance = new Journal(journal, async () => {
+            throw new TypeError("no sensitive input");
+        });
+        const request = { caller: "user-1", scope: "space-1", requestId: RequestId.create() };
+        const fingerprint = await instance.fingerprint({ name: "ada" }, []);
+
+        // let both copies run only once both are inside their transactions
+        let entered = 0;
+        let release: () => void = () => {};
+        const both = new Promise<void>((resolve) => (release = resolve));
+        const copy = () =>
+            instance
+                .execute(storage.database, request, fingerprint, {
+                    run: async () => {
+                        entered += 1;
+                        if (entered === 2) {
+                            release();
+                        }
+                        await Promise.race([
+                            both,
+                            new Promise((resolve) => setTimeout(resolve, 200)),
+                        ]);
+
+                        return "done";
+                    },
+                })
+                .then(
+                    (value) => ["value", value],
+                    (error: { code: string; message: string }) => [error.code, error.message],
+                );
+        // answer both copies with the committed outcome, recorded once
+        const answers = await Promise.all([copy(), copy()]);
+        const rows = await storage.database.select().from(journal);
+        expect([answers, rows.length]).toEqual([
+            [
+                ["value", "done"],
+                ["value", "done"],
+            ],
+            1,
+        ]);
+    },
+);

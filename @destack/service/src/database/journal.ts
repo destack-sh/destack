@@ -146,6 +146,16 @@ export class Journal {
                 return value;
             }, options);
         } catch (error) {
+            // answer the outcome a concurrent copy committed, which made this copy fail
+            const committed = await database
+                .select()
+                .from(this.table)
+                .where(this.key(request))
+                .get();
+            if (committed !== undefined) {
+                return replay(committed, fingerprint);
+            }
+
             // record a final failure
             await this.reject(database, request, fingerprint, error, expiresAt);
             throw error;
