@@ -1,7 +1,7 @@
 import { PackageId } from "@destack/package";
 import { defineSchema, schema } from "@destack/schema";
 import { defineSetting } from "@destack/setting/declare";
-import { DELIVERY_CHANNELS } from "../object/delivery.ts";
+import { CHANNELS } from "../object/delivery.ts";
 import { LocalTime, Window } from "./zone.ts";
 
 /** The most quiet windows one focus schedules: two per day for a week. */
@@ -15,12 +15,6 @@ export const INTERRUPTION_LEVELS = ["passive", "active", "timeSensitive", "criti
 
 /** How strongly a notification interrupts. */
 export type InterruptionLevel = (typeof INTERRUPTION_LEVELS)[number];
-
-/** The channels that alert beside the inbox. */
-export const CHANNELS = ["desktop", ...DELIVERY_CHANNELS] as const;
-
-/** A channel that alerts. */
-export type Channel = (typeof CHANNELS)[number];
 
 /** How a recipient receives one notification. */
 export const Preference = defineSchema(
@@ -63,8 +57,8 @@ export const summary = defineSetting({
     schema: schema.object({
         /** The times of day it goes out. */
         times: schema.array(LocalTime).min(1).max(SUMMARY_COUNT),
-        /** The channels. */
-        channels: schema.array(schema.enum(DELIVERY_CHANNELS)),
+        /** The channels other than the desktop. */
+        channels: schema.array(schema.enum(CHANNELS).exclude(["desktop"])),
     }),
     default: { times: ["08:00", "18:00"], channels: ["email"] },
     scope: "user",

@@ -1,9 +1,12 @@
 import type { PushKeys } from "../../src/index.ts";
 
+/** The JWK member with an elliptic-curve private key (RFC 7518 6.2.2.1). */
+const PRIVATE_KEY_MEMBER = "d";
+
 /** The elliptic curve of push subscriptions. */
 const CURVE = { name: "ECDH", namedCurve: "P-256" } as const;
 
-/** A browser's push subscription: the keys it hands the sender, and the private key only it holds. */
+/** A browser's push subscription: the keys it hands the sender, and the private key only it has. */
 export interface Browser {
     /** The public key and authentication secret, base64url encoded. */
     readonly keys: PushKeys;
@@ -27,9 +30,13 @@ export async function importBrowser(keys: PushKeys, privateKey: string): Promise
     const y = encode(raw.slice(33, 65));
     const jwk = { kty: "EC", crv: "P-256", x, y };
     const publicKey = await crypto.subtle.importKey("jwk", jwk, CURVE, true, []);
-    const secret = await crypto.subtle.importKey("jwk", { ...jwk, d: privateKey }, CURVE, true, [
-        "deriveBits",
-    ]);
+    const secret = await crypto.subtle.importKey(
+        "jwk",
+        { ...jwk, [PRIVATE_KEY_MEMBER]: privateKey },
+        CURVE,
+        true,
+        ["deriveBits"],
+    );
 
     return { keys, pair: { publicKey, privateKey: secret } };
 }

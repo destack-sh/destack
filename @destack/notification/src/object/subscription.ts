@@ -1,7 +1,7 @@
+import { type ObjectReference } from "@destack/sync";
 import {
     intersection,
     keySubject,
-    type ObjectReference,
     relation,
     type Subject,
     subjectKey,
@@ -46,8 +46,8 @@ export const subscription = defineObject({
     },
 });
 
-/** A subscription as its table holds it. */
-export type SubscriptionRow = Select<typeof subscription.table>;
+/** A subscription as its table stores it. */
+export type Subscription = Select<typeof subscription.table>;
 
 /** Subscriptions inside a call. */
 export const Subscription = {
@@ -60,7 +60,7 @@ export const Subscription = {
         );
     },
 
-    /** Subscribe a principal to a host, keeping an existing subscription. */
+    /** Subscribe a principal to a host and keep an existing subscription. */
     async add(call: Call, host: ObjectReference, owner: Subject, reason: Reason): Promise<void> {
         // require a host taking subscriptions
         if (!Subscription.isSubscribable(call, host)) {
@@ -69,7 +69,7 @@ export const Subscription = {
 
         // subscribe to the host, unless the principal already is
         const table = subscription.table;
-        const [held] = await call.database
+        const [existing] = await call.database
             .select({ id: table.id })
             .from(table)
             .where(
@@ -80,7 +80,7 @@ export const Subscription = {
                     eq(table.owner, subjectKey(owner)),
                 ),
             );
-        if (held === undefined) {
+        if (existing === undefined) {
             await call.invoke(subscription, "add", {
                 parent: { packageId: host.packageId, type: host.type, id: host.id },
                 owner: subjectKey(owner),

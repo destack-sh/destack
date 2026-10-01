@@ -2,12 +2,18 @@ import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { defineNotification } from "../src/declare/index.ts";
 import { describeFile } from "@destack/package/file";
-import { PackageReader, type PackageManifest } from "@destack/package/manifest";
+import { BuildReader, type PackageManifest } from "@destack/package/manifest";
 import { notification } from "../src/index.ts";
-import { describeNotification, readNotifications } from "../src/inspect/index.ts";
+import {
+    describeNotification,
+    describeNotificationPreference,
+    notificationVocabulary,
+    readNotifications,
+} from "../src/inspect/index.ts";
 import { mention, notes } from "./fixture/document.ts";
 
-test("describe a declared notification for manifests, with its actions and derived preference setting", () => {
+test("describe a declared notification for manifests with its actions, and its preference as a setting", () => {
+    // describe the notification
     expect(describeNotification(mention)).toEqual({
         name: "mention",
         title: "Mentions",
@@ -23,33 +29,41 @@ test("describe a declared notification for manifests, with its actions and deriv
             additionalProperties: false,
         },
         actions: { reply: { title: "Reply", text: { placeholder: "Reply", button: "Send" } } },
-        setting: {
-            name: "notification.mention",
-            title: "Mentions",
-            description: "Someone mentions you in a remark.",
-            apply: "immediate",
-            scope: "user",
-            overrides: ["space", "installation", "device"],
-            package: notes,
-            default: { channels: ["desktop", "push", "email"], delivery: "immediate" },
-            schema: {
-                $schema: "https://json-schema.org/draft/2020-12/schema",
-                type: "object",
-                properties: {
-                    channels: {
-                        type: "array",
-                        items: { type: "string", enum: ["desktop", "push", "email"] },
-                    },
-                    delivery: { type: "string", enum: ["immediate", "summary"] },
+    });
+
+    // fix the notification's name in stored notifications with its payload's shape
+    const described = JSON.parse(JSON.stringify(describeNotification(mention)));
+    expect(notificationVocabulary(described)).toEqual({
+        mention: { payload: described.payload },
+    });
+
+    // describe the preference as the user setting notification.mention of the declaring package
+    expect(describeNotificationPreference(mention)).toEqual({
+        name: "notification.mention",
+        title: "Mentions",
+        description: "Someone mentions you in a remark.",
+        apply: "immediate",
+        scope: "user",
+        overrides: ["space", "installation", "device"],
+        package: notes,
+        default: { channels: ["desktop", "push", "email"], delivery: "immediate" },
+        schema: {
+            $schema: "https://json-schema.org/draft/2020-12/schema",
+            type: "object",
+            properties: {
+                channels: {
+                    type: "array",
+                    items: { type: "string", enum: ["desktop", "push", "email"] },
                 },
-                required: ["channels", "delivery"],
-                additionalProperties: false,
+                delivery: { type: "string", enum: ["immediate", "summary"] },
             },
+            required: ["channels", "delivery"],
+            additionalProperties: false,
         },
     });
 });
 
-test("refuse declarations whose names cannot name a setting, and unlabeled actions", () => {
+test("refuse declarations whose names cannot identify a setting, and unlabeled actions", () => {
     const declare = (name: string, action: string, title: string) => () =>
         defineNotification(
             {
@@ -61,7 +75,12 @@ test("refuse declarations whose names cannot name a setting, and unlabeled actio
                 preference: { channels: [], delivery: "immediate" },
                 content: () => ({ title: "Review", body: "" }),
                 summary: (count) => `${count} reviews`,
-                actions: { [action]: { title, call: () => ({ method: "x.y", input: {} }) } },
+                actions: {
+                    [action]: {
+                        title,
+                        effect: async () => undefined,
+                    },
+                },
             },
             { package: notes },
         );
@@ -92,10 +111,11 @@ test("refuse declarations whose names cannot name a setting, and unlabeled actio
 });
 
 test("read the notifications a build declares from this package's description collection, and none from a build declaring none", async () => {
-    // hold a manifest whose notification collection declares the mention, beside one declaring nothing
+    // keep a manifest with the mention in its notification collection and one without
     const declaration = {
         name: "mention",
         kind: "notification",
+        package: notification.package,
         constructor: {
             package: notification.package,
             symbol: { module: "src/declare/notification.ts", name: "defineNotification" },
@@ -108,7 +128,7 @@ test("read the notifications a build declares from this package's description co
     const file = await describeFile("manifest/notification.json", "application/json", bytes);
     const reader = (descriptions: PackageManifest["descriptions"]) =>
         // only the descriptions matter to reading notifications
-        new PackageReader({ descriptions } as PackageManifest, async () => bytes);
+        new BuildReader({ descriptions } as PackageManifest, async () => bytes);
 
     // read the described mention, and nothing where no collection names this package
     expect([

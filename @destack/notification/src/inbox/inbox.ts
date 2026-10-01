@@ -1,16 +1,14 @@
 import { Condition } from "@destack/db/query";
-import type { ObjectQuery } from "@destack/object";
+import type { ObjectInclude } from "@destack/object";
 import type { PackageId } from "@destack/package";
 
 /** A person's notifications, latest first. */
-export const NOTIFICATIONS: ObjectQuery = {
-    object: "notification",
+export const NOTIFICATIONS: ObjectInclude = {
     order: [{ column: "occurredAt", direction: "desc" }],
 };
 
 /** A person's unread notifications counted per space and app. */
-export const UNREAD: ObjectQuery = {
-    object: "notification",
+export const UNREAD: ObjectInclude = {
     where: Condition.all(Condition.missing("readAt"), Condition.missing("snoozedUntil")),
     aggregate: {
         groupBy: ["origin", "parentPackageId"],
@@ -23,7 +21,7 @@ export const UNREAD: ObjectQuery = {
 
 /** The unread notifications of one app in one space. */
 export interface Badge {
-    /** The space holding the notifications. */
+    /** The space of the notifications. */
     readonly space: string;
     /** The app. */
     readonly packageId: PackageId;

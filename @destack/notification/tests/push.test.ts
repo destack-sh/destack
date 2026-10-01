@@ -120,9 +120,9 @@ test("post encrypted messages with RFC 8030's headers and read each status as an
     ];
     const posted: { url: string; headers: Record<string, string>; body: number }[] = [];
     const transport = new WebPushTransport(new Vapid(keys, "https://destack.app"), {
-        fetch: (async (url: string, init: RequestInit) => {
-            const headers = Object.fromEntries(new Headers(init.headers).entries());
-            posted.push({ url, headers, body: (init.body as Uint8Array).length });
+        fetch: (async (url: string, options: RequestInit) => {
+            const headers = Object.fromEntries(new Headers(options.headers).entries());
+            posted.push({ url, headers, body: (options.body as Uint8Array).length });
 
             return responses.shift()!;
         }) as typeof fetch,
@@ -150,7 +150,7 @@ test("post encrypted messages with RFC 8030's headers and read each status as an
         { outcome: "failed", error: { code: "413", message: "payload too large" } },
     ]);
 
-    // name the coding, lifetime, topic and urgency of each post, signed by the sender
+    // check the coding, lifetime, topic and urgency of each post, signed by the sender
     const [first] = posted;
     expect({ ...first!.headers, authorization: first!.headers.authorization!.slice(0, 8) }).toEqual(
         {

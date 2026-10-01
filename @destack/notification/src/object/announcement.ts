@@ -11,7 +11,7 @@ import { REASONS } from "./subscription.ts";
 export const Audience = defineSchema(
     schema.discriminatedUnion("kind", [
         schema.object({
-            /** The source's subscribers, each for its own reason. */
+            /** The source's subscribers with their reasons. */
             kind: schema.literal("subscribers"),
         }),
         schema.object({
@@ -21,11 +21,11 @@ export const Audience = defineSchema(
             reason: schema.enum(REASONS),
         }),
         schema.object({
-            /** The users holding a permission on the source. */
+            /** The users with a permission on the source. */
             kind: schema.literal("permission"),
             /** The permission, such as "edit". */
             permission: AccessName,
-            /** Why the holders receive it. */
+            /** Why those users receive it. */
             reason: schema.enum(REASONS),
         }),
     ]),
@@ -90,5 +90,5 @@ export const announcement = defineObject({
     },
 });
 
-/** An announcement as its table holds it. */
-export type AnnouncementRow = Select<typeof announcement.table>;
+/** An announcement as its table stores it. */
+export type Announcement = Select<typeof announcement.table>;

@@ -57,7 +57,7 @@ export const TimeZone = {
         return next;
     },
 
-    /** Read when the windows holding now end, absent outside them. */
+    /** Read when the windows containing now end, absent outside them. */
     end(timeZone: string, windows: readonly Window[], now: number): number | undefined {
         // check windows starting yesterday and today
         const today = localDate(timeZone, now);
@@ -147,7 +147,7 @@ function weekday(date: LocalDate): number {
     return day === 0 ? 7 : day;
 }
 
-/** Read the formatter of a time zone, refusing an unknown zone. */
+/** Read the formatter of a time zone and refuse an unknown zone. */
 function formatter(timeZone: string): Intl.DateTimeFormat {
     let known = formatters.get(timeZone);
     if (known === undefined) {

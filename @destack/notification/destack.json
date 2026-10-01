@@ -1,20 +1,28 @@
 {
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a0e95b-c8db-7258-a257-e7661dbc93c3",
     "language": "typescript",
-    "targets": ["browser", "server"],
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
         "./server": {
-            "targets": ["server"]
+            "runtimes": ["bun", "workerd"]
         }
     },
     "declarations": {
         "defineNotification": {
             "module": 1,
-            "inspect": {
-                "kind": "notification",
-                "describe": "./inspect#describeNotification"
-            }
+            "describes": [
+                {
+                    "kind": "notification",
+                    "function": "./inspect#describeNotification",
+                    "vocabulary": "./inspect#notificationVocabulary"
+                },
+                {
+                    "kind": "setting",
+                    "package": "@destack/setting",
+                    "function": "./inspect#describeNotificationPreference"
+                }
+            ]
         }
     }
 }

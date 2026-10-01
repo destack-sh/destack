@@ -1,11 +1,12 @@
 import { Package } from "@destack/package";
 import type {} from "@destack/package/import-meta";
-import type { PackageReader } from "@destack/package/manifest";
+import type { BuildReader } from "@destack/package/manifest";
 import { defineSchema, schema, toJsonSchema } from "@destack/schema";
 import { describeSetting, SettingDescription } from "@destack/setting/inspect";
 import { ActionMetadata, NotificationMetadata } from "../declare/notification.ts";
 import type { Notification } from "../notification/notification.ts";
 import { NotificationName } from "../object/notification.ts";
+import type { JsonValue } from "@destack/schema/json";
 
 /** A notification as manifests describe it. */
 export const NotificationDescription = defineSchema(
@@ -16,8 +17,6 @@ export const NotificationDescription = defineSchema(
         payload: schema.record(schema.string(), schema.json()),
         /** The actions by name. */
         actions: schema.record(NotificationName, ActionMetadata),
-        /** The preference setting. */
-        setting: SettingDescription,
     }),
 );
 /** A declared notification as manifests describe it. */
@@ -45,11 +44,30 @@ export function describeNotification(notification: Notification): NotificationDe
                 }),
             ]),
         ),
-        setting: describeSetting(notification.preference),
     };
 }
 
+/** Describe a notification's preference as the setting recipients change. */
+export function describeNotificationPreference(notification: Notification): SettingDescription {
+    return describeSetting(notification.preference);
+}
+
 /** Read the notifications a build declares. */
-export function readNotifications(reader: PackageReader): Promise<NotificationDescription[]> {
-    return reader.declared(import.meta.destack.package.id, "notification", NotificationDescription);
+export async function readNotifications(reader: BuildReader): Promise<NotificationDescription[]> {
+    const declared = await reader.declared(
+        import.meta.destack.package.id,
+        "notification",
+        NotificationDescription,
+    );
+
+    return declared.map((declaration) => declaration.description);
+}
+
+/** List a notification's term: its name, with its payload's shape. */
+export function notificationVocabulary(
+    input: Record<string, JsonValue>,
+): Record<string, JsonValue> {
+    const description = NotificationDescription.parse(input);
+
+    return { [description.name]: { payload: description.payload } };
 }

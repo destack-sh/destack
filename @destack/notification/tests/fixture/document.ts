@@ -14,7 +14,7 @@ export const notes = Package.parse({
     version: "2026.9.0",
 });
 
-/** Someone mentions the recipient in a remark, which they answer from the notification. */
+/** Someone mentions the recipient in a remark to answer from the notification. */
 export const mention = defineNotification(
     {
         name: "mention",
@@ -29,17 +29,20 @@ export const mention = defineNotification(
             reply: {
                 title: "Reply",
                 text: { placeholder: "Reply", button: "Send" },
-                call: ({ source }, text) => ({
-                    method: "document.remark",
-                    input: { spaceId: source.scope, id: source.id, text: text!, mentions: [] },
-                }),
+                effect: ({ source }, call, text) =>
+                    call.invoke(document, "remark", {
+                        spaceId: source.scope,
+                        id: source.id,
+                        text: text!,
+                        mentions: [],
+                    }),
             },
         },
     },
     { package: notes },
 );
 
-/** A document waits for the recipient's approval, which breaks through a focus. */
+/** A document waits for the recipient's approval through a focus. */
 export const review = defineNotification(
     {
         name: "review",
@@ -53,17 +56,15 @@ export const review = defineNotification(
         actions: {
             approve: {
                 title: "Approve",
-                call: ({ source }) => ({
-                    method: "document.approve",
-                    input: { spaceId: source.scope, id: source.id },
-                }),
+                effect: ({ source }, call) =>
+                    call.invoke(document, "approve", { spaceId: source.scope, id: source.id }),
             },
         },
     },
     { package: notes },
 );
 
-/** A document changed, which recipients take in a summary or as it happens. */
+/** A document changed, sent to recipients in a summary or at once. */
 export const change = defineNotification(
     {
         name: "change",
@@ -78,7 +79,7 @@ export const change = defineNotification(
     { package: notes },
 );
 
-/** A document's publishing status, which each later status replaces. */
+/** A document's publishing status, replaced by each later status. */
 export const status = defineNotification(
     {
         name: "status",
@@ -168,7 +169,7 @@ export const document = defineObject({
         return call.target;
     },
     publish: async (call) => {
-        // tell the owner where publishing stands, each state replacing the last
+        // tell the owner the latest publishing state
         const { state } = call.input as { readonly state: "publishing" | "published" | "failed" };
         await status.notify(call, {
             source: call.reference(),

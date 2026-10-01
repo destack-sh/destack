@@ -6,11 +6,11 @@ import { defineSchema, identifier, schema } from "@destack/schema";
 import { space } from "@destack/space/object";
 import { notification } from "./notification.ts";
 
-/** The channels the server sends on. */
-export const DELIVERY_CHANNELS = ["push", "email"] as const;
+/** The channels that alert beside the inbox. */
+export const CHANNELS = ["desktop", "push", "email"] as const;
 
-/** A channel the server sends on. */
-export type DeliveryChannel = (typeof DELIVERY_CHANNELS)[number];
+/** A channel that alerts. */
+export type Channel = (typeof CHANNELS)[number];
 
 /** The states of a delivery. */
 export const DELIVERY_STATES = ["pending", "sent", "skipped", "failed"] as const;
@@ -40,6 +40,35 @@ export const DeliveryError = defineSchema(
 /** Why a channel refused a delivery. */
 export type DeliveryError = schema.Infer<typeof DeliveryError>;
 
+/** A message a desktop shows as a banner. */
+export const Banner = defineSchema(
+    schema.object({
+        /** The headline. */
+        title: schema.string(),
+        /** The line below the headline. */
+        subtitle: schema.string().optional(),
+        /** The text. */
+        body: schema.string(),
+        /** The actions offered beside it. */
+        actions: schema.array(
+            schema.object({
+                /** The action's declared name. */
+                name: schema.string().min(1),
+                /** The button's label. */
+                title: schema.string(),
+                /** Whether the action destroys or declines. */
+                isDestructive: schema.boolean(),
+                /** The text field the action asks for. */
+                text: schema
+                    .object({ placeholder: schema.string(), button: schema.string() })
+                    .optional(),
+            }),
+        ),
+    }),
+);
+/** A message a desktop shows as a banner. */
+export type Banner = schema.Infer<typeof Banner>;
+
 /** One notification sent on one channel to one address. */
 export const delivery = defineObject({
     name: "delivery",
@@ -48,9 +77,11 @@ export const delivery = defineObject({
     nested: { in: notification, receive: "read" },
     fields: {
         /** The channel. */
-        channel: field.enum(DELIVERY_CHANNELS),
-        /** The push endpoint, absent for email. */
+        channel: field.enum(CHANNELS),
+        /** The push endpoint, absent on other channels. */
         endpoint: field.string(identifier("push-endpoint")).optional(),
+        /** The device with the desktop that shows it, absent on other channels. */
+        device: field.string(identifier("device")).optional(),
 
         // schedule
         /** The state. */
@@ -69,18 +100,28 @@ export const delivery = defineObject({
         reason: field.enum(SKIP_REASONS).optional(),
         /** The channel's last refusal. */
         error: field.json(DeliveryError).optional(),
+        /** The banner a desktop shows, once sent there. */
+        banner: field.json(Banner).optional(),
     },
     constraints: (delivery) => [
         uniqueIndex("delivery_target").on(
             delivery.parentId,
             delivery.channel,
-            sql`coalesce(${delivery.endpoint}, '')`,
+            sql`coalesce(${delivery.endpoint}, ${delivery.device}, '')`,
         ),
         index("delivery_due").on(delivery.scope, delivery.state, delivery.dueAt),
         check("delivery_attempts", sql`${delivery.attempts} >= 0`),
         check(
             "delivery_endpoint",
             sql`(${delivery.channel} = 'push') = (${delivery.endpoint} IS NOT NULL)`,
+        ),
+        check(
+            "delivery_device",
+            sql`(${delivery.channel} = 'desktop') = (${delivery.device} IS NOT NULL)`,
+        ),
+        check(
+            "delivery_banner",
+            sql`(${delivery.channel} = 'desktop' AND ${delivery.state} = 'sent') = (${delivery.banner} IS NOT NULL)`,
         ),
         check(
             "delivery_sent",
@@ -108,5 +149,5 @@ export const delivery = defineObject({
     },
 });
 
-/** A delivery as its table holds it. */
-export type DeliveryRow = Select<typeof delivery.table>;
+/** A delivery as its table stores it. */
+export type Delivery = Select<typeof delivery.table>;

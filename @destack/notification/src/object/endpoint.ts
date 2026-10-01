@@ -45,5 +45,5 @@ export const pushEndpoint = defineObject({
     },
 });
 
-/** A push endpoint as its table holds it. */
-export type PushEndpointRow = Select<typeof pushEndpoint.table>;
+/** A push endpoint as its table stores it. */
+export type PushEndpoint = Select<typeof pushEndpoint.table>;

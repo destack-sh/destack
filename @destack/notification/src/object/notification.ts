@@ -1,5 +1,5 @@
 import { condition, intersection, relation, through, union } from "@destack/access";
-import { check, index, sql, unique, type Select } from "@destack/db";
+import { check, index, sql, unique } from "@destack/db";
 import { Condition } from "@destack/db/query";
 import { defineObject, field, method } from "@destack/object";
 import { PackageId } from "@destack/package";
@@ -22,7 +22,7 @@ export const NotificationName = defineSchema(
 /** A notification key or thread. */
 export const NotificationKey = defineSchema(schema.string().min(1).max(KEY_LENGTH));
 
-/** Mark a notification read, keeping the first read time. */
+/** Mark a notification read and keep the first read time. */
 const read = method({ permission: "read", inverse: "unread" }).handle(async (call) => {
     const { readAt } = call.target as { readonly readAt: number | null };
 
@@ -34,7 +34,7 @@ const unread = method({ permission: "read", inverse: "read" }).handle(async (cal
     call.revise({ readAt: null }),
 );
 
-/** Hold a notification back until a time. */
+/** Defer a notification until a time. */
 const snooze = method({
     permission: "read",
     input: schema.object({
@@ -86,7 +86,7 @@ export const notification = defineObject({
         readAt: field.time().optional(),
         /** When its snooze ends, absent unless snoozed. */
         snoozedUntil: field.time().optional(),
-        /** When its deliveries were planned, absent until the dispatcher plans them. */
+        /** When its deliveries were planned, absent until its controller plans them. */
         plannedAt: field.time().optional(),
     },
     constraints: (notification) => [
@@ -135,9 +135,15 @@ export const notification = defineObject({
         snooze,
         post: method.create(null, { isSystem: true }),
         occur: method.update(null, { isSystem: true }),
+        act: method({
+            permission: "read",
+            input: schema.object({
+                /** The declared action's name. */
+                action: NotificationName,
+                /** The text the action asks for. */
+                text: schema.string().min(1).optional(),
+            }),
+        }),
         deliver: method({ permission: null, isSystem: true }),
     },
 });
-
-/** A notification as its table holds it. */
-export type NotificationRow = Select<typeof notification.table>;
