@@ -151,6 +151,12 @@ await snapshot.rows(note, Condition.eq("scope", spaceId));
 await snapshot.ordered(note, { where, order: [{ column: "title", direction: "asc" }], count: 20 });
 ```
 
+A snapshot under an `Overlay` reads another layer's rows in place of the database's, such as a branch's.
+
+```ts
+const branched = Snapshot.live(database).layer(async (table) => rowsByKey.get(table) ?? new Map());
+```
+
 ## Commit notifiers
 
 A `CommitNotifier` wakes log readers when another writer commits.

@@ -6,6 +6,8 @@ import { Condition } from "../query/condition.ts";
 import { Order } from "../query/order.ts";
 import { eq } from "../query/predicate.ts";
 import type { LogPosition } from "./position.ts";
+import { Snapshot } from "./snapshot.ts";
+import { Key } from "../query/key.ts";
 
 /** The writes before each snapshot. */
 const WRITES = 120;
@@ -169,5 +171,85 @@ test.for(TEST_DIALECTS)(
             [{ id: "i1", scope: "inbox", rank: 1, label: "x" }],
             undefined,
         ]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "read tables under an overlay live and at every earlier position on %s",
+    async (dialect) => {
+        const test = await TestDatabase.create(dialect, [item], { isMigrated: true });
+        onTestFinished(() => test.close());
+        const database = test.database;
+        const seed = { value: 7 };
+        const where = Condition.all(Condition.eq("scope", "inbox"), Condition.gte("rank", 2));
+        const order = [{ column: "rank", direction: "desc" as const }];
+        type Item = { id: string; scope: string; rank: number; label: string | null };
+
+        // put rows over some keys and remove others
+        const overlay = new Map<string, Item | null>();
+        for (let index = 0; index < 12; index += 1) {
+            const draw = random(seed);
+            if (draw < 0.25) {
+                overlay.set(`i${index}`, null);
+            } else if (draw < 0.5) {
+                const rank = Math.floor(random(seed) * 6);
+                overlay.set(`i${index}`, { id: `i${index}`, scope: "inbox", rank, label: "b" });
+            }
+        }
+        const layered = async () =>
+            new Map([...overlay].map(([id, row]) => [Key.name(item, { id }), row]));
+
+        // write at random and capture the rows at each position
+        const captured: { readonly position: LogPosition; readonly rows: Item[] }[] = [];
+        for (let index = 0; index < WRITES; index += 1) {
+            const id = `i${Math.floor(random(seed) * 12)}`;
+            const values = {
+                id,
+                scope: random(seed) < 0.8 ? "inbox" : "archive",
+                rank: Math.floor(random(seed) * 6),
+                label: random(seed) < 0.3 ? null : "x",
+            };
+            if (random(seed) < 0.2) {
+                await database.delete(item).where(eq(item.id, id));
+            } else {
+                await database
+                    .insert(item)
+                    .values(values)
+                    .onConflictDoUpdate({ target: item.id, set: values });
+            }
+            captured.push({
+                position: await database.log.position(),
+                rows: (await database.select().from(item)) as Item[],
+            });
+        }
+
+        // read each position's snapshot and the live one under the overlay
+        const live = { position: undefined, rows: captured.at(-1)!.rows };
+        for (const { position, rows } of [...captured, live]) {
+            const snapshot = (
+                position === undefined ? Snapshot.live(database) : database.log.at(position)
+            ).layer(layered);
+            const kept = rows.filter((row) => !overlay.has(row.id));
+            const shown = [...kept, ...[...overlay.values()].filter((row) => row !== null)];
+            const matching = shown.filter((row) => row.scope === "inbox" && row.rank >= 2);
+            const sorted = [...matching].sort((left, right) =>
+                Order.rows(Order.complete(order, item), left, right),
+            );
+            const byKey = (list: readonly unknown[]) =>
+                [...(list as { id: string }[])].sort((left, right) =>
+                    left.id < right.id ? -1 : 1,
+                );
+            expect([
+                position?.sequence,
+                byKey(await snapshot.rows(item, where)),
+                (await snapshot.row(item, { id: "i3" })) ?? null,
+                await snapshot.ordered(item, { where, order, count: 3 }),
+            ]).toEqual([
+                position?.sequence,
+                byKey(matching),
+                shown.find((row) => row.id === "i3") ?? null,
+                sorted.slice(0, 3),
+            ]);
+        }
     },
 );

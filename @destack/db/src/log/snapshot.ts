@@ -26,6 +26,9 @@ export type Rewind = (
     upto: number,
 ) => Promise<ReadonlyMap<string, Row | null>>;
 
+/** Read the rows a layer puts over a table's rows, by key name: a row, or null for a removed one. */
+export type Overlay = (table: Table) => Promise<ReadonlyMap<string, Row | null>>;
+
 /** What an ordered read admits beyond a condition. */
 export interface Admission {
     /** Match the admitted current rows, absent to decide in memory. */
@@ -52,12 +55,26 @@ export class Snapshot {
     readonly position: LogPosition | undefined;
     /** The source of earlier row images. */
     readonly #rewind: Rewind;
+    /** The rows a layer puts over the database's, such as a branch's, absent for none. */
+    readonly #overlay: Overlay | undefined;
 
-    /** Show a database as of a position. */
-    constructor(database: DatabaseConnection, position: LogPosition | undefined, rewind?: Rewind) {
+    /** Show a database as of a position, under an overlay when one is given. */
+    constructor(
+        database: DatabaseConnection,
+        position: LogPosition | undefined,
+        rewind?: Rewind,
+        overlay?: Overlay,
+    ) {
+        // keep the database, the position, and how earlier and overlaid rows read
         this.database = database;
         this.position = position;
         this.#rewind = rewind ?? database.log.rewind();
+        this.#overlay = overlay;
+    }
+
+    /** Show the same database and position under an overlay. */
+    layer(overlay: Overlay): Snapshot {
+        return new Snapshot(this.database, this.position, this.#rewind, overlay);
     }
 
     /** Show the live database with its transaction's writes. */
@@ -157,8 +174,9 @@ export class Snapshot {
         const relations = query.relations;
         let changed = -1;
         let reached = this.position?.sequence;
-        const images = new Map<string, Row | null>();
-        let unsettled = new Map<string, Row | null>();
+        const overlay = (await this.#overlay?.(table)) ?? new Map<string, Row | null>();
+        const images = new Map(overlay);
+        let unsettled = new Map(overlay);
         let rows: Row[] = [];
         while (unsettled.size > changed) {
             changed = unsettled.size;
@@ -281,8 +299,19 @@ export class Snapshot {
         return this.#require(latest.epoch, latest.sequence);
     }
 
-    /** Read the rows' images at the position, none when live. */
+    /** Read the rows' images at the position under the overlay, none when live without one. */
     async #since(table: Table, read?: number): Promise<ReadonlyMap<string, Row | null>> {
+        // put the overlay's rows over the position's images
+        const images = await this.#rewound(table, read);
+        const overlay = await this.#overlay?.(table);
+
+        return overlay === undefined || overlay.size === 0
+            ? images
+            : new Map([...images, ...overlay]);
+    }
+
+    /** Read the rows' images at the position, none when live. */
+    async #rewound(table: Table, read?: number): Promise<ReadonlyMap<string, Row | null>> {
         // show the live database unchanged
         if (this.position === undefined) {
             return new Map();
