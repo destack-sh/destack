@@ -3,12 +3,13 @@ import { defineDatabase } from "@destack/db/declare";
 import { announcement, delivery, notification, subscription } from "@destack/notification";
 import { defineJournal } from "@destack/service/database";
 import { comment, reaction } from "@destack/social";
+import { branchTables } from "@destack/space/object";
 import { project, task } from "../object/index.ts";
 
 /** Replayable method requests. */
 export const tasksJournal = defineJournal("journal");
 
-/** The tables of projects and tasks, with their comments and notifications, for a database embedding them. */
+/** The tables of projects and tasks, with their comments, notifications and branches, for a database embedding them. */
 export const tasksTables: readonly Table[] = [
     ...[
         project,
@@ -20,6 +21,7 @@ export const tasksTables: readonly Table[] = [
         announcement,
         delivery,
     ].flatMap((object) => object.tables),
+    ...branchTables,
     tasksJournal,
 ];
 

@@ -10,11 +10,10 @@ import { announcement, delivery, notification, subscription } from "@destack/not
 import type { ObjectType } from "@destack/object";
 import { ObjectServer } from "@destack/object/server";
 import { identifier } from "@destack/schema";
-import { Bookmark } from "@destack/service/bookmark";
 import { Journal } from "@destack/service/database";
 import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
-import type { ServiceContext } from "@destack/service/server";
+import { subjectContext, testJournalKey } from "@destack/service/test";
 import { comment, reaction } from "@destack/social";
 import { space } from "@destack/space/object";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -54,11 +53,11 @@ test.for(TEST_DIALECTS)(
             },
             database: storage.database,
             context: (context) => ({
-                subjects: [people[context.requireCaller().id as Person]],
+                subjects: [context.requireCaller().authentication.subject],
                 now: Date.now(),
                 attributes: {},
             }),
-            journal: new Journal(tasksJournal),
+            journal: new Journal(tasksJournal, testJournalKey),
             audit: AuditRecorder.service(new AuditOutbox(storage.database), {
                 package: task.package,
                 service: "tasks",
@@ -135,12 +134,5 @@ function context(spaceId: string, person: Person) {
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
 
-    return {
-        scope: spaceId,
-        caller: { id: person },
-        requireCaller: () => ({ id: person }),
-        bookmark: new Bookmark(),
-        observed: new Bookmark(),
-        signal: controller.signal,
-    } as unknown as ServiceContext;
+    return subjectContext(people[person], spaceId, controller.signal);
 }
