@@ -1,5 +1,5 @@
 {
-    "name": "@destack/site",
+    "name": "@platform/site",
     "private": true,
     "version": "2026.9.0",
     "license": "MIT",

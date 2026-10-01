@@ -17,7 +17,7 @@ export const collections: readonly Collection[] = [
     {
         title: "Documentation",
         route: "/docs/",
-        sources: [{ directory: "docs", path: "", hierarchy: [] }],
+        sources: [{ directory: "@platform/docs", path: "", hierarchy: [] }],
     },
     {
         title: "Libraries",
@@ -27,7 +27,7 @@ export const collections: readonly Collection[] = [
     {
         title: "Blog",
         route: "/blog/",
-        sources: [{ directory: "blog", path: "", hierarchy: [] }],
+        sources: [{ directory: "@platform/blog", path: "", hierarchy: [] }],
     },
 ];
 

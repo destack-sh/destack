@@ -5,7 +5,7 @@ const siteDirectory = new URL("..", import.meta.url).pathname;
 const repositoryDirectory = new URL("../../..", import.meta.url).pathname;
 const publicDirectory = join(siteDirectory, "public");
 const publicBrandDirectory = join(publicDirectory, "brand");
-const brandDirectory = join(repositoryDirectory, "platform/brand");
+const brandDirectory = join(repositoryDirectory, "@platform/brand");
 const generatedDirectory = join(siteDirectory, ".generated");
 
 await mkdir(generatedDirectory, { recursive: true });

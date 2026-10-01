@@ -4,15 +4,15 @@ import { fileURLToPath } from "node:url";
 import { formatSource } from "@destack/check";
 
 const repositoryDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
-const generatedFile = join(repositoryDirectory, "platform/site/src/generated/release.ts");
-const publicFile = join(repositoryDirectory, "platform/site/public/release.json");
+const generatedFile = join(repositoryDirectory, "@platform/site/src/generated/release.ts");
+const publicFile = join(repositoryDirectory, "@platform/site/public/release.json");
 const isCheck = process.argv.includes("--check");
 
 // read the repository version and release configuration
 const manifestFile = join(repositoryDirectory, "@destack/desktop/package.json");
 const manifest = JSON.parse(readFileSync(manifestFile, "utf8"));
 const { version } = manifest;
-const configurationFile = join(repositoryDirectory, "platform/release/config.json");
+const configurationFile = join(repositoryDirectory, "@platform/release/config.json");
 const { stability } = JSON.parse(readFileSync(configurationFile, "utf8"));
 
 // require one canonical calendar version
@@ -52,7 +52,7 @@ function requireGeneratedFile(file: string, source: string) {
     const current = readFileSync(file, "utf8");
     if (current !== source) {
         throw new Error(
-            "generated release metadata is out of date, run `just platform/site/generate`",
+            "generated release metadata is out of date, run `just @platform/site/generate`",
         );
     }
 }

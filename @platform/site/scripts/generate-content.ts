@@ -30,7 +30,7 @@ import { writePageSources } from "./sources.ts";
 import { withLock } from "./lock.ts";
 
 const repositoryDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
-const siteDirectory = join(repositoryDirectory, "platform/site");
+const siteDirectory = join(repositoryDirectory, "@platform/site");
 const contentDirectory = join(
     repositoryDirectory,
     collections.find((collection) => collection.route === "/blog/")!.sources[0].directory,
@@ -789,7 +789,7 @@ function checkGeneratedFile(file: string, source: string) {
 
     const current = readFileSync(file, "utf8");
     if (current !== source) {
-        throw new Error("generated content is out of date, run `just platform/site/generate`");
+        throw new Error("generated content is out of date, run `just @platform/site/generate`");
     }
 }
 
