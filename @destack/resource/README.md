@@ -1,6 +1,6 @@
 # @destack/resource
 
-Declare the resources a package needs, bind their clients, plan their changes and copy their content.
+Declare the resources a package needs, bind their clients, plan their changes and open their content.
 
 ## Declarations
 
@@ -31,9 +31,10 @@ A `Provider` manages one kind's resources on a host, and has the capabilities it
 
 | Capability | Methods | Required |
 |---|---|---|
-| `Reconciling` | `plan`, `apply` | exactly when the kind declares a desired state |
-| `Provisioning` | `provision`, `destroy` | when the provider hosts what it provides |
-| `Copying` | `export`, `import` | when the provider moves content in and out |
+| `Reconcile` | `plan`, `apply` | exactly when the kind declares a desired state |
+| `Provision` | `provision`, `destroy` | when the provider hosts what it provides |
+| `Open` | `open` | when the provider keeps content as a database, such as a database file or a bucket catalogue |
+| `Seal` | `table`, `seal`, `unseal` | when the provider binds rows to its host, such as keys wrapped under the host's root key |
 
 A host parses stored rows through the provider's kind and checks a capability before using it.
 
@@ -56,21 +57,20 @@ const binding = {
     resource,
     kind: "database",
     provider: "sqlite",
-    reference: "file:///spaces/space-…/resource-….db",
+    reference: "file:///spaces/space-…/database-….db",
 };
 const connection = await notes.connectors.sqlite!.connect(binding, notes);
 ```
 
-## Copies
+## Moves
 
-A provider exports a resource's content as chunks and imports them into another host's resource, with secrets sealed to a fresh `Recipient`.
+A provider opens a resource's content as a database handle, and seals its host-bound rows to another host's `Recipient`.
 
 ```ts
+const handle = await provider.open(record, desired); // { database, blobs?, migrate, close }
 const recipient = await Recipient.generate();
-const source = { record, desired, recipient: Recipient.of(recipient.key), stage: "live" } as const;
-for await (const chunk of provider.export(source, after, signal)) {
-    await target.import({ record: targetRecord, desired, recipient, stage: "live" }, chunk);
-}
+const sealed = await source.seal(row, Recipient.of(recipient.key));
+const unsealed = await target.unseal(sealed, recipient);
 ```
 
 ## Plans

@@ -1,8 +1,8 @@
-import { defineSchema, schema, type Identifier } from "@destack/schema";
-import { ResourceId } from "./resource.ts";
-import type { Chunk, Copy } from "./copy.ts";
-import type { Plan } from "./plan.ts";
-import type { ResourceDeclaration, ResourceKind } from "./resource.ts";
+import { defineSchema, type Digest, schema, type Identifier } from "@destack/schema";
+import { ResourceId, type ResourceDeclaration } from "../declare/declaration.ts";
+import type { KindState, ResourceKind } from "../declare/kind.ts";
+import type { Plan } from "../plan/plan.ts";
+import type { Recipient } from "./recipient.ts";
 
 /** A resource as its space records it, its specification read by its kind. */
 export interface ResourceRecord<Kind extends ResourceKind = ResourceKind> {
@@ -15,11 +15,6 @@ export interface ResourceRecord<Kind extends ResourceKind = ResourceKind> {
     /** The provider's reference once provisioned. */
     readonly reference: string | null;
 }
-
-/** The desired state a kind's providers reconcile resources toward, none for kinds without one. */
-export type KindState<Kind extends ResourceKind> = Kind["state"] extends schema.Schema
-    ? schema.Infer<Kind["state"]>
-    : never;
 
 /** A provisioned resource a host binds to a workload, as the workload's connector opens it. */
 export const ResourceBinding = defineSchema(
@@ -48,7 +43,7 @@ export interface Connector<Client = unknown> {
 }
 
 /** Where a provider placed a resource. */
-export interface Provision {
+export interface Placement {
     /** The provider's stable reference, such as a file URL or bucket name. */
     readonly reference: string;
     /** The provider location, when meaningful. */
@@ -63,40 +58,49 @@ export type Provider<Kind extends ResourceKind = ResourceKind, Object = unknown>
     readonly code: string;
     /** The object type the kind's resources are in their space, such as a vault. */
     readonly object: Object;
-} & (Kind["state"] extends schema.Schema ? Reconciling<Kind> : unknown) &
-    (Provisioning<Kind> | { readonly provision?: never; readonly destroy?: never }) &
-    (Copying<Kind> | { readonly export?: never; readonly import?: never });
+} & (Kind["state"] extends schema.Schema ? Reconcile<Kind> : unknown) &
+    (Provision<Kind> | { readonly provision?: never; readonly destroy?: never });
 
 /** Take a resource to the desired states its kind declares, required of providers of kinds with a state. */
-export interface Reconciling<Kind extends ResourceKind = ResourceKind> {
+export interface Reconcile<Kind extends ResourceKind = ResourceKind> {
     /** Plan the steps taking the resource to the union of the desired states. */
     plan(record: ResourceRecord<Kind>, desired: readonly KindState<Kind>[]): Promise<Plan>;
     /** Apply the plan with the reviewed digest, refusing when the resource or desired states changed. */
     apply(
         record: ResourceRecord<Kind>,
         desired: readonly KindState<Kind>[],
-        digest: string,
+        digest: Digest,
     ): Promise<void>;
 }
 
 /** Create and remove resources the provider hosts. */
-export interface Provisioning<Kind extends ResourceKind = ResourceKind> {
+export interface Provision<Kind extends ResourceKind = ResourceKind> {
     /** Create or confirm the resource, returning the same reference each time. */
-    provision(record: ResourceRecord<Kind>): Promise<Provision>;
+    provision(record: ResourceRecord<Kind>): Promise<Placement>;
     /** Destroy the resource and everything it stores. */
     destroy(record: ResourceRecord<Kind>): Promise<void>;
 }
 
-/** Move a resource's content out of and into the provider. */
-export interface Copying<Kind extends ResourceKind = ResourceKind> {
-    /**
-     * Read the source's content after a cursor as chunks, repeatably, ending once the stage's content is read.
-     *
-     * The live stage reads what the source holds now; the fenced stage also reads what changed since and what only a fenced source keeps still.
-     */
-    export(copy: Copy<Kind>, after: string | undefined, signal: AbortSignal): AsyncIterable<Chunk>;
-    /** Write one exported chunk into the target's resource, idempotently, so that a repeated export converges. */
-    import(copy: Copy<Kind>, chunk: Chunk): Promise<void>;
+/** Open a resource's content as a database, such as a database resource's file. */
+export interface Open<Kind extends ResourceKind = ResourceKind, Handle = unknown> {
+    /** Open the provisioned resource as its desired states describe it. */
+    open(record: ResourceRecord<Kind>, desired: readonly KindState<Kind>[]): Promise<Handle>;
+}
+
+/** Carry the rows a provider binds to its host, such as keys wrapped under the host's root key, to another host. */
+export interface Seal<Table = unknown> {
+    /** The table of the host-bound rows. */
+    readonly table: Table;
+    /** Seal a row's host-bound values to the target's recipient. */
+    seal(
+        row: Readonly<Record<string, unknown>>,
+        recipient: Recipient,
+    ): Promise<Record<string, unknown>>;
+    /** Unseal a row sealed to this host's recipient, binding its values to this host. */
+    unseal(
+        row: Readonly<Record<string, unknown>>,
+        recipient: Recipient,
+    ): Promise<Record<string, unknown>>;
 }
 
 /** The fields of any provider the capability checks read, whatever its kind and object. */
@@ -105,17 +109,22 @@ type ProviderShape = { readonly kind: ResourceKind; readonly code: string };
 /** The capabilities of providers. */
 export const Provider = {
     /** Report whether a provider reconciles its resources toward a desired state. */
-    reconciles<Value extends ProviderShape>(provider: Value): provider is Value & Reconciling {
+    reconciles<Value extends ProviderShape>(provider: Value): provider is Value & Reconcile {
         return "plan" in provider && "apply" in provider;
     },
 
-    /** Report whether a provider creates and removes the resources it hosts. */
-    provisions<Value extends ProviderShape>(provider: Value): provider is Value & Provisioning {
-        return "provision" in provider && "destroy" in provider;
+    /** Report whether a provider opens its resources' content as a database. */
+    opens<Value extends ProviderShape>(provider: Value): provider is Value & Open {
+        return "open" in provider;
     },
 
-    /** Report whether a provider moves its resources' content out and in. */
-    copies<Value extends ProviderShape>(provider: Value): provider is Value & Copying {
-        return "export" in provider && "import" in provider;
+    /** Report whether a provider carries host-bound rows to another host. */
+    seals<Value extends ProviderShape>(provider: Value): provider is Value & Seal {
+        return "table" in provider && "seal" in provider && "unseal" in provider;
+    },
+
+    /** Report whether a provider creates and removes the resources it hosts. */
+    provisions<Value extends ProviderShape>(provider: Value): provider is Value & Provision {
+        return "provision" in provider && "destroy" in provider;
     },
 };

@@ -1,4 +1,4 @@
-import { expect, test } from "vitest";
+import { expect, test } from "@destack/test";
 import { Vocabulary } from "./vocabulary.ts";
 
 /** The digest of the owner relation's definition. */

@@ -1,11 +1,11 @@
 import {
     compareJsonSchemas,
     defineSchema,
+    Digest,
     schema,
     type JsonSchema,
     Version,
 } from "@destack/schema";
-import { digest } from "@destack/schema/json";
 import type { DeclarationDescription } from "@destack/package/inspect";
 import { PlanError } from "../error/error.ts";
 import { Address } from "./address.ts";
@@ -129,8 +129,8 @@ function join(parts: readonly (() => Plan)[]): Plan {
 }
 
 /** Digest a plan's reviewed steps, so an apply can require the plan a review saw. */
-function digestSteps(plan: Plan): Promise<string> {
-    return digest(
+function digestSteps(plan: Plan): Promise<Digest> {
+    return Digest.json(
         plan.steps.map((step) => ({
             action: step.action,
             risk: step.risk,

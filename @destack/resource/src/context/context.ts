@@ -1,5 +1,5 @@
 import { ResourceError } from "../error/index.ts";
-import type { ResourceHandle } from "../resource/handle.ts";
+import type { ResourceHandle } from "../declare/handle.ts";
 
 /** Resource clients authorised by the host for one invocation or local operation. */
 export class ResourceContext {

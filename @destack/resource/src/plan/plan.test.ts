@@ -1,6 +1,6 @@
-import { expect, test } from "vitest";
+import { expect, test } from "@destack/test";
 import { schema, toJsonSchema } from "@destack/schema";
-import { Plan, type Compatibility } from "./plan.ts";
+import { Plan, type Compatibility, type Step } from "./plan.ts";
 import { PlanError } from "../error/error.ts";
 
 /** Plan a change between two schemas, reading a refusal as its message. */
@@ -92,4 +92,30 @@ test("join plans in order, collecting every refusal into one error", () => {
     expect(() => Plan.join([refuse("a"), () => ({ steps: [step("b")] }), refuse("c")])).toThrow(
         "a: declare a conversion for 2026.10.0; c: declare a conversion for 2026.10.0",
     );
+});
+
+test("classify a plan by its most consequential step and digest its reviewed steps", async () => {
+    const add: Step = {
+        action: "create",
+        target: "table/note/column/priority",
+        risk: "safe",
+        detail: "add column priority",
+    };
+    const drop: Step = {
+        action: "delete",
+        target: "table/note/column/body",
+        risk: "destructive",
+        detail: "drop column body",
+    };
+
+    // rank plans by their highest risk, safe when empty
+    expect([Plan.classify({ steps: [] }), Plan.classify({ steps: [add, drop] })]).toEqual([
+        "safe",
+        "destructive",
+    ]);
+
+    // digest the same steps equally and different steps differently
+    const first = await Plan.digest({ steps: [add, drop] });
+    expect(await Plan.digest({ steps: [add, drop] })).toBe(first);
+    expect(await Plan.digest({ steps: [drop, add] })).not.toBe(first);
 });

@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { Recipient } from "./index.ts";
+import { Recipient } from "./recipient.ts";
 
 test("seal bytes to a recipient, which alone opens them under the same context", async () => {
     const recipient = await Recipient.generate();

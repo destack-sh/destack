@@ -1,5 +1,4 @@
-import { defineSchema, schema, Version } from "@destack/schema";
-import { Digest } from "@destack/package/file";
+import { defineSchema, Digest, schema, Version } from "@destack/schema";
 import type { DeclarationDescription } from "@destack/package/inspect";
 import { PlanError } from "../error/error.ts";
 import { Address } from "./address.ts";

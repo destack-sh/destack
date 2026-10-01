@@ -1,6 +1,6 @@
 import type { Package } from "@destack/package";
 import type { ResourceContext } from "../context/index.ts";
-import type { ResourceDescription } from "./resource.ts";
+import type { ResourceDescription } from "./declaration.ts";
 
 /** A named declaration whose client is selected by the invocation's host. */
 export class ResourceHandle<Client> {
