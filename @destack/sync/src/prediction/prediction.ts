@@ -1,9 +1,7 @@
 import {
     asc,
-    decodeRow,
     defineTable,
     desc,
-    encodeRow,
     integer,
     Key,
     gte,
@@ -14,7 +12,8 @@ import {
 } from "@destack/db";
 import type { LogPosition } from "@destack/db/log";
 import { RowChange, type MutationOutcome } from "../query/page.ts";
-import { type Call, type Mutation, mutation, Outbox } from "../outbox/outbox.ts";
+import { mutation, Outbox } from "../outbox/outbox.ts";
+import type { Call, Mutation } from "../call/index.ts";
 
 /** The most changes one read of a prediction takes. */
 const RECORD_CHANGES = 1000;
@@ -119,7 +118,7 @@ export class Prediction {
                     : stack.length;
 
             // revert the layers above it, predict it, then predict them again on top
-            await transaction.log.copying(() => this.#revertFrom(transaction, index + 1));
+            await transaction.log.asReplica(() => this.#revertFrom(transaction, index + 1));
             const recorded = await this.#record(transaction, predict);
             await this.outbox.append(transaction, { id, origin, calls: recorded.calls, branch });
             await transaction.insert(layer).values({
@@ -145,7 +144,7 @@ export class Prediction {
     async checkout(database: DatabaseConnection, branch: string | undefined): Promise<void> {
         await database.transaction(async (transaction) => {
             // revert, switch the branch shown, and predict again
-            await transaction.log.copying(() => this.revert(transaction));
+            await transaction.log.asReplica(() => this.revert(transaction));
             await transaction.delete(checkout);
             if (branch !== undefined) {
                 await transaction.insert(checkout).values({ slot: 1, branch });
@@ -322,9 +321,9 @@ export class Prediction {
                 ...page.changes.map((change) => ({
                     table: change.table[TABLE].sqlName,
                     operation: change.operation,
-                    row: encodeRow(change.table, (change.after ?? change.before)!),
+                    row: change.table.encode((change.after ?? change.before)!),
                     ...(change.operation === "update"
-                        ? { before: encodeRow(change.table, change.before!) }
+                        ? { before: change.table.encode(change.before!) }
                         : {}),
                 })),
             );
@@ -341,7 +340,7 @@ export class Prediction {
     async #invert(transaction: DatabaseConnection, change: RowChange): Promise<void> {
         // match the row by its key
         const table = this.tables.get(change.table)!;
-        const row = decodeRow(table, change.row);
+        const row = table.decode(change.row);
         const matched = Key.match(table, row);
 
         // remove an inserted row
@@ -352,7 +351,7 @@ export class Prediction {
         else if (change.operation === "update") {
             await transaction
                 .update(table)
-                .set(decodeRow(table, change.before!) as never)
+                .set(table.decode(change.before!) as never)
                 .where(matched);
         }
         // reinsert a deleted row

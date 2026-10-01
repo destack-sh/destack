@@ -1,3 +1,4 @@
+import { Failure } from "../call/outcome.ts";
 import { Scalar } from "@destack/db/query";
 import { defineSchema, schema } from "@destack/schema";
 import { LogPosition } from "@destack/db/log";
@@ -8,7 +9,7 @@ export const MutationOutcome = defineSchema(
         /** The mutation's request identifier. */
         id: schema.string().min(1),
         /** The recorded failure, absent once executed. */
-        error: schema.json().optional(),
+        error: Failure.optional(),
     }),
 );
 /** The source's outcome of a subscriber's mutation. */

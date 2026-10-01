@@ -1,3 +1,4 @@
+export * from "./call/index.ts";
 export * from "./query/index.ts";
 export * from "./feed/index.ts";
 export * from "./dataflow/index.ts";

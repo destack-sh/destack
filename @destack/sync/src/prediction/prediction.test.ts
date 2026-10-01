@@ -1,11 +1,12 @@
 import { expect, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { asc, eq, TABLE, type DatabaseConnection, encodeRow } from "@destack/db";
+import { asc, eq, TABLE, type DatabaseConnection } from "@destack/db";
 import { Replica, replicaTables } from "../replica/replica.ts";
 import type { QueryPage } from "../query/page.ts";
 import type { Query } from "../query/query.ts";
 import { first, note, open, replicate, tag } from "../test/fixture.ts";
-import { type Call, mutation, type Mutation } from "../outbox/outbox.ts";
+import { mutation } from "../outbox/outbox.ts";
+import type { Call, Mutation } from "../call/index.ts";
 import { Prediction, predictionTables } from "./prediction.ts";
 
 /** The release the calls were made against. */
@@ -41,7 +42,7 @@ function page(
         changes: rows.map((row) => ({
             table: note[TABLE].sqlName,
             operation: "insert" as const,
-            row: encodeRow(note, { ...first, ...row }),
+            row: note.encode({ ...first, ...row }),
         })),
         position: { epoch: EPOCH, sequence },
         ...(options.outcomes === undefined ? {} : { outcomes: options.outcomes }),
@@ -83,7 +84,10 @@ test("rebase predicted mutations onto source pages until the source executes or 
         client,
         [
             page(2, [{ id: "a", title: "Server" }], {
-                outcomes: [{ id: IDS[0] }, { id: IDS[1], error: { code: "FORBIDDEN" } }],
+                outcomes: [
+                    { id: IDS[0] },
+                    { id: IDS[1], error: { code: "FORBIDDEN", status: 403, message: "forbidden" } },
+                ],
             }),
         ],
         prediction,
@@ -95,7 +99,7 @@ test("rebase predicted mutations onto source pages until the source executes or 
     expect(await outcomes()).toEqual(["executed", "rejected", "pending"]);
     expect((await prediction.outbox.outcomes(client, [IDS[1]])).get(IDS[1])).toEqual({
         kind: "rejected",
-        error: { code: "FORBIDDEN" },
+        error: { code: "FORBIDDEN", status: 403, message: "forbidden" },
     });
     expect((await prediction.outbox.pending(client)).map((entry) => entry.id)).toEqual([IDS[2]]);
 
@@ -210,7 +214,7 @@ test("rebase predictions only onto pages changing a table they reach", async () 
             {
                 table: tag[TABLE].sqlName,
                 operation: "insert",
-                row: encodeRow(tag, { id: "t", scope: "inbox", name: "urgent" }),
+                row: tag.encode({ id: "t", scope: "inbox", name: "urgent" }),
             },
         ],
         position: { epoch: EPOCH, sequence: 2 },
@@ -253,7 +257,10 @@ test("read pending mutations up to a limit, and count each state with branch edi
         client,
         [
             page(2, [{ id: "a", title: "Server" }], {
-                outcomes: [{ id: IDS[0] }, { id: IDS[1], error: { code: "FORBIDDEN" } }],
+                outcomes: [
+                    { id: IDS[0] },
+                    { id: IDS[1], error: { code: "FORBIDDEN", status: 403, message: "forbidden" } },
+                ],
             }),
         ],
         prediction,
@@ -316,7 +323,7 @@ test("predict a checked-out branch's rows under its edits, and push the edits to
             {
                 table: tag[TABLE].sqlName,
                 operation: "insert",
-                row: encodeRow(tag, { id: "t", scope: "inbox", name: "branch" }),
+                row: tag.encode({ id: "t", scope: "inbox", name: "branch" }),
             },
         ],
         position: { epoch: EPOCH, sequence: 2 },

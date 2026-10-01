@@ -18,38 +18,13 @@ import {
     type SQL,
 } from "@destack/db";
 import { Condition } from "@destack/db/query";
-import { defineSchema, schema, Version } from "@destack/schema";
+import { schema } from "@destack/schema";
 import type { LogPosition } from "@destack/db/log";
 import type { MutationOutcome } from "../query/page.ts";
-
-/** One method call within a mutation. */
-export const Call = defineSchema(
-    schema.object({
-        /** The object type and method, such as page.create. */
-        method: schema.string().min(1),
-        /** The method's input, with its scope and target. */
-        input: schema.record(schema.string(), schema.json()),
-        /** The release of the object type's package the call was made against. */
-        release: Version,
-    }),
-);
-/** One method call within a mutation. */
-export type Call = schema.Infer<typeof Call>;
-
-/** Calls a client makes atomically. */
-export const Mutation = defineSchema(
-    schema.object({
-        /** The request identifier. */
-        id: schema.uuidv7(),
-        /** The calls in order. */
-        calls: schema.array(Call).min(1),
-    }),
-);
-/** Calls a client makes atomically. */
-export type Mutation = schema.Infer<typeof Mutation>;
+import { Call, Failure, Mutation } from "../call/index.ts";
 
 /** The state of a mutation. */
-export type Outcome =
+export type MutationState =
     | {
           /** Waiting for the server, or executed. */
           readonly kind: "pending" | "executed";
@@ -58,7 +33,7 @@ export type Outcome =
           /** Rejected by the server. */
           readonly kind: "rejected";
           /** The failure the server recorded. */
-          readonly error: unknown;
+          readonly error: Failure;
       };
 
 /** The mutations of a client's outbox, in order. */
@@ -78,7 +53,7 @@ export const mutation = defineTable("mutation", {
     /** The server log sequence of the mutation's changes. */
     sequence: integer("sequence"),
     /** The failure the server recorded. */
-    error: json("error", schema.json()),
+    error: json("error", Failure),
 });
 
 /** A client's durable, ordered queue of mutations waiting for the server. */
@@ -183,11 +158,8 @@ export class Outbox {
     }
 
     /** Record the server's rejection of a mutation. */
-    async reject(database: DatabaseConnection, id: string, error: unknown): Promise<void> {
-        await database
-            .update(mutation)
-            .set({ error: schema.json().parse(error) })
-            .where(eq(mutation.id, id));
+    async reject(database: DatabaseConnection, id: string, error: Failure): Promise<void> {
+        await database.update(mutation).set({ error }).where(eq(mutation.id, id));
     }
 
     /** Settle the mutations a page answered or a snapshot holds. */
@@ -196,7 +168,7 @@ export class Outbox {
         outcomes: readonly MutationOutcome[],
         snapshot?: LogPosition,
     ): Promise<void> {
-        // drop executed mutations and keep rejected ones
+        // drop executed mutations
         const executed = outcomes.filter((entry) => entry.error === undefined);
         if (executed.length > 0) {
             await transaction.delete(mutation).where(
@@ -209,8 +181,12 @@ export class Outbox {
                 ),
             );
         }
-        for (const entry of outcomes.filter((outcome) => outcome.error !== undefined)) {
-            await this.reject(transaction, entry.id, entry.error);
+
+        // keep rejected mutations with their failure
+        for (const { id, error } of outcomes) {
+            if (error !== undefined) {
+                await this.reject(transaction, id, error);
+            }
         }
 
         // drop what a snapshot holds, and push again what an earlier epoch executed
@@ -235,7 +211,7 @@ export class Outbox {
     async outcomes(
         database: DatabaseConnection,
         ids: readonly string[],
-    ): Promise<ReadonlyMap<string, Outcome>> {
+    ): Promise<ReadonlyMap<string, MutationState>> {
         const rows = await database
             .select({ id: mutation.id, error: mutation.error })
             .from(mutation)
@@ -243,7 +219,7 @@ export class Outbox {
         const held = new Map(rows.map((row) => [row.id, row.error]));
 
         return new Map(
-            ids.map((id): [string, Outcome] => {
+            ids.map((id): [string, MutationState] => {
                 const error = held.get(id);
 
                 return [
