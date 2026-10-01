@@ -1,6 +1,12 @@
 import { expect, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { asc, encodeRow, eq, TABLE } from "@destack/db";
+import { asc, binary, blob, defineTable, eq, TABLE, text, type Row, type Table } from "@destack/db";
+import { TestDatabase } from "@destack/db/test";
+import { LocalBlobStore } from "@destack/db/blob/local";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { onTestFinished } from "@destack/test";
 import { Feed } from "../feed/feed.ts";
 import { replicaTables, Replica, replica } from "./replica.ts";
 import {
@@ -63,6 +69,109 @@ test.for(TEST_DIALECTS)(
             await Replica.isCopied(copy, "inbox"),
             (await copy.select().from(note)).map((row) => row.id),
         ]).toEqual([false, ["a"]]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "copy a whole database: follow its logged rows, then capture every column once its source stops writing, on %s",
+    async (dialect) => {
+        // keep entries of several scopes with sensitive and binary columns, an unlogged cache and a host-bound key
+        const tables = [entry, cache, heldKey, ...replicaTables];
+        const source = (await TestDatabase.create(dialect, tables, { isMigrated: true })).database;
+        const target = (
+            await TestDatabase.create(dialect, tables, { isMigrated: true, isReplica: true })
+        ).database;
+        onTestFinished(async () => {
+            await source.close();
+            await target.close();
+        });
+        const copied = [entry, cache, heldKey];
+        const copy = new Replica({
+            name: "database",
+            scope: "database",
+            tables: copied,
+            everywhere: new Set(copied),
+        });
+        const feed = new Feed(source, [entry, heldKey, replica]);
+        const data = new Uint8Array([1, 2, 3]);
+        const stores = await mkdtemp(join(tmpdir(), "destack-replica-blobs-"));
+        onTestFinished(() => rm(stores, { recursive: true, force: true }));
+        const sourceBlobs = await LocalBlobStore.open(join(stores, "source"));
+        const targetBlobs = await LocalBlobStore.open(join(stores, "target"));
+        const digest = await sourceBlobs.write(bytesOf("the first entry's content"));
+        const blobs = { store: targetBlobs, source: sourceBlobs };
+        await source.insert(entry).values({
+            id: "a",
+            scope: "inbox",
+            title: "First",
+            secret: "s1",
+            data,
+            content: digest,
+        });
+
+        // follow the logged rows while the source writes
+        const controller = new AbortController();
+        const following = copy.follow(
+            target,
+            (after, signal) => feed.subscribe(copy.queries, after, signal),
+            controller.signal,
+            { blobs },
+        );
+        const signal = AbortSignal.timeout(5000);
+        expect(await Replica.reach(target, "database", await source.log.position(), signal)).toBe(
+            true,
+        );
+        await source
+            .insert(entry)
+            .values({ id: "b", scope: "archive", title: "Second", secret: "s2", data });
+        await source.insert(cache).values({ id: "c", value: "cached" });
+        await source.insert(heldKey).values({ id: "k", scope: "inbox", wrapped: "source:k" });
+        expect(await Replica.reach(target, "database", await source.log.position(), signal)).toBe(
+            true,
+        );
+        controller.abort();
+        await following;
+
+        // capture every column once the source stops writing, rewrapping the key for the target
+        const seal = async (table: Table, row: Row) =>
+            table === heldKey
+                ? { ...row, wrapped: String(row.wrapped).replace("source:", "sealed:") }
+                : row;
+        const open = async (table: Table, row: Row) =>
+            table === heldKey
+                ? { ...row, wrapped: String(row.wrapped).replace("sealed:", "target:") }
+                : row;
+        for await (const _page of copy.apply(
+            target,
+            feed.capture(copy.captured, signal, { seal }),
+            {
+                open,
+                blobs,
+            },
+        )) {
+            // apply each captured page
+        }
+        await copy.promote(target);
+
+        // hold exactly the source's rows, the key rewrapped for the target
+        const read = async (database: typeof source) => [
+            await database.select().from(entry).orderBy(asc(entry.id)),
+            await database.select().from(cache),
+            await database.select().from(heldKey),
+        ];
+        expect(await read(target)).toEqual([
+            (await read(source))[0],
+            [{ id: "c", value: "cached" }],
+            [{ id: "k", scope: "inbox", wrapped: "target:k" }],
+        ]);
+        expect(await Replica.isCopied(target, "database")).toBe(false);
+
+        // keep the content the copied rows reference in the target's store
+        const kept: Uint8Array[] = [];
+        for await (const chunk of targetBlobs.read(digest)) {
+            kept.push(chunk);
+        }
+        expect(new TextDecoder().decode(Buffer.concat(kept))).toBe("the first entry's content");
     },
 );
 
@@ -143,7 +252,7 @@ test.for(TEST_DIALECTS)(
         const insert = (id: string) => ({
             table: note[TABLE].sqlName,
             operation: "insert" as const,
-            row: encodeRow(note, { ...first, id }),
+            row: note.encode({ ...first, id }),
         });
         const snapshot: QueryPage[] = [
             {
@@ -465,7 +574,7 @@ test.for(TEST_DIALECTS)(
         const insert = (id: string) => ({
             table: note[TABLE].sqlName,
             operation: "insert" as const,
-            row: encodeRow(note, { ...first, id }),
+            row: note.encode({ ...first, id }),
         });
         const snapshot = (sequence: number, ids: readonly string[]): QueryPage[] => [
             {
@@ -621,7 +730,7 @@ test.for(TEST_DIALECTS)(
                     {
                         table: note[TABLE].sqlName,
                         operation: "insert" as const,
-                        row: encodeRow(note, { ...first, summary }),
+                        row: note.encode({ ...first, summary }),
                         ...(concealed.length === 0 ? {} : { concealed }),
                     },
                 ],
@@ -651,3 +760,39 @@ test.for(TEST_DIALECTS)(
         expect(stored).toEqual([[null], ["Plan"], ["Plan"], [null]]);
     },
 );
+
+/** An entry of any scope with sensitive and binary columns, which its log leaves out, and content a blob store keeps. */
+const entry = defineTable(
+    "entry",
+    {
+        id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
+        title: text("title").notNull(),
+        content: blob("content"),
+        secret: text("secret").sensitive(),
+        data: binary("data"),
+    },
+    { log: {} },
+);
+
+/** An unlogged cache, which only a capture copies. */
+const cache = defineTable("cache", {
+    id: text("id").primaryKey(),
+    value: text("value").notNull(),
+});
+
+/** A key wrapped under the holding host's root key. */
+const heldKey = defineTable(
+    "held_key",
+    {
+        id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
+        wrapped: text("wrapped").notNull(),
+    },
+    { log: {} },
+);
+
+/** Stream a text's bytes. */
+async function* bytesOf(text: string): AsyncIterable<Uint8Array> {
+    yield new TextEncoder().encode(text);
+}

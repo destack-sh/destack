@@ -1,13 +1,6 @@
 import { expect, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
-import {
-    encodeRow,
-    Key,
-    TABLE,
-    type DatabaseConnection,
-    type Dialect,
-    type Table,
-} from "@destack/db";
+import { Key, TABLE, type DatabaseConnection, type Dialect, type Table } from "@destack/db";
 import { Feed } from "./feed.ts";
 import { PAGE_ROWS } from "../dataflow/selection.ts";
 import type { Query } from "../query/query.ts";
@@ -201,7 +194,7 @@ async function replicated(database: DatabaseConnection): Promise<Holding> {
             unknown
         >[]) {
             const logged = Object.keys(table[TABLE].logged).map((name) => [name, row[name]]);
-            rows.set(Key.name(table, row), encodeRow(table, Object.fromEntries(logged)));
+            rows.set(Key.name(table, row), table.encode(Object.fromEntries(logged)));
         }
     }
 

@@ -1,11 +1,12 @@
-import { Key, TABLE, type DatabaseConnection, type Table } from "@destack/db";
-import { Condition, type Match } from "@destack/db/query";
+import { and, Key, TABLE, type DatabaseConnection, type Table } from "@destack/db";
+import { Condition, Order, type Match } from "@destack/db/query";
 import { DatabaseError } from "@destack/db/error";
 import { describeLog, type Change, type LogPosition } from "@destack/db/log";
 import { SyncError } from "../error/error.ts";
 import type { Row } from "@destack/db";
 import type { QueryPage } from "../query/page.ts";
 import type { Query } from "../query/query.ts";
+import { Node } from "../query/node.ts";
 import { EVERYONE, watchedScopes, type Audience, type Watch } from "./audience.ts";
 import { Evaluation } from "./evaluation.ts";
 import { Stream } from "./stream.ts";
@@ -44,6 +45,13 @@ const SHARED_READS = 8;
  * A copy three beats unconfirmed, 30 seconds, is stale.
  */
 const HEARTBEAT_MILLISECONDS = 10_000;
+
+/**
+ * The rows one page of a capture carries.
+ *
+ * At 0.1 to 2 KB a row, a page is up to about 1 MB.
+ */
+const CAPTURE_ROWS = 500;
 
 /** One database's log, read once per commit and served to every subscriber. */
 export class Feed implements Cache {
@@ -172,6 +180,95 @@ export class Feed implements Cache {
             yield* stream.run(after, signal, previous, options.drain);
         } finally {
             this.#leave();
+        }
+    }
+
+    /**
+     * Read every column of the queries' rows as one consistent snapshot run, in one read transaction.
+     *
+     * The run carries what the log leaves out: unlogged tables, and binary and sensitive columns.
+     * Sealing turns a row's host-bound values into values only the target unseals.
+     */
+    async *capture(
+        queries: Readonly<Record<string, Query>>,
+        signal: AbortSignal,
+        options: {
+            readonly seal?: (table: Table, row: Row) => Promise<Row>;
+        } = {},
+    ): AsyncGenerator<QueryPage> {
+        // read in one transaction, handing each page over before reading the next
+        const handoff = new Handoff<QueryPage>();
+        const reading = this.database
+            .transaction(
+                async (transaction) => {
+                    for await (const page of Feed.#pages(transaction, queries, options.seal)) {
+                        await handoff.give(page);
+                    }
+                    handoff.end();
+                },
+                { isReadOnly: true, isolationLevel: "repeatable read", signal },
+            )
+            .catch((error: unknown) => handoff.fail(error));
+        try {
+            yield* handoff.take();
+        } finally {
+            handoff.end();
+            await reading;
+        }
+    }
+
+    /** Read every column of some queries' rows as pages of one snapshot run at the database's position. */
+    static async *#pages(
+        database: DatabaseConnection,
+        queries: Readonly<Record<string, Query>>,
+        seal: ((table: Table, row: Row) => Promise<Row>) | undefined,
+    ): AsyncGenerator<QueryPage> {
+        // read every query's rows page by page in key order
+        const position = await database.log.position();
+        const entries = Object.values(queries);
+        let isFirst = true;
+        for (const [index, query] of entries.entries()) {
+            // refuse a query the capture cannot read whole
+            if (query.include !== undefined) {
+                throw new SyncError(
+                    "INVALID_SCOPE",
+                    `capture reads no tables across scopes: ${query.table[TABLE].name}`,
+                );
+            }
+            const table = query.table;
+            const order = Order.complete([], table);
+            const where = Condition.render(
+                Condition.all(Node.scoped(query.scopes), query.where ?? Condition.all()),
+                Condition.bind(table),
+            );
+            let last: Row | undefined;
+            do {
+                // read the next page of the table's rows
+                const rows = (await database
+                    .select()
+                    .from(table)
+                    .where(and(where, last && Order.after(order, table, last)))
+                    .orderBy(...Order.render(order, table))
+                    .limit(CAPTURE_ROWS)) as Row[];
+                last = rows.length === CAPTURE_ROWS ? rows.at(-1) : undefined;
+
+                // send them sealed, completing the run with the last page
+                const sealed =
+                    seal === undefined
+                        ? rows
+                        : await Promise.all(rows.map((row) => seal(table, row)));
+                yield {
+                    reset: isFirst,
+                    complete: last === undefined && index === entries.length - 1,
+                    changes: sealed.map((row) => ({
+                        table: table[TABLE].sqlName,
+                        operation: "insert" as const,
+                        row: table.encode(row) as Record<string, never>,
+                    })),
+                    position,
+                };
+                isFirst = false;
+            } while (last !== undefined);
         }
     }
 
@@ -575,4 +672,76 @@ export interface FeedInspection {
         /** The evaluation's dataflow. */
         readonly dataflow: DataflowInspection;
     }[];
+}
+
+/** One value at a time from a producer to a consumer, the producer waiting until the consumer takes each. */
+class Handoff<Value> {
+    /** The value given and not yet taken, with the wake-up of its giver. */
+    #held: { readonly value: Value; readonly taken: () => void } | undefined;
+    /** The wake-up of a consumer waiting for a value. */
+    #waiting: (() => void) | undefined;
+    /** Whether the producer ended. */
+    #isEnded = false;
+    /** The producer's failure. */
+    #failure: { readonly error: unknown } | undefined;
+
+    /** Give a value, resolving once the consumer took it, and refusing once the consumer stopped. */
+    give(value: Value): Promise<void> {
+        // refuse a value once the consumer stopped
+        if (this.#isEnded) {
+            return Promise.reject(new SyncError("STALE", "the capture's consumer stopped"));
+        }
+
+        return new Promise((taken) => {
+            this.#held = { value, taken };
+            this.#wake();
+        });
+    }
+
+    /** End the values. */
+    end(): void {
+        this.#isEnded = true;
+        this.#held?.taken();
+        this.#wake();
+    }
+
+    /** End the values with the producer's failure. */
+    fail(error: unknown): void {
+        this.#failure = { error };
+        this.end();
+    }
+
+    /** Take the values in order until the producer ends, rethrowing its failure. */
+    async *take(): AsyncGenerator<Value> {
+        for (;;) {
+            // wait for a value or the end
+            if (this.#held === undefined && !this.#isEnded) {
+                await new Promise<void>((wake) => {
+                    this.#waiting = wake;
+                });
+            }
+
+            // hand over the held value
+            const held = this.#held;
+            if (held !== undefined) {
+                this.#held = undefined;
+                held.taken();
+                yield held.value;
+            }
+            // rethrow the producer's failure
+            else if (this.#failure !== undefined) {
+                throw this.#failure.error;
+            }
+            // stop at the end
+            else {
+                return;
+            }
+        }
+    }
+
+    /** Wake a waiting consumer. */
+    #wake(): void {
+        this.#waiting?.();
+        this.#waiting = undefined;
+    }
 }

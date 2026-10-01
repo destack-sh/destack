@@ -20,10 +20,10 @@ import {
     type DatabaseConnection,
     type SQL,
     type Table,
-    decodeRow,
 } from "@destack/db";
 import { Condition, Order, Scalar } from "@destack/db/query";
 import { DatabaseError } from "@destack/db/error";
+import type { BlobStore } from "@destack/db/blob";
 import { SyncError } from "../error/error.ts";
 import { schema } from "@destack/schema";
 import { canonicalize } from "@destack/schema/json";
@@ -185,8 +185,10 @@ export class Replica {
     readonly scopes: ReadonlyMap<Table, string>;
     /** The tables whose rows are copied from whichever scope they live in. */
     readonly everywhere: ReadonlySet<Table>;
-    /** The copied tables, keyed by `id`, whose rows are the scopes of each table's rows, for the tables copied across scopes. */
+    /** The parent tables of each table copied across scopes: each of its rows lives in the scope of a parent row's `id`. */
     readonly within: ReadonlyMap<Table, readonly Table[]>;
+    /** Whether the source may hold a copy itself, which the copy then follows to its home. */
+    readonly isRelayed: boolean;
     /** The copied tables, by SQL name. */
     readonly #copied: ReadonlyMap<string, Table>;
     /** The shape of the copied tables' logged columns. */
@@ -201,6 +203,7 @@ export class Replica {
         readonly scopes?: ReadonlyMap<Table, string>;
         readonly everywhere?: ReadonlySet<Table>;
         readonly within?: ReadonlyMap<Table, readonly Table[]>;
+        readonly isRelayed?: boolean;
     }) {
         // keep the identity
         this.name = definition.name;
@@ -210,61 +213,87 @@ export class Replica {
         this.scopes = definition.scopes ?? new Map();
         this.everywhere = definition.everywhere ?? new Set();
         this.within = definition.within ?? new Map();
+        this.isRelayed = definition.isRelayed ?? true;
         this.#copied = new Map(this.tables.map((table) => [table[TABLE].sqlName, table]));
         this.#shape = Log.shape(this.tables);
     }
 
-    /** The queries the copy holds, by table name, including the source's own copy record. */
-    get queries(): Record<string, Query> {
-        // include each table copied across scopes under each table whose rows are its scopes
-        const include = (parent: Table): { include?: Record<string, Include> } => {
-            const children = this.tables.filter((table) =>
-                this.within.get(table)?.includes(parent),
+    /** The queries a fenced source's capture reads: every copied table, unlogged ones included. */
+    get captured(): Record<string, Query> {
+        // refuse tables copied across scopes
+        if (this.within.size > 0) {
+            throw new SyncError(
+                "INVALID_SCOPE",
+                `copy ${this.name} copies tables across scopes, which no capture reads`,
             );
+        }
 
-            return children.length === 0
-                ? {}
-                : {
-                      include: Object.fromEntries(
-                          children.map((table) => {
-                              const where = this.where.get(table);
+        return Object.fromEntries(
+            this.tables.map((table) => [table[TABLE].sqlName, this.#query(table)]),
+        );
+    }
 
-                              return [
-                                  table[TABLE].sqlName,
-                                  {
-                                      table,
-                                      on: { kind: "key", column: "scope", parent: "id" },
-                                      ...(where === undefined ? {} : { where }),
-                                      ...include(table),
-                                  },
-                              ];
-                          }),
-                      ),
-                  };
-        };
-
+    /** The queries the copy follows, by table name: its logged tables, and the source's own copy record when relayed. */
+    get queries(): Record<string, Query> {
         return Object.fromEntries([
             ...this.tables
-                .filter((table) => !this.within.has(table))
-                .map((table) => {
+                .filter((table) => !this.within.has(table) && table[TABLE].retention !== "none")
+                .map((table) => [
+                    table[TABLE].sqlName,
+                    { ...this.#query(table), ...this.#children(table) },
+                ]),
+            ...(this.isRelayed
+                ? [
+                      [
+                          replica[TABLE].sqlName,
+                          {
+                              table: replica,
+                              scopes: [this.scope],
+                              where: Condition.eq("name", this.name),
+                          },
+                      ] as const,
+                  ]
+                : []),
+        ]);
+    }
+
+    /** Build the includes of the tables copied across scopes under a parent table, recursively. */
+    #children(parent: Table): { include?: Record<string, Include> } {
+        // include each table whose rows live in this table's rows
+        const children = this.tables.filter((table) => this.within.get(table)?.includes(parent));
+        if (children.length === 0) {
+            return {};
+        }
+
+        return {
+            include: Object.fromEntries(
+                children.map((table) => {
                     const where = this.where.get(table);
-                    const scope = this.scopes.get(table) ?? this.scope;
 
                     return [
                         table[TABLE].sqlName,
                         {
                             table,
-                            scopes: this.everywhere.has(table) ? "every" : [scope],
+                            on: { kind: "key", column: "scope", parent: "id" },
                             ...(where === undefined ? {} : { where }),
-                            ...include(table),
+                            ...this.#children(table),
                         },
                     ];
                 }),
-            [
-                replica[TABLE].sqlName,
-                { table: replica, scopes: [this.scope], where: Condition.eq("name", this.name) },
-            ],
-        ]);
+            ),
+        };
+    }
+
+    /** Build the query reading one copied table's rows in its scope. */
+    #query(table: Table): Query {
+        const where = this.where.get(table);
+        const scope = this.scopes.get(table) ?? this.scope;
+
+        return {
+            table,
+            scopes: this.everywhere.has(table) ? "every" : [scope],
+            ...(where === undefined ? {} : { where }),
+        };
     }
 
     /** Match the rows of a table keyed by a text `id` that a named copy includes, as SQL. */
@@ -320,7 +349,7 @@ export class Replica {
         return database.log.until(async () => {
             // read each copy's home position
             const records = await database.select().from(replica).where(eq(replica.scope, scope));
-            const copies = records.map((record) => recordOrigin(record));
+            const copies = records.map((record) => Replica.#origin(record));
 
             // refuse a position of an outdated history
             if (copies.some((copy) => copy !== undefined && copy.position.epoch > position.epoch)) {
@@ -352,7 +381,7 @@ export class Replica {
             .select()
             .from(replica)
             .where(and(eq(replica.name, name), eq(replica.scope, scope)));
-        if (record !== undefined && recordOrigin(record) === undefined) {
+        if (record !== undefined && Replica.#origin(record) === undefined) {
             throw new SyncError("STALE", `copy of ${scope} holds no position yet`);
         }
     }
@@ -370,7 +399,7 @@ export class Replica {
 
         return new Map(
             records.flatMap((record) => {
-                const origin = recordOrigin(record);
+                const origin = Replica.#origin(record);
 
                 return origin === undefined ? [] : [[record.scope, origin]];
             }),
@@ -405,18 +434,7 @@ export class Replica {
     /** Describe the copy's position, shape, holdings and staged pages. */
     async inspect(database: DatabaseConnection): Promise<ReplicaInspection> {
         // read the record, staged pages and groups
-        const [row] = await database
-            .select({
-                epoch: replica.epoch,
-                sequence: replica.sequence,
-                originEpoch: replica.originEpoch,
-                originSequence: replica.originSequence,
-                queries: replica.queries,
-                shape: replica.shape,
-                confirmedAt: replica.confirmedAt,
-            })
-            .from(replica)
-            .where(and(eq(replica.name, this.name), eq(replica.scope, this.scope)));
+        const row = await this.#record(database);
         const [staged] = await database
             .select({ pages: count() })
             .from(replicaPage)
@@ -446,24 +464,18 @@ export class Replica {
         };
     }
 
-    /** Read the queries the copy holds, in its follower's terms. */
+    /** Read the queries the copy holds, in its follower's terms, absent for the whole scope or before its first run. */
     async holding(database: DatabaseConnection): Promise<unknown> {
-        const [row] = await database
-            .select({ queries: replica.queries })
-            .from(replica)
-            .where(and(eq(replica.name, this.name), eq(replica.scope, this.scope)));
+        const record = await this.#record(database);
 
-        return row?.queries ?? undefined;
+        return record?.queries ?? undefined;
     }
 
     /** Read the scope chain the copy reads, nearest first: its own scope alone until its source sends it. */
     async chain(database: DatabaseConnection): Promise<readonly string[]> {
-        const [row] = await database
-            .select({ scopes: replica.scopes })
-            .from(replica)
-            .where(and(eq(replica.name, this.name), eq(replica.scope, this.scope)));
+        const record = await this.#record(database);
 
-        return row?.scopes ?? [this.scope];
+        return record?.scopes ?? [this.scope];
     }
 
     /** Read a query's rows from the copy, predictions included. */
@@ -499,7 +511,7 @@ export class Replica {
         { readonly group: Record<string, Scalar>; readonly values: Record<string, Scalar> }[]
     > {
         const node = new Node(name, { ...query, scopes: [this.scope] }, [this.scope]);
-        const groups = await this.groupsOf(database, node, prediction);
+        const groups = await this.#groups(database, node, prediction);
 
         return groups.map(({ group, values }) => ({ group, values }));
     }
@@ -508,7 +520,7 @@ export class Replica {
     upstream(database: DatabaseConnection, prediction: Prediction | undefined): Upstream {
         return {
             watches: [{ table: replicaResult, scopes: [this.scope] }],
-            groups: (node) => this.groupsOf(database, node, prediction),
+            groups: (node) => this.#groups(database, node, prediction),
             groupOf: (change) => {
                 const row = (change.after ?? change.before) as Row | undefined;
 
@@ -526,7 +538,7 @@ export class Replica {
     }
 
     /** Read a node's source groups with the uncounted predictions. */
-    async groupsOf(
+    async #groups(
         database: DatabaseConnection,
         node: Node,
         prediction: Prediction | undefined,
@@ -566,12 +578,12 @@ export class Replica {
         ).filter((change) => change.table === table);
         const images = predicted.flatMap((change) => {
             // take the prediction's images
-            const row = decodeRow(node.table, change.row);
+            const row = node.table.decode(change.row);
             const before =
                 change.operation === "insert"
                     ? undefined
                     : change.operation === "update"
-                      ? decodeRow(node.table, change.before!)
+                      ? node.table.decode(change.before!)
                       : row;
             const after = change.operation === "delete" ? undefined : row;
 
@@ -649,14 +661,18 @@ export class Replica {
     async *apply(
         database: DatabaseConnection,
         pages: AsyncIterable<QueryPage> | Iterable<QueryPage>,
-        prediction?: Prediction,
-        request?: unknown,
+        options: ApplyOptions = {},
     ): AsyncGenerator<QueryPage> {
         // drop an earlier stream's staged pages
         await database.delete(replicaPage).where(this.#staged());
         let staged = 0;
         let isSnapshot = false;
         for await (const page of pages) {
+            // keep the content the page's rows reference before writing them
+            if (options.blobs !== undefined) {
+                await options.blobs.store.fetch(this.#digests(page), options.blobs.source);
+            }
+
             // drop staged pages a snapshot replaces
             if (page.reset && staged > 0) {
                 await database.delete(replicaPage).where(this.#staged());
@@ -668,7 +684,7 @@ export class Replica {
 
             // apply the run a page completes
             if (page.complete) {
-                await this.#complete(database, page, { staged, isSnapshot }, prediction, request);
+                await this.#complete(database, page, { staged, isSnapshot }, options);
                 staged = 0;
             }
             // stage a page within a run
@@ -687,12 +703,7 @@ export class Replica {
         database: DatabaseConnection,
         source: (after: LogPosition | undefined, signal: AbortSignal) => AsyncIterable<QueryPage>,
         signal: AbortSignal,
-        options: {
-            /** The client's predictions to rebase. */
-            readonly prediction?: Prediction;
-            /** What the copy asks its source for, recorded as it completes a run. */
-            readonly request?: unknown;
-        } = {},
+        options: ApplyOptions = {},
     ): Promise<void> {
         // apply each stream from the recorded position until aborted
         await this.register(database);
@@ -705,12 +716,7 @@ export class Replica {
             const after = isResumed ? await this.position(database) : undefined;
             let isReceived = false;
             const pages = source(after, signal);
-            for await (const _page of this.apply(
-                database,
-                pages,
-                options.prediction,
-                options.request,
-            )) {
+            for await (const _page of this.apply(database, pages, options)) {
                 isReceived = true;
             }
 
@@ -729,11 +735,11 @@ export class Replica {
         database: DatabaseConnection,
         page: QueryPage,
         run: { readonly staged: number; readonly isSnapshot: boolean },
-        prediction: Prediction | undefined,
-        request: unknown,
+        options: ApplyOptions,
     ): Promise<void> {
         // apply and rebase in one transaction
         const { staged, isSnapshot } = run;
+        const { prediction, request } = options;
         await database.transaction(
             async (transaction) => {
                 // rebase onto pages that reach a prediction
@@ -762,7 +768,7 @@ export class Replica {
 
                 // write the source's rows after reverting predictions
                 const outcomes: MutationOutcome[] = [];
-                await transaction.log.copying(async () => {
+                await transaction.log.asReplica(async () => {
                     // revert local predictions
                     await rebased?.revert(transaction);
 
@@ -798,12 +804,17 @@ export class Replica {
                             )
                             .orderBy(asc(replicaPage.index));
                         for (const row of batch) {
-                            const written = await this.#write(transaction, row.page, delivered);
+                            const written = await this.#write(
+                                transaction,
+                                row.page,
+                                delivered,
+                                options.open,
+                            );
                             outcomes.push(...written.outcomes);
                             relayed = written.origin ?? relayed;
                         }
                     }
-                    const written = await this.#write(transaction, page, delivered);
+                    const written = await this.#write(transaction, page, delivered, options.open);
                     outcomes.push(...written.outcomes);
                     relayed = written.origin ?? relayed;
 
@@ -868,41 +879,53 @@ export class Replica {
         transaction: DatabaseConnection,
         page: QueryPage,
         delivered: ReadonlyMap<string, Set<string>> | undefined,
+        open: ApplyOptions["open"],
     ): Promise<{ readonly outcomes: readonly MutationOutcome[]; readonly origin?: Origin }> {
         // batch each table's writes
-        const batches = new Map<Table, { held: Row[]; hidden: string[][]; removed: Row[] }>();
+        const batches = new Map<Table, Batch>();
         let origin: Origin | undefined;
         for (const change of page.changes) {
+            const table = this.#copied.get(change.table);
+
             // take a relaying source's copy record as the home position
             if (change.table === replica[TABLE].sqlName) {
                 origin =
                     change.operation === "delete"
                         ? undefined
-                        : recordOrigin(
-                              decodeRow(replica, change.row) as typeof replica.$inferSelect,
+                        : Replica.#origin(
+                              replica.decode(change.row) as typeof replica.$inferSelect,
                           );
                 if (origin === undefined) {
                     throw new DatabaseError("STALE_EPOCH", `source stopped copying ${this.scope}`);
                 }
-                continue;
             }
-
-            // stage a copied row's change
-            const table = this.#copied.get(change.table);
-            if (!table) {
-                throw new TypeError(`page names a table outside the replica: ${change.table}`);
+            // refuse a table outside the copy
+            else if (table === undefined) {
+                throw new SyncError(
+                    "INVALID_STREAM",
+                    `page names a table outside copy ${this.name}: ${change.table}`,
+                );
             }
-            const row = decodeRow(table, change.row);
-            delivered?.get(change.table)!.add(Key.name(table, row));
-            const batch = batches.get(table) ?? { held: [], hidden: [], removed: [] };
-            batches.set(table, batch);
-            if (change.operation === "delete") {
-                batch.removed.push(row);
-            } else {
-                batch.held.push(row);
-                batch.hidden.push(change.concealed ?? []);
+            // stage a copied row's change, opening its sealed values
+            else {
+                const decoded = table.decode(change.row);
+                const row =
+                    open === undefined || change.operation === "delete"
+                        ? decoded
+                        : await open(table, decoded);
+                delivered?.get(change.table)!.add(Key.name(table, row));
+                const batch = batches.get(table) ?? { held: [], hidden: [], removed: [] };
+                batches.set(table, batch);
+                if (change.operation === "delete") {
+                    batch.removed.push(row);
+                } else {
+                    batch.held.push(row);
+                    batch.hidden.push(change.concealed ?? []);
+                }
             }
         }
+
+        // write each table's batch
         for (const [table, batch] of batches) {
             await this.#exclude(
                 transaction,
@@ -940,7 +963,10 @@ export class Replica {
         }
         // refuse a held group without a row count
         else if (result.rows === undefined) {
-            throw new TypeError(`page holds a group of ${result.query} without its rows`);
+            throw new SyncError(
+                "INVALID_STREAM",
+                `page holds a group of ${result.query} without its rows`,
+            );
         }
         // hold the group's values
         else {
@@ -968,6 +994,24 @@ export class Replica {
                     set: { values, rows, parts },
                 });
         }
+    }
+
+    /** List the digests a page's written rows keep in blob columns. */
+    #digests(page: QueryPage): string[] {
+        return page.changes.flatMap((change) => {
+            const table = this.#copied.get(change.table);
+            if (table === undefined || change.operation === "delete") {
+                return [];
+            }
+
+            return Object.entries(table[TABLE].columns).flatMap(([property, column]) => {
+                const value = change.row[property];
+
+                return column.definition.kind === "blob" && typeof value === "string"
+                    ? [value]
+                    : [];
+            });
+        });
     }
 
     /** Match the pages the copy staged. */
@@ -1173,20 +1217,37 @@ export class Replica {
                 primary,
                 cleared.map(({ key }) => primary.map((column) => key[column])),
             );
+            const clearing = new Map(
+                cleared.map(({ key, columns }) => [Key.name(table, key), columns]),
+            );
             await database.upsert(
                 table,
                 stored.map((row) => {
-                    const entry = cleared.find(
-                        ({ key }) => Key.name(table, key) === Key.name(table, row),
-                    )!;
+                    const columns = clearing.get(Key.name(table, row))!;
 
                     return {
                         ...row,
-                        ...Object.fromEntries(entry.columns.map((column) => [column, null])),
+                        ...Object.fromEntries(columns.map((column) => [column, null])),
                     };
                 }),
             );
         }
+    }
+
+    /** Read a record's home position, absent before its first snapshot. */
+    static #origin(record: typeof replica.$inferSelect): Origin | undefined {
+        // skip a copy without a position
+        if (record.epoch === null || record.sequence === null) {
+            return undefined;
+        }
+
+        // take a relayed copy's origin, or the source position
+        const position =
+            record.originEpoch === null || record.originSequence === null
+                ? { epoch: record.epoch, sequence: record.sequence }
+                : { epoch: record.originEpoch, sequence: record.originSequence };
+
+        return { position, confirmedAt: record.confirmedAt };
     }
 
     /** Match the rows the copy includes. */
@@ -1195,24 +1256,18 @@ export class Replica {
     }
 }
 
-/** Read a record's home position. */
-function recordOrigin(record: typeof replica.$inferSelect): Origin | undefined {
-    // skip a copy without a position
-    if (record.epoch === null || record.sequence === null) {
-        return undefined;
-    }
-
-    // take a relayed copy's origin, or the source position
-    const position =
-        record.originEpoch === null || record.originSequence === null
-            ? { epoch: record.epoch, sequence: record.sequence }
-            : { epoch: record.originEpoch, sequence: record.originSequence };
-
-    return { position, confirmedAt: record.confirmedAt };
-}
-
 /** A group as predictions change it. */
 type Predicted = Group & { rows: number };
+
+/** A table's staged writes of one page. */
+interface Batch {
+    /** The rows the copy holds. */
+    readonly held: Row[];
+    /** The columns the copy's shape hides on each held row. */
+    readonly hidden: string[][];
+    /** The rows the copy lets go. */
+    readonly removed: Row[];
+}
 
 /** Add a predicted row image to its group, or take it away. */
 function predict(node: Node, groups: Map<string, Predicted>, row: Row, sign: 1 | -1): void {
@@ -1228,16 +1283,23 @@ function predict(node: Node, groups: Map<string, Predicted>, row: Row, sign: 1 |
         const current = known.values[name] ?? null;
         const value = measure.column === undefined ? null : (row[measure.column] ?? null);
         const json = value === null ? null : (node.json(measure.column!, value) as Scalar);
+        // count every row
         if (measure.function === "count") {
             known.values[name] = Number(current ?? 0) + sign;
-        } else if (measure.function === "sum" && json !== null) {
+        }
+        // sum present values
+        else if (measure.function === "sum" && json !== null) {
             known.values[name] = add(current, json, sign);
-        } else if (measure.function === "avg" && json !== null) {
+        }
+        // average present values through their sum and count
+        else if (measure.function === "avg" && json !== null) {
             const part = known.parts[name] ?? { sum: 0, count: 0 };
             const next = { sum: add(part.sum, json, sign), count: part.count + sign };
             known.parts[name] = next;
             known.values[name] = next.count === 0 ? null : Number(next.sum) / next.count;
-        } else if (
+        }
+        // pass an added value that beats the extreme
+        else if (
             (measure.function === "min" || measure.function === "max") &&
             json !== null &&
             sign === 1
@@ -1261,6 +1323,18 @@ function add(sum: Scalar, value: Scalar, sign: 1 | -1): Scalar {
     return typeof sum === "string" || typeof value === "string"
         ? String(BigInt(sum ?? 0) + BigInt(sign) * BigInt(value ?? 0))
         : Number(sum ?? 0) + sign * Number(value);
+}
+
+/** How a copy applies its source's pages. */
+export interface ApplyOptions {
+    /** The client's predictions to rebase. */
+    readonly prediction?: Prediction;
+    /** What the copy asks its source for, recorded as it completes a run. */
+    readonly request?: unknown;
+    /** The store keeping the content the copied rows reference, and the source's store reading it. */
+    readonly blobs?: { readonly store: BlobStore; readonly source: Pick<BlobStore, "read"> };
+    /** Open the host-bound values a fenced source sealed to this copy. */
+    readonly open?: (table: Table, row: Row) => Promise<Row>;
 }
 
 /** The home position of a copy's rows. */
