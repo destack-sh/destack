@@ -4,7 +4,6 @@ import {
     asc,
     count,
     defineTable,
-    desc,
     eq,
     gt,
     integer,
@@ -13,7 +12,6 @@ import {
     isNull,
     json,
     lte,
-    max,
     or,
     sql,
     text,
@@ -52,9 +50,8 @@ import {
 } from "../replica/replica.ts";
 import { Duration } from "../object/duration.ts";
 import { ObjectType, type ObjectStorage } from "../object/object.ts";
-import { Sequence, type Run, type TextChange } from "../sequence/index.ts";
-import { Chunk, type Edited } from "../text/chunk.ts";
-import { chunk } from "../text/table.ts";
+
+import { Chunk } from "../text/chunk.ts";
 
 /** The method kinds with predictions that read only their object's and parent's tables. */
 const STANDARD_KINDS: ReadonlySet<string> = new Set(["create", "update", "delete", "updateMany"]);
@@ -65,29 +62,15 @@ const RETRY = RetryPolicy.of({ maximumInterval: 60_000 });
 /** The hexadecimal digest digits naming a query: 64 bits, safe among a client's queries. */
 const QUERY_NAME_LENGTH = 16;
 
-/** The default local log window, in milliseconds: a minute, far above the milliseconds live queries lag. */
+/** The default local log window, in milliseconds: a minute, far above live queries' lag. */
 const LOCAL_LOG_MILLISECONDS = 60_000;
 
 /** A mutation a client predicted. */
 export interface Submission<Result> {
     /** The result the local prediction returned, once the mutation is in the outbox. */
     readonly predicted: Promise<Result>;
-    /** Settles once the replica holds the server's changes, or rejects with the server's failure. */
+    /** Settles once the replica has the server's changes, or rejects with its failure. */
     readonly confirmed: Promise<void>;
-}
-
-/** One text field of an object, followed as its sequence and changed by visible offsets. */
-export interface LiveText {
-    /** Settles once the copy holds the text. */
-    readonly ready: Promise<void>;
-    /** Read the text's sequence, predictions included. */
-    read(): Promise<Sequence>;
-    /** Yield the sequence, then again after each change. */
-    watch(signal: AbortSignal): AsyncGenerator<Sequence>;
-    /** Replace the text between two offsets, after every earlier change, as one predicted edit. */
-    change(change: TextChange): Promise<Submission<Edited>>;
-    /** Stop following the text. */
-    close(): Promise<void>;
 }
 
 /** A live query a client reads from its copy, predictions included. */
@@ -211,8 +194,6 @@ export class ObjectClient {
     readonly #holdings = new Set<Holding>();
     /** The queued evictions, run one at a time. */
     #evictions: Promise<void> = Promise.resolve();
-    /** The running undo or redo. */
-    #toggling: Promise<unknown> = Promise.resolve();
     /** The mutations waiting for their outcome, by identifier. */
     readonly #waiting = new Map<
         string,
@@ -261,11 +242,13 @@ export class ObjectClient {
                 : Duration.milliseconds(options.log.keep);
         this.#retry = { ...RETRY, ...options.retry };
         this.origin = options.origin;
+        this.#undoStack = new UndoStack(this);
         this.objects = ObjectType.served(options.objects);
         this.scope = options.scope;
         this.caller = options.caller;
-        this.#service = ObjectClient.#replica(options.objects, options.endpoint);
-        this.#reconnect = (cell) => ObjectClient.#replica(options.objects, options.reconnect(cell));
+        const served = ObjectClient.#served(options.objects, options.package);
+        this.#service = ObjectClient.#replica(served, options.endpoint);
+        this.#reconnect = (cell) => ObjectClient.#replica(served, options.reconnect(cell));
 
         // require one scope field
         const fields = new Set(this.objects.map((object) => object.route.field));
@@ -467,7 +450,7 @@ export class ObjectClient {
     submit(calls: readonly sync.Call[]): Submission<void> {
         return this.mutation(async (mutation) => {
             for (const entry of calls) {
-                const { object, name } = this.#method(entry.method);
+                const { object, name } = this.method(entry.method);
                 const methods = mutation.call(object) as Record<
                     string,
                     (input: unknown) => Promise<unknown>
@@ -729,56 +712,6 @@ export class ObjectClient {
         await Promise.all([this.push(signal, report), this.follow(signal, report)]);
     }
 
-    /** Follow one text field of an object as its sequence, changing it by visible offsets. */
-    text<Object extends ObjectType>(object: Object, id: string, field: string): LiveText {
-        // follow the field's chunks in position order
-        const chunks = this.objects.find((held) => held.table === chunk);
-        if (chunks === undefined || !object.text.includes(field)) {
-            throw new TypeError(`object ${object.name} holds no text field ${field}`);
-        }
-        const query = this.subscribe(chunks, {
-            where: Condition.all(
-                Condition.eq("parentType", object.name),
-                Condition.eq("parentId", id),
-                Condition.eq("field", field),
-            ),
-            order: [{ column: "position", direction: "asc" }],
-        });
-        const sequence = (rows: readonly Readonly<Record<string, unknown>>[]) =>
-            new Sequence(rows.flatMap((row) => row.runs as readonly Run[]));
-
-        // apply changes in order against the text of the previous change
-        let previous: Promise<unknown> = Promise.resolve();
-        const change = (replaced: TextChange) => {
-            const next = previous.then(async () => {
-                // translate the offsets against the current text, then edit and wait for the prediction
-                const edits = sequence(await query.read()).change(replaced, v7());
-                const mutator = this.mutate(object) as unknown as Readonly<
-                    Record<string, (input: object) => Submission<Edited>>
-                >;
-                const editing = mutator.edit!({ id, field, edits });
-                await editing.predicted;
-
-                return editing;
-            });
-            previous = next.catch(() => {});
-
-            return next;
-        };
-
-        return {
-            ready: query.ready,
-            read: async () => sequence(await query.read()),
-            watch: async function* (signal) {
-                for await (const rows of query.watch(signal)) {
-                    yield sequence(rows);
-                }
-            },
-            change,
-            close: () => query.close(),
-        };
-    }
-
     /** Keep a query live over the local copy with predictions until closed. */
     subscribe<Object extends ObjectType>(
         object: Object,
@@ -981,20 +914,18 @@ export class ObjectClient {
                 for (const { id, error } of rejected) {
                     await this.outbox.reject(transaction, id, error);
                 }
-                await transaction.delete(undoEntry).where(
-                    inArray(
-                        undoEntry.mutationId,
-                        rejected.map((entry) => entry.id),
-                    ),
+                await this.#undoStack.forget(
+                    transaction,
+                    rejected.map((entry) => entry.id),
                 );
-                await transaction.log.copying(() => this.outbox.revert(transaction));
-                await this.outbox.replay(transaction, []);
+                await transaction.log.copying(() => this.prediction.revert(transaction));
+                await this.prediction.replay(transaction, []);
             });
         }
     }
 
     /** Wait for a mutation's outcome, failing with the server's rejection. */
-    async #outcome(id: string): Promise<void> {
+    async outcome(id: string): Promise<void> {
         // wait for the settle loop
         const outcome = await new Promise<sync.Outcome>((resolve, reject) => {
             this.#waiting.set(id, { resolve, reject });
@@ -1452,20 +1383,20 @@ export class ObjectClient {
         try {
             await transaction.transaction(async (savepoint) => {
                 for (const entry of pending.calls) {
-                    const { object, name } = this.#method(entry.method);
+                    const { object, name } = this.method(entry.method);
                     await this.#predict(savepoint, object, name, Call.upgrade(object, name, entry));
                 }
             });
         } catch (error) {
-            // keep a refused mutation pending unpredicted
-            if (!(error instanceof ServiceError)) {
+            // keep a mutation the server would refuse for good pending unpredicted
+            if (Journal.failure(error) === undefined) {
                 throw error;
             }
         }
     }
 
     /** Predict one call as a step with the target's row before and after. */
-    async #step(
+    async step(
         database: DatabaseConnection,
         object: ObjectType,
         name: string,
@@ -1474,14 +1405,13 @@ export class ObjectClient {
     ): Promise<{ readonly step: StoredStep; readonly result: unknown }> {
         // read the target around the prediction
         const id = typeof input.id === "string" ? input.id : undefined;
-        const before = id === undefined ? undefined : await this.#row(database, object, id);
+        const before = id === undefined ? undefined : await this.row(database, object, id);
         const method = (object.methods as Readonly<Record<string, Method>>)[name]!;
         const isHeld = !method.target || before !== undefined;
         const result =
             isInverse && !isHeld ? undefined : await this.#predict(database, object, name, input);
         const created = id ?? Call.resultId(result);
-        const after =
-            created === undefined ? undefined : await this.#row(database, object, created);
+        const after = created === undefined ? undefined : await this.row(database, object, created);
         const step: StoredStep = {
             object: object.name,
             release: object.package.version,
@@ -1496,7 +1426,7 @@ export class ObjectClient {
     }
 
     /** Read an object's row as the client holds it, absent when it holds none. */
-    async #row(
+    async row(
         database: DatabaseConnection,
         object: ObjectType,
         id: string,
@@ -1508,115 +1438,6 @@ export class ObjectClient {
         >[];
 
         return row;
-    }
-
-    /** Push an undoable mutation onto its party's undo stack and clear the redo stack. */
-    async #remember(
-        database: DatabaseConnection,
-        id: string,
-        steps: readonly StoredStep[],
-    ): Promise<void> {
-        // clear the redo stack
-        const ownEntries = eq(undoEntry.origin, this.origin);
-        await database.delete(undoEntry).where(and(ownEntries, eq(undoEntry.state, "undone")));
-
-        // require an inverse for every call
-        const isUndoable =
-            steps.length > 0 &&
-            steps.every((step) => this.#method(`${step.object}.${step.name}`).method.inverse);
-        if (!isUndoable) {
-            return;
-        }
-        const [last] = await database
-            .select({ sequence: max(undoEntry.sequence) })
-            .from(undoEntry)
-            .where(ownEntries);
-        await database.insert(undoEntry).values({
-            id,
-            origin: this.origin,
-            sequence: (last?.sequence ?? 0) + 1,
-            state: "done",
-            steps: steps as never,
-            mutationId: id,
-        });
-    }
-
-    /** Invert the party's latest done or undone entry as one new mutation. */
-    #toggle(from: "done" | "undone", to: "done" | "undone"): Submission<boolean> {
-        // chain after the previous toggle
-        const mutationId = RequestId.create();
-        const predicted = this.#toggling.then(() => this.#invert(from, to, mutationId));
-        this.#toggling = predicted.catch(() => {});
-        const confirmed = predicted.then(async (isApplied) => {
-            if (isApplied) {
-                await this.#outcome(mutationId);
-            }
-        });
-        confirmed.catch(() => {});
-
-        return { predicted, confirmed };
-    }
-
-    /** Submit the inverse of the party's latest entry in a state, returning whether one existed. */
-    async #invert(
-        from: "done" | "undone",
-        to: "done" | "undone",
-        mutationId: string,
-    ): Promise<boolean> {
-        while (true) {
-            // take the latest entry
-            const [entry] = await this.database
-                .select()
-                .from(undoEntry)
-                .where(and(eq(undoEntry.origin, this.origin), eq(undoEntry.state, from)))
-                .orderBy(from === "done" ? desc(undoEntry.sequence) : asc(undoEntry.sequence))
-                .limit(1);
-            if (entry === undefined) {
-                return false;
-            }
-
-            // invert its steps in reverse order
-            const calls: sync.Call[] = [];
-            for (const stored of [...(entry.steps as StoredStep[])].reverse()) {
-                const { object, name, method } = this.#method(`${stored.object}.${stored.name}`);
-                if (stored.release !== object.package.version) {
-                    calls.length = 0;
-                    break;
-                }
-                const id = stored.after?.id ?? stored.input.id;
-                const current =
-                    typeof id === "string" ? await this.#row(this.database, object, id) : undefined;
-                const step: Step = {
-                    ...stored,
-                    object,
-                    name,
-                    ...(current === undefined ? {} : { current }),
-                };
-                calls.push(...(method.inverse?.(step) ?? []));
-            }
-            if (calls.length === 0) {
-                await this.database.delete(undoEntry).where(eq(undoEntry.id, entry.id));
-                continue;
-            }
-
-            // submit the inverse as one mutation
-            await this.outbox.add(this.database, mutationId, this.origin, async (database) => {
-                // predict each inverse call
-                const steps: StoredStep[] = [];
-                for (const call of calls) {
-                    const { object, name } = this.#method(call.method);
-                    steps.push((await this.#step(database, object, name, call.input, true)).step);
-                }
-                await database
-                    .update(undoEntry)
-                    .set({ steps: steps as never, state: to, mutationId })
-                    .where(eq(undoEntry.id, entry.id));
-
-                return { calls, result: undefined };
-            });
-
-            return true;
-        }
     }
 
     /** Predict one call over the local replica. */
@@ -1750,7 +1571,7 @@ export class ObjectClient {
 
     /** Name the tables a call's prediction may read, by SQL name. */
     #reach(call: sync.Call, tables: readonly Table[]): readonly string[] {
-        const { object, method } = this.#method(call.method);
+        const { object, method } = this.method(call.method);
         const parent = object.parent?.object;
 
         return STANDARD_KINDS.has(method.kind) && parent !== "any"
@@ -1761,7 +1582,7 @@ export class ObjectClient {
     }
 
     /** Find the object type and method a recorded call names. */
-    #method(named: string): {
+    method(named: string): {
         readonly object: ObjectType;
         readonly name: string;
         readonly method: Method;
@@ -1830,30 +1651,6 @@ const subscription = defineTable("subscription", {
     /** How long the closed query stays followed, in milliseconds, absent when kept until released. */
     keep: integer("keep"),
 });
-
-/** Each party's undoable mutations as steps. */
-const undoEntry = defineTable("undo_entry", {
-    /** The entry, named after the mutation that first applied its steps. */
-    id: text("id").primaryKey(),
-    /** The party the entry belongs to. */
-    origin: text("origin").notNull(),
-    /** The entry's place in its party's stack. */
-    sequence: integer("sequence").notNull(),
-    /** Whether the entry is on the undo or the redo stack. */
-    state: text("state", { enum: ["done", "undone"] }).notNull(),
-    /** The steps it last applied. */
-    steps: json("steps", schema.json()).notNull(),
-    /** The mutation that last applied them. */
-    mutationId: text("mutation_id").notNull(),
-});
-
-/** A stored step with its object type. */
-type StoredStep = Omit<Step, "object" | "current"> & {
-    /** The object type's name. */
-    readonly object: string;
-    /** The release of the object type's package the step was taken at. */
-    readonly release: Version;
-};
 
 /** The part of a query one storage follows, and the lookups its rows key. */
 interface Part {

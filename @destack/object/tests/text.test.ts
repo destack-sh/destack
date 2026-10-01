@@ -14,7 +14,7 @@ import { Health } from "@destack/service/health";
 import { defineService } from "@destack/service";
 import { RequestId } from "@destack/service/request";
 import { Server } from "@destack/service/server";
-import { ObjectClient } from "../src/client/index.ts";
+import { LiveText, ObjectClient } from "../src/client/index.ts";
 import {
     chunk,
     CHUNK_CHARACTERS,
@@ -30,6 +30,7 @@ import {
 import { ObjectServer } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, unmoved } from "./fixture/space.ts";
+import { testJournalKey } from "@destack/service/test";
 
 /** The space holding the documents. */
 const spaceId = "space-01996ab0-0000-7000-8000-000000000014";
@@ -84,6 +85,7 @@ async function serveDocuments(dialect: Dialect) {
     // authenticate each request as the user its bearer credential names
     const server = Server.start({
         ...ObjectServer.serve(documentsService, {
+            journalKey: testJournalKey,
             journal,
             database,
             audit: AuditRecorder.service(new AuditOutbox(database), {
@@ -445,7 +447,7 @@ test.for(TEST_DIALECTS)(
             relation: "editor",
             subject: principal.user.reference("universe", "bob"),
         }).confirmed;
-        const text = alice.client.text(document, id, "body");
+        const text = LiveText.open(alice.client, document, id, "body");
         await text.ready;
 
         // type twice without waiting against the text of the previous change
