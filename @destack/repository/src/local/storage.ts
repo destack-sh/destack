@@ -1,0 +1,185 @@
+import { mkdir, mkdtemp, rename, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+import type { GitAccess, GitListing, GitMode, GitReference, GitStorage } from "../storage/index.ts";
+
+/** The names a stored repository's directory may take: no separators, no leading dot. */
+const NAME = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+
+/** The prefix of the directories for new repositories, with a leading dot apart from names. */
+const STAGING_PREFIX = ".create-";
+
+/** The prefix of the directories deleted repositories move to before their removal, apart from names too. */
+const DELETION_PREFIX = ".delete-";
+
+/** The branch a new repository's HEAD names. */
+const INITIAL_BRANCH = "main";
+
+/** Bare repositories in a host directory, driven by the git command line. */
+export class LocalGitStorage implements GitStorage {
+    /** The provider name repositories stored here record. */
+    readonly provider = "local";
+    /** The directory with one bare repository per name. */
+    readonly directory: string;
+
+    /** Store repositories in a directory. */
+    constructor(directory: string) {
+        this.directory = directory;
+    }
+
+    /** Build a repository's directory as a file URL. */
+    remote(id: string): string {
+        return pathToFileURL(this.#path(id)).href;
+    }
+
+    /** Create an empty bare repository with HEAD at main, or keep an existing one. */
+    async create(id: string): Promise<void> {
+        // stage the repository in a directory no repository name takes
+        const path = this.#path(id);
+        await mkdir(this.directory, { recursive: true });
+        const staging = await mkdtemp(join(this.directory, STAGING_PREFIX));
+
+        // initialize it there and move it into place in one rename, dropping it where another create finished first
+        try {
+            await LocalGitStorage.#git([
+                "init",
+                "--bare",
+                "--quiet",
+                `--initial-branch=${INITIAL_BRANCH}`,
+                staging,
+            ]);
+            await rename(staging, path);
+        } catch (error) {
+            // drop the staging directory, accepting a repository another create finished
+            await rm(staging, { recursive: true, force: true });
+            const code = (error as NodeJS.ErrnoException).code;
+            if (code !== "ENOTEMPTY" && code !== "EEXIST") {
+                throw error;
+            }
+        }
+    }
+
+    /** Delete a repository's directory after moving it away in one rename. */
+    async delete(id: string): Promise<void> {
+        // move the repository away from its name and skip one already gone
+        const trash = join(this.directory, `${DELETION_PREFIX}${crypto.randomUUID()}`);
+        try {
+            await rename(this.#path(id), trash);
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+                return;
+            }
+            throw error;
+        }
+
+        // remove it where nothing else reaches it
+        await rm(trash, { recursive: true, force: true });
+    }
+
+    /** List the branches and tags with HEAD, peeling annotated tags once and tags of tags in one batch. */
+    async references(id: string): Promise<GitListing> {
+        // list each branch and tag with its object, and a tag's tagged object, beside HEAD's branch
+        const path = this.#path(id);
+        const [listed, symbolic] = await Promise.all([
+            LocalGitStorage.#git(
+                [
+                    "for-each-ref",
+                    "--format=%(refname) %(objectname) %(objecttype) %(*objectname) %(*objecttype)",
+                    "refs/heads",
+                    "refs/tags",
+                ],
+                path,
+            ),
+            LocalGitStorage.#git(["symbolic-ref", "HEAD"], path),
+        ]);
+        const rows = listed
+            .split("\n")
+            .filter((line) => line !== "")
+            .map((line) => line.split(" ") as [string, string, string, string, string]);
+
+        // peel tags of tags to the commit they finally name, or to none, in one batch
+        const nested = rows.filter(([, , , , tagged]) => tagged === "tag").map(([name]) => name);
+        const peeled =
+            nested.length === 0
+                ? ""
+                : await LocalGitStorage.#git(
+                      ["cat-file", "--batch-check=%(objectname) %(objecttype)"],
+                      path,
+                      nested.map((name) => `${name}^{commit}\n`).join(""),
+                  );
+        const commits = new Map(
+            peeled
+                .split("\n")
+                .filter((line) => line !== "")
+                .map((line, index) => {
+                    const [object, type] = line.split(" ");
+
+                    return [nested[index]!, type === "commit" ? object! : null] as const;
+                }),
+        );
+
+        // resolve commits directly, annotated tags through their tagged commit, and tags of tags through the batch
+        const references: GitReference[] = rows.map(([name, object, type, tagged, taggedType]) => ({
+            name,
+            object,
+            commit:
+                type === "commit"
+                    ? object
+                    : taggedType === "commit"
+                      ? tagged
+                      : taggedType === "tag"
+                        ? commits.get(name)!
+                        : null,
+        }));
+        const head = symbolic.trim();
+
+        return {
+            defaultReference: references.some((reference) => reference.name === head) ? head : null,
+            references,
+        };
+    }
+
+    /** Reach a repository through its local path without a credential. */
+    async access(id: string, _mode: GitMode): Promise<GitAccess> {
+        return { remote: this.remote(id), credential: null };
+    }
+
+    /** Locate a repository's directory and refuse names outside the storage directory. */
+    #path(name: string): string {
+        if (!NAME.test(name)) {
+            throw new TypeError(`invalid local repository name: ${name}`);
+        }
+
+        return join(this.directory, `${name}.git`);
+    }
+
+    /** Run git in a repository, returning its output and failing loudly on a nonzero exit. */
+    static async #git(
+        arguments_: readonly string[],
+        directory?: string,
+        input = "",
+    ): Promise<string> {
+        // run git in the repository without reading global configuration
+        const child = Bun.spawn(
+            ["git", ...(directory === undefined ? [] : ["-C", directory]), ...arguments_],
+            {
+                env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_TERMINAL_PROMPT: "0" },
+                stdin: new TextEncoder().encode(input),
+                stdout: "pipe",
+                stderr: "pipe",
+            },
+        );
+        const [code, output, errors] = await Promise.all([
+            child.exited,
+            new Response(child.stdout).text(),
+            new Response(child.stderr).text(),
+        ]);
+
+        // fail with git's own message
+        if (code !== 0) {
+            throw new Error(`git ${arguments_[0]} failed with ${code}: ${errors.trim()}`);
+        }
+
+        return output;
+    }
+}

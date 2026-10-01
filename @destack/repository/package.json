@@ -1,0 +1,42 @@
+{
+    "name": "@destack/repository",
+    "version": "2026.9.0",
+    "private": true,
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Keep Git repositories of accounts, observe their references, and host platform repositories.",
+    "exports": {
+        "./service": "./src/service/index.ts",
+        "./client": "./src/client/index.ts",
+        "./server": "./src/server/index.ts",
+        "./stack": "./src/stack/index.ts",
+        "./object": "./src/object/index.ts",
+        "./storage": "./src/storage/index.ts",
+        "./local": "./src/local/index.ts",
+        "./codestorage": "./src/codestorage/index.ts",
+        "./github": "./src/github/index.ts",
+        "./package": "./src/package.ts"
+    },
+    "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/audit": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/service": "workspace:*",
+        "@destack/vault": "workspace:*",
+        "@destack/sync": "workspace:*"
+    },
+    "scripts": {
+        "check": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "devDependencies": {
+        "@destack/directory": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/test": "workspace:*"
+    }
+}
