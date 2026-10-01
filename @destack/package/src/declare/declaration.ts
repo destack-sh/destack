@@ -1,4 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
+import type { JsonValue } from "@destack/schema/json";
 import { DeclarationName, Package, PackageId } from "../definition/package.ts";
 
 /** A named thing declared by a package: a resource, secret, service, connection, setting and so on. */
@@ -10,7 +11,7 @@ export interface Declaration {
 }
 
 /** The state a resource declaration requires of its resource. */
-export type ResourceState = Readonly<Record<string, schema.Infer<ReturnType<typeof schema.json>>>>;
+export type ResourceState = Readonly<Record<string, JsonValue>>;
 
 /** A resource declaration, which describes the state it requires. */
 export interface ResourceDeclaration extends Declaration {
@@ -18,8 +19,8 @@ export interface ResourceDeclaration extends Declaration {
     state(): ResourceState;
 }
 
-/** A declaration qualified by its declaring package, as bindings, permissions and events store it. */
-export const DeclarationReference = defineSchema(
+/** The schema of a declaration qualified by its declaring package. */
+const declarationReferenceSchema = defineSchema(
     schema.object({
         /** The immutable identity of the declaring package. */
         packageId: PackageId,
@@ -28,9 +29,12 @@ export const DeclarationReference = defineSchema(
     }),
 );
 /** A declaration qualified by its declaring package. */
-export type DeclarationReference = schema.Infer<typeof DeclarationReference>;
+export type DeclarationReference = schema.Infer<typeof declarationReferenceSchema>;
 
-/** Reference a declaration by its package identity and name. */
-export function reference(declaration: Declaration): DeclarationReference {
-    return { packageId: declaration.package.id, name: declaration.name };
-}
+/** A declaration qualified by its declaring package, as bindings, permissions and events store it. */
+export const DeclarationReference = Object.assign(declarationReferenceSchema, {
+    /** Reference a declaration by its package identity and name. */
+    of(declaration: Declaration): DeclarationReference {
+        return { packageId: declaration.package.id, name: declaration.name };
+    },
+});

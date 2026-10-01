@@ -1,4 +1,4 @@
-import { declaringModule, type ModuleMetadata } from "../definition/metadata.ts";
+import { ModuleMetadata } from "../definition/metadata.ts";
 import { Package } from "../definition/package.ts";
 import { PackageError } from "../error/error.ts";
 import type { ResourceDeclaration, Declaration } from "./declaration.ts";
@@ -27,7 +27,7 @@ export function definePackage<const Declarations extends PackageDeclarationMap>(
     module?: ModuleMetadata,
 ): PackageHandle<Declarations> {
     // stamp the package supplied by the module transform
-    const owner = Package.parse(declaringModule(module, "definePackage").package);
+    const owner = Package.parse(ModuleMetadata.require(module, "definePackage").package);
     const resources = declarations.resources ?? {};
     const secrets = declarations.secrets ?? {};
 

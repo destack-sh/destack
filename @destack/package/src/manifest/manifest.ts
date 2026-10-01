@@ -1,6 +1,6 @@
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, Digest, Instant, schema } from "@destack/schema";
 import { DeclarationName, Language, Package } from "../definition/index.ts";
-import { PackageFile, Digest } from "../file/file.ts";
+import { PackageFile } from "../file/file.ts";
 import { PackageOutput } from "./output.ts";
 
 /** A description file qualified by the package defining its format. */
@@ -74,7 +74,7 @@ export const PackageLocation = defineSchema(
         /** Base URL serving this package's manifest, files and archive. */
         url: schema.url(),
         /** Expiry time in Unix milliseconds; absent for retained packages. */
-        expiresAt: schema.number().int().nonnegative().optional(),
+        expiresAt: Instant.optional(),
     }),
 );
 /** An immutable package's retrieval endpoint and manifest digest. */

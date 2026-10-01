@@ -1,5 +1,4 @@
-import { defineSchema, identifier, schema, Version } from "@destack/schema";
-import { Digest } from "../file/file.ts";
+import { defineSchema, Digest, identifier, schema, Version } from "@destack/schema";
 
 /** A concrete package export containing runnable code. */
 export const Entrypoint = defineSchema(schema.string().regex(/^\.(?:\/[^\s*]+)?$(?![\s\S])/));

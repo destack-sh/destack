@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, Digest, schema } from "@destack/schema";
 import { PackageError } from "../error/index.ts";
 
 /** A canonical package-relative path using slash separators. */
@@ -10,18 +10,8 @@ export const PackagePath = defineSchema(
         ),
 );
 
-/** A SHA-256 digest encoded as lowercase hexadecimal. */
-export const Digest = defineSchema(
-    schema
-        .string()
-        .length(64)
-        .regex(/^[a-f0-9]{64}$/),
-);
-/** A SHA-256 digest encoded as lowercase hexadecimal. */
-export type Digest = schema.Infer<typeof Digest>;
-
-/** A source or generated file in a package. */
-export const PackageFile = defineSchema(
+/** The schema of a source or generated file in a package. */
+const packageFileSchema = defineSchema(
     schema.object({
         /** The path relative to the source or build root. */
         path: PackagePath,
@@ -34,33 +24,31 @@ export const PackageFile = defineSchema(
     }),
 );
 /** A source or generated file in a package. */
-export type PackageFile = schema.Infer<typeof PackageFile>;
+export type PackageFile = schema.Infer<typeof packageFileSchema>;
+
+/** A source or generated file in a package. */
+export const PackageFile = Object.assign(packageFileSchema, { describe, verify });
 
 /** Describe a file's path, content, and media type. */
-export async function describeFile(
+async function describe(
     path: string,
     mediaType: string,
     bytes: Uint8Array<ArrayBuffer>,
 ): Promise<PackageFile> {
-    const digest = await digestFile(bytes);
+    const digest = await Digest.of(bytes);
 
-    return PackageFile.parse({ path, mediaType, size: bytes.byteLength, digest });
+    return packageFileSchema.parse({ path, mediaType, size: bytes.byteLength, digest });
 }
 
 /** Verify a file's exact size and digest before reading its contents. */
-export async function verifyFile(file: PackageFile, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+async function verify(file: PackageFile, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
     if (bytes.byteLength !== file.size) {
         throw new PackageError("INVALID_FILE", `file size mismatch: ${file.path}`);
     }
 
     // reject any content change, including changes that preserve the length
-    const digest = await digestFile(bytes);
+    const digest = await Digest.of(bytes);
     if (digest !== file.digest) {
         throw new PackageError("INVALID_FILE", `file digest mismatch: ${file.path}`);
     }
-}
-
-/** Hash file bytes using SHA-256. */
-async function digestFile(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
-    return new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)).toHex();
 }

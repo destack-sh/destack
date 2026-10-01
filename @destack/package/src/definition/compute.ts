@@ -14,8 +14,8 @@ export const ComputeCapacity = defineSchema(
 /** CPU and memory capacity assigned to one running instance. */
 export type ComputeCapacity = schema.Infer<typeof ComputeCapacity>;
 
-/** Capacity and lifecycle policy for a workload. */
-export const ComputeDefinition = defineSchema(
+/** The schema of a workload's capacity and lifecycle policy. */
+const computeDefinitionSchema = defineSchema(
     schema.object({
         /** Minimum capacity requested when scheduling an instance. */
         requests: ComputeCapacity.optional(),
@@ -40,10 +40,13 @@ export const ComputeDefinition = defineSchema(
 );
 
 /** Capacity and lifecycle policy for a workload. */
-export type ComputeDefinition = schema.Infer<typeof ComputeDefinition>;
+export type ComputeDefinition = schema.Infer<typeof computeDefinitionSchema>;
+
+/** Capacity and lifecycle policy for a workload. */
+export const ComputeDefinition = Object.assign(computeDefinitionSchema, { merge });
 
 /** Merge workload capacity settings and reject contradictory bounds. */
-export function mergeCompute(
+function merge(
     defaults: ComputeDefinition = {},
     override: ComputeDefinition = {},
 ): ComputeDefinition {

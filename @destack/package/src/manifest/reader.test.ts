@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
-import { describeFile } from "../file/file.ts";
+import { PackageFile } from "../file/file.ts";
 import { Package } from "../definition/package.ts";
 import { BuildReader } from "./reader.ts";
 import type { PackageManifest } from "./manifest.ts";
@@ -71,7 +71,11 @@ test("read the descriptions of one kind across every version of a package's decl
         ],
     ] as const) {
         const bytes = new TextEncoder().encode(JSON.stringify(declarations));
-        const file = await describeFile(`manifest/${domain}.json`, "application/json", bytes);
+        const file = await PackageFile.describe(
+            `manifest/${domain}.json`,
+            "application/json",
+            bytes,
+        );
         files.set(file.path, bytes);
         descriptions[domain] = { package: constructor, file };
     }
@@ -96,7 +100,10 @@ test("read declarations of every collection owner beside test declarations of th
         const bytes = new TextEncoder().encode(JSON.stringify(value));
         files.set(path, bytes);
 
-        return { package: owner, file: await describeFile(path, "application/json", bytes) };
+        return {
+            package: owner,
+            file: await PackageFile.describe(path, "application/json", bytes),
+        };
     };
     const tests = [
         { kind: "test", name: "reads", file: "src/index.test.ts", start: 0, end: 9, modifiers: [] },
@@ -128,7 +135,10 @@ test("read a build's own declarations across its domains, and reference its upgr
         const bytes = new TextEncoder().encode(JSON.stringify(value));
         files.set(path, bytes);
 
-        return { package: owner, file: await describeFile(path, "application/json", bytes) };
+        return {
+            package: owner,
+            file: await PackageFile.describe(path, "application/json", bytes),
+        };
     };
     const own = declaration(owner, owner, "setting", "language", { name: "language" });
     const dependency = {

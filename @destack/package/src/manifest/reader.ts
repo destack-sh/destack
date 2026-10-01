@@ -1,12 +1,12 @@
 import { schema } from "@destack/schema";
-import { verifyFile, type PackageFile } from "../file/file.ts";
+import { PackageFile, PackagePath } from "../file/file.ts";
 import { DependencyResolution } from "../definition/dependency.ts";
 import { SourceMapReference } from "../source/map.ts";
 import { ModuleDescription } from "../code/module.ts";
 import { PackageError } from "../error/index.ts";
 import type { DeclarationName, PackageId } from "../definition/package.ts";
 import { DeclarationDescription } from "../inspect/declaration.ts";
-import { ManifestFile, type PackageManifest } from "./manifest.ts";
+import { ManifestFile, PackageLocation, PackageManifest } from "./manifest.ts";
 
 /** A readable package distribution supplied by local or remote storage. */
 export interface PackageDistribution {
@@ -144,10 +144,69 @@ export class BuildReader {
     ): Promise<schema.Output<Definition>> {
         // verify the exact bytes before parsing external JSON
         const bytes = await this.load(file.path);
-        await verifyFile(file, bytes);
+        await PackageFile.verify(file, bytes);
         const document = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
 
         return definition.parse(document);
+    }
+
+    /** Open an immutable remote package and verify its root manifest. */
+    static async open(
+        location: PackageLocation,
+        fetch: (input: URL, init: RequestInit) => Promise<Response>,
+        signal?: AbortSignal,
+    ): Promise<BuildReader> {
+        // restrict relative reads to this package's HTTP endpoint
+        location = PackageLocation.parse(location);
+        const base = new URL(location.url);
+        if (
+            !["https:", "http:"].includes(base.protocol) ||
+            base.username ||
+            base.password ||
+            base.search ||
+            base.hash
+        ) {
+            throw new PackageError("INVALID_FILE", "invalid package URL");
+        }
+        if (!base.pathname.endsWith("/")) {
+            base.pathname += "/";
+        }
+
+        // authenticate and verify the root before trusting its file references
+        const bytes = await BuildReader.#fetch(new URL("manifest.json", base), fetch, signal);
+        await PackageFile.verify(
+            {
+                path: "manifest.json",
+                digest: location.manifest,
+                size: bytes.byteLength,
+                mediaType: "application/json",
+            },
+            bytes,
+        );
+        const manifest = PackageManifest.parse(
+            JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)),
+        );
+
+        return new BuildReader(manifest, async (path) => {
+            const encoded = PackagePath.parse(path).split("/").map(encodeURIComponent).join("/");
+
+            return BuildReader.#fetch(new URL(`files/${encoded}`, base), fetch, signal);
+        });
+    }
+
+    /** Read one complete package file and reject HTTP failures before decoding it. */
+    static async #fetch(
+        url: URL,
+        fetch: (input: URL, init: RequestInit) => Promise<Response>,
+        signal: AbortSignal | undefined,
+    ): Promise<Uint8Array<ArrayBuffer>> {
+        const response = await fetch(url, { signal, redirect: "error" });
+        if (!response.ok) {
+            await response.body?.cancel();
+            throw new PackageError("INVALID_FILE", `package read failed: HTTP ${response.status}`);
+        }
+
+        return new Uint8Array(await response.arrayBuffer());
     }
 }
 
