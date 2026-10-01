@@ -15,10 +15,18 @@ export function isSensitive(value: z.ZodType): boolean {
     return SENSITIVE.has(value);
 }
 
-/** Leave out of a value what its schema marks sensitive, through objects, arrays and optional, nullable and defaulted values. */
-export function redact(definition: z.ZodType, value: unknown): unknown {
+/** Leave out what a schema marks sensitive, handing each dropped value to `found`. */
+export function redact(
+    definition: z.ZodType,
+    value: unknown,
+    found?: (sensitive: unknown) => void,
+): unknown {
     // drop a sensitive value, and keep an absent one
     if (isSensitive(definition)) {
+        if (value !== undefined) {
+            found?.(value);
+        }
+
         return undefined;
     } else if (value === undefined || value === null) {
         return value;
@@ -31,7 +39,7 @@ export function redact(definition: z.ZodType, value: unknown): unknown {
 
         return Object.fromEntries(
             Object.entries(value as Record<string, unknown>).flatMap(([name, field]) => {
-                const kept = shape[name] === undefined ? field : redact(shape[name], field);
+                const kept = shape[name] === undefined ? field : redact(shape[name], field, found);
 
                 return kept === undefined ? [] : [[name, kept]];
             }),
@@ -39,11 +47,11 @@ export function redact(definition: z.ZodType, value: unknown): unknown {
     }
     // redact each element of an array
     else if (wrapped.element !== undefined && Array.isArray(value)) {
-        return value.map((entry) => redact(wrapped.element as z.ZodType, entry) ?? null);
+        return value.map((entry) => redact(wrapped.element as z.ZodType, entry, found) ?? null);
     }
     // look through optional, nullable and defaulted wrappers to the schema they wrap
     else if (typeof wrapped.unwrap === "function") {
-        return redact(wrapped.unwrap(), value);
+        return redact(wrapped.unwrap(), value, found);
     }
 
     return value;
