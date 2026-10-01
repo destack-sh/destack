@@ -13,6 +13,7 @@ import {
     type Select,
 } from "@destack/db";
 import { defineObject, field, method, ObjectError, type ObjectType } from "@destack/object";
+import type { Stack } from "@destack/object/server";
 import { ComputeDefinition, DeclarationName, PackageId } from "@destack/package";
 import { ViewDescription } from "@destack/package/view";
 import { Digest } from "@destack/package/file";
@@ -323,6 +324,20 @@ export const Installation = {
         }
 
         return existing.id;
+    },
+
+    /** Resolve a declared installation: one the stack declares by name, or one of the space by id. */
+    async resolve(
+        reference: string | { readonly id: string },
+        stack: Stack,
+    ): Promise<Identifier<"installation">> {
+        // resolve an installation the stack declares
+        if (typeof reference === "string") {
+            return identifier("installation").parse(await stack.require(installation, reference));
+        }
+
+        // require an existing installation of the space
+        return Installation.require(stack.database, stack.scope, reference.id);
     },
 
     /** Read an installation this cell serves now: in a space it serves, enabled, and not being deleted. */
