@@ -41,7 +41,7 @@ function post(headers: Headers, body: string): Request {
     return new Request("https://hooks.test/webhooks/github", { method: "POST", headers, body });
 }
 
-/** Read the body digest a GitHub signature carries, which names its delivery. */
+/** Read the body digest a GitHub signature carries, which identifies its delivery. */
 function digestOf(headers: Headers): string {
     return headers.get("x-hub-signature-256")!.slice("sha256=".length);
 }

@@ -241,12 +241,12 @@ export class Server implements AsyncDisposable {
         // renew the call's access
         call.context.authorization?.renew();
 
-        // decide the permission on the call's target
+        // decide the permission on the call's target, which audits of a denial also read
         const permission = call.access.permission;
         if (permission !== null) {
             const target = await options.access!.target!(call);
-            await call.context.authorization!.require(permission, target);
             call.context.target = target;
+            await call.context.authorization!.require(permission, target);
         }
         // check the caller in the service's scope
         else {

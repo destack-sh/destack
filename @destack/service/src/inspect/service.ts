@@ -39,7 +39,7 @@ export type ServiceDescription = schema.Infer<typeof ServiceDescription>;
 
 /** Describe a service. */
 export function describeService(service: Service): ServiceDescription {
-    // name the routes the objects derive, shared ones included
+    // list the routes the objects derive, shared ones included
     const derived = new Set(Object.keys(service.objects));
     for (const routed of Object.values(service.objects)) {
         for (const route of Object.keys(routed.shared)) {

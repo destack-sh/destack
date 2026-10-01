@@ -12,7 +12,7 @@ import {
     subjectKey,
     VerifiedIdentifier,
 } from "@destack/access";
-import { identifier, schema } from "@destack/schema";
+import { type Identifier, identifier, schema } from "@destack/schema";
 import { ServiceError } from "../error/index.ts";
 import type { TokenIssuerAuthority } from "./token.ts";
 
@@ -115,24 +115,28 @@ export class Caller<Credential extends CredentialReference = CredentialReference
         return Math.min(expiresAt, verifiedAt + CALLER_LIFETIME_MILLISECONDS);
     }
 
-    /** Hold a time within the caller's lifetime: the time itself, or just before the lapse once passed. */
+    /** Clamp a time to the caller's lifetime: the time itself, or just before the lapse once passed. */
     within(now: number): number {
         return Math.min(now, this.lapsesAt - 1);
     }
 
     /** Read the verified deployment a workload identity among the caller's runs in, absent for none. */
-    deployment(subject: Subject): string | undefined {
+    deployment(subject: Subject): Identifier<"deployment"> | undefined {
         const deployments = this.authentication.deployments ?? [];
 
         return deployments.find((entry) => sameSubject(entry.subject, subject))?.id;
     }
 
+    /** The principal sending the request: the last delegate, or else the subject. */
+    get sender(): Subject {
+        const { delegates, subject } = this.authentication;
+
+        return delegates?.at(-1)?.subject ?? subject;
+    }
+
     /** The retry identity of the subject and the sending principal. */
     get id(): string {
-        const { delegates, subject } = this.authentication;
-        const sending = delegates?.at(-1)?.subject ?? subject;
-
-        return JSON.stringify([subjectKey(subject), subjectKey(sending)]);
+        return JSON.stringify([subjectKey(this.authentication.subject), subjectKey(this.sender)]);
     }
 
     /** Require current authentication for the audience and scope. */

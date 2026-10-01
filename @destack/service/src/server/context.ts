@@ -42,7 +42,7 @@ export class ServiceContext {
     readonly observed = new Bookmark();
     /** The caller's authorization under the service's policies. */
     readonly authorization: Authorization | undefined;
-    /** The object the call's permission was decided on. */
+    /** The object the call's permission is decided on, set before the decision for audits of a denial. */
     target?: ObjectReference;
 
     /** Create the context of a request. */
