@@ -150,11 +150,12 @@ We have long figured out that opinionated formatters are a great idea, so now we
 <!-- TODO: demo #1 -->
 
 That is Destack: an open source, hackable, personal software platform.
-Basically, think of Destack as a personal Git + NPM + SQlite + worker with all the auth, schemas, synchronisation, telemetry, infra, and just all the boring bits to make it work nicely.
+Basically, think of Destack as a personal Git + NPM + SQlite + worker with all the auth, schemas, synchronisation, telemetry, infra, including all the boring bits to make it work properly.
+Completely standardised, as much "set and forget" by default as possible.
 
 <!-- TODO: demo #2 -->
 
-Inspired by game engines, Destack includes integrated tools for interactively building, understanding, and refining software .
+Following the game engine model, Destack integrates libraries and tools for interactively building, understanding, and refining software products, all based on modern best practices.
 It's as indescructible as can be, and you can host it entirely yourself, we can tunnel for you, or you could let us take care of everything.
 Or any combination.
 
