@@ -2,7 +2,6 @@ import {
     AccessError,
     accessRelationship,
     isPrincipal,
-    subjectKey,
     type Access,
     type Creation,
     type GrantReader,
@@ -10,8 +9,6 @@ import {
 import {
     and,
     type Column,
-    decodeRow,
-    encodeRow,
     eq,
     identifier,
     integer,
@@ -29,7 +26,7 @@ import {
 } from "@destack/db";
 import { type Scalar } from "@destack/db/query";
 import { type Expression } from "@destack/schema/expression";
-import { changesThroughLog, Dataflow, View, type ObjectReference } from "@destack/sync";
+import { changesThroughLog, Dataflow, View, type ObjectReference, Subject } from "@destack/sync";
 import { canonicalize } from "@destack/schema/json";
 import { type Identifier, schema, type Version } from "@destack/schema";
 import { DatabaseError } from "@destack/db/error";
@@ -81,8 +78,12 @@ export function recordColumns<const Prefix extends string>(prefix: Prefix) {
         id: identifier("id", prefix).primaryKey(),
         /** Creation time in UTC epoch milliseconds. */
         createdAt: integer("created_at").notNull(),
+        /** The subject whose call created the record, by subject key, absent for the platform's own writes. */
+        createdBy: text("created_by"),
         /** Last modification time in UTC epoch milliseconds. */
         updatedAt: integer("updated_at").notNull(),
+        /** The subject whose call last modified the record, by subject key, absent for the platform's own writes. */
+        updatedBy: text("updated_by"),
         /** The revision used by conditional updates. */
         revision: integer("revision").notNull().default(1),
         /** User-defined labels. */
@@ -302,7 +303,7 @@ export function update<
             }),
             output: shapes.row,
         }),
-        effect: (call) => call.revise(decodeRow(call.object.table as Table, call.input)),
+        effect: (call) => call.revise((call.object.table as Table).decode(call.input)),
         inverse: (step) => {
             // restore fields unchanged since
             const current = step.current;
@@ -393,15 +394,14 @@ export function updateMany<
             const input = call.input as Record<string, unknown> & {
                 readonly where: Record<string, unknown>;
             };
-            const values = decodeRow(
-                table,
+            const values = table.decode(
                 Object.fromEntries(
                     options.fields.flatMap((name) =>
                         Object.hasOwn(input, name) ? [[name, input[name]]] : [],
                     ),
                 ),
             );
-            const matched = decodeRow(table, input.where);
+            const matched = table.decode(input.where);
             const hasGeneration = Object.hasOwn(table[TABLE].columns, "generation");
 
             // match by the given values
@@ -439,6 +439,7 @@ export function updateMany<
                     revision: sql`${table.revision!} + 1`,
                     ...(hasGeneration ? { generation: sql`${table.generation!} + 1` } : {}),
                     updatedAt: call.now,
+                    updatedBy: call.caller === undefined ? null : Subject.key(call.caller),
                 } as Partial<Insert<Table>>)
                 .where(and(matching, held))
                 .returning({ id: table.id! })) as unknown[];
@@ -593,7 +594,7 @@ async function createdValues(call: Call): Promise<Record<string, unknown>> {
     const table = object.table as Table & Record<string, never>;
 
     return {
-        ...decodeRow(table, call.input),
+        ...table.decode(call.input),
         ...(object.parent === undefined ? {} : call.parentColumns()),
         id: call.id,
         scope: call.scope,
@@ -602,11 +603,13 @@ async function createdValues(call: Call): Promise<Record<string, unknown>> {
         ...Object.fromEntries(
             callers.map(([name, declared]) => [
                 name,
-                declared.type === "subject" ? subjectKey(caller!) : caller!.id,
+                declared.type === "subject" ? Subject.key(caller!) : caller!.id,
             ]),
         ),
         createdAt: call.now,
+        createdBy: caller === undefined ? null : Subject.key(caller),
         updatedAt: call.now,
+        updatedBy: caller === undefined ? null : Subject.key(caller),
     };
 }
 
@@ -717,7 +720,10 @@ async function deleteObject(call: Call): Promise<Record<string, never>> {
 
     // request deletion when a trash or controller finishes it
     if (Object.hasOwn(table[TABLE].columns, "deletionRequestedAt")) {
-        await call.revise({ deletionRequestedAt: call.now });
+        await call.revise({
+            deletionRequestedAt: call.now,
+            deletedBy: call.caller === undefined ? null : Subject.key(call.caller),
+        });
 
         return {};
     }
@@ -809,7 +815,7 @@ async function listObjects(call: Call) {
 
     // read groups at the latest position, or rows
     const position = call.snapshot?.position;
-    const after = listing.after === undefined ? undefined : decodeRow(node.table, listing.after);
+    const after = listing.after === undefined ? undefined : node.table.decode(listing.after);
     await dataflow.fill(await View.of(call.database, call.snapshot), after);
     if (node.aggregate !== undefined && position !== undefined) {
         throw new ServiceError("BAD_REQUEST", {
@@ -834,7 +840,7 @@ async function listObjects(call: Call) {
                   );
     const ordered = node.order.flatMap((key) => node.columnsOf(key.column));
     const listed = listing.result(rows, (row) =>
-        encodeRow(node.table, Object.fromEntries(ordered.map((name) => [name, row[name]]))),
+        node.table.encode(Object.fromEntries(ordered.map((name) => [name, row[name]]))),
     );
 
     // split includes and computed values

@@ -1,6 +1,6 @@
-import { check, decodeRow, integer, json, sql, type Column, type Table } from "@destack/db";
+import { check, integer, json, sql, type Column, type Table } from "@destack/db";
 import { ServiceError } from "@destack/service/error";
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, Instant, schema } from "@destack/schema";
 import { method } from "../method/method.ts";
 import { deletionColumns } from "./recoverable.ts";
 import type { Trait } from "./trait.ts";
@@ -17,7 +17,7 @@ export const StatusCondition = defineSchema(
         /** The human-readable explanation. */
         message: schema.string(),
         /** The last change of condition status, in UTC epoch milliseconds. */
-        lastTransitionAt: schema.number().int().min(0),
+        lastTransitionAt: Instant,
     }),
 );
 /** A controller's observation of a record. */
@@ -64,7 +64,7 @@ const observe = method({ permission: null, isSystem: true, input: Observation })
 
         // write the observed state
         return call.observe({
-            ...decodeRow(call.object.table as Table, fields ?? {}),
+            ...(call.object.table as Table).decode(fields ?? {}),
             observedGeneration,
             conditions: { ...target.conditions, ...merged },
         });

@@ -1,13 +1,11 @@
-import { keySubject, type Subject } from "@destack/access";
 import { accessRelationship, accessRole } from "@destack/access";
+import { Subject } from "@destack/sync";
 import {
     and,
     type Column,
     type ColumnBuilder,
     type DatabaseConnection,
-    decodeRow,
     defineTable,
-    encodeRow,
     eq,
     integer,
     isNull,
@@ -19,6 +17,7 @@ import {
 import { Snapshot } from "@destack/db/log";
 import { defineSchema, schema } from "@destack/schema";
 import type { Controller } from "@destack/service/control";
+import { ServiceError } from "@destack/service/error";
 import { type Address, Outbox } from "@destack/service/outbox";
 import type { ObjectType } from "../object/object.ts";
 import type { ObjectServer } from "../server/server.ts";
@@ -28,6 +27,9 @@ import { v7 } from "uuid";
 
 /** The key under which access changes reconsider every row of an addressed type. */
 const ACCESS_KEY = "*";
+
+/** The most copies one delivery carries: a home's batch of upserts within a few milliseconds. */
+const DELIVERY_BATCH = 100;
 
 /** The options of addressed objects. */
 export interface AddressedDefinition {
@@ -76,8 +78,8 @@ export const Copy = defineSchema(
 /** One change of an addressed row for its recipient's home. */
 export type Copy = schema.Infer<typeof Copy>;
 
-/** The outbox address of recipients' homes. */
-export const INBOX: Address<Copy> = { name: "inbox", message: Copy };
+/** The outbox address of the copies bound for recipients' homes. */
+export const HOME: Address<Copy> = { name: "home", message: Copy };
 
 /** The parts of an object server keeping addressed rows' copies. */
 type Addressing = Pick<ObjectServer, "objects" | "database" | "authorizer">;
@@ -86,6 +88,8 @@ type Addressing = Pick<ObjectServer, "objects" | "database" | "authorizer">;
 export const addressed: Trait<AddressedDefinition> & {
     /** Send addressed rows' changes to their recipients' homes through the outbox. */
     controller(server: Addressing): Controller;
+    /** Deliver the outbox's copies to their recipients' homes. */
+    delivery(server: Pick<ObjectServer, "database">): Controller;
     /** Write the copies a home receives into their recipients' homes. */
     accept(
         server: Pick<ObjectServer, "objects" | "database">,
@@ -167,6 +171,18 @@ export const addressed: Trait<AddressedDefinition> & {
             },
         };
     },
+    delivery(server) {
+        return new Outbox(server.database).controller({
+            ...HOME,
+            batch: DELIVERY_BATCH,
+            accept: async () => {
+                // TODO #Incomplete: accept each copy on its recipient's home cell, located through the recipient's home space
+                throw new ServiceError("NOT_IMPLEMENTED", {
+                    message: "addressed copies cannot reach their recipients' homes yet",
+                });
+            },
+        });
+    },
     async accept(server, copies, home) {
         await server.database.transaction(async (transaction) => {
             for (const entry of copies) {
@@ -176,7 +192,7 @@ export const addressed: Trait<AddressedDefinition> & {
                     throw new TypeError(`object ${entry.type} is not addressed here`);
                 }
                 const table = object.table as Table & Record<string, Column>;
-                const scope = await home(keySubject(entry.recipient));
+                const scope = await home(Subject.read(entry.recipient));
 
                 // withdraw a copy
                 const source = and(eq(table.origin!, entry.space), eq(table.originId!, entry.id));
@@ -190,7 +206,7 @@ export const addressed: Trait<AddressedDefinition> & {
                     .select({ id: table.id! })
                     .from(table)
                     .where(source);
-                const { id: _id, ...row } = decodeRow(table, entry.row);
+                const { id: _id, ...row } = table.decode(entry.row);
                 const values = { ...row, scope, origin: entry.space, originId: entry.id };
                 if (held === undefined) {
                     await transaction
@@ -243,7 +259,7 @@ async function send(
         const access = await server.authorizer.resolveAssured(
             snapshot,
             scope,
-            keySubject(recipient),
+            Subject.read(recipient),
             now,
         );
         const admission = await server.authorizer.checkRows(
@@ -268,9 +284,9 @@ async function send(
                 space: scope,
                 id,
                 recipient,
-                row: encodeRow(table, read!),
+                row: table.encode(read!),
             };
-            await outbox.append(INBOX, `${object.name}/${id}/${revision}`, message, transaction);
+            await outbox.append(HOME, `${object.name}/${id}/${revision}`, message, transaction);
             await transaction
                 .insert(copy)
                 .values({ type: object.name, id, space: scope, recipient, revision })
@@ -297,7 +313,7 @@ async function withdraw(
     reason: string,
 ): Promise<void> {
     await outbox.append(
-        INBOX,
+        HOME,
         `${object.name}/${held.id}/withdrawn/${reason}`,
         {
             type: object.name,

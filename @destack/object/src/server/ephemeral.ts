@@ -1,11 +1,14 @@
 import type { ServiceContext } from "@destack/service/server";
 import { TABLE, type DatabaseConnection, type Table } from "@destack/db";
-import type { Relay } from "@destack/db/relay";
+import type { Channel } from "@destack/db/channel";
 import * as sync from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
 
+/** The channel name of the ephemeral objects' changes on their durable database. */
+const EPHEMERAL_CHANNEL = "ephemeral";
+
 /** The ephemeral objects one instance serves from a replicated memory database. */
-export class EphemeralStorage {
+export class EphemeralStorage implements AsyncDisposable {
     /** The memory database holding the ephemeral objects' tables. */
     readonly database: DatabaseConnection;
     /** The ephemeral object types held. */
@@ -26,12 +29,14 @@ export class EphemeralStorage {
     readonly #leaving = new Map<string, ReturnType<typeof setTimeout>>();
     /** Stop watching which owners any instance holds. */
     readonly #unwatch: () => void;
+    /** The memory database this store opened and closes with itself, absent for one its caller keeps. */
+    #owned: { close(): Promise<void> } | undefined;
 
-    /** Hold ephemeral object types in memory, replicated over a relay. */
+    /** Hold ephemeral object types in memory, replicated over a channel. */
     constructor(
         database: DatabaseConnection,
         objects: readonly ObjectType[],
-        relay: Relay<sync.TrackerMessage>,
+        channel: Channel<sync.TrackerMessage>,
         options: sync.TrackerOptions & { readonly report: (error: unknown) => void },
     ) {
         // require ephemeral objects referencing only each other
@@ -58,13 +63,45 @@ export class EphemeralStorage {
         this.#byTable = new Map(objects.map((object) => [object.table as Table, object]));
         this.#byType = new Map(objects.map((object) => [typeKey(object), object]));
         this.#report = options.report;
-        this.tracker = new sync.Tracker(database, tables, relay, options);
+        this.tracker = new sync.Tracker(database, tables, channel, options);
         this.feed = new sync.Feed(database, tables);
 
         // track owner holds
         this.#unwatch = this.tracker.watchHolds((owner, isHeld) =>
             isHeld ? this.#stay(owner) : this.#leave(owner),
         );
+    }
+
+    /** Hold the ephemeral types among some objects in a migrated memory database, replicated over a durable database's channel. */
+    static async open(
+        objects: readonly ObjectType[],
+        durable: DatabaseConnection,
+        memory: (
+            tables: readonly Table[],
+        ) => Promise<DatabaseConnection & { close(): Promise<void> }>,
+        options: sync.TrackerOptions & { readonly report: (error: unknown) => void },
+    ): Promise<EphemeralStorage | undefined> {
+        // keep nothing for objects without ephemeral types
+        const ephemeral = objects.filter((object) => object.storage === "ephemeral");
+        if (ephemeral.length === 0) {
+            return undefined;
+        }
+
+        // migrate their tables in a database of their own
+        const tables = ephemeral.map((object) => object.table as Table);
+        const database = await memory(tables);
+        await database.migrate(tables);
+
+        // replicate them between the durable database's connections, closing the memory with the store
+        const storage = new EphemeralStorage(
+            database,
+            ephemeral,
+            durable.channel<sync.TrackerMessage>(EPHEMERAL_CHANNEL),
+            options,
+        );
+        storage.#owned = database;
+
+        return storage;
     }
 
     /** Name the owner of a client's rows of one object type. */
@@ -100,7 +137,7 @@ export class EphemeralStorage {
 
     /** Key a client by its caller and identifier. */
     static clientKey(context: ServiceContext, client: string): string {
-        return JSON.stringify([context.caller?.id ?? null, client]);
+        return JSON.stringify([context.authentication?.id ?? null, client]);
     }
 
     /** Hold a client's rows while one of its streams is open, returning the release. */
@@ -138,6 +175,12 @@ export class EphemeralStorage {
         }
         this.#leaving.clear();
         this.tracker.close();
+    }
+
+    /** Stop replicating, then close the memory database this store opened. */
+    async [Symbol.asyncDispose](): Promise<void> {
+        this.close();
+        await this.#owned?.close();
     }
 
     /** End an unheld owner's rows after its type's linger. */

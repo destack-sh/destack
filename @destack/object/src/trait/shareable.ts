@@ -1,14 +1,13 @@
 import {
-    AccessName,
     Proposal,
     Relationship,
     RelationshipCondition,
-    Subject,
     VerifiedIdentifier,
     Explanation,
 } from "@destack/access";
+import { AccessName, Subject } from "@destack/sync";
 import { and, eq, type Column, type Table } from "@destack/db";
-import { schema } from "@destack/schema";
+import { Instant, schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { Page, page } from "@destack/service/page";
 import type { Call } from "../method/call.ts";
@@ -37,7 +36,7 @@ const GrantShape = {
     /** The subject, subject set or wildcard. */
     subject: Subject,
     /** Optional expiry in UTC epoch milliseconds. */
-    expiresAt: schema.number().int().optional(),
+    expiresAt: Instant.optional(),
     /** What a request must satisfy for the relationship to apply. */
     conditions: RelationshipCondition.optional(),
 };
@@ -54,7 +53,7 @@ const ProposeShape = {
     /** Why the caller asks for or offers the relationship. */
     purpose: schema.string().min(1).max(1000).optional(),
     /** When the proposal lapses in UTC epoch milliseconds, a week from now by default. */
-    expiresAt: schema.number().int().optional(),
+    expiresAt: Instant.optional(),
 };
 
 /** A relationship an object's sharing methods propose. */

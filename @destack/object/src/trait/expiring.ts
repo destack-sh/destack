@@ -1,4 +1,5 @@
 import { earliest } from "@destack/access";
+import { Duration } from "@destack/schema";
 import {
     and,
     type Column,
@@ -14,7 +15,6 @@ import type { Controller } from "@destack/service/control";
 import type { Call } from "../method/call.ts";
 import { defineMethod, type Method } from "../method/method.ts";
 import { Empty } from "../method/procedure.ts";
-import { Duration } from "../object/duration.ts";
 import type { ObjectType } from "../object/object.ts";
 import { type ObjectServer, SystemCall } from "../server/server.ts";
 import type { Trait } from "./trait.ts";

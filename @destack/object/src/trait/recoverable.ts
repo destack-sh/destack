@@ -1,4 +1,5 @@
 import { earliest } from "@destack/access";
+import { Duration } from "@destack/schema";
 import {
     and,
     type Column,
@@ -10,6 +11,7 @@ import {
     lte,
     min,
     type Table,
+    text,
 } from "@destack/db";
 import type { schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
@@ -23,7 +25,6 @@ import {
     type RowSchema,
     type TargetShape,
 } from "../method/procedure.ts";
-import { Duration } from "../object/duration.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { Controller } from "@destack/service/control";
 import { type ObjectServer, SystemCall } from "../server/server.ts";
@@ -47,7 +48,10 @@ export type RecoverableDefinition<Permissions extends string = string> = {
 
 /** The columns recording the deletion request and the purge of a kept record's content. */
 export type DeletionBuilderMap<Deletion> = Deletion extends RecoverableDefinition
-    ? { deletionRequestedAt: ColumnBuilder<number, false, false> } & (Deletion extends {
+    ? {
+          deletionRequestedAt: ColumnBuilder<number, false, false>;
+          deletedBy: ColumnBuilder<string, false, false>;
+      } & (Deletion extends {
           readonly keep: "record";
       }
           ? { purgedAt: ColumnBuilder<number, false, false> }
@@ -77,6 +81,8 @@ export function deletionColumns() {
     return {
         /** The time deletion was requested, null otherwise. */
         deletionRequestedAt: integer("deletion_requested_at"),
+        /** The subject key of the caller that requested deletion, absent otherwise. */
+        deletedBy: text("deleted_by"),
     };
 }
 
@@ -312,7 +318,7 @@ async function restore(call: Call): Promise<Record<string, unknown>> {
         });
     }
 
-    return call.revise({ deletionRequestedAt: null });
+    return call.revise({ deletionRequestedAt: null, deletedBy: null });
 }
 
 /** Purge an object in the trash: mark a kept record purged, else remove it. */

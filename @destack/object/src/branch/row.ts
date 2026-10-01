@@ -1,12 +1,4 @@
-import {
-    decodeRow,
-    encodeRow,
-    Key,
-    TABLE,
-    type DatabaseConnection,
-    type Row,
-    type Table,
-} from "@destack/db";
+import { Key, TABLE, type DatabaseConnection, type Row, type Table } from "@destack/db";
 import type { Change, Overlay } from "@destack/db/log";
 import type { ObjectType } from "../object/index.ts";
 
@@ -61,15 +53,15 @@ export const BranchRow = {
         return [...last].flatMap(([name, { table, change }]) => {
             // encode the main line's row and the branch's
             const main = first.get(name) ?? null;
-            const before = main === null ? null : encodeRow(table, main);
-            const row = change.after === undefined ? null : encodeRow(table, change.after as Row);
+            const before = main === null ? null : table.encode(main);
+            const row = change.after === undefined ? null : table.encode(change.after as Row);
 
             return JSON.stringify(before) === JSON.stringify(row)
                 ? []
                 : [
                       {
                           table: table[TABLE].sqlName,
-                          key: encodeRow(table, change.key as Row),
+                          key: table.encode(change.key as Row),
                           row,
                           before,
                       },
@@ -87,9 +79,9 @@ export const BranchRow = {
             // remove a row the branch removes, and put the others
             const table = tables.get(entry.table)!;
             if (entry.row === null) {
-                await database.delete(table).where(Key.match(table, decodeRow(table, entry.key)));
+                await database.delete(table).where(Key.match(table, table.decode(entry.key)));
             } else {
-                await database.upsert(table, [decodeRow(table, entry.row)]);
+                await database.upsert(table, [table.decode(entry.row)]);
             }
         }
     },
@@ -102,8 +94,8 @@ export const BranchRow = {
             const keyed = byTable.get(entry.table) ?? new Map<string, Row | null>();
             byTable.set(entry.table, keyed);
             keyed.set(
-                Key.name(table, decodeRow(table, entry.key)),
-                entry.row === null ? null : decodeRow(table, entry.row),
+                Key.name(table, table.decode(entry.key)),
+                entry.row === null ? null : table.decode(entry.row),
             );
         }
 
@@ -114,8 +106,8 @@ export const BranchRow = {
     change(entry: BranchRow, object: ObjectType): BranchChange | undefined {
         // decode both sides
         const table = object.table as Table;
-        const before = entry.before === null ? undefined : decodeRow(table, entry.before);
-        const after = entry.row === null ? undefined : decodeRow(table, entry.row);
+        const before = entry.before === null ? undefined : table.decode(entry.before);
+        const after = entry.row === null ? undefined : table.decode(entry.row);
 
         // keep the written fields that differ, skipping derived changes alone
         const fields = (object.written as readonly string[]).filter(
@@ -127,7 +119,7 @@ export const BranchRow = {
 
         return {
             object,
-            id: String(decodeRow(table, entry.key).id),
+            id: String(table.decode(entry.key).id),
             change: before === undefined ? "created" : after === undefined ? "removed" : "updated",
             ...(before === undefined ? {} : { before }),
             ...(after === undefined ? {} : { after }),

@@ -1,9 +1,6 @@
-import {
-    subjectKey,
-    type AccessExpression,
-    type Authorizer,
-    type Permission,
-} from "@destack/access";
+import { type AccessExpression, type Authorizer, type Permission } from "@destack/access";
+import { Duration } from "@destack/schema";
+import { Subject } from "@destack/sync";
 import { and, desc, eq, TABLE, type Insert, type Table } from "@destack/db";
 import { LogPosition } from "@destack/db/log";
 import type { schema } from "@destack/schema";
@@ -11,7 +8,6 @@ import { v7 } from "uuid";
 import type { Call } from "../method/call.ts";
 import { defineMethod, type Method } from "../method/method.ts";
 import { Step } from "../method/step.ts";
-import { Duration } from "../object/duration.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { Procedure, ReplayShape, RowSchema, TargetShape } from "../method/procedure.ts";
 import type { Gated, Trait } from "./trait.ts";
@@ -97,7 +93,7 @@ export const tracked: Trait<TrackedDefinition> & {
         const options = object.tracked!;
         const activity = options.activity;
         const table = activity.table as Table & Record<string, never>;
-        const caller = subjectKey(call.caller!);
+        const caller = Subject.key(call.caller!);
         const [latest] = (await call.database
             .select()
             .from(table)

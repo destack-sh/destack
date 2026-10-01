@@ -5,4 +5,4 @@ export { declarable, Manager } from "./declarable.ts";
 export { suspendable } from "./suspendable.ts";
 export { tracked, type TrackedDefinition } from "./tracked.ts";
 export { expiring, type ExpiryRule } from "./expiring.ts";
-export { addressed, Copy, copy, INBOX, type AddressedDefinition } from "./addressed.ts";
+export { addressed, Copy, copy, HOME, type AddressedDefinition } from "./addressed.ts";

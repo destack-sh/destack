@@ -1,9 +1,9 @@
-import { keySubject, subjectKey, type Subject } from "@destack/access";
 import { TABLE, type DatabaseConnection, type Table } from "@destack/db";
+import { Subject } from "@destack/sync";
 import { DatabaseError } from "@destack/db/error";
 import { Condition, Order } from "@destack/db/query";
 import type { LogPosition, Overlay, Snapshot } from "@destack/db/log";
-import { Journal } from "@destack/service/database";
+import { Journal } from "@destack/audit";
 import type * as sync from "@destack/sync";
 import { v7 } from "uuid";
 import type { Call } from "../method/index.ts";
@@ -57,7 +57,7 @@ export class Branch {
             method,
             input,
             release,
-            author: keySubject(author),
+            author: Subject.read(author),
         }));
     }
 
@@ -107,7 +107,7 @@ export class Branch {
                 method: entry.method,
                 input: entry.input,
                 release: entry.release,
-                author: subjectKey(author),
+                author: Subject.key(author),
             });
         }
 
