@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { Health } from "../health/index.ts";
 import { createClient } from "../client/index.ts";
-import { defineOperation, defineOperationProcedures } from "../operation/index.ts";
+import { defineOperation, defineOperationProcedures } from "./index.ts";
 import { ServiceError } from "../error/index.ts";
 import { implementOperation, OperationStore, Server } from "../server/index.ts";
 import { hosting, createCaller } from "../server/tests/fixture.ts";

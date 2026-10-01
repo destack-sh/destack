@@ -3,7 +3,7 @@ import type { Health } from "../health/health.ts";
 import { ServiceHandler, type HandlerOptions, type Router } from "./handler.ts";
 import { isProcedure } from "@orpc/server";
 import { ProcedureMeta } from "../procedure/procedure.ts";
-import { Capability, delegationChain } from "@destack/access";
+import { Capability, AccessContext } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
 import type { Caller } from "../authentication/index.ts";
 import type { ServiceRouter } from "../service/index.ts";
@@ -251,7 +251,7 @@ export class Server implements AsyncDisposable {
         }
         // check the caller in the service's scope
         else {
-            delegationChain(call.context.access());
+            AccessContext.delegation(call.context.access());
         }
 
         // let the host authorize the call

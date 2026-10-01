@@ -1,7 +1,12 @@
-import { schema } from "@destack/schema";
+import type { ResourceContext } from "@destack/resource/context";
+import { defineSchema, Instant, schema } from "@destack/schema";
 import { ServiceError } from "../error/index.ts";
-import { WebhookDelivery, type WebhookParameters } from "./delivery.ts";
-import type { Webhook } from "./webhook.ts";
+
+/** The webhook signature schemes. */
+export const WEBHOOK_VERIFICATIONS = ["standard", "github"] as const;
+
+/** A route of literal and `{name}` segments, or `/` alone. */
+const ROUTE_PATTERN = /^\/$|^(?:\/(?:[\w.~-]+|\{[a-z][A-Za-z0-9]*\}))+$/;
 
 /** The Standard Webhooks timestamp tolerance, five minutes as in the reference libraries. */
 const STANDARD_TOLERANCE_MILLISECONDS = 5 * 60 * 1000;
@@ -14,6 +19,117 @@ const STANDARD_SIGNATURE_VERSION = "v1";
 
 /** The prefix of GitHub's HMAC-SHA256 signature header value. */
 const GITHUB_SIGNATURE_PREFIX = "sha256=";
+
+/** The values of a webhook route's parameters, by name. */
+export const WebhookParameters = defineSchema(
+    schema.record(schema.string(), schema.string().min(1)),
+);
+/** The values of a webhook route's parameters, by name. */
+export type WebhookParameters = schema.Infer<typeof WebhookParameters>;
+
+/** One verified webhook delivery. */
+export const WebhookDelivery = defineSchema(
+    schema.object({
+        /** The sender's delivery identifier. */
+        id: schema.string().min(1),
+        /** The event type, such as push. */
+        event: schema.string().min(1),
+        /** The decoded body. */
+        payload: schema.json(),
+        /** The route's parameters. */
+        parameters: WebhookParameters,
+        /** The receiving time, in UTC epoch milliseconds. */
+        receivedAt: Instant,
+    }),
+);
+/** One verified webhook delivery. */
+export type WebhookDelivery = schema.Infer<typeof WebhookDelivery>;
+
+/** A webhook signature scheme. */
+export type WebhookVerification = (typeof WEBHOOK_VERIFICATIONS)[number];
+
+/** The signed webhook deliveries a trigger fires on, as the manifest describes them. */
+const shape = defineSchema(
+    schema.object({
+        /** The signature scheme. */
+        verification: schema.enum(WEBHOOK_VERIFICATIONS),
+        /** The path template below the trigger, such as `/{repository}`. */
+        route: schema.string().regex(ROUTE_PATTERN),
+    }),
+);
+/** The signed webhook deliveries a trigger fires on, as the manifest describes them. */
+export type WebhookOn = schema.Infer<typeof shape>;
+
+/** The signed webhook deliveries a trigger fires on, and how it verifies them. */
+export const WebhookOn = Object.assign(shape, {
+    /** Read a route's parameter names, refusing a repeated one. */
+    parameters(route: string): readonly string[] {
+        const names = segments(route).filter((segment) => segment.startsWith("{"));
+        if (new Set(names).size !== names.length) {
+            throw new TypeError(`webhook route repeats a parameter: ${route}`);
+        }
+
+        return names;
+    },
+
+    /** Verify a request to a path below a trigger's route with its secret, and read its delivery. */
+    async receive(
+        on: WebhookOn & {
+            secret(parameters: WebhookParameters, resources: ResourceContext): Promise<string>;
+        },
+        request: Request,
+        path: string,
+        now: number,
+        resources: ResourceContext,
+    ): Promise<WebhookDelivery> {
+        const parameters = match(on.route, path);
+        const secret = await on.secret(parameters, resources);
+
+        return WEBHOOK_SIGNATURES[on.verification].verify(request, secret, parameters, now);
+    },
+});
+
+/** Read a path's parameters from a route. */
+function match(route: string, path: string): WebhookParameters {
+    // require a path of as many segments
+    const expected = segments(route);
+    const actual = segments(path);
+    if (!path.startsWith("/") || actual.length !== expected.length) {
+        throw new ServiceError("NOT_FOUND", { message: `webhook route does not match: ${path}` });
+    }
+
+    // bind parameters and compare literals
+    const parameters: Record<string, string> = {};
+    for (const [index, segment] of expected.entries()) {
+        const value = segment.startsWith("{") ? decode(actual[index]!) : actual[index];
+        // refuse an empty or undecodable parameter, or another literal
+        if (!value || (!segment.startsWith("{") && segment !== value)) {
+            throw new ServiceError("NOT_FOUND", {
+                message: `webhook route does not match: ${path}`,
+            });
+        }
+        // bind a parameter
+        else if (segment.startsWith("{")) {
+            parameters[segment.slice(1, -1)] = value;
+        }
+    }
+
+    return parameters;
+}
+
+/** Split a route or path into its segments. */
+function segments(route: string): string[] {
+    return route === "/" ? [] : route.slice(1).split("/");
+}
+
+/** Decode a path segment. */
+function decode(segment: string): string | undefined {
+    try {
+        return decodeURIComponent(segment);
+    } catch {
+        return undefined;
+    }
+}
 
 /** A signed webhook message. */
 export interface WebhookMessage {
@@ -178,7 +294,7 @@ export class GitHubSignature implements WebhookSignature {
 }
 
 /** The signature scheme of each verification. */
-export const WEBHOOK_SIGNATURES: Readonly<Record<Webhook["verification"], WebhookSignature>> = {
+export const WEBHOOK_SIGNATURES: Readonly<Record<WebhookVerification, WebhookSignature>> = {
     standard: new StandardSignature(),
     github: new GitHubSignature(),
 };

@@ -1,4 +1,4 @@
-import { schema } from "@destack/schema";
+import { Instant, schema } from "@destack/schema";
 
 /** A long-running operation. */
 export type Operation<Result, Progress> = {
@@ -58,9 +58,9 @@ export function defineOperation<Result, Progress>(
         /** The operation identifier. */
         id: schema.uuid(),
         /** The creation time, in UTC milliseconds. */
-        createdAt: schema.number().int(),
+        createdAt: Instant,
         /** The last change time, in UTC milliseconds. */
-        updatedAt: schema.number().int(),
+        updatedAt: Instant,
         /** Whether cancellation was requested. */
         cancellationRequested: schema.boolean(),
         /** The latest progress. */

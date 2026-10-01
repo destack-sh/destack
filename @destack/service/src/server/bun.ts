@@ -86,9 +86,9 @@ export async function runWorkload(
     }
     const start = WorkloadStart.parse(JSON.parse(first.value));
 
-    // start the workload, reporting failed telemetry exports on standard error
+    // start the workload, reporting failed telemetry exports and background work on standard error
     await using workload = await WorkloadRunner.start(runner, start, startTelemetry, (error) =>
-        process.stderr.write(`telemetry export failed: ${error.message}\n`),
+        process.stderr.write(`workload failed: ${String(error)}\n`),
     );
 
     // serve the workload on a loopback port, publishing the port as the first output line

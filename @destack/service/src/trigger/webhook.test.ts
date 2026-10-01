@@ -1,9 +1,14 @@
 import { expect, test } from "@destack/test";
-import { describeWebhook } from "../inspect/index.ts";
-import { GitHubSignature, StandardSignature, WEBHOOK_SIGNATURES } from "./signature.ts";
+import { describeTrigger } from "../inspect/index.ts";
 import { ResourceContext } from "@destack/resource/context";
-import { defineWebhook } from "./webhook.ts";
-import type { WebhookDelivery } from "./delivery.ts";
+import { WebhookOn } from "./webhook.ts";
+import { defineTrigger, type WebhookTrigger } from "./trigger.ts";
+import {
+    GitHubSignature,
+    StandardSignature,
+    WEBHOOK_SIGNATURES,
+    type WebhookDelivery,
+} from "./webhook.ts";
 
 /** Push the delivered branch to the repository its route names. */
 function push(delivery: WebhookDelivery) {
@@ -128,49 +133,59 @@ test("verify a GitHub delivery and refuse a signature made with another secret",
     ).rejects.toMatchObject({ code: "UNAUTHORIZED", message: "webhook signature does not match" });
 });
 
-test("describe a declared webhook with its verification and route for the manifest", () => {
-    const webhook = defineWebhook({
+test("describe a declared webhook trigger with its verification and route for the manifest", () => {
+    const trigger = defineTrigger({
         name: "github",
-        verification: "github",
-        route: "/{repository}",
-        secret: async () => "secret",
+        on: {
+            webhook: {
+                verification: "github",
+                route: "/{repository}",
+                secret: async () => "secret",
+            },
+        },
         call: push,
     });
 
-    expect(describeWebhook(webhook)).toEqual({
+    expect(describeTrigger(trigger)).toEqual({
         name: "github",
-        verification: "github",
-        route: "/{repository}",
+        on: { webhook: { verification: "github", route: "/{repository}" } },
     });
 });
 
 test("receive a delivery with its route's parameters and the secret they resolve, and build its call", async () => {
     // resolve each repository's secret
     const requested: unknown[] = [];
-    const webhook = defineWebhook({
+    const trigger = defineTrigger({
         name: "pushes",
-        verification: "github",
-        route: "/repositories/{repository}",
-        secret: async (parameters) => {
-            requested.push(parameters);
+        on: {
+            webhook: {
+                verification: "github",
+                route: "/repositories/{repository}",
+                secret: async (parameters) => {
+                    requested.push(parameters);
 
-            return parameters.repository === "acme site" ? GITHUB_EXAMPLE.secret : "another secret";
+                    return parameters.repository === "acme site"
+                        ? GITHUB_EXAMPLE.secret
+                        : "another secret";
+                },
+            },
         },
         call: push,
-    });
+    }) as WebhookTrigger;
     const resources = new ResourceContext();
 
     // accept the repository's signed delivery
     const body = '{"ref":"refs/heads/main"}';
     const message = { id: "delivery-1", event: "push", body, sentAt: NOW };
     const headers = await WEBHOOK_SIGNATURES.github.sign(message, GITHUB_EXAMPLE.secret);
-    const delivery = await webhook.receive(
+    const delivery = await WebhookOn.receive(
+        trigger.on.webhook,
         post(headers, body),
         "/repositories/acme%20site",
         NOW,
         resources,
     );
-    expect([delivery, webhook.call(delivery)]).toEqual([
+    expect([delivery, trigger.call(delivery)]).toEqual([
         {
             id: digestOf(headers),
             event: "push",
@@ -187,7 +202,7 @@ test("receive a delivery with its route's parameters and the secret they resolve
 
     // refuse another repository's secret and paths outside the route
     const refusal = (path: string) =>
-        webhook.receive(post(headers, body), path, NOW, resources).then(
+        WebhookOn.receive(trigger.on.webhook, post(headers, body), path, NOW, resources).then(
             () => "accepted",
             (error: { code: string; message: string }) => `${error.code}: ${error.message}`,
         );
@@ -210,11 +225,9 @@ test("receive a delivery with its route's parameters and the secret they resolve
 test("refuse webhook routes with malformed segments or a repeated parameter", () => {
     const refusal = (route: string) => {
         try {
-            defineWebhook({
+            defineTrigger({
                 name: "pushes",
-                verification: "github",
-                route,
-                secret: async () => "secret",
+                on: { webhook: { verification: "github", route, secret: async () => "secret" } },
                 call: push,
             });
 

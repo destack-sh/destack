@@ -1,9 +1,10 @@
 import { expect, test } from "@destack/test";
+import type { Subject } from "@destack/sync";
 import { exportJWK, generateKeyPair, SignJWT, type JWTPayload } from "jose";
 import { TokenVerifier } from "./token.ts";
 import { TokenIssuer } from "./issuer.ts";
 import { Caller } from "./caller.ts";
-import { delegationChain, principal, Restriction, type Subject } from "@destack/access";
+import { principal, Restriction, AccessContext } from "@destack/access";
 import { PackageId } from "@destack/package";
 import { identifier } from "@destack/schema";
 
@@ -204,7 +205,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         { level: 2, authenticatedAt: issuedAt * 1000 },
         ["email:alice@example.com"],
     ]);
-    expect(delegationChain(access)).toEqual([
+    expect(AccessContext.delegation(access)).toEqual([
         { delegate: actor, delegator: subject, authority: "lent" },
     ]);
     expect(
@@ -236,7 +237,9 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         issuedAt * 1000,
     );
     expect(chainedCaller.authentication.deployments).toEqual(chain.authentication.deployments);
-    expect(delegationChain(chainedCaller.context(audience, issuedAt * 1000, spaceId))).toEqual([
+    expect(
+        AccessContext.delegation(chainedCaller.context(audience, issuedAt * 1000, spaceId)),
+    ).toEqual([
         { delegate: actor, delegator: subject, authority: "lent" },
         { delegate: secondActor, delegator: actor, authority: "lent" },
     ]);

@@ -1,4 +1,4 @@
-import { isAfter } from "@destack/db/log";
+import { LogPosition } from "@destack/db/log";
 import { defineSchema, schema } from "@destack/schema";
 
 /** The header carrying watermarks on requests and responses. */
@@ -49,7 +49,7 @@ export class Bookmark {
             this.#watermarks.push(watermark);
         }
         // replace an older watermark of the scope
-        else if (isAfter(watermark, this.#watermarks[index])) {
+        else if (LogPosition.isAfter(watermark, this.#watermarks[index])) {
             this.#watermarks[index] = watermark;
         }
     }

@@ -1,4 +1,4 @@
-import { DeclarationName, declaringModule, Package, type ModuleMetadata } from "@destack/package";
+import { DeclarationName, ModuleMetadata, Package } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
 import { Version } from "@destack/schema";
 import type { ServiceRouter } from "../service/service.ts";
@@ -56,10 +56,29 @@ export function defineService<const Input extends ServiceInput>(
     module?: ModuleMetadata,
 ): Service<ServiceRoutes<Input>> {
     // stamp the declaring package
-    const owner = Package.parse(declaringModule(module, "defineService").package);
+    const owner = Package.parse(ModuleMetadata.require(module, "defineService").package);
 
     // route each declaration under its name and the shared procedures once
     const { objects = {}, since, ...router } = input as ServiceInput;
+    const derived = routeObjects(name, router, objects);
+
+    return Object.freeze({
+        package: owner,
+        name: DeclarationName.parse(name),
+        ...(since === undefined ? {} : { since: Version.parse(since) }),
+        protocol: "http",
+        router: derived as ServiceRoutes<Input>,
+        objects,
+    });
+}
+
+/** Route each declaration under its name beside a router, with the shared procedures once. */
+function routeObjects(
+    name: string,
+    router: Readonly<Record<string, unknown>>,
+    objects: Readonly<Record<string, Routed>>,
+): Record<string, unknown> {
+    // route each declaration under its name and collect the shared procedures
     const derived: Record<string, unknown> = { ...router };
     const shared: Record<string, unknown> = {};
     for (const [key, routed] of Object.entries(objects)) {
@@ -73,14 +92,6 @@ export function defineService<const Input extends ServiceInput>(
     if (collision !== undefined) {
         throw new TypeError(`service ${name} routes two procedures under ${collision}`);
     }
-    Object.assign(derived, shared);
 
-    return Object.freeze({
-        package: owner,
-        name: DeclarationName.parse(name),
-        ...(since === undefined ? {} : { since: Version.parse(since) }),
-        protocol: "http",
-        router: derived as ServiceRoutes<Input>,
-        objects,
-    });
+    return Object.assign(derived, shared);
 }

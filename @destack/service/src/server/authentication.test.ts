@@ -1,4 +1,5 @@
 import { copyScope } from "@destack/access/test";
+import type { Subject } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
@@ -11,7 +12,6 @@ import {
     relation,
     union,
     type AccessContext,
-    type Subject,
     Authorization,
     principal,
 } from "@destack/access";

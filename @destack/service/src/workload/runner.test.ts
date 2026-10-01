@@ -10,7 +10,7 @@ import { WorkloadRunner } from "./runner.ts";
 import type { WorkloadStart } from "./start.ts";
 import { defineWorkload } from "./workload.ts";
 import { WEBHOOK_PATH } from "./start.ts";
-import { defineWebhook, WEBHOOK_SIGNATURES } from "../webhook/index.ts";
+import { defineTrigger, WEBHOOK_SIGNATURES, type WebhookParameters } from "../trigger/index.ts";
 import type { RunRequest } from "../trigger/index.ts";
 
 /** The runner's one service. */
@@ -21,7 +21,7 @@ const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-0000000
 
 /** The host's start message. */
 const start: WorkloadStart = {
-    journalKey: "00".repeat(32),
+    callKey: "00".repeat(32),
     instance: identifier("instance").parse("instance-01996ab0-0000-7000-8000-000000000002"),
     scope: spaceId,
     installation: identifier("installation").parse(
@@ -147,14 +147,18 @@ test("serve a forwarded caller below the package's mount, and export telemetry t
     });
 });
 
-test("verify a webhook's deliveries with each route's secret and record each delivery's call once as a run", async () => {
+test("verify a webhook trigger's deliveries with each route's secret and record each delivery's call once as a run", async () => {
     // start a workload receiving pushes, whose secrets its resources hold per repository
-    const pushes = defineWebhook(
+    const pushes = defineTrigger(
         {
             name: "pushes",
-            verification: "github",
-            route: "/{repository}",
-            secret: async ({ repository }) => `secret-${repository}`,
+            on: {
+                webhook: {
+                    verification: "github",
+                    route: "/{repository}",
+                    secret: async ({ repository }: WebhookParameters) => `secret-${repository}`,
+                },
+            },
             call: (delivery) => ({
                 method: "repository.push",
                 input: { repository: delivery.parameters.repository!, payload: delivery.payload },
@@ -171,7 +175,7 @@ test("verify a webhook's deliveries with each route's secret and record each del
                     name: "main",
                     start: async () => ({
                         services: [{ service: notes, router: {} }],
-                        webhooks: [pushes],
+                        triggers: [pushes],
                     }),
                 },
                 { package: notes.package },
@@ -197,7 +201,7 @@ test("verify a webhook's deliveries with each route's secret and record each del
     );
     onTestFinished(() => runner.close());
 
-    // accept a delivery signed with its repository's secret, and refuse a forged one, an unknown webhook and a missing secret
+    // accept a signed delivery, and refuse a forged one, an unknown trigger and a missing secret
     const body = JSON.stringify({ ref: "refs/heads/main" });
     const signed = await WEBHOOK_SIGNATURES.github.sign(
         { id: "delivery-1", event: "push", body, sentAt: Date.now() },
@@ -233,7 +237,15 @@ test("verify a webhook's deliveries with each route's secret and record each del
                 message: "webhook signature does not match",
             },
         ],
-        [404, { defined: false, code: "NOT_FOUND", status: 404, message: "no webhook releases" }],
+        [
+            404,
+            {
+                defined: false,
+                code: "NOT_FOUND",
+                status: 404,
+                message: "no webhook trigger releases",
+            },
+        ],
         [
             401,
             { defined: false, code: "UNAUTHORIZED", status: 401, message: "invalid host secret" },
@@ -242,15 +254,13 @@ test("verify a webhook's deliveries with each route's secret and record each del
     const digest = signed.get("x-hub-signature-256")!.slice("sha256=".length);
     expect(recorded).toEqual([
         {
-            cause: "webhook",
             call: {
                 method: "repository.push",
                 input: { repository: "notes", payload: { ref: "refs/heads/main" } },
                 release: "2026.9.0",
             },
-            packageId: notes.package.id,
-            trigger: "pushes",
-            deliveryId: `/notes ${digest}`,
+            triggerName: "pushes",
+            event: { delivery: { id: digest, path: "/notes" } },
         },
     ]);
 });

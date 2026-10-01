@@ -2,10 +2,10 @@ import {
     type ResourceBinding,
     type Connector,
     defineResourceKind,
-    Resource,
+    ResourceDeclaration,
 } from "@destack/resource";
-import { declaringModule, type ModuleMetadata, type Package } from "@destack/package";
-import { DeclarationReference, reference } from "@destack/package/declare";
+import { ModuleMetadata, type Package } from "@destack/package";
+import { DeclarationReference } from "@destack/package/declare";
 import { defineSchema, schema, Version } from "@destack/schema";
 import { createClient } from "../client/client.ts";
 import type { Client, ServiceRouter } from "../service/service.ts";
@@ -27,10 +27,9 @@ export const ServiceKind = defineResourceKind("service", { spec: ServiceBindingS
 export type ServiceBindingDescription = schema.Infer<typeof ServiceKind.description>;
 
 /** A dependency on a package's service, bound to a typed client of its endpoint. */
-export class ServiceBinding<Router extends ServiceRouter = ServiceRouter> extends Resource<
-    Client<Router>,
-    ServiceBindingDescription
-> {
+export class ServiceBinding<
+    Router extends ServiceRouter = ServiceRouter,
+> extends ResourceDeclaration<Client<Router>, ServiceBindingDescription> {
     /** The service the client calls. */
     readonly service: Service<Router>;
 
@@ -68,11 +67,11 @@ export function defineServiceBinding<Router extends ServiceRouter>(
     service: Service<Router>,
     module?: ModuleMetadata,
 ): ServiceBinding<Router> {
-    const owner = declaringModule(module, "defineServiceBinding").package;
+    const owner = ModuleMetadata.require(module, "defineServiceBinding").package;
     const description = ServiceKind.description.parse({
         name,
         kind: ServiceKind.name,
-        spec: { service: reference(service) },
+        spec: { service: DeclarationReference.of(service) },
     });
 
     return new ServiceBinding(owner, description, service);

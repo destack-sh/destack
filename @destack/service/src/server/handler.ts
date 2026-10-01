@@ -13,7 +13,7 @@ import type { ServiceRouter } from "../service/index.ts";
 import { ProcedureMeta } from "../procedure/procedure.ts";
 import { Expression } from "@destack/schema/expression";
 import type { JsonValue } from "@destack/db";
-import { Version } from "@destack/schema";
+import { schema, toJsonSchema, Version } from "@destack/schema";
 import type { Service } from "../declare/service.ts";
 import { VERSION_HEADER } from "../request/request.ts";
 import { ServiceError } from "../error/index.ts";
@@ -21,7 +21,6 @@ import type { Health } from "../health/health.ts";
 import { invokeProcedure, type ProcedureCall, type ProcedureAudit } from "./access.ts";
 import { ServiceTelemetry } from "../telemetry/index.ts";
 import { SmartCoercionPlugin } from "@orpc/json-schema";
-import { schema, toJsonSchema } from "@destack/schema";
 import type { ConditionalSchemaConverter, JSONSchema } from "@orpc/openapi";
 
 /** Convert Destack schemas for HTTP decoding and OpenAPI. */

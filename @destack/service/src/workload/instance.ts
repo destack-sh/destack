@@ -1,22 +1,21 @@
 import { type ReplicaSource } from "@destack/sync";
 import type { ResourceContext } from "@destack/resource/context";
-import { reference } from "@destack/package/declare";
+import { DeclarationReference } from "@destack/package/declare";
 import { Server, type ServerOptions, type ServiceImplementation } from "../server/index.ts";
 import type { Service } from "../declare/service.ts";
-import type { RunClient } from "../trigger/index.ts";
+import type { RunClient, Trigger } from "../trigger/index.ts";
 import { type Alarm, AlarmClock } from "../control/index.ts";
-import type { Webhook } from "../webhook/index.ts";
 import { Health } from "../health/index.ts";
 import { ServiceError } from "../error/index.ts";
 import type { AuditHistory, Workload } from "./workload.ts";
-import type { JournalKey } from "../database/index.ts";
+import { type CallKey } from "../request/index.ts";
 
 /** A running workload instance. */
 export class WorkloadInstance implements AsyncDisposable {
     /** The services and their servers by declaration key. */
     readonly #services = new Map<string, { readonly service: Service; readonly server: Server }>();
-    /** The webhooks the workload receives, by declaration key. */
-    readonly #webhooks = new Map<string, Webhook>();
+    /** The triggers of the workload's package, by declaration key. */
+    readonly #triggers = new Map<string, Trigger>();
     /** The shutdown controller. */
     readonly #controller = new AbortController();
     /** The resources released after draining. */
@@ -39,9 +38,10 @@ export class WorkloadInstance implements AsyncDisposable {
                 history: options.history,
                 ...(options.replicas === undefined ? {} : { replicas: options.replicas }),
                 runs: options.runs,
-                journalKey: options.journalKey,
+                callKey: options.callKey,
                 signal: instance.#controller.signal,
                 shutdown: () => instance.shutdown(),
+                report: options.report,
                 defer: (dispose) => instance.#cleanup.defer(dispose),
             });
 
@@ -64,13 +64,13 @@ export class WorkloadInstance implements AsyncDisposable {
                 instance.#services.set(key, { service: service.service, server });
             }
 
-            // register the webhooks
-            for (const webhook of implementation.webhooks ?? []) {
-                const key = keyOf(webhook);
-                if (instance.#webhooks.has(key)) {
-                    throw new TypeError(`duplicate workload webhook: ${key}`);
+            // register the triggers
+            for (const trigger of implementation.triggers ?? []) {
+                const key = keyOf(trigger);
+                if (instance.#triggers.has(key)) {
+                    throw new TypeError(`duplicate workload trigger: ${key}`);
                 }
-                instance.#webhooks.set(key, webhook);
+                instance.#triggers.set(key, trigger);
             }
 
             // reject a cancelled start
@@ -98,14 +98,14 @@ export class WorkloadInstance implements AsyncDisposable {
         return [...this.#services.values()].map((served) => served.service);
     }
 
-    /** The webhooks the workload receives, in workload order. */
-    get webhooks(): readonly Webhook[] {
-        return [...this.#webhooks.values()];
+    /** The triggers of the workload's package, in workload order. */
+    get triggers(): readonly Trigger[] {
+        return [...this.#triggers.values()];
     }
 
-    /** Find a webhook the workload receives by its package and name. */
-    webhook(packageId: string, name: string): Webhook | undefined {
-        return this.#webhooks.get(`${packageId}/${name}`);
+    /** Find a trigger of the workload by its package and name. */
+    trigger(packageId: string, name: string): Trigger | undefined {
+        return this.#triggers.get(`${packageId}/${name}`);
     }
 
     /** Report whether the workload implements a service. */
@@ -186,9 +186,11 @@ export interface WorkloadInstanceOptions {
     /** The cell recording the installation's runs. */
     readonly runs: RunClient;
     /** Read the key the workload's journals fingerprint sensitive inputs under. */
-    readonly journalKey: JournalKey;
+    readonly callKey: CallKey;
     /** Keep a wake-up for the services' earliest due controller key, such as a Durable Object's alarm. */
     readonly alarm?: Alarm;
+    /** Report a failure of the workload's background work to its host. */
+    report(error: unknown): void;
     /** Select the options of one service. */
     service(
         service: Service,
@@ -196,8 +198,8 @@ export interface WorkloadInstanceOptions {
 }
 
 /** Key a declaration by its package and name. */
-function keyOf(declaration: Service | Webhook): string {
-    const { packageId, name } = reference(declaration);
+function keyOf(declaration: Service | Trigger): string {
+    const { packageId, name } = DeclarationReference.of(declaration);
 
     return `${packageId}/${name}`;
 }

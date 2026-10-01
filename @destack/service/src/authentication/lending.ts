@@ -1,4 +1,4 @@
-import { identifier, schema } from "@destack/schema";
+import { identifier, Instant, schema } from "@destack/schema";
 import { ServiceError } from "../error/index.ts";
 import { type Caller, CallerAuthentication } from "./caller.ts";
 
@@ -22,7 +22,7 @@ export const LendingClaim = LentAuthority.extend({
     /** The space the installation serves. */
     scope: identifier("space"),
     /** When the lending lapses, in UTC epoch milliseconds. */
-    expiresAt: schema.number().int(),
+    expiresAt: Instant,
 });
 /** A caller's authority lent to the installation it called. */
 export type LendingClaim = schema.Infer<typeof LendingClaim>;

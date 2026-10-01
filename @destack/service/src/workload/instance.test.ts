@@ -3,10 +3,10 @@ import { expect, test } from "@destack/test";
 import { defineWorkload } from "./workload.ts";
 import { WorkloadInstance } from "./instance.ts";
 import { defineService } from "../declare/service.ts";
-import { defineWebhook } from "../webhook/index.ts";
+import { defineTrigger } from "../trigger/index.ts";
 import type { RunClient } from "../trigger/index.ts";
 import { hosting } from "../server/tests/fixture.ts";
-import { testJournalKey } from "../test/context.ts";
+import { testCallKey } from "../test/context.ts";
 
 /** The first declared fixture service. */
 const first = defineService("first", {});
@@ -15,7 +15,7 @@ const second = defineService("second", {});
 /** An audit history keeping the batches it receives. */
 const history = {
     batches: [] as unknown[],
-    async ingest(batch: { readonly events: readonly unknown[] }) {
+    async ingest(batch: { readonly calls: readonly unknown[] }) {
         history.batches.push(batch);
     },
 };
@@ -37,12 +37,10 @@ const runs: RunClient = {
     },
 };
 
-/** A declared fixture webhook. */
-const github = defineWebhook({
+/** A declared fixture webhook trigger. */
+const github = defineTrigger({
     name: "github",
-    verification: "github",
-    route: "/",
-    secret: async () => "secret",
+    on: { webhook: { verification: "github", route: "/", secret: async () => "secret" } },
     call: (delivery) => ({
         method: "repository.push",
         input: { id: delivery.id },
@@ -68,7 +66,10 @@ test("release startup resources when the workload shuts down during startup", as
                 },
             }),
             {
-                journalKey: testJournalKey,
+                callKey: testCallKey,
+                report: (error) => {
+                    throw error;
+                },
                 resources: hosting.resources,
                 history,
                 replicas,
@@ -111,7 +112,10 @@ test("start two services and drain accepted requests before shared cleanup", asy
             },
         }),
         {
-            journalKey: testJournalKey,
+            callKey: testCallKey,
+            report: (error) => {
+                throw error;
+            },
             resources: hosting.resources,
             history,
             replicas,
@@ -169,7 +173,10 @@ test("retain shared resources until an overdue request observes cancellation", a
             },
         }),
         {
-            journalKey: testJournalKey,
+            callKey: testCallKey,
+            report: (error) => {
+                throw error;
+            },
             resources: hosting.resources,
             history,
             replicas,
@@ -215,7 +222,10 @@ test("reject a service implemented twice and release startup resources", async (
                 },
             }),
             {
-                journalKey: testJournalKey,
+                callKey: testCallKey,
+                report: (error) => {
+                    throw error;
+                },
                 resources: hosting.resources,
                 history,
                 replicas,
@@ -227,11 +237,14 @@ test("reject a service implemented twice and release startup resources", async (
     expect(events).toEqual(["resources"]);
 }, 1500);
 
-test("list the webhooks a workload receives and find each by its package and name", async () => {
+test("list the triggers a workload receives and find each by its package and name", async () => {
     await using instance = await WorkloadInstance.start(
-        defineWorkload({ name: "fixture", start: () => ({ services: [], webhooks: [github] }) }),
+        defineWorkload({ name: "fixture", start: () => ({ services: [], triggers: [github] }) }),
         {
-            journalKey: testJournalKey,
+            callKey: testCallKey,
+            report: (error) => {
+                throw error;
+            },
             resources: hosting.resources,
             history,
             replicas,
@@ -241,13 +254,13 @@ test("list the webhooks a workload receives and find each by its package and nam
     );
 
     expect([
-        instance.webhooks,
-        instance.webhook(github.package.id, "github"),
-        instance.webhook(github.package.id, "gitlab"),
+        instance.triggers,
+        instance.trigger(github.package.id, "github"),
+        instance.trigger(github.package.id, "gitlab"),
     ]).toEqual([[github], github, undefined]);
 }, 1500);
 
-test("reject a webhook received twice and release startup resources", async () => {
+test("reject a trigger registered twice and release startup resources", async () => {
     const events: string[] = [];
     await expect(
         WorkloadInstance.start(
@@ -258,11 +271,14 @@ test("reject a webhook received twice and release startup resources", async () =
                         events.push("resources");
                     });
 
-                    return { services: [], webhooks: [github, github] };
+                    return { services: [], triggers: [github, github] };
                 },
             }),
             {
-                journalKey: testJournalKey,
+                callKey: testCallKey,
+                report: (error) => {
+                    throw error;
+                },
                 resources: hosting.resources,
                 history,
                 replicas,
@@ -270,7 +286,7 @@ test("reject a webhook received twice and release startup resources", async () =
                 service: () => ({ ...hosting, drainTimeout: 1000 }),
             },
         ),
-    ).rejects.toThrow(`duplicate workload webhook: ${github.package.id}/github`);
+    ).rejects.toThrow(`duplicate workload trigger: ${github.package.id}/github`);
     expect(events).toEqual(["resources"]);
 }, 1500);
 
@@ -282,7 +298,7 @@ test("give a starting workload the host's audit history, its space's source of c
         defineWorkload({
             name: "fixture",
             start: async (context) => {
-                await context.history.ingest({ events: ["started"] });
+                await context.history.ingest({ calls: ["started"] });
                 received = context.replicas;
                 recording = context.runs;
 
@@ -290,7 +306,10 @@ test("give a starting workload the host's audit history, its space's source of c
             },
         }),
         {
-            journalKey: testJournalKey,
+            callKey: testCallKey,
+            report: (error) => {
+                throw error;
+            },
             resources: hosting.resources,
             history,
             replicas,
@@ -298,9 +317,9 @@ test("give a starting workload the host's audit history, its space's source of c
             service: () => ({ ...hosting, drainTimeout: 100 }),
         },
     );
-    expect([instance.webhooks, history.batches.at(-1), received, recording]).toEqual([
+    expect([instance.triggers, history.batches.at(-1), received, recording]).toEqual([
         [],
-        { events: ["started"] },
+        { calls: ["started"] },
         replicas,
         runs,
     ]);

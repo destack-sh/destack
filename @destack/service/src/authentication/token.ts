@@ -1,3 +1,4 @@
+import { Bearer } from "./bearer.ts";
 import type { PackageId } from "@destack/package";
 import {
     createLocalJWKSet,
@@ -77,19 +78,15 @@ export class TokenVerifier {
         now = Date.now(),
     ): Promise<Caller<schema.Infer<typeof TokenAuthentication>["credential"]>> {
         // require one bearer token
-        const authorization = request.headers.get("authorization");
-        if (
-            !authorization ||
-            !/^Bearer \S+$/.test(authorization) ||
-            request.headers.has("cookie")
-        ) {
+        const token = Bearer.read(request.headers);
+        if (token === undefined) {
             throw new ServiceError("UNAUTHORIZED", { message: "invalid bearer credential" });
         }
 
         // verify the signature and registered claims
         let payload;
         try {
-            ({ payload } = await jwtVerify(authorization.slice("Bearer ".length), this.keys, {
+            ({ payload } = await jwtVerify(token, this.keys, {
                 issuer: this.options.issuer,
                 audience: this.options.audience,
                 algorithms: ["ES256"],

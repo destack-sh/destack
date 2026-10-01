@@ -23,7 +23,7 @@ export const WorkloadStart = defineSchema(
         /** The share of traces the workload keeps beside every failed or slow one, from 0 to 1. */
         sampling: schema.number().min(0).max(1),
         /** The installation's journal key, 32 bytes as hexadecimal, which the host derives for it. */
-        journalKey: schema.sensitive(schema.string().regex(/^[0-9a-f]{64}$/)),
+        callKey: schema.sensitive(schema.string().regex(/^[0-9a-f]{64}$/)),
     }),
 );
 /** The first line a host writes to a runner's input. */

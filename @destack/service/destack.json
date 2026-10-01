@@ -2,34 +2,24 @@
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
     "language": "typescript",
-    "runtimes": ["browser", "bun", "workerd"],
+    "runtimes": [
+        "browser",
+        "bun",
+        "workerd"
+    ],
     "exports": {
         "./bun": {
-            "runtimes": ["bun"]
+            "runtimes": [
+                "bun"
+            ]
         },
         "./test": {
-            "runtimes": ["bun"]
+            "runtimes": [
+                "bun"
+            ]
         }
     },
     "declarations": {
-        "defineJournal": {
-            "module": 2,
-            "describes": [
-                {
-                    "kind": "journal",
-                    "function": "./inspect#describeJournal"
-                }
-            ]
-        },
-        "defineSchedule": {
-            "module": 1,
-            "describes": [
-                {
-                    "kind": "schedule",
-                    "function": "./inspect#describeSchedule"
-                }
-            ]
-        },
         "defineService": {
             "module": 2,
             "describes": [
@@ -49,21 +39,12 @@
                 }
             ]
         },
-        "defineWatch": {
+        "defineTrigger": {
             "module": 1,
             "describes": [
                 {
-                    "kind": "watch",
-                    "function": "./inspect#describeWatch"
-                }
-            ]
-        },
-        "defineWebhook": {
-            "module": 1,
-            "describes": [
-                {
-                    "kind": "webhook",
-                    "function": "./inspect#describeWebhook"
+                    "kind": "trigger",
+                    "function": "./inspect#describeTrigger"
                 }
             ]
         },

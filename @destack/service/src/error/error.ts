@@ -1,5 +1,8 @@
 import { ORPCError } from "@orpc/client";
 
+/** The client failures worth attempting again: a request timeout, a request too early, and a throttle (RFC 9110, 8470, 6585). */
+export const TRANSIENT_STATUSES: ReadonlySet<number> = new Set([408, 425, 429]);
+
 export { ORPCError as ServiceError };
 
 /** Hide a denial from the caller as a missing resource and keep the denial as the cause for audit. */

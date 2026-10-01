@@ -1,4 +1,5 @@
-import { principal, type Subject } from "@destack/access";
+import { principal } from "@destack/access";
+import type { Subject } from "@destack/sync";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { Caller } from "../../authentication/index.ts";

@@ -1,11 +1,6 @@
 import { type ObjectReference } from "@destack/sync";
 import type { PackageId } from "@destack/package";
-import {
-    Authorization,
-    delegationChain,
-    type AccessContext,
-    type Authorizer,
-} from "@destack/access";
+import { Authorization, AccessContext, type Authorizer } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import type { ResourceContext } from "@destack/resource/context";
 import type { Caller } from "../authentication/index.ts";
@@ -74,7 +69,7 @@ export class ServiceContext {
             access &&
             new Authorization(access.authorizer, access.database, (scope) => {
                 const context = this.access(scope);
-                delegationChain(context);
+                AccessContext.delegation(context);
 
                 return context;
             });

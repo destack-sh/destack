@@ -1,5 +1,5 @@
 import { type ReplicaSource } from "@destack/sync";
-import type { Resource } from "@destack/resource";
+import type { ResourceDeclaration } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
 import { telemetry } from "@destack/telemetry";
 import type { Telemetry, TelemetryOptions } from "@destack/telemetry/sdk";
@@ -13,11 +13,11 @@ import { ServiceMount } from "../service/mount.ts";
 import { WorkloadInstance } from "./instance.ts";
 import { WEBHOOK_PATH, type WorkloadStart } from "./start.ts";
 import type { PackageId } from "@destack/package";
-import type { RunClient } from "../trigger/index.ts";
+import { WebhookOn, Trigger, type RunClient } from "../trigger/index.ts";
 import { refusal } from "../server/error.ts";
 import type { Alarm } from "../control/index.ts";
 import type { AuditHistory, Workload } from "./workload.ts";
-import { Journal } from "../database/index.ts";
+import { CallKey } from "../request/index.ts";
 
 /** How long a stopping runner drains its requests: below the host's fifteen-second stop timeout. */
 const DRAIN_MILLISECONDS = 10_000;
@@ -39,7 +39,7 @@ export interface RunnerOptions {
     /** The workload with the package mount for its service and the name for its telemetry. */
     readonly workload: Workload;
     /** The package's resource declarations by name. */
-    readonly resources: Readonly<Record<string, Resource<unknown>>>;
+    readonly resources: Readonly<Record<string, ResourceDeclaration<unknown>>>;
     /** Connect to an audit service through the host's egress with the runner's secret. */
     history(url: string, secret: string): AuditHistory;
     /** Connect to the source of an installation's copies, its space's cell, through the host's egress with the runner's secret. */
@@ -92,7 +92,7 @@ export class WorkloadRunner implements AsyncDisposable {
         runner: RunnerOptions,
         start: WorkloadStart,
         startTelemetry: (options: TelemetryOptions) => Promise<Telemetry>,
-        report: (error: Error) => void,
+        report: (error: unknown) => void,
     ): Promise<WorkloadRunner> {
         // export the package's telemetry to its space's monitor through the host's egress
         const bearer = () => `Bearer ${start.secret}`;
@@ -108,7 +108,7 @@ export class WorkloadRunner implements AsyncDisposable {
         // start the instance on the bound resources, stopping telemetry when it fails
         try {
             const resources = await WorkloadRunner.#connect(runner, start);
-            const journalKey = Journal.importKey(Uint8Array.fromHex(start.journalKey));
+            const callKey = CallKey.import(Uint8Array.fromHex(start.callKey));
             const space = Egress.url(start.egress, SPACE_ADDRESS);
             const runs = runner.runs(space, start);
             const instance = await WorkloadInstance.start(runner.workload, {
@@ -119,7 +119,8 @@ export class WorkloadRunner implements AsyncDisposable {
                     source: runner.replicas(space, start.secret),
                 },
                 runs,
-                journalKey: () => journalKey,
+                callKey: () => callKey,
+                report,
                 ...(runner.alarm === undefined ? {} : { alarm: runner.alarm }),
                 service: () => WorkloadRunner.#serve(runner, start),
             });
@@ -194,26 +195,33 @@ export class WorkloadRunner implements AsyncDisposable {
         return this.instance.idle();
     }
 
-    /** Verify a request to one of the package's webhooks, and record the call its delivery runs once. */
+    /** Verify a request to one of the package's webhook triggers, and record the call its delivery runs once. */
     async #receive(request: Request, below: string): Promise<Response> {
-        // find the webhook the first segment names
+        // find the webhook trigger the first segment names
         const slash = below.indexOf("/");
         const name = slash === -1 ? below : below.slice(0, slash);
-        const webhook = this.instance.webhook(this.#packageId, name);
-        if (webhook === undefined) {
-            return refusal(new ServiceError("NOT_FOUND", { message: `no webhook ${name}` }));
+        const found = this.instance.trigger(this.#packageId, name);
+        const trigger = found && Trigger.of(found, "webhook");
+        if (trigger === undefined) {
+            return refusal(
+                new ServiceError("NOT_FOUND", { message: `no webhook trigger ${name}` }),
+            );
         }
 
-        // verify the delivery below the webhook's route, and record its call once per route path and delivery
+        // verify the delivery below the trigger's route, and record its call once per route path and delivery
         try {
             const path = slash === -1 ? "/" : below.slice(slash);
-            const delivery = await webhook.receive(request, path, Date.now(), this.#resources);
+            const delivery = await WebhookOn.receive(
+                trigger.on.webhook,
+                request,
+                path,
+                Date.now(),
+                this.#resources,
+            );
             await this.#runs.send({
-                cause: "webhook",
-                call: webhook.call(delivery),
-                packageId: this.#packageId,
-                trigger: name,
-                deliveryId: `${path} ${delivery.id}`,
+                call: trigger.call(delivery),
+                triggerName: name,
+                event: { delivery: { id: delivery.id, path } },
             });
 
             return new Response(null, { status: 202 });

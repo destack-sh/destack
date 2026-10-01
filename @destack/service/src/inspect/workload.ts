@@ -1,4 +1,4 @@
-import { mergeCompute } from "@destack/package";
+import { ComputeDefinition } from "@destack/package";
 import { WorkloadDefinition } from "@destack/package/workload";
 import type { Workload } from "../workload/index.ts";
 
@@ -6,6 +6,6 @@ import type { Workload } from "../workload/index.ts";
 export function describeWorkload(workload: Workload): WorkloadDefinition {
     return WorkloadDefinition.parse({
         name: workload.name,
-        compute: mergeCompute(workload.compute),
+        compute: ComputeDefinition.merge(workload.compute),
     });
 }

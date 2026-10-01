@@ -82,7 +82,7 @@ denialOf(failure)?.code; // "FORBIDDEN" for both
 
 ## Workloads
 
-A workload starts once per instance and returns the services and webhooks it serves.
+A workload starts once per instance and returns the services it serves and its package's triggers.
 
 ```ts
 import { defineWorkload, WorkloadInstance } from "@destack/service/workload";
@@ -93,7 +93,7 @@ export const workload = defineWorkload({
         const notebook = new Notebook(database.get(context.resources));
         context.defer(() => notebook.close());
 
-        return { services: [implementNotes(notebook)], webhooks: [pushes] };
+        return { services: [implementNotes(notebook)], triggers: [pushes] };
     },
 });
 
@@ -182,25 +182,6 @@ const verifier = new TokenVerifier({
 const verified = await verifier.authenticate(request, spaceId); // any space when spaceId is absent
 ```
 
-## Journal
-
-A `Journal` runs each request once in one transaction and replays its outcome to retries.
-
-```ts
-import { defineJournal, Journal } from "@destack/service/database";
-import { RequestFingerprint, RequestId } from "@destack/service/request";
-
-export const journal = new Journal(defineJournal("journal"));
-export const accountJournal = defineJournal("journal", { tier: "global" });
-
-const request = { caller: caller.id, scope: spaceId, requestId: RequestId.create() };
-const fingerprint = await RequestFingerprint.hash(AccountUpdate, input);
-const account = await journal.execute(database, request, fingerprint, {
-    authorize: (transaction) => authorization.within(transaction).require(permission, target),
-    run: (transaction) => updateAccount(transaction, input),
-});
-```
-
 ## Pages
 
 A `Page` reads a cursor request and cuts the rows into a page with the next cursor.
@@ -226,41 +207,56 @@ const client = createClient(notesService, { url, bookmark });
 
 ## Triggers
 
-A trigger is a cause of runs, and every run is one object method call the space's cell makes later as the installation.
+A trigger fires runs, and every run is one object method call the space's cell makes later as the installation.
 
-| Trigger | Entry point | Cause | Where it is followed |
+| `on` | Fires on | Call | Followed by |
 |---|---|---|---|
-| `defineSchedule` | `@destack/service/schedule` | a timing and a static call | the cell |
-| `defineWebhook` | `@destack/service/webhook` | a signed request, verified with the installation's secret | the workload |
-| `defineWatch` | `@destack/service/watch` | an admitted change of the installation's own objects | the workload's object server |
+| `schedule` | a timing | a static call | the cell |
+| `change` | an admitted change of the installation's own objects | built from the change | the workload's object server |
+| `webhook` | a signed webhook delivery, verified with the installation's secret | built from the delivery | the workload |
 
 ```ts
-export const reminders = defineSchedule({
+import { defineTrigger } from "@destack/service/trigger";
+
+export const reminders = defineTrigger({
     name: "reminders",
-    timing: "cron",
-    cron: "0 9 * * *",
-    timezone: "Europe/Zurich",
-    concurrency: "forbid",
-    deadline: 60_000,
+    on: {
+        schedule: {
+            timing: { timing: "cron", cron: "0 9 * * *", timezone: "Europe/Zurich" },
+            concurrency: "forbid",
+            deadline: 60_000,
+        },
+    },
     call: reminder.calls().send({}),
 });
-export const pushes = defineWebhook({
+export const pushes = defineTrigger({
     name: "github",
-    verification: "github",
-    route: "/{repository}",
-    secret: ({ repository }, resources) => vault.get(resources).read(repository),
+    on: {
+        webhook: {
+            verification: "github",
+            route: "/{repository}",
+            secret: ({ repository }: WebhookParameters, resources) =>
+                vault.get(resources).read(repository!),
+        },
+    },
     call: (delivery) =>
         repository.calls().push({ id: delivery.parameters.repository!, payload: delivery.payload }),
 });
-export const published = defineWatch({
+export const published = defineTrigger({
     name: "published",
-    object: note,
-    where: Condition.eq("status", "published"),
-    on: ["create", "update"],
-    from: "snapshot",
+    on: {
+        change: {
+            object: note,
+            where: Condition.eq("status", "published"),
+            operations: ["create", "update"],
+            from: "snapshot",
+        },
+    },
     call: (change) => note.calls().index({ id: change.after!.id }),
 });
 ```
+
+Each event records its run once: an occurrence by its time, a delivery by its path and sender identifier, and a change by its log position, which also orders a change trigger's runs.
 
 A method sends a call to run once its transaction commits; it runs on the authority the calling person lent the installation.
 
@@ -271,7 +267,7 @@ await call.send({ call: mail.calls().welcome({ userId }) });
 Outside a method, a workload sends through the cell recording its runs, with a request identifier when it may retry.
 
 ```ts
-await context.runs.send({ call: digest.calls().send({}), at: Date.now() + 60_000, requestId });
+await context.runs.send({ call: digest.calls().send({}), at: Date.now() + 60_000 }, { requestId });
 ```
 
 ## Controllers

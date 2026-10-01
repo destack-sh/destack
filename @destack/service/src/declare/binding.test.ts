@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { identifier } from "@destack/schema";
+import { ResourceId } from "@destack/resource";
 import { health } from "../health/index.ts";
 import { VERSION_HEADER } from "../request/index.ts";
 import { defineService } from "./service.ts";
@@ -7,7 +7,7 @@ import { defineServiceBinding } from "./binding.ts";
 
 /** A service binding at a reference, as a host hands it to a workload. */
 const bound = (reference: string, credential?: string) => ({
-    resource: identifier("resource").parse("resource-01996ab0-0000-7000-8000-000000000001"),
+    resource: ResourceId.parse("resource-01996ab0-0000-7000-8000-000000000001"),
     kind: "service",
     provider: "http",
     reference,

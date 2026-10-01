@@ -1,4 +1,5 @@
 import { PackageId } from "@destack/package";
+import { Subject } from "@destack/sync";
 import {
     type AccessContext,
     Attribute,
@@ -7,9 +8,6 @@ import {
     isPrincipal,
     PermissionReference,
     principal,
-    sameSubject,
-    Subject,
-    subjectKey,
     VerifiedIdentifier,
 } from "@destack/access";
 import { type Identifier, identifier, schema } from "@destack/schema";
@@ -124,7 +122,7 @@ export class Caller<Credential extends CredentialReference = CredentialReference
     deployment(subject: Subject): Identifier<"deployment"> | undefined {
         const deployments = this.authentication.deployments ?? [];
 
-        return deployments.find((entry) => sameSubject(entry.subject, subject))?.id;
+        return deployments.find((entry) => Subject.same(entry.subject, subject))?.id;
     }
 
     /** The principal sending the request: the last delegate, or else the subject. */
@@ -136,7 +134,7 @@ export class Caller<Credential extends CredentialReference = CredentialReference
 
     /** The retry identity of the subject and the sending principal. */
     get id(): string {
-        return JSON.stringify([subjectKey(this.authentication.subject), subjectKey(this.sender)]);
+        return JSON.stringify([Subject.key(this.authentication.subject), Subject.key(this.sender)]);
     }
 
     /** Require current authentication for the audience and scope. */
@@ -158,7 +156,9 @@ export class Caller<Credential extends CredentialReference = CredentialReference
 
         // require the subject among the verified identities
         if (
-            !authentication.subjects.some((subject) => sameSubject(subject, authentication.subject))
+            !authentication.subjects.some((subject) =>
+                Subject.same(subject, authentication.subject),
+            )
         ) {
             throw new ServiceError("UNAUTHORIZED", {
                 message: "caller subject is missing from verified identities",
@@ -215,7 +215,7 @@ export class Caller<Credential extends CredentialReference = CredentialReference
         const deployments = authentication.deployments ?? [];
         for (const subject of workloads) {
             const matching = deployments.filter((deployment) =>
-                sameSubject(deployment.subject, subject),
+                Subject.same(deployment.subject, subject),
             ).length;
             if (matching !== 1) {
                 throw new ServiceError("UNAUTHORIZED", {
@@ -228,7 +228,7 @@ export class Caller<Credential extends CredentialReference = CredentialReference
         if (
             deployments.some(
                 (deployment) =>
-                    !workloads.some((subject) => sameSubject(subject, deployment.subject)),
+                    !workloads.some((subject) => Subject.same(subject, deployment.subject)),
             )
         ) {
             throw new ServiceError("UNAUTHORIZED", {
@@ -247,7 +247,7 @@ export class Caller<Credential extends CredentialReference = CredentialReference
                         (position !== 0 || !principal.user.is(delegate.subject))),
             ) ||
             chain.some((entry, position) =>
-                chain.slice(position + 1).some((other) => sameSubject(entry, other)),
+                chain.slice(position + 1).some((other) => Subject.same(entry, other)),
             )
         ) {
             throw new ServiceError("UNAUTHORIZED", { message: "invalid token delegation" });

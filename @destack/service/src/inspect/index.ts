@@ -1,11 +1,6 @@
 export * from "./service.ts";
 export * from "./procedure.ts";
 export * from "./binding.ts";
-export { ScheduleDescription } from "../schedule/index.ts";
-export * from "./schedule.ts";
-export { WebhookDescription } from "../webhook/index.ts";
-export * from "./webhook.ts";
-export { WatchDescription } from "../watch/index.ts";
-export * from "./watch.ts";
+export { TriggerDescription } from "../trigger/index.ts";
+export * from "./trigger.ts";
 export * from "./workload.ts";
-export * from "./journal.ts";

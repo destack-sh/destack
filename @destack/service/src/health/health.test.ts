@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { createClient } from "../client/index.ts";
-import { Health, health } from "../health/index.ts";
+import { Health, health } from "./index.ts";
 import { implementHealth, ServiceHandler } from "../server/index.ts";
 import { ServiceError } from "../error/index.ts";
 import { defineService } from "../declare/index.ts";
