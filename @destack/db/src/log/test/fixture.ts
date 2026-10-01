@@ -1,5 +1,5 @@
 import { defineTable } from "../../table/table.ts";
-import { bigint, binary, integer, json, text, timestamp } from "../../table/column.ts";
+import { bigint, binary, integer, json, text } from "../../table/column.ts";
 import { primaryKey } from "../../table/constraint.ts";
 import { schema } from "@destack/schema";
 
@@ -20,7 +20,7 @@ export const note = defineTable(
         /** Structured labels. */
         labels: json("labels", schema.array(schema.string())).notNull(),
         /** The last edit time. */
-        editedAt: timestamp("edited_at").notNull(),
+        editedAt: integer("edited_at").notNull(),
         /** Attached bytes, left out of the log. */
         attachment: binary("attachment"),
     },

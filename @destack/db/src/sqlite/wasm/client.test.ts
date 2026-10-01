@@ -4,13 +4,13 @@ import { asc, eq } from "../../index.ts";
 import { connectShared, serveDatabase, type Message } from "../shared/shared.ts";
 import { WasmClient } from "./client.ts";
 import { changeTables, note } from "../../log/test/fixture.ts";
-import { relayHub } from "../../test/relay.ts";
+import { channelHub } from "../../test/channel.ts";
 
-test("declare, log and query tables on SQLite WebAssembly through a relay, as a browser tab does", async () => {
+test("declare, log and query tables on SQLite WebAssembly through a channel, as a browser tab does", async () => {
     // serve an in-memory database to a party
     const sqlite = await init();
     const client = new WasmClient(new sqlite.oo1.DB(":memory:"));
-    const join = relayHub<Message>();
+    const join = channelHub<Message>();
     const stop = serveDatabase(client, join());
     onTestFinished(async () => {
         stop();
@@ -28,7 +28,7 @@ test("declare, log and query tables on SQLite WebAssembly through a relay, as a 
         summary: null,
         views: 9_007_199_254_740_993n,
         labels: ["draft"],
-        editedAt: new Date("2026-09-24T10:00:00.123Z"),
+        editedAt: 1790244000123,
         attachment: new Uint8Array([1, 2, 3]),
     };
     await database.insert(note).values(values);

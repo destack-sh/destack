@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
 import { defineTable } from "../table/table.ts";
-import { bigint, boolean, integer, real, text, timestamp, type Column } from "../table/column.ts";
+import { bigint, boolean, integer, real, text, type Column } from "../table/column.ts";
 import { TABLE } from "../table/table.ts";
 import { asc } from "drizzle-orm";
 import { Condition, type Scalar } from "./condition.ts";
@@ -25,7 +25,7 @@ const sample = defineTable("condition_sample", {
     /** An exact integer beyond the safe range. */
     views: bigint("views"),
     /** An instant. */
-    editedAt: timestamp("edited_at"),
+    editedAt: integer("edited_at"),
 });
 
 /** The literal values of each column. */

@@ -16,7 +16,6 @@ export const COLUMN_KINDS = [
     "blob",
     "bigint",
     "numeric",
-    "timestamp",
 ] as const;
 
 /** A logical SQL column. */
@@ -491,51 +490,5 @@ export function numeric(name: string): ColumnBuilder<string> {
         fromJson: (value) => validator.parse(value),
         encode: (value) => validator.parse(value),
         decode: (value) => value as string,
-    });
-}
-
-/** Define a UTC instant with millisecond precision. */
-export function timestamp(name: string): ColumnBuilder<Date> {
-    const validator = schema.date();
-
-    return new ColumnBuilder({
-        name,
-        kind: "timestamp",
-        types: { sqlite: "integer", postgresql: "timestamp(3) with time zone" },
-        schema: validator,
-        json: schema.number().int(),
-        nullable: true,
-        toJson: (value) => value.getTime(),
-        fromJson: (value) => validator.parse(new Date(schema.number().int().parse(value))),
-        encode(value, dialect) {
-            const checked = validator.parse(value);
-
-            // store SQLite instants as epoch milliseconds
-            if (dialect === "sqlite") {
-                return checked.getTime();
-            }
-            // store PostgreSQL instants as ISO strings
-            else if (dialect === "postgresql") {
-                return checked.toISOString();
-            }
-            // reject other dialects
-            else {
-                return assertNever(dialect);
-            }
-        },
-        decode(value, dialect) {
-            // read SQLite epoch milliseconds
-            if (dialect === "sqlite") {
-                return new Date(Number(value));
-            }
-            // read PostgreSQL dates or ISO strings
-            else if (dialect === "postgresql") {
-                return value instanceof Date ? value : new Date(value as string);
-            }
-            // reject other dialects
-            else {
-                return assertNever(dialect);
-            }
-        },
     });
 }

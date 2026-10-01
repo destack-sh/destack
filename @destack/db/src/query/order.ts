@@ -16,7 +16,6 @@ const ORDERED_KINDS: ReadonlySet<string> = new Set([
     "real",
     "boolean",
     "bigint",
-    "timestamp",
 ]);
 
 /** The most keys one order holds, which every keyset cursor carries; orders use one to four. */

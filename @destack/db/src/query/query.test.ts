@@ -11,7 +11,6 @@ import {
     numeric,
     real,
     text,
-    timestamp,
 } from "../table/column.ts";
 import { defineTable } from "../table/table.ts";
 import { asc, eq } from "../index.ts";
@@ -37,7 +36,7 @@ const sample = defineTable("sample", {
     /** A decimal kept exact. */
     price: numeric("price").notNull(),
     /** An instant. */
-    editedAt: timestamp("edited_at").notNull(),
+    editedAt: integer("edited_at").notNull(),
     /** A missing value. */
     note: text("note"),
 });
@@ -68,7 +67,7 @@ const row = {
     content: new Uint8Array([0, 1, 254, 255]),
     views: 9_007_199_254_740_993n,
     price: "12.3400",
-    editedAt: new Date("2026-09-24T10:00:00.123Z"),
+    editedAt: 1790244000123,
     note: null,
 };
 

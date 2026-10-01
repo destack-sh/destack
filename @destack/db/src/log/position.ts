@@ -3,8 +3,8 @@ import { defineSchema, schema } from "@destack/schema";
 import type { Dialect } from "../dialect/dialect.ts";
 import { LOG, LOG_EPOCH, LOG_HORIZON, LOG_TRANSACTION } from "./schema.ts";
 
-/** A position in the log: an epoch and a sequence within it. */
-export const LogPosition = defineSchema(
+/** The schema of a position in the log. */
+const logPositionSchema = defineSchema(
     schema.object({
         /** The log's epoch, renewed when the database is restored. */
         epoch: schema.string().min(1),
@@ -13,14 +13,17 @@ export const LogPosition = defineSchema(
     }),
 );
 /** A position in the log: an epoch and a sequence within it. */
-export type LogPosition = schema.Infer<typeof LogPosition>;
+export type LogPosition = schema.Infer<typeof logPositionSchema>;
 
-/** Report whether a position is later than another. */
-export function isAfter(position: LogPosition, other: LogPosition): boolean {
-    return position.epoch === other.epoch
-        ? position.sequence > other.sequence
-        : position.epoch > other.epoch;
-}
+/** A position in the log: an epoch and a sequence within it. */
+export const LogPosition = Object.assign(logPositionSchema, {
+    /** Report whether a position is later than another. */
+    isAfter(position: LogPosition, other: LogPosition): boolean {
+        return position.epoch === other.epoch
+            ? position.sequence > other.sequence
+            : position.epoch > other.epoch;
+    },
+});
 
 /**
  * Select the log's head in one row: its epoch, latest sequence and horizon.

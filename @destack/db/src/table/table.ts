@@ -10,7 +10,6 @@ import {
     numeric,
     real,
     text,
-    timestamp,
     type ColumnBuilder,
 } from "./column.ts";
 import {
@@ -30,6 +29,9 @@ import type { DatabaseTier } from "../declare/tier.ts";
 import { Tree } from "../tree/tree.ts";
 import type { ColumnDescription } from "../inspect/table.ts";
 import type { TableState } from "../migration/state.ts";
+import { encodeColumns, type Row } from "./row.ts";
+import type { JsonValue } from "./column.ts";
+import { recordSchema, type Shape } from "./schema.ts";
 
 /** The key of a table's declaration, shared by every copy of this module. */
 export const TABLE = Symbol.for("destack.table");
@@ -45,7 +47,6 @@ const COLUMNS: Readonly<Record<ColumnDescription["kind"], (name: string) => Colu
     blob,
     bigint,
     numeric,
-    timestamp,
 };
 
 /** One logical SQL table. */
@@ -232,6 +233,51 @@ export class Table<
     /** Emit table identifiers without parentheses. */
     shouldOmitSQLParens(): boolean {
         return true;
+    }
+
+    /** Write a row's own columns in JSON form, nulls for missing values. */
+    encode(row: Row): Record<string, JsonValue> {
+        return encodeColumns(this[TABLE].entries, row, []);
+    }
+
+    /** Read a row's own columns from JSON form. */
+    decode(row: Row): Record<string, unknown> {
+        const decoded: Record<string, unknown> = {};
+        for (const [property, column] of this[TABLE].entries) {
+            // read the row's own columns
+            if (Object.hasOwn(row, property)) {
+                const value = row[property];
+                decoded[property] =
+                    value === null || value === undefined
+                        ? null
+                        : column.definition.fromJson(value);
+            }
+        }
+
+        return decoded;
+    }
+
+    /** Validate a selected record, in application or JSON form. */
+    selectSchema<Definition extends Table>(
+        this: Definition,
+        form: "application" | "json" = "application",
+    ): schema.Object<Shape<Select<Definition>>> {
+        return recordSchema(this, "select", form) as schema.Object<Shape<Select<Definition>>>;
+    }
+
+    /** Validate an inserted record, in application or JSON form. */
+    insertSchema<Definition extends Table>(
+        this: Definition,
+        form: "application" | "json" = "application",
+    ): schema.Object<Shape<Insert<Definition>>> {
+        return recordSchema(this, "insert", form) as schema.Object<Shape<Insert<Definition>>>;
+    }
+
+    /** Validate a partial update. */
+    updateSchema<Definition extends Table>(
+        this: Definition,
+    ): schema.Object<Shape<Partial<Insert<Definition>>>> {
+        return recordSchema(this, "update") as schema.Object<Shape<Partial<Insert<Definition>>>>;
     }
 
     /** Collect the constraints for a dialect. */

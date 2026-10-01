@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { sql } from "drizzle-orm";
 import { TEST_DIALECTS, TestDatabase } from "../../test/database.ts";
-import { eq } from "../../index.ts";
+import { defineTable, eq, text } from "../../index.ts";
 import { changeTables, lease, note, revision } from "./fixture.ts";
 
 /** Open a migrated test database. */
@@ -21,7 +21,7 @@ const first = {
     summary: null,
     views: 9_007_199_254_740_993n,
     labels: ["draft"],
-    editedAt: new Date("2026-09-24T10:00:00.123Z"),
+    editedAt: 1790244000123,
     attachment: new Uint8Array([1, 2, 3]),
 };
 
@@ -393,6 +393,45 @@ test.for(TEST_DIALECTS)(
             before,
             before + 2,
             true,
+        ]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "log the rows of a table without a scope column under its database's scope on %s",
+    async (dialect) => {
+        const setting = defineTable(
+            "setting",
+            { name: text("name").primaryKey(), value: text("value").notNull() },
+            { log: {} },
+        );
+
+        // refuse writing the rows while the database has no scope
+        const unscoped = await TestDatabase.create(dialect, [setting]);
+        onTestFinished(() => unscoped.close());
+        await unscoped.database.migrate([setting]);
+        await expect(
+            unscoped.database.insert(setting).values({ name: "theme", value: "dark" }),
+        ).rejects.toMatchObject({
+            cause: { message: "the database has no scope for the rows of destack__db__setting" },
+        });
+
+        // file every change under the scope the database was created with
+        const scoped = await TestDatabase.create(dialect, [setting]);
+        onTestFinished(() => scoped.close());
+        await scoped.database.log.create("space-a");
+        await scoped.database.migrate([setting]);
+        await scoped.database.insert(setting).values({ name: "theme", value: "dark" });
+        await scoped.database
+            .update(setting)
+            .set({ value: "light" })
+            .where(eq(setting.name, "theme"));
+        await scoped.database.delete(setting).where(eq(setting.name, "theme"));
+        const changes = await scoped.database.log.read({ tables: [setting], after: 0 });
+        expect(changes.changes.map((change) => [change.operation, change.scope])).toEqual([
+            ["insert", "space-a"],
+            ["update", "space-a"],
+            ["delete", "space-a"],
         ]);
     },
 );

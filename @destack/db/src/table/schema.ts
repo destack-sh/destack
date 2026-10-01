@@ -1,34 +1,11 @@
-import * as schema from "@destack/schema/validate";
-import { type Insert, type Select, TABLE, type Table } from "./table.ts";
+import { schema } from "@destack/schema";
+import { TABLE, type Table } from "./table.ts";
 
 /** The field validators of a record. */
-type Shape<Value> = { [Property in keyof Value]-?: schema.Schema<Value[Property]> };
+export type Shape<Value> = { [Property in keyof Value]-?: schema.Schema<Value[Property]> };
 
-/** Validate a selected record, in application or JSON form. */
-export function createSelectSchema<Definition extends Table>(
-    table: Definition,
-    form: "application" | "json" = "application",
-): schema.Object<Shape<Select<Definition>>> {
-    return createSchema(table, "select", form) as schema.Object<Shape<Select<Definition>>>;
-}
-
-/** Validate an inserted record, in application or JSON form. */
-export function createInsertSchema<Definition extends Table>(
-    table: Definition,
-    form: "application" | "json" = "application",
-): schema.Object<Shape<Insert<Definition>>> {
-    return createSchema(table, "insert", form) as schema.Object<Shape<Insert<Definition>>>;
-}
-
-/** Validate a partial update. */
-export function createUpdateSchema<Definition extends Table>(
-    table: Definition,
-): schema.Object<Shape<Partial<Insert<Definition>>>> {
-    return createSchema(table, "update") as schema.Object<Shape<Partial<Insert<Definition>>>>;
-}
-
-/** Build a record validator. */
-function createSchema(
+/** Build a validator of a table's records for an operation, in application or JSON form. */
+export function recordSchema(
     table: Table,
     operation: "select" | "insert" | "update",
     form: "application" | "json" = "application",

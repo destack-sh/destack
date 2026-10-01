@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
 import { defineTable } from "../table/table.ts";
-import { boolean, integer, text, timestamp } from "../table/column.ts";
+import { boolean, integer, text } from "../table/column.ts";
 import { Order, type OrderKey } from "./order.ts";
 
 /** The random orders per dialect. */
@@ -18,7 +18,7 @@ const sample = defineTable("order_sample", {
     /** A boolean. */
     isOpen: boolean("is_open"),
     /** An instant. */
-    dueAt: timestamp("due_at"),
+    dueAt: integer("due_at"),
 });
 
 /** The values of each column. */
@@ -26,7 +26,7 @@ const VALUES: Readonly<Record<string, readonly unknown[]>> = {
     name: ["a", "B", "é", "😀", "￿", "", null],
     rank: [-1, 0, 3, null],
     isOpen: [true, false, null],
-    dueAt: [new Date(0), new Date(1790244000123), null],
+    dueAt: [0, 1790244000123, null],
 };
 
 /** Draw a seeded pseudo-random number. */

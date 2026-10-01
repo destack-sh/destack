@@ -19,7 +19,6 @@ const POSTGRES_CODECS: Record<ColumnDefinition["kind"], PostgresColumnType> = {
     blob: "text",
     bigint: "bigint",
     numeric: "numeric",
-    timestamp: "timestamptz",
 };
 
 /** Compile declarations into PostgreSQL Drizzle tables. */
