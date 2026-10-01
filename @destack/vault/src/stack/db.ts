@@ -1,21 +1,26 @@
-import { table, text, identifier, integer, primaryKey, foreignKey } from "@destack/db";
-import { secretVersion } from "@destack/model/regional";
-import { defineRequestTable } from "@destack/service/database";
-import { defineDatabaseSchema } from "@destack/db";
-import { regionalSchema } from "@destack/model/regional";
-import { auditOutboxSchema } from "@destack/audit/outbox";
+import {
+    defineTable,
+    text,
+    identifier,
+    integer,
+    primaryKey,
+    foreignKey,
+    type Table,
+} from "@destack/db";
+import { defineJournal } from "@destack/service/database";
+import { secret, secretVersion, vault } from "../object/secret.ts";
 
-/** Encrypted values retained only by the managed vault implementation. */
-export const vaultValue = table(
-    "vault_value",
+/** The encrypted value of each secret version, apart from its record. */
+export const vaultValue = defineTable(
+    "value",
     {
-        /** Secret identity shared with regional metadata. */
+        /** The secret. */
         secretId: identifier("secret_id", "secret").notNull(),
         /** Immutable value version. */
         version: integer("version").notNull(),
         /** Envelope format version. */
         format: integer("format").notNull(),
-        /** Root-key version. */
+        /** The vault key wrapping the data key. */
         keyId: text("key_id").notNull(),
         /** Authenticated value ciphertext, encoded as base64. */
         ciphertext: text("ciphertext").notNull(),
@@ -24,24 +29,40 @@ export const vaultValue = table(
         /** Protected data key, encoded as base64. */
         wrappedKey: text("wrapped_key").notNull(),
         /** Key protection nonce, encoded as base64. */
-        keyNonce: text("key_nonce"),
+        keyNonce: text("key_nonce").notNull(),
     },
-    (entry) => [
-        primaryKey({ columns: [entry.secretId, entry.version] }),
-        foreignKey({
-            columns: [entry.secretId, entry.version],
-            foreignColumns: [secretVersion.secretId, secretVersion.version],
-        }).onDelete("restrict"),
-    ],
+    {
+        constraints: (entry) => [
+            primaryKey({ columns: [entry.secretId, entry.version] }),
+            foreignKey({
+                columns: [entry.secretId, entry.version],
+                foreignColumns: [secretVersion.table.parentId, secretVersion.table.number],
+            }).onDelete("restrict"),
+        ],
+    },
 );
 
-/** Protected mutation fingerprints and public results in the vault database. */
-export const vaultRequest = defineRequestTable("vault_request");
-
-/** Managed secret storage sharing regional metadata and a transactional audit outbox. */
-export const vaultSchema = defineDatabaseSchema({
-    name: "destack-vault",
-    dependencies: [regionalSchema, auditOutboxSchema],
-    tables: { vaultValue, vaultRequest },
-    migrations: new URL("./migration/", import.meta.url),
+/** Each vault's key, wrapped under a root key, kept apart from zone transfers since only this host unwraps it. */
+export const vaultKey = defineTable("key", {
+    /** The vault. */
+    vaultId: identifier("vault_id", "resource").primaryKey(),
+    /** The key's identifier, which each data key it wraps records. */
+    id: text("id").notNull(),
+    /** The root key it is wrapped under. */
+    rootKeyId: text("root_key_id").notNull(),
+    /** The wrapped key, encoded as base64. */
+    wrappedKey: text("wrapped_key").notNull(),
+    /** The wrapping nonce, encoded as base64. */
+    keyNonce: text("key_nonce").notNull(),
 });
+
+/** The vault's executed requests and their public results. */
+export const vaultJournal = defineJournal("journal");
+
+/** Vaults, secrets, their versions, their encrypted values, the vaults' keys and the journal. */
+export const vaultTables: readonly Table[] = [
+    ...[vault, secret, secretVersion].flatMap((object) => object.tables),
+    vaultValue,
+    vaultKey,
+    vaultJournal,
+];

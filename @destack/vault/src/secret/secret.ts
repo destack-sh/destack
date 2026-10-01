@@ -1,57 +1,60 @@
-import { identifier, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 
-/** Mutable metadata of an independently versioned secret. */
-export const Secret = schema.object({
-    /** Immutable identity. */
-    id: identifier("secret"),
-    /** Administering space. */
-    spaceId: identifier("space"),
-    /** Vault resource holding the value. */
-    vaultId: identifier("resource"),
-    /** Vault-local display name. */
-    name: schema.string().min(1).max(256),
-    /** Creation time in UTC epoch milliseconds. */
-    createdAt: schema.number().int(),
-    /** Last metadata change in UTC epoch milliseconds. */
-    updatedAt: schema.number().int(),
-    /** Optimistic concurrency revision. */
-    revision: schema.number().int().positive(),
-    /** User-defined labels, excluding secret values. */
-    tags: schema.record(schema.string().max(128), schema.string().max(256)),
-    /** Version selected by unpinned reads. */
-    currentVersion: schema.number().int().positive().nullable(),
-    /** Explicit disabling time. */
-    disabledAt: schema.number().int().nullable(),
-    /** Scheduled destruction time. */
-    deleteAt: schema.number().int().nullable(),
-    /** Completion time of scheduled value destruction. */
-    destroyedAt: schema.number().int().nullable(),
-});
-/** Public secret metadata. */
-export type Secret = schema.Infer<typeof Secret>;
+/** The largest decoded secret value: 64 KiB, the limit of common managed secret stores. */
+export const MAX_VALUE_BYTES = 64 * 1024;
 
-/** Metadata of an immutable value version. */
-export const SecretVersion = schema.object({
-    /** Immutable secret identity. */
-    secretId: identifier("secret"),
-    /** Monotonically increasing version. */
-    version: schema.number().int().positive(),
-    /** Creation time in UTC epoch milliseconds. */
-    createdAt: schema.number().int(),
-    /** Time after which reads are rejected. */
-    expiresAt: schema.number().int().nullable(),
-    /** Explicit disabling time. */
-    disabledAt: schema.number().int().nullable(),
-    /** Destruction time retained after removing ciphertext. */
-    destroyedAt: schema.number().int().nullable(),
-});
-/** Public version metadata. */
-export type SecretVersion = schema.Infer<typeof SecretVersion>;
+/** The longest base64 text of the largest value: four characters per three bytes. */
+const MAX_BASE64_LENGTH = Math.ceil(MAX_VALUE_BYTES / 3) * 4;
 
 /** A bounded text or binary value; excluded from logs and metadata. */
 export const SecretValue = schema.discriminatedUnion("encoding", [
-    schema.object({ encoding: schema.literal("text"), value: schema.string().max(65536) }),
-    schema.object({ encoding: schema.literal("base64"), value: schema.base64().max(87384) }),
+    schema.object({
+        encoding: schema.literal("text"),
+        value: schema.string().max(MAX_VALUE_BYTES),
+    }),
+    schema.object({
+        encoding: schema.literal("base64"),
+        value: schema.base64().max(MAX_BASE64_LENGTH),
+    }),
 ]);
 /** A secret value crossing the authenticated service transport. */
 export type SecretValue = schema.Infer<typeof SecretValue>;
+
+/** A value read from a secret, with the number of its version. */
+export const SecretReading = schema.object({
+    /** The version's number within its secret. */
+    version: schema.number().int().positive(),
+    /** The decrypted value. */
+    value: SecretValue,
+});
+/** A value read from a secret, with the number of its version. */
+export type SecretReading = schema.Infer<typeof SecretReading>;
+
+/** What the audit of a read records: the number of the version disclosed. */
+export const SecretDisclosure = SecretReading.pick({ version: true });
+
+/** The value of a new version, and whether it becomes its secret's current version. */
+export const VersionWrite = schema.object({
+    /** The value to encrypt. */
+    value: schema.sensitive(SecretValue),
+    /** Whether the version becomes current, true when absent. */
+    promote: schema.boolean().optional(),
+});
+/** The value of a new version, and whether it becomes its secret's current version. */
+export type VersionWrite = schema.Infer<typeof VersionWrite>;
+
+/** The version a promotion selects as its secret's current one. */
+export const SecretPromotion = schema.object({
+    /** The version's number within its secret. */
+    version: schema.number().int().positive(),
+});
+/** The version a promotion selects as its secret's current one. */
+export type SecretPromotion = schema.Infer<typeof SecretPromotion>;
+
+/** The version a read selects: an exact number, or the secret's current version when absent. */
+export const SecretSelection = schema.object({
+    /** The version's number within its secret. */
+    version: schema.number().int().positive().optional(),
+});
+/** The version a read selects: an exact number, or the secret's current version when absent. */
+export type SecretSelection = schema.Infer<typeof SecretSelection>;

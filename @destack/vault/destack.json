@@ -1,11 +1,43 @@
 {
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a0c80b-614d-75a9-a76d-357d71d330a6",
     "language": "typescript",
-    "targets": ["browser", "server"],
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
-        "./server": { "targets": ["server"], "runtimes": ["bun", "workerd"] },
-        "./stack": { "targets": ["server"], "runtimes": ["bun", "workerd"] },
-        "./encryption": { "targets": ["server"], "runtimes": ["bun", "workerd"] }
+        "./stack": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./encryption": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./provider": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./server": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./account": {
+            "runtimes": ["bun", "workerd"]
+        }
+    },
+    "declarations": {
+        "defineSecret": {
+            "module": 1,
+            "describes": [
+                {
+                    "kind": "secret",
+                    "function": "./inspect#describeSecret"
+                }
+            ]
+        },
+        "defineVault": {
+            "module": 1,
+            "describes": [
+                {
+                    "kind": "resource",
+                    "function": "./inspect#describeVault"
+                }
+            ]
+        }
     }
 }

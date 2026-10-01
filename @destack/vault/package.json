@@ -11,32 +11,35 @@
         "./inspect": "./src/inspect/index.ts",
         "./client": "./src/secret/client.ts",
         "./service": "./src/service/index.ts",
-        "./server": "./src/server/index.ts",
+        "./object": "./src/object/index.ts",
         "./stack": "./src/stack/index.ts",
         "./encryption": "./src/encryption/index.ts",
-        "./audit": "./src/audit/index.ts",
         "./error": "./src/error/index.ts",
-        "./vault": "./src/vault/index.ts",
-        "./secret/version": "./src/secret/version.ts"
+        "./provider": "./src/provider/index.ts",
+        "./server": "./src/server/index.ts",
+        "./account": "./src/account/index.ts"
     },
     "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/resource": "workspace:*",
+        "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/service": "workspace:*",
-        "@destack/model": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/audit": "workspace:*",
-        "@destack/telemetry": "workspace:*",
-        "uuid": "14.0.2"
+        "uuid": "14.0.2",
+        "@destack/space": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/host": "workspace:*"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "devDependencies": {
-        "jose": "6.2.12",
-        "@destack/test": "workspace:*"
+        "@destack/sync": "workspace:*",
+        "@destack/test": "workspace:*",
+        "jose": "6.2.12"
     }
 }
