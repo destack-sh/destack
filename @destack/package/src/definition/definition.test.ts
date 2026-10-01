@@ -1,5 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { expect, test } from "vitest";
+import { expect, test } from "@destack/test";
 import { toJsonSchema } from "@destack/schema";
 import { PackageDefinition } from "./definition.ts";
 
