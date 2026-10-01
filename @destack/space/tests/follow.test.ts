@@ -16,7 +16,7 @@ test("copy every global row a space may read from the universe, beside the chain
         packageId: object.policy.definition.packageId,
         type: object.policy.definition.name,
     });
-    const requests = await server.replicaRequests(ids.space, { isHome: true });
+    const requests = await server.source.replicaRequests(ids.space, { isHome: true });
     expect(requests.map((request) => [request.name, request.scope, request.rows])).toEqual([
         ["chain", ids.account, []],
         ["chain", Scope.universe.id, []],

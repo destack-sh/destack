@@ -19,7 +19,7 @@ import { defineObject, field, method } from "@destack/object";
 import { ObjectServer } from "@destack/object/server";
 import { identifier } from "@destack/schema";
 import { defineJournal, Journal } from "@destack/service/database";
-import { subjectContext } from "@destack/service/test";
+import { subjectContext, testJournalKey } from "@destack/service/test";
 import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
 import { Scope, Feed, replica, replicaTables } from "@destack/sync";
@@ -91,7 +91,7 @@ test.each(TEST_DIALECTS)(
                     now: Date.now(),
                     attributes: {},
                 }),
-                journal: new Journal(request),
+                journal: new Journal(request, testJournalKey),
                 audit: () =>
                     ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
             });
@@ -109,7 +109,7 @@ test.each(TEST_DIALECTS)(
         const reader = (signal: AbortSignal) =>
             subjectContext(principal.user.reference("universe", "owner"), spaceId, signal);
         const read = () =>
-            serve(source.database).sync(spaceId, reader(AbortSignal.timeout(4000)), {});
+            serve(source.database).source.sync(spaceId, reader(AbortSignal.timeout(4000)), {});
         const following = read();
         await following.next();
 

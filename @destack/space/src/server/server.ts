@@ -8,7 +8,7 @@ import { ObjectServer } from "@destack/object/server";
 import type { PackageId } from "@destack/package";
 import type { ResourceKind, Provider } from "@destack/resource";
 import type { Identifier } from "@destack/schema";
-import { Journal } from "@destack/service/database";
+import { Journal, type JournalKey } from "@destack/service/database";
 import {
     implement,
     type ServiceContext,
@@ -49,6 +49,8 @@ export interface GlobalTier {
 export interface SpaceServiceOptions {
     /** The database keeping the spaces. */
     readonly database: DatabaseConnection;
+    /** Read the deployment's key that sensitive inputs are fingerprinted under. */
+    readonly journalKey: JournalKey;
     /** Record calls in a scope under the request's verified authority, or as the system without one. */
     readonly audit: (scope: string, context?: ServiceContext) => AuditRecorder<DatabaseConnection>;
     /** The global tier. */
@@ -148,7 +150,7 @@ export function serveObjects(options: SpaceServiceOptions) {
         directory: global.directory,
         database,
         audit: options.audit,
-        journal: new Journal(spaceJournal),
+        journal: new Journal(spaceJournal, options.journalKey),
         replicas: {
             source: global.replicas,
             requests: (): Promise<readonly Omit<ReplicaRequest, "after">[]> =>
@@ -185,7 +187,7 @@ function transferring(
 
 /** List the replica requests of the copies a cell keeps, once each. */
 async function replicaRequests(
-    objects: Pick<ObjectServer, "database" | "authorizer" | "replicaRequests" | "universeRequest">,
+    objects: Pick<ObjectServer, "database" | "authorizer" | "source">,
     cell: object.SpaceCell,
     served: readonly Identifier<"account">[],
 ): Promise<readonly Omit<ReplicaRequest, "after">[]> {
@@ -196,10 +198,12 @@ async function replicaRequests(
         .where(object.SpaceCell.served());
 
     // request each space's copies, each served account's chain and the cell's own rows of the universe
-    const own = objects.universeRequest(object.SpaceCell.id(cell));
+    const own = objects.source.universeRequest(object.SpaceCell.id(cell));
     const requests = [
         ...(
-            await Promise.all(spaces.map(({ id }) => objects.replicaRequests(id, { isHome: true })))
+            await Promise.all(
+                spaces.map(({ id }) => objects.source.replicaRequests(id, { isHome: true })),
+            )
         ).flat(),
         ...(
             await Promise.all(

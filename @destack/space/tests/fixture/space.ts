@@ -1,5 +1,5 @@
 import type { InstanceSpec, Runtime } from "@destack/host/runtime";
-import { reconciliation } from "@destack/service/test";
+import { reconciliation, testJournalKey } from "@destack/service/test";
 import type { ServerRuntime } from "@destack/package/runtime";
 import { onTestFinished } from "@destack/test";
 import { setting } from "@destack/setting/object";
@@ -174,6 +174,7 @@ export async function spaceOptions(
 ): Promise<SpaceServiceOptions> {
     return {
         database,
+        journalKey: testJournalKey,
         global: options.global ?? (await openGlobal()),
         cell: { regionId: ids.region },
         providers: [],

@@ -180,7 +180,7 @@ test("create the first space of an account its host serves, decided by the copy 
         copied: [...served.authorizer.copied],
         rows: [],
     }));
-    const own = [served.universeRequest(ids.host)!];
+    const own = [served.source.universeRequest(ids.host)!];
     const byScope = (request: ReplicaRequest) => [request.name, request.scope].join(" ");
     const isOwn = (request: ReplicaRequest) =>
         request.below === ids.account || request.below === ids.host;

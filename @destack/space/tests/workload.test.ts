@@ -206,6 +206,7 @@ test(
             );
             onTestFinished(() => runner.kill());
             const start: WorkloadStart = {
+                journalKey: "00".repeat(32),
                 instance: identifier("instance").parse(
                     "instance-01996ab0-0000-7000-8000-000000000003",
                 ),
