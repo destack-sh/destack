@@ -1,160 +1,197 @@
+import type { Recipient, Sealed } from "@destack/resource";
+import { schema } from "@destack/schema";
 import { VaultError } from "../error/index.ts";
 import type { Keyring } from "./keyring.ts";
-import { schema } from "@destack/schema";
 
-/** Fixed encryption protocol identifier, independent of package metadata. */
+/** The protocol every ciphertext authenticates, independent of package metadata. */
 const ENCRYPTION_PROTOCOL = "@destack/vault";
-/** Authenticated context and ciphertext format version. */
+/** The envelope format, which the authenticated context includes. */
 const ENCRYPTION_FORMAT = 1;
+/** The bytes of a data key, an AES-256 key. */
+const DATA_KEY_BYTES = 32;
+/** The bytes of an AES-GCM nonce. */
+const NONCE_BYTES = 12;
 
-/** Authenticated ciphertext and the protected key needed to decrypt it. */
-export const SecretEnvelope = schema.object({
-    /** Encoding and algorithm version. */
-    format: schema.literal(ENCRYPTION_FORMAT),
-    /** Root key version used to protect the data key. */
-    keyId: schema.string().min(1),
-    /** Base64 ciphertext including its authentication tag. */
-    ciphertext: schema.base64(),
-    /** Base64 value nonce. */
-    nonce: schema.base64(),
-    /** Base64 encrypted data key including its authentication tag. */
-    wrappedKey: schema.base64(),
-    /** Base64 key nonce. */
-    keyNonce: schema.base64().optional(),
-});
-/** Authenticated ciphertext and its protected data key. */
-export type SecretEnvelope = schema.Infer<typeof SecretEnvelope>;
+/** The storage identity of one secret version, authenticated with both ciphertexts. */
+export interface EncryptionContext {
+    /** The storage region or local host, assigned by the server. */
+    readonly location: string;
+    /** The administering space. */
+    readonly spaceId: string;
+    /** The containing vault resource. */
+    readonly vaultId: string;
+    /** The immutable secret identity. */
+    readonly secretId: string;
+    /** The immutable value version. */
+    readonly version: number;
+}
 
-/** Tenant-qualified identity authenticated with both ciphertexts. */
-export type EncryptionContext = {
-    /** Storage region or local host, assigned by the server. */
-    location: string;
-    /** Administering space. */
-    spaceId: string;
-} & (
-    | {
-          /** Secret value protected by this envelope. */
-          kind: "secret";
-          /** Containing vault resource. */
-          vaultId: string;
-          /** Immutable secret identity. */
-          secretId: string;
-          /** Immutable value version. */
-          version: number;
-      }
-    | {
-          /** Mutation fingerprint protected by this envelope. */
-          kind: "request";
-          /** Authenticated mutation initiator. */
-          caller: string;
-          /** Declared mutation procedure. */
-          procedure: string;
-          /** Immutable mutation identity. */
-          requestId: string;
-      }
-);
+/** The storage identity ciphertexts authenticate. */
+export const EncryptionContext = {
+    /** Encode the identity in an unambiguous, versioned order. */
+    encode(context: EncryptionContext): Uint8Array<ArrayBuffer> {
+        return new TextEncoder().encode(
+            JSON.stringify([
+                ENCRYPTION_PROTOCOL,
+                ENCRYPTION_FORMAT,
+                context.location,
+                context.spaceId,
+                context.vaultId,
+                context.secretId,
+                context.version,
+            ]),
+        );
+    },
+};
 
-/** Encrypt immutable secret values and rewrap their data keys. */
-export class EnvelopeEncryption {
-    /** Trusted root-key implementation. */
-    readonly keys: Keyring;
+/** A sealed value: its ciphertext, and its data key wrapped under a keyring. */
+export interface Envelope {
+    /** The envelope format. */
+    readonly format: typeof ENCRYPTION_FORMAT;
+    /** The keyring key the data key is wrapped under. */
+    readonly keyId: string;
+    /** The base64 ciphertext with its authentication tag. */
+    readonly ciphertext: string;
+    /** The base64 value nonce. */
+    readonly nonce: string;
+    /** The base64 wrapped data key with its authentication tag. */
+    readonly wrappedKey: string;
+    /** The base64 key nonce. */
+    readonly keyNonce: string;
+}
 
-    /** Bind root-key access without retaining plaintext secret values. */
-    constructor(keys: Keyring) {
-        this.keys = keys;
-    }
+/** Sealed values. */
+export const Envelope = {
+    /** The stored shape of an envelope. */
+    schema: schema.object({
+        /** The envelope format. */
+        format: schema.literal(ENCRYPTION_FORMAT),
+        /** The keyring key the data key is wrapped under. */
+        keyId: schema.string().min(1),
+        /** The base64 ciphertext with its authentication tag. */
+        ciphertext: schema.base64(),
+        /** The base64 value nonce. */
+        nonce: schema.base64(),
+        /** The base64 wrapped data key with its authentication tag. */
+        wrappedKey: schema.base64(),
+        /** The base64 key nonce. */
+        keyNonce: schema.base64(),
+    }),
 
-    /** Encrypt a value with a fresh key and nonce. */
-    async encrypt(
+    /** Seal a value under a fresh data key, which a keyring wraps. */
+    async seal(
         value: Uint8Array<ArrayBuffer>,
+        keyring: Keyring,
         context: EncryptionContext,
-    ): Promise<SecretEnvelope> {
-        // authenticate the exact storage identity and format
-        const authenticated = encodeEncryptionContext(context);
-        const raw = crypto.getRandomValues(new Uint8Array(32));
+    ): Promise<Envelope> {
+        // encrypt under a fresh data key, authenticating the storage identity
+        const authenticated = EncryptionContext.encode(context);
+        const raw = crypto.getRandomValues(new Uint8Array(DATA_KEY_BYTES));
         try {
             const key = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt"]);
-            const nonce = crypto.getRandomValues(new Uint8Array(12));
+            const nonce = crypto.getRandomValues(new Uint8Array(NONCE_BYTES));
             const ciphertext = await crypto.subtle.encrypt(
                 { name: "AES-GCM", iv: nonce, additionalData: authenticated },
                 key,
                 value,
             );
-            const protectedKey = await this.keys.wrap(raw, authenticated);
 
+            // wrap the data key beside the ciphertext
             return {
                 format: ENCRYPTION_FORMAT,
-                ...protectedKey,
+                ...(await keyring.wrap(raw, authenticated)),
                 nonce: nonce.toBase64(),
                 ciphertext: new Uint8Array(ciphertext).toBase64(),
             };
         } finally {
             raw.fill(0);
         }
-    }
+    },
 
-    /** Verify the stored identity before releasing plaintext. */
-    async decrypt(
-        envelope: SecretEnvelope,
+    /** Open an envelope, authenticating its storage identity. */
+    async open(
+        envelope: Envelope,
+        keyring: Keyring,
         context: EncryptionContext,
     ): Promise<Uint8Array<ArrayBuffer>> {
-        if (envelope.format !== ENCRYPTION_FORMAT) {
-            throw new VaultError("DECRYPTION_FAILED", "unsupported secret encryption format");
-        }
-        const authenticated = encodeEncryptionContext(context);
-        const raw = await this.keys.unwrap(envelope, authenticated);
-        try {
-            const key = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["decrypt"]);
-            const plaintext = await crypto.subtle.decrypt(
-                {
-                    name: "AES-GCM",
-                    iv: Uint8Array.fromBase64(envelope.nonce),
-                    additionalData: authenticated,
-                },
-                key,
-                Uint8Array.fromBase64(envelope.ciphertext),
-            );
+        Envelope.requireFormat(envelope);
+        const authenticated = EncryptionContext.encode(context);
 
-            return new Uint8Array(plaintext);
-        } catch {
-            throw new VaultError("DECRYPTION_FAILED", "secret authentication failed");
+        return decrypt(await keyring.unwrap(envelope, authenticated), envelope, authenticated);
+    },
+
+    /** Seal an envelope's data key to a transfer's target. */
+    async transfer(
+        envelope: Envelope,
+        keyring: Keyring,
+        context: EncryptionContext,
+        recipient: Recipient,
+    ): Promise<Sealed> {
+        const authenticated = EncryptionContext.encode(context);
+        const raw = await keyring.unwrap(envelope, authenticated);
+        try {
+            return await recipient.seal(raw, authenticated);
         } finally {
             raw.fill(0);
         }
-    }
+    },
 
-    /** Change root-key protection without changing the secret version or value. */
-    async rewrap(envelope: SecretEnvelope, context: EncryptionContext): Promise<SecretEnvelope> {
+    /** Receive a ciphertext another host sent, and seal its value again here. */
+    async receive(
+        ciphertext: { readonly format: number } & Pick<Envelope, "ciphertext" | "nonce">,
+        key: Sealed,
+        from: EncryptionContext,
+        to: EncryptionContext,
+        keyring: Keyring,
+        recipient: Recipient,
+    ): Promise<Envelope> {
+        // open the data key and decrypt the value under the source's identity
+        Envelope.requireFormat(ciphertext);
+        const authenticated = EncryptionContext.encode(from);
+        const plaintext = await decrypt(
+            await recipient.open(key, authenticated),
+            ciphertext,
+            authenticated,
+        );
+
+        // seal it afresh under this host's identity
+        try {
+            return await Envelope.seal(plaintext, keyring, to);
+        } finally {
+            plaintext.fill(0);
+        }
+    },
+
+    /** Refuse an envelope of another format. */
+    requireFormat(envelope: { readonly format: number }): void {
         if (envelope.format !== ENCRYPTION_FORMAT) {
             throw new VaultError("DECRYPTION_FAILED", "unsupported secret encryption format");
         }
-        const authenticated = encodeEncryptionContext(context);
-        const raw = await this.keys.unwrap(envelope, authenticated);
-        try {
-            const protectedKey = await this.keys.wrap(raw, authenticated);
+    },
+};
 
-            return { ...envelope, ...protectedKey, keyNonce: protectedKey.keyNonce };
-        } finally {
-            raw.fill(0);
-        }
+/** Decrypt a ciphertext with a raw data key, erasing the key either way. */
+async function decrypt(
+    raw: Uint8Array<ArrayBuffer>,
+    envelope: Pick<Envelope, "ciphertext" | "nonce">,
+    authenticated: Uint8Array<ArrayBuffer>,
+): Promise<Uint8Array<ArrayBuffer>> {
+    try {
+        const key = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["decrypt"]);
+        const plaintext = await crypto.subtle.decrypt(
+            {
+                name: "AES-GCM",
+                iv: Uint8Array.fromBase64(envelope.nonce),
+                additionalData: authenticated,
+            },
+            key,
+            Uint8Array.fromBase64(envelope.ciphertext),
+        );
+
+        return new Uint8Array(plaintext);
+    } catch {
+        throw new VaultError("DECRYPTION_FAILED", "secret authentication failed");
+    } finally {
+        raw.fill(0);
     }
-}
-
-/** Encode the immutable identity in an unambiguous, versioned order. */
-function encodeEncryptionContext(context: EncryptionContext): Uint8Array<ArrayBuffer> {
-    const selection =
-        context.kind === "secret"
-            ? [context.vaultId, context.secretId, context.version]
-            : [context.caller, context.procedure, context.requestId];
-
-    return new TextEncoder().encode(
-        JSON.stringify([
-            ENCRYPTION_PROTOCOL,
-            ENCRYPTION_FORMAT,
-            context.location,
-            context.spaceId,
-            context.kind,
-            ...selection,
-        ]),
-    );
 }

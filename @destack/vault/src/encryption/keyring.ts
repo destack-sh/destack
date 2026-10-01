@@ -1,5 +1,21 @@
+import type { Keychain } from "@destack/host/keychain";
+import { schema } from "@destack/schema";
+import { v7 } from "uuid";
 import { VaultError } from "../error/index.ts";
-import type { SecretEnvelope } from "./envelope.ts";
+import type { Envelope } from "./envelope.ts";
+
+/** The bytes of a root key, an AES-256 key. */
+const ROOT_KEY_BYTES = 32;
+
+/** The root keys a keychain keeps under one name: each version's bytes, and the active version. */
+const Keyset = schema.object({
+    /** The version new data keys are wrapped under. */
+    active: schema.string().min(1),
+    /** The base64 bytes of each version. */
+    keys: schema.record(schema.string(), schema.base64()),
+});
+/** The root keys a keychain keeps under one name. */
+type Keyset = schema.Infer<typeof Keyset>;
 
 /** Versioned wrapping keys used to encrypt and decrypt data keys. */
 export interface Keyring {
@@ -7,10 +23,10 @@ export interface Keyring {
     wrap(
         key: Uint8Array<ArrayBuffer>,
         context: Uint8Array<ArrayBuffer>,
-    ): Promise<Pick<SecretEnvelope, "keyId" | "wrappedKey" | "keyNonce">>;
+    ): Promise<Pick<Envelope, "keyId" | "wrappedKey" | "keyNonce">>;
     /** Recover a data key under its recorded root key. */
     unwrap(
-        envelope: Pick<SecretEnvelope, "keyId" | "wrappedKey" | "keyNonce">,
+        envelope: Pick<Envelope, "keyId" | "wrappedKey" | "keyNonce">,
         context: Uint8Array<ArrayBuffer>,
     ): Promise<Uint8Array<ArrayBuffer>>;
 }
@@ -28,6 +44,44 @@ export class LocalKeyring implements Keyring {
         this.#keys = keys;
     }
 
+    /** Open the root keys a keychain keeps under a name, generating the first one when none is kept. */
+    static async open(keychain: Keychain, name: string): Promise<LocalKeyring> {
+        // keep a first key when the keychain has none
+        const kept = await keychain.load(name);
+        const keys = kept === undefined ? LocalKeyring.#generate() : Keyset.parse(JSON.parse(kept));
+        if (kept === undefined) {
+            await keychain.save(name, JSON.stringify(keys));
+        }
+
+        return LocalKeyring.#from(keys);
+    }
+
+    /** Keep a new active root key beside the others. */
+    static async rotate(keychain: Keychain, name: string): Promise<LocalKeyring> {
+        const keys = LocalKeyring.#generate(await LocalKeyring.#load(keychain, name));
+        await keychain.save(name, JSON.stringify(keys));
+
+        return LocalKeyring.#from(keys);
+    }
+
+    /** Forget a root key, refusing the active one and one the keychain does not keep. */
+    static async retire(keychain: Keychain, name: string, id: string): Promise<LocalKeyring> {
+        // refuse forgetting the active key or an unknown one
+        const keys = await LocalKeyring.#load(keychain, name);
+        if (keys.active === id) {
+            throw new VaultError("INVALID_KEY", "the active root key cannot retire");
+        } else if (!Object.hasOwn(keys.keys, id)) {
+            throw new VaultError("INVALID_KEY", `no root key ${id} is kept as ${name}`);
+        }
+
+        // keep the other keys
+        const { [id]: _retired, ...others } = keys.keys;
+        const kept = { active: keys.active, keys: others };
+        await keychain.save(name, JSON.stringify(kept));
+
+        return LocalKeyring.#from(kept);
+    }
+
     /** Import independently generated 256-bit root keys. */
     static async import(
         active: string,
@@ -40,7 +94,7 @@ export class LocalKeyring implements Keyring {
         // validate all versions before accepting the deployment
         const keys = new Map<string, CryptoKey>();
         for (const [id, value] of values) {
-            if (!id || value.length !== 32) {
+            if (!id || value.length !== ROOT_KEY_BYTES) {
                 throw new VaultError("INVALID_KEY", "root keys require a version and 32 bytes");
             }
             keys.set(
@@ -75,13 +129,10 @@ export class LocalKeyring implements Keyring {
 
     /** Authenticate a protected key under its original version. */
     async unwrap(
-        envelope: Pick<SecretEnvelope, "keyId" | "wrappedKey" | "keyNonce">,
+        envelope: Pick<Envelope, "keyId" | "wrappedKey" | "keyNonce">,
         context: Uint8Array<ArrayBuffer>,
     ) {
         const key = this.#get(envelope.keyId);
-        if (!envelope.keyNonce) {
-            throw new VaultError("DECRYPTION_FAILED", "protected data key nonce is missing");
-        }
         try {
             const value = await crypto.subtle.decrypt(
                 {
@@ -97,6 +148,34 @@ export class LocalKeyring implements Keyring {
         } catch {
             throw new VaultError("DECRYPTION_FAILED", "data key authentication failed");
         }
+    }
+
+    /** Read the root keys a keychain keeps under an existing name. */
+    static async #load(keychain: Keychain, name: string): Promise<Keyset> {
+        const kept = await keychain.load(name);
+        if (kept === undefined) {
+            throw new VaultError("KEY_UNAVAILABLE", `no root keys are kept as ${name}`);
+        }
+
+        return Keyset.parse(JSON.parse(kept));
+    }
+
+    /** Import a kept keyset. */
+    static #from(keys: Keyset): Promise<LocalKeyring> {
+        return LocalKeyring.import(
+            keys.active,
+            new Map(
+                Object.entries(keys.keys).map(([id, value]) => [id, Uint8Array.fromBase64(value)]),
+            ),
+        );
+    }
+
+    /** Add a fresh active root key to a keyset, or start one with it. */
+    static #generate(keys?: Keyset): Keyset {
+        const id = v7();
+        const value = crypto.getRandomValues(new Uint8Array(ROOT_KEY_BYTES));
+
+        return { active: id, keys: { ...keys?.keys, [id]: value.toBase64() } };
     }
 
     /** Reject unavailable root-key versions explicitly. */

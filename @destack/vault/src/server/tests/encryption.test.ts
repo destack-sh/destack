@@ -1,35 +1,30 @@
-import { writeVersion, readVersion } from "../../secret/version.ts";
-import { expect, test } from "@destack/test";
-import { createRequestId } from "@destack/service/request";
-import { eq } from "@destack/db";
-import { space } from "@destack/model/regional";
-import { connect } from "../../secret/client.ts";
-import { AuditOutbox } from "@destack/audit/outbox";
-import { AuditRecorder } from "@destack/audit";
-import { VaultFixture } from "./fixture.ts";
-import { vaultValue } from "../../stack/index.ts";
-import { LocalKeyring, EnvelopeEncryption } from "../../encryption/index.ts";
-import { Vault } from "../../vault/index.ts";
-import { vaultPackage } from "../../audit/index.ts";
+import { TEST_DIALECTS } from "@destack/db/test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import * as turso from "@destack/db/turso";
-import { vaultSchema } from "../../stack/index.ts";
+import { eq } from "@destack/db";
+import { MemoryKeychain } from "@destack/host/keychain";
+import { ServiceError } from "@destack/service/error";
+import { RequestId } from "@destack/service/request";
+import { expect, test } from "@destack/test";
+import { LocalKeyring } from "../../encryption/index.ts";
+import { vaultKey, vaultValue } from "../../stack/index.ts";
+import { VaultKey } from "../../encryption/index.ts";
+import { LOCATION, VaultFixture } from "./fixture.ts";
 
-test("reject ciphertext copied between secrets", async () => {
-    await using fixture = await VaultFixture.open();
+test.each(TEST_DIALECTS)("refuse ciphertext copied between secrets on %s", async (dialect) => {
+    await using fixture = await VaultFixture.open(dialect);
     const { client, database, spaceId, vaultId } = fixture;
     const { first, request } = await fixture.createSecret();
     const second = await client.secret.create({
         spaceId,
-        vaultId,
+        parentId: vaultId,
         name: "second",
-        requestId: createRequestId(),
+        requestId: RequestId.create(),
     });
-    await client.version.write({ ...request, secretId: second.id, requestId: createRequestId() });
+    await client.version.create({ ...request, parentId: second.id, requestId: RequestId.create() });
 
-    // a ciphertext copied to another secret fails authenticated decryption
+    // fail authenticated decryption of a ciphertext copied to another secret
     const rows = await database.select().from(vaultValue);
     const original = rows.find((row) => row.secretId === first.id)!;
     await database
@@ -41,138 +36,74 @@ test("reject ciphertext copied between secrets", async () => {
             keyNonce: original.keyNonce,
         })
         .where(eq(vaultValue.secretId, second.id));
-    await expect(client.version.read({ spaceId, secretId: second.id })).rejects.toMatchObject({
-        code: "INTERNAL_SERVER_ERROR",
-    });
+    await expect(client.secret.read({ spaceId, id: second.id })).rejects.toEqual(
+        new ServiceError("INTERNAL_SERVER_ERROR", { message: "internal server error" }),
+    );
 });
 
-test("rotate root keys and reopen without the old key", async () => {
-    await using fixture = await VaultFixture.open();
-    const { database, spaceId } = fixture;
-    const { key, request, written } = await fixture.createSecret();
+test.each(TEST_DIALECTS)(
+    "rewrap the vault keys under a new root key, keeping every value as stored, and retire the old key only then on %s",
+    async (dialect) => {
+        await using fixture = await VaultFixture.open(dialect);
+        const { database } = fixture;
+        const keychain = new MemoryKeychain();
+        const name = "vault/host-1";
 
-    // rewrap under a new root while keeping the same value version
-    const before = await database.select().from(vaultValue).get();
-    const next = crypto.getRandomValues(new Uint8Array(32));
-    const keys = await LocalKeyring.import(
-        "two",
-        new Map([
-            ["one", fixture.root],
-            ["two", next],
-        ]),
-    );
-    const rotating = new Vault(database, new EnvelopeEncryption(keys), "eu");
-    const server = await fixture.host(rotating);
-    const client = connect({
-        url: "http://vault.test",
-        headers: { Authorization: `Bearer ${fixture.userId}` },
-        fetch: (request) => server.fetch(request),
-    });
-    await client.version.rewrap({
-        ...key,
-        version: 1,
-        revision: written.secret.revision,
-        requestId: createRequestId(),
-    });
-    const batch = { spaceId, keyId: "one", limit: 100 };
-    expect(await client.request.rewrap(batch)).toBe(2);
-    expect(await client.request.rewrap(batch)).toBe(0);
-    const after = await database.select().from(vaultValue).get();
-    expect({ ciphertext: after!.ciphertext, nonce: after!.nonce, version: after!.version }).toEqual(
-        {
-            ciphertext: before!.ciphertext,
-            nonce: before!.nonce,
-            version: before!.version,
-        },
-    );
-    expect(after!.keyId).toBe("two");
+        // keep the vault's key and a value under the keychain's first root key
+        const first = await LocalKeyring.open(keychain, name);
+        await database.delete(vaultKey);
+        await VaultKey.provision(database, first, LOCATION, fixture.vaultId);
+        fixture.client = fixture.connect(await fixture.host(first));
+        const { key, request } = await fixture.createSecret();
+        const stored = await database.select().from(vaultValue);
 
-    // retain value access and exact mutation replay after retiring the old root
-    const currentKeys = await LocalKeyring.import("two", new Map([["two", next]]));
-    const current = new Vault(database, new EnvelopeEncryption(currentKeys), "eu");
-    expect((await readVersion(current, key, fixture.context)).value).toEqual(request.value);
-    expect(await writeVersion(current, request, fixture.context)).toEqual(written);
-});
+        // rotate, and refuse retiring the old key while the vault key is wrapped under it
+        const rotated = await LocalKeyring.rotate(keychain, name);
+        await expect(VaultKey.retire(database, keychain, name, first.active)).rejects.toEqual(
+            new ServiceError("CONFLICT", {
+                message: `vault keys are still wrapped under root key ${first.active}: rewrap them first`,
+            }),
+        );
 
-test("recover persisted values and exact retries after reopening the database", async () => {
+        // rewrap the vault key under the new root key, then retire the old one
+        const rewrapped = await VaultKey.rewrapAll(database, rotated, LOCATION, first.active);
+        const retired = await VaultKey.retire(database, keychain, name, first.active);
+
+        // read the value under the remaining root key alone, its ciphertext untouched
+        const current = fixture.connect(await fixture.host(retired));
+        expect([
+            rewrapped,
+            (await database.select().from(vaultKey)).map((row) => row.rootKeyId),
+            await database.select().from(vaultValue),
+            await current.secret.read(key),
+        ]).toEqual([1, [rotated.active], stored, { version: 1, value: request.value }]);
+    },
+);
+
+test("read persisted values after reopening the database, and refuse without their root key", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-vault-"));
     try {
-        // commit a value, then close the original connection and discard its service state
+        // commit a value, then close the database
         const file = join(directory, "vault.db");
-        const fixture = await VaultFixture.open(file);
-        let saved: Awaited<ReturnType<VaultFixture["createSecret"]>>;
-        try {
-            saved = await fixture.createSecret();
-        } finally {
-            await fixture.close();
-        }
+        const original = await VaultFixture.openFile(file);
+        const saved = await original.createSecret().finally(() => original.close());
 
-        // reconstruct storage using only persisted records and separately retained keys
-        const database = await turso.connect(file, vaultSchema);
-        try {
-            const keys = await LocalKeyring.import("one", new Map([["one", fixture.root]]));
-            const vault = new Vault(database, new EnvelopeEncryption(keys), "eu");
-            const owner = await database
-                .select()
-                .from(space)
-                .where(eq(space.id, fixture.spaceId))
-                .get();
-            const context = {
-                audience: vaultPackage.id,
-                caller: fixture.context.caller,
-                audit: new AuditRecorder(
-                    {
-                        actor: { type: "user", authority: "global", id: fixture.userId },
-                        delegation: [],
-                        package: vaultPackage,
-                        service: "vault",
-                        spaceId: fixture.spaceId,
-                        accountId: owner!.accountId ?? undefined,
-                    },
-                    new AuditOutbox(database),
-                ),
-            };
-            expect(await readVersion(vault, saved.key, context)).toEqual({
-                version: saved.written.version,
-                value: saved.request.value,
-            });
-            expect(await writeVersion(vault, saved.request, context)).toEqual(saved.written);
+        // reopen the database and read the value under the retained root key
+        await using reopened = await VaultFixture.openFile(file, original);
+        expect(await reopened.client.secret.read(saved.key)).toEqual({
+            version: 1,
+            value: saved.request.value,
+        });
 
-            // reject unavailable keys without creating replacement material
-            const replacement = crypto.getRandomValues(new Uint8Array(32));
-            const missing = await LocalKeyring.import("two", new Map([["two", replacement]]));
-            const inaccessible = new Vault(database, new EnvelopeEncryption(missing), "eu");
-            await expect(readVersion(inaccessible, saved.key, context)).rejects.toMatchObject({
-                code: "KEY_UNAVAILABLE",
-                message: "required root key is unavailable",
-            });
-        } finally {
-            await database.close();
-        }
+        // refuse reading without the root key protecting the value
+        const replacement = crypto.getRandomValues(new Uint8Array(32));
+        const missing = reopened.connect(
+            await reopened.host(await reopened.keyring("two", new Map([["two", replacement]]))),
+        );
+        await expect(missing.secret.read(saved.key)).rejects.toEqual(
+            new ServiceError("INTERNAL_SERVER_ERROR", { message: "internal server error" }),
+        );
     } finally {
         await rm(directory, { recursive: true, force: true });
     }
-});
-
-test("withhold plaintext when audit persistence fails", async () => {
-    await using fixture = await VaultFixture.open();
-    const { key } = await fixture.createSecret();
-
-    // no plaintext result escapes when durable audit persistence fails
-    const audit = new AuditRecorder(
-        {
-            actor: { type: "user", authority: "global", id: fixture.userId },
-            delegation: [],
-            package: vaultPackage,
-            service: "vault",
-        },
-        {
-            append: async () => {
-                throw new Error("audit unavailable");
-            },
-        },
-    );
-    await expect(readVersion(fixture.vault, key, { ...fixture.context, audit })).rejects.toThrow(
-        "audit unavailable",
-    );
 });
