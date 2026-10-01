@@ -26,10 +26,10 @@ Once more, we will have to retrace from the beginning, reconsider what programmi
 # The Software That Could Be
 
 Software was never meant to be like _this_.
-From the very beginning, software to be open, hackable, remixable - and fast.
-Hardware has advanced far beyond the capabilities envisioned all those decades ago, and yet, a duller, infinitely fragmented version of software has settled in and stayed stuck by sheer inertia.
+From the very beginning, the pioneers meant for software to be open, hackable, remixable - a malleable medium that could fluently adapt to user needs.
+And while hardware has advanced far beyond even their dreams, a much duller and infinitely fragmented software reality has settled in.
 
-Of course, "malleable software" and "end-user programming" have been valiantly again and again - only to die again and again.
+Of course, "malleable software" and "end-user programming" have been tried valiantly again and again - only to die again and again.
 Sort of.
 The closest to malleable software we have today are constrained sandboxes like Excel and Notion, which are useful, but not _general_, and so we are stuck with a thousand little rented software silos.
 
@@ -40,88 +40,85 @@ The closest to malleable software we have today are constrained sandboxes like E
 Yet, our new machine users urgently demand the broadest possilbe access to the entire software stack, with as many degrees of freedom as we can safely provide, up and down and left and right. 
 Agents are on pace to outnumber human users by an order of magnitude or two very soon, but they are awkwardly caged in by last century's software stack.
 
-The key issue with "malleable software" has been that approximately nobody _wants_ to build their own software.
-Building custom software was enticing but difficult, it never ends, rarely works _quite_ as well, and so there was little reason to even attempt to own the stack.
+Until very recently, the key issue with "malleable software" was that approximately nobody _wants_ to build (and maintain) their own software.
+Building custom software is enticing but difficult, it never ends, it rarely works _quite_ as well as the off the shelf SaaS thing, and in any case there was little reason to own the stack.
 
-Now, the equation has flipped, and it is almost trivially easy to build your own software, but nothing quite fits together yet.
-Just like it's hard to build custom software that works well across all systems, it is difficult to deploy agents if software is fragmented across thousands of little silos you do not own or control.
-
-Consider: how do you join "reminders in Notion" with "leads in Salesforce" and "events in Outlook"?
-We can "connect" these silos with data pipelines spanning a few minute delay, perhaps.
-But with real, transactional guarantees, in real time, at scale?
-It simply does not compute - the depth of integration needed is impossible with the current stack.
+Now, the equation has flipped.
+How do you read and write "reminders in Notion" with "leads in Salesforce" and "events in Outlook"?
+With transactional guarantees, in real time, with proper permissioning, mechanically?
+It simply does not compute - the depth of integration needed is impossible by tying together slices of the old stack.
 
 :::figure width="640" src="./wright-flyer-wind-tunnel.jpg" alt="A full-size Wright Flyer replica mounted on a test stand inside the Ames wind tunnel, with two engineers standing beside it."
 [Wright Flyer replica in the Ames wind tunnel](https://www.nasa.gov/image-article/wright-flyer/) — NASA, public domain.
 :::
 
-Anyone who has interacted with softwre recently knows that the issue is far bigger:
+Every user of any software knows that the software crisis is broader than "lack of integration":
 it's not just that things don't work well _together_, it's that they don't work well _at all_.
-Why, if software is solved, is there still so much bad software?
+Why, if software is solved, is there still so much bad, slow, clunky software?
+And how _do_ we solve it?
 How do we put the "engineering" into "software engineering"?
 
-The brute "acceleration" of old processes with "self-driving factories" will not magically yield a better stack with better software, just more of the same stack.
-To finally industrialise the precise manufacture of quality software, we need entirely _new_ processes, not just for building software, but for understanding and studying software from all angles.
+The brute acceleration of old processes with "self-driving factories" will not magically yield a better stack with better software, just _more_ of the same old stack with the same old problems - faster, with less oversight, and more impact.
+No.
+The precise manufacture of the integrated high quality malleable software we need logically requires _new_ integrated processes, not just for production, but design, analysis, and deployment.
 
 # Higher Order Programming
 
-The history of programming is one of increasing levels of abstraction: from handcrafting gears, to wiring up vacuum tubes, to punching cards, to coding assembly, to writing C, to programming Java, to scripting Python, to asking an LLM to script however it likes.
+The history of programming has always been one of increasing levels of abstraction: from handcrafting gears, to wiring up vacuum tubes, to punching cards, to coding assembly, to writing C, to programming Java, to scripting Python, to asking an LLM to script however it likes.
 And that's great.
 
-Climbing the ladder of abstraction yields more output for every bit of input.
-We gradually remove ourselves from the cumbersome burden of having to actually spell out _exactly_ what we want the machine to be doing: which electrons? which bits? which registers? what memory? what computer? _where_ computer? _when_ computer?
+Climbing the ladder of abstraction yields more eoutput for every bit of input.
+We gradually remove ourselves from the cumbersome burden of having to actually spell out _exactly_ what we want the machine to be doing: which wires? which bits? which registers? what memory? what computer? _where_ computer? _when_ computer?
 
 :::figure width="440" src="./babbage-engine.jpg" alt="The 1832 demonstration portion of Babbage’s Difference Engine No. 1, with its columns of brass gears and hand crank."
 [Difference Engine No. 1, 1832](https://commons.wikimedia.org/wiki/File:Babbages_difference_engine_1832.jpg) — Sebastian Wallroth, public domain.
 :::
 
-"Programming" is just problem solving: iterating, thinking, working to understand the shape of a problem and then specifying its solution in some repeatable form.
-We used to solve software-shaped problems with artisinal human-directed next-character-prediction of symbolic code, but really, it doesn't even have to be any formal language at all - recipe writing is programming, too.
+Programming, then, is just reified problem solving: iterating, thinking, working to understand the shape of a problem and then specifying its solution in some repeatable form.
+We used to solve software-shaped problems with artisinal human-directed next-character-prediction of symbolic code, but really, it doesn't even have to be any formal language at all.
 
-The idea of programming beyond code is almost as old as code itself, and there are many existing approaches to higher order programming.
-Indeed, game developers have been doing this for decades!
-Early on, game development was also a complete schlep, and only a tiny guild of brilliant nerds could pull off presentable commercial games.
+The idea of programming beyond code is as old as code itself, and there is broad and successful prior art on "higher order programming".
+Most prominently, game developers have been doing this for _decades_:
+early on, game development was also a complete schlep, and only a tiny guild of brilliant nerds could pull off presentable commercial games.
 
-In the early days, to get a game started, everyone had to write their own graphics, networking, scripting, asset pipelines, editors - a whole engine for every game, on top of the actual game!
+Initially, to build a game, _everyone_ had to write their own graphics, networking, scripting, asset pipelines, editors - a whole engine for every game, on top of the actual game!
 Then, eventually, we figured out how to package the hard bits into reusable components and evolve more complete, higher level packages of reusable software components we call a "game engine".
 
 :::figure width="480" src="./ibm-extra-engineers.jpg" alt="IBM’s 1951 advertisement, 150 Extra Engineers, showing rows of engineers doing calculations."
 [150 Extra Engineers, 1951](https://commons.wikimedia.org/wiki/File:IBM_150_Extra_Engineers_1951.jpg) — IBM.
 :::
-<!--:::figure width="640" src="./ubiart.gif" alt="An artist assembles and poses a hand-drawn character directly in UbiArt, with the artwork and animation rig side by side."
-[Character editing in UbiArt](https://www.youtube.com/watch?v=B_QhZYTukac&t=35s) — Ubisoft, demonstration excerpt.
-:::-->
 
-Initially, like many abstractions, game engines didn't provide quite the same level breadth and depth as just controlling the underlying level directly.
-But building a typical game with an engine is much more productive, it enables a new scale of project, and it empowers a type of contributor that was impossible before - designers, writers, and artists, could now contribute _directly_.
+Like with most new abstractions, game engines didn't provide the same level of control as the underlying level - at first.
+Quickly, building with a game engine became so much more productive that it enabled a new scale of project, and empowered a new type of contributor - designers, writers, and artists, could now contribute _directly_.
 
-Over all these years, games never superseded code per se, even as a lot of code was abstracted away for use cases that previously required it.
+Over all these years games never "superseded" code as such, even as a lot of code was abstracted away for use cases that previously required it.
 It's still important, but, thanks to modern game engines, you can now build and ship real commercial games without thinking in code.
 
-Similarly, we now also need a "software engine": a "game engine"-like separation between _integrated_ "platform software" building blocks and "userland software" and extensions. 
-Sometimes, when building a game, you playtest the game, sometimes you edit the game, sometimes you build new tools to help you edit the game - but it's all part of _one_ integrated process.
+Software at large is now in the same position.
+We have figured out, roughly, the principal components, but they're all over the place and everyone rebuilds their same slice of the stack over and over again.
+Now, we also need a "software engine": a "game engine"-like abstraction of _integrated_ "platform software" building blocks for a new level of "userland software". 
+<!--Sometimes, when building a game, you playtest the game, sometimes you edit the game, sometimes you build new tools to help you edit the game - but it's all part of _one_ integrated process.-->
 
 # The System and The Scaffolding
 
 Fundamentally, there is not a single test, certificate, proof, or "gate" that you can run to convince me that some non-trivial software program is correct.
-The correctness of any complex software systems spans many granuliarities, and mathematical "proof", green tests, smoke tests, and passing gates all mean nothing if it's not what I actually _meant_ (and that may evolve! ).
+The correctness of any complex software systems spans many granuliarities, and mathematical "proof", green tests, smoke tests, and passing gates all mean nothing if it's not what I actually _meant_.
 
-Yet, the primary objective of "software factories" seems to be about _removing_ oneself from _all_ the details without any sufficient higher order specification to anchor the process.
-In very short order, steering exclusively through a chatbox makes it almost impossible to figure out where to go next and how to get there.
+Oddly, the primary objective of "software factories" seems to be about _removing_ oneself from _all_ the details without any sufficient higher order specification to anchor this new higher order process.
+In very short order, steering exclusively through the peephole of a chat window makes it almost impossible to figure out where to go next and how to get there.
 
 :::figure width="480" src="./vault-centering.png" alt="Cutaway drawing of a masonry vault under construction, with curved timber frames supporting the unfinished vault."
 [Timber centering supporting a masonry vault, 1856](https://commons.wikimedia.org/wiki/File:Construction.voute.romaine.png) — Eugène Viollet-le-Duc, public domain.
 :::
 
-To only way to judge the correctness of general purpose software is to look, to see the software in motion under many different angles and granularities.
-Notably, this is not an intelligence problem! 
-It's a human problem, and it's a real world problem - I just don't know what I want until I see it.
+To only way to judge correctness for general purpose software - that is: does it do what it should? - is to look, to see the software in motion under many different angles and granularities.
+Notably, this is not an intelligence problem at all - it's a human problem, and a real world integration problem; I just don't know what I want until I see it.
 
-The correctness of a system is an iterative process; its alignment must be continuous as the shape of the problem shifts.
-This has always been true for any real symbolic software, but it is especially true for probabilstic software, and it's also prticularly difficult with a large, fragmented stack.
+Building any software system and making sure it works and keeps working is an iterative process that requires constant feedback and continuous alignment as the shape and understanding of the problem evolves.
+This has always been true for "traditional" symbolic software, and it is even more important for probabilistic software - and it's also exponentially harder to do properly within a sprawling fragmented stack that is _already_ hard to test and observe in motion.
 
-Our tools for building, interacting with, understanding software are astoundingly primitive.
-I want to understand shape of software and the space of all possible software that solves all the problems I'm interested in, and then navigate that efficiently.
+Despite half a century of development, our tools for building and understanding software systems are surprisingly primitive.
+We _still_ struggle with "works on my machine", and reproducing observed issues in the "laboratory" is virtually impossible.
 If software is going to run _everything_, faster than anyone can verify, how do we make sure it's the right software, built the right way?
 
 # The Destack
