@@ -1,4 +1,4 @@
-import { expect, test } from "vitest";
+import { expect, test } from "@destack/test";
 import { schema } from "../index.ts";
 import { compareJsonSchemas, type SchemaComparison } from "./compare.ts";
 import { toJsonSchema } from "./schema.ts";

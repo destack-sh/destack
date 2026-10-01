@@ -1,4 +1,4 @@
-import { expect, test } from "vitest";
+import { expect, test } from "@destack/test";
 import { Version } from "./version.ts";
 
 test("order calendar versions by year, month and release, nightly builds before their release", () => {

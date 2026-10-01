@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { requireDeclarable } from "../validate/schema.ts";
+import { requireDeclarable } from "../validate/declarable.ts";
 
 /** The JSON Schema Draft 2020-12 description for inspection and external tooling. */
 export type JsonSchema = z.core.JSONSchema.JSONSchema;

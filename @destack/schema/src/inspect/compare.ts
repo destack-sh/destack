@@ -1,10 +1,8 @@
+import { canonicalize } from "../json/json.ts";
 import type { JsonSchema } from "./schema.ts";
 
 /** How the values a schema accepts changed, from the same values to unrelated ones. */
-export const SCHEMA_COMPARISONS = ["same", "wider", "narrower", "incompatible"] as const;
-
-/** How the values a schema accepts changed, from the same values to unrelated ones. */
-export type SchemaComparison = (typeof SCHEMA_COMPARISONS)[number];
+export type SchemaComparison = "same" | "wider" | "narrower" | "incompatible";
 
 /** The JSON value types a schema may accept. */
 const TYPES = ["string", "number", "integer", "boolean", "null", "array", "object"] as const;
@@ -523,20 +521,5 @@ function holdsBound(
 
 /** Compare two JSON values structurally. */
 function equals(left: unknown, right: unknown): boolean {
-    return JSON.stringify(canonical(left)) === JSON.stringify(canonical(right));
-}
-
-/** Sort object keys so equal values serialize equally. */
-function canonical(value: unknown): unknown {
-    if (Array.isArray(value)) {
-        return value.map(canonical);
-    } else if (typeof value === "object" && value !== null) {
-        return Object.fromEntries(
-            Object.entries(value)
-                .sort(([left], [right]) => (left < right ? -1 : 1))
-                .map(([key, entry]) => [key, canonical(entry)]),
-        );
-    }
-
-    return value;
+    return canonicalize(left) === canonicalize(right);
 }

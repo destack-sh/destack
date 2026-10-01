@@ -2,21 +2,6 @@ import { expect, test } from "@destack/test";
 import type { JsonValue } from "../json/json.ts";
 import { Expression } from "./expression.ts";
 
-test("assign fields computed from a row as it stands, keeping its other fields", () => {
-    const row = { text: "notes", limit: null };
-
-    expect(
-        Expression.assign(
-            {
-                query: Expression.column("text"),
-                limit: Expression.coalesce(Expression.column("limit"), Expression.literal(50)),
-                text: Expression.json(null),
-            },
-            row,
-        ),
-    ).toEqual({ text: null, limit: 50, query: "notes" });
-});
-
 test("upgrade partial records through each later release, leaving fields computed from absent fields absent", () => {
     // rename title to name in 2026.9.0, and default a new limit in 2026.10.0
     const conversions = {

@@ -269,19 +269,6 @@ export const Expression = {
         return names;
     },
 
-    /** Assign fields computed from a row's fields as it stands, keeping its other fields. */
-    assign(
-        assignments: Readonly<Record<string, Expression>>,
-        row: Readonly<Record<string, JsonValue>>,
-    ): Record<string, JsonValue> {
-        const fields = Object.entries(assignments).map(([field, expression]) => [
-            field,
-            Expression.evaluate(expression, row),
-        ]);
-
-        return { ...row, ...Object.fromEntries(fields) };
-    },
-
     /**
      * Upgrade a partial record of an earlier release through each later release's assignments, up to a release.
      *
