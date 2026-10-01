@@ -1,0 +1,41 @@
+{
+    "name": "@destack/registry",
+    "version": "2026.9.0",
+    "private": true,
+    "license": "MIT",
+    "type": "module",
+    "description": "Publish, resolve, and distribute Destack packages.",
+    "exports": {
+        "./object": "./src/object/index.ts",
+        "./server": "./src/server/index.ts",
+        "./stack": "./src/stack/index.ts",
+        "./pack": "./src/pack/index.ts",
+        "./service": "./src/service/index.ts",
+        "./client": "./src/client/index.ts"
+    },
+    "scripts": {
+        "check": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/audit": "workspace:*",
+        "@destack/build": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/service": "workspace:*",
+        "@destack/sync": "workspace:*",
+        "@destack/telemetry": "workspace:*",
+        "semver": "7.8.5"
+    },
+    "devDependencies": {
+        "@destack/directory": "workspace:*",
+        "@destack/bucket": "workspace:*",
+        "@destack/test": "workspace:*",
+        "@types/semver": "7.8.0"
+    }
+}
