@@ -13,8 +13,7 @@ test("keep each call in the history of its scope", async () => {
         const scope = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
         const recorder = new AuditRecorder(
             {
-                actor: { type: "system" as const, name: "integration" },
-                delegation: [],
+                caller: { type: "system" as const, name: "integration" },
                 package: renameDocument.package,
                 service: "document",
                 scope,

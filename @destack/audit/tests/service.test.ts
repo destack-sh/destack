@@ -8,7 +8,7 @@ import { defineAuditAction } from "../src/action/index.ts";
 import { createAuditClient } from "../src/client/index.ts";
 import { implementService } from "../src/server/index.ts";
 import { Server } from "@destack/service/server";
-import { Caller } from "@destack/service/authentication";
+import { Authentication } from "@destack/service/authentication";
 import { ResourceContext } from "@destack/resource/context";
 import { PackageId } from "@destack/package";
 import {
@@ -64,8 +64,7 @@ test("authorize producers and readers, stream history, and record denied access"
     try {
         // bind the producer context
         const context = AuditContext.parse({
-            actor: { type: "system", name: "document" },
-            delegation: [],
+            caller: { type: "system", name: "document" },
             package: publishDocument.package,
             service: "document",
             scope: "account-01995da9-7223-7000-8000-000000000001",
@@ -112,7 +111,7 @@ test("authorize producers and readers, stream history, and record denied access"
                 access: { authorizer, database },
                 record: (request) =>
                     AuditRecorder.from(
-                        request.caller,
+                        request.authentication,
                         journal,
                         {
                             package: publishDocument.package,
@@ -127,7 +126,7 @@ test("authorize producers and readers, stream history, and record denied access"
             resources: new ResourceContext(),
             health: new Health("audit"),
             authenticate: async () =>
-                new Caller({
+                new Authentication({
                     credential: { kind: "fixture", id: "fixture" },
                     audience: publishDocument.package.id,
                     subject: principal.user.reference("universe", "reader"),

@@ -1,18 +1,13 @@
 import { defineSchema, schema } from "@destack/schema";
 import { identifier } from "@destack/schema/identifier";
 import { Package } from "@destack/package";
-import { AuditActor } from "./actor.ts";
-import { Subject } from "@destack/sync";
+import { AuditCaller } from "./actor.ts";
 
 /** The authority and origin of an executed call, as its host supplied them. */
 export const AuditContext = defineSchema(
     schema.object({
-        /** The authenticated actor performing the call. */
-        actor: AuditActor,
-        /** The subject the actor acts for. */
-        subject: Subject.optional(),
-        /** The delegators, from the initiator to the immediate delegator. */
-        delegation: schema.array(AuditActor),
+        /** The caller: a verified subject with its delegates, the platform, or an anonymous caller. */
+        caller: AuditCaller,
         /** The scope whose history receives the call. */
         scope: schema.string().min(1),
         /** The package serving the call. */

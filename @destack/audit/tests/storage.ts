@@ -55,8 +55,7 @@ export class AuditStorage {
         this.history = new AuditHistory(database);
         this.recorder = new AuditRecorder(
             {
-                actor: { type: "system", name: "integration" },
-                delegation: [],
+                caller: { type: "system", name: "integration" },
                 package: renameDocument.package,
                 service: "document",
                 scope: "universe",

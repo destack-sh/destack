@@ -1,10 +1,10 @@
 import { expect, test } from "@destack/test";
-import { Caller } from "@destack/service/authentication";
+import { Authentication } from "@destack/service/authentication";
 import { ServiceContext } from "@destack/service/server";
 import { ResourceContext } from "@destack/resource/context";
 import { ServiceError } from "@destack/service";
 import { identifier } from "@destack/schema";
-import { AuditRecorder } from "../src/record/index.ts";
+import { AuditCaller, AuditRecorder } from "../src/record/index.ts";
 import { AuditStorage, renameDocument, rename } from "./storage.ts";
 import { principal } from "@destack/access";
 
@@ -39,23 +39,23 @@ test("persist verified caller identities and tell apart identities of different 
         ];
         const calls = [];
         const credential = { kind: "token", id: "token-1", secret: "must never be recorded" };
-        for (const authentication of requests) {
-            const caller = new Caller({
-                ...authentication,
+        for (const claims of requests) {
+            const authentication = new Authentication({
+                ...claims,
                 credential,
                 audience: origin.package.id,
-                subjects: [authentication.subject],
+                subjects: [claims.subject],
                 verifiedAt: now,
                 expiresAt: now + 60000,
             });
             const request = new ServiceContext(new Request("https://example.test"), {
                 audience: origin.package.id,
                 scope: "universe",
-                caller,
+                authentication,
                 resources: new ResourceContext(),
             });
             const recorder = AuditRecorder.from(
-                request.caller,
+                request.authentication,
                 storage.journal,
                 origin,
                 request.requestId,
@@ -69,14 +69,14 @@ test("persist verified caller identities and tell apart identities of different 
         const rejected = new ServiceContext(new Request("https://example.test"), {
             audience: origin.package.id,
             scope: "universe",
-            caller: null,
+            authentication: null,
             resources: new ResourceContext(),
             authenticationError: new ServiceError("UNAUTHORIZED", {
                 message: "invalid bearer credential",
             }),
         });
         const recorder = AuditRecorder.from(
-            rejected.caller,
+            rejected.authentication,
             storage.journal,
             origin,
             rejected.requestId,
@@ -88,23 +88,20 @@ test("persist verified caller identities and tell apart identities of different 
         // compare the full recorded identity
         const person = { type: "subject", subject: represented };
         const local = { type: "subject", subject: { ...represented, scope: "host-example" } };
-        const software = { type: "subject", subject: actor };
         const share = {
             type: "subject",
             subject: principal.installation.reference("space-example", "share"),
         };
         expect(calls.map((call) => call.execution.context)).toEqual([
-            { ...origin, actor: person, subject: person.subject, delegation: [] },
-            { ...origin, actor: local, subject: local.subject, delegation: [] },
+            { ...origin, caller: person },
+            { ...origin, caller: local },
             {
                 ...origin,
-                actor: software,
-                subject: person.subject,
-                delegation: [person],
+                caller: { ...person, delegates: [{ subject: actor, authority: "lent" }] },
                 deploymentId,
             },
-            { ...origin, actor: share, subject: share.subject, delegation: [] },
-            { ...origin, actor: { type: "anonymous" }, delegation: [] },
+            { ...origin, caller: share },
+            { ...origin, caller: { type: "anonymous" } },
         ]);
 
         // read the identities back through delivery and history queries
@@ -112,7 +109,7 @@ test("persist verified caller identities and tell apart identities of different 
         for (const event of calls) {
             const page = await storage.history.list({
                 scope: "universe",
-                actor: event.execution.context.actor,
+                actor: AuditCaller.actor(event.execution.context.caller),
                 limit: 10,
             });
             expect(page.items.map((record) => record.call)).toEqual([event]);

@@ -1,4 +1,4 @@
-import { AuditActor } from "./actor.ts";
+import { AuditCaller } from "./actor.ts";
 import { AuditCall } from "./call.ts";
 import { AuditContext } from "./context.ts";
 import { AuditExecution } from "./execution.ts";
@@ -7,7 +7,7 @@ import { identifier, schema } from "@destack/schema";
 import { canonicalize } from "@destack/schema/json";
 import { Failure, Outcome, Subject } from "@destack/sync";
 import { denialOf, ServiceError } from "@destack/service";
-import type { Caller } from "@destack/service/authentication";
+import type { Authentication } from "@destack/service/authentication";
 import {
     domainFailure,
     type ProcedureAudit,
@@ -20,10 +20,7 @@ import { AuditError } from "../error/index.ts";
 import { invokeService } from "./action.ts";
 
 /** The host-selected origin of calls. */
-export type AuditOrigin = Omit<
-    AuditContext,
-    "actor" | "subject" | "delegation" | "deploymentId" | "traceId"
->;
+export type AuditOrigin = Omit<AuditContext, "caller" | "deploymentId" | "traceId">;
 
 /** The durable store of recorded calls. */
 export interface AuditWriter<Transaction = never> {
@@ -84,23 +81,27 @@ export class AuditRecorder<Transaction = never> {
 
     /** Record under a verified caller, or none, with the active trace. */
     static from<Transaction>(
-        caller: Caller | null,
+        caller: Authentication | null,
         writer: AuditWriter<Transaction>,
         origin: AuditOrigin,
         requestId?: string,
     ): AuditRecorder<Transaction> {
-        // split the caller into subject, delegation and acting principal
-        const authentication = caller?.authentication;
-        const delegates = (authentication?.delegates ?? []).map((delegate) => delegate.subject);
-        const acting = delegates.at(-1) ?? authentication?.subject;
-        const delegation =
-            authentication && delegates.length > 0
-                ? [authentication.subject, ...delegates.slice(0, -1)]
-                : [];
+        // record the represented subject and its delegates, and read who acted
+        const claims = caller?.claims;
+        const recorded: AuditCaller =
+            claims === undefined
+                ? { type: "anonymous" }
+                : {
+                      type: "subject",
+                      subject: claims.subject,
+                      ...(claims.delegates === undefined ? {} : { delegates: claims.delegates }),
+                  };
+        const actor = AuditCaller.actor(recorded);
+        const acting = actor.type === "subject" ? actor.subject : undefined;
 
         // select the acting principal's deployment, and the session or token the caller presented
         const deploymentId = acting
-            ? authentication?.deployments?.find((entry) => Subject.same(entry.subject, acting))?.id
+            ? claims?.deployments?.find((entry) => Subject.same(entry.subject, acting))?.id
             : undefined;
         const presented = caller?.credential.id;
         const session = identifier("session").safeParse(presented);
@@ -110,9 +111,7 @@ export class AuditRecorder<Transaction = never> {
         return new AuditRecorder(
             {
                 ...origin,
-                actor: acting ? actorOf(acting) : { type: "anonymous" },
-                subject: authentication?.subject,
-                delegation: delegation.map(actorOf),
+                caller: recorded,
                 deploymentId,
                 sessionId: session.success ? session.data : origin.sessionId,
                 tokenId: token.success ? token.data : origin.tokenId,
@@ -132,7 +131,7 @@ export class AuditRecorder<Transaction = never> {
             context === undefined
                 ? AuditRecorder.system(writer, { ...origin, scope })
                 : AuditRecorder.from(
-                      context.authenticationError === undefined ? context.caller : null,
+                      context.authenticationError === undefined ? context.authentication : null,
                       writer,
                       { ...origin, scope },
                       context.requestId,
@@ -149,8 +148,7 @@ export class AuditRecorder<Transaction = never> {
         return new AuditRecorder(
             {
                 ...origin,
-                actor: { type: "system", name: origin.service },
-                delegation: [],
+                caller: { type: "system", name: origin.service },
                 traceId: span && isSpanContextValid(span) ? span.traceId : undefined,
             },
             writer,
@@ -473,8 +471,3 @@ export class AuditRecorder<Transaction = never> {
 
 /** The recorder methods a procedure's audit uses. */
 type ProcedureRecorder = Pick<AuditRecorder<unknown>, "record">;
-
-/** Describe a verified subject as the actor it records. */
-function actorOf(subject: Subject): AuditActor {
-    return { type: "subject", subject };
-}

@@ -1,4 +1,4 @@
-import { AuditActor } from "../record/actor.ts";
+import { AuditActor, AuditCaller } from "../record/actor.ts";
 import { AuditCall } from "../record/call.ts";
 import { v7 } from "uuid";
 import {
@@ -60,7 +60,7 @@ export class AuditHistory {
                 scope,
                 method: call.method,
                 packageId: execution.context.package.id,
-                actor: actorKey(execution.context.actor),
+                actor: actorKey(AuditCaller.actor(execution.context.caller)),
                 category: execution.category,
                 outcome: execution.outcome?.kind ?? null,
                 startedAt: execution.startedAt,
