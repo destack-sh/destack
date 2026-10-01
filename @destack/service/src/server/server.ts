@@ -225,6 +225,7 @@ export class Server implements AsyncDisposable {
             access: options.access,
             authenticationError,
             capabilities,
+            ...(options.clock === undefined ? {} : { clock: options.clock }),
         });
     }
 
@@ -442,6 +443,8 @@ export interface ServiceImplementation extends Omit<HandlerOptions<ServiceContex
     route?(request: Request, context: ServiceContext): Promise<Response | undefined>;
     /** The service's controllers. */
     readonly controllers?: readonly Controller[];
+    /** Read the current time calls run at, in UTC epoch milliseconds, the system clock by default. */
+    readonly clock?: () => number;
 }
 
 /** Attach the request's watermarks to its response. */

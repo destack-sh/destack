@@ -38,6 +38,8 @@ export class ServiceContext {
     readonly capabilities: readonly string[];
     /** The watermarks the caller requires. */
     readonly bookmark: Bookmark;
+    /** Read the current time calls run at. */
+    readonly clock: () => number;
     /** The watermarks this request's writes reached. */
     readonly observed = new Bookmark();
     /** The caller's authorization under the service's policies. */
@@ -64,6 +66,7 @@ export class ServiceContext {
         this.resources = resources;
         this.authenticationError = authenticationError;
         this.capabilities = capabilities;
+        this.clock = options.clock ?? Date.now;
         this.bookmark = Bookmark.parse(request.headers.get(BOOKMARK_HEADER));
 
         // authorize the caller under the service's policies
@@ -115,8 +118,8 @@ export class ServiceContext {
 
         // read the caller's or an anonymous context with capabilities
         const context = this.caller
-            ? this.caller.context(this.audience, this.caller.within(Date.now()), scope)
-            : { subjects: [], attributes: {}, now: Date.now() };
+            ? this.caller.context(this.audience, this.caller.within(this.clock()), scope)
+            : { subjects: [], attributes: {}, now: this.clock() };
 
         return this.capabilities.length === 0
             ? context
@@ -140,6 +143,8 @@ export interface ServiceContextOptions {
     readonly authenticationError?: unknown;
     /** The digests of the presented capabilities. */
     readonly capabilities?: readonly string[];
+    /** Read the current time calls run at, the system clock by default. */
+    readonly clock?: () => number;
 }
 
 /** The policies and database that decide a service's calls. */
