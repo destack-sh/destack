@@ -14,7 +14,7 @@ import {
 } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { replicaTables, type Replica } from "../replica/replica.ts";
-import type { Outbox } from "../outbox/outbox.ts";
+import type { Prediction } from "../prediction/prediction.ts";
 import type { QueryPage } from "../query/page.ts";
 import { schema } from "@destack/schema";
 
@@ -234,9 +234,9 @@ export async function replicate(
     copy: Replica,
     database: DatabaseConnection,
     pages: readonly QueryPage[],
-    outbox?: Outbox,
+    prediction?: Prediction,
 ): Promise<void> {
-    for await (const _page of copy.apply(database, pages, outbox)) {
+    for await (const _page of copy.apply(database, pages, prediction)) {
         // apply each page in order
     }
 }

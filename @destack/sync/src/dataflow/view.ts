@@ -52,6 +52,18 @@ export class View {
         return new View(database, await database.log.reached(), undefined, Snapshot.live(database));
     }
 
+    /** Show a database as a snapshot reads it, or as its open transaction reads it now. */
+    static async of(database: DatabaseConnection, snapshot: Snapshot | undefined): Promise<View> {
+        return snapshot === undefined
+            ? View.latest(database)
+            : new View(
+                  database,
+                  snapshot.position ?? (await database.log.reached()),
+                  undefined,
+                  snapshot,
+              );
+    }
+
     /** Read the rows of a table matching each match's values, aligned with the matches. */
     async lookup(table: Table, matches: readonly Row[]): Promise<(readonly Row[])[]> {
         // name each complete match's read

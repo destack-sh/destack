@@ -88,8 +88,8 @@ A `Replica` copies one scope's query results into another database.
 
 ```ts
 const copy = new Replica({ name: "board", scope: spaceId, tables: [project, task] });
-await copy.follow(local, (after, signal) => feed.subscribe({ board }, after, signal), signal, { outbox });
-const projects = await copy.rows(local, "board", board, outbox);
+await copy.follow(local, (after, signal) => feed.subscribe({ board }, after, signal), signal, { prediction });
+const projects = await copy.rows(local, "board", board, prediction);
 ```
 
 A table in `within` is copied across scopes: its rows live in the scopes that another copied table's rows are.
@@ -111,17 +111,21 @@ const request = { name: "chain", scope: accountId, below: spaceId, access: true,
 await copy.follow(local, (after, signal) => source.stream({ ...request, after }, signal), signal, { request });
 ```
 
-## Outboxes
+## Predictions
 
-An `Outbox` holds a client's mutations, predicted locally, until the source executes or rejects them.
+A `Prediction` shows a client's queued mutations over its copy, in layers: the main line's mutations, then a checked-out branch's rows, then the branch's own queued edits.
 
 ```ts
-const outbox = new Outbox([project, task], predict, reach);
-const result = await outbox.add(local, mutationId, origin, async (transaction) => ({ calls, result: await rename(transaction) }));
-await outbox.checkout(local, "draft");
-await outbox.merge(local, "draft");
-const next = await outbox.pending(local, { limit: 100 });        // the mutations the next push carries
-const { pending, executed, rejected } = await outbox.inspect(local);
+const prediction = new Prediction([project, task], predict, reach, branches);
+const result = await prediction.add(local, mutationId, origin, async (transaction) => ({ calls, result: await rename(transaction) }));
+await prediction.checkout(local, branchId);                      // edits now queue for the branch
+```
+
+Its `Outbox` keeps the queue until the source executes or rejects each mutation.
+
+```ts
+const next = await prediction.outbox.pending(local, { limit: 100 }); // the mutations the next push carries
+const { pending, executed, rejected } = await prediction.outbox.inspect(local);
 ```
 
 ## Trackers

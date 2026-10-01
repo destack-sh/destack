@@ -7,30 +7,20 @@ import {
     integer,
     isNull,
     json,
-    Key,
     lt,
     lte,
     max,
-    ne,
-    or,
     inArray,
     isNotNull,
     text,
-    TABLE,
     sql,
     type DatabaseConnection,
     type SQL,
-    type Table,
-    encodeRow,
-    decodeRow,
 } from "@destack/db";
 import { Condition } from "@destack/db/query";
 import { defineSchema, schema, Version } from "@destack/schema";
 import type { LogPosition } from "@destack/db/log";
-import { RowChange, type MutationOutcome } from "../query/page.ts";
-
-/** The most changes one read of a prediction takes. */
-const RECORD_CHANGES = 1000;
+import type { MutationOutcome } from "../query/page.ts";
 
 /** One method call within a mutation. */
 export const Call = defineSchema(
@@ -81,107 +71,78 @@ export const mutation = defineTable("mutation", {
     position: integer("position").notNull().unique(),
     /** The calls. */
     calls: json("calls", schema.array(Call)).notNull(),
-    /** The mutation's predicted changes, as JSON text. */
-    changes: text("changes").notNull(),
-    /** The tables its prediction reads or writes, as a JSON array of SQL names. */
-    reach: text("reach").notNull(),
+    /** The identifier of the branch the calls are pushed to, absent on the main line. */
+    branch: text("branch"),
     /** The server log's epoch of the executed mutation. */
     epoch: text("epoch"),
     /** The server log sequence of the mutation's changes. */
     sequence: integer("sequence"),
     /** The failure the server recorded. */
     error: json("error", schema.json()),
-    /** The branch holding the mutation, absent on the main line. */
-    branch: text("branch"),
 });
 
-/** The branch a client's copy shows over the main line. */
-export const checkout = defineTable("checkout", {
-    /** The one row's key. */
-    slot: integer("slot").primaryKey(),
-    /** The checked-out branch. */
-    branch: text("branch").notNull(),
-});
-
-/** The tables of a client's outbox. */
-export const outboxTables = [mutation, checkout] as const;
-
-/** A client's durable, ordered outbox of mutations, predicted locally. */
+/** A client's durable, ordered queue of mutations waiting for the server. */
 export class Outbox {
-    /** The tables predictions change. */
-    readonly tables: ReadonlyMap<string, Table>;
-    /** Predict a mutation inside a transaction. */
-    readonly #predict: (transaction: DatabaseConnection, mutation: Mutation) => Promise<unknown>;
-    /** Name the tables a call's prediction may read. */
-    readonly #reach: (call: Call) => readonly string[];
-
-    /** Create the outbox. */
-    constructor(
-        tables: readonly Table[],
-        predict: (transaction: DatabaseConnection, mutation: Mutation) => Promise<unknown>,
-        reach: (call: Call) => readonly string[],
-    ) {
-        this.tables = new Map(tables.map((table) => [table[TABLE].sqlName, table]));
-        this.#predict = predict;
-        this.#reach = reach;
-    }
-
-    /** Decide whether a page changing some tables reaches a pending prediction. */
-    async reaches(database: DatabaseConnection, changed: ReadonlySet<string>): Promise<boolean> {
-        const rows = await database
-            .select({ reach: mutation.reach })
-            .from(mutation)
-            .where(isNull(mutation.error));
-
-        return rows.some((row) =>
-            (JSON.parse(row.reach) as string[]).some((table) => changed.has(table)),
-        );
-    }
-
-    /** Name the tables a mutation's prediction reads or writes. */
-    #reached(calls: readonly Call[], changes: readonly RowChange[]): string {
-        const tables = new Set([
-            ...calls.flatMap((call) => this.#reach(call)),
-            ...changes.map((change) => change.table),
-        ]);
-
-        return JSON.stringify([...tables].sort());
-    }
-
-    /** Predict and add a mutation, returning its calls' result. */
-    async add<Result>(
-        database: DatabaseConnection,
-        id: string,
-        origin: string,
-        predict: (
-            transaction: DatabaseConnection,
-        ) => Promise<{ readonly calls: readonly Call[]; readonly result: Result }>,
-    ): Promise<Result> {
-        // predict and append in one transaction
-        return database.transaction(async (transaction) => {
-            // predict the calls and note their changes
-            const { calls, result } = await this.#record(transaction, predict);
-            const branch = await this.checkedOut(transaction);
-
-            // append the mutation to the outbox
-            const [last] = await transaction
-                .select({ position: max(mutation.position) })
-                .from(mutation);
-            await transaction.insert(mutation).values({
-                id,
-                origin,
-                position: (last?.position ?? 0) + 1,
-                calls: [...calls],
-                changes: JSON.stringify(result.changes),
-                reach: this.#reached(calls, result.changes),
-                sequence: null,
-                epoch: null,
-                error: null,
-                branch: branch ?? null,
-            });
-
-            return result.value;
+    /** Append a mutation after every other. */
+    async append(
+        transaction: DatabaseConnection,
+        entry: {
+            /** The request identifier. */
+            readonly id: string;
+            /** The party queueing it. */
+            readonly origin: string;
+            /** The calls. */
+            readonly calls: readonly Call[];
+            /** The branch the calls are pushed to, absent on the main line. */
+            readonly branch: string | undefined;
+        },
+    ): Promise<void> {
+        const [last] = await transaction
+            .select({ position: max(mutation.position) })
+            .from(mutation);
+        await transaction.insert(mutation).values({
+            id: entry.id,
+            origin: entry.origin,
+            position: (last?.position ?? 0) + 1,
+            calls: [...entry.calls],
+            branch: entry.branch ?? null,
+            epoch: null,
+            sequence: null,
+            error: null,
         });
+    }
+
+    /** Read the mutations the server has not rejected, in order. */
+    async queued(
+        database: DatabaseConnection,
+    ): Promise<{ readonly id: string; readonly calls: Call[]; readonly branch: string | null }[]> {
+        return database
+            .select({ id: mutation.id, calls: mutation.calls, branch: mutation.branch })
+            .from(mutation)
+            .where(isNull(mutation.error))
+            .orderBy(asc(mutation.position));
+    }
+
+    /** Read the mutations waiting for the server, in order, with the branch each pushes to. */
+    async pending(
+        database: DatabaseConnection,
+        options: {
+            /** The most mutations to read, every pending one when absent. */
+            readonly limit?: number;
+        } = {},
+    ): Promise<(Mutation & { readonly branch?: string })[]> {
+        const query = database
+            .select({ id: mutation.id, calls: mutation.calls, branch: mutation.branch })
+            .from(mutation)
+            .where(and(isNull(mutation.epoch), isNull(mutation.error)))
+            .orderBy(asc(mutation.position));
+        const rows = await (options.limit === undefined ? query : query.limit(options.limit));
+
+        return rows.map((row) => ({
+            id: row.id,
+            calls: row.calls,
+            ...(row.branch === null ? {} : { branch: row.branch }),
+        }));
     }
 
     /** Count the pending, unconfirmed and rejected mutations. */
@@ -192,161 +153,13 @@ export class Outbox {
         const when = (condition: SQL | undefined) => count(sql`CASE WHEN ${condition} THEN 1 END`);
         const [counts] = await database
             .select({
-                pending: when(
-                    and(isNull(mutation.epoch), isNull(mutation.error), isNull(mutation.branch)),
-                ),
+                pending: when(and(isNull(mutation.epoch), isNull(mutation.error))),
                 executed: when(and(isNotNull(mutation.epoch), isNull(mutation.error))),
                 rejected: when(isNotNull(mutation.error)),
             })
             .from(mutation);
 
         return counts!;
-    }
-
-    /** Read the mutations waiting for the server, in order. */
-    async pending(
-        database: DatabaseConnection,
-        options: {
-            /** The most mutations to read, every pending one when absent. */
-            readonly limit?: number;
-        } = {},
-    ): Promise<Mutation[]> {
-        const query = database
-            .select({ id: mutation.id, calls: mutation.calls })
-            .from(mutation)
-            .where(and(isNull(mutation.epoch), isNull(mutation.error), isNull(mutation.branch)))
-            .orderBy(asc(mutation.position));
-        const rows = await (options.limit === undefined ? query : query.limit(options.limit));
-
-        return rows.map((row) => ({ id: row.id, calls: row.calls }));
-    }
-
-    /** Read the checked-out branch. */
-    async checkedOut(database: DatabaseConnection): Promise<string | undefined> {
-        const [row] = await database.select({ branch: checkout.branch }).from(checkout);
-
-        return row?.branch;
-    }
-
-    /** List the branches holding mutations. */
-    async branches(database: DatabaseConnection): Promise<string[]> {
-        const rows = await database
-            .selectDistinct({ branch: mutation.branch })
-            .from(mutation)
-            .where(isNotNull(mutation.branch))
-            .orderBy(asc(mutation.branch));
-
-        return rows.map((row) => row.branch!);
-    }
-
-    /** Show a branch over the main line, or the main line alone. */
-    async checkout(database: DatabaseConnection, branch: string | undefined): Promise<void> {
-        await this.#rebase(database, async (transaction) => {
-            await transaction.delete(checkout);
-            if (branch !== undefined) {
-                await transaction.insert(checkout).values({ slot: 1, branch });
-            }
-        });
-    }
-
-    /** Move a branch's mutations onto the main line after its pending ones. */
-    async merge(database: DatabaseConnection, branch: string): Promise<void> {
-        await this.#rebase(database, async (transaction) => {
-            // number the branch's mutations after every other
-            const [last] = await transaction
-                .select({ position: max(mutation.position) })
-                .from(mutation);
-            const moved = await transaction
-                .select({ id: mutation.id })
-                .from(mutation)
-                .where(eq(mutation.branch, branch))
-                .orderBy(asc(mutation.position));
-            for (const [index, row] of moved.entries()) {
-                await transaction
-                    .update(mutation)
-                    .set({ position: (last?.position ?? 0) + index + 1, branch: null })
-                    .where(eq(mutation.id, row.id));
-            }
-
-            // check out the main line after merging the checked-out branch
-            await transaction.delete(checkout).where(eq(checkout.branch, branch));
-        });
-    }
-
-    /** Read a branch's calls in order, as one line of calls a shared branch keeps. */
-    async calls(database: DatabaseConnection, branch: string): Promise<Call[]> {
-        const rows = await database
-            .select({ calls: mutation.calls })
-            .from(mutation)
-            .where(eq(mutation.branch, branch))
-            .orderBy(asc(mutation.position));
-
-        return rows.flatMap((row) => row.calls);
-    }
-
-    /** Replace a branch's mutations with one mutation of a shared branch's calls. */
-    async receive(
-        database: DatabaseConnection,
-        branch: string,
-        id: string,
-        origin: string,
-        calls: readonly Call[],
-    ): Promise<void> {
-        await this.#rebase(database, async (transaction) => {
-            // drop the branch's own mutations
-            await transaction.delete(mutation).where(eq(mutation.branch, branch));
-            if (calls.length === 0) {
-                return;
-            }
-
-            // append the shared calls after every other mutation, predicted on replay
-            const [last] = await transaction
-                .select({ position: max(mutation.position) })
-                .from(mutation);
-            await transaction.insert(mutation).values({
-                id,
-                origin,
-                position: (last?.position ?? 0) + 1,
-                calls: [...calls],
-                changes: "[]",
-                reach: "[]",
-                sequence: null,
-                epoch: null,
-                error: null,
-                branch,
-            });
-        });
-    }
-
-    /** Remove a branch's mutations. */
-    async discard(database: DatabaseConnection, branch: string): Promise<void> {
-        await this.#rebase(database, async (transaction) => {
-            await transaction.delete(mutation).where(eq(mutation.branch, branch));
-            await transaction.delete(checkout).where(eq(checkout.branch, branch));
-        });
-    }
-
-    /** Change the outbox between reverting and predicting again. */
-    async #rebase(
-        database: DatabaseConnection,
-        change: (transaction: DatabaseConnection) => Promise<void>,
-    ): Promise<void> {
-        await database.transaction(async (transaction) => {
-            await transaction.log.copying(() => this.revert(transaction));
-            await change(transaction);
-            await this.replay(transaction, []);
-        });
-    }
-
-    /** Read the predicted changes of unconfirmed mutations, in order. */
-    async predicted(database: DatabaseConnection): Promise<RowChange[]> {
-        const rows = await database
-            .select({ changes: mutation.changes })
-            .from(mutation)
-            .where(isNull(mutation.error))
-            .orderBy(asc(mutation.position));
-
-        return rows.flatMap((row) => JSON.parse(row.changes) as RowChange[]);
     }
 
     /** Wait until a committed mutation is pending, returning false once the signal aborts. */
@@ -367,6 +180,55 @@ export class Outbox {
             .update(mutation)
             .set({ epoch: position.epoch, sequence: position.sequence })
             .where(eq(mutation.id, id));
+    }
+
+    /** Record the server's rejection of a mutation. */
+    async reject(database: DatabaseConnection, id: string, error: unknown): Promise<void> {
+        await database
+            .update(mutation)
+            .set({ error: schema.json().parse(error) })
+            .where(eq(mutation.id, id));
+    }
+
+    /** Settle the mutations a page answered or a snapshot holds. */
+    async settle(
+        transaction: DatabaseConnection,
+        outcomes: readonly MutationOutcome[],
+        snapshot?: LogPosition,
+    ): Promise<void> {
+        // drop executed mutations and keep rejected ones
+        const executed = outcomes.filter((entry) => entry.error === undefined);
+        if (executed.length > 0) {
+            await transaction.delete(mutation).where(
+                Condition.render(
+                    Condition.oneOf(
+                        "id",
+                        executed.map((entry) => entry.id),
+                    ),
+                    Condition.bind(mutation),
+                ),
+            );
+        }
+        for (const entry of outcomes.filter((outcome) => outcome.error !== undefined)) {
+            await this.reject(transaction, entry.id, entry.error);
+        }
+
+        // drop what a snapshot holds, and push again what an earlier epoch executed
+        if (snapshot !== undefined) {
+            await transaction
+                .delete(mutation)
+                .where(
+                    and(
+                        isNull(mutation.error),
+                        eq(mutation.epoch, snapshot.epoch),
+                        lte(mutation.sequence, snapshot.sequence),
+                    ),
+                );
+            await transaction
+                .update(mutation)
+                .set({ epoch: null, sequence: null })
+                .where(and(isNotNull(mutation.epoch), lt(mutation.epoch, snapshot.epoch)));
+        }
     }
 
     /** Read mutations' outcomes in one statement. */
@@ -396,7 +258,7 @@ export class Outbox {
         );
     }
 
-    /** Read the origins holding mutations. */
+    /** Read the origins with queued mutations. */
     async origins(database: DatabaseConnection): Promise<Set<string>> {
         const rows = await database.selectDistinct({ origin: mutation.origin }).from(mutation);
 
@@ -414,195 +276,5 @@ export class Outbox {
                     id === undefined ? undefined : eq(mutation.id, id),
                 ),
             );
-    }
-
-    /** Record the server's rejection of a mutation. */
-    async reject(database: DatabaseConnection, id: string, error: unknown): Promise<void> {
-        await database
-            .update(mutation)
-            .set({ error: schema.json().parse(error) })
-            .where(eq(mutation.id, id));
-    }
-
-    /** Revert every prediction, latest first. */
-    async revert(transaction: DatabaseConnection): Promise<void> {
-        const rows = await transaction
-            .select({ changes: mutation.changes })
-            .from(mutation)
-            .orderBy(asc(mutation.position));
-        for (const row of rows.reverse()) {
-            for (const change of (JSON.parse(row.changes) as RowChange[]).reverse()) {
-                await this.#invert(transaction, change);
-            }
-        }
-    }
-
-    /** Drop the mutations a page settled and predict the rest again. */
-    async replay(
-        transaction: DatabaseConnection,
-        outcomes: readonly MutationOutcome[],
-        snapshot?: LogPosition,
-    ): Promise<void> {
-        // drop executed mutations and keep rejected ones without their prediction
-        const executed = outcomes.filter((entry) => entry.error === undefined);
-        if (executed.length > 0) {
-            await transaction.delete(mutation).where(
-                Condition.render(
-                    Condition.oneOf(
-                        "id",
-                        executed.map((entry) => entry.id),
-                    ),
-                    Condition.bind(mutation),
-                ),
-            );
-        }
-        for (const entry of outcomes.filter((outcome) => outcome.error !== undefined)) {
-            await transaction
-                .update(mutation)
-                .set({ error: schema.json().parse(entry.error) })
-                .where(eq(mutation.id, entry.id));
-        }
-        await transaction.update(mutation).set({ changes: "[]" }).where(isNotNull(mutation.error));
-
-        // drop what a snapshot holds
-        if (snapshot !== undefined) {
-            await transaction
-                .delete(mutation)
-                .where(
-                    and(
-                        isNull(mutation.error),
-                        eq(mutation.epoch, snapshot.epoch),
-                        lte(mutation.sequence, snapshot.sequence),
-                    ),
-                );
-        }
-
-        // push again what an earlier epoch executed
-        if (snapshot !== undefined) {
-            await transaction
-                .update(mutation)
-                .set({ epoch: null, sequence: null })
-                .where(and(isNotNull(mutation.epoch), lt(mutation.epoch, snapshot.epoch)));
-        }
-
-        // predict the main line, then the checked-out branch
-        const branch = await this.checkedOut(transaction);
-        await transaction
-            .update(mutation)
-            .set({ changes: "[]" })
-            .where(
-                and(
-                    isNotNull(mutation.branch),
-                    branch === undefined ? undefined : ne(mutation.branch, branch),
-                ),
-            );
-        const rows = await transaction
-            .select({ id: mutation.id, calls: mutation.calls, branch: mutation.branch })
-            .from(mutation)
-            .where(
-                and(
-                    isNull(mutation.error),
-                    branch === undefined
-                        ? isNull(mutation.branch)
-                        : or(isNull(mutation.branch), eq(mutation.branch, branch)),
-                ),
-            )
-            .orderBy(asc(mutation.position));
-        const ordered = [
-            ...rows.filter((row) => row.branch === null),
-            ...rows.filter((row) => row.branch !== null),
-        ];
-        let reached: number | undefined;
-        for (const row of ordered) {
-            // continue each prediction's changes from the last one's
-            const { result, sequence } = await this.#record(
-                transaction,
-                async (inner) => ({ calls: row.calls, result: await this.#predict(inner, row) }),
-                reached,
-            );
-            reached = sequence;
-            await transaction
-                .update(mutation)
-                .set({
-                    changes: JSON.stringify(result.changes),
-                    reach: this.#reached(row.calls, result.changes),
-                })
-                .where(eq(mutation.id, row.id));
-        }
-    }
-
-    /** Run a prediction and read the changes it logged, returning the sequence they reach. */
-    async #record<Value>(
-        transaction: DatabaseConnection,
-        predict: (
-            transaction: DatabaseConnection,
-        ) => Promise<{ readonly calls: readonly Call[]; readonly result: Value }>,
-        after?: number,
-    ): Promise<{
-        readonly calls: readonly Call[];
-        readonly result: { readonly value: Value; readonly changes: RowChange[] };
-        readonly sequence: number;
-    }> {
-        // require SQLite
-        if (transaction.dialect !== "sqlite") {
-            throw new TypeError(
-                "an outbox predicts on SQLite, whose log sequences changes within a transaction",
-            );
-        }
-
-        // run the prediction after the latest change
-        const tables = [...this.tables.values()];
-        let sequence = after ?? (await transaction.log.reached()).sequence;
-        const { calls, result } = await predict(transaction);
-
-        // read every logged change
-        const changes: RowChange[] = [];
-        for (;;) {
-            const page = await transaction.log.read({
-                tables,
-                after: sequence,
-                limit: RECORD_CHANGES,
-            });
-            changes.push(
-                ...page.changes.map((change) => ({
-                    table: change.table[TABLE].sqlName,
-                    operation: change.operation,
-                    row: encodeRow(change.table, (change.after ?? change.before)!),
-                    ...(change.operation === "update"
-                        ? { before: encodeRow(change.table, change.before!) }
-                        : {}),
-                })),
-            );
-            sequence = page.sequence;
-            if (page.changes.length < RECORD_CHANGES) {
-                break;
-            }
-        }
-
-        return { calls, result: { value: result, changes }, sequence };
-    }
-
-    /** Undo one predicted change. */
-    async #invert(transaction: DatabaseConnection, change: RowChange): Promise<void> {
-        // match the row by its key
-        const table = this.tables.get(change.table)!;
-        const row = decodeRow(table, change.row);
-        const matched = Key.match(table, row);
-
-        // remove an inserted row
-        if (change.operation === "insert") {
-            await transaction.delete(table).where(matched);
-        }
-        // restore the row before an update
-        else if (change.operation === "update") {
-            await transaction
-                .update(table)
-                .set(decodeRow(table, change.before!) as never)
-                .where(matched);
-        }
-        // reinsert a deleted row
-        else {
-            await transaction.insert(table).values(row as never);
-        }
     }
 }

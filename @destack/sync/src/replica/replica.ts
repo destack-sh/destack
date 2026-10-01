@@ -32,7 +32,7 @@ import { QueryPage, type MutationOutcome, type ResultChange } from "../query/pag
 import type { Include, Query } from "../query/query.ts";
 import { Node } from "../query/node.ts";
 import type { Row } from "@destack/db";
-import type { Outbox } from "../outbox/outbox.ts";
+import type { Prediction } from "../prediction/prediction.ts";
 import { EVERYONE } from "../feed/audience.ts";
 import { changesThroughLog, Dataflow } from "../dataflow/dataflow.ts";
 import { Filter } from "../dataflow/filter.ts";
@@ -471,7 +471,7 @@ export class Replica {
         database: DatabaseConnection,
         name: string,
         query: Omit<Query, "scopes">,
-        outbox?: Outbox,
+        prediction?: Prediction,
     ): Promise<Row[]> {
         // hold the query over the copy at its latest position
         const dataflow = new Dataflow(
@@ -479,7 +479,7 @@ export class Replica {
             {
                 audience: EVERYONE,
                 database,
-                upstream: this.upstream(database, outbox),
+                upstream: this.upstream(database, prediction),
                 changesThrough: changesThroughLog(database),
                 isMaterialized: true,
             },
@@ -494,21 +494,21 @@ export class Replica {
         database: DatabaseConnection,
         name: string,
         query: Omit<Query, "scopes">,
-        outbox?: Outbox,
+        prediction?: Prediction,
     ): Promise<
         { readonly group: Record<string, Scalar>; readonly values: Record<string, Scalar> }[]
     > {
         const node = new Node(name, { ...query, scopes: [this.scope] }, [this.scope]);
-        const groups = await this.groupsOf(database, node, outbox);
+        const groups = await this.groupsOf(database, node, prediction);
 
         return groups.map(({ group, values }) => ({ group, values }));
     }
 
     /** Measure relations and aggregates through the source's groups, predictions included. */
-    upstream(database: DatabaseConnection, outbox: Outbox | undefined): Upstream {
+    upstream(database: DatabaseConnection, prediction: Prediction | undefined): Upstream {
         return {
             watches: [{ table: replicaResult, scopes: [this.scope] }],
-            groups: (node) => this.groupsOf(database, node, outbox),
+            groups: (node) => this.groupsOf(database, node, prediction),
             groupOf: (change) => {
                 const row = (change.after ?? change.before) as Row | undefined;
 
@@ -529,7 +529,7 @@ export class Replica {
     async groupsOf(
         database: DatabaseConnection,
         node: Node,
-        outbox: Outbox | undefined,
+        prediction: Prediction | undefined,
     ): Promise<Group[]> {
         // read the source groups
         const rows = await database
@@ -561,9 +561,9 @@ export class Replica {
 
         // decide the predicted images of the node's table
         const table = node.table[TABLE].sqlName;
-        const predicted = (outbox === undefined ? [] : await outbox.predicted(database)).filter(
-            (change) => change.table === table,
-        );
+        const predicted = (
+            prediction === undefined ? [] : await prediction.predicted(database)
+        ).filter((change) => change.table === table);
         const images = predicted.flatMap((change) => {
             // take the prediction's images
             const row = decodeRow(node.table, change.row);
@@ -582,7 +582,7 @@ export class Replica {
         });
         if (images.length > 0) {
             const run = new Run(await View.latest(database), EVERYONE, "collect");
-            const filter = new Filter(node, new Trace(this.upstream(database, outbox)));
+            const filter = new Filter(node, new Trace(this.upstream(database, prediction)));
             await filter.prepare(
                 images.map(({ image }) => image),
                 run,
@@ -649,7 +649,7 @@ export class Replica {
     async *apply(
         database: DatabaseConnection,
         pages: AsyncIterable<QueryPage> | Iterable<QueryPage>,
-        outbox?: Outbox,
+        prediction?: Prediction,
         request?: unknown,
     ): AsyncGenerator<QueryPage> {
         // drop an earlier stream's staged pages
@@ -668,7 +668,7 @@ export class Replica {
 
             // apply the run a page completes
             if (page.complete) {
-                await this.#complete(database, page, { staged, isSnapshot }, outbox, request);
+                await this.#complete(database, page, { staged, isSnapshot }, prediction, request);
                 staged = 0;
             }
             // stage a page within a run
@@ -689,7 +689,7 @@ export class Replica {
         signal: AbortSignal,
         options: {
             /** The client's predictions to rebase. */
-            readonly outbox?: Outbox;
+            readonly prediction?: Prediction;
             /** What the copy asks its source for, recorded as it completes a run. */
             readonly request?: unknown;
         } = {},
@@ -708,7 +708,7 @@ export class Replica {
             for await (const _page of this.apply(
                 database,
                 pages,
-                options.outbox,
+                options.prediction,
                 options.request,
             )) {
                 isReceived = true;
@@ -729,7 +729,7 @@ export class Replica {
         database: DatabaseConnection,
         page: QueryPage,
         run: { readonly staged: number; readonly isSnapshot: boolean },
-        outbox: Outbox | undefined,
+        prediction: Prediction | undefined,
         request: unknown,
     ): Promise<void> {
         // apply and rebase in one transaction
@@ -738,17 +738,17 @@ export class Replica {
             async (transaction) => {
                 // rebase onto pages that reach a prediction
                 const isRebased =
-                    outbox !== undefined &&
+                    prediction !== undefined &&
                     (isSnapshot ||
                         staged > 0 ||
                         (page.results ?? []).length > 0 ||
                         (page.outcomes ?? []).length > 0 ||
                         (page.changes.length > 0 &&
-                            (await outbox.reaches(
+                            (await prediction.reaches(
                                 transaction,
                                 new Set(page.changes.map((change) => change.table)),
                             ))));
-                const rebased = isRebased ? outbox : undefined;
+                const rebased = isRebased ? prediction : undefined;
 
                 // require the held epoch outside a snapshot
                 const record = await this.#record(transaction);
