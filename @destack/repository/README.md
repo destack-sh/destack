@@ -6,10 +6,10 @@ Callers write repositories; refreshes and host reports write references.
 
 | Object | Methods |
 |---|---|
-| `repository` | `get`, `list`, `create`, `update`, `refresh`, `report`, `access`, `delete`, `restore`, `purge` |
+| `repository` | `get`, `list`, `create`, `update`, `refresh`, `report`, `open`, `delete`, `restore`, `purge` |
 | `reference` | `get`, `list` |
 
-A client creates a repository, refreshes it, reads its references and takes checkout credentials.
+A client creates a repository, refreshes it, reads its references and opens a lease for a checkout.
 
 ```ts
 const client = connect({ url, fetch });
@@ -24,7 +24,7 @@ const references = await client.reference.list({
     accountId,
     where: Condition.eq("parentId", site.id),
 });
-const checkout = await client.repository.access({ accountId, id: site.id, mode: "push" });
+const lease = await client.repository.open({ accountId, id: site.id, mode: "write" }); // { url, headers, expiresAt }
 ```
 
 ## Permissions
@@ -38,8 +38,8 @@ Account roles grant each permission; a repository's host also has `read`, and al
 | `update` | `update` |
 | `refresh` | `refresh` |
 | `report` | `report` |
-| `pull` | `access` in either mode |
-| `push` | `access` in `push` mode |
+| `pull` | `open` in either mode |
+| `push` | `open` in `write` mode |
 | `delete` | `delete`, `restore`, `purge` |
 
 ## Hosting
@@ -48,7 +48,7 @@ Hosting decides where references come from and how checkouts reach a repository.
 
 | Hosting | Fields | References from | Checkouts through |
 |---|---|---|---|
-| `platform` | none | the region's `GitStorage` | `GitStorage.access` |
+| `platform` | none | the region's `GitStorage` | `GitStorage.open` |
 | `github` | `remote`, `connectedAccountId` | Git's advertisement, with an app token | an app token limited to the repository |
 | `git` | `remote`, `authentication: "anonymous"` | Git's advertisement | the remote alone, for pulls |
 | `git` | `remote`, `authentication: "secret"`, `secretSpaceId`, `secretId` | the vault of the secret's space | the vault of the secret's space |

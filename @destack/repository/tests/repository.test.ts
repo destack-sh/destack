@@ -305,7 +305,7 @@ test.each(TEST_DIALECTS)(
 
         // refuse checkouts and refreshes of a repository in the trash
         expect([
-            await outcome(owner.repository.access({ accountId, id: site.id, mode: "pull" })),
+            await outcome(owner.repository.open({ accountId, id: site.id, mode: "read" })),
             await outcome(
                 owner.repository.refresh({ accountId, id: site.id, requestId: RequestId.create() }),
             ),
@@ -362,20 +362,20 @@ test.each(TEST_DIALECTS)(
         ];
 
         // reach the platform repository through the storage: the reader pulls, the owner pushes, strangers see nothing
-        const local = { remote: site.remote, credential: null };
+        const local = (mode: "read" | "write") => ({ url: site.remote, mode, headers: {} });
         expect([
-            await reader.repository.access({ accountId, id: site.id, mode: "pull" }),
-            await outcome(reader.repository.access({ accountId, id: site.id, mode: "push" })),
-            await owner.repository.access({ accountId, id: site.id, mode: "push" }),
-            await outcome(stranger.repository.access({ accountId, id: site.id, mode: "pull" })),
-        ]).toEqual([local, "FORBIDDEN", local, "NOT_FOUND"]);
+            await reader.repository.open({ accountId, id: site.id, mode: "read" }),
+            await outcome(reader.repository.open({ accountId, id: site.id, mode: "write" })),
+            await owner.repository.open({ accountId, id: site.id, mode: "write" }),
+            await outcome(stranger.repository.open({ accountId, id: site.id, mode: "read" })),
+        ]).toEqual([local("read"), "FORBIDDEN", local("write"), "NOT_FOUND"]);
 
         // pull an anonymous remote unchanged and push to it without a platform credential
         expect([
-            await owner.repository.access({ accountId, id: mirror.id, mode: "pull" }),
-            await outcome(owner.repository.access({ accountId, id: mirror.id, mode: "push" })),
+            await owner.repository.open({ accountId, id: mirror.id, mode: "read" }),
+            await outcome(owner.repository.open({ accountId, id: mirror.id, mode: "write" })),
         ]).toEqual([
-            { remote: "https://git.example.test/mirror.git", credential: null },
+            { url: "https://git.example.test/mirror.git", mode: "read", headers: {} },
             "BAD_REQUEST",
         ]);
 
@@ -388,7 +388,7 @@ test.each(TEST_DIALECTS)(
                     requestId: RequestId.create(),
                 }),
             ),
-            await outcome(owner.repository.access({ accountId, id: laptop.id, mode: "pull" })),
+            await outcome(owner.repository.open({ accountId, id: laptop.id, mode: "read" })),
         ]).toEqual(["BAD_REQUEST", "BAD_REQUEST"]);
     },
 );

@@ -19,14 +19,14 @@ test("create a local repository, push a branch and a tag into it, list them and 
     ]);
 
     // push a commit and an annotated tag with plain git, list them, and keep them on a second create
-    const access = await storage.access(id, "push");
+    const access = await storage.open(id, "write");
     const worktree = await Worktree.open();
     const commit = await worktree.commit("README.md", "# Site\n");
     const tag = await worktree.tag("v1");
-    await worktree.push(access.remote, "main", "v1");
+    await worktree.push(access.url, "main", "v1");
     await storage.create(id);
-    expect([access.credential, await storage.references(id)]).toEqual([
-        null,
+    expect([access, await storage.references(id)]).toEqual([
+        { url: storage.remote(id), mode: "write", headers: {} },
         {
             defaultReference: "refs/heads/main",
             references: [
@@ -151,10 +151,13 @@ test("create, list and delete a code.storage repository through its HTTP API and
     await storage.create(id);
     await storage.create(id);
     const listing = await storage.references(id);
-    const access = await storage.access(id, "push");
+    const access = await storage.open(id, "write");
     await storage.delete(id);
     await storage.delete(id);
-    expect([storage.remote(id), listing, access.remote, access.credential!.username]).toEqual([
+    const [username, password] = atob(access.headers.authorization!.slice("Basic ".length)).split(
+        ":",
+    );
+    expect([storage.remote(id), listing, access.url, username]).toEqual([
         "https://acme.code.storage/repository-site.git",
         {
             defaultReference: "refs/heads/main",
@@ -163,7 +166,7 @@ test("create, list and delete a code.storage repository through its HTTP API and
         "https://acme.code.storage/repository-site.git",
         "t",
     ]);
-    expect(await claimsOf(access.credential!.password)).toEqual([
+    expect(await claimsOf(password!)).toEqual([
         "ES256",
         "acme",
         "destack-repository",

@@ -2,7 +2,8 @@ import { none, principal, relation } from "@destack/access";
 import { check, index, sql, unique, type Select } from "@destack/db";
 import { defineObject, field, method } from "@destack/object";
 import { identifier, schema } from "@destack/schema";
-import { GitAccess, GitListing, GitMode } from "../storage/storage.ts";
+import { Lease, LeaseMode } from "@destack/resource";
+import { GitListing } from "../storage/storage.ts";
 import { account } from "@destack/account/object";
 import { AUTHENTICATIONS, HOSTINGS, ORIGIN_FIELDS, UPDATED_ORIGIN_FIELDS } from "./origin.ts";
 
@@ -15,11 +16,11 @@ const refresh = method({ permission: "refresh" });
 /** Record the references the repository's host observed. */
 const report = method({ permission: "report", input: GitListing });
 
-/** Issue a checkout's short-lived pull or push credentials. */
-const access = method({
+/** Lease a checkout short-lived, direct access to read the repository, or to write it as well. */
+const open = method({
     permission: "pull",
-    input: schema.object({ mode: GitMode }),
-    output: GitAccess,
+    input: schema.object({ mode: LeaseMode }),
+    output: Lease,
     mutates: false,
     audited: true,
 });
@@ -78,7 +79,7 @@ export const repository = defineObject({
         }),
         refresh,
         report,
-        access,
+        open,
     },
     constraints: (repository) => [
         unique("repository_scope_id").on(repository.scope, repository.id),

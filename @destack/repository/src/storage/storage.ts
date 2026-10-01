@@ -1,3 +1,4 @@
+import type { Lease, LeaseMode } from "@destack/resource";
 import { Instant, schema } from "@destack/schema";
 
 /** A Git object name: 40 hexadecimal digits for SHA-1, 64 for SHA-256. */
@@ -28,13 +29,8 @@ export const GitListing = schema.object({
 /** Every branch and tag of a repository, and the existing branch its HEAD names. */
 export type GitListing = schema.Infer<typeof GitListing>;
 
-/** What a Git client may do: clone and fetch, or push as well. */
-export const GitMode = schema.enum(["pull", "push"]);
-/** What a Git client may do: clone and fetch, or push as well. */
-export type GitMode = schema.Infer<typeof GitMode>;
-
 /** A short-lived HTTP basic credential for Git over HTTPS. */
-export const GitCredential = schema.object({
+const credential = schema.object({
     /** The basic authentication user name. */
     username: schema.string().min(1),
     /** The basic authentication password, such as a token. */
@@ -43,17 +39,22 @@ export const GitCredential = schema.object({
     expiresAt: Instant,
 });
 /** A short-lived HTTP basic credential for Git over HTTPS. */
-export type GitCredential = schema.Infer<typeof GitCredential>;
+export type GitCredential = schema.Infer<typeof credential>;
 
-/** How a Git client reaches a repository: its remote and the credential it presents, if any. */
-export const GitAccess = schema.object({
-    /** The credential-free remote. */
-    remote: schema.string().min(1),
-    /** The credential the client presents, null for remotes needing none, such as local paths. */
-    credential: GitCredential.nullable(),
+/** A short-lived HTTP basic credential for Git over HTTPS, and the lease it grants on a remote. */
+export const GitCredential = Object.assign(credential, {
+    /** Lease a remote with the credential in an Authorization header, as Git sends it. */
+    lease(granted: GitCredential, remote: string, mode: LeaseMode): Lease {
+        const basic = new TextEncoder().encode(`${granted.username}:${granted.password}`);
+
+        return {
+            url: remote,
+            mode,
+            headers: { authorization: `Basic ${basic.toBase64()}` },
+            expiresAt: granted.expiresAt,
+        };
+    },
 });
-/** How a Git client reaches a repository: its remote and the credential it presents, if any. */
-export type GitAccess = schema.Infer<typeof GitAccess>;
 
 /** The fetch a host supplies for reaching Git hosts and their APIs. */
 export type Fetch = (...arguments_: Parameters<typeof globalThis.fetch>) => Promise<Response>;
@@ -70,6 +71,6 @@ export interface GitStorage {
     delete(id: string): Promise<void>;
     /** List a repository's branches and tags, and its default branch. */
     references(id: string): Promise<GitListing>;
-    /** Grant a Git client access to a repository for a checkout. */
-    access(id: string, mode: GitMode): Promise<GitAccess>;
+    /** Lease a Git client access to a repository for a checkout. */
+    open(id: string, mode: LeaseMode): Promise<Lease>;
 }

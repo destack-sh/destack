@@ -1,5 +1,6 @@
 import { ServiceError } from "@destack/service/error";
-import type { Fetch, GitCredential, GitListing, GitReference } from "./storage.ts";
+import type { Lease } from "@destack/resource";
+import type { Fetch, GitListing, GitReference } from "./storage.ts";
 
 /** The content type of a smart HTTP upload-pack reference advertisement. */
 const ADVERTISEMENT_TYPE = "application/x-git-upload-pack-advertisement";
@@ -20,18 +21,10 @@ export class GitAdvertisement {
      *
      * Annotated tags arrive with the commit they peel to; other references name their commit directly.
      */
-    static async read(
-        remote: string,
-        credential: GitCredential | null,
-        fetch: Fetch,
-    ): Promise<GitListing> {
-        // request the upload-pack advertisement as Git does, with basic authentication when given
-        const headers = new Headers({ "User-Agent": "git/destack" });
-        if (credential !== null) {
-            const basic = new TextEncoder().encode(`${credential.username}:${credential.password}`);
-            headers.set("Authorization", `Basic ${basic.toBase64()}`);
-        }
-        const url = `${remote.replace(/\/$/, "")}/info/refs?service=git-upload-pack`;
+    static async read(lease: Lease, fetch: Fetch): Promise<GitListing> {
+        // request the upload-pack advertisement as Git does, with the lease's headers
+        const headers = new Headers({ ...lease.headers, "User-Agent": "git/destack" });
+        const url = `${lease.url.replace(/\/$/, "")}/info/refs?service=git-upload-pack`;
         const response = await fetch(url, { headers });
 
         // require a smart HTTP advertisement

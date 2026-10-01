@@ -1,13 +1,12 @@
+import type { Lease, LeaseMode } from "@destack/resource";
 import { JsonWebToken } from "../token/token.ts";
 import { schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import {
     GitAdvertisement,
     type Fetch,
-    type GitAccess,
-    type GitCredential,
+    GitCredential,
     type GitListing,
-    type GitMode,
     type GitStorage,
 } from "../storage/index.ts";
 
@@ -33,9 +32,9 @@ const DELETED_CODES = ["repository_not_found", "repository_deleted"];
 const Problem = schema.object({ code: schema.string(), detail: schema.string() }).passthrough();
 
 /** The code.storage scopes each Git mode needs; pushing needs reading too, since scopes match exactly. */
-const MODE_SCOPES: Readonly<Record<GitMode, readonly string[]>> = {
-    pull: ["git:read"],
-    push: ["git:read", "git:write"],
+const MODE_SCOPES: Readonly<Record<LeaseMode, readonly string[]>> = {
+    read: ["git:read"],
+    write: ["git:read", "git:write"],
 };
 
 /** Where a code.storage organisation serves its API and Git, and the key signing its JWTs. */
@@ -92,17 +91,14 @@ export class CodeStorage implements GitStorage {
 
     /** List the branches and tags Git's advertisement names, with annotated tags' objects and commits. */
     async references(id: string): Promise<GitListing> {
-        const access = await this.access(id, "pull");
-
-        return GitAdvertisement.read(access.remote, access.credential, this.#fetch);
+        return GitAdvertisement.read(await this.open(id, "read"), this.#fetch);
     }
 
-    /** Grant a Git client a JWT scoped to the repository and mode for an hour. */
-    async access(id: string, mode: GitMode): Promise<GitAccess> {
-        return {
-            remote: this.remote(id),
-            credential: await this.#credential(id, MODE_SCOPES[mode], ACCESS_TTL_SECONDS),
-        };
+    /** Lease a Git client a JWT scoped to the repository and mode for an hour. */
+    async open(id: string, mode: LeaseMode): Promise<Lease> {
+        const granted = await this.#credential(id, MODE_SCOPES[mode], ACCESS_TTL_SECONDS);
+
+        return GitCredential.lease(granted, this.remote(id), mode);
     }
 
     /** Send an API request under a JWT for one repository and fail with code.storage's problem. */

@@ -1,7 +1,8 @@
 import { JsonWebToken } from "../token/token.ts";
 import { schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
-import type { Fetch, GitAccess, GitMode } from "../storage/index.ts";
+import type { Lease, LeaseMode } from "@destack/resource";
+import { GitCredential, type Fetch } from "../storage/index.ts";
 
 /** How far back an app JWT dates its issue in seconds, for clock drift as GitHub advises. */
 const DRIFT_SECONDS = 60;
@@ -19,7 +20,10 @@ const GITHUB_HOST = "github.com";
 const TOKEN_USER = "x-access-token";
 
 /** The contents permission an installation token needs for each Git mode. */
-const MODE_CONTENTS: Readonly<Record<GitMode, "read" | "write">> = { pull: "read", push: "write" };
+const MODE_CONTENTS: Readonly<Record<LeaseMode, "read" | "write">> = {
+    read: "read",
+    write: "write",
+};
 
 /** The installation access token GitHub creates. */
 const Token = schema
@@ -135,22 +139,23 @@ export class GitHubApp {
     }
 
     /** Grant a Git client access to one repository through an installation token limited to the mode. */
-    async access(
+    async open(
         installationId: string,
         repositoryId: string,
         remote: string,
-        mode: GitMode,
-    ): Promise<GitAccess> {
+        mode: LeaseMode,
+    ): Promise<Lease> {
         const token = await this.token(
             installationId,
             { ids: [repositoryId] },
             { contents: MODE_CONTENTS[mode] },
         );
 
-        return {
+        return GitCredential.lease(
+            { username: TOKEN_USER, password: token.token, expiresAt: token.expiresAt },
             remote,
-            credential: { username: TOKEN_USER, password: token.token, expiresAt: token.expiresAt },
-        };
+            mode,
+        );
     }
 
     /** Identify a repository an installation reaches by its owner and name: GET /repos/{owner}/{repo}. */

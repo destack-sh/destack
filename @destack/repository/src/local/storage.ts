@@ -1,7 +1,8 @@
+import { pathToFileURL } from "node:url";
 import { mkdir, mkdtemp, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
-import type { GitAccess, GitListing, GitMode, GitReference, GitStorage } from "../storage/index.ts";
+import type { Lease, LeaseMode } from "@destack/resource";
+import type { GitListing, GitReference, GitStorage } from "../storage/index.ts";
 
 /** The names a stored repository's directory may take: no separators, no leading dot. */
 const NAME = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
@@ -139,9 +140,9 @@ export class LocalGitStorage implements GitStorage {
         };
     }
 
-    /** Reach a repository through its local path without a credential. */
-    async access(id: string, _mode: GitMode): Promise<GitAccess> {
-        return { remote: this.remote(id), credential: null };
+    /** Lease a repository through its local path, which needs no credential and never lapses. */
+    async open(id: string, mode: LeaseMode): Promise<Lease> {
+        return { url: this.remote(id), mode, headers: {} };
     }
 
     /** Locate a repository's directory and refuse names outside the storage directory. */

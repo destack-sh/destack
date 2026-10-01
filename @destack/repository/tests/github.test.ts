@@ -87,25 +87,25 @@ test("identify a repository and mint installation tokens limited to it and to th
         fetch: github.fetch,
     });
 
-    // identify the repository by name, then grant pushing to it by identifier
+    // identify the repository by name, then lease writing to it by identifier
     const fullName = GitHubApp.fullName("https://github.com/acme/site.git");
     expect([
         await app.repository(String(INSTALLATION), fullName),
-        await app.access(
+        await app.open(
             String(INSTALLATION),
             String(REPOSITORY_ID),
             "https://github.com/acme/site.git",
-            "push",
+            "write",
         ),
     ]).toEqual([
         { id: String(REPOSITORY_ID), fullName: "acme/site" },
         {
-            remote: "https://github.com/acme/site.git",
-            credential: {
-                username: "x-access-token",
-                password: "ghs_4242_2",
-                expiresAt: Date.parse("2026-09-27T13:00:00Z"),
+            url: "https://github.com/acme/site.git",
+            mode: "write",
+            headers: {
+                authorization: `Basic ${new TextEncoder().encode("x-access-token:ghs_4242_2").toBase64()}`,
             },
+            expiresAt: Date.parse("2026-09-27T13:00:00Z"),
         },
     ]);
 
@@ -312,20 +312,20 @@ test.each(TEST_DIALECTS)(
             connectedAccountId: ids.connection,
         });
 
-        // hand out each token as Git's basic credential for the recorded remote
+        // lease each token as Git's basic credential for the recorded remote
         region.github.requests.length = 0;
-        const credential = (password: string) => ({
-            remote: "https://github.com/acme/site.git",
-            credential: {
-                username: "x-access-token",
-                password,
-                expiresAt: Date.parse("2026-09-27T13:00:00Z"),
+        const lease = (mode: "read" | "write", password: string) => ({
+            url: "https://github.com/acme/site.git",
+            mode,
+            headers: {
+                authorization: `Basic ${new TextEncoder().encode(`x-access-token:${password}`).toBase64()}`,
             },
+            expiresAt: Date.parse("2026-09-27T13:00:00Z"),
         });
         expect([
-            await owner.repository.access({ accountId, id: created.id, mode: "pull" }),
-            await owner.repository.access({ accountId, id: created.id, mode: "push" }),
-        ]).toEqual([credential("ghs_4242_2"), credential("ghs_4242_3")]);
+            await owner.repository.open({ accountId, id: created.id, mode: "read" }),
+            await owner.repository.open({ accountId, id: created.id, mode: "write" }),
+        ]).toEqual([lease("read", "ghs_4242_2"), lease("write", "ghs_4242_3")]);
 
         // mint each token for GitHub's repository identifier alone, with the contents permission of its mode
         expect(region.github.requests).toEqual([
@@ -335,12 +335,12 @@ test.each(TEST_DIALECTS)(
             '  body {"repository_ids":[1296269],"permissions":{"contents":"write"}}',
         ]);
 
-        // audit each issuance as the owner's call and its success, without the credential
+        // audit each lease as the owner's call and its success, without the credential
         const actor = { type: "subject", subject: principal.user.reference("universe", ids.owner) };
         const target = { repository: { type: "repository", id: created.id } };
         expect(
             (await region.journal.read())
-                .filter((call) => call.method === "repository.access")
+                .filter((call) => call.method === "repository.open")
                 .map((call) => [
                     AuditCaller.actor(call.execution!.context.caller),
                     call.execution!.targets,

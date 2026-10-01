@@ -1,3 +1,4 @@
+import { LeaseMode, type Lease } from "@destack/resource";
 import type { CallKey } from "@destack/service/request";
 import type { Directory } from "@destack/directory";
 import { Subject } from "@destack/sync";
@@ -19,14 +20,7 @@ import {
     type Repository,
 } from "../object/index.ts";
 import { repositoryService } from "../service/index.ts";
-import {
-    GitAdvertisement,
-    GitListing,
-    GitMode,
-    type Fetch,
-    type GitAccess,
-    type GitStorage,
-} from "../storage/index.ts";
+import { GitAdvertisement, GitListing, type Fetch, type GitStorage } from "../storage/index.ts";
 
 /** The hostings an update may move an origin between. */
 const MOVABLE_HOSTINGS: ReadonlySet<Repository["hosting"]> = new Set(["github", "git"]);
@@ -109,9 +103,9 @@ export class RepositoryServer {
                 effect: (call) => RepositoryServer.#record(call, call.prepared as GitListing),
             },
             report: (call) => RepositoryServer.#record(call, GitListing.parse(call.input)),
-            access: {
-                authorize: (call) => RepositoryServer.#authorizeAccess(call),
-                prepare: (call) => this.#reach(call.target!, GitMode.parse(call.input.mode)),
+            open: {
+                authorize: (call) => RepositoryServer.#authorizeWrite(call),
+                prepare: (call) => this.#reach(call.target!, LeaseMode.parse(call.input.mode)),
                 effect: async (call) => call.prepared,
             },
             purge: {
@@ -255,25 +249,23 @@ export class RepositoryServer {
             return this.#options.storage.references(this.#storageId(target));
         }
 
-        // read the advertisement of other remotes with pull access
-        const access = await this.#reach(target, "pull");
-
-        return GitAdvertisement.read(access.remote, access.credential, this.#fetch);
+        // read the advertisement of other remotes with read access
+        return GitAdvertisement.read(await this.#reach(target, "read"), this.#fetch);
     }
 
-    /** Reach an origin in a Git mode. */
-    async #reach(target: Repository, mode: GitMode): Promise<GitAccess> {
+    /** Lease an origin to read, or to write as well. */
+    async #reach(target: Repository, mode: LeaseMode): Promise<Lease> {
         const { storage, github } = this.#options;
 
         // reach a platform repository through the region's storage
         if (target.hosting === "platform") {
-            return storage.access(this.#storageId(target), mode);
+            return storage.open(this.#storageId(target), mode);
         }
         // reach a GitHub repository through an installation token limited to it and the mode
         else if (target.hosting === "github") {
             const installation = await this.#installation(target.scope, target.connectedAccountId!);
 
-            return github.access(installation, target.providerRepositoryId!, target.remote!, mode);
+            return github.open(installation, target.providerRepositoryId!, target.remote!, mode);
         }
         // leave host repositories to their host
         else if (target.hosting === "host") {
@@ -282,8 +274,8 @@ export class RepositoryServer {
             });
         }
         // pull an anonymous remote unchanged
-        else if (target.authentication === "anonymous" && mode === "pull") {
-            return { remote: target.remote!, credential: null };
+        else if (target.authentication === "anonymous" && mode === "read") {
+            return { url: target.remote!, mode, headers: {} };
         }
         // refuse pushing to an anonymous remote, for which the platform has no credential
         else if (target.authentication === "anonymous") {
@@ -369,8 +361,8 @@ export class RepositoryServer {
     }
 
     /** Require the push permission for push access. */
-    static async #authorizeAccess(call: RepositoryCall): Promise<void> {
-        if (GitMode.parse(call.input.mode) === "push") {
+    static async #authorizeWrite(call: RepositoryCall): Promise<void> {
+        if (LeaseMode.parse(call.input.mode) === "write") {
             await call.authorization!.require(repository.permission("push"), call.reference());
         }
     }
