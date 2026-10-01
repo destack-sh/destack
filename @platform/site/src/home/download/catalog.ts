@@ -24,7 +24,7 @@ export async function readDownloads(): Promise<Download[]> {
     // fetch the catalog and reject a failed response
     const response = await fetch("https://download.destack.sh/downloads.json");
     if (!response.ok) {
-        throw new Error(`Download catalog returned ${response.status}.`);
+        throw new Error(`download catalog returned ${response.status}`);
     }
     const catalog = await response.json();
 

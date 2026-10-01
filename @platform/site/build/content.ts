@@ -3,38 +3,42 @@ import { spawn } from "node:child_process";
 import { isAbsolute, join, normalize, relative, resolve } from "node:path";
 import type { ViteDevServer } from "vite";
 
-/// One generated content collection watched during development.
+/** The milliseconds to wait after the last source change before regenerating, so one save runs one generation. */
+const debounceTime = 150;
+
+/** One generated content collection watched during development. */
 type ContentTask = {
-    /// The directory in which the generator runs.
+    /** The directory in which the generator runs. */
     workingDirectory: string;
 
-    /// Whether another generation is required after the active process exits.
+    /** Whether another generation is required after the active process exits. */
     isPending?: boolean;
 
-    /// Whether content watching has stopped.
+    /** Whether content watching has stopped. */
     isClosed?: boolean;
 
-    /// The task name used in diagnostics.
+    /** The task name used in diagnostics. */
     name: string;
 
-    /// The active generator process.
+    /** The active generator process. */
     process?: ReturnType<typeof spawn>;
 
-    /// The generator path relative to the site directory.
+    /** The generator path relative to the site directory. */
     script: string;
 
-    /// The pending debounce timer.
+    /** The pending debounce timer. */
     timeout?: ReturnType<typeof setTimeout>;
 
-    /// The source paths watched for changes.
+    /** The source paths watched for changes. */
     triggers: readonly string[];
 
-    /// The generated module directory invalidated after successful generation.
+    /** The generated module directory invalidated after successful generation. */
     outputDirectory: string;
 };
 
-/// Regenerate content modules and reload the development server after source changes.
+/** Regenerate content modules and reload the development server after source changes. */
 export function watchContent(siteDirectory: string, server: ViteDevServer): AsyncDisposable {
+    // watch every content source directory
     const task: ContentTask = {
         name: "content",
         outputDirectory: join(siteDirectory, "src/generated"),
@@ -54,12 +58,16 @@ export function watchContent(siteDirectory: string, server: ViteDevServer): Asyn
     server.watcher.add([...task.triggers]);
     server.watcher.on("all", changed);
 
+    // stop watching and end any running generator with the server
     return {
         async [Symbol.asyncDispose]() {
+            // stop listening and drop queued runs
             task.isClosed = true;
             server.watcher.off("all", changed);
             clearTimeout(task.timeout);
             task.isPending = false;
+
+            // end the active generator and wait for it to exit
             const process = task.process;
             if (process) {
                 const closed = new Promise<void>((resolve) =>
@@ -72,7 +80,7 @@ export function watchContent(siteDirectory: string, server: ViteDevServer): Asyn
     };
 }
 
-/// Return whether one changed path belongs to a task source directory.
+/** Return whether one changed path belongs to a task source directory. */
 function isTriggered(path: string, task: ContentTask) {
     const file = normalize(path);
 
@@ -84,19 +92,22 @@ function isTriggered(path: string, task: ContentTask) {
     });
 }
 
-/// Debounce one content task after a source change.
+/** Debounce one content task after a source change. */
 function schedule(task: ContentTask, server: ViteDevServer) {
     clearTimeout(task.timeout);
-    task.timeout = setTimeout(() => run(task, server), 150);
+    task.timeout = setTimeout(() => run(task, server), debounceTime);
 }
 
-/// Start one generator or request another run after its active process exits.
+/** Start one generator or request another run after its active process exits. */
 function run(task: ContentTask, server: ViteDevServer) {
+    // queue another run while one is active
     if (task.process != undefined) {
         task.isPending = true;
+
         return;
     }
 
+    // run the generator, reporting a failed spawn
     task.process = spawn("bun", ["run", task.script], {
         cwd: task.workingDirectory,
         stdio: "inherit",
@@ -105,17 +116,22 @@ function run(task: ContentTask, server: ViteDevServer) {
         server.config.logger.error(`[site] ${task.name}: ${error.message}`);
     });
     task.process.on("close", (code) => {
+        // ignore exits after the server closed
         task.process = undefined;
         if (task.isClosed) {
             return;
         }
 
+        // reload after a successful generation
         if (code === 0) {
             invalidate(task, server);
-        } else {
-            console.error(`[site] ${task.name} generation failed`);
+        }
+        // report a failed generation
+        else {
+            server.config.logger.error(`[site] ${task.name} generation failed with code ${code}`);
         }
 
+        // run once more for changes made during this run
         if (task.isPending) {
             task.isPending = false;
             run(task, server);
@@ -123,7 +139,7 @@ function run(task: ContentTask, server: ViteDevServer) {
     });
 }
 
-/// Invalidate generated modules and reload the active page.
+/** Invalidate generated modules and reload the active page. */
 function invalidate(task: ContentTask, server: ViteDevServer) {
     const outputDirectory = normalize(task.outputDirectory);
 
@@ -139,7 +155,7 @@ function invalidate(task: ContentTask, server: ViteDevServer) {
     server.ws.send({ type: "full-reload" });
 }
 
-/// Return whether one path belongs to a directory.
+/** Return whether one path belongs to a directory. */
 function isWithin(path: string, directory: string) {
     const relation = relative(directory, normalize(path));
 

@@ -1,7 +1,7 @@
 /** Read generated content from the server bundle or its public browser URL. */
 export async function loadAsset(route: string): Promise<string | undefined> {
     if (!route.startsWith("/_content/") || route.includes("..")) {
-        throw new Error(`Invalid content route: ${route}`);
+        throw new Error(`invalid content route: ${route}`);
     }
 
     // retain generated content in server builds without a filesystem dependency
@@ -18,7 +18,7 @@ export async function loadAsset(route: string): Promise<string | undefined> {
         return undefined;
     }
     if (!response.ok) {
-        throw new Error(`Cannot load content (${response.status}): ${route}`);
+        throw new Error(`cannot load content (${response.status}): ${route}`);
     }
 
     return response.text();
