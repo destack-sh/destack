@@ -13,6 +13,7 @@ import { ObjectServer } from "../src/server/index.ts";
 import { objectDatabase, request, task, taskVersion } from "./schema.ts";
 import { principal } from "@destack/access";
 import { openSpace, space } from "./fixture/space.ts";
+import { testJournalKey } from "@destack/service/test";
 
 /** The space containing the objects. */
 const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -43,7 +44,7 @@ test.each(TEST_DIALECTS)(
                 now: Date.now(),
                 attributes: {},
             }),
-            journal: new Journal(request),
+            journal: new Journal(request, testJournalKey),
             audit: AuditRecorder.service(new AuditOutbox(database), {
                 package: task.package,
                 service: "test",

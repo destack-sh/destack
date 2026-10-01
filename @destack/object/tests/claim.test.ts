@@ -27,6 +27,7 @@ import { profile, profilesDatabase, profilesJournal, profilesService } from "./f
 import { none, principal } from "@destack/access";
 import { copyScope } from "@destack/access/test";
 import { openSpace } from "./fixture/space.ts";
+import { testJournalKey } from "@destack/service/test";
 
 /** The package serving the profiles. */
 const audience = PackageId.parse("package-01a0d5eb-fb8a-74f4-ba37-8a4d6970e239");
@@ -187,6 +188,7 @@ async function serveProfiles(dialect: Dialect, directory: Directory) {
     const server = Server.start({
         ...ObjectServer.serve(profilesService, {
             journal: profilesJournal,
+            journalKey: testJournalKey,
             database: storage.database,
             directory,
             audit: AuditRecorder.service(new AuditOutbox(storage.database), {

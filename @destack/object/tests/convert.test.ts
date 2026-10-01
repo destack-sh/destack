@@ -15,6 +15,7 @@ import { ObjectServer } from "../src/server/index.ts";
 import { request } from "./schema.ts";
 import { openSpace, space } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
+import { testJournalKey } from "@destack/service/test";
 
 /** Cards whose `title` became `name`. */
 const card = defineObject({
@@ -55,7 +56,7 @@ test.for(TEST_DIALECTS)(
                 now: Date.now(),
                 attributes: {},
             }),
-            journal: new Journal(request),
+            journal: new Journal(request, testJournalKey),
             audit: AuditRecorder.service(new AuditOutbox(storage.database), {
                 package: card.package,
                 service: "test",

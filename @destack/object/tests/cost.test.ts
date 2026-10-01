@@ -13,6 +13,7 @@ import { ObjectServer } from "../src/server/index.ts";
 import { notebook, note, notesDatabase, notesJournal } from "./fixture/notes.ts";
 import { openSpace } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
+import { testJournalKey } from "@destack/service/test";
 
 test.for(TEST_DIALECTS)(
     "execute each kind of mutation within its statement budget on %s",
@@ -28,7 +29,7 @@ test.for(TEST_DIALECTS)(
                 now: Date.now(),
                 attributes: {},
             }),
-            journal: new Journal(notesJournal),
+            journal: new Journal(notesJournal, testJournalKey),
             audit: AuditRecorder.service(new AuditOutbox(storage.database), {
                 package: notebook.package,
                 service: "test",

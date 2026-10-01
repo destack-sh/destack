@@ -22,6 +22,7 @@ import type { ServiceContext } from "@destack/service/server";
 import { addressed, defineObject, field, INBOX, method } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { openSpace, space } from "./fixture/space.ts";
+import { testJournalKey } from "@destack/service/test";
 
 /** How long copies may take to arrive, in milliseconds: well within the 5 s test timeout. */
 const UNTIL_MILLISECONDS = 2000;
@@ -82,7 +83,7 @@ test.each(TEST_DIALECTS)(
                 now: Date.now(),
                 attributes: {},
             }),
-            journal: new Journal(journal),
+            journal: new Journal(journal, testJournalKey),
             audit: AuditRecorder.service(new AuditOutbox(storage.database), {
                 package: memo.package,
                 service: "test",

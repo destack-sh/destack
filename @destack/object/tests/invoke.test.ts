@@ -13,6 +13,7 @@ import { defineObject, field, method } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { openSpace, space } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
+import { testJournalKey } from "@destack/service/test";
 
 /** The space containing the shelves. */
 const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000011");
@@ -118,7 +119,7 @@ test.each(TEST_DIALECTS)(
                 now: Date.now(),
                 attributes: {},
             }),
-            journal: new Journal(journal),
+            journal: new Journal(journal, testJournalKey),
             audit: AuditRecorder.service(new AuditOutbox(storage.database), {
                 package: book.package,
                 service: "test",
@@ -197,7 +198,7 @@ test.each(TEST_DIALECTS)(
                 now: Date.now(),
                 attributes: {},
             }),
-            journal: new Journal(journal),
+            journal: new Journal(journal, testJournalKey),
             audit: AuditRecorder.service(new AuditOutbox(storage.database), {
                 package: book.package,
                 service: "test",

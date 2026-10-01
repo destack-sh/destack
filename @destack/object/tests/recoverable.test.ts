@@ -1,5 +1,5 @@
 import type { Change } from "@destack/db/log";
-import { reconciliation } from "@destack/service/test";
+import { reconciliation, testJournalKey } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 import { AuditRecorder } from "@destack/audit";
@@ -86,7 +86,7 @@ test.each(TEST_DIALECTS)(
                     now: Date.now(),
                     attributes: {},
                 }),
-                journal: new Journal(journal),
+                journal: new Journal(journal, testJournalKey),
                 audit: AuditRecorder.service(new AuditOutbox(database), {
                     package: credential.package,
                     service: "test",

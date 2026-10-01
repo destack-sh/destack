@@ -16,6 +16,7 @@ import { v7 } from "uuid";
 import { tasksDatabase, tasksService, tasksJournal } from "./fixture/tasks.ts";
 import { principal } from "@destack/access";
 import { openSpace } from "./fixture/space.ts";
+import { testJournalKey } from "@destack/service/test";
 
 /** The space holding the projects. */
 const spaceId = identifier("space").parse(`space-${v7()}`);
@@ -35,6 +36,7 @@ test.each(TEST_DIALECTS)(
         const server = Server.start({
             ...ObjectServer.serve(tasksService, {
                 journal: tasksJournal,
+                journalKey: testJournalKey,
                 database,
                 audit: AuditRecorder.service(new AuditOutbox(database), {
                     package: tasksService.package,

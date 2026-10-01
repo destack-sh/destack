@@ -18,6 +18,7 @@ import { v7 } from "uuid";
 import { anyone, Capability, principal } from "@destack/access";
 import { page, pageDatabase, pagesService, pagesJournal } from "./fixture/pages.ts";
 import { openSpace, unmoved } from "./fixture/space.ts";
+import { testJournalKey } from "@destack/service/test";
 
 /** The space holding the pages. */
 const spaceId = identifier("space").parse(`space-${v7()}`);
@@ -36,6 +37,7 @@ async function servePages(dialect: Dialect) {
     const server = Server.start({
         ...ObjectServer.serve(pagesService, {
             journal: pagesJournal,
+            journalKey: testJournalKey,
             database,
             audit: AuditRecorder.service(new AuditOutbox(database), {
                 package: pagesService.package,

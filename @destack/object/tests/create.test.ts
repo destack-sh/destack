@@ -13,6 +13,7 @@ import { defineObject, field, method } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { request } from "./schema.ts";
 import { openSpace, space } from "./fixture/space.ts";
+import { testJournalKey } from "@destack/service/test";
 
 /** The public space containing the handles. */
 const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -60,7 +61,7 @@ test.each(TEST_DIALECTS)(
                 attributes: {},
                 assurance: { level, authenticatedAt: Date.now() },
             }),
-            journal: new Journal(request),
+            journal: new Journal(request, testJournalKey),
             audit: AuditRecorder.service(new AuditOutbox(storage.database), {
                 package: handle.package,
                 service: "test",
@@ -162,7 +163,7 @@ test("create an object the caller holds the permission on only as the creator it
             now: Date.now(),
             attributes: {},
         }),
-        journal: new Journal(request),
+        journal: new Journal(request, testJournalKey),
         audit: AuditRecorder.service(new AuditOutbox(storage.database), {
             package: team.package,
             service: "test",

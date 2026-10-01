@@ -12,6 +12,7 @@ import type { ServiceContext } from "@destack/service/server";
 import { defineObject, field, method } from "../src/index.ts";
 import { ObjectServer } from "../src/server/index.ts";
 import { openSpace, space } from "./fixture/space.ts";
+import { testJournalKey } from "@destack/service/test";
 
 /** The space containing the chores. */
 const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
@@ -60,7 +61,7 @@ test.each(TEST_DIALECTS)(
                 now: Date.now(),
                 attributes: {},
             }),
-            journal: new Journal(journal),
+            journal: new Journal(journal, testJournalKey),
             audit: AuditRecorder.service(new AuditOutbox(storage.database), {
                 package: chore.package,
                 service: "test",

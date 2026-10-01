@@ -1,5 +1,5 @@
 import { AuditOutbox } from "@destack/audit/outbox";
-import { reconciliation } from "@destack/service/test";
+import { reconciliation, testJournalKey } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { ServiceError } from "@destack/service/error";
 import type { Subject } from "@destack/access";
@@ -142,7 +142,7 @@ test.each(TEST_DIALECTS)(
                     objects: { replica },
                     database,
                     context: () => as("user-1"),
-                    journal: new Journal(request),
+                    journal: new Journal(request, testJournalKey),
                     audit: AuditRecorder.service(new AuditOutbox(database), {
                         package: task.package,
                         service: "test",
@@ -692,7 +692,7 @@ test("prepare external work after the access check, settle it after commit, comp
             now: Date.now(),
             attributes: {},
         }),
-        journal: new Journal(request),
+        journal: new Journal(request, testJournalKey),
         audit: AuditRecorder.service(new AuditOutbox(storage.database), {
             package: task.package,
             service: "test",
@@ -836,7 +836,7 @@ test("authorize a creation before its external work, and settle committed work t
             now: Date.now(),
             attributes: {},
         }),
-        journal: new Journal(request),
+        journal: new Journal(request, testJournalKey),
         audit: AuditRecorder.service(new AuditOutbox(storage.database), {
             package: task.package,
             service: "test",
@@ -923,7 +923,7 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
             now: Date.now(),
             attributes: {},
         }),
-        journal: new Journal(request),
+        journal: new Journal(request, testJournalKey),
         audit: AuditRecorder.service(new AuditOutbox(storage.database), {
             package: task.package,
             service: "test",
@@ -1063,7 +1063,7 @@ async function serveTasks(dialect: Dialect) {
                   }
                 : direct;
         },
-        journal: new Journal(request),
+        journal: new Journal(request, testJournalKey),
         audit: AuditRecorder.service(new AuditOutbox(database), {
             package: task.package,
             service: "test",
@@ -1146,7 +1146,7 @@ test("carry a key the method derives from its work, the same for every retry of 
             now: Date.now(),
             attributes: {},
         }),
-        journal: new Journal(request),
+        journal: new Journal(request, testJournalKey),
         audit: AuditRecorder.service(new AuditOutbox(storage.database), {
             package: task.package,
             service: "test",

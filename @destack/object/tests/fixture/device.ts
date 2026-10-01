@@ -16,6 +16,7 @@ import { v7 } from "uuid";
 import { note, notebook, notesDatabase, notesService, notesJournal } from "./notes.ts";
 import { principal } from "@destack/access";
 import { openSpace, unmoved } from "./space.ts";
+import { testJournalKey } from "@destack/service/test";
 
 /** The space holding the notes. */
 export const spaceId = identifier("space").parse(`space-${v7()}`);
@@ -35,6 +36,7 @@ export async function serveNotes(dialect: Dialect) {
     const served = serveObjects(
         ObjectServer.serve(notesService, {
             journal: notesJournal,
+            journalKey: testJournalKey,
             database,
             audit: AuditRecorder.service(new AuditOutbox(database), {
                 package: notesService.package,

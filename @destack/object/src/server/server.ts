@@ -20,19 +20,18 @@ import {
     type JsonValue,
     type Table,
 } from "@destack/db";
-import { Condition, type Scalar } from "@destack/db/query";
-import { canonicalize, digest } from "@destack/schema/json";
+
 import { DatabaseError } from "@destack/db/error";
 import { schema } from "@destack/schema";
 import type { Watermark } from "@destack/service/bookmark";
 import {
     CompactionController,
     Journal,
-    Outcome,
+    type JournalKey,
     type defineJournal,
 } from "@destack/service/database";
 import { ServiceError } from "@destack/service/error";
-import { RequestFingerprint, type RequestIdentity } from "@destack/service/request";
+import { type RequestIdentity } from "@destack/service/request";
 import { v7 } from "uuid";
 import {
     implement,
@@ -323,6 +322,8 @@ export class ObjectServer<
             readonly database: DatabaseConnection;
             /** The service's journal. */
             readonly journal: ReturnType<typeof defineJournal>;
+            /** Read the deployment's key that sensitive inputs are fingerprinted under. */
+            readonly journalKey: JournalKey;
             /** Open an audit recorder for a scope and request. */
             readonly audit: (
                 scope: string,

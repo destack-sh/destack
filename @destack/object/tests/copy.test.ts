@@ -1,5 +1,5 @@
 import { AuditOutbox } from "@destack/audit/outbox";
-import { reconciliation } from "@destack/service/test";
+import { reconciliation, testJournalKey } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import {
     accessTables,
@@ -144,7 +144,7 @@ test.each(TEST_DIALECTS)(
                 now: Date.now(),
                 attributes: {},
             }),
-            journal: new Journal(request),
+            journal: new Journal(request, testJournalKey),
             audit: AuditRecorder.service(new AuditOutbox(workload.database), {
                 package: document.package,
                 service: "test",

@@ -10,6 +10,7 @@ import { defineJournal, Journal } from "@destack/service/database";
 import { defineObject, field, method } from "../src/index.ts";
 import { ObjectServer, SystemCall } from "../src/server/index.ts";
 import { openSpace, space } from "./fixture/space.ts";
+import { testJournalKey } from "@destack/service/test";
 
 /** The space holding the machines. */
 const spaceId = identifier("space").parse("space-01996ab0-0000-7000-8000-000000000031");
@@ -56,7 +57,7 @@ test.each(TEST_DIALECTS)(
             objects: { machine },
             database: storage.database,
             context: () => ({ subjects: [], now: 0, attributes: {} }),
-            journal: new Journal(journal),
+            journal: new Journal(journal, testJournalKey),
             audit: AuditRecorder.service(new AuditOutbox(storage.database), {
                 package: machine.package,
                 service: "test",
