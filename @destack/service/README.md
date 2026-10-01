@@ -10,7 +10,11 @@ Define, host and call Destack HTTP services, their triggers and their background
 import { defineProcedure, defineService } from "@destack/service";
 
 export const notesService = defineService("notes", {
-    list: defineProcedure({ authentication: "identity", permission: note.permission("read"), audit: false })
+    list: defineProcedure({
+        authentication: "identity",
+        permission: note.permission("read"),
+        audit: false,
+    })
         .route({ method: "GET", path: "/notes" })
         .output(page(Note)),
     objects: { notebook, note },
@@ -49,7 +53,11 @@ const service = implement(notesService.router).$context<ServiceContext>();
 await using server = Server.start({
     service: notesService,
     router: service.router({ list: service.list.handler(({ context }) => notebook.list(context)) }),
-    access: { authorizer, database, target: async ({ input }) => note.reference(spaceId, input.id) },
+    access: {
+        authorizer,
+        database,
+        target: async ({ input }) => note.reference(spaceId, input.id),
+    },
     audience: packageId,
     scope: spaceId,
     resources,
@@ -68,8 +76,8 @@ A handler hides a refused object as a missing one with `conceal`, and the audit 
 import { conceal, denialOf, ServiceError } from "@destack/service/error";
 
 const denial = new ServiceError("FORBIDDEN", { message: "permission denied: read" });
-throw isReader ? denial : conceal(denial, `no note ${id}`);   // the caller sees NOT_FOUND
-denialOf(failure)?.code;                                       // "FORBIDDEN" for both
+throw isReader ? denial : conceal(denial, `no note ${id}`); // the caller sees NOT_FOUND
+denialOf(failure)?.code; // "FORBIDDEN" for both
 ```
 
 ## Workloads
@@ -89,7 +97,12 @@ export const workload = defineWorkload({
     },
 });
 
-const instance = await WorkloadInstance.start(workload, { resources, history, access, service: () => serverOptions });
+const instance = await WorkloadInstance.start(workload, {
+    resources,
+    history,
+    access,
+    service: () => serverOptions,
+});
 const response = await instance.fetch(notesService, request);
 ```
 
@@ -101,7 +114,12 @@ A `WorkloadRunner` serves one workload as a host's start message asks, opening e
 import { WorkloadRunner } from "@destack/service/workload";
 
 // the runner holds no tokens: it calls services through the host's egress with the host's secret
-const workload = await WorkloadRunner.start({ workload, resources, history, access }, start, startTelemetry, report);
+const workload = await WorkloadRunner.start(
+    { workload, resources, history, access },
+    start,
+    startTelemetry,
+    report,
+);
 const response = await workload.fetch(request);
 await workload.close();
 ```
@@ -111,7 +129,9 @@ On Bun, `runWorkload` reads the host's lines from standard input and serves the 
 ```ts
 import { runWorkload } from "@destack/service/bun";
 
-await runWorkload(runner, lines(process.stdin), async (ready) => process.stdout.write(`${JSON.stringify(ready)}\n`));
+await runWorkload(runner, lines(process.stdin), async (ready) =>
+    process.stdout.write(`${JSON.stringify(ready)}\n`),
+);
 ```
 
 The host and the runner exchange one JSON line per message.
@@ -153,7 +173,12 @@ import { TokenIssuer, TokenVerifier } from "@destack/service/authentication";
 const issuer = new TokenIssuer({ authority: { kind: "universe" }, issuer: accountOrigin, sign });
 const { accessToken } = await issuer.issue(caller); // a caller without a space gets a token for universe services
 
-const verifier = new TokenVerifier({ authority: { kind: "universe" }, issuer: accountOrigin, audience: packageId, keys });
+const verifier = new TokenVerifier({
+    authority: { kind: "universe" },
+    issuer: accountOrigin,
+    audience: packageId,
+    keys,
+});
 const verified = await verifier.authenticate(request, spaceId); // any space when spaceId is absent
 ```
 
@@ -210,9 +235,31 @@ A trigger is a cause of runs, and every run is one object method call the space'
 | `defineWatch` | `@destack/service/watch` | an admitted change of the installation's own objects | the workload's object server |
 
 ```ts
-export const reminders = defineSchedule({ name: "reminders", timing: "cron", cron: "0 9 * * *", timezone: "Europe/Zurich", concurrency: "forbid", deadline: 60_000, call: reminder.calls().send({}) });
-export const pushes = defineWebhook({ name: "github", verification: "github", route: "/{repository}", secret: ({ repository }, resources) => vault.get(resources).read(repository), call: (delivery) => repository.calls().push({ id: delivery.parameters.repository!, payload: delivery.payload }) });
-export const published = defineWatch({ name: "published", object: note, where: Condition.eq("status", "published"), on: ["create", "update"], from: "snapshot", call: (change) => note.calls().index({ id: change.after!.id }) });
+export const reminders = defineSchedule({
+    name: "reminders",
+    timing: "cron",
+    cron: "0 9 * * *",
+    timezone: "Europe/Zurich",
+    concurrency: "forbid",
+    deadline: 60_000,
+    call: reminder.calls().send({}),
+});
+export const pushes = defineWebhook({
+    name: "github",
+    verification: "github",
+    route: "/{repository}",
+    secret: ({ repository }, resources) => vault.get(resources).read(repository),
+    call: (delivery) =>
+        repository.calls().push({ id: delivery.parameters.repository!, payload: delivery.payload }),
+});
+export const published = defineWatch({
+    name: "published",
+    object: note,
+    where: Condition.eq("status", "published"),
+    on: ["create", "update"],
+    from: "snapshot",
+    call: (change) => note.calls().index({ id: change.after!.id }),
+});
 ```
 
 A method sends a call to run once its transaction commits; it runs on the authority the calling person lent the installation.
@@ -248,7 +295,9 @@ const stream: Controller = {
     list: async () => subscriptions(),
     reconcile: async (key, { signal }) => (await follow(key, signal), undefined),
 };
-await new ControlLoop(database, [expiry, stream], { report, lease: { holder: instanceId } }).run(signal);
+await new ControlLoop(database, [expiry, stream], { report, lease: { holder: instanceId } }).run(
+    signal,
+);
 ```
 
 ## Outbox
@@ -258,7 +307,12 @@ An `Outbox` commits messages with their transaction and delivers them in order t
 ```ts
 import { Outbox, type Destination } from "@destack/service/outbox";
 
-const inbox: Destination<Delivery> = { name: "inbox", message: Delivery, batch: 100, accept: (deliveries, { signal }) => home.accept(deliveries, { signal }) };
+const inbox: Destination<Delivery> = {
+    name: "inbox",
+    message: Delivery,
+    batch: 100,
+    accept: (deliveries, { signal }) => home.accept(deliveries, { signal }),
+};
 const outbox = new Outbox(database);
 await outbox.append(inbox, deliveryId, delivery, transaction);
 await new ControlLoop(database, [outbox.controller(inbox)], { report }).run(signal);
@@ -296,7 +350,12 @@ An `OperationStore` runs long work in memory, with progress, cancellation and a 
 ```ts
 import { implementOperation, OperationStore } from "@destack/service/server";
 
-const operations = new OperationStore(defineOperation(Published, Progress), { concurrency: 4, capacity: 100, retention: 3_600_000, timeout: 60_000 });
+const operations = new OperationStore(defineOperation(Published, Progress), {
+    concurrency: 4,
+    capacity: 100,
+    retention: 3_600_000,
+    timeout: 60_000,
+});
 const router = implementOperation(operations);
 operations.start(caller.id, { completed: 0 }, async ({ signal, report }) => {
     const output = await publish({ signal });

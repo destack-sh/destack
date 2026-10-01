@@ -14,12 +14,23 @@ export const note = defineObject({
     fields: {
         title: field.string(schema.string().min(1)),
         owner: field.reference(principal.user).caller(),
-        status: field.state({ initial: "draft", transitions: { publish: { from: ["draft"], to: "published", permission: "write" } } }),
+        status: field.state({
+            initial: "draft",
+            transitions: { publish: { from: ["draft"], to: "published", permission: "write" } },
+        }),
     },
     nested: { in: notebook, receive: "write", move: "write" },
     recoverable: { within: { days: 30 }, by: "write" },
-    permissions: { read: union(relation("owner"), through("parent", "read")), write: relation("owner") },
-    methods: { get: method.get("read"), list: method.list("read"), create: method.create("write"), update: method.update("write") },
+    permissions: {
+        read: union(relation("owner"), through("parent", "read")),
+        write: relation("owner"),
+    },
+    methods: {
+        get: method.get("read"),
+        list: method.list("read"),
+        create: method.create("write"),
+        update: method.update("write"),
+    },
 });
 ```
 
@@ -60,8 +71,12 @@ A renamed field keeps its column and its earlier callers' inputs, and `convert` 
 ```ts
 const note = defineObject({
     name: "note",
-    moved: { fields: { body: "text" } },                                            // calls of earlier releases may still send `text`
-    convert: { "2026.10.0": { pinned: Expression.coalesce(Expression.column("pinned"), Expression.literal(false)) } },
+    moved: { fields: { body: "text" } }, // calls of earlier releases may still send `text`
+    convert: {
+        "2026.10.0": {
+            pinned: Expression.coalesce(Expression.column("pinned"), Expression.literal(false)),
+        },
+    },
     fields: { body: field.string(), pinned: field.boolean() },
     methods: { create: method.create("write"), update: method.update("write") },
 });
@@ -81,7 +96,8 @@ export const note = base.note.handle({
 
         return row;
     },
-    tidy: (call) => call.invoke(book, "tidy", { where: { shelf: call.target!.name }, isTidy: true }),
+    tidy: (call) =>
+        call.invoke(book, "tidy", { where: { shelf: call.target!.name }, isTidy: true }),
 });
 ```
 
@@ -166,10 +182,13 @@ A type's controller reconciles its pending objects by key as the system, and the
 export const reminder = base.reminder.control({
     pending: Condition.missing("sentAt"),
     key: (row) => ({ topic: row.topic }),
-    watches: [{ table: topic.table, keys: (row) => [{ topic: row.id }] }],   // other rows selecting keys again
+    watches: [{ table: topic.table, keys: (row) => [{ topic: row.id }] }], // other rows selecting keys again
     async reconcile({ rows, now, execute }) {
-        await execute("send", rows.filter((row) => row.dueAt <= now));
-        return nextDue(rows, now);   // the wait until the next look, or undefined
+        await execute(
+            "send",
+            rows.filter((row) => row.dueAt <= now),
+        );
+        return nextDue(rows, now); // the wait until the next look, or undefined
     },
 });
 ```
@@ -228,7 +247,11 @@ email: field.string().guard({ read: "update" }),
 `addressed.accept` writes the copies a home receives through `INBOX`.
 
 ```ts
-const inbox: Destination<Copy> = { ...INBOX, batch: 100, accept: (copies) => addressed.accept(home, copies, homeOf) };
+const inbox: Destination<Copy> = {
+    ...INBOX,
+    batch: 100,
+    accept: (copies) => addressed.accept(home, copies, homeOf),
+};
 ```
 
 ## Clients
@@ -244,8 +267,8 @@ const client = await ObjectClient.open({
     scope,
     caller,
     endpoint: { url: `${origin}/.destack/service` },
-    reconnect: (cell) => ({ url: serviceUrl(cell) }),   // the cell a moved scope answers at
-    push: { mutations: 100 },                            // at most the server's 100
+    reconnect: (cell) => ({ url: serviceUrl(cell) }), // the cell a moved scope answers at
+    push: { mutations: 100 }, // at most the server's 100
 });
 void client.run(signal, report);
 
@@ -285,18 +308,27 @@ client.redo();
 A client with the scope's `branch` types edits a checked-out branch live: its edits push to the branch, and the branch's rows show under them.
 
 ```ts
-const client = await ObjectClient.open({ database, objects, package: notesService.package, branch: branchType, scope, caller, endpoint, reconnect });
+const client = await ObjectClient.open({
+    database,
+    objects,
+    package: notesService.package,
+    branch: branchType,
+    scope,
+    caller,
+    endpoint,
+    reconnect,
+});
 const { id } = await client.mutate(branch).create({ title: "Packing list" }).predicted;
 await client.checkout(id);
 client.mutate(note).create({ parentId, title: "Socks" });
-await client.mutate(branch).merge({ id }).confirmed;          // the device shows the main line again
+await client.mutate(branch).merge({ id }).confirmed; // the device shows the main line again
 ```
 
 Reads take a view: a branch over the main line, a log position, or both.
 
 ```ts
 await client.read(note).list({ branch: id });
-await client.read(note).get({ id: noteId, at: position });    // readable then and now
+await client.read(note).get({ id: noteId, at: position }); // readable then and now
 ```
 
 A diff follows the changes a branch makes, one per object, with the written fields that differ.
@@ -311,7 +343,15 @@ for await (const changes of diff.watch(signal)) render(changes); // [{ object, i
 A `BrowserTab` shares one SQLite database across all tabs of an origin.
 
 ```ts
-const tab = await BrowserTab.open({ name: "notes", objects: [notebook, note], scope, caller, service, reconnect, report });
+const tab = await BrowserTab.open({
+    name: "notes",
+    objects: [notebook, note],
+    scope,
+    caller,
+    service,
+    reconnect,
+    report,
+});
 await tab.ready;
 const notes = tab.client.subscribe(note);
 ```
@@ -322,7 +362,13 @@ const notes = tab.client.subscribe(note);
 
 ```ts
 export const note = base.note.declare({ values: (_name, declared) => ({ title: declared.title }) });
-const { steps, deferred } = await Stack.apply({ database, objects: [note], manager, scope: spaceId, document });
+const { steps, deferred } = await Stack.apply({
+    database,
+    objects: [note],
+    manager,
+    scope: spaceId,
+    document,
+});
 ```
 
 ## Claims

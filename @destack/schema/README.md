@@ -7,7 +7,9 @@ Define, validate and describe the data of Destack packages, based on [Zod](https
 ```ts
 import { defineSchema, schema, toJsonSchema } from "@destack/schema";
 
-const Note = defineSchema(schema.object({ title: schema.string().min(1), archived: schema.boolean() }));
+const Note = defineSchema(
+    schema.object({ title: schema.string().min(1), archived: schema.boolean() }),
+);
 type Note = schema.Infer<typeof Note>;
 
 Note.parse({ title: "Hello", archived: false });
@@ -54,7 +56,10 @@ identifierTime(id); // the Unix milliseconds of the UUIDv7
 A sensitive schema's values stay in their own column: nothing derived from a request or record, such as a log entry or a journal fingerprint, keeps them.
 
 ```ts
-const Credential = schema.object({ name: schema.string(), token: schema.sensitive(schema.string()) });
+const Credential = schema.object({
+    name: schema.string(),
+    token: schema.sensitive(schema.string()),
+});
 schema.isSensitive(Credential.shape.token); // true
 ```
 

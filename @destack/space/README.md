@@ -34,12 +34,21 @@ A space declares package admission and outbound connections independently.
 ```ts
 export const restricted = defineSpace({
     policies: {
-        packages: { admission: { default: "deny", rules: { destack: { package: { kind: "destack" }, decision: "allow" } } } },
+        packages: {
+            admission: {
+                default: "deny",
+                rules: { destack: { package: { kind: "destack" }, decision: "allow" } },
+            },
+        },
         network: {
             default: "deny",
             rules: {
                 api: {
-                    destination: { kind: "hostname", hostname: "api.example.com", subdomains: false },
+                    destination: {
+                        kind: "hostname",
+                        hostname: "api.example.com",
+                        subdomains: false,
+                    },
                     protocol: "https",
                     decision: "allow",
                 },
@@ -58,7 +67,10 @@ export const shared = defineSpace({
     roles: { editor: { description: "Edit notes", permissions: [note.permission("update")] } },
     relationships: {
         notes: { subject: { installation: "notes" }, role: "editor" },
-        members: { subject: { accountMembers: true }, role: { id: "role-01995688-0000-7000-8000-000000000001" } },
+        members: {
+            subject: { accountMembers: true },
+            role: { id: "role-01995688-0000-7000-8000-000000000001" },
+        },
     },
 });
 ```
@@ -76,9 +88,21 @@ An installation follows the builds submitted to it, and its controller applies e
 A plan waits once its risk reaches the space's `approval` threshold, and `installation.plan` joins what an installation and what it manages, owns or binds wait on.
 
 ```ts
-await client.installation.submit({ spaceId, id: stack.id, requestId, selection, build, evaluation });
+await client.installation.submit({
+    spaceId,
+    id: stack.id,
+    requestId,
+    selection,
+    build,
+    evaluation,
+});
 const waiting = await client.installation.plan({ spaceId, id: stack.id });
-await client.installation.approve({ spaceId, id: stack.id, requestId, plan: await Plan.digest(waiting) });
+await client.installation.approve({
+    spaceId,
+    id: stack.id,
+    requestId,
+    plan: await Plan.digest(waiting),
+});
 ```
 
 The CLI submits a checkout's stack and approves what waits with `--yes`.
@@ -93,7 +117,12 @@ destack stack approve --space work.acme --plan <digest>
 A client opens a view the revision of an installation declares.
 
 ```ts
-const { build, definition } = await client.installation.open({ spaceId, id, view: "home", path: "/" });
+const { build, definition } = await client.installation.open({
+    spaceId,
+    id,
+    view: "home",
+    path: "/",
+});
 ```
 
 ## Workloads
@@ -120,7 +149,10 @@ A run is one object method call that an installation's cell makes later, recorde
 The cell pushes each run through the host's router as the installation or on the authority lent to it.
 
 ```ts
-const service = implementService({ ...options, runs: { push: pushThrough(router), verify: (token) => lending.verify(token) } });
+const service = implementService({
+    ...options,
+    runs: { push: pushThrough(router), verify: (token) => lending.verify(token) },
+});
 ```
 
 ## Serving spaces
@@ -150,7 +182,9 @@ const service = implementService({
 Every app serves `branchObjects` beside its own objects and keeps `branchTables` in its database; `branchType` brings them together for servers and clients.
 
 ```ts
-export const notesService = defineService("notes", { objects: { notebook, note, ...branchObjects } });
+export const notesService = defineService("notes", {
+    objects: { notebook, note, ...branchObjects },
+});
 ```
 
 | Method | Permission | Effect |

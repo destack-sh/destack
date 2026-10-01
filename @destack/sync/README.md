@@ -77,7 +77,10 @@ feed.subscribe({ board }, after, signal, { audience: EVERYONE });
 A `Dataflow` compiles queries to pipelines and keeps their results current as of a log position.
 
 ```ts
-const dataflow = new Dataflow({ board }, { audience, database, changesThrough: changesThroughLog(database), isMaterialized: true });
+const dataflow = new Dataflow(
+    { board },
+    { audience, database, changesThrough: changesThroughLog(database), isMaterialized: true },
+);
 await dataflow.fill(await View.latest(database));
 const rows = await dataflow.read("board");
 ```
@@ -88,14 +91,21 @@ A `Replica` copies one scope's query results into another database.
 
 ```ts
 const copy = new Replica({ name: "board", scope: spaceId, tables: [project, task] });
-await copy.follow(local, (after, signal) => feed.subscribe({ board }, after, signal), signal, { prediction });
+await copy.follow(local, (after, signal) => feed.subscribe({ board }, after, signal), signal, {
+    prediction,
+});
 const projects = await copy.rows(local, "board", board, prediction);
 ```
 
 A table in `within` is copied across scopes: its rows live in the scopes that another copied table's rows are.
 
 ```ts
-const copy = new Replica({ name: "work", scope: spaceId, tables: [project, note], within: new Map([[note, [project]]]) });
+const copy = new Replica({
+    name: "work",
+    scope: spaceId,
+    tables: [project, note],
+    within: new Map([[note, [project]]]),
+});
 ```
 
 Several replicas may include one row, which stays until none includes it and keeps a column while one of them shows it.
@@ -107,8 +117,18 @@ const tasks = await local.select().from(task).where(Replica.includes("board", ta
 A database copying another server's rows sends a `ReplicaRequest` to a `ReplicaSource`, and resumes only the request it completed.
 
 ```ts
-const request = { name: "chain", scope: accountId, below: spaceId, access: true, held: [], copied: [], rows: [] };
-await copy.follow(local, (after, signal) => source.stream({ ...request, after }, signal), signal, { request });
+const request = {
+    name: "chain",
+    scope: accountId,
+    below: spaceId,
+    access: true,
+    held: [],
+    copied: [],
+    rows: [],
+};
+await copy.follow(local, (after, signal) => source.stream({ ...request, after }, signal), signal, {
+    request,
+});
 ```
 
 ## Predictions
@@ -117,8 +137,11 @@ A `Prediction` shows a client's queued mutations over its copy, in layers: the m
 
 ```ts
 const prediction = new Prediction([project, task], predict, reach, branches);
-const result = await prediction.add(local, mutationId, origin, async (transaction) => ({ calls, result: await rename(transaction) }));
-await prediction.checkout(local, branchId);                      // edits now queue for the branch
+const result = await prediction.add(local, mutationId, origin, async (transaction) => ({
+    calls,
+    result: await rename(transaction),
+}));
+await prediction.checkout(local, branchId); // edits now queue for the branch
 ```
 
 Its `Outbox` keeps the queue until the source executes or rejects each mutation.
@@ -147,5 +170,8 @@ tracker.broadcast(topic, event);
 A database holding copies includes `replicaTables`, and a client with an outbox also includes `outboxTables`.
 
 ```ts
-export const local = defineDatabase({ name: "local", tables: [...replicaTables, ...outboxTables, project, task] });
+export const local = defineDatabase({
+    name: "local",
+    tables: [...replicaTables, ...outboxTables, project, task],
+});
 ```

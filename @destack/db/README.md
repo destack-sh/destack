@@ -18,7 +18,9 @@ export const note = defineTable(
         constraints: (note) => [index("note_scope").on(note.scope)],
         log: { retention: "history" },
         convert: {
-            "2026.10.0": { title: Expression.coalesce(Expression.column("title"), Expression.literal("")) },
+            "2026.10.0": {
+                title: Expression.coalesce(Expression.column("title"), Expression.literal("")),
+            },
         },
     },
 );
@@ -32,7 +34,11 @@ A database holds tables of its own tier and of wider tiers, whose rows it replic
 
 ```ts
 export const main = defineDatabase({ name: "main", tables: [note] });
-export const global = defineDatabase({ name: "global", tier: "global", tables: [...accountTables, ...hostTables] });
+export const global = defineDatabase({
+    name: "global",
+    tier: "global",
+    tables: [...accountTables, ...hostTables],
+});
 
 const database = main.get(context);
 const unapplied = await main.check(database);
@@ -78,8 +84,10 @@ await database.remove(note, keys);
 A `Statement` renders once per database and runs with named values.
 
 ```ts
-const notes = new Statement((value) => sql`SELECT ${note.id} AS id FROM ${jsonElements(value("ids"), "listed")}
-    JOIN ${note} ON ${note.id} = listed.value ->> 0`);
+const notes = new Statement(
+    (value) => sql`SELECT ${note.id} AS id FROM ${jsonElements(value("ids"), "listed")}
+    JOIN ${note} ON ${note.id} = listed.value ->> 0`,
+);
 await notes.all(database, { ids: JSON.stringify(ids.map((id) => [id])) });
 ```
 
@@ -89,7 +97,10 @@ A `Condition` from `@destack/db/query` renders to SQL and matches rows in memory
 
 ```ts
 const where = Condition.all(Condition.eq("scope", spaceId), Condition.gte("rank", 2));
-await database.select().from(note).where(Condition.render(where, Condition.bind(note)));
+await database
+    .select()
+    .from(note)
+    .where(Condition.render(where, Condition.bind(note)));
 Condition.matches(Condition.compile(where, note), row);
 ```
 
@@ -98,7 +109,10 @@ Condition.matches(Condition.compile(where, note), row);
 An `Expression` computes a value from one row alike in SQL and memory, JSON included.
 
 ```ts
-const mode = Expression.scalar(Expression.path(Expression.column("value"), "editor", "mode"), "text");
+const mode = Expression.scalar(
+    Expression.path(Expression.column("value"), "editor", "mode"),
+    "text",
+);
 const converted = Expression.object({
     mode: Expression.case(mode, [{ when: "emacs", then: Expression.literal("standard") }], mode),
     pinned: Expression.json(false),
