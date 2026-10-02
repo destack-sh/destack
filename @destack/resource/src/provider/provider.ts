@@ -87,20 +87,14 @@ export interface Open<Kind extends ResourceKind = ResourceKind, Handle = unknown
     open(record: ResourceRecord<Kind>, desired: readonly KindState<Kind>[]): Promise<Handle>;
 }
 
-/** Carry the rows a provider binds to its host, such as keys wrapped under the host's root key, to another host. */
-export interface Seal<Table = unknown> {
+/** Rewrap the rows a provider binds to its host, such as keys wrapped under the host's root key, for another host. */
+export interface Rewrap<Table = unknown, Row extends object = Record<string, unknown>> {
     /** The table of the host-bound rows. */
     readonly table: Table;
-    /** Seal a row's host-bound values to the target's recipient. */
-    seal(
-        row: Readonly<Record<string, unknown>>,
-        recipient: Recipient,
-    ): Promise<Record<string, unknown>>;
-    /** Unseal a row sealed to this host's recipient, binding its values to this host. */
-    unseal(
-        row: Readonly<Record<string, unknown>>,
-        recipient: Recipient,
-    ): Promise<Record<string, unknown>>;
+    /** Wrap a row's host-bound values for the target's recipient. */
+    wrap(row: Readonly<Row>, recipient: Recipient): Promise<Row>;
+    /** Unwrap a row wrapped for this host's recipient, wrapping its values under this host's root key. */
+    unwrap(row: Readonly<Row>, recipient: Recipient): Promise<Row>;
 }
 
 /** The fields of any provider the capability checks read, whatever its kind and object. */
@@ -118,9 +112,9 @@ export const Provider = {
         return "open" in provider;
     },
 
-    /** Report whether a provider carries host-bound rows to another host. */
-    seals<Value extends ProviderShape>(provider: Value): provider is Value & Seal {
-        return "table" in provider && "seal" in provider && "unseal" in provider;
+    /** Report whether a provider rewraps host-bound rows for another host. */
+    rewraps<Value extends ProviderShape>(provider: Value): provider is Value & Rewrap {
+        return "table" in provider && "wrap" in provider && "unwrap" in provider;
     },
 
     /** Report whether a provider creates and removes the resources it hosts. */
