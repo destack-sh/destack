@@ -1,10 +1,9 @@
-import { Condition } from "@destack/db/query";
+import { Condition } from "@destack/db";
 import { Scope } from "@destack/sync";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "@destack/object/client";
 import { ResourceContext } from "@destack/resource/context";
-import { identifier } from "@destack/schema";
-import { canonicalize } from "@destack/schema/json";
+import { identifier, canonicalize } from "@destack/schema";
 import { Authentication } from "@destack/service/authentication";
 import { Health } from "@destack/service/health";
 import { Observable } from "@destack/service/observable";
@@ -45,8 +44,8 @@ test.each(TEST_DIALECTS)(
         });
         await Promise.all(queries.map((query) => query.ready));
         const chain = await acted.replica.chain(acted.database);
-        const resolve = (rows: readonly (readonly Readonly<Record<string, unknown>>[])[]) => {
-            const values = rows.flat() as SettingValue[];
+        const resolve = (rows: readonly (readonly SettingValue[])[]) => {
+            const values = rows.flat();
 
             return [editor, lineNumbers].map((declared: Setting) =>
                 declared.resolve(selection, values, chain),
@@ -97,7 +96,7 @@ test.each(TEST_DIALECTS)(
             release: editor.package.version,
         });
         await saved.confirmed;
-        const value = (await saved.predicted) as SettingValue;
+        const value = await saved.predicted;
         const chosen = {
             ...standard,
             value: "vim",
@@ -111,12 +110,12 @@ test.each(TEST_DIALECTS)(
         });
 
         // watch the space's recommendation apply beneath Alice's own values
-        const recommended = (await storage.call(setting, "create", spaceId, {
+        const recommended = await storage.call(setting, "create", spaceId, {
             ...named(lineNumbers),
             mode: "recommend",
             value: false,
             release: lineNumbers.package.version,
-        })) as SettingValue;
+        });
         const lowered = {
             ...numbered,
             value: false,
@@ -136,9 +135,7 @@ test.each(TEST_DIALECTS)(
         const visited = acted.subscribe(setting, { where: lineNumbers.condition(anonymous) });
         onTestFinished(() => visited.close());
         await visited.ready;
-        expect(
-            lineNumbers.resolve(anonymous, (await visited.read()) as SettingValue[], chain),
-        ).toEqual({
+        expect(lineNumbers.resolve(anonymous, await visited.read(), chain)).toEqual({
             ...lowered,
             selection: anonymous,
         });

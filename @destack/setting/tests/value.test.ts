@@ -4,7 +4,7 @@ import { Subject, Scope } from "@destack/sync";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { reportError } from "@destack/service/server";
-import { setting, type SettingValue } from "../src/object/index.ts";
+import { setting } from "../src/object/index.ts";
 import { alice, named, selection } from "./fixture/value.ts";
 import { editor, lineNumbers } from "./fixture/settings/index.ts";
 import { Storage } from "./fixture/storage.ts";
@@ -14,7 +14,7 @@ async function refusal(call: Promise<unknown>): Promise<{ code: string; message:
     const error = reportError(
         await call.then(
             () => undefined,
-            (error: unknown) => error,
+            (failure: unknown) => failure,
         ),
     );
 
@@ -27,8 +27,8 @@ test.each(TEST_DIALECTS)(
         const storage = await Storage.open(dialect);
         onTestFinished(() => storage.close());
         const laptop = await storage.register("laptop");
-        const call = (name: string, input: Readonly<Record<string, unknown>>) =>
-            storage.call(setting, name, alice, input) as Promise<SettingValue>;
+        const call = async (name: "create" | "update", input: Readonly<Record<string, unknown>>) =>
+            await storage.call(setting, name, alice, input);
         const create = (input: Readonly<Record<string, unknown>>) =>
             call("create", {
                 ...named(editor),

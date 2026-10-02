@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
-import { Expression } from "@destack/schema/expression";
 import { identifier, schema } from "@destack/schema";
+import { Expression } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { Scope } from "@destack/sync";
 import { defineSetting } from "../src/declare/index.ts";
@@ -19,6 +19,8 @@ import {
     account,
     alice,
     chain,
+    device,
+    installation,
     named,
     override,
     personal,
@@ -199,17 +201,24 @@ test("describe a setting and read the settings a build declares", async () => {
         overrides: ["space", "installation", "device"],
         apply: "immediate",
     });
-    expect(settingVocabulary(JSON.parse(JSON.stringify(describeSetting(editor))))).toEqual({
+    const described = schema
+        .record(schema.string(), schema.json())
+        .parse(JSON.parse(JSON.stringify(describeSetting(editor))));
+    expect(settingVocabulary(described)).toEqual({
         "editor.mode": { scope: "user" },
     });
 
     // read both settings back, validating values by their described schemas
     const catalog = await SettingCatalog.read(await release([editor, layout]));
     const read = catalog.get(layout.reference);
+    const [first] = catalog.settings;
+    if (first === undefined) {
+        throw new TypeError("the catalog has no settings");
+    }
     expect([
         catalog.settings.map(describeSetting),
-        catalog.settings[0]!.definition.schema.safeParse("vim").success,
-        catalog.settings[0]!.definition.schema.safeParse("emacs").success,
+        first.definition.schema.safeParse("vim").success,
+        first.definition.schema.safeParse("emacs").success,
         read.definition.schema.safeParse({ width: 100, compact: true }).success,
         read.definition.schema.safeParse({ width: 0, compact: true }).success,
     ]).toEqual([[describeSetting(editor), describeSetting(layout)], true, false, true, false]);
@@ -251,10 +260,10 @@ test("resolve space settings per installation and host settings per host", () =>
         { ...editor.definition, name: "template", scope: "space", overrides: ["installation"] },
         { package: notes },
     );
-    const first = SettingSelection.parse({
-        scope: space,
-        installation: "installation-019f5530-8000-7000-8000-000000000004",
-    });
+    const placed = identifier("installation").parse(
+        "installation-019f5530-8000-7000-8000-000000000004",
+    );
+    const first = SettingSelection.parse({ scope: space, installation: placed });
     const second = SettingSelection.parse({
         scope: space,
         installation: "installation-019f5530-8000-7000-8000-000000000014",
@@ -263,7 +272,7 @@ test("resolve space settings per installation and host settings per host", () =>
         ...personal,
         ...named(template),
         scope: space,
-        installation: first.installation!,
+        installation: placed,
     };
     expect([
         template.resolve(first, [value], chain),
@@ -332,21 +341,11 @@ test("refuse placements and writes a setting does not permit", () => {
         message: "setting value uses an unsupported setting override",
     };
     expect([
-        failure(() =>
-            plain.requirePlacement(
-                { installation: selection.installation, device: selection.device, mode: "set" },
-                "own",
-            ),
-        ),
+        failure(() => plain.requirePlacement({ installation, device, mode: "set" }, "own")),
         failure(() => plain.resolve(selection, [override], chain)),
         failure(() => editor.requirePlacement({ mode: "set" }, "enclosing")),
         failure(() => editor.requirePlacement({ mode: "recommend" }, "own")),
-        failure(() =>
-            editor.requirePlacement(
-                { space: selection.space, installation: selection.installation, mode: "set" },
-                "own",
-            ),
-        ),
+        failure(() => editor.requirePlacement({ space, installation, mode: "set" }, "own")),
     ]).toEqual([
         unsupported,
         unsupported,
@@ -414,7 +413,7 @@ test("skip stored values a changed schema rejects, falling through to the next s
     const resolution = upgraded.resolve(selection, [personal], chain);
     expect([
         SettingResolution.observed(resolution, { scope: alice }),
-        SettingResolution.observed(resolution, { scope: alice, device: selection.device }),
+        SettingResolution.observed(resolution, { scope: alice, device }),
     ]).toEqual([{ id: personal.id, revision: personal.revision }, null]);
 });
 
@@ -531,7 +530,7 @@ test("resolve a value for its consuming package, and rank recommendations by the
 
 test("plan a setting's value change between releases: safe widenings, converted narrowings, and a refused unconverted narrowing", () => {
     // describe the editor mode, a wider mode, and a keymap narrowing it
-    const release = "2026.9.0";
+    const version = "2026.9.0";
     const before = describeSetting(editor);
     const wider = describeSetting(
         defineSetting(
@@ -547,16 +546,20 @@ test("plan a setting's value change between releases: safe widenings, converted 
         defineSetting(
             {
                 ...narrower.definition,
-                convert: { [release]: Expression.literal("vim") },
+                convert: { [version]: Expression.literal("vim") },
             },
             { package: notes },
         ),
     );
     const outcome = (after: SettingDescription) => {
         try {
-            return compareSetting(entry(before, "2026.8.0"), entry(after, release)).steps;
+            return compareSetting(entry(before, "2026.8.0"), entry(after, version)).steps;
         } catch (error) {
-            return (error as Error).message;
+            if (!(error instanceof Error)) {
+                throw error;
+            }
+
+            return error.message;
         }
     };
 
@@ -581,7 +584,7 @@ test("plan a setting's value change between releases: safe widenings, converted 
                 action: "convert",
                 target: "setting/editor.mode",
                 risk: "data-dependent",
-                detail: `convert values to ${release}`,
+                detail: `convert values to ${version}`,
             },
         ],
         "setting/editor.mode: declare a conversion for 2026.9.0",

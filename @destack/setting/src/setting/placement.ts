@@ -8,13 +8,13 @@ export const SettingPlacement = Object.assign(
             /** The user, space, account, organisation or host holding the value. */
             scope: schema.string().min(1),
             /** The consuming package the value applies to. */
-            package: PackageId.optional(),
+            package: PackageId.exactOptional(),
             /** The space the value applies in. */
-            space: identifier("space").optional(),
+            space: identifier("space").exactOptional(),
             /** The installation the value applies to. */
-            installation: identifier("installation").optional(),
+            installation: identifier("installation").exactOptional(),
             /** The device the value applies on. */
-            device: identifier("device").optional(),
+            device: identifier("device").exactOptional(),
         }),
     ),
     {

@@ -10,7 +10,7 @@ import { editor } from "./settings/index.ts";
 export const alice = "user-019f5530-8000-7000-8000-000000000003";
 
 /** Bob's space, in which Alice acts. */
-export const space = "space-019f5530-8000-7000-8000-000000000003";
+export const space = identifier("space").parse("space-019f5530-8000-7000-8000-000000000003");
 
 /** Bob's account, holding his space. */
 export const account = "account-019f5530-8000-7000-8000-000000000011";
@@ -18,13 +18,16 @@ export const account = "account-019f5530-8000-7000-8000-000000000011";
 /** The scopes above Alice's values in Bob's space, nearest first. */
 export const chain = [space, account, Scope.universe.id];
 
+/** Bob's installation, which Alice uses. */
+export const installation = identifier("installation").parse(
+    "installation-019f5530-8000-7000-8000-000000000004",
+);
+
+/** Alice's own device. */
+export const device = identifier("device").parse("device-019f5530-8000-7000-8000-000000000005");
+
 /** Alice using Bob's installation on her own device. */
-export const selection = SettingSelection.parse({
-    scope: alice,
-    space,
-    installation: "installation-019f5530-8000-7000-8000-000000000004",
-    device: "device-019f5530-8000-7000-8000-000000000005",
-});
+export const selection = SettingSelection.parse({ scope: alice, space, installation, device });
 
 /** Alice's personal editor mode. */
 export const personal: SettingValue = {
@@ -54,8 +57,8 @@ export const personal: SettingValue = {
 export const override: SettingValue = {
     ...personal,
     id: identifier("setting").parse("setting-019f5530-8000-7000-8000-000000000007"),
-    installation: selection.installation!,
-    device: selection.device!,
+    installation,
+    device,
     value: "standard",
 };
 

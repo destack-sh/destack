@@ -1,9 +1,7 @@
 import { PackageId, type Package } from "@destack/package";
-import { defineSchema, identifier, schema, Version } from "@destack/schema";
-import { canonicalize } from "@destack/schema/json";
-import { Condition } from "@destack/db/query";
-import { Expression } from "@destack/schema/expression";
-import type { JsonValue } from "@destack/db";
+import { aligned, defineSchema, identifier, schema, Version, canonicalize } from "@destack/schema";
+import type { JsonValue } from "@destack/schema";
+import { Expression, Condition } from "@destack/db";
 import type { SettingDefinition } from "../declare/setting.ts";
 import type { SettingValue } from "../object/setting.ts";
 import type { SettingResolution, SettingSource } from "./resolution.ts";
@@ -34,7 +32,7 @@ const DEVICE_WEIGHT = 8;
 
 /** A package-local setting name, kept across releases. */
 export const SettingName = defineSchema(
-    schema.string().regex(/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$(?![\s\S])/),
+    schema.string().regex(/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$(?![\s\S])/u),
 );
 
 /** The identity of a setting across package renames and releases. */
@@ -62,7 +60,7 @@ export type SettingWrite = Omit<SettingPlacement, "scope"> & {
     /** How the value applies. */
     readonly mode: SettingMode;
     /** The value. */
-    readonly value: unknown;
+    readonly value: JsonValue;
     /** The release of the setting's package the value was written against. */
     readonly release: Version;
 };
@@ -117,7 +115,13 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         selection: SettingSelection,
         values: readonly SettingValue[],
         chain: readonly string[],
-    ): SettingResolution<schema.Infer<Value>> {
+    ): SettingResolution<schema.Infer<Value>>;
+    /** Resolve the winning candidate's value. */
+    resolve(
+        selection: SettingSelection,
+        values: readonly SettingValue[],
+        chain: readonly string[],
+    ): SettingResolution<unknown> {
         // require a selection of the setting's scope, or an anonymous one of a user setting
         const isSelectable =
             selection.scope === null
@@ -159,8 +163,8 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
 
         // reject equally ranked candidates other than agreeing recommendations
         for (let index = 1; index < ordinary.length; index++) {
-            const previous = ordinary[index - 1]!;
-            const current = ordinary[index]!;
+            const previous = aligned(ordinary, index - 1);
+            const current = aligned(ordinary, index);
             const isShared =
                 previous.mode === "recommend" &&
                 current.mode === "recommend" &&
@@ -174,12 +178,16 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         }
 
         // reject disagreeing requirements
-        if (required.some((candidate) => !equalValue(candidate.value, required[0]!.value))) {
+        const [requirement] = required;
+        if (
+            requirement !== undefined &&
+            required.some((candidate) => !equalValue(candidate.value, requirement.value))
+        ) {
             throw new SettingError("CONFLICT", "required setting values disagree");
         }
 
         // take the requirements, or else the highest ranked candidates
-        const winner = required[0] ?? ordinary[ordinary.length - 1]!;
+        const winner = requirement ?? aligned(ordinary, ordinary.length - 1);
         const winners =
             required.length > 0
                 ? required
@@ -192,7 +200,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         return {
             setting: this.reference,
             selection,
-            value: winner.value as schema.Infer<Value>,
+            value: winner.value,
             sources: [...winners.map((candidate) => candidate.source), ...invalid],
             overridden: overridden.map((candidate) => candidate.source),
             enforcement: required.length > 0 ? "required" : "ordinary",
@@ -345,7 +353,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
 
     /** Convert a value of an earlier release to this one, refusing a value of a later release. */
     #convert(
-        value: unknown,
+        value: JsonValue,
         release: Version,
     ): { readonly isConverted: true; readonly value: unknown } | { readonly isConverted: false } {
         // refuse a value newer than the declaration
@@ -356,10 +364,10 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
 
         // compute the value through each later release
         const convert = this.definition.convert ?? {};
-        const converted = Version.between(Object.keys(convert), release, current).reduce(
-            (earlier: JsonValue, target) =>
-                Expression.evaluate(convert[target]!, { value: earlier }),
-            value as JsonValue,
+        const converted = Version.between(convert, release, current).reduce(
+            (earlier: JsonValue, [, expression]) =>
+                Expression.evaluate(expression, { value: earlier }),
+            value,
         );
 
         return { isConverted: true, value: converted };

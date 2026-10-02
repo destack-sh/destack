@@ -1,4 +1,3 @@
-import type { Call } from "@destack/object";
 import { SpaceSetting } from "../declare/space.ts";
 import { SettingError } from "../error/index.ts";
 import { SettingCatalog } from "../inspect/index.ts";
@@ -20,13 +19,22 @@ export function servedObjects(release: OpenRelease) {
     return {
         setting: setting
             .handle({
-                create: { authorize: (call) => requireDeclared(call, release) },
-                update: { authorize: (call) => requireDeclared(call, release) },
+                create: {
+                    authorize: (call) =>
+                        requireDeclared({ ...call.input, scope: call.scope }, release),
+                },
+                update: {
+                    authorize: (call) =>
+                        requireDeclared(
+                            { ...call.target, ...call.input, scope: call.scope },
+                            release,
+                        ),
+                },
             })
             .declare({
                 keys: ["settings"],
                 collect: (document) =>
-                    schema.record(schema.string(), SpaceSetting).parse(document.settings ?? {}),
+                    schema.record(schema.string(), SpaceSetting).parse(document["settings"] ?? {}),
                 resolve: async (_name, desired: SpaceSetting, stack) => {
                     // stamp the declaring release, and require a declared value at a placement the space permits
                     try {
@@ -58,16 +66,18 @@ export function servedObjects(release: OpenRelease) {
     };
 }
 
-/** Require a written value to match its declaration in the consumer's release, or else the declaring package's. */
-async function requireDeclared(call: Call, release: OpenRelease): Promise<void> {
-    // read the value as the call leaves it
-    const value = { ...call.target, ...call.input, scope: call.scope } as SettingValue;
+/** Require a written setting value to match its declaration. */
+async function requireDeclared(
+    value: Parameters<typeof SettingPlacement.of>[0] &
+        Pick<SettingValue, "packageId" | "name" | "mode" | "value" | "release">,
+    release: OpenRelease,
+): Promise<void> {
     const placement = SettingPlacement.of(value);
 
     // check it against the release its placement selects
     try {
         const reader = await release(
-            call.scope,
+            value.scope,
             placement.package ?? value.packageId,
             placement.installation,
         );
@@ -76,7 +86,7 @@ async function requireDeclared(call: Call, release: OpenRelease): Promise<void> 
             .get({ packageId: value.packageId, name: value.name })
             .requireWrite(
                 { ...placement, mode: value.mode, value: value.value, release: value.release },
-                call.scope,
+                value.scope,
             );
     } catch (error) {
         throw error instanceof SettingError ? error.toServiceError() : error;

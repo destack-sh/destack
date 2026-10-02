@@ -1,7 +1,13 @@
-import { Expression } from "@destack/schema/expression";
-import type { JsonValue } from "@destack/schema/json";
+import {
+    type JsonValue,
+    defineSchema,
+    fromJsonSchema,
+    schema,
+    toJsonSchema,
+    Version,
+} from "@destack/schema";
+import { Expression } from "@destack/db";
 import { Address, Plan, type Compare } from "@destack/resource";
-import { defineSchema, fromJsonSchema, schema, toJsonSchema, Version } from "@destack/schema";
 import { Package } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
@@ -21,7 +27,7 @@ const description = SettingMetadata.extend({
     /** The default value. */
     default: schema.json(),
     /** The value each release computes from a value of an earlier release, by the release introducing it. */
-    convert: schema.record(Version, Expression.schema).optional(),
+    convert: schema.record(Version, Expression.schema).exactOptional(),
 });
 
 /** A setting declaration as manifests describe it. */
@@ -61,11 +67,7 @@ export const compareSetting: Compare = (before, after) => {
         release,
         compatibility: "backward",
         isConverted:
-            Version.between(
-                Object.keys(later.convert ?? {}),
-                before.symbol.package.version,
-                release,
-            ).length > 0,
+            Version.between(later.convert ?? {}, before.symbol.package.version, release).length > 0,
     });
 };
 
@@ -133,7 +135,7 @@ export class SettingCatalog {
 
 /** List a setting's term: its name, with its scope. */
 export function settingVocabulary(input: Record<string, JsonValue>): Record<string, JsonValue> {
-    const description = SettingDescription.parse(input);
+    const declared = SettingDescription.parse(input);
 
-    return { [description.name]: { scope: description.scope } };
+    return { [declared.name]: { scope: declared.scope } };
 }

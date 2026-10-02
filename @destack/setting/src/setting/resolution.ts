@@ -1,6 +1,5 @@
 import { Package } from "@destack/package";
-import { defineSchema, identifier, schema } from "@destack/schema";
-import { canonicalize } from "@destack/schema/json";
+import { defineSchema, identifier, schema, canonicalize } from "@destack/schema";
 import type { SettingValue } from "../object/setting.ts";
 import { SettingReference } from "./setting.ts";
 import { SettingPlacement, SettingSelection } from "./placement.ts";
@@ -61,9 +60,9 @@ export const SettingResolution = Object.assign(
         ): Pick<SettingValue, "id" | "revision"> | null {
             const selected = canonicalize(SettingPlacement.of(placement));
             const source = [...resolution.sources, ...resolution.overridden].find(
-                (source) =>
-                    source.kind !== "default" &&
-                    canonicalize(SettingPlacement.of(source)) === selected,
+                (candidate) =>
+                    candidate.kind !== "default" &&
+                    canonicalize(SettingPlacement.of(candidate)) === selected,
             );
 
             return source === undefined || source.kind === "default"

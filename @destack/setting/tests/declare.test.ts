@@ -73,21 +73,25 @@ test.each(TEST_DIALECTS)(
             value: "vim",
             release: "2026.9.0",
         };
+        const [editorRow, templateRow] = rows;
+        if (editorRow === undefined || templateRow === undefined) {
+            throw new TypeError("the stack placed fewer than two values");
+        }
         expect(rows).toEqual([
             {
                 ...written,
-                id: rows[0]!.id,
-                createdAt: rows[0]!.createdAt,
-                updatedAt: rows[0]!.updatedAt,
+                id: editorRow.id,
+                createdAt: editorRow.createdAt,
+                updatedAt: editorRow.updatedAt,
                 managerName: "editor",
                 name: "editor.mode",
                 mode: "recommend",
             },
             {
                 ...written,
-                id: rows[1]!.id,
-                createdAt: rows[1]!.createdAt,
-                updatedAt: rows[1]!.updatedAt,
+                id: templateRow.id,
+                createdAt: templateRow.createdAt,
+                updatedAt: templateRow.updatedAt,
                 managerName: "template",
                 name: "template",
                 mode: "set",

@@ -1,6 +1,6 @@
-import { Expression } from "@destack/schema/expression";
-import { ModuleMetadata, Package } from "@destack/package";
 import { defineSchema, schema, Version } from "@destack/schema";
+import { Expression } from "@destack/db";
+import { ModuleMetadata, Package } from "@destack/package";
 import { Setting, SettingName } from "../setting/setting.ts";
 
 /** The scope a setting belongs to and the overrides it permits. */
@@ -39,11 +39,11 @@ export const SettingMetadata = defineSchema(
         /** The behavior the value controls. */
         description: schema.string().min(1),
         /** The group settings views show it in. */
-        group: schema.string().min(1).optional(),
+        group: schema.string().min(1).exactOptional(),
         /** When a consumer applies a changed value. */
         apply: schema.enum(["immediate", "restart"]),
         /** The migration guidance of a deprecated setting. */
-        deprecated: schema.string().min(1).optional(),
+        deprecated: schema.string().min(1).exactOptional(),
     }),
 );
 

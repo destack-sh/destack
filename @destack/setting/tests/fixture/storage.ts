@@ -2,13 +2,11 @@ import { outbox } from "@destack/service/outbox";
 import { copyOwner, copyScope } from "@destack/access/test";
 import { Scope, type ObjectReference, Subject } from "@destack/sync";
 import { TestDatabase } from "@destack/db/test";
-import { Bookmark } from "@destack/service/bookmark";
 import { RequestId } from "@destack/service/request";
-import type { ServiceContext } from "@destack/service/server";
 import { accessTables, principal } from "@destack/access";
 import { device, type Device } from "@destack/account/object";
 import type { Dialect } from "@destack/db";
-import type { ObjectType } from "@destack/object";
+import type { CallableName, CallOutput, ObjectType } from "@destack/object";
 import { ObjectServer } from "@destack/object/server";
 
 import { settingTables } from "../../src/stack/index.ts";
@@ -18,7 +16,7 @@ import { defineService } from "@destack/service";
 import type { Setting } from "../../src/setting/index.ts";
 import { editor, lineNumbers, release } from "./settings/index.ts";
 import { alice } from "./value.ts";
-import { testCallKey } from "@destack/service/test";
+import { subjectContext, testCallKey } from "@destack/service/test";
 
 /** The fixture's service of setting values and Alice's devices. */
 export const settingService = defineService("setting", { objects: { setting, device } });
@@ -46,7 +44,11 @@ export class Storage {
         this.objects = new ObjectServer({
             objects: { ...servedObjects(this.release), device },
             database: test.database,
-            context: (context, scope) => context.access(scope),
+            context: (context) => ({
+                subjects: [context.requireAuthentication().claims.subject],
+                now: Date.now(),
+                attributes: {},
+            }),
             callKey: testCallKey,
             origin: { package: settingService.package, service: settingService.name },
         });
@@ -59,33 +61,30 @@ export class Storage {
     }
 
     /** Call a method as Alice in a scope. */
-    call(
-        object: ObjectType,
-        name: string,
+    async call<Type extends ObjectType, Name extends CallableName<Type>>(
+        object: Type,
+        name: Name,
         scope: string,
         input: Readonly<Record<string, unknown>>,
-    ): Promise<unknown> {
-        const context = {
-            scope,
-            requestId: RequestId.create(),
-            requireAuthentication: () => ({ id: alice }),
-            access: () => ({ subjects: [this.subject], now: Date.now(), attributes: {} }),
-            bookmark: new Bookmark(),
-            observed: new Bookmark(),
-            signal: new AbortController().signal,
-        } as unknown as ServiceContext;
+    ): Promise<CallOutput<Type, Name>> {
+        // place the call in the scope through the object's route field
+        const field = object.route.field;
+        if (field === undefined) {
+            throw new TypeError("a scoped call needs an object routed by a field");
+        }
+        const context = subjectContext(this.subject, scope);
 
-        return this.objects.call(
+        return await this.objects.call(
             object,
             name,
-            { [object.route.field!]: scope, requestId: RequestId.create(), ...input },
+            { [field]: scope, requestId: RequestId.create(), ...input },
             context,
         );
     }
 
     /** Register a device of Alice's. */
-    register(name: string): Promise<Device> {
-        return this.call(device, "create", alice, { name }) as Promise<Device>;
+    async register(name: string): Promise<Device> {
+        return await this.call(device, "create", alice, { name });
     }
 
     /** Open a database of a dialect with Alice's own personal scope. */

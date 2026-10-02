@@ -1,6 +1,5 @@
-import { check, index, sql, uniqueIndex, type Select } from "@destack/db";
-import { Condition } from "@destack/db/query";
-import { defineObject, field, method } from "@destack/object";
+import { check, index, sql, uniqueIndex, type Select, Condition } from "@destack/db";
+import { defineObject, field } from "@destack/object";
 import { identifier, schema, Version } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { SpaceSetting } from "../declare/space.ts";
@@ -44,13 +43,13 @@ export const setting = defineObject({
     },
     permissions: ["read", "write"],
     detachable: { by: "write" },
-    methods: {
+    methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
         create: method.create("write"),
         update: method.update("write", { fields: ["mode", "value", "release"] }),
         delete: method.delete("write"),
-    },
+    }),
     constraints: (value) => [
         uniqueIndex("setting_placement").on(
             value.packageId,
