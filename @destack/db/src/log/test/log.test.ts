@@ -1,16 +1,21 @@
+import { schema } from "@destack/schema";
+import { sql } from "../../sql/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { sql } from "drizzle-orm";
 import { TEST_DIALECTS, TestDatabase } from "../../test/database.ts";
 import { defineTable, eq, text } from "../../index.ts";
 import { changeTables, lease, note, revision } from "./fixture.ts";
 
 /** Open a migrated test database. */
-async function open(dialect: (typeof TEST_DIALECTS)[number], storage?: "memory" | "file") {
-    const test = await TestDatabase.create(dialect, changeTables, { storage });
-    onTestFinished(() => test.close());
-    await test.database.migrate(changeTables);
+async function open(dialect: (typeof TEST_DIALECTS)[number], kind?: "memory" | "file") {
+    const storage = await TestDatabase.create(
+        dialect,
+        changeTables,
+        kind === undefined ? {} : { storage: kind },
+    );
+    onTestFinished(() => storage.close());
+    await storage.database.migrate(changeTables);
 
-    return test;
+    return storage;
 }
 
 /** A note with exact, structured and binary values. */
@@ -41,30 +46,37 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
     const created = await database.log.read({ tables, after: 0 });
     const { attachment: _attachment, ...logged } = first;
     expect(
-        created.changes.map(({ table, ...change }) => ({ ...change, table: table === note })),
+        created.changes.map(
+            ({
+                table,
+                sequence: _sequence,
+                transaction: _transaction,
+                changedAt: _changedAt,
+                ...change
+            }) => ({
+                ...change,
+                table: table === note,
+            }),
+        ),
     ).toEqual([
         {
-            sequence: expect.any(Number),
-            transaction: expect.any(String),
             table: true,
             key: { id: "a" },
             operation: "insert",
             after: logged,
             scope: "inbox",
-            changedAt: expect.any(Number),
         },
         {
-            sequence: expect.any(Number),
-            transaction: expect.any(String),
             table: false,
             key: { noteId: "a", number: 1 },
             operation: "insert",
             after: { scope: "inbox", noteId: "a", number: 1, title: "First" },
             scope: "inbox",
-            changedAt: expect.any(Number),
         },
     ]);
-    expect(created.changes[0]!.transaction).toBe(created.changes[1]!.transaction);
+
+    // share one transaction across both changes
+    expect(new Set(created.changes.map((change) => change.transaction)).size).toBe(1);
 
     // skip empty updates and record binary-only ones
     await database.update(note).set({ title: "First" }).where(eq(note.id, "a"));
@@ -108,8 +120,9 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
     await expect(database.log.read({ tables, after: 0 })).rejects.toMatchObject({
         code: "CHANGES_COMPACTED",
     });
-    const history = await database.execute<{ table: string }>(
+    const history = await database.execute(
         sql`SELECT "table" FROM ${sql.identifier("__destack_log")} ORDER BY sequence`,
+        schema.object({ table: schema.string() }),
     );
     expect(history.map((entry) => entry.table)).toEqual([
         "destack__db__revision",
@@ -125,9 +138,9 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
     const next = following.next();
     await database.insert(note).values({ ...first, id: "c" });
     const received = await next;
-    expect(received.done ? [] : received.value.changes.map((change) => change.key)).toEqual([
-        { id: "c" },
-    ]);
+    expect(
+        received.done === true ? [] : received.value.changes.map((change) => change.key),
+    ).toEqual([{ id: "c" }]);
 
     // advance past a commit of another table without its changes
     const advancing = following.next();
@@ -205,15 +218,11 @@ test.for(TEST_DIALECTS)(
             after: start.sequence,
             scopes: ["inbox"],
         });
-        const texts = (row?: { readonly title: string; readonly summary: string | null }) => [
-            row?.title,
-            row?.summary,
-        ];
         expect(
             updated.changes.map((change) => [
                 change.operation,
-                texts(change.before),
-                texts(change.after),
+                [change.before?.title, change.before?.summary],
+                [change.after?.title, change.after?.summary],
             ]),
         ).toEqual([
             ["update", ["First", null], ["Titled", "Short"]],
@@ -242,14 +251,14 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "wait for a position through this connection's and another connection's commits on %s",
     async (dialect) => {
-        const test = await open(dialect, "file");
-        const { database } = test;
-        const other = await test.connect(changeTables);
+        const storage = await open(dialect, "file");
+        const { database } = storage;
+        const other = await storage.connect(changeTables);
         onTestFinished(() => other.close());
         await database.insert(note).values(first);
         const position = (await database.log.position()).sequence;
 
-        // return at once for a position the log holds
+        // return at once for a position the log has
         const signal = AbortSignal.timeout(5000);
         expect(await database.log.wait(position, signal)).toBe(true);
 
@@ -295,22 +304,20 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
         const { database } = await open("postgresql");
 
         // write first in a transaction that commits last
-        let release!: () => void;
-        const held = new Promise<void>((resolve) => (release = resolve));
-        let written!: () => void;
-        const isWritten = new Promise<void>((resolve) => (written = resolve));
+        const released = Promise.withResolvers<void>();
+        const written = Promise.withResolvers<void>();
         const late = database.transaction(async (transaction) => {
             await transaction.insert(note).values({ ...first, id: "late" });
-            written();
-            await held;
+            written.resolve();
+            await released.promise;
         });
-        await isWritten;
+        await written.promise;
         await database.insert(note).values({ ...first, id: "early" });
 
         // hide the uncommitted write, then order it after the earlier commit
         const before = await database.log.read({ tables: [note], after: 0 });
         expect(before.changes.map((change) => change.key)).toEqual([{ id: "early" }]);
-        release();
+        released.resolve();
         await late;
         const after = await database.log.read({ tables: [note], after: before.sequence });
         expect(after.changes.map((change) => change.key)).toEqual([{ id: "late" }]);
@@ -324,19 +331,17 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
         await database.insert(note).values(first);
 
         // commit one of two concurrent updates
-        let release!: () => void;
-        const held = new Promise<void>((resolve) => (release = resolve));
-        let read!: () => void;
-        const isRead = new Promise<void>((resolve) => (read = resolve));
+        const released = Promise.withResolvers<void>();
+        const read = Promise.withResolvers<void>();
         const late = database.transaction(async (transaction) => {
             await transaction.select().from(note).where(eq(note.id, "a"));
-            read();
-            await held;
+            read.resolve();
+            await released.promise;
             await transaction.update(note).set({ title: "Late" }).where(eq(note.id, "a"));
         });
-        await isRead;
+        await read.promise;
         await database.update(note).set({ title: "Early" }).where(eq(note.id, "a"));
-        release();
+        released.resolve();
         await expect(late).rejects.toMatchObject({ code: "CONCURRENT_UPDATE" });
     },
 );

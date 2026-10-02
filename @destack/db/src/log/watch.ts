@@ -55,19 +55,19 @@ export class CommitWatch {
         }
     }
 
-    /** Wait until a check holds after a commit, returning false once the signal aborts. */
+    /** Wait until a check passes after a commit, returning false once the signal aborts. */
     async until(check: () => Promise<boolean>, signal: AbortSignal): Promise<boolean> {
         while (!signal.aborted) {
             // register before checking
             const checked = new AbortController();
             const next = this.#next(AbortSignal.any([signal, checked.signal]));
-            const isHeld = await check().catch(async (error: unknown) => {
+            const isPassed = await check().catch(async (error: unknown) => {
                 // settle the registered wait
                 checked.abort();
                 await Promise.allSettled([next]);
                 throw error;
             });
-            if (isHeld) {
+            if (isPassed) {
                 checked.abort();
                 await next;
 

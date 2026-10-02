@@ -1,17 +1,18 @@
-import { eq } from "drizzle-orm";
+import { ModuleMetadata } from "@destack/package";
+import { eq } from "../../../sql/index.ts";
 import { defineTable } from "../../../table/table.ts";
 import { text } from "../../../table/column.ts";
 import type { DurableObjectStorage } from "../client.ts";
 import { connect } from "../connection.ts";
 
 /** The module the scenario's table belongs to. */
-const MODULE = {
+const MODULE = ModuleMetadata.parse({
     package: {
         id: "package-01996ab0-0000-7000-8000-00000000d001",
         name: "@destack/durable-scenario",
         version: "2026.9.0",
     },
-} as never;
+});
 
 /** Notes the scenario writes. */
 const note = defineTable(
@@ -26,7 +27,7 @@ export class Notes {
     /** The object's storage. */
     readonly storage: DurableObjectStorage;
 
-    /** Hold the object's storage. */
+    /** Keep the object's storage. */
     constructor(state: { readonly storage: DurableObjectStorage }) {
         this.storage = state.storage;
     }

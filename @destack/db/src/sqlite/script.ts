@@ -53,7 +53,7 @@ export const SqliteScript = {
             const { token, end } = next(script, index);
 
             // close a statement at the semicolon completing it
-            state = TRANSITIONS[state]![token]!;
+            state = transition(state, token);
             if (token === TOKEN.semicolon && state === START) {
                 statements.push(script.slice(start, end).trim());
                 start = end;
@@ -73,14 +73,14 @@ export const SqliteScript = {
 
 /** Read the token at an index and the index after it. */
 function next(script: string, index: number): { readonly token: number; readonly end: number } {
-    const character = script[index]!;
+    const character = script.charAt(index);
 
     // read a semicolon
     if (character === ";") {
         return { token: TOKEN.semicolon, end: index + 1 };
     }
     // read whitespace
-    else if (/\s/.test(character)) {
+    else if (/\s/u.test(character)) {
         return { token: TOKEN.whitespace, end: index + 1 };
     }
     // read a line comment to its line end
@@ -103,9 +103,9 @@ function next(script: string, index: number): { readonly token: number; readonly
         return { token: TOKEN.other, end: end === -1 ? script.length : end + 1 };
     }
     // read a word and match its keyword
-    else if (/[\w$]/.test(character)) {
+    else if (/[\w$]/u.test(character)) {
         let end = index + 1;
-        while (end < script.length && /[\w$]/.test(script[end]!)) {
+        while (end < script.length && /[\w$]/u.test(script.charAt(end))) {
             end += 1;
         }
         const word = script.slice(index, end).toLowerCase();
@@ -114,4 +114,14 @@ function next(script: string, index: number): { readonly token: number; readonly
     }
 
     return { token: TOKEN.other, end: index + 1 };
+}
+
+/** Read the state a token moves the statement machine to, from the transition table. */
+function transition(state: number, token: number): number {
+    const target = TRANSITIONS[state]?.[token];
+    if (target === undefined) {
+        throw new RangeError(`the statement machine has no transition from ${state} on ${token}`);
+    }
+
+    return target;
 }

@@ -1,12 +1,12 @@
 import init from "@sqlite.org/sqlite-wasm";
 import type { Channel } from "../../channel/channel.ts";
-import { serveDatabase, type Message } from "../shared/shared.ts";
+import { serveDatabase } from "../shared/shared.ts";
 import { WasmClient } from "./client.ts";
 
 /** Open an OPFS database file and serve it to a channel's parties until stopped. */
 export async function serveBrowserDatabase(
     name: string,
-    channel: Channel<Message>,
+    channel: Channel<unknown>,
 ): Promise<() => Promise<void>> {
     // open the file through synchronous access handles
     const sqlite = await init();

@@ -30,43 +30,30 @@ export function sqliteProvider<Object>(
             const space = new URL(`${record.scope}/`, root);
             const file = new URL(`${record.id}.db`, space);
             await mkdir(space, { recursive: true });
-            const connection = await connect(fileURLToPath(file));
-            try {
-                await connection.log.create(record.scope);
-            } finally {
-                await connection.close();
-            }
+            await using connection = await connect(fileURLToPath(file));
+            await connection.log.create(record.scope);
 
             return { reference: file.href };
         },
         plan: async (record, desired) => {
             // diff the applied state against the desired states
-            const connection = await open(record, []);
-            try {
-                return await connection.plan(
-                    mergeStates(desired.map((state) => state.tables.sqlite)),
-                );
-            } finally {
-                await connection.close();
-            }
+            await using connection = await open(record, []);
+
+            return await connection.plan(mergeStates(desired.map((state) => state.tables.sqlite)));
         },
         apply: async (record, desired, digest) => {
             // apply the reviewed plan
-            const connection = await open(record, []);
-            try {
-                const plan = await connection.plan(
-                    mergeStates(desired.map((state) => state.tables.sqlite)),
+            await using connection = await open(record, []);
+            const plan = await connection.plan(
+                mergeStates(desired.map((state) => state.tables.sqlite)),
+            );
+            if ((await Plan.digest(plan)) !== digest) {
+                throw new DatabaseError(
+                    "PLAN_CHANGED",
+                    `plan of ${record.id} changed since review`,
                 );
-                if ((await Plan.digest(plan)) !== digest) {
-                    throw new DatabaseError(
-                        "PLAN_CHANGED",
-                        `plan of ${record.id} changed since review`,
-                    );
-                }
-                await connection.apply(plan);
-            } finally {
-                await connection.close();
             }
+            await connection.apply(plan);
         },
         open: async (record, desired) => {
             // open the tables the desired states describe, and a replica's own tables beside them once migrated

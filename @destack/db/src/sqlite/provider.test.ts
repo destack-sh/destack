@@ -5,11 +5,10 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Plan } from "@destack/resource";
-import { identifier } from "@destack/schema";
+import { identifier, schema } from "@destack/schema";
 import { defineDatabase } from "../declare/database.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { defineTable, sql, TABLE, text } from "../index.ts";
-import type { SqliteDatabase } from "./database.ts";
 import { sqliteConnector } from "./connector.ts";
 import { sqliteProvider } from "./provider.ts";
 
@@ -19,8 +18,20 @@ const note = defineTable("note", { id: text("id").primaryKey(), title: text("tit
 /** A table a copy keeps beside the notes. */
 const beside = defineTable("beside", { id: text("id").primaryKey() });
 
-/** The database holding the notes. */
+/** The database with the notes. */
 const notes = defineDatabase({ name: "notes", tables: [note] });
+
+/** Close a connection once it opens, or read why it failed to. */
+function outcome(connecting: Promise<DatabaseConnection & AsyncDisposable>): Promise<string> {
+    return connecting.then(
+        async (connection) => {
+            await connection[Symbol.asyncDispose]();
+
+            return "connected";
+        },
+        (error: Error) => error.message,
+    );
+}
 
 test("provision, plan and apply a SQLite database file, connect a workload to it once applied, and destroy it", async () => {
     // provide databases below a scratch directory
@@ -40,15 +51,6 @@ test("provision, plan and apply a SQLite database file, connect a workload to it
         provider: provider.code,
         reference,
     });
-    const outcome = (connecting: Promise<DatabaseConnection>) =>
-        connecting.then(
-            async (connection) => {
-                await (connection as SqliteDatabase).close();
-
-                return "connected";
-            },
-            (error: Error) => error.message,
-        );
 
     // provision the file, and refuse connecting before its tables apply
     const qualified = note[TABLE].sqlName;
@@ -97,19 +99,17 @@ test("open a provisioned SQLite database over its desired tables, migrating tabl
     onTestFinished(() => handle.close());
     await handle.migrate([beside]);
     await handle.database.insert(beside).values({ id: "a" });
-    const notesTable = handle.database.tables.find(
-        (table) => table[TABLE].sqlName === note[TABLE].sqlName,
-    ) as typeof note;
-    await handle.database.insert(notesTable).values({ id: "n1", title: "First" });
+    await handle.database.insert(note).values({ id: "n1", title: "First" });
 
     // drop the table beside once migrated without it, keeping the notes
     await handle.migrate([]);
     const tables = (
-        await handle.database.execute<{ name: string }>(
+        await handle.database.execute(
             sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE '\\_\\_%' ESCAPE '\\' AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\' ORDER BY name`,
+            schema.object({ name: schema.string() }),
         )
     ).map((row) => row.name);
-    expect([tables, await handle.database.select().from(notesTable)]).toEqual([
+    expect([tables, await handle.database.select().from(note)]).toEqual([
         [note[TABLE].sqlName],
         [{ id: "n1", title: "First" }],
     ]);

@@ -7,11 +7,11 @@ import { photo, post, remark, section } from "./test/fixture.ts";
 test.for(TEST_DIALECTS)(
     "delete the rows referencing a deleted row of their type, also below foreign key cascades, on %s",
     async (dialect) => {
-        const test = await TestDatabase.create(dialect, [remark, post, section, photo], {
+        const storage = await TestDatabase.create(dialect, [remark, post, section, photo], {
             isMigrated: true,
         });
-        onTestFinished(() => test.close());
-        const { database } = test;
+        onTestFinished(() => storage.close());
+        const { database } = storage;
         const read = async () =>
             (await database.select({ id: remark.id }).from(remark).orderBy(asc(remark.id))).map(
                 (row) => row.id,

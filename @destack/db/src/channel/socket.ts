@@ -13,9 +13,9 @@ const NAME_DIGITS = 16;
 const REJOIN_MILLISECONDS = 20;
 
 /** One listener of a channel. */
-interface Listener<Message> {
+interface Listener {
     /** Receive another party's message. */
-    readonly receive: (message: Message) => void;
+    readonly receive: (message: unknown) => void;
     /** Recheck after each delivery start. */
     readonly resume: (() => void) | undefined;
     /** Fail once delivery ends. */
@@ -23,18 +23,18 @@ interface Listener<Message> {
 }
 
 /** Reach every process on one machine sharing a path, such as a SQLite file's writers, through a Unix socket. */
-export function socketChannel<Message>(path: string): Channel<Message> {
-    return new SocketChannel<Message>(path);
+export function socketChannel(path: string): Channel<unknown> {
+    return new SocketChannel(path);
 }
 
-/** A party of a socket channel: the one holding its lock serves the socket, the others connect to it. */
-class SocketChannel<Message> implements Channel<Message> {
+/** A party of a socket channel: the one with its lock serves the socket, the others connect to it. */
+class SocketChannel implements Channel<unknown> {
     /** The socket path. */
     readonly #socket: string;
     /** The lock path electing the serving party. */
     readonly #lock: string;
     /** The listeners in this process. */
-    readonly #listeners = new Set<Listener<Message>>();
+    readonly #listeners = new Set<Listener>();
     /** The lines sent before joining. */
     #queued: string[] = [];
     /** The join in progress or done. */
@@ -46,7 +46,7 @@ class SocketChannel<Message> implements Channel<Message> {
     /** The connection to the serving party, while another party serves. */
     #peer: Socket | undefined;
 
-    /** Name the socket and lock of a path. */
+    /** Derive the socket and lock paths of a path. */
     constructor(path: string) {
         const name = createHash("sha256").update(path).digest("hex").slice(0, NAME_DIGITS);
         this.#socket = join(tmpdir(), `destack-${name}.sock`);
@@ -59,7 +59,7 @@ class SocketChannel<Message> implements Channel<Message> {
     }
 
     /** Send a message to every other party, once joined. */
-    notify(message: Message): void {
+    notify(message: unknown): void {
         // send to the other parties, or queue until joined
         const line = `${JSON.stringify(message)}\n`;
         if (this.#isJoined) {
@@ -72,7 +72,7 @@ class SocketChannel<Message> implements Channel<Message> {
 
     /** Receive the other parties' messages until stopped, resuming on each join. */
     listen(
-        receive: (message: Message) => void,
+        receive: (message: unknown) => void,
         resume?: () => void,
         fail?: (error: unknown) => void,
     ): () => void {
@@ -119,7 +119,7 @@ class SocketChannel<Message> implements Channel<Message> {
         }
     }
 
-    /** Serve the socket when holding its lock, or connect to the party serving it. */
+    /** Serve the socket when it has the lock, or connect to the party serving it. */
     async #elect(): Promise<void> {
         while (true) {
             // serve the socket, replacing one a stopped party left
@@ -143,6 +143,7 @@ class SocketChannel<Message> implements Channel<Message> {
                             }
                         }
                     });
+                    // drop a party whose connection fails
                     peer.on("close", () => peers.delete(peer));
                     peer.on("error", () => peer.destroy());
                     peer.unref();
@@ -180,7 +181,9 @@ class SocketChannel<Message> implements Channel<Message> {
             }
 
             // wait while another party starts serving
-            await new Promise((resolve) => setTimeout(resolve, REJOIN_MILLISECONDS));
+            await new Promise((resolve) => {
+                setTimeout(resolve, REJOIN_MILLISECONDS);
+            });
         }
     }
 
@@ -198,7 +201,7 @@ class SocketChannel<Message> implements Channel<Message> {
 
     /** Deliver one line to this process's listeners. */
     #deliver(line: string): void {
-        const message = JSON.parse(line) as Message;
+        const message: unknown = JSON.parse(line);
         for (const listener of this.#listeners) {
             listener.receive(message);
         }
@@ -223,7 +226,7 @@ class SocketChannel<Message> implements Channel<Message> {
     /** Stop serving or close the connection, letting another party serve. */
     async #leave(): Promise<void> {
         // wait for the join, then release whichever role it took
-        await this.#joining?.catch(() => undefined);
+        await this.#joining;
         this.#joining = undefined;
         const hub = this.#hub;
         this.#hub = undefined;
@@ -235,7 +238,9 @@ class SocketChannel<Message> implements Channel<Message> {
             for (const other of hub.peers) {
                 other.destroy();
             }
-            await new Promise<void>((resolve) => hub.server.close(() => resolve()));
+            await new Promise<void>((resolve) => {
+                hub.server.close(() => resolve());
+            });
             await hub.lock.close();
         }
     }

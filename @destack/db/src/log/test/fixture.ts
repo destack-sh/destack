@@ -1,6 +1,5 @@
 import { defineTable } from "../../table/table.ts";
 import { bigint, binary, integer, json, text } from "../../table/column.ts";
-import { primaryKey } from "../../table/constraint.ts";
 import { schema } from "@destack/schema";
 
 /** Notes whose changes stay within the compaction window. */
@@ -34,14 +33,13 @@ export const revision = defineTable(
         /** The folder the revision lives in. */
         scope: text("scope").notNull(),
         /** The revised note. */
-        noteId: text("note_id").notNull(),
+        noteId: text("note_id").primaryKey(),
         /** The revision number. */
-        number: integer("number").notNull(),
+        number: integer("number").primaryKey(),
         /** The revised title. */
         title: text("title").notNull(),
     },
     {
-        constraints: (revision) => [primaryKey({ columns: [revision.noteId, revision.number] })],
         log: { retention: "history" },
     },
 );

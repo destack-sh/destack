@@ -51,7 +51,7 @@ export class LocalBlobStore implements BlobStore {
             ),
         );
 
-        return digests.filter((_, index) => !found[index]);
+        return digests.filter((_, index) => found[index] !== true);
     }
 
     /** Read a blob's bytes a megabyte at a time. */
@@ -100,7 +100,9 @@ export class LocalBlobStore implements BlobStore {
         } catch (error) {
             await unlink(temporary).catch((cleanup: NodeJS.ErrnoException) => {
                 if (cleanup.code !== "ENOENT") {
-                    throw new AggregateError([error, cleanup], "blob write and cleanup failed");
+                    throw new AggregateError([error, cleanup], "blob write and cleanup failed", {
+                        cause: error,
+                    });
                 }
             });
             throw error;

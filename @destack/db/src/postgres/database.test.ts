@@ -1,24 +1,37 @@
 import postgres from "postgres";
 import { expect, onTestFinished, test } from "@destack/test";
+import { schema } from "@destack/schema";
+import { typedChannel } from "../channel/channel.ts";
 import { postgresChannel } from "./database.ts";
 
 /** The test server's address, absent where tests run without PostgreSQL. */
-const ADDRESS = process.env.DESTACK_TEST_POSTGRES;
+const ADDRESS = process.env["DESTACK_TEST_POSTGRES"];
 
 /** A message between parties, with a body of some size. */
-type Note = { readonly from: string; readonly body: string };
+const Note = schema.object({ from: schema.string(), body: schema.string() });
+/** A message between parties, with a body of some size. */
+type Note = schema.Infer<typeof Note>;
 
 test.skipIf(ADDRESS === undefined)(
     "carry small and large messages whole through a PostgreSQL channel, splitting the large ones",
     async () => {
         // listen with one client and notify with another
-        const listener = postgres(ADDRESS!, { max: 1 });
-        const sender = postgres(ADDRESS!, { max: 4 });
+        if (ADDRESS === undefined) {
+            throw new Error("the test server has no address");
+        }
+        const listener = postgres(ADDRESS, { max: 1 });
+        const sender = postgres(ADDRESS, { max: 4 });
         const name = `destack_test_${crypto.randomUUID().replaceAll("-", "")}`;
         const received: Note[] = [];
         const joined = Promise.withResolvers<void>();
-        const stop = postgresChannel<Note>(listener, name).listen(
-            (message) => received.push(message),
+        const isReceived = Promise.withResolvers<void>();
+        const stop = typedChannel(postgresChannel(listener, name), Note).listen(
+            (message) => {
+                received.push(message);
+                if (received.length === 2) {
+                    isReceived.resolve();
+                }
+            },
             () => joined.resolve(),
         );
         onTestFinished(async () => {
@@ -30,13 +43,10 @@ test.skipIf(ADDRESS === undefined)(
 
         // send a small message and one of about 60 kB with multi-byte characters across fragments
         const large = "äöü€😀".repeat(5_000);
-        const channel = postgresChannel<Note>(sender, name);
+        const channel = typedChannel(postgresChannel(sender, name), Note);
         channel.notify({ from: "small", body: "hello" });
         channel.notify({ from: "large", body: large });
-        const deadline = Date.now() + 5_000;
-        while (received.length < 2 && Date.now() < deadline) {
-            await new Promise((resolve) => setTimeout(resolve, 10));
-        }
+        await isReceived.promise;
 
         // receive both exactly, in any order
         expect(received.toSorted((left, right) => left.from.localeCompare(right.from))).toEqual([

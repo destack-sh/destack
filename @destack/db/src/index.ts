@@ -1,7 +1,13 @@
-export * from "./query/builder.ts";
+export * from "./sql/index.ts";
+export * from "./query/index.ts";
+export * from "./expression/index.ts";
 export * from "./declare/index.ts";
 export * from "./table/index.ts";
-export * from "./inspect/describe.ts";
+export * from "./inspect/index.ts";
 export * from "./database/index.ts";
 export * from "./dialect/dialect.ts";
-export type { DatabaseState, TableState } from "./migration/state.ts";
+export * from "./log/index.ts";
+export * from "./tree/index.ts";
+export * from "./error/index.ts";
+export * from "./channel/index.ts";
+export { type DatabaseState, TableState } from "./migration/state.ts";

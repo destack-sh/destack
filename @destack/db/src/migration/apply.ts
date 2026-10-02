@@ -1,8 +1,10 @@
-import { sql } from "drizzle-orm";
+import { schema } from "@destack/schema";
+import { sql } from "../sql/index.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { rebuildTree } from "../tree/rebuild.ts";
 import { DatabaseError } from "../error/error.ts";
 import { STATE, writeState } from "./state.ts";
+import { literal } from "../dialect/quote.ts";
 import type { TablePlan, TableStep } from "./plan.ts";
 
 /** Apply a plan in one transaction and record the declared state. */
@@ -12,10 +14,10 @@ export async function applyPlan(database: DatabaseConnection, plan: TablePlan): 
         return;
     }
 
-    // serialise appliers, defer foreign keys, and hold the triggers
+    // serialise appliers, defer foreign keys, and defer the triggers
     const lock =
         plan.dialect === "postgresql"
-            ? `SELECT pg_advisory_xact_lock(hashtextextended('${STATE}', 0))`
+            ? `SELECT pg_advisory_xact_lock(hashtextextended(${literal(STATE)}, 0))`
             : "PRAGMA defer_foreign_keys = ON";
     const changes = [
         lock,
@@ -59,7 +61,7 @@ async function applySteps(
         let pending: string[] = [];
         for (const step of plan.steps.filter(isLogged)) {
             // flush the batch and rebuild the tree
-            if (step.tree) {
+            if (step.tree !== undefined) {
                 await runScript(transaction, pending);
                 pending = [];
                 await rebuildTree(transaction, step.tree).catch((cause: unknown) => {
@@ -86,8 +88,9 @@ async function applySteps(
 
         // require valid references after a rebuild
         if (isRebuilt) {
-            const violations = await transaction.execute<{ table: string }>(
+            const violations = await transaction.execute(
                 sql`PRAGMA foreign_key_check`,
+                schema.looseObject({ table: schema.string() }),
             );
             if (violations.length > 0) {
                 const tables = [...new Set(violations.map((row) => row.table))].join(", ");
@@ -110,7 +113,7 @@ async function runScript(
         return;
     }
 
-    // name the failure in the migration error
+    // wrap the failure in a migration error
     try {
         await database.executeScript(statements.map((statement) => `${statement};`).join("\n"));
     } catch (cause) {

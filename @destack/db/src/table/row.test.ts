@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
-import { defineTable } from "./table.ts";
+import { TABLE, defineTable } from "./table.ts";
 import {
     bigint,
     binary,
@@ -52,7 +52,7 @@ test("roundtrip every column kind through its JSON form as text", () => {
     };
 
     // round-trip each value through its JSON form
-    const encoded = sample.encode({ ...row, missing: 1 });
+    const encoded = sample[TABLE].encode({ ...row, missing: 1 });
     expect(encoded).toEqual({
         id: "a",
         owner: "user-01996ab0-0000-7000-8000-000000000001",
@@ -65,9 +65,9 @@ test("roundtrip every column kind through its JSON form as text", () => {
         price: "12.50",
         editedAt: 1790416800123,
     });
-    expect(sample.decode(JSON.parse(JSON.stringify(encoded)))).toEqual(row);
+    expect(sample[TABLE].decode(encoded)).toEqual(row);
 
     // keep null values as null
-    expect(sample.encode({ id: "b", views: null })).toEqual({ id: "b", views: null });
-    expect(sample.decode({ id: "b", views: null })).toEqual({ id: "b", views: null });
+    expect(sample[TABLE].encode({ id: "b", views: null })).toEqual({ id: "b", views: null });
+    expect(sample[TABLE].decode({ id: "b", views: null })).toEqual({ id: "b", views: null });
 });

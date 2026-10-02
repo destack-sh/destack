@@ -56,7 +56,7 @@ const tag = defineTable("tag", {
 /** The identifier of a sample. */
 const SampleId = schemas.identifier("sample");
 
-/** A sample holding a value of every kind. */
+/** A sample with a value of every kind. */
 const row = {
     id: SampleId.parse("sample-01996ab0-0000-7000-8000-000000000001"),
     kind: "rich" as const,
@@ -73,10 +73,10 @@ const row = {
 
 /** Open a migrated test database. */
 async function open(dialect: (typeof TEST_DIALECTS)[number]) {
-    const test = await TestDatabase.create(dialect, [sample, tag], { isMigrated: true });
-    onTestFinished(() => test.close());
+    const storage = await TestDatabase.create(dialect, [sample, tag], { isMigrated: true });
+    onTestFinished(() => storage.close());
 
-    return test.database;
+    return storage.database;
 }
 
 test.for(TEST_DIALECTS)("read back every column kind as written on %s", async (dialect) => {

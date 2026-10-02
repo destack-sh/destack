@@ -2,23 +2,16 @@ import { expect, test } from "@destack/test";
 import { Package } from "@destack/package";
 import { alias, defineTable, TABLE } from "./table.ts";
 import { text } from "./column.ts";
-import { primaryKey } from "./constraint.ts";
 
 /** A table with a compound key. */
-const membership = defineTable(
-    "table_membership",
-    {
-        /** The group. */
-        group: text("group").notNull(),
-        /** The member. */
-        member: text("member").notNull(),
-        /** The member's role. */
-        role: text("role").notNull(),
-    },
-    {
-        constraints: (row) => [primaryKey({ columns: [row.group, row.member] })],
-    },
-);
+const membership = defineTable("table_membership", {
+    /** The group. */
+    group: text("group").primaryKey(),
+    /** The member. */
+    member: text("member").primaryKey(),
+    /** The member's role. */
+    role: text("role").notNull(),
+});
 
 test("key an alias by the properties of its source's compound key", () => {
     // read the key of the table and an alias

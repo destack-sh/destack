@@ -1,9 +1,7 @@
+import { CHAIN_TERMS, asc } from "../sql/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
-import { asc } from "../query/builder.ts";
-import { CHAIN_TERMS } from "../query/predicate.ts";
 import { integer, text } from "../table/column.ts";
-import { primaryKey } from "../table/constraint.ts";
 import { defineTable } from "../table/table.ts";
 
 /** Counters by owner and name. */
@@ -13,17 +11,26 @@ const counter = defineTable(
         /** The space the counter lives in. */
         scope: text("scope").notNull(),
         /** The owning principal. */
-        owner: text("owner").notNull(),
+        owner: text("owner").primaryKey(),
         /** The counter's name within its owner. */
-        name: text("name").notNull(),
+        name: text("name").primaryKey(),
         /** The counted value. */
         value: integer("value").notNull(),
     },
     {
         log: {},
-        constraints: (entry) => [primaryKey({ columns: [entry.owner, entry.name] })],
     },
 );
+
+/** Build a count of Ada's counters at one value. */
+function counters(count: number, value: number) {
+    return Array.from({ length: count }, (_, index) => ({
+        scope: "s",
+        owner: "ada",
+        name: `c${String(index).padStart(4, "0")}`,
+        value,
+    }));
+}
 
 test.for(TEST_DIALECTS)(
     "upsert rows as they are and remove them by key across several statements on %s",
@@ -31,33 +38,27 @@ test.for(TEST_DIALECTS)(
         const storage = await TestDatabase.create(dialect, [counter], { isMigrated: true });
         onTestFinished(() => storage.close());
         const database = storage.database;
-        const rows = (count: number, value: number) =>
-            Array.from({ length: count }, (_, index) => ({
-                scope: "s",
-                owner: "ada",
-                name: `c${String(index).padStart(4, "0")}`,
-                value,
-            }));
         const read = () =>
             database.select().from(counter).orderBy(asc(counter.owner), asc(counter.name));
 
-        // insert and update more rows than one key chain holds
+        // insert and update more rows than one key chain matches
         const count = 2 * CHAIN_TERMS + 1;
-        await database.upsert(counter, rows(count, 1));
+        await database.upsert(counter, counters(count, 1));
         const inserted = await database.log.position();
-        await database.upsert(counter, [...rows(count, 2), { ...rows(1, 7)[0]!, owner: "bob" }]);
+        const bob = { scope: "s", owner: "bob", name: "c0000", value: 7 };
+        await database.upsert(counter, [...counters(count, 2), bob]);
         const page = await database.log.read({ tables: [counter], after: inserted.sequence });
         expect([
             (await read()).map((row) => row.value),
-            page.changes.map((change) => change.operation).sort(),
+            page.changes.map((change) => change.operation).toSorted(),
         ]).toEqual([
-            [...rows(count, 2).map(() => 2), 7],
-            [...rows(count, 2).map(() => "update"), "insert"].sort(),
+            [...counters(count, 2).map(() => 2), 7],
+            [...counters(count, 2).map(() => "update"), "insert"].toSorted(),
         ]);
 
         // remove every row but one across several chains
-        await database.remove(counter, rows(count, 0));
-        expect(await read()).toEqual([{ scope: "s", owner: "bob", name: "c0000", value: 7 }]);
+        await database.remove(counter, counters(count, 0));
+        expect(await read()).toEqual([bob]);
     },
 );
 
@@ -68,22 +69,19 @@ test.for(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
         const database = storage.database;
 
-        // write and read, then roll back
-        let read: unknown;
-        const result = await database.transaction(async (transaction) => {
+        // write and read in a rehearsal, which rolls the writes back
+        const read = await database.rehearse(async (transaction) => {
             await transaction.upsert(counter, [
                 { scope: "s", owner: "ada", name: "rolled", value: 1 },
             ]);
-            read = await transaction.select().from(counter);
-            transaction.rollback();
+
+            return transaction.select().from(counter);
         });
 
-        // keep the read, resolve nothing, and find nothing written
-        expect([read, result, await database.select().from(counter)]).toEqual([
+        // keep the read and find nothing written
+        expect([read, await database.select().from(counter)]).toEqual([
             [{ scope: "s", owner: "ada", name: "rolled", value: 1 }],
-            undefined,
             [],
         ]);
-        expect(() => database.rollback()).toThrow(new TypeError("only a transaction rolls back"));
     },
 );

@@ -1,5 +1,4 @@
-import { canonicalize } from "@destack/schema/json";
-import { Version } from "@destack/schema";
+import { canonicalize, Version } from "@destack/schema";
 import type { TableDescription } from "../inspect/table.ts";
 import { logOf, type TableState } from "./state.ts";
 
@@ -24,7 +23,9 @@ export function mergeStates(declarations: readonly (readonly TableState[])[]): M
     const conflicts: { table: string; reason: string }[] = [];
     for (const [name, states] of groups) {
         const distinct = [...new Map(states.map((state) => [canonicalize(state), state])).values()];
-        const merged = distinct.length === 1 ? { state: distinct[0]! } : mergeTable(distinct);
+        const [only] = distinct;
+        const merged =
+            distinct.length === 1 && only !== undefined ? { state: only } : mergeTable(distinct);
         declared.push(merged.state);
         if (merged.reason !== undefined) {
             conflicts.push({ table: name, reason: merged.reason });
@@ -51,12 +52,15 @@ function mergeTable(states: readonly TableState[]): {
     readonly reason?: string;
 } {
     // start from the newest release
-    const newest = [...states].sort(
+    const [newest] = states.toSorted(
         (left, right) =>
             Version.compare(right.package.version, left.package.version) ||
             Number(renames(right, states)) - Number(renames(left, states)) ||
             canonicalize(left).localeCompare(canonicalize(right)),
-    )[0]!;
+    );
+    if (newest === undefined) {
+        throw new TypeError("merge a table from at least one state");
+    }
     const others = states.filter((state) => state !== newest);
     const declaresColumn = (name: string) =>
         others.some((state) => state.table.columns.some((column) => column.name === name));
@@ -82,7 +86,7 @@ function mergeTable(states: readonly TableState[]): {
     for (const state of others) {
         for (const column of state.table.columns) {
             const existing = byName.get(column.name);
-            if (!existing) {
+            if (existing === undefined) {
                 if (
                     state.table.constraints.some(
                         (constraint) =>
@@ -147,7 +151,7 @@ function mergeTable(states: readonly TableState[]): {
 
 /** Make a required column without a default nullable. */
 function relax(column: TableDescription["columns"][number]): TableDescription["columns"][number] {
-    return column.nullable || column.default !== undefined || column.generated
+    return column.nullable || column.default !== undefined || column.generated !== undefined
         ? column
         : { ...column, nullable: true };
 }

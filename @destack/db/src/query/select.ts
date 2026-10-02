@@ -1,18 +1,50 @@
-import { assertNever } from "../error/error.ts";
-import { type Query, SQL, type SQLWrapper, Subquery, WithSubquery } from "drizzle-orm";
-import type { SQLiteTable } from "drizzle-orm/sqlite-core";
-import type * as sqlite from "drizzle-orm/sqlite-core";
-import type { PgTable } from "drizzle-orm/pg-core";
-import type * as postgres from "drizzle-orm/pg-core";
+import { fill, render, sql, SQL, type SQLWrapper } from "../sql/index.ts";
 import { type Select, TABLE, type Table } from "../table/table.ts";
-import { Column } from "../table/column.ts";
-import { type DatabaseDriver } from "../database/driver.ts";
-import type { SchemaCompiler } from "../dialect/compiler.ts";
-import type { DrizzleSelect } from "../dialect/drizzle.ts";
-import { selectFields, type Selection, type SelectionResult } from "./selection.ts";
-import type { SOURCE } from "./selection.ts";
+import type { DatabaseDriver } from "../database/driver.ts";
+import { Projection, type Selection, type SelectionResult } from "./selection.ts";
 
-/** A typed selection. */
+/** How a join keeps unmatched rows: inner keeps none, left keeps the source's. */
+type JoinKind = "inner" | "left";
+
+/** A joined table and its condition. */
+interface Join {
+    /** How unmatched rows stay. */
+    readonly kind: JoinKind;
+    /** The joined table. */
+    readonly table: Table;
+    /** The join condition. */
+    readonly on: SQLWrapper;
+}
+
+/** What a selection reads, filters, groups, orders and limits. */
+interface SelectState {
+    /** The driver running the query. */
+    readonly driver: DatabaseDriver;
+    /** The source table. */
+    readonly source: Table;
+    /** The selected fields. */
+    readonly fields: Selection;
+    /** Whether joins add each joined table's columns to the fields. */
+    readonly isAutomatic: boolean;
+    /** Whether duplicate rows are removed. */
+    readonly isDistinct: boolean;
+    /** The joins in evaluation order. */
+    readonly joins: readonly Join[];
+    /** The row predicate. */
+    readonly where: SQLWrapper | undefined;
+    /** The grouping expressions. */
+    readonly groups: readonly SQLWrapper[];
+    /** The group predicate. */
+    readonly having: SQLWrapper | undefined;
+    /** The ordering expressions. */
+    readonly order: readonly SQLWrapper[];
+    /** The most rows returned. */
+    readonly limit: number | undefined;
+    /** The rows skipped. */
+    readonly offset: number | undefined;
+}
+
+/** A typed selection, a new query for each step, awaited for its rows. */
 export class SelectQuery<
     Result,
     Fields extends Selection = Selection,
@@ -21,515 +53,229 @@ export class SelectQuery<
 >
     implements PromiseLike<Result[]>, SQLWrapper
 {
-    /** Drizzle's inferred types. */
-    declare readonly _: { selectedFields: Selection; result: Result[] };
-    /** The native database driver. */
-    readonly driver: DatabaseDriver;
-    /** The table compiler. */
-    readonly compiler: SchemaCompiler;
-    /** The source table. */
-    readonly table: QuerySource;
-    /** The selected fields. */
-    readonly fields: Fields;
-    /** Whether duplicate rows are removed. */
-    readonly isDistinct: boolean;
-    /** The common table expressions. */
-    readonly withList: readonly WithSubquery[];
-    /** Whether joins select every column. */
-    readonly isAutomatic: Automatic;
-    /** The joins in evaluation order. */
-    readonly joins: {
-        readonly kind: "inner" | "left" | "right" | "full" | "cross";
-        readonly table: QuerySource;
-        readonly on?: SQL;
-    }[] = [];
-    /** The row predicate. */
-    predicate?: SQL;
-    /** The grouping expressions. */
-    groups: SQLWrapper[] = [];
-    /** The group predicate. */
-    groupPredicate?: SQL;
-    /** The ordering expressions. */
-    order: SQLWrapper[] = [];
-    /** The maximum returned row count. */
-    count?: number;
-    /** The number of rows skipped. */
-    skip?: number;
+    /** The inferred types. */
+    declare readonly _: {
+        readonly result: Result;
+        readonly fields: Fields;
+        readonly nullable: NullableTables;
+        readonly automatic: Automatic;
+    };
+    /** What the query reads, filters, groups, orders and limits. */
+    readonly state: SelectState;
 
-    /** Create the selection. */
-    constructor(
-        driver: DatabaseDriver,
-        compiler: SchemaCompiler,
-        table: QuerySource,
-        fields: Fields,
-        options: {
-            readonly isDistinct: boolean;
-            readonly isAutomatic: Automatic;
-            readonly withList: readonly WithSubquery[];
-        },
-    ) {
-        // keep the query definition
-        this.withList = options.withList;
-        this.isAutomatic = options.isAutomatic;
-        this.driver = driver;
-        this.compiler = compiler;
-        this.table = table;
-        this.fields = fields;
-        this.isDistinct = options.isDistinct;
+    /** Create the query. */
+    constructor(state: SelectState) {
+        this.state = state;
     }
 
     /** Filter rows before grouping. */
-    where(predicate: SQL | undefined): this {
-        this.predicate = predicate;
-
-        return this;
+    where(
+        predicate: SQLWrapper | undefined,
+    ): SelectQuery<Result, Fields, NullableTables, Automatic> {
+        return new SelectQuery({ ...this.state, where: predicate });
     }
 
     /** Include matching rows from another table. */
-    innerJoin<Joined extends QuerySource>(
+    innerJoin<Joined extends Table>(
         table: Joined,
-        on: SQL,
+        on: SQLWrapper,
     ): SelectQuery<
         SelectionResult<JoinFields<Fields, Joined, Automatic>, NullableTables>,
         JoinFields<Fields, Joined, Automatic>,
         NullableTables,
         Automatic
     > {
-        this.#join("inner", table, on);
-
-        return this as unknown as SelectQuery<
-            SelectionResult<JoinFields<Fields, Joined, Automatic>, NullableTables>,
-            JoinFields<Fields, Joined, Automatic>,
-            NullableTables,
-            Automatic
-        >;
+        return new SelectQuery(this.#join("inner", table, on));
     }
 
     /** Include matching or null rows from another table. */
-    leftJoin<Joined extends QuerySource>(
+    leftJoin<Joined extends Table>(
         table: Joined,
-        on: SQL,
-    ): SelectQuery<
-        SelectionResult<JoinFields<Fields, Joined, Automatic>, NullableTables | SourceName<Joined>>,
-        JoinFields<Fields, Joined, Automatic>,
-        NullableTables | SourceName<Joined>,
-        Automatic
-    > {
-        this.#join("left", table, on);
-
-        return this as unknown as SelectQuery<
-            SelectionResult<
-                JoinFields<Fields, Joined, Automatic>,
-                NullableTables | SourceName<Joined>
-            >,
-            JoinFields<Fields, Joined, Automatic>,
-            NullableTables | SourceName<Joined>,
-            Automatic
-        >;
-    }
-
-    /** Include every row of the joined table. */
-    rightJoin<Joined extends QuerySource>(
-        table: Joined,
-        on: SQL,
+        on: SQLWrapper,
     ): SelectQuery<
         SelectionResult<
             JoinFields<Fields, Joined, Automatic>,
-            Exclude<FieldTables<Fields>, SourceName<Joined>>
+            NullableTables | Joined[typeof TABLE]["name"]
         >,
         JoinFields<Fields, Joined, Automatic>,
-        Exclude<FieldTables<Fields>, SourceName<Joined>>,
+        NullableTables | Joined[typeof TABLE]["name"],
         Automatic
     > {
-        this.#join("right", table, on);
-
-        return this as unknown as SelectQuery<
-            SelectionResult<
-                JoinFields<Fields, Joined, Automatic>,
-                Exclude<FieldTables<Fields>, SourceName<Joined>>
-            >,
-            JoinFields<Fields, Joined, Automatic>,
-            Exclude<FieldTables<Fields>, SourceName<Joined>>,
-            Automatic
-        >;
+        return new SelectQuery(this.#join("left", table, on));
     }
 
-    /** Include unmatched rows from both sides. */
-    fullJoin<Joined extends QuerySource>(
-        table: Joined,
-        on: SQL,
-    ): SelectQuery<
-        SelectionResult<
-            JoinFields<Fields, Joined, Automatic>,
-            FieldTables<Fields> | SourceName<Joined>
-        >,
-        JoinFields<Fields, Joined, Automatic>,
-        FieldTables<Fields> | SourceName<Joined>,
-        Automatic
-    > {
-        this.#join("full", table, on);
-
-        return this as unknown as SelectQuery<
-            SelectionResult<
-                JoinFields<Fields, Joined, Automatic>,
-                FieldTables<Fields> | SourceName<Joined>
-            >,
-            JoinFields<Fields, Joined, Automatic>,
-            FieldTables<Fields> | SourceName<Joined>,
-            Automatic
-        >;
-    }
-
-    /** Include every row combination. */
-    crossJoin<Joined extends QuerySource>(
-        table: Joined,
-    ): SelectQuery<
-        SelectionResult<JoinFields<Fields, Joined, Automatic>, NullableTables>,
-        JoinFields<Fields, Joined, Automatic>,
-        NullableTables,
-        Automatic
-    > {
-        this.#join("cross", table);
-
-        return this as unknown as SelectQuery<
-            SelectionResult<JoinFields<Fields, Joined, Automatic>, NullableTables>,
-            JoinFields<Fields, Joined, Automatic>,
-            NullableTables,
-            Automatic
-        >;
-    }
-
-    /** Register a join. */
-    #join(kind: "inner" | "left" | "right" | "full" | "cross", table: QuerySource, on?: SQL): void {
-        this.joins.push({ kind, table, on });
-        if (this.isAutomatic) {
-            Object.assign(this.fields, { [sourceName(table)]: sourceFields(table) });
-        }
-    }
-
-    /** Group rows by the selected expressions. */
-    groupBy(...expressions: SQLWrapper[]): this {
-        this.groups = expressions;
-
-        return this;
+    /** Group rows by expressions. */
+    groupBy(...expressions: SQLWrapper[]): SelectQuery<Result, Fields, NullableTables, Automatic> {
+        return new SelectQuery({ ...this.state, groups: expressions });
     }
 
     /** Filter grouped rows. */
-    having(predicate: SQL | undefined): this {
-        this.groupPredicate = predicate;
-
-        return this;
+    having(
+        predicate: SQLWrapper | undefined,
+    ): SelectQuery<Result, Fields, NullableTables, Automatic> {
+        return new SelectQuery({ ...this.state, having: predicate });
     }
 
-    /** Order rows by the selected expressions. */
-    orderBy(...expressions: SQLWrapper[]): this {
-        this.order = expressions;
-
-        return this;
+    /** Order rows by expressions. */
+    orderBy(...expressions: SQLWrapper[]): SelectQuery<Result, Fields, NullableTables, Automatic> {
+        return new SelectQuery({ ...this.state, order: expressions });
     }
 
-    /** Limit the returned row count. */
-    limit(count: number): this {
-        this.count = count;
-
-        return this;
+    /** Return at most a number of rows. */
+    limit(count: number): SelectQuery<Result, Fields, NullableTables, Automatic> {
+        return new SelectQuery({ ...this.state, limit: count });
     }
 
-    /** Skip rows before returning results. */
-    offset(count: number): this {
-        this.skip = count;
-
-        return this;
+    /** Skip a number of rows. */
+    offset(count: number): SelectQuery<Result, Fields, NullableTables, Automatic> {
+        return new SelectQuery({ ...this.state, offset: count });
     }
 
-    /** Execute and return the first row, if any. */
+    /** Read the first row, if any. */
     async get(): Promise<Result | undefined> {
-        const rows = await this.driver.run(() => this.#compile(1));
+        const [row] = await this.limit(1).execute();
 
-        return rows[0] as Result | undefined;
+        return row;
     }
 
-    /** Execute the selection. */
+    /** Read every row. */
     async execute(): Promise<Result[]> {
-        return (await this.driver.run(() => this.#compile())) as Result[];
+        // run the query and decode its rows, nullable joined groups missing as null
+        const projection = this.#projection();
+        const rows = await this.state.driver.values(
+            fill(render(this.#sql(projection), this.state.driver.dialect)),
+        );
+        const nullable = new Set(
+            this.state.joins
+                .filter((join) => join.kind === "left")
+                .map((join) => join.table[TABLE].sqlName),
+        );
+
+        return projection.decode<Result>(rows, this.state.driver.dialect, nullable);
     }
 
-    /** Render the SQL and parameters. */
-    toSQL(): Query {
-        return this.#compile().toSQL();
-    }
-
-    /** Embed the selection as a subquery. */
+    /** Embed the query as a subquery, such as in `inArray` or `exists`. */
     getSQL(): SQL {
-        return this.#compile().getSQL();
+        return this.#sql(this.#projection());
     }
 
-    /** Compile a reusable query. */
-    prepare(): PreparedQuery<Result[]> {
-        const query = this.#compile().prepare();
-
-        return {
-            execute: async (parameters) => {
-                this.driver.transaction?.assertActive();
-
-                return (await this.driver.run(() => query.execute(parameters))) as Result[];
-            },
-        };
-    }
-
-    /** Name the selection for FROM or JOIN. */
-    as<const Alias extends string>(alias: Alias): SelectedSubquery<Result, Alias> {
-        return this.#compile().as(alias) as SelectedSubquery<Result, Alias>;
-    }
-
-    /** Read the native selected fields. */
-    getSelectedFields(): Selection {
-        return this.#compile().getSelectedFields();
-    }
-
-    /** Build the native query. */
-    #compile(maximum?: number): DrizzleSelect {
-        // reject use after the enclosing transaction
-        this.driver.transaction?.assertActive();
-
-        // resolve the source table
-        const table = this.table instanceof Subquery ? this.table : this.compiler.table(this.table);
-        for (const join of this.joins) {
-            if (!(join.table instanceof Subquery)) {
-                this.compiler.table(join.table);
-            }
-        }
-        const selected =
-            this.isAutomatic && this.joins.length === 0 ? sourceFields(this.table) : this.fields;
-        const fields = selectFields(selected, this.compiler);
-
-        // build the native query
-        let query: DrizzleSelect;
-
-        // select from the SQLite table
-        if (this.driver.native.dialect === "sqlite") {
-            const database = this.driver.native.database.with(...this.withList);
-            const selection = fields as sqlite.SelectedFields;
-            query = (this.isDistinct
-                ? database.selectDistinct(selection)
-                : database.select(selection)
-            )
-                .from(table as SQLiteTable)
-                .$dynamic() as unknown as DrizzleSelect;
-        }
-        // select from the PostgreSQL table
-        else if (this.driver.native.dialect === "postgresql") {
-            const database = this.driver.native.database.with(...this.withList);
-            const selection = fields as postgres.SelectedFields;
-            query = (this.isDistinct
-                ? database.selectDistinct(selection)
-                : database.select(selection)
-            )
-                .from(table as PgTable)
-                .$dynamic() as unknown as DrizzleSelect;
-        }
-        // reject other dialects
-        else {
-            return assertNever(this.driver.native);
-        }
-
-        // apply the joins
-        for (const join of this.joins) {
-            const table =
-                join.table instanceof Subquery ? join.table : this.compiler.table(join.table);
-            const on = join.on && this.compiler.expression(join.on);
-            switch (join.kind) {
-                case "inner":
-                    query = query.innerJoin(table, on);
-                    break;
-                case "left":
-                    query = query.leftJoin(table, on);
-                    break;
-                case "right":
-                    query = query.rightJoin(table, on);
-                    break;
-                case "full":
-                    query = query.fullJoin(table, on);
-                    break;
-                case "cross":
-                    query = query.crossJoin(table);
-                    break;
-                default:
-                    assertNever(join.kind);
-            }
-        }
-
-        // apply filters, grouping, order and pagination
-        const expression = (value: SQLWrapper): SQLWrapper =>
-            value instanceof Column
-                ? this.compiler.column(value)
-                : value instanceof SQL
-                  ? this.compiler.expression(value)
-                  : value;
-        if (this.predicate) {
-            query = query.where(this.compiler.expression(this.predicate));
-        }
-        if (this.groups.length) {
-            query = query.groupBy(...this.groups.map(expression));
-        }
-        if (this.groupPredicate) {
-            query = query.having(this.compiler.expression(this.groupPredicate));
-        }
-        if (this.order.length) {
-            query = query.orderBy(...this.order.map(expression));
-        }
-        const count = maximum === undefined ? this.count : Math.min(this.count ?? maximum, maximum);
-        if (count !== undefined) {
-            query = query.limit(count);
-        }
-        if (this.skip !== undefined) {
-            query = query.offset(this.skip);
-        }
-
-        return query;
-    }
-
-    /** Await execution. */
+    /** Await the rows. */
     then<Fulfilled = Result[], Rejected = never>(
         fulfilled?: ((value: Result[]) => Fulfilled | PromiseLike<Fulfilled>) | null,
         rejected?: ((reason: unknown) => Rejected | PromiseLike<Rejected>) | null,
     ): PromiseLike<Fulfilled | Rejected> {
         return this.execute().then(fulfilled, rejected);
     }
+
+    /** Add a join, and the joined table's columns to an automatic selection. */
+    #join(kind: JoinKind, table: Table, on: SQLWrapper): SelectState {
+        const fields = this.state.isAutomatic
+            ? { ...this.state.fields, [table[TABLE].name]: table }
+            : this.state.fields;
+
+        return { ...this.state, fields, joins: [...this.state.joins, { kind, table, on }] };
+    }
+
+    /** Flatten the selected fields, the source's columns for an automatic selection without joins. */
+    #projection(): Projection {
+        const isBare = this.state.isAutomatic && this.state.joins.length === 0;
+
+        return new Projection(isBare ? this.state.source[TABLE].columns : this.state.fields);
+    }
+
+    /** Write the query as SQL. */
+    #sql(projection: Projection): SQL {
+        // select the fields from the source
+        const state = this.state;
+        const parts: SQL[] = [
+            sql`SELECT ${sql.raw(state.isDistinct ? "DISTINCT " : "")}${projection.sql()} FROM ${from(state.source)}`,
+        ];
+
+        // join, filter, group and order
+        for (const join of state.joins) {
+            parts.push(
+                sql` ${sql.raw(join.kind === "inner" ? "INNER JOIN" : "LEFT JOIN")} ${from(join.table)} ON ${join.on}`,
+            );
+        }
+        if (state.where !== undefined) {
+            parts.push(sql` WHERE ${state.where}`);
+        }
+        if (state.groups.length > 0) {
+            parts.push(sql` GROUP BY ${sql.join(state.groups, sql.raw(", "))}`);
+        }
+        if (state.having !== undefined) {
+            parts.push(sql` HAVING ${state.having}`);
+        }
+        if (state.order.length > 0) {
+            parts.push(sql` ORDER BY ${sql.join(state.order, sql.raw(", "))}`);
+        }
+
+        // limit and skip, SQLite requiring a limit before an offset
+        if (state.limit !== undefined) {
+            parts.push(sql` LIMIT ${state.limit}`);
+        } else if (state.offset !== undefined && state.driver.dialect === "sqlite") {
+            parts.push(sql` LIMIT -1`);
+        }
+        if (state.offset !== undefined) {
+            parts.push(sql` OFFSET ${state.offset}`);
+        }
+
+        return sql.join(parts);
+    }
 }
 
 /** A selection awaiting its source table. */
 export class SelectBuilder<Fields extends Selection | undefined = undefined> {
-    /** The native database driver. */
+    /** The driver running the query. */
     readonly driver: DatabaseDriver;
-    /** The table compiler. */
-    readonly compiler: SchemaCompiler;
-    /** The explicitly selected fields. */
+    /** The explicitly selected fields, absent to select the source's records. */
     readonly fields: Fields;
     /** Whether duplicate rows are removed. */
     readonly isDistinct: boolean;
-    /** The common table expressions. */
-    readonly withList: readonly WithSubquery[];
 
     /** Create the builder. */
-    constructor(
-        driver: DatabaseDriver,
-        compiler: SchemaCompiler,
-        fields: Fields,
-        options: {
-            readonly isDistinct?: boolean;
-            readonly withList?: readonly WithSubquery[];
-        } = {},
-    ) {
-        // keep the query definition
-        this.withList = options.withList ?? [];
+    constructor(driver: DatabaseDriver, fields: Fields, isDistinct: boolean) {
         this.driver = driver;
-        this.compiler = compiler;
         this.fields = fields;
-        this.isDistinct = options.isDistinct ?? false;
+        this.isDistinct = isDistinct;
     }
 
-    /** Select rows from a declared table. */
-    from<Definition extends QuerySource>(
-        table: Definition,
+    /** Select rows from a table. */
+    from<Source extends Table>(
+        table: Source,
     ): SelectQuery<
-        Fields extends Selection ? SelectionResult<Fields> : SourceResult<Definition>,
-        Fields extends Selection
-            ? Fields
-            : Record<SourceName<Definition>, SourceFields<Definition>>,
+        Fields extends Selection ? SelectionResult<Fields> : Select<Source>,
+        Fields extends Selection ? Fields : Record<Source[typeof TABLE]["name"], Source>,
         never,
         Fields extends Selection ? false : true
     > {
-        const fields = this.fields ?? { [sourceName(table)]: sourceFields(table) };
-
-        return new SelectQuery(
-            this.driver,
-            this.compiler,
-            table,
-            fields as Fields extends Selection
-                ? Fields
-                : Record<SourceName<Definition>, SourceFields<Definition>>,
-            {
-                isDistinct: this.isDistinct,
-                isAutomatic: (this.fields === undefined) as Fields extends Selection ? false : true,
-                withList: this.withList,
-            },
-        );
+        return new SelectQuery({
+            driver: this.driver,
+            source: table,
+            fields: this.fields ?? { [table[TABLE].name]: table },
+            isAutomatic: this.fields === undefined,
+            isDistinct: this.isDistinct,
+            joins: [],
+            where: undefined,
+            groups: [],
+            having: undefined,
+            order: [],
+            limit: undefined,
+            offset: undefined,
+        });
     }
+}
+
+/** Render a table where a query reads it: an alias after the table it renames. */
+export function from(table: Table): SQL {
+    const source = table[TABLE].source;
+
+    return source === undefined ? sql`${table}` : sql`${source} AS ${table}`;
 }
 
 /** Add a joined table to an automatic selection. */
 type JoinFields<
     Fields extends Selection,
-    Joined extends QuerySource,
+    Joined extends Table,
     Automatic extends boolean,
-> = Automatic extends true ? Fields & Record<SourceName<Joined>, SourceFields<Joined>> : Fields;
-
-/** A compiled query with named placeholders. */
-export interface PreparedQuery<Result> {
-    /** Execute with new parameters. */
-    execute(parameters?: Record<string, unknown>): Promise<Result>;
-}
-
-/** The table qualifiers of selected fields. */
-type FieldTables<Fields extends Selection> = {
-    [Property in keyof Fields]: Fields[Property] extends Column
-        ? Fields[Property]["table"]
-        : Fields[Property] extends { readonly [SOURCE]: infer Name extends string }
-          ? Name
-          : Fields[Property] extends Table
-            ? Fields[Property][typeof TABLE]["name"]
-            : Fields[Property] extends Selection
-              ? FieldTables<Fields[Property]>
-              : never;
-}[keyof Fields];
-
-/** A declared table or a native Drizzle subquery. */
-export type QuerySource = Table | Subquery<string, Selection>;
-
-/** The selected record from a table or subquery. */
-type SourceResult<Source extends QuerySource> = Source extends Table
-    ? Select<Source>
-    : Source extends Subquery<string, infer Fields extends Selection>
-      ? SelectionResult<Fields>
-      : never;
-
-/** The fields of a source, qualified by name. */
-type SourceFields<Source extends QuerySource> = Source extends Table
-    ? Source
-    : Source extends Subquery<string, infer Fields extends Selection>
-      ? Fields
-      : never;
-
-/** The SQL qualifier of a table or subquery. */
-type SourceName<Source extends QuerySource> = Source extends Table
-    ? Source[typeof TABLE]["name"]
-    : Source extends Subquery<infer Alias, Selection>
-      ? Alias
-      : never;
-
-/** A named native query with its result fields. */
-export type SelectedSubquery<Result, Alias extends string = string> = Subquery<
-    Alias,
-    SubqueryFields<Result, Alias>
-> &
-    SubqueryFields<Result, Alias>;
-
-/** The fields of a named selection. */
-type SubqueryFields<Result, Alias extends string> = {
-    [Property in keyof Result]: SQL.Aliased<Result[Property]> & {
-        readonly [SOURCE]: Alias;
-    } & (NonNullable<Result[Property]> extends Record<string, unknown>
-            ? SubqueryFields<NonNullable<Result[Property]>, Alias>
-            : unknown);
-};
-
-/** Read a source's result key. */
-function sourceName(source: QuerySource): string {
-    return source instanceof Subquery ? source._.alias : source[TABLE].name;
-}
-
-/** Read a source's selected fields. */
-function sourceFields(source: QuerySource): Selection {
-    return source instanceof Subquery ? source._.selectedFields : source[TABLE].columns;
-}
+> = Automatic extends true ? Fields & Record<Joined[typeof TABLE]["name"], Joined> : Fields;

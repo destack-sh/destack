@@ -18,7 +18,7 @@ const COMMIT_LOCK = 471_026_381;
 
 /** The PostgreSQL log: its tables, functions and triggers. */
 export const postgresLog: LogDialect = {
-    create: (scope) => createPostgresLog(scope),
+    create: (epoch, scope) => createPostgresLog(epoch, scope),
     install: (description) => postgresLogTriggers(description),
     remove: (description) => [
         `DROP TRIGGER IF EXISTS ${quote("destack_change")} ON ${quote(description.table)}`,
@@ -26,7 +26,7 @@ export const postgresLog: LogDialect = {
 };
 
 /** Create the PostgreSQL log, its horizon and its functions. */
-function createPostgresLog(scope?: string): readonly string[] {
+function createPostgresLog(epoch: string, scope?: string): readonly string[] {
     const log = quote(LOG);
 
     // stamp sequences at commit under one lock, in commit order
@@ -53,7 +53,8 @@ function createPostgresLog(scope?: string): readonly string[] {
             slot INTEGER PRIMARY KEY CHECK (slot = 1),
             sequence BIGINT NOT NULL
         )`,
-        ...createEpoch(scope),
+        `INSERT INTO ${quote(LOG_HORIZON)} (slot, sequence) VALUES (1, 0) ON CONFLICT (slot) DO NOTHING`,
+        ...createEpoch(epoch, scope),
         `CREATE OR REPLACE FUNCTION ${quote(`${LOG}_stamp`)}() RETURNS trigger LANGUAGE plpgsql AS $$
         DECLARE
             unstamped BIGINT;
@@ -126,7 +127,7 @@ function createPostgresLog(scope?: string): readonly string[] {
                     END IF;
                 END LOOP;
             END IF;
-            IF scope_column = '' THEN
+            IF scope_column IS NULL THEN
                 SELECT scope INTO database_scope FROM ${quote(LOG_EPOCH)} WHERE slot = 1;
                 IF database_scope IS NULL THEN
                     RAISE EXCEPTION 'the database has no scope for the rows of %', TG_TABLE_NAME;
@@ -161,16 +162,14 @@ function createPostgresLog(scope?: string): readonly string[] {
 function postgresLogTriggers(description: ChangeDescription): string[] {
     // write the column lists as array literals
     const table = quote(description.table);
-    const array = (names: readonly string[]) =>
-        `{${names.map((name) => `"${name.replaceAll('"', '\\"')}"`).join(",")}}`;
 
-    // pass the retention, columns and scope column
+    // pass the retention, columns and the scope column when the table has one
     const parameters = [
         literal(description.retention),
         literal(array(description.key)),
         literal(array(description.columns)),
         literal(array(description.exact)),
-        literal(description.scope ?? ""),
+        ...(description.scope === undefined ? [] : [literal(description.scope)]),
     ];
 
     return [
@@ -179,4 +178,9 @@ function postgresLogTriggers(description: ChangeDescription): string[] {
             FOR EACH ROW
             EXECUTE FUNCTION ${quote(`${LOG}_record`)}(${parameters.join(", ")})`,
     ];
+}
+
+/** Write column names as a PostgreSQL array literal. */
+function array(names: readonly string[]): string {
+    return `{${names.map((name) => `"${name.replaceAll('"', '\\"')}"`).join(",")}}`;
 }

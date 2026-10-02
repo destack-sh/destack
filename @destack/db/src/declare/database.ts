@@ -8,9 +8,6 @@ import { TABLE, type Table } from "../table/table.ts";
 import { expandTrees } from "../tree/tree.ts";
 import { DatabaseState, declareState } from "../migration/state.ts";
 import { DatabaseTier } from "./tier.ts";
-export type { DatabaseConnection } from "../database/connection.ts";
-
-export { DatabaseTier } from "./tier.ts";
 
 /** A database's resource settings. */
 export const DatabaseSpec = defineSchema(schema.object({ tier: DatabaseTier }));
@@ -27,7 +24,7 @@ export type DatabaseDescription = schema.Infer<typeof DatabaseKind.description>;
 
 /** A database declaration. */
 export class Database extends ResourceDeclaration<DatabaseConnection, DatabaseDescription> {
-    /** The tables the database holds, referencing tables held elsewhere without foreign keys. */
+    /** The tables the database keeps, referencing tables kept elsewhere without foreign keys. */
     readonly tables: readonly Table[];
 
     /** Create the declaration. */
@@ -56,7 +53,7 @@ export class Database extends ResourceDeclaration<DatabaseConnection, DatabaseDe
         return context.get(this);
     }
 
-    /** Name the required tables a connected database has not applied. */
+    /** List the required tables a connected database has not applied. */
     check(connection: DatabaseConnection): Promise<string[]> {
         return connection.unapplied(this.tables);
     }
@@ -68,14 +65,14 @@ export interface DatabaseDefinition {
     readonly name: string;
     /** Where the database lives, within one zone when absent. */
     readonly tier?: DatabaseTier;
-    /** The tables the database holds, referencing tables held elsewhere without foreign keys. */
+    /** The tables the database keeps, referencing tables kept elsewhere without foreign keys. */
     readonly tables: readonly Table[];
 }
 
 /**
  * Declare a database.
  *
- * A database holds tables of its own tier and of wider ones, whose rows it replicates from their home.
+ * A database keeps tables of its own tier and of wider ones, whose rows it replicates from their home.
  */
 export function defineDatabase(definition: DatabaseDefinition, module?: ModuleMetadata): Database {
     // reject duplicate SQL names and tables of a narrower tier
@@ -86,7 +83,7 @@ export function defineDatabase(definition: DatabaseDefinition, module?: ModuleMe
     for (const table of expandTrees(definition.tables)) {
         const { sqlName, tier: declared } = table[TABLE];
         const existing = names.get(sqlName);
-        if (existing && existing !== table) {
+        if (existing !== undefined && existing !== table) {
             throw new TypeError(`duplicate SQL table: ${sqlName}`);
         }
         if (declared !== undefined && tiers.indexOf(declared) > tiers.indexOf(tier)) {

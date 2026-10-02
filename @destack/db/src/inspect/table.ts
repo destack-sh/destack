@@ -1,37 +1,37 @@
 import { defineSchema, schema } from "@destack/schema";
 import { Dialect } from "../dialect/dialect.ts";
-import { COLUMN_KINDS } from "../table/column.ts";
+import { COLUMN_KINDS, REFERENCE_ACTIONS } from "../table/column.ts";
 
-/** A column as the database holds it. */
+/** A column as the database stores it. */
 export const ColumnDescription = defineSchema(
     schema.object({
         /** The SQL column name. */
         name: schema.string(),
         /** The logical value type. */
         kind: schema.enum(COLUMN_KINDS),
-        /** The JSON Schema of the values the column holds. */
+        /** The JSON Schema of the column's values. */
         value: schema.record(schema.string(), schema.json()),
         /** The dialect-specific SQL type. */
         type: schema.string(),
         /** Whether the declaration allows NULL. */
         nullable: schema.boolean(),
         /** The SQL default expression. */
-        default: schema.string().optional(),
+        default: schema.string().exactOptional(),
         /** The generated column expression and storage mode. */
         generated: schema
             .object({
                 /** The storage mode, the dialect default when absent. */
-                mode: schema.enum(["virtual", "stored"]).optional(),
+                mode: schema.enum(["virtual", "stored"]).exactOptional(),
                 /** The SQL generation expression. */
                 expression: schema.string(),
             })
-            .optional(),
+            .exactOptional(),
     }),
 );
-/** A column as the database holds it. */
+/** A column as the database stores it. */
 export type ColumnDescription = schema.Infer<typeof ColumnDescription>;
 
-/** A named table constraint as the database holds it. */
+/** A named table constraint as the database stores it. */
 export const ConstraintDescription = defineSchema(
     schema.discriminatedUnion("kind", [
         schema.object({
@@ -54,9 +54,9 @@ export const ConstraintDescription = defineSchema(
             /** The referenced column names in matching order. */
             references: schema.array(schema.string()),
             /** The SQL action when a referenced key changes. */
-            onUpdate: schema.string().optional(),
+            onUpdate: schema.enum(REFERENCE_ACTIONS).exactOptional(),
             /** The SQL action when a referenced row is deleted. */
-            onDelete: schema.string().optional(),
+            onDelete: schema.enum(REFERENCE_ACTIONS).exactOptional(),
         }),
         schema.object({
             /** A check. */
@@ -68,10 +68,10 @@ export const ConstraintDescription = defineSchema(
         }),
     ]),
 );
-/** A named table constraint as the database holds it. */
+/** A named table constraint as the database stores it. */
 export type ConstraintDescription = schema.Infer<typeof ConstraintDescription>;
 
-/** An index as the database holds it. */
+/** An index as the database stores it. */
 export const IndexDescription = defineSchema(
     schema.object({
         /** The SQL index name. */
@@ -86,10 +86,10 @@ export const IndexDescription = defineSchema(
             ]),
         ),
         /** The SQL predicate of a partial index. */
-        where: schema.string().optional(),
+        where: schema.string().exactOptional(),
     }),
 );
-/** An index as the database holds it. */
+/** An index as the database stores it. */
 export type IndexDescription = schema.Infer<typeof IndexDescription>;
 
 /** A table's columns, constraints and indexes. */

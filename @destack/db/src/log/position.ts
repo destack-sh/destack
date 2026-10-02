@@ -1,4 +1,4 @@
-import { sql, type SQL } from "drizzle-orm";
+import { sql, type SQL } from "../sql/index.ts";
 import { defineSchema, schema } from "@destack/schema";
 import type { Dialect } from "../dialect/dialect.ts";
 import { LOG, LOG_EPOCH, LOG_HORIZON, LOG_TRANSACTION } from "./schema.ts";
@@ -47,8 +47,12 @@ export function selectHead(dialect: Dialect): SQL {
 }
 
 /** Read a head's latest sequence: the latest logged one, or the horizon. */
-export function latestOf(logged: unknown, horizon: unknown): number {
-    const sequences = [logged, horizon].filter((sequence) => sequence !== null).map(Number);
-
-    return sequences.length === 0 ? 0 : Math.max(...sequences);
+export function latestOf(logged: number | null, horizon: number): number {
+    return logged === null ? horizon : Math.max(logged, horizon);
 }
+
+/** A log sequence or time as drivers return it, read as a safe integer: PostgreSQL returns its bigints as text. */
+export const LogInteger = schema
+    .union([schema.number(), schema.string(), schema.bigint()])
+    .transform((value) => Number(value))
+    .pipe(schema.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER));

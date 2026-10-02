@@ -1,13 +1,6 @@
-import { WorkQueue, type ConnectionClient, type QueryClient, type Statement } from "../client.ts";
+import type { DriverValue } from "../../table/column.ts";
+import { WorkQueue, type ConnectionClient, type QueryClient } from "../client.ts";
 import { SqliteScript } from "../script.ts";
-
-/** The result of running a statement. */
-export interface RunResult {
-    /** The number of rows changed. */
-    readonly changes: number;
-    /** The last inserted row identifier. */
-    readonly lastInsertRowid: number;
-}
 
 /** The rows one statement of a Durable Object's SQL storage yields. */
 export interface DurableObjectCursor {
@@ -31,7 +24,7 @@ export interface DurableObjectStorage {
 }
 
 /** Statements over a Durable Object's SQLite storage. */
-export class DurableObjectQuery implements QueryClient<RunResult> {
+export class DurableObjectQuery implements QueryClient {
     /** The storage. */
     readonly storage: DurableObjectStorage;
     /** The work queue, absent within a transaction. */
@@ -43,47 +36,26 @@ export class DurableObjectQuery implements QueryClient<RunResult> {
         this.queue = queue;
     }
 
-    /** Prepare a statement with its row mode. */
-    async prepare(sql: string): Promise<Statement<RunResult>> {
-        // track the row mode
-        let isRaw = false;
-        const run = (method: "run" | "all" | "get", parameters: readonly unknown[]) =>
-            this.#schedule(async () => this.#execute(sql, method, parameters, isRaw));
-
-        // set the row mode on each run, integers staying numbers as the storage returns them
-        const statement: Statement<RunResult> = {
-            safeIntegers: () => statement,
-            raw: (enabled) => {
-                isRaw = enabled;
-
-                return statement;
-            },
-            run: (...parameters) => run("run", parameters) as Promise<RunResult>,
-            all: (...parameters) => run("all", parameters) as Promise<unknown[]>,
-            get: (...parameters) => run("get", parameters),
-        };
-
-        return statement;
+    /** Read every row as an array of values, integers as the storage returns them. */
+    values(sql: string, parameters: readonly DriverValue[]): Promise<unknown[][]> {
+        return this.#schedule(async () => [...this.storage.sql.exec(sql, ...parameters).raw()]);
     }
 
-    /** Run a statement. */
-    async run(sql: string, ...parameters: unknown[]): Promise<RunResult> {
-        return (await this.prepare(sql)).run(...parameters);
+    /** Read every row by column name. */
+    all(sql: string, parameters: readonly DriverValue[]): Promise<unknown[]> {
+        return this.#schedule(async () => this.storage.sql.exec(sql, ...parameters).toArray());
     }
 
-    /** Read rows as named objects. */
-    async all(sql: string, ...parameters: unknown[]): Promise<unknown[]> {
-        return (await this.prepare(sql)).all(...parameters);
-    }
-
-    /** Read the first row as a named object. */
-    async get(sql: string, ...parameters: unknown[]): Promise<unknown> {
-        return (await this.prepare(sql)).get(...parameters);
+    /** Run a statement for its effect. */
+    async run(sql: string, parameters: readonly DriverValue[]): Promise<void> {
+        await this.#schedule(async () => {
+            this.storage.sql.exec(sql, ...parameters).toArray();
+        });
     }
 
     /** Run a script one statement at a time. */
-    exec(script: string): Promise<unknown> {
-        return this.#schedule(async () => {
+    async exec(script: string): Promise<void> {
+        await this.#schedule(async () => {
             for (const statement of SqliteScript.statements(script)) {
                 this.storage.sql.exec(statement).toArray();
             }
@@ -93,31 +65,9 @@ export class DurableObjectQuery implements QueryClient<RunResult> {
     /** Run work in a transaction nested in the storage's current one. */
     nest<Value>(
         _depth: number,
-        operation: (client: QueryClient<RunResult>) => Promise<Value>,
+        operation: (client: QueryClient) => Promise<Value>,
     ): Promise<Value> {
         return this.storage.transaction(() => operation(this));
-    }
-
-    /** Execute one statement. */
-    #execute(
-        sql: string,
-        method: "run" | "all" | "get",
-        parameters: readonly unknown[],
-        isRaw: boolean,
-    ): unknown {
-        // run a changing statement, reading its row identifier after it
-        const cursor = this.storage.sql.exec(sql, ...parameters);
-        if (method === "run") {
-            cursor.toArray();
-            const [inserted] = this.storage.sql.exec("SELECT last_insert_rowid() AS id").toArray();
-
-            return { changes: cursor.rowsWritten, lastInsertRowid: inserted!.id as number };
-        }
-
-        // read rows as arrays or objects
-        const rows = isRaw ? [...cursor.raw()] : cursor.toArray();
-
-        return method === "all" ? rows : rows[0];
     }
 
     /** Run work behind the queue, or at once within a transaction. */
@@ -127,7 +77,7 @@ export class DurableObjectQuery implements QueryClient<RunResult> {
 }
 
 /** A connection client over a Durable Object's SQLite storage, one transaction at a time. */
-export class DurableObjectClient extends DurableObjectQuery implements ConnectionClient<RunResult> {
+export class DurableObjectClient extends DurableObjectQuery implements ConnectionClient {
     /** The work queue. */
     readonly #queue: WorkQueue;
 
@@ -144,7 +94,7 @@ export class DurableObjectClient extends DurableObjectQuery implements Connectio
     }
 
     /** Run a callback in a storage transaction, whatever its requested locking mode. */
-    transactionAsync<Value>(operation: (client: QueryClient<RunResult>) => Promise<Value>) {
+    transactionAsync<Value>(operation: (client: QueryClient) => Promise<Value>) {
         const begin = () =>
             this.#queue.run(() =>
                 this.storage.transaction(() => operation(new DurableObjectQuery(this.storage))),

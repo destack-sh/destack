@@ -1,12 +1,7 @@
 import { fileURLToPath } from "node:url";
-import {
-    ResourceDeclaration,
-    type Connector,
-    type ResourceBinding,
-    type ResourceRecord,
-} from "@destack/resource";
+import { type Connector, type ResourceBinding, type ResourceRecord } from "@destack/resource";
 import type { DatabaseConnection } from "../database/connection.ts";
-import type { Database } from "../declare/database.ts";
+import { Database } from "../declare/database.ts";
 import { DatabaseError } from "../error/error.ts";
 import type { Table } from "../table/table.ts";
 import { socketChannel } from "../channel/socket.ts";
@@ -44,11 +39,11 @@ export function requireReference(reference: string | null): string {
 
 /** Require a database declaration. */
 function requireDatabase(declaration: unknown): Database {
-    if (!(declaration instanceof ResourceDeclaration) || declaration.kind !== "database") {
+    if (!(declaration instanceof Database)) {
         throw new TypeError("not a database declaration");
     }
 
-    return declaration as Database;
+    return declaration;
 }
 
 /** Open a provisioned database file, announcing commits to the file's other writers on its channel. */

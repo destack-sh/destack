@@ -1,9 +1,8 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { asc, defineTable, eq, integer, text } from "../../index.ts";
 import { connect } from "../bun/connection.ts";
-import type { Channel } from "../../channel/channel.ts";
 import { channelHub } from "../../test/channel.ts";
-import { connectShared, Party, serveDatabase, type Message } from "./shared.ts";
+import { connectShared, Party, serveDatabase } from "./shared.ts";
 
 /** Notes a party writes. */
 const note = defineTable("shared_note", {
@@ -15,9 +14,9 @@ const note = defineTable("shared_note", {
 
 test("run a party's statements and transactions on the owner's connection, notifying its commits", async () => {
     // serve the owner's database to a party
-    const join = channelHub<Message>();
+    const join = channelHub<unknown>();
     const owner = await connect(":memory:", [note], {
-        openChannel: <Channelled>() => join() as unknown as Channel<Channelled>,
+        openChannel: () => join(),
     });
     onTestFinished(() => owner.close());
     await owner.migrate([note]);
@@ -62,17 +61,17 @@ test("run a party's statements and transactions on the owner's connection, notif
     expect(await waiting).toBe(true);
 });
 
-test("hold requests until an owner serves, and fail requests a replaced owner left unanswered", async () => {
+test("queue requests until an owner serves, and fail requests a replaced owner left unanswered", async () => {
     // ask before an owner serves
-    const join = channelHub<Message>();
+    const join = channelHub<unknown>();
     const first = await connect(":memory:", [note]);
     onTestFinished(() => first.close());
     await first.migrate([note]);
     const party = new Party(join(), "tab-2");
     onTestFinished(() => party.close());
-    const held = party.begin("deferred");
+    const begun = party.begin("deferred");
     const stopFirst = serveDatabase(first.$client, join());
-    const transaction = await held;
+    const transaction = await begun;
     expect(transaction.id).toBe(0);
 
     // fail an unanswered request once a second owner serves
@@ -82,8 +81,6 @@ test("hold requests until an owner serves, and fail requests a replaced owner le
         method: "all",
         sql: "SELECT 1",
         parameters: [],
-        isRaw: false,
-        isSafe: false,
     });
     const second = await connect(":memory:", [note]);
     onTestFinished(() => second.close());
@@ -98,8 +95,6 @@ test("hold requests until an owner serves, and fail requests a replaced owner le
             method: "all",
             sql: "SELECT 1",
             parameters: [],
-            isRaw: false,
-            isSafe: false,
             transaction: transaction.id,
         },
         transaction.owner,

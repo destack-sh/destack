@@ -104,18 +104,14 @@ export function dropIndex(name: string): string {
 }
 
 /** Rebuild a SQLite table, copying the shared columns. */
-export function rebuildTable(
-    table: TableDescription,
-    copied: ReadonlyMap<string, string>,
-): string[] {
+export function rebuildTable(table: TableDescription, copied: readonly string[]): string[] {
     // create the new table and copy shared columns
     const staging = `${table.name}__rebuild`;
-    const targets = [...copied.keys()].map(quote).join(", ");
-    const sources = [...copied.values()].map(quote).join(", ");
+    const columns = copied.map(quote).join(", ");
 
     return [
         createTable(table, staging),
-        `INSERT INTO ${quote(staging)} (${targets}) SELECT ${sources} FROM ${quote(table.name)}`,
+        `INSERT INTO ${quote(staging)} (${columns}) SELECT ${columns} FROM ${quote(table.name)}`,
         dropTable(table.name),
         renameTable(staging, table.name),
         ...table.indexes.map((index) => createIndex(table.name, index)),
@@ -126,7 +122,7 @@ export function rebuildTable(
 function columnDefinition(column: ColumnDescription, dialect: Dialect): string {
     // write the type, default and nullability
     const parts = [quote(column.name), column.type];
-    if (column.generated) {
+    if (column.generated !== undefined) {
         parts.push(
             `GENERATED ALWAYS AS (${column.generated.expression}) ${storage(column, dialect)}`,
         );

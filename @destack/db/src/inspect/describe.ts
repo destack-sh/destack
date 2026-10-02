@@ -1,42 +1,45 @@
-import { SQL, sql, type SQLChunk } from "drizzle-orm";
+import { inline, SQL } from "../sql/index.ts";
 import { schema, toJsonSchema } from "@destack/schema";
 import { Column } from "../table/column.ts";
 import { TABLE, type Table } from "../table/table.ts";
 import { TableDescription } from "./table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
-import { compileExpression } from "../dialect/expression.ts";
-import { boundedName, constraintName } from "../table/namespace.ts";
-import { assertNever } from "../error/error.ts";
+import { boundedName, qualify } from "../table/namespace.ts";
 import { literal, quote } from "../dialect/quote.ts";
 
 /** Describe a table in a dialect. */
 export function describeTable(table: Table, dialect: Dialect): TableDescription {
     // collect the declared constraints
     const definition = table[TABLE];
-    const constraints = table.constraints(dialect);
+    const constraints = definition.constraints(dialect);
     const columns = Object.values(definition.columns);
 
     // gather primary keys and unique constraints
-    const keys: { kind: "primaryKey" | "unique"; name?: string; columns: readonly Column[] }[] = [
-        ...columns
-            .filter((column) => column.definition.primaryKey)
-            .map((column) => ({ kind: "primaryKey" as const, columns: [column] })),
+    const keys: {
+        kind: "primaryKey" | "unique";
+        name: string | undefined;
+        columns: readonly Column[];
+    }[] = [
+        ...(definition.key.length === 0
+            ? []
+            : [
+                  {
+                      kind: "primaryKey" as const,
+                      name: undefined,
+                      columns: definition.key.map((property) => definition.column(property)),
+                  },
+              ]),
+        ...columns.flatMap((column) => {
+            const unique = column.definition.unique;
+
+            return unique === undefined
+                ? []
+                : [{ kind: "unique" as const, name: unique.name, columns: [column] }];
+        }),
         ...constraints.flatMap((constraint) =>
-            constraint.kind === "primaryKey"
-                ? [{ ...constraint, kind: "primaryKey" as const }]
+            constraint.kind === "unique"
+                ? [{ kind: "unique" as const, name: constraint.name, columns: constraint.columns }]
                 : [],
-        ),
-        ...columns
-            .filter((column) => column.definition.unique !== undefined)
-            .map((column) => ({
-                kind: "unique" as const,
-                ...(column.definition.unique!.name === undefined
-                    ? {}
-                    : { name: column.definition.unique!.name }),
-                columns: [column],
-            })),
-        ...constraints.flatMap((constraint) =>
-            constraint.kind === "unique" ? [{ ...constraint, kind: "unique" as const }] : [],
         ),
     ];
 
@@ -54,7 +57,7 @@ export function describeTable(table: Table, dialect: Dialect): TableDescription 
             ...(column.definition.default === undefined
                 ? {}
                 : {
-                      default: inlineExpression(
+                      default: inline(
                           column.definition.default instanceof SQL
                               ? column.definition.default
                               : column.definition.encode(column.definition.default, dialect),
@@ -66,7 +69,7 @@ export function describeTable(table: Table, dialect: Dialect): TableDescription 
                 : {
                       generated: {
                           mode: column.definition.generated.mode,
-                          expression: inlineExpression(
+                          expression: inline(
                               typeof column.definition.generated.expression === "function"
                                   ? column.definition.generated.expression()
                                   : column.definition.generated.expression,
@@ -79,7 +82,7 @@ export function describeTable(table: Table, dialect: Dialect): TableDescription 
             ...keys.map((key) => ({
                 kind: key.kind,
                 name:
-                    constraintName(definition.package, key.name) ??
+                    (key.name === undefined ? undefined : qualify(definition.package, key.name)) ??
                     derivedName(
                         definition.sqlName,
                         key.columns,
@@ -96,12 +99,12 @@ export function describeTable(table: Table, dialect: Dialect): TableDescription 
                         derivedName(
                             definition.sqlName,
                             key.columns,
-                            `${key.foreignColumns[0].table}_${key.foreignColumns
+                            `${key.references}_${key.foreignColumns
                                 .map((column) => column.definition.name)
                                 .join("_")}_fk`,
                         ),
                     columns: key.columns.map((column) => column.definition.name),
-                    table: key.foreignColumns[0].table,
+                    table: key.references,
                     references: key.foreignColumns.map((column) => column.definition.name),
                     ...(key.actions.onDelete === undefined
                         ? {}
@@ -115,31 +118,35 @@ export function describeTable(table: Table, dialect: Dialect): TableDescription 
                 .map((check) => ({
                     kind: "check" as const,
                     name: check.name,
-                    expression: inlineExpression(check.expression, dialect),
+                    expression: inline(check.expression, dialect),
                 })),
-            ...columns
-                .filter((column) => column.definition.enumValues !== undefined)
-                .map((column) => ({
-                    kind: "check" as const,
-                    name: derivedName(definition.sqlName, [column], "enum"),
-                    expression: `${quote(column.definition.name)} IN (${column.definition
-                        .enumValues!.map(literal)
-                        .join(", ")})`,
-                })),
+            ...columns.flatMap((column) => {
+                const values = column.definition.enumValues;
+
+                return values === undefined
+                    ? []
+                    : [
+                          {
+                              kind: "check" as const,
+                              name: derivedName(definition.sqlName, [column], "enum"),
+                              expression: `${quote(column.definition.name)} IN (${values.map(literal).join(", ")})`,
+                          },
+                      ];
+            }),
         ],
         indexes: constraints
             .filter((value) => value.kind === "index")
             .map((index) => ({
-                name: constraintName(definition.package, index.name),
+                name: qualify(definition.package, index.name),
                 unique: index.isUnique,
                 columns: index.columns.map((column) =>
                     column instanceof Column
                         ? { column: column.definition.name }
-                        : { expression: inlineExpression(column, dialect) },
+                        : { expression: inline(column, dialect) },
                 ),
                 ...(index.predicate === undefined
                     ? {}
-                    : { where: inlineExpression(index.predicate, dialect) }),
+                    : { where: inline(index.predicate, dialect) }),
             })),
     };
 }
@@ -149,47 +156,4 @@ function derivedName(table: string, columns: readonly Column[], suffix: string):
     return boundedName(
         [table, ...columns.map((column) => column.definition.name), suffix].join("_"),
     );
-}
-
-/** Render an expression with quoted identifiers and literals. */
-export function inlineExpression(value: unknown, dialect: Dialect): string {
-    // write bigints as integer literals
-    if (typeof value === "bigint") {
-        return value.toString();
-    }
-
-    // write bytes as hexadecimal literals
-    if (value instanceof Uint8Array) {
-        const hexadecimal = value.toHex();
-
-        // write a SQLite blob literal
-        if (dialect === "sqlite") {
-            return `X'${hexadecimal}'`;
-        }
-        // decode hexadecimal in PostgreSQL
-        else if (dialect === "postgresql") {
-            return `decode('${hexadecimal}', 'hex')`;
-        }
-        // reject other dialects
-        else {
-            return assertNever(dialect);
-        }
-    }
-
-    // write JSON documents as string literals
-    if (typeof value === "object" && value !== null && !(value instanceof SQL)) {
-        return literal(JSON.stringify(value));
-    }
-
-    // render the expression
-    const expression = value instanceof SQL ? value : sql`${value}`;
-    const unqualified = (chunk: SQLChunk) =>
-        chunk instanceof Column ? sql.identifier(chunk.definition.name) : chunk;
-
-    return compileExpression(expression, dialect, unqualified).toQuery({
-        escapeName: quote,
-        escapeString: literal,
-        escapeParam: (index) => `$${index + 1}`,
-        inlineParams: true,
-    }).sql;
 }

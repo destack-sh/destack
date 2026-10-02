@@ -1,12 +1,9 @@
 /// <reference types="bun" />
 import { Database } from "bun:sqlite";
-import type { EmptyRelations } from "drizzle-orm/relations";
-import type { DrizzleSQLiteConfig } from "drizzle-orm/sqlite-core/utils";
 import type * as declaration from "../../declare/database.ts";
 import type { Table } from "../../table/table.ts";
-import { SqliteDatabase } from "../database.ts";
+import { SqliteDatabase, type ConnectOptions } from "../database.ts";
 import { BunClient } from "./client.ts";
-import type { OpenChannel } from "../../channel/channel.ts";
 
 /**
  * The wait for another process's write lock, in milliseconds.
@@ -38,15 +35,9 @@ export async function connect(
         }
 
         // reach the database's other connections on the given channels, or none as the sole writer
-        const { openChannel, ...drizzle } = options;
+        const { openChannel } = options;
 
-        return new SqliteDatabase(
-            new BunClient(database),
-            tables,
-            "embedded",
-            openChannel,
-            drizzle,
-        );
+        return new SqliteDatabase(new BunClient(database), tables, "embedded", openChannel);
     } catch (error) {
         // release only connections opened by this call
         if (typeof connection === "string") {
@@ -56,9 +47,3 @@ export async function connect(
         throw error;
     }
 }
-
-/** The options of a SQLite connection. */
-export type ConnectOptions = Omit<DrizzleSQLiteConfig<EmptyRelations>, "relations"> & {
-    /** Open a channel of a name to the database's other connections, absent for a sole writer. */
-    readonly openChannel?: OpenChannel;
-};

@@ -11,15 +11,16 @@ import { declareState } from "../migration/state.ts";
 import * as sqlite from "../sqlite/bun/connection.ts";
 import * as postgresql from "../postgres/connection.ts";
 import { PostgresDatabase } from "../postgres/database.ts";
-import { LOG_EPOCH, LOG_TABLES } from "../log/schema.ts";
+import { LOG_EPOCH, LOG_HORIZON, LOG_TABLES } from "../log/schema.ts";
+import { createLog } from "../log/trigger.ts";
 import type { Channel } from "../channel/channel.ts";
 import { channelHub } from "./channel.ts";
 import { readState, STATE, type TableState } from "../migration/state.ts";
 
-/** The test dialects: SQLite, and PostgreSQL when DESTACK_TEST_POSTGRES names a server. */
+/** The test dialects: SQLite, and PostgreSQL when DESTACK_TEST_POSTGRES has a server address. */
 export const TEST_DIALECTS: readonly Dialect[] = [
     "sqlite",
-    ...(process.env.DESTACK_TEST_POSTGRES ? (["postgresql"] as const) : []),
+    ...(process.env["DESTACK_TEST_POSTGRES"] === undefined ? [] : (["postgresql"] as const)),
 ];
 
 /** The connections each test database pools: ten workers stay within a server's hundred. */
@@ -84,15 +85,15 @@ export class TestDatabase {
 
         // claim or create a PostgreSQL schema
         if (dialect === "postgresql") {
-            const address = process.env.DESTACK_TEST_POSTGRES;
-            if (!address) {
-                throw new TypeError("DESTACK_TEST_POSTGRES names no PostgreSQL server");
+            const address = process.env["DESTACK_TEST_POSTGRES"];
+            if (address === undefined || address === "") {
+                throw new TypeError("DESTACK_TEST_POSTGRES has no PostgreSQL server address");
             }
             testServer ??= TestServer.open(address);
             const server = await testServer;
 
             // claim a migrated schema, kept by this process across tests
-            if (options.isMigrated) {
+            if (options.isMigrated === true) {
                 const state = declareState(declared, "postgresql", {
                     isReplica: options.isReplica ?? false,
                 });
@@ -116,7 +117,7 @@ export class TestDatabase {
             });
         }
         // keep empty SQLite in memory
-        else if (!options.isMigrated && (options.storage ?? "memory") === "memory") {
+        else if (options.isMigrated !== true && (options.storage ?? "memory") === "memory") {
             return new TestDatabase(
                 await sqlite.connect(":memory:", tables),
                 undefined,
@@ -127,17 +128,17 @@ export class TestDatabase {
         else {
             const directory = await mkdtemp(join(tmpdir(), "destack-test-"));
             const file = join(directory, "test.db");
-            if (options.isMigrated) {
+            if (options.isMigrated === true) {
                 await copyFile(await sqliteTemplate(declared, options.isReplica ?? false), file);
             }
 
             // share each named channel through one hub
             const hubs = new Map<string, () => Channel<unknown>>();
-            const openChannel = <Message>(name: string) => {
+            const openChannel = (name: string) => {
                 const party = hubs.get(name) ?? channelHub<unknown>();
                 hubs.set(name, party);
 
-                return party() as Channel<Message>;
+                return party();
             };
             const open = (connected: declaration.Database | readonly Table[]) =>
                 sqlite.connect(file, connected, { openChannel });
@@ -157,15 +158,8 @@ export class TestDatabase {
             throw new TypeError("an in-memory SQLite database has no further connections");
         }
 
-        // track the connection until it closes once
+        // track the connection, which closes once however often it is closed
         const connection = await this.#open(tables);
-        const closed = connection.close.bind(connection);
-        let closing: Promise<void> | undefined;
-        connection.close = () => {
-            closing ??= closed().finally(() => this.#connections.delete(connection));
-
-            return closing;
-        };
         this.#connections.add(connection);
 
         return connection;
@@ -248,9 +242,10 @@ class TestServer {
         state: readonly TableState[],
         tables: declaration.Database | readonly Table[],
     ): Promise<TestSchema> {
-        // name the schemas by the state's digest
+        // derive the schema names from the digest of the state and the log it migrates beside
+        const layout = JSON.stringify([state, createLog("postgresql", "")]);
         const digest = new Uint8Array(
-            await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(state))),
+            await crypto.subtle.digest("SHA-256", new TextEncoder().encode(layout)),
         );
         const prefix = `test_s${digest.subarray(0, 8).toHex()}_`;
 
@@ -300,33 +295,41 @@ class TestServer {
     }
 
     /** Take a schema's advisory lock, registered before it is awaited, reporting whether it was free. */
-    async #lock(schema: string): Promise<boolean> {
+    async #lock(name: string): Promise<boolean> {
         // register the name so concurrent claims of this session skip it
-        this.#locked.add(schema);
-        const [locked] = await this.administration<{ isLocked: boolean }[]>`
-            SELECT pg_try_advisory_lock(hashtext(${schema})) AS "isLocked"`;
-        if (!locked!.isLocked) {
-            this.#locked.delete(schema);
+        this.#locked.add(name);
+        const isLocked: unknown = (
+            await this.administration`
+            SELECT pg_try_advisory_lock(hashtext(${name}))`.values()
+        )[0]?.[0];
+        if (typeof isLocked !== "boolean") {
+            throw new TypeError("the advisory lock returned no boolean");
+        } else if (!isLocked) {
+            this.#locked.delete(name);
         }
 
-        return locked!.isLocked;
+        return isLocked;
     }
 
     /** Take a listed schema's advisory lock, reporting whether it was free and the schema still exists. */
-    async #lockListed(schema: string): Promise<boolean> {
-        if (!(await this.#lock(schema))) {
+    async #lockListed(name: string): Promise<boolean> {
+        if (!(await this.#lock(name))) {
             return false;
         }
 
-        // release a schema another process dropped after the listing
-        const [found] = await this.administration<{ isPresent: boolean }[]>`
-            SELECT to_regnamespace(${schema}) IS NOT NULL AS "isPresent"`;
-        if (!found!.isPresent) {
-            await this.administration`SELECT pg_advisory_unlock(hashtext(${schema}))`;
-            this.#locked.delete(schema);
+        // release a name another process dropped after the listing
+        const isPresent: unknown = (
+            await this.administration`
+            SELECT to_regnamespace(${name}) IS NOT NULL`.values()
+        )[0]?.[0];
+        if (typeof isPresent !== "boolean") {
+            throw new TypeError("the schema lookup returned no boolean");
+        } else if (!isPresent) {
+            await this.administration`SELECT pg_advisory_unlock(hashtext(${name}))`;
+            this.#locked.delete(name);
         }
 
-        return found!.isPresent;
+        return isPresent;
     }
 
     /**
@@ -382,7 +385,10 @@ class TestServer {
         const quoted = (name: string) => `"${schema.name}"."${name}"`;
         const emptied = schema.shape.relations.filter(
             (relation) =>
-                relation.kind !== "S" && relation.name !== STATE && relation.name !== LOG_EPOCH,
+                relation.kind !== "S" &&
+                relation.name !== STATE &&
+                relation.name !== LOG_EPOCH &&
+                relation.name !== LOG_HORIZON,
         );
         const sequences = schema.shape.relations.filter((relation) => relation.kind === "S");
 
@@ -390,17 +396,24 @@ class TestServer {
         await this.administration.unsafe(`SET LOCAL session_replication_role = replica;
             ${emptied.map((table) => `DELETE FROM ${quoted(table.name)};`).join("\n")}
             ${sequences.map((sequence) => `ALTER SEQUENCE ${quoted(sequence.name)} RESTART;`).join("\n")}
-            UPDATE ${quoted(LOG_EPOCH)} SET epoch = '${v7()}' WHERE slot = 1;`);
+            UPDATE ${quoted(LOG_EPOCH)} SET epoch = '${v7()}' WHERE slot = 1;
+            UPDATE ${quoted(LOG_HORIZON)} SET sequence = 0 WHERE slot = 1;`);
     }
 
     /** Read a schema's tables and sequences with its applied state, which the migration plan compares. */
-    async #readShape(schema: string): Promise<TestSchemaShape> {
-        const relations = await this.#readRelations(schema);
-        const [applied] = await this.administration<{ digest: string | null }[]>`
-            SELECT md5(string_agg("table" || ':' || state, ',' ORDER BY "table")) AS digest
-            FROM ${this.administration(schema)}.${this.administration(STATE)}`;
+    async #readShape(name: string): Promise<TestSchemaShape> {
+        // read the relations and digest the applied state
+        const relations = await this.#readRelations(name);
+        const digest: unknown = (
+            await this.administration`
+            SELECT md5(string_agg("table" || ':' || state, ',' ORDER BY "table"))
+            FROM ${this.administration(name)}.${this.administration(STATE)}`.values()
+        )[0]?.[0];
+        if (typeof digest !== "string" && digest !== null) {
+            throw new TypeError("the applied state digest is no text");
+        }
 
-        return { relations, fingerprint: JSON.stringify([relations, applied!.digest]) };
+        return { relations, fingerprint: JSON.stringify([relations, digest]) };
     }
 
     /** Read a schema's tables and sequences through the namespace dependency index. */
@@ -425,9 +438,9 @@ class TestServer {
     }
 }
 
-/** A migrated schema this process holds, with the connection pools its tests reuse. */
+/** A migrated schema this process keeps, with the connection pools its tests reuse. */
 class TestSchema {
-    /** The server holding the schema. */
+    /** The server with the schema. */
     readonly server: TestServer;
     /** The schema name. */
     readonly name: string;
@@ -438,7 +451,7 @@ class TestSchema {
     /** Whether no test uses the schema. */
     isIdle = false;
 
-    /** Create a held schema. */
+    /** Create a schema this process keeps. */
     constructor(server: TestServer, name: string, shape: TestSchemaShape, pools: postgres.Sql[]) {
         // bind the schema to its server
         this.server = server;
@@ -503,7 +516,7 @@ function sqliteTemplate(tables: readonly Table[], isReplica: boolean): Promise<s
     // reuse the template of the same state
     const key = JSON.stringify(declareState(tables, "sqlite", { isReplica }));
     const known = templates.get(key);
-    if (known) {
+    if (known !== undefined) {
         return known;
     }
 

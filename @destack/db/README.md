@@ -2,9 +2,48 @@
 
 Declare, query, log and migrate SQL tables on SQLite and PostgreSQL.
 
+## Queries
+
+Queries are written as in [Drizzle](https://orm.drizzle.team/), imported from `@destack/db`.
+
+```ts
+import { and, asc, eq, isNull, sql } from "@destack/db";
+
+const notes = await database
+    .select({ id: note.id, title: note.title })
+    .from(note)
+    .where(and(eq(note.scope, spaceId), isNull(note.archivedAt)))
+    .orderBy(asc(note.title))
+    .limit(50); // { id: Identifier<"note">; title: string }[]
+
+await database.insert(note).values(row).onConflictDoUpdate({ target: note.id, set: { title } });
+const [removed] = await database.delete(note).where(eq(note.id, id)).returning();
+```
+
+| Drizzle | Here |
+|---|---|
+| `select`, `selectDistinct`, `from`, `where`, `innerJoin`, `leftJoin`, `groupBy`, `having`, `orderBy`, `limit`, `offset` | the same, each step returning a new query |
+| `insert`, `values`, `onConflictDoNothing`, `onConflictDoUpdate`, `update`, `set`, `delete`, `returning` | the same |
+| `sql`, `sql.raw`, `sql.join`, `sql.identifier`, `sql.placeholder`, `.as`, `.mapWith` | the same |
+| `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `and`, `or`, `not`, `inArray`, `isNull`, `like`, `between`, `exists`, `asc`, `desc`, `count`, `sum`, `avg`, `min`, `max` | the same |
+| `alias` | `alias`, with `from(table)` naming it where a query reads it |
+| `typeof note.$inferSelect`, `typeof note.$inferInsert` | the same, or `Select<typeof note>`, `Insert<typeof note>`, and `Key<typeof note>` for the key |
+| `primaryKey({ columns: [a, b] })` | `.primaryKey()` on each key column, in declaration order |
+| `db.execute(sql)` | `database.execute(sql, schema)`, each row parsed by the schema |
+
+A column reads back its value through its own validator, so rows written outside Destack still read as typed values or fail loudly.
+
+```ts
+const [row] = await database.execute(
+    sql`SELECT count(*) AS total FROM ${note}`,
+    schema.object({ total: schema.number() }),
+);
+```
+
 ## Tables
 
 `defineTable` declares a table's columns, constraints, log retention and the row conversions of its releases.
+A table's key is its columns marked `.primaryKey()`, in declaration order, so a compound key marks each of its columns.
 
 ```ts
 export const note = defineTable(
@@ -28,8 +67,8 @@ export const note = defineTable(
 
 ## Databases
 
-`defineDatabase` declares a database in the `global`, `regional` or `zonal` tier, holding each listed table once.
-A database holds tables of its own tier and of wider tiers, whose rows it replicates from their home, and refuses tables of a narrower tier.
+`defineDatabase` declares a database in the `global`, `regional` or `zonal` tier, with each listed table once.
+A database keeps tables of its own tier and of wider tiers, whose rows it replicates from their home, and refuses tables of a narrower tier.
 `connection.copies(table)` tells whether the database keeps a table's rows as copies: the tables of a wider tier than its own.
 
 ```ts
@@ -49,8 +88,8 @@ A host manages SQLite files through `sqliteProvider`, and a workload opens them 
 ```ts
 import { sqliteProvider } from "@destack/db/sqlite";
 
-const provider = sqliteProvider(new URL("file:///var/destack/databases/"));
-const connection = await main.connectors.sqlite!.connect(binding, main); // SQLite on Bun, none elsewhere yet
+const provider = sqliteProvider(new URL("file:///var/destack/databases/"), databaseObject);
+await using connection = await main.connectors["sqlite"]?.connect(binding, main); // SQLite on Bun, none elsewhere yet
 ```
 
 ## Connections
@@ -60,10 +99,11 @@ Each entry point opens one kind of database.
 | Entry point | Opens |
 |---|---|
 | `@destack/db/bun` | `connect`: a SQLite file or memory database on Bun |
+| `@destack/db/durable-object` | `connect`: a Durable Object's SQLite storage |
+| `@destack/db/sqlite` | `sqliteProvider`, `sqliteConnector`: SQLite files a host provisions and workloads open |
 | `@destack/db/postgres` | `connect`: a PostgreSQL pool or URL |
 | `@destack/db/wasm` | `serveBrowserDatabase`: an OPFS SQLite database served on a channel |
 | `@destack/db/shared` | `connectShared`: a database another party serves |
-| `@destack/db/channel` | `Channel`, `broadcastChannel`: messages between the parties of one topic |
 | `@destack/db/channel/socket` | `socketChannel`: the processes sharing a SQLite file on one machine |
 | `@destack/db/blob` | `BlobStore`, `DatabaseHandle`: the content blob columns reference |
 | `@destack/db/blob/local` | `LocalBlobStore`: blobs as files named by digest |
@@ -71,7 +111,7 @@ Each entry point opens one kind of database.
 
 ## Writes
 
-A connection runs Drizzle queries in transactions and writes whole rows by key.
+A connection runs queries in transactions, upserts rows as they are and removes them by key.
 
 ```ts
 const database = await connect("notes.db", main);
@@ -80,6 +120,7 @@ await database.transaction(async (transaction) =>
 );
 await database.upsert(note, rows);
 await database.remove(note, keys);
+const plan = await database.rehearse((transaction) => transaction.plan(state)); // rolled back
 ```
 
 ## Statements
@@ -96,7 +137,7 @@ await notes.all(database, { ids: JSON.stringify(ids.map((id) => [id])) });
 
 ## Conditions
 
-A `Condition` from `@destack/db/query` renders to SQL and matches rows in memory alike.
+A `Condition` is data: it renders to SQL and matches rows in memory alike.
 
 ```ts
 const where = Condition.all(Condition.eq("scope", spaceId), Condition.gte("rank", 2));
@@ -192,7 +233,9 @@ A connection wakes its log readers on the commits other writers announce on its 
 | `postgresChannel(client, name)` | PostgreSQL, announced by the log's commit trigger |
 
 ```ts
-const database = await connect(path, main, { channel: socketChannel(path) });
+const database = await connect(path, main, {
+    openChannel: (name) => socketChannel(`${path}#${name}`),
+});
 ```
 
 ## Blobs
@@ -200,9 +243,12 @@ const database = await connect(path, main, { channel: socketChannel(path) });
 A `blob` column keeps the SHA-256 digest of content a `BlobStore` keeps.
 
 ```ts
-const attachment = defineTable("attachment", { id: text("id").primaryKey(), content: blob("content") });
-const stored = await blobs.write(body);
-await database.insert(attachment).values({ id, content: stored.digest });
+const attachment = defineTable("attachment", {
+    id: text("id").primaryKey(),
+    content: blob("content"),
+});
+const digest = await blobs.write(body);
+await database.insert(attachment).values({ id, content: digest });
 ```
 
 ## Aggregates
@@ -250,7 +296,7 @@ const database = connectShared(channel, party, main);
 
 ```ts
 test.for(TEST_DIALECTS)("keep notes on %s", async (dialect) => {
-    const test = await TestDatabase.create(dialect, [note]);
-    onTestFinished(() => test.close());
+    const storage = await TestDatabase.create(dialect, [note]);
+    onTestFinished(() => storage.close());
 });
 ```

@@ -1,55 +1,19 @@
-import postgres from "postgres";
-import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import type { EmptyRelations } from "drizzle-orm/relations";
-import type { DrizzlePgConfig } from "drizzle-orm/pg-core/utils";
-import { ConnectionState, DatabaseConnection } from "../database/connection.ts";
+import { errorCode } from "../error/error.ts";
+import type postgres from "postgres";
+import { ConnectionState, DatabaseConnection, requireDistinct } from "../database/connection.ts";
 import type { Channel } from "../channel/channel.ts";
 import { CHANNEL_PREFIX } from "../log/schema.ts";
 import { DatabaseDriver } from "../database/driver.ts";
-import { PostgresSchemaCompiler } from "./compiler.ts";
+import { PostgresSession } from "../database/session.ts";
 import { expandTrees } from "../tree/tree.ts";
 import type * as declaration from "../declare/database.ts";
 import type { Table } from "../table/table.ts";
 
-/** A PostgreSQL database with its own pool. */
-export class PostgresDatabase extends DatabaseConnection<"postgresql"> {
-    /** The PostgreSQL connection pool. */
-    readonly $client: postgres.Sql;
-    /** The native SQL API. */
-    readonly native: PostgresJsDatabase;
+/** The PostgreSQL type identifiers of json and jsonb. */
+const JSON_TYPES = [114, 3802] as const;
 
-    /** Bind tables to a connection pool. */
-    constructor(
-        client: postgres.Sql,
-        tables: declaration.Database | readonly Table[],
-        options: Omit<DrizzlePgConfig<EmptyRelations>, "relations"> = {},
-    ) {
-        // compile the tables with their tree tables
-        const compiler = new PostgresSchemaCompiler(
-            "tables" in tables ? tables.tables : expandTrees(tables),
-        );
-        const native = drizzle({ ...options, client });
-        super(
-            new DatabaseDriver(
-                { dialect: "postgresql", database: native },
-                new ConnectionState(
-                    "networked",
-                    (name) => postgresChannel(client, `${CHANNEL_PREFIX}${name}`),
-                    "database",
-                    "tables" in tables ? tables.spec.tier : undefined,
-                ),
-            ),
-            compiler,
-        );
-        this.$client = client;
-        this.native = native;
-    }
-
-    /** Close the pool after pending queries. */
-    async close(): Promise<void> {
-        await this.state.close(() => this.$client.end());
-    }
-}
+/** The encoder measuring characters' UTF-8 widths. */
+const UTF8 = new TextEncoder();
 
 /** The bytes one notification payload carries: below PostgreSQL's limit of 8000, leaving room for the fragment header. */
 const PAYLOAD_BYTES = 7_800;
@@ -63,8 +27,52 @@ const CLOSED_CODES: ReadonlySet<string> = new Set(["CONNECTION_DESTROYED", "CONN
 /** The prefix of a payload carrying one fragment of a message, which no JSON text starts with. */
 const FRAGMENT = "#";
 
+/** A PostgreSQL database with its own pool. */
+export class PostgresDatabase extends DatabaseConnection {
+    /** The PostgreSQL connection pool. */
+    readonly $client: postgres.Sql;
+
+    /** Bind tables to a connection pool. */
+    constructor(client: postgres.Sql, tables: declaration.Database | readonly Table[]) {
+        // declare the tables with their tree tables
+        const declared = "tables" in tables ? tables.tables : expandTrees(tables);
+        requireDistinct(declared, "postgresql");
+        passJsonText(client);
+        super(
+            new DatabaseDriver(
+                new PostgresSession(client),
+                new ConnectionState(
+                    "networked",
+                    (name) => postgresChannel(client, `${CHANNEL_PREFIX}${name}`),
+                    "database",
+                    "tables" in tables ? tables.spec.tier : undefined,
+                ),
+            ),
+            declared,
+        );
+        this.$client = client;
+    }
+
+    /** Close the pool when its owner's scope ends. */
+    [Symbol.asyncDispose](): Promise<void> {
+        return this.close();
+    }
+
+    /** Close the pool after pending queries. */
+    async close(): Promise<void> {
+        await this.state.close(() => this.$client.end());
+    }
+}
+
+/** Pass JSON columns' text to the server as it is, since columns encode JSON themselves. */
+function passJsonText(client: postgres.Sql): void {
+    for (const type of JSON_TYPES) {
+        client.options.serializers[type] = (value: unknown) => value;
+    }
+}
+
 /** Reach every party of a PostgreSQL notification channel, carrying messages as JSON text, fragmented above one payload's limit. */
-export function postgresChannel<Message>(client: postgres.Sql, name: string): Channel<Message> {
+export function postgresChannel(client: postgres.Sql, name: string): Channel<unknown> {
     // collect the failures of notifications for the listeners
     const failures = new Set<(error: unknown) => void>();
     const send = (payload: string) =>
@@ -82,7 +90,7 @@ export function postgresChannel<Message>(client: postgres.Sql, name: string): Ch
         notify: (message) => {
             // send a small message whole, and a large one in numbered fragments
             const text = JSON.stringify(message);
-            if (new TextEncoder().encode(text).byteLength <= PAYLOAD_BYTES) {
+            if (UTF8.encode(text).byteLength <= PAYLOAD_BYTES) {
                 send(text);
             } else {
                 const id = crypto.randomUUID();
@@ -98,14 +106,28 @@ export function postgresChannel<Message>(client: postgres.Sql, name: string): Ch
             const deliver = (payload: string) => {
                 // deliver a whole message at once, as the database's own notifications send them too
                 if (!payload.startsWith(FRAGMENT)) {
-                    receive(JSON.parse(payload) as Message);
+                    const message: unknown = JSON.parse(payload);
+                    receive(message);
 
                     return;
                 }
 
                 // keep a fragment, and deliver its message once every fragment arrived
                 const header = payload.slice(FRAGMENT.length);
-                const [id, index, count] = header.split(":", 3) as [string, string, string];
+                const [id, index, count] = header.split(":", 3);
+                const position = Number(index);
+                const total = Number(count);
+                if (
+                    id === undefined ||
+                    index === undefined ||
+                    count === undefined ||
+                    !Number.isSafeInteger(position) ||
+                    !Number.isSafeInteger(total) ||
+                    position < 0 ||
+                    position >= total
+                ) {
+                    throw new TypeError(`malformed notification fragment on ${name}`);
+                }
                 const part = header.slice(id.length + index.length + count.length + 3);
                 const now = Date.now();
                 for (const [key, entry] of pending) {
@@ -114,16 +136,17 @@ export function postgresChannel<Message>(client: postgres.Sql, name: string): Ch
                     }
                 }
                 const entry = pending.get(id) ?? {
-                    parts: Array.from<string>({ length: Number(count) }),
+                    parts: Array.from<string>({ length: total }),
                     received: 0,
                     at: now,
                 };
                 pending.set(id, entry);
-                entry.parts[Number(index)] = part;
+                entry.parts[position] = part;
                 entry.received += 1;
                 if (entry.received === entry.parts.length) {
                     pending.delete(id);
-                    receive(JSON.parse(entry.parts.join("")) as Message);
+                    const message: unknown = JSON.parse(entry.parts.join(""));
+                    receive(message);
                 }
             };
 
@@ -143,7 +166,8 @@ export function postgresChannel<Message>(client: postgres.Sql, name: string): Ch
                     (listener) =>
                         listener.unlisten().catch((error: unknown) => {
                             // count a closed connection as stopped, and fail on anything else
-                            if (!CLOSED_CODES.has((error as { code?: unknown }).code as string)) {
+                            const code = errorCode(error);
+                            if (code === undefined || !CLOSED_CODES.has(code)) {
                                 fail?.(error);
                             }
                         }),
@@ -162,8 +186,7 @@ function fragments(text: string, bytes: number): string[] {
     let size = 0;
     for (const character of text) {
         // start a new part once the character would not fit
-        const point = character.codePointAt(0)!;
-        const width = point < 0x80 ? 1 : point < 0x800 ? 2 : point < 0x10000 ? 3 : 4;
+        const width = UTF8.encode(character).length;
         if (size + width > bytes) {
             parts.push(part);
             part = "";

@@ -5,15 +5,15 @@ import { createLog, logTriggers } from "../log/trigger.ts";
 import { treeTriggers } from "../tree/trigger.ts";
 import { aggregateTriggers, recomputeAggregate } from "../aggregate/trigger.ts";
 import { dependentTriggers } from "../dependent/trigger.ts";
-import { createState, deleteState, holdsState, type TableState } from "./state.ts";
+import { createState, deleteState, coversState, type TableState } from "./state.ts";
 import * as statement from "./statement.ts";
 import { quote } from "../dialect/quote.ts";
 import { bridgeTriggers } from "./bridge.ts";
 import type { Triggers } from "./trigger.ts";
 import type { MergedState } from "./merge.ts";
-import { canonicalize } from "@destack/schema/json";
+import { canonicalize, Version } from "@destack/schema";
+import { v7 } from "uuid";
 import { Address, Plan, type Action, type Risk, type Step } from "@destack/resource";
-import { Version } from "@destack/schema";
 import { PlanError } from "@destack/resource/error";
 
 /** The generated triggers every plan removes and reinstalls. */
@@ -89,7 +89,7 @@ export function planTables(input: PlanInput): TablePlan {
             (state.moved?.table === undefined ? undefined : remaining.get(state.moved.table));
         remaining.delete(previous?.table.name ?? name);
 
-        // create each missing table unless a newer release renamed it or an unmanaged one holds its name
+        // create each missing table unless a newer release renamed it or an unmanaged one has its name
         if (!previous) {
             const renamed = applied.find(
                 (entry) =>
@@ -101,7 +101,7 @@ export function planTables(input: PlanInput): TablePlan {
                 const detail = `rollback to ${state.package.version} cannot read the table ${renamed.package.version} renamed to ${renamed.table.name}`;
                 problems.push({ target: Address.join("table", name), detail });
             }
-            // refuse a name an unmanaged table holds
+            // refuse a name an unmanaged table has
             else if (existing.includes(name)) {
                 const target = Address.join("table", name);
                 problems.push({ target, detail: "table exists without applied state" });
@@ -122,10 +122,10 @@ export function planTables(input: PlanInput): TablePlan {
             continue;
         }
 
-        // keep a newer applied table for an older release that it holds, refusing one it cannot hold
+        // keep a newer applied table for an older release that it covers, refusing one it cannot cover
         if (Version.compare(state.package.version, previous.package.version) < 0) {
-            if (!holdsState(previous, state)) {
-                const detail = `rollback to ${state.package.version} cannot hold the table as ${previous.package.version} applied it`;
+            if (!coversState(previous, state)) {
+                const detail = `rollback to ${state.package.version} cannot read the table as ${previous.package.version} applied it`;
                 problems.push({ target: Address.join("table", name), detail });
             }
             continue;
@@ -151,14 +151,15 @@ export function planTables(input: PlanInput): TablePlan {
         );
 
         // convert rows through each release after the applied one, and check the column values
-        const releases = Version.between(
-            Object.keys(state.conversions ?? {}),
+        const conversions = Version.between(
+            state.conversions ?? {},
             previous.package.version,
             state.package.version,
         );
-        for (const release of releases) {
-            changes.push(convertRows(state, release));
+        for (const [release, assignments] of conversions) {
+            changes.push(convertRows(state, release, assignments));
         }
+        const releases = conversions.map(([release]) => release);
         changes.push(...changeValues(previous, state, releases, problems));
 
         // backfill newly bridged columns
@@ -212,82 +213,62 @@ export function planTables(input: PlanInput): TablePlan {
     // compute new or changed aggregates
     for (const state of declared) {
         const previous = applied.find((entry) => entry.table.name === state.table.name);
-        for (const aggregate of state.aggregates ?? []) {
-            const isKnown = (previous?.aggregates ?? []).some(
-                (entry) => canonicalize(entry) === canonicalize(aggregate),
+        for (const aggregate of missing(state.aggregates, previous?.aggregates)) {
+            steps.push(
+                step(
+                    "create",
+                    Address.join("table", aggregate.table, "aggregate", aggregate.column),
+                    "safe",
+                    `compute ${aggregate.column} from ${aggregate.source}`,
+                    [recomputeAggregate(aggregate, dialect)],
+                ),
             );
-            if (!isKnown) {
-                steps.push(
-                    step(
-                        "create",
-                        Address.join("table", aggregate.table, "aggregate", aggregate.column),
-                        "safe",
-                        `compute ${aggregate.column} from ${aggregate.source}`,
-                        [recomputeAggregate(aggregate, dialect)],
-                    ),
-                );
-            }
         }
     }
 
     // stop keeping removed aggregates
     for (const previous of applied) {
         const state = declared.find((entry) => entry.table.name === previous.table.name);
-        for (const aggregate of previous.aggregates ?? []) {
-            const isKept = (state?.aggregates ?? []).some(
-                (entry) => canonicalize(entry) === canonicalize(aggregate),
+        for (const aggregate of missing(previous.aggregates, state?.aggregates)) {
+            steps.push(
+                step(
+                    "delete",
+                    Address.join("table", aggregate.table, "aggregate", aggregate.column),
+                    "safe",
+                    `stop keeping ${aggregate.column} from ${aggregate.source}`,
+                    [],
+                ),
             );
-            if (!isKept) {
-                steps.push(
-                    step(
-                        "delete",
-                        Address.join("table", aggregate.table, "aggregate", aggregate.column),
-                        "safe",
-                        `stop keeping ${aggregate.column} from ${aggregate.source}`,
-                        [],
-                    ),
-                );
-            }
         }
     }
 
     // start and stop keeping dependents
     for (const state of declared) {
         const previous = applied.find((entry) => entry.table.name === state.table.name);
-        for (const dependent of state.dependents ?? []) {
-            const isKnown = (previous?.dependents ?? []).some(
-                (entry) => canonicalize(entry) === canonicalize(dependent),
+        for (const dependent of missing(state.dependents, previous?.dependents)) {
+            steps.push(
+                step(
+                    "create",
+                    Address.join("table", dependent.table, "dependent", dependent.source),
+                    "safe",
+                    `${dependent.onDelete} deletes into ${dependent.source}`,
+                    [],
+                ),
             );
-            if (!isKnown) {
-                steps.push(
-                    step(
-                        "create",
-                        Address.join("table", dependent.table, "dependent", dependent.source),
-                        "safe",
-                        `${dependent.onDelete} deletes into ${dependent.source}`,
-                        [],
-                    ),
-                );
-            }
         }
     }
     for (const previous of applied) {
         const state = declared.find((entry) => entry.table.name === previous.table.name);
-        for (const dependent of previous.dependents ?? []) {
-            const isKept = (state?.dependents ?? []).some(
-                (entry) => canonicalize(entry) === canonicalize(dependent),
+        for (const dependent of missing(previous.dependents, state?.dependents)) {
+            steps.push(
+                step(
+                    "delete",
+                    Address.join("table", dependent.table, "dependent", dependent.source),
+                    "safe",
+                    `stop ${dependent.onDelete} deletes into ${dependent.source}`,
+                    [],
+                ),
             );
-            if (!isKept) {
-                steps.push(
-                    step(
-                        "delete",
-                        Address.join("table", dependent.table, "dependent", dependent.source),
-                        "safe",
-                        `stop ${dependent.onDelete} deletes into ${dependent.source}`,
-                        [],
-                    ),
-                );
-            }
         }
     }
 
@@ -351,7 +332,7 @@ export function planTables(input: PlanInput): TablePlan {
             : [],
         after: isChanged
             ? [
-                  ...createLog(dialect),
+                  ...createLog(dialect, v7()),
                   createState(),
                   ...declared.flatMap((state) =>
                       TRIGGERS.flatMap((triggers) => triggers.install(state, dialect)),
@@ -361,6 +342,14 @@ export function planTables(input: PlanInput): TablePlan {
         state: declared,
         dropped,
     };
+}
+
+/** A kept column with its applied and its declared description. */
+interface ColumnChange {
+    /** The column as applied. */
+    readonly applied: TableDescription["columns"][number];
+    /** The column as declared. */
+    readonly declared: TableDescription["columns"][number];
 }
 
 /** Plan the changes of one table kept under its name. */
@@ -376,17 +365,17 @@ function changeTable(
     for (const column of next.columns) {
         const from = moved[column.name];
         const renamed = from === undefined ? undefined : columns.get(from);
-        if (renamed && !columns.has(column.name)) {
+        if (from !== undefined && renamed !== undefined && !columns.has(column.name)) {
             steps.push(
                 step(
                     "rename",
                     Address.join("table", next.name, "column", column.name),
                     "backward-incompatible",
                     `rename column ${from} to ${column.name}`,
-                    [statement.renameColumn(next.name, from!, column.name)],
+                    [statement.renameColumn(next.name, from, column.name)],
                 ),
             );
-            columns.delete(from!);
+            columns.delete(from);
             columns.set(column.name, { ...renamed, name: column.name });
         }
     }
@@ -397,14 +386,14 @@ function changeTable(
     const removed = current.columns.filter(
         (column) => !next.columns.some((entry) => entry.name === column.name),
     );
-    const changed = next.columns.filter((column) => {
+    const changed = next.columns.flatMap((column): ColumnChange[] => {
         const old = columns.get(column.name);
-
-        return (
+        const isChanged =
             old !== undefined &&
             canonicalize({ ...old, value: undefined }) !==
-                canonicalize({ ...column, value: undefined })
-        );
+                canonicalize({ ...column, value: undefined });
+
+        return old !== undefined && isChanged ? [{ applied: old, declared: column }] : [];
     });
 
     // require a value for each new required column
@@ -433,7 +422,7 @@ function changeSQLiteTable(
     next: TableDescription,
     added: readonly TableDescription["columns"][number][],
     removed: readonly TableDescription["columns"][number][],
-    changed: readonly TableDescription["columns"][number][],
+    changed: readonly ColumnChange[],
 ): TableStep[] {
     // rebuild for changes beyond additions and indexes
     const isRebuilt =
@@ -442,37 +431,31 @@ function changeSQLiteTable(
         added.some((column) => column.generated?.mode === "stored") ||
         canonicalize(previous.constraints) !== canonicalize(next.constraints);
     if (isRebuilt) {
-        const copied = new Map(
-            next.columns
-                .filter(
-                    (column) =>
-                        !column.generated &&
-                        previous.columns.some((old) => old.name === column.name && !old.generated),
-                )
-                .map((column) => [column.name, column.name]),
-        );
+        const copied = next.columns
+            .filter(
+                (column) =>
+                    column.generated === undefined &&
+                    previous.columns.some(
+                        (applied) =>
+                            applied.name === column.name && applied.generated === undefined,
+                    ),
+            )
+            .map((column) => column.name);
         const isLossy =
             removed.length > 0 ||
-            changed.some(
-                (column) =>
-                    previous.columns.find((old) => old.name === column.name)!.type !== column.type,
-            );
+            changed.some(({ applied, declared }) => applied.type !== declared.type);
         const isChecked =
-            changed.some(
-                (column) =>
-                    previous.columns.find((old) => old.name === column.name)!.nullable &&
-                    !column.nullable,
-            ) ||
+            changed.some(({ applied, declared }) => applied.nullable && !declared.nullable) ||
             next.constraints.some(
                 (constraint) =>
                     !previous.constraints.some(
-                        (old) => canonicalize(old) === canonicalize(constraint),
+                        (applied) => canonicalize(applied) === canonicalize(constraint),
                     ),
             );
         const detail = [
             ...added.map((column) => `add ${column.name}`),
             ...removed.map((column) => `drop ${column.name}`),
-            ...changed.map((column) => `change ${column.name}`),
+            ...changed.map(({ declared }) => `change ${declared.name}`),
         ].join(", ");
 
         return [
@@ -507,7 +490,7 @@ function changePostgresTable(
     next: TableDescription,
     added: readonly TableDescription["columns"][number][],
     removed: readonly TableDescription["columns"][number][],
-    changed: readonly TableDescription["columns"][number][],
+    changed: readonly ColumnChange[],
 ): TableStep[] {
     // add and drop columns
     const steps: TableStep[] = [
@@ -532,9 +515,8 @@ function changePostgresTable(
     ];
 
     // alter changed columns in place
-    for (const column of changed) {
-        const old = previous.columns.find((entry) => entry.name === column.name)!;
-        if (old.generated || column.generated) {
+    for (const { applied: old, declared: column } of changed) {
+        if (old.generated !== undefined || column.generated !== undefined) {
             steps.push(
                 step(
                     "replace",
@@ -570,66 +552,75 @@ function changePostgresTable(
 
 /** Replace differing PostgreSQL constraints. */
 function changeConstraints(previous: TableDescription, next: TableDescription): TableStep[] {
-    // compare constraints by name and definition
-    const before = new Map(previous.constraints.map((entry) => [entry.name, canonicalize(entry)]));
-    const after = new Map(next.constraints.map((entry) => [entry.name, canonicalize(entry)]));
+    const { dropped, created } = differing(previous.constraints, next.constraints);
 
     return [
-        ...previous.constraints
-            .filter((constraint) => after.get(constraint.name) !== before.get(constraint.name))
-            .map((constraint) =>
-                step(
-                    "delete",
-                    Address.join("table", next.name, "constraint", constraint.name),
-                    "safe",
-                    `drop constraint ${constraint.name}`,
-                    [statement.dropConstraint(next.name, constraint.name)],
-                ),
+        ...dropped.map((constraint) =>
+            step(
+                "delete",
+                Address.join("table", next.name, "constraint", constraint.name),
+                "safe",
+                `drop constraint ${constraint.name}`,
+                [statement.dropConstraint(next.name, constraint.name)],
             ),
-        ...next.constraints
-            .filter((constraint) => before.get(constraint.name) !== after.get(constraint.name))
-            .map((constraint) =>
-                step(
-                    "create",
-                    Address.join("table", next.name, "constraint", constraint.name),
-                    "data-dependent",
-                    `add constraint ${constraint.name}`,
-                    [statement.addConstraint(next.name, constraint)],
-                ),
+        ),
+        ...created.map((constraint) =>
+            step(
+                "create",
+                Address.join("table", next.name, "constraint", constraint.name),
+                "data-dependent",
+                `add constraint ${constraint.name}`,
+                [statement.addConstraint(next.name, constraint)],
             ),
+        ),
     ];
 }
 
 /** Replace removed, new or changed indexes. */
 function changeIndexes(previous: TableDescription, next: TableDescription): TableStep[] {
-    // compare indexes by name and definition
-    const before = new Map(previous.indexes.map((index) => [index.name, canonicalize(index)]));
-    const after = new Map(next.indexes.map((index) => [index.name, canonicalize(index)]));
+    const { dropped, created } = differing(previous.indexes, next.indexes);
 
     return [
-        ...previous.indexes
-            .filter((index) => after.get(index.name) !== before.get(index.name))
-            .map((index) =>
-                step(
-                    "delete",
-                    Address.join("table", next.name, "index", index.name),
-                    "safe",
-                    `drop index ${index.name}`,
-                    [statement.dropIndex(index.name)],
-                ),
+        ...dropped.map((index) =>
+            step(
+                "delete",
+                Address.join("table", next.name, "index", index.name),
+                "safe",
+                `drop index ${index.name}`,
+                [statement.dropIndex(index.name)],
             ),
-        ...next.indexes
-            .filter((index) => before.get(index.name) !== after.get(index.name))
-            .map((index) =>
-                step(
-                    "create",
-                    Address.join("table", next.name, "index", index.name),
-                    index.unique ? "data-dependent" : "safe",
-                    `create index ${index.name}`,
-                    [statement.createIndex(next.name, index)],
-                ),
+        ),
+        ...created.map((index) =>
+            step(
+                "create",
+                Address.join("table", next.name, "index", index.name),
+                index.unique ? "data-dependent" : "safe",
+                `create index ${index.name}`,
+                [statement.createIndex(next.name, index)],
             ),
+        ),
     ];
+}
+
+/** Split named parts into the applied ones to drop and the declared ones to create, compared by name and definition. */
+function differing<Part extends { readonly name: string }>(
+    applied: readonly Part[],
+    declared: readonly Part[],
+): { readonly dropped: Part[]; readonly created: Part[] } {
+    const before = new Map(applied.map((part) => [part.name, canonicalize(part)]));
+    const after = new Map(declared.map((part) => [part.name, canonicalize(part)]));
+
+    return {
+        dropped: applied.filter((part) => after.get(part.name) !== before.get(part.name)),
+        created: declared.filter((part) => before.get(part.name) !== after.get(part.name)),
+    };
+}
+
+/** List the items absent from others, compared by definition. */
+function missing<Item>(items: readonly Item[] = [], others: readonly Item[] = []): Item[] {
+    const known = new Set(others.map((other) => canonicalize(other)));
+
+    return items.filter((item) => !known.has(canonicalize(item)));
 }
 
 /** Create a table and its indexes. */
@@ -641,10 +632,14 @@ function createStatements(table: TableDescription): string[] {
 }
 
 /** Convert every row of a table from earlier releases by the conversion one release introduces. */
-function convertRows(state: TableState, release: Version): TableStep {
+function convertRows(
+    state: TableState,
+    release: Version,
+    assignments: Readonly<Record<string, string>>,
+): TableStep {
     // assign every converted column in one statement
     const name = state.table.name;
-    const set = Object.entries(state.conversions![release]!)
+    const set = Object.entries(assignments)
         .map(([column, expression]) => `${quote(column)} = ${expression}`)
         .join(", ");
 
@@ -678,7 +673,7 @@ function changeValues(
 
         // plan the change, leaving convert steps to the row conversions
         const isConverted = releases.some(
-            (release) => state.conversions![release]![column.name] !== undefined,
+            (release) => state.conversions?.[release]?.[column.name] !== undefined,
         );
         try {
             const planned = Plan.values({

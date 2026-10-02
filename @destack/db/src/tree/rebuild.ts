@@ -1,4 +1,5 @@
-import { sql, type SQL } from "drizzle-orm";
+import { schema } from "@destack/schema";
+import { sql, type SQL } from "../sql/index.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { PARAMETER_BUDGET } from "../dialect/dialect.ts";
 import { DatabaseError } from "../error/error.ts";
@@ -31,16 +32,21 @@ export async function rebuildTree(
     }
 
     // read every parent link
-    const rows = await database.execute<{ id: string; scope: string; parent: string | null }>(
+    const rows = await database.execute(
         sql`SELECT ${sql.identifier(tree.id)} AS id, ${sql.identifier(tree.scope)} AS scope,
             ${sql.identifier(tree.parent)} AS parent FROM ${sql.identifier(tree.table)}`,
+        schema.object({
+            id: schema.string(),
+            scope: schema.string(),
+            parent: schema.string().nullable(),
+        }),
     );
 
     // group parents by scope
     const scopes = new Map<string, Map<string, string | null>>();
     for (const row of rows) {
         let parents = scopes.get(row.scope);
-        if (!parents) {
+        if (parents === undefined) {
             parents = new Map();
             scopes.set(row.scope, parents);
         }
@@ -60,11 +66,12 @@ export async function rebuildTree(
                 if (path.has(current)) {
                     throw new DatabaseError("INVALID_MIGRATION", "tree contains a cycle");
                 }
-                if (!parents.has(current)) {
+                const parent = parents.get(current);
+                if (parent === undefined) {
                     throw new DatabaseError("INVALID_MIGRATION", "tree parent is missing");
                 }
                 path.add(current);
-                current = parents.get(current)!;
+                current = parent;
             }
             for (const member of path) {
                 complete.add(member);
@@ -87,7 +94,7 @@ export async function rebuildTree(
             let depth = 0;
             while (ancestor !== null) {
                 batch.push(sql`(${scope}, ${ancestor}, ${descendant}, ${depth})`);
-                ancestor = parents.get(ancestor)!;
+                ancestor = parents.get(ancestor) ?? null;
                 depth++;
                 if (batch.length === BATCH_SIZE) {
                     await flush(batch);
@@ -104,14 +111,18 @@ export async function rebuildTree(
 
     // remove stale paths and add missing ones
     const ancestors = sql.identifier(tree.ancestors);
-    const same = (left: typeof staged, right: typeof staged) => sql`${left}.scope = ${right}.scope
-        AND ${left}.ancestor = ${right}.ancestor
-        AND ${left}.descendant = ${right}.descendant
-        AND ${left}.depth = ${right}.depth`;
     await database.execute(sql`DELETE FROM ${ancestors}
         WHERE NOT EXISTS (SELECT 1 FROM ${staged} WHERE ${same(staged, ancestors)})`);
     await database.execute(sql`INSERT INTO ${ancestors} (scope, ancestor, descendant, depth)
         SELECT scope, ancestor, descendant, depth FROM ${staged}
         WHERE NOT EXISTS (SELECT 1 FROM ${ancestors} WHERE ${same(ancestors, staged)})`);
     await database.execute(sql`DROP TABLE ${staged}`);
+}
+
+/** Match two path rows with the same scope, ancestor, descendant and depth. */
+function same(left: SQL, right: SQL): SQL {
+    return sql`${left}.scope = ${right}.scope
+        AND ${left}.ancestor = ${right}.ancestor
+        AND ${left}.descendant = ${right}.descendant
+        AND ${left}.depth = ${right}.depth`;
 }

@@ -2,7 +2,6 @@ import { TABLE, type Table } from "../table/table.ts";
 import type { Column } from "../table/column.ts";
 import type { ChangeDescription } from "../inspect/log.ts";
 import { DatabaseError } from "../error/error.ts";
-import { v7 } from "uuid";
 import { literal, quote } from "../dialect/quote.ts";
 
 /** The SQL name of the database's log. */
@@ -51,8 +50,8 @@ export function describeLog(table: Table): ChangeDescription | undefined {
     }
 
     // file each change under the row's scope, or the database's for a table without one
-    const scope = definition.columns.scope;
-    if (scope?.definition.nullable) {
+    const scope = definition.columns["scope"];
+    if (scope?.definition.nullable === true) {
         throw new DatabaseError(
             "INVALID_MIGRATION",
             `logged table has an optional scope column: ${definition.name}`,
@@ -74,7 +73,7 @@ export function describeLog(table: Table): ChangeDescription | undefined {
     return {
         table: definition.sqlName,
         retention: definition.retention,
-        key: primaryKey(table).map((column) => column.definition.name),
+        key: loggedKey(table).map((column) => column.definition.name),
         columns: recorded.map((column) => column.name),
         exact: recorded
             .filter((column) => column.kind === "bigint" || column.kind === "numeric")
@@ -85,9 +84,9 @@ export function describeLog(table: Table): ChangeDescription | undefined {
 }
 
 /** Read a logged table's primary key columns in key order. */
-export function primaryKey(table: Table): readonly Column[] {
+export function loggedKey(table: Table): readonly Column[] {
     // require a key
-    const columns = table[TABLE].key.map((property) => table[TABLE].columns[property]!);
+    const columns = table[TABLE].key.map((property) => table[TABLE].column(property));
     if (columns.length === 0) {
         throw new DatabaseError(
             "INVALID_MIGRATION",
@@ -98,8 +97,8 @@ export function primaryKey(table: Table): readonly Column[] {
     return columns;
 }
 
-/** Create the log's epoch once, with the scope of the rows in tables without a scope column, and keep existing state. */
-export function createEpoch(scope?: string): readonly string[] {
+/** Create the log's first epoch once, with the scope of the rows in tables without a scope column, and keep existing state. */
+export function createEpoch(epoch: string, scope?: string): readonly string[] {
     return [
         `CREATE TABLE IF NOT EXISTS ${quote(LOG_SLOT)} (
             name TEXT PRIMARY KEY,
@@ -113,15 +112,15 @@ export function createEpoch(scope?: string): readonly string[] {
             scope TEXT
         )`,
         `INSERT INTO ${quote(LOG_EPOCH)} (slot, epoch, scope)
-            VALUES (1, ${literal(v7())}, ${scope === undefined ? "NULL" : literal(scope)})
+            VALUES (1, ${literal(epoch)}, ${scope === undefined ? "NULL" : literal(scope)})
             ON CONFLICT (slot) DO NOTHING`,
     ];
 }
 
 /** The log of one dialect: its tables and change triggers. */
 export interface LogDialect {
-    /** Create the log once per database, with the scope of the rows in tables without a scope column. */
-    create(scope?: string): readonly string[];
+    /** Create the log once per database at a first epoch, with the scope of the rows in tables without a scope column. */
+    create(epoch: string, scope?: string): readonly string[];
     /** Generate the triggers recording one table's changes. */
     install(description: ChangeDescription): string[];
     /** Remove the triggers recording one table's changes. */

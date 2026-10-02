@@ -1,71 +1,69 @@
-import { fillPlaceholders, sql, type Query, type SQL, type SQLWrapper } from "drizzle-orm";
+import {
+    dialectSQL,
+    fill,
+    render,
+    sql,
+    type Rendered,
+    type SQL,
+    type SQLWrapper,
+} from "../sql/index.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
-import type { SchemaCompiler } from "../dialect/compiler.ts";
-import { dialectSQL } from "../dialect/expression.ts";
+import type { Dialect } from "../dialect/dialect.ts";
+import type { DriverValue } from "../table/column.ts";
 
 /**
- * A statement rendered once per database and run with named values.
+ * A statement rendered once per dialect and run with named values.
  *
  * Its constant text lets SQLite reuse its prepared statement and PostgreSQL its plan.
  */
-export class Statement<Row extends Record<string, unknown> = Record<string, unknown>> {
+export class Statement {
     /** Build the statement from named values. */
     readonly #build: (value: (name: string) => SQLWrapper) => SQL;
-    /** The rendered query of each compiler. */
-    readonly #rendered = new WeakMap<SchemaCompiler, Query>();
+    /** The rendered statement of each dialect. */
+    readonly #rendered = new Map<Dialect, Rendered>();
 
     /** Create the statement. */
     constructor(build: (value: (name: string) => SQLWrapper) => SQL) {
         this.#build = build;
     }
 
-    /** Read every row with the values. */
+    /** Read every row by column name with the values. */
     all(
         database: DatabaseConnection,
-        values: Readonly<Record<string, unknown>> = {},
-    ): Promise<Row[]> {
-        const query = this.#render(database);
-
-        return database.driver.all<Row>({
-            sql: query.sql,
-            params: fillPlaceholders(query.params, values),
-        });
+        values: Readonly<Record<string, DriverValue>> = {},
+    ): Promise<Record<string, unknown>[]> {
+        return database.driver.all(fill(this.#render(database.dialect), values));
     }
 
-    /** Read every row as value arrays. */
+    /** Read every row as an array of values with the values. */
     values(
         database: DatabaseConnection,
-        values: Readonly<Record<string, unknown>> = {},
+        values: Readonly<Record<string, DriverValue>> = {},
     ): Promise<unknown[][]> {
-        const query = this.#render(database);
-
-        return database.driver.values({
-            sql: query.sql,
-            params: fillPlaceholders(query.params, values),
-        });
+        return database.driver.values(fill(this.#render(database.dialect), values));
     }
 
-    /** Render the statement once per compiler. */
-    #render(database: DatabaseConnection): Query {
-        // reuse the rendered query
-        const known = this.#rendered.get(database.compiler);
+    /** Render the statement once per dialect. */
+    #render(dialect: Dialect): Rendered {
+        // reuse the dialect's rendering
+        const known = this.#rendered.get(dialect);
         if (known !== undefined) {
             return known;
         }
+        const rendered = render(
+            this.#build((name) => sql.placeholder(name)),
+            dialect,
+        );
+        this.#rendered.set(dialect, rendered);
 
-        // compile and render the statement
-        const compiled = database.compiler.expression(this.#build((name) => sql.placeholder(name)));
-        const query = database.driver.render(compiled);
-        this.#rendered.set(database.compiler, query);
-
-        return query;
+        return rendered;
     }
 }
 
 /** Select a JSON array's elements as rows of one `value` column. */
 export function jsonElements(array: SQLWrapper, name: string): SQL {
     return dialectSQL({
-        sqlite: sql`json_each(${array}) AS ${sql.raw(name)}`,
-        postgresql: sql`jsonb_array_elements(${array}::jsonb) AS ${sql.raw(name)}(value)`,
+        sqlite: sql`json_each(${array}) AS ${sql.identifier(name)}`,
+        postgresql: sql`jsonb_array_elements(${array}::jsonb) AS ${sql.identifier(name)}(value)`,
     });
 }

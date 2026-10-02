@@ -1,11 +1,11 @@
-import { assertNever, classifyError, DatabaseError } from "../error/error.ts";
-import { DatabaseDriver, type NativeDatabase } from "./driver.ts";
-import type { SchemaCompiler } from "../dialect/compiler.ts";
-import type { DrizzleDatabase } from "../dialect/drizzle.ts";
-import type { Table } from "../table/table.ts";
+import { schema } from "@destack/schema";
+import { CHAIN_TERMS, fill, or, render, sql, type SQLWrapper } from "../sql/index.ts";
+import { classifyError, DatabaseError } from "../error/error.ts";
+import { DatabaseDriver } from "./driver.ts";
+import type { Session } from "./session.ts";
+import { type Insert, type Table, TABLE } from "../table/table.ts";
 import { DatabaseTier } from "../declare/tier.ts";
-import { SelectBuilder, type SelectedSubquery, type SelectQuery } from "../query/select.ts";
-import { or, sql, type SQL, type WithSubquery } from "drizzle-orm";
+import { SelectBuilder } from "../query/select.ts";
 import { MutationQuery } from "../query/mutation.ts";
 import {
     declareState,
@@ -24,31 +24,26 @@ import { closeTransaction, openTransaction } from "../log/transaction.ts";
 import { Log } from "../log/log.ts";
 import { type Announcer, CommitWatch } from "../log/watch.ts";
 import { LOG_TOPIC } from "../log/schema.ts";
-import type { Channel, OpenChannel } from "../channel/channel.ts";
+import { Commit, typedChannel, type Channel, type OpenChannel } from "../channel/channel.ts";
 import { PARAMETER_BUDGET, type Dialect } from "../dialect/dialect.ts";
 import { Key } from "../query/key.ts";
-import { CHAIN_TERMS } from "../query/predicate.ts";
+import { qualify } from "../table/namespace.ts";
 import type { Row } from "../table/row.ts";
-import { TABLE } from "../table/table.ts";
-import { Session } from "../sqlite/session.ts";
-import type { PostgresJsSession } from "drizzle-orm/postgres-js";
-import type { EmptyRelations } from "drizzle-orm/relations";
-import type { Sql } from "postgres";
 
 /** Queries over one database connection or transaction. */
-export class DatabaseConnection<Driver extends Dialect = Dialect> {
-    /** The native Drizzle database. */
+export class DatabaseConnection {
+    /** The session driver. */
     readonly driver: DatabaseDriver;
-    /** The table compiler. */
-    readonly compiler: SchemaCompiler<Driver>;
+    /** The tables the database declares, in declaration order. */
+    readonly tables: readonly Table[];
     /** The physical connection state. */
     readonly state: ConnectionState;
 
-    /** Bind a driver and compiler. */
-    constructor(driver: DatabaseDriver, compiler: SchemaCompiler<Driver>) {
+    /** Bind a driver to the declared tables. */
+    constructor(driver: DatabaseDriver, tables: readonly Table[]) {
         this.state = driver.state;
         this.driver = driver;
-        this.compiler = compiler;
+        this.tables = tables;
     }
 
     /** The tier of the database, absent for a connection over bare tables. */
@@ -56,8 +51,8 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         return this.state.tier;
     }
 
-    /** Open a channel of a name to the database's other connections, refusing a sole writer's. */
-    channel<Message>(name: string): Channel<Message> {
+    /** Open a channel of a name to the database's other connections, refusing a sole writer's; its reader types the messages. */
+    channel(name: string): Channel<unknown> {
         const open = this.state.openChannel;
         if (open === undefined) {
             throw new DatabaseError(
@@ -67,11 +62,6 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         }
 
         return open(name);
-    }
-
-    /** The tables the database declares, in declaration order. */
-    get tables(): readonly Table[] {
-        return this.compiler.declared;
     }
 
     /** Decide whether the database keeps a table's rows as copies from their home: the tables of a wider tier than its own. */
@@ -87,8 +77,8 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
     }
 
     /** The database's SQL dialect. */
-    get dialect(): Driver {
-        return this.driver.native.dialect as Driver;
+    get dialect(): Dialect {
+        return this.driver.dialect;
     }
 
     /** The log of the database. */
@@ -96,144 +86,115 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         return new Log(this);
     }
 
-    /** Select application records or explicit fields. */
-    select<Fields extends Selection | undefined = undefined>(
-        fields?: Fields,
-    ): SelectBuilder<Fields> {
-        return new SelectBuilder(this.driver, this.compiler, fields as Fields);
+    /** Select the source table's records. */
+    select(): SelectBuilder;
+    /** Select explicit fields. */
+    select<Fields extends Selection>(fields: Fields): SelectBuilder<Fields>;
+    /** Select records or fields, whose signatures above type the builder by them. */
+    select(fields?: Selection): SelectBuilder<Selection | undefined> {
+        return new SelectBuilder(this.driver, fields, false);
     }
 
-    /** Select distinct application records or explicit fields. */
-    selectDistinct<Fields extends Selection | undefined = undefined>(
-        fields?: Fields,
-    ): SelectBuilder<Fields> {
-        return new SelectBuilder(this.driver, this.compiler, fields as Fields, {
-            isDistinct: true,
-        });
-    }
-
-    /** Declare a named common table expression. */
-    $with<const Alias extends string>(alias: Alias) {
-        return {
-            as: <
-                Result,
-                Fields extends Selection,
-                Nullable extends string,
-                Automatic extends boolean,
-            >(
-                query: SelectQuery<Result, Fields, Nullable, Automatic>,
-            ): SelectedSubquery<Result, Alias> => {
-                // build the CTE on the native database
-                const database = this.driver.native.database as unknown as DrizzleDatabase;
-
-                return database.$with(alias).as(query) as unknown as SelectedSubquery<
-                    Result,
-                    Alias
-                >;
-            },
-        };
-    }
-
-    /** Include common table expressions in the next selection. */
-    with(...queries: WithSubquery[]) {
-        return {
-            select: <Fields extends Selection | undefined = undefined>(fields?: Fields) =>
-                new SelectBuilder(this.driver, this.compiler, fields as Fields, {
-                    withList: queries,
-                }),
-            selectDistinct: <Fields extends Selection | undefined = undefined>(fields?: Fields) =>
-                new SelectBuilder(this.driver, this.compiler, fields as Fields, {
-                    isDistinct: true,
-                    withList: queries,
-                }),
-        };
+    /** Select the source table's distinct records. */
+    selectDistinct(): SelectBuilder;
+    /** Select distinct explicit fields. */
+    selectDistinct<Fields extends Selection>(fields: Fields): SelectBuilder<Fields>;
+    /** Select distinct records or fields, whose signatures above type the builder by them. */
+    selectDistinct(fields?: Selection): SelectBuilder<Selection | undefined> {
+        return new SelectBuilder(this.driver, fields, true);
     }
 
     /** Insert application records. */
     insert<Definition extends Table>(table: Definition): MutationQuery<Definition, void, "insert"> {
-        return new MutationQuery(this.driver, this.compiler, table, "insert");
+        return MutationQuery.of(this.driver, table, "insert");
     }
 
     /** Update application records. */
     update<Definition extends Table>(table: Definition): MutationQuery<Definition, void, "update"> {
-        return new MutationQuery(this.driver, this.compiler, table, "update");
+        return MutationQuery.of(this.driver, table, "update");
     }
 
     /** Delete application records. */
     delete<Definition extends Table>(table: Definition): MutationQuery<Definition, void, "delete"> {
-        return new MutationQuery(this.driver, this.compiler, table, "delete");
+        return MutationQuery.of(this.driver, table, "delete");
     }
 
-    /** Upsert rows, a batch per statement. */
+    /** Upsert rows as they are, writing only each row's own columns, a batch of alike rows per statement. */
+    upsert<Definition extends Table>(
+        table: Definition,
+        rows: readonly Insert<Definition>[],
+    ): Promise<void>;
+    /** Upsert rows, whose signature above types them by their table. */
     async upsert(table: Table, rows: readonly Row[]): Promise<void> {
-        // update every written column but the key
-        const key = table[TABLE].key;
-        const columns = table[TABLE].columns;
-        const written = [...new Set(rows.flatMap((row) => Object.keys(row)))];
-        const set = Object.fromEntries(
-            written
-                .filter((name) => !key.includes(name))
-                .map((name) => [
-                    name,
-                    sql`excluded.${sql.identifier(columns[name]!.definition.name)}`,
-                ]),
-        );
+        // group the rows by the columns they have
+        const groups = new Map<string, Row[]>();
+        for (const row of rows) {
+            const columns = Object.keys(row).toSorted().join();
+            groups.set(columns, [...(groups.get(columns) ?? []), row]);
+        }
 
-        // write batches within the parameter budget
-        const size = Math.max(1, Math.floor(PARAMETER_BUDGET / Math.max(written.length, 1)));
-        for (let start = 0; start < rows.length; start += size) {
-            const batch = rows
-                .slice(start, start + size)
-                .map((row) => Object.fromEntries(written.map((name) => [name, row[name] ?? null])));
-            const insert = this.insert(table).values(batch as never);
-            await (Object.keys(set).length === 0
-                ? insert.onConflictDoNothing()
-                : insert.onConflictDoUpdate({
-                      target: key.map((name) => columns[name]!) as never,
-                      set: set as never,
-                  }));
+        // write each group in batches within the parameter budget
+        const definition = table[TABLE];
+        const target = definition.key.map((name) => definition.column(name));
+        for (const group of groups.values()) {
+            const written = Object.keys(group[0] ?? {});
+            const set = Object.fromEntries(
+                written
+                    .filter((name) => !definition.key.includes(name))
+                    .map((name) => [
+                        name,
+                        sql`excluded.${sql.identifier(definition.column(name).definition.name)}`,
+                    ]),
+            );
+            const size = Math.floor(PARAMETER_BUDGET / written.length);
+            for (let start = 0; start < group.length; start += size) {
+                const insert = this.insert(table).values(group.slice(start, start + size));
+                await (Object.keys(set).length === 0
+                    ? insert.onConflictDoNothing()
+                    : insert.onConflictDoUpdate({ target, set }));
+            }
         }
     }
 
     /** Delete rows by key, a chain of keys per statement. */
-    async remove(table: Table, rows: readonly Row[]): Promise<void> {
+    remove<Definition extends Table>(
+        table: Definition,
+        rows: readonly Key<Definition>[],
+    ): Promise<void>;
+    /** Delete rows by key, whose signature above types the keys by their table. */
+    async remove(table: Table, rows: readonly Key[]): Promise<void> {
         for (let start = 0; start < rows.length; start += CHAIN_TERMS) {
             const matches = rows
                 .slice(start, start + CHAIN_TERMS)
                 .map((row) => Key.match(table, row));
-            await this.delete(table).where(or(...matches)!);
+            await this.delete(table).where(or(...matches));
         }
     }
 
     /** Execute a SQL script in one round trip. */
     async executeScript(script: string): Promise<void> {
-        await this.driver.write(
-            async (native) => {
-                const session = native.database._.session;
-                // run SQLite scripts through the session's client
-                if (native.dialect === "sqlite" && session instanceof Session) {
-                    await session.exec(script);
-                }
-                // run PostgreSQL scripts as simple queries
-                else if (native.dialect === "postgresql") {
-                    await (session as PostgresJsSession<Sql, EmptyRelations>).client
-                        .unsafe(script)
-                        .simple();
-                }
-                // refuse other sessions
-                else {
-                    throw new TypeError(`${native.dialect} session cannot run scripts`);
-                }
-            },
-            { isTransaction: true },
-        );
+        await this.driver.commit(() => this.driver.session.exec(script));
     }
 
-    /** Execute SQL and return its rows. */
-    execute<Row extends Record<string, unknown> = Record<string, unknown>>(
-        statement: SQL,
-    ): Promise<Row[]> {
-        return this.driver.all<Row>(this.driver.render(this.compiler.expression(statement)));
+    /** Run SQL and read its rows by column name, as the database returns them. */
+    execute(statement: SQLWrapper): Promise<Record<string, unknown>[]>;
+    /** Run SQL and parse each row by a schema. */
+    execute<Row>(statement: SQLWrapper, row: schema.Schema<Row>): Promise<Row[]>;
+    /** Run SQL and read its rows, parsed by a schema when given. */
+    async execute(statement: SQLWrapper, row?: schema.Schema): Promise<unknown[]> {
+        const rows = await this.driver.all(fill(render(statement, this.dialect)));
+
+        return row === undefined ? rows : rows.map((value) => row.parse(value));
+    }
+
+    /** Run SQL and read its rows as an array of values. */
+    values(statement: SQLWrapper): Promise<unknown[][]> {
+        return this.driver.values(fill(render(statement, this.dialect)));
+    }
+
+    /** Run a SQL write. */
+    run(statement: SQLWrapper): Promise<void> {
+        return this.driver.execute(fill(render(statement, this.dialect)));
     }
 
     /** Plan and apply tables at once, beside the tables of declared states, such as a database resource's desired ones. */
@@ -285,98 +246,84 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
         const signal = signals.length ? AbortSignal.any(signals) : undefined;
         signal?.throwIfAborted();
 
-        // open the native transaction
-        const execute = async () => {
-            // run a SQLite transaction or savepoint
-            if (this.driver.native.dialect === "sqlite") {
-                const root = this.driver.native.database;
-                const isNested = this.driver.transaction !== undefined;
-
-                return await root.transaction(
-                    async (transaction) => {
-                        // defer foreign keys when asked
-                        if (options.constraints === "deferred") {
-                            await transaction.run(sql`PRAGMA defer_foreign_keys = ON`);
-                        }
-
-                        // mark the outermost writing transaction for the log
-                        const isMarked =
-                            !isNested &&
-                            !options.isReadOnly &&
-                            (await openTransaction(transaction, this.state));
-                        const result = await this.#transact(
-                            { dialect: "sqlite", database: transaction },
-                            operation,
-                            signal,
+        // open the transaction or savepoint, deferring constraints and marking the outermost SQLite write for the log
+        const isNested = this.driver.transaction !== undefined;
+        const execute = () =>
+            this.driver.session.transaction(
+                async (session) => {
+                    // defer constraints to the commit when asked
+                    if (options.constraints === "deferred") {
+                        await session.run(
+                            session.dialect === "sqlite"
+                                ? "PRAGMA defer_foreign_keys = ON"
+                                : "SET CONSTRAINTS ALL DEFERRED",
+                            [],
                         );
-                        if (isMarked) {
-                            await closeTransaction(transaction);
-                        }
+                    }
+                    const isMarked =
+                        session.dialect === "sqlite" &&
+                        !isNested &&
+                        options.isReadOnly !== true &&
+                        (await openTransaction(session, this.state));
+                    const result = await this.#transact(session, operation, signal);
+                    if (isMarked) {
+                        await closeTransaction(session);
+                    }
 
-                        return result;
-                    },
-                    { behavior: options.isReadOnly ? "deferred" : "immediate" },
-                );
-            }
-            // run a PostgreSQL transaction
-            else if (this.driver.native.dialect === "postgresql") {
-                return await this.driver.native.database.transaction(
-                    async (transaction) => {
-                        // defer constraints when asked
-                        if (options.constraints === "deferred") {
-                            await transaction.execute(sql`SET CONSTRAINTS ALL DEFERRED`);
-                        }
+                    return result;
+                },
+                {
+                    isReadOnly: options.isReadOnly ?? false,
+                    isolationLevel: options.isolationLevel ?? "repeatable read",
+                },
+            );
 
-                        return this.#transact(
-                            { dialect: "postgresql", database: transaction },
-                            operation,
-                            signal,
-                        );
-                    },
-                    {
-                        isolationLevel: options.isolationLevel ?? "repeatable read",
-                        accessMode: options.isReadOnly ? "read only" : "read write",
-                    },
-                );
-            }
-            // reject other dialects
-            else {
-                return assertNever(this.driver.native);
-            }
-        };
-
-        // report a lost commit as a concurrent update, and resolve nothing once the callback rolled back
+        // report a lost commit as a concurrent update
         try {
             return this.driver.transaction
                 ? await this.driver.transaction.run(execute, "report")
-                : await this.driver.write(execute, { isTransaction: true });
+                : await this.driver.commit(execute);
         } catch (error) {
-            if (error instanceof Rollback) {
-                return undefined as Value;
-            }
             throw classifyError(error);
         }
     }
 
-    /** Roll back the transaction this connection runs, ending its callback. */
-    rollback(): never {
-        if (this.driver.transaction === undefined) {
-            throw new TypeError("only a transaction rolls back");
+    /** Run work in a transaction and roll its writes back, returning what it read or planned. */
+    async rehearse<Value>(
+        operation: (transaction: DatabaseConnection) => Promise<Value>,
+        options: TransactionOptions = {},
+    ): Promise<Value> {
+        // run the work, keep its result, and unwind the transaction
+        let result: { readonly value: Value } | undefined;
+        try {
+            await this.transaction(async (transaction) => {
+                result = { value: await operation(transaction) };
+                throw new Rollback();
+            }, options);
+        } catch (error) {
+            if (!(error instanceof Rollback)) {
+                throw error;
+            }
         }
 
-        throw new Rollback();
+        // return the kept result
+        if (result === undefined) {
+            throw new TypeError("a rehearsal ended without its result");
+        }
+
+        return result.value;
     }
 
     /** Bind a transaction session and drain its queries. */
     #transact<Value>(
-        connection: NativeDatabase,
+        session: Session,
         operation: (transaction: DatabaseConnection) => Promise<Value>,
         signal?: AbortSignal,
     ): Promise<Value> {
         const state = new TransactionState(signal);
         const transaction = new DatabaseConnection(
-            new DatabaseDriver(connection, this.state, state),
-            this.compiler,
+            new DatabaseDriver(session, this.state, state),
+            this.tables,
         );
 
         return state.execute(() => operation(transaction));
@@ -396,7 +343,7 @@ export class ConnectionState {
     readonly commits: CommitWatch;
     /** Open a channel of a name to the database's other connections, absent for a sole writer. */
     readonly openChannel: OpenChannel | undefined;
-    /** Whether the database holds a log. */
+    /** Whether the database keeps a log. */
     isLogged = false;
     /** The submitted statements and transactions. */
     operations = 0;
@@ -418,7 +365,10 @@ export class ConnectionState {
         this.locality = locality;
         this.tier = tier;
         this.openChannel = openChannel;
-        this.commits = new CommitWatch(openChannel?.(LOG_TOPIC), announcer);
+        this.commits = new CommitWatch(
+            openChannel === undefined ? undefined : typedChannel(openChannel(LOG_TOPIC), Commit),
+            announcer,
+        );
     }
 
     /** Submit an operation. */
@@ -454,5 +404,35 @@ export class ConnectionState {
     }
 }
 
-/** The unwinding of a transaction its callback rolls back. */
+/** The unwinding of a rehearsed transaction. */
 class Rollback extends Error {}
+
+/** Require distinct SQL names across a database's tables and their indexes and keys. */
+export function requireDistinct(tables: readonly Table[], dialect: Dialect): void {
+    const relations = new Set<string>();
+    for (const table of tables) {
+        // refuse query aliases and repeated tables
+        const definition = table[TABLE];
+        if (definition.source !== undefined) {
+            throw new TypeError(`query aliases cannot declare SQL tables: ${definition.name}`);
+        } else if (relations.has(definition.sqlName)) {
+            throw new TypeError(`duplicate SQL table: ${definition.sqlName}`);
+        }
+        relations.add(definition.sqlName);
+    }
+
+    // refuse names shared by tables, indexes and keys
+    for (const table of tables) {
+        for (const constraint of table[TABLE].constraints(dialect)) {
+            const isRelation = ["index", "unique"].includes(constraint.kind);
+            if (constraint.name === undefined || !isRelation) {
+                continue;
+            }
+            const name = qualify(table[TABLE].package, constraint.name);
+            if (relations.has(name)) {
+                throw new TypeError(`duplicate SQL relation name: ${name}`);
+            }
+            relations.add(name);
+        }
+    }
+}

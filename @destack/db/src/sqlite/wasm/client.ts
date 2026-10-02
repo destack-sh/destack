@@ -1,22 +1,9 @@
+import type { DriverValue } from "../../table/column.ts";
 import init, { type Database, type SqlValue } from "@sqlite.org/sqlite-wasm";
-import {
-    Savepoint,
-    WorkQueue,
-    type ConnectionClient,
-    type QueryClient,
-    type Statement,
-} from "../client.ts";
-
-/** The result of running a statement. */
-export interface RunResult {
-    /** The number of rows changed. */
-    readonly changes: number;
-    /** The last inserted row identifier. */
-    readonly lastInsertRowid: number | bigint;
-}
+import { Savepoint, WorkQueue, type ConnectionClient, type QueryClient } from "../client.ts";
 
 /** Statements over one SQLite WebAssembly database. */
-export class WasmQuery implements QueryClient<RunResult> {
+export class WasmQuery implements QueryClient {
     /** The database. */
     readonly database: Database;
     /** The work queue, absent within a transaction. */
@@ -28,54 +15,33 @@ export class WasmQuery implements QueryClient<RunResult> {
         this.queue = queue;
     }
 
-    /** Prepare a statement with its row mode. */
-    async prepare(sql: string): Promise<Statement<RunResult>> {
-        // track the row mode
-        let isRaw = false;
-        const run = (method: "run" | "all" | "get", parameters: readonly unknown[]) =>
-            this.#schedule(async () => execute(this.database, sql, method, parameters, isRaw));
-
-        // set the row mode on each run
-        const statement: Statement<RunResult> = {
-            safeIntegers: () => statement,
-            raw: (enabled) => {
-                isRaw = enabled;
-
-                return statement;
-            },
-            run: (...parameters) => run("run", parameters) as Promise<RunResult>,
-            all: (...parameters) => run("all", parameters) as Promise<unknown[]>,
-            get: (...parameters) => run("get", parameters),
-        };
-
-        return statement;
+    /** Read every row as an array of values. */
+    values(sql: string, parameters: readonly DriverValue[]): Promise<unknown[][]> {
+        return this.#schedule(async () => this.database.selectArrays(sql, bindings(parameters)));
     }
 
-    /** Run a statement. */
-    async run(sql: string, ...parameters: unknown[]): Promise<RunResult> {
-        return (await this.prepare(sql)).run(...parameters);
+    /** Read every row by column name. */
+    all(sql: string, parameters: readonly DriverValue[]): Promise<unknown[]> {
+        return this.#schedule(async () => this.database.selectObjects(sql, bindings(parameters)));
     }
 
-    /** Read rows as named objects. */
-    async all(sql: string, ...parameters: unknown[]): Promise<unknown[]> {
-        return (await this.prepare(sql)).all(...parameters);
-    }
-
-    /** Read the first row as a named object. */
-    async get(sql: string, ...parameters: unknown[]): Promise<unknown> {
-        return (await this.prepare(sql)).get(...parameters);
+    /** Run a statement for its effect. */
+    async run(sql: string, parameters: readonly DriverValue[]): Promise<void> {
+        const bind = bindings(parameters);
+        await this.#schedule(async () => {
+            this.database.exec({ sql, ...(bind === undefined ? {} : { bind }) });
+        });
     }
 
     /** Run a script. */
-    exec(script: string): Promise<unknown> {
-        return this.#schedule(async () => this.database.exec(script));
+    async exec(script: string): Promise<void> {
+        await this.#schedule(async () => {
+            this.database.exec(script);
+        });
     }
 
     /** Run work in a savepoint at a depth. */
-    nest<Value>(
-        depth: number,
-        operation: (client: QueryClient<RunResult>) => Promise<Value>,
-    ): Promise<Value> {
+    nest<Value>(depth: number, operation: (client: QueryClient) => Promise<Value>): Promise<Value> {
         return Savepoint.run(this, depth, operation);
     }
 
@@ -86,7 +52,7 @@ export class WasmQuery implements QueryClient<RunResult> {
 }
 
 /** A connection client over one SQLite WebAssembly database, one transaction at a time. */
-export class WasmClient extends WasmQuery implements ConnectionClient<RunResult> {
+export class WasmClient extends WasmQuery implements ConnectionClient {
     /** The work queue. */
     readonly #queue: WorkQueue;
 
@@ -113,7 +79,7 @@ export class WasmClient extends WasmQuery implements ConnectionClient<RunResult>
     }
 
     /** Run a callback in a transaction. */
-    transactionAsync<Value>(operation: (client: QueryClient<RunResult>) => Promise<Value>) {
+    transactionAsync<Value>(operation: (client: QueryClient) => Promise<Value>) {
         const begin = (mode: "DEFERRED" | "IMMEDIATE" | "EXCLUSIVE") =>
             this.#queue.run(async () => {
                 // commit or roll back by the callback's outcome
@@ -137,27 +103,9 @@ export class WasmClient extends WasmQuery implements ConnectionClient<RunResult>
     }
 }
 
-/** Execute one statement. */
-function execute(
-    database: Database,
-    sql: string,
-    method: "run" | "all" | "get",
-    parameters: readonly unknown[],
-    isRaw: boolean,
-): unknown {
-    // run a changing statement
-    const bind = parameters.length === 0 ? undefined : (parameters as SqlValue[]);
-    if (method === "run") {
-        database.exec({ sql, ...(bind === undefined ? {} : { bind }) });
-
-        return {
-            changes: database.changes(),
-            lastInsertRowid: database.selectValue("SELECT last_insert_rowid()") as number | bigint,
-        };
-    }
-
-    // read rows as arrays or objects
-    const rows = isRaw ? database.selectArrays(sql, bind) : database.selectObjects(sql, bind);
-
-    return method === "all" ? rows : rows[0];
+/** Read parameters as bindings, booleans as SQLite integers, none when empty. */
+function bindings(parameters: readonly DriverValue[]): SqlValue[] | undefined {
+    return parameters.length === 0
+        ? undefined
+        : parameters.map((value) => (typeof value === "boolean" ? Number(value) : value));
 }

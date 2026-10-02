@@ -1,333 +1,354 @@
-import { is, Placeholder, type Query, SQL, sql } from "drizzle-orm";
-import type { DatabaseDriver, NativeDatabase } from "../database/driver.ts";
-import type { SchemaCompiler } from "../dialect/compiler.ts";
-import type { DrizzleDatabase, DrizzleMutation } from "../dialect/drizzle.ts";
+import {
+    Aliased,
+    fill,
+    isSQLWrapper,
+    Parameter,
+    Placeholder,
+    render,
+    SQL,
+    sql,
+    type SQLWrapper,
+} from "../sql/index.ts";
+import type { DatabaseDriver } from "../database/driver.ts";
 import { Column } from "../table/column.ts";
 import { type Insert, type Select, TABLE, type Table } from "../table/table.ts";
-import { selectFields, type SelectionResult } from "./selection.ts";
-import type { PreparedQuery } from "./select.ts";
-import { assertNever } from "../error/error.ts";
+import { Projection, type SelectionResult } from "./selection.ts";
+import { DatabaseError } from "../error/error.ts";
 
-/** A prepared Drizzle mutation. */
-type DrizzlePrepared = { execute(values: Record<string, unknown>): Promise<unknown> };
-
-/** The rendered plain inserts of each native database, by shape. */
-const RENDERED = new WeakMap<object, Map<string, DrizzlePrepared>>();
-
-/** The values of an insert or update. */
-export type MutationRow<Definition extends Table> = {
-    [Property in keyof Insert<Definition>]: Insert<Definition>[Property] | SQL | Placeholder;
+/** The values of an insert or update: application values, fragments or placeholders, undefined taking the default. */
+export type InsertValue<Definition extends Table> = {
+    [Property in keyof Insert<Definition>]:
+        | Insert<Definition>[Property]
+        | SQL
+        | Placeholder
+        | undefined;
 };
 
 /** The fields a mutation returns. */
 export interface ReturningSelection {
     /** A changed column or expression. */
-    readonly [property: string]: Column | SQL | SQL.Aliased;
+    readonly [property: string]: Column | SQL | Aliased;
 }
 
-/** A typed insertion, update or deletion. */
+/** How an insert treats rows that conflict with a unique key. */
+type Conflict<Definition extends Table> =
+    | {
+          /** Skip the conflicting rows. */
+          readonly action: "nothing";
+          /** The unique key, any key when absent. */
+          readonly target: readonly Column[] | undefined;
+          /** The predicate of a partial unique key. */
+          readonly targetWhere: SQLWrapper | undefined;
+      }
+    | {
+          /** Update the conflicting rows. */
+          readonly action: "update";
+          /** The unique key. */
+          readonly target: readonly Column[];
+          /** The predicate of a partial unique key. */
+          readonly targetWhere: SQLWrapper | undefined;
+          /** The predicate restricting which conflicting rows update. */
+          readonly setWhere: SQLWrapper | undefined;
+          /** The values written to conflicting rows. */
+          readonly set: Partial<InsertValue<Definition>>;
+      };
+
+/** What a mutation writes, to which rows, and what it returns. */
+interface MutationState<Definition extends Table> {
+    /** The driver running the mutation. */
+    readonly driver: DatabaseDriver;
+    /** The changed table. */
+    readonly table: Definition;
+    /** The SQL operation. */
+    readonly operation: "insert" | "update" | "delete";
+    /** The inserted records by property. */
+    readonly records: readonly Readonly<Record<string, unknown>>[];
+    /** The updated values by property. */
+    readonly changes: Readonly<Record<string, unknown>>;
+    /** The changed rows of an update or deletion. */
+    readonly where: SQLWrapper | undefined;
+    /** The insert's conflict handling. */
+    readonly conflict: Conflict<Definition> | undefined;
+    /** The returned fields, absent to return nothing. */
+    readonly returning: ReturningSelection | undefined;
+}
+
+/** A typed insertion, update or deletion, a new mutation for each step, awaited for its result. */
 export class MutationQuery<
     Definition extends Table,
     Result = void,
     Operation extends "insert" | "update" | "delete" = "insert" | "update" | "delete",
 > implements PromiseLike<Result> {
-    /** The native database driver. */
-    readonly driver: DatabaseDriver;
-    /** The table compiler. */
-    readonly compiler: SchemaCompiler;
-    /** The affected logical table. */
-    readonly table: Definition;
-    /** The SQL operation. */
-    readonly operation: Operation;
-    /** The inserted application records. */
-    records: readonly MutationRow<Definition>[] = [];
-    /** The updated application properties. */
-    changes: Partial<MutationRow<Definition>> = {};
-    /** The row predicate for updates and deletions. */
-    predicate?: SQL;
-    /** The fields returned after mutation. */
-    fields?: ReturningSelection;
-    /** The insert conflict handling. */
-    conflict?:
-        | {
-              readonly action: "nothing";
-              readonly target?: readonly Column[];
-              readonly targetWhere?: SQL;
-          }
-        | {
-              readonly action: "update";
-              readonly target: readonly Column[];
-              readonly targetWhere?: SQL;
-              readonly setWhere?: SQL;
-              readonly set: Partial<MutationRow<Definition>>;
-          };
+    /** The inferred types. */
+    declare readonly _: { readonly result: Result; readonly operation: Operation };
+    /** What the mutation writes, to which rows, and what it returns. */
+    readonly state: MutationState<Definition>;
 
     /** Create the mutation. */
-    constructor(
+    constructor(state: MutationState<Definition>) {
+        this.state = state;
+    }
+
+    /** Start a mutation of a table. */
+    static of<Definition extends Table, Operation extends "insert" | "update" | "delete">(
         driver: DatabaseDriver,
-        compiler: SchemaCompiler,
         table: Definition,
         operation: Operation,
-    ) {
-        // keep the driver, compiler, table and operation
-        this.driver = driver;
-        this.compiler = compiler;
-        this.table = table;
-        this.operation = operation;
+    ): MutationQuery<Definition, void, Operation> {
+        return new MutationQuery({
+            driver,
+            table,
+            operation,
+            records: [],
+            changes: {},
+            where: undefined,
+            conflict: undefined,
+            returning: undefined,
+        });
     }
 
     /** Supply records for insertion. */
     values(
         this: MutationQuery<Definition, Result, "insert">,
-        values: MutationRow<Definition> | readonly MutationRow<Definition>[],
+        values: InsertValue<Definition> | readonly InsertValue<Definition>[],
     ): MutationQuery<Definition, Result, "insert"> {
-        this.records = Array.isArray(values) ? values : [values as MutationRow<Definition>];
+        const records: readonly Readonly<Record<string, unknown>>[] = Array.isArray(values)
+            ? values
+            : [values];
 
-        return this;
+        return new MutationQuery({ ...this.state, records });
     }
 
     /** Supply properties for an update. */
     set(
         this: MutationQuery<Definition, Result, "update">,
-        values: Partial<MutationRow<Definition>>,
+        values: Partial<InsertValue<Definition>>,
     ): MutationQuery<Definition, Result, "update"> {
-        this.changes = values;
-
-        return this;
+        return new MutationQuery({ ...this.state, changes: values });
     }
 
-    /** Filter the affected rows. */
+    /** Filter the changed rows of an update or deletion. */
     where(
         this: MutationQuery<Definition, Result, Operation> &
             (Operation extends "insert" ? never : unknown),
-        predicate: SQL | undefined,
+        predicate: SQLWrapper | undefined,
     ): MutationQuery<Definition, Result, Operation> {
-        this.predicate = predicate;
-
-        return this;
+        return new MutationQuery({ ...this.state, where: predicate });
     }
 
-    /** Ignore inserts that conflict with a unique key. */
+    /** Skip inserts that conflict with a unique key. */
     onConflictDoNothing(
         this: MutationQuery<Definition, Result, "insert">,
-        options: { readonly target?: Column | readonly Column[]; readonly where?: SQL } = {},
+        options: { readonly target?: Column | readonly Column[]; readonly where?: SQLWrapper } = {},
     ): MutationQuery<Definition, Result, "insert"> {
-        this.conflict = {
-            action: "nothing",
-            target: options.target === undefined ? undefined : columnList(options.target),
-            targetWhere: options.where,
-        };
+        const target = options.target === undefined ? undefined : columns(options.target);
 
-        return this;
+        return new MutationQuery({
+            ...this.state,
+            conflict: { action: "nothing", target, targetWhere: options.where },
+        });
     }
 
-    /** Update a row that conflicts with a unique key. */
+    /** Update the rows an insert conflicts with on a unique key. */
     onConflictDoUpdate(
         this: MutationQuery<Definition, Result, "insert">,
         options: {
             readonly target: Column | readonly Column[];
-            readonly set: Partial<MutationRow<Definition>>;
-            readonly targetWhere?: SQL;
-            readonly setWhere?: SQL;
+            readonly set: Partial<InsertValue<Definition>>;
+            readonly targetWhere?: SQLWrapper;
+            readonly setWhere?: SQLWrapper;
         },
     ): MutationQuery<Definition, Result, "insert"> {
-        this.conflict = { action: "update", ...options, target: columnList(options.target) };
-
-        return this;
+        return new MutationQuery({
+            ...this.state,
+            conflict: {
+                action: "update",
+                target: columns(options.target),
+                targetWhere: options.targetWhere,
+                setWhere: options.setWhere,
+                set: options.set,
+            },
+        });
     }
 
-    /** Return the changed application records. */
+    /** Return the changed records. */
     returning(): MutationQuery<Definition, Select<Definition>[], Operation>;
-    /** Return selected fields from changed records. */
+    /** Return selected fields of the changed records. */
     returning<Fields extends ReturningSelection>(
         fields: Fields,
     ): MutationQuery<Definition, SelectionResult<Fields>[], Operation>;
-    returning(
-        fields: ReturningSelection = this.table[TABLE].columns,
-    ): MutationQuery<Definition, unknown[], Operation> {
-        this.fields = fields;
-
-        return this as unknown as MutationQuery<Definition, unknown[], Operation>;
-    }
-
-    /** Execute the mutation, returning the changed rows when asked. */
-    async execute(): Promise<Result> {
-        const result = await this.driver.write((native) => {
-            const shape = this.#shape();
-
-            return shape === undefined
-                ? this.#compile(native)
-                : this.#rendered(native, shape).execute(this.records[0] as Record<string, unknown>);
+    /** Return fields of the changed records, whose signatures above type them by the fields. */
+    returning(fields?: ReturningSelection): MutationQuery<Definition, unknown[], Operation> {
+        return new MutationQuery({
+            ...this.state,
+            returning: fields ?? this.state.table[TABLE].columns,
         });
-
-        return (this.fields ? result : undefined) as Result;
     }
 
-    /** Name the shape of a plain single-record insert, absent for other mutations. */
-    #shape(): string | undefined {
-        // render only plain single-record inserts
-        const [record] = this.records;
-        const fields = this.fields === undefined ? [] : Object.entries(this.fields);
-        const isPlain =
-            this.operation === "insert" &&
-            this.records.length === 1 &&
-            this.conflict === undefined &&
-            Object.values(record!).every(
-                (value) => !(value instanceof SQL) && !is(value, Placeholder),
-            ) &&
-            fields.every(([, field]) => field instanceof Column);
+    /** Run the mutation, returning the changed rows when asked. */
+    async execute(): Promise<Result>;
+    /** Run the mutation, whose signature above types its result by the returned fields. */
+    async execute(): Promise<unknown> {
+        // render the mutation for the driver's dialect
+        const state = this.state;
+        const statement = fill(render(this.#sql(), state.driver.dialect));
 
-        return isPlain
-            ? `${this.table[TABLE].sqlName}:${defined(record!).join(",")}:${fields.map(([name, field]) => `${name}=${(field as Column).definition.name}`).join(",")}`
-            : undefined;
-    }
+        // run without rows, or read and decode the returned rows
+        if (state.returning === undefined) {
+            await state.driver.execute(statement);
 
-    /** Take the rendered statement of a shape, rendering it the first time. */
-    #rendered(native: NativeDatabase, shape: string): DrizzlePrepared {
-        // reuse the statement of the shape
-        const statements = RENDERED.get(native.database) ?? new Map<string, DrizzlePrepared>();
-        RENDERED.set(native.database, statements);
-        const known = statements.get(shape);
-        if (known !== undefined) {
-            return known;
+            return undefined;
         }
-
-        // render with a placeholder per value
-        const placeholders = Object.fromEntries(
-            defined(this.records[0]!).map((property) => [property, sql.placeholder(property)]),
+        const projection = new Projection(unqualified(state.returning));
+        const rows = await state.driver.write((session) =>
+            session.values(statement.text, statement.parameters),
         );
-        const rendered = new MutationQuery(this.driver, this.compiler, this.table, "insert").values(
-            placeholders as MutationRow<Definition>,
-        ).#withFields(this.fields).#compile(native).prepare() as DrizzlePrepared;
-        statements.set(shape, rendered);
 
-        return rendered;
+        return projection.decode(rows, state.driver.dialect, new Set());
     }
 
-    /** Copy the returned fields onto another query. */
-    #withFields(fields: ReturningSelection | undefined): this {
-        this.fields = fields;
+    /** Run the mutation and return the first changed row. */
+    async get<Row>(this: MutationQuery<Definition, Row[], Operation>): Promise<Row | undefined> {
+        const [row] = await this.execute();
 
-        return this;
+        return row;
     }
 
-    /** Render the SQL and parameters. */
-    toSQL(): Query {
-        return this.#compile(this.driver.native).toSQL();
-    }
-
-    /** Compile a reusable mutation. */
-    prepare(): PreparedQuery<Result> {
-        const query = this.#compile(this.driver.native).prepare();
-        const hasReturning = this.fields !== undefined;
-
-        return {
-            execute: async (parameters) => {
-                // reject use after the enclosing transaction
-                this.driver.transaction?.assertActive();
-
-                // compile on the native database the write runs on
-                const result = await this.driver.write((native) =>
-                    (native === this.driver.native
-                        ? query
-                        : this.#compile(native).prepare()
-                    ).execute(parameters),
-                );
-
-                return (hasReturning ? result : undefined) as Result;
-            },
-        };
-    }
-
-    /** Translate expressions in a record. */
-    #values(record: object): Record<string, unknown> {
-        return Object.fromEntries(
-            Object.entries(record).map(([property, value]) => [
-                property,
-                value instanceof SQL ? this.compiler.expression(value) : value,
-            ]),
-        );
-    }
-
-    /** Build the native mutation. */
-    #compile(native: NativeDatabase, isReturning = true): DrizzleMutation {
-        // reject use after the enclosing transaction
-        this.driver.transaction?.assertActive();
-
-        // translate the values
-        const values = (record: object): Record<string, unknown> => this.#values(record);
-        const predicate = this.predicate && this.compiler.expression(this.predicate);
-        const fields = isReturning && this.fields && selectFields(this.fields, this.compiler);
-        const conflict = this.conflict;
-
-        // build the native operation
-        const database = native.database as unknown as DrizzleDatabase;
-        const table = this.compiler.table(this.table);
-        let query: DrizzleMutation;
-
-        // insert records
-        if (this.operation === "insert") {
-            query = database.insert(table).values(this.records.map(values)).$dynamic();
-        }
-        // update the matching rows
-        else if (this.operation === "update") {
-            query = database.update(table).set(values(this.changes)).where(predicate);
-        }
-        // delete the matching rows
-        else if (this.operation === "delete") {
-            query = database.delete(table).where(predicate);
-        }
-        // reject other operations
-        else {
-            return assertNever(this.operation);
-        }
-
-        // ignore conflicting rows
-        if (conflict?.action === "nothing") {
-            query = query.onConflictDoNothing({
-                target: conflict.target?.map((column) => this.compiler.column(column)),
-                where: conflict.targetWhere && this.compiler.expression(conflict.targetWhere),
-            });
-        }
-        // update conflicting rows
-        else if (conflict?.action === "update") {
-            query = query.onConflictDoUpdate({
-                target: conflict.target.map((column) => this.compiler.column(column)),
-                set: values(conflict.set),
-                targetWhere: conflict.targetWhere && this.compiler.expression(conflict.targetWhere),
-                setWhere: conflict.setWhere && this.compiler.expression(conflict.setWhere),
-            });
-        }
-
-        return fields ? query.returning(fields) : query;
-    }
-
-    /** Execute and return the first changed row. */
-    async get(
-        this: MutationQuery<Definition, unknown[], Operation>,
-    ): Promise<Result extends (infer Row)[] ? Row | undefined : never> {
-        const rows = await this.execute();
-
-        return rows[0] as Result extends (infer Row)[] ? Row | undefined : never;
-    }
-
-    /** Await execution. */
+    /** Await the result. */
     then<Fulfilled = Result, Rejected = never>(
         fulfilled?: ((value: Result) => Fulfilled | PromiseLike<Fulfilled>) | null,
         rejected?: ((reason: unknown) => Rejected | PromiseLike<Rejected>) | null,
     ): PromiseLike<Fulfilled | Rejected> {
         return this.execute().then(fulfilled, rejected);
     }
+
+    /** Write the mutation as SQL. */
+    #sql(): SQL {
+        // write the statement in parts
+        const state = this.state;
+        const table = state.table;
+        const parts: SQL[] = [];
+
+        // insert every written column, defaulting the columns a record leaves out
+        if (state.operation === "insert") {
+            if (state.records.length === 0) {
+                throw new DatabaseError(
+                    "INVALID_QUERY",
+                    `insert into ${table[TABLE].name} has no records`,
+                );
+            }
+            const written = table[TABLE].entries.filter(
+                ([property, column]) =>
+                    column.definition.generated === undefined &&
+                    state.records.some((record) => record[property] !== undefined),
+            );
+            const rows = state.records.map(
+                (record) =>
+                    sql`(${sql.join(
+                        written.map(([property, column]) => valueOf(column, record[property])),
+                        sql.raw(", "),
+                    )})`,
+            );
+            parts.push(
+                sql`INSERT INTO ${table} (${sql.join(
+                    written.map(([, column]) => sql.identifier(column.definition.name)),
+                    sql.raw(", "),
+                )}) VALUES ${sql.join(rows, sql.raw(", "))}`,
+            );
+        }
+        // update the matching rows
+        else if (state.operation === "update") {
+            parts.push(sql`UPDATE ${table} SET ${assignments(table, state.changes)}`);
+        }
+        // delete the matching rows
+        else {
+            parts.push(sql`DELETE FROM ${table}`);
+        }
+        if (state.where !== undefined) {
+            parts.push(sql` WHERE ${state.where}`);
+        }
+
+        // skip or update conflicting rows
+        const conflict = state.conflict;
+        if (conflict !== undefined) {
+            const target =
+                conflict.target === undefined
+                    ? sql.empty()
+                    : sql` (${sql.join(
+                          conflict.target.map((column) => sql.identifier(column.definition.name)),
+                          sql.raw(", "),
+                      )})${conflict.targetWhere === undefined ? sql.empty() : sql` WHERE ${conflict.targetWhere}`}`;
+            parts.push(
+                conflict.action === "nothing"
+                    ? sql` ON CONFLICT${target} DO NOTHING`
+                    : sql` ON CONFLICT${target} DO UPDATE SET ${assignments(table, conflict.set)}${
+                          conflict.setWhere === undefined
+                              ? sql.empty()
+                              : sql` WHERE ${conflict.setWhere}`
+                      }`,
+            );
+        }
+
+        // return the changed rows' fields
+        if (state.returning !== undefined) {
+            parts.push(sql` RETURNING ${new Projection(unqualified(state.returning)).sql()}`);
+        }
+
+        return sql.join(parts);
+    }
 }
 
-/** Normalize a conflict key. */
-function columnList(columns: Column | readonly Column[]): readonly Column[] {
-    return Array.isArray(columns) ? columns : [columns as Column];
+/** Write `column = value` for each set property. */
+function assignments(table: Table, changes: Readonly<Record<string, unknown>>): SQL {
+    const set = Object.entries(changes).flatMap(([property, value]) => {
+        const column = table[TABLE].columns[property];
+        if (column === undefined) {
+            throw new DatabaseError(
+                "INVALID_QUERY",
+                `${table[TABLE].name} has no column ${property}`,
+            );
+        }
+
+        return value === undefined
+            ? []
+            : [sql`${sql.identifier(column.definition.name)} = ${valueOf(column, value)}`];
+    });
+    if (set.length === 0) {
+        throw new DatabaseError("INVALID_QUERY", `update of ${table[TABLE].name} sets no column`);
+    }
+
+    return sql.join(set, sql.raw(", "));
 }
 
-/** List a record's defined properties. */
-function defined(record: object): string[] {
-    return Object.entries(record).flatMap(([property, value]) =>
-        value === undefined ? [] : [property],
+/** Write a value: fragments and placeholders as they are, a missing one as the column's default, others bound through the column. */
+function valueOf(column: Column, value: unknown): SQLWrapper {
+    // keep fragments and placeholders
+    if (isSQLWrapper(value)) {
+        return value;
+    } else if (value instanceof Placeholder) {
+        return new SQL([value]);
+    }
+
+    // default a value an insert leaves out, and bind the others
+    const fallback = column.definition.default;
+    if (value !== undefined || fallback === undefined) {
+        return new SQL([new Parameter(value ?? null, column)]);
+    }
+
+    return fallback instanceof SQL ? fallback : new SQL([new Parameter(fallback, column)]);
+}
+
+/** Write returned columns without their table, as SQLite's RETURNING requires. */
+function unqualified(fields: ReturningSelection): ReturningSelection {
+    return Object.fromEntries(
+        Object.entries(fields).map(([property, field]) => [
+            property,
+            field instanceof Column ? sql.identifier(field.definition.name).mapWith(field) : field,
+        ]),
     );
+}
+
+/** Read a conflict key as a list. */
+function columns(target: Column | readonly Column[]): readonly Column[] {
+    return target instanceof Column ? [target] : target;
 }

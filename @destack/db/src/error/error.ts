@@ -1,5 +1,3 @@
-import { DrizzleQueryError } from "drizzle-orm/errors";
-
 /** The database failure codes. */
 export type DatabaseErrorCode =
     | "INVALID_MIGRATION"
@@ -18,6 +16,7 @@ export type DatabaseErrorCode =
     | "BROKEN_REFERENCE"
     | "INVALID_RECORD"
     | "INVALID_QUERY"
+    | "QUERY_FAILED"
     | "INVALID_BLOB"
     | "NO_CHANNEL";
 
@@ -41,44 +40,51 @@ export function assertNever(value: never): never {
 
 /** Classify a failed statement as a conflict, duplicate, broken reference or failed check. */
 export function classifyError(error: unknown): unknown {
-    // classify by PostgreSQL state or SQLite message, looking only through query wrappers
-    for (
-        let cause = error;
-        cause instanceof Error;
-        cause = cause instanceof DrizzleQueryError ? cause.cause : undefined
+    // keep classified and non-driver failures
+    if (error instanceof DatabaseError || !(error instanceof Error)) {
+        return error;
+    }
+
+    // classify by PostgreSQL state or SQLite message
+    const code = errorCode(error);
+    if (code === "40001" || code === "40P01") {
+        return new DatabaseError(
+            "CONCURRENT_UPDATE",
+            "a concurrent transaction changed the same records",
+            {
+                cause: error,
+            },
+        );
+    } else if (code === "23505" || error.message.includes("UNIQUE constraint failed")) {
+        return new DatabaseError("DUPLICATE", "a record with the same unique key exists", {
+            cause: error,
+        });
+    } else if (
+        code === "23503" ||
+        code === "23001" ||
+        error.message.includes("FOREIGN KEY constraint failed")
     ) {
-        if (cause instanceof DatabaseError) {
-            return cause;
-        }
-        const code = "code" in cause ? cause.code : undefined;
-        if (code === "40001" || code === "40P01") {
-            return new DatabaseError(
-                "CONCURRENT_UPDATE",
-                "a concurrent transaction changed the same records",
-                { cause: error },
-            );
-        } else if (code === "23505" || cause.message.includes("UNIQUE constraint failed")) {
-            return new DatabaseError("DUPLICATE", "a record with the same unique key exists", {
+        return new DatabaseError(
+            "BROKEN_REFERENCE",
+            "the change would leave a reference to a missing record",
+            {
                 cause: error,
-            });
-        } else if (
-            code === "23503" ||
-            code === "23001" ||
-            cause.message.includes("FOREIGN KEY constraint failed")
-        ) {
-            return new DatabaseError(
-                "BROKEN_REFERENCE",
-                "the change would leave a reference to a missing record",
-                { cause: error },
-            );
-        } else if (code === "23514" || cause.message.includes("CHECK constraint failed")) {
-            return new DatabaseError("INVALID_RECORD", "a record fails a declared check", {
-                cause: error,
-            });
-        }
+            },
+        );
+    } else if (code === "23514" || error.message.includes("CHECK constraint failed")) {
+        return new DatabaseError("INVALID_RECORD", "a record fails a declared check", {
+            cause: error,
+        });
     }
 
     return error;
+}
+
+/** Read a driver failure's code, absent for a failure without one. */
+export function errorCode(error: unknown): string | undefined {
+    return error instanceof Error && "code" in error && typeof error.code === "string"
+        ? error.code
+        : undefined;
 }
 
 /** Report whether an error is or wraps a failure. */

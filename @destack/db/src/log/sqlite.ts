@@ -17,7 +17,7 @@ const JSON_PAIR_LIMIT = Math.floor((FUNCTION_ARGUMENT_LIMIT - 1) / 2);
 
 /** The SQLite log: its tables and a table's change triggers. */
 export const sqliteLog: LogDialect = {
-    create: (scope) => createSQLiteLog(scope),
+    create: (epoch, scope) => createSQLiteLog(epoch, scope),
     install: (description) => sqliteLogTriggers(description),
     remove: (description) =>
         ["insert", "update", "move", "delete"].map(
@@ -26,7 +26,7 @@ export const sqliteLog: LogDialect = {
 };
 
 /** Create the SQLite log, its horizon and the transaction identity. */
-function createSQLiteLog(scope?: string): readonly string[] {
+function createSQLiteLog(epoch: string, scope?: string): readonly string[] {
     return [
         `CREATE TABLE IF NOT EXISTS ${quote(LOG)} (
             sequence INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,11 +47,12 @@ function createSQLiteLog(scope?: string): readonly string[] {
             slot INTEGER PRIMARY KEY CHECK (slot = 1),
             sequence INTEGER NOT NULL
         )`,
+        `INSERT INTO ${quote(LOG_HORIZON)} (slot, sequence) VALUES (1, 0) ON CONFLICT (slot) DO NOTHING`,
         `CREATE TABLE IF NOT EXISTS ${quote(LOG_TRANSACTION)} (
             slot INTEGER PRIMARY KEY CHECK (slot = 1),
             id TEXT NOT NULL
         )`,
-        ...createEpoch(scope),
+        ...createEpoch(epoch, scope),
     ];
 }
 
@@ -100,7 +101,7 @@ function sqliteLogTriggers(description: ChangeDescription): string[] {
         (merged, chunk) => `json_insert(${merged}, ${chunk.join(", ")})`,
         "json_object()",
     )}, '$.__unchanged')`;
-    const entry = (operation: string, source: "NEW" | "OLD", condition = "1 = 1", prior = "NULL") =>
+    const entry = (operation: string, source: "NEW" | "OLD", prior = "NULL") =>
         `INSERT INTO ${log} ("transaction", "table", key, operation, "row", previous, scope, retention, changed_at)
             SELECT
                 ${transaction},
@@ -111,8 +112,7 @@ function sqliteLogTriggers(description: ChangeDescription): string[] {
                 ${prior},
                 ${scope(source)},
                 ${literal(description.retention)},
-                ${now}
-            WHERE ${condition};`;
+                ${now};`;
     const changed = description.compared
         .map((name) => `NEW.${quote(name)} IS NOT OLD.${quote(name)}`)
         .join(" OR ");
@@ -132,7 +132,7 @@ function sqliteLogTriggers(description: ChangeDescription): string[] {
         END`,
         `CREATE TRIGGER ${quote(`${prefix}_update`)} AFTER UPDATE ON ${table} WHEN (${changed}) AND NOT (${moved}) BEGIN
             ${scoped}
-            ${entry("'update'", "NEW", "1 = 1", previous)}
+            ${entry("'update'", "NEW", previous)}
         END`,
         `CREATE TRIGGER ${quote(`${prefix}_move`)} AFTER UPDATE ON ${table} WHEN ${moved} BEGIN
             ${scoped}

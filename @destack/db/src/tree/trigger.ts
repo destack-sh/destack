@@ -52,7 +52,7 @@ function install(tree: TreeDescription, dialect: Dialect): readonly string[] {
             AND below.scope = NEW.${scope}
             AND above.descendant = NEW.${parent}
             AND below.ancestor = NEW.${id};`;
-    const remove = `
+    const removal = `
         DELETE FROM ${closure}
         WHERE scope = OLD.${scope}
             AND (ancestor = OLD.${id} OR descendant = OLD.${id});`;
@@ -108,7 +108,7 @@ function install(tree: TreeDescription, dialect: Dialect): readonly string[] {
             `CREATE TRIGGER ${quote(`${prefix}_delete_check`)} BEFORE DELETE ON ${source} BEGIN
                 SELECT RAISE(ABORT, 'tree node has children') WHERE ${children};
             END`,
-            `CREATE TRIGGER ${quote(`${prefix}_delete`)} AFTER DELETE ON ${source} BEGIN ${remove} END`,
+            `CREATE TRIGGER ${quote(`${prefix}_delete`)} AFTER DELETE ON ${source} BEGIN ${removal} END`,
         ];
     }
     if (dialect !== "postgresql") {
@@ -141,7 +141,7 @@ function install(tree: TreeDescription, dialect: Dialect): readonly string[] {
         END $$`,
         `CREATE FUNCTION ${after}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
             IF TG_OP = 'INSERT' THEN ${insert}
-            ELSIF TG_OP = 'DELETE' THEN ${remove}
+            ELSIF TG_OP = 'DELETE' THEN ${removal}
             ELSIF NEW.${parent} IS DISTINCT FROM OLD.${parent} THEN ${move}
             END IF;
             RETURN NULL;

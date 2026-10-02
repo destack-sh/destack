@@ -1,21 +1,21 @@
 import { schema } from "@destack/schema";
-import { TABLE, type Table } from "./table.ts";
+import type { TableDefinition } from "./table.ts";
 
 /** The field validators of a record. */
 export type Shape<Value> = { [Property in keyof Value]-?: schema.Schema<Value[Property]> };
 
 /** Build a validator of a table's records for an operation, in application or JSON form. */
 export function recordSchema(
-    table: Table,
+    table: TableDefinition,
     operation: "select" | "insert" | "update",
     form: "application" | "json" = "application",
 ) {
     const fields: Record<string, schema.Schema> = {};
 
     // derive validators from the columns
-    for (const [property, column] of Object.entries(table[TABLE].columns)) {
+    for (const [property, column] of table.entries) {
         const definition = column.definition;
-        if (operation !== "select" && definition.generated) {
+        if (operation !== "select" && definition.generated !== undefined) {
             continue;
         }
         let validator =
@@ -25,13 +25,9 @@ export function recordSchema(
         }
         if (
             operation === "update" ||
-            (operation === "insert" &&
-                (definition.nullable ||
-                    definition.default !== undefined ||
-                    definition.runtimeDefault !== undefined ||
-                    definition.runtimeUpdate !== undefined))
+            (operation === "insert" && (definition.nullable || definition.default !== undefined))
         ) {
-            validator = validator.optional();
+            validator = validator.exactOptional();
         }
         fields[property] = validator;
     }

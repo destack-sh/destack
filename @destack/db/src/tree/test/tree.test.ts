@@ -5,9 +5,9 @@ import { baseNode, tree, node } from "./fixture.ts";
 
 /** Keep existing forests while adding and maintaining an ancestor index. */
 test.for(TEST_DIALECTS)("migrate, query, move and remove scoped trees on %s", async (dialect) => {
-    const test = await TestDatabase.create(dialect, [node]);
-    onTestFinished(() => test.close());
-    const { database } = test;
+    const storage = await TestDatabase.create(dialect, [node]);
+    onTestFinished(() => storage.close());
+    const { database } = storage;
 
     // insert parent records before the tree exists
     await database.migrate([baseNode]);

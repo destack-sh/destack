@@ -1,4 +1,5 @@
-import { type SQL, sql, type SQLWrapper } from "drizzle-orm";
+import { SQL, sql, type SQLWrapper } from "../sql/index.ts";
+import type { Statement } from "../query/statement.ts";
 import {
     bigint,
     binary,
@@ -11,33 +12,28 @@ import {
     real,
     text,
     type ColumnBuilder,
+    type ColumnValue,
 } from "./column.ts";
-import {
-    check,
-    ForeignKey,
-    primaryKey,
-    type PrimaryKey,
-    type TableConstraint,
-} from "./constraint.ts";
+import { check, ForeignKey, type TableConstraint } from "./constraint.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { ModuleMetadata, PACKAGE, type Package } from "@destack/package";
-import { schema, Version } from "@destack/schema";
+import { schema, Version, type JsonValue } from "@destack/schema";
 import { Expression } from "../expression/expression.ts";
+import type { Scalar } from "../query/condition.ts";
 import { qualify } from "./namespace.ts";
 import type { ChangeRetention } from "../inspect/log.ts";
 import type { DatabaseTier } from "../declare/tier.ts";
 import { Tree } from "../tree/tree.ts";
 import type { ColumnDescription } from "../inspect/table.ts";
 import type { TableState } from "../migration/state.ts";
-import { encodeColumns, type Row } from "./row.ts";
-import type { JsonValue } from "./column.ts";
+import type { Row } from "./row.ts";
 import { recordSchema, type Shape } from "./schema.ts";
 
 /** The key of a table's declaration, shared by every copy of this module. */
 export const TABLE = Symbol.for("destack.table");
 
 /** The column builder of each described kind. */
-const COLUMNS: Readonly<Record<ColumnDescription["kind"], (name: string) => ColumnBuilder<any>>> = {
+const COLUMNS: Readonly<Record<ColumnDescription["kind"], (name: string) => ColumnBuilder>> = {
     text: (name) => text(name),
     integer,
     real,
@@ -49,40 +45,13 @@ const COLUMNS: Readonly<Record<ColumnDescription["kind"], (name: string) => Colu
     numeric,
 };
 
-/** One logical SQL table. */
+/** One logical SQL table: its columns as properties, and its definition under {@link TABLE}. */
 export class Table<
     Name extends string = string,
     Columns extends ColumnMap = ColumnMap,
 > implements SQLWrapper {
     /** The table's identity, columns and declaration. */
-    readonly [TABLE]: TableDeclaration & {
-        /** The declaring package. */
-        readonly package: Package;
-        /** The table name within its package. */
-        readonly name: Name;
-        /** The SQL identifier. */
-        readonly sqlName: string;
-        /** The columns by property. */
-        readonly columns: Columns;
-        /** The ancestor index over the parent column. */
-        readonly tree?: Tree;
-        /** The source table of a query alias. */
-        readonly source?: Table;
-        /** The primary key properties in key order. */
-        readonly key: readonly string[];
-        /** The columns in declaration order. */
-        readonly entries: readonly (readonly [string, Column])[];
-        /** The logged columns: every column but binary and sensitive ones. */
-        readonly logged: Readonly<Record<string, Column>>;
-    };
-    /** The cached primary key properties. */
-    #key: readonly string[] | undefined;
-    /** The cached columns in declaration order. */
-    #entries: readonly (readonly [string, Column])[] | undefined;
-    /** The cached logged columns. */
-    #logged: Readonly<Record<string, Column>> | undefined;
-    /** The built statements by name. */
-    readonly #statements = new Map<string, unknown>();
+    readonly [TABLE]: TableDefinition<Name, Columns>;
     /** The selected application record type. */
     declare readonly $inferSelect: Select<Table<Name, Columns>>;
     /** The inserted application record type. */
@@ -95,77 +64,26 @@ export class Table<
         declaration: TableDeclaration,
         options: { readonly tree?: TreeColumns; readonly source?: Table } = {},
     ) {
-        // declare the table and its key
-        const { constraints, retention, tier, moved, convert, aggregates, dependents } =
-            declaration;
-        const declared = {
-            ...identity,
-            columns,
-            constraints,
-            retention,
-            ...(tier === undefined ? {} : { tier }),
-            moved,
-            convert,
-            aggregates,
-            dependents,
-            ...(options.source === undefined ? {} : { source: options.source }),
-        };
-        Object.defineProperties(declared, {
-            key: {
-                get: () => (this.#key ??= options.source?.[TABLE].key ?? keyOf(this)),
-                enumerable: true,
-            },
-            entries: {
-                get: () => (this.#entries ??= Object.entries(columns)),
-                enumerable: true,
-            },
-            logged: {
-                get: () =>
-                    (this.#logged ??= Object.fromEntries(
-                        Object.entries(columns).filter(
-                            ([, column]) =>
-                                column.definition.kind !== "binary" &&
-                                column.definition.classification !== "sensitive",
-                        ),
-                    )),
-                enumerable: true,
-            },
-        });
-        this[TABLE] = declared as typeof declared & {
-            readonly key: readonly string[];
-            readonly entries: readonly (readonly [string, Column])[];
-            readonly logged: Readonly<Record<string, Column>>;
-        };
-
-        // build the tree over the declared columns
-        if (options.tree) {
-            Object.defineProperty(this[TABLE], "tree", {
-                value: new Tree({ name: "tree", table: this, ...options.tree }),
-                enumerable: true,
-            });
-        }
-    }
-
-    /** Read a statement over the table, building it once per name. */
-    statement<Value>(name: string, build: () => Value): Value {
-        // reuse the built statement
-        const known = this.#statements.get(name) as Value | undefined;
-        if (known !== undefined) {
-            return known;
-        }
-
-        // build it once
-        const built = build();
-        this.#statements.set(name, built);
-
-        return built;
+        this[TABLE] = new TableDefinition(this, identity, columns, declaration, options);
     }
 
     /** Build the table a state describes, such as a database another host declared, marking its unlogged columns sensitive. */
     static describe(state: TableState): Table {
-        // build each column by kind
+        // read the logged columns
         const description = state.table;
         const logged = new Set(state.log?.columns ?? []);
+
+        // read the key, which a table declares in column order
+        const key = description.constraints.flatMap((constraint) =>
+            constraint.kind === "primaryKey" ? constraint.columns : [],
+        );
+        const keyed = new Set(key);
+        const ordered = description.columns.filter((column) => keyed.has(column.name));
+        if (ordered.map((column) => column.name).join() !== key.join()) {
+            throw new TypeError(`${description.name} keys its columns out of declaration order`);
+        }
+
+        // build each column by kind
         const columns = Object.fromEntries(
             description.columns.map((column) => {
                 const isUnlogged =
@@ -173,6 +91,7 @@ export class Table<
                 const definition = {
                     ...COLUMNS[column.kind](column.name).definition,
                     nullable: column.nullable,
+                    ...(keyed.has(column.name) ? { primaryKey: true } : {}),
                     ...(isUnlogged ? { classification: "sensitive" as const } : {}),
                     ...(column.generated === undefined
                         ? {}
@@ -188,29 +107,12 @@ export class Table<
             }),
         );
 
-        // key and log the table
-        const key = description.constraints.find(
-            (
-                constraint,
-            ): constraint is Extract<typeof constraint, { kind: "primaryKey" | "unique" }> =>
-                constraint.kind === "primaryKey",
-        );
-
+        // log the table
         return new Table(
             { package: state.package, name: description.name, sqlName: description.name },
             columns,
             {
-                constraints: () =>
-                    key === undefined
-                        ? []
-                        : [
-                              primaryKey({
-                                  columns: key.columns.map((name) => columns[name]!) as [
-                                      Column,
-                                      ...Column[],
-                                  ],
-                              }),
-                          ],
+                constraints: () => [],
                 retention: state.log?.retention ?? "none",
                 moved: {},
                 convert: {},
@@ -225,90 +127,146 @@ export class Table<
         return this[TABLE].package;
     }
 
-    /** Return the table identifier. */
+    /** Embed the table's name. */
     getSQL(): SQL {
-        return sql`${sql.identifier(this[TABLE].sqlName)}`;
+        return new SQL([this]);
+    }
+}
+
+/** A table's identity, columns and declaration, with what derives from them. */
+export class TableDefinition<Name extends string = string, Columns extends ColumnMap = ColumnMap> {
+    /** The declaring package. */
+    readonly package: Package;
+    /** The table name within its package. */
+    readonly name: Name;
+    /** The SQL identifier. */
+    readonly sqlName: string;
+    /** The columns by property. */
+    readonly columns: Columns;
+    /** How long the log keeps the table's changes. */
+    readonly retention: ChangeRetention;
+    /** The home tier of the table's rows, replicated into narrower databases, any tier when absent. */
+    readonly tier: DatabaseTier | undefined;
+    /** The table's previous names. */
+    readonly moved: TableMove;
+    /** The row conversions by the release introducing them. */
+    readonly convert: Readonly<Record<Version, RowConversion>>;
+    /** The aggregates this table's rows feed or keep. */
+    readonly aggregates: readonly Aggregate[];
+    /** The rows of other tables referencing this table's rows. */
+    readonly dependents: readonly Dependent[];
+    /** The source table of a query alias. */
+    readonly source: Table | undefined;
+    /** The table this defines. */
+    readonly #table: Table;
+    /** Evaluate the declared constraints once every table exists. */
+    readonly #declared: () => readonly TableConstraint[];
+    /** The tree columns, absent without a tree. */
+    readonly #treeColumns: TreeColumns | undefined;
+    /** The tree, built on first read. */
+    #tree: Tree | undefined;
+    /** The primary key properties, read on first use. */
+    #key: readonly string[] | undefined;
+    /** The columns in declaration order, read on first use. */
+    #entries: readonly (readonly [string, Column])[] | undefined;
+    /** The logged columns, read on first use. */
+    #logged: Readonly<Record<string, Column>> | undefined;
+    /** The built statements by name. */
+    readonly #statements = new Map<string, Statement>();
+
+    /** Define a table. */
+    constructor(
+        table: Table,
+        identity: { readonly package: Package; readonly name: Name; readonly sqlName: string },
+        columns: Columns,
+        declaration: TableDeclaration,
+        options: { readonly tree?: TreeColumns; readonly source?: Table },
+    ) {
+        // keep the identity, columns and declaration
+        this.package = identity.package;
+        this.name = identity.name;
+        this.sqlName = identity.sqlName;
+        this.columns = columns;
+        this.retention = declaration.retention;
+        this.tier = declaration.tier;
+        this.moved = declaration.moved;
+        this.convert = declaration.convert;
+        this.aggregates = declaration.aggregates;
+        this.dependents = declaration.dependents;
+        this.source = options.source;
+        this.#table = table;
+        this.#declared = declaration.constraints;
+        this.#treeColumns = options.tree;
     }
 
-    /** Emit table identifiers without parentheses. */
-    shouldOmitSQLParens(): boolean {
-        return true;
-    }
-
-    /** Write a row's own columns in JSON form, nulls for missing values. */
-    encode(row: Row): Record<string, JsonValue> {
-        return encodeColumns(this[TABLE].entries, row, []);
-    }
-
-    /** Read a row's own columns from JSON form. */
-    decode(row: Row): Record<string, unknown> {
-        const decoded: Record<string, unknown> = {};
-        for (const [property, column] of this[TABLE].entries) {
-            // read the row's own columns
-            if (Object.hasOwn(row, property)) {
-                const value = row[property];
-                decoded[property] =
-                    value === null || value === undefined
-                        ? null
-                        : column.definition.fromJson(value);
-            }
+    /** The ancestor index over the parent column, absent without a tree. */
+    get tree(): Tree | undefined {
+        if (this.#treeColumns !== undefined) {
+            this.#tree ??= new Tree({ name: "tree", table: this.#table, ...this.#treeColumns });
         }
 
-        return decoded;
+        return this.#tree;
     }
 
-    /** Validate a selected record, in application or JSON form. */
-    selectSchema<Definition extends Table>(
-        this: Definition,
-        form: "application" | "json" = "application",
-    ): schema.Object<Shape<Select<Definition>>> {
-        return recordSchema(this, "select", form) as schema.Object<Shape<Select<Definition>>>;
+    /** The primary key properties in key order. */
+    get key(): readonly string[] {
+        this.#key ??= this.source?.[TABLE].key ?? keyOf(this.#table);
+
+        return this.#key;
     }
 
-    /** Validate an inserted record, in application or JSON form. */
-    insertSchema<Definition extends Table>(
-        this: Definition,
-        form: "application" | "json" = "application",
-    ): schema.Object<Shape<Insert<Definition>>> {
-        return recordSchema(this, "insert", form) as schema.Object<Shape<Insert<Definition>>>;
+    /** The columns in declaration order. */
+    get entries(): readonly (readonly [string, Column])[] {
+        this.#entries ??= Object.entries(this.columns);
+
+        return this.#entries;
     }
 
-    /** Validate a partial update. */
-    updateSchema<Definition extends Table>(
-        this: Definition,
-    ): schema.Object<Shape<Partial<Insert<Definition>>>> {
-        return recordSchema(this, "update") as schema.Object<Shape<Partial<Insert<Definition>>>>;
+    /** The logged columns: every column but binary and sensitive ones. */
+    get logged(): Readonly<Record<string, Column>> {
+        this.#logged ??= Object.fromEntries(
+            this.entries.filter(
+                ([, column]) =>
+                    column.definition.kind !== "binary" &&
+                    column.definition.classification !== "sensitive",
+            ),
+        );
+
+        return this.#logged;
     }
 
-    /** Collect the constraints for a dialect. */
+    /** Read a column by property, failing for a property the table does not declare. */
+    column(property: string): Column {
+        const column = this.columns[property];
+        if (column === undefined) {
+            throw new TypeError(`${this.name} has no column ${property}`);
+        }
+
+        return column;
+    }
+
+    /** Collect the constraints for a dialect: the declared ones, SQLite's key checks and column references. */
     constraints(dialect: Dialect): readonly TableConstraint[] {
-        const constraints = [...this[TABLE].constraints()];
-
-        // keep primary key checks
-        for (const column of Object.values(this[TABLE].columns)) {
+        const constraints = [...this.#declared()];
+        for (const column of Object.values(this.columns)) {
+            // keep primary key checks
             const definition = column.definition;
             if (
                 dialect === "sqlite" &&
-                definition.primaryKey &&
+                definition.primaryKey === true &&
                 definition.types.sqlite !== "integer"
             ) {
                 constraints.push(
-                    check(
-                        `${this[TABLE].name}_${definition.name}_not_null`,
-                        sql`${column} IS NOT NULL`,
-                    ),
+                    check(`${this.name}_${definition.name}_not_null`, sql`${column} IS NOT NULL`),
                 );
             }
 
             // expand references once every table is declared
             const reference = definition.reference;
-            if (reference) {
+            if (reference !== undefined) {
                 constraints.push(
                     new ForeignKey(
-                        {
-                            columns: [column],
-                            foreignColumns: [reference.column()],
-                        },
+                        { columns: [column], foreignColumns: [reference.column()] },
                         reference,
                     ),
                 );
@@ -316,6 +274,68 @@ export class Table<
         }
 
         return constraints;
+    }
+
+    /** Write a row's own columns in JSON form, leaving out concealed ones. */
+    encode(row: Row, concealed: readonly string[] = []): Record<string, JsonValue> {
+        return encodeRow(this.entries, row, concealed);
+    }
+
+    /** Write a row's own logged columns in JSON form, leaving out concealed ones, as readers of the log see it. */
+    encodeLogged(row: Row, concealed: readonly string[]): Record<string, JsonValue> {
+        return encodeRow(Object.entries(this.logged), row, concealed);
+    }
+
+    /** Read a row's own columns from JSON form. */
+    decode(row: Readonly<Record<string, unknown>>): Row {
+        const decoded: Record<string, ColumnValue> = {};
+        for (const [property, column] of this.entries) {
+            // read the row's own columns
+            if (Object.hasOwn(row, property)) {
+                const value = row[property];
+                decoded[property] = value === null ? null : column.definition.fromJson(value);
+            }
+        }
+
+        return decoded;
+    }
+
+    /** Validate a selected record, in application or JSON form. */
+    selectSchema(form?: "application" | "json"): schema.Object<Shape<Select<Table<Name, Columns>>>>;
+    /** Validate a selected record, whose signature above types it by the table. */
+    selectSchema(
+        form: "application" | "json" = "application",
+    ): schema.Object<Record<string, schema.Schema>> {
+        return recordSchema(this, "select", form);
+    }
+
+    /** Validate an inserted record, in application or JSON form. */
+    insertSchema(form?: "application" | "json"): schema.Object<Shape<Insert<Table<Name, Columns>>>>;
+    /** Validate an inserted record, whose signature above types it by the table. */
+    insertSchema(
+        form: "application" | "json" = "application",
+    ): schema.Object<Record<string, schema.Schema>> {
+        return recordSchema(this, "insert", form);
+    }
+
+    /** Validate a partial update. */
+    updateSchema(): schema.Object<Shape<Partial<Insert<Table<Name, Columns>>>>>;
+    /** Validate a partial update, whose signature above types it by the table. */
+    updateSchema(): schema.Object<Record<string, schema.Schema>> {
+        return recordSchema(this, "update");
+    }
+
+    /** Read a statement over the table, building it once per name. */
+    statement(name: string, build: () => Statement): Statement {
+        // reuse the built statement
+        const known = this.#statements.get(name);
+        if (known !== undefined) {
+            return known;
+        }
+        const built = build();
+        this.#statements.set(name, built);
+
+        return built;
     }
 }
 
@@ -329,16 +349,16 @@ export interface TableMove {
     /** The table's previous name within its package. */
     readonly table?: string;
     /** The previous SQL column names by property. */
-    readonly columns?: Readonly<Record<string, string>>;
+    readonly columns?: Readonly<Partial<Record<string, string>>>;
 }
 
 /** The properties of a single-parent tree per scope. */
 interface TreeColumns<Property extends string = string> {
-    /** The property holding the node identity. */
+    /** The property with the node identity. */
     readonly id: Property;
-    /** The property holding the tree scope. */
+    /** The property with the tree scope. */
     readonly scope: Property;
-    /** The property holding the nullable parent identity. */
+    /** The property with the nullable parent identity. */
     readonly parent: Property;
 }
 
@@ -348,23 +368,23 @@ interface TableDeclaration {
     readonly constraints: () => readonly TableConstraint[];
     /** How long the log keeps the table's changes. */
     readonly retention: ChangeRetention;
-    /** The tier holding the table's rows, replicated into narrower databases, any tier when absent. */
-    readonly tier?: DatabaseTier;
+    /** The home tier of the table's rows, replicated into narrower databases, any tier when absent. */
+    readonly tier?: DatabaseTier | undefined;
     /** The table's previous names. */
     readonly moved: TableMove;
     /** The row conversions by the release introducing them. */
     readonly convert: Readonly<Record<Version, RowConversion>>;
-    /** The aggregates this table's rows feed or hold. */
+    /** The aggregates this table's rows feed or keep. */
     readonly aggregates: readonly Aggregate[];
     /** The rows of other tables referencing this table's rows. */
     readonly dependents: readonly Dependent[];
 }
 
-/** An aggregate of one table's rows held by the rows they reference. */
+/** An aggregate of one table's rows kept on the rows they reference. */
 export type Aggregate = AggregateOptions &
     (
         | {
-              /** The holding table. */
+              /** The target table. */
               readonly into: () => Table;
           }
         | {
@@ -373,35 +393,42 @@ export type Aggregate = AggregateOptions &
           }
     );
 
-/** The options of an aggregate. */
-interface AggregateOptions {
-    /** The holding property. */
+/** The options of an aggregate: a count, or a sum or extreme of a property. */
+type AggregateOptions = {
+    /** The target property. */
     readonly column: string;
-    /** The aggregated table's property referencing the holding rows. */
+    /** The aggregated table's property referencing the target rows. */
     readonly key: string;
-    /** The aggregate function. */
-    readonly function: "count" | "sum" | "min" | "max";
-    /** The aggregated property, for sums and extremes. */
-    readonly value?: string;
-    /** The values the aggregated rows hold. */
-    readonly where?: Readonly<Record<string, string | number | boolean | null>>;
-}
+    /** The values of the aggregated rows. */
+    readonly where?: Readonly<Record<string, Scalar>>;
+} & (
+    | {
+          /** Count the rows. */
+          readonly function: "count";
+      }
+    | {
+          /** Sum the values, or take their least or greatest. */
+          readonly function: "sum" | "min" | "max";
+          /** The aggregated property. */
+          readonly value: string;
+      }
+);
 
 /** Rows of another table referencing this table's rows, as a polymorphic reference does. */
 export interface Dependent {
-    /** The table holding the dependent rows. */
+    /** The table with the dependent rows. */
     readonly from: () => Table;
     /** The dependent table's property referencing this table's rows. */
     readonly key: string;
-    /** The values the dependent rows hold, such as the referenced type. */
-    readonly where?: Readonly<Record<string, string | number | boolean | null>>;
+    /** The values of the dependent rows, such as the referenced type. */
+    readonly where?: Readonly<Record<string, Scalar>>;
     /** Cascade or restrict the deletion. */
     readonly onDelete: "cascade" | "restrict";
 }
 
 /** The options of a table. */
 export interface TableOptions<Columns> {
-    /** The tier holding the table's rows, replicated into narrower databases, any tier when absent. */
+    /** The home tier of the table's rows, replicated into narrower databases, any tier when absent. */
     readonly tier?: DatabaseTier;
     /** The constraints and indexes. */
     readonly constraints?: (columns: Columns) => readonly TableConstraint[];
@@ -421,7 +448,7 @@ export interface TableOptions<Columns> {
     };
     /** The row conversions by the release introducing them, converting rows of earlier releases. */
     readonly convert?: Readonly<Record<Version, RowConversion<Columns>>>;
-    /** The aggregates this table's rows feed or hold. */
+    /** The aggregates this table's rows feed or keep. */
     readonly aggregates?: readonly Aggregate[];
     /** The rows of other tables referencing this table's rows. */
     readonly dependents?: readonly Dependent[];
@@ -431,7 +458,10 @@ export interface TableOptions<Columns> {
 export type ColumnMap = Record<string, Column>;
 
 /** The column builders by property. */
-export type ColumnBuilderMap = Record<string, ColumnBuilder<unknown, boolean, boolean, boolean>>;
+export type ColumnBuilderMap = Record<
+    string,
+    ColumnBuilder<ColumnValue, boolean, boolean, boolean, boolean>
+>;
 
 /** Attach each column's type and flags. */
 export type TableColumnMap<Builders extends ColumnBuilderMap, Name extends string = string> = {
@@ -440,7 +470,8 @@ export type TableColumnMap<Builders extends ColumnBuilderMap, Name extends strin
         Builders[Property]["_"]["required"],
         Builders[Property]["_"]["default"],
         Name,
-        Builders[Property]["_"]["generated"]
+        Builders[Property]["_"]["generated"],
+        Builders[Property]["_"]["key"]
     >;
 };
 
@@ -493,12 +524,7 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
     const names = new Set<string>();
     for (const builder of Object.values(builders)) {
         const definition = builder.definition;
-        if (
-            definition.generated &&
-            (definition.default !== undefined ||
-                definition.runtimeDefault ||
-                definition.runtimeUpdate)
-        ) {
+        if (definition.generated !== undefined && definition.default !== undefined) {
             throw new TypeError(`generated SQL column cannot define defaults: ${definition.name}`);
         }
         if (names.has(definition.name)) {
@@ -511,12 +537,7 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
     Version.requireUpTo(options.convert ?? {}, owner.version, name);
 
     // attach the columns in order
-    const columns = Object.fromEntries(
-        Object.entries(builders).map(([property, builder]) => [
-            property,
-            new Column(sqlName, builder.definition),
-        ]),
-    ) as TableColumnMap<Builders, Name>;
+    const columns = attachColumns<Builders, Name>(sqlName, builders);
     const definition = new Table(
         { package: owner, name, sqlName },
         columns,
@@ -524,8 +545,8 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
             constraints: () => options.constraints?.(columns) ?? [],
             retention: options.log === undefined ? "none" : (options.log.retention ?? "window"),
             ...(options.tier === undefined ? {} : { tier: options.tier }),
-            moved: (options.moved ?? {}) as TableMove,
-            convert: (options.convert ?? {}) as Readonly<Record<Version, RowConversion>>,
+            moved: options.moved ?? {},
+            convert: options.convert ?? {},
             aggregates: options.aggregates ?? [],
             dependents: options.dependents ?? [],
         },
@@ -542,7 +563,8 @@ export type AliasedColumnMap<Definition extends Table, Name extends string> = {
         Definition[typeof TABLE]["columns"][Property]["_"]["required"],
         Definition[typeof TABLE]["columns"][Property]["_"]["default"],
         Name,
-        Definition[typeof TABLE]["columns"][Property]["_"]["generated"]
+        Definition[typeof TABLE]["columns"][Property]["_"]["generated"],
+        Definition[typeof TABLE]["columns"][Property]["_"]["key"]
     >;
 };
 
@@ -552,37 +574,76 @@ export function alias<Definition extends Table, Name extends string>(
     name: Name,
 ): Table<Name, AliasedColumnMap<Definition, Name>> & AliasedColumnMap<Definition, Name> {
     // qualify each column by the alias
-    const columns = Object.fromEntries(
-        Object.entries(source[TABLE].columns).map(([property, column]) => [
-            property,
-            new Column(name, column.definition),
-        ]),
-    ) as AliasedColumnMap<Definition, Name>;
+    const columns = aliasColumns(source, name);
     const definition = new Table(
         { package: source[TABLE].package, name, sqlName: name },
         columns,
-        source[TABLE],
+        {
+            constraints: () => [],
+            retention: source[TABLE].retention,
+            tier: source[TABLE].tier,
+            moved: source[TABLE].moved,
+            convert: source[TABLE].convert,
+            aggregates: source[TABLE].aggregates,
+            dependents: source[TABLE].dependents,
+        },
         { source },
     );
 
     return Object.assign(definition, columns);
 }
 
-/** Read a table's primary key properties. */
+/** Read a table's primary key properties: its key columns in declaration order. */
 function keyOf(table: Table): readonly string[] {
-    // prefer a compound key constraint
-    const columns = table[TABLE].columns;
-    const declared = table
-        .constraints("sqlite")
-        .find((constraint): constraint is PrimaryKey => constraint.kind === "primaryKey");
-    const keys =
-        declared?.columns ??
-        Object.values(columns).filter((column) => column.definition.primaryKey);
+    return Object.entries(table[TABLE].columns)
+        .filter(([, column]) => column.definition.primaryKey === true)
+        .map(([property]) => property);
+}
 
-    // name each key column by its property
-    const properties = new Map(
-        Object.entries(columns).map(([property, column]) => [column, property]),
+/** Attach builders' columns to a table's SQL name, whose signature types them by their builders. */
+function attachColumns<Builders extends ColumnBuilderMap, Name extends string>(
+    sqlName: string,
+    builders: Builders,
+): TableColumnMap<Builders, Name>;
+/** Attach builders' columns to a table's SQL name, in property order. */
+function attachColumns(sqlName: string, builders: ColumnBuilderMap): ColumnMap {
+    return Object.fromEntries(
+        Object.entries(builders).map(([property, builder]) => [
+            property,
+            new Column(sqlName, builder.definition),
+        ]),
     );
+}
 
-    return keys.map((column) => properties.get(column)!);
+/** Qualify a table's columns by an alias, whose signature types them by the table. */
+function aliasColumns<Definition extends Table, Name extends string>(
+    source: Definition,
+    name: Name,
+): AliasedColumnMap<Definition, Name>;
+/** Qualify a table's columns by an alias, in property order. */
+function aliasColumns(source: Table, name: string): ColumnMap {
+    return Object.fromEntries(
+        Object.entries(source[TABLE].columns).map(([property, column]) => [
+            property,
+            new Column(name, column.definition),
+        ]),
+    );
+}
+
+/** Write a row's own values of some columns in JSON form, leaving out the concealed ones. */
+function encodeRow(
+    columns: readonly (readonly [string, Column])[],
+    row: Row,
+    concealed: readonly string[],
+): Record<string, JsonValue> {
+    const encoded: Record<string, JsonValue> = {};
+    for (const [property, column] of columns) {
+        // write the row's own unconcealed columns
+        const value = row[property];
+        if (value !== undefined && !concealed.includes(property)) {
+            encoded[property] = value === null ? null : column.definition.toJson(value);
+        }
+    }
+
+    return encoded;
 }

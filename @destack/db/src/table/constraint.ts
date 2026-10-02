@@ -1,8 +1,8 @@
-import type { SQL } from "drizzle-orm";
+import type { SQL } from "../sql/index.ts";
 import type { Column, ReferenceAction } from "./column.ts";
 
 /** A table constraint or index. */
-export type TableConstraint = Check | Index | PrimaryKey | Unique | ForeignKey;
+export type TableConstraint = Check | Index | Unique | ForeignKey;
 
 /** A named row predicate. */
 export interface Check {
@@ -24,8 +24,8 @@ export class Index {
     readonly isUnique: boolean;
     /** The indexed columns or expressions. */
     readonly columns: readonly (Column | SQL)[];
-    /** The predicate selecting indexed rows. */
-    readonly predicate?: SQL;
+    /** The predicate selecting indexed rows, all rows when absent. */
+    readonly predicate: SQL | undefined;
 
     /** Declare an index. */
     constructor(
@@ -52,22 +52,12 @@ export class Index {
     }
 }
 
-/** The columns identifying a row. */
-export interface PrimaryKey {
-    /** The constraint category. */
-    readonly kind: "primaryKey";
-    /** The SQL constraint name. */
-    readonly name?: string;
-    /** The identifying columns in order. */
-    readonly columns: readonly [Column, ...Column[]];
-}
-
 /** Columns whose non-null values are distinct together. */
 export class Unique {
     /** The constraint category. */
     readonly kind = "unique";
-    /** The SQL constraint name. */
-    readonly name?: string;
+    /** The SQL constraint name, derived when absent. */
+    readonly name: string | undefined;
     /** The constrained columns. */
     readonly columns: readonly Column[];
 
@@ -87,28 +77,40 @@ export class Unique {
 export class ForeignKey {
     /** The constraint category. */
     readonly kind = "foreignKey";
-    /** The SQL constraint name. */
-    readonly name?: string;
+    /** The SQL constraint name, derived when absent. */
+    readonly name: string | undefined;
     /** The referencing columns in order. */
     readonly columns: readonly Column[];
     /** The referenced columns in matching order. */
     readonly foreignColumns: readonly Column[];
+    /** The referenced table's SQL name. */
+    readonly references: string;
     /** The referential actions. */
     readonly actions: ReferenceAction;
 
     /** Declare a foreign key. */
     constructor(
         definition: {
-            readonly name?: string;
+            readonly name?: string | undefined;
             readonly columns: readonly Column[];
             readonly foreignColumns: readonly Column[];
         },
         actions: ReferenceAction = {},
     ) {
+        // require referenced columns of one table
+        const [first] = definition.foreignColumns;
+        if (
+            first === undefined ||
+            definition.foreignColumns.some((column) => column.table !== first.table)
+        ) {
+            throw new TypeError("a foreign key references columns of one table");
+        }
+
         // keep the columns and actions
         this.name = definition.name;
         this.columns = definition.columns;
         this.foreignColumns = definition.foreignColumns;
+        this.references = first.table;
         this.actions = actions;
     }
 
@@ -136,11 +138,6 @@ export function index(name: string): Index {
 /** Declare a unique index. */
 export function uniqueIndex(name: string): Index {
     return new Index(name, true);
-}
-
-/** Declare a compound primary key. */
-export function primaryKey(definition: Omit<PrimaryKey, "kind">): PrimaryKey {
-    return { kind: "primaryKey", ...definition };
 }
 
 /** Declare a compound unique constraint. */

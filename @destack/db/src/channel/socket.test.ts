@@ -2,14 +2,18 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, onTestFinished, test } from "@destack/test";
+import { schema } from "@destack/schema";
+import { typedChannel } from "./channel.ts";
 import { socketChannel } from "./socket.ts";
 
 /** A message between parties. */
-type Note = { readonly kind: string; readonly from: string };
+const Note = schema.object({ kind: schema.string(), from: schema.string() });
+/** A message between parties. */
+type Note = schema.Infer<typeof Note>;
 
 /** Listen on a channel, resolving once joined, and collect what arrives. */
 async function party(path: string) {
-    const channel = socketChannel<Note>(path);
+    const channel = typedChannel(socketChannel(path), Note);
     const received: Note[] = [];
     const joined = Promise.withResolvers<void>();
     let joins = 0;
@@ -25,14 +29,16 @@ async function party(path: string) {
     return { channel, received, stop, joins: () => joins };
 }
 
-/** Wait until a condition holds, failing after a second. */
+/** Wait until a condition is true, failing after a second. */
 async function until(check: () => boolean): Promise<void> {
     const deadline = Date.now() + 1000;
     while (!check()) {
         if (Date.now() > deadline) {
-            throw new Error("the condition never held");
+            throw new Error("the condition never became true");
         }
-        await new Promise((resolve) => setTimeout(resolve, 5));
+        await new Promise<void>((resolve) => {
+            setTimeout(resolve, 5);
+        });
     }
 }
 

@@ -1,4 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
+import { Scalar } from "../query/condition.ts";
 
 /** Rows referencing each row of a table, cascading or restricting its deletion. */
 export const DependentDescription = defineSchema(
@@ -11,18 +12,13 @@ export const DependentDescription = defineSchema(
         source: schema.string().min(1),
         /** The dependent table's SQL column referencing the rows. */
         key: schema.string().min(1),
-        /** The values the dependent rows hold. */
+        /** The values of the dependent rows. */
         where: schema.array(
             schema.object({
                 /** The SQL column. */
                 column: schema.string().min(1),
                 /** The value, null for none. */
-                value: schema.union([
-                    schema.string(),
-                    schema.number(),
-                    schema.boolean(),
-                    schema.null(),
-                ]),
+                value: Scalar,
             }),
         ),
         /** Cascade or restrict the deletion. */

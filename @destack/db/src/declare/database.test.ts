@@ -13,7 +13,7 @@ const space = defineTable("space", { id: text("id").primaryKey() }, { tier: "reg
 /** Notes, which live in any tier. */
 const note = defineTable("note", { id: text("id").primaryKey() });
 
-test("hold tables of a database's own tier and of wider tiers, and refuse a narrower tier's", () => {
+test("keep tables of a database's own tier and of wider tiers, and refuse a narrower tier's", () => {
     // replicate global users into a regional database beside its own and untiered tables
     const regional = defineDatabase({
         name: "cell",
@@ -41,7 +41,7 @@ test("keep the tables of a wider tier as copies, and none over bare tables", asy
         TestDatabase.create("sqlite", tables),
     ]);
     onTestFinished(async () => {
-        await Promise.all(opened.map((test) => test.close()));
+        await Promise.all(opened.map((opening) => opening.close()));
     });
 
     // copy global users in a region, users and spaces in a zone, and nothing over bare tables

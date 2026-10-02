@@ -1,14 +1,15 @@
-import { and, sql, type SQL } from "drizzle-orm";
+import { schema } from "@destack/schema";
+import { CHAIN_TERMS, and, sql, type SQL } from "../sql/index.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { Condition, type Match } from "../query/condition.ts";
-import { CHAIN_TERMS } from "../query/predicate.ts";
 import { Key } from "../query/key.ts";
 import { Order } from "../query/order.ts";
 import type { Computed, Namespace } from "../query/namespace.ts";
 import { Expression, type Related } from "../expression/expression.ts";
-import { TABLE, type Table } from "../table/table.ts";
-import { latestOf, selectHead, type LogPosition } from "./position.ts";
-import { fromDriver, type Row } from "../table/row.ts";
+import { TABLE, Table } from "../table/table.ts";
+import { latestOf, LogInteger, selectHead, type LogPosition } from "./position.ts";
+import type { Row } from "../table/row.ts";
+import type { Column, ColumnValue } from "../table/column.ts";
 import { jsonElements, Statement } from "../query/statement.ts";
 import { DatabaseError } from "../error/error.ts";
 import type { Dialect } from "../dialect/dialect.ts";
@@ -16,7 +17,10 @@ import type { Dialect } from "../dialect/dialect.ts";
 /** The head columns a tuple read selects before each row's own. */
 const HEAD_COLUMNS = ["epoch", "logged", "horizon"] as const;
 
-/** The keys one read by key names. */
+/** The head of a read: the epoch, the newest logged and the highest compacted sequence. */
+const HEAD = schema.tuple([schema.string(), LogInteger.nullable(), LogInteger]);
+
+/** The most keys one read selects by key. */
 const KEYS_PER_READ = CHAIN_TERMS;
 
 /** Read the images a table's rows had before their first change between two sequences, by key. */
@@ -101,7 +105,7 @@ export class Snapshot {
         return kept;
     }
 
-    /** Read a table's rows at the position with text columns that hold one of some tuples. */
+    /** Read a table's rows at the position with text columns that have one of some tuples. */
     async select(
         table: Table,
         columns: readonly string[],
@@ -114,18 +118,18 @@ export class Snapshot {
         const read = await tupleRead(table, columns, this.database.dialect).values(this.database, {
             tuples: JSON.stringify(tuples),
         });
-        const [epoch, latest, horizon] = read[0]!;
-        const sequence = this.#require(epoch as string, latestOf(latest, horizon));
+        const [epoch, latest, horizon] = HEAD.parse(read[0]?.slice(0, HEAD_COLUMNS.length));
+        const sequence = this.#require(epoch, latestOf(latest, horizon));
 
         // decode the rows
-        const dialect = this.database.driver.native.dialect;
+        const dialect = this.database.dialect;
         const selected = Object.entries(table[TABLE].logged);
         const key =
             HEAD_COLUMNS.length +
             selected.findIndex(([property]) => property === table[TABLE].key[0]);
         const rows = read
             .filter((values) => values[key] !== null)
-            .map((values) => fromDriver(selected, values.slice(HEAD_COLUMNS.length), dialect));
+            .map((values) => decodeValues(selected, values.slice(HEAD_COLUMNS.length), dialect));
         const images = await this.#since(table, sequence);
 
         // keep unchanged rows and matching images
@@ -186,7 +190,7 @@ export class Snapshot {
                 query.after === undefined
                     ? undefined
                     : Order.after(order, table, query.after, namespace),
-            )!;
+            );
             rows = await this.#read(
                 table,
                 selection,
@@ -196,7 +200,8 @@ export class Snapshot {
             );
 
             // take the rows as they are when live
-            if (reached === undefined) {
+            const position = this.position;
+            if (position === undefined || reached === undefined) {
                 break;
             }
 
@@ -208,13 +213,14 @@ export class Snapshot {
                 }
             }
             reached = Math.max(reached, sequence);
-            unsettled = new Map(images);
-            const touched = (
-                (await relations?.touched(this.position!.sequence, sequence)) ?? []
-            ).filter((key) => !unsettled.has(Key.name(table, key)));
+            const settling = new Map(images);
+            const touched = ((await relations?.touched(position.sequence, sequence)) ?? []).filter(
+                (key) => !settling.has(Key.name(table, key)),
+            );
             for (const [name, row] of await this.#rowsOf(table, touched)) {
-                unsettled.set(name, row);
+                settling.set(name, row);
             }
+            unsettled = settling;
         }
 
         // overlay the matching admitted images
@@ -226,7 +232,8 @@ export class Snapshot {
         const decided = isAdmittedInMemory
             ? await Promise.all(current.map((row) => admits.image(row)))
             : undefined;
-        const kept = decided === undefined ? current : current.filter((_, index) => decided[index]);
+        const kept =
+            decided === undefined ? current : current.filter((_, index) => decided[index] === true);
         for (const image of unsettled.values()) {
             const augmented =
                 image === null
@@ -242,7 +249,7 @@ export class Snapshot {
             }
         }
 
-        return kept.sort((left, right) => Order.rows(order, left, right)).slice(0, query.count);
+        return kept.toSorted((left, right) => Order.rows(order, left, right)).slice(0, query.count);
     }
 
     /** Read rows by key as of the position, null for missing keys. */
@@ -270,16 +277,10 @@ export class Snapshot {
     ): Promise<Row[]> {
         // read the rows with their computed values
         const computed = Object.fromEntries(
-            Object.entries(namespace.computed).map(([name, expression]) => {
-                const value = Expression.render(expression, table, namespace);
-
-                return [
-                    name,
-                    Expression.kind(expression, table, namespace) === "text"
-                        ? value.mapWith(String)
-                        : value.mapWith(Number),
-                ];
-            }),
+            Object.entries(namespace.computed).map(([name, expression]) => [
+                name,
+                Expression.select(expression, table, namespace),
+            ]),
         );
         const query = this.database
             .select({ ...table[TABLE].logged, ...computed })
@@ -287,9 +288,8 @@ export class Snapshot {
             .where(selection);
         const ordered =
             order === undefined ? query : query.orderBy(...Order.render(order, table, namespace));
-        const rows = (await (limit === undefined ? ordered : ordered.limit(limit))) as Row[];
 
-        return rows;
+        return limit === undefined ? ordered : ordered.limit(limit);
     }
 
     /** Read the log's latest sequence within the position's epoch. */
@@ -331,7 +331,7 @@ export class Snapshot {
         for (const change of await this.database.log.written([table])) {
             const name = Key.name(table, change.key);
             if (!undone.has(name)) {
-                undone.set(name, (change.before as Row | undefined) ?? null);
+                undone.set(name, change.before ?? null);
             }
         }
 
@@ -358,14 +358,17 @@ function render(where: Condition, table: Table, namespace: Namespace = { compute
 
 /** Add a row's computed values. */
 function augment(row: Row, computed: Computed, related?: Related): Row {
-    const names = Object.keys(computed);
+    const entries = Object.entries(computed);
 
-    return names.length === 0
+    return entries.length === 0
         ? row
         : {
               ...row,
               ...Object.fromEntries(
-                  names.map((name) => [name, Expression.evaluate(computed[name]!, row, related)]),
+                  entries.map(([name, expression]) => [
+                      name,
+                      Expression.evaluate(expression, row, related),
+                  ]),
               ),
           };
 }
@@ -405,12 +408,11 @@ async function decides(
     );
 }
 
-/** Build the statement reading the head and the rows holding listed tuples. */
+/** Build the statement reading the head and the rows with listed tuples. */
 function tupleRead(table: Table, columns: readonly string[], dialect: Dialect): Statement {
-    return table.statement(`tuple:${dialect}:${columns.join(",")}`, () => {
+    return table[TABLE].statement(`tuple:${dialect}:${columns.join(",")}`, () => {
         // join each tuple to its rows and keep a head row for an empty tuple
         const logged = Object.values(table[TABLE].logged);
-        const definitions = table[TABLE].columns;
         const head = sql.join(
             HEAD_COLUMNS.map((name) => sql`head.${sql.identifier(name)}`),
             sql`, `,
@@ -423,7 +425,7 @@ function tupleRead(table: Table, columns: readonly string[], dialect: Dialect): 
                 LEFT JOIN ${table} ON ${sql.join(
                     columns.map(
                         (column, index) =>
-                            sql`${definitions[column]!} = wanted.value ->> ${sql.raw(String(index))}`,
+                            sql`${table[TABLE].column(column)} = wanted.value ->> ${sql.raw(String(index))}`,
                     ),
                     sql` AND `,
                 )}`,
@@ -433,5 +435,24 @@ function tupleRead(table: Table, columns: readonly string[], dialect: Dialect): 
 
 /** Write a row's column value in JSON form. */
 function toJson(table: Table, column: string, row: Row): unknown {
-    return table[TABLE].columns[column]!.definition.toJson(row[column]);
+    const value = row[column];
+
+    return value === undefined || value === null
+        ? null
+        : table[TABLE].column(column).definition.toJson(value);
+}
+
+/** Read a driver row, an array of values, by the property of each selected column. */
+function decodeValues(
+    columns: readonly (readonly [string, Column])[],
+    values: readonly unknown[],
+    dialect: Dialect,
+): Row {
+    const read: Record<string, ColumnValue> = {};
+    for (const [position, [property, column]] of columns.entries()) {
+        const value = values[position];
+        read[property] = value === null ? null : column.definition.decode(value, dialect);
+    }
+
+    return read;
 }

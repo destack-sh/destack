@@ -1,10 +1,11 @@
+import { eq } from "../sql/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
-import { defineTable } from "../table/table.ts";
+import { defineTable, type Select } from "../table/table.ts";
+import type { Row } from "../table/row.ts";
 import { integer, text } from "../table/column.ts";
 import { Condition } from "../query/condition.ts";
 import { Order } from "../query/order.ts";
-import { eq } from "../query/predicate.ts";
 import type { LogPosition } from "./position.ts";
 import { Snapshot } from "./snapshot.ts";
 import { Key } from "../query/key.ts";
@@ -49,18 +50,24 @@ function random(seed: { value: number }): number {
     return seed.value / 2_147_483_648;
 }
 
+/** Sort rows of the item table by key. */
+function byKey(rows: readonly Row[]): Row[] {
+    return rows.toSorted((left, right) => Order.rows(Order.complete([], item), left, right));
+}
+
 test.for(TEST_DIALECTS)(
     "read tables as they were at every earlier position on %s",
     async (dialect) => {
-        const test = await TestDatabase.create(dialect, [item], { isMigrated: true });
-        onTestFinished(() => test.close());
-        const database = test.database;
+        const storage = await TestDatabase.create(dialect, [item], { isMigrated: true });
+        onTestFinished(() => storage.close());
+        const database = storage.database;
         const seed = { value: 19 };
         const where = Condition.all(Condition.eq("scope", "inbox"), Condition.gte("rank", 2));
         const order = [{ column: "rank", direction: "desc" as const }];
 
         // write at random and capture the rows at each position
-        const captured: { readonly position: LogPosition; readonly rows: unknown[] }[] = [];
+        const captured: { readonly position: LogPosition; readonly rows: Select<typeof item>[] }[] =
+            [];
         for (let index = 0; index < WRITES; index += 1) {
             const id = `i${Math.floor(random(seed) * 12)}`;
             const values = {
@@ -84,16 +91,10 @@ test.for(TEST_DIALECTS)(
         // read each position's snapshot
         for (const { position, rows } of captured) {
             const snapshot = database.log.at(position);
-            const matching = (rows as { id: string; scope: string; rank: number }[]).filter(
-                (row) => row.scope === "inbox" && row.rank >= 2,
-            );
-            const sorted = [...matching].sort((left, right) =>
+            const matching = rows.filter((row) => row.scope === "inbox" && row.rank >= 2);
+            const sorted = matching.toSorted((left, right) =>
                 Order.rows(Order.complete(order, item), left, right),
             );
-            const byKey = (list: readonly unknown[]) =>
-                [...(list as { id: string }[])].sort((left, right) =>
-                    left.id < right.id ? -1 : 1,
-                );
             expect([
                 position.sequence,
                 byKey(await snapshot.rows(item, where)),
@@ -102,7 +103,7 @@ test.for(TEST_DIALECTS)(
             ]).toEqual([
                 position.sequence,
                 byKey(matching),
-                (rows as { id: string }[]).find((row) => row.id === "i3") ?? null,
+                rows.find((row) => row.id === "i3") ?? null,
                 sorted.slice(0, 3),
             ]);
         }
@@ -112,9 +113,9 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "read history past compaction, and refuse compacted windows and other epochs on %s",
     async (dialect) => {
-        const test = await TestDatabase.create(dialect, [item, revision], { isMigrated: true });
-        onTestFinished(() => test.close());
-        const database = test.database;
+        const storage = await TestDatabase.create(dialect, [item, revision], { isMigrated: true });
+        onTestFinished(() => storage.close());
+        const database = storage.database;
         const everything = Condition.all();
 
         // write, take a position, change and compact
@@ -145,9 +146,9 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "read the latest commit and the rows at it inside a writing transaction on %s",
     async (dialect) => {
-        const test = await TestDatabase.create(dialect, [item], { isMigrated: true });
-        onTestFinished(() => test.close());
-        const database = test.database;
+        const storage = await TestDatabase.create(dialect, [item], { isMigrated: true });
+        onTestFinished(() => storage.close());
+        const database = storage.database;
         await database.insert(item).values({ id: "i1", scope: "inbox", rank: 1, label: "x" });
         const committed = await database.log.position();
 
@@ -155,11 +156,11 @@ test.for(TEST_DIALECTS)(
         const [position, rows, row] = await database.transaction(async (transaction) => {
             await transaction.update(item).set({ rank: 5 }).where(eq(item.id, "i1"));
             await transaction.insert(item).values({ id: "i2", scope: "inbox", rank: 2 });
-            const position = await transaction.log.position();
-            const snapshot = transaction.log.at(position);
+            const head = await transaction.log.position();
+            const snapshot = transaction.log.at(head);
 
             return [
-                position,
+                head,
                 await snapshot.rows(item, Condition.eq("scope", "inbox")),
                 await snapshot.row(item, { id: "i2" }),
             ] as const;
@@ -177,16 +178,15 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "read tables under an overlay live and at every earlier position on %s",
     async (dialect) => {
-        const test = await TestDatabase.create(dialect, [item], { isMigrated: true });
-        onTestFinished(() => test.close());
-        const database = test.database;
+        const storage = await TestDatabase.create(dialect, [item], { isMigrated: true });
+        onTestFinished(() => storage.close());
+        const database = storage.database;
         const seed = { value: 7 };
         const where = Condition.all(Condition.eq("scope", "inbox"), Condition.gte("rank", 2));
         const order = [{ column: "rank", direction: "desc" as const }];
-        type Item = { id: string; scope: string; rank: number; label: string | null };
 
         // put rows over some keys and remove others
-        const overlay = new Map<string, Item | null>();
+        const overlay = new Map<string, Select<typeof item> | null>();
         for (let index = 0; index < 12; index += 1) {
             const draw = random(seed);
             if (draw < 0.25) {
@@ -200,7 +200,8 @@ test.for(TEST_DIALECTS)(
             new Map([...overlay].map(([id, row]) => [Key.name(item, { id }), row]));
 
         // write at random and capture the rows at each position
-        const captured: { readonly position: LogPosition; readonly rows: Item[] }[] = [];
+        const captured: { readonly position: LogPosition; readonly rows: Select<typeof item>[] }[] =
+            [];
         for (let index = 0; index < WRITES; index += 1) {
             const id = `i${Math.floor(random(seed) * 12)}`;
             const values = {
@@ -219,12 +220,12 @@ test.for(TEST_DIALECTS)(
             }
             captured.push({
                 position: await database.log.position(),
-                rows: (await database.select().from(item)) as Item[],
+                rows: await database.select().from(item),
             });
         }
 
         // read each position's snapshot and the live one under the overlay
-        const live = { position: undefined, rows: captured.at(-1)!.rows };
+        const live = { position: undefined, rows: await database.select().from(item) };
         for (const { position, rows } of [...captured, live]) {
             const snapshot = (
                 position === undefined ? Snapshot.live(database) : database.log.at(position)
@@ -232,13 +233,9 @@ test.for(TEST_DIALECTS)(
             const kept = rows.filter((row) => !overlay.has(row.id));
             const shown = [...kept, ...[...overlay.values()].filter((row) => row !== null)];
             const matching = shown.filter((row) => row.scope === "inbox" && row.rank >= 2);
-            const sorted = [...matching].sort((left, right) =>
+            const sorted = matching.toSorted((left, right) =>
                 Order.rows(Order.complete(order, item), left, right),
             );
-            const byKey = (list: readonly unknown[]) =>
-                [...(list as { id: string }[])].sort((left, right) =>
-                    left.id < right.id ? -1 : 1,
-                );
             expect([
                 position?.sequence,
                 byKey(await snapshot.rows(item, where)),

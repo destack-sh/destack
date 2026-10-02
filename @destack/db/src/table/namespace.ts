@@ -6,11 +6,23 @@ const MAX_IDENTIFIER_LENGTH = 63;
 /** The hexadecimal digits of the hash suffix: 32 bits, so two shortened names collide once in four billion. */
 const HASH_LENGTH = 8;
 
+/** The 32-bit FNV-1a offset basis. */
+const FNV_OFFSET = 0x81_1c_9d_c5;
+
+/** The 32-bit FNV prime. */
+const FNV_PRIME = 0x01_00_01_93;
+
+/** The encoder of names' UTF-8 bytes. */
+const UTF8 = new TextEncoder();
+
 /** Derive a package's SQL namespace. */
 export function namespaceOf(owner: Package): string {
     const [account, name] = owner.name.slice(1).split("/");
+    if (account === undefined || name === undefined) {
+        throw new TypeError(`package name is not scoped: ${owner.name}`);
+    }
 
-    return `${account}__${name}`.replace(/[^a-z0-9_]/g, "_");
+    return `${account}__${name}`.replace(/[^a-z0-9_]/gu, "_");
 }
 
 /** Qualify a SQL identifier with its package namespace. */
@@ -26,11 +38,6 @@ export function qualify(owner: Package, name: string): string {
     return qualified;
 }
 
-/** Qualify an optional index or key name. */
-export function constraintName<Name extends string | undefined>(owner: Package, name: Name): Name {
-    return (name === undefined ? name : qualify(owner, name)) as Name;
-}
-
 /** Fit a derived SQL name and a reserved suffix within the identifier limit, ending in a hash. */
 export function boundedName(name: string, reserved = 0): string {
     // keep names that fit
@@ -44,9 +51,9 @@ export function boundedName(name: string, reserved = 0): string {
 
 /** Hash text into a name suffix with 32-bit FNV-1a. */
 export function hashName(text: string): string {
-    let hash = 0x811c9dc5;
-    for (const byte of new TextEncoder().encode(text)) {
-        hash = Math.imul(hash ^ byte, 0x01000193) >>> 0;
+    let hash = FNV_OFFSET;
+    for (const byte of UTF8.encode(text)) {
+        hash = Math.imul(hash ^ byte, FNV_PRIME) >>> 0;
     }
 
     return hash.toString(16).padStart(HASH_LENGTH, "0");

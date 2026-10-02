@@ -4,13 +4,13 @@ import { boolean, defineTable, integer, text } from "../../index.ts";
 const listColumns = {
     /** The list's identifier. */
     id: text("id").primaryKey(),
-    /** How many items the list holds. */
+    /** How many items the list has. */
     items: integer("items").notNull().default(0),
     /** How many of its items are done. */
     done: integer("done").notNull().default(0),
     /** The sum of its items' points. */
     points: integer("points").notNull().default(0),
-    /** The most points one of its items holds. */
+    /** The most points one of its items has. */
     largest: integer("largest"),
 };
 
@@ -21,7 +21,7 @@ export const list = defineTable("aggregate_list", listColumns);
 const itemColumns = {
     /** The item's identifier. */
     id: text("id").primaryKey(),
-    /** The list holding the item. */
+    /** The list with the item. */
     listId: text("list_id").notNull(),
     /** The item's points. */
     points: integer("points").notNull(),
@@ -51,7 +51,7 @@ export const plainItem = defineTable("aggregate_item", itemColumns);
 /** The tables of the aggregate example. */
 export const lists = [item, list];
 
-/** Archives counting the done items of their list, declared from the holding side. */
+/** Archives counting the done items of their list, declared from the target side. */
 export const archive = defineTable(
     "aggregate_archive",
     {

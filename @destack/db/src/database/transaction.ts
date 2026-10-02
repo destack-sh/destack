@@ -9,7 +9,7 @@ export class TransactionState {
     /** The failed queries. */
     readonly #failures: unknown[] = [];
     /** The caller's cancellation signal. */
-    readonly signal?: AbortSignal;
+    readonly signal: AbortSignal | undefined;
 
     /** Create the state. */
     constructor(signal?: AbortSignal) {
@@ -34,6 +34,9 @@ export class TransactionState {
                 throw new AggregateError(
                     [error, ...unreported],
                     "transaction callback and queries failed",
+                    {
+                        cause: error,
+                    },
                 );
             }
             throw error;

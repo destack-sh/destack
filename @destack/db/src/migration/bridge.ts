@@ -14,7 +14,7 @@ export interface Bridge {
 
 /** Create the triggers copying writes between bridged columns. */
 function install(table: string, bridge: Bridge, dialect: Dialect): string[] {
-    // name the triggers by a digest
+    // derive the trigger names from a digest
     const name = bridgeName(table, bridge);
     const target = quote(table);
     const from = quote(bridge.from);
@@ -81,7 +81,7 @@ function remove(table: string, bridge: Bridge, dialect: Dialect): string[] {
     }
 }
 
-/** Name a bridge's triggers by a digest. */
+/** Derive a bridge's trigger name from a digest. */
 function bridgeName(table: string, bridge: Bridge): string {
     return `destack_bridge_${hashName(`${table}\0${bridge.from}\0${bridge.to}`)}`;
 }

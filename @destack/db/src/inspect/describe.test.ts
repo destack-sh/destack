@@ -1,5 +1,5 @@
+import { sql } from "../sql/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { sql } from "drizzle-orm";
 import { defineTable, TABLE } from "../table/table.ts";
 import { json, text } from "../table/column.ts";
 import { schema } from "@destack/schema";

@@ -1,39 +1,31 @@
-import { type SQL, sql } from "drizzle-orm";
+import { quote } from "../dialect/quote.ts";
+import type { Session } from "../database/session.ts";
 import { v7 } from "uuid";
 import type { ConnectionState } from "../database/connection.ts";
 import { LOG_TRANSACTION } from "./schema.ts";
 
-/** A native SQLite transaction. */
-interface SQLiteTransaction {
-    /** Execute one statement. */
-    run(statement: SQL): Promise<unknown>;
-    /** Read rows. */
-    all<Row>(statement: SQL): Promise<Row[]>;
-}
-
 /** Identify a SQLite transaction to the change triggers. */
 export async function openTransaction(
-    transaction: SQLiteTransaction,
+    session: Session,
     connection: ConnectionState,
 ): Promise<boolean> {
     // look for the log until a migration created it
     if (!connection.isLogged) {
-        const [found] = await transaction.all<{ name: string }>(
-            sql`SELECT name FROM sqlite_schema WHERE type = 'table' AND name = ${LOG_TRANSACTION}`,
+        const found = await session.values(
+            "SELECT name FROM sqlite_schema WHERE type = 'table' AND name = ?",
+            [LOG_TRANSACTION],
         );
-        if (!found) {
+        if (found.length === 0) {
             return false;
         }
         connection.isLogged = true;
     }
-    await transaction.run(
-        sql`INSERT INTO ${sql.identifier(LOG_TRANSACTION)} (slot, id) VALUES (1, ${v7()})`,
-    );
+    await session.run(`INSERT INTO ${quote(LOG_TRANSACTION)} (slot, id) VALUES (1, ?)`, [v7()]);
 
     return true;
 }
 
 /** Clear the transaction identity before commit. */
-export async function closeTransaction(transaction: SQLiteTransaction): Promise<void> {
-    await transaction.run(sql`DELETE FROM ${sql.identifier(LOG_TRANSACTION)} WHERE slot = 1`);
+export async function closeTransaction(session: Session): Promise<void> {
+    await session.run(`DELETE FROM ${quote(LOG_TRANSACTION)} WHERE slot = 1`, []);
 }

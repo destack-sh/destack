@@ -3,12 +3,12 @@ import { TEST_DIALECTS, TestDatabase } from "../../test/database.ts";
 import { asc, eq } from "../../index.ts";
 import { archive, item, list, lists, plainItem } from "./fixture.ts";
 
-/** Open a migrated database holding lists and their items. */
+/** Open a migrated database with lists and their items. */
 async function open(dialect: (typeof TEST_DIALECTS)[number]) {
-    const test = await TestDatabase.create(dialect, lists, { isMigrated: true });
-    onTestFinished(() => test.close());
+    const storage = await TestDatabase.create(dialect, lists, { isMigrated: true });
+    onTestFinished(() => storage.close());
 
-    return test.database;
+    return storage.database;
 }
 
 test.for(TEST_DIALECTS)(
@@ -74,17 +74,17 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "compute declared aggregates afresh over the rows present on %s",
     async (dialect) => {
-        // hold items before any aggregate
-        const test = await TestDatabase.create(dialect, [plainItem, list], { isMigrated: true });
-        onTestFinished(() => test.close());
-        await test.database.insert(list).values([{ id: "a" }]);
-        await test.database.insert(plainItem).values([
+        // insert items before any aggregate
+        const storage = await TestDatabase.create(dialect, [plainItem, list], { isMigrated: true });
+        onTestFinished(() => storage.close());
+        await storage.database.insert(list).values([{ id: "a" }]);
+        await storage.database.insert(plainItem).values([
             { id: "1", listId: "a", points: 3, isDone: true },
             { id: "2", listId: "a", points: 5, isDone: false },
         ]);
 
         // compute each declared aggregate, then keep it current
-        const database = await test.connect(lists);
+        const database = await storage.connect(lists);
         onTestFinished(() => database.close());
         await database.migrate(lists);
         const read = async () =>
@@ -101,11 +101,13 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "keep an aggregate the holding table declares over another table's rows on %s",
+    "keep an aggregate the target table declares over another table's rows on %s",
     async (dialect) => {
-        const test = await TestDatabase.create(dialect, [plainItem, archive], { isMigrated: true });
-        onTestFinished(() => test.close());
-        const { database } = test;
+        const storage = await TestDatabase.create(dialect, [plainItem, archive], {
+            isMigrated: true,
+        });
+        onTestFinished(() => storage.close());
+        const { database } = storage;
         const read = async () =>
             (await database.select().from(archive).orderBy(asc(archive.id))).map((row) => [
                 row.id,

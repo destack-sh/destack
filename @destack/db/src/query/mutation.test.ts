@@ -1,28 +1,24 @@
+import { eq, gt } from "../sql/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
 import { defineTable } from "../table/table.ts";
-import { integer, text } from "../table/column.ts";
-import { primaryKey } from "../table/constraint.ts";
-import { eq, gt } from "./predicate.ts";
+import { integer, json, text } from "../table/column.ts";
+import { schema } from "@destack/schema";
 
 /** Counters by owner and name. */
-const counter = defineTable(
-    "mutation_counter",
-    {
-        /** The owning principal. */
-        owner: text("owner").notNull(),
-        /** The counter's name within its owner. */
-        name: text("name").notNull(),
-        /** The counted value. */
-        value: integer("value").notNull(),
-    },
-    { constraints: (entry) => [primaryKey({ columns: [entry.owner, entry.name] })] },
-);
+const counter = defineTable("mutation_counter", {
+    /** The owning principal. */
+    owner: text("owner").primaryKey(),
+    /** The counter's name within its owner. */
+    name: text("name").primaryKey(),
+    /** The counted value. */
+    value: integer("value").notNull(),
+});
 
 test.for(TEST_DIALECTS)("return exactly the rows each mutation changed on %s", async (dialect) => {
-    const test = await TestDatabase.create(dialect, [counter], { isMigrated: true });
-    onTestFinished(() => test.close());
-    const database = test.database;
+    const storage = await TestDatabase.create(dialect, [counter], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
 
     // return inserted rows in insertion order
     expect(
@@ -111,6 +107,36 @@ test.for(TEST_DIALECTS)(
             [{ id: "a", color: "red" }],
             [{ id: "b", color: "blue" }],
             [{ id: "c", color: "grey" }],
+        ]);
+    },
+);
+
+/** Retentions with a JSON default that is a plain string. */
+const retention = defineTable("mutation_retention", {
+    /** The retention's key. */
+    id: text("id").primaryKey(),
+    /** What the retention keeps. */
+    keep: json(
+        "keep",
+        schema.union([schema.literal("forever"), schema.object({ days: schema.number() })]),
+    )
+        .notNull()
+        .default("forever"),
+});
+
+test.for(TEST_DIALECTS)(
+    "take a JSON default that is a plain string, encoded as JSON, on %s",
+    async (dialect) => {
+        const storage = await TestDatabase.create(dialect, [retention], { isMigrated: true });
+        onTestFinished(() => storage.close());
+
+        // insert one retention with a window and one taking the default
+        await storage.database
+            .insert(retention)
+            .values([{ id: "a", keep: { days: 1 } }, { id: "b" }]);
+        expect(await storage.database.select().from(retention).orderBy(retention.id)).toEqual([
+            { id: "a", keep: { days: 1 } },
+            { id: "b", keep: "forever" },
         ]);
     },
 );

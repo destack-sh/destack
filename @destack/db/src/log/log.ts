@@ -1,19 +1,18 @@
-import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
-import { dialectSQL } from "../dialect/expression.ts";
+import { dialectSQL, sql, type SQL, type SQLWrapper } from "../sql/index.ts";
 import { Statement } from "../query/statement.ts";
 import { v7 } from "uuid";
 import type { DatabaseConnection } from "../database/connection.ts";
-import { TABLE, type Select, type Table } from "../table/table.ts";
+import { TABLE, type Select, Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever, DatabaseError } from "../error/error.ts";
 import { LOG_EPOCH, LOG_SLOT, LOG_HORIZON, LOG_REPLICA, LOG, LOG_TRANSACTION } from "./schema.ts";
 import { createLog } from "./trigger.ts";
-import { latestOf, selectHead, type LogPosition } from "./position.ts";
+import { latestOf, LogInteger, selectHead, type LogPosition } from "./position.ts";
 import { Snapshot, type Rewind } from "./snapshot.ts";
 import type { Row } from "../table/row.ts";
-import type { Column } from "../table/column.ts";
+import type { ColumnValue } from "../table/column.ts";
 import { Key } from "../query/key.ts";
-import { Digest, toJsonSchema } from "@destack/schema";
+import { Digest, schema, toJsonSchema, type JsonValue } from "@destack/schema";
 
 /**
  * The default page size of a log read, in changes.
@@ -22,8 +21,8 @@ import { Digest, toJsonSchema } from "@destack/schema";
  */
 const PAGE_LIMIT = 1000;
 
-/** A logged row, without binary and sensitive columns. */
-export type ChangeRow<Definition extends Table> = Definition extends Table
+/** A row as a change carries it, without binary and sensitive columns. */
+export type Image<Definition extends Table> = Definition extends Table
     ? {
           [
               Property in keyof Select<Definition> as Select<Definition>[Property] extends Uint8Array | null
@@ -42,13 +41,13 @@ export interface Change<Definition extends Table = Table> {
     /** The changed table. */
     readonly table: Definition;
     /** The primary key of the changed row. */
-    readonly key: Partial<Select<Definition>>;
+    readonly key: Key<Definition>;
     /** Whether the row was inserted, updated or deleted. */
     readonly operation: "insert" | "update" | "delete";
     /** The row before an update or deletion. */
-    readonly before?: ChangeRow<Definition>;
+    readonly before?: Image<Definition>;
     /** The row after an insertion or update. */
-    readonly after?: ChangeRow<Definition>;
+    readonly after?: Image<Definition>;
     /** The scope the changed row lives in. */
     readonly scope: string;
     /** The change time, in UTC epoch milliseconds. */
@@ -87,31 +86,51 @@ export interface ChangeSelection<Definition extends Table> {
     readonly scopes?: readonly string[];
 }
 
-/** A raw log entry. */
-interface ChangeEntry extends Record<string, unknown> {
-    /** The newest logged sequence. */
-    logged: number | string | null;
-    /** The highest compacted sequence. */
-    horizon: number | string | null;
-    /** The entry's sequence. */
-    sequence: number | string | null;
-    /** The committing transaction. */
-    transaction: string | null;
-    /** The changed table's SQL name. */
-    table: string | null;
-    /** The encoded primary key. */
-    key: string | unknown[] | null;
-    /** Insert, update or delete. */
-    operation: "insert" | "update" | "delete" | null;
-    /** The encoded row. */
-    row: string | Record<string, unknown> | null;
-    /** The values an update changed, before it. */
-    previous: string | Record<string, unknown> | null;
-    /** The changed row's scope. */
-    scope: string | null;
-    /** The change time. */
-    changed_at: number | string | null;
+/** A JSON column of the log, as SQLite's text or PostgreSQL's parsed value. */
+function logJson<Value>(inner: schema.Schema<Value>): schema.Schema<Value> {
+    return schema.union([
+        schema
+            .string()
+            .transform((text): unknown => JSON.parse(text))
+            .pipe(inner),
+        inner,
+    ]);
 }
+
+/** One committed change as the log keeps it. */
+const LogEntry = schema.looseObject({
+    /** The entry's sequence. */
+    sequence: LogInteger,
+    /** The committing transaction. */
+    transaction: schema.string().nullable(),
+    /** The changed table's SQL name. */
+    table: schema.string(),
+    /** The encoded primary key, in key order. */
+    key: logJson(schema.array(schema.json())),
+    /** Insert, update or delete. */
+    operation: schema.enum(["insert", "update", "delete"]),
+    /** The encoded row by column name. */
+    row: logJson(schema.record(schema.string(), schema.json())),
+    /** The values an update changed, before it, by column name. */
+    previous: logJson(schema.record(schema.string(), schema.json())).nullable(),
+    /** The changed row's scope. */
+    scope: schema.string(),
+    /** The change time. */
+    changed_at: LogInteger,
+});
+/** One committed change as the log keeps it. */
+type LogEntry = schema.Output<typeof LogEntry>;
+
+/** The newest and the highest compacted sequence beside a page of entries. */
+const LogBounds = schema.looseObject({
+    /** The newest logged sequence. */
+    logged: LogInteger.nullable(),
+    /** The highest compacted sequence, zero before any compaction. */
+    horizon: LogInteger,
+});
+
+/** The latest sequence of some entries, null over none. */
+const Latest = schema.looseObject({ sequence: LogInteger.nullable() });
 
 /** The hexadecimal digits of a shape digest: 128 bits, whose collisions are negligible among any database's tables. */
 const SHAPE_LENGTH = 32;
@@ -131,7 +150,9 @@ export class Log {
 
     /** Create the log once, with the scope of the rows in tables without a scope column, such as a resource's space. */
     async create(scope?: string): Promise<void> {
-        await this.database.executeScript(createLog(this.database.dialect, scope).join(";\n"));
+        await this.database.executeScript(
+            createLog(this.database.dialect, v7(), scope).join(";\n"),
+        );
     }
 
     /** Digest the shape tables' changes carry: each one's logged columns with their kinds and values. */
@@ -248,13 +269,10 @@ export class Log {
 
     /** Read the position of the latest commit. */
     async position(): Promise<LogPosition> {
-        const [position] = await this.database.execute<{
-            epoch: string;
-            logged: number | string | null;
-            horizon: number | string | null;
-        }>(selectHead(this.database.dialect));
+        const [row] = await this.database.execute(selectHead(this.database.dialect));
+        const head = LogBounds.extend({ epoch: schema.string() }).parse(row);
 
-        return { epoch: position!.epoch, sequence: latestOf(position!.logged, position!.horizon) };
+        return { epoch: head.epoch, sequence: latestOf(head.logged, head.horizon) };
     }
 
     /**
@@ -270,30 +288,32 @@ export class Log {
         }
 
         // reach past the open SQLite transaction's entries
-        const [own] = await this.database.execute<{ sequence: number | string | null }>(sql`
+        const [row] = await this.database.execute(sql`
             SELECT max(sequence) AS sequence FROM ${sql.identifier(LOG)}
             WHERE "transaction" = (SELECT id FROM ${sql.identifier(LOG_TRANSACTION)} WHERE slot = 1)
         `);
-        const sequence = own?.sequence === null || own === undefined ? 0 : Number(own.sequence);
+        const { sequence } = Latest.parse(row);
 
-        return { epoch: committed.epoch, sequence: Math.max(committed.sequence, sequence) };
+        return sequence === null
+            ? committed
+            : { epoch: committed.epoch, sequence: Math.max(committed.sequence, sequence) };
     }
 
-    /** Name the open transaction's log identifier as an SQL expression. */
+    /** Read the open transaction's log identifier as an SQL expression. */
     stamp(): SQL {
         // require an open transaction
         if (!this.database.driver.transaction) {
             throw new TypeError("read the transaction identity inside a transaction");
         }
 
-        // name the SQLite transaction stamp
+        // read the SQLite transaction stamp
         const dialect = this.database.dialect;
         if (dialect === "sqlite") {
             return this.database.state.isLogged
                 ? sql`(SELECT id FROM ${sql.identifier(LOG_TRANSACTION)} WHERE slot = 1)`
                 : sql`NULL`;
         }
-        // name PostgreSQL's transaction identifier
+        // read PostgreSQL's transaction identifier
         else if (dialect === "postgresql") {
             return sql`pg_current_xact_id_if_assigned()::TEXT`;
         }
@@ -319,11 +339,11 @@ export class Log {
 
     /** Read the log's epoch. */
     async epoch(): Promise<string> {
-        const [row] = await this.database.execute<{ epoch: string }>(
+        const [row] = await this.database.execute(
             sql`SELECT epoch FROM ${sql.identifier(LOG_EPOCH)} WHERE slot = 1`,
         );
 
-        return row!.epoch;
+        return schema.looseObject({ epoch: schema.string() }).parse(row).epoch;
     }
 
     /** Start a new epoch after a restore. */
@@ -346,8 +366,8 @@ export class Log {
         const rows = await this.#entries(selection, tables, selection.after, { limit });
 
         // require a retained sequence
-        const bounds = rows[0]!;
-        const horizon = bounds.horizon === null ? 0 : Number(bounds.horizon);
+        const bounds = LogBounds.parse(rows[0]);
+        const horizon = bounds.horizon;
         const isCompacted = selection.tables.some((table) => table[TABLE].retention === "window");
         if (isCompacted && selection.after < horizon) {
             throw new DatabaseError(
@@ -357,24 +377,24 @@ export class Log {
         }
 
         // complete the last transaction of a full page
-        let entries = rows.filter((entry) => entry.sequence !== null);
+        let entries = presentEntries(rows);
         const last = entries.at(-1);
         if (entries.length === limit && last !== undefined && last.transaction !== null) {
-            const rest = await this.#entries(selection, tables, Number(last.sequence), {
+            const rest = await this.#entries(selection, tables, last.sequence, {
                 transaction: last.transaction,
             });
-            entries = [...entries, ...rest.filter((entry) => entry.sequence !== null)];
+            entries = [...entries, ...presentEntries(rest)];
         }
 
         // decode each entry
         const dialect = this.database.dialect;
         const changes = entries.map((entry) => ({
-            sequence: Number(entry.sequence),
-            ...decodeChange(entry, tables.get(entry.table!)!, dialect),
+            sequence: entry.sequence,
+            ...decodeChange(entry, tableOf(tables, entry.table), dialect),
         }));
 
         // skip other tables' changes unless the page is full
-        const end = changes.length > 0 ? changes.at(-1)!.sequence : selection.after;
+        const end = changes.at(-1)?.sequence ?? selection.after;
         const sequence =
             changes.length >= limit ? end : Math.max(end, latestOf(bounds.logged, bounds.horizon));
 
@@ -383,11 +403,9 @@ export class Log {
 
     /** Read the open transaction's identity, absent outside a writing transaction. */
     async transaction(): Promise<string | undefined> {
-        const [current] = await this.database.execute<{ id: string | null }>(
-            sql`SELECT ${this.stamp()} AS id`,
-        );
+        const [row] = await this.database.execute(sql`SELECT ${this.stamp()} AS id`);
 
-        return current?.id ?? undefined;
+        return schema.looseObject({ id: schema.string().nullable() }).parse(row).id ?? undefined;
     }
 
     /** Read the open transaction's changes before commit. */
@@ -413,15 +431,17 @@ export class Log {
             this.database.dialect === "postgresql"
                 ? sql`sequence IS NULL ORDER BY id`
                 : sql`true ORDER BY sequence`;
-        const entries = await this.database.execute<ChangeEntry>(sql`
+        const rows = await this.database.execute(sql`
             SELECT sequence, "transaction", "table", key, operation, "row", previous, scope, changed_at
             FROM ${sql.identifier(LOG)}
             WHERE "transaction" = ${transaction} AND "table" IN (${names}) AND ${written}
         `);
 
-        return entries.map((entry) =>
-            decodeChange(entry, byName.get(entry.table!)!, this.database.dialect),
-        );
+        return rows.map((row) => {
+            const entry = LogEntry.extend({ sequence: LogInteger.nullable() }).parse(row);
+
+            return decodeChange(entry, tableOf(byName, entry.table), this.database.dialect);
+        });
     }
 
     /** Wait until the log reaches a sequence, returning false once the signal aborts. */
@@ -469,11 +489,13 @@ export class Log {
 
     /** Read the position of a consumer's slot, absent without one. */
     async slot(slot: string): Promise<number | undefined> {
-        const [row] = await this.database.execute<{ sequence: number | string }>(
+        const [row] = await this.database.execute(
             sql`SELECT sequence FROM ${sql.identifier(LOG_SLOT)} WHERE name = ${slot}`,
         );
 
-        return row === undefined ? undefined : Number(row.sequence);
+        return row === undefined
+            ? undefined
+            : schema.looseObject({ sequence: LogInteger }).parse(row).sequence;
     }
 
     /** Drop a consumer's slot, keeping no more changes for it. */
@@ -488,44 +510,42 @@ export class Log {
         await this.database.transaction(async (transaction) => {
             // find the newest removable change
             const log = sql.identifier(LOG);
-            const [newest] = await transaction.execute<{ sequence: number | string | null }>(sql`
+            const [newestRow] = await transaction.execute(sql`
                 SELECT max(sequence) AS sequence
                 FROM ${log}
                 WHERE retention = 'window'
                     AND changed_at < ${before}
                     AND sequence IS NOT NULL
             `);
-            if (newest?.sequence === null || newest?.sequence === undefined) {
+            const newest = Latest.parse(newestRow).sequence;
+            if (newest === null) {
                 return;
             }
 
             // keep the changes slots keep
-            const [kept] = await transaction.execute<{
-                sequence: number | string | null;
-                horizon: number | string | null;
-            }>(sql`
+            const [keptRow] = await transaction.execute(sql`
                 SELECT
                     (SELECT min(sequence) FROM ${sql.identifier(LOG_SLOT)} WHERE expires_at > ${now}) AS sequence,
                     (SELECT sequence FROM ${sql.identifier(LOG_HORIZON)} WHERE slot = 1) AS horizon
             `);
-            const cap =
-                kept?.sequence === null || kept?.sequence === undefined
-                    ? Number(newest.sequence)
-                    : Math.min(Number(newest.sequence), Number(kept.sequence));
-            if (cap <= Number(kept?.horizon ?? 0)) {
+            const kept = Latest.extend({ horizon: LogInteger }).parse(keptRow);
+            const cap = kept.sequence === null ? newest : Math.min(newest, kept.sequence);
+            if (cap <= kept.horizon) {
                 return;
             }
 
             // stop before a split transaction
-            const [split] = await transaction.execute<{ first: number | string | null }>(sql`
+            const [splitRow] = await transaction.execute(sql`
                 SELECT min(earlier.sequence) AS first
                 FROM ${log} change
                 JOIN ${log} later ON later."transaction" = change."transaction" AND later.sequence > change.sequence
                 JOIN ${log} earlier ON earlier."transaction" = change."transaction"
                 WHERE change.sequence = ${cap}
             `);
-            const sequence =
-                split?.first === null || split?.first === undefined ? cap : Number(split.first) - 1;
+            const first = schema
+                .looseObject({ first: LogInteger.nullable() })
+                .parse(splitRow).first;
+            const sequence = first === null ? cap : first - 1;
 
             // remove the windowed changes of whole transactions
             await transaction.execute(sql`
@@ -533,18 +553,9 @@ export class Log {
                 WHERE retention = 'window'
                     AND sequence <= ${sequence}
             `);
-            const horizon = sql.identifier(LOG_HORIZON);
-            const dialect = transaction.dialect;
-            const highest =
-                dialect === "sqlite"
-                    ? sql`max(${horizon}.sequence, excluded.sequence)`
-                    : dialect === "postgresql"
-                      ? sql`GREATEST(${horizon}.sequence, excluded.sequence)`
-                      : assertNever(dialect);
             await transaction.execute(sql`
-                INSERT INTO ${horizon} (slot, sequence)
-                VALUES (1, ${sequence})
-                ON CONFLICT (slot) DO UPDATE SET sequence = ${highest}
+                UPDATE ${sql.identifier(LOG_HORIZON)} SET sequence = ${sequence}
+                WHERE slot = 1 AND sequence < ${sequence}
             `);
         });
     }
@@ -553,27 +564,35 @@ export class Log {
     async bounds(sequence: number): Promise<TransactionBounds> {
         // read the transaction's first and last change
         const log = sql.identifier(LOG);
-        const [bounds] = await this.database.execute<{
-            first: number | string | null;
-            last: number | string;
-            startedAt: number | string;
-            committedAt: number | string;
-        }>(sql`
+        const [row] = await this.database.execute(sql`
             SELECT min(sequence) AS first, max(sequence) AS last,
                 min(changed_at) AS "startedAt", max(changed_at) AS "committedAt"
             FROM ${log}
             WHERE sequence = ${sequence}
                 OR "transaction" = (SELECT "transaction" FROM ${log} WHERE sequence = ${sequence})
         `);
-        if (bounds === undefined || bounds.first === null) {
+        const bounds = schema
+            .looseObject({
+                first: LogInteger.nullable(),
+                last: LogInteger.nullable(),
+                startedAt: LogInteger.nullable(),
+                committedAt: LogInteger.nullable(),
+            })
+            .parse(row);
+        if (
+            bounds.first === null ||
+            bounds.last === null ||
+            bounds.startedAt === null ||
+            bounds.committedAt === null
+        ) {
             throw new DatabaseError("CHANGES_COMPACTED", `change ${sequence} is not in the log`);
         }
 
         return {
-            before: Number(bounds.first) - 1,
-            after: Number(bounds.last),
-            startedAt: Number(bounds.startedAt),
-            committedAt: Number(bounds.committedAt),
+            before: bounds.first - 1,
+            after: bounds.last,
+            startedAt: bounds.startedAt,
+            committedAt: bounds.committedAt,
         };
     }
 
@@ -583,7 +602,7 @@ export class Log {
         tables: ReadonlyMap<string, Table>,
         after: number,
         options: { readonly limit?: number; readonly transaction?: string },
-    ): Promise<ChangeEntry[]> {
+    ): Promise<Record<string, unknown>[]> {
         // read through the statement of the selection's shape
         const statement = entryRead(
             selection.scopes !== undefined,
@@ -596,7 +615,7 @@ export class Log {
             scopes: JSON.stringify(selection.scopes ?? []),
             limit: options.limit ?? null,
             transaction: options.transaction ?? null,
-        }) as Promise<ChangeEntry[]>;
+        });
     }
 }
 
@@ -611,13 +630,6 @@ function entryRead(isScoped: boolean, isRest: boolean): Statement {
     if (known !== undefined) {
         return known;
     }
-
-    // match a column against a JSON array
-    const listed = (column: SQL, array: SQLWrapper) =>
-        dialectSQL({
-            sqlite: sql`${column} IN (SELECT value FROM json_each(${array}))`,
-            postgresql: sql`${column} IN (SELECT jsonb_array_elements_text(${array}::jsonb))`,
-        });
 
     // select the bounds and entries
     const log = sql.identifier(LOG);
@@ -648,61 +660,118 @@ function entryRead(isScoped: boolean, isRest: boolean): Statement {
     return statement;
 }
 
-/** Decode a log entry. */
+/** Match a column against the values of a JSON array. */
+function listed(column: SQL, array: SQLWrapper): SQL {
+    return dialectSQL({
+        sqlite: sql`${column} IN (SELECT value FROM json_each(${array}))`,
+        postgresql: sql`${column} IN (SELECT jsonb_array_elements_text(${array}::jsonb))`,
+    });
+}
+
+/** Decode a log entry through its table's columns. */
 function decodeChange<Definition extends Table>(
-    entry: ChangeEntry,
+    entry: Pick<
+        LogEntry,
+        "transaction" | "table" | "key" | "operation" | "row" | "previous" | "scope" | "changed_at"
+    >,
     table: Definition,
     dialect: Dialect,
 ): Omit<Change<Definition>, "sequence"> {
-    // parse SQLite JSON text
-    const key = (typeof entry.key === "string" ? JSON.parse(entry.key) : entry.key) as unknown[];
-    const row = (typeof entry.row === "string" ? JSON.parse(entry.row) : entry.row) as Record<
-        string,
-        unknown
-    >;
-    const previous = (
-        typeof entry.previous === "string" ? JSON.parse(entry.previous) : entry.previous
-    ) as Record<string, unknown> | null;
-
-    // decode each value through its column
-    const { columns, entries, key: keyProperties, logged: recorded } = table[TABLE];
-    const decode = (column: Column, value: unknown) =>
-        value === null || value === undefined ? null : column.definition.decode(value, dialect);
-
-    // restore the row before an update
-    const logged: Record<string, unknown> = {};
-    const changed: Record<string, unknown> = {};
-    for (const [property, column] of entries) {
-        if (!Object.hasOwn(recorded, property)) {
-            continue;
-        }
-        const name = column.definition.name;
-        logged[property] = decode(column, row[name]);
-        if (previous !== null && Object.hasOwn(previous, name)) {
-            changed[property] = decode(column, previous[name]);
-        }
-    }
-    const decodedKey: Record<string, unknown> = {};
-    for (const [index, property] of keyProperties.entries()) {
-        decodedKey[property] = decode(columns[property]!, key[index]);
-    }
-
-    return {
+    // decode the key, and the row after the change and before an update
+    const key = decodeKey(table, entry.key, dialect);
+    const logged = decodeLogged(table, entry.row, dialect);
+    const common = {
         transaction: entry.transaction,
         table,
-        key: decodedKey as Partial<Select<Definition>>,
-        operation: entry.operation!,
-        ...(entry.operation === "insert"
-            ? { after: logged as ChangeRow<Definition> }
-            : entry.operation === "delete"
-              ? { before: logged as ChangeRow<Definition> }
-              : {
-                    before: { ...logged, ...changed } as ChangeRow<Definition>,
-                    after: logged as ChangeRow<Definition>,
-                }),
-        scope: entry.scope!,
-        changedAt: Number(entry.changed_at),
+        key,
+        scope: entry.scope,
+        changedAt: entry.changed_at,
     };
+
+    // keep the row after an insert, before a deletion, and both around an update
+    if (entry.operation === "insert") {
+        return { ...common, operation: "insert", after: logged };
+    } else if (entry.operation === "delete") {
+        return { ...common, operation: "delete", before: logged };
+    }
+    const before = decodeLogged(table, { ...entry.row, ...entry.previous }, dialect);
+
+    return { ...common, operation: "update", before, after: logged };
+}
+
+/** Decode a logged row's values by column name, whose signature types it by its table. */
+function decodeLogged<Definition extends Table>(
+    table: Definition,
+    row: Readonly<Record<string, JsonValue>>,
+    dialect: Dialect,
+): Image<Definition>;
+/** Decode a logged row's values by column name through its logged columns. */
+function decodeLogged(
+    table: Table,
+    row: Readonly<Record<string, JsonValue>>,
+    dialect: Dialect,
+): Record<string, ColumnValue> {
+    return Object.fromEntries(
+        Object.entries(table[TABLE].logged).map(([property, column]) => {
+            // read a column added after the change as null
+            const value = row[column.definition.name];
+
+            return [
+                property,
+                value === null || value === undefined
+                    ? null
+                    : column.definition.decode(value, dialect),
+            ];
+        }),
+    );
+}
+
+/** Decode a logged key's values in key order, whose signature types it by its table. */
+function decodeKey<Definition extends Table>(
+    table: Definition,
+    key: readonly JsonValue[],
+    dialect: Dialect,
+): Key<Definition>;
+/** Decode a logged key's values in key order through the key columns. */
+function decodeKey(
+    table: Table,
+    key: readonly JsonValue[],
+    dialect: Dialect,
+): Record<string, ColumnValue> {
+    return Object.fromEntries(
+        table[TABLE].key.map((property, index) => {
+            const value = key[index];
+            if (value === undefined) {
+                throw new DatabaseError(
+                    "INVALID_QUERY",
+                    `logged key of ${table[TABLE].name} lacks ${property}`,
+                );
+            }
+
+            return [property, table[TABLE].column(property).definition.decode(value, dialect)];
+        }),
+    );
+}
+
+/** Read the entries of a page, leaving out the bounds row of an empty page. */
+function presentEntries(rows: readonly Record<string, unknown>[]): LogEntry[] {
+    return rows.filter((row) => row["sequence"] !== null).map((row) => LogEntry.parse(row));
+}
+
+/** Find the table an entry changed, failing for a table the selection does not read. */
+function tableOf<Definition extends Table>(
+    tables: ReadonlyMap<string, Definition>,
+    name: string,
+): Definition {
+    const table = tables.get(name);
+    if (table === undefined) {
+        throw new DatabaseError(
+            "INVALID_QUERY",
+            `the log changed a table the read does not select: ${name}`,
+        );
+    }
+
+    return table;
 }
 
 /** Keep each row's image before its first change, null for an insert. */
@@ -711,7 +780,7 @@ function imagesOf(table: Table, changes: readonly Change[]): Map<string, Row | n
     for (const change of changes) {
         const key = Key.name(table, change.key);
         if (!images.has(key)) {
-            images.set(key, (change.before as Row | undefined) ?? null);
+            images.set(key, change.before ?? null);
         }
     }
 

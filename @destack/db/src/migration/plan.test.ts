@@ -13,7 +13,7 @@ import type { TablePlan } from "./plan.ts";
 import { Expression } from "../expression/expression.ts";
 import { PlanError } from "@destack/resource/error";
 
-/** Folders holding documents, as first released. */
+/** Folders with documents, as first released. */
 const folderOne = defineTable("folder", {
     id: text("id").primaryKey(),
     extra: text("extra"),
@@ -123,15 +123,20 @@ const taskUnfilled = defineTable("task", {
 
 /** Open an empty test database. */
 async function open(dialect: Dialect, tables: readonly Table[]) {
-    const test = await TestDatabase.create(dialect, tables);
-    onTestFinished(() => test.close());
+    const storage = await TestDatabase.create(dialect, tables);
+    onTestFinished(() => storage.close());
 
-    return test.database;
+    return storage.database;
 }
 
 /** Summarize a plan's steps. */
 function review(plan: TablePlan) {
     return plan.steps.map((step) => `${step.risk} ${step.action} ${step.target}: ${step.detail}`);
+}
+
+/** Declare one release of the main database over its tables. */
+function release(tables: readonly Table[]) {
+    return defineDatabase({ name: "main", tables });
 }
 
 test.for(TEST_DIALECTS)(
@@ -378,7 +383,7 @@ test.for(TEST_DIALECTS)(
             refused: [
                 {
                     target: `table/${table(preferenceOne)}`,
-                    detail: `rollback to 2026.9.0 cannot hold the table as ${NEXT_RELEASE.package.version} applied it`,
+                    detail: `rollback to 2026.9.0 cannot read the table as ${NEXT_RELEASE.package.version} applied it`,
                 },
             ],
             renamed: [
@@ -392,16 +397,22 @@ test.for(TEST_DIALECTS)(
 );
 
 test("refuse conversions keyed by anything but a release up to the declaring one", () => {
-    const refusal = (release: string) => {
+    const refusal = (version: string) => {
         try {
             defineTable(
                 "draft",
                 { id: text("id").primaryKey() },
-                { convert: { [release]: {} } },
+                { convert: { [version]: {} } },
                 NEXT_RELEASE,
             );
+
+            return undefined;
         } catch (error) {
-            return (error as Error).message;
+            if (!(error instanceof Error)) {
+                throw error;
+            }
+
+            return error.message;
         }
     };
 
@@ -551,7 +562,6 @@ test.for(TEST_DIALECTS)(
         await applyPlan(database, expand);
 
         // connect both releases
-        const release = (tables: readonly Table[]) => defineDatabase({ name: "main", tables });
         expect(await release([taskOne]).check(database)).toEqual([]);
         expect(await release([taskTwo]).check(database)).toEqual([]);
 
@@ -613,13 +623,14 @@ test.for(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "keep foreign keys to held tables and leave references elsewhere logical on %s",
+    "keep foreign keys to local tables and leave references elsewhere logical on %s",
     async (dialect) => {
         // describe documents with and without their folders in the same database
         const keys = (tables: readonly Table[]) =>
             declareState(tables, dialect)
-                .find((state) => state.table.name === document[TABLE].sqlName)!
-                .table.constraints.filter((constraint) => constraint.kind === "foreignKey")
+                .filter((state) => state.table.name === document[TABLE].sqlName)
+                .flatMap((state) => state.table.constraints)
+                .filter((constraint) => constraint.kind === "foreignKey")
                 .map((constraint) => [constraint.kind, constraint.columns, constraint.table]);
 
         // migrate a database with documents but without their folders
@@ -648,12 +659,11 @@ test.each(TEST_DIALECTS)(
             secret: text("secret").notNull().sensitive(),
         });
         const nullable = (isReplica: boolean) =>
-            declareState([credential], dialect, { isReplica })[0]!.table.columns.map((column) => [
-                column.name,
-                column.nullable,
-            ]);
+            declareState([credential], dialect, { isReplica }).flatMap((state) =>
+                state.table.columns.map((column) => [column.name, column.nullable]),
+            );
 
-        // keep the secret required where it is held, and optional in a replica
+        // keep the secret required where it is stored, and optional in a replica
         expect([nullable(false), nullable(true)]).toEqual([
             [
                 ["id", false],

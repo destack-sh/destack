@@ -14,9 +14,13 @@ test("migrate, write and read a Durable Object's SQLite storage, rolling back on
         conditions: ["workerd", "worker", "browser"],
         external: ["node:*", "cloudflare:*"],
     });
+    const [output] = compiled.outputFiles;
+    if (output === undefined) {
+        throw new Error("the scenario bundled into no file");
+    }
     const worker = new Miniflare({
         modules: true,
-        script: compiled.outputFiles[0]!.text,
+        script: output.text,
         compatibilityDate: "2026-07-30",
         compatibilityFlags: ["nodejs_compat"],
         durableObjects: { NOTES: { className: "Notes", useSQLite: true } },

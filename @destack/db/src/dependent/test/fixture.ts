@@ -35,7 +35,7 @@ export const section = defineTable(
     {
         /** The section's identifier. */
         id: text("id").primaryKey(),
-        /** The post holding the section. */
+        /** The post with the section. */
         postId: text("post_id")
             .notNull()
             .references(() => post.id, { onDelete: "cascade" }),

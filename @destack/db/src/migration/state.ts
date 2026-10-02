@@ -1,6 +1,5 @@
-import { canonicalize } from "@destack/schema/json";
-import { sql } from "drizzle-orm";
-import { defineSchema, schema, Version } from "@destack/schema";
+import { sql } from "../sql/index.ts";
+import { canonicalize, defineSchema, schema, Version } from "@destack/schema";
 import { Expression } from "../expression/expression.ts";
 import { Package } from "@destack/package";
 import { TABLE, type Table } from "../table/table.ts";
@@ -11,10 +10,10 @@ import { ChangeDescription } from "../inspect/log.ts";
 import { TreeDescription } from "../inspect/tree.ts";
 import { AggregateDescription } from "../inspect/aggregate.ts";
 import { DependentDescription } from "../inspect/dependent.ts";
-import { describeTable, inlineExpression } from "../inspect/describe.ts";
+import { describeTable } from "../inspect/describe.ts";
+import { dialectSQL, inline } from "../sql/index.ts";
 import { qualify } from "../table/namespace.ts";
-import { describeLog, primaryKey } from "../log/schema.ts";
-import { assertNever } from "../error/error.ts";
+import { describeLog, loggedKey } from "../log/schema.ts";
 import { expandTrees } from "../tree/tree.ts";
 import { literal, quote } from "../dialect/quote.ts";
 
@@ -29,22 +28,22 @@ export const TableState = defineSchema(
         /** The table's columns, keys, indexes and checks. */
         table: TableDescription,
         /** The columns the change triggers record, absent for unlogged tables. */
-        log: ChangeDescription.optional(),
+        log: ChangeDescription.exactOptional(),
         /** The ancestor index maintained over the table, absent without a tree. */
-        tree: TreeDescription.optional(),
-        /** The aggregates of this table's rows that other tables hold. */
-        aggregates: schema.array(AggregateDescription).optional(),
+        tree: TreeDescription.exactOptional(),
+        /** The aggregates of this table's rows that other tables keep. */
+        aggregates: schema.array(AggregateDescription).exactOptional(),
         /** The rows of other tables referencing this table's rows. */
-        dependents: schema.array(DependentDescription).optional(),
+        dependents: schema.array(DependentDescription).exactOptional(),
         /** The previous SQL names of the table and its columns. */
         moved: schema
             .object({
                 /** The table's previous SQL name. */
-                table: schema.string().min(1).optional(),
+                table: schema.string().min(1).exactOptional(),
                 /** The previous SQL column names by current name. */
                 columns: schema.record(schema.string(), schema.string()),
             })
-            .optional(),
+            .exactOptional(),
         /** The renamed columns kept equal to their previous columns. */
         bridges: schema
             .array(
@@ -55,11 +54,11 @@ export const TableState = defineSchema(
                     to: schema.string().min(1),
                 }),
             )
-            .optional(),
+            .exactOptional(),
         /** The SQL assignments by column converting rows of earlier releases, by the release introducing them. */
         conversions: schema
             .record(Version, schema.record(schema.string(), schema.string()))
-            .optional(),
+            .exactOptional(),
     }),
 );
 /** A managed table as declared or applied. */
@@ -82,7 +81,7 @@ export type DatabaseState = schema.Infer<typeof DatabaseState>;
 
 /** The options of a table declaration. */
 export interface DeclareOptions {
-    /** Whether the database holds a partial copy, without foreign keys and tree indexes. */
+    /** Whether the database keeps a partial copy, without foreign keys and tree indexes. */
     readonly isReplica?: boolean;
 }
 
@@ -97,7 +96,7 @@ export function unappliedTables(
         .filter((state) => {
             const current = recorded.get(state.table.name);
 
-            return current === undefined || !holdsState(current, state);
+            return current === undefined || !coversState(current, state);
         })
         .map((state) => state.table.name);
 }
@@ -107,8 +106,8 @@ export function logOf(state: TableState): string {
     return canonicalize({ retention: state.log?.retention, scope: state.log?.scope });
 }
 
-/** Report whether an applied state holds a declaration. */
-export function holdsState(applied: TableState, declared: TableState): boolean {
+/** Report whether an applied state covers a declaration. */
+export function coversState(applied: TableState, declared: TableState): boolean {
     // require the same or a newer release and the same log and tree
     if (
         Version.compare(applied.package.version, declared.package.version) < 0 ||
@@ -157,31 +156,31 @@ export function declareState(
     options: DeclareOptions = {},
 ): TableState[] {
     // attach each aggregate to its aggregated table
-    const aggregates = describeAggregates(tables, options.isReplica ?? false);
+    const isReplica = options.isReplica === true;
+    const aggregates = describeAggregates(tables, isReplica);
 
-    // keep foreign keys to tables this database holds and leave other references logical
-    const declared = options.isReplica ? tables : expandTrees(tables);
-    const held = new Set(options.isReplica ? [] : declared.map((table) => table[TABLE].sqlName));
+    // keep foreign keys to tables this database has and leave other references logical
+    const declared = isReplica ? tables : expandTrees(tables);
+    const local = new Set(isReplica ? [] : declared.map((table) => table[TABLE].sqlName));
 
     return declared.map((table) => {
         // describe the table with its log and tree
         const definition = table[TABLE];
         const log = describeLog(table);
-        const tree = options.isReplica ? undefined : definition.tree?.describe();
+        const tree = isReplica ? undefined : definition.tree?.describe();
         const moved = describeMoves(table);
         const conversions = describeConversions(table, dialect);
-        const dependents = options.isReplica ? [] : describeDependents(table, tables);
+        const dependents = isReplica ? [] : describeDependents(table, tables);
+        const aggregated = aggregates.get(definition.sqlName);
 
         return {
             package: definition.package,
-            table: options.isReplica
-                ? replicated(table, withinDatabase(describeTable(table, dialect), held))
-                : withinDatabase(describeTable(table, dialect), held),
+            table: isReplica
+                ? replicated(table, withinDatabase(describeTable(table, dialect), local))
+                : withinDatabase(describeTable(table, dialect), local),
             ...(log === undefined ? {} : { log }),
             ...(tree === undefined ? {} : { tree }),
-            ...(aggregates.has(definition.sqlName)
-                ? { aggregates: aggregates.get(definition.sqlName)! }
-                : {}),
+            ...(aggregated === undefined ? {} : { aggregates: aggregated }),
             ...(dependents.length === 0 ? {} : { dependents }),
             ...(moved === undefined ? {} : { moved }),
             ...(conversions === undefined ? {} : { conversions }),
@@ -191,7 +190,7 @@ export function declareState(
 
 /** Create the state table. */
 export function createState(): string {
-    return `CREATE TABLE IF NOT EXISTS "${STATE}" (
+    return `CREATE TABLE IF NOT EXISTS ${quote(STATE)} (
         "table" TEXT PRIMARY KEY,
         package_id TEXT NOT NULL,
         state TEXT NOT NULL,
@@ -201,19 +200,15 @@ export function createState(): string {
 
 /** Read the table names of a connected database. */
 export async function readTables(database: DatabaseConnection): Promise<string[]> {
-    const native = database.driver.native;
-    const rows =
-        native.dialect === "sqlite"
-            ? await database.execute<{ name: string }>(
-                  sql`SELECT name FROM sqlite_schema WHERE type = 'table'`,
-              )
-            : native.dialect === "postgresql"
-              ? await database.execute<{ name: string }>(
-                    sql`SELECT c.relname AS name FROM pg_depend d JOIN pg_class c ON c.oid = d.objid
-                        WHERE d.classid = 'pg_class'::regclass AND d.refclassid = 'pg_namespace'::regclass
-                            AND d.refobjid = current_schema()::regnamespace AND c.relkind IN ('r', 'p')`,
-                )
-              : assertNever(native);
+    const rows = await database.execute(
+        dialectSQL({
+            sqlite: sql`SELECT name FROM sqlite_schema WHERE type = 'table'`,
+            postgresql: sql`SELECT c.relname AS name FROM pg_depend d JOIN pg_class c ON c.oid = d.objid
+                WHERE d.classid = 'pg_class'::regclass AND d.refclassid = 'pg_namespace'::regclass
+                    AND d.refobjid = current_schema()::regnamespace AND c.relkind IN ('r', 'p')`,
+        }),
+        schema.object({ name: schema.string() }),
+    );
 
     return rows.map((row) => row.name);
 }
@@ -226,8 +221,9 @@ export async function readState(database: DatabaseConnection): Promise<TableStat
     }
 
     // decode each table in name order
-    const rows = await database.execute<{ state: string }>(
+    const rows = await database.execute(
         sql`SELECT state FROM ${sql.identifier(STATE)} ORDER BY "table"`,
+        schema.object({ state: schema.string() }),
     );
 
     return rows.map((row) => TableState.parse(JSON.parse(row.state)));
@@ -255,10 +251,9 @@ function describeMoves(table: Table): TableState["moved"] {
     // map each moved column to its previous name
     const definition = table[TABLE];
     const columns = Object.fromEntries(
-        Object.entries(definition.moved.columns ?? {}).map(([property, previous]) => [
-            definition.columns[property]!.definition.name,
-            previous,
-        ]),
+        Object.entries(definition.moved.columns ?? {}).flatMap(([property, previous]) =>
+            previous === undefined ? [] : [[definition.column(property).definition.name, previous]],
+        ),
     );
     if (definition.moved.table === undefined && Object.keys(columns).length === 0) {
         return undefined;
@@ -285,10 +280,13 @@ function describeConversions(table: Table, dialect: Dialect): TableState["conver
         releases.map(([release, conversion]) => [
             release,
             Object.fromEntries(
-                Object.entries(conversion).map(([property, expression]) => {
-                    // require the column's kind
-                    const column = definition.columns[property]!.definition;
-                    const kind = Expression.kind(expression!, table);
+                Object.entries(conversion).flatMap(([property, expression]) => {
+                    // skip an absent assignment, and require the column's kind
+                    if (expression === undefined) {
+                        return [];
+                    }
+                    const column = definition.column(property).definition;
+                    const kind = Expression.kind(expression, table);
                     const isSameKind =
                         kind === column.kind || (kind === "real" && column.kind === "integer");
                     if (!isSameKind) {
@@ -297,10 +295,7 @@ function describeConversions(table: Table, dialect: Dialect): TableState["conver
                         );
                     }
 
-                    return [
-                        column.name,
-                        inlineExpression(Expression.render(expression!, table), dialect),
-                    ];
+                    return [[column.name, inline(Expression.render(expression, table), dialect)]];
                 }),
             ),
         ]),
@@ -330,30 +325,35 @@ function describeAggregates(
             }
 
             // require a single-column key
-            const [id, ...rest] = primaryKey(holder);
+            const [id, ...rest] = loggedKey(holder);
             if (id === undefined || rest.length > 0) {
                 throw new TypeError(
                     `aggregate into ${holder[TABLE].name} needs a single-column key`,
                 );
             }
 
-            // name every column by SQL name
+            // refer to every column by its SQL name
             const entries = described.get(definition.sqlName) ?? [];
-            entries.push({
+            const target = {
                 table: holder[TABLE].sqlName,
-                column: sqlColumn(holder, aggregate.column, source),
+                column: holder[TABLE].column(aggregate.column).definition.name,
                 id: id.definition.name,
                 source: definition.sqlName,
-                key: sqlColumn(source, aggregate.key, source),
-                function: aggregate.function,
-                ...(aggregate.value === undefined
-                    ? {}
-                    : { value: sqlColumn(source, aggregate.value, source) }),
+                key: source[TABLE].column(aggregate.key).definition.name,
                 where: Object.entries(aggregate.where ?? {}).map(([name, value]) => ({
-                    column: sqlColumn(source, name, source),
+                    column: source[TABLE].column(name).definition.name,
                     value,
                 })),
-            });
+            };
+            entries.push(
+                aggregate.function === "count"
+                    ? { ...target, function: "count" }
+                    : {
+                          ...target,
+                          function: aggregate.function,
+                          value: source[TABLE].column(aggregate.value).definition.name,
+                      },
+            );
             described.set(definition.sqlName, entries);
         }
     }
@@ -373,7 +373,7 @@ function describeDependents(table: Table, tables: readonly Table[]): DependentDe
                 `dependents of ${definition.name} name undeclared table ${source[TABLE].name}`,
             );
         }
-        const [id, ...rest] = primaryKey(table);
+        const [id, ...rest] = loggedKey(table);
         if (id === undefined || rest.length > 0) {
             throw new TypeError(`dependents of ${definition.name} need a single-column key`);
         }
@@ -382,9 +382,9 @@ function describeDependents(table: Table, tables: readonly Table[]): DependentDe
             table: definition.sqlName,
             id: id.definition.name,
             source: source[TABLE].sqlName,
-            key: sqlColumn(source, dependent.key, source),
+            key: source[TABLE].column(dependent.key).definition.name,
             where: Object.entries(dependent.where ?? {}).map(([name, value]) => ({
-                column: sqlColumn(source, name, source),
+                column: source[TABLE].column(name).definition.name,
                 value,
             })),
             onDelete: dependent.onDelete,
@@ -406,22 +406,12 @@ function replicated(table: Table, described: TableDescription): TableDescription
     };
 }
 
-/** Keep only a table's foreign keys to held tables. */
-function withinDatabase(table: TableDescription, held: ReadonlySet<string>): TableDescription {
+/** Keep only a table's foreign keys to tables within the database. */
+function withinDatabase(table: TableDescription, local: ReadonlySet<string>): TableDescription {
     return {
         ...table,
         constraints: table.constraints.filter(
-            (constraint) => constraint.kind !== "foreignKey" || held.has(constraint.table),
+            (constraint) => constraint.kind !== "foreignKey" || local.has(constraint.table),
         ),
     };
-}
-
-/** Name a column of an aggregate by its SQL name. */
-function sqlColumn(table: Table, name: string, source: Table): string {
-    const column = table[TABLE].columns[name];
-    if (!column) {
-        throw new TypeError(`aggregate of ${source[TABLE].name} names no column ${name}`);
-    }
-
-    return column.definition.name;
 }

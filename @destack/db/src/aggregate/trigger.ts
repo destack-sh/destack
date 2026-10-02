@@ -1,14 +1,18 @@
+import { match } from "../sql/render.ts";
 import type { Triggers } from "../migration/trigger.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever } from "../error/error.ts";
-import { condition, quote } from "../dialect/quote.ts";
+import { quote } from "../dialect/quote.ts";
 import type { AggregateDescription } from "../inspect/aggregate.ts";
 import { LOG_REPLICA } from "../log/schema.ts";
 import { boundedName } from "../table/namespace.ts";
 
+/** The longest suffix an aggregate trigger name takes. */
+const SUFFIX = "_maintain";
+
 /** Generate the triggers keeping an aggregate current. */
 function install(aggregate: AggregateDescription, dialect: Dialect): string[] {
-    // name the triggers and skip replica copies
+    // build the trigger names and the replica guard
     const prefix = triggerPrefix(aggregate);
     const idle = `NOT EXISTS (SELECT 1 FROM ${quote(LOG_REPLICA)})`;
 
@@ -67,7 +71,7 @@ function remove(aggregate: AggregateDescription, dialect: Dialect): string[] {
     }
 }
 
-/** Compute an aggregate for every holding row. */
+/** Compute an aggregate for every target row. */
 export function recomputeAggregate(aggregate: AggregateDescription, dialect: Dialect): string {
     return `UPDATE ${quote(aggregate.table)} SET ${quote(aggregate.column)} = (${computed(aggregate, dialect)})`;
 }
@@ -80,9 +84,9 @@ function adjust(
     dialect: Dialect,
 ): string {
     // adjust only the referenced row
-    const holding = `${quote(aggregate.table)}.${quote(aggregate.id)} = ${row}.${quote(aggregate.key)}`;
+    const target = `${quote(aggregate.table)}.${quote(aggregate.id)} = ${row}.${quote(aggregate.key)}`;
     const matching = aggregate.where
-        .map((entry) => `${row}.${quote(entry.column)} ${condition(entry.value, dialect)}`)
+        .map((entry) => `${row}.${quote(entry.column)} ${match(entry.value, dialect)}`)
         .join(" AND ");
     const guard = matching === "" ? "" : ` AND ${matching}`;
     const column = quote(aggregate.column);
@@ -90,16 +94,16 @@ function adjust(
     // count by one and sum by the value's difference
     if (aggregate.function === "count" || aggregate.function === "sum") {
         const amount =
-            aggregate.function === "count" ? "1" : `coalesce(${row}.${quote(aggregate.value!)}, 0)`;
+            aggregate.function === "count" ? "1" : `coalesce(${row}.${quote(aggregate.value)}, 0)`;
 
-        return `UPDATE ${quote(aggregate.table)} SET ${column} = ${column} ${sign > 0 ? "+" : "-"} ${amount} WHERE ${holding}${guard};`;
+        return `UPDATE ${quote(aggregate.table)} SET ${column} = ${column} ${sign > 0 ? "+" : "-"} ${amount} WHERE ${target}${guard};`;
     }
 
     // recompute extremes
-    return `UPDATE ${quote(aggregate.table)} SET ${column} = (${computed(aggregate, dialect)}) WHERE ${holding};`;
+    return `UPDATE ${quote(aggregate.table)} SET ${column} = (${computed(aggregate, dialect)}) WHERE ${target};`;
 }
 
-/** Select an aggregate of the rows referencing a holding row. */
+/** Select an aggregate of the rows referencing a target row. */
 function computed(aggregate: AggregateDescription, dialect: Dialect): string {
     // aggregate the matching referencing rows
     const source = quote(aggregate.source);
@@ -107,17 +111,14 @@ function computed(aggregate: AggregateDescription, dialect: Dialect): string {
         aggregate.function === "count"
             ? "count(*)"
             : aggregate.function === "sum"
-              ? `coalesce(sum(${source}.${quote(aggregate.value!)}), 0)`
-              : `${aggregate.function}(${source}.${quote(aggregate.value!)})`;
+              ? `coalesce(sum(${source}.${quote(aggregate.value)}), 0)`
+              : `${aggregate.function}(${source}.${quote(aggregate.value)})`;
     const matching = aggregate.where.map(
-        (entry) => ` AND ${source}.${quote(entry.column)} ${condition(entry.value, dialect)}`,
+        (entry) => ` AND ${source}.${quote(entry.column)} ${match(entry.value, dialect)}`,
     );
 
     return `SELECT ${expression} FROM ${source} WHERE ${source}.${quote(aggregate.key)} = ${quote(aggregate.table)}.${quote(aggregate.id)}${matching.join("")}`;
 }
-
-/** The longest suffix an aggregate trigger name takes. */
-const SUFFIX = "_maintain";
 
 /** Build the names of an aggregate's triggers with room for their suffixes. */
 function triggerPrefix(aggregate: AggregateDescription): string {
@@ -131,7 +132,7 @@ function triggerPrefix(aggregate: AggregateDescription): string {
 function changed(aggregate: AggregateDescription, operator: "IS NOT" | "IS DISTINCT FROM"): string {
     return [
         aggregate.key,
-        ...(aggregate.value ? [aggregate.value] : []),
+        ...(aggregate.function === "count" ? [] : [aggregate.value]),
         ...aggregate.where.map((entry) => entry.column),
     ]
         .map((column) => `OLD.${quote(column)} ${operator} NEW.${quote(column)}`)

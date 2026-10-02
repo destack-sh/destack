@@ -45,5 +45,5 @@ test("declare, log and query tables on SQLite WebAssembly through a channel, as 
             throw new Error("undo");
         }),
     ).rejects.toThrow("undo");
-    expect((await database.select({ title: note.title }).from(note))[0]!.title).toBe("First");
+    expect(await database.select({ title: note.title }).from(note)).toEqual([{ title: "First" }]);
 });

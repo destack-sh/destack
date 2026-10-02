@@ -7,9 +7,9 @@ import { postgresLog } from "./postgres.ts";
 /** The log of each dialect. */
 const LOGS: Readonly<Record<Dialect, LogDialect>> = { sqlite: sqliteLog, postgresql: postgresLog };
 
-/** Create the log once per database, with the scope of the rows in tables without a scope column. */
-export function createLog(dialect: Dialect, scope?: string): readonly string[] {
-    return LOGS[dialect].create(scope);
+/** Create the log once per database at a first epoch, with the scope of the rows in tables without a scope column. */
+export function createLog(dialect: Dialect, epoch: string, scope?: string): readonly string[] {
+    return LOGS[dialect].create(epoch, scope);
 }
 
 /** The change triggers of a logged table. */

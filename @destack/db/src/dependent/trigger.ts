@@ -1,7 +1,8 @@
+import { match } from "../sql/render.ts";
 import type { Triggers } from "../migration/trigger.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever } from "../error/error.ts";
-import { condition, literal, quote } from "../dialect/quote.ts";
+import { literal, quote } from "../dialect/quote.ts";
 import type { DependentDescription } from "../inspect/dependent.ts";
 import { LOG_REPLICA } from "../log/schema.ts";
 import { boundedName } from "../table/namespace.ts";
@@ -11,14 +12,14 @@ const RESTRICTED = "FOREIGN KEY constraint failed";
 
 /** Generate the trigger cascading or refusing a row's deletion for its dependents. */
 function install(dependent: DependentDescription, dialect: Dialect): string[] {
-    // name the trigger and skip replica copies
-    const name = quote(boundedName(`${dependent.table}__${dependent.source}_${dependent.key}`));
+    // build the trigger name and the replica guard
+    const name = triggerName(dependent);
     const idle = `NOT EXISTS (SELECT 1 FROM ${quote(LOG_REPLICA)})`;
     const source = quote(dependent.source);
     const rows = `${source} WHERE ${[
         `${source}.${quote(dependent.key)} = OLD.${quote(dependent.id)}`,
         ...dependent.where.map(
-            (entry) => `${source}.${quote(entry.column)} ${condition(entry.value, dialect)}`,
+            (entry) => `${source}.${quote(entry.column)} ${match(entry.value, dialect)}`,
         ),
     ].join(" AND ")}`;
     const message = `${RESTRICTED}: ${dependent.source} references ${dependent.table}`;
@@ -61,7 +62,7 @@ function install(dependent: DependentDescription, dialect: Dialect): string[] {
 
 /** Remove a dependent's trigger. */
 function remove(dependent: DependentDescription, dialect: Dialect): string[] {
-    const name = quote(boundedName(`${dependent.table}__${dependent.source}_${dependent.key}`));
+    const name = triggerName(dependent);
 
     // drop the SQLite trigger
     if (dialect === "sqlite") {
@@ -75,6 +76,11 @@ function remove(dependent: DependentDescription, dialect: Dialect): string[] {
     else {
         return assertNever(dialect);
     }
+}
+
+/** Build a dependent's trigger name. */
+function triggerName(dependent: DependentDescription): string {
+    return quote(boundedName(`${dependent.table}__${dependent.source}_${dependent.key}`));
 }
 
 /** The triggers keeping dependents consistent. */

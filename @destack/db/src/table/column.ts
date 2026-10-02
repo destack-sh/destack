@@ -1,9 +1,8 @@
+import { SQL, type SQLWrapper } from "../sql/index.ts";
 import { assertNever } from "../error/error.ts";
-import { type SQL, sql, type SQLWrapper } from "drizzle-orm";
-import { defineSchema, Digest, schema } from "@destack/schema";
-import * as identifiers from "@destack/schema/identifier";
+import { defineSchema, Digest, schema, type Identifier, type JsonValue } from "@destack/schema";
+import * as identifiers from "@destack/schema";
 import type { Dialect } from "../dialect/dialect.ts";
-import type { JsonValue } from "@destack/schema/json";
 
 /** The logical value types of columns. */
 export const COLUMN_KINDS = [
@@ -18,20 +17,63 @@ export const COLUMN_KINDS = [
     "numeric",
 ] as const;
 
+/** What a foreign key does to referencing rows when their referenced row changes. */
+export const REFERENCE_ACTIONS = [
+    "cascade",
+    "restrict",
+    "no action",
+    "set null",
+    "set default",
+] as const;
+
+/** Driver text, such as SQLite's JSON. */
+const TEXT = schema.string();
+
+/** A SQLite boolean, stored as zero or one, read as a number or an exact integer. */
+const BIT = schema.union([
+    schema.literal(0),
+    schema.literal(1),
+    schema.literal(0n),
+    schema.literal(1n),
+]);
+
+/** A signed integer in its exact decimal JSON form. */
+const INTEGER_TEXT = schema.string().regex(/^-?\d+$(?![\s\S])/u);
+
+/** A logical value type of columns. */
+export type ColumnKind = (typeof COLUMN_KINDS)[number];
+
+/** A value a column keeps: JSON, bytes or an exact 64-bit integer. */
+export type ColumnValue = JsonValue | Uint8Array | bigint;
+
+/** A value drivers bind and return: text, numbers, booleans, exact integers, bytes or null. */
+export type DriverValue = string | number | bigint | boolean | Uint8Array | null;
+/** A value drivers bind and return: text, numbers, booleans, exact integers, bytes or null. */
+export const DriverValue: schema.Schema<DriverValue> = schema.union([
+    schema.string(),
+    schema.number(),
+    schema.bigint(),
+    schema.boolean(),
+    schema.instanceof(Uint8Array),
+    schema.null(),
+]);
+
 /** A logical SQL column. */
 export class Column<
-    Value = unknown,
+    Value extends ColumnValue = ColumnValue,
     Required extends boolean = boolean,
     Default extends boolean = boolean,
     TableName extends string = string,
     Generated extends boolean = boolean,
-> implements SQLWrapper<Value> {
+    Key extends boolean = boolean,
+> implements SQLWrapper {
     /** The inference types. */
     declare readonly _: {
         value: Value;
         required: Required;
         default: Default;
         generated: Generated;
+        key: Key;
     };
     /** The column declaration. */
     readonly definition: ColumnDefinition<Value>;
@@ -44,33 +86,24 @@ export class Column<
         this.definition = definition;
     }
 
-    /** Return the qualified column expression. */
-    getSQL(): SQL<Value> {
-        return sql<Value>`${sql.identifier(this.table)}.${sql.identifier(this.definition.name)}`;
+    /** Report whether a value is a column. */
+    static is(value: unknown): value is Column {
+        return value instanceof Column;
     }
 
-    /** Emit column references without parentheses. */
-    shouldOmitSQLParens(): boolean {
-        return true;
-    }
-
-    /** Keep parameters until a dialect encodes them. */
-    mapToDriverValue(value: Value): Value {
-        return value;
-    }
-
-    /** Require a dialect to decode a value. */
-    mapFromDriverValue(_value: unknown): Value {
-        throw new TypeError("bind the logical column to a database before decoding values");
+    /** Embed the column, qualified by its table. */
+    getSQL(): SQL {
+        return new SQL([this]);
     }
 }
 
 /** A column declaration before its table. */
 export class ColumnBuilder<
-    Value = unknown,
+    Value extends ColumnValue = ColumnValue,
     Required extends boolean = false,
     Default extends boolean = false,
     Generated extends boolean = false,
+    Key extends boolean = false,
 > {
     /** The inference types. */
     declare readonly _: {
@@ -78,6 +111,7 @@ export class ColumnBuilder<
         required: Required;
         default: Default;
         generated: Generated;
+        key: Key;
     };
     /** The column's type, validation, defaults and constraints. */
     readonly definition: ColumnDefinition<Value>;
@@ -88,79 +122,65 @@ export class ColumnBuilder<
     }
 
     /** Require a value on every persisted row. */
-    notNull(): ColumnBuilder<Value, true, Default, Generated> {
+    notNull(): ColumnBuilder<Value, true, Default, Generated, Key> {
         return new ColumnBuilder({ ...this.definition, nullable: false });
     }
 
     /** Supply a database default when an insert omits the column. */
-    default(value: Value | SQL): ColumnBuilder<Value, Required, true, Generated> {
+    default(value: Value | SQL): ColumnBuilder<Value, Required, true, Generated, Key> {
         return new ColumnBuilder({ ...this.definition, default: value });
     }
 
-    /** Supply an application default when an insert omits the column. */
-    /* oxlint-disable-next-line destack/prevent-abbreviations -- mirrors the Drizzle column builder method */
-    $defaultFn(value: () => Value | SQL): ColumnBuilder<Value, Required, true, Generated> {
-        return new ColumnBuilder({ ...this.definition, runtimeDefault: value });
-    }
-
-    /** Supply an application value when an update omits the column. */
-    /* oxlint-disable-next-line destack/prevent-abbreviations -- mirrors the Drizzle column builder method */
-    $onUpdateFn(value: () => Value | SQL): ColumnBuilder<Value, Required, true, Generated> {
-        return new ColumnBuilder({ ...this.definition, runtimeUpdate: value });
-    }
-
-    /** Declare the table's primary key. */
-    primaryKey(): ColumnBuilder<Value, true, Default, Generated> {
+    /** Make the column part of the table's primary key, in declaration order. */
+    primaryKey(): ColumnBuilder<Value, true, Default, Generated, true> {
         return new ColumnBuilder({ ...this.definition, nullable: false, primaryKey: true });
     }
 
     /** Keep the value out of logs, audit details, sync and request fingerprints. */
-    sensitive(): ColumnBuilder<Value, Required, Default, Generated> {
+    sensitive(): ColumnBuilder<Value, Required, Default, Generated, Key> {
         return new ColumnBuilder({ ...this.definition, classification: "sensitive" });
     }
 
     /** Mark the value as personal data, exported and erased with its subject. */
-    personal(): ColumnBuilder<Value, Required, Default, Generated> {
+    personal(): ColumnBuilder<Value, Required, Default, Generated, Key> {
         return new ColumnBuilder({ ...this.definition, classification: "personal" });
     }
 
     /** Require distinct non-null values. */
-    unique(name?: string): ColumnBuilder<Value, Required, Default, Generated> {
-        return new ColumnBuilder({ ...this.definition, unique: { name } });
+    unique(name?: string): ColumnBuilder<Value, Required, Default, Generated, Key> {
+        return new ColumnBuilder({
+            ...this.definition,
+            unique: name === undefined ? {} : { name },
+        });
     }
 
     /** Reference a column in another table. */
     references(
         column: () => Column<Value>,
         actions: ReferenceAction = {},
-    ): ColumnBuilder<Value, Required, Default, Generated> {
+    ): ColumnBuilder<Value, Required, Default, Generated, Key> {
         return new ColumnBuilder({ ...this.definition, reference: { column, ...actions } });
     }
 
     /** Validate values with a narrower schema. */
-    validate(validator: schema.Schema<Value>): ColumnBuilder<Value, Required, Default, Generated> {
-        const { encode, decode, toJson, fromJson } = this.definition;
+    validate(
+        validator: schema.Schema<Value>,
+    ): ColumnBuilder<Value, Required, Default, Generated, Key> {
+        const definition = this.definition;
 
         return new ColumnBuilder({
-            ...this.definition,
+            ...definition,
             schema: validator,
-            encode: (value, dialect) => encode(validator.parse(value), dialect),
-            decode,
-            toJson,
-            fromJson: (value) => validator.parse(fromJson(value)),
+            encode: (value, dialect) => definition.encode(validator.parse(value), dialect),
+            fromJson: (value) => validator.parse(definition.fromJson(value)),
         });
-    }
-
-    /** Refine the static value type. */
-    $type<Type extends Value>(): ColumnBuilder<Type, Required, Default, Generated> {
-        return new ColumnBuilder(this.definition as unknown as ColumnDefinition<Type>);
     }
 
     /** Compute a value in SQL. */
     generatedAlwaysAs(
         expression: SQL | (() => SQL),
         options: { readonly mode: "stored" | "virtual" } = { mode: "stored" },
-    ): ColumnBuilder<Value, Required, true, true> {
+    ): ColumnBuilder<Value, Required, true, true, Key> {
         return new ColumnBuilder({
             ...this.definition,
             generated: { expression, mode: options.mode },
@@ -169,11 +189,11 @@ export class ColumnBuilder<
 }
 
 /** A logical column's SQL representation and validation. */
-export interface ColumnDefinition<Value = unknown> {
+export interface ColumnDefinition<Value extends ColumnValue = ColumnValue> {
     /** The SQL column name. */
     readonly name: string;
     /** The logical value type. */
-    readonly kind: (typeof COLUMN_KINDS)[number];
+    readonly kind: ColumnKind;
     /** The SQL type per dialect. */
     readonly types: Readonly<Record<Dialect, string>>;
     /** The application value validator. */
@@ -184,16 +204,12 @@ export interface ColumnDefinition<Value = unknown> {
     readonly enumValues?: readonly string[];
     /** Whether the database permits NULL. */
     readonly nullable: boolean;
-    /** Whether this column is the primary key. */
+    /** Whether the column is part of the primary key. */
     readonly primaryKey?: boolean;
     /** The column's unique constraint. */
     readonly unique?: { readonly name?: string };
     /** The database default. */
     readonly default?: Value | SQL;
-    /** The default evaluated by an insert. */
-    readonly runtimeDefault?: () => Value | SQL;
-    /** The default evaluated by an update. */
-    readonly runtimeUpdate?: () => Value | SQL;
     /** The generated expression. */
     readonly generated?: {
         /** The SQL calculation. */
@@ -206,7 +222,7 @@ export interface ColumnDefinition<Value = unknown> {
     /** The protection: sensitive values stay in the row, personal values are exportable and erasable. */
     readonly classification?: "sensitive" | "personal";
     /** Encode an application value as a driver parameter. */
-    encode(value: Value, dialect: Dialect): unknown;
+    encode(value: unknown, dialect: Dialect): DriverValue;
     /** Decode a driver value as an application value. */
     decode(value: unknown, dialect: Dialect): Value;
     /** Write a value in JSON form: exact numbers as text, instants as epoch milliseconds, bytes as base64. */
@@ -215,35 +231,34 @@ export interface ColumnDefinition<Value = unknown> {
     fromJson(value: unknown): Value;
 }
 
-export type { JsonValue };
-
 /** Referential actions. */
 export interface ReferenceAction {
     /** The action when the referenced row is deleted. */
-    readonly onDelete?: "cascade" | "restrict" | "no action" | "set null" | "set default";
+    readonly onDelete?: (typeof REFERENCE_ACTIONS)[number];
     /** The action when the referenced key changes. */
-    readonly onUpdate?: "cascade" | "restrict" | "no action" | "set null" | "set default";
+    readonly onUpdate?: (typeof REFERENCE_ACTIONS)[number];
 }
 
-/** Define text, optionally from a set of strings. */
+/** Define text. */
+export function text(name: string): ColumnBuilder<string>;
+/** Define text from a set of strings. */
 export function text<const Values extends readonly [string, ...string[]]>(
     name: string,
-    options?: { readonly enum: Values },
-): ColumnBuilder<Values[number]> {
-    const validator = options ? schema.enum(options.enum) : schema.string();
+    options: { readonly enum: Values },
+): ColumnBuilder<Values[number]>;
+/** Define text, whose signatures above type it by its enum. */
+export function text(
+    name: string,
+    options?: { readonly enum: readonly [string, ...string[]] },
+): ColumnBuilder<string> {
+    // keep the enum values beside the text column
+    const types = { sqlite: "text", postgresql: "text" };
+    if (options === undefined) {
+        return scalarColumn(name, "text", types, schema.string());
+    }
+    const column = scalarColumn(name, "text", types, schema.enum(options.enum));
 
-    return new ColumnBuilder({
-        name,
-        kind: "text",
-        enumValues: options?.enum,
-        types: { sqlite: "text", postgresql: "text" },
-        schema: validator,
-        nullable: true,
-        toJson: (value) => value as JsonValue,
-        fromJson: (value) => validator.parse(value),
-        encode: (value) => validator.parse(value),
-        decode: (value) => value as Values[number],
-    });
+    return new ColumnBuilder({ ...column.definition, enumValues: options.enum });
 }
 
 /** Define an exact integer. */
@@ -253,52 +268,45 @@ export function integer(name: string): ColumnBuilder<number> {
         .int()
         .min(Number.MIN_SAFE_INTEGER)
         .max(Number.MAX_SAFE_INTEGER);
-
-    return new ColumnBuilder({
+    const column = scalarColumn(
         name,
-        kind: "integer",
-        types: { sqlite: "integer", postgresql: "bigint" },
-        schema: validator,
-        nullable: true,
-        toJson: (value) => value as JsonValue,
-        fromJson: (value) => validator.parse(value),
-        encode: (value) => validator.parse(value),
+        "integer",
+        { sqlite: "integer", postgresql: "bigint" },
+        validator,
+    );
+
+    // read PostgreSQL bigints, which drivers return as text or bigint
+    return new ColumnBuilder({
+        ...column.definition,
         decode: (value) =>
-            (typeof value === "string" || typeof value === "bigint"
-                ? Number(value)
-                : value) as number,
+            validator.parse(
+                typeof value === "string" || typeof value === "bigint" ? Number(value) : value,
+            ),
     });
 }
 
 /** Define a double-precision number. */
 export function real(name: string): ColumnBuilder<number> {
-    const validator = schema.number();
-
-    return new ColumnBuilder({
+    return scalarColumn(
         name,
-        kind: "real",
-        types: { sqlite: "real", postgresql: "double precision" },
-        schema: validator,
-        nullable: true,
-        toJson: (value) => value as JsonValue,
-        fromJson: (value) => validator.parse(value),
-        encode: (value) => validator.parse(value),
-        decode: (value) => value as number,
-    });
+        "real",
+        { sqlite: "real", postgresql: "double precision" },
+        schema.number(),
+    );
 }
 
 /** Define a boolean. */
 export function boolean(name: string): ColumnBuilder<boolean> {
     const validator = schema.boolean();
+    const column = scalarColumn(
+        name,
+        "boolean",
+        { sqlite: "integer", postgresql: "boolean" },
+        validator,
+    );
 
     return new ColumnBuilder({
-        name,
-        kind: "boolean",
-        types: { sqlite: "integer", postgresql: "boolean" },
-        schema: validator,
-        nullable: true,
-        toJson: (value) => value as JsonValue,
-        fromJson: (value) => validator.parse(value),
+        ...column.definition,
         encode(value, dialect) {
             const checked = validator.parse(value);
 
@@ -318,11 +326,11 @@ export function boolean(name: string): ColumnBuilder<boolean> {
         decode(value, dialect) {
             // read zero or one from SQLite
             if (dialect === "sqlite") {
-                return Number(value) === 1;
+                return Number(BIT.parse(value)) === 1;
             }
             // read native PostgreSQL booleans
             else if (dialect === "postgresql") {
-                return value as boolean;
+                return validator.parse(value);
             }
             // reject other dialects
             else {
@@ -333,54 +341,35 @@ export function boolean(name: string): ColumnBuilder<boolean> {
 }
 
 /** Define validated JSON. */
-export function json<Validator extends schema.Schema>(
+export function json<Validator extends schema.Schema<JsonValue>>(
     name: string,
     validator: Validator,
 ): ColumnBuilder<schema.Output<Validator>> {
     // require a declarative schema
     defineSchema(validator);
 
-    return new ColumnBuilder<schema.Output<Validator>>({
+    return new ColumnBuilder({
         name,
         kind: "json",
         types: { sqlite: "text", postgresql: "jsonb" },
         schema: validator,
         nullable: true,
-        toJson: (value) => value as JsonValue,
+        toJson: (value) => value,
         fromJson: (value) => validator.parse(value),
-        encode(value, dialect) {
-            const validated = validator.parse(value);
-
-            // store SQLite JSON as text
-            if (dialect === "sqlite") {
-                return JSON.stringify(validated);
-            }
-            // pass PostgreSQL JSON to the driver
-            else if (dialect === "postgresql") {
-                return validated;
-            }
-            // reject other dialects
-            else {
-                return assertNever(dialect);
-            }
-        },
+        encode: (value) => JSON.stringify(validator.parse(value)),
         decode(value, dialect) {
-            let decoded;
-
             // parse SQLite JSON text
             if (dialect === "sqlite") {
-                decoded = JSON.parse(value as string);
+                return validator.parse(JSON.parse(TEXT.parse(value)));
             }
             // take parsed PostgreSQL JSON
             else if (dialect === "postgresql") {
-                decoded = value;
+                return validator.parse(value);
             }
             // reject other dialects
             else {
                 return assertNever(dialect);
             }
-
-            return decoded as schema.Output<Validator>;
         },
     });
 }
@@ -389,23 +378,13 @@ export function json<Validator extends schema.Schema>(
 export function identifier<const Prefix extends string>(
     name: string,
     prefix: Prefix | (() => Prefix),
-) {
+): ColumnBuilder<Identifier<Prefix>> {
     const validator =
         typeof prefix === "function"
             ? schema.lazy(() => identifiers.identifier(prefix()))
             : identifiers.identifier(prefix);
 
-    return new ColumnBuilder({
-        name,
-        kind: "text",
-        types: { sqlite: "text", postgresql: "text" },
-        schema: validator,
-        nullable: true,
-        toJson: (value) => value as JsonValue,
-        fromJson: (value) => validator.parse(value),
-        encode: (value: schema.Output<typeof validator>) => validator.parse(value),
-        decode: (value) => value as schema.Output<typeof validator>,
-    });
+    return scalarColumn(name, "text", { sqlite: "text", postgresql: "text" }, validator);
 }
 
 /** Define bytes. */
@@ -420,10 +399,11 @@ export function binary(name: string): ColumnBuilder<Uint8Array> {
         json: schema.base64(),
         nullable: true,
         toJson: (value) => value.toBase64(),
-        fromJson: (value) => Uint8Array.fromBase64(schema.string().parse(value)),
+        fromJson: (value) => Uint8Array.fromBase64(TEXT.parse(value)),
         encode: (value) => validator.parse(value),
         decode(value) {
-            const bytes = value as Uint8Array;
+            // view driver buffers as plain bytes
+            const bytes = validator.parse(value);
 
             return new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
         },
@@ -432,18 +412,9 @@ export function binary(name: string): ColumnBuilder<Uint8Array> {
 
 /** Define a reference to content a blob store keeps: the SHA-256 digest of its bytes, as hexadecimal. */
 export function blob(name: string): ColumnBuilder<string> {
-    return new ColumnBuilder({
-        name,
-        kind: "blob",
-        types: { sqlite: "text", postgresql: "text" },
-        schema: Digest,
-        json: Digest,
-        nullable: true,
-        toJson: (value) => value,
-        fromJson: (value) => Digest.parse(value),
-        encode: (value) => Digest.parse(value),
-        decode: (value) => value as string,
-    });
+    const column = scalarColumn(name, "blob", { sqlite: "text", postgresql: "text" }, Digest);
+
+    return new ColumnBuilder({ ...column.definition, json: Digest });
 }
 
 /** Define an exact signed 64-bit integer. */
@@ -458,10 +429,10 @@ export function bigint(name: string): ColumnBuilder<bigint> {
         kind: "bigint",
         types: { sqlite: "integer", postgresql: "bigint" },
         schema: validator,
-        json: schema.string().regex(/^-?\d+$/),
+        json: INTEGER_TEXT,
         nullable: true,
         toJson: (value) => value.toString(),
-        fromJson: (value) => validator.parse(BigInt(schema.string().parse(value))),
+        fromJson: (value) => validator.parse(BigInt(INTEGER_TEXT.parse(value))),
         encode: (value) => validator.parse(value),
         decode(value) {
             // reject integers that already lost precision
@@ -469,26 +440,39 @@ export function bigint(name: string): ColumnBuilder<bigint> {
                 throw new RangeError("the database driver returned an inexact integer");
             }
 
-            return (
-                typeof value === "string" || typeof value === "number" ? BigInt(value) : value
-            ) as bigint;
+            return validator.parse(
+                typeof value === "string" || typeof value === "number" ? BigInt(value) : value,
+            );
         },
     });
 }
 
 /** Define an exact decimal string. */
 export function numeric(name: string): ColumnBuilder<string> {
-    const validator = schema.string().regex(/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/);
+    return scalarColumn(
+        name,
+        "numeric",
+        { sqlite: "text", postgresql: "numeric" },
+        schema.string().regex(/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$(?![\s\S])/u),
+    );
+}
 
+/** Define a column whose JSON form, parameter and driver value are its validated value. */
+function scalarColumn<Validator extends schema.Schema<string | number | boolean | null>>(
+    name: string,
+    kind: ColumnKind,
+    types: Readonly<Record<Dialect, string>>,
+    validator: Validator,
+): ColumnBuilder<schema.Output<Validator>> {
     return new ColumnBuilder({
         name,
-        kind: "numeric",
-        types: { sqlite: "text", postgresql: "numeric" },
+        kind,
+        types,
         schema: validator,
         nullable: true,
-        toJson: (value) => value as JsonValue,
+        toJson: (value) => value,
         fromJson: (value) => validator.parse(value),
         encode: (value) => validator.parse(value),
-        decode: (value) => value as string,
+        decode: (value) => validator.parse(value),
     });
 }

@@ -3,7 +3,7 @@ export class ReadCache<Value> {
     /** The most values kept. */
     readonly #capacity: number;
     /** The values read, least recently used first. */
-    readonly #values = new Map<string, Value>();
+    readonly #values = new Map<string, { readonly value: Value }>();
     /** The reads running, by key. */
     readonly #reading = new Map<string, Promise<Value>>();
 
@@ -15,12 +15,12 @@ export class ReadCache<Value> {
     /** Read a value from memory, or once through a read that lookups of the same key share. */
     get(key: string, read: () => Promise<Value>): Promise<Value> {
         // answer a kept value, marking it used last
-        if (this.#values.has(key)) {
-            const value = this.#values.get(key) as Value;
+        const kept = this.#values.get(key);
+        if (kept !== undefined) {
             this.#values.delete(key);
-            this.#values.set(key, value);
+            this.#values.set(key, kept);
 
-            return Promise.resolve(value);
+            return Promise.resolve(kept.value);
         }
 
         // answer a running read
@@ -65,9 +65,10 @@ export class ReadCache<Value> {
 
     /** Keep a read value, dropping the least recently used one past the capacity. */
     #keep(key: string, value: Value): void {
-        this.#values.set(key, value);
-        if (this.#values.size > this.#capacity) {
-            this.#values.delete(this.#values.keys().next().value!);
+        this.#values.set(key, { value });
+        const oldest = this.#values.keys().next();
+        if (this.#values.size > this.#capacity && oldest.done !== true) {
+            this.#values.delete(oldest.value);
         }
     }
 }

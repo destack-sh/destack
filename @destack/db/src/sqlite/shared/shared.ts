@@ -1,104 +1,109 @@
-import type { EmptyRelations } from "drizzle-orm/relations";
-import type { DrizzleSQLiteConfig } from "drizzle-orm/sqlite-core/utils";
+import { DriverValue } from "../../table/column.ts";
+import { schema } from "@destack/schema";
 import type * as declaration from "../../declare/database.ts";
-import type { Channel } from "../../channel/channel.ts";
+import { typedChannel, type Channel } from "../../channel/channel.ts";
 import type { Table } from "../../table/table.ts";
 import { SqliteDatabase } from "../database.ts";
-import { DatabaseError } from "../../error/error.ts";
-import { Savepoint, type ConnectionClient, type QueryClient, type Statement } from "../client.ts";
+import { DatabaseError, errorCode } from "../../error/error.ts";
+import { Savepoint, type ConnectionClient, type QueryClient } from "../client.ts";
 import { LOG_TOPIC } from "../../log/schema.ts";
 
 /**
  * The idle timeout of a party's transaction at the owner, in milliseconds.
  *
- * A transaction holds the owner's only connection, and this bounds how long a frozen tab blocks the others.
+ * A transaction keeps the owner's only connection, and this bounds how long a frozen tab blocks the others.
  */
 const IDLE_TRANSACTION_MILLISECONDS = 30_000;
 
-/** A message between the parties of a shared database. */
-export type Message =
-    | {
-          /** A statement or transaction step for the owner. */
-          readonly kind: "request";
-          /** The asking party. */
-          readonly from: string;
-          /** The owner that answers. */
-          readonly to: string;
-          /** The request number. */
-          readonly id: number;
-          /** What to run. */
-          readonly step: Step;
-      }
-    | {
-          /** The owner's answer. */
-          readonly kind: "answer";
-          /** The asking party. */
-          readonly to: string;
-          /** The answered request. */
-          readonly id: number;
-          /** The result, absent on failure. */
-          readonly value?: unknown;
-          /** The failure, absent on success. */
-          readonly error?: {
-              readonly name: string;
-              readonly message: string;
-              readonly code?: string;
-          };
-      }
-    | {
-          /** A commit every party may read. */
-          readonly kind: "commit";
-      }
-    | {
-          /** An owner serving from now on. */
-          readonly kind: "serving";
-          /** The owner, new each time a party starts serving. */
-          readonly owner: string;
-      }
-    | {
-          /** A party asking which owner serves. */
-          readonly kind: "join";
-      };
-
 /** One statement or transaction step. */
-export type Step =
-    | {
-          /** Run a statement, in a transaction when named. */
-          readonly type: "statement";
-          /** How to run it. */
-          readonly method: "run" | "all" | "get" | "exec";
-          /** The SQL. */
-          readonly sql: string;
-          /** The bound parameters. */
-          readonly parameters: readonly unknown[];
-          /** Whether rows come back as arrays. */
-          readonly isRaw: boolean;
-          /** Whether integers come back exactly. */
-          readonly isSafe: boolean;
-          /** The transaction, absent outside one. */
-          readonly transaction?: number;
-      }
-    | {
-          /** Begin a transaction. */
-          readonly type: "begin";
-          /** How to begin it. */
-          readonly mode: "deferred" | "immediate" | "exclusive";
-      }
-    | {
-          /** End a transaction. */
-          readonly type: "commit" | "rollback";
-          /** The transaction. */
-          readonly transaction: number;
-      };
+export const Step = schema.discriminatedUnion("type", [
+    schema.object({
+        /** Run a statement, in a transaction when named. */
+        type: schema.literal("statement"),
+        /** How to run it, by the client method. */
+        method: schema.enum(["values", "all", "run", "exec"]),
+        /** The SQL. */
+        sql: schema.string(),
+        /** The bound parameters. */
+        parameters: schema.array(DriverValue),
+        /** The transaction, absent outside one. */
+        transaction: schema.number().exactOptional(),
+    }),
+    schema.object({
+        /** Begin a transaction. */
+        type: schema.literal("begin"),
+        /** How to begin it. */
+        mode: schema.enum(["deferred", "immediate", "exclusive"]),
+    }),
+    schema.object({
+        /** End a transaction. */
+        type: schema.enum(["commit", "rollback"]),
+        /** The transaction. */
+        transaction: schema.number(),
+    }),
+]);
+/** One statement or transaction step. */
+export type Step = schema.Infer<typeof Step>;
+
+/** A message between the parties of a shared database. */
+export const Message = schema.discriminatedUnion("kind", [
+    schema.object({
+        /** A statement or transaction step for the owner. */
+        kind: schema.literal("request"),
+        /** The asking party. */
+        from: schema.string(),
+        /** The owner that answers. */
+        to: schema.string(),
+        /** The request number. */
+        id: schema.number(),
+        /** What to run. */
+        step: Step,
+    }),
+    schema.object({
+        /** The owner's answer. */
+        kind: schema.literal("answer"),
+        /** The asking party. */
+        to: schema.string(),
+        /** The answered request. */
+        id: schema.number(),
+        /** The result, absent on failure. */
+        value: schema.unknown().exactOptional(),
+        /** The failure, absent on success. */
+        error: schema
+            .object({
+                /** The failure's name. */
+                name: schema.string(),
+                /** The failure's message. */
+                message: schema.string(),
+                /** The driver code, absent without one. */
+                code: schema.string().exactOptional(),
+            })
+            .exactOptional(),
+    }),
+    schema.object({
+        /** A commit every party may read. */
+        kind: schema.literal("commit"),
+    }),
+    schema.object({
+        /** An owner serving from now on. */
+        kind: schema.literal("serving"),
+        /** The owner, new each time a party starts serving. */
+        owner: schema.string(),
+    }),
+    schema.object({
+        /** A party asking which owner serves. */
+        kind: schema.literal("join"),
+    }),
+]);
+/** A message between the parties of a shared database. */
+export type Message = schema.Infer<typeof Message>;
 
 /** Serve a connection to a channel's other parties until stopped. */
-export function serveDatabase<Result>(
-    client: ConnectionClient<Result>,
-    channel: Channel<Message>,
-): () => void {
-    // name this owner and hold party transactions open
+export function serveDatabase(client: ConnectionClient, raw: Channel<unknown>): () => void {
+    // type the channel's messages, name this owner and keep party transactions open
+    const channel = typedChannel(raw, Message);
     const owner = crypto.randomUUID();
-    const transactions = new Map<number, HeldTransaction>();
+    const transactions = new Map<number, OpenTransaction>();
     let next = 0;
 
     // run one step
@@ -112,19 +117,14 @@ export function serveDatabase<Result>(
             }
             open?.touch();
             const target = open?.client ?? client;
-            if (step.method === "exec") {
-                return target.exec(step.sql);
-            }
-            const statement = (await target.prepare(step.sql))
-                .safeIntegers(step.isSafe)
-                .raw(step.isRaw);
-
-            return await statement[step.method](...step.parameters);
+            return step.method === "exec"
+                ? await target.exec(step.sql)
+                : await target[step.method](step.sql, step.parameters);
         }
         // begin a transaction
         else if (step.type === "begin") {
             const id = next++;
-            const opened = await HeldTransaction.begin(client, step.mode, () =>
+            const opened = await OpenTransaction.begin(client, step.mode, () =>
                 transactions.delete(id),
             );
             transactions.set(id, opened);
@@ -143,7 +143,7 @@ export function serveDatabase<Result>(
         }
     };
 
-    // name this owner to a joining party
+    // announce this owner to a joining party
     const stop = channel.listen((message) => {
         if (message.kind === "join") {
             channel.notify({ kind: "serving", owner });
@@ -171,18 +171,18 @@ export function serveDatabase<Result>(
     return () => {
         stop();
         for (const open of transactions.values()) {
-            void open.end(false).catch(() => undefined);
+            void open.end(false);
         }
     };
 }
 
-/** A transaction the owner holds for a party. */
-class HeldTransaction {
+/** A transaction the owner keeps open for a party. */
+class OpenTransaction {
     /** The transaction's client. */
-    readonly client: QueryClient<unknown>;
+    readonly client: QueryClient;
     /** Resolve on commit and reject on rollback. */
     readonly done: Promise<void>;
-    /** End the holding callback. */
+    /** End the callback that keeps the transaction open. */
     readonly #finish: (commit: boolean) => void;
     /** Forget the transaction. */
     readonly #forget: () => void;
@@ -191,7 +191,7 @@ class HeldTransaction {
 
     /** Create the transaction. */
     private constructor(
-        client: QueryClient<unknown>,
+        client: QueryClient,
         done: Promise<void>,
         finish: (commit: boolean) => void,
         forget: () => void,
@@ -204,28 +204,27 @@ class HeldTransaction {
         this.touch();
     }
 
-    /** Begin and hold a transaction. */
+    /** Begin a transaction and keep it open. */
     static begin(
-        connection: ConnectionClient<unknown>,
+        connection: ConnectionClient,
         mode: "deferred" | "immediate" | "exclusive",
         forget: () => void,
-    ): Promise<HeldTransaction> {
+    ): Promise<OpenTransaction> {
         return new Promise((resolve, reject) => {
-            // hold the callback open until the party ends it
-            let opened: HeldTransaction | undefined;
-            const done = connection
-                .transactionAsync(
-                    (transaction) =>
-                        new Promise<void>((finish, abort) => {
-                            const end = (commit: boolean) =>
-                                commit
-                                    ? finish()
-                                    : abort(new Error("the shared transaction rolled back"));
-                            opened = new HeldTransaction(transaction, done, end, forget);
-                            resolve(opened);
-                        }),
-                )
-                [mode]();
+            // keep the callback open until the party ends it
+            let opened: OpenTransaction | undefined;
+            const begin = connection.transactionAsync(
+                (transaction) =>
+                    new Promise<void>((finish, abort) => {
+                        const end = (commit: boolean) =>
+                            commit
+                                ? finish()
+                                : abort(new Error("the shared transaction rolled back"));
+                        opened = new OpenTransaction(transaction, done, end, forget);
+                        resolve(opened);
+                    }),
+            );
+            const done = begin[mode]();
 
             // report a failed begin and forget the transaction
             done.catch((error: unknown) => {
@@ -240,10 +239,7 @@ class HeldTransaction {
     /** Reset the idle timer. */
     touch(): void {
         clearTimeout(this.#idle);
-        this.#idle = setTimeout(
-            () => void this.end(false).catch(() => undefined),
-            IDLE_TRANSACTION_MILLISECONDS,
-        );
+        this.#idle = setTimeout(() => void this.end(false), IDLE_TRANSACTION_MILLISECONDS);
     }
 
     /** Commit or roll back. */
@@ -262,24 +258,19 @@ class HeldTransaction {
 
 /** Open a database with statements that the channel's owner runs. */
 export function connectShared(
-    channel: Channel<Message>,
+    channel: Channel<unknown>,
     party: string,
     tables: declaration.Database | readonly Table[] = [],
-    options: Omit<DrizzleSQLiteConfig<EmptyRelations>, "relations"> = {},
 ): SqliteDatabase<SharedClient> {
     const client = new SharedClient(channel, party);
 
-    return new SqliteDatabase(
-        client,
-        tables,
-        "embedded",
-        <Channelled>(name: string) => SharedClient.channel<Channelled>(channel, name),
-        options,
+    return new SqliteDatabase(client, tables, "embedded", (name: string) =>
+        SharedClient.channel(channel, name),
     );
 }
 
 /** Statements the channel's owner runs. */
-export class SharedQuery implements QueryClient<unknown> {
+export class SharedQuery implements QueryClient {
     /** The party asking the owner. */
     readonly party: Party;
     /** The owner's transaction. */
@@ -291,66 +282,49 @@ export class SharedQuery implements QueryClient<unknown> {
         this.transaction = transaction;
     }
 
-    /** Prepare a statement the owner runs. */
-    async prepare(sql: string): Promise<Statement<unknown>> {
-        // track the statement's modes
-        let isRaw = false;
-        let isSafe = false;
-        const run = (method: "run" | "all" | "get", parameters: readonly unknown[]) =>
-            this.#statement({ method, sql, parameters, isRaw, isSafe });
+    /** Read every row as an array of values, integers exact. */
+    async values(sql: string, parameters: readonly DriverValue[]): Promise<unknown[][]> {
+        const rows = await this.#statement({
+            method: "values",
+            sql,
+            parameters: parameters.map(sharedValue),
+        });
+        if (!Array.isArray(rows) || !rows.every((row) => Array.isArray(row))) {
+            throw new TypeError("the shared owner answered rows as arrays with another value");
+        }
 
-        // set the modes on each run
-        const statement: Statement<unknown> = {
-            safeIntegers: (enabled) => {
-                isSafe = enabled;
-
-                return statement;
-            },
-            raw: (enabled) => {
-                isRaw = enabled;
-
-                return statement;
-            },
-            run: (...parameters) => run("run", parameters),
-            all: (...parameters) => run("all", parameters) as Promise<unknown[]>,
-            get: (...parameters) => run("get", parameters),
-        };
-
-        return statement;
+        return rows;
     }
 
-    /** Run a statement. */
-    async run(sql: string, ...parameters: unknown[]): Promise<unknown> {
-        return (await this.prepare(sql)).run(...parameters);
+    /** Read every row by column name. */
+    async all(sql: string, parameters: readonly DriverValue[]): Promise<unknown[]> {
+        // ask the owner, and require a list of rows
+        const rows = await this.#statement({
+            method: "all",
+            sql,
+            parameters: parameters.map(sharedValue),
+        });
+        if (!Array.isArray(rows)) {
+            throw new TypeError("the shared owner answered rows with another value");
+        }
+        const answered: unknown[] = rows;
+
+        return answered;
     }
 
-    /** Read rows as named objects. */
-    async all(sql: string, ...parameters: unknown[]): Promise<unknown[]> {
-        return (await this.prepare(sql)).all(...parameters);
-    }
-
-    /** Read the first row as a named object. */
-    async get(sql: string, ...parameters: unknown[]): Promise<unknown> {
-        return (await this.prepare(sql)).get(...parameters);
+    /** Run a statement for its effect. */
+    async run(sql: string, parameters: readonly DriverValue[]): Promise<void> {
+        await this.#statement({ method: "run", sql, parameters: parameters.map(sharedValue) });
     }
 
     /** Run work in a savepoint the owner keeps, at a depth. */
-    nest<Value>(
-        depth: number,
-        operation: (client: QueryClient<unknown>) => Promise<Value>,
-    ): Promise<Value> {
+    nest<Value>(depth: number, operation: (client: QueryClient) => Promise<Value>): Promise<Value> {
         return Savepoint.run(this, depth, operation);
     }
 
     /** Run a script. */
-    exec(script: string): Promise<unknown> {
-        return this.#statement({
-            method: "exec",
-            sql: script,
-            parameters: [],
-            isRaw: false,
-            isSafe: false,
-        });
+    async exec(script: string): Promise<void> {
+        await this.#statement({ method: "exec", sql: script, parameters: [] });
     }
 
     /** Ask the owner to run a statement. */
@@ -369,14 +343,14 @@ export class SharedQuery implements QueryClient<unknown> {
 }
 
 /** A connection client with work that the channel's owner runs. */
-export class SharedClient extends SharedQuery implements ConnectionClient<unknown> {
+export class SharedClient extends SharedQuery implements ConnectionClient {
     /** Join the channel as one party. */
-    constructor(channel: Channel<Message>, name: string) {
+    constructor(channel: Channel<unknown>, name: string) {
         super(new Party(channel, name));
     }
 
-    /** Open the log channel the parties announce commits on, refusing every other name. */
-    static channel<Channelled>(channel: Channel<Message>, name: string): Channel<Channelled> {
+    /** Open the log channel the parties announce commits on, delivering its commits alone, refusing every other name. */
+    static channel(channel: Channel<unknown>, name: string): Channel<unknown> {
         if (name !== LOG_TOPIC) {
             throw new DatabaseError(
                 "NO_CHANNEL",
@@ -384,7 +358,22 @@ export class SharedClient extends SharedQuery implements ConnectionClient<unknow
             );
         }
 
-        return channel as unknown as Channel<Channelled>;
+        // deliver the commits among the shared messages
+        const shared = typedChannel(channel, Message);
+
+        return {
+            notify: (message) => channel.notify(message),
+            listen: (receive, resume, fail) =>
+                shared.listen(
+                    (message) => {
+                        if (message.kind === "commit") {
+                            receive(message);
+                        }
+                    },
+                    resume,
+                    fail,
+                ),
+        };
     }
 
     /** Stop reaching the owner. */
@@ -392,8 +381,8 @@ export class SharedClient extends SharedQuery implements ConnectionClient<unknow
         this.party.close();
     }
 
-    /** Run a callback in a transaction the owner holds. */
-    transactionAsync<Value>(operation: (client: QueryClient<unknown>) => Promise<Value>) {
+    /** Run a callback in a transaction the owner keeps open. */
+    transactionAsync<Value>(operation: (client: QueryClient) => Promise<Value>) {
         const begin = async (mode: "deferred" | "immediate" | "exclusive") => {
             // begin at the owner and run the callback
             const transaction = await this.party.begin(mode);
@@ -414,6 +403,9 @@ export class SharedClient extends SharedQuery implements ConnectionClient<unknow
                         throw new AggregateError(
                             [error, rollback],
                             "transaction and rollback failed",
+                            {
+                                cause: error,
+                            },
                         );
                     });
                 throw error;
@@ -444,8 +436,9 @@ export class Party {
     readonly #stop: () => void;
 
     /** Join a channel and ask which owner serves. */
-    constructor(channel: Channel<Message>, name: string) {
+    constructor(raw: Channel<unknown>, name: string) {
         // listen for answers and ask for the owner
+        const channel = typedChannel(raw, Message);
         this.#channel = channel;
         this.#name = name;
         this.#stop = channel.listen((message) => this.#receive(message));
@@ -464,8 +457,11 @@ export class Party {
     /** Begin a transaction at the serving owner. */
     async begin(mode: "deferred" | "immediate" | "exclusive"): Promise<SharedTransaction> {
         const { value, owner } = await this.#ask({ type: "begin", mode }, undefined);
+        if (typeof value !== "number") {
+            throw new TypeError("the shared owner answered a transaction with another value");
+        }
 
-        return { owner, id: value as number };
+        return { owner, id: value };
     }
 
     /** Leave the channel, failing every unanswered request. */
@@ -479,7 +475,7 @@ export class Party {
 
     /** Follow the serving owner and settle its answers. */
     #receive(message: Message): void {
-        // resend held requests and fail those the previous owner may have run
+        // resend queued requests and fail those the previous owner may have run
         if (message.kind === "serving" && message.owner !== this.#owner) {
             this.#owner = message.owner;
             for (const [id, pending] of this.#pending) {
@@ -493,19 +489,21 @@ export class Party {
                 }
             }
         }
-        // settle a request once
+        // settle a sent request once, ignoring answers to settled ones
         else if (message.kind === "answer" && message.to === this.#name) {
             const pending = this.#pending.get(message.id);
             this.#pending.delete(message.id);
-            if (message.error === undefined) {
-                pending?.resolve({ value: message.value, owner: pending.owner! });
+            if (pending?.owner === undefined) {
+                return;
+            } else if (message.error === undefined) {
+                pending.resolve({ value: message.value, owner: pending.owner });
             } else {
-                pending?.reject(Object.assign(new Error(message.error.message), message.error));
+                pending.reject(Object.assign(new Error(message.error.message), message.error));
             }
         }
     }
 
-    /** Send one step, held until an owner serves. */
+    /** Send one step, queued until an owner serves. */
     #ask(
         step: Step,
         pinned: string | undefined,
@@ -513,11 +511,11 @@ export class Party {
         // refuse a step of a stopped owner
         if (pinned !== undefined && pinned !== this.#owner) {
             return Promise.reject(
-                new DatabaseError("OWNER_CHANGED", "the owner holding the transaction changed"),
+                new DatabaseError("OWNER_CHANGED", "the owner of the transaction changed"),
             );
         }
 
-        // send to the owner or hold
+        // send to the owner or queue
         const id = this.#next++;
 
         return new Promise((resolve, reject) => {
@@ -542,9 +540,9 @@ export class Party {
     }
 }
 
-/** A transaction an owner holds for a party. */
+/** A transaction an owner keeps open for a party. */
 export interface SharedTransaction {
-    /** The owner holding the transaction. */
+    /** The owner of the transaction. */
     readonly owner: string;
     /** The owner's number for the transaction. */
     readonly id: number;
@@ -554,7 +552,7 @@ export interface SharedTransaction {
 interface Request {
     /** What to run. */
     readonly step: Step;
-    /** The owner the request went to, absent while held. */
+    /** The owner the request went to, absent while queued. */
     owner: string | undefined;
     /** Settle with the owner's result. */
     readonly resolve: (answer: { readonly value: unknown; readonly owner: string }) => void;
@@ -562,14 +560,19 @@ interface Request {
     readonly reject: (error: unknown) => void;
 }
 
+/** Carry a value to the owner, bytes in a buffer of their own as structured cloning copies them. */
+function sharedValue(value: DriverValue): DriverValue {
+    return value instanceof Uint8Array ? new Uint8Array(value) : value;
+}
+
 /** Describe a failure for the channel. */
 function describeError(error: unknown): { name: string; message: string; code?: string } {
     const failure = error instanceof Error ? error : new Error(String(error));
-    const code = (failure as { code?: unknown }).code;
+    const code = errorCode(failure);
 
     return {
         name: failure.name,
         message: failure.message,
-        ...(typeof code === "string" ? { code } : {}),
+        ...(code === undefined ? {} : { code }),
     };
 }

@@ -1,8 +1,9 @@
 import { defineTable, TABLE, text } from "../../index.ts";
+import type { Tree } from "../tree.ts";
 
 /** The node columns. */
 const columns = {
-    id: text("id").primaryKey().notNull(),
+    id: text("id").primaryKey(),
     scope: text("scope").notNull(),
     parent: text("parent"),
 };
@@ -16,4 +17,13 @@ export const node = defineTable("tree_node", columns, {
 });
 
 /** The nodes' ancestor index. */
-export const tree = node[TABLE].tree!;
+export const tree = requireTree(node[TABLE].tree);
+
+/** Require the tree a table declares. */
+function requireTree(declared: Tree | undefined): Tree {
+    if (declared === undefined) {
+        throw new TypeError("the node table declares no tree");
+    }
+
+    return declared;
+}
