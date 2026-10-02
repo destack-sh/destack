@@ -1,19 +1,19 @@
 import { TEST_DIALECTS } from "@destack/db/test";
+import { testCallKey } from "@destack/service/test";
+import { Journal, AuditCaller } from "@destack/audit";
 import { Scope } from "@destack/sync";
 import { accessRelationship, accessRole, accessRolePermission, principal } from "@destack/access";
-import { AuditOutbox } from "@destack/audit/outbox";
 import { PackageId } from "@destack/package";
-import { Caller, TokenIssuer, TokenVerifier } from "@destack/service/authentication";
+import { Authentication, TokenIssuer, TokenVerifier } from "@destack/service/authentication";
 import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
-import { resource, space } from "@destack/space/object";
+import { space } from "@destack/space/object";
 import { expect, test } from "@destack/test";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { vault } from "../../object/index.ts";
-import { connect } from "../../secret/client.ts";
-import { VAULT, VaultFixture } from "./fixture.ts";
-import { VERSION_HEADER } from "@destack/service/request";
-import { vaultService } from "../../service/index.ts";
+import { SecretClient } from "../../object/index.ts";
+import { spaceService } from "@destack/space/service";
+import { SPACE, VaultFixture } from "./fixture.ts";
 
 test.each(TEST_DIALECTS)(
     "authorize several spaces through one regional vault on %s",
@@ -24,9 +24,6 @@ test.each(TEST_DIALECTS)(
         // provision the second tenant in the same regional database
         const database = first.database;
         await database.insert(space.table).values(await second.database.select().from(space.table));
-        await database
-            .insert(resource.table)
-            .values(await second.database.select().from(resource.table));
         await database.insert(vault.table).values(await second.database.select().from(vault.table));
         await database.insert(accessRole).values(await second.database.select().from(accessRole));
         await database
@@ -67,15 +64,15 @@ test.each(TEST_DIALECTS)(
         const clients = [];
         for (const tenant of [first, second]) {
             const issued = await issuer.issue(
-                new Caller({
-                    ...tenant.caller.authentication,
+                new Authentication({
+                    ...tenant.caller.claims,
                     audience,
                     scope: tenant.spaceId,
                     credential: { kind: "personal", id: tenant.userId },
                 }),
             );
             clients.push(
-                connect({
+                new SecretClient(spaceService, {
                     url: "https://vault.test",
                     headers: { authorization: `Bearer ${issued.accessToken}` },
                     fetch: (request) => server.fetch(request),
@@ -94,10 +91,6 @@ test.each(TEST_DIALECTS)(
                     requestId: RequestId.create(),
                 }),
             );
-            expect(
-                (await clients[index]!.vault.get({ spaceId: tenant.spaceId, id: tenant.vaultId }))
-                    .id,
-            ).toBe(tenant.vaultId);
         }
 
         // hide another tenant's secret, named in its own space or in the token's
@@ -137,19 +130,17 @@ test.each(TEST_DIALECTS)(
         );
 
         // record each space's changes in its own history
-        const events = await new AuditOutbox(database).read(1000);
-        const changes = events.filter(
-            (event) => event.action.name === "Secret.create" && event.result.stage === "result",
-        );
+        const calls = await new Journal(database, testCallKey).read({ limit: 1000 });
+        const changes = calls.filter((call) => call.method === "secret.create");
         expect(
-            changes.map((event) => ({
-                package: event.context.package,
-                scope: event.context.scope,
-                actor: event.context.actor,
+            changes.map((call) => ({
+                package: call.execution!.context.package,
+                scope: call.execution!.context.scope,
+                actor: AuditCaller.actor(call.execution!.context.caller),
             })),
         ).toEqual(
             [first, second].map((tenant) => ({
-                package: VAULT,
+                package: SPACE,
                 scope: tenant.spaceId,
                 actor: {
                     type: "subject",
@@ -157,36 +148,5 @@ test.each(TEST_DIALECTS)(
                 },
             })),
         );
-
-        // prohibit caching of readiness, unknown routes and failures, and after shutdown
-        for (const [path, status] of [
-            ["/readyz", 200],
-            ["/missing", 404],
-            [`/spaces/${first.spaceId}/secrets`, 401],
-        ] as const) {
-            const isCreate = path.endsWith("/secrets");
-            const response = await server.fetch(
-                new Request(`https://vault.test${path}`, {
-                    method: isCreate ? "POST" : "GET",
-                    ...(isCreate
-                        ? {
-                              headers: {
-                                  "Content-Type": "application/json",
-                                  [VERSION_HEADER]: vaultService.package.version,
-                              },
-                              body: JSON.stringify({ parentId: first.vaultId, name: "anonymous" }),
-                          }
-                        : {}),
-                }),
-            );
-            expect([response.status, response.headers.get("Cache-Control")]).toEqual([
-                status,
-                "no-store",
-            ]);
-            await response.text();
-        }
-        await server.close();
-        const stopped = await server.fetch(new Request("https://vault.test/readyz"));
-        expect([stopped.status, stopped.headers.get("Cache-Control")]).toEqual([503, "no-store"]);
     },
 );

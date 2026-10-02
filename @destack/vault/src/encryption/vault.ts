@@ -1,5 +1,7 @@
 import { eq, type DatabaseConnection } from "@destack/db";
 import type { Keychain } from "@destack/host/keychain";
+import type { Recipient } from "@destack/resource";
+import type { Identifier } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { VaultError } from "../error/index.ts";
 import { vaultKey } from "../stack/db.ts";
@@ -52,21 +54,26 @@ export class VaultKey implements Keyring {
         database: DatabaseConnection,
         root: Keyring,
         location: string,
-        vaultId: string,
+        vault: { readonly id: Identifier<"vault">; readonly scope: Identifier<"space"> },
     ): Promise<void> {
         const [kept] = await database
             .select({ id: vaultKey.id })
             .from(vaultKey)
-            .where(eq(vaultKey.vaultId, vaultId as never));
+            .where(eq(vaultKey.vaultId, vault.id));
         if (kept === undefined) {
-            const generated = await VaultKey.generate(root, location, vaultId);
-            await database.insert(vaultKey).values({ vaultId: vaultId as never, ...generated });
+            const generated = await VaultKey.generate(root, location, vault.id);
+            await database
+                .insert(vaultKey)
+                .values({ vaultId: vault.id, scope: vault.scope, ...generated });
         }
     }
 
     /** Delete a vault's key, leaving every value it wrapped unreadable. */
-    static async discard(database: DatabaseConnection, vaultId: string): Promise<void> {
-        await database.delete(vaultKey).where(eq(vaultKey.vaultId, vaultId as never));
+    static async discard(
+        database: DatabaseConnection,
+        vaultId: Identifier<"vault">,
+    ): Promise<void> {
+        await database.delete(vaultKey).where(eq(vaultKey.vaultId, vaultId));
     }
 
     /** Load a vault's key with the root keys, refusing a vault without one. */
@@ -74,12 +81,9 @@ export class VaultKey implements Keyring {
         database: DatabaseConnection,
         root: Keyring,
         location: string,
-        vaultId: string,
+        vaultId: Identifier<"vault">,
     ): Promise<VaultKey> {
-        const [kept] = await database
-            .select()
-            .from(vaultKey)
-            .where(eq(vaultKey.vaultId, vaultId as never));
+        const [kept] = await database.select().from(vaultKey).where(eq(vaultKey.vaultId, vaultId));
         if (kept === undefined) {
             throw new ServiceError("INTERNAL_SERVER_ERROR", {
                 message: `vault ${vaultId} has no key: provision it first`,
@@ -208,6 +212,67 @@ export class VaultKey implements Keyring {
         }
     }
 
+    /** Rewrap a vault's key for another host's recipient, keeping the row's shape: the encapsulated key, nonce and bytes in its key columns. */
+    static async transfer(
+        root: Keyring,
+        location: string,
+        vaultId: Identifier<"vault">,
+        wrapped: WrappedVaultKey,
+        recipient: Recipient,
+    ): Promise<WrappedVaultKey> {
+        // unwrap the key under this host's root key
+        const raw = await root.unwrap(
+            {
+                keyId: wrapped.rootKeyId,
+                wrappedKey: wrapped.wrappedKey,
+                keyNonce: wrapped.keyNonce,
+            },
+            authenticated(location, vaultId),
+        );
+        // seal it to the recipient, clearing the raw key either way
+        try {
+            const sealed = await recipient.seal(raw, transit(vaultId));
+
+            return {
+                id: wrapped.id,
+                rootKeyId: sealed.encapsulated,
+                wrappedKey: sealed.bytes,
+                keyNonce: sealed.nonce,
+            };
+        } finally {
+            raw.fill(0);
+        }
+    }
+
+    /** Open a vault's key another host rewrapped for this host's recipient, and wrap it under this host's root keys. */
+    static async receive(
+        root: Keyring,
+        location: string,
+        vaultId: Identifier<"vault">,
+        sealed: WrappedVaultKey,
+        recipient: Recipient,
+    ): Promise<WrappedVaultKey> {
+        // open the key sealed to this host's recipient
+        const raw = await recipient.open(
+            { encapsulated: sealed.rootKeyId, nonce: sealed.keyNonce, bytes: sealed.wrappedKey },
+            transit(vaultId),
+        );
+
+        // wrap it under this host's root key, clearing the raw key either way
+        try {
+            const wrapped = await root.wrap(raw, authenticated(location, vaultId));
+
+            return {
+                id: sealed.id,
+                rootKeyId: wrapped.keyId,
+                wrappedKey: wrapped.wrappedKey,
+                keyNonce: wrapped.keyNonce,
+            };
+        } finally {
+            raw.fill(0);
+        }
+    }
+
     /** Wrap a data key under the vault key. */
     async wrap(
         value: Uint8Array<ArrayBuffer>,
@@ -254,6 +319,11 @@ export class VaultKey implements Keyring {
             throw new VaultError("DECRYPTION_FAILED", "data key authentication failed");
         }
     }
+}
+
+/** Encode what a vault key in transit to another host authenticates: the protocol and the vault. */
+function transit(vaultId: string): Uint8Array<ArrayBuffer> {
+    return new TextEncoder().encode(JSON.stringify([VAULT_KEY_PROTOCOL, vaultId]));
 }
 
 /** Encode what a vault key's wrapping authenticates: the protocol, the location and the vault. */

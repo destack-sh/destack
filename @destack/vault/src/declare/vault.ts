@@ -1,7 +1,7 @@
 import { defineSchema, schema } from "@destack/schema";
-import { declaringModule, type ModuleMetadata } from "@destack/package";
-import { defineResourceKind, Resource } from "@destack/resource";
-import type { connect } from "../secret/client.ts";
+import { ModuleMetadata } from "@destack/package";
+import { defineResourceKind, ResourceDeclaration } from "@destack/resource";
+import type { SecretClient } from "../object/index.ts";
 
 /** A managed collection of encrypted secrets. */
 export const VaultSpec = defineSchema(schema.object({}));
@@ -14,8 +14,11 @@ export type VaultDescription = schema.Infer<typeof VaultKind.description>;
 export function defineVault(
     declaration: Omit<VaultDescription, "kind">,
     module?: ModuleMetadata,
-): Resource<ReturnType<typeof connect>, VaultDescription> {
-    const owner = declaringModule(module, "defineVault").package;
+): ResourceDeclaration<SecretClient, VaultDescription> {
+    const owner = ModuleMetadata.require(module, "defineVault").package;
 
-    return new Resource(owner, VaultKind.description.parse({ ...declaration, kind: "vault" }));
+    return new ResourceDeclaration(
+        owner,
+        VaultKind.description.parse({ ...declaration, kind: "vault" }),
+    );
 }

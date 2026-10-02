@@ -1,4 +1,3 @@
-import type { Recipient, Sealed } from "@destack/resource";
 import { schema } from "@destack/schema";
 import { VaultError } from "../error/index.ts";
 import type { Keyring } from "./keyring.ts";
@@ -14,8 +13,6 @@ const NONCE_BYTES = 12;
 
 /** The storage identity of one secret version, authenticated with both ciphertexts. */
 export interface EncryptionContext {
-    /** The storage region or local host, assigned by the server. */
-    readonly location: string;
     /** The administering space. */
     readonly spaceId: string;
     /** The containing vault resource. */
@@ -34,7 +31,6 @@ export const EncryptionContext = {
             JSON.stringify([
                 ENCRYPTION_PROTOCOL,
                 ENCRYPTION_FORMAT,
-                context.location,
                 context.spaceId,
                 context.vaultId,
                 context.secretId,
@@ -118,48 +114,6 @@ export const Envelope = {
         const authenticated = EncryptionContext.encode(context);
 
         return decrypt(await keyring.unwrap(envelope, authenticated), envelope, authenticated);
-    },
-
-    /** Seal an envelope's data key to a transfer's target. */
-    async transfer(
-        envelope: Envelope,
-        keyring: Keyring,
-        context: EncryptionContext,
-        recipient: Recipient,
-    ): Promise<Sealed> {
-        const authenticated = EncryptionContext.encode(context);
-        const raw = await keyring.unwrap(envelope, authenticated);
-        try {
-            return await recipient.seal(raw, authenticated);
-        } finally {
-            raw.fill(0);
-        }
-    },
-
-    /** Receive a ciphertext another host sent, and seal its value again here. */
-    async receive(
-        ciphertext: { readonly format: number } & Pick<Envelope, "ciphertext" | "nonce">,
-        key: Sealed,
-        from: EncryptionContext,
-        to: EncryptionContext,
-        keyring: Keyring,
-        recipient: Recipient,
-    ): Promise<Envelope> {
-        // open the data key and decrypt the value under the source's identity
-        Envelope.requireFormat(ciphertext);
-        const authenticated = EncryptionContext.encode(from);
-        const plaintext = await decrypt(
-            await recipient.open(key, authenticated),
-            ciphertext,
-            authenticated,
-        );
-
-        // seal it afresh under this host's identity
-        try {
-            return await Envelope.seal(plaintext, keyring, to);
-        } finally {
-            plaintext.fill(0);
-        }
     },
 
     /** Refuse an envelope of another format. */

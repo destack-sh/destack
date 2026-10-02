@@ -1,12 +1,15 @@
+import { type EncryptionContext, Envelope } from "../encryption/envelope.ts";
+import type { VaultKey } from "../encryption/vault.ts";
+import { MAX_VALUE_BYTES, SecretValue } from "../secret/index.ts";
 import type { InstanceOf } from "@destack/object";
 import {
     none,
     permission,
     principal,
-    principalOf,
     relation,
     union,
     type Creation,
+    Caller,
 } from "@destack/access";
 import {
     and,
@@ -21,8 +24,12 @@ import {
     type TableConstraint,
 } from "@destack/db";
 import { defineObject, field, method, type Call } from "@destack/object";
+import type { Service } from "@destack/service";
+import type { ClientOptions } from "@destack/service/client";
 import { ServiceError } from "@destack/service/error";
-import { installation, resource, space } from "@destack/space/object";
+import { installation, Resource, space } from "@destack/space/object";
+import { SpaceResource } from "@destack/space/declare";
+import { VaultKind } from "../declare/vault.ts";
 import { SpaceSecret } from "../declare/space.ts";
 import {
     SecretDisclosure,
@@ -32,31 +39,20 @@ import {
     VersionWrite,
 } from "../secret/secret.ts";
 
-/** A space's vault: the facet of a vault resource with its secrets. */
+/** A space's vault of secrets: a resource of the vault kind. */
 export const vault = defineObject({
     name: "vault",
-    identity: "resource",
     plural: "vaults",
     scope: space,
-    fields: {
-        /** The fixed resource kind of the underlying resource. */
-        kind: field.enum(["vault"]).default("vault"),
-    },
-    constraints: (entry) => [
-        unique("vault_scope_id").on(entry.scope, entry.id),
-        foreignKey({
-            columns: [entry.scope, entry.id, entry.kind],
-            foreignColumns: [resource.table.scope, resource.table.id, resource.table.kind],
-        }).onDelete("restrict"),
-    ],
-    permissions: { get: none(), list: none(), write: none() },
-    administration: ["get", "list"],
-    methods: {
-        get: method.get("get"),
-        list: method.list("list"),
-        create: method.create(null, { isSystem: true }),
-        delete: method.delete(null, { isSystem: true }),
-    },
+    controlled: true,
+    declarable: { schema: SpaceResource },
+    fields: Resource.fields(VaultKind),
+    indexes: Resource.indexes,
+    constraints: Resource.constraints("vault"),
+    relations: Resource.relations,
+    permissions: { ...Resource.permissions, write: none() },
+    administration: ["read"],
+    methods: Resource.methods,
 });
 
 /** A secret in a space's vault with its versions as values. */
@@ -96,8 +92,8 @@ export const secret = defineObject({
         check("secret_name", sql`length(${entry.name}) > 0`),
     ],
     relations: {
-        /** Installations whose live deployments captured a version of the secret. */
-        reader: { subjects: [principal.installation], grantedBy: null },
+        /** Installations whose live deployments captured a version of the secret, and so use it. */
+        user: { subjects: [principal.installation], grantedBy: null },
         /** The installation that wrote the secret, which gets, deletes and purges it. */
         custodian: { subjects: [principal.installation], grantedBy: null },
     },
@@ -110,7 +106,7 @@ export const secret = defineObject({
         enable: none(),
         promote: none(),
         read: none(),
-        open: union(permission("read"), relation("reader")),
+        open: union(permission("read"), relation("user")),
         delete: relation("custodian"),
         purge: relation("custodian"),
     },
@@ -134,7 +130,7 @@ export const secret = defineObject({
     },
 });
 
-/** One numbered, immutable value of a secret with its ciphertext kept apart. */
+/** One numbered, immutable value of a secret, sealed under its vault's key. */
 export const secretVersion = defineObject({
     name: "version",
     identity: "secret-version",
@@ -150,6 +146,8 @@ export const secretVersion = defineObject({
         disabledAt: field.time().optional(),
         /** The time the ciphertext was destroyed, absent while kept. */
         destroyedAt: field.time().optional(),
+        /** The envelope sealing the value, absent once destroyed. */
+        envelope: field.json(Envelope.schema).sensitive().optional(),
     },
     constraints: (entry) => [
         check("version_positive", sql`${entry.number} > 0`),
@@ -159,14 +157,14 @@ export const secretVersion = defineObject({
         ),
     ],
     relations: {
-        /** Installations whose live deployments captured the version. */
-        reader: { subjects: [principal.installation], grantedBy: null },
+        /** Installations whose live deployments captured the version, and so use it. */
+        user: { subjects: [principal.installation], grantedBy: null },
     },
     permissions: {
         get: none(),
         list: none(),
         write: none(),
-        read: relation("reader"),
+        read: relation("user"),
         disable: none(),
         enable: none(),
         destroy: none(),
@@ -187,7 +185,7 @@ export const secretVersion = defineObject({
 /** A persisted secret version. */
 export type SecretVersion = Select<typeof secretVersion.table>;
 
-/** The versions of secrets: found by number, and checked before they change or are read. */
+/** Find, check and seal secret versions. */
 export const SecretVersion = {
     /** Find one numbered version of a secret, absent when it has none. */
     async find(
@@ -225,11 +223,89 @@ export const SecretVersion = {
             throw new ServiceError("FORBIDDEN", { message: "secret version is unavailable" });
         }
     },
+
+    /** Seal a version's value under its vault's key and keep it in the version. */
+    async seal(
+        database: DatabaseConnection,
+        key: VaultKey,
+        owner: InstanceOf<typeof secret>,
+        version: number,
+        value: SecretValue,
+    ): Promise<void> {
+        // bound the decoded bytes before sealing the transport representation
+        const bytes =
+            value.encoding === "text"
+                ? new TextEncoder().encode(value.value)
+                : Uint8Array.fromBase64(value.value);
+        const size = bytes.byteLength;
+        bytes.fill(0);
+        if (size > MAX_VALUE_BYTES) {
+            throw new ServiceError("PAYLOAD_TOO_LARGE", {
+                message: `secret value exceeds ${MAX_VALUE_BYTES} bytes`,
+            });
+        }
+
+        // seal the value under the version's storage identity
+        const plaintext = new TextEncoder().encode(JSON.stringify(value));
+        let sealed: Envelope;
+        try {
+            sealed = await Envelope.seal(plaintext, key, SecretVersion.context(owner, version));
+        } finally {
+            plaintext.fill(0);
+        }
+
+        // keep it in the version
+        await database
+            .update(secretVersion.table)
+            .set({ envelope: sealed })
+            .where(
+                and(
+                    eq(secretVersion.table.parentId, owner.id),
+                    eq(secretVersion.table.number, version),
+                ),
+            );
+    },
+
+    /** Open a version's value, authenticating its storage identity. */
+    async open(
+        key: VaultKey,
+        owner: InstanceOf<typeof secret>,
+        version: SecretVersion,
+    ): Promise<SecretValue> {
+        // require the envelope
+        if (version.envelope === null) {
+            throw new ServiceError("INTERNAL_SERVER_ERROR", {
+                message: "secret ciphertext is missing",
+            });
+        }
+
+        // open it, clearing the plaintext either way
+        const plaintext = await Envelope.open(
+            version.envelope,
+            key,
+            SecretVersion.context(owner, version.number),
+        );
+        try {
+            return SecretValue.parse(JSON.parse(new TextDecoder().decode(plaintext)));
+        } finally {
+            plaintext.fill(0);
+        }
+    },
+
+    /** Build the storage identity a version's ciphertext authenticates. */
+    context(owner: InstanceOf<typeof secret>, version: number): EncryptionContext {
+        return {
+            spaceId: owner.scope,
+            vaultId: owner.parentId,
+            secretId: owner.id,
+            version,
+        };
+    },
 };
 
 /** Relate the installation writing a secret as its custodian, acting itself or as a delegate. */
 function custody(call: Call): Creation {
-    const writer = principalOf(call.served().context(call.scope));
+    const writer = Caller.principal(call.served().context(call.scope));
 
     return {
         relationships:
@@ -237,4 +313,18 @@ function custody(call: Call): Creation {
                 ? [{ relation: "custodian", subject: writer }]
                 : [],
     };
+}
+
+/** A space's secrets and their versions, reached at the service serving them. */
+export class SecretClient {
+    /** The secret methods. */
+    readonly secret;
+    /** The version methods. */
+    readonly version;
+
+    /** Connect to the secrets and versions of a service, as the options authenticate. */
+    constructor(service: Pick<Service, "package">, options: ClientOptions) {
+        this.secret = secret.connect(service, options);
+        this.version = secretVersion.connect(service, options);
+    }
 }

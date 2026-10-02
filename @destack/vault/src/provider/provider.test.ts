@@ -4,25 +4,18 @@ import { SystemCall } from "@destack/object/server";
 import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
 import { Recipient } from "@destack/resource";
-import { resource, space } from "@destack/space/object";
+import { space } from "@destack/space/object";
 import { expect, onTestFinished, test } from "@destack/test";
 import { LocalKeyring, VaultKey } from "../encryption/index.ts";
-import { VaultValue } from "../server/index.ts";
-import { secret, secretVersion, vault } from "../object/index.ts";
+import { secret, secretVersion, vault, SecretVersion } from "../object/index.ts";
 import { LOCATION, VaultFixture } from "../server/tests/fixture.ts";
-import { vaultKey, vaultValue } from "../stack/index.ts";
+import { vaultKey } from "../stack/index.ts";
 import { cellTables } from "../server/tests/fixture.ts";
 import { vaultProvider } from "./provider.ts";
 
 /** Copy the rows of the zone tables a target lacks, as a transfer's zone copy does. */
 async function copyZone(from: DatabaseConnection, to: DatabaseConnection): Promise<void> {
-    for (const table of [
-        space.table,
-        resource.table,
-        vault.table,
-        secret.table,
-        secretVersion.table,
-    ]) {
+    for (const table of [space.table, vault.table, secret.table, secretVersion.table]) {
         const rows = await from.select().from(table as Table);
         const written = rows.map((row) =>
             table === secret.table ? { ...row, currentVersion: null } : row,
@@ -37,17 +30,16 @@ async function copyZone(from: DatabaseConnection, to: DatabaseConnection): Promi
 }
 
 test.each(TEST_DIALECTS)(
-    "copy a vault's values to a target with other root keys, with a version written between the live and fenced passes, on %s",
+    "carry a vault's key to a host with other root keys, wrapped for its recipient, and open the secret's value there on %s",
     async (dialect) => {
-        // create a secret version on the source, and copy the zone's rows to the target
+        // keep a secret value on the source, and copy the zone's rows to the target
         await using fixture = await VaultFixture.open(dialect);
-        const { client } = fixture;
-        const { first, request } = await fixture.createSecret();
+        const { first } = await fixture.createSecret();
         const target = await TestDatabase.create(dialect, cellTables, { isMigrated: true });
         onTestFinished(() => target.close());
         await copyZone(fixture.database, target.database);
 
-        // keep values under the source's root key in one location, and the target's in another
+        // keep the source's key under its root key in one location, and the target's in another
         const targetKeyring = await LocalKeyring.import(
             "two",
             new Map([["two", crypto.getRandomValues(new Uint8Array(32))]]),
@@ -55,58 +47,21 @@ test.each(TEST_DIALECTS)(
         const source = vaultProvider(fixture.database, await fixture.keyring(), LOCATION);
         const destination = vaultProvider(target.database, targetKeyring, "us");
 
-        // copy live, carrying the cursor into the fenced pass as a transfer does
-        const record = {
-            id: fixture.vaultId,
-            scope: fixture.spaceId,
-            kind: "vault" as const,
-            spec: {},
-            reference: fixture.vaultId,
-        };
+        // wrap the key for the target's recipient, then under the target's root key
         const recipient = await Recipient.generate();
-        await destination.provision({ ...record, reference: null });
-        let cursor: string | undefined;
-        const pass = async (stage: "live" | "fenced") => {
-            const copy = { record, desired: [], recipient, stage };
-            for await (const chunk of source.export(copy, cursor, AbortSignal.timeout(4000))) {
-                await destination.import(copy, chunk);
-                cursor = chunk.cursor;
-            }
-        };
-        await pass("live");
+        const [kept] = await fixture.database.select().from(vaultKey);
+        const wrapped = await source.wrap(kept!, recipient);
+        const received = await destination.unwrap(wrapped, recipient);
+        await target.database.insert(vaultKey).values(received);
 
-        // write a second secret version after the live pass, then copy it in the fenced pass
-        await client.version.create({ ...request, requestId: RequestId.create() });
-        await copyZone(fixture.database, target.database);
-        await pass("fenced");
-
-        // read both versions on the target under its own root key, encrypted afresh
-        const copied = await target.database.select().from(vaultValue);
-        const [targetRow] = await target.database.select().from(vaultKey);
-        const targetKey = await VaultKey.load(
-            target.database,
-            targetKeyring,
-            "us",
-            targetRow!.vaultId,
-        );
-        const originals = await fixture.database.select().from(vaultValue);
-        const [owned] = await target.database.select().from(secret.table);
+        // open the secret's value on the target with the key it now keeps
+        const key = await VaultKey.load(target.database, targetKeyring, "us", fixture.vaultId);
+        const [owner] = await target.database.select().from(secret.table);
+        const version = await SecretVersion.find(target.database, first.id, 1);
         expect([
-            await VaultValue.read(target.database, targetKey, owned!, 1),
-            await VaultValue.read(target.database, targetKey, owned!, 2),
-            copied.map((value) => [value.secretId, value.version, value.keyId]),
-            copied.some((value) =>
-                originals.some((original) => original.ciphertext === value.ciphertext),
-            ),
-        ]).toEqual([
-            { encoding: "text", value: "credential" },
-            { encoding: "text", value: "credential" },
-            [
-                [first.id, 1, targetKey.id],
-                [first.id, 2, targetKey.id],
-            ],
-            false,
-        ]);
+            await SecretVersion.open(key, owner!, version!),
+            [wrapped.rootKeyId === kept!.rootKeyId, received.rootKeyId],
+        ]).toEqual([{ encoding: "text", value: "credential" }, [false, "two"]]);
     },
 );
 
@@ -122,7 +77,6 @@ test.each(TEST_DIALECTS)(
         const record = {
             id: fixture.vaultId,
             scope: fixture.spaceId,
-            kind: "vault" as const,
             spec: {},
             reference: fixture.vaultId,
         };
@@ -134,7 +88,7 @@ test.each(TEST_DIALECTS)(
             }),
         );
 
-        // destroy the vault once the secret is purged, deleting its key, its facet and the secret's records
+        // destroy the vault once the secret is purged, deleting its key, its record and the secret's records
         const row = await client.secret.get(key);
         await client.secret.delete({
             ...key,
@@ -142,16 +96,17 @@ test.each(TEST_DIALECTS)(
             requestId: RequestId.create(),
         });
         await client.secret.purge({ ...key, requestId: RequestId.create() });
+        const cell = await fixture.cell(keyring);
+        const [stored] = await database.select().from(vault.table);
+        await cell.executeAsSystem(vault, "delete", [SystemCall.of(stored!)], Date.now());
         await provider.destroy(record);
-        const [facet] = await database.select().from(vault.table);
-        await fixture
-            .system(keyring)
-            .executeAsSystem(vault, "delete", [SystemCall.of(facet!)], Date.now());
+        const [requested] = await database.select().from(vault.table);
+        await cell.executeAsSystem(vault, "finalize", [SystemCall.of(requested!)], Date.now());
         const remaining = await Promise.all(
-            [vault.table, secret.table, secretVersion.table, vaultValue, vaultKey].map((table) =>
+            [vault.table, secret.table, secretVersion.table, vaultKey].map((table) =>
                 database.select().from(table as Table),
             ),
         );
-        expect(remaining).toEqual([[], [], [], [], []]);
+        expect(remaining).toEqual([[], [], [], []]);
     },
 );

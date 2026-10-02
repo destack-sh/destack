@@ -1,14 +1,13 @@
 import { accessRelationship, principal, Relationship } from "@destack/access";
-import { and, eq } from "@destack/db";
+import { and, eq, isNotNull } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { identifier } from "@destack/schema";
-import { Caller } from "@destack/service/authentication";
+import { Authentication } from "@destack/service/authentication";
 import * as spaceObject from "@destack/space/object";
 import { expect, test } from "@destack/test";
 import { v7 } from "uuid";
 import { secret, secretVersion } from "../object/index.ts";
 import { VaultFixture } from "../server/tests/fixture.ts";
-import { vaultValue } from "../stack/index.ts";
 import { RemoteVault } from "./remote.ts";
 
 test.each(TEST_DIALECTS)(
@@ -17,7 +16,7 @@ test.each(TEST_DIALECTS)(
         // lend the member's vault role to the account service's installation
         await using fixture = await VaultFixture.open(dialect);
         const { client, database, spaceId, vaultId } = fixture;
-        const member = fixture.caller.authentication;
+        const member = fixture.caller.claims;
         const service = principal.installation.reference(
             fixture.accountId,
             identifier("installation").parse(`installation-${v7()}`),
@@ -37,11 +36,11 @@ test.each(TEST_DIALECTS)(
         await database.insert(accessRelationship).values(lent);
 
         // reach the vault for the member through the service as a delegate, else as the service itself
-        const delegated = new Caller({
+        const delegated = new Authentication({
             ...member,
             delegates: [{ subject: service, authority: "lent" }],
         });
-        const itself = new Caller({ ...member, subject: service, subjects: [service] });
+        const itself = new Authentication({ ...member, subject: service, subjects: [service] });
         const secrets = new RemoteVault(async (_spaceId, subject) => {
             fixture.caller = subject === undefined ? itself : delegated;
 
@@ -49,7 +48,7 @@ test.each(TEST_DIALECTS)(
         });
 
         // keep one secret with one version however often the credential is written
-        const id = `secret-${v7()}`;
+        const id = identifier("secret").parse(`secret-${v7()}`);
         const written = {
             id,
             spaceId,
@@ -82,11 +81,18 @@ test.each(TEST_DIALECTS)(
         await database.delete(accessRelationship).where(eq(accessRelationship.id, lent.id));
         await secrets.destroy({ spaceId, secretId: id });
         await secrets.destroy({ spaceId, secretId: id });
-        await secrets.destroy({ spaceId, secretId: `secret-${v7()}` });
+        await secrets.destroy({ spaceId, secretId: identifier("secret").parse(`secret-${v7()}`) });
         const [purged] = await database.select().from(secret.table);
-        expect([purged!.purgedAt, await database.select().from(vaultValue)]).toEqual([
-            expect.any(Number),
-            [],
-        ]);
+        expect([
+            purged!.purgedAt,
+            await database
+                .select({
+                    secretId: secretVersion.table.parentId,
+                    version: secretVersion.table.number,
+                    envelope: secretVersion.table.envelope,
+                })
+                .from(secretVersion.table)
+                .where(isNotNull(secretVersion.table.envelope)),
+        ]).toEqual([expect.any(Number), []]);
     },
 );

@@ -1,6 +1,7 @@
 import { TEST_DIALECTS } from "@destack/db/test";
-import { AuditOutbox } from "@destack/audit/outbox";
-import { eq } from "@destack/db";
+import { testCallKey } from "@destack/service/test";
+import { Journal } from "@destack/audit";
+import { eq, isNotNull } from "@destack/db";
 import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
 import { expect, test } from "@destack/test";
@@ -8,8 +9,7 @@ import { identifier } from "@destack/schema";
 import { binding, installation } from "@destack/space/object";
 import { v7 } from "uuid";
 import { secret, secretVersion } from "../../object/index.ts";
-import { vaultValue } from "../../stack/index.ts";
-import { VAULT, VaultFixture } from "./fixture.ts";
+import { SPACE, VAULT, VaultFixture } from "./fixture.ts";
 
 /** The recovery window the fixture's host gives deleted secrets, in milliseconds. */
 const RECOVERY_MILLISECONDS = 30 * 86_400_000;
@@ -191,40 +191,48 @@ test.each(TEST_DIALECTS)(
         ).rejects.toEqual(
             new ServiceError("CONFLICT", { defined: true, message: "secret version is destroyed" }),
         );
-        const ciphertext = await database.select().from(vaultValue);
+        const ciphertext = await database
+            .select({
+                secretId: secretVersion.table.parentId,
+                version: secretVersion.table.number,
+                envelope: secretVersion.table.envelope,
+            })
+            .from(secretVersion.table)
+            .where(isNotNull(secretVersion.table.envelope));
         expect(ciphertext.map((row) => row.version)).toEqual([2]);
 
-        // record every change, disclosure and refused change, the system's included, and no plaintext in any event
-        const events = await new AuditOutbox(database).read(1000);
-        const actions = events.filter(
-            (event) => event.action.package.id === VAULT.id && event.result.stage === "result",
+        // record every change, disclosure and refused change, the system's included, and no plaintext in any call
+        const calls = await new Journal(database, testCallKey).read({ limit: 1000 });
+        const actions = calls.filter(
+            (call) =>
+                call.execution!.context.package.id === SPACE.id &&
+                call.execution!.category !== "denial",
         );
-        expect(actions.map((event) => event.action.name)).toEqual([
-            "Vault.create",
-            "Secret.create",
-            "Secret.get",
-            "Secret.select",
-            "Version.create",
-            "Secret.read",
-            "Version.create",
-            "Secret.read",
-            "Secret.promote",
-            "Secret.get",
-            "Secret.read",
-            "Secret.disable",
-            "Secret.get",
-            "Secret.delete",
-            "Secret.read",
-            "Secret.restore",
-            "Secret.enable",
-            "Secret.read",
-            "Version.destroy",
-            "Version.disable",
+        expect(actions.map((call) => call.method)).toEqual([
+            "secret.create",
+            "secret.get",
+            "secret.select",
+            "version.create",
+            "secret.read",
+            "version.create",
+            "secret.read",
+            "secret.promote",
+            "secret.get",
+            "secret.read",
+            "secret.disable",
+            "secret.get",
+            "secret.delete",
+            "secret.read",
+            "secret.restore",
+            "secret.enable",
+            "secret.read",
+            "version.destroy",
+            "version.disable",
         ]);
 
         // record the version each read disclosed, and none for the read of a trashed secret
-        const reads = actions.filter((event) => event.action.name === "Secret.read");
-        expect(reads.map((event) => event.details)).toEqual([
+        const reads = actions.filter((call) => call.method === "secret.read");
+        expect(reads.map((call) => call.execution!.details)).toEqual([
             { version: 1 },
             { version: 1 },
             { version: 2 },
@@ -233,16 +241,18 @@ test.each(TEST_DIALECTS)(
         ]);
 
         // record each refused read once, as its procedure's denial
-        const denials = events.filter((event) => event.category === "denial");
-        expect(denials.map((event) => [event.targets, event.result])).toEqual(
-            Array.from({ length: 3 }, () => [
-                { procedure: { type: "procedure", id: "secret.read" } },
-                { stage: "result", outcome: "denied", errorCode: "FORBIDDEN" },
-            ]),
+        const denials = calls.filter((call) => call.execution!.category === "denial");
+        expect(denials.map((call) => [call.execution!.targets, call.execution!.outcome])).toEqual(
+            ["secret is unavailable", "secret is unavailable", "secret version is unavailable"].map(
+                (message) => [
+                    { procedure: { type: "procedure", id: "secret.read" } },
+                    { kind: "denied", error: { code: "FORBIDDEN", status: 403, message } },
+                ],
+            ),
         );
 
-        // leave the plaintext out of every event
-        const disclosures = JSON.stringify(events).split("oauth-refresh-token").length - 1;
+        // leave the plaintext out of every call the journal keeps
+        const disclosures = JSON.stringify(calls).split("oauth-refresh-token").length - 1;
         expect(disclosures).toBe(0);
     },
 );
@@ -341,7 +351,16 @@ test.each(TEST_DIALECTS)(
             return row!.purgedAt !== null;
         }, AbortSignal.timeout(PURGE_WAIT_MILLISECONDS));
         expect(isPurged).toBe(true);
-        expect(await database.select().from(vaultValue)).toEqual([]);
+        expect(
+            await database
+                .select({
+                    secretId: secretVersion.table.parentId,
+                    version: secretVersion.table.number,
+                    envelope: secretVersion.table.envelope,
+                })
+                .from(secretVersion.table)
+                .where(isNotNull(secretVersion.table.envelope)),
+        ).toEqual([]);
         const [version] = await database
             .select()
             .from(secretVersion.table)

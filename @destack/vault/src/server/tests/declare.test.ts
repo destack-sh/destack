@@ -1,18 +1,18 @@
-import { reconciliation, testJournalKey } from "@destack/service/test";
+import { reconciliation, testCallKey } from "@destack/service/test";
+import { VaultKind } from "../../declare/vault.ts";
 import { accessRelationship, principal } from "@destack/access";
 import { Scope } from "@destack/sync";
 import { copyScope } from "@destack/access/test";
 import { account } from "@destack/account/object";
-import { AuditRecorder } from "@destack/audit";
-import { AuditOutbox } from "@destack/audit/outbox";
 import { expect, onTestFinished, test } from "@destack/test";
 import { eq, type DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { DirectoryStore, directoryTables } from "@destack/directory";
 import { ObjectServer, SystemCall } from "@destack/object/server";
 import { ResourceContext } from "@destack/resource/context";
 import { identifier } from "@destack/schema";
-import { Caller } from "@destack/service/authentication";
-import { Journal } from "@destack/service/database";
+import { Authentication } from "@destack/service/authentication";
+
 import { ServiceError } from "@destack/service/error";
 import { Health } from "@destack/service/health";
 import { Server } from "@destack/service/server";
@@ -20,15 +20,15 @@ import { defineSpace } from "@destack/space";
 import { deployment, space, type Installation } from "@destack/space/object";
 import {
     applyStack,
+    Bindable,
     Binder,
-    binding,
     installation,
     networkPolicy,
+    type OpenBuild,
     packagePolicy,
     ProviderIndex,
     recordSubmission,
     relationship,
-    resourceBindable,
     role,
     serveResources,
     serveRevisions,
@@ -39,9 +39,9 @@ import { v7 } from "uuid";
 import { defineVault } from "../../declare/index.ts";
 import { LocalKeyring } from "../../encryption/index.ts";
 import { secretVersion, vault } from "../../object/index.ts";
-import { connect } from "../../secret/client.ts";
-import { implementService, secret, secretBindable, servedObjects } from "../index.ts";
-import { vaultJournal } from "../../stack/index.ts";
+import { SecretClient } from "../../object/index.ts";
+import { spaceService } from "@destack/space/service";
+import { secret, secretBindable, servedObjects } from "../index.ts";
 import { cellTables } from "./fixture.ts";
 import { vaultProvider } from "../../provider/index.ts";
 
@@ -92,6 +92,15 @@ function stack(pin?: number, isSecretDeclared = true) {
 /** The release build the revisions evaluated. */
 const build = { kind: "release" as const, version: "2026.9.0", manifest: "b".repeat(64) };
 
+/** Open every build as an empty build of its package. */
+const openBuild: OpenBuild = async (packageId) =>
+    new BuildReader(
+        { package: { id: packageId }, descriptions: {}, outputs: {} } as unknown as PackageManifest,
+        async (path) => {
+            throw new TypeError(`the fixture build of ${packageId} has no ${path}`);
+        },
+    );
+
 /** Register the space, its scopes and its stack installation, as the space service does. */
 async function register(database: DatabaseConnection): Promise<void> {
     const now = Date.now();
@@ -124,6 +133,9 @@ test.each(TEST_DIALECTS)(
         const opened = await TestDatabase.create(dialect, cellTables, { isMigrated: true });
         onTestFinished(() => opened.close());
         const database = opened.database;
+        const global = await TestDatabase.create("sqlite", directoryTables, { isMigrated: true });
+        onTestFinished(() => global.close());
+        const directory = new DirectoryStore(global.database);
         await register(database);
 
         // serve the space's objects except the space, and the vault's, to the system
@@ -135,32 +147,25 @@ test.each(TEST_DIALECTS)(
             vaultProvider(database, keyring, "eu"),
         ]);
         const resources = serveResources(providers);
+        const secrets = servedObjects(keyring, "eu", { days: 1 });
+        const binder = new Binder([Bindable.resource(VaultKind, vault), secretBindable]);
         const server = new ObjectServer({
             objects: {
                 ...Object.fromEntries(
                     Object.entries(spaceObjects).filter(([name]) => name !== "space"),
                 ),
-                resource: resources,
-                installationRevision: serveRevisions(
-                    async (packageId) =>
-                        new BuildReader(
-                            { descriptions: {}, outputs: {} } as unknown as PackageManifest,
-                            async (path) => {
-                                throw new TypeError(
-                                    `the fixture build of ${packageId} has no ${path}`,
-                                );
-                            },
-                        ),
-                ),
-                ...servedObjects(keyring, "eu", { days: 1 }),
+                ...resources,
+                ...secrets,
+                installationRevision: serveRevisions(openBuild),
             },
+            directory,
             database,
             context: (context, scope) => context.access(scope),
-            journal: new Journal(vaultJournal, testJournalKey),
-            audit: AuditRecorder.service(new AuditOutbox(database), {
-                package: vault.package,
-                service: "vault",
-            }),
+            callKey: testCallKey,
+            origin: {
+                package: spaceService.package,
+                service: spaceService.name,
+            },
         });
         const system = (
             object: Parameters<typeof server.executeAsSystem>[0],
@@ -189,6 +194,7 @@ test.each(TEST_DIALECTS)(
                         build,
                         evaluation: { export: "personal", parameters: {}, definition },
                     },
+                    openBuild,
                 ),
             );
 
@@ -198,16 +204,17 @@ test.each(TEST_DIALECTS)(
                 revision,
                 [
                     installation,
-                    resources,
-                    binding,
+                    ...Object.values(resources),
+                    secrets.secret,
+                    binder.binding,
                     networkPolicy,
                     packagePolicy,
                     role,
                     relationship,
-                    secret,
                 ],
                 {
                     server,
+                    directory,
                     release: async (packageId) => {
                         throw new TypeError(`the fixture opens no release of ${packageId}`);
                     },
@@ -215,12 +222,12 @@ test.each(TEST_DIALECTS)(
             );
         };
 
-        // stop before secrets while the vault resource awaits provisioning
+        // stop before secrets while the vault awaits provisioning
         const waiting = await apply(stack());
         expect(waiting.deferred).toBe("vault credentials is not provisioned");
 
-        // provision the vault with its facet, then apply the secret and its selection
-        const controller = server.controllers().find((each) => each.name === "resource")!;
+        // provision the vault, then apply the secret and its selection
+        const controller = server.controllers().find((each) => each.name === "vault")!;
         await controller.reconcile(
             JSON.stringify({ scope: ids.space }),
             reconciliation(new AbortController().signal),
@@ -231,7 +238,7 @@ test.each(TEST_DIALECTS)(
             ["create", `binding/installations/notes/${ids.notes}/token`],
         ]);
         const [mail] = await database.select().from(secret.table);
-        const [bound] = await database.select().from(binding.table);
+        const [bound] = await database.select().from(binder.binding.table);
         const [notesInstallation] = await database
             .select()
             .from(installation.table)
@@ -260,24 +267,18 @@ test.each(TEST_DIALECTS)(
             await system(secret, "promote", SystemCall.of(row!, { version }));
         };
 
-        // serve the vault to the notes installation
+        // serve the space's secrets to the notes installation
         const workload = principal.installation.reference(ids.space, notesInstallation!.id);
         const hosted = Server.start({
-            ...implementService({
-                journalKey: testJournalKey,
-                database,
-                keyring,
-                location: "eu",
-                recovery: { days: 1 },
-            }),
+            ...server.implement(spaceService),
             controllers: [],
-            audience: vault.package.id,
+            audience: spaceService.package.id,
             resources: new ResourceContext(),
-            health: new Health("vault"),
+            health: new Health("space"),
             authenticate: async () =>
-                new Caller({
+                new Authentication({
                     credential: { kind: "fixture", id: "fixture-1" },
-                    audience: vault.package.id,
+                    audience: spaceService.package.id,
                     verifiedAt: Date.now(),
                     expiresAt: Date.now() + 60_000,
                     subject: workload,
@@ -287,12 +288,11 @@ test.each(TEST_DIALECTS)(
             drainTimeout: 1000,
         });
         onTestFinished(() => hosted.close());
-        const client = connect({
+        const client = new SecretClient(spaceService, {
             url: "https://vault.test",
             fetch: (request) => hosted.fetch(request),
         });
         const reading = { spaceId: ids.space, id: mail!.id };
-        const binder = new Binder([resourceBindable, secretBindable]);
         const relate = () =>
             database.transaction((transaction) =>
                 binder.relate(transaction, ids.space, notesInstallation!.id, Date.now()),
@@ -389,7 +389,7 @@ test.each(TEST_DIALECTS)(
         // read nothing once no deployment is live
         await retire(second);
         await expect(client.secret.read({ ...reading, version: 1 })).rejects.toEqual(
-            new ServiceError("NOT_FOUND", { defined: true, message: `no scope ${ids.space}` }),
+            new ServiceError("NOT_FOUND", { defined: true, message: `no secret ${mail!.id}` }),
         );
         expect(await database.select().from(accessRelationship)).toEqual([]);
 

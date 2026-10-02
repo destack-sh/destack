@@ -1,14 +1,15 @@
 import { TEST_DIALECTS } from "@destack/db/test";
+import { secretVersion } from "../../object/index.ts";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { eq } from "@destack/db";
+import { eq, isNotNull } from "@destack/db";
 import { MemoryKeychain } from "@destack/host/keychain";
 import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
 import { expect, test } from "@destack/test";
 import { LocalKeyring } from "../../encryption/index.ts";
-import { vaultKey, vaultValue } from "../../stack/index.ts";
+import { vaultKey } from "../../stack/index.ts";
 import { VaultKey } from "../../encryption/index.ts";
 import { LOCATION, VaultFixture } from "./fixture.ts";
 
@@ -25,17 +26,19 @@ test.each(TEST_DIALECTS)("refuse ciphertext copied between secrets on %s", async
     await client.version.create({ ...request, parentId: second.id, requestId: RequestId.create() });
 
     // fail authenticated decryption of a ciphertext copied to another secret
-    const rows = await database.select().from(vaultValue);
+    const rows = await database
+        .select({
+            secretId: secretVersion.table.parentId,
+            version: secretVersion.table.number,
+            envelope: secretVersion.table.envelope,
+        })
+        .from(secretVersion.table)
+        .where(isNotNull(secretVersion.table.envelope));
     const original = rows.find((row) => row.secretId === first.id)!;
     await database
-        .update(vaultValue)
-        .set({
-            ciphertext: original.ciphertext,
-            nonce: original.nonce,
-            wrappedKey: original.wrappedKey,
-            keyNonce: original.keyNonce,
-        })
-        .where(eq(vaultValue.secretId, second.id));
+        .update(secretVersion.table)
+        .set({ envelope: original.envelope })
+        .where(eq(secretVersion.table.parentId, second.id));
     await expect(client.secret.read({ spaceId, id: second.id })).rejects.toEqual(
         new ServiceError("INTERNAL_SERVER_ERROR", { message: "internal server error" }),
     );
@@ -52,10 +55,20 @@ test.each(TEST_DIALECTS)(
         // keep the vault's key and a value under the keychain's first root key
         const first = await LocalKeyring.open(keychain, name);
         await database.delete(vaultKey);
-        await VaultKey.provision(database, first, LOCATION, fixture.vaultId);
+        await VaultKey.provision(database, first, LOCATION, {
+            id: fixture.vaultId,
+            scope: fixture.spaceId,
+        });
         fixture.client = fixture.connect(await fixture.host(first));
         const { key, request } = await fixture.createSecret();
-        const stored = await database.select().from(vaultValue);
+        const stored = await database
+            .select({
+                secretId: secretVersion.table.parentId,
+                version: secretVersion.table.number,
+                envelope: secretVersion.table.envelope,
+            })
+            .from(secretVersion.table)
+            .where(isNotNull(secretVersion.table.envelope));
 
         // rotate, and refuse retiring the old key while the vault key is wrapped under it
         const rotated = await LocalKeyring.rotate(keychain, name);
@@ -74,7 +87,14 @@ test.each(TEST_DIALECTS)(
         expect([
             rewrapped,
             (await database.select().from(vaultKey)).map((row) => row.rootKeyId),
-            await database.select().from(vaultValue),
+            await database
+                .select({
+                    secretId: secretVersion.table.parentId,
+                    version: secretVersion.table.number,
+                    envelope: secretVersion.table.envelope,
+                })
+                .from(secretVersion.table)
+                .where(isNotNull(secretVersion.table.envelope)),
             await current.secret.read(key),
         ]).toEqual([1, [rotated.active], stored, { version: 1, value: request.value }]);
     },

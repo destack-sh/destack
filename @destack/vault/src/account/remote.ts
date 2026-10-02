@@ -1,17 +1,13 @@
-import type { Subject } from "@destack/access";
 import type { Vault } from "@destack/account/server";
-import { identifier } from "@destack/schema";
+import type { Subject } from "@destack/sync";
 import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
-import type { connect } from "../secret/client.ts";
-
-/** A vault client, authenticated for one space. */
-type VaultClient = ReturnType<typeof connect>;
+import type { SecretClient } from "../object/index.ts";
 
 /** A vault reached over a space's vault service. */
 export class RemoteVault implements Vault {
     /** Connect to the vault serving a space, as a principal or as the account service. */
-    readonly connect: (spaceId: string, subject?: Subject) => Promise<VaultClient>;
+    readonly connect: (spaceId: string, subject?: Subject) => Promise<SecretClient>;
 
     /** Reach vaults through the given connections. */
     constructor(connect: RemoteVault["connect"]) {
@@ -22,13 +18,12 @@ export class RemoteVault implements Vault {
     async write(secret: Parameters<Vault["write"]>[0]): Promise<void> {
         // create the secret under its identifier, else read the one an earlier write created
         const client = await this.connect(secret.spaceId, secret.subject);
-        const spaceId = identifier("space").parse(secret.spaceId);
-        const id = identifier("secret").parse(secret.id);
+        const { spaceId, id } = secret;
         const existing =
             (await absent(
                 client.secret.create({
                     spaceId,
-                    parentId: identifier("resource").parse(secret.vaultId),
+                    parentId: secret.vaultId,
                     id,
                     name: secret.name,
                     requestId: RequestId.create(),
@@ -52,8 +47,8 @@ export class RemoteVault implements Vault {
         // read the current version
         const client = await this.connect(secret.spaceId, secret.subject);
         const { value } = await client.secret.read({
-            spaceId: identifier("space").parse(secret.spaceId),
-            id: identifier("secret").parse(secret.secretId),
+            spaceId: secret.spaceId,
+            id: secret.secretId,
         });
         if (value.encoding !== "text") {
             throw new ServiceError("INTERNAL_SERVER_ERROR", {
@@ -68,10 +63,7 @@ export class RemoteVault implements Vault {
     async destroy(secret: Parameters<Vault["destroy"]>[0]): Promise<void> {
         // read the secret and skip one already missing or purged
         const client = await this.connect(secret.spaceId, secret.subject);
-        const key = {
-            spaceId: identifier("space").parse(secret.spaceId),
-            id: identifier("secret").parse(secret.secretId),
-        };
+        const key = { spaceId: secret.spaceId, id: secret.secretId };
         const existing = await absent(client.secret.get(key), "NOT_FOUND");
         if (existing === undefined || existing.purgedAt !== null) {
             return;

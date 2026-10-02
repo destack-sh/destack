@@ -9,8 +9,6 @@
         "./declare": "./src/declare/index.ts",
         ".": "./src/index.ts",
         "./inspect": "./src/inspect/index.ts",
-        "./client": "./src/secret/client.ts",
-        "./service": "./src/service/index.ts",
         "./object": "./src/object/index.ts",
         "./stack": "./src/stack/index.ts",
         "./encryption": "./src/encryption/index.ts",
@@ -38,6 +36,7 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "devDependencies": {
+        "@destack/directory": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/test": "workspace:*",
         "jose": "6.2.12"

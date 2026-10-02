@@ -1,10 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
-import {
-    declaringModule,
-    DeclarationName,
-    type ModuleMetadata,
-    type Package,
-} from "@destack/package";
+import { DeclarationName, ModuleMetadata, type Package } from "@destack/package";
 import { ResourceHandle } from "@destack/resource";
 import type { Secret } from "../secret/client.ts";
 
@@ -31,7 +26,7 @@ export function defineSecret(
     declaration: SecretDescription,
     module?: ModuleMetadata,
 ): SecretDeclaration {
-    const owner = declaringModule(module, "defineSecret").package;
+    const owner = ModuleMetadata.require(module, "defineSecret").package;
 
     return new SecretDeclaration(owner, SecretDescription.parse(declaration));
 }

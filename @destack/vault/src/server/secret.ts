@@ -1,26 +1,52 @@
 import type { InstanceOf } from "@destack/object";
 import { and, eq, isNotNull, isNull } from "@destack/db";
-import { Call, recoverable, type Duration } from "@destack/object";
-import { identifier } from "@destack/schema";
+import { Call, recoverable } from "@destack/object";
+import { Duration, identifier } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
-import { Binding, capture, Deployment, deployment, resource } from "@destack/space/object";
+import { Binding, capture, Deployment, deployment } from "@destack/space/object";
 import type { Bindable } from "@destack/space/server";
 import * as base from "../object/index.ts";
-import { SecretVersion, secretVersion, vault } from "../object/index.ts";
+import { SecretVersion, secretVersion } from "../object/index.ts";
 import { SecretPromotion, SecretSelection, VersionWrite } from "../secret/index.ts";
 import { type Keyring, VaultKey } from "../encryption/index.ts";
-import { VaultValue } from "./value.ts";
+
+/** How long deleted secrets stay restorable by default: the 30 days of AWS Secrets Manager's recovery window. */
+const RECOVERY: Duration = { days: 30 };
+
+/** The shortest recovery window a host may give deleted secrets: one day. */
+const MINIMUM_RECOVERY: Duration = { days: 1 };
+
+/** Vaults as their space serves them, finalized with the records of their purged secrets. */
+export const vault = base.vault.handle({
+    finalize: async (call, next) => {
+        // discard the records of its purged secrets
+        const purged = await call.database
+            .select({ id: base.secret.table.id })
+            .from(base.secret.table)
+            .where(
+                and(
+                    eq(base.secret.table.parentId, call.target!.id),
+                    isNotNull(base.secret.table.purgedAt),
+                ),
+            );
+        for (const { id } of purged) {
+            await call.invoke(secret, "discard", { id });
+        }
+
+        return next();
+    },
+});
 
 /** Secrets a stack declares, deleted to the trash once no longer declared. */
 export const secret = base.secret.declare({
-    after: [resource],
+    after: [vault],
     resolve: async (_name, declared, stack) => {
-        // wait for the vault resource to be provisioned before writing into it
-        const vaultId = identifier("resource").parse(await stack.require(resource, declared.vault));
+        // wait for the vault to be provisioned before writing into it
+        const vaultId = identifier("vault").parse(await stack.require(vault, declared.vault));
         const [provisioned] = await stack.database
             .select({ id: vault.table.id })
             .from(vault.table)
-            .where(eq(vault.table.id, vaultId));
+            .where(and(eq(vault.table.id, vaultId), isNotNull(vault.table.reference)));
         if (!provisioned) {
             stack.wait(`vault ${declared.vault} is not provisioned`);
         }
@@ -33,7 +59,7 @@ export const secret = base.secret.declare({
 /** Secrets that deployments capture at their current version or at a binding's pinned one. */
 export const secretBindable: Bindable = {
     object: secret,
-    readable: [secret, secretVersion],
+    used: [secret, secretVersion],
     version: (target, pin) => {
         // require a version to run with: the pinned one, else the current one
         const version = pin ?? (target as InstanceOf<typeof secret>).currentVersion;
@@ -45,7 +71,7 @@ export const secretBindable: Bindable = {
 
         return version;
     },
-    reads: async (captured, database) => {
+    uses: async (captured, database) => {
         // read the captured version, refusing a capture whose version is gone
         const secretId = identifier("secret").parse(captured.target);
         const [version] = await database
@@ -70,8 +96,13 @@ export const secretBindable: Bindable = {
     },
 };
 
-/** Serve vaults, secrets and versions. */
-export function servedObjects(keyring: Keyring, location: string, recovery: Duration) {
+/** Serve secrets and versions, restorable for a recovery window after deletion. */
+export function servedObjects(keyring: Keyring, location: string, recovery: Duration = RECOVERY) {
+    // require a recovery window of a day at least
+    if (Duration.milliseconds(recovery) < Duration.milliseconds(MINIMUM_RECOVERY)) {
+        throw new TypeError("vault recovery window is shorter than a day");
+    }
+
     // select a readable version as its secret's current one
     const select = async (call: Call<typeof secret.table>) => {
         // require a readable version
@@ -82,7 +113,7 @@ export function servedObjects(keyring: Keyring, location: string, recovery: Dura
         }
         SecretVersion.requireReadable(selected, call.now);
 
-        return call.revise({ currentVersion: version });
+        return call.update({ currentVersion: version });
     };
 
     // erase a kept version's ciphertext and keep its record, refusing one a live deployment captured
@@ -108,37 +139,14 @@ export function servedObjects(keyring: Keyring, location: string, recovery: Dura
             });
         }
 
-        // erase its ciphertext
-        await VaultValue.destroy(call.database, target.parentId, target.number);
-
-        return call.revise({ destroyedAt: call.now });
+        // erase its ciphertext with the version
+        return call.update({ destroyedAt: call.now, envelope: null });
     };
-
-    // delete a vault with the records of its purged secrets
-    const vaults = vault.handle({
-        delete: async (call, next) => {
-            // discard the records of its purged secrets
-            const purged = await call.database
-                .select({ id: secret.table.id })
-                .from(secret.table)
-                .where(
-                    and(
-                        eq(secret.table.parentId, call.target!.id),
-                        isNotNull(secret.table.purgedAt),
-                    ),
-                );
-            for (const { id } of purged) {
-                await call.invoke(secret, "discard", { id });
-            }
-
-            return next();
-        },
-    });
 
     // serve the secret methods, destroying the values of a purged secret
     const secrets = secret.handle({
-        disable: (call) => call.revise({ disabledAt: call.now }),
-        enable: (call) => call.revise({ disabledAt: null }),
+        disable: (call) => call.update({ disabledAt: call.now }),
+        enable: (call) => call.update({ disabledAt: null }),
         promote: (call) => select(call),
         select: (call) => select(call),
         read: async (call) => {
@@ -175,11 +183,10 @@ export function servedObjects(keyring: Keyring, location: string, recovery: Dura
 
             return {
                 version: selected.number,
-                value: await VaultValue.read(
-                    call.database,
+                value: await SecretVersion.open(
                     await VaultKey.load(call.database, keyring, location, target.parentId),
                     target,
-                    selected.number,
+                    selected,
                 ),
             };
         },
@@ -191,7 +198,7 @@ export function servedObjects(keyring: Keyring, location: string, recovery: Dura
         },
         discard: async (call, next) => {
             // discard the versions first
-            const target = await call.revise({ currentVersion: null });
+            const target = await call.update({ currentVersion: null });
             const versions = await call.database
                 .select({ id: secretVersion.table.id })
                 .from(secretVersion.table)
@@ -200,7 +207,7 @@ export function servedObjects(keyring: Keyring, location: string, recovery: Dura
                 await call.invoke(secretVersion, "delete", { id });
             }
 
-            return next(call.with({ target: target as never }));
+            return next(call.with({ target }));
         },
         purge: async (call, next) => {
             // purge only an unbound secret, at any time while it is in the trash
@@ -248,7 +255,7 @@ export function servedObjects(keyring: Keyring, location: string, recovery: Dura
 
             // number the version, store its value, and select it as current unless told not to
             const created = (await next()) as SecretVersion;
-            await VaultValue.write(
+            await SecretVersion.seal(
                 call.database,
                 await VaultKey.load(call.database, keyring, location, owner.parentId),
                 owner,
@@ -264,16 +271,16 @@ export function servedObjects(keyring: Keyring, location: string, recovery: Dura
         disable: async (call) => {
             SecretVersion.requireKept(call.target!);
 
-            return call.revise({ disabledAt: call.now });
+            return call.update({ disabledAt: call.now });
         },
         enable: async (call) => {
             SecretVersion.requireKept(call.target!);
 
-            return call.revise({ disabledAt: null });
+            return call.update({ disabledAt: null });
         },
         destroy: (call) => destroy(call),
         purge: (call) => destroy(call),
     });
 
-    return { vault: vaults, secret: recoverable.within(secrets, recovery), version: versions };
+    return { secret: recoverable.within(secrets, recovery), version: versions };
 }
