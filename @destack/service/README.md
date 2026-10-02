@@ -338,25 +338,3 @@ import { RetryPolicy, wait } from "@destack/service/timer";
 await wait(1000, { signal });
 await RetryPolicy.pause(RetryPolicy.of({ maximumInterval: 60_000 }), failures, signal);
 ```
-
-## Operations
-
-An `OperationStore` runs long work in memory, with progress, cancellation and a deadline.
-
-```ts
-import { implementOperation, OperationStore } from "@destack/service/server";
-
-const operations = new OperationStore(defineOperation(Published, Progress), {
-    concurrency: 4,
-    capacity: 100,
-    retention: 3_600_000,
-    timeout: 60_000,
-});
-const router = implementOperation(operations);
-operations.start(caller.id, { completed: 0 }, async ({ signal, report }) => {
-    const output = await publish({ signal });
-    report({ completed: 1 });
-
-    return { url: output.url };
-});
-```

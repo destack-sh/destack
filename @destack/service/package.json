@@ -17,7 +17,6 @@
         "./database": "./src/database/index.ts",
         "./observable": "./src/observable/index.ts",
         "./declare": "./src/declare/index.ts",
-        "./operation": "./src/operation/index.ts",
         "./procedure": "./src/procedure/index.ts",
         "./page": "./src/page/index.ts",
         "./health": "./src/health/index.ts",

@@ -41,6 +41,42 @@ export interface Reconciliation {
     changed(): Promise<void>;
 }
 
+/** Reconciliations of keys whose work another host may end, such as by cancelling it. */
+export const Reconciliation = {
+    /** Run work with a signal that aborts once the reconciliation stops or a check at a change of the key returns why the work ended elsewhere. */
+    async runUntil<Result>(
+        reconciliation: Reconciliation,
+        stop: () => Promise<Error | undefined>,
+        work: (signal: AbortSignal) => Promise<Result>,
+    ): Promise<Result> {
+        // check again at each change of the key until the work settles
+        const ended = new AbortController();
+        const settled = new AbortController();
+        const settling = new Promise<void>((resolve) =>
+            settled.signal.addEventListener("abort", () => resolve(), { once: true }),
+        );
+        const watching = (async () => {
+            while (!settled.signal.aborted) {
+                await Promise.race([reconciliation.changed(), settling]);
+                const reason = settled.signal.aborted ? undefined : await stop();
+                if (reason !== undefined) {
+                    ended.abort(reason);
+
+                    return;
+                }
+            }
+        })();
+
+        // run the work until it settles, then stop checking
+        try {
+            return await work(AbortSignal.any([ended.signal, reconciliation.signal]));
+        } finally {
+            settled.abort();
+            await watching;
+        }
+    },
+};
+
 /** One key a controller reconciles, due at a time. */
 interface Work {
     /** The controller reconciling the key. */

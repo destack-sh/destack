@@ -60,7 +60,7 @@ export class Page<Position extends schema.Schema> {
     }
 
     /** Return the page's records and a cursor when more exist. */
-    result<Item>(rows: Item[], position: (item: Item) => schema.Infer<Position>) {
+    result<Item>(rows: readonly Item[], position: (item: Item) => schema.Infer<Position>) {
         // cut to the limit and build the cursor
         const items = rows.slice(0, this.limit);
         const last = items.at(-1);

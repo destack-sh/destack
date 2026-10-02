@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineTable, eq, integer, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { ControlLoop, type Controller } from "./control.ts";
+import { ControlLoop, type Controller, Reconciliation } from "./control.ts";
 import { controllerLease } from "./lease.ts";
 
 /** The jobs a controller reconciles. */
@@ -344,4 +344,37 @@ test("keep the host's alarm at the earliest due or held key, clear it once nothi
 
     // settle a waiter at once after the loop stopped
     await expect(loop.idle()).resolves.toBeUndefined();
+});
+
+test("run work until a change shows it ended elsewhere, and settle unchanged work as it finishes", async () => {
+    // keep a reconciliation whose key changes when told to
+    const changes: (() => void)[] = [];
+    const reconciliation = {
+        signal: new AbortController().signal,
+        changed: () => new Promise<void>((resolve) => changes.push(resolve)),
+    };
+    const change = () => changes.splice(0).forEach((resolve) => resolve());
+
+    // abort work once a change shows it was cancelled, keeping the reason
+    let isCancelled = false;
+    const cancelled = Reconciliation.runUntil(
+        reconciliation,
+        async () => (isCancelled ? new Error("cancelled") : undefined),
+        (signal) =>
+            new Promise<unknown>((resolve) =>
+                signal.addEventListener("abort", () => resolve(signal.reason), { once: true }),
+            ),
+    );
+    change();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    isCancelled = true;
+    change();
+
+    // settle work no change ended with its result
+    const finished = Reconciliation.runUntil(
+        reconciliation,
+        async () => undefined,
+        async () => "built",
+    );
+    expect([await cancelled, await finished]).toEqual([new Error("cancelled"), "built"]);
 });

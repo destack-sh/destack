@@ -224,7 +224,12 @@ const FIRED = schema.object({
 });
 
 /** A call to run later, sent or fired by a trigger. */
-export const RunRequest = defineSchema(schema.union([SENT, FIRED]));
+export const RunRequest = Object.assign(defineSchema(schema.union([SENT, FIRED])), {
+    /** A call sent to run later. */
+    sent: SENT,
+    /** A call a trigger fired for an event. */
+    fired: FIRED,
+});
 /** A call to run later. */
 export type RunRequest = schema.Infer<typeof RunRequest>;
 
