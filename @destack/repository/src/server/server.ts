@@ -446,7 +446,7 @@ export class RepositoryServer {
         // move the default branch when it changed
         return target.defaultReference === listing.defaultReference
             ? target
-            : call.revise({ defaultReference: listing.defaultReference });
+            : call.update({ defaultReference: listing.defaultReference });
     }
 
     /** Read a repository's origin columns. */
