@@ -1,9 +1,9 @@
 import { expect, test } from "@destack/test";
-import { type Circumstances, decide, focus, summary, TimeZone } from "../src/index.ts";
+import { type Circumstances, decide, focus, summary, Window } from "../src/index.ts";
+import { notes } from "./fixture/document.ts";
 
 /** How long an email waits in the scenarios: a quarter hour. */
 const EMAIL_DELAY = 15 * 60_000;
-import { notes } from "./fixture/document.ts";
 
 /** Saturday 24 October 2026, 12:00 UTC, the day before Vienna leaves summer time at 01:00 UTC. */
 const SATURDAY = Date.UTC(2026, 9, 24, 12, 0);
@@ -11,26 +11,12 @@ const SATURDAY = Date.UTC(2026, 9, 24, 12, 0);
 /** An hour, in milliseconds. */
 const HOUR = 3_600_000;
 
-test("place summary times and quiet hours in a time zone across the end and start of summer time", () => {
-    // place 08:00 on Sunday in winter time, an hour later in UTC than on Saturday
-    const sunday = TimeZone.next("Europe/Vienna", ["08:00"], SATURDAY);
-    const later = TimeZone.next("Europe/Vienna", ["08:00", "18:00"], SATURDAY);
-
+test("end quiet hours in a time zone after the night the clocks go back", () => {
     // end quiet hours from 22:00 to 07:00 after the night the clocks go back, and defer none at noon
     const night = { days: [6], from: "22:00", to: "07:00" };
-    const inside = TimeZone.end("Europe/Vienna", [night], Date.UTC(2026, 9, 25, 1, 30));
-    const outside = TimeZone.end("Europe/Vienna", [night], SATURDAY);
-
-    // move 02:30 on the night the clocks go forward past the gap, to 03:30 summer time
-    const gap = TimeZone.next("Europe/Vienna", ["02:30"], Date.UTC(2026, 2, 28, 12, 0));
-    expect([sunday, later, inside, outside, gap]).toEqual([
-        Date.UTC(2026, 9, 25, 7, 0),
-        Date.UTC(2026, 9, 24, 16, 0),
-        Date.UTC(2026, 9, 25, 6, 0),
-        undefined,
-        Date.UTC(2026, 2, 29, 1, 30),
-    ]);
-    expect(() => TimeZone.next("Mars/Olympus", ["08:00"], SATURDAY)).toThrow(RangeError);
+    const inside = Window.end("Europe/Vienna", [night], Date.UTC(2026, 9, 25, 1, 30));
+    const outside = Window.end("Europe/Vienna", [night], SATURDAY);
+    expect([inside, outside]).toEqual([Date.UTC(2026, 9, 25, 6, 0), undefined]);
 });
 
 test("decide each channel by the first rule that applies, from access down to presence", () => {

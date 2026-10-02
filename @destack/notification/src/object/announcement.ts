@@ -1,4 +1,5 @@
-import { AccessName, through } from "@destack/access";
+import { through } from "@destack/access";
+import { AccessName } from "@destack/sync";
 import { unique, type Select } from "@destack/db";
 import { defineObject, field, method } from "@destack/object";
 import { PackageId } from "@destack/package";

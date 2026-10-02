@@ -1,5 +1,5 @@
-import { subjectKey } from "@destack/access";
 import { TEST_DIALECTS } from "@destack/db/test";
+import { Subject } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { focus, notification } from "../src/index.ts";
 import { actors, serveSpace } from "./fixture/space.ts";
@@ -17,7 +17,7 @@ test.for(TEST_DIALECTS)(
             await serveSpace(dialect);
 
         // give carol two desktops and quiet hours from 11:00 to 14:00 in Vienna on Mondays, now noon there
-        const carol = subjectKey(actors.carol);
+        const carol = Subject.key(actors.carol);
         homes.desktops.set(carol, [LAPTOP, STUDIO]);
         homes.zones.set(carol, "Europe/Vienna");
         homes.set("carol", focus, {

@@ -1,14 +1,13 @@
 import type { InstanceOf } from "@destack/object";
-import { type ObjectReference } from "@destack/sync";
+import { type ObjectReference, Subject } from "@destack/sync";
 import { ServiceError } from "@destack/service/error";
-import { sameSubject, type Subject, subjectKey } from "@destack/access";
 import { and, eq, gte, inArray, isNull } from "@destack/db";
-import { Call, Duration, type ObjectType } from "@destack/object";
+import { Call, type ObjectType } from "@destack/object";
 import type { Action, Content } from "./content.ts";
 import type { Notice } from "./notice.ts";
 import type { Package } from "@destack/package";
-import { type DeclarationReference, reference } from "@destack/package/declare";
-import { schema } from "@destack/schema";
+import { DeclarationReference } from "@destack/package/declare";
+import { schema, Duration } from "@destack/schema";
 import { Setting } from "@destack/setting";
 import { type Audience, announcement, type Announcement } from "../object/announcement.ts";
 import { NOTIFY_RECIPIENTS, notification } from "../object/notification.ts";
@@ -64,7 +63,7 @@ export class Notification<Payload extends schema.Schema = schema.Schema> {
         this.package = owner;
         this.name = definition.name;
         this.definition = definition;
-        this.reference = reference(this);
+        this.reference = DeclarationReference.of(this);
 
         // derive the preference setting
         this.preference = new Setting(owner, {
@@ -108,9 +107,9 @@ export class Notification<Payload extends schema.Schema = schema.Schema> {
                 notice.recipients
                     .filter(
                         (recipient) =>
-                            call.caller === undefined || !sameSubject(recipient, call.caller),
+                            call.caller === undefined || !Subject.same(recipient, call.caller),
                     )
-                    .map(subjectKey),
+                    .map(Subject.key),
             ),
         ];
         if (recipients.length === 0) {
@@ -225,9 +224,9 @@ export class Notification<Payload extends schema.Schema = schema.Schema> {
             throw new TypeError(`an announcement skips at most ${NOTIFY_RECIPIENTS} principals`);
         }
         const values = {
-            author: subjectKey(author),
+            author: Subject.key(author),
             audience: notice.audience,
-            excluded: [...new Set(excluded.map(subjectKey))],
+            excluded: [...new Set(excluded.map(Subject.key))],
             thread,
             payload,
             cursor: null,

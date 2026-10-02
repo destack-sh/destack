@@ -1,5 +1,5 @@
-import { subjectKey } from "@destack/access";
 import { TEST_DIALECTS } from "@destack/db/test";
+import { Subject } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { notification } from "../src/index.ts";
 import { decrypt, subscribeBrowser } from "./fixture/browser.ts";
@@ -27,7 +27,7 @@ test.for(TEST_DIALECTS)(
 
         // give bob a laptop, a phone and an email address, and share two documents with him
         const phone = await subscribeBrowser();
-        const bob = subjectKey(actors.bob);
+        const bob = Subject.key(actors.bob);
         homes.endpoints.set(bob, [
             {
                 id: PHONE as never,

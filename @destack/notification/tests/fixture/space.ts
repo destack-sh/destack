@@ -1,27 +1,19 @@
 import type { notification } from "../../src/object/notification.ts";
 import type { InstanceOf } from "@destack/object";
-import { reconciliation, testJournalKey } from "@destack/service/test";
-import {
-    accessRelationship,
-    accessRole,
-    anyone,
-    Relationship,
-    Role,
-    type Subject,
-    subjectKey,
-} from "@destack/access";
+import { reconciliation, testCallKey } from "@destack/service/test";
+import { accessRelationship, accessRole, anyone, Relationship, Role } from "@destack/access";
 import type { PackageId } from "@destack/package";
-import { Scope } from "@destack/sync";
+import { Scope, Subject } from "@destack/sync";
 import { copyScope } from "@destack/access/test";
 import { account } from "@destack/account/object";
-import type { AuditRecorder } from "@destack/audit";
+import { journal } from "@destack/audit";
 import { type DatabaseConnection, type Dialect, eq, Key, TABLE, type Table } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
 import { TestDatabase } from "@destack/db/test";
 import type { ObjectType } from "@destack/object";
 import { ObjectServer } from "@destack/object/server";
 import { type Identifier, identifier, type schema } from "@destack/schema";
-import { defineJournal, Journal } from "@destack/service/database";
+
 import { RequestId } from "@destack/service/request";
 import { subjectContext } from "@destack/service/test";
 import type { Setting } from "@destack/setting";
@@ -43,9 +35,6 @@ import { type Actor, actors } from "./actor.ts";
 import { document, notifications } from "./document.ts";
 
 export { type Actor, actors } from "./actor.ts";
-
-/** Replayable method requests. */
-const journal = defineJournal("journal");
 
 /** The start of every scenario: Monday 28 September 2026, 10:00 UTC, noon in Vienna. */
 export const MONDAY = Date.UTC(2026, 8, 28, 10, 0);
@@ -77,7 +66,7 @@ export class MemoryDirectory {
 
     /** Read the time zone a recipient's profile names, UTC for one naming none. */
     async timeZone(recipient: Subject): Promise<string> {
-        return this.zones.get(subjectKey(recipient)) ?? "UTC";
+        return this.zones.get(Subject.key(recipient)) ?? "UTC";
     }
 
     /** Set a recipient's value of a setting, in their scope or refined to a space. */
@@ -87,11 +76,13 @@ export class MemoryDirectory {
         value: schema.Infer<Value>,
         refinement: { readonly space?: string } = {},
     ): void {
-        const values = this.values.get(subjectKey(actors[actor])) ?? [];
+        const values = this.values.get(Subject.key(actors[actor])) ?? [];
         values.push({
             id: identifier("setting").parse(`setting-${v7()}`),
             createdAt: 0,
+            createdBy: Subject.key(actors[actor]),
             updatedAt: 0,
+            updatedBy: Subject.key(actors[actor]),
             revision: 1,
             tags: {},
             scope: actors[actor].id,
@@ -109,35 +100,35 @@ export class MemoryDirectory {
             value: value as never,
             release: setting.package.version,
         });
-        this.values.set(subjectKey(actors[actor]), values);
+        this.values.set(Subject.key(actors[actor]), values);
     }
 
     /** Read the values a recipient placed. */
     async settings(recipient: Subject): Promise<readonly SettingValue[]> {
-        return this.values.get(subjectKey(recipient)) ?? [];
+        return this.values.get(Subject.key(recipient)) ?? [];
     }
 
     /** Read a recipient's desktops, push endpoints and email address. */
     async contact(recipient: Subject): Promise<Contact> {
-        const email = this.emails.get(subjectKey(recipient));
+        const email = this.emails.get(Subject.key(recipient));
 
         return {
-            desktops: this.desktops.get(subjectKey(recipient)) ?? [],
-            endpoints: this.endpoints.get(subjectKey(recipient)) ?? [],
+            desktops: this.desktops.get(Subject.key(recipient)) ?? [],
+            endpoints: this.endpoints.get(Subject.key(recipient)) ?? [],
             ...(email === undefined ? {} : { email }),
         };
     }
 
     /** Read the devices a recipient is active on. */
     async devices(recipient: Subject): Promise<readonly string[]> {
-        return this.active.get(subjectKey(recipient)) ?? [];
+        return this.active.get(Subject.key(recipient)) ?? [];
     }
 
     /** Forget a push endpoint. */
     async forget(recipient: Subject, endpoint: string): Promise<void> {
-        const known = this.endpoints.get(subjectKey(recipient)) ?? [];
+        const known = this.endpoints.get(Subject.key(recipient)) ?? [];
         this.endpoints.set(
-            subjectKey(recipient),
+            Subject.key(recipient),
             known.filter((entry) => entry.id !== endpoint),
         );
         this.forgotten.push(endpoint);
@@ -202,12 +193,12 @@ export async function serveSpace(dialect: Dialect, options: { readonly batch?: n
         database: storage.database,
         clock,
         context: (context) => ({
-            subjects: [context.requireCaller().authentication.subject],
+            subjects: [context.requireAuthentication().claims.subject],
             now,
             attributes: {},
         }),
-        journal: new Journal(journal, testJournalKey),
-        audit: () => ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
+        callKey: testCallKey,
+        origin: { package: document.package, service: "notification" },
     });
     const controllers = server.controllers().filter((each) => DISPATCHED.has(each.name));
 

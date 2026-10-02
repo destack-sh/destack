@@ -1,8 +1,9 @@
 import type { InstanceOf } from "@destack/object";
+import { TimeZone } from "@destack/schema";
 import type { notification } from "../object/notification.ts";
 import type { Channel, SkipReason } from "../object/delivery.ts";
 import type { Focus, InterruptionLevel, Preference, Summary } from "../preference/preference.ts";
-import { TimeZone } from "../preference/zone.ts";
+import { Window } from "../preference/window.ts";
 
 /** What a channel does with a notification now. */
 export type Decision =
@@ -116,7 +117,7 @@ function focusEnd(circumstances: Circumstances): number | undefined {
     // take the later of the manual and scheduled ends
     const { focus, now } = circumstances;
     const manual = focus.until !== undefined && focus.until > now ? focus.until : undefined;
-    const scheduled = TimeZone.end(circumstances.timeZone, focus.schedules, now);
+    const scheduled = Window.end(circumstances.timeZone, focus.schedules, now);
     const ends = [manual, scheduled].filter((end) => end !== undefined);
 
     return ends.length === 0 ? undefined : Math.max(...ends);

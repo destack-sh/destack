@@ -1,5 +1,5 @@
-import { subjectKey } from "@destack/access";
 import { TEST_DIALECTS } from "@destack/db/test";
+import { Subject } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { focus, notification, subscription } from "../src/index.ts";
 import { document, review } from "./fixture/document.ts";
@@ -15,7 +15,7 @@ test.for(TEST_DIALECTS)(
             await serveSpace(dialect);
 
         // give bob a phone and a focus for the next two hours, and let him subscribe to a document he edits
-        const bob = subjectKey(actors.bob);
+        const bob = Subject.key(actors.bob);
         homes.endpoints.set(bob, [
             {
                 id: PHONE as never,
@@ -73,7 +73,7 @@ test.for(TEST_DIALECTS)(
         expect([
             (await call("get", { id: plan.id }, document)).approvedBy,
             (await call("get", { id: request.id }, notification)).readAt,
-        ]).toEqual([subjectKey(actors.bob), now()]);
+        ]).toEqual([Subject.key(actors.bob), now()]);
 
         // snooze the change past the focus and keep it from the badge and the phone
         const until = end + 60 * 60_000;

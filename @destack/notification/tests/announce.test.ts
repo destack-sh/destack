@@ -1,5 +1,5 @@
-import { subjectKey } from "@destack/access";
 import { TEST_DIALECTS } from "@destack/db/test";
+import { Subject } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { subscription } from "../src/index.ts";
 import { actors, serveSpace } from "./fixture/space.ts";
@@ -47,7 +47,7 @@ test.for(TEST_DIALECTS)(
         await dispatch();
         const editors = await states();
         const state = (actor: keyof typeof actors, reason: string, count: number) => [
-            subjectKey(actors[actor]),
+            Subject.key(actors[actor]),
             reason,
             count,
         ];
@@ -97,8 +97,8 @@ test.for(TEST_DIALECTS)(
         const announced = (await notifications()).filter((row) => row.name === "change");
         expect(announced.map((row) => [row.recipient, row.reason])).toEqual(
             [
-                [subjectKey(actors.bob), "mention"],
-                [subjectKey(actors.carol), "subscribed"],
+                [Subject.key(actors.bob), "mention"],
+                [Subject.key(actors.carol), "subscribed"],
             ].toSorted((left, right) => left[0]!.localeCompare(right[0]!)),
         );
     },

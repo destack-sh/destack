@@ -1,12 +1,5 @@
-import { type ObjectReference } from "@destack/sync";
-import {
-    intersection,
-    keySubject,
-    relation,
-    type Subject,
-    subjectKey,
-    through,
-} from "@destack/access";
+import { type ObjectReference, Subject } from "@destack/sync";
+import { intersection, relation, through } from "@destack/access";
 import { and, eq, gt, lte, unique, type Select } from "@destack/db";
 import { type Call, defineObject, field, method } from "@destack/object";
 import { space } from "@destack/space/object";
@@ -77,13 +70,13 @@ export const Subscription = {
                     eq(table.parentPackageId, host.packageId),
                     eq(table.parentType, host.type),
                     eq(table.parentId, host.id),
-                    eq(table.owner, subjectKey(owner)),
+                    eq(table.owner, Subject.key(owner)),
                 ),
             );
         if (existing === undefined) {
             await call.invoke(subscription, "add", {
                 parent: { packageId: host.packageId, type: host.type, id: host.id },
-                owner: subjectKey(owner),
+                owner: Subject.key(owner),
                 reason,
             });
         }
@@ -120,7 +113,7 @@ export const Subscription = {
 
         return rows.map((row) => ({
             id: row.id,
-            owner: keySubject(row.owner),
+            owner: Subject.read(row.owner),
             reason: row.reason,
         }));
     },

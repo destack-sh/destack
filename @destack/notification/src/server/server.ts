@@ -1,7 +1,7 @@
 import type { InstanceOf } from "@destack/object";
-import { keySubject, principal, type Subject, subjectKey } from "@destack/access";
-import { identifier } from "@destack/schema";
-import { Replica, Scope, type ObjectReference } from "@destack/sync";
+import { principal } from "@destack/access";
+import { Duration, identifier, schema } from "@destack/schema";
+import { Replica, Scope, type ObjectReference, Subject } from "@destack/sync";
 import {
     and,
     asc,
@@ -14,8 +14,7 @@ import {
 } from "@destack/db";
 import { Snapshot } from "@destack/db/log";
 import { Condition } from "@destack/db/query";
-import { type Call, Duration } from "@destack/object";
-import { schema } from "@destack/schema";
+import { type Call } from "@destack/object";
 import { RetryPolicy } from "@destack/service/timer";
 
 import { user } from "@destack/account/object";
@@ -249,7 +248,7 @@ export class NotificationServer {
     /** Read the recipient's desktops and push endpoints before planning. */
     async #targetsOf(call: Call): Promise<Targets> {
         const row = call.target as InstanceOf<typeof notification>;
-        const contact = await this.#options.recipients.contact(keySubject(row.recipient));
+        const contact = await this.#options.recipients.contact(Subject.read(row.recipient));
 
         return {
             desktops: contact.desktops,
@@ -285,7 +284,7 @@ export class NotificationServer {
             });
         }
 
-        return call.revise({ plannedAt: call.now, snoozedUntil: null });
+        return call.update({ plannedAt: call.now, snoozedUntil: null });
     }
 
     /** Decide and send a due delivery or summary before recording it. */
@@ -296,7 +295,7 @@ export class NotificationServer {
             .select()
             .from(notification.table)
             .where(eq(notification.table.id, lead.parentId));
-        const recipient = keySubject(first!.recipient);
+        const recipient = Subject.read(first!.recipient);
         const rows = lead.isSummarized
             ? await this.#siblings(call, lead, first!.recipient)
             : [lead];
@@ -541,7 +540,7 @@ export class NotificationServer {
 
         // skip the author and excluded principals
         const skipped = new Set([row.author, ...row.excluded]);
-        const recipients = audience.filter((entry) => !skipped.has(subjectKey(entry.owner)));
+        const recipients = audience.filter((entry) => !skipped.has(Subject.key(entry.owner)));
 
         // notify each reason's recipients together
         const reasons = new Map<Reason, Subject[]>();
@@ -562,7 +561,7 @@ export class NotificationServer {
         }
 
         // advance the cursor, finishing with a batch short of full
-        return call.revise({
+        return call.update({
             cursor: audience.at(-1)?.id ?? row.cursor,
             expandedAt: audience.length < (this.#options.batch ?? BATCH) ? call.now : null,
         });
@@ -664,7 +663,7 @@ export class NotificationServer {
             page,
         );
 
-        return subjects.map((owner) => ({ id: subjectKey(owner), owner }));
+        return subjects.map((owner) => ({ id: Subject.key(owner), owner }));
     }
 
     /** Read a push topic from an identifier's 32 hexadecimal digits, as RFC 8030 allows. */

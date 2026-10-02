@@ -1,4 +1,5 @@
-import { keySubject, principal, relation, Subject, subjectKey, union } from "@destack/access";
+import { principal, relation, union } from "@destack/access";
+import { Subject } from "@destack/sync";
 import { defineObject, field, method } from "@destack/object";
 import { Package } from "@destack/package";
 import { schema } from "@destack/schema";
@@ -173,7 +174,7 @@ export const document = defineObject({
         const { state } = call.input as { readonly state: "publishing" | "published" | "failed" };
         await status.notify(call, {
             source: call.reference(),
-            recipients: [keySubject(call.target!.owner as string)],
+            recipients: [Subject.read(call.target!.owner as string)],
             reason: "author",
             payload: { state },
             key: "publishing",
@@ -194,7 +195,7 @@ export const document = defineObject({
 
         return call.target;
     },
-    approve: async (call) => call.revise({ approvedBy: subjectKey(call.caller!) }),
+    approve: async (call) => call.update({ approvedBy: Subject.key(call.caller!) }),
     edit: async (call) => {
         // tell the document's subscribers about the change
         const { summary } = call.input as { readonly summary: string };

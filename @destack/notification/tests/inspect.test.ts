@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { defineNotification } from "../src/declare/index.ts";
-import { describeFile } from "@destack/package/file";
+import { PackageFile } from "@destack/package/file";
 import { BuildReader, type PackageManifest } from "@destack/package/manifest";
 import { notification } from "../src/index.ts";
 import {
@@ -125,7 +125,11 @@ test("read the notifications a build declares from this package's description co
         description: describeNotification(mention),
     };
     const bytes = new TextEncoder().encode(JSON.stringify([declaration]));
-    const file = await describeFile("manifest/notification.json", "application/json", bytes);
+    const file = await PackageFile.describe(
+        "manifest/notification.json",
+        "application/json",
+        bytes,
+    );
     const reader = (descriptions: PackageManifest["descriptions"]) =>
         // only the descriptions matter to reading notifications
         new BuildReader({ descriptions } as PackageManifest, async () => bytes);

@@ -1,5 +1,5 @@
-import { subjectKey } from "@destack/access";
 import { TEST_DIALECTS } from "@destack/db/test";
+import { Subject } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { notification, subscription } from "../src/index.ts";
 import { actors, serveSpace } from "./fixture/space.ts";
@@ -9,7 +9,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const { call, as, dispatch, inbox, wait, now, notifications, deliveries, host, homes } =
             await serveSpace(dialect);
-        homes.emails.set(subjectKey(actors.alice), "alice@example.com");
+        homes.emails.set(Subject.key(actors.alice), "alice@example.com");
         const plan = await call("create", { title: "Launch plan" });
         await call("grant", { id: plan.id, relation: "editor", subject: actors.bob });
         await call("create", host(plan.id), subscription);

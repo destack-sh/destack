@@ -1,8 +1,8 @@
 import { PackageId } from "@destack/package";
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, PlainTime, schema } from "@destack/schema";
 import { defineSetting } from "@destack/setting/declare";
 import { CHANNELS } from "../object/delivery.ts";
-import { LocalTime, Window } from "./zone.ts";
+import { Window } from "./window.ts";
 
 /** The most quiet windows one focus schedules: two per day for a week. */
 const WINDOW_COUNT = 14;
@@ -56,7 +56,7 @@ export const summary = defineSetting({
     description: "When notifications set to arrive in a summary are sent, and how.",
     schema: schema.object({
         /** The times of day it goes out. */
-        times: schema.array(LocalTime).min(1).max(SUMMARY_COUNT),
+        times: schema.array(PlainTime).min(1).max(SUMMARY_COUNT),
         /** The channels other than the desktop. */
         channels: schema.array(schema.enum(CHANNELS).exclude(["desktop"])),
     }),

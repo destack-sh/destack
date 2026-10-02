@@ -1,4 +1,4 @@
-import { declaringModule, type ModuleMetadata } from "@destack/package";
+import { ModuleMetadata } from "@destack/package";
 import { defineSchema, schema } from "@destack/schema";
 import { Notification, type NotificationDefinition } from "../notification/notification.ts";
 import { NotificationName } from "../object/notification.ts";
@@ -45,7 +45,7 @@ export function defineNotification<Payload extends schema.Schema>(
     module?: ModuleMetadata,
 ): Notification<Payload> {
     // stamp the declaring package
-    const owner = declaringModule(module, "defineNotification").package;
+    const owner = ModuleMetadata.require(module, "defineNotification").package;
 
     // validate the metadata
     const { name, title, description, interruption, preference, payload, actions } = definition;

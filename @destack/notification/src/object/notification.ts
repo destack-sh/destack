@@ -3,7 +3,7 @@ import { check, index, sql, unique } from "@destack/db";
 import { Condition } from "@destack/db/query";
 import { defineObject, field, method } from "@destack/object";
 import { PackageId } from "@destack/package";
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, Instant, schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { space } from "@destack/space/object";
 import { REASONS } from "./subscription.ts";
@@ -26,12 +26,12 @@ export const NotificationKey = defineSchema(schema.string().min(1).max(KEY_LENGT
 const read = method({ permission: "read", inverse: "unread" }).handle(async (call) => {
     const { readAt } = call.target as { readonly readAt: number | null };
 
-    return readAt === null ? call.revise({ readAt: call.now }) : call.target;
+    return readAt === null ? call.update({ readAt: call.now }) : call.target;
 });
 
 /** Mark a notification unread. */
 const unread = method({ permission: "read", inverse: "read" }).handle(async (call) =>
-    call.revise({ readAt: null }),
+    call.update({ readAt: null }),
 );
 
 /** Defer a notification until a time. */
@@ -39,7 +39,7 @@ const snooze = method({
     permission: "read",
     input: schema.object({
         /** When the snooze ends, in UTC epoch milliseconds. */
-        until: schema.number().int().nonnegative(),
+        until: Instant,
     }),
 }).handle(async (call) => {
     // require a snooze ending later
@@ -48,7 +48,7 @@ const snooze = method({
         throw new ServiceError("BAD_REQUEST", { message: "a snooze ends in the future" });
     }
 
-    return call.revise({ snoozedUntil: until });
+    return call.update({ snoozedUntil: until });
 });
 
 /** One recipient's notification about one source object. */

@@ -1,5 +1,5 @@
-import type { Subject } from "@destack/access";
 import type { Setting } from "@destack/setting";
+import type { Subject } from "@destack/sync";
 import type { SettingValue } from "@destack/setting/object";
 import type { Delivery } from "../object/delivery.ts";
 import type { PushEndpoint } from "../object/endpoint.ts";

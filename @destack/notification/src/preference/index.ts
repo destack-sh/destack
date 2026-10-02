@@ -1,2 +1,2 @@
 export * from "./preference.ts";
-export * from "./zone.ts";
+export * from "./window.ts";

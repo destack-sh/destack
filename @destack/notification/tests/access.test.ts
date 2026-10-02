@@ -1,5 +1,5 @@
-import { subjectKey } from "@destack/access";
 import { TEST_DIALECTS } from "@destack/db/test";
+import { Subject } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { focus } from "../src/index.ts";
 import { subscribeBrowser } from "./fixture/browser.ts";
@@ -22,7 +22,7 @@ test.for(TEST_DIALECTS)(
         } = await serveSpace(dialect);
 
         // give carol a phone, an email address and quiet hours from 11:00 to 14:00 in Vienna on Mondays, now noon there
-        const carol = subjectKey(actors.carol);
+        const carol = Subject.key(actors.carol);
         const phone = await subscribeBrowser();
         homes.endpoints.set(carol, [
             {
@@ -33,7 +33,7 @@ test.for(TEST_DIALECTS)(
             },
         ]);
         homes.emails.set(carol, "carol@example.com");
-        homes.zones.set(subjectKey(actors.carol), "Europe/Vienna");
+        homes.zones.set(Subject.key(actors.carol), "Europe/Vienna");
         homes.set("carol", focus, {
             schedules: [{ days: [1], from: "11:00", to: "14:00" }],
             allowed: [],

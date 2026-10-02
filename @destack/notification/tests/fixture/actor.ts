@@ -1,5 +1,5 @@
-import { principal, type Subject, sameSubject } from "@destack/access";
-import { Scope } from "@destack/sync";
+import { principal } from "@destack/access";
+import { Scope, Subject } from "@destack/sync";
 import { Package } from "@destack/package";
 
 /** The principals the scenarios act as, users with identifiers of their own. */
@@ -16,7 +16,7 @@ export type Actor = keyof typeof actors;
 
 /** Read the name of the actor a subject is. */
 export function nameOf(subject: Subject): Actor {
-    return (Object.keys(actors) as Actor[]).find((actor) => sameSubject(actors[actor], subject))!;
+    return (Object.keys(actors) as Actor[]).find((actor) => Subject.same(actors[actor], subject))!;
 }
 
 /** The account package release with the person's settings. */

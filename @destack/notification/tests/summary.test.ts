@@ -1,5 +1,5 @@
-import { subjectKey } from "@destack/access";
 import { TEST_DIALECTS } from "@destack/db/test";
+import { Subject } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { notification, subscription } from "../src/index.ts";
 import { change } from "./fixture/document.ts";
@@ -12,8 +12,8 @@ test.for(TEST_DIALECTS)(
             await serveSpace(dialect);
 
         // let erin in Vienna, where it is noon, take changes in the summary going out at 08:00 and 18:00 by email
-        homes.emails.set(subjectKey(actors.erin), "erin@example.com");
-        homes.zones.set(subjectKey(actors.erin), "Europe/Vienna");
+        homes.emails.set(Subject.key(actors.erin), "erin@example.com");
+        homes.zones.set(Subject.key(actors.erin), "Europe/Vienna");
         homes.set("erin", change.preference, {
             channels: ["desktop", "push", "email"],
             delivery: "summary",
