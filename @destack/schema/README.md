@@ -34,21 +34,54 @@ compareJsonSchemas(toJsonSchema(schema.string()), toJsonSchema(schema.string().m
 compareJsonSchemas(toJsonSchema(schema.string()), toJsonSchema(schema.number())); // "incompatible"
 ```
 
-| Change | Meaning |
-|---|---|
-| `same` | each accepts exactly the other's values |
-| `wider` | the new schema accepts every old value |
-| `narrower` | the old schema accepts every new value |
-| `incompatible` | neither holds, or the comparison cannot prove it |
+| Change         | Meaning                                            |
+| -------------- | -------------------------------------------------- |
+| `same`         | each accepts exactly the other's values            |
+| `wider`        | the new schema accepts every old value             |
+| `narrower`     | the old schema accepts every new value             |
+| `incompatible` | neither is true, or the comparison cannot prove it |
 
 ## Identifiers
 
+An identifier is a lowercase prefix and a UUIDv7, branded by its prefix.
+
 ```ts
-import { identifier, identifierTime } from "@destack/schema";
+import { identifier, Identifier } from "@destack/schema";
 
 const SpaceId = identifier("space");
 const id = SpaceId.parse("space-01995f12-3456-7890-8abc-123456789abc");
-identifierTime(id); // the Unix milliseconds of the UUIDv7
+Identifier.uuid(id); // "01995f12-3456-7890-8abc-123456789abc"
+```
+
+## Versions
+
+A version is a calendar release, and a nightly build sorts before its release.
+
+```ts
+import { Version } from "@destack/schema";
+
+Version.compare("2026.10.0-nightly.3", "2026.10.0"); // -1
+Version.between({ "2026.9.0": a, "2026.10.0": b }, "2026.8.0", "2026.9.0"); // [["2026.9.0", a]]
+```
+
+## Time
+
+Time values follow Temporal's names and keep their JSON forms.
+
+| Value       | Form                                                   |
+| ----------- | ------------------------------------------------------ |
+| `Instant`   | UTC epoch milliseconds                                 |
+| `Duration`  | `{ days?, hours?, minutes?, seconds?, milliseconds? }` |
+| `PlainDate` | `{ year, month, day }`                                 |
+| `PlainTime` | `"HH:MM"` on a 24-hour clock                           |
+| `Weekday`   | 1 for Monday to 7 for Sunday                           |
+| `TimeZone`  | an IANA name, such as `"Europe/Vienna"`                |
+
+```ts
+import { Duration, TimeZone } from "@destack/schema";
+
+Duration.milliseconds({ minutes: 1, seconds: 30 }); // 90000
+TimeZone.next("Europe/Vienna", ["09:00", "17:00"], Date.now()); // the next 09:00 or 17:00 in Vienna
 ```
 
 ## Sensitivity
@@ -61,13 +94,14 @@ const Credential = schema.object({
     token: schema.sensitive(schema.string()),
 });
 schema.isSensitive(Credential.shape.token); // true
+schema.redact(Credential, { name: "ci", token: "secret" }); // { name: "ci" }
 ```
 
 ## Digests
 
 ```ts
-import { canonicalize, digest } from "@destack/schema/json";
+import { canonicalize, Digest } from "@destack/schema";
 
 canonicalize({ b: 1, a: [true] }); // '{"a":[true],"b":1}'
-await digest({ b: 1, a: [true] }); // the SHA-256 of the canonical form, as hex
+await Digest.json({ b: 1, a: [true] }); // the SHA-256 of the canonical form, as hex
 ```
