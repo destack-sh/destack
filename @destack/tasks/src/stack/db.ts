@@ -1,13 +1,9 @@
-import type { Table } from "@destack/db";
-import { defineDatabase } from "@destack/db/declare";
+import { type Table, defineDatabase } from "@destack/db";
+import { journal } from "@destack/audit";
 import { announcement, delivery, notification, subscription } from "@destack/notification";
-import { defineJournal } from "@destack/service/database";
 import { comment, reaction } from "@destack/social";
 import { branchTables } from "@destack/space/object";
 import { project, task } from "../object/index.ts";
-
-/** Replayable method requests. */
-export const tasksJournal = defineJournal("journal");
 
 /** The tables of projects and tasks, with their comments, notifications and branches, for a database embedding them. */
 export const tasksTables: readonly Table[] = [
@@ -22,7 +18,7 @@ export const tasksTables: readonly Table[] = [
         delivery,
     ].flatMap((object) => object.tables),
     ...branchTables,
-    tasksJournal,
+    journal,
 ];
 
 /** The database of one space's projects and tasks, with their comments and notifications. */

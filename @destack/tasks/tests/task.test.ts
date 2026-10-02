@@ -2,24 +2,22 @@ import { anyone, principal } from "@destack/access";
 import { Scope } from "@destack/sync";
 import { copyRole, copyScope } from "@destack/access/test";
 import { account } from "@destack/account/object";
-import { AuditRecorder } from "@destack/audit";
-import { AuditOutbox } from "@destack/audit/outbox";
 import type { DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { announcement, delivery, notification, subscription } from "@destack/notification";
-import type { ObjectType } from "@destack/object";
+import type { CallableName, ObjectType } from "@destack/object";
 import { ObjectServer } from "@destack/object/server";
 import { identifier } from "@destack/schema";
-import { Journal } from "@destack/service/database";
 import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
-import { subjectContext, testJournalKey } from "@destack/service/test";
-import { comment, reaction } from "@destack/social";
+import { subjectContext, testCallKey } from "@destack/service/test";
+import { reaction } from "@destack/social";
+import { comment } from "@destack/social/server";
 import { space } from "@destack/space/object";
 import { expect, onTestFinished, test } from "@destack/test";
 import { v7 } from "uuid";
 import { project, task } from "../src/object/index.ts";
-import { tasksDatabase, tasksJournal } from "../src/stack/index.ts";
+import { tasksDatabase } from "../src/stack/index.ts";
 
 /** The people the scenario acts as. */
 const people = {
@@ -53,29 +51,34 @@ test.for(TEST_DIALECTS)(
             },
             database: storage.database,
             context: (context) => ({
-                subjects: [context.requireCaller().authentication.subject],
+                subjects: [context.requireAuthentication().claims.subject],
                 now: Date.now(),
                 attributes: {},
             }),
-            journal: new Journal(tasksJournal, testJournalKey),
-            audit: AuditRecorder.service(new AuditOutbox(storage.database), {
+            callKey: testCallKey,
+            origin: {
                 package: task.package,
                 service: "tasks",
-            }),
+            },
         });
-        const call = async (person: Person, object: ObjectType, name: string, input: object) =>
-            (await server.call(
+        const call = async <Type extends ObjectType, Name extends CallableName<Type>>(
+            person: Person,
+            object: Type,
+            name: Name,
+            input: object,
+        ) =>
+            await server.call(
                 object,
                 name,
                 { spaceId, requestId: RequestId.create(), ...input },
-                context(spaceId, person),
-            )) as Record<string, unknown> & { readonly id: string };
+                requestContext(spaceId, person),
+            );
 
-        // plan a project with a member and a viewer, and assign a task to someone outside it
+        // plan a project with an editor and a viewer, and assign a task to someone outside it
         const launch = await call("alice", project, "create", { name: "Launch" });
         await call("alice", project, "grant", {
             id: launch.id,
-            relation: "member",
+            relation: "editor",
             subject: people.bob,
         });
         await call("alice", project, "grant", {
@@ -100,7 +103,7 @@ test.for(TEST_DIALECTS)(
             body: { text: "Friday", mentions: [] },
             thread: first.id,
         });
-        expect((await call("bob", task, "get", { id: draft.id })).commentCount).toBe(2);
+        expect((await call("bob", task, "get", { id: draft.id }))["commentCount"]).toBe(2);
 
         // refuse a comment by someone who cannot read the task
         await expect(
@@ -130,9 +133,9 @@ async function openSpace(database: DatabaseConnection) {
 }
 
 /** Build a person's request context in a space. */
-function context(spaceId: string, person: Person) {
+function requestContext(spaceId: string, person: Person) {
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
 
-    return subjectContext(people[person], spaceId, controller.signal);
+    return subjectContext(people[person], spaceId, { signal: controller.signal });
 }

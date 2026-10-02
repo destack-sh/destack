@@ -1,6 +1,6 @@
 import { principal, relation, through, union } from "@destack/access";
 import { announcement, notification, subscription } from "@destack/notification";
-import { defineObject, field, method } from "@destack/object";
+import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { comment } from "@destack/social";
 import { space } from "@destack/space/object";
@@ -11,7 +11,7 @@ export const task = defineObject({
     name: "task",
     plural: "tasks",
     scope: space,
-    nested: { in: project, delete: "cascade", receive: "plan" },
+    nested: { in: project, delete: "cascade", receive: "edit" },
     fields: {
         /** The user who created the task. */
         author: field.reference(principal.user).caller(),
@@ -42,8 +42,8 @@ export const task = defineObject({
     },
     permissions: {
         read: union(relation("assignee"), through("parent", "read")),
-        work: union(relation("assignee"), through("parent", "plan")),
-        edit: through("parent", "plan"),
+        work: union(relation("assignee"), through("parent", "edit")),
+        edit: through("parent", "edit"),
         manage: through("parent", "manage"),
     },
     attachments: [
@@ -52,11 +52,11 @@ export const task = defineObject({
         announcement.attach({ by: "read" }),
         subscription.attach({ by: "read" }),
     ],
-    methods: {
+    methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
         create: method.create("edit"),
         update: method.update("edit"),
         delete: method.delete("edit"),
-    },
+    }),
 });
