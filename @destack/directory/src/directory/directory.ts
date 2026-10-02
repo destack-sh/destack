@@ -24,6 +24,18 @@ export abstract class Directory {
     /** Mark a zone its cell serves at an epoch as moving to a target cell. */
     abstract move(zone: Zone, target: string): Promise<void>;
 
+    /** Give a cell work in a zone, as the cell serving the zone at its epoch. */
+    abstract assign(zone: Zone, cell: string): Promise<void>;
+
+    /** Withdraw a cell's work in a zone, as the cell serving the zone at its epoch. */
+    abstract unassign(zone: Zone, cell: string): Promise<void>;
+
+    /** List the zones that gave a cell work, in identity order. */
+    abstract assignments(cell: string): Promise<readonly string[]>;
+
+    /** List the cells a zone gave work, in identity order. */
+    abstract assigned(zone: string): Promise<readonly string[]>;
+
     /** Record the URL a cell answers at. */
     abstract publish(cell: string, scope: string, endpoint: string): Promise<void>;
 

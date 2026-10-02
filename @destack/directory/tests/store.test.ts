@@ -57,3 +57,34 @@ test.each(TEST_DIALECTS)(
             ]);
     },
 );
+
+test.each(TEST_DIALECTS)(
+    "give cells work in a zone only from the cell serving it, and list each cell's zones on %s",
+    async (dialect) => {
+        // place two zones in host-1
+        const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
+        onTestFinished(() => storage.close());
+        const directory = new DirectoryStore(storage.database);
+        const first = { id: "space-1", scope: "account-1", cell: "host-1", epoch: 1 };
+        const second = { id: "space-2", scope: "account-1", cell: "host-1", epoch: 1 };
+        await directory.place(first);
+        await directory.place(second);
+
+        // give laptop work in both, twice in one, and withdraw it from the second
+        await directory.assign(first, "laptop");
+        await directory.assign(first, "laptop");
+        await directory.assign(second, "laptop");
+        await directory.unassign(second, "laptop");
+        expect([
+            await directory.assignments("laptop"),
+            await directory.assigned("space-1"),
+        ]).toEqual([["space-1"], ["laptop"]]);
+
+        // refuse a cell or epoch that no longer serves the zone
+        await directory.place({ ...first, cell: "host-2", epoch: 2 });
+        await expect(directory.assign(first, "laptop")).rejects.toMatchObject({
+            code: "CONFLICT",
+            message: "space-1 is no longer placed in host-1 at epoch 1",
+        });
+    },
+);

@@ -1,6 +1,6 @@
 # @destack/directory
 
-The universe's cell router: which cell serves each zone, where each cell answers, and which object owns each unique name.
+The universe's cell router: which cell serves each zone, which cells have work in it, where each cell answers, and which object owns each unique name.
 
 ## Zones and cells
 
@@ -14,6 +14,16 @@ await directory.publish("region-eu", "universe", "https://eu.destack.app");
 await directory.place({ id: spaceId, scope: accountId, cell: "region-eu", epoch: 1 });
 const zone = await directory.locate(spaceId); // { id, scope, cell: "region-eu", epoch: 1 }
 await directory.move(zone!, "host-01a0…"); // the target cell copies the zones moving to it
+```
+
+## Assignments
+
+The cell serving a zone assigns other cells the work it has for them, such as a build of a host's checkout, and each cell lists the zones to follow.
+
+```ts
+await directory.assign(zone!, laptopHostId); // the zone's cell, at its epoch
+await directory.assignments(laptopHostId); // ["space-01a0…"]
+await directory.unassign(zone!, laptopHostId); // once the work ended
 ```
 
 ## Clients

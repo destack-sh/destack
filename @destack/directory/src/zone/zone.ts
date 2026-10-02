@@ -1,4 +1,4 @@
-import { check, defineTable, index, integer, sql, text } from "@destack/db";
+import { check, defineTable, index, integer, primaryKey, sql, text } from "@destack/db";
 import { defineSchema, schema } from "@destack/schema";
 
 /** The universe scope, as sync names it, where every zone row lives so a cell copies the zones moving to it across accounts. */
@@ -59,6 +59,29 @@ export const zoneTable = defineTable(
             check("zone_target", sql`${zone.target} IS NULL OR ${zone.target} <> ${zone.cell}`),
             index("zone_target").on(zone.target),
             index("zone_parent").on(zone.parent),
+        ],
+    },
+);
+
+/** The cells a zone gives work to beside the cell serving it, such as the host running a build of its checkout. */
+export const assignmentTable = defineTable(
+    "assignment",
+    {
+        /** The zone with the work. */
+        zone: text("zone").notNull(),
+        /** The cell the work is for. */
+        cell: text("cell").notNull(),
+        /** The universe, where every assignment lives. */
+        scope: text("scope").notNull(),
+        /** When the zone's cell assigned the work, in UTC epoch milliseconds. */
+        assignedAt: integer("assigned_at").notNull(),
+    },
+    {
+        tier: "global",
+        log: {},
+        constraints: (assignment) => [
+            primaryKey({ name: "assignment_key", columns: [assignment.zone, assignment.cell] }),
+            index("assignment_cell").on(assignment.cell),
         ],
     },
 );

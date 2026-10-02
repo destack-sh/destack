@@ -9,7 +9,14 @@ import {
     type Expiry,
     type ObjectClaims,
 } from "../claim/claim.ts";
-import { cellTable, ZONE_SCOPE, zoneTable, type Cell, type Zone } from "../zone/zone.ts";
+import {
+    assignmentTable,
+    cellTable,
+    ZONE_SCOPE,
+    zoneTable,
+    type Cell,
+    type Zone,
+} from "../zone/zone.ts";
 import { Directory } from "./directory.ts";
 
 /** The most reads of each kind the store keeps: about 3 MiB at 200 bytes an entry. */
@@ -123,6 +130,45 @@ export class DirectoryStore extends Directory {
             .from(zoneTable)
             .where(eq(zoneTable.parent, scope))
             .orderBy(zoneTable.id);
+    }
+
+    /** Give a cell work in a zone, as the cell serving the zone at its epoch. */
+    async assign(zone: Zone, cell: string): Promise<void> {
+        await this.#requireServing(zone);
+        await this.database
+            .insert(assignmentTable)
+            .values({ zone: zone.id, cell, scope: ZONE_SCOPE, assignedAt: Date.now() })
+            .onConflictDoNothing();
+    }
+
+    /** Withdraw a cell's work in a zone, as the cell serving the zone at its epoch. */
+    async unassign(zone: Zone, cell: string): Promise<void> {
+        await this.#requireServing(zone);
+        await this.database
+            .delete(assignmentTable)
+            .where(and(eq(assignmentTable.zone, zone.id), eq(assignmentTable.cell, cell)));
+    }
+
+    /** List the zones that gave a cell work, in identity order. */
+    async assignments(cell: string): Promise<readonly string[]> {
+        const rows = await this.database
+            .select({ zone: assignmentTable.zone })
+            .from(assignmentTable)
+            .where(eq(assignmentTable.cell, cell))
+            .orderBy(assignmentTable.zone);
+
+        return rows.map((row) => row.zone);
+    }
+
+    /** List the cells a zone gave work, in identity order. */
+    async assigned(zone: string): Promise<readonly string[]> {
+        const rows = await this.database
+            .select({ cell: assignmentTable.cell })
+            .from(assignmentTable)
+            .where(eq(assignmentTable.zone, zone))
+            .orderBy(assignmentTable.cell);
+
+        return rows.map((row) => row.cell);
     }
 
     /** Mark a zone as moving to a target cell. */
@@ -281,6 +327,16 @@ export class DirectoryStore extends Directory {
             .where(and(reserved, gt(claimTable.expiresAt, now)));
 
         return next!.expiresAt === null ? { claims } : { claims, next: next!.expiresAt };
+    }
+
+    /** Refuse a zone its cell no longer serves at the epoch given. */
+    async #requireServing(zone: Zone): Promise<void> {
+        const placed = await this.locate(zone.id);
+        if (placed?.cell !== zone.cell || placed.epoch !== zone.epoch) {
+            throw new ServiceError("CONFLICT", {
+                message: `${zone.id} is no longer placed in ${zone.cell} at epoch ${zone.epoch}`,
+            });
+        }
     }
 
     /** Match a zone as its cell serves it at its epoch. */
