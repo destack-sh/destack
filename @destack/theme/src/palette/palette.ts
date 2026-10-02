@@ -1,5 +1,14 @@
 import * as colors from "./colors.ts";
 
+/** The text colors of the palettes too light for white text, after Radix. */
+const DARK_FOREGROUNDS: ReadonlyMap<Palette, string> = new Map([
+    ["sky", "#1c2024"],
+    ["mint", "#1a211e"],
+    ["lime", "#1d211c"],
+    ["yellow", "#21201c"],
+    ["amber", "#21201c"],
+]);
+
 /** Neutral alpha scales for shadows. */
 const ALPHA = {
     gray: [colors.grayA, colors.grayDarkA],
@@ -9,9 +18,6 @@ const ALPHA = {
     olive: [colors.oliveA, colors.oliveDarkA],
     sand: [colors.sandA, colors.sandDarkA],
 } as const;
-
-/** Black alpha steps for shadows. */
-export const blackAlpha = colors.blackA;
 
 /** Light and dark scales used by the theme. */
 const PALETTES = {
@@ -59,11 +65,26 @@ export function paletteAlpha(palette: GrayPalette, step: number): string {
     // select matching alpha steps
     const [light, dark]: readonly [Record<string, string>, Record<string, string>] = ALPHA[palette];
     const key = `${palette}A${step}`;
-    if (!light[key] || !dark[key]) {
+    const lightValue = light[key];
+    const darkValue = dark[key];
+    if (lightValue === undefined || darkValue === undefined) {
         throw new RangeError(`unknown palette step: ${key}`);
     }
 
-    return `light-dark(${light[key]}, ${dark[key]})`;
+    return `light-dark(${lightValue}, ${darkValue})`;
+}
+
+/** Resolve a black alpha step for shadows. */
+export function paletteBlackAlpha(step: number): string {
+    // select the black alpha step shared by both appearances
+    const steps: Record<string, string> = colors.blackA;
+    const key = `blackA${step}`;
+    const value = steps[key];
+    if (value === undefined) {
+        throw new RangeError(`unknown palette step: ${key}`);
+    }
+
+    return value;
 }
 
 /** Resolve a palette step in both appearances. */
@@ -72,27 +93,16 @@ export function paletteColor(palette: Palette, step: number): string {
     const [light, dark]: readonly [Record<string, string>, Record<string, string>] =
         PALETTES[palette];
     const key = `${palette}${step}`;
-    if (!light[key] || !dark[key]) {
+    const lightValue = light[key];
+    const darkValue = dark[key];
+    if (lightValue === undefined || darkValue === undefined) {
         throw new RangeError(`unknown palette step: ${key}`);
     }
 
-    return `light-dark(${light[key]}, ${dark[key]})`;
+    return `light-dark(${lightValue}, ${darkValue})`;
 }
 
-/** Select text for solid palette backgrounds. */
+/** Select the text color on a palette's solid background. */
 export function paletteForeground(palette: Palette): string {
-    // select contrasting text for the palette
-    switch (palette) {
-        case "sky":
-            return "#1c2024";
-        case "mint":
-            return "#1a211e";
-        case "lime":
-            return "#1d211c";
-        case "yellow":
-        case "amber":
-            return "#21201c";
-        default:
-            return "white";
-    }
+    return DARK_FOREGROUNDS.get(palette) ?? "white";
 }

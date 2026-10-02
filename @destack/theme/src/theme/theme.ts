@@ -1,8 +1,8 @@
 import {
-    blackAlpha,
     type GrayPalette,
     type Palette,
     paletteAlpha,
+    paletteBlackAlpha,
     paletteColor,
     paletteForeground,
 } from "../palette/index.ts";
@@ -107,7 +107,7 @@ export function createTheme(options: ThemeOptions = {}): Theme {
     for (let step = 1; step <= 12; step++) {
         style[`--destack-gray-${step}`] = neutral(step);
         style[`--destack-gray-a${step}`] = paletteAlpha(gray, step);
-        style[`--destack-black-a${step}`] = blackAlpha[`blackA${step}` as keyof typeof blackAlpha];
+        style[`--destack-black-a${step}`] = paletteBlackAlpha(step);
     }
 
     // apply font overrides
