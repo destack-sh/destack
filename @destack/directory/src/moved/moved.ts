@@ -52,7 +52,7 @@ export const Moved = {
                 code: schema.string(),
                 status: schema.number().int(),
                 message: schema.string(),
-                data: schema.json().optional(),
+                data: schema.json().exactOptional(),
             })
             .parse(await response.clone().json());
 

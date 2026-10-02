@@ -1,4 +1,4 @@
-import { defineTable, index, integer, primaryKey, text } from "@destack/db";
+import { defineTable, index, integer, text } from "@destack/db";
 import { defineSchema, Instant, schema } from "@destack/schema";
 
 /** How long a reservation waits for its write to commit, in milliseconds: a minute, above any write. */
@@ -40,7 +40,7 @@ export const Expiry = defineSchema(
         /** The expired reservations. */
         claims: schema.array(Claim),
         /** When the next reservation expires, in UTC epoch milliseconds. */
-        next: Instant.optional(),
+        next: Instant.exactOptional(),
     }),
 );
 /** The expired reservations of some indexes and the next deadline. */
@@ -51,9 +51,9 @@ export const claimTable = defineTable(
     "claim",
     {
         /** The index: the object type's package, type and index name. */
-        index: text("index").notNull(),
+        index: text("index").primaryKey(),
         /** The indexed values, with the scope they are unique within, as canonical JSON. */
-        key: text("key").notNull(),
+        key: text("key").primaryKey(),
         /** The object claiming the name. */
         objectId: text("object_id").notNull(),
         /** The scope the object lives in. */
@@ -68,7 +68,6 @@ export const claimTable = defineTable(
     {
         tier: "global",
         constraints: (claim) => [
-            primaryKey({ columns: [claim.index, claim.key] }),
             index("claim_request").on(claim.requestId),
             index("claim_object").on(claim.index, claim.objectId),
             index("claim_expiry").on(claim.state, claim.expiresAt),

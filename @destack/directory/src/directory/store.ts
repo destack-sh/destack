@@ -1,6 +1,18 @@
-import { and, eq, gt, inArray, lte, min, ne, or, sql, type DatabaseConnection } from "@destack/db";
-import { ReadCache, type Change } from "@destack/db/log";
-import { CHAIN_TERMS } from "@destack/db/query";
+import {
+    Change,
+    and,
+    eq,
+    gt,
+    inArray,
+    lte,
+    min,
+    ne,
+    or,
+    sql,
+    type DatabaseConnection,
+    ReadCache,
+    CHAIN_TERMS,
+} from "@destack/db";
 import { ServiceError } from "@destack/service/error";
 import {
     claimTable,
@@ -325,8 +337,11 @@ export class DirectoryStore extends Directory {
             .select({ expiresAt: min(claimTable.expiresAt) })
             .from(claimTable)
             .where(and(reserved, gt(claimTable.expiresAt, now)));
+        if (next === undefined) {
+            throw new TypeError("min aggregate returned no row");
+        }
 
-        return next!.expiresAt === null ? { claims } : { claims, next: next!.expiresAt };
+        return next.expiresAt === null ? { claims } : { claims, next: next.expiresAt };
     }
 
     /** Refuse a zone its cell no longer serves at the epoch given. */
@@ -401,20 +416,18 @@ export class DirectoryStore extends Directory {
     }
 
     /** Forget the reads one change affects, before and after it. */
-    #forget(change: Change): void {
-        const images = [change.before, change.after].filter(
-            (image) => image !== undefined,
-        ) as Readonly<Record<string, unknown>>[];
+    #forget(change: Change<(typeof CACHED_TABLES)[number]>): void {
+        const images = [Change.before(change), Change.after(change)].filter(
+            (image) => image !== null,
+        );
         for (const image of images) {
-            // forget the read the row's table keeps it under
-            if (change.table === claimTable) {
-                this.#owners.forget(
-                    nameKey({ index: String(image.index), key: String(image.key) }),
-                );
+            // forget the cached read: a claim by its name, a zone or cell by its identifier
+            if ("index" in image) {
+                this.#owners.forget(nameKey({ index: image.index, key: image.key }));
             } else if (change.table === zoneTable) {
-                this.#zones.forget(String(image.id));
+                this.#zones.forget(image.id);
             } else {
-                this.#cells.forget(String(image.id));
+                this.#cells.forget(image.id);
             }
         }
     }

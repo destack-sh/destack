@@ -61,9 +61,16 @@ test.each(TEST_DIALECTS)(
         await directory.place(zone);
 
         // mark the zone moving to the target, and clear the mark once the target takes it
-        const target = async () =>
-            (await storage.database.select({ target: zoneTable.target }).from(zoneTable))[0]!
-                .target;
+        const target = async () => {
+            const [zoneRow] = await storage.database
+                .select({ target: zoneTable.target })
+                .from(zoneTable);
+            if (zoneRow === undefined) {
+                throw new TypeError("zone table has no row");
+            }
+
+            return zoneRow.target;
+        };
         const seen = [await target()];
         await directory.move(zone, "host-2");
         seen.push(await target());

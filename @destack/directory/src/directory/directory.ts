@@ -83,7 +83,7 @@ export abstract class Directory {
                 });
             }
 
-            return `${found.endpoint.replace(/\/+$/, "")}${ServiceMount.path(service.package.id)}`;
+            return `${found.endpoint.replace(/\/+$/u, "")}${ServiceMount.path(service.package.id)}`;
         };
 
         return createClient(service, {
