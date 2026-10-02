@@ -1,11 +1,14 @@
+import { asc } from "../sql/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
-import { defineTable } from "../table/table.ts";
-import { bigint, boolean, integer, real, text, type Column } from "../table/column.ts";
+import { defineTable, type Table } from "../table/table.ts";
+import { bigint, boolean, integer, real, text } from "../table/column.ts";
 import { TABLE } from "../table/table.ts";
-import { asc } from "drizzle-orm";
 import { Condition, type Scalar } from "./condition.ts";
 import { Order } from "./order.ts";
+
+/** The encoder of texts' UTF-8 bytes. */
+const UTF8 = new TextEncoder();
 
 /** The random conditions per dialect. */
 const CONDITIONS = 400;
@@ -47,20 +50,25 @@ function random(seed: { value: number }): number {
 
 /** Pick one element at random. */
 function pick<Value>(values: readonly Value[], seed: { value: number }): Value {
-    return values[Math.floor(random(seed) * values.length)]!;
+    const picked = values[Math.floor(random(seed) * values.length)];
+    if (picked === undefined) {
+        throw new RangeError("pick from at least one value");
+    }
+
+    return picked;
 }
 
 /** Build a random nested condition. */
 function draw(seed: { value: number }, depth: number): Condition {
     // compare, test or combine
-    const name = pick(Object.keys(VALUES), seed);
+    const [name, listed] = pick(Object.entries(VALUES), seed);
     const choice = depth === 0 ? Math.floor(random(seed) * 3) : Math.floor(random(seed) * 6);
     if (choice === 0) {
         const operator = pick(["eq", "ne", "lt", "lte", "gt", "gte"] as const, seed);
 
-        return Condition.compare(operator, name, pick(VALUES[name]!, seed));
+        return Condition.compare(operator, name, pick(listed, seed));
     } else if (choice === 1) {
-        const values = VALUES[name]!.filter(
+        const values = listed.filter(
             (value): value is Exclude<Scalar, null> => value !== null && random(seed) < 0.5,
         );
 
@@ -79,27 +87,24 @@ function draw(seed: { value: number }, depth: number): Condition {
 test.for(TEST_DIALECTS)(
     "decide random conditions alike in SQL and in memory on %s",
     async (dialect) => {
-        const test = await TestDatabase.create(dialect, [sample], { isMigrated: true });
-        onTestFinished(() => test.close());
-        const database = test.database;
-        const columns = sample[TABLE].columns as Readonly<Record<string, Column>>;
+        const storage = await TestDatabase.create(dialect, [sample], { isMigrated: true });
+        onTestFinished(() => storage.close());
+        const database = storage.database;
 
-        // hold every combination of a few values
+        // insert every combination of a few values, read from their JSON form
         const seed = { value: 7 };
         const rows = Array.from({ length: 60 }, (_, id) =>
-            Object.fromEntries([
-                ["id", id],
-                ...Object.entries(VALUES).map(([name, values]) => {
-                    const value = pick(values, seed);
-
-                    return [
-                        name,
-                        value === null ? null : columns[name]!.definition.fromJson(value),
-                    ];
-                }),
-            ]),
+            sample[TABLE].decode(
+                Object.fromEntries([
+                    ["id", id],
+                    ...Object.entries(VALUES).map(
+                        ([name, values]) => [name, pick(values, seed)] as const,
+                    ),
+                ]),
+            ),
         );
-        await database.insert(sample).values(rows as never);
+        const untyped: Table = sample;
+        await database.upsert(untyped, rows);
 
         // match each condition in SQL and memory alike
         for (let index = 0; index < CONDITIONS; index += 1) {
@@ -113,14 +118,14 @@ test.for(TEST_DIALECTS)(
             const matched = rows.filter(
                 (row) =>
                     match({
-                        column: (name: string) => row[name],
+                        column: (name: string): unknown => row[name],
                         parameter: () => null,
                         exists: () => undefined,
                     }) === true,
             );
             expect([drawn, selected.map((row) => row.id)]).toEqual([
                 drawn,
-                matched.map((row) => row.id),
+                matched.map((row) => row["id"]),
             ]);
         }
     },
@@ -128,19 +133,10 @@ test.for(TEST_DIALECTS)(
 
 test("order text by code point, as UTF-8 bytes order it", () => {
     const texts = ["😀", "￿", "é", "z", "b", "B", "a", ""];
-    const bytes = (value: string) => [...new TextEncoder().encode(value)];
-    const byByte = [...texts].sort((left, right) => {
-        const first = bytes(left);
-        const second = bytes(right);
-        for (let index = 0; index < Math.min(first.length, second.length); index += 1) {
-            if (first[index] !== second[index]) {
-                return first[index]! - second[index]!;
-            }
-        }
-
-        return first.length - second.length;
-    });
-    expect([...texts].sort(Order.codePoints)).toEqual(byByte);
+    const byByte = texts.toSorted((left, right) =>
+        Buffer.compare(UTF8.encode(left), UTF8.encode(right)),
+    );
+    expect(texts.toSorted((left, right) => Order.codePoints(left, right))).toEqual(byByte);
 });
 
 test("refuse conditions beyond a thousand terms", () => {
@@ -152,20 +148,20 @@ test("refuse conditions beyond a thousand terms", () => {
             Condition.all(Condition.oneOf("count", values.slice(1)), Condition.eq("name", "a")),
             sample,
         ),
-    ).toThrow("condition holds 1001 terms, more than 1000");
+    ).toThrow("condition has 1001 terms, more than 1000");
 });
 
 test.for(TEST_DIALECTS)("match a thousand listed values in SQL on %s", async (dialect) => {
-    const test = await TestDatabase.create(dialect, [sample], { isMigrated: true });
-    onTestFinished(() => test.close());
-    await test.database.insert(sample).values([
+    const storage = await TestDatabase.create(dialect, [sample], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    await storage.database.insert(sample).values([
         { id: 1, count: 999 },
         { id: 2, count: 1000 },
     ]);
 
     // render a thousand values as a balanced tree
     const values = Array.from({ length: 1000 }, (_, index) => index);
-    const rows = await test.database
+    const rows = await storage.database
         .select()
         .from(sample)
         .where(Condition.render(Condition.oneOf("count", values), Condition.bind(sample)));
@@ -226,4 +222,33 @@ test("merge ordered rows of two tables into the first of their order, tying by l
         { name: "samples", row: { id: 1, count: 5 } },
         { name: "marks", row: { id: "b", count: 4 } },
     ]);
+});
+
+test("build conditions, and read their columns, relations and terms", () => {
+    const condition = Condition.all(
+        Condition.eq("status", "open"),
+        Condition.not(Condition.missing("due")),
+        Condition.oneOf("priority", ["high", "low"]),
+        Condition.exists("assignee", Condition.gt("level", Condition.parameter("level"))),
+    );
+
+    // list what the condition reads
+    expect([
+        [...Condition.columns(condition)],
+        Condition.relations(condition).map((relation) => relation.via),
+        Condition.terms(condition),
+    ]).toEqual([["status", "due", "priority"], ["assignee"], 8]);
+
+    // rename columns, leaving relations to their own rows
+    expect(Condition.rename(condition, (column) => `t_${column}`)).toEqual(
+        Condition.all(
+            Condition.eq("t_status", "open"),
+            Condition.not(Condition.missing("t_due")),
+            Condition.oneOf("t_priority", ["high", "low"]),
+            Condition.exists("assignee", Condition.gt("level", Condition.parameter("level"))),
+        ),
+    );
+
+    // round-trip through the schema
+    expect(Condition.schema.parse(JSON.parse(JSON.stringify(condition)))).toEqual(condition);
 });

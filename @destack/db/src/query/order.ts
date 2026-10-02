@@ -1,7 +1,6 @@
-import { and, or, sql, type SQL, type SQLWrapper } from "drizzle-orm";
+import { and, dialectSQL, or, sql, type SQL, type SQLWrapper } from "../sql/index.ts";
 import { defineSchema, schema } from "@destack/schema";
-import { dialectSQL } from "../dialect/expression.ts";
-import { Column } from "../table/column.ts";
+import { Column, type ColumnKind } from "../table/column.ts";
 import { TABLE, type Table } from "../table/table.ts";
 import { Key } from "./key.ts";
 import type { Row } from "../table/row.ts";
@@ -10,7 +9,7 @@ import type { Namespace } from "./namespace.ts";
 import { DatabaseError } from "../error/error.ts";
 
 /** The column kinds that order alike in SQLite, PostgreSQL and memory. */
-const ORDERED_KINDS: ReadonlySet<string> = new Set([
+const ORDERED_KINDS: ReadonlySet<ColumnKind> = new Set<ColumnKind>([
     "text",
     "integer",
     "real",
@@ -18,7 +17,7 @@ const ORDERED_KINDS: ReadonlySet<string> = new Set([
     "bigint",
 ]);
 
-/** The most keys one order holds, which every keyset cursor carries; orders use one to four. */
+/** The most keys one order has, which every keyset cursor carries; orders use one to four. */
 const ORDER_KEYS = 16;
 
 /** One key of an order. */
@@ -48,7 +47,7 @@ export const Order = {
         if (order.length > ORDER_KEYS || columns.size < order.length) {
             throw new DatabaseError(
                 "INVALID_QUERY",
-                `order holds more than ${ORDER_KEYS} keys, or one column twice`,
+                `order has more than ${ORDER_KEYS} keys, or one column twice`,
             );
         }
 
@@ -162,7 +161,13 @@ export const Order = {
             return Number(isRightMissing) - Number(isLeftMissing);
         }
 
-        return Order.values(left, right)!;
+        // order present values of one kind
+        const compared = Order.values(left, right);
+        if (compared === undefined) {
+            throw new DatabaseError("INVALID_QUERY", "values of different kinds have no order");
+        }
+
+        return compared;
     },
 
     /** Compare two present values as SQL does, absent for missing or mixed values. */
@@ -172,18 +177,16 @@ export const Order = {
             return undefined;
         }
 
-        // order instants by time, text by code point, and scalars by value
-        const first = left instanceof Date ? left.getTime() : left;
-        const second = right instanceof Date ? right.getTime() : right;
-        if (typeof first === "string" && typeof second === "string") {
-            return Order.codePoints(first, second);
+        // order text by code point, and numbers and booleans by value
+        if (typeof left === "string" && typeof right === "string") {
+            return Order.codePoints(left, right);
         } else if (
-            (typeof first === "number" || typeof first === "bigint") &&
-            (typeof second === "number" || typeof second === "bigint")
+            (typeof left === "number" || typeof left === "bigint") &&
+            (typeof right === "number" || typeof right === "bigint")
         ) {
-            return first < second ? -1 : first > second ? 1 : 0;
-        } else if (typeof first === "boolean" && typeof second === "boolean") {
-            return Number(first) - Number(second);
+            return left < right ? -1 : left > right ? 1 : 0;
+        } else if (typeof left === "boolean" && typeof right === "boolean") {
+            return Number(left) - Number(right);
         }
 
         return undefined;
@@ -209,8 +212,8 @@ export const Order = {
         // compare the code points around a surrogate
         const start =
             index > 0 && (isLowSurrogate(first) || isLowSurrogate(second)) ? index - 1 : index;
-        const leftPoint = left.codePointAt(start)!;
-        const rightPoint = right.codePointAt(start)!;
+        const leftPoint = codePoint(left, start);
+        const rightPoint = codePoint(right, start);
         if (leftPoint === rightPoint) {
             return first < second ? -1 : 1;
         }
@@ -233,13 +236,13 @@ export const Order = {
     },
 
     /** Collate a text column by byte. */
-    text(expression: Column): SQLWrapper {
-        return expression.definition.kind === "text"
+    text(column: Column): SQLWrapper {
+        return column.definition.kind === "text"
             ? dialectSQL({
-                  sqlite: sql`${expression}`,
-                  postgresql: sql`${expression} COLLATE "C"`,
+                  sqlite: sql`${column}`,
+                  postgresql: sql`${column} COLLATE "C"`,
               })
-            : expression;
+            : column;
     },
 };
 
@@ -250,16 +253,20 @@ function tie(
     row: Readonly<Record<string, unknown>>,
     namespace: Namespace,
 ): SQL {
-    // bind a column value through its column
+    // match a missing value, a computed one as it is, and a column value bound through its column
     const value = row[key.column];
-    const isComputed = Object.hasOwn(namespace.computed, key.column);
-    const expression = isComputed
-        ? Order.expression(table, key.column, namespace)
-        : Order.column(table, key.column);
+    if (Object.hasOwn(namespace.computed, key.column)) {
+        const expression = Order.expression(table, key.column, namespace);
+
+        return value === null || value === undefined
+            ? sql`${expression} IS NULL`
+            : sql`${expression} = ${value}`;
+    }
+    const column = Order.column(table, key.column);
 
     return value === null || value === undefined
-        ? sql`${expression} IS NULL`
-        : sql`${expression} = ${isComputed ? sql`${value}` : sql.param(value, expression as Column)}`;
+        ? sql`${column} IS NULL`
+        : sql`${column} = ${sql.param(value, column)}`;
 }
 
 /** Match rows after a row's value of one key. */
@@ -270,10 +277,10 @@ function follow(
     namespace: Namespace,
 ): SQL {
     // follow a missing value by every present one when ascending
-    const isComputed = Object.hasOwn(namespace.computed, key.column);
-    const expression = isComputed
-        ? Expression.render(namespace.computed[key.column]!, table, namespace)
-        : Order.column(table, key.column);
+    const computed = namespace.computed[key.column];
+    const column = computed === undefined ? Order.column(table, key.column) : undefined;
+    const expression =
+        computed === undefined ? column : Expression.render(computed, table, namespace);
     const sorted = Order.expression(table, key.column, namespace);
     const value = row[key.column];
     if (value === null || value === undefined) {
@@ -281,19 +288,29 @@ function follow(
     }
 
     // follow a present value by greater ones, or smaller and missing ones when descending
-    const bound = isComputed ? sql`${value}` : sql.param(value, expression as Column);
+    const bound = column === undefined ? sql`${value}` : sql.param(value, column);
 
     return key.direction === "asc"
         ? sql`${sorted} > ${bound}`
         : sql`(${sorted} < ${bound} OR ${expression} IS NULL)`;
 }
 
-/** Whether a UTF-16 unit is half of a surrogate pair. */
+/** Read the code point at a position the comparison found inside the text. */
+function codePoint(text: string, index: number): number {
+    const point = text.codePointAt(index);
+    if (point === undefined) {
+        throw new RangeError(`no code point at ${index} of a ${text.length} unit text`);
+    }
+
+    return point;
+}
+
+/** Report whether a UTF-16 unit is half of a surrogate pair. */
 function isSurrogate(unit: number): boolean {
     return unit >= 0xd800 && unit <= 0xdfff;
 }
 
-/** Whether a UTF-16 unit is the second half of a surrogate pair. */
+/** Report whether a UTF-16 unit is the second half of a surrogate pair. */
 function isLowSurrogate(unit: number): boolean {
     return unit >= 0xdc00 && unit <= 0xdfff;
 }

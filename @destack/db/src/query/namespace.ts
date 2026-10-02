@@ -1,4 +1,4 @@
-import type { SQLWrapper } from "drizzle-orm";
+import type { SQLWrapper } from "../sql/index.ts";
 import type { ColumnDefinition } from "../table/column.ts";
 import type { Condition } from "./condition.ts";
 import type { Expression, Rollup } from "../expression/expression.ts";

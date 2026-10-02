@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
-import { defineTable } from "../table/table.ts";
+import { defineTable, TABLE, type Table } from "../table/table.ts";
 import { boolean, integer, text } from "../table/column.ts";
 import { Order, type OrderKey } from "./order.ts";
 
@@ -38,23 +38,33 @@ function random(seed: { value: number }): number {
 
 /** Pick one element at random. */
 function pick<Value>(values: readonly Value[], seed: { value: number }): Value {
-    return values[Math.floor(random(seed) * values.length)]!;
+    const picked = values[Math.floor(random(seed) * values.length)];
+    if (picked === undefined) {
+        throw new RangeError("pick from at least one value");
+    }
+
+    return picked;
 }
 
 test.for(TEST_DIALECTS)("sort and page rows alike in SQL and in memory on %s", async (dialect) => {
-    const test = await TestDatabase.create(dialect, [sample], { isMigrated: true });
-    onTestFinished(() => test.close());
-    const database = test.database;
+    const storage = await TestDatabase.create(dialect, [sample], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
 
-    // hold rows that tie often
+    // insert rows that tie often
     const seed = { value: 11 };
     const rows = Array.from({ length: 50 }, (_, id) =>
-        Object.fromEntries([
-            ["id", id],
-            ...Object.entries(VALUES).map(([name, values]) => [name, pick(values, seed)]),
-        ]),
+        sample[TABLE].decode(
+            Object.fromEntries([
+                ["id", id],
+                ...Object.entries(VALUES).map(
+                    ([name, values]) => [name, pick(values, seed)] as const,
+                ),
+            ]),
+        ),
     );
-    await database.insert(sample).values(rows as never);
+    const untyped: Table = sample;
+    await database.upsert(untyped, rows);
 
     // sort by random keys and page after a random row
     for (let index = 0; index < ORDERS; index += 1) {
@@ -63,7 +73,7 @@ test.for(TEST_DIALECTS)("sort and page rows alike in SQL and in memory on %s", a
             direction: pick(["asc", "desc"] as const, seed),
         }));
         const order = Order.complete(keys, sample);
-        const sorted = [...rows].sort((left, right) => Order.rows(order, left, right));
+        const sorted = rows.toSorted((left, right) => Order.rows(order, left, right));
         const boundary = pick(sorted, seed);
 
         // match the SQL order and page
@@ -79,8 +89,8 @@ test.for(TEST_DIALECTS)("sort and page rows alike in SQL and in memory on %s", a
         const after = sorted.slice(sorted.indexOf(boundary) + 1);
         expect([order, selected.map((row) => row.id), following.map((row) => row.id)]).toEqual([
             order,
-            sorted.map((row) => row.id),
-            after.map((row) => row.id),
+            sorted.map((row) => row["id"]),
+            after.map((row) => row["id"]),
         ]);
     }
 });
@@ -89,12 +99,12 @@ test("refuse orders naming a column twice or more than sixteen keys", () => {
     // refuse a repeated column and too many keys
     const key = { column: "id", direction: "asc" as const };
     expect(() => Order.require([key, key], sample)).toThrow(
-        "order holds more than 16 keys, or one column twice",
+        "order has more than 16 keys, or one column twice",
     );
     expect(() =>
         Order.require(
             Array.from({ length: 17 }, () => key),
             sample,
         ),
-    ).toThrow("order holds more than 16 keys, or one column twice");
+    ).toThrow("order has more than 16 keys, or one column twice");
 });

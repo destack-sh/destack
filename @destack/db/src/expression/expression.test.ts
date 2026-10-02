@@ -1,8 +1,9 @@
+import { asc } from "../sql/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { asc } from "drizzle-orm";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
 import { defineTable } from "../table/table.ts";
-import { integer, json, real, text, type JsonValue } from "../table/column.ts";
+import type { JsonValue } from "@destack/schema";
+import { integer, json, real, text } from "../table/column.ts";
 import { schema } from "@destack/schema";
 import { Expression } from "./expression.ts";
 
@@ -21,7 +22,7 @@ const sample = defineTable("expression_sample", {
     name: text("name"),
 });
 
-/** Rows holding a JSON document and a text mode. */
+/** Rows with a JSON document and a text mode. */
 const documents = defineTable("expression_document", {
     /** The row's key. */
     id: integer("id").primaryKey(),
@@ -47,7 +48,12 @@ function random(seed: { value: number }): number {
 
 /** Pick one element at random. */
 function pick<Value>(values: readonly Value[], seed: { value: number }): Value {
-    return values[Math.floor(random(seed) * values.length)]!;
+    const picked = values[Math.floor(random(seed) * values.length)];
+    if (picked === undefined) {
+        throw new RangeError("pick from at least one value");
+    }
+
+    return picked;
 }
 
 /** Build a random nested numeric expression. */
@@ -74,10 +80,10 @@ function draw(seed: { value: number }, depth: number): Expression {
 test.for(TEST_DIALECTS)(
     "compute random expressions alike in SQL and in memory on %s",
     async (dialect) => {
-        const test = await TestDatabase.create(dialect, [sample], { isMigrated: true });
-        onTestFinished(() => test.close());
+        const storage = await TestDatabase.create(dialect, [sample], { isMigrated: true });
+        onTestFinished(() => storage.close());
 
-        // hold random rows
+        // insert random rows
         const seed = { value: 11 };
         const rows = Array.from({ length: 30 }, (_, id) => ({
             id,
@@ -85,13 +91,13 @@ test.for(TEST_DIALECTS)(
             ratio: pick(VALUES.ratio, seed),
             name: pick(VALUES.name, seed),
         }));
-        await test.database.insert(sample).values(rows);
+        await storage.database.insert(sample).values(rows);
 
         // compute each expression in SQL and memory alike
         for (let index = 0; index < EXPRESSIONS; index += 1) {
             const drawn = draw(seed, 3);
             Expression.require(drawn, sample);
-            const selected = await test.database
+            const selected = await storage.database
                 .select({ value: Expression.render(drawn, sample) })
                 .from(sample)
                 .orderBy(asc(sample.id));
@@ -102,9 +108,9 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)("take the first present text on %s", async (dialect) => {
-    const test = await TestDatabase.create(dialect, [sample], { isMigrated: true });
-    onTestFinished(() => test.close());
-    await test.database.insert(sample).values([
+    const storage = await TestDatabase.create(dialect, [sample], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    await storage.database.insert(sample).values([
         { id: 1, name: "a" },
         { id: 2, name: null },
     ]);
@@ -112,7 +118,7 @@ test.for(TEST_DIALECTS)("take the first present text on %s", async (dialect) => 
     // fall back to a literal
     const expression = Expression.coalesce(Expression.column("name"), Expression.literal("none"));
     Expression.require(expression, sample);
-    const selected = await test.database
+    const selected = await storage.database
         .select({ value: Expression.render(expression, sample) })
         .from(sample)
         .orderBy(asc(sample.id));
@@ -172,21 +178,24 @@ const JSON_EXPRESSIONS: readonly Expression[] = [
 test.for(TEST_DIALECTS)(
     "compute JSON expressions alike in SQL and in memory on %s",
     async (dialect) => {
-        const test = await TestDatabase.create(dialect, [documents], { isMigrated: true });
-        onTestFinished(() => test.close());
+        const storage = await TestDatabase.create(dialect, [documents], { isMigrated: true });
+        onTestFinished(() => storage.close());
         const rows = DOCUMENTS.map((document, id) => ({ id, ...document }));
-        await test.database.insert(documents).values(rows);
+        await storage.database.insert(documents).values(rows);
 
         // compare each expression's SQL results, JSON read back as values, with its memory results
-        const read = (value: unknown) =>
-            dialect === "sqlite" &&
-            typeof value === "string" &&
-            /^[[{"]|^(true|false|null|-?\d)/.test(value)
-                ? JSON.parse(value)
-                : value;
+        const read = (value: unknown): unknown => {
+            if (dialect === "sqlite" && typeof value === "string") {
+                const parsed: unknown = JSON.parse(value);
+
+                return parsed;
+            }
+
+            return value;
+        };
         for (const expression of JSON_EXPRESSIONS) {
             const isJson = Expression.kind(expression, documents) === "json";
-            const selected = await test.database
+            const selected = await storage.database
                 .select({ value: Expression.render(expression, documents) })
                 .from(documents)
                 .orderBy(asc(documents.id));
@@ -203,8 +212,14 @@ test("refuse JSON where numbers or text are required, and reads inside values th
     const refusal = (expression: Expression) => {
         try {
             Expression.require(expression, documents);
+
+            return undefined;
         } catch (error) {
-            return (error as Error).message;
+            if (!(error instanceof Error)) {
+                throw error;
+            }
+
+            return error.message;
         }
     };
 
@@ -218,5 +233,30 @@ test("refuse JSON where numbers or text are required, and reads inside values th
         "expression compares JSON in a case; read a scalar of it",
         "expression reads a path of a value that is not JSON",
         "expression reads a scalar of a value that is not JSON",
+    ]);
+});
+
+test("upgrade partial records through each later release, leaving fields computed from absent fields absent", () => {
+    // rename title to name in 2026.9.0, and default a new limit in 2026.10.0
+    const conversions = {
+        "2026.9.0": { name: Expression.column("title") },
+        "2026.10.0": {
+            limit: Expression.coalesce(Expression.column("limit"), Expression.literal(50)),
+        },
+    };
+    const convert = (record: Record<string, JsonValue>, from: string) =>
+        Expression.upgrade(conversions, record, from, "2026.10.0");
+
+    // convert a full record, a partial one, an explicit null, and a record of the latest release
+    expect([
+        convert({ title: "Plan" }, "2026.8.0"),
+        convert({ id: "a" }, "2026.8.0"),
+        convert({ title: null }, "2026.8.0"),
+        convert({ name: "Plan", limit: 5 }, "2026.10.0"),
+    ]).toEqual([
+        { title: "Plan", name: "Plan", limit: 50 },
+        { id: "a", limit: 50 },
+        { title: null, name: null, limit: 50 },
+        { name: "Plan", limit: 5 },
     ]);
 });
