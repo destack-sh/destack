@@ -996,7 +996,9 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                         data-universe
                         style={{
                             "--row": String(index() + 1),
-                            ...(index() < dryRows ? {} : textOnWater(index())),
+                            ...(index() < dryRows
+                                ? {}
+                                : { opacity: `calc(0.85 + 0.15 * var(--reveal-${index()}))` }),
                         }}
                         {...stylex.attrs(styles.claim)}
                     >
@@ -1278,13 +1280,6 @@ function tapeLabel(gap: number, scene: (typeof todayScenes)[number]) {
     const right = slotApps[gap + 1].indexOf(scene.lower[gap + 1].id);
 
     return tapeLabels[(left + right * 3 + gap * 2) % tapeLabels.length];
-}
-
-/** Return a submerged layer's text colour: cream on the water, easing back to ink as the water leaves its row. */
-function textOnWater(row: number): JSX.CSSProperties {
-    return {
-        color: `color-mix(in srgb, var(--destack-color-foreground) calc(var(--reveal-${row}) * 100%), #f1eadb)`,
-    };
 }
 
 /** Return a layer number colour that lights up orange as the water leaves its row. */
