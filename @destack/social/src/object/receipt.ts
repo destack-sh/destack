@@ -30,5 +30,5 @@ export const receipt = defineObject({
     },
 });
 
-/** A receipt as its table holds it. */
-export type ReceiptRow = Select<typeof receipt.table>;
+/** A receipt as its table stores it. */
+export type Receipt = Select<typeof receipt.table>;

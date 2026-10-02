@@ -8,7 +8,7 @@ import { comment, favourite, hostRoles, presence, reaction, receipt } from "../.
 /** The standard roles articles are shared through, with people and agent installations alike. */
 const roles = hostRoles([principal.user, principal.installation]);
 
-/** Articles their owner shares with editors, commenters and viewers, taking every social attachment, notifications, announcements and subscriptions. */
+/** Articles with every social attachment, shared with editors, commenters and viewers. */
 export const article = defineObject({
     name: "article",
     plural: "articles",

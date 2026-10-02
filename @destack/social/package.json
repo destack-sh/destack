@@ -8,6 +8,7 @@
     "description": "Attach comments, reactions, receipts, favourites and presence to any object, notifying mentioned and participating principals.",
     "exports": {
         ".": "./src/index.ts",
+        "./server": "./src/server/index.ts",
         "./destack.json": "./destack.json"
     },
     "scripts": {

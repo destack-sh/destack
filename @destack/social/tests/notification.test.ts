@@ -1,14 +1,15 @@
 import { TEST_DIALECTS } from "@destack/db/test";
+import { Subject } from "@destack/sync";
 import { notification, subscription } from "@destack/notification";
 import { expect, test } from "@destack/test";
-import { comment, mention, receipt } from "../src/index.ts";
+import { comment, receipt } from "../src/index.ts";
 import { article } from "./fixture/article.ts";
 import { type Actor, actors, serveArticles } from "./fixture/server.ts";
 
 test.for(TEST_DIALECTS)(
     "notify mentioned principals and announce threads and replies to their subscribers, reading them with a receipt, on %s",
     async (dialect) => {
-        const { call, list, host, as, expand, spaceId } = await serveArticles(dialect);
+        const { call, list, host, as, expand } = await serveArticles(dialect);
         const inbox = async (actor: Actor) => {
             as(actor);
 
@@ -54,14 +55,10 @@ test.for(TEST_DIALECTS)(
             [["thread", "article", "subscribed", "unread"]],
         ]);
 
-        // carry an excerpt the mentioned principal answers in the thread from the notification
+        // carry an excerpt of the mentioning comment and its thread
         as("carol");
         const [mentioned] = await list(notification);
-        expect([
-            mentioned!.payload,
-            mentioned!.thread,
-            mention.respond(mentioned as never, "reply", "On it"),
-        ]).toEqual([
+        expect([mentioned!.payload, mentioned!.thread]).toEqual([
             {
                 author: actors.bob,
                 comment: first.id,
@@ -69,21 +66,9 @@ test.for(TEST_DIALECTS)(
                 text: "@carol, tighten the intro",
             },
             draft.id,
-            [
-                {
-                    method: "comment.create",
-                    input: {
-                        spaceId,
-                        ...host(article, draft.id),
-                        body: { text: "On it", mentions: [] },
-                        thread: first.id,
-                    },
-                },
-                { method: "notification.read", input: { spaceId, id: mentioned!.id } },
-            ],
         ]);
 
-        // announce replies to the thread's subscribers for their reasons, leaving the mentioned to their mention
+        // announce replies to the thread's subscribers for their reasons except the mentioned
         await call(comment, "create", {
             ...host(article, draft.id),
             body: { text: "Agreed", mentions: [] },
@@ -118,7 +103,7 @@ test.for(TEST_DIALECTS)(
             [["thread", "article", "subscribed", "unread"]],
         ]);
 
-        // read every notification threaded on the article with its receipt, leaving others' unread
+        // read every notification on the article with its receipt and leave others' unread
         as("carol");
         const read = await call(receipt, "create", host(article, draft.id));
         await call(receipt, "update", { id: read.id });
@@ -130,6 +115,25 @@ test.for(TEST_DIALECTS)(
             [
                 ["reply", "comment", "author", "unread"],
                 ["mention", "comment", "mention", "unread"],
+            ],
+        ]);
+
+        // answer bob's mention from the notification, replying in its thread and reading it
+        as("bob");
+        const [bobMentioned] = (await list(notification)).filter((row) => row.name === "mention");
+        await call(notification, "act", {
+            id: bobMentioned!.id,
+            action: "reply",
+            text: "Shipping",
+        });
+        const replies = (await list(comment))
+            .filter((row) => row.thread === first.id)
+            .map((row) => [row.author, (row.body as { text: string }).text]);
+        expect([replies.at(-1), await inbox("bob")]).toEqual([
+            [Subject.key(actors.bob), "Shipping"],
+            [
+                ["reply", "comment", "author", "unread"],
+                ["mention", "comment", "mention", "read"],
             ],
         ]);
     },

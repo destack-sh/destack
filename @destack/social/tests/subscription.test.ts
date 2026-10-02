@@ -3,7 +3,7 @@ import { subscription } from "@destack/notification";
 import { expect, test } from "@destack/test";
 import { comment } from "../src/index.ts";
 import { article } from "./fixture/article.ts";
-import { type Actor, actors, serveArticles } from "./fixture/server.ts";
+import { type Actor, actors, serveArticles, refused } from "./fixture/server.ts";
 
 test.for(TEST_DIALECTS)(
     "subscribe thread authors, repliers and mentioned principals to the thread, keeping each principal's own subscription private, on %s",
@@ -22,14 +22,13 @@ test.for(TEST_DIALECTS)(
         await call(article, "grant", { id: draft.id, relation: "viewer", subject: actors.agent });
         as("bob");
         await call(subscription, "create", host(article, draft.id));
-        await expect(
-            call(subscription, "create", { ...host(article, draft.id), reason: "author" }),
-        ).rejects.toMatchObject({
-            code: "BAD_REQUEST",
-            message: "invalid input to subscription.create",
-        });
+        expect(
+            await refused(
+                call(subscription, "create", { ...host(article, draft.id), reason: "author" }),
+            ),
+        ).toEqual(["BAD_REQUEST", "invalid input to subscription.create"]);
 
-        // subscribe a thread's author to it, and whom it mentions to the article, keeping each held reason
+        // subscribe a thread's author to it and the mentioned to the article with their reasons
         as("alice");
         const text = "@bob, @carol and @dave, see the agent's notes";
         const first = await call(comment, "create", {
@@ -81,8 +80,8 @@ test.for(TEST_DIALECTS)(
 
         // unsubscribe by deleting, and subscribe only principals an edit mentions for the first time
         as("carol");
-        const [, held] = await list(subscription);
-        await call(subscription, "delete", { id: held!.id });
+        const [, kept] = await list(subscription);
+        await call(subscription, "delete", { id: kept!.id });
         as("bob");
         await call(comment, "update", {
             id: answer.id,

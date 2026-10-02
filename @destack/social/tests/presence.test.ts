@@ -1,9 +1,9 @@
-import { subjectKey } from "@destack/access";
 import { TEST_DIALECTS } from "@destack/db/test";
+import { Subject } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { presence } from "../src/index.ts";
 import { article } from "./fixture/article.ts";
-import { actors, serveArticles } from "./fixture/server.ts";
+import { actors, serveArticles, refused } from "./fixture/server.ts";
 
 test.for(TEST_DIALECTS)(
     "show an article's readers who is on it once per client, what they do and where, until they leave, on %s",
@@ -37,8 +37,8 @@ test.for(TEST_DIALECTS)(
             selection: cursor(3),
         });
         expect([await rows(alice), await rows(bob)]).toEqual([
-            [[subjectKey(actors.alice), "editing", cursor(3), false]],
-            [[subjectKey(actors.alice), "editing", cursor(3), false]],
+            [[Subject.key(actors.alice), "editing", cursor(3), false]],
+            [[Subject.key(actors.alice), "editing", cursor(3), false]],
         ]);
 
         // show the owner typing as the cursor moves
@@ -48,15 +48,17 @@ test.for(TEST_DIALECTS)(
             isTyping: true,
         });
         expect([await rows(alice), await rows(bob)]).toEqual([
-            [[subjectKey(actors.alice), "editing", cursor(9), true]],
-            [[subjectKey(actors.alice), "editing", cursor(9), true]],
+            [[Subject.key(actors.alice), "editing", cursor(9), true]],
+            [[Subject.key(actors.alice), "editing", cursor(9), true]],
         ]);
 
         // refuse presence to a stranger, and show the stranger nobody
         as("carol");
-        await expect(
-            call(presence, "create", { ...host(article, draft.id), status: "viewing" }),
-        ).rejects.toMatchObject({ code: "NOT_FOUND", message: "Not Found" });
+        expect(
+            await refused(
+                call(presence, "create", { ...host(article, draft.id), status: "viewing" }),
+            ),
+        ).toEqual(["NOT_FOUND", `no article ${draft.id}`]);
         const carol = follow();
         expect(await rows(carol)).toEqual([]);
 
@@ -67,39 +69,36 @@ test.for(TEST_DIALECTS)(
             status: "viewing",
         });
         const joined = [
-            [subjectKey(actors.alice), "editing", cursor(9), true],
-            [subjectKey(actors.bob), "viewing", null, false],
+            [Subject.key(actors.alice), "editing", cursor(9), true],
+            [Subject.key(actors.bob), "viewing", null, false],
         ];
         expect([await rows(alice), await rows(bob)]).toEqual([joined, joined]);
         as("alice");
-        await expect(
-            call(presence, "update", { id: viewing.id, status: "idle" }),
-        ).rejects.toMatchObject({ code: "FORBIDDEN", message: "Forbidden" });
+        expect(await refused(call(presence, "update", { id: viewing.id, status: "idle" }))).toEqual(
+            ["FORBIDDEN", "permission denied: write"],
+        );
 
         // show the viewer alone once the owner leaves
         await call(presence, "delete", { id: editing.id });
-        expect(await rows(bob)).toEqual([[subjectKey(actors.bob), "viewing", null, false]]);
+        expect(await rows(bob)).toEqual([[Subject.key(actors.bob), "viewing", null, false]]);
 
         // refuse a second presence of one principal's client, and let another principal copy the client only for its own row
         as("bob");
-        await expect(
-            call(presence, "create", { ...host(article, draft.id), status: "idle" }),
-        ).rejects.toMatchObject({
-            code: "DUPLICATE",
-            message: "a record with the same unique key exists",
-        });
+        expect(
+            await refused(call(presence, "create", { ...host(article, draft.id), status: "idle" })),
+        ).toEqual(["DUPLICATE", "a record with the same unique key exists"]);
         const copied = await call(presence, "create", {
             ...host(article, draft.id),
             status: "idle",
             client: "client-alice",
         });
         expect(await rows(bob)).toEqual([
-            [subjectKey(actors.bob), "viewing", null, false],
-            [subjectKey(actors.bob), "idle", null, false],
+            [Subject.key(actors.bob), "viewing", null, false],
+            [Subject.key(actors.bob), "idle", null, false],
         ]);
         as("alice");
-        await expect(
-            call(presence, "update", { id: copied.id, status: "editing" }),
-        ).rejects.toMatchObject({ code: "FORBIDDEN", message: "Forbidden" });
+        expect(
+            await refused(call(presence, "update", { id: copied.id, status: "editing" })),
+        ).toEqual(["FORBIDDEN", "permission denied: write"]);
     },
 );

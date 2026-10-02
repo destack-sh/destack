@@ -2,54 +2,39 @@ import {
     accessRelationship,
     accessRole,
     anyone,
-    GLOBAL_SCOPE,
     principal,
     Relationship,
     Role,
 } from "@destack/access";
+import { Scope, type TrackerMessage } from "@destack/sync";
 import { copyScope } from "@destack/access/test";
 import { account } from "@destack/account/object";
-import type { AuditRecorder } from "@destack/audit";
+import { journal } from "@destack/audit";
 import { and, type DatabaseConnection, type Dialect, eq, isNull } from "@destack/db";
 import { defineDatabase } from "@destack/db/declare";
-import { relayHub, TestDatabase } from "@destack/db/test";
+import { channelHub, TestDatabase } from "@destack/db/test";
 import type { ObjectType } from "@destack/object";
 import { subscription } from "@destack/notification";
-import { Dispatcher } from "@destack/notification/server";
+import { NotificationServer } from "@destack/notification/server";
 import { EphemeralStorage, ObjectServer, SystemCall } from "@destack/object/server";
-import { Package } from "@destack/package";
-import { type Identifier, identifier, schema } from "@destack/schema";
-import { Bookmark } from "@destack/service/bookmark";
-import { defineJournal, Journal } from "@destack/service/database";
+import { type Identifier, identifier } from "@destack/schema";
+
 import { RequestId } from "@destack/service/request";
-import type { ServiceContext } from "@destack/service/server";
-import { defineSetting } from "@destack/setting/declare";
+import { subjectContext, testCallKey } from "@destack/service/test";
 import { space } from "@destack/space/object";
-import type { TrackerMessage } from "@destack/sync";
 import { afterAll, onTestFinished } from "@destack/test";
 import { v7 } from "uuid";
-import {
-    comment,
-    favourite,
-    mention,
-    presence,
-    reaction,
-    receipt,
-    reply,
-    thread,
-} from "../../src/index.ts";
+import { favourite, mention, presence, reaction, reply, thread } from "../../src/index.ts";
+import { comment, receipt } from "../../src/server/index.ts";
 import { article } from "./article.ts";
-
-/** Replayable method requests. */
-const journal = defineJournal("journal");
 
 /** The principals the scenarios act as: people, and an agent installation. */
 export const actors = {
-    alice: principal.user.reference(GLOBAL_SCOPE, "alice"),
-    bob: principal.user.reference(GLOBAL_SCOPE, "bob"),
-    carol: principal.user.reference(GLOBAL_SCOPE, "carol"),
-    dave: principal.user.reference(GLOBAL_SCOPE, "dave"),
-    agent: principal.installation.reference(GLOBAL_SCOPE, "agent"),
+    alice: principal.user.reference(Scope.universe.id, "alice"),
+    bob: principal.user.reference(Scope.universe.id, "bob"),
+    carol: principal.user.reference(Scope.universe.id, "carol"),
+    dave: principal.user.reference(Scope.universe.id, "dave"),
+    agent: principal.installation.reference(Scope.universe.id, "agent"),
 };
 
 /** A principal the scenarios act as. */
@@ -63,24 +48,24 @@ afterAll(async () => {
     }
 });
 
-/** Refuse delivering, which the scenarios leave to notification. */
+/** Refuse delivering. */
 function refuseDelivery(): never {
     throw new TypeError("the scenarios expand announcements and deliver nothing");
 }
 
-/** The dispatcher expanding the comments' announcements into notifications. */
-const dispatcher = new Dispatcher({
+/** The notification objects expanding the comments' announcements into notifications. */
+const notifications = new NotificationServer({
     notifications: [mention, thread, reply],
     recipients: {
         settings: refuseDelivery,
-        addresses: refuseDelivery,
+        contact: refuseDelivery,
         devices: refuseDelivery,
         timeZone: refuseDelivery,
         forget: refuseDelivery,
     },
     push: { send: refuseDelivery },
     mail: { send: refuseDelivery },
-});
+}).objects();
 
 /** Every social type, served beside the articles taking them and the notification types comments write. */
 const objects = {
@@ -91,20 +76,25 @@ const objects = {
     favourite,
     presence,
     subscription,
-    ...dispatcher.objects,
+    ...notifications,
 };
 
 /** Serve articles and their attachments over a new database to one actor at a time, alice until another acts. */
 export async function serveArticles(dialect: Dialect) {
-    // hold the articles in a space of their own in the dialect's shared database, and presence in memory
+    // keep the articles in a space of their own in the dialect's shared database, and presence in memory
     const storage = await durable(dialect);
     const spaceId = await openSpace(storage.database);
     const memory = await TestDatabase.create("sqlite", presence.tables, { isMigrated: true });
-    const store = new EphemeralStorage(memory.database, [presence], relayHub<TrackerMessage>()(), {
-        report: (error) => {
-            throw error;
+    const store = new EphemeralStorage(
+        memory.database,
+        [presence],
+        channelHub<TrackerMessage>()(),
+        {
+            report: (error) => {
+                throw error;
+            },
         },
-    });
+    );
     onTestFinished(async () => {
         store.close();
         await memory.close();
@@ -117,12 +107,12 @@ export async function serveArticles(dialect: Dialect) {
         database: storage.database,
         ephemeral: store,
         context: (context) => ({
-            subjects: [actors[context.requireCaller().id as Actor]],
+            subjects: [context.requireAuthentication().claims.subject],
             now: Date.now(),
             attributes: {},
         }),
-        journal: new Journal(journal),
-        audit: () => ({ record: async () => {} }) as unknown as AuditRecorder<DatabaseConnection>,
+        callKey: testCallKey,
+        origin: { package: space.package, service: "social" },
     });
 
     return {
@@ -154,7 +144,7 @@ export async function serveArticles(dialect: Dialect) {
             ).items.toSorted(
                 (left, right) => (left.createdAt as number) - (right.createdAt as number),
             ),
-        /** Name a host as its attachments' parent. */
+        /** Refer to a host as its attachments' parent. */
         host: (object: ObjectType, id: string) => ({
             parent: { packageId: object.policy.definition.packageId, type: object.name, id },
         }),
@@ -162,9 +152,9 @@ export async function serveArticles(dialect: Dialect) {
         as: (actor: Actor) => {
             current = actor;
         },
-        /** Expand the space's announcements batch by batch as the dispatcher does, until none waits. */
+        /** Expand the space's announcements batch by batch as their controller does, until none waits. */
         expand: async () => {
-            const table = dispatcher.objects.announcement.table;
+            const table = notifications.announcement.table;
             const waiting = () =>
                 storage.database
                     .select()
@@ -172,25 +162,25 @@ export async function serveArticles(dialect: Dialect) {
                     .where(and(eq(table.scope, spaceId), isNull(table.expandedAt)));
             for (let rows = await waiting(); rows.length > 0; rows = await waiting()) {
                 await server.executeAsSystem(
-                    dispatcher.objects.announcement,
+                    notifications.announcement,
                     "expand",
-                    rows.map(SystemCall.of),
+                    rows.map((row) => SystemCall.of(row)),
                     Date.now(),
                 );
             }
         },
-        /** Follow the space's presence as the current actor's client, reading every page as a transport does. */
+        /** Follow the space's presence as the current actor's client and read every page like a transport. */
         follow: () => follow(server, spaceId, current),
     };
 }
 
 /** Open a new space below a new account, readable by anyone through a member role, returning its identifier. */
 async function openSpace(database: DatabaseConnection): Promise<Identifier<"space">> {
-    // record the account and the space as copies of their home's access hold them
+    // record the account and the space as copies of their home's access has them
     const accountId = identifier("account").parse(`account-${v7()}`);
     const spaceId = identifier("space").parse(`space-${v7()}`);
     const reference = space.reference(accountId, spaceId);
-    await copyScope(database, account.reference(GLOBAL_SCOPE, accountId));
+    await copyScope(database, account.reference(Scope.universe.id, accountId));
     await copyScope(database, reference);
 
     // define a role reading the space and bind it to anyone
@@ -225,7 +215,15 @@ async function openSpace(database: DatabaseConnection): Promise<Identifier<"spac
     return spaceId;
 }
 
-/** Hold the durable tables once per dialect for the scenarios of a file, each of which opens a space of its own. */
+/** Answer a call's refusal as its code and message, or "done" when it succeeds. */
+export function refused(pending: Promise<unknown>): Promise<"done" | [string, string]> {
+    return pending.then(
+        () => "done" as const,
+        (error: { code: string; message: string }) => [error.code, error.message],
+    );
+}
+
+/** Keep the durable tables once per dialect for the scenarios of a file. */
 function durable(dialect: Dialect): Promise<TestDatabase> {
     // migrate the dialect's database on first use, and close it after the file's scenarios
     let storage = databases.get(dialect);
@@ -249,28 +247,28 @@ function durable(dialect: Dialect): Promise<TestDatabase> {
     return storage;
 }
 
-/** Follow the space's presence as an actor's client, returning the rows held after each page. */
+/** Follow the space's presence as an actor's client, returning the rows kept after each page. */
 function follow(server: ObjectServer<typeof objects>, spaceId: string, actor: Actor) {
-    // read the pages in the background into the rows held, waking whoever waits for the next
+    // read the pages in the background into the rows kept, waking whoever waits for the next
     const { context: followed, controller } = context(spaceId, actor);
-    const pages = server.sync(spaceId, followed, {
+    const pages = server.source.sync(spaceId, followed, {
         client: `client-${actor}`,
         queries: { presences: { object: "presence" } },
     });
-    const held = new Map<string, Record<string, unknown>>();
+    const kept = new Map<string, Record<string, unknown>>();
     let arrived = 0;
     let wake = () => {};
     const reading = (async () => {
         for await (const page of pages) {
             // start over from a snapshot that resets, then apply the page's changes
             if (page.reset) {
-                held.clear();
+                kept.clear();
             }
             for (const change of page.changes) {
                 if (change.operation === "delete") {
-                    held.delete(change.row.id as string);
+                    kept.delete(change.row.id as string);
                 } else {
-                    held.set(change.row.id as string, change.row);
+                    kept.set(change.row.id as string, change.row);
                 }
             }
             arrived += 1;
@@ -292,7 +290,7 @@ function follow(server: ObjectServer<typeof objects>, spaceId: string, actor: Ac
                 await new Promise<void>((resolve) => (wake = resolve));
             }
 
-            return [...held.values()];
+            return [...kept.values()];
         },
     };
 }
@@ -304,13 +302,6 @@ function context(spaceId: string, actor: Actor) {
 
     return {
         controller,
-        context: {
-            scope: spaceId,
-            caller: { id: actor },
-            requireCaller: () => ({ id: actor }),
-            bookmark: new Bookmark(),
-            observed: new Bookmark(),
-            signal: controller.signal,
-        } as unknown as ServiceContext,
+        context: subjectContext(actors[actor], spaceId, controller.signal),
     };
 }

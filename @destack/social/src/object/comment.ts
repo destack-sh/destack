@@ -3,14 +3,14 @@ import {
     intersection,
     permission,
     relation,
-    Subject,
     through,
     union,
 } from "@destack/access";
+import { Subject } from "@destack/sync";
 import { index, type Select } from "@destack/db";
 import { type Action, announcement, notification, subscription } from "@destack/notification";
 import { defineNotification } from "@destack/notification/declare";
-import { Call, defineObject, field, method, type ObjectType, Selection } from "@destack/object";
+import { defineObject, field, method, type ObjectType, Selection } from "@destack/object";
 import { identifier, schema } from "@destack/schema";
 import { space } from "@destack/space/object";
 import { reaction } from "./reaction.ts";
@@ -87,7 +87,7 @@ export const comment = defineObject({
     aggregates: { commentCount: { function: "count" } },
     attachments: [
         reaction.attach({ by: "comment" }),
-        // hold a thread's subscriptions and notifications
+        // keep a thread's subscriptions and notifications
         subscription.attach({ by: "read" }),
         notification.attach({ by: "read" }),
         announcement.attach({ by: "read" }),
@@ -103,8 +103,8 @@ export const comment = defineObject({
     },
 });
 
-/** A comment as its table holds it. */
-export type CommentRow = Select<typeof comment.table>;
+/** A comment as its table stores it. */
+export type Comment = Select<typeof comment.table>;
 
 /** A comment as its notifications carry it. */
 export const Excerpt = schema.object({
@@ -124,13 +124,25 @@ export type Excerpt = schema.Infer<typeof Excerpt>;
 const answer: Action<Excerpt> = {
     title: "Reply",
     text: { placeholder: "Reply", button: "Send" },
-    call: ({ source, payload }, text) =>
-        Call.record(comment, "create", {
-            [comment.route.field!]: source.scope,
-            parent: { packageId: source.packageId, type: source.type, id: source.id },
+    effect: async ({ source, payload }, call, text) => {
+        // find the object the thread comments on, through its first comment when notified there
+        const scope = { [comment.route.field!]: source.scope };
+        const first =
+            source.type === comment.name
+                ? ((await call.invoke(comment, "get", { ...scope, id: source.id })) as Comment)
+                : undefined;
+        const parent =
+            first === undefined
+                ? { packageId: source.packageId, type: source.type, id: source.id }
+                : { packageId: first.parentPackageId, type: first.parentType, id: first.parentId };
+
+        return call.invoke(comment, "create", {
+            ...scope,
+            parent,
             body: { text: text!, mentions: [] },
             thread: payload.thread,
-        }),
+        });
+    },
 };
 
 /** A comment mentions the recipient. */

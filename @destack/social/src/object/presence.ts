@@ -4,7 +4,7 @@ import { defineObject, field, method, Selection } from "@destack/object";
 import { schema } from "@destack/schema";
 import { space } from "@destack/space/object";
 
-/** One client's presence on an object, held in memory. */
+/** One client's presence on an object, kept in memory. */
 export const presence = defineObject({
     name: "presence",
     plural: "presences",

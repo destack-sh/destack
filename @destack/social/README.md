@@ -38,7 +38,7 @@ export const doc = defineObject({
 
 Each type nests in any host that attaches it.
 
-| Type | Holds | Methods |
+| Type | What it is | Methods |
 |---|---|---|
 | `comment` | A thread's first comment or a reply, with a `Body` and an optional `Selection` of the host's text | `get`, `list`, `create`, `update`, `delete`, `resolve`, `reopen` |
 | `reaction` | One author's emoji on a host or a comment | `list`, `create`, `delete` |
@@ -48,7 +48,7 @@ Each type nests in any host that attaches it.
 
 ## Comments
 
-Replies name a thread's first comment as their `thread`.
+A reply's `thread` is the thread's first comment.
 
 ```ts
 const first = await client.mutate(comment).create({
@@ -75,5 +75,10 @@ The server `comment` subscribes and notifies through three notifications.
 A host's dispatcher delivers them.
 
 ```ts
-const dispatcher = new Dispatcher({ notifications: [mention, thread, reply], recipients, push, mail });
+const dispatcher = new Dispatcher({
+    notifications: [mention, thread, reply],
+    recipients,
+    push,
+    mail,
+});
 ```

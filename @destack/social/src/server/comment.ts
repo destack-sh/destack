@@ -1,19 +1,11 @@
-import {
-    keySubject,
-    type ObjectReference,
-    sameSubject,
-    type Subject,
-    subjectKey,
-} from "@destack/access";
+import { type ObjectReference, Subject } from "@destack/sync";
 import { and, eq } from "@destack/db";
 import { Subscription } from "@destack/notification";
 import { type Call, Chunk, type Selection } from "@destack/object";
 import { ServiceError } from "@destack/service/error";
-import * as base from "./comment.ts";
+import * as base from "../object/comment.ts";
 
-export * from "./comment.ts";
-
-/** Comments on the server, which subscribe and notify participants. */
+/** Comments on the server that subscribe and notify participants. */
 export const comment = base.comment.handle({
     create: async (call, next) => {
         // validate mentions, the selection and the thread
@@ -31,7 +23,7 @@ export const comment = base.comment.handle({
         }
 
         // subscribe the author and notify the mentioned
-        const row = (await next()) as base.CommentRow;
+        const row = (await next()) as base.Comment;
         const isReply = row.thread !== null;
         const mentioned = row.body.mentions.map((mention) => mention.principal);
         await Subscription.add(
@@ -64,10 +56,10 @@ export const comment = base.comment.handle({
 
         // notify principals mentioned for the first time
         const before = call.target!.body.mentions.map((mention) => mention.principal);
-        const row = (await next(body === undefined ? call : edited)) as base.CommentRow;
+        const row = (await next(body === undefined ? call : edited)) as base.Comment;
         const mentioned = row.body.mentions
             .map((mention) => mention.principal)
-            .filter((principal) => !before.some((known) => sameSubject(known, principal)));
+            .filter((principal) => !before.some((known) => Subject.same(known, principal)));
         await notifyMentioned(call, row, mentioned);
 
         return row;
@@ -79,7 +71,7 @@ export const comment = base.comment.handle({
             throw new ServiceError("CONFLICT", { message: "thread is already resolved" });
         }
 
-        return call.revise({ resolvedAt: call.now, resolvedBy: subjectKey(call.caller!) });
+        return call.update({ resolvedAt: call.now, resolvedBy: Subject.key(call.caller!) });
     },
     reopen: async (call) => {
         // reopen a resolved thread
@@ -88,7 +80,7 @@ export const comment = base.comment.handle({
             throw new ServiceError("CONFLICT", { message: "thread is open" });
         }
 
-        return call.revise({ resolvedAt: null, resolvedBy: null });
+        return call.update({ resolvedAt: null, resolvedBy: null });
     },
 });
 
@@ -98,7 +90,7 @@ function requireSpans(body: base.Body): void {
     for (const mention of body.mentions) {
         if (mention.offset < end || mention.offset + mention.length > body.text.length) {
             throw new ServiceError("BAD_REQUEST", {
-                message: "mentions name ordered, disjoint spans within the text",
+                message: "mentions must be ordered, disjoint spans within the text",
             });
         }
         end = mention.offset + mention.length;
@@ -115,11 +107,11 @@ async function requireText(call: Call, selection: Selection): Promise<void> {
     // refuse unknown fields and elements
     if (!type?.text.includes(selection.field)) {
         throw new ServiceError("BAD_REQUEST", {
-            message: `${host.type} holds no text field ${selection.field}`,
+            message: `${host.type} has no text field ${selection.field}`,
         });
     } else if (!(await Chunk.holds(call.database, host, selection.field, elements))) {
         throw new ServiceError("BAD_REQUEST", {
-            message: `${selection.field} holds no such selection`,
+            message: `${selection.field} has no such selection`,
         });
     }
 }
@@ -137,7 +129,7 @@ async function requireThreadOf(
         .from(table)
         .where(
             and(
-                eq(table.id, thread as base.CommentRow["id"]),
+                eq(table.id, thread as base.Comment["id"]),
                 eq(table.parentPackageId, host.packageId),
                 eq(table.parentType, host.type),
                 eq(table.parentId, host.id),
@@ -157,7 +149,7 @@ async function requireThreadOf(
 }
 
 /** Require a comment to be the first of its thread, returning it. */
-function requireFirst(target: base.CommentRow): base.CommentRow {
+function requireFirst(target: base.Comment): base.Comment {
     if (target.thread !== null) {
         throw new ServiceError("BAD_REQUEST", {
             message: "a thread resolves through its first comment",
@@ -168,7 +160,7 @@ function requireFirst(target: base.CommentRow): base.CommentRow {
 }
 
 /** Reference a comment's host. */
-function hostOf(row: base.CommentRow): ObjectReference {
+function hostOf(row: base.Comment): ObjectReference {
     return {
         packageId: row.parentPackageId,
         type: row.parentType,
@@ -178,22 +170,22 @@ function hostOf(row: base.CommentRow): ObjectReference {
 }
 
 /** Reference a comment's thread. */
-function rootOf(row: base.CommentRow): ObjectReference {
+function rootOf(row: base.Comment): ObjectReference {
     return base.comment.reference(row.scope, row.thread ?? row.id);
 }
 
 /** Reference where a comment's notifications go: its thread for a reply, else its host. */
-function placeOf(row: base.CommentRow): ObjectReference {
+function placeOf(row: base.Comment): ObjectReference {
     return row.thread === null ? hostOf(row) : rootOf(row);
 }
 
 /** Build a comment's excerpt without splitting a surrogate pair. */
-function excerptOf(row: base.CommentRow): base.Excerpt {
+function excerptOf(row: base.Comment): base.Excerpt {
     const text = row.body.text.slice(0, base.EXCERPT_LENGTH);
     const isSplit = /[\uD800-\uDBFF]$/.test(text);
 
     return {
-        author: keySubject(row.author),
+        author: Subject.read(row.author),
         comment: row.id,
         thread: row.thread ?? row.id,
         text: isSplit ? text.slice(0, -1) : text,
@@ -203,7 +195,7 @@ function excerptOf(row: base.CommentRow): base.Excerpt {
 /** Subscribe and notify the principals a comment mentions. */
 async function notifyMentioned(
     call: Call,
-    row: base.CommentRow,
+    row: base.Comment,
     mentioned: readonly Subject[],
 ): Promise<void> {
     // subscribe each principal
