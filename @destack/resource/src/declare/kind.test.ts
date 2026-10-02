@@ -29,13 +29,6 @@ test("read stored resources and desired states through their kind, refusing anot
         spec: { tier: "zone" },
         reference: null,
     };
-    const outcome = (read: () => unknown) => {
-        try {
-            return read();
-        } catch (error) {
-            return (error as Error).constructor.name;
-        }
-    };
 
     // read a database and its states, and refuse a bucket reading its specification, an invalid spec and states of a stateless kind
     expect([
@@ -56,3 +49,16 @@ test("read stored resources and desired states through their kind, refusing anot
         "TypeError",
     ]);
 });
+
+/** Read a value, or the class name of the error reading it throws. */
+function outcome(read: () => unknown) {
+    try {
+        return read();
+    } catch (error) {
+        if (!(error instanceof Error)) {
+            throw error;
+        }
+
+        return error.constructor.name;
+    }
+}

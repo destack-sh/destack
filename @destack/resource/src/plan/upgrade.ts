@@ -49,8 +49,6 @@ function planUpgrade(
     compare: (declaration: DeclarationDescription) => Compare | undefined,
 ): Upgrade {
     // pair the releases' declarations by kind and name
-    const key = (declaration: DeclarationDescription) =>
-        Address.join(declaration.kind, declaration.name);
     const remaining = new Map(history.declarations.map((entry) => [key(entry), entry]));
 
     // add new declarations and compare kept ones
@@ -87,4 +85,9 @@ function planUpgrade(
     parts.push(() => Vocabulary.plan(history.vocabulary, declarations));
 
     return { from: history.release, steps: [...Plan.join(parts).steps] };
+}
+
+/** Address a declaration by its kind and name. */
+function key(declaration: DeclarationDescription): string {
+    return Address.join(declaration.kind, declaration.name);
 }

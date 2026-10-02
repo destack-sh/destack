@@ -20,12 +20,14 @@ export class ResourceContext {
     }
 
     /** Return the client selected for this declaration. */
-    get<Value>(resource: ResourceHandle<Value>): Value {
+    get<Value>(resource: ResourceHandle<Value>): Value;
+    /** Return the client bound to the declaration, which bind keeps with the declaration's own value type. */
+    get(resource: ResourceHandle<unknown>): unknown {
         // require a bound client
         if (!this.#clients.has(resource)) {
             throw new ResourceError("NOT_BOUND", `resource is not bound: ${resource.name}`);
         }
 
-        return this.#clients.get(resource) as Value;
+        return this.#clients.get(resource);
     }
 }

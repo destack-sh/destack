@@ -14,7 +14,7 @@ export const Lease = schema.object({
     /** The headers the holder sends with each request, such as its authorization. */
     headers: schema.sensitive(schema.record(schema.string(), schema.string())),
     /** The time the lease ends, in UTC epoch milliseconds, absent for access that never lapses, such as a local path. */
-    expiresAt: Instant.optional(),
+    expiresAt: Instant.exactOptional(),
 });
 /** Short-lived, direct access to a resource's data. */
 export type Lease = schema.Infer<typeof Lease>;

@@ -43,9 +43,9 @@ export const ResourcePlacement = defineSchema(
         /** The provider adapter. */
         provider: schema.string().min(1),
         /** The location code accepted by the provider adapter. */
-        location: schema.string().min(1).optional(),
+        location: schema.string().min(1).exactOptional(),
         /** The host administering the resource. */
-        host: identifier("host").optional(),
+        host: identifier("host").exactOptional(),
     }),
 );
 /** Where a resource is asked to live. */

@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, schema, type JsonValue } from "@destack/schema";
 import { DeclarationName } from "@destack/package";
 import type { ResourceState } from "@destack/package/declare";
 import type { ResourceRecord } from "../provider/provider.ts";
@@ -12,7 +12,7 @@ export type KindState<Kind extends ResourceKind> = Kind["state"] extends schema.
 /** A kind of resource: its specification, and the desired state its providers reconcile, if any. */
 export class ResourceKind<
     Name extends string = string,
-    Spec extends schema.Schema = schema.Schema,
+    Spec extends schema.Schema<JsonValue> = schema.Schema<JsonValue>,
     State extends schema.Schema | undefined = schema.Schema | undefined,
 > {
     /** The kind's name, such as database. */
@@ -26,8 +26,9 @@ export class ResourceKind<
 
     /** Define the kind. */
     constructor(name: Name, spec: Spec, state: State) {
-        // retain the schemas
-        this.name = DeclarationName.parse(name) as Name;
+        // require a declaration name and retain the schemas
+        DeclarationName.parse(name);
+        this.name = name;
         this.spec = spec;
         this.state = state;
 
@@ -50,7 +51,9 @@ export class ResourceKind<
     }
 
     /** Read stored desired states of this kind, refusing invalid ones, and any but empty ones of a kind without a state. */
-    states(stored: readonly ResourceState[]): KindState<this>[] {
+    states(stored: readonly ResourceState[]): KindState<this>[];
+    /** Parse each stored state by the kind's state schema, whose parsed value is the kind's state type. */
+    states(stored: readonly ResourceState[]): unknown[] {
         // read none for a kind without a state, whose bindings require nothing
         const state = this.state;
         if (state === undefined) {
@@ -61,18 +64,28 @@ export class ResourceKind<
             return [];
         }
 
-        return stored.map((entry) => state.parse(entry) as KindState<this>);
+        return stored.map((entry) => state.parse(entry));
     }
 }
 
-/** Define a resource kind, with the desired state its providers reconcile or without one. */
+/** Define a resource kind without a desired state. */
 export function defineResourceKind<
     const Name extends string,
-    Spec extends schema.Schema,
-    State extends schema.Schema | undefined = undefined,
+    Spec extends schema.Schema<JsonValue>,
+>(name: Name, options: { readonly spec: Spec }): ResourceKind<Name, Spec, undefined>;
+/** Define a resource kind with the desired state its providers reconcile. */
+export function defineResourceKind<
+    const Name extends string,
+    Spec extends schema.Schema<JsonValue>,
+    State extends schema.Schema,
 >(
     name: Name,
-    options: { readonly spec: Spec; readonly state?: State },
-): ResourceKind<Name, Spec, State> {
-    return new ResourceKind(name, options.spec, options.state as State);
+    options: { readonly spec: Spec; readonly state: State },
+): ResourceKind<Name, Spec, State>;
+/** Define a resource kind, with the desired state its providers reconcile or without one. */
+export function defineResourceKind(
+    name: string,
+    options: { readonly spec: schema.Schema<JsonValue>; readonly state?: schema.Schema },
+): ResourceKind {
+    return new ResourceKind(name, options.spec, options.state);
 }

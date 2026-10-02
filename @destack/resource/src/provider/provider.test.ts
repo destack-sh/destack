@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, expectTypeOf, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { defineResourceKind, Provider } from "../index.ts";
 
@@ -8,30 +8,19 @@ test("require reconciling from providers of kinds with a state, and whole capabi
         state: schema.object({ tables: schema.array(schema.string()) }),
     });
     const bucket = defineResourceKind("bucket", { spec: schema.object({}) });
-    const provision = async () => ({ reference: "memory:x" });
-    const destroy = async () => {};
 
     // refuse a stateful kind's provider without reconciling, half a capability, and reconciling without a state
-    // @ts-expect-error a provider of a kind with a state plans and applies
-    const unreconciled: Provider<typeof database> = {
-        kind: database,
-        code: "memory",
-        object: "database",
-    };
-    // @ts-expect-error a provider provisions and destroys, or does neither
-    const half: Provider<typeof bucket> = {
+    const unreconciled = { kind: database, code: "memory", object: "database" };
+    const half = { kind: bucket, code: "memory", object: "bucket", provision };
+    const stateless = {
         kind: bucket,
         code: "memory",
         object: "bucket",
-        provision,
-    };
-    const stateless: Provider<typeof bucket> = {
-        kind: bucket,
-        code: "memory",
-        object: "bucket",
-        // @ts-expect-error a provider of a kind without a state reconciles nothing
         plan: async () => ({ steps: [] }),
     };
+    expectTypeOf(unreconciled).not.toExtend<Provider<typeof database>>();
+    expectTypeOf(half).not.toExtend<Provider<typeof bucket>>();
+    expectTypeOf<Provider<typeof bucket>>().not.toHaveProperty("plan");
 
     // report each provider's capabilities
     const hosted: Provider<typeof bucket> = {
@@ -53,3 +42,11 @@ test("require reconciling from providers of kinds with a state, and whole capabi
         [false, true],
     ]);
 });
+
+/** Provision a resource in memory. */
+async function provision() {
+    return { reference: "memory:x" };
+}
+
+/** Destroy nothing. */
+async function destroy() {}

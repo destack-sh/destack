@@ -38,7 +38,7 @@ export const Step = defineSchema(
         /** Each changed field's current and planned value. */
         fields: schema
             .record(schema.string(), schema.object({ before: schema.json(), after: schema.json() }))
-            .optional(),
+            .exactOptional(),
     }),
 );
 /** One change a plan makes, as reviewers see it. */
@@ -59,7 +59,7 @@ export const Plan = Object.assign(
             /** The steps in application order. */
             steps: schema.array(Step),
             /** Why the plan stops before later steps. */
-            deferred: schema.string().min(1).optional(),
+            deferred: schema.string().min(1).exactOptional(),
         }),
     ),
     { classify, reaches, join, digest: digestSteps, values: planValues },

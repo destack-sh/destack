@@ -10,7 +10,7 @@ export const VocabularyEntry = defineSchema(
         /** The release that added the term. */
         introduced: Version,
         /** The release that removed the term, absent while declared. */
-        removed: Version.optional(),
+        removed: Version.exactOptional(),
         /** The digest of the term's last declared definition. */
         digest: Digest,
     }),

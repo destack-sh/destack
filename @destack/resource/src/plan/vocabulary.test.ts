@@ -16,7 +16,11 @@ function plan(vocabulary: Vocabulary, terms: Record<string, string>) {
     try {
         return Vocabulary.plan(vocabulary, release(terms)).steps;
     } catch (error) {
-        return (error as Error).message;
+        if (!(error instanceof Error)) {
+            throw error;
+        }
+
+        return error.message;
     }
 }
 

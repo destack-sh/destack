@@ -28,7 +28,7 @@ export const ResourceBinding = defineSchema(
         /** The provider's reference, such as a file URL or an egress URL. */
         reference: schema.string().min(1),
         /** The credential the host lends the workload for the resource, absent when the reference needs none. */
-        credential: schema.string().min(1).optional(),
+        credential: schema.string().min(1).exactOptional(),
     }),
 );
 /** A provisioned resource a host binds to a workload, as the workload's connector opens it. */
@@ -38,8 +38,11 @@ export type ResourceBinding = schema.Infer<typeof ResourceBinding>;
 export interface Connector<Client = unknown> {
     /** The provider code the connector connects to, such as sqlite. */
     readonly code: string;
-    /** Open a client for a bound resource holding the declaration's desired state, refusing otherwise. */
-    connect(binding: ResourceBinding, declaration: ResourceDeclaration<Client>): Promise<Client>;
+    /** Open a client the caller disposes for a bound resource with the declaration's desired state, refusing otherwise. */
+    connect(
+        binding: ResourceBinding,
+        declaration: ResourceDeclaration<Client>,
+    ): Promise<Client & AsyncDisposable>;
 }
 
 /** Where a provider placed a resource. */

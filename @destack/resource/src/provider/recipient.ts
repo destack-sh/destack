@@ -35,9 +35,7 @@ export class Recipient {
 
     /** Generate a recipient holding both halves of a fresh key. */
     static async generate(): Promise<Recipient> {
-        const pair = (await crypto.subtle.generateKey(CURVE, false, [
-            "deriveBits",
-        ])) as CryptoKeyPair;
+        const pair = await crypto.subtle.generateKey(CURVE, false, ["deriveBits"]);
         const key = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
 
         return new Recipient(key.toBase64(), pair.privateKey);
@@ -54,9 +52,7 @@ export class Recipient {
         context: Uint8Array<ArrayBuffer>,
     ): Promise<Ciphertext> {
         // agree a key with a fresh ephemeral key
-        const ephemeral = (await crypto.subtle.generateKey(CURVE, true, [
-            "deriveBits",
-        ])) as CryptoKeyPair;
+        const ephemeral = await crypto.subtle.generateKey(CURVE, true, ["deriveBits"]);
         const sender = new Uint8Array(await crypto.subtle.exportKey("raw", ephemeral.publicKey));
         const key = await agree(ephemeral.privateKey, await publicKey(this.key), sender, this.key);
 

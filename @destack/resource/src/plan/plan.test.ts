@@ -20,7 +20,11 @@ function plan(
             isConverted,
         }).steps;
     } catch (error) {
-        return (error as Error).message;
+        if (!(error instanceof Error)) {
+            throw error;
+        }
+
+        return error.message;
     }
 }
 
@@ -79,12 +83,6 @@ test("plan schema changes by the readers each must serve", () => {
 });
 
 test("join plans in order, collecting every refusal into one error", () => {
-    const step = (target: string) =>
-        ({ action: "create", target, risk: "safe", detail: "add" }) as const;
-    const refuse = (target: string) => () => {
-        throw new PlanError([{ target, detail: "declare a conversion for 2026.10.0" }]);
-    };
-
     // keep the steps in order, then report both refusals at once
     expect(Plan.join([() => ({ steps: [step("a")] }), () => ({ steps: [step("b")] })])).toEqual({
         steps: [step("a"), step("b")],
@@ -119,3 +117,15 @@ test("classify a plan by its most consequential step and digest its reviewed ste
     expect(await Plan.digest({ steps: [add, drop] })).toBe(first);
     expect(await Plan.digest({ steps: [drop, add] })).not.toBe(first);
 });
+
+/** Build a safe step creating a target. */
+function step(target: string) {
+    return { action: "create", target, risk: "safe", detail: "add" } as const;
+}
+
+/** Build a plan refusing a target. */
+function refuse(target: string) {
+    return () => {
+        throw new PlanError([{ target, detail: "declare a conversion for 2026.10.0" }]);
+    };
+}
