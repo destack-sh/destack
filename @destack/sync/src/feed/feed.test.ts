@@ -4,7 +4,7 @@ import { eq, TABLE } from "@destack/db";
 import { Condition } from "@destack/db/query";
 import { Feed } from "./feed.ts";
 import type { QueryPage } from "../query/page.ts";
-import { first, note, open, project, take, until } from "../test/fixture.ts";
+import { first, note, open, project, take, task, until } from "../test/fixture.ts";
 
 test.for(TEST_DIALECTS)("keep a query of one scope's matching rows on %s", async (dialect) => {
     const database = await open(dialect);
@@ -322,6 +322,114 @@ test.for(TEST_DIALECTS)(
         const ids = (rows: readonly Readonly<Record<string, unknown>>[]) =>
             rows.map((row) => row.id);
         expect([ids(initial), ids(changed)]).toEqual([["a"], ["a", "b"]]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "watch an ordered query keeping unchanged rows and placing a changed row by its order on %s",
+    async (dialect) => {
+        const database = await open(dialect);
+        const feed = new Feed(database, [note]);
+        const query = {
+            table: note,
+            scopes: ["inbox"],
+            order: [{ column: "title", direction: "asc" as const }],
+        };
+        await database.insert(note).values([
+            { ...first, id: "a", title: "Apples" },
+            { ...first, id: "b", title: "Bread" },
+            { ...first, id: "c", title: "Cheese" },
+        ]);
+
+        // read the rows, then rename the first one past the others
+        const watching = feed.watch("notes", query, AbortSignal.timeout(5000));
+        const initial = (await watching.next()).value!;
+        await database.update(note).set({ title: "Dates" }).where(eq(note.id, "a"));
+        const renamed = (await watching.next()).value!;
+        await watching.return(undefined);
+
+        // keep the unchanged rows as the same objects, and place the renamed one last
+        expect([
+            renamed.map((row: Readonly<Record<string, unknown>>) => [row.id, row.title]),
+            renamed[0] === initial[1],
+            renamed[1] === initial[2],
+            renamed[2] === initial[0],
+        ]).toEqual([
+            [
+                ["b", "Bread"],
+                ["c", "Cheese"],
+                ["a", "Dates"],
+            ],
+            true,
+            true,
+            false,
+        ]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "watch projects with their tasks, reordering one project's tasks and keeping the other project as it was on %s",
+    async (dialect) => {
+        const database = await open(dialect);
+        const feed = new Feed(database, [project, task]);
+        const query = {
+            table: project,
+            scopes: ["inbox"],
+            order: [{ column: "name", direction: "asc" as const }],
+            include: {
+                tasks: {
+                    table: task,
+                    on: { kind: "key" as const, column: "projectId", parent: "id" },
+                    order: [{ column: "rank", direction: "asc" as const }],
+                },
+            },
+        };
+        const taskOf = (id: string, projectId: string, rank: number) => ({
+            id,
+            scope: "inbox",
+            projectId,
+            state: "open",
+            rank,
+            points: null,
+            title: id,
+            isSecret: false,
+        });
+        await database.insert(project).values([
+            { id: "home", scope: "inbox", name: "Home" },
+            { id: "work", scope: "inbox", name: "Work" },
+        ]);
+        await database
+            .insert(task)
+            .values([
+                taskOf("dishes", "home", 1),
+                taskOf("laundry", "home", 2),
+                taskOf("report", "work", 1),
+            ]);
+
+        // read both projects, then move the first home task last
+        const watching = feed.watch("projects", query, AbortSignal.timeout(5000));
+        const next = async () => {
+            const read = await watching.next();
+            if (read.done === true) {
+                throw new Error("the watch ended");
+            }
+
+            return read.value;
+        };
+        const initial = await next();
+        await database.update(task).set({ rank: 3 }).where(eq(task.id, "dishes"));
+        const moved = await next();
+        await watching.return(undefined);
+
+        // reorder the home project's tasks, and keep the work project and its tasks as the same objects
+        const titles = (row: Readonly<Record<string, unknown>>) =>
+            (row.tasks as Readonly<Record<string, unknown>>[]).map((entry) => entry.title);
+        expect([
+            moved.map(titles),
+            moved[1] === initial[1],
+            moved[0] === initial[0],
+            (moved[0]!.tasks as unknown[])[0] === (initial[0]!.tasks as unknown[])[1],
+        ]).toEqual([[["laundry", "dishes"], ["report"]], true, false, true]);
     },
 );
 

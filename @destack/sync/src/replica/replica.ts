@@ -484,7 +484,7 @@ export class Replica {
         name: string,
         query: Omit<Query, "scopes">,
         prediction?: Prediction,
-    ): Promise<Row[]> {
+    ): Promise<readonly Readonly<Row>[]> {
         // hold the query over the copy at its latest position
         const dataflow = new Dataflow(
             { [name]: { ...query, scopes: [this.scope] } },
@@ -808,13 +808,13 @@ export class Replica {
                                 transaction,
                                 row.page,
                                 delivered,
-                                options.open,
+                                options.unwrap,
                             );
                             outcomes.push(...written.outcomes);
                             relayed = written.origin ?? relayed;
                         }
                     }
-                    const written = await this.#write(transaction, page, delivered, options.open);
+                    const written = await this.#write(transaction, page, delivered, options.unwrap);
                     outcomes.push(...written.outcomes);
                     relayed = written.origin ?? relayed;
 
@@ -879,7 +879,7 @@ export class Replica {
         transaction: DatabaseConnection,
         page: QueryPage,
         delivered: ReadonlyMap<string, Set<string>> | undefined,
-        open: ApplyOptions["open"],
+        unwrap: ApplyOptions["unwrap"],
     ): Promise<{ readonly outcomes: readonly MutationOutcome[]; readonly origin?: Origin }> {
         // batch each table's writes
         const batches = new Map<Table, Batch>();
@@ -906,13 +906,13 @@ export class Replica {
                     `page names a table outside copy ${this.name}: ${change.table}`,
                 );
             }
-            // stage a copied row's change, opening its sealed values
+            // stage a copied row's change, unwrapping its host-bound values
             else {
                 const decoded = table.decode(change.row);
                 const row =
-                    open === undefined || change.operation === "delete"
+                    unwrap === undefined || change.operation === "delete"
                         ? decoded
-                        : await open(table, decoded);
+                        : await unwrap(table, decoded);
                 delivered?.get(change.table)!.add(Key.name(table, row));
                 const batch = batches.get(table) ?? { held: [], hidden: [], removed: [] };
                 batches.set(table, batch);
@@ -1333,8 +1333,8 @@ export interface ApplyOptions {
     readonly request?: unknown;
     /** The store keeping the content the copied rows reference, and the source's store reading it. */
     readonly blobs?: { readonly store: BlobStore; readonly source: Pick<BlobStore, "read"> };
-    /** Open the host-bound values a fenced source sealed to this copy. */
-    readonly open?: (table: Table, row: Row) => Promise<Row>;
+    /** Unwrap the host-bound values a fenced source wrapped for this copy. */
+    readonly unwrap?: (table: Table, row: Row) => Promise<Row>;
 }
 
 /** The home position of a copy's rows. */

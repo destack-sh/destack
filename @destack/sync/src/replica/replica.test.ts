@@ -133,21 +133,18 @@ test.for(TEST_DIALECTS)(
         await following;
 
         // capture every column once the source stops writing, rewrapping the key for the target
-        const seal = async (table: Table, row: Row) =>
+        const wrap = async (table: Table, row: Row) =>
             table === heldKey
-                ? { ...row, wrapped: String(row.wrapped).replace("source:", "sealed:") }
+                ? { ...row, wrapped: String(row.wrapped).replace("source:", "moving:") }
                 : row;
-        const open = async (table: Table, row: Row) =>
+        const unwrap = async (table: Table, row: Row) =>
             table === heldKey
-                ? { ...row, wrapped: String(row.wrapped).replace("sealed:", "target:") }
+                ? { ...row, wrapped: String(row.wrapped).replace("moving:", "target:") }
                 : row;
         for await (const _page of copy.apply(
             target,
-            feed.capture(copy.captured, signal, { seal }),
-            {
-                open,
-                blobs,
-            },
+            feed.capture(copy.captured, signal, { rewrap: wrap }),
+            { unwrap, blobs },
         )) {
             // apply each captured page
         }

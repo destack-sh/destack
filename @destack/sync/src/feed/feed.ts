@@ -187,13 +187,13 @@ export class Feed implements Cache {
      * Read every column of the queries' rows as one consistent snapshot run, in one read transaction.
      *
      * The run carries what the log leaves out: unlogged tables, and binary and sensitive columns.
-     * Sealing turns a row's host-bound values into values only the target unseals.
+     * Rewrapping turns a row's host-bound values into values only the target unwraps.
      */
     async *capture(
         queries: Readonly<Record<string, Query>>,
         signal: AbortSignal,
         options: {
-            readonly seal?: (table: Table, row: Row) => Promise<Row>;
+            readonly rewrap?: (table: Table, row: Row) => Promise<Row>;
         } = {},
     ): AsyncGenerator<QueryPage> {
         // read in one transaction, handing each page over before reading the next
@@ -201,7 +201,7 @@ export class Feed implements Cache {
         const reading = this.database
             .transaction(
                 async (transaction) => {
-                    for await (const page of Feed.#pages(transaction, queries, options.seal)) {
+                    for await (const page of Feed.#pages(transaction, queries, options.rewrap)) {
                         await handoff.give(page);
                     }
                     handoff.end();
@@ -221,7 +221,7 @@ export class Feed implements Cache {
     static async *#pages(
         database: DatabaseConnection,
         queries: Readonly<Record<string, Query>>,
-        seal: ((table: Table, row: Row) => Promise<Row>) | undefined,
+        rewrap: ((table: Table, row: Row) => Promise<Row>) | undefined,
     ): AsyncGenerator<QueryPage> {
         // read every query's rows page by page in key order
         const position = await database.log.position();
@@ -252,15 +252,15 @@ export class Feed implements Cache {
                     .limit(CAPTURE_ROWS)) as Row[];
                 last = rows.length === CAPTURE_ROWS ? rows.at(-1) : undefined;
 
-                // send them sealed, completing the run with the last page
-                const sealed =
-                    seal === undefined
+                // send them rewrapped, completing the run with the last page
+                const rewrapped =
+                    rewrap === undefined
                         ? rows
-                        : await Promise.all(rows.map((row) => seal(table, row)));
+                        : await Promise.all(rows.map((row) => rewrap(table, row)));
                 yield {
                     reset: isFirst,
                     complete: last === undefined && index === entries.length - 1,
-                    changes: sealed.map((row) => ({
+                    changes: rewrapped.map((row) => ({
                         table: table[TABLE].sqlName,
                         operation: "insert" as const,
                         row: table.encode(row) as Record<string, never>,

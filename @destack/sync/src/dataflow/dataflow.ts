@@ -8,6 +8,7 @@ import { Node } from "../query/node.ts";
 import type { Query } from "../query/query.ts";
 import { Aggregation, Mirror, Relation } from "./aggregation.ts";
 import { SyncError } from "../error/error.ts";
+import { Materialization } from "./materialization.ts";
 import type { Include } from "../query/query.ts";
 import type { Arrangement } from "./filter.ts";
 import type { Context, Pipeline } from "./pipeline.ts";
@@ -16,6 +17,9 @@ import type { View } from "./view.ts";
 import { PAGE_ROWS, Selection } from "./selection.ts";
 import { Sink } from "./sink.ts";
 import { Trace, type Upstream } from "./upstream.ts";
+
+/** The rows of an include naming no partition, one list shared so equal reads keep their identity. */
+const NO_ROWS: readonly Readonly<Record<string, unknown>>[] = Object.freeze([]);
 
 /** Queries compiled to one pipeline per node, kept current as of a log position. */
 export class Dataflow implements Arrangement {
@@ -31,6 +35,8 @@ export class Dataflow implements Arrangement {
     readonly #context: Context;
     /** Each node's pipeline, absent for stateless nodes. */
     readonly #pipelines = new Map<Node, Pipeline>();
+    /** The entries each selection's last read built. */
+    readonly #materialized = new Map<Selection, Materialization>();
     /** The row and aggregate pipelines, shallowest first. */
     readonly #steps: readonly Pipeline[];
     /** The relation pipelines, deepest first. */
@@ -366,7 +372,7 @@ export class Dataflow implements Arrangement {
     }
 
     /** Read a root's held result: its rows with their includes nested, or its groups. */
-    async read(name: string): Promise<Readonly<Record<string, unknown>>[]> {
+    async read(name: string): Promise<readonly Readonly<Record<string, unknown>>[]> {
         // require a materialized dataflow
         if (!this.#context.isMaterialized) {
             throw new TypeError("a dataflow reads its results only when it materializes its rows");
@@ -499,45 +505,41 @@ export class Dataflow implements Arrangement {
         }
     }
 
-    /** Read a selection's held rows in order, with concealed columns left out and includes nested. */
+    /** Read a selection's held rows in order, with concealed columns left out and includes nested, rebuilding only what changed. */
     async #nest(
         pipeline: Selection,
         names: readonly string[],
-    ): Promise<Map<string, Readonly<Record<string, unknown>>[]>> {
-        // take every partition's held rows
+    ): Promise<Map<string, readonly Readonly<Record<string, unknown>>[]>> {
+        // order every partition's held keys, placing only the rows changed since the last read
         const node = pipeline.node;
-        const ordered = names.map((name) =>
-            pipeline
-                .keys(name)
-                .map((key) => pipeline.members.get(key)!.row!)
-                .sort((left, right) => node.compare(left, right)),
+        let materialization = this.#materialized.get(pipeline);
+        if (materialization === undefined) {
+            materialization = new Materialization();
+            this.#materialized.set(pipeline, materialization);
+        }
+        const rowOf = (key: string) => pipeline.members.get(key)!.row!;
+        const compare = (left: Row, right: Row) => node.compare(left, right);
+        const orders = names.map((name) =>
+            materialization.order(name, pipeline.keys(name), rowOf, compare),
         );
 
-        // leave out concealed columns
+        // read the concealed columns of every held row
+        const rows = orders.map((keys) => keys.map(rowOf));
         const concealed = await this.#context.audience.conceals(
             node.table,
-            ordered.flat(),
+            rows.flat(),
             this.#position!,
         );
-        let offset = 0;
-        const entries = ordered.map((list) =>
-            list.map((row) => {
-                const hidden = concealed[offset++]!;
 
-                return Object.fromEntries(
-                    Object.entries(row).filter(([column]) => !hidden.includes(column)),
-                ) as Record<string, unknown>;
-            }),
-        );
-
-        // nest each include's rows or groups
+        // nest each include's rows or groups by the partition each row names
+        const includes: { readonly property: string; readonly values: unknown[][] }[] = [];
         for (const [index, child] of node.children.entries()) {
             const included = pipeline.children[index];
             if (child.kind !== "include" || included === undefined) {
                 continue;
             }
             const property = child.name.slice(node.name.length + 1);
-            const partitions = ordered.map((list) => list.map((row) => child.valueOf(row)));
+            const partitions = rows.map((list) => list.map((row) => child.valueOf(row)));
             const named = [
                 ...new Set(
                     partitions
@@ -552,22 +554,49 @@ export class Dataflow implements Arrangement {
                 child.path?.kind === "key" &&
                 child.key.length === 1 &&
                 child.key[0] === child.path.column;
-            for (const [position, list] of entries.entries()) {
-                for (const [index, entry] of list.entries()) {
-                    const value = partitions[position]![index];
+            const values = partitions.map((list, position) =>
+                list.map((value, index) => {
+                    // keep equal measures as the last read held them
                     const name = isPresent(value) ? child.partition(value) : undefined;
-                    const rows = name === undefined ? [] : (nested?.get(name) ?? []);
-                    entry[property] =
-                        nested === undefined
-                            ? measuresOf(child, included, name)
-                            : isOne
-                              ? (rows[0] ?? null)
-                              : rows;
-                }
-            }
+                    if (nested === undefined) {
+                        const measures = measuresOf(child, included, name);
+                        const previous = materialization.previous(
+                            orders[position]![index]!,
+                            property,
+                        );
+
+                        return Materialization.isSame(previous, measures) ? previous : measures;
+                    }
+
+                    // take the nested rows, or the one row of a key include
+                    const listed = name === undefined ? NO_ROWS : (nested.get(name) ?? NO_ROWS);
+
+                    return isOne ? (listed[0] ?? null) : listed;
+                }),
+            );
+            includes.push({ property, values });
         }
 
-        return new Map(names.map((name, index) => [name, entries[index]!]));
+        // take each unchanged entry and list again, building only the changed ones
+        let offset = 0;
+        const lists = names.map((name, position) => {
+            const keys = orders[position]!;
+            const entries = keys.map((key, index) =>
+                materialization.entry(
+                    key,
+                    rows[position]![index]!,
+                    concealed[offset++]!,
+                    includes.map(
+                        ({ property, values }) => [property, values[position]![index]] as const,
+                    ),
+                ),
+            );
+
+            return materialization.list(name, entries);
+        });
+        materialization.prune(pipeline.members, pipeline.partitions);
+
+        return new Map(names.map((name, index) => [name, lists[index]!]));
     }
 }
 
