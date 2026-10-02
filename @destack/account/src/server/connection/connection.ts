@@ -3,6 +3,7 @@ import type { Subject } from "@destack/sync";
 import { and, eq, isNotNull, isNull, type DatabaseConnection } from "@destack/db";
 import type { Call } from "@destack/object";
 import { DirectoryStore } from "@destack/directory";
+import { identifier, type Identifier } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { connection, type Connection } from "../../object/connection.ts";
 import { Digest } from "../../object/digest.ts";
@@ -38,9 +39,9 @@ export interface ProviderInstallation {
 /** A vault secret the account service reached on behalf of a principal. */
 interface VaultSecret {
     /** The space holding the secret. */
-    readonly spaceId: string;
+    readonly spaceId: Identifier<"space">;
     /** The secret. */
-    readonly secretId: string;
+    readonly secretId: Identifier<"secret">;
     /** The principal the account service acts for. */
     readonly subject: Subject;
 }
@@ -254,7 +255,7 @@ export class Connections {
         return call.revise({
             subject: grant.subject,
             installationId: grant.installationId ?? null,
-            scopes: grant.scopes,
+            scopes: [...grant.scopes],
             permissions: grant.permissions,
             secretId: secret?.secretId ?? null,
             expiresAt: grant.expiresAt ?? null,
@@ -347,8 +348,8 @@ function requireActive(call: ConnectionCall): Connection {
 }
 
 /** Build the identifier of the secret keeping a completion's credential. */
-function credentialSecretId(call: ConnectionCall): string {
-    return `secret-${call.key!}`;
+function credentialSecretId(call: ConnectionCall): Identifier<"secret"> {
+    return identifier("secret").parse(`secret-${call.key!}`);
 }
 
 /** A connection's grant at its provider, withdrawn once its revocation commits. */
