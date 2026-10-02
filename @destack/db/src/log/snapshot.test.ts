@@ -95,16 +95,30 @@ test.for(TEST_DIALECTS)(
             const sorted = matching.toSorted((left, right) =>
                 Order.rows(Order.complete(order, item), left, right),
             );
+
+            // read the first rows of each folder at once, as each folder's own read has them
+            const firstOf = (scope: string) =>
+                rows
+                    .filter((row) => row.scope === scope && row.rank >= 2)
+                    .toSorted((left, right) => Order.rows(Order.complete(order, item), left, right))
+                    .slice(0, 3);
             expect([
                 position.sequence,
                 byKey(await snapshot.rows(item, where)),
                 (await snapshot.row(item, { id: "i3" })) ?? null,
                 await snapshot.ordered(item, { where, order, count: 3 }),
+                await snapshot.windows(item, {
+                    where: Condition.gte("rank", 2),
+                    order,
+                    count: 3,
+                    partition: { column: "scope", values: ["inbox", "archive", "nowhere"] },
+                }),
             ]).toEqual([
                 position.sequence,
                 byKey(matching),
                 rows.find((row) => row.id === "i3") ?? null,
                 sorted.slice(0, 3),
+                [firstOf("inbox"), firstOf("archive"), []],
             ]);
         }
     },

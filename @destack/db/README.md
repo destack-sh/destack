@@ -213,6 +213,12 @@ A `Snapshot` reads the logged columns as they were at a log position.
 const snapshot = database.log.at(position);
 await snapshot.rows(note, Condition.eq("scope", spaceId));
 await snapshot.ordered(note, { where, order: [{ column: "title", direction: "asc" }], count: 20 });
+await snapshot.windows(comment, {
+    where,
+    order,
+    count: 5,
+    partition: { column: "noteId", values: noteIds },
+}); // the first comments of each note, in one statement
 ```
 
 A snapshot under an `Overlay` reads another layer's rows in place of the database's, such as a branch's.
