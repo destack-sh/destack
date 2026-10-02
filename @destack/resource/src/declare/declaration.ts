@@ -1,4 +1,4 @@
-import { anyIdentifier, defineSchema, identifier, schema } from "@destack/schema";
+import { anyIdentifier, defineSchema, Duration, identifier, schema } from "@destack/schema";
 import { DeclarationName, type Package } from "@destack/package";
 import type { ResourceState } from "@destack/package/declare";
 import type { Connector } from "../provider/provider.ts";
@@ -22,6 +22,34 @@ export const ResourceDescription = defineSchema(
 );
 /** A named infrastructure dependency declared by a package. */
 export type ResourceDescription = schema.Infer<typeof ResourceDescription>;
+
+/** What deleting a resource does to its content: destroy it, keep it for a window, or keep it until destroyed by hand. */
+export const ResourceRetention = defineSchema(
+    schema.union([
+        schema.literal("delete"),
+        schema.literal("forever"),
+        schema.object({
+            /** How long the deleted resource stays restorable before its content is destroyed. */
+            within: Duration.schema,
+        }),
+    ]),
+);
+/** What deleting a resource does to its content. */
+export type ResourceRetention = schema.Infer<typeof ResourceRetention>;
+
+/** Where a resource is asked to live: its provider, and the provider's location and host. */
+export const ResourcePlacement = defineSchema(
+    schema.object({
+        /** The provider adapter. */
+        provider: schema.string().min(1),
+        /** The location code accepted by the provider adapter. */
+        location: schema.string().min(1).optional(),
+        /** The host administering the resource. */
+        host: identifier("host").optional(),
+    }),
+);
+/** Where a resource is asked to live. */
+export type ResourcePlacement = schema.Infer<typeof ResourcePlacement>;
 
 /** A provisioned resource in a space. */
 export const ResourceReference = defineSchema(
