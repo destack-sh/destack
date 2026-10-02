@@ -6,6 +6,8 @@ const HEARTBEAT_MILLISECONDS = 15_000;
 
 /** The status a host answers a forwarded request with when its handler fails without an answer. */
 const BAD_GATEWAY = 502;
+/** The WebSocket close code refusing a message's data type, from RFC 6455 section 7.4.1. */
+const UNSUPPORTED_DATA = 1003;
 
 /** How a host waits before dialing again: half a second, doubling up to 30 seconds, jittered. */
 const RETRY = RetryPolicy.of({ initialInterval: 500, maximumInterval: 30_000, jitter: "full" });
@@ -129,7 +131,7 @@ export class TunnelClient {
         const ended = Promise.withResolvers<boolean>();
         let current: Session | undefined;
         let heartbeat: ReturnType<typeof setInterval> | undefined;
-        socket.onopen = () => {
+        socket.addEventListener("open", () => {
             // carry the session, renewing the token each heartbeat
             const session = new Session(
                 { send: (message) => socket.send(message), close: () => socket.close() },
@@ -148,11 +150,20 @@ export class TunnelClient {
                 },
                 () => {},
             );
-        };
-        socket.onmessage = (event) => current?.receive(new Uint8Array(event.data as ArrayBuffer));
+        });
+        socket.addEventListener("message", (event) => {
+            // read a binary frame
+            if (event.data instanceof ArrayBuffer) {
+                current?.receive(new Uint8Array(event.data));
+            }
+            // refuse a text frame
+            else {
+                socket.close(UNSUPPORTED_DATA, "the relay sends binary frames only");
+            }
+        });
 
         // end the session with the socket
-        socket.onclose = () => {
+        socket.addEventListener("close", () => {
             // forget the session, noting whether the tunnel opened
             const isOpened = this.#session === current && current !== undefined;
             this.#session = undefined;
@@ -162,7 +173,7 @@ export class TunnelClient {
             clearInterval(heartbeat);
             current?.terminate();
             ended.resolve(isOpened);
-        };
+        });
 
         return ended.promise;
     }

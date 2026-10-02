@@ -106,7 +106,10 @@ test("renew a tunnel's token through a stream the host opens, and close the tunn
     const refused = await renew("/tunnel", "stale");
 
     // lapse the refused tunnel at once, and close it as the alarm wakes
-    const isLapsed = alarm.at! <= Date.now();
+    if (alarm.at === undefined) {
+        throw new TypeError("the refused tunnel set no alarm");
+    }
+    const isLapsed = alarm.at <= Date.now();
     await tunnel.lapse();
     expect([renewed, refused, isLapsed, tunnel.isEmpty, alarm.at]).toEqual([
         [204, 5000, 404],

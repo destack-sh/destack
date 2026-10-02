@@ -1,4 +1,5 @@
 import { expect, test } from "@destack/test";
+import { aligned } from "@destack/schema";
 import { until } from "../server/test/fixture.ts";
 import { Frame, FrameFlag, FrameType, MAX_FRAME_BYTES } from "./frame.ts";
 import { Head, type RequestHead } from "./head.ts";
@@ -52,10 +53,10 @@ test("forward a request with its head and body, and answer with the response's h
 
     // answer each forwarded request with its method, path and body
     const answering = until(() => accepted.length === 1).then(async () => {
-        const request = accepted[0]!.request();
+        const request = aligned(accepted, 0).request();
         const body = await request.text();
         const path = new URL(request.url).pathname;
-        await accepted[0]!.respond(
+        await aligned(accepted, 0).respond(
             new Response(`${request.method} ${path} ${body}`, {
                 status: 201,
                 headers: [
@@ -75,8 +76,8 @@ test("forward a request with its head and body, and answer with the response's h
     await answering;
 
     expect([
-        accepted[0]!.id,
-        accepted[0]!.head,
+        aligned(accepted, 0).id,
+        aligned(accepted, 0).head,
         response.status,
         response.headers.getSetCookie(),
         await response.text(),
@@ -101,10 +102,12 @@ test("stop a writer at the window until a slow reader credits it", async () => {
 
     // read everything slowly, crediting the writer as the reader takes bytes
     let read = 0;
-    const reader = accepted[0]!.readable.getReader();
+    const reader = aligned(accepted, 0).readable.getReader();
     for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
         read += chunk.value.length;
-        await new Promise((resolve) => setImmediate(resolve));
+        await new Promise((resolve) => {
+            setImmediate(resolve);
+        });
     }
     await written;
     expect(read).toBe(payload.length);
@@ -119,8 +122,11 @@ test("grow a window the writer outpaces while the reader keeps up, up to its lim
     await until(() => accepted.length === 1);
 
     // read everything on arrival and find the window grown to its limit
-    const received = await drain(accepted[0]!.readable);
-    expect([received.length, accepted[0]!.window]).toEqual([payload.length, MAX_WINDOW_BYTES]);
+    const received = await drain(aligned(accepted, 0).readable);
+    expect([received.length, aligned(accepted, 0).window]).toEqual([
+        payload.length,
+        MAX_WINDOW_BYTES,
+    ]);
 });
 
 test("reset a stream cancelled early, and fail the peer's side and its answer", async () => {
@@ -128,7 +134,7 @@ test("reset a stream cancelled early, and fail the peer's side and its answer", 
     const opened = relay.open(head);
     await until(() => accepted.length === 1);
 
-    await accepted[0]!.readable.cancel();
+    await aligned(accepted, 0).readable.cancel();
 
     const failed = await Promise.allSettled([opened.answer, drain(opened.readable)]);
     expect(failed.map((result) => result.status === "rejected" && String(result.reason))).toEqual([
@@ -185,7 +191,7 @@ test("reset a stream answered with no response head, keeping the session", async
             new Frame(
                 FrameType.data,
                 FrameFlag.ack,
-                accepted[0]!.id,
+                aligned(accepted, 0).id,
                 0,
                 new TextEncoder().encode("{}"),
             ),
@@ -210,9 +216,12 @@ test("end both sides of a stream whose request body the host answered without re
 
     // answer a large request at once, then stop its unread body
     const answering = until(() => accepted.length === 1).then(async () => {
-        const request = accepted[0]!.request();
-        await accepted[0]!.respond(new Response("early"));
-        await request.body!.cancel();
+        const request = aligned(accepted, 0).request();
+        await aligned(accepted, 0).respond(new Response("early"));
+        if (request.body === null) {
+            throw new TypeError("the forwarded request has no body");
+        }
+        await request.body.cancel();
     });
     const body = new Uint8Array(4 * WINDOW_BYTES).fill(7);
     const response = await relay.fetch(new Request(head.url, { method: "POST", body }));

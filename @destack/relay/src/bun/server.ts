@@ -89,7 +89,12 @@ export class RelayServer {
 
     /** The port the listener bound. */
     get port(): number {
-        return this.#server.port!;
+        const port = this.#server.port;
+        if (port === undefined) {
+            throw new TypeError("the relay listens on no port");
+        }
+
+        return port;
     }
 
     /** Stop serving: end every tunnel and stop following the directory. */

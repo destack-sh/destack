@@ -80,14 +80,14 @@ export class Frame {
             throw new TypeError(`frame is longer than ${MAX_FRAME_BYTES} bytes`);
         }
         const view = new DataView(message.buffer, message.byteOffset, message.byteLength);
-        const type = message[0]!;
-        if (type > FrameType.goAway) {
+        const type = view.getUint8(0);
+        if (!isFrameType(type)) {
             throw new TypeError(`frame type ${type} is unknown`);
         }
 
         return new Frame(
-            type as FrameType,
-            message[1]!,
+            type,
+            view.getUint8(1),
             view.getUint32(2),
             view.getUint32(6),
             message.subarray(HEADER_BYTES),
@@ -112,4 +112,9 @@ export class Frame {
 
         return message;
     }
+}
+
+/** Report whether a header byte is one of the frame types. */
+function isFrameType(type: number): type is FrameType {
+    return type <= FrameType.goAway;
 }

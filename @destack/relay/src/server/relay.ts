@@ -3,7 +3,7 @@ import { principal } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import { DOMAINS, type Domains, HostAddress, InstallationOrigin } from "@destack/host";
 import { Host, HostKey } from "@destack/account/object";
-import type { Identifier } from "@destack/schema";
+import { identifier, type Identifier } from "@destack/schema";
 import type { TokenVerifier } from "@destack/service/authentication";
 import type {} from "@destack/package/import-meta";
 import { ServiceError } from "@destack/service/error";
@@ -76,7 +76,7 @@ export class Relay {
         // require its key to stand
         await HostKey.requireAuthenticating(this.#database, caller, now);
 
-        return { hostId: subject.id as Identifier<"host">, lapsesAt: caller.lapsesAt };
+        return { hostId: identifier("host").parse(subject.id), lapsesAt: caller.lapsesAt };
     }
 
     /** Forward a request for a name to its cell, answering a failure with its status and message. */
@@ -161,8 +161,13 @@ export class Relay {
         headers.set("forwarded", `host="${url.host}";proto=${url.protocol.slice(0, -1)}`);
 
         // stream the body on
-        const initialize = { method: request.method, headers, body: request.body, duplex: "half" };
+        const initialize: RequestInit = {
+            method: request.method,
+            headers,
+            body: request.body,
+            duplex: "half",
+        };
 
-        return new Request(target.href, initialize as RequestInit);
+        return new Request(target.href, initialize);
     }
 }

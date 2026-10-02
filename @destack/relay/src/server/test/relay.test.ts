@@ -1,11 +1,10 @@
 import { afterAll, beforeAll, expect, test } from "@destack/test";
 import { directoryTables } from "@destack/directory";
 import { account } from "@destack/account/object";
-import { eq } from "@destack/db";
+import { eq, defineDatabase } from "@destack/db";
 import { GlobalFixture, ids } from "@destack/host/test";
 import { RequestId } from "@destack/service/request";
 import { accountTables } from "@destack/account/stack";
-import { defineDatabase } from "@destack/db/declare";
 import { freePort, RelayFixture, until } from "./fixture.ts";
 
 /** The global database of the hosts and accounts relays route to. */
@@ -90,7 +89,9 @@ test("keep the route while the host renews its tunnel's token", async () => {
     await fixture.tunnel(relay);
 
     // outlive several renewals without a failure
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => {
+        setTimeout(resolve, 500);
+    });
     expect([await fixture.request(relay, fixture.notes, "/"), fixture.reports]).toEqual([
         "hello GET /",
         [],
@@ -128,7 +129,7 @@ test("forward a name a region serves to the region's endpoint, keeping the host 
     const relay = fixture.relay(await freePort());
     const cloud = `cloud-${fixture.space}`;
     await fixture.region("region");
-    await fixture.place(cloud, ids.region);
+    await RelayFixture.place(fixture.global, cloud, ids.region);
 
     const name = `notes.${cloud}.acme.destack.space`;
     expect(await fixture.request(relay, name, "/")).toBe(`region host="${name}";proto=http`);
@@ -143,7 +144,7 @@ test("follow a space's move from its host to a region", async () => {
     // move the zone to the region at the next epoch
     await fixture.region("region");
     await fixture.directory.place({
-        id: fixture.spaceId!,
+        id: fixture.spaceId,
         scope: ids.account,
         cell: ids.region,
         epoch: 2,
@@ -221,7 +222,7 @@ test("follow a region's new endpoint", async () => {
     const relay = fixture.relay(await freePort());
     const cloud = `cloud-${fixture.space}`;
     await fixture.region("first");
-    await fixture.place(cloud, ids.region);
+    await RelayFixture.place(fixture.global, cloud, ids.region);
     const name = `notes.${cloud}.acme.destack.space`;
     expect(await fixture.request(relay, name, "/")).toBe(`first host="${name}";proto=http`);
 

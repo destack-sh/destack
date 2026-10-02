@@ -1,4 +1,4 @@
-import { Snapshot } from "@destack/db/log";
+import { Snapshot } from "@destack/db";
 import { Scope } from "@destack/sync";
 import { createServer } from "node:net";
 import { serve } from "bun";
@@ -7,7 +7,7 @@ import { type GlobalFixture, ACCOUNTS_URL, ids, ISSUER } from "@destack/host/tes
 import { TokenVerifier } from "@destack/service/authentication";
 import { Resolver } from "@destack/account/directory";
 import { DirectoryStore } from "@destack/directory";
-import { identifier, type Identifier } from "@destack/schema";
+import { identifier, schema, type Identifier } from "@destack/schema";
 import { space } from "@destack/space/object";
 import { v7 } from "uuid";
 import { TunnelClient, type TunnelClientOptions } from "../../tunnel/index.ts";
@@ -19,6 +19,9 @@ export const QUICK = {
     heartbeat: 100,
     retry: { initialInterval: 20, maximumInterval: 40 },
 } as const;
+
+/** The code of a refusal's JSON body. */
+const Refusal = schema.looseObject({ code: schema.string() });
 
 /** An enrolled host serving a space, and the relays reaching it. */
 export class RelayFixture implements AsyncDisposable {
@@ -32,8 +35,8 @@ export class RelayFixture implements AsyncDisposable {
     readonly hostId: Identifier<"host">;
     /** The name of the host's space. */
     readonly space: string;
-    /** The host's space, once placed. */
-    spaceId: Identifier<"space"> | undefined;
+    /** The host's space. */
+    readonly spaceId: Identifier<"space">;
     /** The requests the host answered, as method and URL. */
     readonly received: string[] = [];
     /** The failures the relays and tunnels reported. */
@@ -44,25 +47,30 @@ export class RelayFixture implements AsyncDisposable {
     readonly #hosts: { close(): Promise<void> }[] = [];
 
     /** Keep a prepared global tier. */
-    private constructor(global: GlobalFixture, identity: HostIdentity, space: string) {
+    private constructor(
+        global: GlobalFixture,
+        identity: HostIdentity,
+        name: string,
+        spaceId: Identifier<"space">,
+    ) {
         // keep the tier, its directory, the host and its space
         this.global = global;
         this.directory = new DirectoryStore(global.database);
         this.identity = identity;
         this.hostId = identifier("host").parse(identity.hostId);
-        this.space = space;
+        this.space = name;
+        this.spaceId = spaceId;
     }
 
     /** Enroll a new host of the acme account in a global tier, and place a new space in it. */
     static async open(global: GlobalFixture): Promise<RelayFixture> {
-        const fixture = new RelayFixture(
-            global,
-            await global.enroll(ids.account),
-            `space-${v7().slice(-12)}`,
-        );
-        fixture.spaceId = await fixture.place(fixture.space, fixture.hostId);
+        // enroll the host and place its space in it
+        const identity = await global.enroll(ids.account);
+        const name = `space-${v7().slice(-12)}`;
+        const cell = identifier("host").parse(identity.hostId);
+        const spaceId = await RelayFixture.place(global, name, cell);
 
-        return fixture;
+        return new RelayFixture(global, identity, name, spaceId);
     }
 
     /** The name of the notes app of the host's space. */
@@ -81,23 +89,28 @@ export class RelayFixture implements AsyncDisposable {
 
     /** Place the host's space under another name, releasing its current one. */
     async rename(name: string): Promise<void> {
-        const row = { id: this.spaceId!, scope: ids.account, name };
+        const row = { id: this.spaceId, scope: ids.account, name };
         await this.directory.replace(
-            await space.owned(this.spaceId!, row, Snapshot.live(this.global.database)),
-            `rename-${this.spaceId!}`,
+            await space.owned(this.spaceId, row, Snapshot.live(this.global.database)),
+            `rename-${this.spaceId}`,
         );
     }
 
     /** Name a space of the acme account, and place its zone in a host or region. */
-    async place(name: string, cell: string): Promise<Identifier<"space">> {
+    static async place(
+        global: GlobalFixture,
+        name: string,
+        cell: string,
+    ): Promise<Identifier<"space">> {
         // claim the name and place the zone
+        const directory = new DirectoryStore(global.database);
         const id = identifier("space").parse(`space-${v7()}`);
         const row = { id, scope: ids.account, name };
-        await this.directory.replace(
-            await space.owned(id, row, Snapshot.live(this.global.database)),
+        await directory.replace(
+            await space.owned(id, row, Snapshot.live(global.database)),
             `place-${id}`,
         );
-        await this.directory.place({ id, scope: ids.account, cell, epoch: 1 });
+        await directory.place({ id, scope: ids.account, cell, epoch: 1 });
 
         return id;
     }
@@ -188,16 +201,18 @@ export class RelayFixture implements AsyncDisposable {
         request: RequestInit = {},
     ): Promise<string> {
         // ask the relay's listener for the name
+        const headers = new Headers(request.headers);
+        headers.set("host", name);
         const response = await fetch(`http://127.0.0.1:${relay.port}${path}`, {
             ...request,
-            headers: { ...request.headers, host: name },
+            headers,
         });
 
         // answer the body, or the refusal's status and code
         if (response.ok) {
             return response.text();
         }
-        const { code } = (await response.json()) as { code: string };
+        const { code } = Refusal.parse(await response.json());
 
         return `${response.status} ${code}`;
     }
@@ -217,11 +232,18 @@ export class RelayFixture implements AsyncDisposable {
 export async function freePort(): Promise<number> {
     // bind any port, and release it
     const probe = createServer();
-    await new Promise<void>((resolve) => probe.listen(0, "127.0.0.1", resolve));
-    const { port } = probe.address() as { port: number };
-    await new Promise<void>((resolve) => probe.close(() => resolve()));
+    await new Promise<void>((resolve) => {
+        probe.listen(0, "127.0.0.1", resolve);
+    });
+    const address = probe.address();
+    await new Promise<void>((resolve) => {
+        probe.close(() => resolve());
+    });
+    if (address === null || typeof address === "string") {
+        throw new TypeError("the probe bound no TCP port");
+    }
 
-    return port;
+    return address.port;
 }
 
 /** Wait until a condition is true, polling it every few milliseconds for at most two seconds. */
@@ -231,6 +253,8 @@ export async function until(condition: () => Promise<boolean> | boolean): Promis
         if (Date.now() > deadline) {
             throw new Error("condition was not true within two seconds");
         }
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        await new Promise((resolve) => {
+            setTimeout(resolve, 10);
+        });
     }
 }

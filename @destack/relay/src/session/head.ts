@@ -8,7 +8,7 @@ export const RequestHead = schema.object({
     /** The request's method. */
     method: schema.string().min(1),
     /** The request's URL, as the relay received it. */
-    url: schema.string().url(),
+    url: schema.url(),
     /** The request's headers. */
     headers: HeaderList,
 });
@@ -78,10 +78,10 @@ export const Head = {
 /** List the end-to-end headers in order, keeping each `set-cookie` apart as the Fetch standard combines the rest. */
 function entries(headers: Headers): [string, string][] {
     // drop the connection's own headers and those it lists
-    const listed = (headers.get("connection") ?? "")
-        .split(",")
-        .map((name) => name.trim().toLowerCase());
-    const isEndToEnd = (name: string) => !HOP_BY_HOP.has(name) && !listed.includes(name);
+    const listed = new Set(
+        (headers.get("connection") ?? "").split(",").map((name) => name.trim().toLowerCase()),
+    );
+    const isEndToEnd = (name: string) => !HOP_BY_HOP.has(name) && !listed.has(name);
 
     // keep each set-cookie apart
     const combined = [...headers].filter(([name]) => name !== "set-cookie" && isEndToEnd(name));

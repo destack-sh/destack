@@ -65,7 +65,7 @@ export class Stream {
                 pull: () => this.#credit(),
                 cancel: () => this.reset(new Error(`stream ${this.id} was cancelled`)),
             },
-            { highWaterMark: 0, size: (chunk) => chunk!.byteLength },
+            new ByteLengthQueuingStrategy({ highWaterMark: 0 }),
         );
 
         // send within the window, FIN on close and RST on abort
@@ -147,7 +147,7 @@ export class Stream {
             headers: Head.headers(this.head),
             ...(hasBody ? { body: this.readable, duplex: "half" } : {}),
             ...(signal === undefined ? {} : { signal }),
-        } as RequestInit);
+        });
     }
 
     /** End the stream early: tell the peer, unless it already ended, and fail both halves. */
