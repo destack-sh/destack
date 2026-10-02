@@ -33,17 +33,17 @@ const mergeSoftness = 90;
 /** The milliseconds between frames of the goo while nothing moves, which only twinkles its stars. */
 const idlePace = 33;
 /** The seconds the goo's bulge takes to catch up with the pointer, so it drags behind like something thick. */
-const gooLag = 0.3;
+const gooLag = 0.6;
 /** The seconds the tail of the bulge takes to catch up with its head, drawing the goo out into a strand while the pointer moves. */
-const gooTail = 0.9;
+const gooTail = 1.6;
 /** The seconds the goo takes to swell toward a pointer that comes near. */
-const swellTime = 0.5;
+const swellTime = 1;
 /** The seconds the goo takes to sag back once the pointer leaves. */
-const sagTime = 1.4;
+const sagTime = 2.4;
 /** The seconds the slow swells from moving the pointer take to build and settle. */
-const stirTime = 0.6;
+const stirTime = 1.2;
 /** The pointer speed that stirs the goo fully, in CSS pixels per second. */
-const fullStir = 1500;
+const fullStir = 3000;
 /** The seconds a shooting star fired by a click takes to streak across and fade. */
 const starLife = 1.2;
 /** The milliseconds between measurements of the goo cells, in case the page shifts under them without resizing. */
@@ -233,8 +233,8 @@ void main() {
     float reach = clamp(dot(frag - pointer, along) / max(dot(along, along), 1.0), 0.0, 1.0);
     float away = length(frag - pointer - along * reach);
     float thickness = 1.0 - reach * 0.55;
-    d -= pull * thickness * (8.0 * exp(-away * away / 9000.0) + 16.0 * exp(-away * away / 1400.0));
-    d -= stir * 5.0 * sin(away * 0.06 - time * 2.0) * exp(-away / 140.0);
+    d -= pull * thickness * (2.5 * exp(-away * away / 9000.0) + 5.0 * exp(-away * away / 1400.0));
+    d -= stir * 2.5 * sin(away * 0.06 - time * 2.0) * exp(-away / 140.0);
 
     // clip to the goo with a fine cream rim, outlined in ink on a light page
     float edge = 1.0 / scale;
