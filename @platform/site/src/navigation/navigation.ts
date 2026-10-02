@@ -1,10 +1,9 @@
-import agentsIcon from "./icons/agents.svg?raw";
-import appsIcon from "./icons/apps.svg?raw";
 import blogIcon from "./icons/blog.svg?raw";
 import discordIcon from "./icons/discord.svg?raw";
 import documentationIcon from "./icons/documentation.svg?raw";
 import emailIcon from "./icons/email.svg?raw";
 import githubIcon from "./icons/github.svg?raw";
+import packagesIcon from "./icons/packages.svg?raw";
 import xIcon from "./icons/x.svg?raw";
 
 /** One persistent site destination and its keyboard mnemonic. */
@@ -25,12 +24,9 @@ export type NavigationLink = {
 /** One site destination that opens once it is live. */
 export type PendingLink = Pick<NavigationLink, "label" | "icon">;
 
-// TODO #Incomplete: open apps and agents once the registry and accounts are live
+// TODO #Incomplete: open packages once the registry is live
 /** The site destinations that open once they are live, ahead of the primary ones. */
-export const pendingLinks: readonly PendingLink[] = [
-    { label: "Apps", icon: appsIcon },
-    { label: "Agents", icon: agentsIcon },
-];
+export const pendingLinks: readonly PendingLink[] = [{ label: "Packages", icon: packagesIcon }];
 
 /** The primary internal site destinations. */
 export const primaryLinks: readonly NavigationLink[] = [
