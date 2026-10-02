@@ -6,7 +6,7 @@ test("leave out sensitive values through objects, arrays and wrappers, handing e
     const login = schema.object({
         name: schema.string(),
         password: schema.sensitive(schema.string()),
-        tokens: schema.array(schema.sensitive(schema.string())).optional(),
+        tokens: schema.array(schema.sensitive(schema.string())).exactOptional(),
         recovery: schema.nullable(schema.sensitive(schema.string())),
     });
 

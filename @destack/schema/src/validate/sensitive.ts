@@ -11,13 +11,13 @@ export function sensitive<Value extends z.ZodType>(value: Value): Value {
 }
 
 /** Report whether a schema marks its values sensitive. */
-export function isSensitive(value: z.ZodType): boolean {
+export function isSensitive(value: z.core.$ZodType): boolean {
     return SENSITIVE.has(value);
 }
 
 /** Leave out what a schema marks sensitive, handing each dropped value to `found`. */
 export function redact(
-    definition: z.ZodType,
+    definition: z.core.$ZodType,
     value: unknown,
     found?: (sensitive: unknown) => void,
 ): unknown {
@@ -33,25 +33,37 @@ export function redact(
     }
 
     // redact each field of an object
-    const wrapped = definition as { unwrap?: () => z.ZodType; shape?: unknown; element?: unknown };
-    if (wrapped.shape !== undefined && typeof value === "object" && !Array.isArray(value)) {
-        const shape = wrapped.shape as Readonly<Record<string, z.ZodType>>;
+    if (definition instanceof z.ZodObject && typeof value === "object" && !Array.isArray(value)) {
+        const shape: Readonly<Record<string, z.core.$ZodType | undefined>> = definition.shape;
+        const fields: [string, unknown][] = Object.entries(value);
 
         return Object.fromEntries(
-            Object.entries(value as Record<string, unknown>).flatMap(([name, field]) => {
-                const kept = shape[name] === undefined ? field : redact(shape[name], field, found);
+            fields.flatMap(([name, field]) => {
+                const property = shape[name];
+                const kept = property === undefined ? field : redact(property, field, found);
 
                 return kept === undefined ? [] : [[name, kept]];
             }),
         );
     }
     // redact each element of an array
-    else if (wrapped.element !== undefined && Array.isArray(value)) {
-        return value.map((entry) => redact(wrapped.element as z.ZodType, entry, found) ?? null);
+    else if (definition instanceof z.ZodArray && Array.isArray(value)) {
+        return value.map((entry: unknown) => redact(definition.element, entry, found) ?? null);
     }
-    // look through optional, nullable and defaulted wrappers to the schema they wrap
-    else if (typeof wrapped.unwrap === "function") {
-        return redact(wrapped.unwrap(), value, found);
+    // look through optional, nullable, defaulted and read-only wrappers to the schema they wrap
+    else if (
+        definition instanceof z.core.$ZodOptional ||
+        definition instanceof z.core.$ZodNullable ||
+        definition instanceof z.core.$ZodDefault ||
+        definition instanceof z.core.$ZodPrefault ||
+        definition instanceof z.core.$ZodNonOptional ||
+        definition instanceof z.core.$ZodReadonly
+    ) {
+        return redact(definition._zod.def.innerType, value, found);
+    }
+    // look through a lazy schema to the one it returns
+    else if (definition instanceof z.core.$ZodLazy) {
+        return redact(definition._zod.def.getter(), value, found);
     }
 
     return value;

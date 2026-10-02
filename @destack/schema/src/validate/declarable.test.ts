@@ -8,9 +8,9 @@ test("accept schemas of JSON values with exportable rules", () => {
             .string()
             .min(1)
             .max(63)
-            .regex(/^[a-z]+$/),
+            .regex(/^[a-z]+$/u),
         count: z.number().int().nonnegative(),
-        tags: z.array(z.enum(["a", "b"])).optional(),
+        tags: z.array(z.enum(["a", "b"])).exactOptional(),
         parent: z.union([z.string(), z.null()]),
     });
 
@@ -23,9 +23,9 @@ test("refuse schemas that coerce, run code, allow unknown properties or miss val
             z.coerce.number(),
             z.string().refine((value) => value.length > 0),
             z.object({ name: z.string() }),
-            z.array(z.string().optional()),
+            z.array(z.string().exactOptional()),
             z.date(),
-            z.string().regex(/a/g),
+            z.string().regex(/a/gu),
             z.string().meta({ default: "x" }),
         ].map((declared) => {
             try {
@@ -33,7 +33,11 @@ test("refuse schemas that coerce, run code, allow unknown properties or miss val
 
                 return "accepted";
             } catch (error) {
-                return (error as Error).message;
+                if (!(error instanceof TypeError)) {
+                    throw error;
+                }
+
+                return error.message;
             }
         }),
     ).toEqual([

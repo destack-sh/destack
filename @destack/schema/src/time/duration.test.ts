@@ -10,7 +10,7 @@ test("measure durations in milliseconds and refuse empty, negative and unknown o
     // accept a duration of one unit, and refuse an empty, negative, infinite or unknown one
     expect(() => Duration.require({ days: 30 }, "recovery")).not.toThrow();
     for (const duration of [{}, { hours: -1 }, { seconds: Infinity }, { weeks: 1 }]) {
-        expect(() => Duration.require(duration as Duration, "recovery")).toThrow(
+        expect(() => Duration.require(duration, "recovery")).toThrow(
             new TypeError(`recovery is no duration: ${JSON.stringify(duration)}`),
         );
     }

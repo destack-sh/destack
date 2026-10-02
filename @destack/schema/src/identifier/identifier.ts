@@ -13,32 +13,34 @@ export type Identifier<Prefix extends string> = z.output<ReturnType<typeof ident
 /** Define a typed entity identifier with a lowercase prefix and a UUIDv7 suffix. */
 export function identifier<const Prefix extends string>(
     prefix: Prefix,
-): z.core.$ZodBranded<z.ZodString, Prefix> {
+): z.core.$ZodBranded<z.ZodString, Prefix>;
+/** Define an identifier validator, whose signature above brands the prefix it reads. */
+export function identifier(prefix: string): z.core.$ZodBranded<z.ZodString, string> {
     // keep prefixes literal and unambiguous before appending the UUID
-    if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/.test(prefix)) {
+    if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/u.test(prefix)) {
         throw new TypeError(`invalid identifier prefix: ${prefix}`);
     }
 
     // match the prefix followed by a UUIDv7
-    const pattern = new RegExp(`^${prefix}-${UUID_V7}$(?![\\s\\S])`);
-
-    // brand and register the validator
-    const validator = z.string().regex(pattern).brand<Prefix>();
-    defineSchema(validator);
-
-    return validator as z.core.$ZodBranded<z.ZodString, Prefix>;
-}
-
-/** Define an identifier of any entity kind: any lowercase prefix and a UUIDv7 suffix. */
-export function anyIdentifier(): z.core.$ZodBranded<z.ZodString, string> {
-    // match any valid prefix followed by a UUIDv7
-    const pattern = new RegExp(`^[a-z][a-z0-9]*(?:-[a-z0-9]+)*-${UUID_V7}$(?![\\s\\S])`);
+    const pattern = new RegExp(`^${prefix}-${UUID_V7}$(?![\\s\\S])`, "u");
 
     // brand and register the validator
     const validator = z.string().regex(pattern).brand<string>();
     defineSchema(validator);
 
-    return validator as z.core.$ZodBranded<z.ZodString, string>;
+    return validator;
+}
+
+/** Define an identifier of any entity kind: any lowercase prefix and a UUIDv7 suffix. */
+export function anyIdentifier(): z.core.$ZodBranded<z.ZodString, string> {
+    // match any valid prefix followed by a UUIDv7
+    const pattern = new RegExp(`^[a-z][a-z0-9]*(?:-[a-z0-9]+)*-${UUID_V7}$(?![\\s\\S])`, "u");
+
+    // brand and register the validator
+    const validator = z.string().regex(pattern).brand<string>();
+    defineSchema(validator);
+
+    return validator;
 }
 
 /** Read the parts of prefixed identifiers. */

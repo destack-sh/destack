@@ -45,7 +45,7 @@ export {
     nullable,
     nullish,
     number,
-    optional,
+    exactOptional,
     partialRecord,
     record,
     strictObject as object,
@@ -55,6 +55,7 @@ export {
     uint32,
     ulid,
     union,
+    unknown,
     url,
     uuid,
     uuidv4,
@@ -71,6 +72,8 @@ export type {
     ZodObject as Object,
     ZodOptional as Optional,
 } from "zod";
-export type { infer as Infer, ZodIssue as Issue } from "zod";
+export type { infer as Infer } from "zod";
+export type { $ZodIssue as Issue } from "zod/v4/core";
 export { flattenError, prettifyError, treeifyError } from "zod";
 export { isSensitive, redact, sensitive } from "./sensitive.ts";
+export { defined } from "./defined.ts";

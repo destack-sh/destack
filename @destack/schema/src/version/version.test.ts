@@ -12,7 +12,7 @@ test("order calendar versions by year, month and release, nightly builds before 
         "2026.10.0-nightly.1",
     ];
 
-    expect(versions.toSorted(Version.compare)).toEqual([
+    expect(versions.toSorted((left, right) => Version.compare(left, right))).toEqual([
         "2026.9.0-nightly.2",
         "2026.9.0-nightly.10",
         "2026.9.0",
@@ -48,11 +48,25 @@ test("accept only calendar versions", () => {
 });
 
 test("list the releases after one release and up to another in release order", () => {
-    const releases = ["2026.11.0", "2026.9.0", "2026.10.0", "2026.8.0", "2026.10.0-nightly.1"];
+    const releases = {
+        "2026.11.0": 5,
+        "2026.9.0": 2,
+        "2026.10.0": 4,
+        "2026.8.0": 1,
+        "2026.10.0-nightly.1": 3,
+    };
 
     expect([
         Version.between(releases, "2026.8.0", "2026.10.0"),
         Version.between(releases, "2026.10.0", "2026.10.0"),
         Version.between(releases, "2026.7.0", "2026.8.0"),
-    ]).toEqual([["2026.9.0", "2026.10.0-nightly.1", "2026.10.0"], [], ["2026.8.0"]]);
+    ]).toEqual([
+        [
+            ["2026.9.0", 2],
+            ["2026.10.0-nightly.1", 3],
+            ["2026.10.0", 4],
+        ],
+        [],
+        [["2026.8.0", 1]],
+    ]);
 });

@@ -16,7 +16,7 @@ const timeZoneSchema = defineSchema(
     schema
         .string()
         .max(TIME_ZONE_LENGTH)
-        .regex(/^[A-Za-z][A-Za-z0-9_+-]*(?:\/[A-Za-z0-9_+-]+)*$/),
+        .regex(/^[A-Za-z][A-Za-z0-9_+-]*(?:\/[A-Za-z0-9_+-]+)*$/u),
 );
 /** An IANA time zone name. */
 export type TimeZone = schema.Infer<typeof timeZoneSchema>;
@@ -25,14 +25,13 @@ export type TimeZone = schema.Infer<typeof timeZoneSchema>;
 export const TimeZone = Object.assign(timeZoneSchema, {
     /** Require a time zone this runtime knows, its aliases included. */
     require(zone: TimeZone): void {
-        new Intl.DateTimeFormat("en", { timeZone: zone });
+        formatter(zone);
     },
 
     /** Read the date an instant falls on in a time zone. */
     date(zone: TimeZone, at: number): PlainDate {
         const parts = formatter(zone).formatToParts(at);
-        const part = (type: Intl.DateTimeFormatPartTypes) =>
-            Number(parts.find((entry) => entry.type === type)!.value);
+        const part = (type: Intl.DateTimeFormatPartTypes) => readPart(parts, type);
 
         return { year: part("year"), month: part("month"), day: part("day") };
     },
@@ -66,8 +65,7 @@ export const TimeZone = Object.assign(timeZoneSchema, {
 function offset(zone: TimeZone, at: number): number {
     // read the local wall time as UTC
     const parts = formatter(zone).formatToParts(at);
-    const part = (type: Intl.DateTimeFormatPartTypes) =>
-        Number(parts.find((entry) => entry.type === type)!.value);
+    const part = (type: Intl.DateTimeFormatPartTypes) => readPart(parts, type);
     const wall = Date.UTC(
         part("year"),
         part("month") - 1,
@@ -97,4 +95,17 @@ function formatter(zone: TimeZone): Intl.DateTimeFormat {
     }
 
     return known;
+}
+
+/** Read a numeric part a formatter wrote. */
+function readPart(
+    parts: readonly Intl.DateTimeFormatPart[],
+    type: Intl.DateTimeFormatPartTypes,
+): number {
+    const part = parts.find((entry) => entry.type === type);
+    if (part === undefined) {
+        throw new TypeError(`formatted date has no ${type}`);
+    }
+
+    return Number(part.value);
 }

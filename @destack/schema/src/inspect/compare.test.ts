@@ -8,15 +8,15 @@ type Node = { readonly name: string; readonly children?: readonly Node[] };
 
 /** A recursive tree schema. */
 const Node: schema.Schema<Node> = schema.lazy(() =>
-    schema.object({ name: schema.string(), children: schema.array(Node).optional() }).strict(),
+    schema.object({ name: schema.string(), children: schema.array(Node).exactOptional() }).strict(),
 );
 
 /** A recursive tree schema with numbered nodes. */
 const NumberedNode: schema.Schema<Node> = schema.lazy(() =>
     schema
         .object({
-            name: schema.string().regex(/^\d+$/),
-            children: schema.array(NumberedNode).optional(),
+            name: schema.string().regex(/^\d+$/u),
+            children: schema.array(NumberedNode).exactOptional(),
         })
         .strict(),
 );
@@ -27,8 +27,8 @@ const CHANGES: readonly (readonly [string, schema.Schema, schema.Schema, SchemaC
     ["keep a string", schema.string(), schema.string(), "same"],
     ["drop a minimum length", schema.string().min(1), schema.string(), "wider"],
     ["add a maximum length", schema.string(), schema.string().max(5), "narrower"],
-    ["drop an email format", schema.string().email(), schema.string(), "wider"],
-    ["swap a pattern", schema.string().regex(/^a/), schema.string().regex(/^b/), "incompatible"],
+    ["drop an email format", schema.email(), schema.string(), "wider"],
+    ["swap a pattern", schema.string().regex(/^a/u), schema.string().regex(/^b/u), "incompatible"],
     ["keep a base64 string", schema.base64(), schema.base64(), "same"],
 
     // enums and literals
@@ -62,12 +62,12 @@ const CHANGES: readonly (readonly [string, schema.Schema, schema.Schema, SchemaC
     [
         "add an optional property",
         schema.object({ title: schema.string() }).strict(),
-        schema.object({ title: schema.string(), size: schema.number().optional() }).strict(),
+        schema.object({ title: schema.string(), size: schema.number().exactOptional() }).strict(),
         "wider",
     ],
     [
         "require an optional property",
-        schema.object({ title: schema.string(), size: schema.number().optional() }).strict(),
+        schema.object({ title: schema.string(), size: schema.number().exactOptional() }).strict(),
         schema.object({ title: schema.string(), size: schema.number() }).strict(),
         "narrower",
     ],

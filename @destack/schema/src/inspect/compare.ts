@@ -13,7 +13,6 @@ const ANNOTATIONS = new Set([
     "$id",
     "$comment",
     "$defs",
-    "definitions",
     "id",
     "title",
     "description",
@@ -124,6 +123,7 @@ class Inclusion {
         const { allOf: outerAll, ...outerRest } = outer;
         const innerBranches = inner.anyOf ?? inner.oneOf;
         const outerBranches = outer.anyOf ?? outer.oneOf;
+        const listed = inner.const === undefined ? inner.enum : [inner.const];
 
         // require the inner values in every part of an outer conjunction
         if (outerAll !== undefined) {
@@ -133,14 +133,12 @@ class Inclusion {
             );
         }
         // check each listed inner value
-        else if (inner.const !== undefined || inner.enum !== undefined) {
-            const values = inner.const === undefined ? inner.enum! : [inner.const];
-
-            return values.every((value) => this.#accepts(outer, value));
+        else if (listed !== undefined) {
+            return listed.every((value) => this.#accepts(outer, value));
         }
         // require every inner alternative
         else if (innerBranches !== undefined) {
-            const { anyOf: _any, oneOf: _one, ...rest } = inner;
+            const { anyOf, oneOf, ...rest } = inner;
 
             return innerBranches.every((branch) => this.includes(outer, { allOf: [rest, branch] }));
         }
@@ -148,9 +146,9 @@ class Inclusion {
         else if (Array.isArray(inner.type) && inner.type.length > 1) {
             return inner.type.every((type) => this.includes(outer, { ...inner, type }));
         }
-        // find one outer alternative holding every inner value
+        // find one outer alternative including every inner value
         else if (outerBranches !== undefined) {
-            const { anyOf: _any, oneOf: _one, ...rest } = outer;
+            const { anyOf, oneOf, ...rest } = outer;
 
             return (
                 this.includes(rest, inner) &&
@@ -301,7 +299,7 @@ class Inclusion {
         } else if (Array.isArray(value)) {
             return this.#acceptsArray(node, value);
         } else if (typeof value === "object" && value !== null) {
-            return this.#acceptsObject(node, value as Record<string, unknown>);
+            return this.#acceptsObject(node, value);
         }
 
         return true;
@@ -320,25 +318,22 @@ class Inclusion {
     }
 
     /** Report whether object keywords accept an object. */
-    #acceptsObject(node: JsonSchema, value: Readonly<Record<string, unknown>>): boolean {
+    #acceptsObject(node: JsonSchema, value: object): boolean {
         // require the listed properties and the property count
-        const names = Object.keys(value);
+        const entries = Object.entries(value);
         const properties = node.properties ?? {};
         const isCounted =
             (node.required ?? []).every((name) => name in value) &&
-            names.length >= (node.minProperties ?? 0) &&
-            names.length <= (node.maxProperties ?? Infinity);
+            entries.length >= (node.minProperties ?? 0) &&
+            entries.length <= (node.maxProperties ?? Infinity);
 
         return (
             isCounted &&
-            names.every(
-                (name) =>
+            entries.every(
+                ([name, field]) =>
                     (properties[name] !== undefined ||
                         this.#accepts(node.propertyNames ?? true, name)) &&
-                    this.#accepts(
-                        properties[name] ?? node.additionalProperties ?? true,
-                        value[name],
-                    ),
+                    this.#accepts(properties[name] ?? node.additionalProperties ?? true, field),
             )
         );
     }
@@ -353,9 +348,9 @@ function resolve(node: Node, root: JsonSchema): Node {
 
     // find the referenced definition
     const { $ref: reference, ...rest } = node;
-    const match = /^#(?:\/(\$defs|definitions)\/(.+))?$/.exec(reference);
-    const target = match?.[1] === undefined ? root : (root[match[1]] as Record<string, Node>);
-    const found = match?.[2] === undefined ? target : target?.[decodePointer(match[2])];
+    const match = /^#(?:\/\$defs\/(.+))?$/u.exec(reference);
+    const name = match?.[1];
+    const found = name === undefined ? root : root.$defs?.[decodePointer(name)];
     if (match === null || found === undefined) {
         throw new TypeError(`unresolved schema reference: ${reference}`);
     }
@@ -363,11 +358,7 @@ function resolve(node: Node, root: JsonSchema): Node {
     // keep keywords beside the reference as a conjunction
     const isBare = Object.keys(rest).every((keyword) => ANNOTATIONS.has(keyword));
 
-    return isBare || found === true
-        ? resolve(found as Node, root)
-        : found === false
-          ? false
-          : { allOf: [found as JsonSchema, rest] };
+    return isBare ? resolve(found, root) : { allOf: [found, rest] };
 }
 
 /** Decode one JSON Pointer segment. */
@@ -429,8 +420,8 @@ function includesNumber(
     outerTypes: ReadonlySet<string>,
 ): boolean {
     // compare the bounds, an exclusive bound tighter than an equal inclusive one
-    const isLower = holdsBound(lowerBound(outer), lowerBound(inner), -1);
-    const isUpper = holdsBound(upperBound(outer), upperBound(inner), 1);
+    const isLower = includesBound(lowerBound(outer), lowerBound(inner), -1);
+    const isUpper = includesBound(upperBound(outer), upperBound(inner), 1);
 
     // require inner numbers to be multiples of the outer step
     const isIntegral = outerTypes.has("number") || type === "integer";
@@ -443,7 +434,7 @@ function includesNumber(
 
 /** Report whether string keywords accept a string. */
 function acceptsString(node: JsonSchema, value: string): boolean {
-    const length = [...value].length;
+    const length = Array.from(value).length;
 
     return (
         length >= (node.minLength ?? 0) &&
@@ -456,8 +447,8 @@ function acceptsString(node: JsonSchema, value: string): boolean {
 /** Report whether number keywords accept a number. */
 function acceptsNumber(node: JsonSchema, value: number): boolean {
     return (
-        holdsBound(lowerBound(node), [value, false], -1) &&
-        holdsBound(upperBound(node), [value, false], 1) &&
+        includesBound(lowerBound(node), [value, false], -1) &&
+        includesBound(upperBound(node), [value, false], 1) &&
         (node.multipleOf === undefined || Number.isInteger(value / node.multipleOf))
     );
 }
@@ -504,7 +495,7 @@ function innerMaxItems(inner: JsonSchema): number {
 }
 
 /** Report whether an outer bound admits everything an inner bound admits, on the side a direction points to. */
-function holdsBound(
+function includesBound(
     outer: readonly [number, boolean],
     inner: readonly [number, boolean],
     direction: -1 | 1,

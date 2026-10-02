@@ -12,15 +12,15 @@ const UNIT_MILLISECONDS = {
 /** The schema of a duration. */
 const durationSchema = schema.object({
     /** Whole or partial days. */
-    days: schema.number().finite().nonnegative().optional(),
+    days: schema.number().nonnegative().exactOptional(),
     /** Hours. */
-    hours: schema.number().finite().nonnegative().optional(),
+    hours: schema.number().nonnegative().exactOptional(),
     /** Minutes. */
-    minutes: schema.number().finite().nonnegative().optional(),
+    minutes: schema.number().nonnegative().exactOptional(),
     /** Seconds. */
-    seconds: schema.number().finite().nonnegative().optional(),
+    seconds: schema.number().nonnegative().exactOptional(),
     /** Milliseconds. */
-    milliseconds: schema.number().finite().nonnegative().optional(),
+    milliseconds: schema.number().nonnegative().exactOptional(),
 });
 
 /** A span of time in the optional units of a Temporal duration. */
@@ -33,18 +33,21 @@ export const Duration = {
 
     /** Measure a duration in milliseconds. */
     milliseconds(duration: Duration): number {
-        return Object.entries(duration).reduce(
-            (total, [unit, count]) =>
-                total + (count ?? 0) * UNIT_MILLISECONDS[unit as keyof typeof UNIT_MILLISECONDS],
-            0,
+        const { days = 0, hours = 0, minutes = 0, seconds = 0, milliseconds = 0 } = duration;
+
+        return (
+            days * UNIT_MILLISECONDS.days +
+            hours * UNIT_MILLISECONDS.hours +
+            minutes * UNIT_MILLISECONDS.minutes +
+            seconds * UNIT_MILLISECONDS.seconds +
+            milliseconds
         );
     },
 
     /** Require a duration of known, finite, non-negative units, at least one of them. */
-    require(duration: Duration, name: string): void {
-        const isValid =
-            Duration.schema.safeParse(duration).success && Object.keys(duration).length > 0;
-        if (!isValid) {
+    require(duration: unknown, name: string): asserts duration is Duration {
+        const parsed = Duration.schema.safeParse(duration);
+        if (!parsed.success || Object.keys(parsed.data).length === 0) {
             throw new TypeError(`${name} is no duration: ${JSON.stringify(duration)}`);
         }
     },
