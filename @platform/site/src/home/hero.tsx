@@ -9,6 +9,8 @@ const narrow = "@media (max-width: 1099px)";
 
 /** The longest phrase's width in ems, so all three phrases share one size that fits four columns. */
 const phraseMeasure = 15.4;
+/** The longest sense's width in ems, so every sense fits its column on one line. */
+const sensesMeasure = 23.5;
 
 /** One sense of an entry: the words before its key words, the key words, and the words after. */
 type Sense = readonly [before: string, key: string, after: string];
@@ -29,9 +31,9 @@ const entries: readonly {
         phrase: "to unify all your apps and agents",
         highlight: "unify",
         senses: [
-            ["to", "own", "your software instead of renting it"],
-            ["to", "remix", "any app, down to its source"],
-            ["to", "connect", "every app and agent"],
+            ["to", "remix your SaaS", "into software you own"],
+            ["to", "ship the app you need", "this afternoon"],
+            ["to", "put agents to work", "on all your apps"],
         ],
     },
     {
@@ -41,9 +43,9 @@ const entries: readonly {
         phrase: "a standardised software stack",
         highlight: "standardised",
         senses: [
-            ["a", "batteries-included", "TypeScript platform"],
-            ["a", "multiplayer", "database on plain SQL"],
-            ["a personal", "GitHub and npm", ""],
+            ["a", "batteries-included", ", web-first stack"],
+            ["a", "multiplayer backend", "on SQL, OTEL and S3"],
+            ["a personal", "Git, npm and App Store", ""],
         ],
     },
     {
@@ -53,9 +55,9 @@ const entries: readonly {
         phrase: "open, sovereign and portable",
         highlight: "sovereign",
         senses: [
-            ["", "open", "in source, standards and data"],
-            ["", "in charge", "of your data and code"],
-            ["", "portable", "across your hosts and ours"],
+            ["", "open source", ", open standards, open data"],
+            ["", "observable and permissioned", ", bits to pixels"],
+            ["", "portable", "from your laptop to the cloud"],
         ],
     },
 ];
@@ -106,7 +108,7 @@ export function Hero() {
                                 <span>
                                     {before === "" ? "" : `${before} `}
                                     <b {...stylex.attrs(styles.key)}>{key}</b>
-                                    {after === "" ? "" : ` ${after}`}
+                                    {after === "" || after.startsWith(",") ? after : ` ${after}`}
                                 </span>
                             </li>
                         ))}
@@ -198,13 +200,14 @@ const styles = stylex.create({
     senses: {
         color: color.mutedForeground,
         display: "grid",
-        fontSize: "0.9375rem",
+        fontSize: `min(0.9375rem, calc((${tokens.column} * 4 - ${tokens.inset} * 2) / ${sensesMeasure}))`,
         gap: "0.25rem",
         lineHeight: 1.45,
         listStyle: "none",
         margin: 0,
         marginTop: "0.25rem",
         padding: 0,
+        [narrow]: { fontSize: "0.9375rem" },
     },
     sense: {
         display: "flex",
