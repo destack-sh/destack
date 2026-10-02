@@ -1,214 +1,225 @@
-import { color } from "@destack/theme/tokens.stylex";
+import { color, fontFamily } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
 
 import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
-import { stillStars } from "../effect/goo";
-import { Dot } from "./dot";
-import { Install } from "./install";
-import { Plate } from "./plate";
 
-/** The media query for screens narrower than the desktop frame. */
+/** The media query for screens narrower than the desktop frame, where the entries stack. */
 const narrow = "@media (max-width: 1099px)";
-/** The media query for tablet-width screens. */
-const tablet = "@media (min-width: 768px) and (max-width: 1099px)";
-/** The media query for phone-width screens. */
-const mobile = "@media (max-width: 767px)";
 
-/** The promise's width in ems, so its size can be set to span the wordmark exactly. */
-const promiseMeasure = 23.66;
+/** The longest phrase's width in ems, so all three phrases share one size that fits four columns. */
+const phraseMeasure = 15.4;
 
-/** The promise, word by word, so each word can turn with the universe on its own. */
-const promise = "to unify all your apps and agents with one open stack".split(" ");
+/** One sense of an entry: the words before its key words, the key words, and the words after. */
+type Sense = readonly [before: string, key: string, after: string];
 
-/** The wordmark's syllables, set apart by a dictionary dot. */
-const syllables = ["DE", "STACK"];
+/** The word's three entries: what you do, what it is, and what you end up with. */
+const entries: readonly {
+    headword: readonly [string, string];
+    pronunciation: string;
+    partOfSpeech: string;
+    phrase: string;
+    highlight: string;
+    senses: readonly Sense[];
+}[] = [
+    {
+        headword: ["de", "stack"],
+        pronunciation: "/diːˈstak/",
+        partOfSpeech: "verb",
+        phrase: "to unify all your apps and agents",
+        highlight: "unify",
+        senses: [
+            ["to", "own", "your software instead of renting it"],
+            ["to", "remix", "any app, down to its source"],
+            ["to", "connect", "every app and agent"],
+        ],
+    },
+    {
+        headword: ["De", "stack"],
+        pronunciation: "/ˈdiːstak/",
+        partOfSpeech: "noun",
+        phrase: "a standardised software stack",
+        highlight: "standardised",
+        senses: [
+            ["a", "batteries-included", "TypeScript platform"],
+            ["a", "multiplayer", "database on plain SQL"],
+            ["a personal", "GitHub and npm", ""],
+        ],
+    },
+    {
+        headword: ["de", "stacked"],
+        pronunciation: "/diːˈstakt/",
+        partOfSpeech: "adjective",
+        phrase: "open, sovereign and portable",
+        highlight: "sovereign",
+        senses: [
+            ["", "open", "in source, standards and data"],
+            ["", "in charge", "of your data and code"],
+            ["", "portable", "across your hosts and ours"],
+        ],
+    },
+];
 
-/** How far each letter's view of the star tile shifts from the last, in pixels, so no two letters show the same stars. */
-const starShift = { x: 97, y: 53 };
-
-/** Introduce Destack as a poster: the wordmark and promise on the left, the plate with the download on the right. */
+/** Introduce Destack as one word in three parts of speech: verb, noun and adjective. */
 export function Hero() {
     return (
         <section {...stylex.attrs(lattice.frame, lattice.ruleBottom, styles.hero)}>
-            {/* spread the wordmark across its cell, letter by letter */}
-            <h1
-                data-universe="parts"
-                aria-label="Destack"
-                {...stylex.attrs(lattice.ruleRight, lattice.ruleBottom, styles.wordmark)}
-            >
-                {/* space the letters evenly, and set the dictionary dot in the gap between the syllables */}
-                {[...syllables.join("")].map((letter, index) => (
-                    <>
-                        {index > 0 && (
-                            <span aria-hidden="true" {...stylex.attrs(styles.gap)}>
-                                {index === syllables[0].length && <Dot />}
-                            </span>
+            {entries.map((entry, index) => (
+                <div
+                    data-universe
+                    data-entry={entry.partOfSpeech}
+                    {...stylex.attrs(styles.entry, index < entries.length - 1 && lattice.ruleRight)}
+                >
+                    {/* set the headword, its pronunciation and its part of speech; the verb titles the page */}
+                    <div {...stylex.attrs(styles.kicker)}>
+                        {index === 0 ? (
+                            <h1 aria-label="Destack" {...stylex.attrs(styles.headword)}>
+                                <Headword syllables={entry.headword} />
+                            </h1>
+                        ) : (
+                            <b {...stylex.attrs(styles.headword)}>
+                                <Headword syllables={entry.headword} />
+                            </b>
                         )}
-                        <span
-                            aria-hidden="true"
-                            style={{
-                                "background-image": stillStars,
-                                "--star-x": `${index * starShift.x}px`,
-                                "--star-y": `${index * starShift.y}px`,
-                            }}
-                            {...stylex.attrs(styles.letter)}
-                        >
-                            {letter}
-                        </span>
-                    </>
-                ))}
-            </h1>
+                        <span {...stylex.attrs(styles.pronunciation)}>{entry.pronunciation}</span>
+                        <i {...stylex.attrs(styles.partOfSpeech)}>{entry.partOfSpeech}</i>
+                    </div>
 
-            {/* define the word, then make the promise */}
-            <div data-universe {...stylex.attrs(lattice.ruleRight, styles.promise)}>
-                <span {...stylex.attrs(styles.kicker)}>
-                    <b {...stylex.attrs(styles.headword)}>de·stack</b>
-                    <span {...stylex.attrs(styles.pronunciation)}>/diːˈstak/</span>
-                    <i {...stylex.attrs(styles.partOfSpeech)}>verb</i>
-                </span>
-                <p data-universe="parts" {...stylex.attrs(styles.line)}>
-                    {promise.map((word, index) => (
-                        <>
-                            {index > 0 && " "}
-                            <span data-word={word} {...stylex.attrs(word === "one" && styles.one)}>
-                                {word}
-                            </span>
-                        </>
-                    ))}
-                </p>
-            </div>
-            <Plate style={styles.plate}>
-                <Install />
-            </Plate>
+                    {/* state the meaning, then number the senses, each with its key words highlighted */}
+                    <p data-universe="parts" {...stylex.attrs(styles.phrase)}>
+                        {entry.phrase.split(" ").map((word, wordIndex) => (
+                            <>
+                                {wordIndex > 0 && " "}
+                                <span
+                                    data-word={word}
+                                    {...stylex.attrs(word === entry.highlight && styles.highlight)}
+                                >
+                                    {word}
+                                </span>
+                            </>
+                        ))}
+                    </p>
+                    <ol {...stylex.attrs(styles.senses)}>
+                        {entry.senses.map(([before, key, after], senseIndex) => (
+                            <li {...stylex.attrs(styles.sense)}>
+                                <span {...stylex.attrs(styles.number)}>{senseIndex + 1}</span>
+                                <span>
+                                    {before === "" ? "" : `${before} `}
+                                    <b {...stylex.attrs(styles.key)}>{key}</b>
+                                    {after === "" ? "" : ` ${after}`}
+                                </span>
+                            </li>
+                        ))}
+                    </ol>
+                </div>
+            ))}
         </section>
     );
 }
 
-/** The slow drift of the starry space inside the wordmark's letters. */
-const drift = stylex.keyframes({
-    from: { backgroundPosition: "var(--star-x) var(--star-y)" },
-    to: { backgroundPosition: "calc(var(--star-x) + 240px) calc(var(--star-y) + 120px)" },
-});
+/** Set a headword's syllables with the dictionary dot between them. */
+function Headword(properties: { syllables: readonly string[] }) {
+    return (
+        <>
+            {properties.syllables[0]}
+            <span aria-hidden="true" {...stylex.attrs(styles.interpunct)}>
+                ·
+            </span>
+            {properties.syllables[1]}
+        </>
+    );
+}
 
 /** The hero styles. */
 const styles = stylex.create({
     hero: {
-        gridTemplateRows: `calc(${tokens.row} * 1.7) calc(${tokens.row} * 1.3)`,
-        [narrow]: { gridTemplateRows: "none" },
+        gridTemplateRows: tokens.hero,
+        [narrow]: { gridTemplateRows: "auto" },
     },
-    wordmark: {
-        alignItems: "center",
-        color: color.foreground,
-        display: "flex",
-        fontFamily: tokens.posterFont,
-        fontSize: `min(calc(${tokens.column} * 1.6), calc(${tokens.row} * 1.62))`,
-        fontWeight: 400,
-        gridColumn: "1 / span 8",
-        justifyContent: "space-between",
-        gridRow: 1,
-        lineHeight: 1,
-        margin: 0,
-        paddingBlock: 0,
-        paddingInline: tokens.inset,
-        paddingTop: "0.12em",
-        [narrow]: {
-            borderRightWidth: 0,
-            gridColumn: "1 / -1",
-            gridRow: "auto",
-            whiteSpace: "nowrap",
-        },
-        [tablet]: {
-            fontSize: `min(calc(${tokens.siteWidth} * 0.15), 7.5rem)`,
-            paddingBlock: "2rem 1rem",
-        },
-        [mobile]: {
-            fontSize: "min(13vw, 5.5rem)",
-            paddingBlock: "2.5rem 1.5rem",
-        },
-    },
-    promise: {
+    entry: {
         display: "flex",
         flexDirection: "column",
-        gap: "0.25rem",
-        gridColumn: "1 / span 8",
-        gridRow: 2,
+        gap: "0.625rem",
+        gridColumn: "span 4",
         justifyContent: "center",
-        paddingBottom: "1.125rem",
+        minWidth: 0,
         paddingInline: tokens.inset,
+        paddingTop: "0.75rem",
         [narrow]: {
             borderBottomColor: color.border,
             borderBottomStyle: "solid",
             borderBottomWidth: tokens.hairline,
             borderRightWidth: 0,
             gridColumn: "1 / -1",
-            gridRow: "auto",
-            paddingBlock: "1.25rem",
+            paddingBlock: "1.5rem",
         },
-    },
-    letter: {
-        animationDuration: "90s",
-        animationIterationCount: "infinite",
-        animationName: drift,
-        animationTimingFunction: "linear",
-        backgroundClip: "text",
-        backgroundColor: tokens.space,
-        color: "transparent",
-        display: "inline-block",
-        transform: "scaleX(1.2)",
-        WebkitBackgroundClip: "text",
-        WebkitTextStroke: `1.5px ${tokens.cream}`,
-        "@media (prefers-reduced-motion: reduce)": { animationName: "none" },
-    },
-    gap: {
-        alignItems: "center",
-        alignSelf: "stretch",
-        display: "flex",
-        flexGrow: 1,
-        justifyContent: "center",
     },
     kicker: {
         alignItems: "baseline",
         display: "flex",
-        fontSize: "0.9375rem",
         gap: "0.625rem",
+        height: "1.5rem",
+        whiteSpace: "nowrap",
     },
     headword: {
         color: tokens.signal,
+        fontSize: "1.0625rem",
         fontWeight: 700,
+        margin: 0,
+    },
+    interpunct: {
+        marginInline: "0.05em",
     },
     pronunciation: {
         color: color.mutedForeground,
-        fontFamily: tokens.monoFont,
-        fontSize: "0.8125rem",
+        fontFamily: fontFamily.default,
+        fontSize: "0.9375rem",
     },
     partOfSpeech: {
         color: color.mutedForeground,
+        fontSize: "0.9375rem",
         fontStyle: "italic",
     },
-    line: {
-        fontSize: `calc((${tokens.column} * 8 - ${tokens.inset} * 2) / ${promiseMeasure})`,
+    phrase: {
+        fontSize: `calc((${tokens.column} * 4 - ${tokens.inset} * 2) / ${phraseMeasure})`,
         fontWeight: 500,
         letterSpacing: "-0.01em",
         lineHeight: 1.2,
         margin: 0,
         whiteSpace: "nowrap",
-        [tablet]: {
-            fontSize: `calc((${tokens.siteWidth} - ${tokens.inset} * 2) / ${promiseMeasure})`,
-        },
-        [mobile]: { fontSize: "clamp(1.125rem, 6vw, 1.75rem)", whiteSpace: "normal" },
+        [narrow]: { fontSize: "clamp(1.5rem, 5vw, 2rem)", whiteSpace: "normal" },
     },
-    one: {
+    highlight: {
         textDecorationColor: tokens.signal,
         textDecorationLine: "underline",
         textDecorationThickness: "3px",
-        textUnderlineOffset: "0.18em",
+        textUnderlineOffset: "0.16em",
     },
-    plate: {
-        gridColumn: "9 / span 4",
-        gridRow: "1 / span 2",
-        [narrow]: { gridColumn: "1 / -1", gridRow: "auto" },
-        [tablet]: { height: "9rem" },
-        [mobile]: { aspectRatio: "16 / 11" },
+    senses: {
+        color: color.mutedForeground,
+        display: "grid",
+        fontSize: "0.9375rem",
+        gap: "0.25rem",
+        lineHeight: 1.45,
+        listStyle: "none",
+        margin: 0,
+        marginTop: "0.25rem",
+        padding: 0,
+    },
+    sense: {
+        display: "flex",
+        gap: "0.625rem",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+    },
+    key: {
+        color: color.foreground,
+        fontWeight: 650,
+    },
+    number: {
+        color: tokens.signal,
+        flexShrink: 0,
+        fontWeight: 700,
     },
 });

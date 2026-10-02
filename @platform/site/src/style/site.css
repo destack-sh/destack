@@ -20,9 +20,10 @@
         --site-width: min(1200px, calc(100vw - 48px));
         --site-column: calc(var(--site-width) / 12);
         --site-bar: 64px;
+        --site-hero: 12rem;
         --site-row: clamp(
             max(48px, calc(var(--site-column) * 0.5)),
-            calc((100svh - var(--site-bar) * 2 - 3px) / 12.4),
+            calc((100svh - var(--site-bar) * 2 - 3px - var(--site-hero)) / 9.4),
             calc(var(--site-column) * 0.95)
         );
         --site-stage: calc(var(--site-row) * 9.4 / 6);
