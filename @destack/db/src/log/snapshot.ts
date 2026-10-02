@@ -4,10 +4,11 @@ import { Projection } from "../query/selection.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { Condition, type Match } from "../query/condition.ts";
 import { Key } from "../query/key.ts";
+import { Change } from "./log.ts";
 import { Order } from "../query/order.ts";
 import type { Computed, Namespace } from "../query/namespace.ts";
 import { Expression, type Related } from "../expression/expression.ts";
-import { TABLE, Table } from "../table/table.ts";
+import { TABLE, Table, type Logged } from "../table/table.ts";
 import { headFields, latestOf, LogInteger, selectHead, type LogPosition } from "./position.ts";
 import type { Row } from "../table/row.ts";
 import type { Column, ColumnValue } from "../table/column.ts";
@@ -127,7 +128,10 @@ export class Snapshot {
     }
 
     /** Read a table's rows matching a condition. */
-    async rows(table: Table, where: Condition): Promise<Row[]> {
+    async rows<Definition extends Table>(
+        table: Definition,
+        where: Condition,
+    ): Promise<Logged<Definition>[]> {
         // read the current rows and the changed rows' images
         const { rows, sequence } = await this.#read(table, render(where, table));
         const images = await this.#since(table, sequence);
@@ -142,15 +146,15 @@ export class Snapshot {
             }
         }
 
-        return kept;
+        return logged(kept);
     }
 
     /** Read a table's rows at the position with text columns that have one of some tuples. */
-    async select(
-        table: Table,
+    async select<Definition extends Table>(
+        table: Definition,
         columns: readonly string[],
         tuples: readonly (readonly unknown[])[],
-    ): Promise<Row[]> {
+    ): Promise<Logged<Definition>[]> {
         // read the head and each tuple's rows in one statement
         if (tuples.length === 0) {
             return [];
@@ -184,35 +188,45 @@ export class Snapshot {
             }
         }
 
-        return kept;
+        return logged(kept);
     }
 
-    /** Read one row by its key, absent when it did not exist at the position. */
-    async row(table: Table, key: Row): Promise<Row | undefined> {
+    /** Read one row by its key, null when it did not exist at the position. */
+    async row<Definition extends Table>(
+        table: Definition,
+        key: Key<Definition>,
+    ): Promise<Logged<Definition> | null> {
         // read the row and its earlier image
         const { rows, sequence } = await this.#read(table, Key.match(table, key));
         const images = await this.#since(table, sequence);
         const name = Key.name(table, key);
+        const row = images.has(name) ? images.get(name) : rows[0];
+        const [present = null] = row === undefined || row === null ? [] : logged<Definition>([row]);
 
-        return images.has(name) ? (images.get(name) ?? undefined) : rows[0];
+        return present;
     }
 
-    /** Read up to a count of admitted matching rows in an order after a row. */
-    async ordered(table: Table, query: OrderedRead & { readonly after?: Row }): Promise<Row[]> {
+    /** Read up to a count of admitted matching rows in an order after a row, with their computed values. */
+    async ordered<Definition extends Table>(
+        table: Definition,
+        query: OrderedRead & { readonly after?: Row },
+    ): Promise<(Logged<Definition> & Row)[]> {
         const [rows] = await this.#windows(table, query, undefined);
         if (rows === undefined) {
             throw new RangeError("an ordered read lacks its one window");
         }
 
-        return rows;
+        return logged(rows);
     }
 
     /** Read up to a count of admitted matching rows of each partition some values of a column name, in an order, aligned with the values. */
-    windows(
-        table: Table,
+    async windows<Definition extends Table>(
+        table: Definition,
         query: OrderedRead & { readonly partition: Partition },
-    ): Promise<Row[][]> {
-        return this.#windows(table, query, query.partition);
+    ): Promise<(Logged<Definition> & Row)[][]> {
+        const windows = await this.#windows(table, query, query.partition);
+
+        return windows.map((window) => logged(window));
     }
 
     /** Read the first rows of one window, or of each partition's window in one ranked read per round. */
@@ -483,7 +497,7 @@ export class Snapshot {
         for (const change of await this.database.log.written([table])) {
             const name = Key.name(table, change.key);
             if (!undone.has(name)) {
-                undone.set(name, change.before ?? null);
+                undone.set(name, Change.before(change));
             }
         }
 
@@ -501,6 +515,13 @@ export class Snapshot {
 
         return sequence;
     }
+}
+
+/** Type rows a snapshot decoded by a table's logged columns as that table's logged records. */
+function logged<Definition extends Table>(rows: Row[]): (Logged<Definition> & Row)[];
+/** Pass the rows on, whose decoders and log keep exactly the table's logged columns. */
+function logged(rows: Row[]): Row[] {
+    return rows;
 }
 
 /** Render a condition over a table. */
@@ -564,14 +585,14 @@ async function decides(
 function tupleRead(table: Table, columns: readonly string[], dialect: Dialect): Statement {
     return table[TABLE].statement(`tuple:${dialect}:${columns.join(",")}`, () => {
         // join each tuple to its rows and keep a head row for an empty tuple
-        const logged = Object.values(table[TABLE].logged);
+        const loggedColumns = Object.values(table[TABLE].logged);
         const head = sql.join(
             HEAD_COLUMNS.map((name) => sql`head.${sql.identifier(name)}`),
             sql`, `,
         );
 
         return new Statement(
-            (value) => sql`SELECT ${head}, ${sql.join(logged, sql`, `)}
+            (value) => sql`SELECT ${head}, ${sql.join(loggedColumns, sql`, `)}
                 FROM (${selectHead(dialect)}) AS head
                 CROSS JOIN ${jsonElements(value("tuples"), "wanted")}
                 LEFT JOIN ${table} ON ${sql.join(

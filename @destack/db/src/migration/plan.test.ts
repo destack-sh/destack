@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { defineTable, index, integer, json, sql, text } from "../index.ts";
+import { Change, defineTable, index, integer, json, sql, text } from "../index.ts";
 import { schema } from "@destack/schema";
 import { TABLE, type Table } from "../table/table.ts";
 import { qualify } from "../table/namespace.ts";
@@ -216,8 +216,8 @@ test.for(TEST_DIALECTS)(
             changes.changes.map((change) => [
                 change.operation,
                 change.key,
-                change.before?.priority,
-                change.after?.priority,
+                Change.before(change)?.priority,
+                Change.after(change)?.priority,
             ]),
         ).toEqual([["update", { id: "a" }, "normal", "high"]]);
     },

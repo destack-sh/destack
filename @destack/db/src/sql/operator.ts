@@ -1,4 +1,4 @@
-import { Column, type ColumnValue } from "../table/column.ts";
+import { Column, type ColumnDefinition, type ColumnValue } from "../table/column.ts";
 import { type Aliased, isSQLWrapper, Parameter, SQL, sql, type SQLWrapper } from "./sql.ts";
 
 /**
@@ -8,8 +8,11 @@ import { type Aliased, isSQLWrapper, Parameter, SQL, sql, type SQLWrapper } from
  */
 export const CHAIN_TERMS = 90;
 
-/** A typed operand: a column, a fragment or a named fragment. */
-type Typed<Value> = Column<Extract<Value, ColumnValue>> | SQL<Value> | Aliased<Value>;
+/** A typed operand: a column reading the value, a fragment or a named fragment. */
+type Typed<Value> =
+    | Column<ColumnDefinition & { fromJson(value: unknown): Value }>
+    | SQL<Value>
+    | Aliased<Value>;
 
 /** A comparison of a typed operand with a value or another fragment. */
 export type Comparison = <Value>(
@@ -172,7 +175,9 @@ export function avg(value: SQLWrapper): SQL<string | null> {
 }
 
 /** Return the maximum column value, decoded by the column. */
-export function max<Value extends ColumnValue>(value: Column<Value>): SQL<Value | null>;
+export function max<Value extends ColumnValue>(
+    value: Column<ColumnDefinition<Value>>,
+): SQL<Value | null>;
 /** Return the maximum expression value. */
 export function max(value: SQLWrapper): SQL<string | null>;
 /** Return the maximum value, whose signatures above type it by its operand. */
@@ -181,7 +186,9 @@ export function max(value: SQLWrapper): SQL {
 }
 
 /** Return the minimum column value, decoded by the column. */
-export function min<Value extends ColumnValue>(value: Column<Value>): SQL<Value | null>;
+export function min<Value extends ColumnValue>(
+    value: Column<ColumnDefinition<Value>>,
+): SQL<Value | null>;
 /** Return the minimum expression value. */
 export function min(value: SQLWrapper): SQL<string | null>;
 /** Return the minimum value, whose signatures above type it by its operand. */

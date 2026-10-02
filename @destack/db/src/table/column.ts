@@ -46,6 +46,9 @@ export type ColumnKind = (typeof COLUMN_KINDS)[number];
 /** A value a column keeps: JSON, bytes or an exact 64-bit integer. */
 export type ColumnValue = JsonValue | Uint8Array | bigint;
 
+/** The JSON form of a column value: exact integers and bytes as text. */
+export type JsonOf<Value> = Value extends bigint | Uint8Array ? string : Value;
+
 /** A value drivers bind and return: text, numbers, booleans, exact integers, bytes or null. */
 export type DriverValue = string | number | bigint | boolean | Uint8Array | null;
 /** A value drivers bind and return: text, numbers, booleans, exact integers, bytes or null. */
@@ -60,28 +63,16 @@ export const DriverValue: schema.Schema<DriverValue> = schema.union([
 
 /** A logical SQL column. */
 export class Column<
-    Value extends ColumnValue = ColumnValue,
-    Required extends boolean = boolean,
-    Default extends boolean = boolean,
+    Definition extends ColumnDefinition = ColumnDefinition,
     TableName extends string = string,
-    Generated extends boolean = boolean,
-    Key extends boolean = boolean,
 > implements SQLWrapper {
-    /** The inference types. */
-    declare readonly _: {
-        value: Value;
-        required: Required;
-        default: Default;
-        generated: Generated;
-        key: Key;
-    };
     /** The column declaration. */
-    readonly definition: ColumnDefinition<Value>;
+    readonly definition: Definition;
     /** The SQL table name. */
     readonly table: TableName;
 
     /** Create the column. */
-    constructor(table: TableName, definition: ColumnDefinition<Value>) {
+    constructor(table: TableName, definition: Definition) {
         this.table = table;
         this.definition = definition;
     }
@@ -98,56 +89,50 @@ export class Column<
 }
 
 /** A column declaration before its table. */
-export class ColumnBuilder<
-    Value extends ColumnValue = ColumnValue,
-    Required extends boolean = false,
-    Default extends boolean = false,
-    Generated extends boolean = false,
-    Key extends boolean = false,
-> {
-    /** The inference types. */
-    declare readonly _: {
-        value: Value;
-        required: Required;
-        default: Default;
-        generated: Generated;
-        key: Key;
-    };
+export class ColumnBuilder<Definition extends ColumnDefinition = ColumnDefinition> {
     /** The column's type, validation, defaults and constraints. */
-    readonly definition: ColumnDefinition<Value>;
+    readonly definition: Definition;
 
     /** Create the builder. */
-    constructor(definition: ColumnDefinition<Value>) {
+    constructor(definition: Definition) {
         this.definition = definition;
     }
 
     /** Require a value on every persisted row. */
-    notNull(): ColumnBuilder<Value, true, Default, Generated, Key> {
-        return new ColumnBuilder({ ...this.definition, nullable: false });
+    notNull(): ColumnBuilder<Definition & { readonly nullable: false }> {
+        return new ColumnBuilder({ ...this.definition, nullable: false as const });
     }
 
     /** Supply a database default when an insert omits the column. */
-    default(value: Value | SQL): ColumnBuilder<Value, Required, true, Generated, Key> {
+    default(
+        value: ValueOf<Definition> | SQL,
+    ): ColumnBuilder<Definition & { readonly default: ValueOf<Definition> | SQL }> {
         return new ColumnBuilder({ ...this.definition, default: value });
     }
 
     /** Make the column part of the table's primary key, in declaration order. */
-    primaryKey(): ColumnBuilder<Value, true, Default, Generated, true> {
-        return new ColumnBuilder({ ...this.definition, nullable: false, primaryKey: true });
+    primaryKey(): ColumnBuilder<
+        Definition & { readonly nullable: false; readonly primaryKey: true }
+    > {
+        return new ColumnBuilder({
+            ...this.definition,
+            nullable: false as const,
+            primaryKey: true as const,
+        });
     }
 
     /** Keep the value out of logs, audit details, sync and request fingerprints. */
-    sensitive(): ColumnBuilder<Value, Required, Default, Generated, Key> {
-        return new ColumnBuilder({ ...this.definition, classification: "sensitive" });
+    sensitive(): ColumnBuilder<Definition & { readonly classification: "sensitive" }> {
+        return new ColumnBuilder({ ...this.definition, classification: "sensitive" as const });
     }
 
     /** Mark the value as personal data, exported and erased with its subject. */
-    personal(): ColumnBuilder<Value, Required, Default, Generated, Key> {
-        return new ColumnBuilder({ ...this.definition, classification: "personal" });
+    personal(): ColumnBuilder<Definition & { readonly classification: "personal" }> {
+        return new ColumnBuilder({ ...this.definition, classification: "personal" as const });
     }
 
     /** Require distinct non-null values. */
-    unique(name?: string): ColumnBuilder<Value, Required, Default, Generated, Key> {
+    unique(name?: string): ColumnBuilder<Definition> {
         return new ColumnBuilder({
             ...this.definition,
             unique: name === undefined ? {} : { name },
@@ -156,23 +141,22 @@ export class ColumnBuilder<
 
     /** Reference a column in another table. */
     references(
-        column: () => Column<Value>,
+        column: () => Column<ColumnDefinition<ValueOf<Definition>>>,
         actions: ReferenceAction = {},
-    ): ColumnBuilder<Value, Required, Default, Generated, Key> {
+    ): ColumnBuilder<Definition> {
         return new ColumnBuilder({ ...this.definition, reference: { column, ...actions } });
     }
 
     /** Validate values with a narrower schema. */
-    validate(
-        validator: schema.Schema<Value>,
-    ): ColumnBuilder<Value, Required, Default, Generated, Key> {
+    validate(validator: schema.Schema<ValueOf<Definition>>): ColumnBuilder<Definition> {
         const definition = this.definition;
 
         return new ColumnBuilder({
             ...definition,
             schema: validator,
-            encode: (value, dialect) => definition.encode(validator.parse(value), dialect),
-            fromJson: (value) => validator.parse(definition.fromJson(value)),
+            encode: (value: unknown, dialect: Dialect) =>
+                definition.encode(validator.parse(value), dialect),
+            fromJson: (value: unknown) => validator.parse(definition.fromJson(value)),
         });
     }
 
@@ -180,7 +164,7 @@ export class ColumnBuilder<
     generatedAlwaysAs(
         expression: SQL | (() => SQL),
         options: { readonly mode: "stored" | "virtual" } = { mode: "stored" },
-    ): ColumnBuilder<Value, Required, true, true, Key> {
+    ): ColumnBuilder<Definition & { readonly generated: ColumnGeneration }> {
         return new ColumnBuilder({
             ...this.definition,
             generated: { expression, mode: options.mode },
@@ -211,14 +195,11 @@ export interface ColumnDefinition<Value extends ColumnValue = ColumnValue> {
     /** The database default. */
     readonly default?: Value | SQL;
     /** The generated expression. */
-    readonly generated?: {
-        /** The SQL calculation. */
-        readonly expression: SQL | (() => SQL);
-        /** Whether SQL stores or recomputes the value. */
-        readonly mode: "stored" | "virtual";
-    };
+    readonly generated?: ColumnGeneration;
     /** The referenced column and referential actions. */
-    readonly reference?: ReferenceAction & { readonly column: () => Column<Value> };
+    readonly reference?: ReferenceAction & {
+        readonly column: () => Column<ColumnDefinition<Value>>;
+    };
     /** The protection: sensitive values stay in the row, personal values are exportable and erasable. */
     readonly classification?: "sensitive" | "personal";
     /** Encode an application value as a driver parameter. */
@@ -231,6 +212,18 @@ export interface ColumnDefinition<Value extends ColumnValue = ColumnValue> {
     fromJson(value: unknown): Value;
 }
 
+/** A column's SQL calculation. */
+export interface ColumnGeneration {
+    /** The SQL calculation. */
+    readonly expression: SQL | (() => SQL);
+    /** Whether SQL stores or recomputes the value. */
+    readonly mode: "stored" | "virtual";
+}
+
+/** The application value a column definition reads. */
+export type ValueOf<Definition extends ColumnDefinition> =
+    ReturnType<Definition["fromJson"]> extends infer Value extends ColumnValue ? Value : never;
+
 /** Referential actions. */
 export interface ReferenceAction {
     /** The action when the referenced row is deleted. */
@@ -239,18 +232,23 @@ export interface ReferenceAction {
     readonly onUpdate?: (typeof REFERENCE_ACTIONS)[number];
 }
 
+/** A column definition of a value and kind, as its constructor declares it. */
+type Defined<Value extends ColumnValue, Kind extends ColumnKind> = ColumnDefinition<Value> & {
+    readonly kind: Kind;
+};
+
 /** Define text. */
-export function text(name: string): ColumnBuilder<string>;
+export function text(name: string): ColumnBuilder<Defined<string, "text">>;
 /** Define text from a set of strings. */
 export function text<const Values extends readonly [string, ...string[]]>(
     name: string,
     options: { readonly enum: Values },
-): ColumnBuilder<Values[number]>;
+): ColumnBuilder<Defined<Values[number], "text">>;
 /** Define text, whose signatures above type it by its enum. */
 export function text(
     name: string,
     options?: { readonly enum: readonly [string, ...string[]] },
-): ColumnBuilder<string> {
+): ColumnBuilder<Defined<string, "text">> {
     // keep the enum values beside the text column
     const types = { sqlite: "text", postgresql: "text" };
     if (options === undefined) {
@@ -262,7 +260,7 @@ export function text(
 }
 
 /** Define an exact integer. */
-export function integer(name: string): ColumnBuilder<number> {
+export function integer(name: string): ColumnBuilder<Defined<number, "integer">> {
     const validator = schema
         .number()
         .int()
@@ -286,7 +284,7 @@ export function integer(name: string): ColumnBuilder<number> {
 }
 
 /** Define a double-precision number. */
-export function real(name: string): ColumnBuilder<number> {
+export function real(name: string): ColumnBuilder<Defined<number, "real">> {
     return scalarColumn(
         name,
         "real",
@@ -296,7 +294,7 @@ export function real(name: string): ColumnBuilder<number> {
 }
 
 /** Define a boolean. */
-export function boolean(name: string): ColumnBuilder<boolean> {
+export function boolean(name: string): ColumnBuilder<Defined<boolean, "boolean">> {
     const validator = schema.boolean();
     const column = scalarColumn(
         name,
@@ -344,11 +342,11 @@ export function boolean(name: string): ColumnBuilder<boolean> {
 export function json<Validator extends schema.Schema<JsonValue>>(
     name: string,
     validator: Validator,
-): ColumnBuilder<schema.Output<Validator>> {
+): ColumnBuilder<Defined<schema.Output<Validator>, "json">> {
     // require a declarative schema
     defineSchema(validator);
 
-    return new ColumnBuilder({
+    return new ColumnBuilder<Defined<schema.Output<Validator>, "json">>({
         name,
         kind: "json",
         types: { sqlite: "text", postgresql: "jsonb" },
@@ -378,7 +376,7 @@ export function json<Validator extends schema.Schema<JsonValue>>(
 export function identifier<const Prefix extends string>(
     name: string,
     prefix: Prefix | (() => Prefix),
-): ColumnBuilder<Identifier<Prefix>> {
+): ColumnBuilder<Defined<Identifier<Prefix>, "text">> {
     const validator =
         typeof prefix === "function"
             ? schema.lazy(() => identifiers.identifier(prefix()))
@@ -388,10 +386,10 @@ export function identifier<const Prefix extends string>(
 }
 
 /** Define bytes. */
-export function binary(name: string): ColumnBuilder<Uint8Array> {
+export function binary(name: string): ColumnBuilder<Defined<Uint8Array, "binary">> {
     const validator = schema.instanceof(Uint8Array);
 
-    return new ColumnBuilder({
+    return new ColumnBuilder<Defined<Uint8Array, "binary">>({
         name,
         kind: "binary",
         types: { sqlite: "blob", postgresql: "bytea" },
@@ -411,20 +409,20 @@ export function binary(name: string): ColumnBuilder<Uint8Array> {
 }
 
 /** Define a reference to content a blob store keeps: the SHA-256 digest of its bytes, as hexadecimal. */
-export function blob(name: string): ColumnBuilder<string> {
+export function blob(name: string): ColumnBuilder<Defined<string, "blob">> {
     const column = scalarColumn(name, "blob", { sqlite: "text", postgresql: "text" }, Digest);
 
     return new ColumnBuilder({ ...column.definition, json: Digest });
 }
 
 /** Define an exact signed 64-bit integer. */
-export function bigint(name: string): ColumnBuilder<bigint> {
+export function bigint(name: string): ColumnBuilder<Defined<bigint, "bigint">> {
     const validator = schema
         .bigint()
         .min(-(1n << 63n))
         .max((1n << 63n) - 1n);
 
-    return new ColumnBuilder({
+    return new ColumnBuilder<Defined<bigint, "bigint">>({
         name,
         kind: "bigint",
         types: { sqlite: "integer", postgresql: "bigint" },
@@ -448,7 +446,7 @@ export function bigint(name: string): ColumnBuilder<bigint> {
 }
 
 /** Define an exact decimal string. */
-export function numeric(name: string): ColumnBuilder<string> {
+export function numeric(name: string): ColumnBuilder<Defined<string, "numeric">> {
     return scalarColumn(
         name,
         "numeric",
@@ -458,13 +456,16 @@ export function numeric(name: string): ColumnBuilder<string> {
 }
 
 /** Define a column whose JSON form, parameter and driver value are its validated value. */
-function scalarColumn<Validator extends schema.Schema<string | number | boolean | null>>(
+function scalarColumn<
+    Validator extends schema.Schema<string | number | boolean | null>,
+    Kind extends ColumnKind,
+>(
     name: string,
-    kind: ColumnKind,
+    kind: Kind,
     types: Readonly<Record<Dialect, string>>,
     validator: Validator,
-): ColumnBuilder<schema.Output<Validator>> {
-    return new ColumnBuilder({
+): ColumnBuilder<Defined<schema.Output<Validator>, Kind>> {
+    return new ColumnBuilder<Defined<schema.Output<Validator>, Kind>>({
         name,
         kind,
         types,

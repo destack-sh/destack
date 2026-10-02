@@ -12,7 +12,9 @@ import {
     real,
     text,
     type ColumnBuilder,
+    type ColumnDefinition,
     type ColumnValue,
+    type ValueOf,
 } from "./column.ts";
 import { check, ForeignKey, type TableConstraint } from "./constraint.ts";
 import type { Dialect } from "../dialect/dialect.ts";
@@ -286,13 +288,27 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         return encodeRow(Object.entries(this.logged), row, concealed);
     }
 
-    /** Read a row's own columns from JSON form. */
+    /** Take a row of this table's own column values, as code choosing columns at runtime builds it, failing for other properties. */
+    values(row: Row): Partial<Select<Table<Name, Columns>>> & Row;
+    /** Return the row once each of its properties is one of the table's columns. */
+    values(row: Row): Row {
+        // require every property to be one of the table's columns
+        for (const property of Object.keys(row)) {
+            this.column(property);
+        }
+
+        return row;
+    }
+
+    /** Read a row's own columns from JSON form, the columns it has. */
+    decode(row: Readonly<Record<string, unknown>>): Partial<Select<Table<Name, Columns>>> & Row;
+    /** Decode each of the row's own columns by its column definition. */
     decode(row: Readonly<Record<string, unknown>>): Row {
         const decoded: Record<string, ColumnValue> = {};
         for (const [property, column] of this.entries) {
-            // read the row's own columns
-            if (Object.hasOwn(row, property)) {
-                const value = row[property];
+            // read the row's own columns, an undefined value being absent as in JSON
+            const value = Object.hasOwn(row, property) ? row[property] : undefined;
+            if (value !== undefined) {
                 decoded[property] = value === null ? null : column.definition.fromJson(value);
             }
         }
@@ -458,54 +474,67 @@ export interface TableOptions<Columns> {
 export type ColumnMap = Record<string, Column>;
 
 /** The column builders by property. */
-export type ColumnBuilderMap = Record<
-    string,
-    ColumnBuilder<ColumnValue, boolean, boolean, boolean, boolean>
->;
+export type ColumnBuilderMap = Record<string, ColumnBuilder>;
 
-/** Attach each column's type and flags. */
+/** Attach each column's definition and table. */
 export type TableColumnMap<Builders extends ColumnBuilderMap, Name extends string = string> = {
-    [Property in keyof Builders]: Column<
-        Builders[Property]["_"]["value"],
-        Builders[Property]["_"]["required"],
-        Builders[Property]["_"]["default"],
-        Name,
-        Builders[Property]["_"]["generated"],
-        Builders[Property]["_"]["key"]
-    >;
+    [Property in keyof Builders]: Column<Builders[Property]["definition"], Name>;
 };
+
+/** A table's column definitions by property. */
+type Definitions<Definition extends Table> = {
+    [
+        Property in keyof Definition[typeof TABLE]["columns"]
+    ]: Definition[typeof TABLE]["columns"][Property]["definition"];
+};
+
+/** The value a column reads, null where the column is nullable. */
+type ValueIn<Definition extends ColumnDefinition> = Definition["nullable"] extends false
+    ? ValueOf<Definition>
+    : ValueOf<Definition> | null;
 
 /** The selected application record. */
 export type Select<Definition extends Table> = {
-    [
-        Property in keyof Definition[typeof TABLE]["columns"]
-    ]: Definition[typeof TABLE]["columns"][Property]["_"]["required"] extends true
-        ? Definition[typeof TABLE]["columns"][Property]["_"]["value"]
-        : Definition[typeof TABLE]["columns"][Property]["_"]["value"] | null;
+    [Property in keyof Definitions<Definition>]: ValueIn<Definitions<Definition>[Property]>;
 };
+
+/** The selected record of the columns the log carries: every column except binary and sensitive ones. */
+export type Logged<Definition extends Table> = Definition extends Table
+    ? {
+          [
+              Property in keyof Definitions<Definition> as Definitions<Definition>[Property] extends
+                  | { readonly kind: "binary" }
+                  | { readonly classification: "sensitive" }
+                  ? never
+                  : Property
+          ]: ValueIn<Definitions<Definition>[Property]>;
+      }
+    : never;
 
 /** The properties an insert must supply. */
 type RequiredColumns<Definition extends Table> = {
-    [
-        Property in keyof Definition[typeof TABLE]["columns"]
-    ]: Definition[typeof TABLE]["columns"][Property]["_"] extends { required: true; default: false }
-        ? Property
-        : never;
-}[keyof Definition[typeof TABLE]["columns"]];
+    [Property in keyof Definitions<Definition>]: Definitions<Definition>[Property] extends
+        | { readonly default: unknown }
+        | { readonly generated: unknown }
+        ? never
+        : Definitions<Definition>[Property]["nullable"] extends false
+          ? Property
+          : never;
+}[keyof Definitions<Definition>];
 
 /** The generated properties. */
 type GeneratedColumns<Definition extends Table> = {
-    [
-        Property in keyof Definition[typeof TABLE]["columns"]
-    ]: Definition[typeof TABLE]["columns"][Property]["_"]["generated"] extends true
+    [Property in keyof Definitions<Definition>]: Definitions<Definition>[Property] extends {
+        readonly generated: unknown;
+    }
         ? Property
         : never;
-}[keyof Definition[typeof TABLE]["columns"]];
+}[keyof Definitions<Definition>];
 
 /** The values of an insert. */
 export type Insert<Definition extends Table> = Pick<
     Select<Definition>,
-    Exclude<RequiredColumns<Definition>, GeneratedColumns<Definition>>
+    RequiredColumns<Definition>
 > &
     Partial<Omit<Select<Definition>, RequiredColumns<Definition> | GeneratedColumns<Definition>>>;
 
@@ -558,14 +587,7 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
 
 /** The columns of a query alias. */
 export type AliasedColumnMap<Definition extends Table, Name extends string> = {
-    [Property in keyof Definition[typeof TABLE]["columns"]]: Column<
-        Definition[typeof TABLE]["columns"][Property]["_"]["value"],
-        Definition[typeof TABLE]["columns"][Property]["_"]["required"],
-        Definition[typeof TABLE]["columns"][Property]["_"]["default"],
-        Name,
-        Definition[typeof TABLE]["columns"][Property]["_"]["generated"],
-        Definition[typeof TABLE]["columns"][Property]["_"]["key"]
-    >;
+    [Property in keyof Definitions<Definition>]: Column<Definitions<Definition>[Property], Name>;
 };
 
 /** Reference a table under another query name. */

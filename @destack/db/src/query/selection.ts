@@ -1,5 +1,5 @@
 import { Aliased, SQL, sql } from "../sql/index.ts";
-import { Column, type ColumnValue } from "../table/column.ts";
+import { Column, type ColumnDefinition, type ValueOf } from "../table/column.ts";
 import { type Select, TABLE, Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 
@@ -11,17 +11,12 @@ export interface Selection {
 
 /** The record a selection produces, with the groups of nullable joined tables nullable. */
 export type SelectionResult<Fields extends Selection, NullableTables extends string = never> = {
-    [Property in keyof Fields]: Fields[Property] extends Column<
-        infer Value,
-        infer Required,
-        boolean,
-        infer Name
-    >
+    [Property in keyof Fields]: Fields[Property] extends Column<infer Definition, infer Name>
         ? Name extends NullableTables
-            ? Value | null
-            : Required extends true
-              ? Value
-              : Value | null
+            ? ValueOf<Definition> | null
+            : Definition["nullable"] extends false
+              ? ValueOf<Definition>
+              : ValueOf<Definition> | null
         : Fields[Property] extends SQL<infer Value> | Aliased<infer Value>
           ? Value
           : Fields[Property] extends Table
@@ -37,12 +32,7 @@ export type SelectionResult<Fields extends Selection, NullableTables extends str
 
 /** The tables a nested selection reads. */
 type SelectionTables<Fields extends Selection> = {
-    [Property in keyof Fields]: Fields[Property] extends Column<
-        ColumnValue,
-        boolean,
-        boolean,
-        infer Name
-    >
+    [Property in keyof Fields]: Fields[Property] extends Column<ColumnDefinition, infer Name>
         ? Name
         : never;
 }[keyof Fields];

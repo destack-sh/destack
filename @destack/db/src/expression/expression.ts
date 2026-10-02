@@ -3,7 +3,7 @@ import { DatabaseError } from "../error/error.ts";
 import { TABLE, type Table } from "../table/table.ts";
 import type { ColumnKind, ColumnValue } from "../table/column.ts";
 import type { Namespace } from "../query/namespace.ts";
-import { schema, Version, type JsonValue } from "@destack/schema";
+import { JsonValue, schema, Version } from "@destack/schema";
 import { Condition, Scalar } from "../query/condition.ts";
 
 /** The most terms one expression has, bounding compiled SQL; computed fields use under ten. */
@@ -349,10 +349,7 @@ export const Expression = {
                 // walk the keys through objects, missing past any other value
                 let value = Expression.evaluate(expression.of, row, related);
                 for (const key of expression.keys) {
-                    value =
-                        typeof value === "object" && value !== null && !Array.isArray(value)
-                            ? (value[key] ?? null)
-                            : null;
+                    value = JsonValue.isObject(value) ? (value[key] ?? null) : null;
                 }
 
                 return value;

@@ -2,7 +2,7 @@ import { dialectSQL, sql, type SQL, type SQLWrapper } from "../sql/index.ts";
 import { Statement } from "../query/statement.ts";
 import { v7 } from "uuid";
 import type { DatabaseConnection } from "../database/connection.ts";
-import { TABLE, type Select, Table } from "../table/table.ts";
+import { TABLE, type Logged, Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever, DatabaseError } from "../error/error.ts";
 import { LOG_EPOCH, LOG_SLOT, LOG_HORIZON, LOG_REPLICA, LOG, LOG_TRANSACTION } from "./schema.ts";
@@ -21,38 +21,69 @@ import { Digest, schema, toJsonSchema, type JsonValue } from "@destack/schema";
  */
 const PAGE_LIMIT = 1000;
 
-/** A row as a change carries it, without binary and sensitive columns. */
-export type Image<Definition extends Table> = Definition extends Table
-    ? {
-          [
-              Property in keyof Select<Definition> as Select<Definition>[Property] extends Uint8Array | null
-                  ? never
-                  : Property
-          ]: Select<Definition>[Property];
-      }
-    : never;
-
-/** One committed change to a logged table. */
-export interface Change<Definition extends Table = Table> {
-    /** The change's position in commit order. */
-    readonly sequence: number;
-    /** The committing transaction, absent for SQLite scripts outside a transaction. */
+/** One write to a logged table: an insert with the row after, an update with both rows, or a delete with the row before. */
+export type Write<Definition extends Table = Table> = {
+    /** The writing transaction, absent for SQLite scripts outside a transaction. */
     readonly transaction: string | null;
     /** The changed table. */
     readonly table: Definition;
     /** The primary key of the changed row. */
     readonly key: Key<Definition>;
-    /** Whether the row was inserted, updated or deleted. */
-    readonly operation: "insert" | "update" | "delete";
-    /** The row before an update or deletion. */
-    readonly before?: Image<Definition>;
-    /** The row after an insertion or update. */
-    readonly after?: Image<Definition>;
     /** The scope the changed row lives in. */
     readonly scope: string;
     /** The change time, in UTC epoch milliseconds. */
     readonly changedAt: number;
-}
+} & (
+    | {
+          /** Insert the row. */
+          readonly operation: "insert";
+          /** The row after the insert. */
+          readonly after: Logged<Definition>;
+      }
+    | {
+          /** Update the row. */
+          readonly operation: "update";
+          /** The row before the update. */
+          readonly before: Logged<Definition>;
+          /** The row after the update. */
+          readonly after: Logged<Definition>;
+      }
+    | {
+          /** Delete the row. */
+          readonly operation: "delete";
+          /** The row before the delete. */
+          readonly before: Logged<Definition>;
+      }
+);
+
+/** One committed write, at its position in commit order. */
+export type Change<Definition extends Table = Table> = Write<Definition> & {
+    /** The change's position in commit order. */
+    readonly sequence: number;
+};
+
+/** Read changes. */
+export const Change = {
+    /** Read a write's latest image of its row: the row after an insert or update, the row before a delete. */
+    image<Definition extends Table>(change: Write<Definition>): Logged<Definition> {
+        return change.operation === "delete" ? change.before : change.after;
+    },
+
+    /** Read the row before a write, null for an insert. */
+    before<Definition extends Table>(change: Write<Definition>): Logged<Definition> | null {
+        return change.operation === "insert" ? null : change.before;
+    },
+
+    /** Read the row after a write, null for a delete. */
+    after<Definition extends Table>(change: Write<Definition>): Logged<Definition> | null {
+        return change.operation === "delete" ? null : change.after;
+    },
+
+    /** Report whether a change is to one table, typing its rows by it. */
+    of<Definition extends Table>(change: Change, table: Definition): change is Change<Definition> {
+        return change.table === table;
+    },
+};
 
 /** The positions and times of a transaction's changes. */
 export interface TransactionBounds {
@@ -411,7 +442,7 @@ export class Log {
     /** Read the open transaction's changes before commit. */
     async written<Definition extends Table>(
         tables: readonly Definition[],
-    ): Promise<Omit<Change<Definition>, "sequence">[]> {
+    ): Promise<Write<Definition>[]> {
         // require a log and a writing transaction
         if (this.database.dialect === "sqlite" && !this.database.state.isLogged) {
             throw new TypeError("read written changes of a logged database");
@@ -676,7 +707,7 @@ function decodeChange<Definition extends Table>(
     >,
     table: Definition,
     dialect: Dialect,
-): Omit<Change<Definition>, "sequence"> {
+): Write<Definition> {
     // decode the key, and the row after the change and before an update
     const key = decodeKey(table, entry.key, dialect);
     const logged = decodeLogged(table, entry.row, dialect);
@@ -704,7 +735,7 @@ function decodeLogged<Definition extends Table>(
     table: Definition,
     row: Readonly<Record<string, JsonValue>>,
     dialect: Dialect,
-): Image<Definition>;
+): Logged<Definition>;
 /** Decode a logged row's values by column name through its logged columns. */
 function decodeLogged(
     table: Table,
@@ -780,7 +811,7 @@ function imagesOf(table: Table, changes: readonly Change[]): Map<string, Row | n
     for (const change of changes) {
         const key = Key.name(table, change.key);
         if (!images.has(key)) {
-            images.set(key, change.before ?? null);
+            images.set(key, Change.before(change));
         }
     }
 

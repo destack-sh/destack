@@ -2,7 +2,7 @@ import { schema } from "@destack/schema";
 import { sql } from "../../sql/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "../../test/database.ts";
-import { defineTable, eq, text } from "../../index.ts";
+import { Change, defineTable, eq, text } from "../../index.ts";
 import { changeTables, lease, note, revision } from "./fixture.ts";
 
 /** Open a migrated test database. */
@@ -86,7 +86,9 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
         .where(eq(note.id, "a"));
     await database.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
     const updated = await database.log.read({ tables: [note], after: created.sequence });
-    expect(updated.changes.map((change) => [change.operation, change.after?.title])).toEqual([
+    expect(
+        updated.changes.map((change) => [change.operation, Change.after(change)?.title]),
+    ).toEqual([
         ["update", "First"],
         ["update", "Renamed"],
     ]);
@@ -96,11 +98,7 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
     await database.delete(note).where(eq(note.id, "b"));
     const moved = await database.log.read({ tables: [note], after: updated.sequence });
     expect(
-        moved.changes.map((change) => [
-            change.operation,
-            change.key,
-            (change.after ?? change.before)?.title,
-        ]),
+        moved.changes.map((change) => [change.operation, change.key, Change.image(change).title]),
     ).toEqual([
         ["delete", { id: "a" }, "Renamed"],
         ["insert", { id: "b" }, "Renamed"],
@@ -172,7 +170,7 @@ test.for(TEST_DIALECTS)(
             return await transaction.log.written([note]);
         });
         expect(
-            written.map((change) => [change.operation, change.key, change.after?.title]),
+            written.map((change) => [change.operation, change.key, Change.after(change)?.title]),
         ).toEqual([
             ["update", { id: "a" }, "Renamed"],
             ["delete", { id: "a" }, undefined],
@@ -221,8 +219,8 @@ test.for(TEST_DIALECTS)(
         expect(
             updated.changes.map((change) => [
                 change.operation,
-                [change.before?.title, change.before?.summary],
-                [change.after?.title, change.after?.summary],
+                [Change.before(change)?.title, Change.before(change)?.summary],
+                [Change.after(change)?.title, Change.after(change)?.summary],
             ]),
         ).toEqual([
             ["update", ["First", null], ["Titled", "Short"]],

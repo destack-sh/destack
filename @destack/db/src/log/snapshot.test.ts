@@ -105,7 +105,7 @@ test.for(TEST_DIALECTS)(
             expect([
                 position.sequence,
                 byKey(await snapshot.rows(item, where)),
-                (await snapshot.row(item, { id: "i3" })) ?? null,
+                await snapshot.row(item, { id: "i3" }),
                 await snapshot.ordered(item, { where, order, count: 3 }),
                 await snapshot.windows(item, {
                     where: Condition.gte("rank", 2),
@@ -184,7 +184,7 @@ test.for(TEST_DIALECTS)(
         expect([position, rows, row]).toEqual([
             committed,
             [{ id: "i1", scope: "inbox", rank: 1, label: "x" }],
-            undefined,
+            null,
         ]);
     },
 );
@@ -253,7 +253,7 @@ test.for(TEST_DIALECTS)(
             expect([
                 position?.sequence,
                 byKey(await snapshot.rows(item, where)),
-                (await snapshot.row(item, { id: "i3" })) ?? null,
+                await snapshot.row(item, { id: "i3" }),
                 await snapshot.ordered(item, { where, order, count: 3 }),
             ]).toEqual([
                 position?.sequence,

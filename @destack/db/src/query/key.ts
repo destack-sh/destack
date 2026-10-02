@@ -8,11 +8,21 @@ import { Condition, Scalar } from "./condition.ts";
 /** A key's name: the table's SQL name, then each key value in JSON form. */
 const KeyName = schema.tuple([schema.string()], schema.json());
 
-/** The properties of a table's primary key. */
-type KeyProperty<Definition extends Table> = {
+/** The properties of a table's primary key, any property of a table whose columns are unknown. */
+type KeyProperty<Definition extends Table> =
+    string extends keyof Definition[typeof TABLE]["columns"]
+        ? string
+        : KnownKeyProperty<Definition>;
+
+/** The properties of a known table's primary key. */
+type KnownKeyProperty<Definition extends Table> = {
     [
         Property in keyof Definition[typeof TABLE]["columns"]
-    ]: Definition[typeof TABLE]["columns"][Property]["_"]["key"] extends false ? never : Property;
+    ]: Definition[typeof TABLE]["columns"][Property]["definition"] extends {
+        readonly primaryKey: true;
+    }
+        ? Property
+        : never;
 }[keyof Definition[typeof TABLE]["columns"]];
 
 /** A row's primary key values. */
@@ -68,6 +78,29 @@ export const Key = {
         }
 
         return `${name}]`;
+    },
+
+    /** Read a row's key from any record of its columns, failing for a missing or non-scalar key value. */
+    of(table: Table, row: Readonly<Record<string, unknown>>): Key {
+        const key: Record<string, ColumnValue> = {};
+        for (const property of table[TABLE].key) {
+            const value = row[property];
+            if (
+                typeof value !== "string" &&
+                typeof value !== "number" &&
+                typeof value !== "bigint" &&
+                typeof value !== "boolean" &&
+                !(value instanceof Uint8Array)
+            ) {
+                throw new DatabaseError(
+                    "INVALID_QUERY",
+                    `${table[TABLE].name} row has no key value ${property}`,
+                );
+            }
+            key[property] = value;
+        }
+
+        return key;
     },
 
     /** Read a row's key from its name, refusing another table's. */

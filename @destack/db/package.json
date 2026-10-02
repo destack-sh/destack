@@ -17,7 +17,8 @@
         "./wasm": "./src/sqlite/wasm/index.ts",
         "./durable-object": "./src/sqlite/durable-object/index.ts",
         "./blob": "./src/blob/index.ts",
-        "./blob/local": "./src/blob/local.ts"
+        "./blob/local": "./src/blob/local.ts",
+        "./inspect": "./src/inspect/index.ts"
     },
     "imports": {
         "#connector": {

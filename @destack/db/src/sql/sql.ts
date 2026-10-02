@@ -1,5 +1,5 @@
 import type { Dialect } from "../dialect/dialect.ts";
-import type { Column, ColumnValue } from "../table/column.ts";
+import type { Column, ColumnDefinition, ColumnValue } from "../table/column.ts";
 
 /** Something that renders as SQL, such as a column, a table, a query or a fragment. */
 export interface SQLWrapper {
@@ -41,7 +41,7 @@ export class SQL<Value = unknown> implements SQLWrapper {
     }
 
     /** Decode the selected value by a column or a function. */
-    mapWith<Next extends ColumnValue>(decoder: Column<Next>): SQL<Next>;
+    mapWith<Next extends ColumnValue>(decoder: Column<ColumnDefinition<Next>>): SQL<Next>;
     /** Decode the selected value by a function. */
     mapWith<Next>(decoder: (value: unknown) => Next): SQL<Next>;
     /** Decode the selected value, whose signatures above type it by the decoder. */

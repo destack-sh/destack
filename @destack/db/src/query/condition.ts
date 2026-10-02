@@ -526,7 +526,7 @@ function renderOperand(
     const scalar = operand.kind === "parameter" ? binding.parameter(operand.name) : operand.value;
     const target = other?.kind === "column" ? binding.column(other.name) : undefined;
 
-    return target instanceof Column && scalar !== null
+    return Column.is(target) && scalar !== null
         ? sql`${new Parameter(target.definition.fromJson(scalar), target)}`
         : sql`${scalar}`;
 }

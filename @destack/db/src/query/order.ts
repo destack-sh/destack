@@ -3,7 +3,6 @@ import { defineSchema, schema } from "@destack/schema";
 import { Column, type ColumnKind } from "../table/column.ts";
 import { TABLE, type Table } from "../table/table.ts";
 import { Key } from "./key.ts";
-import type { Row } from "../table/row.ts";
 import { Expression } from "../expression/expression.ts";
 import type { Namespace } from "./namespace.ts";
 import { DatabaseError } from "../error/error.ts";
@@ -127,18 +126,18 @@ export const Order = {
     },
 
     /** Merge ordered rows of several tables with their list names. */
-    merge(
+    merge<Listed extends Readonly<Record<string, unknown>>>(
         order: Order,
         lists: readonly {
             readonly name: string;
             readonly table: Table;
-            readonly rows: readonly Row[];
+            readonly rows: readonly Listed[];
         }[],
         limit: number,
-    ): { readonly name: string; readonly row: Row }[] {
+    ): { readonly name: string; readonly row: Listed }[] {
         // take every row with its list name and key
         const entries = lists.flatMap(({ name, table, rows }) =>
-            rows.map((row) => ({ name, row, key: Key.name(table, row) })),
+            rows.map((row) => ({ name, row, key: Key.name(table, Key.of(table, row)) })),
         );
 
         // sort and keep the first
