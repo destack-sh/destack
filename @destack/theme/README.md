@@ -25,7 +25,11 @@ const styles = style.create({
 });
 
 export function Page() {
-    return <main {...style.attrs(styles.page)} {...theme}>Hello</main>;
+    return (
+        <main {...style.attrs(styles.page)} {...theme}>
+            Hello
+        </main>
+    );
 }
 ```
 

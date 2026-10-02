@@ -60,7 +60,7 @@ export function paletteAlpha(palette: GrayPalette, step: number): string {
     const [light, dark]: readonly [Record<string, string>, Record<string, string>] = ALPHA[palette];
     const key = `${palette}A${step}`;
     if (!light[key] || !dark[key]) {
-        throw new RangeError(`Unknown palette step: ${key}`);
+        throw new RangeError(`unknown palette step: ${key}`);
     }
 
     return `light-dark(${light[key]}, ${dark[key]})`;
@@ -73,7 +73,7 @@ export function paletteColor(palette: Palette, step: number): string {
         PALETTES[palette];
     const key = `${palette}${step}`;
     if (!light[key] || !dark[key]) {
-        throw new RangeError(`Unknown palette step: ${key}`);
+        throw new RangeError(`unknown palette step: ${key}`);
     }
 
     return `light-dark(${light[key]}, ${dark[key]})`;
