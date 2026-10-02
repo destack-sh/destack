@@ -1,5 +1,5 @@
 import { open, type FileHandle } from "node:fs/promises";
-import { dlopen, read } from "bun:ffi";
+import { dlopen, read, type Pointer } from "bun:ffi";
 import { FileSystemError } from "../error/index.ts";
 
 /** Exclusive nonblocking flock flags on Darwin and Linux. */
@@ -18,8 +18,7 @@ const SYSTEM =
               __errno_location: { args: [], returns: "ptr" },
           });
 /** Retain this runtime thread's errno address before issuing lock calls. */
-const ERRNO =
-    "__error" in SYSTEM.symbols ? SYSTEM.symbols.__error()! : SYSTEM.symbols.__errno_location()!;
+const ERRNO = errnoAddress();
 
 /** A Unix file description retained for flock ownership. */
 export class NativeLock {
@@ -45,12 +44,11 @@ export class NativeLock {
             return new NativeLock(path, file);
         } catch (cause) {
             // retain the original filesystem error as the cause
-            const code = (cause as NodeJS.ErrnoException).code;
-            if (!code) {
+            if (!(cause instanceof Error) || !("code" in cause) || typeof cause.code !== "string") {
                 throw cause;
             }
 
-            throw new FileSystemError("open", path, code, { cause });
+            throw new FileSystemError("open", path, cause.code, { cause });
         }
     }
 
@@ -73,4 +71,15 @@ export class NativeLock {
     close(): Promise<void> {
         return (this.closing ??= this.file.close());
     }
+}
+
+/** Read the address of this runtime thread's errno from libc. */
+function errnoAddress(): Pointer | bigint {
+    const address =
+        "__error" in SYSTEM.symbols ? SYSTEM.symbols.__error() : SYSTEM.symbols.__errno_location();
+    if (address === null) {
+        throw new TypeError("libc returned no errno address");
+    }
+
+    return address;
 }
