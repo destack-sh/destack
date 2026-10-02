@@ -76,6 +76,8 @@ export interface Compilation {
     readonly package: Package;
     /** The package's source directory. */
     readonly directory: string;
+    /** The absolute source modules the output compiles, by export path, such as `./server`. */
+    readonly exports: Readonly<Record<string, string>>;
     /** The runtime the output runs on. */
     readonly runtime: Runtime;
     /** The declarations of the package and of the dependencies its modules import. */
