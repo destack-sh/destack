@@ -45,10 +45,12 @@ export const Duration = {
     },
 
     /** Require a duration of known, finite, non-negative units, at least one of them. */
-    require(duration: unknown, name: string): asserts duration is Duration {
+    require(duration: unknown, name: string): Duration {
         const parsed = Duration.schema.safeParse(duration);
         if (!parsed.success || Object.keys(parsed.data).length === 0) {
             throw new TypeError(`${name} is no duration: ${JSON.stringify(duration)}`);
         }
+
+        return parsed.data;
     },
 };

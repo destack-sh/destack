@@ -1,7 +1,19 @@
-import type * as schema from "../validate/index.ts";
+/** A JSON value, as readers see it. */
+export type JsonValue =
+    | string
+    | number
+    | boolean
+    | null
+    | readonly JsonValue[]
+    | { readonly [key: string]: JsonValue };
 
-/** A JSON value. */
-export type JsonValue = schema.Infer<ReturnType<typeof schema.json>>;
+/** Tell JSON values apart. */
+export const JsonValue = {
+    /** Report whether a JSON value is an object, neither an array nor a scalar. */
+    isObject(value: JsonValue): value is { readonly [key: string]: JsonValue } {
+        return typeof value === "object" && value !== null && !Array.isArray(value);
+    },
+};
 
 /** Serialize a JSON value with object keys sorted by UTF-16 code units, omitting undefined fields. */
 export function canonicalize(value: unknown): string {

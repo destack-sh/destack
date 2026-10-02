@@ -5,3 +5,5 @@ export * from "./version/index.ts";
 export * from "./time/index.ts";
 export * from "./digest/index.ts";
 export * from "./json/index.ts";
+export * from "./collection/index.ts";
+export * from "./presence/index.ts";

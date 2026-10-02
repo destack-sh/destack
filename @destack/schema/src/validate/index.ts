@@ -30,7 +30,6 @@ export {
     ipv4,
     ipv6,
     iso,
-    json,
     jwt,
     keyof,
     ksuid,
@@ -63,17 +62,14 @@ export {
     uuidv7,
     xid,
     xor,
+    ZodObject as Object,
     ZodType as Schema,
 } from "zod";
 export { ZodError as Error } from "zod";
-export type {
-    input as Input,
-    output as Output,
-    ZodObject as Object,
-    ZodOptional as Optional,
-} from "zod";
+export type { input as Input, output as Output, ZodOptional as Optional } from "zod";
 export type { infer as Infer } from "zod";
 export type { $ZodIssue as Issue } from "zod/v4/core";
 export { flattenError, prettifyError, treeifyError } from "zod";
 export { isSensitive, redact, sensitive } from "./sensitive.ts";
 export { defined } from "./defined.ts";
+export { json } from "./json.ts";
