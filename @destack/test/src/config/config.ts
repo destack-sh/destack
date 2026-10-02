@@ -6,13 +6,16 @@ import * as vitest from "vitest/config";
 import type { UserWorkspaceConfig, ViteUserConfig } from "vitest/config";
 import type { Plugin } from "vite";
 import { modulePlugin } from "@destack/package/transform/vite";
+import { schema } from "@destack/schema";
 
 /** How often `expect.poll` rechecks, in milliseconds: a local sync round trip takes a few, so the default 50 only adds idle waiting. */
 const POLL = { poll: { interval: 5 } };
 
+/** The workspace patterns of a package.json. */
+const Manifest = schema.looseObject({ workspaces: schema.array(schema.string()).exactOptional() });
+
 /** Define a test configuration whose package sources receive Destack module metadata. */
-/* oxlint-disable-next-line destack/prevent-abbreviations -- mirrors the vitest defineConfig export */
-export function defineConfig(configuration: ViteUserConfig): ViteUserConfig {
+export function defineConfiguration(configuration: ViteUserConfig): ViteUserConfig {
     return vitest.defineConfig({
         ...configuration,
         test: { fsModuleCache: true, expect: POLL, ...configuration.test },
@@ -45,17 +48,16 @@ function cachePlugin(): Plugin {
 function definitions(): string {
     // find the workspace root listing the packages
     let root = process.cwd();
-    while (!isWorkspace(root)) {
+    let workspaces = readWorkspaces(root);
+    while (workspaces === undefined) {
         if (dirname(root) === root) {
             throw new TypeError(`no workspace above ${process.cwd()}`);
         }
         root = dirname(root);
+        workspaces = readWorkspaces(root);
     }
 
     // read each package's destack.json and package.json, skipping dependencies and hidden directories
-    const workspaces = (
-        JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as { workspaces: string[] }
-    ).workspaces;
     const packages = globSync(
         workspaces.flatMap((pattern) => [
             `${pattern}/**/destack.json`,
@@ -72,7 +74,7 @@ function definitions(): string {
         fileURLToPath(import.meta.resolve("@destack/package/transform/vite")),
     );
     const sources = globSync("*.ts", { cwd: transform }).map((file) => join(transform, file));
-    const files = [...packages, ...sources].sort();
+    const files = [...packages, ...sources].toSorted();
 
     // hash each file's path and content
     const hash = createHash("sha256");
@@ -83,9 +85,12 @@ function definitions(): string {
     return hash.digest("hex");
 }
 
-/** Report whether a directory's package.json lists workspaces. */
-function isWorkspace(directory: string): boolean {
+/** Read the workspace patterns a directory's package.json lists, if it lists any. */
+function readWorkspaces(directory: string): string[] | undefined {
     const file = join(directory, "package.json");
+    if (!existsSync(file)) {
+        return undefined;
+    }
 
-    return existsSync(file) && "workspaces" in JSON.parse(readFileSync(file, "utf8"));
+    return Manifest.parse(JSON.parse(readFileSync(file, "utf8"))).workspaces;
 }

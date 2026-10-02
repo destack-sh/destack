@@ -5,6 +5,7 @@ export {
     beforeEach,
     describe,
     expect,
+    expectTypeOf,
     onTestFailed,
     onTestFinished,
     test,

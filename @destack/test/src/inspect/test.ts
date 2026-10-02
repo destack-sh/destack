@@ -14,9 +14,9 @@ export const LocationDescription = defineSchema(
 /** A reported execution error. */
 export const ErrorDescription = defineSchema(
     schema.object({
-        name: schema.string().optional(),
+        name: schema.string().exactOptional(),
         message: schema.string(),
-        stack: schema.string().optional(),
+        stack: schema.string().exactOptional(),
     }),
 );
 /** A test's execution outcome. */
@@ -24,7 +24,7 @@ export const ResultDescription = defineSchema(
     schema.object({
         state: schema.enum(["pending", "passed", "failed", "skipped"]),
         errors: schema.array(ErrorDescription),
-        note: schema.string().optional(),
+        note: schema.string().exactOptional(),
     }),
 );
 /** Execution measurements supplied by the runner. */
@@ -32,7 +32,7 @@ export const DiagnosticDescription = defineSchema(
     schema.object({
         duration: schema.number(),
         startTime: schema.number(),
-        heap: schema.number().optional(),
+        heap: schema.number().exactOptional(),
         slow: schema.boolean(),
         retryCount: schema.number().int(),
         repeatCount: schema.number().int(),
@@ -51,7 +51,7 @@ export const OutputDescription = defineSchema(
 const DeclarationDescription = schema.object({
     id: schema.string(),
     name: schema.string(),
-    location: LocationDescription.optional(),
+    location: LocationDescription.exactOptional(),
     metadata: schema.record(schema.string(), schema.json()),
     logs: schema.array(OutputDescription),
 });
@@ -63,7 +63,7 @@ export const TestDescription = defineSchema(
         tags: schema.array(schema.string()),
         mode: schema.enum(["run", "only", "skip", "todo"]),
         result: ResultDescription,
-        diagnostic: DiagnosticDescription.optional(),
+        diagnostic: DiagnosticDescription.exactOptional(),
         annotations: schema.array(AnnotationDescription),
         artifacts: schema.array(ArtifactDescription),
     }),
@@ -126,10 +126,13 @@ export function describeTest(test: TestCase): TestDescription {
 
 /** Describe a collected suite and its nested cases. */
 export function describeSuite(suite: TestSuite): SuiteDescription {
+    // keep the location only when the runner recorded one
+    const location = suite.location;
+
     return {
         id: suite.id,
         name: suite.name,
-        location: suite.location,
+        ...(location === undefined ? {} : { location }),
         state: suite.state(),
         errors: suite.errors().map(describeError),
         metadata: describeMetadata(suite.meta()),
@@ -156,7 +159,14 @@ export function describeModule(module: TestModule): ModuleDescription {
 
 /** Retain standard error fields from the runner's serialized errors. */
 function describeError(error: { name?: string; message: string; stack?: string }) {
-    return { name: error.name, message: error.message, stack: error.stack };
+    // keep the name and stack only when the error has them
+    const { name, message, stack } = error;
+
+    return {
+        ...(name === undefined ? {} : { name }),
+        message,
+        ...(stack === undefined ? {} : { stack }),
+    };
 }
 
 /** Copy captured output into the portable log shape. */

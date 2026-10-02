@@ -1,4 +1,3 @@
-export { createVitest as createRunner, startVitest as startRunner } from "vitest/node";
 export type {
     Reporter,
     TestCase,

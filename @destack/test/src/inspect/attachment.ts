@@ -5,10 +5,10 @@ import { Buffer } from "node:buffer";
 /** An attachment stored inline or at a path. */
 export const AttachmentDescription = defineSchema(
     schema.object({
-        contentType: schema.string().optional(),
-        path: schema.string().optional(),
-        body: schema.string().optional(),
-        bodyEncoding: schema.enum(["base64", "utf-8"]).optional(),
+        contentType: schema.string().exactOptional(),
+        path: schema.string().exactOptional(),
+        body: schema.string().exactOptional(),
+        bodyEncoding: schema.enum(["base64", "utf-8"]).exactOptional(),
     }),
 );
 /** A portable attachment. */
@@ -28,8 +28,8 @@ export const AnnotationDescription = defineSchema(
     schema.object({
         message: schema.string(),
         type: schema.string(),
-        location: SourceDescription.optional(),
-        attachment: AttachmentDescription.optional(),
+        location: SourceDescription.exactOptional(),
+        attachment: AttachmentDescription.exactOptional(),
     }),
 );
 /** A portable annotation. */
@@ -39,7 +39,7 @@ export type AnnotationDescription = schema.Infer<typeof AnnotationDescription>;
 export const ArtifactDescription = defineSchema(
     schema.object({
         type: schema.string(),
-        location: SourceDescription.optional(),
+        location: SourceDescription.exactOptional(),
         attachments: schema.array(AttachmentDescription),
         properties: schema.record(schema.string(), schema.json()),
     }),
@@ -74,11 +74,18 @@ export function describeAnnotation(annotation: TestAnnotation): AnnotationDescri
 export function describeAttachment(
     attachment: NonNullable<TestAnnotation["attachment"]>,
 ): AttachmentDescription {
+    // encode a binary body as base64 and keep only the fields the attachment has
     const body =
         attachment.body instanceof Uint8Array
             ? Buffer.from(attachment.body).toString("base64")
             : attachment.body;
     const bodyEncoding = attachment.body instanceof Uint8Array ? "base64" : attachment.bodyEncoding;
+    const { contentType, path } = attachment;
 
-    return { contentType: attachment.contentType, path: attachment.path, body, bodyEncoding };
+    return {
+        ...(contentType === undefined ? {} : { contentType }),
+        ...(path === undefined ? {} : { path }),
+        ...(body === undefined ? {} : { body }),
+        ...(bodyEncoding === undefined ? {} : { bodyEncoding }),
+    };
 }
