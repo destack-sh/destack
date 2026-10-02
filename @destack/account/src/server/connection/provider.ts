@@ -1,3 +1,4 @@
+import type { Identifier } from "@destack/schema";
 import type { Subject } from "@destack/sync";
 
 /** An external service accounts connect to. */
@@ -68,23 +69,23 @@ export interface ConnectionRevocation {
 export interface Vault {
     /** Keep a credential as a secret. */
     write(secret: {
-        readonly id: string;
-        readonly spaceId: string;
-        readonly vaultId: string;
+        readonly id: Identifier<"secret">;
+        readonly spaceId: Identifier<"space">;
+        readonly vaultId: Identifier<"vault">;
         readonly name: string;
         readonly value: string;
         readonly subject: Subject;
     }): Promise<void>;
     /** Read the current value of a secret. */
     read(secret: {
-        readonly spaceId: string;
-        readonly secretId: string;
+        readonly spaceId: Identifier<"space">;
+        readonly secretId: Identifier<"secret">;
         readonly subject: Subject;
     }): Promise<string>;
     /** Destroy a secret. */
     destroy(secret: {
-        readonly spaceId: string;
-        readonly secretId: string;
+        readonly spaceId: Identifier<"space">;
+        readonly secretId: Identifier<"secret">;
         readonly subject?: Subject;
     }): Promise<void>;
 }

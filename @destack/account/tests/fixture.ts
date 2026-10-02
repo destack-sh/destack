@@ -413,26 +413,16 @@ export class MemoryProvider implements ConnectionProvider {
 /** Vaults holding secrets in memory, as the account service reaches them. */
 export class MemoryVault implements Vault {
     /** The held secrets, by identifier. */
-    readonly secrets = new Map<
-        string,
-        { spaceId: string; vaultId: string; name: string; value: string; subject: Subject }
-    >();
+    readonly secrets = new Map<string, Omit<Parameters<Vault["write"]>[0], "id">>();
 
     /** Keep a secret under its identifier. */
-    async write(secret: {
-        readonly id: string;
-        readonly spaceId: string;
-        readonly vaultId: string;
-        readonly name: string;
-        readonly value: string;
-        readonly subject: Subject;
-    }): Promise<void> {
+    async write(secret: Parameters<Vault["write"]>[0]): Promise<void> {
         const { id, ...held } = secret;
-        this.secrets.set(identifier("secret").parse(id), held);
+        this.secrets.set(id, held);
     }
 
     /** Read a held secret of a space. */
-    async read(secret: { readonly spaceId: string; readonly secretId: string }): Promise<string> {
+    async read(secret: Parameters<Vault["read"]>[0]): Promise<string> {
         const held = this.secrets.get(secret.secretId);
         if (held === undefined || held.spaceId !== secret.spaceId) {
             throw new Error("secret not found");
@@ -442,7 +432,7 @@ export class MemoryVault implements Vault {
     }
 
     /** Forget a held secret. */
-    async destroy(secret: { readonly secretId: string }): Promise<void> {
+    async destroy(secret: Parameters<Vault["destroy"]>[0]): Promise<void> {
         this.secrets.delete(secret.secretId);
     }
 }

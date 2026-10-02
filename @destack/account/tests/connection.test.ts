@@ -1,5 +1,5 @@
 import { eq } from "@destack/db";
-import { ResourceId } from "@destack/resource";
+import { identifier } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
 import { expect, test } from "@destack/test";
 import { v7 } from "uuid";
@@ -13,7 +13,7 @@ test("authorize, complete and revoke oauth connections", async () => {
     await using fixture = await AccountFixture.open();
     const owner = await fixture.signIn("owner@example.com");
     const { accountId, spaceId } = await fixture.createSpace(owner);
-    const vaultId = ResourceId.parse(`resource-${v7()}`);
+    const vaultId = identifier("vault").parse(`vault-${v7()}`);
     const github = fixture.providers.get("github")!;
 
     // start an authorization with its state and PKCE challenge on the provider page
@@ -141,7 +141,11 @@ test("connect installations without vaulted credentials", async () => {
     // refuse a vault for an installation, and an unknown provider
     const refusals = await Promise.all(
         [
-            { provider: "github-app", secretSpaceId: spaceId, vaultId: `resource-${v7()}` },
+            {
+                provider: "github-app",
+                secretSpaceId: spaceId,
+                vaultId: identifier("vault").parse(`vault-${v7()}`),
+            },
             { provider: "gitlab" },
         ].map((input) =>
             owner.client.connection

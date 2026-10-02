@@ -1,5 +1,4 @@
 import { principal } from "@destack/access";
-import { ResourceId } from "@destack/resource";
 import { check, foreignKey, index, sql, unique, uniqueIndex, type Select } from "@destack/db";
 import { defineObject, field, method } from "@destack/object";
 import { identifier, schema } from "@destack/schema";
@@ -48,7 +47,7 @@ export const connection = defineObject({
         /** The space whose vault holds an OAuth credential. */
         secretSpaceId: field.string(identifier("space")).optional(),
         /** The vault in the secret space holding an OAuth credential. */
-        vaultId: field.string(ResourceId).optional(),
+        vaultId: field.string(identifier("vault")).optional(),
         /** The secret holding an OAuth credential. */
         secretId: field.string(identifier("secret")).optional(),
         /** The provider page where the user authorizes the application, while pending. */
