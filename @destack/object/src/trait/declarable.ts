@@ -154,7 +154,7 @@ export function detach<const Permission extends string>(
             input: shapes.target.extend({ ...shapes.replay, ...RevisionShape }),
             output: shapes.row,
         }),
-        effect: (call) => call.revise({ detachedAt: call.now }),
+        effect: (call) => call.update({ detachedAt: call.now }),
         async execute(call) {
             // require an object its declaration still manages
             if (!Manager.isManaging(call.target)) {

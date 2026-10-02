@@ -318,7 +318,7 @@ async function restore(call: Call): Promise<Record<string, unknown>> {
         });
     }
 
-    return call.revise({ deletionRequestedAt: null, deletedBy: null });
+    return call.update({ deletionRequestedAt: null, deletedBy: null });
 }
 
 /** Purge an object in the trash: mark a kept record purged, else remove it. */
@@ -334,7 +334,7 @@ async function purge(call: Call): Promise<Record<string, never>> {
 
     // mark a kept record purged
     if (object.recoverable!.keep === "record") {
-        await call.revise({ purgedAt: call.now });
+        await call.update({ purgedAt: call.now });
     }
     // remove the object at the loaded revision
     else {

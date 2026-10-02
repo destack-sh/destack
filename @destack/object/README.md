@@ -89,7 +89,7 @@ const note = defineObject({
 
 ```ts
 export const note = base.note.handle({
-    archive: (call) => call.revise({ archivedAt: call.now }),
+    archive: (call) => call.update({ archivedAt: call.now }),
     update: async (call, next) => {
         const row = await next();
         await index(call.database, row);

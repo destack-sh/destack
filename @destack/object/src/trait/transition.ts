@@ -94,7 +94,7 @@ function transitionMethod(
             input: shapes.target.extend(shapes.replay),
             output: shapes.row,
         }),
-        effect: (call) => call.revise({ [field]: transition.to }),
+        effect: (call) => call.update({ [field]: transition.to }),
         async execute(call) {
             // refuse transitions from any other state
             const state = (call.target as Record<string, unknown>)[field] as string;

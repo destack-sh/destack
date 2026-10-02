@@ -29,6 +29,12 @@ export const CHUNK_CHARACTERS = 512;
 /** The characters a split leaves in each chunk: three quarters full, with room to type into one row. */
 const FILL_CHARACTERS = (CHUNK_CHARACTERS * 3) / 4;
 
+/** The rows presented before, by the read row, which a dataflow keeps while it is unchanged. */
+const PRESENTED_ROWS = new WeakMap<object, Readonly<Record<string, unknown>>>();
+
+/** The lists presented before, by the read list, which a dataflow keeps while every row is unchanged. */
+const PRESENTED_LISTS = new WeakMap<object, readonly Readonly<Record<string, unknown>>[]>();
+
 /** The owner permission whose holders read its text. */
 export const TEXT_READ = "text";
 
@@ -183,35 +189,29 @@ export const Chunk = {
         );
     },
 
-    /** Replace each row's chunks by its texts, through a query's includes. */
+    /** Replace each row's chunks by its texts, through a query's includes, presenting an unchanged row or list as before. */
     present(
         rows: readonly Readonly<Record<string, unknown>>[],
         query: Presented,
         objects: readonly ObjectType[],
-    ): Record<string, unknown>[] {
+    ): readonly Readonly<Record<string, unknown>>[] {
+        // take a list presented before
+        const known = PRESENTED_LISTS.get(rows);
+        if (known !== undefined) {
+            return known;
+        }
+
+        // present each row once
         const owner = objects.find((object) => object.table === query.table);
+        const listed = rows.map((row) => {
+            const presented = PRESENTED_ROWS.get(row) ?? presentRow(row, query, objects, owner);
+            PRESENTED_ROWS.set(row, presented);
 
-        return rows.map((row) => {
-            // present each nested include's rows
-            const presented: Record<string, unknown> = { ...row };
-            for (const [name, include] of Object.entries(query.include ?? {})) {
-                const value = row[name];
-                if (name === CHUNKS || include.aggregate !== undefined || value === null) {
-                    continue;
-                }
-                presented[name] = Array.isArray(value)
-                    ? Chunk.present(value as Record<string, unknown>[], include, objects)
-                    : Chunk.present([value as Record<string, unknown>], include, objects)[0];
-            }
-
-            // assemble the owner's texts
-            if (owner === undefined || owner.text.length === 0) {
-                return presented;
-            }
-            const { [CHUNKS]: chunks, ...rest } = presented;
-
-            return { ...rest, ...Chunk.text(owner, chunks as ChunkRow[]) };
+            return presented;
         });
+        PRESENTED_LISTS.set(rows, listed);
+
+        return listed;
     },
 
     /** Apply a call's edits to one text field, writing the changed chunks. */
@@ -581,4 +581,32 @@ function holds(piece: Run, element: Element): boolean {
         element.offset >= piece.start &&
         element.offset < piece.start + Sequence.length(piece)
     );
+}
+
+/** Present one row's includes and texts. */
+function presentRow(
+    row: Readonly<Record<string, unknown>>,
+    query: Presented,
+    objects: readonly ObjectType[],
+    owner: ObjectType | undefined,
+): Readonly<Record<string, unknown>> {
+    // present each nested include's rows
+    const presented: Record<string, unknown> = { ...row };
+    for (const [name, include] of Object.entries(query.include ?? {})) {
+        const value = row[name];
+        if (name === CHUNKS || include.aggregate !== undefined || value === null) {
+            continue;
+        }
+        presented[name] = Array.isArray(value)
+            ? Chunk.present(value as Record<string, unknown>[], include, objects)
+            : Chunk.present([value as Record<string, unknown>], include, objects)[0];
+    }
+
+    // assemble the owner's texts
+    if (owner === undefined || owner.text.length === 0) {
+        return presented;
+    }
+    const { [CHUNKS]: chunks, ...rest } = presented;
+
+    return { ...rest, ...Chunk.text(owner, chunks as ChunkRow[]) };
 }

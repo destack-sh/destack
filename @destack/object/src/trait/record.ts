@@ -303,7 +303,7 @@ export function update<
             }),
             output: shapes.row,
         }),
-        effect: (call) => call.revise((call.object.table as Table).decode(call.input)),
+        effect: (call) => call.update((call.object.table as Table).decode(call.input)),
         inverse: (step) => {
             // restore fields unchanged since
             const current = step.current;
@@ -720,7 +720,7 @@ async function deleteObject(call: Call): Promise<Record<string, never>> {
 
     // request deletion when a trash or controller finishes it
     if (Object.hasOwn(table[TABLE].columns, "deletionRequestedAt")) {
-        await call.revise({
+        await call.update({
             deletionRequestedAt: call.now,
             deletedBy: call.caller === undefined ? null : Subject.key(call.caller),
         });

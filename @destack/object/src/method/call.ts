@@ -448,8 +448,8 @@ export class Call<Definition extends Table = Table> {
         await this.sends.append(RUNS, requestId, message, this.database);
     }
 
-    /** Update the target's desired state at the loaded revision. */
-    async revise(changes: Readonly<Record<string, unknown>>): Promise<Record<string, unknown>> {
+    /** Update the target's desired state at the loaded revision, advancing a controlled target's generation. */
+    async update(changes: Readonly<Partial<Select<Definition>>>): Promise<Select<Definition>> {
         // advance the generation of a controlled target
         const target = this.target as Record<string, unknown>;
         const generation = this.object.isControlled
@@ -460,7 +460,9 @@ export class Call<Definition extends Table = Table> {
     }
 
     /** Update the target's observed state at the loaded revision and generation. */
-    async observe(changes: Readonly<Record<string, unknown>>): Promise<Record<string, unknown>> {
+    async updateStatus(
+        changes: Readonly<Partial<Select<Definition>>>,
+    ): Promise<Select<Definition>> {
         return this.#write(changes);
     }
 
@@ -481,7 +483,7 @@ export class Call<Definition extends Table = Table> {
     }
 
     /** Write changes to the target at the loaded revision. */
-    async #write(changes: Readonly<Record<string, unknown>>): Promise<Record<string, unknown>> {
+    async #write(changes: Readonly<Partial<Select<Definition>>>): Promise<Select<Definition>> {
         // update at the loaded revision
         const table = this.object.table as Table & Record<string, never>;
         const target = this.target as Record<string, unknown>;
@@ -494,7 +496,7 @@ export class Call<Definition extends Table = Table> {
                 updatedBy: this.caller === undefined ? null : Subject.key(this.caller),
             } as Partial<Insert<Table>>)
             .where(and(eq(table.id, target.id), eq(table.revision, target.revision)))
-            .returning()) as Record<string, unknown>[];
+            .returning()) as Select<Definition>[];
         if (!row) {
             throw new ServiceError("CONFLICT", {
                 message: `${this.object.name} revision has changed`,

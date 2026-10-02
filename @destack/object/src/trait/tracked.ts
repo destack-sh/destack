@@ -173,7 +173,7 @@ function revertMethod(permission: string): Method {
                     .map((name) => [name, row[name]]),
             );
 
-            return Object.keys(changes).length === 0 ? target : call.revise(changes);
+            return Object.keys(changes).length === 0 ? target : call.update(changes);
         },
         inverse: (step) => {
             // restore reverted fields unchanged since

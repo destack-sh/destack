@@ -1291,7 +1291,7 @@ export class ObjectClient {
     }
 
     /** Read a query's rows from the local copy. */
-    async #rows(name: string, query: sync.Query): Promise<Row[]> {
+    async #rows(name: string, query: sync.Query): Promise<readonly Row[]> {
         const dataflow = new sync.Dataflow(
             { [name]: await this.#read(query) },
             {

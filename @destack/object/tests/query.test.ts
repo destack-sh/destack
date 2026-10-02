@@ -575,3 +575,46 @@ test("compile includes of a handled tree and its parent like the declared types"
         { kind: "key", column: "parentId", parent: "id" },
     ]);
 });
+
+test("watch a query keeping each unchanged row as the same object after another row changes", async () => {
+    const { endpoint } = await serveNotes("sqlite");
+    const device = await Device.open("alice", endpoint("alice"), []);
+
+    // predict a notebook with three notes, and watch them by title
+    const created = device.client.mutation(async (mutation) => {
+        const book = await mutation.call(notebook).create({ name: "Kitchen" });
+        const ids: string[] = [];
+        for (const title of ["Apples", "Bread", "Cheese"]) {
+            ids.push((await mutation.call(note).create({ parentId: book.id, title })).id);
+        }
+
+        return ids;
+    });
+    const [apples] = await created.predicted;
+    const stop = new AbortController();
+    onTestFinished(() => stop.abort());
+    const watched = device.client
+        .subscribe(note, { order: [{ column: "title", direction: "asc" }] })
+        .watch(stop.signal);
+    const next = async () => {
+        const read = await watched.next();
+        if (read.done === true) {
+            throw new Error("the watch ended");
+        }
+
+        return read.value;
+    };
+    const initial = await next();
+
+    // rename the first note past the others
+    await device.client.mutate(note).update({ id: apples!, title: "Dates" }).predicted;
+    const renamed = await next();
+
+    // keep the two unchanged notes as the same objects, and present the renamed one anew
+    expect([
+        renamed.map((row) => row.title),
+        renamed[0] === initial[1],
+        renamed[1] === initial[2],
+        renamed[2] === initial[0],
+    ]).toEqual([["Bread", "Cheese", "Dates"], true, true, false]);
+});

@@ -208,7 +208,7 @@ function move<const Permission extends string>(
             }),
             output: shapes.row,
         }),
-        effect: (call) => call.revise(call.parentColumns()),
+        effect: (call) => call.update(call.parentColumns()),
         inverse: (step) => {
             // move back under the former parent
             const before = step.before;

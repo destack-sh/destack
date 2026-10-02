@@ -63,7 +63,7 @@ const observe = method({ permission: null, isSystem: true, input: Observation })
         );
 
         // write the observed state
-        return call.observe({
+        return call.updateStatus({
             ...(call.object.table as Table).decode(fields ?? {}),
             observedGeneration,
             conditions: { ...target.conditions, ...merged },

@@ -33,7 +33,7 @@ const reminder = defineObject({
     methods: {
         create: method.create("write", { fields: ["topic", "dueAt"] }),
         send: method({ permission: null, isSystem: true }).handle((call) =>
-            call.revise({ sentAt: call.now }),
+            call.update({ sentAt: call.now }),
         ),
     },
     controller: {
