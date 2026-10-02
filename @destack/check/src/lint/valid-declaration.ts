@@ -4,12 +4,16 @@ import type { ESTree, Rule } from "@oxlint/plugins";
 import { PackageLocator } from "@destack/package/transform";
 import { isPackageFile } from "./package.ts";
 import { isTestFile } from "./word.ts";
+import { schema } from "@destack/schema";
 
 /** Package names found for linted directories, absent above the filesystem root. */
 const PACKAGE_NAMES = new Map<string, string | undefined>();
 
 /** A bare import specifier's package name, scoped or not. */
-const PACKAGE_NAME = /^(?:@[^/]+\/)?[^/]+/;
+const PACKAGE_NAME = /^(?:@[^/]+\/)?[^/]+/u;
+
+/** The name field of a package.json. */
+const Manifest = schema.looseObject({ name: schema.string().exactOptional() });
 
 /** Require declarations to be exported module constants that inspection can find. */
 export const validDeclaration: Rule = {
@@ -96,7 +100,7 @@ function packageName(directory: string): string | undefined {
     const manifest = join(directory, "package.json");
     const parent = dirname(directory);
     const name = existsSync(manifest)
-        ? (JSON.parse(readFileSync(manifest, "utf8")).name as string)
+        ? Manifest.parse(JSON.parse(readFileSync(manifest, "utf8"))).name
         : parent === directory
           ? undefined
           : packageName(parent);

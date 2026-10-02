@@ -24,7 +24,7 @@ export const noManifestImport: Rule = {
                 // match manifest files imported from source modules
                 const file = node.source.value.split("/").at(-1);
                 if (
-                    /[\\/]src[\\/]/.test(context.filename) &&
+                    /[\\/]src[\\/]/u.test(context.filename) &&
                     !isTestFile(context.filename) &&
                     (file === "destack.json" || file === "package.json")
                 ) {

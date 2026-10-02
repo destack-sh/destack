@@ -13,7 +13,7 @@ const errorConstructors = new Set([
 ]);
 
 /** A failure code, such as NOT_FOUND, that coded error constructors take before their message. */
-const CODE = /^[A-Z][A-Z0-9_]*$/;
+const CODE = /^[A-Z][A-Z0-9_]*$/u;
 
 /** The service failure constructor whose options carry the message. */
 const SERVICE_ERROR = "ServiceError";
@@ -34,18 +34,23 @@ export const errorMessageStyle: Rule = {
         /** Report an interpolated message whose first text starts uppercase or whose last text ends with a period. */
         function checkTemplate(message: ESTree.TemplateLiteral): void {
             // read the text before the first and after the last interpolation
-            const first = message.quasis[0]!;
-            const last = message.quasis.at(-1)!;
-            const isUpper = /^[A-Z][a-z]+(?:\s|[.!?:]|$)/.test(first.value.raw);
-            const isEnded = /(?:^|[^.])\.$/.test(last.value.raw);
+            const [first] = message.quasis;
+            const last = message.quasis.at(-1);
+            if (first === undefined || last === undefined) {
+                throw new TypeError("a template literal has no text");
+            }
+            const isUpper = /^[A-Z][a-z]+(?:\s|[.!?:]|$)/u.test(first.value.raw);
+            const isEnded = /(?:^|[^.])\.$/u.test(last.value.raw);
             if (!isUpper && !isEnded) {
                 return;
             }
 
             // lowercase the first word and drop the final period in the source text
             const source = context.sourceCode.getText(message);
-            const lowered = isUpper ? `\`${source[1]!.toLowerCase()}${source.slice(2)}` : source;
-            const corrected = isEnded ? lowered.replace(/(?<=[^.])\.`$/, "`") : lowered;
+            const lowered = isUpper
+                ? `\`${source.charAt(1).toLowerCase()}${source.slice(2)}`
+                : source;
+            const corrected = isEnded ? lowered.replace(/(?<=[^.])\.`$/u, "`") : lowered;
             context.report({
                 node: message,
                 messageId: "style",
@@ -67,17 +72,17 @@ export const errorMessageStyle: Rule = {
                 message?.type === "Literal" && typeof message.value === "string"
                     ? message.value
                     : message?.type === "TemplateLiteral" && message.expressions.length === 0
-                      ? message.quasis[0].value.cooked
+                      ? message.quasis[0]?.value.cooked
                       : undefined;
             if (message === null || message === undefined || text === undefined || text === null) {
                 return;
             }
 
             // lowercase the first word and drop the final period
-            if (/^[A-Z][a-z]+(?:\s|[.!?]|$)/.test(text) || /[^.]\.$/.test(text)) {
+            if (/^[A-Z][a-z]+(?:\s|[.!?]|$)/u.test(text) || /[^.]\.$/u.test(text)) {
                 const corrected = text
-                    .replace(/^[A-Z](?=[a-z]+(?:\s|[.!?]|$))/, (letter) => letter.toLowerCase())
-                    .replace(/(?<=[^.])\.$/, "");
+                    .replace(/^[A-Z](?=[a-z]+(?:\s|[.!?]|$))/u, (letter) => letter.toLowerCase())
+                    .replace(/(?<=[^.])\.$/u, "");
                 context.report({
                     node: message,
                     messageId: "style",
@@ -93,7 +98,7 @@ export const errorMessageStyle: Rule = {
                 context.sourceCode.getScope(node);
             while (scope) {
                 const variable = scope.set.get(name);
-                if (variable?.defs.length) {
+                if (variable !== undefined && variable.defs.length > 0) {
                     return true;
                 }
                 scope = scope.upper;

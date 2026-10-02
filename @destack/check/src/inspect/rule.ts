@@ -26,7 +26,7 @@ export function inspectRules(plugins: readonly Plugin[] = []): RuleDescription[]
     for (const provider of providers) {
         for (const [name, rule] of Object.entries(provider.rules)) {
             const description = rule.meta?.docs?.description;
-            if (!description) {
+            if (description === undefined || description === "") {
                 throw new CheckError(
                     "configuration",
                     `missing rule description: ${provider.name}/${name}`,

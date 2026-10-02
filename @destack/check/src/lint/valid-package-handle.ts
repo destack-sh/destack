@@ -18,7 +18,7 @@ export const validPackageHandle: Rule = {
             return {};
         }
 
-        const isHandleModule = /[\\/]src[\\/]package\.ts$/.test(context.filename);
+        const isHandleModule = /[\\/]src[\\/]package\.ts$/u.test(context.filename);
 
         return {
             CallExpression(node) {

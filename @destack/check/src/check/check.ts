@@ -1,4 +1,5 @@
 import { mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
@@ -9,6 +10,10 @@ import { CheckResult, type Diagnostic } from "../inspect/diagnostic.ts";
 import { checkMarkdown, fixMarkdown } from "../markdown/index.ts";
 import { CheckError } from "../error/index.ts";
 import type { Plugin } from "../lint/plugin.ts";
+import { schema } from "@destack/schema";
+
+/** The diagnostics of an oxlint JSON report. */
+const Report = schema.looseObject({ diagnostics: schema.unknown() });
 
 /** Source selection for a package check. */
 export interface CheckOptions {
@@ -38,8 +43,15 @@ async function lintPackage(options: CheckOptions, fix: boolean): Promise<CheckRe
     const directory = resolve(options.directory);
     await checkConfiguration(directory, options.plugins);
 
-    // check Markdown separately and lint the remaining selection with Oxc
+    // require every selected path
     const selection = options.files ?? ["src"];
+    for (const entry of selection) {
+        if (!existsSync(resolve(directory, entry))) {
+            throw new CheckError("configuration", `selected path does not exist: ${entry}`);
+        }
+    }
+
+    // check Markdown separately and lint the remaining selection with Oxc
     const markdown = await checkMarkdownFiles(directory, selection, fix);
     const sources: string[] = [];
     for (const entry of selection) {
@@ -93,7 +105,7 @@ async function checkMarkdownFiles(
 /** Report whether a selected file or directory contains JavaScript or TypeScript sources. */
 async function hasSources(path: string): Promise<boolean> {
     // match a selected file directly and search a selected directory outside dependencies
-    const pattern = /\.[cm]?[jt]sx?$/;
+    const pattern = /\.[cm]?[jt]sx?$/u;
     if (!(await stat(path)).isDirectory()) {
         return pattern.test(path);
     }
@@ -162,7 +174,7 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
         }
 
         // decode the tool response and reject unexplained failures
-        let report;
+        let report: unknown;
         try {
             report = JSON.parse(output.stdout);
         } catch (error) {
@@ -170,7 +182,8 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
                 cause: error,
             });
         }
-        const result = CheckResult.parse({ diagnostics: report.diagnostics });
+        const { diagnostics } = Report.parse(report);
+        const result = CheckResult.parse({ diagnostics });
         if (output.code !== 0 && result.diagnostics.length === 0) {
             throw new CheckError(
                 "tool",

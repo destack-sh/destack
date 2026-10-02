@@ -1,10 +1,10 @@
 import type { Rule } from "@oxlint/plugins";
 
 /** Keywords that mark notes and their required tags. */
-const KEYWORD = /^(?:NOTE|TODO|FUGU)\b/;
+const KEYWORD = /^(?:NOTE|TODO|FUGU)\b/u;
 /** A keyword followed by one of the documented tags. */
 const TAGGED =
-    /^(?:NOTE|TODO|FUGU) #(?:Performance|Robustness|Broken|Cleanup|Incomplete|Suspicious|Security|Architecture)\b/;
+    /^(?:NOTE|TODO|FUGU) #(?:Performance|Robustness|Broken|Cleanup|Incomplete|Suspicious|Security|Architecture)\b/u;
 
 /** Require short lowercase line comments in the Destack style. */
 export const commentStyle: Rule = {
@@ -33,14 +33,14 @@ export const commentStyle: Rule = {
                     previousLine = comment.type === "Line" ? comment.loc.end.line : -1;
                     if (
                         comment.type !== "Line" ||
-                        /^(?:\/|#|!|\s*@ts-|\s*=+|\s*(?:oxlint|eslint|region|endregion)\b)/.test(
+                        /^(?:\/|#|!|\s*@ts-|\s*=+|\s*(?:oxlint|eslint|region|endregion)\b)/u.test(
                             value,
                         )
                     ) {
                         continue;
                     }
                     const loc = comment.loc;
-                    const range = comment.range as [number, number];
+                    const range = comment.range;
 
                     // require a leading space and an extra one on continued lines
                     if (!value.startsWith(" ")) {
@@ -57,19 +57,19 @@ export const commentStyle: Rule = {
                     }
 
                     // require tagged keywords, lowercase prose and no final period
-                    const firstWord = text.split(/\s/)[0];
+                    const firstWord = text.replace(/\s.*$/su, "");
                     if (KEYWORD.test(text)) {
                         if (!TAGGED.test(text)) {
                             context.report({ loc, messageId: "tag" });
                         }
-                    } else if (/^[A-Z]/.test(text) && !isIdentifier(firstWord)) {
+                    } else if (/^[A-Z]/u.test(text) && !isIdentifier(firstWord)) {
                         context.report({
                             loc,
                             messageId: "lowercase",
                             fix: (fixer) =>
                                 fixer.replaceTextRange(
                                     range,
-                                    `// ${text[0].toLowerCase()}${text.slice(1)}`,
+                                    `// ${text.charAt(0).toLowerCase()}${text.slice(1)}`,
                                 ),
                         });
                     }
@@ -83,7 +83,7 @@ export const commentStyle: Rule = {
                     }
 
                     // prefer colons and commas over dashes between clauses
-                    if (/\s[-–—]\s/.test(text)) {
+                    if (/\s[-–—]\s/u.test(text)) {
                         context.report({ loc, messageId: "dash" });
                     }
                 }
@@ -95,6 +95,6 @@ export const commentStyle: Rule = {
 /** Report whether a word names code, like SpaceService, HTTP or Server.start. */
 function isIdentifier(word: string): boolean {
     return (
-        /^[A-Z][a-z0-9]*[A-Z]/.test(word) || /^[A-Z0-9]{2,}\b/.test(word) || /[._(`<]/.test(word)
+        /^[A-Z][a-z0-9]*[A-Z]/u.test(word) || /^[A-Z0-9]{2,}\b/u.test(word) || /[._(`<]/u.test(word)
     );
 }

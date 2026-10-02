@@ -14,12 +14,11 @@ export const branchCommentPosition: Rule = {
             if (block?.type !== "BlockStatement") {
                 return;
             }
-            const first = context.sourceCode.getTokenAfter(
-                context.sourceCode.getFirstToken(block)!,
-                {
-                    includeComments: true,
-                },
-            );
+            const opening = context.sourceCode.getFirstToken(block);
+            if (opening === null) {
+                throw new TypeError("a block statement has no opening brace");
+            }
+            const first = context.sourceCode.getTokenAfter(opening, { includeComments: true });
             if (first && (first.type === "Line" || first.type === "Block")) {
                 context.report({ loc: first.loc, messageId: "position" });
             }

@@ -51,16 +51,18 @@ export const requireBlockComment: Rule = {
 
 /** Report whether a statement is an early exit guard. */
 function isGuard(statement: ESTree.Statement): boolean {
+    // read the statements of an if without else
     const exit =
         statement.type === "IfStatement" && statement.alternate === null
             ? statement.consequent
             : undefined;
     const exits = exit?.type === "BlockStatement" ? exit.body : exit ? [exit] : [];
+    const [only] = exits;
 
     return (
         exits.length === 1 &&
-        (exits[0].type === "ReturnStatement" ||
-            exits[0].type === "ThrowStatement" ||
-            exits[0].type === "ContinueStatement")
+        (only?.type === "ReturnStatement" ||
+            only?.type === "ThrowStatement" ||
+            only?.type === "ContinueStatement")
     );
 }

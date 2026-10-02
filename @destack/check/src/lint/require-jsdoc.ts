@@ -12,7 +12,7 @@ const DECLARATIONS = new Set([
 ]);
 
 /** The files whose default export is a tool's configuration, such as vitest.config.ts. */
-const CONFIGURATION = /\.config\.[cm]?[jt]sx?$/;
+const CONFIGURATION = /\.config\.[cm]?[jt]sx?$/u;
 
 /** Require a documentation comment on declarations, members and fields. */
 export const requireJsdoc: Rule = {
@@ -25,13 +25,12 @@ export const requireJsdoc: Rule = {
     create(context) {
         /** Report a node without a documentation comment on the line directly above it. */
         function check(node: ESTree.Node) {
-            // skip lint directives between the documentation and its subject
-            const comments = context.sourceCode.getCommentsBefore(node);
-            const comment = comments.findLast((entry) => !isDirective(entry.value));
+            // take the comment directly above the declaration
+            const comment = context.sourceCode.getCommentsBefore(node).at(-1);
             const isDocumented =
                 comment?.type === "Block" &&
                 comment.value.startsWith("*") &&
-                comment.loc.end.line >= node.loc.start.line - 1 - directiveLines(comments, comment);
+                comment.loc.end.line >= node.loc.start.line - 1;
             if (!isDocumented) {
                 context.report({ node, messageId: "missing" });
             }
@@ -87,18 +86,6 @@ export const requireJsdoc: Rule = {
         };
     },
 };
-
-/** Report whether a comment is a lint directive. */
-function isDirective(text: string): boolean {
-    return /^\s*(?:oxlint|eslint)-/.test(text);
-}
-
-/** Count the directive lines between a documentation comment and its subject. */
-function directiveLines(comments: readonly { value: string }[], documentation: object): number {
-    return comments
-        .slice(comments.indexOf(documentation as never) + 1)
-        .filter((entry) => isDirective(entry.value)).length;
-}
 
 /** Read a class member's plain or private identifier, absent for computed keys. */
 function memberName(key: ESTree.MethodDefinition["key"]): string | undefined {

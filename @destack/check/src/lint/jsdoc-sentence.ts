@@ -26,34 +26,34 @@ export const jsdocSentence: Rule = {
                     const text = comment.value
                         .slice(1)
                         .split("\n")
-                        .map((line) => line.replace(/^\s*(?:\* ?)?/, "").trimEnd());
-                    while (text.length && !text[0].trim()) {
+                        .map((line) => line.replace(/^\s*(?:\* ?)?/u, "").trimEnd());
+                    while (text[0]?.trim() === "") {
                         text.shift();
                     }
-                    while (text.length && !text.at(-1)!.trim()) {
+                    while (text.at(-1)?.trim() === "") {
                         text.pop();
                     }
                     const prose = text.filter((line) => !line.startsWith("@"));
-                    if (!prose.length) {
+                    const [header, second] = prose;
+                    const last = prose.at(-1);
+                    if (header === undefined || last === undefined) {
                         continue;
                     }
                     const loc = comment.loc;
 
                     // require a capitalized first sentence and a final period
-                    if (
-                        !/^(?:[A-Z0-9`"'[(]|(?:npm|oRPC|macOS|iOS|tsgo|tsc|git)\b)/.test(prose[0])
-                    ) {
+                    if (!/^(?:[A-Z0-9`"'[(]|(?:npm|oRPC|macOS|iOS|tsgo|tsc|git)\b)/u.test(header)) {
                         context.report({ loc, messageId: "capital" });
                     }
-                    if (!/[.?!]$|```$/.test(prose.at(-1)!)) {
+                    if (!/[.?!]$|```$/u.test(last)) {
                         context.report({ loc, messageId: "period" });
                     }
 
                     // require one sentence per line and a header before paragraphs
-                    if (prose.some((line) => /[a-z0-9)`][.?!] +[A-Z]/.test(line))) {
+                    if (prose.some((line) => /[a-z0-9)`][.?!] +[A-Z]/u.test(line))) {
                         context.report({ loc, messageId: "sentence" });
                     }
-                    if (prose.length > 1 && prose[1].trim()) {
+                    if (second !== undefined && second.trim() !== "") {
                         context.report({ loc, messageId: "header" });
                     }
 

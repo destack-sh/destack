@@ -20,7 +20,6 @@ tester.run("require-jsdoc", rules["require-jsdoc"], {
         "/** The note title. */\nexport const title = 1;",
         "/** A note. */\nclass Note {\n    /** The title. */\n    title = 1;\n}",
         'export * from "./note.ts";',
-        "/** The identifier. */\n// oxlint-disable-next-line destack/prevent-abbreviations -- external identifier\nexport const id = 1;",
         {
             code: "/** A note. */\nclass Note {\n    /** Write a value. */\n    write(value: string): void;\n    write(value: number): void;\n    write(value: unknown) {}\n}",
             filename: SOURCE,
@@ -30,14 +29,14 @@ tester.run("require-jsdoc", rules["require-jsdoc"], {
             filename: SOURCE,
         },
         {
-            code: "export default defineConfig({ test: {} });",
+            code: "export default defineConfiguration({ test: {} });",
             filename: new URL("../vitest.config.ts", import.meta.url).pathname,
         },
     ],
     invalid: [
         { code: "export const title = 1;", errors: [{ messageId: "missing" }] },
         {
-            code: "export default defineConfig({ test: {} });",
+            code: "export default defineConfiguration({ test: {} });",
             filename: SOURCE,
             errors: [{ messageId: "missing" }],
         },
@@ -223,6 +222,18 @@ tester.run("error-message-style", rules["error-message-style"], {
     ],
 });
 
+tester.run("exact-optional", rules["exact-optional"], {
+    valid: [
+        "const title = schema.string().exactOptional();",
+        "const title = field.string().max(80).optional();",
+        "const title = parser.optional(value);",
+    ],
+    invalid: [
+        { code: "const title = schema.string().optional();", errors: [{ messageId: "optional" }] },
+        { code: "const release = Version.optional();", errors: [{ messageId: "optional" }] },
+    ],
+});
+
 tester.run("no-import-alias", rules["no-import-alias"], {
     valid: [
         'import { note } from "./note.ts";',
@@ -254,19 +265,19 @@ tester.run("no-partial-assertions", rules["no-partial-assertions"], {
 tester.run("valid-declaration", rules["valid-declaration"], {
     valid: [
         {
-            code: 'import { defineDatabase } from "@destack/db/declare";\nexport const main = defineDatabase({});',
+            code: 'import { defineDatabase } from "@destack/db";\nexport const main = defineDatabase({});',
             filename: SOURCE,
         },
         { code: "const main = defineDatabase({});", filename: SOURCE },
     ],
     invalid: [
         {
-            code: 'import { defineDatabase } from "@destack/db/declare";\nconst main = defineDatabase({});',
+            code: 'import { defineDatabase } from "@destack/db";\nconst main = defineDatabase({});',
             filename: SOURCE,
             errors: [{ messageId: "export" }],
         },
         {
-            code: 'import * as db from "@destack/db/declare";\nfunction f() {\n    return db.defineDatabase({});\n}',
+            code: 'import * as db from "@destack/db";\nfunction f() {\n    return db.defineDatabase({});\n}',
             filename: SOURCE,
             errors: [{ messageId: "export" }],
         },

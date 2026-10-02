@@ -43,7 +43,7 @@ export function lintConfiguration(plugins: readonly Plugin[] = [], absolute = fa
 
     return {
         plugins: ["typescript", "oxc", "unicorn"],
-        categories: { correctness: "error" },
+        categories: { correctness: "error", suspicious: "error", perf: "error" },
         jsPlugins: [builtin, ...plugins.map(({ name, specifier }) => ({ name, specifier }))],
         rules: {
             "eslint/curly": ["error", "all"],
@@ -54,10 +54,39 @@ export function lintConfiguration(plugins: readonly Plugin[] = [], absolute = fa
                 {
                     ignoreUsingDeclarations: true,
                     argsIgnorePattern: "^_",
-                    varsIgnorePattern: "^_",
-                    caughtErrorsIgnorePattern: "^_",
+                    ignoreRestSiblings: true,
                 },
             ],
+
+            // type every value precisely: no assertions, non-null claims, any, or compiler directives
+            "typescript/consistent-type-assertions": ["error", { assertionStyle: "never" }],
+            "typescript/no-non-null-assertion": "error",
+            "typescript/no-explicit-any": "error",
+            "typescript/ban-ts-comment": [
+                "error",
+                { "ts-expect-error": true, "ts-ignore": true, "ts-nocheck": true },
+            ],
+            "typescript/no-unsafe-type-assertion": "error",
+            "typescript/no-unsafe-argument": "error",
+            "typescript/no-unsafe-assignment": "error",
+            "typescript/no-unsafe-call": "error",
+            "typescript/no-unsafe-member-access": "error",
+            "typescript/no-unsafe-return": "error",
+            "typescript/no-floating-promises": "error",
+            "typescript/no-misused-promises": "error",
+            "typescript/strict-boolean-expressions": "error",
+            "typescript/switch-exhaustiveness-check": "error",
+            "typescript/unbound-method": "error",
+            "typescript/no-misused-spread": "error",
+            "typescript/only-throw-error": "error",
+            "typescript/no-deprecated": "error",
+            "typescript/no-unnecessary-type-assertion": "error",
+            "eslint/preserve-caught-error": "error",
+            "eslint/no-shadow": "error",
+            "eslint/no-loop-func": "error",
+            "eslint/no-promise-executor-return": "error",
+            "eslint/require-unicode-regexp": "error",
+            "unicorn/no-array-sort": "error",
 
             // solid assigns JSX references during compilation
             "eslint/no-unassigned-vars": "off",
@@ -65,10 +94,6 @@ export function lintConfiguration(plugins: readonly Plugin[] = [], absolute = fa
             // database queries implement PromiseLike and validators match control characters
             "unicorn/no-thenable": "off",
             "eslint/no-control-regex": "off",
-
-            // callbacks and serialized class fields do not require a receiver or prototype
-            "typescript/unbound-method": "off",
-            "typescript/no-misused-spread": "off",
 
             // single-letter names outside indices and vector components
             "eslint/id-length": ["error", { min: 2, exceptions: ["i", "j", "x", "y", "z", "_"] }],
@@ -79,6 +104,21 @@ export function lintConfiguration(plugins: readonly Plugin[] = [], absolute = fa
             // log through telemetry and print through a program's output, never the console
             "eslint/no-console": "error",
 
+            // post to BroadcastChannel and workers without a target origin
+            "unicorn/require-post-message-target-origin": "off",
+            // type-only imports of ambient augmentations name nothing
+            "unicorn/require-module-specifiers": "off",
+            // build records as new values
+            "oxc/no-map-spread": "off",
+            // statements of one transaction run in order on one connection
+            "eslint/no-await-in-loop": "off",
+            // the compiler checks missing returns with types, through noImplicitReturns
+            "typescript/consistent-return": "off",
+            // a schema and its inferred type share one name
+            "eslint/no-redeclare": "off",
+            // validators read Zod's documented introspection API, `_zod`
+            "eslint/no-underscore-dangle": "off",
+
             ...Object.fromEntries(
                 Object.keys(lint.rules).map((name) => [`destack/${name}`, "error"]),
             ),
@@ -86,16 +126,10 @@ export function lintConfiguration(plugins: readonly Plugin[] = [], absolute = fa
         },
         overrides: [
             {
-                // let tests and fixtures, the devtools exporter and the build worker redirecting tools own the console
+                // let the devtools exporter and the build worker write to the console
                 files: [
-                    "**/*.test.ts",
-                    "**/*.test.tsx",
-                    "**/test/**",
-                    "**/tests/**",
-                    "**/fixture.ts",
-                    "**/fixture/**",
-                    "**/src/browser/devtools.ts",
-                    "**/src/build/worker.ts",
+                    "**/@destack/telemetry/src/browser/devtools.ts",
+                    "**/@destack/build/src/build/worker.ts",
                 ],
                 rules: { "eslint/no-console": "off" },
             },

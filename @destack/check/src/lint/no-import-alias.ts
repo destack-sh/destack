@@ -53,7 +53,11 @@ export const noImportAlias: Rule = {
                 // compare the exported and local names
                 const imported =
                     node.imported.type === "Identifier" ? node.imported.name : undefined;
-                if (imported && imported !== node.local.name && !GLOBALS.has(imported)) {
+                if (
+                    imported !== undefined &&
+                    imported !== node.local.name &&
+                    !GLOBALS.has(imported)
+                ) {
                     context.report({ node, messageId: "alias", data: { name: imported } });
                 }
             },

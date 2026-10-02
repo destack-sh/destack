@@ -1,15 +1,6 @@
 import type { Rule } from "@oxlint/plugins";
 import { CheckError } from "../error/index.ts";
 
-/** Judgment rules that source may disable with a stated reason. */
-const DISABLEABLE = ["destack/prevent-abbreviations", "destack/boolean-prefix", "no-console"];
-
-/** A file or next-line exception for judgment rules with a stated reason. */
-const ALLOWED = new RegExp(
-    `^\\s*oxlint-disable(?:-next-line)? (?:${DISABLEABLE.join("|")})(?:, (?:${DISABLEABLE.join("|")}))* -- \\S`,
-    "u",
-);
-
 /** Reject source comments that change the fixed rule configuration. */
 export const noInlineConfiguration: Rule = {
     meta: {
@@ -25,10 +16,10 @@ export const noInlineConfiguration: Rule = {
                     const isDirective = /^\s*(?:oxlint|eslint)(?:\s|-(?:disable|enable)\b)/u.test(
                         comment.value,
                     );
-                    if (isDirective && !ALLOWED.test(comment.value)) {
+                    if (isDirective) {
                         throw new CheckError(
                             "configuration",
-                            `${context.filename}:${comment.loc.start.line}: use 'oxlint-disable[-next-line] <judgment rule> -- <reason>'`,
+                            `${context.filename}:${comment.loc.start.line}: fix the code the rule reports, since source cannot change the rules`,
                         );
                     }
                 }

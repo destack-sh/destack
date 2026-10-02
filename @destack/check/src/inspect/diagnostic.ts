@@ -4,15 +4,15 @@ import { defineSchema, schema } from "@destack/schema";
 export const Diagnostic = defineSchema(
     schema.object({
         /** The rule identifier, absent for parser and tool failures. */
-        code: schema.string().optional(),
+        code: schema.string().exactOptional(),
         /** The user-facing explanation. */
         message: schema.string(),
         /** Suggested correction supplied by the tool. */
-        help: schema.string().optional(),
+        help: schema.string().exactOptional(),
         /** Additional context supplied by the tool. */
-        note: schema.string().optional(),
+        note: schema.string().exactOptional(),
         /** Rule documentation. */
-        url: schema.string().optional(),
+        url: schema.string().exactOptional(),
         /** The diagnostic severity. */
         severity: schema.enum(["error", "warning", "advice"]),
         /** The source filename. */
@@ -21,7 +21,7 @@ export const Diagnostic = defineSchema(
         labels: schema.array(
             schema.object({
                 /** Optional explanation attached to the span. */
-                label: schema.string().optional(),
+                label: schema.string().exactOptional(),
                 /** The source location reported by Oxc, with one-based line and column. */
                 span: schema.object({
                     offset: schema.number(),

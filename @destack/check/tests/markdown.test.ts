@@ -3,7 +3,13 @@ import { checkMarkdown, fixMarkdown } from "../src/markdown/index.ts";
 
 /** Codes reported for a Markdown document. */
 function codes(text: string): string[] {
-    return checkMarkdown("note.md", text).map((diagnostic) => diagnostic.code!);
+    return checkMarkdown("note.md", text).map((diagnostic) => {
+        if (diagnostic.code === undefined) {
+            throw new TypeError("a markdown finding has no code");
+        }
+
+        return diagnostic.code;
+    });
 }
 
 test("split prose lines into one sentence each", () => {

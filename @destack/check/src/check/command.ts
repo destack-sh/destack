@@ -21,7 +21,7 @@ export async function main(): Promise<void> {
     }
 
     // write direct-tool settings when requested
-    const options = { directory: process.cwd(), files: files.length ? files : undefined };
+    const options = { directory: process.cwd(), ...(files.length ? { files } : {}) };
     if (command === "configure") {
         await configurePackage(options.directory);
         return;

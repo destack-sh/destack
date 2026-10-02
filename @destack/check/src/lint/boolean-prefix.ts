@@ -1,7 +1,7 @@
 import type { ESTree, Rule } from "@oxlint/plugins";
 
 /** Name prefixes that read as a question. */
-const PREFIX = /^_?(?:is|has|should|can|was|did|does|will|needs|allows)[A-Z]/;
+const PREFIX = /^_?(?:is|has|should|can|was|did|does|will|needs|allows)[A-Z]/u;
 
 /** Operators that always produce a boolean. */
 const COMPARISONS = new Set(["==", "===", "!=", "!==", "<", "<=", ">", ">=", "in", "instanceof"]);
@@ -50,7 +50,7 @@ function isBoolean(node: ESTree.Expression): boolean {
     }
     // logical combinations of boolean operands
     else if (node.type === "LogicalExpression" && node.operator !== "??") {
-        return isBoolean(node.left) && isBoolean(node.right as ESTree.Expression);
+        return isBoolean(node.left) && isBoolean(node.right);
     } else {
         return false;
     }

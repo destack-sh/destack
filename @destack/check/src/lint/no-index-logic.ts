@@ -18,7 +18,7 @@ export const noIndexLogic: Rule = {
         return {
             Program(node) {
                 // allow only export-from statements in index modules
-                if (!/[\\/]index\.[cm]?[jt]sx?$/.test(context.filename)) {
+                if (!/[\\/]index\.[cm]?[jt]sx?$/u.test(context.filename)) {
                     return;
                 }
                 for (const statement of node.body) {

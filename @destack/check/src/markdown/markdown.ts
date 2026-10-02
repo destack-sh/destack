@@ -1,7 +1,7 @@
 import type { Diagnostic } from "../inspect/diagnostic.ts";
 
 /** Words whose trailing period does not end a sentence. */
-const ABBREVIATIONS = /(?:^|[\s(])(?:e\.g|i\.e|etc|vs|cf|approx|incl|Mr|Ms|Dr|St|No)\.$/;
+const ABBREVIATIONS = /(?:^|[\s(])(?:e\.g|i\.e|etc|vs|cf|approx|incl|Mr|Ms|Dr|St|No)\.$/u;
 
 /** A Markdown rule failure before it is placed in its file. */
 interface Finding {
@@ -13,12 +13,16 @@ interface Finding {
     readonly line: number;
     /** The zero-based character column. */
     readonly column: number;
+    /** The zero-based character offset in the file. */
+    readonly offset: number;
 }
 
 /** A Markdown source line and whether it holds prose. */
 interface SourceLine {
     /** The line text. */
     readonly text: string;
+    /** The character offset where the line starts. */
+    readonly start: number;
     /** Whether the line is inside front matter, a fence or an HTML comment. */
     readonly isVerbatim: boolean;
 }
@@ -29,17 +33,15 @@ export function checkMarkdown(filename: string, text: string): Diagnostic[] {
     const lines = classifyLines(text);
     const findings = [
         ...checkSentences(lines),
-        ...checkHeadings(lines, /^---\n(?:.*\n)*?title:/.test(text)),
+        ...checkHeadings(lines, /^---\n(?:.*\n)*?title:/u.test(text)),
         ...checkFences(lines),
     ];
 
     // convert character positions to UTF-8 byte offsets
-    const starts = lineStarts(text);
-
     return findings
-        .sort((left, right) => left.line - right.line || left.column - right.column)
+        .toSorted((left, right) => left.offset - right.offset)
         .map((finding) => {
-            const prefix = text.slice(0, starts[finding.line] + finding.column);
+            const prefix = text.slice(0, finding.offset);
 
             return {
                 code: `markdown(${finding.code})`,
@@ -73,8 +75,12 @@ export function fixMarkdown(text: string): string {
             }
 
             // continue each sentence at the indentation of the line's content
-            const marker = /^(\s*(?:[-*+]|\d+\.)\s+|\s*>\s*|\s*)/.exec(line.text)![0];
-            const indent = /^\s*>/.test(marker) ? marker : " ".repeat(marker.length);
+            const match = /^(\s*(?:[-*+]|\d+\.)\s+|\s*>\s*|\s*)/u.exec(line.text);
+            if (match === null) {
+                throw new TypeError("the line marker pattern matches every line");
+            }
+            const [marker] = match;
+            const indent = /^\s*>/u.test(marker) ? marker : " ".repeat(marker.length);
             const sentences: string[] = [];
             let start = 0;
             for (const position of breaks) {
@@ -97,24 +103,31 @@ function classifyLines(text: string): SourceLine[] {
     let fence: string | undefined;
     let isFrontMatter = text.startsWith("---\n");
     let isComment = false;
+    let start = 0;
     for (const [index, line] of text.split("\n").entries()) {
         // track the region each line belongs to
         const trimmed = line.trim();
-        const opensFence = /^(```|~~~)/.exec(trimmed)?.[1];
+        const opensFence = /^(```|~~~)/u.exec(trimmed)?.[1];
         const isVerbatim =
             isFrontMatter ||
             fence !== undefined ||
             isComment ||
             opensFence !== undefined ||
             trimmed.startsWith("<!--");
-        lines.push({ text: line, isVerbatim });
+        lines.push({ text: line, start, isVerbatim });
+        start += line.length + 1;
 
         // leave the region at its closing line
         if (isFrontMatter && index > 0 && trimmed === "---") {
             isFrontMatter = false;
         } else if (fence !== undefined && trimmed.startsWith(fence)) {
             fence = undefined;
-        } else if (fence === undefined && opensFence && !isFrontMatter && !isComment) {
+        } else if (
+            fence === undefined &&
+            opensFence !== undefined &&
+            !isFrontMatter &&
+            !isComment
+        ) {
             fence = opensFence;
         }
         if (trimmed.startsWith("<!--") && !trimmed.includes("-->")) {
@@ -139,6 +152,7 @@ function checkSentences(lines: readonly SourceLine[]): Finding[] {
                       message: "[WD10] start each sentence on its own line",
                       line: index,
                       column,
+                      offset: line.start + column,
                   })),
     );
 }
@@ -146,22 +160,22 @@ function checkSentences(lines: readonly SourceLine[]): Finding[] {
 /** Find where sentences after the first start on a prose line. */
 function sentenceBoundaries(line: string): number[] {
     // skip headings, tables and link definitions
-    if (/^\s*(?:#|\||\[[^\]]+\]:)/.test(line)) {
+    if (/^\s*(?:#|\||\[[^\]]+\]:)/u.test(line)) {
         return [];
     }
 
     // blank inline code and link targets so their punctuation is ignored
     const masked = line
-        .replace(/`[^`]*`/g, (code) => "x".repeat(code.length))
-        .replace(/\]\([^)]*\)/g, (target) => "x".repeat(target.length));
+        .replace(/`[^`]*`/gu, (code) => "x".repeat(code.length))
+        .replace(/\]\([^)]*\)/gu, (target) => "x".repeat(target.length));
 
     // start a sentence after terminal punctuation followed by a capital or code
     const breaks: number[] = [];
-    for (const match of masked.matchAll(/[.?!]["')\]*_]*\s+(?=[*_"([]*[A-Z`])/g)) {
+    for (const match of masked.matchAll(/[.?!]["')\]*_]*\s+(?=[*_"([]*[A-Z`])/gu)) {
         const end = match.index + match[0].length;
         const before = masked.slice(0, match.index + 1);
-        const isListMarker = /^\s*\d+\.$/.test(before);
-        if (!isListMarker && !ABBREVIATIONS.test(before) && !/(?:^|\s)[A-Z]\.$/.test(before)) {
+        const isListMarker = /^\s*\d+\.$/u.test(before);
+        if (!isListMarker && !ABBREVIATIONS.test(before) && !/(?:^|\s)[A-Z]\.$/u.test(before)) {
             breaks.push(end);
         }
     }
@@ -177,11 +191,11 @@ function checkHeadings(lines: readonly SourceLine[], hasTitle: boolean): Finding
     let titles = 0;
     for (const [index, line] of lines.entries()) {
         // read ATX heading levels outside verbatim regions
-        const heading = line.isVerbatim ? undefined : /^(#{1,6})\s/.exec(line.text);
+        const heading = line.isVerbatim ? undefined : /^#{1,6}(?=\s)/u.exec(line.text);
         if (!heading) {
             continue;
         }
-        const level = heading[1].length;
+        const level = heading[0].length;
 
         // allow one title and one level deeper at a time
         titles += level === 1 ? 1 : 0;
@@ -191,6 +205,7 @@ function checkHeadings(lines: readonly SourceLine[], hasTitle: boolean): Finding
                 message: "use one top-level heading per file",
                 line: index,
                 column: 0,
+                offset: line.start,
             });
         } else if (previous && level > previous + 1) {
             findings.push({
@@ -198,6 +213,7 @@ function checkHeadings(lines: readonly SourceLine[], hasTitle: boolean): Finding
                 message: `use heading level ${previous + 1} here`,
                 line: index,
                 column: 0,
+                offset: line.start,
             });
         }
         previous = level;
@@ -214,31 +230,20 @@ function checkFences(lines: readonly SourceLine[]): Finding[] {
     for (const [index, line] of lines.entries()) {
         // alternate between opening and closing fences
         const trimmed = line.text.trim();
-        if (!/^(```|~~~)/.test(trimmed)) {
+        if (!/^(```|~~~)/u.test(trimmed)) {
             continue;
         }
-        if (!isOpen && /^(```|~~~)\s*$/.test(trimmed)) {
+        if (!isOpen && /^(```|~~~)\s*$/u.test(trimmed)) {
             findings.push({
                 code: "fenced-code-language",
                 message: "name the language of the code block",
                 line: index,
                 column: 0,
+                offset: line.start,
             });
         }
         isOpen = !isOpen;
     }
 
     return findings;
-}
-
-/** Return the character index where each line starts. */
-function lineStarts(text: string): number[] {
-    const starts = [0];
-    for (let index = 0; index < text.length; index++) {
-        if (text[index] === "\n") {
-            starts.push(index + 1);
-        }
-    }
-
-    return starts;
 }

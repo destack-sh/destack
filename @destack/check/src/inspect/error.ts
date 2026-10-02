@@ -49,8 +49,7 @@ export async function inspectErrors(
     // separate nested callable bodies from the enclosing function
     const groups: { root: Node; nodes: Node[] }[] = [];
     const pending: Node[] = [source];
-    while (pending.length) {
-        const root = pending.pop()!;
+    for (let root = pending.pop(); root !== undefined; root = pending.pop()) {
         const nodes: Node[] = [];
         const visit = (node: Node): void => {
             if (node !== root && functionKinds.has(node.kind)) {
@@ -97,11 +96,13 @@ export async function inspectErrors(
                 if (symbol && symbol.flags & SymbolFlags.Alias) {
                     symbol = await inspector.project.checker.getAliasedSymbol(symbol);
                 }
+                const target =
+                    symbol !== undefined && symbol.declarations.length > 0
+                        ? await inspector.reference(symbol)
+                        : undefined;
                 description.calls.push({
                     source: inspector.range(node),
-                    target: symbol?.declarations.length
-                        ? await inspector.reference(symbol)
-                        : undefined,
+                    ...(target === undefined ? {} : { target }),
                     isAwaited: node.parent?.kind === SyntaxKind.AwaitExpression,
                     catches: enclosingCatches(node, root, inspector),
                 });
@@ -140,7 +141,7 @@ export async function inspectErrors(
         descriptions.push(description);
     }
 
-    return descriptions.sort((left, right) => left.source.start - right.source.start);
+    return descriptions.toSorted((left, right) => left.source.start - right.source.start);
 }
 
 /** Find catches covering this expression, excluding catches attached to catch/finally bodies. */
@@ -148,7 +149,7 @@ function enclosingCatches(node: Node, root: Node, inspector: ErrorInspector): So
     // walk up to the root, collecting try blocks that contain the node
     const catches: SourceRange[] = [];
     let child = node;
-    while (child !== root && child.parent) {
+    while (child !== root) {
         const parent = child.parent;
         if (isTryStatement(parent) && parent.tryBlock === child && parent.catchClause) {
             catches.push(inspector.range(parent.catchClause));

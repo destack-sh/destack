@@ -1,4 +1,4 @@
-import type { Rule } from "@oxlint/plugins";
+import type { Comment, ESTree, Rule } from "@oxlint/plugins";
 
 /** Require a blank line before the final return of a function with several statements. */
 export const paddingBeforeReturn: Rule = {
@@ -24,7 +24,7 @@ export const paddingBeforeReturn: Rule = {
                 }
 
                 // treat comments directly above the return as part of its block
-                let first: { loc: typeof node.loc } = node;
+                let first: ESTree.Node | Comment = node;
                 for (const comment of context.sourceCode.getCommentsBefore(node).toReversed()) {
                     if (comment.loc.end.line !== first.loc.start.line - 1) {
                         break;
@@ -33,9 +33,12 @@ export const paddingBeforeReturn: Rule = {
                 }
 
                 // require an empty line between the previous code and that block
-                const previous = context.sourceCode.getTokenBefore(first as never, {
+                const previous = context.sourceCode.getTokenBefore(first, {
                     includeComments: true,
-                })!;
+                });
+                if (previous === null) {
+                    throw new TypeError("a return after other statements has no token before it");
+                }
                 if (first.loc.start.line - previous.loc.end.line < 2) {
                     context.report({
                         node,

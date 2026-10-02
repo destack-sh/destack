@@ -3,6 +3,7 @@ import { booleanPrefix } from "./boolean-prefix.ts";
 import { branchCommentPosition } from "./branch-comment-position.ts";
 import { commentStyle } from "./comment-style.ts";
 import { errorMessageStyle } from "./error-message-style.ts";
+import { exactOptional } from "./exact-optional.ts";
 import { jsdocSentence } from "./jsdoc-sentence.ts";
 import { noImportAlias } from "./no-import-alias.ts";
 import { noIndexLogic } from "./no-index-logic.ts";
@@ -32,6 +33,7 @@ export const rules: Record<string, Rule> = {
     "branch-comment-position": branchCommentPosition,
     "comment-style": commentStyle,
     "error-message-style": errorMessageStyle,
+    "exact-optional": exactOptional,
     "jsdoc-sentence": jsdocSentence,
     "no-import-alias": noImportAlias,
     "no-index-logic": noIndexLogic,

@@ -15,7 +15,6 @@ const ABBREVIATIONS: Readonly<Record<string, string>> = {
     cur: "current",
     def: "definition",
     del: "delete",
-    desc: "description",
     dest: "destination",
     dir: "directory",
     dirs: "directories",
@@ -72,7 +71,7 @@ export const preventAbbreviations: Rule = {
                 const word = isDeclaredName(node)
                     ? splitWords(node.name).find((entry) => Object.hasOwn(ABBREVIATIONS, entry))
                     : undefined;
-                if (word) {
+                if (word !== undefined) {
                     context.report({
                         node,
                         messageId: "word",
