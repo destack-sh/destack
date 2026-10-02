@@ -7,7 +7,6 @@ export {
     createReaction,
     createRenderEffect,
     createSignal,
-    createTrackedEffect,
     flush,
     isEqual,
     isPending,
