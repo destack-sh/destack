@@ -72,39 +72,72 @@ type Layer = {
     claim: Record<Stack, string>;
     /** What the layer is made of. */
     detail: Record<Stack, string>;
+    /** What the layer costs you, as a line on the bill, today counted from the scene's people and vendors. */
+    item: { today: (count: Count) => string; destack: string };
+};
+
+/** The people and vendors in the scene on screen, which the bill counts. */
+type Count = {
+    /** The people and agents signed in. */
+    people: number;
+    /** The distinct vendors they rent from. */
+    vendors: number;
 };
 
 /** The six layers, from the users of the stack down to where it runs. */
 const layers: readonly Layer[] = [
     {
         name: "Users",
-        claim: { today: "Beg for entry", destack: "Bring everyone" },
+        claim: { today: "Bargain for entry", destack: "Bring everyone" },
         detail: { today: "Their accounts", destack: "One account, Every agent" },
+        item: {
+            today: ({ people, vendors }) =>
+                `${people} people × ${vendors} logins = ${people * vendors} logins`,
+            destack: "one account each",
+        },
     },
     {
         name: "Apps",
         claim: { today: "Duct-tape silos", destack: "Remix software" },
         detail: { today: "Closed apps", destack: "TS, HTML, CSS" },
+        item: {
+            today: ({ people, vendors }) =>
+                `${vendors} vendors × ${people} seats = ${people * vendors} licences`,
+            destack: "0 seat licences",
+        },
     },
     {
         name: "Services",
         claim: { today: "Await roadmaps", destack: "Standardise logic" },
         detail: { today: "Private APIs", destack: "HTTP, OpenAPI" },
+        item: {
+            today: ({ vendors }) => `${vendors} separate rate-limited APIs`,
+            destack: "1 complete API",
+        },
     },
     {
         name: "Data",
         claim: { today: "Rent your data", destack: "Own your data" },
         detail: { today: "Vendor formats", destack: "SQL, JSON, MD, S3" },
+        item: {
+            today: ({ vendors }) => `${vendors} separate data silos`,
+            destack: "1 unified data plane",
+        },
     },
     {
         name: "Source",
         claim: { today: "Trust blindly", destack: "Fork the code" },
         detail: { today: "Closed source", destack: "Git, npm" },
+        item: { today: ({ vendors }) => `${vendors} black boxes`, destack: "1 open codebase" },
     },
     {
         name: "Hosts",
         claim: { today: "Pay double markup", destack: "Run everywhere" },
         detail: { today: "Their cloud", destack: "Node, Docker, Workers" },
+        item: {
+            today: ({ vendors }) => `${vendors} extra compute planes`,
+            destack: "any machine you choose",
+        },
     },
 ];
 
@@ -416,6 +449,18 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     const [today, setToday] = createSignal(0);
     const [surfacedAt, setSurfacedAt] = createSignal(0);
     const isOpen = createMemo(() => stack() === "destack");
+    const count = createMemo((): Count => {
+        // count the people and vendors in the scene on screen
+        const shown = todayScenes[today()];
+        if (shown === undefined) {
+            throw new Error(`missing scene ${today()}`);
+        }
+
+        return {
+            people: shown.upper.length,
+            vendors: new Set(shown.lower.map((card) => card.id)).size,
+        };
+    });
     let figure!: HTMLElement;
     let drawing!: HTMLDivElement;
     let canvas!: HTMLCanvasElement;
@@ -951,9 +996,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                         data-universe
                         style={{
                             "--row": String(index() + 1),
-                            ...(index() < dryRows
-                                ? {}
-                                : { opacity: `calc(0.75 + 0.25 * var(--reveal-${index()}))` }),
+                            ...(index() < dryRows ? {} : textOnWater(index())),
                         }}
                         {...stylex.attrs(styles.claim)}
                     >
@@ -984,6 +1027,15 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                                 style={styles.detailText}
                             />
                         </span>
+
+                        {/* itemise what the layer costs */}
+                        <Swap
+                            row={index()}
+                            isOpen={isOpen()}
+                            today={layer.item.today(count())}
+                            destack={layer.item.destack}
+                            style={styles.itemText}
+                        />
                     </div>
                 )}
             </For>
@@ -1228,6 +1280,13 @@ function tapeLabel(gap: number, scene: (typeof todayScenes)[number]) {
     return tapeLabels[(left + right * 3 + gap * 2) % tapeLabels.length];
 }
 
+/** Return a submerged layer's text colour: cream on the water, easing back to ink as the water leaves its row. */
+function textOnWater(row: number): JSX.CSSProperties {
+    return {
+        color: `color-mix(in srgb, var(--destack-color-foreground) calc(var(--reveal-${row}) * 100%), #f1eadb)`,
+    };
+}
+
 /** Return a layer number colour that lights up orange as the water leaves its row. */
 function numberOnWater(row: number): JSX.CSSProperties {
     if (row < dryRows) {
@@ -1407,6 +1466,14 @@ const styles = stylex.create({
         borderStyle: "dashed",
         boxShadow: "none",
         color: "inherit",
+    },
+    itemText: {
+        fontFamily: tokens.monoFont,
+        fontSize: "0.75rem",
+        letterSpacing: "0.02em",
+        lineHeight: "1.125rem",
+        opacity: 0.8,
+        [narrow]: { display: "none" },
     },
     detailText: {
         marginLeft: "auto",
