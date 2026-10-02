@@ -19,8 +19,8 @@ export const TypeParameterDescription = defineSchema(
         /** The parameter name. */
         name: schema.string(),
         /** The declared constraint. */
-        constraint: TypeDescription.optional(),
+        constraint: TypeDescription.exactOptional(),
         /** The declared default. */
-        default: TypeDescription.optional(),
+        default: TypeDescription.exactOptional(),
     }),
 );

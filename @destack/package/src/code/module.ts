@@ -11,7 +11,7 @@ export const GlobalReference = defineSchema(
         /** The global identifier used by the module. */
         name: schema.string().min(1),
         /** The type declaration, absent for compiler-intrinsic globals. */
-        symbol: SymbolReference.optional(),
+        symbol: SymbolReference.exactOptional(),
         /** Statically selected properties following the global identifier. */
         members: schema.array(schema.string().min(1)),
         /** Whether a computed property requires application execution to resolve. */

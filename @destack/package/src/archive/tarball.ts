@@ -13,18 +13,8 @@ const FILE_MODE = 0o644;
 /** The gzip member header: deflate, no flags, no time, no extra flags, unknown system (RFC 1952). */
 const GZIP_HEADER = new Uint8Array([0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 0xff]);
 
-/** The reversed CRC-32 polynomial gzip checks its contents with (RFC 1952). */
-const CRC_POLYNOMIAL = 0xedb88320;
-
-/** The CRC-32 remainder of each byte value. */
-const CRC_TABLE = Uint32Array.from({ length: 256 }, (_, byte) => {
-    let remainder = byte;
-    for (let bit = 0; bit < 8; bit++) {
-        remainder = remainder & 1 ? CRC_POLYNOMIAL ^ (remainder >>> 1) : remainder >>> 1;
-    }
-
-    return remainder;
-});
+/** The offset of the gzip header's flags, which announce optional fields (RFC 1952). */
+const FLAGS_OFFSET = 3;
 
 /** One regular file of a tarball. */
 export interface TarballEntry {
@@ -44,7 +34,7 @@ export const Tarball = {
         return new ReadableStream<Uint8Array<ArrayBuffer>>({
             async pull(controller) {
                 const next = await chunks.next();
-                if (next.done) {
+                if (next.done === true) {
                     controller.close();
                 } else {
                     controller.enqueue(next.value);
@@ -57,22 +47,16 @@ export const Tarball = {
     },
 };
 
-/** Write the gzip member of the entries' tar blocks: the fixed header, the deflated blocks, their CRC-32 and size. */
+/** Write the gzip member of the entries' tar blocks under the fixed header, the runtime computing the deflated blocks, CRC-32 and size. */
 async function* compress(
     entries: AsyncIterable<TarballEntry>,
 ): AsyncGenerator<Uint8Array<ArrayBuffer>> {
-    // deflate the blocks as they are written, counting and checking them, and fail the output with their failure
-    const deflate = new CompressionStream("deflate-raw");
-    const writer = deflate.writable.getWriter();
-    let crc = 0xffffffff;
-    let size = 0;
+    // compress the blocks as they are written, and fail the output with their failure
+    const gzip = new CompressionStream("gzip");
+    const writer = gzip.writable.getWriter();
     const writing = (async () => {
         try {
             for await (const block of archive(entries)) {
-                for (const byte of block) {
-                    crc = CRC_TABLE[(crc ^ byte) & 0xff]! ^ (crc >>> 8);
-                }
-                size += block.byteLength;
                 await writer.write(block);
             }
             await writer.close();
@@ -81,17 +65,24 @@ async function* compress(
         }
     })();
 
-    // write the header, the deflated blocks, then the trailer in little-endian order
-    const reader = deflate.readable.getReader();
+    // replace the runtime's header, which varies between runtimes, with the fixed one
+    const reader = gzip.readable.getReader();
     try {
         yield GZIP_HEADER.slice();
+        const received: number[] = [];
         for (let next = await reader.read(); !next.done; next = await reader.read()) {
-            yield next.value as Uint8Array<ArrayBuffer>;
+            const skipped = Math.min(
+                GZIP_HEADER.byteLength - received.length,
+                next.value.byteLength,
+            );
+            received.push(...next.value.subarray(0, skipped));
+            if (received.length === GZIP_HEADER.byteLength && received[FLAGS_OFFSET] !== 0) {
+                throw new TypeError("the runtime's gzip header carries optional fields");
+            }
+            if (skipped < next.value.byteLength) {
+                yield next.value.subarray(skipped);
+            }
         }
-        const trailer = new DataView(new ArrayBuffer(8));
-        trailer.setUint32(0, (crc ^ 0xffffffff) >>> 0, true);
-        trailer.setUint32(4, size % 2 ** 32, true);
-        yield new Uint8Array(trailer.buffer);
     } finally {
         // stop the writing, and wait until the entries stop
         await reader.cancel();

@@ -25,7 +25,7 @@ export const SignatureDescription = defineSchema(
         /** Generic parameters in declaration order. */
         typeParameters: schema.array(TypeParameterDescription),
         /** Explicit receiver type. */
-        receiver: TypeDescription.optional(),
+        receiver: TypeDescription.exactOptional(),
         /** Parameters in declaration order. */
         parameters: schema.array(ParameterDescription),
         /** The return type. */

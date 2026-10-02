@@ -57,7 +57,7 @@ test("roundtrip files of short, prefixed and extended paths through a tarball th
     // extract every file with its exact contents
     const extracted = Object.fromEntries(
         await Promise.all(
-            Object.keys(files).map(async (path) => [
+            Object.keys(files).map(async (path): Promise<[string, string]> => [
                 path,
                 await readFile(join(directory, "extracted", path), "utf8"),
             ]),
@@ -68,13 +68,6 @@ test("roundtrip files of short, prefixed and extended paths through a tarball th
 
 test("write equal entries to identical tarball bytes with a fixed gzip header, a checked trailer and a pinned digest", async () => {
     // stream the same entries twice
-    const entries = async function* (): AsyncGenerator<TarballEntry> {
-        yield { path: "package/package.json", contents: new TextEncoder().encode('{"name":"a"}') };
-        yield {
-            path: "package/build/index.js",
-            contents: new TextEncoder().encode("export {};\n"),
-        };
-    };
     const first = await read(Tarball.stream(entries()));
     const second = await read(Tarball.stream(entries()));
 
@@ -97,3 +90,12 @@ test("write equal entries to identical tarball bytes with a fixed gzip header, a
         "e80c2cacdc3ba483c0c5ec3978fc9c16c6827c5d79e83e8cc560974878e427db",
     ]);
 });
+
+/** Stream a package manifest and an empty module. */
+async function* entries(): AsyncGenerator<TarballEntry> {
+    yield { path: "package/package.json", contents: new TextEncoder().encode('{"name":"a"}') };
+    yield {
+        path: "package/build/index.js",
+        contents: new TextEncoder().encode("export {};\n"),
+    };
+}

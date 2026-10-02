@@ -145,7 +145,9 @@ export class BuildReader {
         // verify the exact bytes before parsing external JSON
         const bytes = await this.load(file.path);
         await PackageFile.verify(file, bytes);
-        const document = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+        const document: unknown = JSON.parse(
+            new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+        );
 
         return definition.parse(document);
     }
@@ -200,7 +202,10 @@ export class BuildReader {
         fetch: (input: URL, init: RequestInit) => Promise<Response>,
         signal: AbortSignal | undefined,
     ): Promise<Uint8Array<ArrayBuffer>> {
-        const response = await fetch(url, { signal, redirect: "error" });
+        const response = await fetch(url, {
+            redirect: "error",
+            ...(signal === undefined ? {} : { signal }),
+        });
         if (!response.ok) {
             await response.body?.cancel();
             throw new PackageError("INVALID_FILE", `package read failed: HTTP ${response.status}`);

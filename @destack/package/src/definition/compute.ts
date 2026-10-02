@@ -5,9 +5,9 @@ import { PackageError } from "../error/index.ts";
 export const ComputeCapacity = defineSchema(
     schema.object({
         /** CPU capacity in cores. */
-        cpu: schema.number().positive().optional(),
+        cpu: schema.number().positive().exactOptional(),
         /** Memory capacity in MiB. */
-        memory: schema.number().int().positive().optional(),
+        memory: schema.number().int().positive().exactOptional(),
     }),
 );
 
@@ -18,24 +18,24 @@ export type ComputeCapacity = schema.Infer<typeof ComputeCapacity>;
 const computeDefinitionSchema = defineSchema(
     schema.object({
         /** Minimum capacity requested when scheduling an instance. */
-        requests: ComputeCapacity.optional(),
+        requests: ComputeCapacity.exactOptional(),
         /** Maximum capacity allowed for an instance. */
-        limits: ComputeCapacity.optional(),
+        limits: ComputeCapacity.exactOptional(),
         /** Instance scaling bounds. */
         scaling: schema
             .object({
                 /** Minimum warm instances, zero to stop every idle instance. */
-                minInstances: schema.number().int().nonnegative().optional(),
+                minInstances: schema.number().int().nonnegative().exactOptional(),
                 /** Maximum simultaneous instances. */
-                maxInstances: schema.number().int().positive().optional(),
+                maxInstances: schema.number().int().positive().exactOptional(),
             })
-            .optional(),
+            .exactOptional(),
         /** Time in milliseconds to retain an idle instance. */
-        idleTimeout: schema.number().int().nonnegative().optional(),
+        idleTimeout: schema.number().int().nonnegative().exactOptional(),
         /** Time in milliseconds allowed for graceful shutdown. */
-        shutdownTimeout: schema.number().int().positive().optional(),
+        shutdownTimeout: schema.number().int().positive().exactOptional(),
         /** CPU time allowed per invocation in milliseconds. */
-        cpuTime: schema.number().int().positive().optional(),
+        cpuTime: schema.number().int().positive().exactOptional(),
     }),
 );
 

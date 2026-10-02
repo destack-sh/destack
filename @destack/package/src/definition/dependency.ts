@@ -15,7 +15,7 @@ export const DependencyRelease = defineSchema(
             /** The resolved package and release, including npm aliases. */
             package: DependencyPackage,
             /** The registry that provides the release. */
-            registry: schema.string().regex(/^https?:\/\/[^\s]+$(?![\s\S])/),
+            registry: schema.string().regex(/^https?:\/\/[^\s]+$(?![\s\S])/u),
             /** The registry's Subresource Integrity expression. */
             integrity: schema.string().min(1),
         }),

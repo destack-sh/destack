@@ -1,10 +1,10 @@
 import { defineSchema, Digest, identifier, schema, Version } from "@destack/schema";
 
 /** The pattern of a package-local name: lowercase words joined by single hyphens, such as role-permission. */
-export const NAME_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/;
+export const NAME_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/u;
 
 /** A concrete package export containing runnable code. */
-export const Entrypoint = defineSchema(schema.string().regex(/^\.(?:\/[^\s*]+)?$(?![\s\S])/));
+export const Entrypoint = defineSchema(schema.string().regex(/^\.(?:\/[^\s*]+)?$(?![\s\S])/u));
 
 /** The immutable identity retained across package renames and releases. */
 export const PackageId = identifier("package");
@@ -21,15 +21,26 @@ export const PackageName = defineSchema(
     schema
         .string()
         .max(214)
-        .regex(/^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$(?![\s\S])/),
+        .regex(/^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$(?![\s\S])/u),
 );
 
 /** A scoped or unscoped dependency name. */
-export const DependencyName = defineSchema(
-    schema
-        .string()
-        .max(214)
-        .regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$(?![\s\S])/),
+export const DependencyName = Object.assign(
+    defineSchema(
+        schema
+            .string()
+            .max(214)
+            .regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$(?![\s\S])/u),
+    ),
+    {
+        /** Read the dependency a bare import specifier names: its scope and name, or its name. */
+        of(specifier: string): string {
+            return specifier
+                .split("/")
+                .slice(0, specifier.startsWith("@") ? 2 : 1)
+                .join("/");
+        },
+    },
 );
 
 /** A named dependency version, including packages from external registries. */
@@ -62,9 +73,10 @@ export const Package = Object.assign(packageSchema, {
         if (typeof value !== "object" || value === null) {
             return undefined;
         }
-        const declaration = value as { [PACKAGE]?: Package; package?: Package };
+        const declared =
+            PACKAGE in value ? value[PACKAGE] : "package" in value ? value.package : undefined;
 
-        return PACKAGE in declaration ? declaration[PACKAGE] : declaration.package;
+        return declared === undefined ? undefined : packageSchema.parse(declared);
     },
 });
 

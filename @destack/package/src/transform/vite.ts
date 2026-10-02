@@ -14,10 +14,11 @@ export function modulePlugin(): Plugin {
             packages = new PackageLocator();
         },
         transform: {
-            filter: { id: /\.[cm]?tsx?$/ },
+            filter: { id: /\.[cm]?tsx?$/u },
             async handler(code, id) {
                 // leave virtual modules and files outside Destack packages unchanged
-                const path = id.split("?")[0]!;
+                const query = id.indexOf("?");
+                const path = query === -1 ? id : id.slice(0, query);
                 if (id.startsWith("\0")) {
                     return;
                 }

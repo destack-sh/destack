@@ -32,7 +32,7 @@ export const PackageDescription = defineSchema(
         /** Destack language, targets, workloads, and compute settings. */
         definition: PackageDefinition,
         /** Authored exports, retaining conditional order and fallback lists. */
-        exports: PackageExport.optional(),
+        exports: PackageExport.exactOptional(),
         /** Required runtime dependencies. */
         dependencies: REQUIREMENTS,
         /** Dependencies supplied by the consuming package. */
@@ -42,7 +42,7 @@ export const PackageDescription = defineSchema(
             DependencyName,
             schema.object({
                 /** Whether consumers may omit this peer. */
-                optional: schema.boolean().optional(),
+                optional: schema.boolean().exactOptional(),
             }),
         ),
         /** Optional runtime dependencies, overriding matching dependencies. */

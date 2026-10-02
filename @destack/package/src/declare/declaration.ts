@@ -1,5 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
-import type { JsonValue } from "@destack/schema/json";
+import { defineSchema, schema, type JsonValue } from "@destack/schema";
 import { DeclarationName, Package, PackageId } from "../definition/package.ts";
 
 /** A named thing declared by a package: a resource, secret, service, connection, setting and so on. */

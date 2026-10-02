@@ -9,7 +9,7 @@ export const TemplateDefinition = defineSchema(
             /** Files or directories copied from the published source package. */
             files: schema.array(PackagePath).min(1),
             /** Dependencies that the caller must select. */
-            dependencies: schema.array(PackageName).optional(),
+            dependencies: schema.array(PackageName).exactOptional(),
         })
         .strict(),
 );

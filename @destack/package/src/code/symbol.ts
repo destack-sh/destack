@@ -16,11 +16,11 @@ export const SymbolDescription = defineSchema(
         /** Combined documentation for this symbol. */
         documentation: Documentation,
         /** The declared type, including the instance type of a class. */
-        declaredType: TypeDescription.optional(),
+        declaredType: TypeDescription.exactOptional(),
         /** Callable and constructable signatures of the declared type. */
         typeSignatures: schema.array(SignatureDescription),
         /** The value type, including class constructors and static members. */
-        valueType: TypeDescription.optional(),
+        valueType: TypeDescription.exactOptional(),
         /** Callable and constructable signatures of the value. */
         signatures: schema.array(SignatureDescription),
         /** Declared members, including static members. */

@@ -12,7 +12,7 @@ export const modulePlugin: Bun.BunPlugin = {
     setup(build) {
         // stamp package sources, since runtime loads need contents and bundles take the rest
         const isBundling = build.config !== undefined;
-        build.onLoad({ filter: /\.[cm]?tsx?$/ }, async ({ path }) => {
+        build.onLoad({ filter: /\.[cm]?tsx?$/u }, async ({ path }) => {
             // read the source of a Destack package's module
             const owner = await packages.find(path);
             const code = await readFile(path, "utf8");
@@ -22,7 +22,7 @@ export const modulePlugin: Bun.BunPlugin = {
             if (!result && isBundling) {
                 return undefined;
             }
-            const loader = /\.[cm]?tsx$/.test(path) ? "tsx" : "ts";
+            const loader = /\.[cm]?tsx$/u.test(path) ? "tsx" : "ts";
             if (!result) {
                 return { contents: code, loader };
             }

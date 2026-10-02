@@ -21,7 +21,7 @@ export const DeclarationDescription = defineSchema(
         /** The description validated by its domain inspector. */
         description: schema.record(schema.string(), schema.json()),
         /** The declaration's terms, such as `object/note/relation/editor`, with the digest of each definition. */
-        vocabulary: schema.record(schema.string(), Digest).optional(),
+        vocabulary: schema.record(schema.string(), Digest).exactOptional(),
     }),
 );
 /** A declaration described by its domain inspector. */

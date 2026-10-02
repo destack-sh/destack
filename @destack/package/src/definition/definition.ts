@@ -11,21 +11,21 @@ import { PackageError } from "../error/index.ts";
 const definition = defineSchema(
     schema.object({
         /** The JSON Schema address of the release that wrote the definition. */
-        $schema: schema.string().regex(/^https:\/\/destack\.app\/schemas\/[^/]+\/destack\.json$/),
+        $schema: schema.string().regex(/^https:\/\/destack\.app\/schemas\/[^/]+\/destack\.json$/u),
         /** The immutable identity assigned when creating this package. */
         id: PackageId,
         /** The language used by the package. */
         language: Language,
         /** Source generation settings for a registry template package. */
-        template: TemplateDefinition.optional(),
+        template: TemplateDefinition.exactOptional(),
         /** The runtimes the package's exports compile for. */
-        runtimes: schema.array(Runtime).min(1).optional(),
+        runtimes: schema.array(Runtime).min(1).exactOptional(),
         /** The declaration constructors the package exports, by name. */
-        declarations: DeclarationConstructorMap.optional(),
+        declarations: DeclarationConstructorMap.exactOptional(),
         /** The extension building the packages that use this one, such as `./build#viewBuild`. */
-        build: FunctionReference.optional(),
+        build: FunctionReference.exactOptional(),
         /** How the registry publishes the package. */
-        publication: Publication.schema.optional(),
+        publication: Publication.schema.exactOptional(),
         /** Runtime overrides keyed by the names in package.json exports. */
         exports: schema
             .record(
@@ -35,7 +35,7 @@ const definition = defineSchema(
                     runtimes: schema.array(Runtime).min(1),
                 }),
             )
-            .optional(),
+            .exactOptional(),
     }),
 );
 

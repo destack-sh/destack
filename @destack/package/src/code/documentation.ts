@@ -11,7 +11,7 @@ export const Documentation = defineSchema(
                 /** The tag name without its leading at sign. */
                 name: schema.string(),
                 /** The tag contents. */
-                text: schema.string().optional(),
+                text: schema.string().exactOptional(),
             }),
         ),
     }),

@@ -50,5 +50,5 @@ export function definePackage<const Declarations extends PackageDeclarationMap>(
         ...owner,
         resources,
         secrets,
-    }) as PackageHandle<Declarations>;
+    });
 }

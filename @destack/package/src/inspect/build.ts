@@ -24,15 +24,15 @@ export const BuildInput = defineSchema(
         /** The module's origin. */
         kind: schema.enum(["source", "virtual", "generated"]),
         /** The resolved dependency key; absent for package and virtual modules. */
-        package: schema.string().min(1).optional(),
+        package: schema.string().min(1).exactOptional(),
         /** The source path relative to its package, or the virtual module identifier. */
         path: schema.string().min(1),
         /** Resolved static and dynamic imports. */
         imports: schema.array(BuildImport),
         /** Reviewed runtimes; absent when compatibility has not been reviewed. */
-        runtimes: schema.array(Runtime).optional(),
+        runtimes: schema.array(Runtime).exactOptional(),
         /** Import expressions requiring execution to resolve. */
-        unresolvedImports: schema.array(schema.string()).optional(),
+        unresolvedImports: schema.array(schema.string()).exactOptional(),
     }),
 );
 

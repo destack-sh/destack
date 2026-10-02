@@ -36,7 +36,11 @@ test("stamp declaration constructors and metadata reads with the calling module"
 
     // pad omitted options before the module and keep explicit modules
     const metadata = JSON.stringify(owner.metadata);
-    const result = transformModule(code, NOTE_PATH, owner, new PackageLocator())!.code;
+    const transformed = transformModule(code, NOTE_PATH, owner, new PackageLocator());
+    if (transformed === undefined) {
+        throw new TypeError("the module was left unchanged");
+    }
+    const result = transformed.code;
     expect(result.split("\n")).toEqual([
         `const __destackModule = Object.freeze(${metadata});`,
         'import { defineNote } from "./declare.ts";',

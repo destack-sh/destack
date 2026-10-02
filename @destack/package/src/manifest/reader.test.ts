@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { schema } from "@destack/schema";
+import { found, schema } from "@destack/schema";
 import { PackageFile } from "../file/file.ts";
 import { Package } from "../definition/package.ts";
 import { BuildReader } from "./reader.ts";
@@ -29,9 +29,16 @@ const notification = Package.parse({
     version: "2026.9.0",
 });
 
+/** An empty inventory file of a build. */
+const EMPTY = await PackageFile.describe(
+    "manifest/empty.json",
+    "application/json",
+    new Uint8Array(),
+);
+
 /** Record a declaration of a package's constructor as a build records it. */
 function declaration(
-    owner: Package,
+    declaring: Package,
     constructor: Package,
     kind: string,
     name: string,
@@ -40,7 +47,7 @@ function declaration(
     return {
         name,
         kind,
-        package: owner,
+        package: declaring,
         constructor: { package: constructor, symbol: { module: "src/setting.ts", name: "define" } },
         symbol: { package: other, symbol: { module: "src/index.ts", name } },
         source: { file: "src/index.ts", line: 0, column: 0 },
@@ -79,9 +86,17 @@ test("read the descriptions of one kind across every version of a package's decl
         files.set(file.path, bytes);
         descriptions[domain] = { package: constructor, file };
     }
-    const reader = new BuildReader({ descriptions } as PackageManifest, async (path) =>
-        files.get(path)!,
-    );
+    const manifest: PackageManifest = {
+        formatVersion: 1,
+        package: owner,
+        language: "typescript",
+        dependencies: EMPTY,
+        descriptions,
+        outputs: {},
+        files: EMPTY,
+        sourceMaps: EMPTY,
+    };
+    const reader = new BuildReader(manifest, async (path) => found(files, path));
 
     // read both versions' settings with the notification's, and nothing for another package
     const item = schema.object({ name: schema.string() }).strict();
@@ -108,15 +123,23 @@ test("read declarations of every collection owner beside test declarations of th
     const tests = [
         { kind: "test", name: "reads", file: "src/index.test.ts", start: 0, end: 9, modifiers: [] },
     ];
-    const manifest: Pick<PackageManifest, "descriptions" | "tests"> = {
+    const tested = await store("manifest/tests.json", tests);
+    const manifest: PackageManifest = {
+        formatVersion: 1,
+        package: owner,
+        language: "typescript",
+        dependencies: EMPTY,
         descriptions: {
             setting: await store("manifest/setting.json", [
                 declaration(owner, owner, "setting", "language", { name: "language" }),
             ]),
         },
-        tests: await store("manifest/tests.json", tests),
+        tests: tested,
+        outputs: {},
+        files: EMPTY,
+        sourceMaps: EMPTY,
     };
-    const reader = new BuildReader(manifest as PackageManifest, async (path) => files.get(path)!);
+    const reader = new BuildReader(manifest, async (path) => found(files, path));
 
     // read every collection owner's settings, then the untouched test declarations
     const item = schema.object({ name: schema.string() }).strict();
@@ -124,7 +147,7 @@ test("read declarations of every collection owner beside test declarations of th
     const declared = await Promise.all(owners.map((id) => reader.declared(id, "setting", item)));
     expect([
         declared.flat().map((entry) => entry.description),
-        await reader.read(manifest.tests!.file, schema.array(schema.json())),
+        await reader.read(tested.file, schema.array(schema.json())),
     ]).toEqual([[{ name: "language" }], tests]);
 });
 
@@ -147,8 +170,11 @@ test("read a build's own declarations across its domains, and reference its upgr
     };
     const inventory = async (name: string) =>
         (await store(`manifest/${name}.json`, name === "dependencies" ? {} : [])).file;
-    const manifest = {
+    const manifest: PackageManifest = {
+        formatVersion: 1,
         package: other,
+        language: "typescript",
+        outputs: {},
         dependencies: await inventory("dependencies"),
         files: await inventory("files"),
         sourceMaps: await inventory("sourceMaps"),
@@ -158,9 +184,7 @@ test("read a build's own declarations across its domains, and reference its upgr
         },
         upgrade: await store("manifest/upgrade.json", { from: "2026.8.0", steps: [] }),
     };
-    const reader = new BuildReader(manifest as unknown as PackageManifest, async (path) =>
-        files.get(path)!,
-    );
+    const reader = new BuildReader(manifest, async (path) => found(files, path));
 
     // keep the build's own declaration, and reference the upgrade after the collections
     expect([await reader.declarations(), reader.references().map((file) => file.path)]).toEqual([

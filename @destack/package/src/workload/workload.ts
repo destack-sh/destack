@@ -10,7 +10,7 @@ export const WorkloadDefinition = defineSchema(
             /** The package-local workload name. */
             name: DeclarationName,
             /** Capacity and lifecycle policy for each instance. */
-            compute: ComputeDefinition.optional(),
+            compute: ComputeDefinition.exactOptional(),
         })
         .strict(),
 );

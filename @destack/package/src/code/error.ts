@@ -25,7 +25,7 @@ export const ErrorDescription = defineSchema(
                 /** The call expression. */
                 source: SourceRange,
                 /** The resolved callee, absent for unresolved or indirect calls. */
-                target: SymbolReference.optional(),
+                target: SymbolReference.exactOptional(),
                 /** Whether this call is directly awaited. */
                 isAwaited: schema.boolean(),
                 /** Enclosing catches for synchronous failures, ordered nearest first. */

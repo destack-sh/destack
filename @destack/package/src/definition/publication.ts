@@ -4,7 +4,7 @@ import { DeclarationName } from "./package.ts";
 import { PackageError } from "../error/error.ts";
 
 /** An npm export condition, such as `default`, `node` or `browser`. */
-export const ExportCondition = defineSchema(schema.string().regex(/^[a-z][a-z0-9_-]*$(?![\s\S])/));
+export const ExportCondition = defineSchema(schema.string().regex(/^[a-z][a-z0-9_-]*$(?![\s\S])/u));
 /** An npm export condition. */
 export type ExportCondition = schema.Infer<typeof ExportCondition>;
 

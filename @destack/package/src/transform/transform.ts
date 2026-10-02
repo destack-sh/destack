@@ -1,5 +1,6 @@
 import MagicString from "magic-string";
 import { parseAst } from "rolldown/parseAst";
+import { type ESTree, Visitor } from "rolldown/utils";
 import { ModuleMetadata } from "../definition/metadata.ts";
 import type { ModulePackage, PackageLocator } from "./locator.ts";
 
@@ -7,7 +8,7 @@ import type { ModulePackage, PackageLocator } from "./locator.ts";
 const BINDING = "__destackModule";
 
 /** The source of each static import or re-export. */
-const IMPORT_SOURCE = /\bfrom\s*["']([^"']+)["']/g;
+const IMPORT_SOURCE = /\bfrom\s*["']([^"']+)["']/gu;
 
 /** A transformed module and the edits that map it to its authored text. */
 export interface ModuleTransform {
@@ -15,17 +16,6 @@ export interface ModuleTransform {
     readonly code: string;
     /** The edits generating its source map. */
     readonly source: MagicString;
-}
-
-/** A parsed AST node with source offsets. */
-interface Node {
-    /** The node type name. */
-    readonly type: string;
-    /** The offset of the first character. */
-    readonly start: number;
-    /** The offset after the last character. */
-    readonly end: number;
-    readonly [key: string]: unknown;
 }
 
 /** Inject module metadata into import.meta.destack and declaration constructor calls. */
@@ -41,29 +31,29 @@ export function transformModule(
     }
 
     // collect local bindings of constructors and namespaces imported from their defining package
-    const program = parseAst(code, { lang: /\.[cm]?tsx$/.test(path) ? "tsx" : "ts" }, path);
+    const program = parseAst(code, { lang: /\.[cm]?tsx$/u.test(path) ? "tsx" : "ts" }, path);
     const constructors = new Map<string, number>();
-    const namespaces = new Map<string, Readonly<Record<string, number>>>();
+    const namespaces = new Map<string, ReadonlyMap<string, number>>();
     for (const statement of program.body) {
         if (statement.type !== "ImportDeclaration" || statement.importKind === "type") {
             continue;
         }
         const exported = packages.imported(statement.source.value, path, owner.metadata);
         for (const specifier of statement.specifiers) {
-            // bind named constructor imports
-            if (
+            // read the module parameter of a named value import
+            const position =
                 specifier.type === "ImportSpecifier" &&
                 specifier.importKind !== "type" &&
-                specifier.imported.type === "Identifier" &&
-                Object.hasOwn(exported, specifier.imported.name)
-            ) {
-                constructors.set(specifier.local.name, exported[specifier.imported.name]!);
+                specifier.imported.type === "Identifier"
+                    ? exported.get(specifier.imported.name)
+                    : undefined;
+
+            // bind named constructor imports
+            if (position !== undefined) {
+                constructors.set(specifier.local.name, position);
             }
             // bind namespaces of packages with constructors
-            else if (
-                specifier.type === "ImportNamespaceSpecifier" &&
-                Object.keys(exported).length > 0
-            ) {
+            else if (specifier.type === "ImportNamespaceSpecifier" && exported.size > 0) {
                 namespaces.set(specifier.local.name, exported);
             }
         }
@@ -72,17 +62,21 @@ export function transformModule(
     // replace metadata reads and append metadata to constructor calls that omit it
     const source = new MagicString(code);
     let isChanged = false;
-    visit(program, (node) => {
+    new Visitor({
         // replace metadata reads with the module binding
-        if (isMetadataRead(node)) {
-            source.overwrite(node.start, node.end, BINDING);
-            isChanged = true;
-        }
+        MemberExpression(node) {
+            if (isMetadataRead(node)) {
+                source.overwrite(node.start, node.end, BINDING);
+                isChanged = true;
+            }
+        },
         // append the module to constructor calls that omit it
-        else if (stampCall(node, constructors, namespaces, source)) {
-            isChanged = true;
-        }
-    });
+        CallExpression(node) {
+            if (stampCall(node, constructors, namespaces, source)) {
+                isChanged = true;
+            }
+        },
+    }).visit(program);
     if (!isChanged) {
         return undefined;
     }
@@ -107,8 +101,11 @@ function isStampable(
 
     // name a constructor one of its import sources provides
     for (const [, specifier] of code.matchAll(IMPORT_SOURCE)) {
-        const constructors = packages.imported(specifier!, path, metadata);
-        if (Object.keys(constructors).some((name) => code.includes(name))) {
+        if (specifier === undefined) {
+            throw new TypeError("the import source pattern captures no specifier");
+        }
+        const constructors = packages.imported(specifier, path, metadata);
+        if ([...constructors.keys()].some((name) => code.includes(name))) {
             return true;
         }
     }
@@ -118,17 +115,14 @@ function isStampable(
 
 /** Append the module binding to a constructor call, padding omitted arguments, reporting whether it did. */
 function stampCall(
-    node: Node & Record<string, any>,
+    node: ESTree.CallExpression,
     constructors: ReadonlyMap<string, number>,
-    namespaces: ReadonlyMap<string, Readonly<Record<string, number>>>,
+    namespaces: ReadonlyMap<string, ReadonlyMap<string, number>>,
     source: MagicString,
 ): boolean {
     // skip other calls, calls passing their module explicitly, and spread arguments
-    const position =
-        node.type === "CallExpression"
-            ? findConstructor(node.callee, constructors, namespaces)
-            : undefined;
-    const values = (node.arguments ?? []) as Node[];
+    const position = findConstructor(node.callee, constructors, namespaces);
+    const values = node.arguments;
     if (
         position === undefined ||
         values.length > position ||
@@ -156,9 +150,9 @@ function stampCall(
 
 /** Find the module parameter position of the imported constructor a callee names. */
 function findConstructor(
-    callee: Node & Record<string, any>,
+    callee: ESTree.Expression,
     constructors: ReadonlyMap<string, number>,
-    namespaces: ReadonlyMap<string, Readonly<Record<string, number>>>,
+    namespaces: ReadonlyMap<string, ReadonlyMap<string, number>>,
 ): number | undefined {
     // read a named import
     if (callee.type === "Identifier") {
@@ -171,56 +165,18 @@ function findConstructor(
         callee.object.type === "Identifier" &&
         callee.property.type === "Identifier"
     ) {
-        const exported = namespaces.get(callee.object.name);
-
-        return exported && Object.hasOwn(exported, callee.property.name)
-            ? exported[callee.property.name]
-            : undefined;
+        return namespaces.get(callee.object.name)?.get(callee.property.name);
     }
 
     return undefined;
 }
 
-/** Report whether a node reads import.meta.destack. */
-function isMetadataRead(node: Node): boolean {
-    const object = node.object as Node | undefined;
-    const property = node.property as (Node & { name?: string }) | undefined;
-
+/** Report whether a member expression reads import.meta.destack. */
+function isMetadataRead(node: ESTree.MemberExpression): boolean {
     return (
-        node.type === "MemberExpression" &&
-        object?.type === "MetaProperty" &&
-        property?.type === "Identifier" &&
-        property.name === "destack"
+        !node.computed &&
+        node.object.type === "MetaProperty" &&
+        node.property.type === "Identifier" &&
+        node.property.name === "destack"
     );
-}
-
-/** Visit every AST node in source order, skipping children of rewritten metadata reads. */
-function visit(node: unknown, callback: (node: Node & Record<string, any>) => void): void {
-    // descend through arrays of nodes
-    if (Array.isArray(node)) {
-        for (const child of node) {
-            visit(child, callback);
-        }
-
-        return;
-    }
-
-    // ignore scalar values
-    if (!node || typeof node !== "object" || typeof (node as Node).type !== "string") {
-        return;
-    }
-
-    // visit the node before its children
-    callback(node as Node & Record<string, any>);
-    if (isMetadataRead(node as Node)) {
-        return;
-    }
-
-    // descend into child nodes
-    for (const key in node) {
-        const value = (node as Record<string, unknown>)[key];
-        if (value && typeof value === "object") {
-            visit(value, callback);
-        }
-    }
 }

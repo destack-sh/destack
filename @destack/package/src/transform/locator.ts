@@ -4,6 +4,14 @@ import { basename, dirname, join } from "node:path";
 import type { DeclarationConstructorMap } from "../definition/constructor.ts";
 import { PackageDefinition } from "../definition/definition.ts";
 import { ModuleMetadata } from "../definition/metadata.ts";
+import { DependencyName } from "../definition/package.ts";
+import { schema } from "@destack/schema";
+
+/** The name and version fields of a package.json. */
+const Manifest = schema.looseObject({
+    name: schema.string().exactOptional(),
+    version: schema.string().exactOptional(),
+});
 
 /** A package directory and the metadata its modules receive. */
 export interface ModulePackage {
@@ -24,7 +32,7 @@ export class PackageLocator {
     /** The declaration constructors of each package directory. */
     readonly #constructors = new Map<string, DeclarationConstructorMap>();
     /** The module parameter positions of each package's constructors, by package name and directory. */
-    readonly #imported = new Map<string, Readonly<Record<string, number>>>();
+    readonly #imported = new Map<string, ReadonlyMap<string, number>>();
 
     /** Find the Destack package containing a module, or nothing outside Destack packages. */
     find(path: string): Promise<ModulePackage | undefined> {
@@ -87,13 +95,11 @@ export class PackageLocator {
         specifier: string,
         path: string,
         metadata: ModuleMetadata,
-    ): Readonly<Record<string, number>> {
+    ): ReadonlyMap<string, number> {
         // read relative imports from the module's own package, and bare imports from the named package
         const owner = specifier.startsWith(".")
             ? metadata.package.name
-            : specifier.startsWith("@")
-              ? specifier.split("/").slice(0, 2).join("/")
-              : specifier.split("/")[0]!;
+            : DependencyName.of(specifier);
         const key = `${owner}\0${dirname(path)}`;
         let constructors = this.#imported.get(key);
         if (constructors !== undefined) {
@@ -101,10 +107,11 @@ export class PackageLocator {
         }
 
         // keep the constructors taking a module, by parameter position
-        constructors = Object.fromEntries(
-            Object.entries(this.constructors(owner, dirname(path)))
-                .filter(([, constructor]) => constructor.module !== undefined)
-                .map(([name, constructor]) => [name, constructor.module!]),
+        constructors = new Map(
+            Object.entries(this.constructors(owner, dirname(path))).flatMap(
+                ([name, constructor]) =>
+                    constructor.module === undefined ? [] : [[name, constructor.module]],
+            ),
         );
         this.#imported.set(key, constructors);
 
@@ -134,7 +141,9 @@ export class PackageLocator {
             const definition = PackageDefinition.read(
                 await readFile(join(directory, "destack.json"), "utf8"),
             );
-            const manifest = JSON.parse(await readFile(join(directory, "package.json"), "utf8"));
+            const manifest = Manifest.parse(
+                JSON.parse(await readFile(join(directory, "package.json"), "utf8")),
+            );
             const metadata = ModuleMetadata.parse({
                 package: { id: definition.id, name: manifest.name, version: manifest.version },
             });
@@ -143,7 +152,8 @@ export class PackageLocator {
         }
         // continue with the parent directory when this one defines no package
         catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+            const isMissing = error instanceof Error && "code" in error && error.code === "ENOENT";
+            if (!isMissing) {
                 throw error;
             }
 
@@ -158,7 +168,9 @@ export class PackageLocator {
             const manifest = join(directory, "package.json");
             this.#names.set(
                 directory,
-                existsSync(manifest) ? JSON.parse(readFileSync(manifest, "utf8")).name : undefined,
+                existsSync(manifest)
+                    ? Manifest.parse(JSON.parse(readFileSync(manifest, "utf8"))).name
+                    : undefined,
             );
         }
 

@@ -1,4 +1,4 @@
-import type { Plugin, PluginOption } from "vite";
+import type { Manifest, Plugin, PluginOption } from "vite";
 import type { ModuleDescription } from "../code/index.ts";
 import type { Package } from "../definition/package.ts";
 import type { DeclarationDescription } from "../inspect/index.ts";
@@ -57,7 +57,7 @@ export interface Pass {
     /** Map a generated file's source map source to its package path. */
     mapSource(source: string, map: string, generated: string): string;
     /** Describe a Vite asset manifest by package paths instead of paths below a root. */
-    describeAssets(manifest: unknown, root: string): unknown;
+    describeAssets(manifest: Manifest, root: string): Manifest;
     /** Check the modules of an output against its runtime, all of them unless named. */
     check(output: string, paths?: readonly string[]): Promise<void>;
     /** Stage the package in a temporary directory that resolves its dependencies. */

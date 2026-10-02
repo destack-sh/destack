@@ -6,7 +6,11 @@ function failure(publish: unknown): string | undefined {
     try {
         Publication.require(Publication.schema.parse(publish));
     } catch (error) {
-        return (error as Error).message;
+        if (!(error instanceof Error)) {
+            throw error;
+        }
+
+        return error.message;
     }
 
     return undefined;

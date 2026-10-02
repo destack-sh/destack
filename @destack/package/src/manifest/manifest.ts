@@ -31,7 +31,7 @@ export type FileDescription = schema.Infer<typeof FileDescription>;
 export const ManifestFile = defineSchema(
     PackageFile.extend({
         /** Independently readable descriptions of this file. */
-        descriptions: schema.array(FileDescription).optional(),
+        descriptions: schema.array(FileDescription).exactOptional(),
     }),
 );
 /** A distributed file and its inspection references. */
@@ -51,9 +51,9 @@ export const PackageManifest = defineSchema(
         /** Declaration collections keyed by domain, each qualified by its declaring package. */
         descriptions: schema.record(schema.string(), DescriptionReference),
         /** Static test declarations qualified by the package defining their format. */
-        tests: DescriptionReference.optional(),
+        tests: DescriptionReference.exactOptional(),
         /** The upgrade from the package's previous release, qualified by the package defining its format. */
-        upgrade: DescriptionReference.optional(),
+        upgrade: DescriptionReference.exactOptional(),
         /** Named outputs compiled from the package. */
         outputs: schema.record(DeclarationName, PackageOutput),
         /** The inventory of source, executable and asset files. */
@@ -74,7 +74,7 @@ export const PackageLocation = defineSchema(
         /** Base URL serving this package's manifest, files and archive. */
         url: schema.url(),
         /** Expiry time in Unix milliseconds; absent for retained packages. */
-        expiresAt: Instant.optional(),
+        expiresAt: Instant.exactOptional(),
     }),
 );
 /** An immutable package's retrieval endpoint and manifest digest. */
