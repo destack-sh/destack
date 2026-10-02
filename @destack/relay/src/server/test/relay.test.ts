@@ -6,14 +6,13 @@ import { GlobalFixture, ids } from "@destack/host/test";
 import { RequestId } from "@destack/service/request";
 import { accountTables } from "@destack/account/stack";
 import { defineDatabase } from "@destack/db/declare";
-import { hostTables } from "@destack/host/stack";
 import { freePort, RelayFixture, until } from "./fixture.ts";
 
 /** The global database of the hosts and accounts relays route to. */
 const relayDatabase = defineDatabase({
     name: "global",
     tier: "global",
-    tables: [...hostTables, ...accountTables, ...directoryTables],
+    tables: [...accountTables, ...directoryTables],
 });
 
 /** The global tier with each scenario's enrolled host. */

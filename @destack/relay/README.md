@@ -19,7 +19,7 @@ const relay = RelayServer.start({
     origin: "https://relay.destack.space",
     listener: { hostname: "0.0.0.0", port: 443, tls },
     database,
-    resolver: new ResolverCache(database),
+    resolver: Resolver.global(database),
     tokens: universe(RELAY_PACKAGE.id),
     certificate: { cert, key },
     report,

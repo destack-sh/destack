@@ -28,6 +28,7 @@
     },
     "devDependencies": {
         "@destack/directory": "workspace:*",
+        "@destack/sync": "workspace:*",
         "@destack/test": "workspace:*"
     }
 }

@@ -1,14 +1,8 @@
-import type { ResolverCache } from "@destack/account/directory";
+import type { Resolver } from "@destack/account/directory";
 import { principal } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
-import {
-    DOMAINS,
-    type Domains,
-    Host,
-    HostAddress,
-    HostKey,
-    InstallationOrigin,
-} from "@destack/host";
+import { DOMAINS, type Domains, HostAddress, InstallationOrigin } from "@destack/host";
+import { Host, HostKey } from "@destack/account/object";
 import type { Identifier } from "@destack/schema";
 import type { TokenVerifier } from "@destack/service/authentication";
 import type {} from "@destack/package/import-meta";
@@ -25,7 +19,7 @@ export interface RelayOptions {
     /** The global database: accounts, hosts and their keys. */
     readonly database: DatabaseConnection;
     /** The resolver for names and the directory of cells. */
-    readonly resolver: ResolverCache;
+    readonly resolver: Resolver;
     /** Verify the universe's tokens hosts open tunnels with, for the relay's package. */
     readonly tokens: TokenVerifier;
     /** Find a host's tunnel, absent while the host keeps none open here. */
@@ -49,7 +43,7 @@ export class Relay {
     /** The global database. */
     readonly #database: DatabaseConnection;
     /** The resolver names resolve through. */
-    readonly #resolver: ResolverCache;
+    readonly #resolver: Resolver;
     /** The verifier of hosts' tokens. */
     readonly #tokens: TokenVerifier;
     /** Find a host's tunnel. */
@@ -74,7 +68,7 @@ export class Relay {
     async admit(request: Request, now = Date.now()): Promise<Admission> {
         // require a host's token
         const caller = await this.#tokens.authenticate(request, undefined, now);
-        const subject = caller.authentication.subject;
+        const subject = caller.claims.subject;
         if (!principal.host.is(subject)) {
             throw new ServiceError("FORBIDDEN", { message: "only hosts open tunnels" });
         }

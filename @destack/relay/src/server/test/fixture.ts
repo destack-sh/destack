@@ -3,10 +3,10 @@ import { Scope } from "@destack/sync";
 import { createServer } from "node:net";
 import { serve } from "bun";
 import type { HostIdentity } from "@destack/host/identity";
-import { type GlobalFixture, HOSTS_URL, ids, ISSUER } from "@destack/host/test";
+import { type GlobalFixture, ACCOUNTS_URL, ids, ISSUER } from "@destack/host/test";
 import { TokenVerifier } from "@destack/service/authentication";
-import { ResolverCache } from "@destack/account/directory";
-import { DirectoryDatabase } from "@destack/directory";
+import { Resolver } from "@destack/account/directory";
+import { DirectoryStore } from "@destack/directory";
 import { identifier, type Identifier } from "@destack/schema";
 import { space } from "@destack/space/object";
 import { v7 } from "uuid";
@@ -25,7 +25,7 @@ export class RelayFixture implements AsyncDisposable {
     /** The global tier. */
     readonly global: GlobalFixture;
     /** The directory over the global database. */
-    readonly directory: DirectoryDatabase;
+    readonly directory: DirectoryStore;
     /** The host serving the space. */
     readonly identity: HostIdentity;
     /** The host's identifier. */
@@ -47,7 +47,7 @@ export class RelayFixture implements AsyncDisposable {
     private constructor(global: GlobalFixture, identity: HostIdentity, space: string) {
         // keep the tier, its directory, the host and its space
         this.global = global;
-        this.directory = new DirectoryDatabase(global.database);
+        this.directory = new DirectoryStore(global.database);
         this.identity = identity;
         this.hostId = identifier("host").parse(identity.hostId);
         this.space = space;
@@ -85,7 +85,6 @@ export class RelayFixture implements AsyncDisposable {
         await this.directory.replace(
             await space.owned(this.spaceId!, row, Snapshot.live(this.global.database)),
             `rename-${this.spaceId!}`,
-            Date.now(),
         );
     }
 
@@ -97,7 +96,6 @@ export class RelayFixture implements AsyncDisposable {
         await this.directory.replace(
             await space.owned(id, row, Snapshot.live(this.global.database)),
             `place-${id}`,
-            Date.now(),
         );
         await this.directory.place({ id, scope: ids.account, cell, epoch: 1 });
 
@@ -110,7 +108,7 @@ export class RelayFixture implements AsyncDisposable {
             origin: `http://127.0.0.1:${port}`,
             listener: { hostname: "127.0.0.1", port },
             database: this.global.database,
-            resolver: new ResolverCache(this.global.database),
+            resolver: Resolver.global(this.global.database),
             tokens: new TokenVerifier({
                 authority: { kind: "universe" },
                 issuer: ISSUER,
@@ -140,8 +138,10 @@ export class RelayFixture implements AsyncDisposable {
         const client = TunnelClient.open({
             url: relay.url,
             token: async () => {
-                const granted = await this.identity.token(RELAY_PACKAGE.id, HOSTS_URL, (request) =>
-                    this.global.hosts.fetch(request),
+                const granted = await this.identity.token(
+                    RELAY_PACKAGE.id,
+                    ACCOUNTS_URL,
+                    (request) => this.global.accounts.fetch(request),
                 );
 
                 return granted.accessToken;
