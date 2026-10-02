@@ -41,9 +41,9 @@ Yet, our new class of machine user demands the broadest possilbe access to the e
 Agents are on pace to outnumber human users by multiple orders of magnitude very soon, but they are awkwardly caged in by last century's software stack.
 
 Until very recently, the key issue with "malleable software" was that approximately nobody _wants_ to build *and maintain* "owned software".
-Building custom software is enticing but difficult: it never ends, it rarely works _quite_ as well as the off-the-shelf SaaS alternative, and in any case there was little reason to own the stack.
+Building custom software is enticing but difficult: it never ends, it rarely works _quite_ as well as the off-the-shelf SaaS alternative, and in any case there was little benefit to owning the stack.
 
-Now, the equation has flipped - building is cheap, but the lack of integration is painful.
+Now, the equation has flipped - building is cheap, the lack of integration is expensive.
 How do you join, in one transaction, write "reminders in Notion" with "leads in Salesforce" and "events in Outlook"?
 It simply does not compute - the depth of integration required is impossible by tying together slices of the old stack.
 
@@ -101,7 +101,7 @@ We have figured out, roughly, the principal components, but they're all over the
 Now, we also need a "software engine": a "game engine"-like abstraction of _integrated_ "platform software" building blocks for a new level of "userland software". 
 <!--Sometimes, when building a game, you playtest the game, sometimes you edit the game, sometimes you build new tools to help you edit the game - but it's all part of _one_ integrated process.-->
 
-# The System and The Scaffolding
+# The System and The Meta System
 
 Fundamentally, there is not a single test, certificate, proof, or "magic gate" that you can run to convince me that some non-trivial software program is correct.
 The correctness of any complex software systems spans many granuliarities, and mathematical "proof", green tests, smoke tests, and passing gates all mean nothing if it's not what I actually _meant_.
@@ -116,8 +116,8 @@ In frighteningly short order, steering exclusively through the peephole of a cha
 To only way to judge correctness for general purpose software - that is: does it do what it should? - is to look, to see the software in motion under many different angles and granularities.
 Notably, this is not an intelligence problem at all - it's a human problem, and a real world integration problem; I just don't know what I want until I see it.
 
-Building any software system and making sure it works and keeps working is an iterative process that requires constant feedback and continuous alignment as the shape and understanding of the problem evolves.
-This has always been true for "traditional" symbolic software, and it is even more important for probabilistic software - and it's much harder within a sprawling fragmented stack that is _itself_ hard to test and observe in motion.
+<!--Building any software system and making sure it works and keeps working is an iterative process that requires constant feedback and continuous alignment as the shape and understanding of the problem evolves.
+This has always been true for "traditional" symbolic software, and it is even more important for probabilistic software - and it's much harder within a sprawling fragmented stack that is _itself_ hard to test and observe in motion.-->
 
 Despite half a century of development, our tools for building and understanding software systems are surprisingly primitive.
 We _still_ struggle with "works on my machine", and reproducing observed issues in the "laboratory" is virtually impossible.
@@ -125,7 +125,7 @@ If software is going to run _everything_, faster than anyone can verify, how do 
 
 # The Destack
 
-Software should be open, hackable, remixable - in short, a stack you can own, but without the hassle of traditional software ownership.
+Software should be open, hackable, remixable - a stack you can own, without the hassle of traditional software ownership.
 To make it so, we need a "software engine": a stable platform of _integrated_ building blocks designed for iteration and higher order programming of fluid software _without_ giving up on the benefits of modern stacks and the cloud.
 
 So. How do we get there, from here?
