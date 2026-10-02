@@ -136,7 +136,9 @@ export class SmtpConnection {
     /** Send QUIT and wait for the server to end the connection, closing it at the deadline at the latest. */
     async close(): Promise<void> {
         // ask the server to end the session, sending nothing more
-        const closed = new Promise<void>((resolve) => this.#socket.once("close", () => resolve()));
+        const closed = new Promise<void>((resolve) => {
+            this.#socket.once("close", () => resolve());
+        });
         this.write("QUIT\r\n");
         this.#socket.end();
 

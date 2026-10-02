@@ -51,11 +51,9 @@ export class TestCertificate {
     /** Generate a fresh key and a certificate it signs for 127.0.0.1. */
     static async generate(): Promise<TestCertificate> {
         // generate the key pair
-        const pair = (await crypto.subtle.generateKey(
-            { name: "ECDSA", namedCurve: "P-256" },
-            true,
-            ["sign"],
-        )) as CryptoKeyPair;
+        const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
+            "sign",
+        ]);
         const publicKey = new Uint8Array(await crypto.subtle.exportKey("spki", pair.publicKey));
         const privateKey = new Uint8Array(await crypto.subtle.exportKey("pkcs8", pair.privateKey));
 
@@ -164,8 +162,13 @@ function integer(bytes: Uint8Array): Uint8Array {
         start += 1;
     }
     const trimmed = bytes.slice(start);
+    const first = trimmed[0];
+    if (first === undefined) {
+        throw new TypeError("integer has no bytes");
+    }
 
-    return der(TAG.integer, trimmed[0]! >= 0x80 ? [0, ...trimmed] : trimmed);
+    // pad a high first byte so the integer stays positive
+    return der(TAG.integer, first >= 0x80 ? [0, ...trimmed] : trimmed);
 }
 
 /** Write a time as a DER UTCTime, such as 260929100000Z. */
@@ -179,14 +182,17 @@ function utcTime(date: Date): Uint8Array {
     }
 
     // keep the year's last two digits through the seconds
-    const digits = date.toISOString().replaceAll(/[-:T]/g, "").slice(2, 14);
+    const digits = date.toISOString().replaceAll(/[-:T]/gu, "").slice(2, 14);
 
     return new TextEncoder().encode(`${digits}Z`);
 }
 
 /** Write DER bytes as PEM under a label. */
 function pem(label: string, bytes: Uint8Array): string {
-    const lines = bytes.toBase64().match(/.{1,64}/g)!;
+    const lines = bytes.toBase64().match(/.{1,64}/gu);
+    if (lines === null) {
+        throw new TypeError("pem has no bytes");
+    }
 
     return `-----BEGIN ${label}-----\n${lines.join("\n")}\n-----END ${label}-----\n`;
 }

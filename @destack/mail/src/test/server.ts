@@ -1,4 +1,5 @@
-import net, { type AddressInfo, type Server, type Socket } from "node:net";
+import { aligned } from "@destack/schema";
+import net, { type Server, type Socket } from "node:net";
 import tls from "node:tls";
 import type { BearerCredentials, PlainCredentials, Security } from "../smtp/index.ts";
 import type { TestCertificate } from "./certificate.ts";
@@ -6,12 +7,24 @@ import type { TestCertificate } from "./certificate.ts";
 /** The XOAUTH2 error challenge, base64 of the JSON status Gmail sends before its final 535. */
 const XOAUTH2_CHALLENGE = btoa('{"status":"401","schemes":"bearer"}');
 
+/** How a test server's sessions protect their bytes, with the certificate TLS presents. */
+export type SmtpTestSecurity =
+    | {
+          /** Plain text throughout. */
+          readonly security: Extract<Security, "none">;
+      }
+    | {
+          /** TLS from the first byte or after STARTTLS. */
+          readonly security: Exclude<Security, "none">;
+          /** The certificate presented under TLS. */
+          readonly certificate: TestCertificate;
+      };
+
 /** How a test server's sessions run. */
-export interface SmtpTestServerOptions {
-    /** How sessions protect their bytes. */
-    readonly security: Security;
-    /** The certificate presented under TLS. */
-    readonly certificate?: TestCertificate;
+export type SmtpTestServerOptions = SmtpTestSecurity & SmtpTestScript;
+
+/** The credentials a test server accepts and the replies it sends. */
+export interface SmtpTestScript {
     /** The PLAIN credentials accepted. */
     readonly plain?: PlainCredentials;
     /** The XOAUTH2 credentials accepted. */
@@ -33,20 +46,14 @@ export class SmtpTestServer implements AsyncDisposable {
     /** The open sessions' sockets. */
     readonly #sockets = new Set<Socket>();
 
-    /** Create a server that serves each connection, refusing TLS without a certificate. */
+    /** Create a server that serves each connection. */
     private constructor(options: SmtpTestServerOptions) {
-        // require a certificate under TLS
-        const certificate = options.certificate;
-        if (options.security !== "none" && certificate === undefined) {
-            throw new TypeError(`security ${options.security} requires a certificate`);
-        }
-
         // accept plain text or TLS from the first byte
         this.#options = options;
         this.#server =
             options.security === "tls"
                 ? tls.createServer(
-                      { key: certificate!.key, cert: certificate!.certificate },
+                      { key: options.certificate.key, cert: options.certificate.certificate },
                       (socket) => this.#accept(socket, true),
                   )
                 : net.createServer((socket) => this.#accept(socket, false));
@@ -55,14 +62,21 @@ export class SmtpTestServer implements AsyncDisposable {
     /** Listen on an ephemeral port of 127.0.0.1. */
     static async listen(options: SmtpTestServerOptions): Promise<SmtpTestServer> {
         const server = new SmtpTestServer(options);
-        await new Promise<void>((resolve) => server.#server.listen(0, "127.0.0.1", resolve));
+        await new Promise<void>((resolve) => {
+            server.#server.listen(0, "127.0.0.1", resolve);
+        });
 
         return server;
     }
 
     /** The port the server listens on. */
     get port(): number {
-        return (this.#server.address() as AddressInfo).port;
+        const address = this.#server.address();
+        if (address === null || typeof address === "string") {
+            throw new TypeError("test server listens on no port");
+        }
+
+        return address.port;
     }
 
     /** Close every session and stop listening. */
@@ -70,7 +84,9 @@ export class SmtpTestServer implements AsyncDisposable {
         for (const socket of this.#sockets) {
             socket.destroy();
         }
-        await new Promise((resolve) => this.#server.close(resolve));
+        await new Promise((resolve) => {
+            this.#server.close(resolve);
+        });
     }
 
     /** Close the server. */
@@ -178,7 +194,7 @@ class Session {
     /** Answer one command line, or the empty line after an XOAUTH2 challenge. */
     #command(line: string): void {
         // split the verb from its argument
-        const verb = line.split(" ")[0]!.toUpperCase();
+        const verb = aligned(line.split(" "), 0).toUpperCase();
         const argument = line.slice(verb.length + 1);
 
         // fail the XOAUTH2 exchange after the client's empty answer
@@ -265,8 +281,14 @@ class Session {
 
     /** Hand the plain socket to TLS, which serves the session from now on. */
     #upgrade(): void {
+        // require the certificate STARTTLS presents
+        const options = this.#options;
+        if (options.security === "none") {
+            throw new TypeError("plain test server cannot start tls");
+        }
+        const certificate = options.certificate;
+
         // stop reading the plain socket
-        const certificate = this.#options.certificate!;
         const plain = this.#socket;
         plain.off("data", this.#receive);
 

@@ -15,9 +15,13 @@ export class Extensions {
         // split each line after the greeting into its keyword and parameters
         const lines = reply.text.split("\n").slice(1);
         const keywords = lines.map((line) => {
-            const [keyword, ...parameters] = line.toUpperCase().split(" ");
+            // split at the first space
+            const upper = line.toUpperCase();
+            const space = upper.indexOf(" ");
+            const keyword = space === -1 ? upper : upper.slice(0, space);
+            const parameters = space === -1 ? [] : upper.slice(space + 1).split(" ");
 
-            return [keyword!, parameters] as const;
+            return [keyword, parameters] as const;
         });
 
         return new Extensions(new Map(keywords));

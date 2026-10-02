@@ -10,7 +10,7 @@ const DIGEST_HEX_LENGTH = 32;
 const QUOTED_PRINTABLE_LIMIT = 75;
 
 /** An RFC 5322 field name: printable ASCII except the colon. */
-const FIELD_NAME = /^[\x21-\x39\x3B-\x7E]+$/;
+const FIELD_NAME = /^[\x21-\x39\x3B-\x7E]+$/u;
 
 /** The fields the composer writes itself, in lower case, which extra headers may not repeat. */
 const STRUCTURAL_HEADERS = new Set([
@@ -158,7 +158,7 @@ function writeDate(date: Date): string {
 function writeQuotedPrintable(text: string): string {
     // encode each line apart, since line breaks stay literal
     const encoder = new TextEncoder();
-    const lines = text.split(/\r\n|\r|\n/).map((line) => {
+    const lines = text.split(/\r\n|\r|\n/u).map((line) => {
         // escape each byte outside literal ASCII, and whitespace ending the line
         const bytes = encoder.encode(line);
         const pieces = Array.from(bytes, (byte, index) => {

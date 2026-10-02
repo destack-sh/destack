@@ -4,10 +4,10 @@ import { SmtpError } from "./error.ts";
 export const MAX_REPLY_LINE_OCTETS = 512;
 
 /** One line of a server reply: `250-text` continues the reply, `250 text` ends it. */
-const REPLY_LINE = /^([2-5]\d\d)(?:([ -])(.*))?$/;
+const REPLY_LINE = /^([2-5]\d\d)(?:([ -])(.*))?$/u;
 
 /** An RFC 3463 enhanced status code leading a reply line, such as `5.1.1`. */
-const ENHANCED_CODE = /^([245])(\.\d{1,3}\.\d{1,3})(?: |$)/;
+const ENHANCED_CODE = /^([245])(\.\d{1,3}\.\d{1,3})(?: |$)/u;
 
 /** One parsed reply line. */
 export interface ReplyLine {
@@ -70,9 +70,13 @@ export class Reply {
     /** Join a reply's lines, lifting an enhanced status code of the reply's class out of each. */
     static join(lines: readonly ReplyLine[]): Reply {
         // read the enhanced code of the first line when its class matches the reply's
-        const code = lines[0]!.code;
+        const [head] = lines;
+        if (head === undefined) {
+            throw new TypeError("reply has no lines");
+        }
+        const code = head.code;
         const replyClass = String(Math.floor(code / 100));
-        const first = ENHANCED_CODE.exec(lines[0]!.text);
+        const first = ENHANCED_CODE.exec(head.text);
         const enhancedCode = first?.[1] === replyClass ? `${first[1]}${first[2]}` : undefined;
 
         // strip the matching enhanced code from each line

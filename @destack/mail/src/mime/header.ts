@@ -11,7 +11,7 @@ const MAX_LINE_LENGTH = 998;
 const ENCODED_WORD_BYTES = 36;
 
 /** A value of printable ASCII and spaces, written as it stands. */
-const PRINTABLE = /^[\x20-\x7E]*$/;
+const PRINTABLE = /^[\x20-\x7E]*$/u;
 
 /** One header field, as the tokens that folding may split between lines. */
 export class Header {
@@ -38,12 +38,19 @@ export class Header {
     static mailboxes(name: string, mailboxes: readonly Mailbox[]): Header {
         // end every mailbox but the last with a comma
         const tokens = mailboxes.flatMap((mailbox, index) => {
+            // read the mailbox's last token
             const written = mailbox.tokens();
+            const last = written.at(-1);
+            if (last === undefined) {
+                throw new TypeError("mailbox has no tokens");
+            }
+
+            // leave the last mailbox as written
             if (index === mailboxes.length - 1) {
                 return written;
             }
 
-            return [...written.slice(0, -1), `${written.at(-1)!},`];
+            return [...written.slice(0, -1), `${last},`];
         });
 
         return new Header(name, tokens);

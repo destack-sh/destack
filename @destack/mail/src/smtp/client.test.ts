@@ -1,4 +1,4 @@
-import net, { type AddressInfo } from "node:net";
+import net from "node:net";
 import { beforeAll, expect, test } from "@destack/test";
 import { MimeMessage } from "../mime/index.ts";
 import { SmtpTestServer, TestCertificate } from "../test/index.ts";
@@ -601,7 +601,7 @@ test("fail on a silent server, a trickling server, a stalled token and a refused
     const authentication: Authentication = {
         kind: "xoauth2",
         username: XOAUTH2.username,
-        token: () => new Promise(() => undefined),
+        token: () => new Promise(() => {}),
     };
     const failures = [
         await failureOf(clientOf(silent, { timeout: 20 }).submit(ENVELOPE, message)),
@@ -698,17 +698,27 @@ async function listenRaw(
         socket.on("error", () => socket.destroy());
         serve(socket);
     });
-    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    await new Promise<void>((resolve) => {
+        server.listen(0, "127.0.0.1", resolve);
+    });
+
+    // read the listening port
+    const address = server.address();
+    if (address === null || typeof address === "string") {
+        throw new TypeError("raw server listens on no port");
+    }
 
     // close every socket, then the server
     const close = async () => {
         for (const socket of sockets) {
             socket.destroy();
         }
-        await new Promise((resolve) => server.close(resolve));
+        await new Promise((resolve) => {
+            server.close(resolve);
+        });
     };
 
-    return { port: (server.address() as AddressInfo).port, close, [Symbol.asyncDispose]: close };
+    return { port: address.port, close, [Symbol.asyncDispose]: close };
 }
 
 /** Read the code, message and reply a submission fails with. */

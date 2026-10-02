@@ -12,7 +12,7 @@ export const TIMEOUT_MILLISECONDS = 60_000;
 export const DEADLINE_MILLISECONDS = 120_000;
 
 /** An RFC 5321 address literal: an IPv4 address or a tagged IPv6 address in square brackets. */
-const ADDRESS_LITERAL = /^\[(?:IPv6:)?([^\]]+)\]$/;
+const ADDRESS_LITERAL = /^\[(?:IPv6:)?([^\]]+)\]$/u;
 
 /** How the session protects its bytes: implicit TLS, STARTTLS, or plain text on loopback only. */
 export type Security = "tls" | "starttls" | "none";

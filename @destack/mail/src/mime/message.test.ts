@@ -1,3 +1,4 @@
+import { aligned } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { MimeError, MimeMessage, type Message } from "./index.ts";
 
@@ -291,14 +292,13 @@ test("refuse structural headers, malformed headers, invalid addresses, keys and 
 test("roundtrip random subjects and bodies within the line limits", async () => {
     // compose messages from seeded random text over ASCII, controls, Latin-1, CJK and emoji
     const random = seeded(7);
-    const alphabet = [..."abc XYZ.=?\t\r\n-_:;<>", "é", "€", "日本", "😀", "\u0000"];
+    const alphabet = [...Array.from("abc XYZ.=?\t\r\n-_:;<>"), "é", "€", "日本", "😀", "\u0000"];
     for (let round = 0; round < 200; round += 1) {
         const pick = () =>
-            Array.from(
-                { length: Math.floor(random() * 120) },
-                () => alphabet[Math.floor(random() * alphabet.length)]!,
+            Array.from({ length: Math.floor(random() * 120) }, () =>
+                aligned(alphabet, Math.floor(random() * alphabet.length)),
             ).join("");
-        const subject = pick().replaceAll(/[\r\n]/g, "");
+        const subject = pick().replaceAll(/[\r\n]/gu, "");
         const text = pick();
         const message = await MimeMessage.compose({ ...MESSAGE, subject, text });
 
@@ -307,7 +307,7 @@ test("roundtrip random subjects and bodies within the line limits", async () => 
         expect(lines.filter((line) => line.length > LINE_LIMIT)).toEqual([]);
         expect(decodeSubject(message.content)).toBe(subject);
         expect(decodeQuotedPrintable(bodyOf(message.content))).toBe(
-            text.replaceAll(/\r\n|\r|\n/g, "\r\n"),
+            text.replaceAll(/\r\n|\r|\n/gu, "\r\n"),
         );
     }
 });
@@ -322,13 +322,24 @@ function decodeSubject(content: string): string {
     // unfold the header section and take the Subject value
     const headers = content.slice(0, content.indexOf("\r\n\r\n"));
     const unfolded = headers.replaceAll("\r\n ", " ");
-    const value = /^Subject:(.*)$/m.exec(unfolded)![1]!.slice(1);
+    const field = /^Subject:(.*)$/mu.exec(unfolded);
+    if (field === null) {
+        throw new TypeError("message has no subject");
+    }
+    const value = aligned(field, 1).slice(1);
     if (!value.startsWith("=?UTF-8?B?")) {
         return value;
     }
 
     // join adjacent encoded-words, dropping the whitespace between them
-    const words = value.split(" ").map((word) => /^=\?UTF-8\?B\?(.*)\?=$/.exec(word)![1]!);
+    const words = value.split(" ").map((word) => {
+        const encoded = /^=\?UTF-8\?B\?(.*)\?=$/u.exec(word);
+        if (encoded === null) {
+            throw new TypeError(`subject word ${word} is no encoded-word`);
+        }
+
+        return aligned(encoded, 1);
+    });
 
     return words.map((word) => new TextDecoder().decode(Uint8Array.fromBase64(word))).join("");
 }
@@ -338,7 +349,7 @@ function decodeQuotedPrintable(body: string): string {
     // drop the final line break and the soft breaks, then decode the escapes as UTF-8
     const joined = body.slice(0, -2).replaceAll("=\r\n", "");
     const bytes = joined.replaceAll(
-        /=([0-9A-F]{2})|([\s\S])/g,
+        /=([0-9A-F]{2})|([\s\S])/gu,
         (_, hex: string, literal: string) =>
             hex === undefined ? literal : String.fromCharCode(Number.parseInt(hex, 16)),
     );

@@ -1,11 +1,12 @@
+import { aligned } from "@destack/schema";
 import { MimeError } from "./error.ts";
 import { Header } from "./header.ts";
 
 /** A dot-atom local part, which needs no quoting and no SMTPUTF8. */
-const LOCAL_PART = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/;
+const LOCAL_PART = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/u;
 
 /** A hostname label of letters, digits and inner hyphens. */
-const LABEL = /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/;
+const LABEL = /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/u;
 
 /** The longest address a path carries: RFC 5321 limits a path to 256 octets with angle brackets. */
 const MAX_ADDRESS_LENGTH = 254;
@@ -20,13 +21,13 @@ const MAX_DOMAIN_LENGTH = 255;
 const MAX_LABEL_LENGTH = 63;
 
 /** A display name of atoms split by spaces, which needs no quoting. */
-const ATOM_PHRASE = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?: [A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/;
+const ATOM_PHRASE = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?: [A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/u;
 
 /** A display name of printable ASCII, which quoting keeps. */
-const PRINTABLE = /^[\x20-\x7E]*$/;
+const PRINTABLE = /^[\x20-\x7E]*$/u;
 
 /** A mailbox written with a display name: the name, then the address in angle brackets. */
-const NAMED_MAILBOX = /^(.*)<([^<>]*)>$/;
+const NAMED_MAILBOX = /^(.*)<([^<>]*)>$/u;
 
 /** An RFC 5322 mailbox: an address with an optional display name. */
 export class Mailbox {
@@ -57,11 +58,11 @@ export class Mailbox {
         }
 
         // unquote a quoted display name
-        const name = named[1]!.trim();
+        const name = aligned(named, 1).trim();
         const isQuoted = name.length >= 2 && name.startsWith('"') && name.endsWith('"');
-        const unquoted = isQuoted ? name.slice(1, -1).replaceAll(/\\(.)/g, "$1") : name;
+        const unquoted = isQuoted ? name.slice(1, -1).replaceAll(/\\(.)/gu, "$1") : name;
 
-        return new Mailbox(named[2]!, unquoted === "" ? undefined : unquoted);
+        return new Mailbox(aligned(named, 2), unquoted === "" ? undefined : unquoted);
     }
 
     /** Report whether text is a dot-atom addr-spec within the RFC 5321 length limits. */
@@ -106,7 +107,7 @@ export class Mailbox {
         if (ATOM_PHRASE.test(name) && !name.includes("=?")) {
             return [...name.split(" "), address];
         } else if (PRINTABLE.test(name)) {
-            return [...`"${name.replaceAll(/["\\]/g, "\\$&")}"`.split(" "), address];
+            return [...`"${name.replaceAll(/["\\]/gu, "\\$&")}"`.split(" "), address];
         } else {
             return [...Header.encodeWords(name), address];
         }
