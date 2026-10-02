@@ -51,7 +51,7 @@ export function DownloadCell(properties: { style?: stylex.Styles }) {
                         {...stylex.attrs(styles.action)}
                     >
                         <SystemIcon target={download().target} />
-                        Download for {download().label.split(" · ")[0]}
+                        Download
                     </a>
                 )}
             </Show>
@@ -100,6 +100,15 @@ export function DownloadCell(properties: { style?: stylex.Styles }) {
                             </a>
                         )}
                     </For>
+                    <a
+                        href="/docs/setup/#ask-your-agent"
+                        {...stylex.attrs(styles.option, styles.guide)}
+                    >
+                        Ask your agent
+                        <span aria-hidden="true" {...stylex.attrs(styles.version)}>
+                            ↗
+                        </span>
+                    </a>
                     <a href="/docs/setup/" {...stylex.attrs(styles.option, styles.guide)}>
                         Installation guide
                         <span aria-hidden="true" {...stylex.attrs(styles.version)}>
@@ -150,6 +159,7 @@ const styles = stylex.create({
         backgroundColor: tokens.signal,
         color: tokens.signalInk,
         display: "flex",
+        position: "relative",
     },
 
     action: {
@@ -201,10 +211,10 @@ const styles = stylex.create({
         borderWidth: "2px",
         boxShadow: `4px 4px 0 ${tokens.signal}`,
         color: tokens.signalInk,
-        left: 0,
+        minWidth: "18rem",
         position: "absolute",
         right: 0,
-        top: "calc(100% + 0.75rem)",
+        top: "calc(100% + 0.5rem)",
         zIndex: 30,
     },
     option: {
@@ -222,7 +232,7 @@ const styles = stylex.create({
         ":hover": { backgroundColor: tokens.signal },
     },
     guide: {
-        borderBottomWidth: 0,
+        ":last-of-type": { borderBottomWidth: 0 },
         color: `color-mix(in srgb, ${tokens.signalInk} 65%, transparent)`,
     },
     version: {

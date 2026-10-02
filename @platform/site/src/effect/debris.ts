@@ -1,4 +1,4 @@
-import type { Orbit } from "../home/plate";
+import type { Orbit } from "../site/mark";
 import { pageScroll } from "./gl";
 
 /** The milliseconds a shard takes to rise from its berg into the ring, at the least. */

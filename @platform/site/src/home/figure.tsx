@@ -1,4 +1,4 @@
-import { color, fontFamily } from "@destack/theme/tokens.stylex";
+import { color } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
 import { createMemo, createSignal, For, type JSX, onSettled } from "@destack/view";
 
@@ -18,6 +18,7 @@ import {
     waterSpill,
     waveAt,
 } from "../effect/water";
+import { commandEvents } from "../command/command";
 import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
 import { Band, Card, DuctTape, type Entity, type Reveal } from "./card";
@@ -31,26 +32,17 @@ import {
     rowCells,
 } from "./board";
 import { Flotsam } from "./flotsam";
-import { orbitOf } from "./plate";
+import { orbitOf } from "../site/mark";
 import { appUses, Remix, sceneSources, scenes, slotApps, todayScenes } from "./remix";
 
 /** The pitch each berg cracks at, from the left to the right, so the three breaks sound apart. */
 const bergPitches = [1.12, 1, 0.9];
-/** How hard the goo charges while the switch is held down, against 1 while it is hovered. */
-const heldCharge = 1.8;
 /** The media query for screens narrower than the desktop frame, where the drawing spans the whole frame. */
 const narrow = "@media (max-width: 1099px)";
 /** The media query for phone-width screens. */
 const mobile = "@media (max-width: 767px)";
-/** The height of the track the switch sits in above the drawing on narrow screens. */
-const switchTrack = "4rem";
 /** The media query for readers who prefer reduced motion. */
 const still = "@media (prefers-reduced-motion: reduce)";
-
-/** The switch's name for the stack today, in scare quotes. */
-const stackName = "\u201cStack\u201d";
-/** How far each letter of the stack's name sits off the line, in pixels. */
-const jumble = [0.5, -0.5, 1, -0.25, 0.5, -1, 0.25];
 
 /** The rows above the waterline today. */
 const dryRows = 2;
@@ -435,10 +427,6 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     let swirling: ReturnType<typeof setInterval> | undefined;
     let ice: Ice | undefined;
     let debris: Debris | undefined;
-    let toggle!: HTMLButtonElement;
-    let pointer!: SVGPathElement;
-    let stackWord!: HTMLSpanElement;
-    let destackWord!: HTMLSpanElement;
     let debrisCanvas!: HTMLCanvasElement;
     let settle: ReturnType<typeof setTimeout> | undefined;
     let rising: ReturnType<typeof setTimeout> | undefined;
@@ -465,9 +453,6 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         frame.height = bounds.height;
         frame.depth = canvas.clientHeight;
     };
-
-    // charge the goo while the switch promises Destack
-    const prime = (isPrimed: boolean) => charge(isPrimed && !isOpen() ? 1 : 0);
 
     // return the waterline of a configuration in canvas pixels
     const waterlineOf = (next: Stack) =>
@@ -553,7 +538,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         // store the choice and tell the page
         setStack(next);
         properties.onChange(next === "destack");
-        prime(false);
+        charge(0);
 
         // toss the flotsam back up as the water refills, or clear it away
         clearTimeout(calm);
@@ -650,40 +635,9 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
 
     // start the ice, water, and searchlight once the figure is in the page
     onSettled(() => {
-        // fit the switch's bar to each word once the poster face has loaded
-        const fitBar = () => {
-            toggle.style.setProperty("--stack-width", `${stackWord.offsetWidth}px`);
-            toggle.style.setProperty("--destack-width", `${destackWord.offsetWidth}px`);
-        };
-        fitBar();
-
-        // draw the arrow from the promise's verb down to the switch, wherever the layout puts them
-        const aimArrow = () => {
-            // find the verb, or leave the arrow out on pages without it
-            const word = document.querySelector<HTMLElement>('[data-word="unify"]');
-            if (!word) {
-                return;
-            }
-
-            // run from under the word, bend down, and come in level with the switch
-            const origin = figure.getBoundingClientRect();
-            const from = word.getBoundingClientRect();
-            const to = toggle.getBoundingClientRect();
-            const start = {
-                x: (from.left + from.right) / 2 - origin.left,
-                y: from.bottom + 6 - origin.top,
-            };
-            const end = { x: to.left - 12 - origin.left, y: (to.top + to.bottom) / 2 - origin.top };
-            pointer.setAttribute(
-                "d",
-                `M${start.x} ${start.y} C${start.x} ${end.y} ${start.x + (end.x - start.x) * 0.4} ${end.y} ${end.x} ${end.y} M${end.x - 9} ${end.y - 6} L${end.x} ${end.y} L${end.x - 9} ${end.y + 6}`,
-            );
-        };
-        void document.fonts.ready.then(() => {
-            fitBar();
-            aimArrow();
-        });
-        window.addEventListener("resize", aimArrow);
+        // flip the stack whenever the page's switch asks for it
+        const flip = () => select(isOpen() ? "today" : "destack");
+        document.addEventListener(commandEvents.switchStack, flip);
 
         // read the motion preference and set the flotsam adrift
         const isStill = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -954,7 +908,8 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         sight.observe(figure);
 
         return () => {
-            // stop the observers, timers, and frames
+            // stop listening, and stop the observers, timers, and frames
+            document.removeEventListener(commandEvents.switchStack, flip);
             sight.disconnect();
             themes.disconnect();
             resize.disconnect();
@@ -996,7 +951,6 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                         data-universe
                         style={{
                             "--row": String(index() + 1),
-                            "--track": String(index() + 2),
                             ...(index() < dryRows
                                 ? {}
                                 : { opacity: `calc(0.75 + 0.25 * var(--reveal-${index()}))` }),
@@ -1137,71 +1091,6 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                     </div>
                 ))}
             </div>
-
-            {/* point from the promise's verb to the switch */}
-            <svg aria-hidden="true" {...stylex.attrs(styles.arrow)}>
-                <path ref={pointer} {...stylex.attrs(styles.arrowLine)} />
-            </svg>
-
-            {/* switch between today and Destack on a key hung across the seam above the drawing */}
-            <button
-                data-universe
-                type="button"
-                role="switch"
-                aria-label="Destack"
-                aria-checked={isOpen() ? "true" : "false"}
-                onClick={() => select(isOpen() ? "today" : "destack")}
-                onPointerEnter={() => prime(true)}
-                onPointerLeave={() => prime(false)}
-                onPointerDown={() => {
-                    // tick the switch down, and charge the goo harder while it is held
-                    sound.play("press");
-                    charge(isOpen() ? 0 : heldCharge);
-                }}
-                onPointerUp={() => prime(true)}
-                ref={toggle}
-                {...stylex.attrs(styles.switch)}
-            >
-                {/* slide a bar under the chosen word, nudging toward Destack until it gets there */}
-                <span
-                    aria-hidden="true"
-                    {...stylex.attrs(styles.knob, isOpen() ? styles.knobOn : styles.knobNudge)}
-                >
-                    {/* draw a crooked line under the stack, and a straight one under Destack */}
-                    <svg
-                        viewBox="0 0 100 8"
-                        preserveAspectRatio="none"
-                        {...stylex.attrs(styles.scrawl, isOpen() && styles.scrawlGone)}
-                    >
-                        <path
-                            d="M1 4.5 C 20 2.5, 35 6, 55 4.5 S 85 3, 99 5"
-                            {...stylex.attrs(styles.wobble)}
-                        />
-                    </svg>
-                    <span {...stylex.attrs(styles.rule, isOpen() && styles.ruleShown)} />
-                </span>
-                <span
-                    ref={stackWord}
-                    aria-hidden="true"
-                    {...stylex.attrs(styles.key, styles.keyStack, !isOpen() && styles.keyOn)}
-                >
-                    {[...stackName].map((letter, index) => (
-                        <span
-                            style={{ translate: `0 ${jumble[index % jumble.length]}px` }}
-                            {...stylex.attrs(styles.jumbled)}
-                        >
-                            {letter}
-                        </span>
-                    ))}
-                </span>
-                <span
-                    ref={destackWord}
-                    aria-hidden="true"
-                    {...stylex.attrs(styles.key, styles.keyDestack, isOpen() && styles.keyOn)}
-                >
-                    Destack
-                </span>
-            </button>
 
             {/* stand in for the water until the shader paints its first frame */}
             <div
@@ -1353,21 +1242,6 @@ function numberOnWater(row: number): JSX.CSSProperties {
 /** The easing of the figure transitions. */
 const easing = "cubic-bezier(0.6, 0, 0.2, 1)";
 
-/** The nudge of the switch's knob toward Destack, hinting that it wants to be switched. */
-const nudge = stylex.keyframes({
-    "0%, 80%, 100%": { translate: "0 0" },
-    "86%": { translate: "18% 0" },
-    "91%": { translate: "4% 0" },
-    "95%": { translate: "9% 0" },
-});
-
-/** The crooked underline under the stack's name wobbling on hover, like something barely holding together. */
-const wiggle = stylex.keyframes({
-    "0%, 100%": { transform: "rotate(0deg) scaleY(1)" },
-    "25%": { transform: "rotate(-1.2deg) scaleY(1.6)" },
-    "75%": { transform: "rotate(1deg) scaleY(0.6)" },
-});
-
 /** The figure styles. */
 const styles = stylex.create({
     figure: {
@@ -1376,10 +1250,6 @@ const styles = stylex.create({
         gridTemplateRows: `repeat(6, ${tokens.stage})`,
         margin: 0,
         position: "relative",
-        [narrow]: {
-            "--waterline": `calc(${switchTrack} + ${tokens.stage} * ${dryRows})`,
-            gridTemplateRows: `${switchTrack} repeat(6, ${tokens.stage})`,
-        },
     },
     claim: {
         display: "flex",
@@ -1397,7 +1267,6 @@ const styles = stylex.create({
             columnGap: "1rem",
             flexDirection: "row",
             gridColumn: "1 / -1",
-            gridRow: "var(--track)",
             paddingTop: "0.625rem",
         },
         [mobile]: { columnGap: "0.625rem", paddingInline: "0.75rem" },
@@ -1465,7 +1334,6 @@ const styles = stylex.create({
         [narrow]: {
             borderRightWidth: 0,
             gridColumn: "1 / -1",
-            gridRow: "2 / span 6",
         },
     },
     fill: {
@@ -1513,149 +1381,6 @@ const styles = stylex.create({
         width: "100%",
         zIndex: 0,
         [still]: { transition: "none" },
-    },
-    arrow: {
-        height: "100%",
-        inset: 0,
-        overflow: "visible",
-        pointerEvents: "none",
-        position: "absolute",
-        width: "100%",
-        zIndex: 6,
-        [narrow]: { display: "none" },
-    },
-    arrowLine: {
-        fill: "none",
-        stroke: tokens.signal,
-        strokeLinecap: "round",
-        strokeLinejoin: "round",
-        strokeWidth: 3,
-    },
-    switch: {
-        "--wiggle": "paused",
-        backgroundColor: "var(--destack-color-background)",
-        borderColor: tokens.rule,
-        borderStyle: "solid",
-        borderWidth: tokens.hairline,
-        boxShadow: `0 3px 0 color-mix(in srgb, ${color.foreground} 14%, transparent)`,
-        transition: `transform 90ms ${easing}, box-shadow 90ms ${easing}`,
-        ":hover": { "--wiggle": "running" },
-        ":active": {
-            boxShadow: `0 1px 0 color-mix(in srgb, ${color.foreground} 14%, transparent)`,
-            transform: "translateY(2px)",
-        },
-        color: color.foreground,
-        columnGap: "1.5rem",
-        cursor: "pointer",
-        display: "grid",
-        gridTemplateColumns: "auto auto",
-        left: `calc(${tokens.column} * 4)`,
-        paddingBlock: "0.5rem 0.375rem",
-        paddingInline: "1.25rem",
-        position: "absolute",
-        top: 0,
-        translate: "-50% -38%",
-        zIndex: 6,
-        [narrow]: {
-            alignSelf: "center",
-            gridColumn: "1 / -1",
-            gridRow: 1,
-            justifySelf: "center",
-            left: "auto",
-            position: "relative",
-            translate: "none",
-        },
-    },
-    key: {
-        fontFamily: tokens.posterFont,
-        fontSize: "0.9375rem",
-        letterSpacing: "0.1em",
-        lineHeight: 1,
-        opacity: 0.4,
-        paddingBottom: "0.4375rem",
-        textTransform: "uppercase",
-        transition: `opacity 300ms ${easing}`,
-    },
-    keyDestack: {
-        fontFamily: fontFamily.default,
-        fontSize: "0.9375rem",
-        fontWeight: 800,
-        letterSpacing: "0.08em",
-    },
-    keyStack: {
-        fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", cursive',
-        fontSize: "1rem",
-        fontWeight: 700,
-        letterSpacing: "0.02em",
-        textTransform: "none",
-    },
-    jumbled: {
-        display: "inline-block",
-    },
-    keyOn: {
-        opacity: 1,
-    },
-    knob: {
-        bottom: "0.125rem",
-        color: color.foreground,
-        height: "0.5rem",
-        left: "1.25rem",
-        position: "absolute",
-        transition: `translate 600ms cubic-bezier(0.5, 0, 0.15, 1.15), width 600ms cubic-bezier(0.5, 0, 0.15, 1.15), color 400ms ${easing}`,
-        width: "var(--stack-width)",
-        [still]: { transition: "none" },
-    },
-    scrawl: {
-        fill: "none",
-        height: "100%",
-        inset: 0,
-        overflow: "visible",
-        position: "absolute",
-        stroke: "currentColor",
-        strokeLinecap: "round",
-        strokeWidth: 2,
-        transition: `opacity 250ms ${easing}`,
-        vectorEffect: "non-scaling-stroke",
-        width: "100%",
-    },
-    scrawlGone: {
-        opacity: 0,
-    },
-    wobble: {
-        animationDuration: "900ms",
-        animationIterationCount: "infinite",
-        animationName: wiggle,
-        animationPlayState: "var(--wiggle)",
-        animationTimingFunction: "ease-in-out",
-        transformOrigin: "center",
-        [still]: { animationName: "none" },
-    },
-    rule: {
-        backgroundColor: "currentColor",
-        height: "2px",
-        left: 0,
-        opacity: 0,
-        position: "absolute",
-        right: 0,
-        top: "calc(50% - 1px)",
-        transform: "scaleX(0)",
-        transformOrigin: "left",
-        transition: `opacity 120ms ${easing} 350ms, transform 380ms cubic-bezier(0.3, 1.5, 0.5, 1) 350ms`,
-    },
-    ruleShown: {
-        opacity: 1,
-        transform: "scaleX(1)",
-    },
-    knobNudge: {
-        animationDuration: "4.5s",
-        animationIterationCount: "infinite",
-        animationName: nudge,
-        [still]: { animationName: "none" },
-    },
-    knobOn: {
-        color: tokens.signal,
-        translate: "calc(var(--stack-width) + 1.5rem) 0",
-        width: "var(--destack-width)",
     },
     plates: {
         display: "flex",

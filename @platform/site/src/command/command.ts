@@ -18,6 +18,7 @@ export const commandEvents = {
     copyMarkdown: "destack:copy-md",
     copyText: "destack:copy-txt",
     open: "destack:search",
+    switchStack: "destack:switch-stack",
 } as const;
 
 /** One action selectable from the command palette. */

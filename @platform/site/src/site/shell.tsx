@@ -22,7 +22,7 @@ export function Shell(properties: { children: JSX.Element; flow?: number; univer
         <div {...stylex.attrs(styles.root)}>
             <Universe isOpen={isOpen()} flow={flow()} />
             <KeyboardShortcuts />
-            <TopBar />
+            <TopBar stack={properties.universe} />
             <main {...stylex.attrs(styles.main)}>{properties.children}</main>
             <Footer />
         </div>
