@@ -115,7 +115,9 @@ test("enforce independent network permissions for concurrent workloads", async (
                 const errors = text(sandbox.stderr);
                 expect(await sandbox.exited, await errors).toEqual({ code: 0, signal: null });
 
-                return JSON.parse(await output);
+                const parsed: unknown = JSON.parse(await output);
+
+                return parsed;
             }),
         );
         expect(results).toEqual([
@@ -251,7 +253,7 @@ test("reject completion when temporary storage cleanup fails", async () => {
         await failed;
         await errors;
     } finally {
-        if (temporary) {
+        if (temporary !== undefined) {
             await chmod(join(temporary, "locked"), 0o700);
             await rm(temporary, { recursive: true });
         }
@@ -270,11 +272,17 @@ test("stop the workload when its supervising client disconnects", async () => {
             stdio: ["ignore", "pipe", "pipe", "ipc"],
         },
     );
+    const { stdout, stderr } = launcher;
+    if (stdout === null || stderr === null) {
+        throw new TypeError("sandbox launcher has no piped output");
+    }
     const closed = once(launcher, "close");
-    const errors = text(launcher.stderr!);
+    const errors = text(stderr);
     try {
         // disconnect only after the restricted application has started
-        const ready = once(launcher.stdout!, "data");
+        const ready = new Promise<string>((resolve) => {
+            stdout.once("data", (chunk: Buffer) => resolve(chunk.toString()));
+        });
         launcher.send({
             type: "start",
             options: {
@@ -291,8 +299,7 @@ test("stop the workload when its supervising client disconnects", async () => {
                 network: [],
             },
         });
-        const [chunk] = await ready;
-        const pid = Number(chunk.toString().trim());
+        const pid = Number((await ready).trim());
         launcher.disconnect();
 
         // wait for the launcher to reap its workload and release the proxies
@@ -303,7 +310,7 @@ test("stop the workload when its supervising client disconnects", async () => {
         try {
             process.kill(pid, 0);
         } catch (error) {
-            code = (error as NodeJS.ErrnoException).code;
+            code = error instanceof Error && "code" in error ? error.code : undefined;
         }
         expect(code).toSatisfy((value) => value === "ESRCH" || value === "EPERM");
     } finally {

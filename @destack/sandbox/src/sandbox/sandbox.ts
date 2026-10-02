@@ -32,9 +32,13 @@ export class Sandbox implements AsyncDisposable {
     /** Retain one launcher until its process and proxies close. */
     private constructor(launcher: ChildProcess, exited: Promise<SandboxExit>) {
         // retain the launcher and its output streams
+        const { stdout, stderr } = launcher;
+        if (stdout === null || stderr === null) {
+            throw new TypeError("sandbox launcher has no piped output");
+        }
         this.#launcher = launcher;
-        this.stdout = launcher.stdout!;
-        this.stderr = launcher.stderr!;
+        this.stdout = stdout;
+        this.stderr = stderr;
         this.exited = exited;
     }
 
@@ -65,7 +69,7 @@ export class Sandbox implements AsyncDisposable {
         }
 
         // prevent literal host paths from becoming upstream glob permissions
-        if (paths.some((path) => /[\x00*?[\]{}]/.test(path))) {
+        if (paths.some((path) => /[\x00*?[\]{}]/u.test(path))) {
             throw new SandboxError("START_FAILED", "sandbox paths cannot contain glob characters");
         }
 
@@ -149,9 +153,11 @@ export class Sandbox implements AsyncDisposable {
             const exited = closed.promise.then(() => {
                 if (failure) {
                     throw failure;
+                } else if (result === undefined) {
+                    throw new TypeError("sandbox launcher closed without a workload result");
                 }
 
-                return result!;
+                return result;
             });
 
             return new Sandbox(launcher, exited);
@@ -159,14 +165,14 @@ export class Sandbox implements AsyncDisposable {
             if (launcher.connected) {
                 launcher.disconnect();
             }
-            const timeout = setTimeout(
+            const cleanup = setTimeout(
                 () => launcher.kill("SIGKILL"),
                 CLEANUP_TIMEOUT_MILLISECONDS,
             );
             try {
                 await closed.promise;
             } finally {
-                clearTimeout(timeout);
+                clearTimeout(cleanup);
             }
             throw error;
         } finally {

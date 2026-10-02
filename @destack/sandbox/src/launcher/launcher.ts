@@ -57,7 +57,7 @@ export async function runLauncher(): Promise<void> {
 
     // point the manager at a fresh temporary directory
     const temporary = await realpath(await mkdtemp(join(tmpdir(), "destack-sandbox-")));
-    process.env.CLAUDE_CODE_TMPDIR = temporary;
+    process.env["CLAUDE_CODE_TMPDIR"] = temporary;
     try {
         // require the system files of this platform
         const options = await request.promise;
@@ -106,33 +106,35 @@ export async function runLauncher(): Promise<void> {
             stopped.signal,
         );
         const environment = { ...options.environment };
-        delete environment.NODE_CHANNEL_FD;
-        delete environment.NODE_CHANNEL_SERIALIZATION_MODE;
-        child = spawn("/bin/sh", ["-c", wrapped], {
+        delete environment["NODE_CHANNEL_FD"];
+        delete environment["NODE_CHANNEL_SERIALIZATION_MODE"];
+        const workload = spawn("/bin/sh", ["-c", wrapped], {
             cwd: options.directory,
             env: environment,
             detached: true,
             stdio: ["ignore", "inherit", "inherit"],
         });
-        const completed = once(child, "exit");
-        await once(child, "spawn");
+        child = workload;
+        const completed = new Promise<SandboxExit>((resolve) => {
+            workload.once("exit", (code, signal) => resolve({ code, signal }));
+        });
+        await once(workload, "spawn");
         process.send?.({ type: "ready" });
 
         // terminate the process group when the parent stops or disconnects
         let timeout: ReturnType<typeof setTimeout> | undefined;
         const stop = () => {
-            signalGroup(child!, "SIGTERM");
-            timeout = setTimeout(() => signalGroup(child!, "SIGKILL"), gracePeriodMs);
+            signalGroup(workload, "SIGTERM");
+            timeout = setTimeout(() => signalGroup(workload, "SIGKILL"), gracePeriodMs);
         };
         stopped.signal.addEventListener("abort", stop, { once: true });
         if (stopped.signal.aborted) {
             stop();
         }
-        const [code, signal] = await completed;
+        exit = await completed;
         clearTimeout(timeout);
         stopped.signal.removeEventListener("abort", stop);
-        signalGroup(child, "SIGKILL");
-        exit = { code, signal };
+        signalGroup(workload, "SIGKILL");
     } catch (error) {
         if (child) {
             signalGroup(child, "SIGKILL");
@@ -186,15 +188,18 @@ function quote(value: string): string {
 /** Signal the workload process group, accepting an already terminated group. */
 function signalGroup(child: ChildProcess, signal: NodeJS.Signals): void {
     // leave exited workloads alone; their process group id may already be reused
-    if (!child.pid || child.exitCode !== null || child.signalCode !== null) {
+    if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) {
         return;
     }
     try {
         process.kill(-child.pid, signal);
     } catch (error) {
         // accept groups that are gone; macOS reports groups of exited, unreaped workloads as not permitted
-        const code = (error as NodeJS.ErrnoException).code;
-        if (code !== "ESRCH" && code !== "EPERM") {
+        const isGone =
+            error instanceof Error &&
+            "code" in error &&
+            (error.code === "ESRCH" || error.code === "EPERM");
+        if (!isGone) {
             throw error;
         }
     }
