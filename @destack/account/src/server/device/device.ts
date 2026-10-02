@@ -66,7 +66,7 @@ async function attach(call: DeviceCall): Promise<unknown> {
     await proof.consume(call.database, call.now);
     await call.invoke(session, "attach", { id: callingSession(call), deviceId: target.id });
 
-    return call.revise({ lastSeenAt: call.now });
+    return call.update({ lastSeenAt: call.now });
 }
 
 /** Withdraw a device, ending its keys and sessions with it. */
@@ -96,7 +96,7 @@ async function revoke(call: DeviceCall): Promise<unknown> {
         await call.invoke(session, "revoke", { id: ended.id });
     }
 
-    return call.revise({ revokedAt: call.now });
+    return call.update({ revokedAt: call.now });
 }
 
 /** Register a key a device proves it holds. */

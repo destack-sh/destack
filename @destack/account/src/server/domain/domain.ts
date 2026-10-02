@@ -23,7 +23,7 @@ export class DomainVerifier {
             verify: {
                 prepare: (call) => this.#prove(call),
                 // TODO #Incomplete: recheck verified domains periodically and withdraw lapsed claims with the edge's route reconciler
-                effect: (call) => call.revise({ verifiedAt: call.now }),
+                effect: (call) => call.update({ verifiedAt: call.now }),
             },
         });
     }

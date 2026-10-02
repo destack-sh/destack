@@ -158,7 +158,7 @@ export const host = defineObject({
         ),
         report: reporting.handle((call) =>
             // record the host's proven contact and what it runs now
-            call.revise({
+            call.update({
                 lastSeenAt: call.now,
                 version: call.input.version,
                 runtimes: call.input.runtimes,
@@ -168,7 +168,7 @@ export const host = defineObject({
             // refuse renaming a withdrawn host
             Host.requireActive(call.target as Host);
 
-            return call.revise({ name: HostName.parse(call.input.name) });
+            return call.update({ name: HostName.parse(call.input.name) });
         }),
     },
     constraints: (host) => [
@@ -224,10 +224,10 @@ export const hostKey = defineObject({
             .handle(register),
         enroll: method.create(null, { isSystem: true }),
         suspend: method({ permission: null, isSystem: true }).handle((call) =>
-            call.revise({ suspendedAt: call.now }),
+            call.update({ suspendedAt: call.now }),
         ),
         resume: method({ permission: null, isSystem: true }).handle((call) =>
-            call.revise({ suspendedAt: null }),
+            call.update({ suspendedAt: null }),
         ),
         revoke: method({ permission: "revoke" }).handle(async (call) => {
             // refuse withdrawing a key twice
@@ -236,7 +236,7 @@ export const hostKey = defineObject({
                 throw new ServiceError("CONFLICT", { message: "host key is revoked" });
             }
 
-            return call.revise({ revokedAt: call.now });
+            return call.update({ revokedAt: call.now });
         }),
     },
     constraints: (key) => [
@@ -349,7 +349,7 @@ async function revoke(call: Call): Promise<unknown> {
     await invokeKeys(call, target.id, "revoke");
 
     // withdraw the host
-    return call.revise({ revokedAt: call.now });
+    return call.update({ revokedAt: call.now });
 }
 
 /** Invoke a method on each of a host's unrevoked keys, recording each call. */
@@ -427,7 +427,7 @@ export const Host = {
             await invokeKeys(call, target.id, "resume");
         }
 
-        return call.revise({ status });
+        return call.update({ status });
     },
 
     /** Find an account's standing host by its name. */

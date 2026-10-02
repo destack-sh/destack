@@ -288,7 +288,7 @@ export const device = defineObject({
         revoke,
         report: method({ permission: null, isSystem: true }).handle((call) =>
             // record the device's proven contact now
-            call.revise({ lastSeenAt: call.now }),
+            call.update({ lastSeenAt: call.now }),
         ),
     },
     constraints: (device) => [index("device_scope").on(device.scope)],

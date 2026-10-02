@@ -12,5 +12,5 @@ export function requireUnrevoked(target: { readonly revokedAt?: unknown }, noun:
 export function revokeOnce(call: Call, noun: string): Promise<unknown> {
     requireUnrevoked(call.target!, noun);
 
-    return call.revise({ revokedAt: call.now });
+    return call.update({ revokedAt: call.now });
 }

@@ -252,7 +252,7 @@ export class Connections {
         requirePending(call);
         const { grant, secret } = call.prepared as Exchange;
 
-        return call.revise({
+        return call.update({
             subject: grant.subject,
             installationId: grant.installationId ?? null,
             scopes: [...grant.scopes],
@@ -307,7 +307,7 @@ export class Connections {
     async #revoke(call: ConnectionCall): Promise<unknown> {
         requireActive(call);
 
-        return call.revise({ revokedAt: call.now });
+        return call.update({ revokedAt: call.now });
     }
 
     /** Read a configured provider by name. */
