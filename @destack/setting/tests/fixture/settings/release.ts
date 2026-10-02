@@ -1,4 +1,4 @@
-import { describeFile } from "@destack/package/file";
+import { PackageFile } from "@destack/package/file";
 import { BuildReader, type PackageManifest } from "@destack/package/manifest";
 import { describeSetting } from "../../../src/inspect/index.ts";
 import { setting } from "../../../src/object/index.ts";
@@ -34,7 +34,7 @@ export async function release(
 
     // hold them in the setting package's description collection
     const bytes = new TextEncoder().encode(JSON.stringify(declarations));
-    const file = await describeFile("manifest/setting.json", "application/json", bytes);
+    const file = await PackageFile.describe("manifest/setting.json", "application/json", bytes);
     const descriptions = { setting: { package: setting.package, file } };
 
     return new BuildReader({ descriptions } as unknown as PackageManifest, async () => bytes);

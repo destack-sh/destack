@@ -1,5 +1,5 @@
 import { identifier } from "@destack/schema";
-import type { SettingRow } from "../../src/object/index.ts";
+import type { SettingValue } from "../../src/object/index.ts";
 import { Scope } from "@destack/sync";
 import { SettingPlacement, SettingSelection } from "../../src/setting/placement.ts";
 import type { SettingSource } from "../../src/setting/resolution.ts";
@@ -27,10 +27,12 @@ export const selection = SettingSelection.parse({
 });
 
 /** Alice's personal editor mode. */
-export const personal: SettingRow = {
+export const personal: SettingValue = {
     id: identifier("setting").parse("setting-019f5530-8000-7000-8000-000000000006"),
     createdAt: 1000,
+    createdBy: null,
     updatedAt: 1000,
+    updatedBy: null,
     revision: 1,
     tags: {},
     scope: alice,
@@ -49,7 +51,7 @@ export const personal: SettingRow = {
 };
 
 /** Alice's editor mode in Bob's installation on her device. */
-export const override: SettingRow = {
+export const override: SettingValue = {
     ...personal,
     id: identifier("setting").parse("setting-019f5530-8000-7000-8000-000000000007"),
     installation: selection.installation!,
@@ -58,7 +60,7 @@ export const override: SettingRow = {
 };
 
 /** The editor mode Bob's space requires of the users acting in it. */
-export const required: SettingRow = {
+export const required: SettingValue = {
     ...personal,
     id: identifier("setting").parse("setting-019f5530-8000-7000-8000-000000000008"),
     scope: space,
@@ -66,12 +68,12 @@ export const required: SettingRow = {
 };
 
 /** Read a setting's reference as the columns of its values hold it. */
-export function named(declared: Setting): Pick<SettingRow, "packageId" | "name"> {
+export function named(declared: Setting): Pick<SettingValue, "packageId" | "name"> {
     return { packageId: declared.reference.packageId, name: declared.reference.name };
 }
 
 /** Describe a value as the source it contributes to a resolution, valid or skipped as invalid. */
-export function source(value: SettingRow, kind: "value" | "invalid" = "value"): SettingSource {
+export function source(value: SettingValue, kind: "value" | "invalid" = "value"): SettingSource {
     return {
         kind,
         id: value.id,

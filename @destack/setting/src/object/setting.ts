@@ -7,7 +7,7 @@ import { SpaceSetting } from "../declare/space.ts";
 import { SETTING_MODES } from "../setting/mode.ts";
 import { SettingName } from "../setting/setting.ts";
 import { account, device, organisation, user } from "@destack/account/object";
-import { host } from "@destack/host";
+import { host } from "@destack/account/object";
 import { space } from "@destack/space/object";
 
 /** A setting value placed in a scope. */
@@ -70,4 +70,4 @@ export const setting = defineObject({
 });
 
 /** A setting value as its row holds it. */
-export type SettingRow = Select<typeof setting.table>;
+export type SettingValue = Select<typeof setting.table>;

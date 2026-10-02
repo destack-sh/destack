@@ -35,14 +35,13 @@ test.each(TEST_DIALECTS)(
         const storage = await Storage.open(dialect, [editor, template]);
         onTestFinished(() => storage.close());
         await copyScope(storage.database, space.reference(Scope.universe.id, spaceId));
-        const { release } = storage.options;
+        const { release } = storage;
         const objects = [servedObjects(release).setting];
         const apply = (settings: Readonly<Record<string, unknown>>) =>
             Stack.apply({
                 database: storage.database,
                 objects,
-                release: (packageId, installationId) =>
-                    release(spaceId, packageId, installationId),
+                release: (packageId, installationId) => release(spaceId, packageId, installationId),
                 manager,
                 scope: spaceId,
                 document: { settings },
@@ -58,6 +57,8 @@ test.each(TEST_DIALECTS)(
             .from(setting.table)
             .orderBy(asc(setting.table.name));
         const written = {
+            createdBy: null,
+            updatedBy: null,
             scope: spaceId,
             revision: 1,
             tags: {},

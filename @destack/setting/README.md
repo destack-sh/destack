@@ -25,12 +25,12 @@ A client subscribes to the `setting` rows of the user's scope and the space the 
 ```ts
 import { Condition } from "@destack/db/query";
 import { SettingSelection } from "@destack/setting";
-import { setting, type SettingRow } from "@destack/setting/object";
+import { setting, type SettingValue } from "@destack/setting/object";
 
 const selection = SettingSelection.parse({ scope: userId, space: spaceId });
 const where = Condition.any(editorMode.condition(selection), lineNumbers.condition(selection));
 const queries = [personal, space].map((client) => client.subscribe(setting, { where }));
-const rows = (await Promise.all(queries.map((query) => query.read()))).flat() as SettingRow[];
+const rows = (await Promise.all(queries.map((query) => query.read()))).flat() as SettingValue[];
 const chain = await space.replica.chain(space.database);
 const mode = editorMode.resolve(selection, rows, chain);
 ```
@@ -46,7 +46,13 @@ const settings = personal.mutate(setting);
 const release = editorMode.package.version; // the release the value is written against
 const saved =
     observed === null
-        ? settings.create({ ...editorMode.reference, ...placement, mode: "set", value: "vim", release })
+        ? settings.create({
+              ...editorMode.reference,
+              ...placement,
+              mode: "set",
+              value: "vim",
+              release,
+          })
         : settings.update({ ...observed, value: "vim", release });
 await saved.confirmed;
 ```
@@ -105,5 +111,5 @@ A host serves setting values as objects, and the served `setting` applies the va
 import { implementService, servedObjects } from "@destack/setting/server";
 
 const service = implementService({ database, release, audit });
-const { setting } = servedObjects(release);   // declared by stacks under `settings`
+const { setting } = servedObjects(release); // declared by stacks under `settings`
 ```

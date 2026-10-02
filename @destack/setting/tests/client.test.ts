@@ -5,14 +5,13 @@ import { ObjectClient } from "@destack/object/client";
 import { ResourceContext } from "@destack/resource/context";
 import { identifier } from "@destack/schema";
 import { canonicalize } from "@destack/schema/json";
-import { Caller } from "@destack/service/authentication";
+import { Authentication } from "@destack/service/authentication";
 import { Health } from "@destack/service/health";
 import { Observable } from "@destack/service/observable";
 import { Server } from "@destack/service/server";
 import { space } from "@destack/space/object";
 import { expect, onTestFinished, test } from "@destack/test";
-import { setting, type SettingRow } from "../src/object/index.ts";
-import { implementService } from "../src/server/index.ts";
+import { setting, type SettingValue } from "../src/object/index.ts";
 import {
     type Setting,
     SettingPlacement,
@@ -20,7 +19,7 @@ import {
     SettingSelection,
 } from "../src/setting/index.ts";
 import { editor, lineNumbers, notes } from "./fixture/settings/index.ts";
-import { Storage } from "./fixture/storage.ts";
+import { settingService, Storage } from "./fixture/storage.ts";
 import { alice, named, source } from "./fixture/value.ts";
 
 /** The space Alice acts in. */
@@ -47,7 +46,7 @@ test.each(TEST_DIALECTS)(
         await Promise.all(queries.map((query) => query.ready));
         const chain = await acted.replica.chain(acted.database);
         const resolve = (rows: readonly (readonly Readonly<Record<string, unknown>>[])[]) => {
-            const values = rows.flat() as SettingRow[];
+            const values = rows.flat() as SettingValue[];
 
             return [editor, lineNumbers].map((declared: Setting) =>
                 declared.resolve(selection, values, chain),
@@ -98,7 +97,7 @@ test.each(TEST_DIALECTS)(
             release: editor.package.version,
         });
         await saved.confirmed;
-        const value = (await saved.predicted) as SettingRow;
+        const value = (await saved.predicted) as SettingValue;
         const chosen = {
             ...standard,
             value: "vim",
@@ -117,7 +116,7 @@ test.each(TEST_DIALECTS)(
             mode: "recommend",
             value: false,
             release: lineNumbers.package.version,
-        })) as SettingRow;
+        })) as SettingValue;
         const lowered = {
             ...numbered,
             value: false,
@@ -138,7 +137,7 @@ test.each(TEST_DIALECTS)(
         onTestFinished(() => visited.close());
         await visited.ready;
         expect(
-            lineNumbers.resolve(anonymous, (await visited.read()) as SettingRow[], chain),
+            lineNumbers.resolve(anonymous, (await visited.read()) as SettingValue[], chain),
         ).toEqual({
             ...lowered,
             selection: anonymous,
@@ -151,7 +150,7 @@ test.each(TEST_DIALECTS)(
 async function follow(storage: Storage, scope: string): Promise<ObjectClient> {
     // serve the scope as Alice
     const server = Server.start({
-        ...implementService(storage.options),
+        ...storage.objects.implement(settingService),
         audience: notes.id,
         scope,
         resources: new ResourceContext(),
@@ -159,7 +158,7 @@ async function follow(storage: Storage, scope: string): Promise<ObjectClient> {
         drainTimeout: 100,
         authorizeHost: async () => {},
         authenticate: async () =>
-            new Caller({
+            new Authentication({
                 subject: storage.subject,
                 subjects: [storage.subject],
                 credential: { kind: "session", id: "test-session" },

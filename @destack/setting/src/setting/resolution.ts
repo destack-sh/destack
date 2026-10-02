@@ -1,7 +1,7 @@
 import { Package } from "@destack/package";
 import { defineSchema, identifier, schema } from "@destack/schema";
 import { canonicalize } from "@destack/schema/json";
-import type { SettingRow } from "../object/setting.ts";
+import type { SettingValue } from "../object/setting.ts";
 import { SettingReference } from "./setting.ts";
 import { SettingPlacement, SettingSelection } from "./placement.ts";
 
@@ -58,7 +58,7 @@ export const SettingResolution = Object.assign(
         observed(
             resolution: SettingResolution<unknown>,
             placement: SettingPlacement,
-        ): Pick<SettingRow, "id" | "revision"> | null {
+        ): Pick<SettingValue, "id" | "revision"> | null {
             const selected = canonicalize(SettingPlacement.of(placement));
             const source = [...resolution.sources, ...resolution.overridden].find(
                 (source) =>

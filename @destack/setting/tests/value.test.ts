@@ -1,8 +1,10 @@
 import { asc } from "@destack/db";
+import { principal } from "@destack/access";
+import { Subject, Scope } from "@destack/sync";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { reportError } from "@destack/service/server";
-import { setting, type SettingRow } from "../src/object/index.ts";
+import { setting, type SettingValue } from "../src/object/index.ts";
 import { alice, named, selection } from "./fixture/value.ts";
 import { editor, lineNumbers } from "./fixture/settings/index.ts";
 import { Storage } from "./fixture/storage.ts";
@@ -26,7 +28,7 @@ test.each(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
         const laptop = await storage.register("laptop");
         const call = (name: string, input: Readonly<Record<string, unknown>>) =>
-            storage.call(setting, name, alice, input) as Promise<SettingRow>;
+            storage.call(setting, name, alice, input) as Promise<SettingValue>;
         const create = (input: Readonly<Record<string, unknown>>) =>
             call("create", {
                 ...named(editor),
@@ -48,7 +50,10 @@ test.each(TEST_DIALECTS)(
             .select()
             .from(setting.table)
             .orderBy(asc(setting.table.revision), asc(setting.table.device));
+        const author = Subject.key(principal.user.reference(Scope.universe.id, alice));
         const written = {
+            createdBy: author,
+            updatedBy: author,
             scope: alice,
             ...named(editor),
             package: null,

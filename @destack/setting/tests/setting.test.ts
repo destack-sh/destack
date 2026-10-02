@@ -12,7 +12,7 @@ import {
     SettingCatalog,
     SettingDescription,
 } from "../src/inspect/index.ts";
-import type { SettingRow } from "../src/object/index.ts";
+import type { SettingValue } from "../src/object/index.ts";
 import { SettingResolution, SettingSelection } from "../src/setting/index.ts";
 import { Setting } from "../src/setting/index.ts";
 import {
@@ -149,12 +149,12 @@ test("compare required structured values independently of key order", () => {
         },
         { package: notes },
     );
-    const requirement: SettingRow = {
+    const requirement: SettingValue = {
         ...required,
         ...named(layout),
         value: { width: 80, compact: true },
     };
-    const equivalent: SettingRow = {
+    const equivalent: SettingValue = {
         ...requirement,
         id: identifier("setting").parse("setting-019f5530-8000-7000-8000-000000000010"),
         scope: account,
@@ -259,7 +259,7 @@ test("resolve space settings per installation and host settings per host", () =>
         scope: space,
         installation: "installation-019f5530-8000-7000-8000-000000000014",
     });
-    const value: SettingRow = {
+    const value: SettingValue = {
         ...personal,
         ...named(template),
         scope: space,
@@ -294,7 +294,7 @@ test("resolve space settings per installation and host settings per host", () =>
         { package: notes },
     );
     const host = "host-019f5530-8000-7000-8000-000000000015";
-    const path: SettingRow = {
+    const path: SettingValue = {
         ...personal,
         ...named(cache),
         scope: host,
@@ -388,7 +388,7 @@ test("skip stored values a changed schema rejects, falling through to the next s
         { ...editor.definition, schema: schema.enum(["standard", "emacs"]), default: "standard" },
         { package: { ...notes, version: "2026.10.0" } },
     );
-    const recommendation: SettingRow = { ...required, mode: "recommend", value: "emacs" };
+    const recommendation: SettingValue = { ...required, mode: "recommend", value: "emacs" };
     expect([
         upgraded.resolve(selection, [personal, recommendation], chain),
         upgraded.resolve(selection, [personal], chain),
@@ -430,8 +430,8 @@ test("convert stored values of earlier releases, and skip values of later releas
         { package: notes },
     );
     const unconverted = new Setting(notes, { ...keymap.definition, convert: {} });
-    const earlier: SettingRow = { ...personal, release: "2026.8.0" };
-    const current: SettingRow = { ...override, value: { keymap: "vim" } };
+    const earlier: SettingValue = { ...personal, release: "2026.8.0" };
+    const current: SettingValue = { ...override, value: { keymap: "vim" } };
     const expected = {
         ...standard,
         setting: keymap.reference,
@@ -484,7 +484,7 @@ test("resolve a value for its consuming package, and rank recommendations by the
         package: homeId,
         space: "space-019f5530-8000-7000-8000-000000000021",
     });
-    const app: SettingRow = { ...personal, package: homeId };
+    const app: SettingValue = { ...personal, package: homeId };
     const applied = {
         ...standard,
         setting: shared.reference,
@@ -503,8 +503,8 @@ test("resolve a value for its consuming package, and rank recommendations by the
     ]);
 
     // take the space's recommendation over the account's disagreeing one
-    const nearer: SettingRow = { ...required, mode: "recommend" };
-    const farther: SettingRow = {
+    const nearer: SettingValue = { ...required, mode: "recommend" };
+    const farther: SettingValue = {
         ...nearer,
         id: identifier("setting").parse("setting-019f5530-8000-7000-8000-000000000022"),
         scope: account,
@@ -518,7 +518,7 @@ test("resolve a value for its consuming package, and rank recommendations by the
     });
 
     // refuse disagreeing recommendations of one scope
-    const sibling: SettingRow = {
+    const sibling: SettingValue = {
         ...nearer,
         id: identifier("setting").parse("setting-019f5530-8000-7000-8000-000000000024"),
         value: "standard",

@@ -1,14 +1,22 @@
 import type { Call } from "@destack/object";
-import { schema } from "@destack/schema";
 import { SpaceSetting } from "../declare/space.ts";
 import { SettingError } from "../error/index.ts";
 import { SettingCatalog } from "../inspect/index.ts";
-import { setting, type SettingRow } from "../object/index.ts";
+import { setting, type SettingValue } from "../object/index.ts";
 import { SettingPlacement } from "../setting/index.ts";
-import type { SettingServiceOptions } from "./server.ts";
+import type { PackageId } from "@destack/package";
+import type { BuildReader } from "@destack/package/manifest";
+import { schema, type Identifier } from "@destack/schema";
+
+/** Open the build of a package's release in a scope, the installation's when given. */
+export type OpenRelease = (
+    scope: string,
+    packageId: PackageId,
+    installation?: Identifier<"installation">,
+) => Promise<BuildReader>;
 
 /** Serve declared values, checking each written value and each value a stack places against its declaration. */
-export function servedObjects(release: SettingServiceOptions["release"]) {
+export function servedObjects(release: OpenRelease) {
     return {
         setting: setting
             .handle({
@@ -51,12 +59,9 @@ export function servedObjects(release: SettingServiceOptions["release"]) {
 }
 
 /** Require a written value to match its declaration in the consumer's release, or else the declaring package's. */
-async function requireDeclared(
-    call: Call,
-    release: SettingServiceOptions["release"],
-): Promise<void> {
+async function requireDeclared(call: Call, release: OpenRelease): Promise<void> {
     // read the value as the call leaves it
-    const value = { ...call.target, ...call.input, scope: call.scope } as SettingRow;
+    const value = { ...call.target, ...call.input, scope: call.scope } as SettingValue;
     const placement = SettingPlacement.of(value);
 
     // check it against the release its placement selects

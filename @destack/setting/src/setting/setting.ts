@@ -5,7 +5,7 @@ import { Condition } from "@destack/db/query";
 import { Expression } from "@destack/schema/expression";
 import type { JsonValue } from "@destack/db";
 import type { SettingDefinition } from "../declare/setting.ts";
-import type { SettingRow } from "../object/setting.ts";
+import type { SettingValue } from "../object/setting.ts";
 import type { SettingResolution, SettingSource } from "./resolution.ts";
 import { SettingPlacement, type SettingSelection } from "./placement.ts";
 import type { SettingMode } from "./mode.ts";
@@ -115,7 +115,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
      */
     resolve(
         selection: SettingSelection,
-        values: readonly SettingRow[],
+        values: readonly SettingValue[],
         chain: readonly string[],
     ): SettingResolution<schema.Infer<Value>> {
         // require a selection of the setting's scope, or an anonymous one of a user setting
@@ -272,7 +272,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
 
     /** Rank a value of this setting that applies to a selection, or none for another value. */
     #candidate(
-        value: SettingRow,
+        value: SettingValue,
         selection: SettingSelection,
         chain: readonly string[],
     ): Candidate | undefined {

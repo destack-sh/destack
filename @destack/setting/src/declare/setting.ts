@@ -1,5 +1,5 @@
 import { Expression } from "@destack/schema/expression";
-import { declaringModule, Package, type ModuleMetadata } from "@destack/package";
+import { ModuleMetadata, Package } from "@destack/package";
 import { defineSchema, schema, Version } from "@destack/schema";
 import { Setting, SettingName } from "../setting/setting.ts";
 
@@ -66,7 +66,7 @@ export function defineSetting<Value extends schema.Schema>(
     module?: ModuleMetadata,
 ): Setting<Value> {
     // stamp the declaring package
-    const owner = Package.parse(declaringModule(module, "defineSetting").package);
+    const owner = Package.parse(ModuleMetadata.require(module, "defineSetting").package);
 
     // validate the serializable fields
     const {
