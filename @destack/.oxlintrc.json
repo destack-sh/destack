@@ -1,0 +1,158 @@
+{
+    "plugins": [
+        "typescript",
+        "oxc",
+        "unicorn"
+    ],
+    "categories": {
+        "correctness": "error",
+        "suspicious": "error",
+        "perf": "error"
+    },
+    "jsPlugins": [
+        "@destack/check/lint"
+    ],
+    "rules": {
+        "eslint/curly": [
+            "error",
+            "all"
+        ],
+        "typescript/parameter-properties": [
+            "error",
+            {
+                "prefer": "class-property"
+            }
+        ],
+        "oxc/no-accumulating-spread": "error",
+        "eslint/no-unused-vars": [
+            "error",
+            {
+                "ignoreUsingDeclarations": true,
+                "argsIgnorePattern": "^_",
+                "ignoreRestSiblings": true
+            }
+        ],
+        "typescript/consistent-type-assertions": [
+            "error",
+            {
+                "assertionStyle": "never"
+            }
+        ],
+        "typescript/no-non-null-assertion": "error",
+        "typescript/no-explicit-any": "error",
+        "typescript/ban-ts-comment": [
+            "error",
+            {
+                "ts-expect-error": true,
+                "ts-ignore": true,
+                "ts-nocheck": true
+            }
+        ],
+        "typescript/no-unsafe-type-assertion": "error",
+        "typescript/no-unsafe-argument": "error",
+        "typescript/no-unsafe-assignment": "error",
+        "typescript/no-unsafe-call": "error",
+        "typescript/no-unsafe-member-access": "error",
+        "typescript/no-unsafe-return": "error",
+        "typescript/no-floating-promises": "error",
+        "typescript/no-misused-promises": "error",
+        "typescript/strict-boolean-expressions": "error",
+        "typescript/switch-exhaustiveness-check": "error",
+        "typescript/unbound-method": "error",
+        "typescript/no-misused-spread": "error",
+        "typescript/only-throw-error": "error",
+        "typescript/no-deprecated": "error",
+        "typescript/no-unnecessary-type-assertion": "error",
+        "eslint/preserve-caught-error": "error",
+        "eslint/no-shadow": "error",
+        "eslint/no-loop-func": "error",
+        "eslint/no-promise-executor-return": "error",
+        "eslint/require-unicode-regexp": "error",
+        "unicorn/no-array-sort": "error",
+        "eslint/no-unassigned-vars": "off",
+        "unicorn/no-thenable": "off",
+        "eslint/no-control-regex": "off",
+        "eslint/id-length": [
+            "error",
+            {
+                "min": 2,
+                "exceptions": [
+                    "i",
+                    "j",
+                    "x",
+                    "y",
+                    "z",
+                    "_"
+                ]
+            }
+        ],
+        "unicorn/filename-case": [
+            "error",
+            {
+                "case": "kebabCase"
+            }
+        ],
+        "eslint/no-console": "error",
+        "unicorn/require-post-message-target-origin": "off",
+        "unicorn/require-module-specifiers": "off",
+        "oxc/no-map-spread": "off",
+        "eslint/no-await-in-loop": "off",
+        "typescript/consistent-return": "off",
+        "eslint/no-redeclare": "off",
+        "eslint/no-underscore-dangle": "off",
+        "destack/boolean-prefix": "error",
+        "destack/branch-comment-position": "error",
+        "destack/comment-style": "error",
+        "destack/error-message-style": "error",
+        "destack/exact-optional": "error",
+        "destack/jsdoc-sentence": "error",
+        "destack/no-import-alias": "error",
+        "destack/no-index-logic": "error",
+        "destack/no-inline-config": "error",
+        "destack/no-manifest-import": "error",
+        "destack/no-partial-assertions": "error",
+        "destack/padding-before-return": "error",
+        "destack/prevent-abbreviations": "error",
+        "destack/require-block-comment": "error",
+        "destack/require-jsdoc": "error",
+        "destack/valid-declaration": "error",
+        "destack/valid-package-handle": "error"
+    },
+    "overrides": [
+        {
+            "files": [
+                "**/@destack/telemetry/src/browser/devtools.ts",
+                "**/@destack/build/src/build/worker.ts"
+            ],
+            "rules": {
+                "eslint/no-console": "off"
+            }
+        },
+        {
+            "files": [
+                "**/src/service/**",
+                "**/src/connection/**",
+                "**/src/declare/**",
+                "**/src/stack/**",
+                "**/src/package.ts"
+            ],
+            "rules": {
+                "eslint/no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            "**/server",
+                            "**/server/**",
+                            "*/server"
+                        ]
+                    }
+                ]
+            }
+        }
+    ],
+    "options": {
+        "denyWarnings": true,
+        "typeAware": true,
+        "respectEslintDisableDirectives": false
+    }
+}

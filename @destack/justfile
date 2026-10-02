@@ -10,7 +10,7 @@ check:
 
 # test
 test:
-    cd .. && bun run --bun --filter './@destack/*' --if-present test
+    cd .. && bun run --bun --sequential --no-exit-on-error --filter './@destack/*' --if-present test
 
 # lint
 lint:
