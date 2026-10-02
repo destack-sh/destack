@@ -26,7 +26,7 @@ export const note = new Policy(import.meta.destack.package, {
 
 ## Expressions
 
-Expressions define who holds a permission.
+Expressions define who has a permission.
 
 | Expression | Grants |
 |---|---|
@@ -34,9 +34,23 @@ Expressions define who holds a permission.
 | `permission(name)` | The holders of another permission on the object |
 | `through(relation, permission)` | The holders of a permission on the related object |
 | `grants(reference)` | Whoever may grant on the object a row references |
-| `condition(condition)` | Everyone, where a db `Condition` over the object's attributes holds |
+| `condition(condition)` | Everyone, where a db `Condition` over the object's attributes is true |
 | `union`, `intersection`, `exclusion` | Compositions of the above |
 | `none()` | Nobody |
+
+## Inheritance
+
+A relation marked `isScope` is the scope containing each object, read from the scope chain, so a folder's editors edit every document in it.
+
+```ts
+export const document = new Policy(import.meta.destack.package, {
+    name: "document",
+    relations: { folder: { subjects: [folder], grantedBy: null, isScope: true } },
+    permissions: { edit: through("folder", "edit") },
+});
+```
+
+A subject set names a relation or a permission, such as `folder.members("read")`, which the folder's relations and its enclosing scopes' same set decide.
 
 ## Authorizer
 
@@ -69,12 +83,12 @@ const decision = await authorizer.check(
 |---|---|
 | `resolve` | A caller's `Access` in a scope: its authorities, the scope chain and the roles along it |
 | `resolveAssured` | A principal's `Access` as if it just authenticated at the highest assurance |
-| `where`, `holds` | The rows a caller holds a permission on, as SQL |
+| `where`, `permits` | The rows a caller has a permission on, as SQL |
 | `check` | One object, as a `Decision` with the time it next changes |
 | `require` | Every permission on one object, or an `AccessError` |
 | `checkRows` | Many rows through one `GrantReader` |
-| `subjects` | A page of the principals of a type holding a permission on one object |
-| `explain` | Why a caller holds a permission or not, per authority |
+| `subjects` | A page of the principals of a type with a permission on one object |
+| `explain` | Why a caller has a permission or not, per authority |
 | `challenge` | The `StepUp` that would admit a caller refused for weak authentication |
 
 ## Authorization
@@ -96,7 +110,7 @@ const offer = await authorization.propose({
 
 ## Changes
 
-Each change requires the caller to hold its permission.
+Each change requires the caller to have its permission.
 
 | Method | Effect |
 |---|---|
@@ -104,7 +118,7 @@ Each change requires the caller to hold its permission.
 | `suspend`, `resume` | A scope withholding every permission but administration |
 | `grant`, `revoke`, `link` | Relationships and capability links |
 | `propose`, `accept`, `decline`, `proposals`, `addressed` | Relationships that apply once the recipient accepts |
-| `createRole`, `updateRole`, `deleteRole` | Roles granting only permissions the caller holds |
+| `createRole`, `updateRole`, `deleteRole` | Roles granting only permissions the caller has |
 
 ## Scopes
 
@@ -119,7 +133,7 @@ Each change requires the caller to hold its permission.
 
 ## Storage
 
-Every database holding protected objects includes `accessTables`.
+Every database with protected objects includes `accessTables`.
 
 ```ts
 export const main = defineDatabase({ name: "main", tables: [...accessTables, notes] });
@@ -137,5 +151,5 @@ const replica = authorizer.replicaOf(requests[0]!);
 ```ts
 const above = await authorizer.resolve(snapshot, accountId, context);
 const below = await above.descend(snapshot, spaceIds);
-const { held } = await authorizer.checkRows(snapshot, permission, above, rows, undefined, below);
+const { permitted } = await authorizer.checkRows(snapshot, permission, above, rows, undefined, below);
 ```

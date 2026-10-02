@@ -1,6 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { asc, type DatabaseConnection } from "@destack/db";
-import { Condition } from "@destack/db/query";
+import { asc, type DatabaseConnection, Condition } from "@destack/db";
 import { Feed, Replica, Scope } from "@destack/sync";
 import {
     accessRelationship,
@@ -23,7 +22,7 @@ import {
 import { openFixture, userSubject } from "../test/database.ts";
 
 test("copy a space's chain up to the universe from a relay, with the policies each scope hands down, and follow a grant", async () => {
-    // hold an account and its space, both owned by alice, in the home database
+    // insert an account and its space, both owned by alice, in the home database
     const home = await openFixture();
     const app = await openFixture();
     onTestFinished(async () => {
@@ -51,7 +50,10 @@ test("copy a space's chain up to the universe from a relay, with the policies ea
     const requests = () => app.authorizer.chain(app.database, "personal", { isHome: false });
     const scopes = async () => (await requests()).map((request) => request.scope);
     const follow = async (scope: string) => {
-        const request = (await requests()).find((entry) => entry.scope === scope)!;
+        const request = (await requests()).find((entry) => entry.scope === scope);
+        if (request === undefined) {
+            throw new Error(`no chain request for ${scope}`);
+        }
         following.push(
             app.authorizer
                 .replicaOf(request)
@@ -97,8 +99,8 @@ test("copy a space's chain up to the universe from a relay, with the policies ea
         ],
     ]);
 
-    // leave the access rows of held types and of universe-living types out of every copy
-    const types = [...app.authorizer.held, ...authorizer.universal];
+    // leave the access rows of local types and of universe-living types out of every copy
+    const types = [...app.authorizer.local, ...authorizer.universal];
     expect(
         authorizer
             .replicaOf({
@@ -106,7 +108,7 @@ test("copy a space's chain up to the universe from a relay, with the policies ea
                 scope: "universe",
                 below: "personal",
                 access: true,
-                held: [...app.authorizer.held],
+                local: [...app.authorizer.local],
                 copied: [],
                 rows: [],
             })

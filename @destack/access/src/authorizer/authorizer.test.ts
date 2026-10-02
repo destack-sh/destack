@@ -1,12 +1,11 @@
 import { expect, test } from "@destack/test";
-import { Snapshot } from "@destack/db/log";
-import { eq, type DatabaseConnection } from "@destack/db";
-import { identifier } from "@destack/schema";
-import { Condition } from "@destack/db/query";
+import { Snapshot, eq, type DatabaseConnection, Condition } from "@destack/db";
+import { aligned, identifier } from "@destack/schema";
 import {
     AccessError,
     accessRelationship,
     Authorization,
+    Contact,
     Authorizer,
     Capability,
     condition,
@@ -43,11 +42,13 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
         attributes: { ...mapping.attributes },
     }));
     const query = new Authorizer(policies, selections);
-    selections.find((mapping) => mapping.policy === node)!.relations.owner = {
-        column: "parent",
-        scope: "other",
-    };
-    selections.find((mapping) => mapping.policy === cell)!.attributes.row = "column";
+    const nodeSelection = selections.find((mapping) => mapping.policy === node);
+    const cellSelection = selections.find((mapping) => mapping.policy === cell);
+    if (nodeSelection === undefined || cellSelection === undefined) {
+        throw new Error("the fixture maps nodes and cells");
+    }
+    nodeSelection.relations["owner"] = { column: "parent", scope: "other" };
+    cellSelection.attributes["row"] = "column";
 
     expect(
         await database
@@ -73,26 +74,29 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
     });
 
     // select each example's editable rows for its caller
-    const contexts = [
-        bob,
+    const elevated = {
+        ...bob,
+        attributes: { team: 1, phase: "edit" },
+        assurance: { level: 2, authenticatedAt: bob.now },
+    };
+    const examples = [
+        { type: node, context: bob, editable: ["b"] },
         {
-            ...alice,
-            attributes: {
-                "first-row": 1,
-                "last-row": 3,
-                "first-column": 1,
-                "last-column": 1,
+            type: cell,
+            context: {
+                ...alice,
+                attributes: {
+                    "first-row": 1,
+                    "last-row": 3,
+                    "first-column": 1,
+                    "last-column": 1,
+                },
             },
+            editable: ["a", "b"],
         },
-        {
-            ...bob,
-            attributes: { team: 1, phase: "edit" },
-            assurance: { level: 2, authenticatedAt: bob.now },
-        },
+        { type: entity, context: elevated, editable: ["a"] },
     ];
-    const expected = [["b"], ["a", "b"], ["a"]];
-    for (const [position, type] of [node, cell, entity].entries()) {
-        const context = contexts[position];
+    for (const { type, context, editable } of examples) {
         const sql = await database
             .select({ id: item.id })
             .from(item)
@@ -103,12 +107,12 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
                 ),
             )
             .orderBy(item.id);
-        expect(sql.map((row) => row.id)).toEqual(expected[position]);
+        expect(sql.map((row) => row.id)).toEqual(editable);
     }
 
     // apply the elevated edit permission only after recent strong authentication
     const stale = {
-        ...contexts[2]!,
+        ...elevated,
         assurance: { level: 2, authenticatedAt: bob.now - 3_600_000 },
     };
     expect(
@@ -236,7 +240,7 @@ databaseTest(
         const carol: AccessContext = {
             ...alice,
             subjects: [principal.user.reference("universe", "carol")],
-            identifiers: ["email:carol@example.com"],
+            contacts: [Contact.email("carol@example.com")],
         };
         const dave: AccessContext = {
             ...alice,
@@ -263,25 +267,19 @@ databaseTest(
                 )
             ).map((proposal) => [proposal.id, proposal.purpose]),
         ).toEqual([[asked.id, "review the draft"]]);
-        expect(
-            (
-                await new Authorization(authorizer, database, () => carol).addressed("personal", {
-                    limit: 10,
-                })
-            ).map((proposal) => proposal.id),
-        ).toEqual([asked.id]);
 
         // hide the lapsed proposal and refuse unbounded pages
         expect(
             await new Authorization(authorizer, database, () => ({
-                ...carol,
+                ...alice,
                 now: asked.expiresAt,
-            })).addressed("personal", { limit: 10 }),
+            })).proposals({ object: node.reference("personal", "c") }, { limit: 10 }),
         ).toEqual([]);
         await expect(
-            new Authorization(authorizer, database, () => carol).addressed("personal", {
-                limit: 101,
-            }),
+            new Authorization(authorizer, database, () => alice).proposals(
+                { object: node.reference("personal", "c") },
+                { limit: 101 },
+            ),
         ).rejects.toMatchObject({
             code: "INVALID_CONTEXT",
             message: "proposal page limit must be 1 to 100",
@@ -315,16 +313,16 @@ databaseTest(
             relationship: {
                 object: node.reference("personal", "a"),
                 relation: "editor",
+                subject: Contact.subject(Contact.email("carol@example.com")),
             },
-            recipient: "email:carol@example.com",
         });
         await expect(
             new Authorization(authorizer, database, () => dave).propose({
                 relationship: {
                     object: node.reference("personal", "a"),
                     relation: "editor",
+                    subject: Contact.subject(Contact.email("dave@example.com")),
                 },
-                recipient: "email:dave@example.com",
             }),
         ).rejects.toMatchObject({
             code: "FORBIDDEN",
@@ -343,7 +341,7 @@ databaseTest(
         await expect(
             new Authorization(authorizer, database, () => ({
                 ...carol,
-                subject: carol.subjects[0],
+                subject: userSubject("carol"),
                 delegates: [{ subject: agent, authority: "lent" }],
             })).accept(offered.relationship.object, offered.id),
         ).rejects.toMatchObject({
@@ -390,9 +388,10 @@ databaseTest(
         );
         await expectEditable(database, authorizer, node, dave, []);
         expect(
-            await new Authorization(authorizer, database, () => dave).addressed("personal", {
-                limit: 10,
-            }),
+            await new Authorization(authorizer, database, () => alice).proposals(
+                { object: node.reference("work", "d") },
+                { limit: 10 },
+            ),
         ).toEqual([]);
     },
 );
@@ -465,11 +464,11 @@ databaseTest("constrain delegated access and credential selections", async ({ fi
     const { database, authorizer, alice, bob } = fixture;
     // constrain an agent to the intersection of its user's rights and what the user lent it
     const assistant = principal.installation.reference("personal", "assistant");
-    const delegated: AccessContext = {
+    const delegated = {
         ...alice,
-        subject: alice.subjects[0],
+        subject: userSubject("alice"),
         delegates: [{ subject: assistant, authority: "lent" }],
-    };
+    } satisfies AccessContext;
 
     // ignore the agent's own grants while it acts for someone else
     await new Authorization(authorizer, database, () => alice).grant({
@@ -485,7 +484,7 @@ databaseTest("constrain delegated access and credential selections", async ({ fi
         relation: "editor",
         subject: assistant,
         expiresAt: 2000,
-        conditions: { onBehalfOf: alice.subjects[0]! },
+        conditions: { onBehalfOf: userSubject("alice") },
     };
     await expect(
         new Authorization(authorizer, database, () => bob).grant(lending),
@@ -506,7 +505,7 @@ databaseTest("constrain delegated access and credential selections", async ({ fi
         new Authorization(authorizer, database, () => bob).grant({
             ...lending,
             object: node.reference("personal", "b"),
-            conditions: { onBehalfOf: bob.subjects[0]! },
+            conditions: { onBehalfOf: userSubject("bob") },
         }),
     ).rejects.toMatchObject({
         code: "FORBIDDEN",
@@ -516,11 +515,11 @@ databaseTest("constrain delegated access and credential selections", async ({ fi
     await expectEditable(database, authorizer, node, delegated, ["b"]);
 
     // act with alice's whole authority while impersonating her, and through what she lent her agent
-    const impersonated: AccessContext = {
+    const impersonated = {
         ...alice,
-        subject: alice.subjects[0],
+        subject: userSubject("alice"),
         delegates: [{ subject: userSubject("support"), authority: "full" }],
-    };
+    } satisfies AccessContext;
     await expectEditable(database, authorizer, node, alice, ["a", "b", "c"]);
     await expectEditable(database, authorizer, node, impersonated, ["a", "b", "c"]);
     await expectEditable(
@@ -529,7 +528,7 @@ databaseTest("constrain delegated access and credential selections", async ({ fi
         node,
         {
             ...impersonated,
-            delegates: [...impersonated.delegates!, ...delegated.delegates!],
+            delegates: [...impersonated.delegates, ...delegated.delegates],
         },
         ["b"],
     );
@@ -625,7 +624,7 @@ databaseTest("evaluate more rows than one query may bind", async ({ fixture }) =
 
     // present thousands of copies of alice's notes, beyond one query's parameter limit
     const copies = Array.from({ length: 4000 }, (_, position) => ({
-        ...rows[position % 3]!,
+        ...aligned(rows, position % 3),
         id: `copy-${position}`,
     }));
     const access = await authorizer.resolve(Snapshot.live(database), "personal", {
@@ -645,7 +644,7 @@ databaseTest("evaluate more rows than one query may bind", async ({ fixture }) =
     );
 
     // permit editing every copy of the two unlocked cells alice owns
-    expect(permitted.held.size).toBe(copies.filter((copy) => copy.locked === 0).length);
+    expect(permitted.permitted.size).toBe(copies.filter((copy) => copy.locked === 0).length);
 });
 
 /** Read the nodes a context may read. */

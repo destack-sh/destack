@@ -40,7 +40,9 @@ function admits(elevation: Elevation, context: AccessContext): boolean {
 
 /** Read the moment an admitted request's authentication grows too old for the elevation. */
 function until(elevation: Elevation, context: AccessContext): number | undefined {
-    return admits(elevation, context)
-        ? context.assurance!.authenticatedAt + elevation.maxAge
+    const assurance = context.assurance;
+
+    return assurance !== undefined && admits(elevation, context)
+        ? assurance.authenticatedAt + elevation.maxAge
         : undefined;
 }

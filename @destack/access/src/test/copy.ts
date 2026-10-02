@@ -8,7 +8,7 @@ import { accessRelationship } from "../relationship/table.ts";
 import { Role, type RoleRequest } from "../role/role.ts";
 import { accessRole } from "../role/table.ts";
 
-/** Record a scope object below the scopes containing it, as a copy of its home's access holds it. */
+/** Record a scope object below the scopes containing it, as a copy of its home's access keeps it. */
 export async function copyScope(
     database: DatabaseConnection,
     scope: ObjectReference,

@@ -2,15 +2,18 @@ import { expect, test } from "@destack/test";
 import { Authorizer, INTRINSIC_POLICIES, none, Policy, principal, relation } from "../index.ts";
 import { account, group, module1, node, team } from "../test/fixture.ts";
 
+/** List the names of some policies. */
+function names(policies: readonly { readonly name: string }[]): string[] {
+    return policies.map((policy) => policy.name);
+}
+
 test("include the policies declared policies reference, transitively", () => {
     // declare notes and teams: note viewers reference groups of accounts
     const authorizer = new Authorizer([node, team]);
-    const names = (policies: readonly { readonly name: string }[]) =>
-        policies.map((policy) => policy.name);
 
-    // hold every intrinsic, declared and referenced policy once
-    expect(names(authorizer.policies()).sort()).toEqual(
-        [...names(INTRINSIC_POLICIES), "node", "team", "group", "account"].sort(),
+    // include every intrinsic, declared and referenced policy once
+    expect(names(authorizer.policies()).toSorted()).toEqual(
+        [...names(INTRINSIC_POLICIES), "node", "team", "group", "account"].toSorted(),
     );
     expect(authorizer.policy(account.reference("universe", "account-1"))).toBe(account);
     expect(authorizer.policy(group.reference("space-1", "group-1"))).toBe(group);

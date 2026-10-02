@@ -10,15 +10,15 @@ export const SubjectType = defineSchema(
         /** The declaration-local subject type name. */
         type: AccessName,
         /** The relation whose members are the subjects, for a subject set. */
-        relation: AccessName.optional(),
+        relation: AccessName.exactOptional(),
         /** Whether one relationship relates every object of the type. */
-        wildcard: schema.literal(true).optional(),
+        wildcard: schema.literal(true).exactOptional(),
     }),
 );
 /** A type a relation accepts as subject: its objects, a subject set of them, or all of them. */
 export type SubjectType = schema.Infer<typeof SubjectType>;
 
-/** A typed relationship between an object and its subjects, held by a field or by relationships. */
+/** A typed relationship between an object and its subjects, kept in a field or in relationships. */
 export interface RelationDefinition {
     /** The subject types the relation accepts. */
     readonly subjects: readonly SubjectType[];
@@ -26,6 +26,8 @@ export interface RelationDefinition {
     readonly grantedBy?: string;
     /** Whether other types contribute themselves as subject types, as the hosts of an attachment do. */
     readonly open?: true;
+    /** Whether the relation is to the scope containing each object, which the scope chain decides rather than a row. */
+    readonly isScope?: true;
 }
 
 /** Report whether a relation accepts a subject's type, subject set and wildcard form. */

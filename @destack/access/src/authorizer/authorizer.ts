@@ -1,9 +1,18 @@
 import { v7 } from "uuid";
-import { and, eq, or, sql, type DatabaseConnection, type SQL, type Table } from "@destack/db";
-import { Condition } from "@destack/db/query";
-import { Snapshot } from "@destack/db/log";
-import type { PackageId } from "@destack/package";
-import { identifier } from "@destack/schema";
+import {
+    and,
+    eq,
+    or,
+    sql,
+    type DatabaseConnection,
+    type SQL,
+    type Table,
+    Condition,
+    Snapshot,
+    TABLE,
+} from "@destack/db";
+import { PackageId } from "@destack/package";
+import { identifier, schema, zip } from "@destack/schema";
 import {
     Replica,
     Scope,
@@ -11,7 +20,7 @@ import {
     type ScopeLink,
     type Watch,
     type ObjectReference,
-    type ObjectTypeReference,
+    ObjectTypeReference,
     Subject,
 } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
@@ -42,11 +51,11 @@ const WILDCARD = "*";
  */
 const LAG_MILLISECONDS = 30_000;
 
-/** The rows of a set a caller holds a permission on, by position, and the next moment time alone may change that. */
+/** The rows of a set a caller has a permission on, by position, and the next moment time alone may change that. */
 export interface Admission {
-    /** The positions of the rows the caller holds the permission on. */
-    readonly held: ReadonlySet<number>;
-    /** The next moment time may change the rows the caller holds it on. */
+    /** The positions of the rows the caller has the permission on. */
+    readonly permitted: ReadonlySet<number>;
+    /** The next moment time may change the rows the caller has it on. */
     readonly until?: number;
 }
 
@@ -58,14 +67,28 @@ export class Authorizer {
     readonly elevated: ReadonlyMap<string, Elevation>;
     /** The keys of permissions that stay available while a scope is suspended. */
     readonly administration: ReadonlySet<string>;
-    /** Field-held relations some relation names as a subject set. */
+    /** Field relations some relation names as a subject set. */
     readonly fields: FieldRelation[] = [];
     /** The subject sets that relations accept and roles may bind to. */
     readonly memberships: SubjectType[] = [];
+    /** The permissions accepted as subject sets, by the type and relation of each relationship deciding them. */
+    readonly #implied = new Map<string, string[]>();
+    /** The permissions accepted as subject sets on enclosed scopes, by the type and permission of the enclosing scope's set. */
+    readonly #enclosed = new Map<string, PermissionReference[]>();
+    /** The scope types that take subject sets from the scopes enclosing them. */
+    readonly #enclosedTypes = new Set<string>();
+    /** The scope chain steps of permissions read through enclosing scopes, by permission key. */
+    readonly #inherited = new Map<
+        string,
+        readonly {
+            readonly type: Pick<PermissionReference, "packageId" | "type">;
+            readonly relations: readonly string[];
+        }[]
+    >();
     /** How long a copy of access may go without its home before decisions refuse it, in milliseconds. */
     readonly lag: number;
-    /** The object types with access rows in this database. */
-    readonly held: readonly ObjectTypeReference[];
+    /** The object types whose access rows live in this database, rather than as copies. */
+    readonly local: readonly ObjectTypeReference[];
     /** The object types this database keeps copies of from the scopes above it: inherited rows, and the scopes' own rows of the scope types it keeps a table of. */
     readonly copied: readonly ObjectTypeReference[];
     /** The types whose objects live in the universe, whose access rows stay in the global tier. */
@@ -91,13 +114,10 @@ export class Authorizer {
         } = {},
     ) {
         // include every policy the declared policies name
-        const identity = (type: Policy) =>
-            JSON.stringify([type.definition.packageId, type.definition.name]);
         const reachable = new Map<string, Policy>();
         const visited = new Set<Policy>();
         const pending = [...policies];
-        while (pending.length > 0) {
-            const type = pending.shift()!;
+        for (let type = pending.shift(); type !== undefined; type = pending.shift()) {
             if (visited.has(type)) {
                 continue;
             }
@@ -105,39 +125,43 @@ export class Authorizer {
             pending.push(...type.references);
 
             // keep one policy per type, preferring a representing policy over the intrinsic one
-            const existing = reachable.get(identity(type));
+            const existing = reachable.get(policyKey(type));
             if (existing === undefined || INTRINSIC_POLICIES.includes(existing)) {
-                reachable.set(identity(type), type);
+                reachable.set(policyKey(type), type);
             }
             // refuse two distinct policies for one type
             else if (!INTRINSIC_POLICIES.includes(type)) {
                 throw new AccessError(
                     "INVALID_DECLARATION",
-                    `duplicate object type: ${identity(type)}`,
+                    `duplicate object type: ${policyKey(type)}`,
                 );
             }
         }
         const types = [
-            ...INTRINSIC_POLICIES.filter((type) => !reachable.has(identity(type))),
+            ...INTRINSIC_POLICIES.filter((type) => !reachable.has(policyKey(type))),
             ...reachable.values(),
         ];
 
         // register each policy under its type
         for (const type of types) {
-            this.#policies.set(identity(type), type);
+            this.#policies.set(policyKey(type), type);
         }
 
         // add each contributing type to the open relation it names
         for (const type of types) {
             for (const entry of type.definition.contributes ?? []) {
-                const target = this.#policies.get(JSON.stringify([entry.packageId, entry.type]));
+                const target = this.#policies.get(ObjectTypeReference.key(entry));
                 if (target?.definition.relations[entry.relation]?.open !== true) {
                     throw new AccessError(
                         "INVALID_DECLARATION",
                         `${type.name} contributes to ${entry.type}.${entry.relation}, which is not an open relation`,
                     );
                 }
-                const key = JSON.stringify([entry.packageId, entry.type, entry.relation]);
+                const key = PermissionReference.key({
+                    packageId: entry.packageId,
+                    type: entry.type,
+                    name: entry.relation,
+                });
                 const contributed = this.#contributions.get(key) ?? [];
                 contributed.push({
                     packageId: type.definition.packageId,
@@ -192,11 +216,11 @@ export class Authorizer {
         this.lag = options.lag ?? LAG_MILLISECONDS;
         this.#compiler = new Compiler(this);
 
-        // map scope types this database holds no table of onto the ancestry every database holds
+        // map scope types this database has no table of onto the ancestry every database has
         const scopes = this.policies()
             .filter(
                 (policy) =>
-                    policy.definition.scope &&
+                    policy.definition.scope === true &&
                     !mappings.some((mapping) => mapping.policy === policy),
             )
             .map((policy): TableMapping => ({
@@ -224,7 +248,10 @@ export class Authorizer {
                     "mapping must reference the registered object declaration",
                 );
             }
-            const key = JSON.stringify([definition.packageId, definition.name]);
+            const key = ObjectTypeReference.key({
+                packageId: definition.packageId,
+                type: definition.name,
+            });
             if (this.#mappings.has(key)) {
                 throw new AccessError("INVALID_DECLARATION", `duplicate database mapping: ${key}`);
             }
@@ -233,9 +260,18 @@ export class Authorizer {
             this.#mappings.set(key, mapping);
         }
 
-        // list the types whose access rows this database holds, and the types it keeps copies of
+        // require each relation to an enclosing scope to name one scope type and live in no field
+        for (const type of types) {
+            for (const [name, relation] of Object.entries(type.definition.relations)) {
+                if (relation.isScope === true) {
+                    this.#validateScopeRelation(type, name, relation);
+                }
+            }
+        }
+
+        // list the types whose access rows this database keeps, and the types it keeps copies of
         const copies = options.copies ?? (() => false);
-        this.held = [...this.#mappings.values()]
+        this.local = [...this.#mappings.values()]
             .filter((mapping) => !accessTables.includes(mapping.table) && !copies(mapping.table))
             .map((mapping) => ({
                 packageId: mapping.policy.definition.packageId,
@@ -261,63 +297,105 @@ export class Authorizer {
             }));
 
         // expand the declared subject sets and every scope's relations, the sets roles may bind to
-        const sets = new Set(
+        const sets = new Map(
             this.policies()
                 .flatMap((policy) => Object.values(policy.definition.relations))
                 .flatMap((relation) => relation.subjects)
-                .filter((subject) => subject.relation !== undefined)
-                .map((subject) =>
-                    JSON.stringify([subject.packageId, subject.type, subject.relation]),
-                ),
+                .flatMap((subject): [string, PermissionReference][] => {
+                    // keep the subjects naming a set
+                    if (subject.relation === undefined) {
+                        return [];
+                    }
+                    const set = {
+                        packageId: subject.packageId,
+                        type: subject.type,
+                        name: subject.relation,
+                    };
+
+                    return [[PermissionReference.key(set), set]];
+                }),
         );
-        const expanded = new Set([
-            ...sets,
-            ...this.policies()
-                .filter((policy) => policy.definition.scope === true)
-                .flatMap((policy) =>
-                    Object.keys(policy.definition.relations).map((relation) =>
-                        JSON.stringify([
-                            policy.definition.packageId,
-                            policy.definition.name,
-                            relation,
-                        ]),
-                    ),
-                ),
-        ]);
-        for (const key of expanded) {
-            const [packageId, type, relation] = JSON.parse(key) as [string, string, string];
+        const expanded = new Map(sets);
+        for (const policy of this.policies().filter((each) => each.definition.scope === true)) {
+            for (const relation of Object.keys(policy.definition.relations)) {
+                const set = {
+                    packageId: policy.definition.packageId,
+                    type: policy.definition.name,
+                    name: relation,
+                };
+                expanded.set(PermissionReference.key(set), set);
+            }
+        }
+        const expandedMembers = new Map<string, PermissionReference>();
+        for (const [key, set] of expanded) {
+            const policy = this.policy(set);
+
+            // expand a relation's set as it is
+            if (Object.hasOwn(policy.definition.relations, set.name)) {
+                expandedMembers.set(key, set);
+            }
+            // expand a permission's set through the relations deciding it on the object
+            else {
+                const { relations, enclosing } = this.deciding(policy.permission(set.name));
+                for (const relation of relations) {
+                    const deciding = { packageId: set.packageId, type: set.type, name: relation };
+                    const decidingKey = PermissionReference.key(deciding);
+                    expandedMembers.set(decidingKey, deciding);
+                    this.#implied.set(decidingKey, [
+                        ...(this.#implied.get(decidingKey) ?? []),
+                        set.name,
+                    ]);
+                }
+
+                // and through the same sets of the scopes enclosing it, expanded in turn
+                for (const scope of enclosing) {
+                    const scopeKey = PermissionReference.key(scope);
+                    this.#enclosed.set(scopeKey, [...(this.#enclosed.get(scopeKey) ?? []), set]);
+                    this.#enclosedTypes.add(ObjectTypeReference.key(set));
+                    expanded.set(scopeKey, scope);
+                }
+            }
+        }
+        for (const member of expandedMembers.values()) {
             this.memberships.push({
-                packageId: packageId as PackageId,
-                type,
-                relation,
+                packageId: member.packageId,
+                type: member.type,
+                relation: member.name,
             });
         }
 
-        // expand subject sets through the fields that hold them
+        // expand subject sets through the fields that keep them
         for (const mapping of this.#mappings.values()) {
             const definition = mapping.policy.definition;
             for (const [relation, field] of Object.entries(mapping.relations)) {
-                if (sets.has(JSON.stringify([definition.packageId, definition.name, relation]))) {
-                    const held = column(mapping.table, field.column);
-                    const isIndexed = mapping.table
+                if (
+                    sets.has(
+                        PermissionReference.key({
+                            packageId: definition.packageId,
+                            type: definition.name,
+                            name: relation,
+                        }),
+                    )
+                ) {
+                    const subjectColumn = column(mapping.table, field.column);
+                    const isIndexed = mapping.table[TABLE]
                         .constraints("sqlite")
                         .some(
                             (constraint) =>
                                 (constraint.kind === "index" || constraint.kind === "unique") &&
-                                constraint.columns[0] === held,
+                                constraint.columns[0] === subjectColumn,
                         );
-                    if (!isIndexed && !held.definition.primaryKey) {
+                    if (!isIndexed && subjectColumn.definition.primaryKey !== true) {
                         throw new AccessError(
                             "INVALID_DECLARATION",
                             `subject set ${definition.name}#${relation} needs an index on ${field.column}`,
                         );
                     }
-                    const [subject] = this.relation(mapping.policy, relation).subjects;
                     this.fields.push({
                         mapping,
                         relation,
                         field,
-                        subject: subject!,
+                        subject: this.onlySubject(mapping.policy, relation),
                     });
                 }
             }
@@ -325,22 +403,30 @@ export class Authorizer {
 
         // require every declared relation of a mapped type to decide a permission
         const parents = new Set(
-            [...this.#mappings.values()].map((mapping) =>
-                JSON.stringify([
-                    mapping.policy.definition.packageId,
-                    mapping.policy.name,
-                    mapping.parent,
-                ]),
+            [...this.#mappings.values()].flatMap((mapping) =>
+                mapping.parent === undefined
+                    ? []
+                    : [
+                          PermissionReference.key({
+                              packageId: mapping.policy.definition.packageId,
+                              type: mapping.policy.name,
+                              name: mapping.parent,
+                          }),
+                      ],
             ),
         );
-        const intrinsic = new Set(INTRINSIC_POLICIES.map(identity));
+        const intrinsic = new Set(INTRINSIC_POLICIES.map((policy) => policyKey(policy)));
         for (const type of types.filter(
-            (policy) => !intrinsic.has(identity(policy)) && this.#mappings.has(identity(policy)),
+            (policy) => !intrinsic.has(policyKey(policy)) && this.#mappings.has(policyKey(policy)),
         )) {
             const definition = type.definition;
             const decided = new Set(Object.values(definition.permissions).flatMap(relationsOf));
             for (const name of Object.keys(definition.relations)) {
-                const key = JSON.stringify([definition.packageId, definition.name, name]);
+                const key = PermissionReference.key({
+                    packageId: definition.packageId,
+                    type: definition.name,
+                    name,
+                });
                 if (!decided.has(name) && !sets.has(key) && !parents.has(key)) {
                     throw new AccessError(
                         "INVALID_DECLARATION",
@@ -353,7 +439,7 @@ export class Authorizer {
 
     /** Resolve the policy of a package-qualified object type. */
     policy(reference: Pick<ObjectReference, "packageId" | "type">): Policy {
-        const type = this.#policies.get(JSON.stringify([reference.packageId, reference.type]));
+        const type = this.#policies.get(ObjectTypeReference.key(reference));
         if (!type) {
             throw new AccessError(
                 "INVALID_DECLARATION",
@@ -371,26 +457,37 @@ export class Authorizer {
 
     /** Resolve a permission without accepting inherited JavaScript properties. */
     expression(reference: PermissionReference): AccessExpression {
+        // read the permission's own declaration
         const definition = this.policy(reference).definition;
-        if (!Object.hasOwn(definition.permissions, reference.name)) {
+        const expression = Object.hasOwn(definition.permissions, reference.name)
+            ? definition.permissions[reference.name]
+            : undefined;
+        if (expression === undefined) {
             throw new AccessError("INVALID_DECLARATION", `unknown permission: ${reference.name}`);
         }
 
-        return definition.permissions[reference.name]!;
+        return expression;
     }
 
     /** Resolve a declared relation without accepting inherited JavaScript properties. */
     relation(type: Policy, name: string): RelationDefinition {
-        if (!Object.hasOwn(type.definition.relations, name)) {
+        // read the relation's own declaration
+        const relation = Object.hasOwn(type.definition.relations, name)
+            ? type.definition.relations[name]
+            : undefined;
+        if (relation === undefined) {
             throw new AccessError("INVALID_DECLARATION", `unknown relation: ${name}`);
         }
 
         // add the types contributing to an open relation
-        const relation = type.definition.relations[name]!;
         if (!relation.open) {
             return relation;
         }
-        const key = JSON.stringify([type.definition.packageId, type.definition.name, name]);
+        const key = PermissionReference.key({
+            packageId: type.definition.packageId,
+            type: type.definition.name,
+            name,
+        });
 
         return {
             ...relation,
@@ -415,7 +512,7 @@ export class Authorizer {
     mappingOf(
         reference: Pick<PermissionReference, "packageId" | "type">,
     ): TableMapping | undefined {
-        return this.#mappings.get(JSON.stringify([reference.packageId, reference.type]));
+        return this.#mappings.get(ObjectTypeReference.key(reference));
     }
 
     /** Return the table mappings in registration order. */
@@ -423,7 +520,49 @@ export class Authorizer {
         return [...this.#mappings.values()];
     }
 
-    /** Read the permission another purely derives from, on its object or through a field-held relation. */
+    /** Read what a permission of a scope type grants through a scope chain: each type along the chain, and the relations on its object that grant it. */
+    inherited(reference: PermissionReference): readonly {
+        readonly type: Pick<PermissionReference, "packageId" | "type">;
+        readonly relations: readonly string[];
+    }[] {
+        // read a permission's chain once, refusing a scope type that encloses itself
+        const key = PermissionReference.key(reference);
+        const cached = this.#inherited.get(key);
+        if (cached !== undefined) {
+            return cached;
+        }
+        const steps = this.#inherit(reference, new Set());
+        this.#inherited.set(key, steps);
+
+        return steps;
+    }
+
+    /** Walk a permission's chain up its enclosing scopes, refusing one it reaches twice. */
+    #inherit(
+        reference: PermissionReference,
+        visited: ReadonlySet<string>,
+    ): {
+        readonly type: Pick<PermissionReference, "packageId" | "type">;
+        readonly relations: readonly string[];
+    }[] {
+        // refuse a permission the walk reached before
+        const key = PermissionReference.key(reference);
+        if (visited.has(key)) {
+            throw new AccessError(
+                "INVALID_DECLARATION",
+                `${reference.type}.${reference.name} encloses itself`,
+            );
+        }
+        const { relations, enclosing } = this.deciding(reference);
+        const reached = new Set([...visited, key]);
+
+        return [
+            { type: { packageId: reference.packageId, type: reference.type }, relations },
+            ...enclosing.flatMap((permission) => this.#inherit(permission, reached)),
+        ];
+    }
+
+    /** Read the permission another purely derives from, on its object or through a field relation. */
     source(
         permission: PermissionReference,
     ): { readonly permission: string; readonly relation?: string } | undefined {
@@ -441,30 +580,42 @@ export class Authorizer {
         return undefined;
     }
 
-    /** Read the object a row's field-held relation names, absent when the row names none. */
+    /** Read the object a row's field relation names, absent when the row names none. */
     related(
         mapping: TableMapping,
         relation: string,
         row: Readonly<Record<string, unknown>>,
     ): ObjectReference | undefined {
         // read the related identifier
-        const field = mapping.relations[relation]!;
-        const id = row[field.column] as string | null | undefined;
+        const field = mapping.relations[relation];
+        if (field === undefined) {
+            throw new AccessError("INVALID_DECLARATION", `${relation} is no field relation`);
+        }
+        const id = row[field.column];
         if (id === null || id === undefined) {
             return undefined;
+        } else if (typeof id !== "string") {
+            throw new TypeError(`field ${field.column} keeps no identifier`);
         }
 
-        // type it by the row's columns, or by the one type the relation accepts
-        const [only] = this.relation(mapping.policy, relation).subjects;
+        // type it by the one type the relation accepts
         const typed = field.subject;
+        if (typed === undefined) {
+            const only = this.onlySubject(mapping.policy, relation);
 
+            return {
+                packageId: only.packageId,
+                type: only.type,
+                scope: field.scope ?? TableMapping.scope(mapping, row),
+                id,
+            };
+        }
+
+        // or by the row's columns
         return {
-            packageId: (typed === undefined ? only!.packageId : row[typed.packageId]) as PackageId,
-            type: String(typed === undefined ? only!.type : row[typed.type]),
-            scope:
-                typed === undefined
-                    ? (field.scope ?? TableMapping.scope(mapping, row))
-                    : String(row[typed.scope]),
+            packageId: PackageId.parse(row[typed.packageId]),
+            type: TableMapping.text(row, typed.type),
+            scope: TableMapping.text(row, typed.scope),
             id,
         };
     }
@@ -475,29 +626,29 @@ export class Authorizer {
     }
 
     /**
-     * Decide whether this database holds an object's access rows: those of objects of a type it maps a table of.
+     * Decide whether this database keeps an object's access rows: those of objects of a type it maps a table of.
      *
      * A role, and so its inclusions, lives with the scope object defining it.
      */
-    async isHeld(database: DatabaseConnection, object: ObjectReference): Promise<boolean> {
+    async isLocal(database: DatabaseConnection, object: ObjectReference): Promise<boolean> {
         // follow a role to the scope object defining it
         if (this.mappingOf(object)?.table === accessRole) {
             const scope = await Scope.object(Snapshot.live(database), object.scope);
 
-            return this.isHeld(database, scope);
+            return this.isLocal(database, scope);
         }
 
-        return this.held.some(
+        return this.local.some(
             (type) => type.packageId === object.packageId && type.type === object.type,
         );
     }
 
-    /** Refuse writing the access rows of an object another database holds. */
-    async requireHeld(database: DatabaseConnection, object: ObjectReference): Promise<void> {
-        if (!(await this.isHeld(database, object))) {
+    /** Refuse writing the access rows of an object another database keeps. */
+    async requireLocal(database: DatabaseConnection, object: ObjectReference): Promise<void> {
+        if (!(await this.isLocal(database, object))) {
             throw new AccessError(
                 "FORBIDDEN",
-                `access of ${object.type} ${object.id} is written in the database holding it`,
+                `access of ${object.type} ${object.id} is written in the database keeping it`,
             );
         }
     }
@@ -524,7 +675,7 @@ export class Authorizer {
             scope,
             below,
             access: true,
-            held: [...this.held],
+            local: [...this.local],
             copied: [...this.copied],
             rows: [],
         }));
@@ -532,10 +683,10 @@ export class Authorizer {
 
     /** Build the copy a request asks for: a scope's access rows, inherited rows and global rows. */
     replicaOf(request: Omit<ReplicaRequest, "after">): Replica {
-        // leave out the access rows of the objects the follower holds, and of objects living in the universe
+        // leave out the access rows of the objects the follower keeps, and of objects living in the universe
         const own = Condition.not(
             Condition.any(
-                ...[...request.held, ...this.universal].map((type) =>
+                ...[...request.local, ...this.universal].map((type) =>
                     Condition.all(
                         Condition.eq("packageId", type.packageId),
                         Condition.eq("type", type.type),
@@ -557,9 +708,9 @@ export class Authorizer {
             } else if (mapping.policy.definition.scope !== true) {
                 throw new AccessError("NOT_FOUND", `no inherited rows of ${type.type}`);
             }
-            const identifier = column(table, mapping.id).definition.schema;
+            const scopeIdentifier = column(table, mapping.id).definition.schema;
 
-            return identifier.safeParse(request.scope).success
+            return scopeIdentifier.safeParse(request.scope).success
                 ? [[table, Condition.eq(mapping.id, request.scope)]]
                 : [];
         });
@@ -576,10 +727,10 @@ export class Authorizer {
         ]);
 
         // copy across scopes the rows living in the scopes of other requested types' rows
-        const within = request.rows.flatMap(({ type, within }): [Table, Table[]][] =>
-            within === undefined
+        const within = request.rows.flatMap(({ type, within: parents }): [Table, Table[]][] =>
+            parents === undefined
                 ? []
-                : [[this.#copiedTable(type), within.map((parent) => this.#copiedTable(parent))]],
+                : [[this.#copiedTable(type), parents.map((parent) => this.#copiedTable(parent))]],
         );
 
         // copy them under the request's name and scope
@@ -601,7 +752,7 @@ export class Authorizer {
 
     /** Read the table of an object type a copy asks for, refusing a type this database keeps no table of. */
     #copiedTable(type: ObjectTypeReference): Table {
-        const mapping = this.#mappings.get(JSON.stringify([type.packageId, type.type]));
+        const mapping = this.#mappings.get(ObjectTypeReference.key(type));
         if (mapping === undefined || mapping.table === Scope.table) {
             throw new AccessError("NOT_FOUND", `no object type ${type.type} to copy`);
         }
@@ -610,7 +761,7 @@ export class Authorizer {
     }
 
     /**
-     * List the access rows with changes that affect what a caller of a scope chain may hold.
+     * List the access rows with changes that affect what a caller of a scope chain may have.
      *
      * A scope object's relationships live in that scope, so the relationships of a caller's subjects are watched in every scope.
      */
@@ -651,7 +802,7 @@ export class Authorizer {
             count: page.limit,
         });
 
-        return rows.map((row) => Relationship.decode(row as RelationshipRow));
+        return rows.map((row) => Relationship.decode(row));
     }
 
     /** Encode a new object's first relationships as the rows its creation writes. */
@@ -685,43 +836,35 @@ export class Authorizer {
         });
     }
 
-    /** Require a relationship with one relation or role, an accepted subject and a future expiry. */
+    /** Require a relationship with an accepted subject and a future expiry. */
     validate(
         request: {
             readonly object: ObjectReference;
-            readonly relation?: string;
-            readonly role?: string;
             readonly subject?: Subject;
             readonly expiresAt?: number | null;
-        },
+        } & ({ readonly relation: string } | { readonly role: string }),
         now: number,
     ): void {
+        // read the subject, the expiry and whether the relationship binds a role
         const subject = request.subject;
         const expiresAt = request.expiresAt ?? null;
+        const isRole = "role" in request;
 
-        // require exactly one relation or role
-        if ((request.relation === undefined) === (request.role === undefined)) {
-            throw new AccessError("FORBIDDEN", "a relationship names exactly one relation or role");
-        }
         // require a subject the relation accepts
-        else if (
-            request.relation !== undefined &&
+        if (
+            "relation" in request &&
             subject !== undefined &&
             !accepts(this.relation(this.policy(request.object), request.relation), subject)
         ) {
             throw new AccessError("FORBIDDEN", `relation ${request.relation} rejects the subject`);
         }
         // require a role's subject to be named, since a wildcard would bind the role to everyone
-        else if (
-            request.role !== undefined &&
-            subject !== undefined &&
-            (subject.id === "*" || subject.scope === "*")
-        ) {
+        else if (isRole && subject !== undefined && (subject.id === "*" || subject.scope === "*")) {
             throw new AccessError("FORBIDDEN", "a role binds only to named subjects");
         }
         // require a role's subject set to be one resolving a caller expands
         else if (
-            request.role !== undefined &&
+            isRole &&
             subject?.relation !== undefined &&
             !this.memberships.some(
                 (set) =>
@@ -743,11 +886,11 @@ export class Authorizer {
 
     /** Remove the relationships bound to one request after it commits. */
     async release(database: DatabaseConnection, requestId: string): Promise<void> {
-        // delete the request's relationships about the types this database holds
-        const types = this.held.map((held) =>
+        // delete the request's relationships about the types this database keeps
+        const types = this.local.map((type) =>
             and(
-                eq(accessRelationship.packageId, held.packageId),
-                eq(accessRelationship.type, held.type),
+                eq(accessRelationship.packageId, type.packageId),
+                eq(accessRelationship.type, type.type),
             ),
         );
         if (types.length > 0) {
@@ -788,14 +931,14 @@ export class Authorizer {
         return Access.resolve(snapshot, scope, context, this, links);
     }
 
-    /** Restrict the rows of a table to those the caller holds a permission on, before sorting, counting, pagination, or mutation. */
+    /** Restrict the rows of a table to those the caller has a permission on, before sorting, counting, pagination, or mutation. */
     where(permission: PermissionReference, access: Access, source?: Table): SQL {
         return this.#compiler.where(permission, access, source);
     }
 
-    /** Match one object, in its own scope, if the caller holds a permission on it or through a role bound on or above it. */
-    holds(permission: PermissionReference, target: ObjectReference, access: Access): SQL {
-        return this.#compiler.holds(permission, target, access);
+    /** Match one object, in its own scope, if the caller has a permission on it or through a role bound on or above it. */
+    permits(permission: PermissionReference, target: ObjectReference, access: Access): SQL {
+        return this.#compiler.permits(permission, target, access);
     }
 
     /** Start reading the grants of rows within a scope chain, as a snapshot shows them, shared by every caller of the scope. */
@@ -803,7 +946,7 @@ export class Authorizer {
         return new GrantReader(this, snapshot, scopes);
     }
 
-    /** Decide whether a caller holds a permission on one object, and until when that holds by time alone. */
+    /** Decide whether a caller has a permission on one object, and until when that stays true by time alone. */
     async check(
         snapshot: Snapshot,
         permission: PermissionReference,
@@ -820,19 +963,19 @@ export class Authorizer {
         }
 
         // read the tree the permission reaches on the object
-        const [tree] = await reading.trees(permission, [row], mapping);
-        const until = earliest([access.until, grantsUntil(GrantTree.flatten(tree!), access)]);
+        const tree = await reading.tree(permission, row, mapping);
+        const until = earliest([access.until, grantsUntil(GrantTree.flatten(tree), access)]);
 
-        // admit the caller when every authority holds the permission, past its gate for one object
+        // admit the caller when every authority has the permission, past its gate for one object
         const isAllowed =
             this.#gate(permission, mapping, row, access, "object") === undefined &&
-            access.authorities.every((authority) => GrantTree.holds(tree!, authority, access));
+            access.authorities.every((authority) => GrantTree.permits(tree, authority, access));
 
         return { isAllowed, ...(until === undefined ? {} : { until }) };
     }
 
     /**
-     * Require the caller to hold every permission on one object, naming the first it lacks.
+     * Require the caller to have every permission on one object, naming the first it lacks.
      *
      * A live networked database decides in one statement, and an embedded database or a past snapshot decides from grant trees.
      */
@@ -860,19 +1003,26 @@ export class Authorizer {
         // decide every permission as a column of a single row
         const columns = permissions.map(
             (permission, index) =>
-                sql`CASE WHEN ${this.holds(permission, target, access)} THEN 1 ELSE 0 END AS ${sql.identifier(`held_${index}`)}`,
+                sql`CASE WHEN ${this.permits(permission, target, access)} THEN 1 ELSE 0 END AS ${sql.identifier(`permitted_${index}`)}`,
         );
-        const [row] = await database.execute<Record<string, number | string>>(
+        const [row] = await database.execute(
             sql`SELECT ${sql.join(columns, sql`, `)}`,
+            schema.record(
+                schema.string(),
+                schema.union([schema.number(), schema.string(), schema.bigint()]),
+            ),
         );
-        const denied = permissions.find((_, index) => Number(row![`held_${index}`]) !== 1);
+        if (row === undefined) {
+            throw new TypeError("the permission query returned no row");
+        }
+        const denied = permissions.find((_, index) => Number(row[`permitted_${index}`]) !== 1);
         if (denied) {
             await this.#refuse(snapshot, denied, target, access);
         }
     }
 
     /**
-     * Find the fresh authentication that would admit a refused caller: the lowest assurance level at which a decision holds, with the permission's elevation age.
+     * Find the fresh authentication that would admit a refused caller: the lowest assurance level at which a decision passes, with the permission's elevation age.
      *
      * Refusals stronger authentication would not lift, such as missing grants, find none.
      */
@@ -905,7 +1055,7 @@ export class Authorizer {
     }
 
     /**
-     * List a page of the principals of a type holding a permission on one object now, in subject key order, through subject sets.
+     * List a page of the principals of a type with a permission on one object now, in subject key order, through subject sets.
      *
      * Each candidate is decided as a check decides it, authenticated as strongly as the permission asks.
      * A wildcard of a whole type names no principals, so the principals it admits are not listed.
@@ -929,13 +1079,13 @@ export class Authorizer {
         if (row === undefined) {
             return [];
         }
-        const [tree] = await reader.trees(permission, [row], this.mapping(target));
+        const tree = await reader.tree(permission, row, this.mapping(target));
 
         // expand the grants' subject sets into the principals of the type
         const candidates = new Map<string, Subject>();
         const seen = new Set<string>();
         for (
-            let frontier = GrantTree.flatten(tree!).map((grant) => grant.subject);
+            let frontier = GrantTree.flatten(tree).map((grant) => grant.subject);
             frontier.length > 0;
         ) {
             const sets: Subject[] = [];
@@ -958,18 +1108,18 @@ export class Authorizer {
         const ordered = [...candidates.entries()]
             .filter(([key]) => page.after === undefined || key > page.after)
             .toSorted(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
-        const held: Subject[] = [];
+        const permitted: Subject[] = [];
         for (const [, subject] of ordered) {
-            if (held.length === page.limit) {
+            if (permitted.length === page.limit) {
                 break;
             }
             const access = await this.resolveAssured(snapshot, scope, subject, now, links);
             if ((await this.check(snapshot, permission, target, access, reader)).isAllowed) {
-                held.push(subject);
+                permitted.push(subject);
             }
         }
 
-        return held;
+        return permitted;
     }
 
     /** Decide whether every authority of the caller owns one object. */
@@ -985,11 +1135,11 @@ export class Authorizer {
         // read the owner bindings on or above the object
         const tree = await reader.ownership(row, mapping);
 
-        return access.authorities.every((authority) => GrantTree.holds(tree, authority, access));
+        return access.authorities.every((authority) => GrantTree.permits(tree, authority, access));
     }
 
     /**
-     * Check a permission on each of the given rows, as they are or were: the positions the caller holds it on, and until when that holds by time alone.
+     * Check a permission on each of the given rows, as they are or were: the positions the caller has it on, and until when that stays true by time alone.
      *
      * Every permission decides in memory from the grant trees the reader shares among callers, as the compiled predicate decides in SQL.
      * A row of a scope the caller's scope encloses is decided by the caller's access in that scope, given in `below`.
@@ -1010,33 +1160,28 @@ export class Authorizer {
         }
 
         // read the rows' grant trees
-        const trees = await reader.trees(permission, rows);
+        const decided = zip(zip(rows, accesses), await reader.trees(permission, rows));
         const until = earliest([
             access.until,
-            ...trees.map((tree, position) =>
-                earliest([
-                    accesses[position]!.until,
-                    grantsUntil(GrantTree.flatten(tree), accesses[position]!),
-                ]),
+            ...decided.map(([[, evaluated], tree]) =>
+                earliest([evaluated.until, grantsUntil(GrantTree.flatten(tree), evaluated)]),
             ),
         ]);
 
         // admit the rows with a tree that admits every authority of the caller
-        const held = rows.flatMap((row, position) => {
-            const evaluated = accesses[position]!;
-
-            return this.#gate(permission, mapping, row, evaluated, "listing") === undefined &&
-                evaluated.authorities.every((authority) =>
-                    GrantTree.holds(trees[position]!, authority, evaluated),
-                )
+        const permitted = decided.flatMap(([[row, evaluated], tree], position) =>
+            this.#gate(permission, mapping, row, evaluated, "listing") === undefined &&
+            evaluated.authorities.every((authority) =>
+                GrantTree.permits(tree, authority, evaluated),
+            )
                 ? [position]
-                : [];
-        });
+                : [],
+        );
 
-        return { held: new Set(held), ...(until === undefined ? {} : { until }) };
+        return { permitted: new Set(permitted), ...(until === undefined ? {} : { until }) };
     }
 
-    /** Explain whether a caller holds a permission on one object: the gate, then each grant and why it fails, per authority. */
+    /** Explain whether a caller has a permission on one object: the gate, then each grant and why it fails, per authority. */
     async explain(
         snapshot: Snapshot,
         permission: PermissionReference,
@@ -1059,13 +1204,11 @@ export class Authorizer {
 
         // decide each authority by the permission's tree, and each grant it reaches alone
         const blocked = this.#gate(permission, mapping, found, access, "object");
-        const [tree] = await reader.trees(permission, [found]);
-        const grants = GrantTree.flatten(tree!);
+        const tree = await reader.tree(permission, found);
+        const grants = GrantTree.flatten(tree);
         const decided = access.authorities.map((authority) => ({
-            ...(authority.delegator === undefined
-                ? {}
-                : { delegate: authority.subjects[0]!, delegator: authority.delegator }),
-            isAllowed: GrantTree.holds(tree!, authority, access),
+            ...authority.delegation,
+            isAllowed: GrantTree.permits(tree, authority, access),
             grants: grants.map((grant) => {
                 const failed = authority.failure(grant, access);
 
@@ -1138,8 +1281,8 @@ export class Authorizer {
             own !== undefined && scope === own.scope && String(row[mapping.id]) === own.id;
 
         return (scope !== access.scope && !isOwn) ||
-            (mapping.isShared &&
-                (row.packageId !== definition.packageId || row.type !== definition.name))
+            (mapping.isShared === true &&
+                (row["packageId"] !== definition.packageId || row["type"] !== definition.name))
             ? "outside"
             : undefined;
     }
@@ -1147,8 +1290,7 @@ export class Authorizer {
     /** Require a mapping to supply the trees and reference columns its policy's expressions need. */
     #requireCompilable(mapping: TableMapping): void {
         const pending = Object.values(mapping.policy.definition.permissions);
-        while (pending.length > 0) {
-            const expression = pending.pop()!;
+        for (let expression = pending.pop(); expression !== undefined; expression = pending.pop()) {
             if (expression.kind === "union" || expression.kind === "intersection") {
                 pending.push(...expression.expressions);
             } else if (expression.kind === "exclusion") {
@@ -1174,6 +1316,46 @@ export class Authorizer {
         }
     }
 
+    /** Read the one subject type a relation accepts, refusing a relation accepting several. */
+    onlySubject(type: Policy, name: string): SubjectType {
+        const [only, ...others] = this.relation(type, name).subjects;
+        if (only === undefined || others.length > 0) {
+            throw new AccessError(
+                "INVALID_DECLARATION",
+                `relation ${type.definition.name}#${name} accepts no single subject type`,
+            );
+        }
+
+        return only;
+    }
+
+    /** Require a relation to the scope holding each object to accept one scope type alone, kept by the scope chain rather than a field. */
+    #validateScopeRelation(type: Policy, name: string, relation: RelationDefinition): void {
+        // require one scope type, kept by the scope chain
+        const [scope, ...others] = relation.subjects;
+        const isScopeType =
+            scope !== undefined &&
+            scope.relation === undefined &&
+            scope.wildcard !== true &&
+            this.policy(scope).definition.scope === true;
+        if (others.length > 0 || !isScopeType) {
+            throw new AccessError(
+                "INVALID_DECLARATION",
+                `${type.name}.${name} is the scope holding each object, so it accepts one scope type alone`,
+            );
+        }
+        if (
+            this.mappingOf({ packageId: type.definition.packageId, type: type.name })?.relations[
+                name
+            ]
+        ) {
+            throw new AccessError(
+                "INVALID_DECLARATION",
+                `${type.name}.${name} is the scope holding each object, so no field keeps it`,
+            );
+        }
+    }
+
     /** Require a subject type to refer to a registered type and one of its relations. */
     #validateSubject(subject: SubjectType): void {
         // resolve the relation of a subject set
@@ -1182,8 +1364,96 @@ export class Authorizer {
             if (subject.wildcard) {
                 throw new AccessError("INVALID_DECLARATION", "a subject set cannot be a wildcard");
             }
-            this.relation(type, subject.relation);
+            // accept a relation, or a permission the object's own relations decide
+            if (!Object.hasOwn(type.definition.relations, subject.relation)) {
+                this.deciding(type.permission(subject.relation));
+            } else {
+                this.relation(type, subject.relation);
+            }
         }
+    }
+
+    /**
+     * Read what decides a permission along a scope chain: relations on the object, and permissions of its enclosing scopes.
+     *
+     * Subject sets and permissions read through enclosing scopes take only such permissions, since relationships on the chain decide them without the object's row.
+     */
+    deciding(reference: PermissionReference): {
+        readonly relations: readonly string[];
+        readonly enclosing: readonly PermissionReference[];
+    } {
+        // collect the relations and enclosing sets the permission's unions and named permissions reach
+        const policy = this.policy(reference);
+        const relations = new Set<string>();
+        const enclosing: PermissionReference[] = [];
+        const seen = new Set<string>();
+        const pending = [this.expression(reference)];
+        for (let expression = pending.pop(); expression !== undefined; expression = pending.pop()) {
+            if (expression.kind === "none") {
+                continue;
+            }
+            // take a relation relationships keep, refusing one a field or the scope chain keeps
+            else if (expression.kind === "relation") {
+                const isScope = policy.definition.relations[expression.name]?.isScope === true;
+                const isField = this.mappingOf(reference)?.relations[expression.name] !== undefined;
+                if (isScope || isField) {
+                    throw new AccessError(
+                        "INVALID_DECLARATION",
+                        `${reference.type}.${expression.name} is kept ${isScope ? "by the scope chain" : "in a field"}, so relationships on the chain cannot decide ${reference.name}`,
+                    );
+                }
+                relations.add(expression.name);
+            } else if (expression.kind === "union") {
+                pending.push(...expression.expressions);
+            } else if (expression.kind === "permission") {
+                if (!seen.has(expression.name)) {
+                    seen.add(expression.name);
+                    pending.push(this.expression(policy.permission(expression.name)));
+                }
+            }
+            // follow the scope enclosing the object
+            else if (
+                expression.kind === "through" &&
+                policy.definition.relations[expression.relation]?.isScope === true
+            ) {
+                const scope = this.onlySubject(policy, expression.relation);
+                enclosing.push({
+                    packageId: scope.packageId,
+                    type: scope.type,
+                    name: expression.permission,
+                });
+            }
+            // refuse what relationships on the chain cannot decide
+            else {
+                throw new AccessError(
+                    "INVALID_DECLARATION",
+                    `${reference.type}.${reference.name} is decided along a scope chain, so it follows relations alone`,
+                );
+            }
+        }
+
+        return { relations: [...relations], enclosing };
+    }
+
+    /** List the permissions accepted as subject sets on enclosed scopes of a type that an enclosing scope's set makes its members members of. */
+    enclosed(
+        reference: Pick<PermissionReference, "packageId" | "type">,
+        set: string,
+    ): readonly PermissionReference[] {
+        return this.#enclosed.get(PermissionReference.key({ ...reference, name: set })) ?? [];
+    }
+
+    /** Report whether scopes of a type take subject sets from the scopes enclosing them. */
+    isEnclosed(reference: Pick<PermissionReference, "packageId" | "type">): boolean {
+        return this.#enclosedTypes.has(ObjectTypeReference.key(reference));
+    }
+
+    /** List the permissions accepted as subject sets that a relationship of a type's relation makes its subject a member of. */
+    implied(
+        reference: Pick<PermissionReference, "packageId" | "type">,
+        relation: string,
+    ): readonly string[] {
+        return this.#implied.get(PermissionReference.key({ ...reference, name: relation })) ?? [];
     }
 
     /** Resolve all expressions and keep recursion in explicit ancestor traversal. */
@@ -1203,8 +1473,7 @@ export class Authorizer {
     #validateExpression(type: Policy, root: AccessExpression, path: ReadonlySet<string>): void {
         const definition = type.definition;
         const pending = [root];
-        while (pending.length > 0) {
-            const expression = pending.pop()!;
+        for (let expression = pending.pop(); expression !== undefined; expression = pending.pop()) {
             switch (expression.kind) {
                 case "none":
                 case "grants":
@@ -1249,6 +1518,15 @@ export class Authorizer {
                             );
                         }
 
+                        // require a permission of the enclosing scope that its chain's relationships decide
+                        if (definition.relations[expression.relation]?.isScope === true) {
+                            this.inherited({
+                                packageId: subject.packageId,
+                                type: subject.type,
+                                name: expression.permission,
+                            });
+                        }
+
                         // resolve the referenced permission on the related type
                         this.#validate(
                             {
@@ -1266,7 +1544,7 @@ export class Authorizer {
     }
 }
 
-/** Take the next moment time alone changes whether any of some grants holds, absent when it never does. */
+/** Take the next moment time alone changes whether any of some grants passes, absent when it never does. */
 function grantsUntil(grants: readonly Grant[], access: Access): number | undefined {
     const context = access.context;
 
@@ -1344,7 +1622,15 @@ function listedPermissions(
     );
 }
 
-/** Read the members of subject sets: the subjects their objects' relationships of the set's relation hold. */
+/** Key a policy by its package and its type name. */
+function policyKey(policy: Policy): string {
+    return ObjectTypeReference.key({
+        packageId: policy.definition.packageId,
+        type: policy.definition.name,
+    });
+}
+
+/** Read the members of subject sets: the subjects their objects' relationships of the set's relation have. */
 async function members(snapshot: Snapshot, sets: readonly Subject[]): Promise<Subject[]> {
     // read nothing for no sets
     if (sets.length === 0) {
@@ -1365,8 +1651,12 @@ async function members(snapshot: Snapshot, sets: readonly Subject[]): Promise<Su
 
     return rows
         .map((row) => Relationship.decode(row))
-        .filter((relationship) =>
-            wanted.has(Subject.key({ ...relationship.object, relation: relationship.relation! })),
+        .filter(
+            (relationship) =>
+                "relation" in relationship &&
+                wanted.has(
+                    Subject.key({ ...relationship.object, relation: relationship.relation }),
+                ),
         )
         .map((relationship) => relationship.subject);
 }

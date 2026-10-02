@@ -23,11 +23,11 @@ export interface PolicyDefinition {
     readonly grantedBy?: string;
     /** Permissions only their expressions grant, never roles, not even owners'. */
     readonly reserved?: readonly string[];
-    /** Sensitive permissions that apply only after the authentication each names, whoever holds them. */
+    /** Sensitive permissions that apply only after the authentication each names, whoever has them. */
     readonly elevated?: Readonly<Record<string, Elevation>>;
     /** Permissions that stay available while the scope is suspended, such as reading and resuming it. */
     readonly administration?: readonly string[];
-    /** Whether the type's objects are scopes that hold other objects. */
+    /** Whether the type's objects are scopes that contain other objects. */
     readonly scope?: true;
     /** Whether the type's objects live in the universe, like users. */
     readonly isGlobal?: true;
@@ -65,7 +65,8 @@ export class Policy<Name extends string = string> {
                             Policy.subjectType(owner.id, subject),
                         ),
                         ...(grantedBy === undefined || grantedBy === null ? {} : { grantedBy }),
-                        ...(relation.open ? { open: true } : {}),
+                        ...(relation.open === true ? { open: true } : {}),
+                        ...(relation.isScope === true ? { isScope: true } : {}),
                     },
                 ];
             }),
@@ -73,7 +74,7 @@ export class Policy<Name extends string = string> {
 
         // require every relation to accept a subject type unless other types contribute them
         for (const [name, relation] of Object.entries(relations)) {
-            if (relation.subjects.length === 0 && !relation.open) {
+            if (relation.subjects.length === 0 && relation.open !== true) {
                 throw new AccessError(
                     "INVALID_DECLARATION",
                     `relation ${name} accepts no subject type and is not open`,
@@ -113,8 +114,8 @@ export class Policy<Name extends string = string> {
                 ...(input.administration === undefined
                     ? {}
                     : { administration: [...input.administration] }),
-                ...(input.scope ? { scope: true } : {}),
-                ...(input.isGlobal ? { isGlobal: true } : {}),
+                ...(input.scope === true ? { scope: true } : {}),
+                ...(input.isGlobal === true ? { isGlobal: true } : {}),
                 ...(input.contributes === undefined || input.contributes.length === 0
                     ? {}
                     : {
@@ -124,7 +125,7 @@ export class Policy<Name extends string = string> {
                               relation: entry.relation,
                           })),
                       }),
-            }) as PolicyDefinition,
+            }),
         );
     }
 
@@ -138,19 +139,20 @@ export class Policy<Name extends string = string> {
         });
     }
 
-    /** Reference one of this type's declared permissions. */
-    permission(name: Name): Permission {
+    /** Reference one of this type's declared permissions, a Permission since the policy declares it. */
+    permission(name: Name): Permission;
+    /** Reference one of this type's declared permissions after checking the declaration. */
+    permission(name: Name): PermissionReference {
+        // require a declared permission
         if (!Object.hasOwn(this.definition.permissions, name)) {
             throw new AccessError("INVALID_DECLARATION", `unknown permission: ${name}`);
         }
 
-        const reference: PermissionReference = {
+        return {
             packageId: this.definition.packageId,
             type: this.definition.name,
             name,
         };
-
-        return reference as Permission;
     }
 
     /** Determine whether a subject is one object of this type, rather than a set or another type's object. */
@@ -188,7 +190,7 @@ export class Policy<Name extends string = string> {
         }
 
         // parse `type`, `type#relation` and `type:*`
-        const match = /^([a-z][a-z0-9-]*)(?:#([a-z][a-z0-9-]*)|(:\*))?$(?![\s\S])/.exec(subject);
+        const match = /^([a-z][a-z0-9-]*)(?:#([a-z][a-z0-9-]*)|(:\*))?$(?![\s\S])/u.exec(subject);
         if (!match) {
             throw new AccessError("INVALID_DECLARATION", `invalid subject type: ${subject}`);
         }
@@ -272,6 +274,8 @@ export interface RelationInput {
     readonly grantedBy?: string | null;
     /** Whether other types contribute themselves as subject types, as the hosts of an attachment do. */
     readonly open?: true;
+    /** Whether the relation is to the scope containing each object, which the scope chain decides rather than a row. */
+    readonly isScope?: true;
 }
 
 /** A policy as declared. */
@@ -288,11 +292,11 @@ export interface PolicyInput<Name extends string> {
     readonly grantedBy?: NoInfer<Name>;
     /** Permissions only their expressions grant, never roles, not even owners'. */
     readonly reserved?: readonly NoInfer<Name>[];
-    /** Sensitive permissions that apply only after the authentication each names, whoever holds them. */
+    /** Sensitive permissions that apply only after the authentication each names, whoever has them. */
     readonly elevated?: Readonly<Partial<Record<NoInfer<Name>, Elevation>>>;
     /** Permissions that stay available while the scope is suspended, such as reading and resuming it. */
     readonly administration?: readonly NoInfer<Name>[];
-    /** Whether the type's objects are scopes that hold other objects. */
+    /** Whether the type's objects are scopes that contain other objects. */
     readonly scope?: boolean;
     /** Whether the type's objects live in the universe, like users. */
     readonly isGlobal?: boolean;
@@ -325,7 +329,10 @@ export function relationsOf(expression: AccessExpression): string[] {
             return expression.expressions.flatMap(relationsOf);
         case "exclusion":
             return [...relationsOf(expression.include), ...relationsOf(expression.exclude)];
-        default:
+        case "none":
+        case "permission":
+        case "condition":
+        case "grants":
             return [];
     }
 }

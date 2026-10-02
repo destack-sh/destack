@@ -9,8 +9,8 @@ import {
     type DatabaseConnection,
     type Select,
     type SQL,
+    type Snapshot,
 } from "@destack/db";
-import type { Snapshot } from "@destack/db/log";
 import { defineSchema, identifier, Instant, schema } from "@destack/schema";
 import { v7 } from "uuid";
 import { accessRelationship, type RelationshipColumnMap, type RelationshipRow } from "./table.ts";
@@ -19,64 +19,68 @@ import { accessRelationship, type RelationshipColumnMap, type RelationshipRow } 
 export const RelationshipCondition = defineSchema(
     schema.object({
         /** Apply only to this request, and only until it commits. */
-        request: schema.string().min(1).optional(),
+        request: schema.string().min(1).exactOptional(),
         /** Apply only within this session or agent instance. */
-        session: schema.string().min(1).optional(),
+        session: schema.string().min(1).exactOptional(),
         /** Apply only when the request presents the capability with this digest. */
         capability: schema
             .string()
-            .regex(/^[0-9a-f]{64}$(?![\s\S])/)
-            .optional(),
+            .regex(/^[0-9a-f]{64}$(?![\s\S])/u)
+            .exactOptional(),
         /** Apply only when the caller authenticated at this assurance level or higher. */
-        assurance: schema.number().int().min(1).max(3).optional(),
+        assurance: schema.number().int().min(1).max(3).exactOptional(),
         /** Apply only within this many milliseconds of the caller's authentication. */
-        maxAge: schema.number().int().positive().optional(),
+        maxAge: schema.number().int().positive().exactOptional(),
         /** Apply only to a delegate acting for this principal, lending the principal's authority: a delegation. */
-        onBehalfOf: Subject.optional(),
+        onBehalfOf: Subject.exactOptional(),
     }),
 );
 /** What a request must satisfy for a relationship to apply, beyond its lifetime. */
 export type RelationshipCondition = schema.Infer<typeof RelationshipCondition>;
 
-/** The schema of a relationship: an object related to a subject through a declared relation or a bound role. */
+/** A relationship apart from its relation or role, which each kind of relationship extends. */
+export const relationshipBase = schema.object({
+    /** The stable relationship identifier. */
+    id: schema.string().min(1),
+    /** The related object. */
+    object: ObjectReference,
+    /** The subject, subject set or wildcard related to the object. */
+    subject: Subject,
+    /** The creation time in Unix milliseconds. */
+    createdAt: Instant,
+    /** The exclusive expiry time in Unix milliseconds, or null for no expiry. */
+    expiresAt: Instant.nullable(),
+    /** What a request must satisfy for the relationship to apply. */
+    conditions: RelationshipCondition.exactOptional(),
+});
+
+/** The schema of a relationship: an object related to a subject through a declared relation, or a bound role. */
 const relationshipSchema = defineSchema(
-    schema.object({
-        /** The stable relationship identifier. */
-        id: schema.string().min(1),
-        /** The related object. */
-        object: ObjectReference,
-        /** The declared relation, absent for a role binding. */
-        relation: AccessName.optional(),
-        /** The bound role, absent for a declared relation. */
-        role: schema.string().min(1).optional(),
-        /** The subject, subject set or wildcard related to the object. */
-        subject: Subject,
-        /** The creation time in Unix milliseconds. */
-        createdAt: Instant,
-        /** The exclusive expiry time in Unix milliseconds, or null for no expiry. */
-        expiresAt: Instant.nullable(),
-        /** What a request must satisfy for the relationship to apply. */
-        conditions: RelationshipCondition.optional(),
-    }),
+    schema.union([
+        relationshipBase.extend({
+            /** The declared relation. */
+            relation: AccessName,
+        }),
+        relationshipBase.extend({
+            /** The bound role. */
+            role: schema.string().min(1),
+        }),
+    ]),
 );
-/** An object related to a subject through a declared relation or a bound role. */
+/** An object related to a subject through a declared relation, or a bound role. */
 export type Relationship = schema.Infer<typeof relationshipSchema>;
 
-/** A relationship to write: exactly one of a relation or a role. */
-export interface RelationshipRequest {
+/** A relationship to write: through a declared relation, or binding a role. */
+export type RelationshipRequest = {
     /** The related object. */
     readonly object: ObjectReference;
-    /** The declared relation. */
-    readonly relation?: string;
-    /** The role to bind. */
-    readonly role?: string;
     /** The subject, subject set or wildcard. */
     readonly subject: Subject;
     /** Optional expiry in UTC epoch milliseconds. */
     readonly expiresAt?: number;
     /** What a request must satisfy for the relationship to apply. */
     readonly conditions?: RelationshipCondition;
-}
+} & ({ readonly relation: string } | { readonly role: string });
 
 /** An object related to a subject through a declared relation or a bound role: its schema, and its rows. */
 export const Relationship = {
@@ -88,10 +92,12 @@ export const Relationship = {
     readByObject,
     readBySubject,
     subjectColumns,
+    via,
+    viaColumns,
     replace,
 };
 
-/** The relationships one subject holds through one relation on objects of some types in a scope. */
+/** The relationships one subject has through one relation on objects of some types in a scope. */
 export interface RelationshipSelection {
     /** The scope the relationships live in. */
     readonly scope: string;
@@ -99,7 +105,7 @@ export interface RelationshipSelection {
     readonly objects: readonly ObjectTypeReference[];
     /** The declared relation. */
     readonly relation: string;
-    /** The subject holding the relationships. */
+    /** The subject of the relationships. */
     readonly subject: Subject;
 }
 
@@ -114,9 +120,7 @@ function encode(relationship: Relationship, scope: string) {
         packageId: relationship.object.packageId,
         type: relationship.object.type,
         objectId: relationship.object.id,
-        relation: relationship.relation ?? null,
-        roleId:
-            relationship.role === undefined ? null : identifier("role").parse(relationship.role),
+        ...viaColumns(relationship),
         ...subjectColumns(relationship.subject),
         expiresAt: relationship.expiresAt,
         requestId: relationship.conditions?.request ?? null,
@@ -161,8 +165,7 @@ function decode(row: Select<typeof accessRelationship>): Relationship {
             scope: row.objectScope,
             id: row.objectId,
         },
-        ...(row.relation === null ? {} : { relation: row.relation }),
-        ...(row.roleId === null ? {} : { role: row.roleId }),
+        ...viaOf(row),
         subject: {
             packageId: row.subjectPackageId,
             type: row.subjectType,
@@ -181,39 +184,45 @@ async function readByObject(
     snapshot: Snapshot,
     objects: readonly ObjectReference[],
 ): Promise<RelationshipRow[]> {
-    return (await snapshot.select(
+    return snapshot.select(
         accessRelationship,
         ["objectScope", "packageId", "type", "objectId"],
         objects.map((object) => [object.scope, object.packageId, object.type, object.id]),
-    )) as RelationshipRow[];
+    );
 }
 
-/** Read the relationships some subjects hold as a snapshot shows them: plain subjects exactly and through wildcards, sets exactly. */
+/** Read the relationships of some subjects as a snapshot shows them: plain subjects exactly and through wildcards, sets exactly. */
 async function readBySubject(
     snapshot: Snapshot,
     subjects: readonly Subject[],
 ): Promise<RelationshipRow[]> {
-    // name each subject a relationship may hold for them, with the wildcards plain subjects match
+    // list each subject a relationship may have for them, with the wildcards plain subjects match
     const wanted = new Map<string, readonly (string | null)[]>();
     for (const subject of subjects) {
         const isPlain = subject.relation === undefined;
         for (const scope of isPlain ? [subject.scope, "*"] : [subject.scope]) {
             for (const id of isPlain ? [subject.id, "*"] : [subject.id]) {
-                const held = [subject.packageId, subject.type, scope, id, subject.relation ?? null];
-                wanted.set(JSON.stringify(held), held);
+                const tuple = [
+                    subject.packageId,
+                    subject.type,
+                    scope,
+                    id,
+                    subject.relation ?? null,
+                ];
+                wanted.set(JSON.stringify(tuple), tuple);
             }
         }
     }
 
     // read the relationships of each wanted subject and relation
     const tuples = new Map(
-        [...wanted.values()].map((held) => [JSON.stringify(held.slice(0, 4)), held.slice(0, 4)]),
+        [...wanted.values()].map((tuple) => [JSON.stringify(tuple.slice(0, 4)), tuple.slice(0, 4)]),
     );
-    const rows = (await snapshot.select(
+    const rows = await snapshot.select(
         accessRelationship,
         ["subjectPackageId", "subjectType", "subjectScope", "subjectId"],
         [...tuples.values()],
-    )) as RelationshipRow[];
+    );
 
     return rows.filter((row) =>
         wanted.has(
@@ -248,9 +257,9 @@ async function replace(
     wanted: readonly ObjectReference[],
     now: number,
 ): Promise<void> {
-    // read the relationships the subject holds through the relation on the selected types
+    // read the relationships the subject has through the relation on the selected types
     const columns = subjectColumns(selection.subject);
-    const held = await database
+    const related = await database
         .select({
             id: accessRelationship.id,
             objectScope: accessRelationship.objectScope,
@@ -285,7 +294,7 @@ async function replace(
 
     // remove the relationships to objects no longer wanted
     const missing = new Map(wanted.map((object) => [ObjectReference.key(object), object]));
-    const stale = held.filter(
+    const stale = related.filter(
         (row) =>
             !missing.delete(
                 ObjectReference.key({
@@ -323,4 +332,33 @@ async function replace(
             ),
         );
     }
+}
+
+/** Read whether a relationship row relates through a relation or a role, refusing a row with neither or both. */
+function viaOf(
+    row: Pick<Select<typeof accessRelationship>, "id" | "relation" | "roleId">,
+): { readonly relation: string } | { readonly role: string } {
+    if (row.relation !== null && row.roleId === null) {
+        return { relation: row.relation };
+    } else if (row.roleId !== null && row.relation === null) {
+        return { role: row.roleId };
+    } else {
+        throw new TypeError(`relationship ${row.id} has no single relation or role`);
+    }
+}
+
+/** Read what a relationship relates through: its declared relation, or its bound role. */
+function via(
+    relationship: { readonly relation: string } | { readonly role: string },
+): { readonly relation: string } | { readonly role: string } {
+    return "relation" in relationship
+        ? { relation: relationship.relation }
+        : { role: relationship.role };
+}
+
+/** Write what a relationship relates through as its row's relation and role columns. */
+function viaColumns(relationship: { readonly relation: string } | { readonly role: string }) {
+    return "relation" in relationship
+        ? { relation: relationship.relation, roleId: null }
+        : { relation: null, roleId: identifier("role").parse(relationship.role) };
 }

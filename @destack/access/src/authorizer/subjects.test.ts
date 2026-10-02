@@ -1,19 +1,24 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { Subject } from "@destack/sync";
-import { Snapshot } from "@destack/db/log";
+import { Snapshot } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
+import { aligned } from "@destack/schema";
 import { v7 } from "uuid";
 import { accessRelationship, principal, Relationship } from "../index.ts";
 import { group, node } from "../test/fixture.ts";
 import { openFixture } from "../test/database.ts";
 
+/** Reference a user in the universe. */
+function user(id: string): Subject {
+    return principal.user.reference("universe", id);
+}
+
 test.for(TEST_DIALECTS)(
-    "list the users holding a permission on an object, through nested groups, deciding each as a check does, on %s",
+    "list the users with a permission on an object, through nested groups, deciding each as a check does, on %s",
     async (dialect) => {
         const fixture = await openFixture(dialect);
         onTestFinished(() => fixture.close());
         const { database, authorizer } = fixture;
-        const user = (id: string) => principal.user.reference("universe", id);
         const relate = (object: Relationship["object"], relation: string, subject: Subject) =>
             database.insert(accessRelationship).values(
                 Relationship.encode(
@@ -26,10 +31,10 @@ test.for(TEST_DIALECTS)(
                         expiresAt: null,
                     },
                     object.scope,
-                ) as never,
+                ),
             );
 
-        // let a group, holding carol and a nested group holding dave, and every user view note a
+        // let a group, with carol and a nested group with dave, and every user view note a
         const outer = group.reference("personal", "outer");
         const inner = group.reference("personal", "inner");
         await relate(node.reference("personal", "a"), "viewer", { ...outer, relation: "member" });
@@ -54,7 +59,7 @@ test.for(TEST_DIALECTS)(
                 )
             )
                 .map((subject) => subject.id)
-                .sort();
+                .toSorted();
         // walk note a's readers in pages of two in key order
         const page = (after?: string) =>
             authorizer.subjects(
@@ -69,7 +74,7 @@ test.for(TEST_DIALECTS)(
                 { ...(after === undefined ? {} : { after }), limit: 2 },
             );
         const first = await page();
-        const second = await page(Subject.key(first.at(-1)!));
+        const second = await page(Subject.key(aligned(first, first.length - 1)));
         expect([first.map((subject) => subject.id), second.map((subject) => subject.id)]).toEqual([
             ["alice", "carol"],
             ["dave"],

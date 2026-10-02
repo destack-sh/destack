@@ -8,7 +8,7 @@ const restrictionSchema = defineSchema(
         /** The scope in which the permission applies. */
         scope: schema.string().min(1),
         /** The one object the permission applies to, absent for every object of the scope. */
-        objectId: schema.string().min(1).optional(),
+        objectId: schema.string().min(1).exactOptional(),
     }),
 );
 /** A permission a restricted credential allows, in one scope and optionally on one object. */

@@ -1,13 +1,11 @@
-import type { DatabaseConnection, Select } from "@destack/db";
-import type { Snapshot } from "@destack/db/log";
-import type { PackageId } from "@destack/package";
+import type { DatabaseConnection, Select, Snapshot } from "@destack/db";
 import { Replica, type ScopeLink, Scope, type ObjectReference, Subject } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
 import { PermissionReference } from "../policy/policy.ts";
 import { type SubjectType } from "../policy/subject.ts";
 import { ACCESS_PACKAGE_ID } from "../policy/principal.ts";
 import * as principal from "../policy/principal.ts";
-import { AccessContext, Caller } from "../context/context.ts";
+import { AccessContext, Caller, Contact } from "../context/context.ts";
 import { Elevation } from "../context/elevation.ts";
 import { Restriction } from "../context/restriction.ts";
 import { Relationship } from "../relationship/relationship.ts";
@@ -22,7 +20,7 @@ import type { Gate } from "./decision.ts";
 import { Authorizer } from "./authorizer.ts";
 import { type FieldRelation, TableMapping } from "./mapping.ts";
 
-/** A caller's access in one scope: its authorities, the scope chain, the roles along it, and the time it holds for. */
+/** A caller's access in one scope: its authorities, the scope chain, the roles along it, and the time it is valid for. */
 export class Access {
     /** The scope every protected row of a query belongs to. */
     readonly scope: string;
@@ -70,9 +68,10 @@ export class Access {
         this.scopes = resolved.links.map((link) => link.object);
         this.grants = resolved.grants;
         this.isSuspended = resolved.links.some((link) => link.isSuspended);
-        const fenced = resolved.links.find((link) => link.movedTo !== undefined);
-        this.moved =
-            fenced === undefined ? undefined : { scope: fenced.object.id, cell: fenced.movedTo! };
+        const [moved] = resolved.links.flatMap((link) =>
+            link.movedTo === undefined ? [] : [{ scope: link.object.id, cell: link.movedTo }],
+        );
+        this.moved = moved;
         this.until = resolved.until;
 
         // index the roles by the permissions they grant, apart from the roles granting everything
@@ -116,6 +115,7 @@ export class Access {
         // read the chain, unless the caller read it in the same snapshot already
         const links = known ?? (await Scope.chain(snapshot, scope));
         const chain = [scope, ...links.map((link) => link.object.id).filter((id) => id !== scope)];
+        const scopes = links.map((link) => link.object);
 
         // read the roles and the subject sets of the caller and every lent delegate
         const lent = Caller.delegation(context).filter((link) => link.authority === "lent");
@@ -124,16 +124,31 @@ export class Access {
             snapshot.position === undefined
                 ? requireConfirmed(snapshot.database, chain, authorizer.lag)
                 : undefined,
-            Access.expand(snapshot, context.subjects, context, authorizer),
+            Access.expand(
+                snapshot,
+                [
+                    ...context.subjects,
+                    ...Caller.contacts(context).map((contact) => Contact.subject(contact)),
+                ],
+                context,
+                authorizer,
+                scopes,
+            ),
             Promise.all(
                 lent.map(async ({ delegate, delegator }) => ({
-                    expanded: await Access.expand(snapshot, [delegate], context, authorizer),
-                    delegator,
+                    expanded: await Access.expand(
+                        snapshot,
+                        [delegate],
+                        context,
+                        authorizer,
+                        scopes,
+                    ),
+                    delegation: { delegate, delegator },
                 })),
             ),
         ]);
 
-        // take the earliest moment a subject set, an inclusion or an elevation the caller holds changes by time
+        // take the earliest moment a subject set, an inclusion or an elevation the caller has changes by time
         const until = earliest([
             roles.until,
             represented.until,
@@ -149,7 +164,7 @@ export class Access {
             authorities: [
                 new Authority(represented.subjects),
                 ...delegates.map(
-                    (delegate) => new Authority(delegate.expanded.subjects, delegate.delegator),
+                    (delegate) => new Authority(delegate.expanded.subjects, delegate.delegation),
                 ),
             ],
             links,
@@ -169,11 +184,11 @@ export class Access {
         const chain = new Set(this.#links.map((link) => link.object.id));
         const rows = new Map<string, Select<typeof Scope.table>>();
         for (let wanted = scopes.filter((id) => !chain.has(id)); wanted.length > 0;) {
-            const read = (await snapshot.select(
+            const read = await snapshot.select(
                 Scope.table,
                 ["scope"],
                 wanted.map((id) => [id]),
-            )) as Select<typeof Scope.table>[];
+            );
             for (const row of read) {
                 rows.set(row.scope, row);
             }
@@ -187,10 +202,9 @@ export class Access {
         for (const scope of new Set(scopes)) {
             const links: ScopeLink[] = [];
             let current = rows.get(scope);
-            while (
-                current !== undefined &&
-                !links.some((link) => link.object.id === current!.scope)
-            ) {
+            const visited = new Set<string>();
+            while (current !== undefined && !visited.has(current.scope)) {
+                visited.add(current.scope);
                 links.push({
                     object: {
                         packageId: current.packageId,
@@ -222,11 +236,35 @@ export class Access {
                 ? requireConfirmed(snapshot.database, ids, this.#authorizer.lag)
                 : undefined,
         ]);
-        const defined = new Set(defining.map((row) => String(row.scope)));
+        const defined = new Set(defining.map((row) => row.scope));
 
         // reuse this scope's roles below it, reading the roles of a chain that defines more
         const resolved = new Map<string, Access>();
         for (const [scope, links] of below) {
+            // expand the authorities again for a chain whose scopes take sets from the scopes enclosing them
+            const objects = [...links, ...this.#links].map((link) => link.object);
+            const expansions = links.some((link) => this.#authorizer.isEnclosed(link.object))
+                ? await Promise.all(
+                      this.authorities.map(async (authority) => ({
+                          authority,
+                          expanded: await Access.expand(
+                              snapshot,
+                              authority.subjects,
+                              this.context,
+                              this.#authorizer,
+                              objects,
+                          ),
+                      })),
+                  )
+                : [];
+            const authorities =
+                expansions.length === 0
+                    ? this.authorities
+                    : expansions.map(
+                          ({ authority, expanded }) =>
+                              new Authority(expanded.subjects, authority.delegation),
+                      );
+
             const roles = links.some((link) => defined.has(link.object.id))
                 ? await readRoles(
                       snapshot,
@@ -239,10 +277,14 @@ export class Access {
                 new Access(this.#authorizer, {
                     scope,
                     context: this.context,
-                    authorities: this.authorities,
+                    authorities,
                     links: [...links, ...this.#links],
                     grants: roles.grants,
-                    until: earliest([this.until, roles.until]),
+                    until: earliest([
+                        this.until,
+                        roles.until,
+                        ...expansions.map(({ expanded }) => expanded.until),
+                    ]),
                 }),
             );
         }
@@ -250,55 +292,101 @@ export class Access {
         return resolved;
     }
 
-    /** Add the subject sets of some subjects breadth first, with the next moment time changes them. */
+    /**
+     * Add the subject sets of some subjects breadth first, with the next moment time changes them.
+     *
+     * A set on a scope reaches the sets of the scopes it encloses along the chain.
+     */
     static async expand(
         snapshot: Snapshot,
         subjects: readonly Subject[],
         context: ConditionContext,
-        authorizer?: Pick<Authorizer, "fields" | "memberships">,
+        authorizer: Pick<Authorizer, "fields" | "memberships" | "implied" | "enclosed">,
+        chain: readonly ObjectReference[],
     ): Promise<{
         readonly subjects: Subject[];
         readonly until: number | undefined;
     }> {
-        // seed with identities and verified subject sets
-        const fields = authorizer?.fields ?? [];
-        const expanded = [...subjects];
-        const known = new Set(expanded.map(Subject.key));
+        // admit the identities and verified subject sets, with the sets they reach on the chain
+        const expanded = new Map<string, Subject>();
         const boundaries: (number | undefined)[] = [];
-        let frontier = [...expanded];
+        let frontier = Access.#admit(subjects, expanded, authorizer, chain);
         while (frontier.length > 0) {
             // read the sets relationships and fields make the frontier subjects members of, together
-            const [related, ...held] = await Promise.all([
-                memberships(snapshot, frontier, context, authorizer?.memberships),
-                ...fields.map((entry) => fieldSets(snapshot, entry, frontier)),
+            const level = frontier;
+            const [related, ...fielded] = await Promise.all([
+                memberships(snapshot, level, context, authorizer.memberships),
+                ...authorizer.fields.map((entry) => fieldSets(snapshot, entry, level)),
             ]);
 
             // note when each relationship making a membership next changes by time
             boundaries.push(...related.map((row) => GrantCondition.boundary(row, context)));
 
-            // continue from the sets not seen before
-            frontier = [];
+            // continue from each relationship's set and the permissions accepted as subject sets it decides
             const found = [
-                ...related.map((row) => ({
-                    packageId: row.packageId,
-                    type: row.type,
-                    scope: row.objectScope,
-                    id: row.objectId,
-                    relation: row.relation!,
-                })),
-                ...held.flat(),
+                ...related.flatMap((row) => {
+                    // refuse a role binding among the memberships
+                    if (row.relation === null) {
+                        throw new TypeError(`membership ${row.id} has no relation`);
+                    }
+
+                    return [row.relation, ...authorizer.implied(row, row.relation)].map(
+                        (relation) => ({
+                            packageId: row.packageId,
+                            type: row.type,
+                            scope: row.objectScope,
+                            id: row.objectId,
+                            relation,
+                        }),
+                    );
+                }),
+                ...fielded.flat(),
             ];
-            for (const subject of found) {
-                const key = Subject.key(subject);
-                if (!known.has(key)) {
-                    known.add(key);
-                    expanded.push(subject);
-                    frontier.push(subject);
-                }
+            frontier = Access.#admit(found, expanded, authorizer, chain);
+        }
+
+        return { subjects: [...expanded.values()], until: earliest(boundaries) };
+    }
+
+    /** Add the subjects not seen before to an expansion, with the sets they reach on the chain's enclosed scopes, returning those added. */
+    static #admit(
+        found: readonly Subject[],
+        expanded: Map<string, Subject>,
+        authorizer: Pick<Authorizer, "enclosed">,
+        chain: readonly ObjectReference[],
+    ): Subject[] {
+        // walk the found subjects and the sets they reach, in order
+        const added: Subject[] = [];
+        const pending = [...found];
+        for (const subject of pending) {
+            // take each subject not seen before, in order
+            const key = Subject.key(subject);
+            if (expanded.has(key)) {
+                continue;
+            }
+            expanded.set(key, subject);
+            added.push(subject);
+
+            // queue the sets it reaches on the chain's scopes it encloses
+            const enclosed =
+                subject.relation === undefined
+                    ? []
+                    : authorizer.enclosed(subject, subject.relation);
+            for (const set of enclosed) {
+                pending.push(
+                    ...chain
+                        .filter(
+                            (scope) =>
+                                scope.packageId === set.packageId &&
+                                scope.type === set.type &&
+                                scope.scope === subject.id,
+                        )
+                        .map((scope) => ({ ...scope, relation: set.name })),
+                );
             }
         }
 
-        return { subjects: expanded, until: earliest(boundaries) };
+        return added;
     }
 
     /** List the roles along the scope chain that grant a permission. */
@@ -388,7 +476,7 @@ export class Access {
         return elevation === undefined || Elevation.admits(elevation, this.context);
     }
 
-    /** Read the scope's own object from its containing scope when a mapping holds its type. */
+    /** Read the scope's own object from its containing scope when a mapping has its type. */
     own(mapping: TableMapping): ObjectReference | undefined {
         const own = this.scopes[0];
         const definition = mapping.policy.definition;
@@ -433,15 +521,15 @@ async function readRoles(
         ["scope"],
         chain.map((id) => [id]),
     );
-    const ids = rows.map((row) => [String(row.id)]);
-    const objects = rows.map((row) => principal.role.reference(String(row.scope), String(row.id)));
+    const ids = rows.map((row) => [row.id]);
+    const objects = rows.map((row) => principal.role.reference(row.scope, row.id));
     const [permissions, relationships] = await Promise.all([
         snapshot.select(accessRolePermission, ["roleId"], ids),
         Relationship.readByObject(snapshot, objects),
     ]);
 
     // keep the current inclusions among those roles
-    const byRole = Map.groupBy(permissions, (row) => String(row.roleId));
+    const byRole = Map.groupBy(permissions, (row) => row.roleId);
     const includes = relationships.filter(
         (row) =>
             row.relation === "includes" &&
@@ -453,12 +541,12 @@ async function readRoles(
 
     // close the roles over their inclusions
     const roles: DefinedRole[] = rows.map((row) => ({
-        id: String(row.id),
-        isUniversal: row.isUniversal === true,
-        permissions: (byRole.get(String(row.id)) ?? []).map((granted) => ({
-            packageId: granted.packageId as PackageId,
-            type: String(granted.type),
-            name: String(granted.name),
+        id: row.id,
+        isUniversal: row.isUniversal,
+        permissions: (byRole.get(row.id) ?? []).map((granted) => ({
+            packageId: granted.packageId,
+            type: granted.type,
+            name: granted.name,
         })),
     }));
 
@@ -503,8 +591,8 @@ async function fieldSets(
     entry: FieldRelation,
     subjects: readonly Subject[],
 ): Promise<Subject[]> {
-    // read the rows holding the subjects the field may hold
-    const holders = subjects.filter((subject) => isHeldBy(entry, subject));
+    // read the rows with the subjects the field may have
+    const holders = subjects.filter((subject) => isAcceptedBy(entry, subject));
     if (holders.length === 0) {
         return [];
     }
@@ -515,25 +603,25 @@ async function fieldSets(
         [...new Set(holders.map((subject) => subject.id))].map((id) => [id]),
     );
 
-    // keep the rows holding a subject of their scope, or of any scope the field names
+    // keep the rows with a subject of their scope, or of any scope the field names
     const definition = mapping.policy.definition;
-    const held = new Set(holders.map(Subject.key));
+    const keys = new Set(holders.map((holder) => Subject.key(holder)));
 
     return rows.flatMap((row) => {
         const scope = TableMapping.scope(mapping, row);
         const subject = {
             ...entry.subject,
             scope: field.scope ?? scope,
-            id: String(row[field.column]),
+            id: TableMapping.text(row, field.column),
         };
 
-        return held.has(Subject.key(subject))
+        return keys.has(Subject.key(subject))
             ? [
                   {
                       packageId: definition.packageId,
                       type: definition.name,
                       scope,
-                      id: String(row[mapping.id]),
+                      id: TableMapping.text(row, mapping.id),
                       relation: entry.relation,
                   },
               ]
@@ -548,8 +636,8 @@ export function earliest(moments: readonly (number | undefined)[]): number | und
     return present.length === 0 ? undefined : Math.min(...present);
 }
 
-/** Decide whether a field may hold a subject: one of the subject type it holds, in its scope. */
-function isHeldBy(entry: FieldRelation, subject: Subject): boolean {
+/** Decide whether a field accepts a subject: one of the subject type it accepts, in its scope. */
+function isAcceptedBy(entry: FieldRelation, subject: Subject): boolean {
     return (
         subject.packageId === entry.subject.packageId &&
         subject.type === entry.subject.type &&

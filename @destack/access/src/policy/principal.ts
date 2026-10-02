@@ -9,9 +9,9 @@ const OWNER = import.meta.destack.package;
 /** The identity of the package declaring access's own types. */
 export const ACCESS_PACKAGE_ID = OWNER.id;
 
-/** The kinds of principal that authenticate: people, machines and installed software. */
+/** The kinds of principal: people, machines and installed software that authenticate, and the groups sharing reaches them through. */
 export const principal = {
-    /** A person, identified globally, and the scope holding their own objects. */
+    /** A person, identified globally, and the scope with their own objects. */
     user: new Policy(OWNER, { name: "user", permissions: {}, scope: true, isGlobal: true }),
     /** A machine running Destack, living in its account, and the scope of its local operations. */
     host: new Policy(OWNER, { name: "host", permissions: {}, scope: true }),
@@ -25,6 +25,14 @@ export const principal = {
     cell: new Policy(OWNER, { name: "cell", permissions: {}, isGlobal: true }),
     /** A non-person identity an account creates for automation, living in that account. */
     serviceAccount: new Policy(OWNER, { name: "service-account", permissions: {} }),
+    /** A way to reach someone outside Destack that they prove control of, such as an email address. */
+    contact: new Policy(OWNER, { name: "contact", permissions: {} }),
+    /** A set of people, software and other groups that objects are shared with at once. */
+    group: new Policy(OWNER, {
+        name: "group",
+        relations: { member: { subjects: ["user", "installation", "group#member"] } },
+        permissions: {},
+    }),
 };
 
 /** The universe, the root scope: roles and inherited rows bound on it apply in every scope. */
@@ -56,7 +64,9 @@ export const proposal = new Policy(OWNER, {
     name: "proposal",
     relations: {
         proposer: { subjects: [principal.user, principal.host, principal.installation] },
-        addressee: { subjects: [principal.user, principal.host, principal.installation] },
+        addressee: {
+            subjects: [principal.user, principal.host, principal.installation, principal.contact],
+        },
         lender: { subjects: [principal.user, principal.host, principal.installation] },
     },
     permissions: {
@@ -76,6 +86,8 @@ export const INTRINSIC_POLICIES: readonly Policy[] = [
     principal.host,
     principal.region,
     principal.installation,
+    principal.contact,
+    principal.group,
     anyone,
     role,
     relationship,

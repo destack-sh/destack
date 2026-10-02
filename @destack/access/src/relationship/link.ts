@@ -2,7 +2,7 @@ import { Digest } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 
 /** The form of a capability secret: 32 bytes as lowercase hexadecimal. */
-const SECRET = /^[0-9a-f]{64}$(?![\s\S])/;
+const SECRET = /^[0-9a-f]{64}$(?![\s\S])/u;
 
 /** A link: a relationship to anyone who presents its secret, revoked by deleting the relationship. */
 export interface Link {

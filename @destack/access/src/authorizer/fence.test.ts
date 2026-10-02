@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { Snapshot } from "@destack/db/log";
+import { Snapshot } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { principal } from "../policy/principal.ts";
 import { copyScope } from "../test/copy.ts";
@@ -15,7 +15,7 @@ test.for(TEST_DIALECTS)(
         const database = storage.database;
         const authorizer = new Authorizer(policies, mappings);
 
-        // hold an account and a space inside it
+        // insert an account and a space inside it
         await copyScope(database, account.reference(Scope.universe.id, "account-a"));
         await copyScope(database, space.reference("account-a", "space-a"));
         const context = {
@@ -40,7 +40,7 @@ test.for(TEST_DIALECTS)(
         await Scope.unfence(database, "account-a");
         expect(await moved()).toEqual([undefined, undefined]);
 
-        // refuse fencing a scope the database does not hold
+        // refuse fencing a scope the database does not keep
         await expect(Scope.fence(database, "account-z", "host-b", 2000)).rejects.toMatchObject({
             code: "NOT_FOUND",
             message: "unknown scope: account-z",
@@ -61,7 +61,7 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
         });
         await copyScope(storage.database, account.reference(Scope.universe.id, "account-a"));
 
-        // hold a write guarding the scope open while a fence starts on another connection
+        // keep a write guarding the scope open while a fence starts on another connection
         const events: string[] = [];
         const guarded = Promise.withResolvers<void>();
         const release = Promise.withResolvers<void>();
@@ -77,7 +77,9 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
         );
 
         // fence after the guarding write commits, even when it commits later
-        await new Promise((resolve) => setTimeout(resolve, 50));
+        await new Promise((resolve) => {
+            setTimeout(resolve, 50);
+        });
         release.resolve();
         await Promise.all([writing, fencing]);
         expect(events).toEqual(["committed", "fenced"]);

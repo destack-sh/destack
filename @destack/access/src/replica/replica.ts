@@ -17,7 +17,7 @@ export const decisionTables: readonly Table[] = [
     accessRelationship,
 ];
 
-/** The tables of every database holding protected objects. */
+/** The tables of every database with protected objects. */
 export const accessTables: readonly Table[] = [...decisionTables, accessProposal, ...replicaTables];
 
 /** The mappings of access's own tables. */

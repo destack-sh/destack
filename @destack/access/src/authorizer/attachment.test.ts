@@ -1,6 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { asc, defineTable, text } from "@destack/db";
-import { defineDatabase } from "@destack/db/declare";
+import { asc, defineTable, text, defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import {
     accessTables,
@@ -41,7 +40,7 @@ const photo = new Policy(module1.package, {
 /** The rows of an owned host type. */
 function hostTable(name: string) {
     return defineTable(name, {
-        id: text("id").primaryKey().notNull(),
+        id: text("id").primaryKey(),
         scope: text("scope").notNull(),
         owner: text("owner").notNull(),
     });
@@ -53,7 +52,7 @@ const articles = hostTable("attachment_article");
 const photos = hostTable("attachment_photo");
 /** The remark rows with their parent's package, type and identifier. */
 const remarks = defineTable("attachment_remark", {
-    id: text("id").primaryKey().notNull(),
+    id: text("id").primaryKey(),
     scope: text("scope").notNull(),
     parentPackageId: text("parent_package_id").notNull(),
     parentType: text("parent_type").notNull(),

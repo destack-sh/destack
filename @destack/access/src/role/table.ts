@@ -56,7 +56,7 @@ export const accessRolePermission = defineTable(
     "role_permission",
     {
         /** The permission identifier. */
-        id: identifier("id", "role-permission").primaryKey().notNull(),
+        id: identifier("id", "role-permission").primaryKey(),
         /** The role containing the permission. */
         roleId: identifier("role_id", "role")
             .notNull()

@@ -1,7 +1,7 @@
+import { aligned, identifier, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import type { Subject } from "@destack/sync";
-import { Snapshot } from "@destack/db/log";
-import { and, asc, eq, sql } from "@destack/db";
+import { Snapshot, and, asc, eq, sql } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import {
     Relationship,
@@ -48,6 +48,11 @@ function random(seed: number) {
     };
 }
 
+/** Reference a user in the universe. */
+function user(id: string): Subject {
+    return principal.user.reference("universe", id);
+}
+
 /** Keep a relationship's expiry after its creation, as the table requires. */
 function lifetime(createdAt: number, expiresAt: number | null) {
     return {
@@ -76,7 +81,7 @@ test.for(TEST_DIALECTS)(
         ];
 
         // define a role that reads and edits nodes and reads cells across types
-        const roleId = "role-01996ab0-0000-7000-8000-000000000101";
+        const roleId = identifier("role").parse("role-01996ab0-0000-7000-8000-000000000101");
         await database.insert(accessRole).values({
             id: roleId,
             createdAt: 1,
@@ -84,20 +89,21 @@ test.for(TEST_DIALECTS)(
             scope: "personal",
             name: "editor",
             description: "Edits nodes",
-        } as never);
+        });
         const granted = [node.permission("read"), node.permission("edit"), cell.permission("read")];
         for (const [position, permission] of granted.entries()) {
             await database.insert(accessRolePermission).values({
-                id: `role-permission-01996ab0-0000-7000-8000-00000000020${position}`,
+                id: identifier("role-permission").parse(
+                    `role-permission-01996ab0-0000-7000-8000-00000000020${position}`,
+                ),
                 roleId,
                 scope: "personal",
                 ...permission,
-            } as never);
+            });
         }
         await database.insert(teamTable).values({ id: "t1", scope: "personal", member: "bob" });
 
         // relate subjects through every relation shape and condition
-        const user = (id: string) => principal.user.reference("universe", id);
         const subjects: Subject[] = [
             user("bob"),
             user("carol"),
@@ -106,9 +112,9 @@ test.for(TEST_DIALECTS)(
             { ...team.reference("personal", "t1"), relation: "member" },
             anyone.reference("*", "*"),
         ];
-        const conditions: (RelationshipCondition | undefined)[] = [
-            undefined,
-            undefined,
+        const conditions: RelationshipCondition[] = [
+            {},
+            {},
             { capability: "c".repeat(64) },
             { assurance: 2 },
             { maxAge: 100 },
@@ -171,7 +177,7 @@ test.for(TEST_DIALECTS)(
         for (let model = 0; model < MODELS; model++) {
             const draw = random(model + 1);
             const pick = <Value>(values: readonly Value[]) =>
-                values[Math.floor(draw() * values.length)]!;
+                aligned(values, Math.floor(draw() * values.length));
             await database.delete(accessRelationship);
 
             // relate random subjects to random nodes, groups and roles, skipping repeated tuples
@@ -204,15 +210,16 @@ test.for(TEST_DIALECTS)(
                                 ...(isMembership ? {} : { conditions: pick(conditions) }),
                             },
                             "personal",
-                        ) as never,
+                        ),
                     )
                     .onConflictDoNothing();
             }
 
             // admit through grants what the queries admit, for each caller at once, permission and authorizer
             for (const authorizer of authorizers) {
-                await Promise.all(
+                const counts = await Promise.all(
                     contexts.map(async (context) => {
+                        let count = 0;
                         const access = await authorizer.resolve(snapshot, "personal", context);
                         const rows = await database
                             .select()
@@ -228,7 +235,7 @@ test.for(TEST_DIALECTS)(
                                     .where(authorizer.where(permission, access))
                                     .orderBy(asc(item.id))
                             ).map((row) => row.id);
-                            const { held } = await authorizer.checkRows(
+                            const { permitted } = await authorizer.checkRows(
                                 snapshot,
                                 permission,
                                 access,
@@ -236,10 +243,10 @@ test.for(TEST_DIALECTS)(
                                 reader,
                             );
                             const admitted = rows
-                                .filter((_row, position) => held.has(position))
+                                .filter((_row, position) => permitted.has(position))
                                 .map((row) => row.id);
 
-                            admissions += admitted.length;
+                            count += admitted.length;
                             expect({ model, context, permission, admitted }).toEqual({
                                 model,
                                 context,
@@ -272,10 +279,18 @@ test.for(TEST_DIALECTS)(
                                         access,
                                         reader,
                                     );
-                                    const [holding] = await database.execute<{
-                                        held: number | string;
-                                    }>(
-                                        sql`SELECT CASE WHEN ${authorizer.holds(across, target, access)} THEN 1 ELSE 0 END AS held`,
+                                    const permitting = aligned(
+                                        await database.execute(
+                                            sql`SELECT CASE WHEN ${authorizer.permits(across, target, access)} THEN 1 ELSE 0 END AS permitted`,
+                                            schema.object({
+                                                permitted: schema.union([
+                                                    schema.number(),
+                                                    schema.string(),
+                                                    schema.bigint(),
+                                                ]),
+                                            }),
+                                        ),
+                                        0,
                                     );
                                     expect({
                                         model,
@@ -286,10 +301,10 @@ test.for(TEST_DIALECTS)(
                                         model,
                                         context,
                                         row: row.id,
-                                        across: Number(holding!.held) === 1,
+                                        across: Number(permitting.permitted) === 1,
                                     });
 
-                                    // hold each decision until the moment it names, as the query decides it just before then
+                                    // keep each decision until the moment it names, as the query decides it just before then
                                     if (decision.until !== undefined) {
                                         const before = { ...context, now: decision.until - 1 };
                                         const later = await authorizer.resolve(
@@ -297,7 +312,7 @@ test.for(TEST_DIALECTS)(
                                             "personal",
                                             before,
                                         );
-                                        const [held] = await database
+                                        const [earlier] = await database
                                             .select({ id: item.id })
                                             .from(item)
                                             .where(
@@ -311,7 +326,7 @@ test.for(TEST_DIALECTS)(
                                             context,
                                             permission,
                                             row: row.id,
-                                            until: held !== undefined,
+                                            until: earlier !== undefined,
                                         }).toEqual({
                                             model,
                                             context,
@@ -329,8 +344,11 @@ test.for(TEST_DIALECTS)(
                                 });
                             }
                         }
+
+                        return count;
                     }),
                 );
+                admissions += counts.reduce((total, count) => total + count, 0);
             }
         }
 
@@ -376,7 +394,7 @@ test("explain which grants admit a caller and why the others fail", async () => 
                 conditions: { capability },
             },
             "personal",
-        ) as never,
+        ),
     );
 
     // explain reading the node for a visitor without and with the capability
@@ -392,7 +410,10 @@ test("explain which grants admit a caller and why the others fail", async () => 
         return [
             explanation.isAllowed,
             explanation.authorities.map((authority) =>
-                authority.grants.map((grant) => [grant.path.join(" / "), grant.failure ?? "holds"]),
+                authority.grants.map((grant) => [
+                    grant.path.join(" / "),
+                    grant.failure ?? "permits",
+                ]),
             ),
         ];
     };

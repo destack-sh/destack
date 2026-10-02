@@ -28,13 +28,21 @@ export interface SubjectColumns {
 export class Authority {
     /** The authority's identities and every subject set they belong to. */
     readonly subjects: readonly Subject[];
-    /** The principal a delegate acts for, absent for the represented subject. */
-    readonly delegator: Subject | undefined;
+    /** The delegate and the principal it acts for, absent for the represented subject. */
+    readonly delegation: { readonly delegate: Subject; readonly delegator: Subject } | undefined;
 
     /** Name an authority's subjects and, for a delegate, the principal it acts for. */
-    constructor(subjects: readonly Subject[], delegator?: Subject) {
+    constructor(
+        subjects: readonly Subject[],
+        delegation?: { readonly delegate: Subject; readonly delegator: Subject },
+    ) {
         this.subjects = subjects;
-        this.delegator = delegator;
+        this.delegation = delegation;
+    }
+
+    /** The principal a delegate acts for, absent for the represented subject. */
+    get delegator(): Subject | undefined {
+        return this.delegation?.delegator;
     }
 
     /** Decide whether a subject matches the authority: through a subject set, a wildcard identity, or anyone. */
@@ -119,14 +127,14 @@ export class Authority {
 
     /** Read why one grant fails to admit the authority, absent when it admits it. */
     failure(grant: Grant, access: Access): GrantFailure | undefined {
-        // require each followed arrow to hold without delegation
+        // require each followed arrow to pass without delegation
         const context = access.context;
         if (
             grant.arrows.some((arrow) => arrow.failure(context, undefined, undefined) !== undefined)
         ) {
             return "arrow";
         }
-        // lend nothing a field holds to delegates, and match its subject
+        // lend nothing in a field to delegates, and match its subject
         else if (grant.condition === undefined) {
             return this.delegator !== undefined
                 ? "field"
@@ -146,7 +154,7 @@ export class Authority {
             return "role";
         }
 
-        // require the relationship to hold and the subject to match
+        // require the relationship to pass and the subject to match
         return (
             grant.condition.failure(context, this.delegator, grant.subject) ??
             (this.isMember(grant.subject) ? undefined : "subject")

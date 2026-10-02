@@ -1,6 +1,16 @@
 import { ObjectReference, Subject } from "@destack/sync";
-import { alias, inArray, sql, type SQL, type SQLWrapper, type Table } from "@destack/db";
-import { Condition, type Binding } from "@destack/db/query";
+import {
+    alias,
+    from,
+    inArray,
+    sql,
+    type SQL,
+    type SQLWrapper,
+    type Table,
+    Condition,
+    type Binding,
+} from "@destack/db";
+import { aligned } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { type PermissionReference } from "../policy/policy.ts";
 import type { AccessExpression } from "../policy/expression.ts";
@@ -13,7 +23,7 @@ import type { Access } from "./access.ts";
 import type { Authority } from "./authority.ts";
 import type { Authorizer } from "./authorizer.ts";
 import { GrantCondition } from "./condition.ts";
-import { column, from, TableMapping } from "./mapping.ts";
+import { column, TableMapping } from "./mapping.ts";
 
 /** The resolved caller, the authority compiled and the alias allocation one predicate shares. */
 interface Compilation {
@@ -28,7 +38,7 @@ interface Compilation {
 /**
  * Compile policies to SQL over the tables their objects live in, for a caller resolved in one scope.
  *
- * Every predicate requires each of the caller's authorities to hold the permission, as the grants decide in memory.
+ * Every predicate requires each of the caller's authorities to have the permission, as the grants decide in memory.
  */
 export class Compiler {
     /** The authorizer whose policies and mappings the compiler reads. */
@@ -39,7 +49,7 @@ export class Compiler {
         this.#authorizer = authorizer;
     }
 
-    /** Restrict the rows of a table, the mapped one by default, to those the caller holds a permission on in its scope. */
+    /** Restrict the rows of a table, the mapped one by default, to those the caller has a permission on in its scope. */
     where(permission: PermissionReference, access: Access, source?: Table): SQL {
         // deny a request its gate refuses
         const mapping = this.#authorizer.mapping(permission);
@@ -59,7 +69,7 @@ export class Compiler {
         }
 
         // select the mapped type's rows of a table several types share
-        if (mapping.isShared) {
+        if (mapping.isShared === true) {
             const definition = mapping.policy.definition;
             predicates.push(
                 sql`${column(table, "packageId")} = ${definition.packageId} AND ${column(table, "type")} = ${definition.name}`,
@@ -77,8 +87,8 @@ export class Compiler {
         return sql`(${located} AND (${sql.join(predicates, sql` AND `)}))`;
     }
 
-    /** Match one object in its scope, or the scope's own object, if the caller holds a permission on it. */
-    holds(permission: PermissionReference, target: ObjectReference, access: Access): SQL {
+    /** Match one object in its scope, or the scope's own object, if the caller has a permission on it. */
+    permits(permission: PermissionReference, target: ObjectReference, access: Access): SQL {
         // deny a request that its elevation, suspension or credential refuses
         const isOwn = permission.packageId === target.packageId && permission.type === target.type;
         if (
@@ -164,7 +174,7 @@ export class Compiler {
 
         // match each type the relation accepts through the related object's column
         const { mapping, table } = stored;
-        const field = mapping.relations[source.relation]!;
+        const field = TableMapping.field(mapping, source.relation);
         const typed = field.subject;
         const subjects = this.#authorizer.relation(mapping.policy, source.relation).subjects;
         const arrows = subjects.map((subject) => {
@@ -224,7 +234,7 @@ export class Compiler {
         source: Table,
         compilation: Compilation,
     ): SQL {
-        return binding(compilation.access.granting(permission), compilation, (relationship) =>
+        return matchBinding(compilation.access.granting(permission), compilation, (relationship) =>
             this.#covers(relationship, mapping, source, compilation),
         );
     }
@@ -261,12 +271,12 @@ export class Compiler {
         }
         // climb to the owning parent and match it and its own ancestors
         else if (mapping.parent !== undefined) {
-            const [subject] = this.#authorizer.relation(mapping.policy, mapping.parent).subjects;
-            const target = this.#authorizer.mapping(subject!);
+            const subject = this.#authorizer.onlySubject(mapping.policy, mapping.parent);
+            const target = this.#authorizer.mapping(subject);
             const parent = alias(target.table, `access_owner_${compilation.aliases.next++}`);
             covering.push(sql`EXISTS (
                 SELECT 1 FROM ${from(parent)}
-                WHERE ${column(parent, target.id)} = ${column(source, mapping.relations[mapping.parent]!.column)}
+                WHERE ${column(parent, target.id)} = ${column(source, TableMapping.field(mapping, mapping.parent).column)}
                     AND ${TableMapping.scopeColumn(parent, target)} = ${scope}
                     AND ${this.#covers(binding, target, parent, compilation)}
             )`);
@@ -308,7 +318,7 @@ export class Compiler {
                     compilation,
                 );
             case "condition": {
-                // grant nothing by attributes a database holding only the object's scope row cannot read
+                // grant nothing by attributes a database with only the object's scope row cannot read
                 if (!TableMapping.decides(mapping, expression.condition)) {
                     return sql`false`;
                 }
@@ -325,7 +335,53 @@ export class Compiler {
         }
     }
 
-    /** Match rows with a referenced object the caller holds the grant permission on. */
+    /** Match a current relationship of the authority on an object of the scope chain granting the enclosing scope's permission. */
+    #enclosing(
+        expression: Extract<AccessExpression, { kind: "through" }>,
+        mapping: TableMapping,
+        compilation: Compilation,
+    ): SQL {
+        // find each type along the chain and the relations granting the permission on its object
+        const scope = this.#authorizer.onlySubject(mapping.policy, expression.relation);
+        const steps = this.#authorizer
+            .inherited({
+                packageId: scope.packageId,
+                type: scope.type,
+                name: expression.permission,
+            })
+            .flatMap(({ type, relations }) => {
+                const object = compilation.access.scopes.find(
+                    (link) => link.packageId === type.packageId && link.type === type.type,
+                );
+
+                return object === undefined || relations.length === 0
+                    ? []
+                    : [{ object, relations }];
+            });
+        if (steps.length === 0) {
+            return sql`false`;
+        }
+
+        // match one current relationship of the authority on any of them
+        const relationship = alias(
+            accessRelationship,
+            `access_enclosing_${compilation.aliases.next++}`,
+        );
+        const { access, authority } = compilation;
+        const matches = steps.map(
+            ({ object, relations }) =>
+                sql`(${Relationship.on(object, relationship)} AND ${inArray(relationship.relation, [...relations])})`,
+        );
+
+        return sql`EXISTS (
+            SELECT 1 FROM ${from(relationship)}
+            WHERE (${sql.join(matches, sql` OR `)})
+                AND ${GrantCondition.where(relationship, GrantCondition.values(access.context, authority.delegator))}
+                AND ${authority.member(relationship)}
+        )`;
+    }
+
+    /** Match rows with a referenced object the caller has the grant permission on. */
     #grants(
         reference: string,
         mapping: TableMapping,
@@ -333,17 +389,20 @@ export class Compiler {
         compilation: Compilation,
     ): SQL {
         // compile each granting type's grant permission against its own alias of the referenced row
-        const columns = mapping.references![reference]!;
-        const branches = this.#authorizer
-            .mappings()
-            .filter((target) => target.policy.definition.grantedBy !== undefined)
-            .map((target) => {
-                // alias the referenced row and read the type's grant permission
-                const row = alias(target.table, `access_referenced_${compilation.aliases.next++}`);
-                const definition = target.policy.definition;
-                const grant = target.policy.permission(definition.grantedBy!);
+        const columns = TableMapping.reference(mapping, reference);
+        const branches = this.#authorizer.mappings().flatMap((target) => {
+            // skip a type nothing grants
+            const definition = target.policy.definition;
+            if (definition.grantedBy === undefined) {
+                return [];
+            }
 
-                return sql`(
+            // alias the referenced row and read the type's grant permission
+            const row = alias(target.table, `access_referenced_${compilation.aliases.next++}`);
+            const grant = target.policy.permission(definition.grantedBy);
+
+            return [
+                sql`(
                     ${column(source, columns.packageId)} = ${definition.packageId}
                     AND ${column(source, columns.type)} = ${definition.name}
                     AND EXISTS (
@@ -352,25 +411,26 @@ export class Compiler {
                             AND ${TableMapping.scopeColumn(row, target)} = ${column(source, columns.scope)}
                             AND ${this.#permission(grant, target, row, compilation)}
                     )
-                )`;
-            });
+                )`,
+            ];
+        });
 
         return branches.length === 0 ? sql`false` : sql`(${sql.join(branches, sql` OR `)})`;
     }
 
-    /** Match the subject a field holds, or current relationships, for one relation. */
+    /** Match the subject in a field, or current relationships, for one relation. */
     #relation(name: string, mapping: TableMapping, source: Table, compilation: Compilation): SQL {
-        // read the relation and whether a field holds it
+        // read the relation and whether a field keeps it
         const relation = this.#authorizer.relation(mapping.policy, name);
         const scope = TableMapping.scopeColumn(source, mapping);
         const field = mapping.relations[name];
         const authority = compilation.authority;
 
-        // lend nothing a field holds to a delegate
+        // lend nothing in a field to a delegate
         if (field && authority.delegator !== undefined) {
             return sql`false`;
         }
-        // match a subject key the column holds against the authority's subjects the relation accepts
+        // match a subject key in the column against the authority's subjects the relation accepts
         else if (field?.isKey) {
             const keys = authority.subjects
                 .filter((subject) => accepts(relation, subject))
@@ -398,15 +458,15 @@ export class Compiler {
                 OR (${relationColumn} IS NOT NULL AND ${authority.match({ ...subject, relation: relationColumn })})
             ), false)`;
         }
-        // match the one subject type a field holds
+        // match the one subject type of a field
         else if (field) {
-            const [type] = relation.subjects;
+            const type = this.#authorizer.onlySubject(mapping.policy, name);
             const subject = {
-                packageId: sql`${type!.packageId}`,
-                type: sql`${type!.type}`,
+                packageId: sql`${type.packageId}`,
+                type: sql`${type.type}`,
                 scope: field.scope === undefined ? scope : sql`${field.scope}`,
                 id: column(source, field.column),
-                ...(type!.relation === undefined ? {} : { relation: sql`${type!.relation}` }),
+                ...(type.relation === undefined ? {} : { relation: sql`${type.relation}` }),
             };
 
             return sql`coalesce(${authority.match(subject)}, false)`;
@@ -439,7 +499,12 @@ export class Compiler {
         source: Table,
         compilation: Compilation,
     ): SQL {
-        // read the relation and whether a field holds it
+        // decide a permission of the enclosing scope by the relationships on the scope chain's objects
+        if (mapping.policy.definition.relations[expression.relation]?.isScope === true) {
+            return this.#enclosing(expression, mapping, compilation);
+        }
+
+        // read the relation and whether a field keeps it
         const relation = this.#authorizer.relation(mapping.policy, expression.relation);
         const scope = TableMapping.scopeColumn(source, mapping);
         const field = mapping.relations[expression.relation];
@@ -493,7 +558,7 @@ export class Compiler {
             )`;
         }
 
-        // correlate the parent of whichever type the row's columns name, for a field holding several types
+        // correlate the parent of whichever type the row's columns name, for a field with several types
         if (field.subject !== undefined && !expression.transitive) {
             const typed = field.subject;
             const arrows = related.map(
@@ -513,7 +578,7 @@ export class Compiler {
         }
 
         // correlate the direct parent a field refers to, in the source object's scope or the scope the field gives
-        const [{ target, parent, predicate }] = related as [(typeof related)[number]];
+        const { target, parent, predicate } = aligned(related, 0);
         const targetId = column(parent, target.id);
         const targetScope = TableMapping.scopeColumn(parent, target);
         if (!expression.transitive) {
@@ -526,7 +591,7 @@ export class Compiler {
         }
 
         // join the indexed ancestors to their protected application rows
-        const tree = mapping.trees![expression.relation]!;
+        const tree = TableMapping.tree(mapping, expression.relation);
         const ancestor = alias(tree.ancestors, `access_ancestor_${compilation.aliases.next++}`);
 
         return sql`EXISTS (
@@ -541,7 +606,7 @@ export class Compiler {
 }
 
 /** Match a current binding of one of the roles to the compiled authority on a covered object. */
-function binding(
+function matchBinding(
     roles: readonly string[],
     compilation: Compilation,
     covers: (relationship: RelationshipColumnMap) => SQL,
@@ -598,7 +663,7 @@ function bindAttributes(
                 `policy conditions follow no relations: ${via}`,
             );
         },
-        column: (name) => column(source, mapping.attributes[name]!),
+        column: (name) => column(source, TableMapping.attribute(mapping, name)),
         parameter: (name) => AccessContext.attribute(context, name),
     };
 }

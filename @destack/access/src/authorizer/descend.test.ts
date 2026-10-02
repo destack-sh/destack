@@ -1,6 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { Snapshot } from "@destack/db/log";
+import { Snapshot } from "@destack/db";
+import { aligned } from "@destack/schema";
 import type { Access } from "./access.ts";
 import { account, item, node, rows, space } from "../test/fixture.ts";
 import { copyRole, copyScope, suspendCopy } from "../test/copy.ts";
@@ -38,11 +39,11 @@ test.for(TEST_DIALECTS)(
 
         // let bob read the nodes of two spaces through a role, and suspend one of them
         const reader = { name: "reader", description: "", permissions: [node.permission("read")] };
-        await copyRole(database, spaces[1]!, reader, userSubject("bob"), 1);
-        await copyRole(database, spaces[2]!, reader, userSubject("bob"), 1);
+        await copyRole(database, aligned(spaces, 1), reader, userSubject("bob"), 1);
+        await copyRole(database, aligned(spaces, 2), reader, userSubject("bob"), 1);
         await suspendCopy(database, "suspended", 1);
         const nodes = ["plain", "shared", "suspended"].map((scope) => ({
-            ...rows[0]!,
+            ...aligned(rows, 0),
             id: `in-${scope}`,
             scope,
             parent: null,
@@ -72,6 +73,6 @@ test.for(TEST_DIALECTS)(
         const read = node.permission("read");
         const alone = await authorizer.checkRows(snapshot, read, above, nodes);
         const together = await authorizer.checkRows(snapshot, read, above, nodes, undefined, below);
-        expect([[...alone.held], [...together.held]]).toEqual([[], [1]]);
+        expect([[...alone.permitted], [...together.permitted]]).toEqual([[], [1]]);
     },
 );

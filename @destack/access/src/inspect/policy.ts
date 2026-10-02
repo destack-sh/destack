@@ -2,7 +2,7 @@ import type { Policy } from "../policy/policy.ts";
 import { AccessName } from "@destack/sync";
 import { defineSchema, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
-import { Condition } from "@destack/db/query";
+import { Condition } from "@destack/db";
 import { type AccessExpression } from "../policy/expression.ts";
 import { SubjectType } from "../policy/subject.ts";
 import { Elevation } from "../context/elevation.ts";
@@ -51,9 +51,11 @@ export const PolicyDescription = defineSchema(
                 /** The subject types the relation accepts itself, beside those other types contribute to an open relation. */
                 subjects: schema.array(SubjectType),
                 /** The permission whose holders grant and revoke the relation. */
-                grantedBy: AccessName.optional(),
+                grantedBy: AccessName.exactOptional(),
                 /** Whether other types contribute themselves as subject types. */
-                open: schema.literal(true).optional(),
+                open: schema.literal(true).exactOptional(),
+                /** Whether the relation is to the scope containing each object, which the scope chain decides. */
+                isScope: schema.literal(true).exactOptional(),
             }),
         ),
         /** The open relations of other types this type's objects may be subjects of. */
@@ -68,21 +70,21 @@ export const PolicyDescription = defineSchema(
                     relation: AccessName,
                 }),
             )
-            .optional(),
+            .exactOptional(),
         /** The named permission expressions. */
         permissions: schema.record(AccessName, AccessExpressionDescription),
         /** The permission required to bind roles on an object. */
-        grantedBy: AccessName.optional(),
+        grantedBy: AccessName.exactOptional(),
         /** The permissions only their expressions grant. */
-        reserved: schema.array(AccessName).optional(),
+        reserved: schema.array(AccessName).exactOptional(),
         /** The permissions that apply only after the authentication each names. */
-        elevated: schema.record(AccessName, Elevation.schema).optional(),
+        elevated: schema.record(AccessName, Elevation.schema).exactOptional(),
         /** Permissions that stay available while the scope is suspended. */
-        administration: schema.array(AccessName).optional(),
+        administration: schema.array(AccessName).exactOptional(),
         /** Whether the objects are scopes. */
-        scope: schema.literal(true).optional(),
+        scope: schema.literal(true).exactOptional(),
         /** Whether the type's objects live in the universe and an identifier alone refers to each. */
-        isGlobal: schema.literal(true).optional(),
+        isGlobal: schema.literal(true).exactOptional(),
     }),
 );
 /** A type's relations and permissions as data. */

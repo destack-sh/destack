@@ -1,6 +1,13 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { and, defineTable, eq, text, type DatabaseConnection, type Table } from "@destack/db";
-import { Snapshot } from "@destack/db/log";
+import {
+    and,
+    defineTable,
+    eq,
+    text,
+    type DatabaseConnection,
+    type Table,
+    Snapshot,
+} from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import {
     accessTables,
@@ -40,40 +47,43 @@ const piece = new Policy(module1.package, {
 
 /** Pages and sheets, told apart by the table each lives in. */
 const pageTable = defineTable("example_page", {
-    id: text("id").primaryKey().notNull(),
+    id: text("id").primaryKey(),
     scope: text("scope").notNull(),
     owner: text("owner").notNull(),
 });
 
 /** Sheets. */
 const sheetTable = defineTable("example_sheet", {
-    id: text("id").primaryKey().notNull(),
+    id: text("id").primaryKey(),
     scope: text("scope").notNull(),
     owner: text("owner").notNull(),
 });
 
-/** Pieces that hold their parent's type in columns. */
+/** Pieces that keep their parent's type in columns. */
 const pieceTable = defineTable("example_piece", {
-    id: text("id").primaryKey().notNull(),
+    id: text("id").primaryKey(),
     scope: text("scope").notNull(),
     parentId: text("parent_id").notNull(),
     parentPackageId: text("parent_package_id").notNull(),
     parentType: text("parent_type").notNull(),
 });
 
-/** Map each type onto its table. */
-const mappings: TableMapping[] = [
-    ...[
-        [page, pageTable],
-        [sheet, sheetTable],
-    ].map(([policy, table]): TableMapping => ({
-        policy: policy as Policy,
-        table: table as Table,
+/** Map a type onto its table, with an owner in the universe. */
+function ownedMapping(policy: Policy, table: Table): TableMapping {
+    return {
+        policy,
+        table,
         id: "id",
         scope: "scope",
         attributes: {},
         relations: { owner: { column: "owner", scope: "universe" } },
-    })),
+    };
+}
+
+/** Map each type onto its table. */
+const mappings: TableMapping[] = [
+    ownedMapping(page, pageTable),
+    ownedMapping(sheet, sheetTable),
     {
         policy: piece,
         table: pieceTable,
@@ -89,6 +99,19 @@ const mappings: TableMapping[] = [
     },
 ];
 
+/** Restrict alice to one permission, on one object or a whole scope. */
+function restricted(
+    source: PermissionReference,
+    restriction: Omit<Restriction, keyof PermissionReference>,
+): AccessContext {
+    return {
+        subjects: [principal.user.reference("universe", "alice")],
+        attributes: {},
+        now: 1000,
+        permissions: [{ ...source, ...restriction }],
+    };
+}
+
 test.each(TEST_DIALECTS)(
     "allow a derived permission exactly where a credential allows its source, in memory and in SQL, on %s",
     async (dialect) => {
@@ -101,7 +124,7 @@ test.each(TEST_DIALECTS)(
         const database = storage.database;
         const authorizer = new Authorizer([page, sheet, piece], mappings);
 
-        // hold two pages and a sheet of alice's, with one piece of text each
+        // insert two pages and a sheet of alice's, with one piece of text each
         await database.insert(pageTable).values([
             { id: "one", scope: "personal", owner: "alice" },
             { id: "two", scope: "personal", owner: "alice" },
@@ -116,15 +139,6 @@ test.each(TEST_DIALECTS)(
         );
 
         // restrict alice to one permission, on one object or the whole scope
-        const restricted = (
-            source: PermissionReference,
-            restriction: Omit<Restriction, keyof PermissionReference>,
-        ): AccessContext => ({
-            subjects: [principal.user.reference("universe", "alice")],
-            attributes: {},
-            now: 1000,
-            permissions: [{ ...source, ...restriction }],
-        });
         const everyPage = restricted(page.permission("read"), { scope: "personal" });
         const onePage = restricted(page.permission("read"), { scope: "personal", objectId: "one" });
         const editing = restricted(page.permission("edit"), { scope: "personal" });
@@ -139,27 +153,27 @@ test.each(TEST_DIALECTS)(
         ).toEqual([
             {
                 listed: ["first", "second"],
-                held: ["first", "second"],
+                permitted: ["first", "second"],
                 checked: ["first", "second"],
             },
-            { listed: ["first"], held: ["first"], checked: ["first"] },
-            { listed: [], held: [], checked: [] },
-            { listed: [], held: [], checked: [] },
+            { listed: ["first"], permitted: ["first"], checked: ["first"] },
+            { listed: [], permitted: [], checked: [] },
+            { listed: [], permitted: [], checked: [] },
         ]);
         expect(
             await Promise.all(
                 contexts.map((context) => decided(database, authorizer, context, "page")),
             ),
         ).toEqual([
-            { listed: ["one", "two"], held: ["one", "two"], checked: ["one", "two"] },
-            { listed: ["one"], held: ["one"], checked: ["one"] },
-            { listed: [], held: [], checked: [] },
-            { listed: [], held: [], checked: [] },
+            { listed: ["one", "two"], permitted: ["one", "two"], checked: ["one", "two"] },
+            { listed: ["one"], permitted: ["one"], checked: ["one"] },
+            { listed: [], permitted: [], checked: [] },
+            { listed: [], permitted: [], checked: [] },
         ]);
     },
 );
 
-/** Decide a type's derived permission for every row: listed in SQL, held one at a time in SQL, and checked in memory. */
+/** Decide a type's derived permission for every row: listed in SQL, permitted one at a time in SQL, and checked in memory. */
 async function decided(
     database: DatabaseConnection,
     authorizer: Authorizer,
@@ -173,7 +187,7 @@ async function decided(
             : [page, pageTable, page.permission("text")];
     const snapshot = Snapshot.live(database);
     const access = await authorizer.resolve(snapshot, "personal", context);
-    const column = (table as typeof pageTable).id;
+    const column = table.id;
     const ids = (await database.select({ id: column }).from(table).orderBy(column)).map(
         (row) => row.id,
     );
@@ -184,21 +198,21 @@ async function decided(
         .from(table)
         .where(authorizer.where(derived, access, table))
         .orderBy(column);
-    const held: string[] = [];
+    const permitted: string[] = [];
     const checked: string[] = [];
     for (const id of ids) {
         const target = policy.reference("personal", id);
         const [found] = await database
             .select({ id: column })
             .from(table)
-            .where(and(eq(column, id), authorizer.holds(derived, target, access)));
+            .where(and(eq(column, id), authorizer.permits(derived, target, access)));
         if (found !== undefined) {
-            held.push(id);
+            permitted.push(id);
         }
         if ((await authorizer.check(snapshot, derived, target, access)).isAllowed) {
             checked.push(id);
         }
     }
 
-    return { listed: listed.map((row) => row.id), held, checked };
+    return { listed: listed.map((row) => row.id), permitted, checked };
 }

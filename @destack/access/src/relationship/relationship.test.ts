@@ -1,7 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { Subject } from "@destack/sync";
-import { Snapshot } from "@destack/db/log";
-import { asc, eq } from "@destack/db";
+import { Snapshot, asc, eq } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import {
     ACCESS_MAPPINGS,
@@ -73,10 +72,18 @@ test.for(TEST_DIALECTS)(
         // let carol ask to view node b, and alice offer dave viewing it
         const object = node.reference("personal", "b");
         await new Authorization(authorizer, fixture.database, () => as("carol")).propose({
-            relationship: { object, relation: "viewer", subject: as("carol").subjects[0]! },
+            relationship: {
+                object,
+                relation: "viewer",
+                subject: principal.user.reference("universe", "carol"),
+            },
         });
         await new Authorization(authorizer, fixture.database, () => fixture.alice).propose({
-            relationship: { object, relation: "viewer", subject: as("dave").subjects[0]! },
+            relationship: {
+                object,
+                relation: "viewer",
+                subject: principal.user.reference("universe", "dave"),
+            },
         });
 
         // list the proposals each caller may read, by proposer and addressee
@@ -122,8 +129,10 @@ test.for(TEST_DIALECTS)(
             relation: "editor",
             subject: worker,
         };
-        const [first, second, third] = ["a", "b", "c"].map((id) => node.reference("personal", id));
-        const held = async () =>
+        const first = node.reference("personal", "a");
+        const second = node.reference("personal", "b");
+        const third = node.reference("personal", "c");
+        const related = async () =>
             (
                 await fixture.database
                     .select({
@@ -136,8 +145,8 @@ test.for(TEST_DIALECTS)(
             ).map((row) => `${row.objectId}:${row.subjectId}`);
 
         // relate the worker to a and b next to bob's grant
-        await Relationship.replace(fixture.database, selection, [first!, second!], 1000);
-        expect(await held()).toEqual(["a:worker", "b:bob", "b:worker"]);
+        await Relationship.replace(fixture.database, selection, [first, second], 1000);
+        expect(await related()).toEqual(["a:worker", "b:bob", "b:worker"]);
 
         // move the worker from a to c without touching b's relationship or bob's grant
         const [kept] = await fixture.database
@@ -147,15 +156,18 @@ test.for(TEST_DIALECTS)(
             .orderBy(asc(accessRelationship.subjectId))
             .limit(1)
             .offset(1);
-        await Relationship.replace(fixture.database, selection, [second!, third!], 2000);
+        if (kept === undefined) {
+            throw new Error("node b keeps no worker relationship");
+        }
+        await Relationship.replace(fixture.database, selection, [second, third], 2000);
         const [unchanged] = await fixture.database
             .select({ id: accessRelationship.id })
             .from(accessRelationship)
-            .where(eq(accessRelationship.id, kept!.id));
-        expect([await held(), unchanged]).toEqual([["b:bob", "b:worker", "c:worker"], kept]);
+            .where(eq(accessRelationship.id, kept.id));
+        expect([await related(), unchanged]).toEqual([["b:bob", "b:worker", "c:worker"], kept]);
 
         // remove every relationship of the worker
         await Relationship.replace(fixture.database, selection, [], 3000);
-        expect(await held()).toEqual(["b:bob"]);
+        expect(await related()).toEqual(["b:bob"]);
     },
 );

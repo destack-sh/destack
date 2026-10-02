@@ -1,15 +1,21 @@
 import { check, defineTable, identifier, index, integer, json, sql, text } from "@destack/db";
-import { Subject } from "@destack/sync";
+import { AccessName, Subject } from "@destack/sync";
 import { accessRole } from "../role/table.ts";
-import { defineSchema, type schema } from "@destack/schema";
-import { Relationship } from "../relationship/relationship.ts";
+import { defineSchema, schema } from "@destack/schema";
+import { relationshipBase } from "../relationship/relationship.ts";
 
-/** A relationship as proposed, before anyone accepts it: its subject may await a recipient. */
+/** A relationship as proposed, before anyone accepts it: through a declared relation, or binding a role. */
 export const ProposedRelationship = defineSchema(
-    Relationship.schema.omit({ id: true, createdAt: true, subject: true }).extend({
-        /** The proposed subject, absent while an offer awaits whoever proves the recipient identifier. */
-        subject: Subject.optional(),
-    }),
+    schema.union([
+        relationshipBase.omit({ id: true, createdAt: true }).extend({
+            /** The declared relation. */
+            relation: AccessName,
+        }),
+        relationshipBase.omit({ id: true, createdAt: true }).extend({
+            /** The bound role. */
+            role: schema.string().min(1),
+        }),
+    ]),
 );
 /** A relationship as proposed, before anyone accepts it. */
 export type ProposedRelationship = schema.Infer<typeof ProposedRelationship>;

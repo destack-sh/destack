@@ -1,4 +1,13 @@
-import { defineDatabase } from "@destack/db/declare";
+import {
+    defineDatabase,
+    defineTable,
+    index,
+    integer,
+    TABLE,
+    text,
+    Condition,
+    type Tree,
+} from "@destack/db";
 import {
     none,
     Policy,
@@ -12,8 +21,6 @@ import {
     exclusion,
     condition,
 } from "../index.ts";
-import { defineTable, index, integer, TABLE, text } from "@destack/db";
-import { Condition } from "@destack/db/query";
 import { accessTables, type TableMapping } from "../index.ts";
 import { PackageId } from "@destack/package";
 
@@ -121,7 +128,7 @@ export const node = new Policy(module1.package, {
     grantedBy: "share",
 });
 
-/** Teams whose single member a field holds. */
+/** Teams whose single member is in a field. */
 export const team = new Policy(module1.package, {
     name: "team",
     relations: { member: { subjects: [principal.user] } },
@@ -174,7 +181,7 @@ export const entity = new Policy(module3.package, {
 export const item = defineTable(
     "example_item",
     {
-        id: text("id").primaryKey().notNull(),
+        id: text("id").primaryKey(),
         scope: text("scope").notNull(),
         owner: text("owner").notNull(),
         parent: text("parent"),
@@ -189,24 +196,24 @@ export const item = defineTable(
 
 /** Groups with relationships as members. */
 export const groupTable = defineTable("example_group", {
-    id: text("id").primaryKey().notNull(),
+    id: text("id").primaryKey(),
     scope: text("scope").notNull(),
 });
 
-/** Teams holding their member in a column. */
+/** Teams keeping their member in a column. */
 export const teamTable = defineTable(
     "example_team",
     {
-        id: text("id").primaryKey().notNull(),
+        id: text("id").primaryKey(),
         scope: text("scope").notNull(),
         member: text("member").notNull(),
     },
-    { constraints: (team) => [index("example_team_member").on(team.member)] },
+    { constraints: (teams) => [index("example_team_member").on(teams.member)] },
 );
 
 /** Accounts, scope objects living in the universe. */
 export const accountTable = defineTable("example_account", {
-    id: text("id").primaryKey().notNull(),
+    id: text("id").primaryKey(),
     scope: text("scope").notNull(),
 });
 
@@ -214,7 +221,7 @@ export const accountTable = defineTable("example_account", {
 export const policyTable = defineTable(
     "example_policy",
     {
-        id: text("id").primaryKey().notNull(),
+        id: text("id").primaryKey(),
         scope: text("scope").notNull(),
         mode: text("mode", { enum: ["set", "require"] }).notNull(),
         value: text("value").notNull(),
@@ -224,12 +231,12 @@ export const policyTable = defineTable(
 
 /** Spaces, scope objects listed by the account containing them. */
 export const spaceTable = defineTable("example_space", {
-    id: text("id").primaryKey().notNull(),
+    id: text("id").primaryKey(),
     account: text("account").notNull(),
 });
 
 /** The ancestor index over the items' parent column. */
-export const nodeTree = item[TABLE].tree!;
+export const nodeTree = requireTree(item[TABLE].tree);
 
 /** Policies a scope sets for itself or requires of the scopes inside it. */
 export const policy = new Policy(module4.package, { name: "policy", permissions: {} });
@@ -270,7 +277,7 @@ export const mappings: TableMapping[] = [
     })),
 ];
 
-/** The mappings of a database that also holds and writes the scope objects. */
+/** The mappings of a database that also keeps and writes the scope objects. */
 export const homeMappings: TableMapping[] = [
     ...mappings,
     {
@@ -298,7 +305,7 @@ export const fixtureTables = [
     ...accessTables,
 ];
 
-/** The fixture database holding the application and access tables. */
+/** The fixture database with the application and access tables. */
 export const fixtureDatabase = defineDatabase({
     name: "main",
     tables: fixtureTables,
@@ -351,3 +358,12 @@ export const rows = [
         protected: 0,
     },
 ];
+
+/** Require the tree a table declares. */
+function requireTree(declared: Tree | undefined): Tree {
+    if (declared === undefined) {
+        throw new TypeError("the item table declares no tree");
+    }
+
+    return declared;
+}

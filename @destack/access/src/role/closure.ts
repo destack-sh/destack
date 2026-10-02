@@ -37,9 +37,9 @@ export function close(
         const visited = new Set<string>();
         let isUniversal = false;
         const pending = [role.id];
-        while (pending.length > 0) {
+        for (let id = pending.pop(); id !== undefined; id = pending.pop()) {
             // visit each defined role once
-            const next = defined.get(pending.pop()!);
+            const next = defined.get(id);
             if (next === undefined || visited.has(next.id)) {
                 continue;
             }

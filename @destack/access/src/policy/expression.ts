@@ -1,18 +1,13 @@
-import { check, dialectSQL, sql, type Column } from "@destack/db";
-import type { Condition } from "@destack/db/query";
+import { check, dialectSQL, sql, type Column, type Condition } from "@destack/db";
 import { schema } from "@destack/schema";
 import { AccessName } from "@destack/sync";
 
 /** A scalar request attribute that permission conditions compare. */
-export const Attribute = schema.union([
-    schema.string(),
-    schema.number().finite(),
-    schema.boolean(),
-]);
+export const Attribute = schema.union([schema.string(), schema.number(), schema.boolean()]);
 /** A scalar request attribute that permission conditions compare. */
 export type Attribute = schema.Infer<typeof Attribute>;
 
-/** Constrain a column holding access names to their lowercase kebab case. */
+/** Constrain a column with access names to their lowercase kebab case. */
 export function nameCheck(name: string, column: Column) {
     return check(
         name,
@@ -78,14 +73,14 @@ export function exclusion(include: AccessExpression, exclude: AccessExpression):
 
 /** Follow an object relation once or through its ancestor closure. */
 export function through(
-    relation: string,
-    permission: string,
+    relationName: string,
+    permissionName: string,
     transitive = false,
 ): AccessExpression {
     return {
         kind: "through",
-        relation: AccessName.parse(relation),
-        permission: AccessName.parse(permission),
+        relation: AccessName.parse(relationName),
+        permission: AccessName.parse(permissionName),
         transitive,
     };
 }
@@ -96,6 +91,6 @@ export function grants(reference: string): AccessExpression {
 }
 
 /** Permit rows with attributes that meet a condition over request attributes. */
-export function condition(condition: Condition): AccessExpression {
-    return { kind: "condition", condition };
+export function condition(where: Condition): AccessExpression {
+    return { kind: "condition", condition: where };
 }

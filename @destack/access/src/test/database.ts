@@ -1,10 +1,11 @@
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import type { Subject } from "@destack/sync";
+import { aligned } from "@destack/schema";
 import { fixtureDatabase, item, mappings, node, policies, rows } from "./fixture.ts";
 import { Authorizer, principal, type AccessContext, Authorization } from "../index.ts";
 
 /** Open a migrated application database, PostgreSQL when configured, with independent users and one explicit grant. */
-export async function openFixture(dialect = TEST_DIALECTS.at(-1)!) {
+export async function openFixture(dialect = aligned(TEST_DIALECTS, TEST_DIALECTS.length - 1)) {
     // open the application database and authorize its objects
     const test = await TestDatabase.create(dialect, fixtureDatabase, { isMigrated: true });
     const { database } = test;

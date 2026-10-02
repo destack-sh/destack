@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { Snapshot } from "@destack/db/log";
-import { asc, type DatabaseConnection } from "@destack/db";
+import { Snapshot, asc, type DatabaseConnection } from "@destack/db";
 import { Feed, Replica } from "@destack/sync";
+import { aligned } from "@destack/schema";
 import {
     accessTables,
     accessRelationship,
@@ -32,7 +32,7 @@ const alice: AccessContext = {
     attributes: {},
 };
 
-/** A member of the account who holds roles through the membership. */
+/** A member of the account who has roles through the membership. */
 const carol: AccessContext = {
     subjects: [
         principal.user.reference("universe", "carol"),
@@ -42,6 +42,11 @@ const carol: AccessContext = {
     attributes: {},
 };
 
+/** List the fixture's mappings with one more. */
+function including(entry: TableMapping): TableMapping[] {
+    return [...mappings, entry];
+}
+
 /** Build the copy of a scope's chain row an authorizer's database follows. */
 function chainOf(authorizer: Authorizer, scope: string) {
     return authorizer.replicaOf({
@@ -49,24 +54,23 @@ function chainOf(authorizer: Authorizer, scope: string) {
         scope,
         below: scope,
         access: true,
-        held: [...authorizer.held],
+        local: [...authorizer.local],
         copied: [...authorizer.copied],
         rows: [],
     });
 }
 
 test("relay an account's access through the space's database into an app's, and follow its revocation", async () => {
-    // open the global database holding accounts, the regional one holding spaces, and an app's holding notes
+    // open the global database with accounts, the regional one with spaces, and an app's with notes
     const global = await openFixture();
     const regional = await openFixture();
     const app = await openFixture();
     onTestFinished(async () => {
         await Promise.all([global.close(), regional.close(), app.close()]);
     });
-    const holding = (entry: TableMapping): TableMapping[] => [...mappings, entry];
     const accounts = new Authorizer(
         policies,
-        holding({
+        including({
             policy: account,
             table: accountTable,
             id: "id",
@@ -77,7 +81,7 @@ test("relay an account's access through the space's database into an app's, and 
     );
     const spaces = new Authorizer(
         policies,
-        holding({
+        including({
             policy: space,
             table: spaceTable,
             id: "id",
@@ -92,13 +96,17 @@ test("relay an account's access through the space's database into an app's, and 
     await global.database.insert(accountTable).values({ id: "account-1", scope: "universe" });
     const object = account.reference("universe", "account-1");
     const owner = new Authorization(accounts, global.database, () => alice);
-    await owner.create(object, { owner: alice.subjects[0]! });
+    await owner.create(object, { owner: aligned(alice.subjects, 0) });
     const reader = await owner.createRole(object, {
         name: "reader",
         description: "Read every note",
         permissions: [node.permission("read")],
     });
-    const binding = await owner.grant({ object, role: reader.id, subject: carol.subjects[1]! });
+    const binding = await owner.grant({
+        object,
+        role: reader.id,
+        subject: aligned(carol.subjects, 1),
+    });
 
     // copy the account into the regional database, then create the space there
     const accountFeed = new Feed(global.database, [...accessTables, policyTable]);
@@ -106,7 +114,7 @@ test("relay an account's access through the space's database into an app's, and 
     await regional.database.insert(spaceTable).values({ id: "personal", account: "account-1" });
     await new Authorization(spaces, regional.database, () => alice).create(
         space.reference("account-1", "personal"),
-        { owner: alice.subjects[0]! },
+        { owner: aligned(alice.subjects, 0) },
     );
 
     // relay the space and the account from the regional database into the app's, where carol reads every note
@@ -136,7 +144,9 @@ test("relay an account's access through the space's database into an app's, and 
     await owner.revoke(object, binding.id);
     const revoked = await global.database.log.position();
     const impatient = new Authorizer(policies, mappings, { lag: 50 });
-    await new Promise((resolve) => setTimeout(resolve, 60));
+    await new Promise((resolve) => {
+        setTimeout(resolve, 60);
+    });
     await expect(
         impatient.resolve(Snapshot.live(app.database), "personal", carol),
     ).rejects.toMatchObject({
@@ -158,7 +168,7 @@ test("relay an account's access through the space's database into an app's, and 
         }),
     ).rejects.toMatchObject({
         code: "FORBIDDEN",
-        message: "access of account account-1 is written in the database holding it",
+        message: "access of account account-1 is written in the database keeping it",
     });
 
     // keep the app's own relationships, about its notes, through a fresh snapshot of the space's copy
@@ -190,7 +200,5 @@ async function copy(
     }
 
     // apply them in order
-    for await (const _page of replica.apply(database, pages)) {
-        // apply each page
-    }
+    await Array.fromAsync(replica.apply(database, pages));
 }

@@ -1,27 +1,41 @@
 import { defineSchema, Instant, schema } from "@destack/schema";
-import { Subject } from "@destack/sync";
-import type { Scalar } from "@destack/db/query";
+import { Scope, Subject } from "@destack/sync";
+import type { Scalar } from "@destack/db";
 import { AccessError } from "../error/index.ts";
-import { isPrincipal } from "../policy/principal.ts";
+import { isPrincipal, principal } from "../policy/principal.ts";
 import { Restriction } from "./restriction.ts";
 import type { Attribute } from "../policy/expression.ts";
 
-/** The schema of a verified identifier. */
-const verifiedIdentifier = defineSchema(
-    schema
-        .string()
-        .min(3)
-        .max(320)
-        .regex(/^[a-z][a-z0-9-]*:\S+$(?![\s\S])/),
+/** The schema of a contact. */
+const contactSchema = defineSchema(
+    schema.object({
+        /** The medium the address belongs to. */
+        medium: schema.literal("email"),
+        /** The address on the medium, in lowercase. */
+        address: schema
+            .email()
+            .max(320)
+            .regex(/^[^A-Z]+$(?![\s\S])/u),
+    }),
 );
-/** An identifier a principal proves control of, such as `email:bob@acme.com`, written `scheme:value`. */
-export type VerifiedIdentifier = schema.Infer<typeof verifiedIdentifier>;
+/** A way to reach someone outside Destack that they prove control of. */
+export type Contact = schema.Infer<typeof contactSchema>;
 
-/** An identifier a principal proves control of, such as `email:bob@acme.com`, written `scheme:value`. */
-export const VerifiedIdentifier = Object.assign(verifiedIdentifier, {
-    /** Write an email address as the identifier its verified owner controls. */
-    fromEmail(address: string): VerifiedIdentifier {
-        return verifiedIdentifier.parse(`email:${address.trim().toLowerCase()}`);
+/** A way to reach someone outside Destack that they prove control of, after Matrix's third-party identifiers. */
+export const Contact = Object.assign(contactSchema, {
+    /** Read an email address as the contact its owner proves. */
+    email(address: string): Contact {
+        return contactSchema.parse({ medium: "email", address: address.trim().toLowerCase() });
+    },
+
+    /** Key a contact as its principal's identifier, such as `email:carol@example.com`. */
+    key(contact: Contact): string {
+        return `${contact.medium}:${contact.address}`;
+    },
+
+    /** Reference a contact as the principal relationships and proposals name. */
+    subject(contact: Contact): Subject {
+        return principal.contact.reference(Scope.universe.id, Contact.key(contact));
     },
 });
 
@@ -59,28 +73,28 @@ export interface Caller {
     readonly subjects: readonly Subject[];
     /** How strongly and how recently the caller authenticated. */
     readonly assurance?: AuthenticationAssurance;
-    /** Identifiers, such as `email:bob@acme.com`, the caller proved control of. */
-    readonly identifiers?: readonly VerifiedIdentifier[];
+    /** The contacts, such as an email address, the caller proved control of. */
+    readonly contacts?: readonly Contact[];
     /** The permissions a restricted credential allows, intersected with every grant. */
     readonly permissions?: readonly Restriction[];
 }
 
-/** A verified caller: its schema, and the principals and identifiers it derives. */
+/** A verified caller: its schema, and the principals and contacts it derives. */
 export const Caller = {
     /** The schema of a verified caller. */
     schema: schema.object({
         /** The represented subject, required for delegated calls. */
-        subject: Subject.optional(),
+        subject: Subject.exactOptional(),
         /** The principals acting for the subject in order; the last sends the call. */
-        delegates: schema.array(Delegate).optional(),
+        delegates: schema.array(Delegate).exactOptional(),
         /** The verified principals and subject sets; empty means anonymous. */
         subjects: schema.array(Subject),
         /** How strongly and how recently the caller authenticated. */
-        assurance: AuthenticationAssurance.optional(),
-        /** Identifiers the caller proved control of. */
-        identifiers: schema.array(VerifiedIdentifier).optional(),
+        assurance: AuthenticationAssurance.exactOptional(),
+        /** The contacts the caller proved control of. */
+        contacts: schema.array(Contact).exactOptional(),
         /** The permissions a restricted credential allows. */
-        permissions: schema.array(Restriction.schema).optional(),
+        permissions: schema.array(Restriction.schema).exactOptional(),
     }),
 
     /** Read the principal acting for the caller. */
@@ -137,11 +151,11 @@ export const Caller = {
         });
     },
 
-    /** Read the identifiers the represented subject proved, empty under lent authority. */
-    identifiers(caller: Caller): readonly string[] {
+    /** Read the contacts the represented subject proved, none under lent authority. */
+    contacts(caller: Caller): readonly Contact[] {
         const isLent = caller.delegates?.some((delegate) => delegate.authority === "lent") ?? false;
 
-        return isLent ? [] : (caller.identifiers ?? []);
+        return isLent ? [] : (caller.contacts ?? []);
     },
 };
 
@@ -163,17 +177,16 @@ export interface AccessContext extends Caller {
 export const AccessContext = {
     /** Read a request attribute for a policy condition and refuse a missing or non-finite one. */
     attribute(context: AccessContext, name: string): Scalar {
-        const value = context.attributes[name];
-        if (
-            !Object.hasOwn(context.attributes, name) ||
-            (typeof value === "number" && !Number.isFinite(value))
-        ) {
+        const value = Object.hasOwn(context.attributes, name)
+            ? context.attributes[name]
+            : undefined;
+        if (value === undefined || (typeof value === "number" && !Number.isFinite(value))) {
             throw new AccessError(
                 "INVALID_CONTEXT",
                 `missing or invalid context attribute: ${name}`,
             );
         }
 
-        return value!;
+        return value;
     },
 };

@@ -139,7 +139,7 @@ export const accessRelationship = defineTable(
     },
 );
 
-/** A relationship row as the relationship table holds it. */
+/** A relationship row as the relationship table stores it. */
 export type RelationshipRow = Select<typeof accessRelationship>;
 
 /** The relationship columns of the table or one of its aliases. */

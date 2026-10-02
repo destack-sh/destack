@@ -9,7 +9,7 @@ import { accessRelationship } from "../relationship/table.ts";
 import { accessRole, accessRolePermission } from "./table.ts";
 import { close } from "./closure.ts";
 
-/** The role every scope's owners hold, granting every permission but reserved ones. */
+/** The role every scope's owners have, granting every permission but reserved ones. */
 const OWNER_ROLE = {
     name: "owner",
     description: "Every permission in this scope except reserved ones",

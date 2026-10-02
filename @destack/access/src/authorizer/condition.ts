@@ -54,18 +54,18 @@ export class GrantCondition {
 
     /** Read a relationship's conditions from its row. */
     constructor(row: RelationshipRow) {
-        // take the times and conditions and read PostgreSQL's text integers as numbers
-        this.createdAt = Number(row.createdAt);
-        this.expiresAt = integerOrNull(row.expiresAt);
+        // take the times and conditions
+        this.createdAt = row.createdAt;
+        this.expiresAt = row.expiresAt;
         this.requestId = row.requestId;
         this.sessionId = row.sessionId;
         this.capability = row.capability;
-        this.assurance = integerOrNull(row.assurance);
-        this.maxAge = integerOrNull(row.maxAge);
+        this.assurance = row.assurance;
+        this.maxAge = row.maxAge;
         this.onBehalfOf = row.onBehalfOf;
     }
 
-    /** Read why the conditions fail a request for an authority acting for a delegator, absent when they hold. */
+    /** Read why the conditions fail a request for an authority acting for a delegator, absent when they pass. */
     failure(
         context: ConditionContext,
         delegator: Subject | undefined,
@@ -80,11 +80,9 @@ export class GrantCondition {
         }
 
         // require its request, session and capability to match
-        const bound = (value: string | null, held: string | undefined) =>
-            value === null || (held !== undefined && value === held);
-        if (!bound(this.requestId, context.request)) {
+        if (!isBound(this.requestId, context.request)) {
             return "request";
-        } else if (!bound(this.sessionId, context.session)) {
+        } else if (!isBound(this.sessionId, context.session)) {
             return "session";
         } else if (
             this.capability !== null &&
@@ -117,46 +115,44 @@ export class GrantCondition {
         return isLent ? undefined : "delegation";
     }
 
-    /** Read the next moment time alone changes whether the conditions hold, absent when it never does. */
+    /** Read the next moment time alone changes whether the conditions pass, absent when it never does. */
     boundary(context: ConditionContext): number | undefined {
         return GrantCondition.boundary(this, context);
     }
 
-    /** Read the next moment a relationship's times start or stop holding. */
+    /** Read the next moment a relationship's times start or stop applying. */
     static boundary(
         times: {
-            readonly createdAt: number | string;
-            readonly expiresAt: number | string | null;
-            readonly maxAge: number | string | null;
+            readonly createdAt: number;
+            readonly expiresAt: number | null;
+            readonly maxAge: number | null;
         },
         context: ConditionContext,
     ): number | undefined {
         // take the upcoming start, expiry and authentication age limit
         const now = context.now;
         const authenticatedAt = context.assurance?.authenticatedAt;
-        const maxAge = integerOrNull(times.maxAge);
+        const maxAge = times.maxAge;
         const moments = [
-            Number(times.createdAt),
-            integerOrNull(times.expiresAt),
+            times.createdAt,
+            times.expiresAt,
             maxAge === null || authenticatedAt === undefined ? null : authenticatedAt + maxAge,
         ].filter((moment): moment is number => moment !== null && moment > now);
 
         return moments.length === 0 ? undefined : Math.min(...moments);
     }
 
-    /** Require a relationship's conditions to hold for a request, as `failure` decides in memory. */
+    /** Require a relationship's conditions to pass for a request, as `failure` decides in memory. */
     static where(relationship: RelationshipColumnMap, values: ConditionValues): SQL {
-        // type each nullable value for engines that type parameters
-        const now = sql`CAST(${values.now} AS BIGINT)`;
-        const text = (value: SQLWrapper) => sql`CAST(${value} AS TEXT)`;
-        const integer = (value: SQLWrapper) => sql`CAST(${value} AS BIGINT)`;
+        // type the request time for engines that type parameters
+        const now = castInteger(values.now);
 
         // require the relationship to have started and not expired, and its request, session and capability to match
         const conditions = [
             sql`${relationship.createdAt} <= ${now}`,
             sql`(${relationship.expiresAt} IS NULL OR ${relationship.expiresAt} > ${now})`,
-            sql`(${relationship.requestId} IS NULL OR ${relationship.requestId} = ${text(values.request)})`,
-            sql`(${relationship.sessionId} IS NULL OR ${relationship.sessionId} = ${text(values.session)})`,
+            sql`(${relationship.requestId} IS NULL OR ${relationship.requestId} = ${castText(values.request)})`,
+            sql`(${relationship.sessionId} IS NULL OR ${relationship.sessionId} = ${castText(values.session)})`,
             sql`(${relationship.capability} IS NULL OR EXISTS (
                 SELECT 1 FROM ${jsonElements(values.capabilities, "capability")}
                 WHERE capability.value ->> 0 = ${relationship.capability}
@@ -165,18 +161,18 @@ export class GrantCondition {
 
         // require the authentication it asks for
         conditions.push(
-            sql`(${relationship.assurance} IS NULL OR ${relationship.assurance} <= ${integer(values.level)})`,
-            sql`(${relationship.maxAge} IS NULL OR ${relationship.maxAge} >= ${now} - ${integer(values.authenticatedAt)})`,
+            sql`(${relationship.assurance} IS NULL OR ${relationship.assurance} <= ${castInteger(values.level)})`,
+            sql`(${relationship.maxAge} IS NULL OR ${relationship.maxAge} >= ${now} - ${castInteger(values.authenticatedAt)})`,
         );
 
         // admit delegations only for a delegate acting for their principal, and besides them only grants to anyone
         conditions.push(
             sql`(
-                ${relationship.onBehalfOf} = ${text(values.delegator)}
+                ${relationship.onBehalfOf} = ${castText(values.delegator)}
                 OR (
                     ${relationship.onBehalfOf} IS NULL
                     AND (
-                        ${text(values.delegator)} IS NULL
+                        ${castText(values.delegator)} IS NULL
                         OR (
                             ${relationship.subjectPackageId} = ${ACCESS_PACKAGE_ID}
                             AND ${relationship.subjectType} = ${anyone.name}
@@ -209,13 +205,11 @@ export class GrantCondition {
     static values(context: ConditionContext, delegator?: Subject): ConditionValues {
         const bindings = GrantCondition.bindings(context, delegator);
 
-        return Object.fromEntries(
-            Object.entries(bindings).map(([name, bound]) => [name, sql`${bound}`]),
-        ) as unknown as ConditionValues;
+        return GrantCondition.parameters((name) => sql`${bindings[name]}`);
     }
 
     /** List a request's facts as the values `bindings` supplies to a prepared statement on each run. */
-    static parameters(value: (name: string) => SQLWrapper): ConditionValues {
+    static parameters(value: (name: keyof ConditionValues) => SQLWrapper): ConditionValues {
         return {
             now: value("now"),
             request: value("request"),
@@ -228,7 +222,17 @@ export class GrantCondition {
     }
 }
 
-/** Read an integer a driver returns as a number or, for PostgreSQL's big integers, as text. */
-function integerOrNull(value: number | string | null): number | null {
-    return value === null ? null : Number(value);
+/** Determine whether a request matches a relationship's binding, which a null binding always does. */
+function isBound(value: string | null, actual: string | undefined): boolean {
+    return value === null || (actual !== undefined && value === actual);
+}
+
+/** Type a nullable SQL value as text for engines that type parameters. */
+function castText(value: SQLWrapper): SQL {
+    return sql`CAST(${value} AS TEXT)`;
+}
+
+/** Type a nullable SQL value as a big integer for engines that type parameters. */
+function castInteger(value: SQLWrapper): SQL {
+    return sql`CAST(${value} AS BIGINT)`;
 }

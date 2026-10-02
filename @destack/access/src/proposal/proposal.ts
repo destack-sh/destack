@@ -2,8 +2,8 @@ import { type ObjectReference, Subject } from "@destack/sync";
 import { and, eq, gt, type DatabaseConnection, type Select } from "@destack/db";
 import { defineSchema, identifier, Instant, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
-import { VerifiedIdentifier, AccessContext, Caller } from "../context/context.ts";
-import type { RelationshipRequest } from "../relationship/relationship.ts";
+import { Contact, AccessContext, Caller } from "../context/context.ts";
+import { Relationship, type RelationshipCondition } from "../relationship/relationship.ts";
 import { accessProposal, ProposedRelationship } from "./table.ts";
 
 /** How long a proposal stays acceptable unless it sets its own lapse, in milliseconds. */
@@ -19,12 +19,10 @@ const proposalSchema = defineSchema(
         id: schema.string().min(1),
         /** The relationship accepting the proposal creates. */
         relationship: ProposedRelationship,
-        /** The identifier of the owner who may accept in place of a known subject, such as `email:bob@acme.com`. */
-        recipient: VerifiedIdentifier.optional(),
         /** The principal proposing the relationship. */
         proposer: Subject,
         /** Why the proposer asks for or offers the relationship. */
-        purpose: schema.string().min(1).optional(),
+        purpose: schema.string().min(1).exactOptional(),
         /** The creation time in Unix milliseconds. */
         createdAt: Instant,
         /** The exclusive time the proposal lapses, in Unix milliseconds. */
@@ -34,14 +32,19 @@ const proposalSchema = defineSchema(
 /** A relationship that its subject requests or a grantor offers, applied after acceptance. */
 export type Proposal = schema.Infer<typeof proposalSchema>;
 
-/** A proposed relationship, with exactly one of a subject or a recipient. */
+/** A proposed relationship, its subject the proposer asking for itself, or the principal or contact offered it. */
 export interface ProposalRequest {
     /** The relationship to propose, with the proposer or the offered principal as subject. */
-    readonly relationship: Omit<RelationshipRequest, "subject"> & {
-        readonly subject?: Subject;
-    };
-    /** The identifier of the owner who may accept an offer, such as `email:bob@acme.com`. */
-    readonly recipient?: string;
+    readonly relationship: {
+        /** The related object. */
+        readonly object: ObjectReference;
+        /** The proposed subject: the proposer, or the principal or contact offered the relationship. */
+        readonly subject: Subject;
+        /** Optional expiry in UTC epoch milliseconds. */
+        readonly expiresAt?: number;
+        /** What a request must satisfy for the relationship to apply. */
+        readonly conditions?: RelationshipCondition;
+    } & ({ readonly relation: string } | { readonly role: string });
     /** Why the proposer asks for or offers the relationship. */
     readonly purpose?: string;
     /** When the proposal lapses in UTC epoch milliseconds, a week from now by default. */
@@ -118,20 +121,16 @@ async function read(
     return decode(row);
 }
 
-/** Determine whether a principal asked for a relationship with itself. */
+/** Determine whether a principal asked for a relationship with itself, which a grantor accepts. */
 function asksForItself(proposal: Proposal): boolean {
-    const subject = proposal.relationship.subject;
-
-    return subject !== undefined && Subject.same(subject, proposal.proposer);
+    return Subject.same(proposal.relationship.subject, proposal.proposer);
 }
 
-/** Determine whether an offer addresses a principal directly or through a verified identifier. */
+/** Determine whether an offer names a principal, directly or through a contact it proved. */
 function addresses(proposal: Proposal, principal: Subject, context: AccessContext): boolean {
-    const subject = proposal.relationship.subject;
-
-    return subject === undefined
-        ? Caller.identifiers(context).includes(proposal.recipient!)
-        : Subject.same(subject, principal);
+    return [principal, ...Caller.contacts(context).map((contact) => Contact.subject(contact))].some(
+        (subject) => Subject.same(subject, proposal.relationship.subject),
+    );
 }
 
 /** Write a proposal as its row, keyed for listing by proposer, addressee and lender. */
@@ -147,25 +146,22 @@ function encode(proposal: Proposal, scope: string) {
         packageId: proposed.object.packageId,
         type: proposed.object.type,
         objectId: proposed.object.id,
-        relation: proposed.relation ?? null,
-        roleId: proposed.role === undefined ? null : identifier("role").parse(proposed.role),
+        ...Relationship.viaColumns(proposed),
         relationship: proposed,
         proposer: proposal.proposer,
         proposerKey: Subject.key(proposal.proposer),
-        addressee:
-            proposed.subject === undefined ? proposal.recipient! : Subject.key(proposed.subject),
+        addressee: Subject.key(proposed.subject),
         lender: lender === undefined ? null : Subject.key(lender),
         purpose: proposal.purpose ?? null,
         expiresAt: proposal.expiresAt,
     };
 }
 
-/** Read a proposal from its row, deriving the recipient of an offer to whoever proves it. */
+/** Read a proposal from its row. */
 function decode(row: Select<typeof accessProposal>): Proposal {
     return {
         id: row.id,
         relationship: row.relationship,
-        ...(row.relationship.subject === undefined ? { recipient: row.addressee } : {}),
         proposer: row.proposer,
         ...(row.purpose === null ? {} : { purpose: row.purpose }),
         createdAt: row.createdAt,
